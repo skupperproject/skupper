@@ -33,7 +33,6 @@ func requiredArg(name string) func(*cobra.Command, []string) error {
 
 func main() {
 	routev1.AddToScheme(scheme.Scheme)
-	routev1.AddToSchemeInCoreGroup(scheme.Scheme)
 
 	var kubeContext string
 	var namespace string
@@ -70,6 +69,19 @@ func main() {
 			cli.VanRouterRemove(context.Background())
 		},
 	}
+
+	var clientIdentity string
+	var cmdConnectionToken = &cobra.Command{
+		Use:   "connection-token <output-file>",
+		Short: "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
+		Args:  requiredArg("output-file"),
+		Run: func(cmd *cobra.Command, args []string) {
+			cli, _ := client.NewClient(namespace, kubeContext)
+			cli.VanConnectorTokenCreate(context.Background(), clientIdentity, args[0])
+			//generateConnectSecret(clientIdentity, args[0], initKubeConfig(namespace, context))
+		},
+	}
+	cmdConnectionToken.Flags().StringVarP(&clientIdentity, "client-identity", "i", types.DefaultVanName, "Provide a specific identity as which connecting skupper installation will be authenticated")
 
 	var vanConnectorCreateOpts types.VanConnectorCreateOptions
 	var cmdConnect = &cobra.Command{
@@ -126,41 +138,48 @@ func main() {
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext)
-			var vcs []*types.VanConnectorInspectResponse
-			for i := 0; len(vcs) == 0 && i < waitFor; i++ {
-				if args[0] == "all" {
-					connectors, err := cli.VanConnectorList(context.Background())
-					if err == nil {
-						for _, c := range connectors {
-							vci, err := cli.VanConnectorInspect(context.Background(), c.Name)
-							if err == nil {
-								if vci.Connected {
-									vcs = append(vcs, vci)
-								}
-							}
-						}
+			var connectors []*types.VanConnectorInspectResponse
+			connected := make(map[string]bool)
+			if args[0] == "all" {
+				vcis, err := cli.VanConnectorList(context.Background())
+				if err == nil {
+					for _, vci := range vcis {
+						connectors = append(connectors, &types.VanConnectorInspectResponse{
+							Connector: vci,
+							Connected: false,
+						})
 					}
-				} else {
-					vci, err := cli.VanConnectorInspect(context.Background(), args[0])
-					if err == nil {
-						if vci.Connected {
-							vcs = append(vcs, vci)
-						}
+				}
+			} else {
+				vci, err := cli.VanConnectorInspect(context.Background(), args[0])
+				if err == nil {
+					connectors = append(connectors, vci)
+					if vci.Connected {
+						connected[args[0]] = true
+					}
+				}
+			}
+
+			for i := 0; len(connected) != len(connectors) && i < waitFor; i++ {
+				for _, c := range connectors {
+					vci, err := cli.VanConnectorInspect(context.Background(), c.Connector.Name)
+					if err == nil && vci.Connected {
+						connected[c.Connector.Name] = true
 					}
 				}
 				time.Sleep(time.Second)
 			}
 
-			if len(vcs) == 0 {
-				fmt.Printf("Could not find connector %s", args[0])
-				fmt.Println()
+			if len(connectors) == 0 {
+				fmt.Println("There are no connectors configured or active")
 			} else {
-				for _, v := range vcs {
-					if !v.Connected {
-						fmt.Printf("Connection for %s not active", v.Connector.Name)
+				for _, c := range connectors {
+					_, ok := connected[c.Connector.Name]
+					if ok {
+						fmt.Printf("Connection for %s is active", c.Connector.Name)
 						fmt.Println()
 					} else {
-						fmt.Printf("Connection for %s is active", v.Connector.Name)
+						fmt.Printf("Connection for %s not active", c.Connector.Name)
 						fmt.Println()
 					}
 				}
@@ -223,7 +242,7 @@ func main() {
 	var rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
 	//	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdListConnectors, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdVersion)
-	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnect, cmdCheckConnection, cmdListConnectors, cmdDisconnect, cmdStatus, cmdVersion)
+	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdCheckConnection, cmdListConnectors, cmdDisconnect, cmdStatus, cmdVersion)
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "kubernetes namespace to use")
 	rootCmd.Execute()

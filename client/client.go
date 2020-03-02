@@ -35,7 +35,7 @@ func NewClient(namespace string, context string) (*VanClient, error) {
 	}
 	restconfig.ContentConfig.GroupVersion = &schema.GroupVersion{Version: "v1"}
 	restconfig.APIPath = "/api"
-	restconfig.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	restconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
 	c.RestConfig = restconfig
 	c.KubeClient, err = kubernetes.NewForConfig(restconfig)
 	if err != nil {
