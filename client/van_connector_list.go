@@ -9,8 +9,8 @@ import (
 	"github.com/ajssmith/skupper/pkg/qdr"
 )
 
-func (cli *VanClient) VanConnectorList(ctx context.Context) ([]types.Connector, error) {
-	var connectors []types.Connector
+func (cli *VanClient) VanConnectorList(ctx context.Context) ([]*types.Connector, error) {
+	var connectors []*types.Connector
 	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.QdrDeploymentName, metav1.GetOptions{})
 	if err == nil {
 		mode := qdr.GetQdrMode(current)
@@ -29,7 +29,7 @@ func (cli *VanClient) VanConnectorList(ctx context.Context) ([]types.Connector, 
 				portKey = "inter-router-port"
 			}
 			for _, s := range secrets.Items {
-				connectors = append(connectors, types.Connector{
+				connectors = append(connectors, &types.Connector{
 					Name: s.ObjectMeta.Name,
 					Host: s.ObjectMeta.Annotations[hostKey],
 					Port: s.ObjectMeta.Annotations[portKey],

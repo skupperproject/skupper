@@ -30,10 +30,12 @@ func (cli *VanClient) VanConnectorInspect(ctx context.Context, name string) (*ty
 				hostKey = "inter-router-host"
 				portKey = "inter-router-port"
 			}
-			vci.Connector.Name = secret.ObjectMeta.Name
-			vci.Connector.Host = secret.ObjectMeta.Annotations[hostKey]
-			vci.Connector.Port = secret.ObjectMeta.Annotations[portKey]
-			vci.Connector.Role = string(role)
+			vci.Connector = &types.Connector{
+				Name: secret.ObjectMeta.Name,
+				Host: secret.ObjectMeta.Annotations[hostKey],
+				Port: secret.ObjectMeta.Annotations[portKey],
+				Role: string(role),
+			}
 
 			connections, err := qdr.GetConnections(cli.Namespace, cli.KubeClient, cli.RestConfig)
 			if err == nil {

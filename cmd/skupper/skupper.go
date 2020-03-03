@@ -139,7 +139,8 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext)
 			var connectors []*types.VanConnectorInspectResponse
-			connected := make(map[string]bool)
+			connected := 0
+
 			if args[0] == "all" {
 				vcis, err := cli.VanConnectorList(context.Background())
 				if err == nil {
@@ -155,16 +156,17 @@ func main() {
 				if err == nil {
 					connectors = append(connectors, vci)
 					if vci.Connected {
-						connected[args[0]] = true
+						connected++
 					}
 				}
 			}
 
-			for i := 0; len(connected) != len(connectors) && i < waitFor; i++ {
+			for i := 0; connected < len(connectors) && i < waitFor; i++ {
 				for _, c := range connectors {
 					vci, err := cli.VanConnectorInspect(context.Background(), c.Connector.Name)
-					if err == nil && vci.Connected {
-						connected[c.Connector.Name] = true
+					if err == nil && vci.Connected && c.Connected == false {
+						c.Connected = true
+						connected++
 					}
 				}
 				time.Sleep(time.Second)
@@ -174,8 +176,7 @@ func main() {
 				fmt.Println("There are no connectors configured or active")
 			} else {
 				for _, c := range connectors {
-					_, ok := connected[c.Connector.Name]
-					if ok {
+					if c.Connected {
 						fmt.Printf("Connection for %s is active", c.Connector.Name)
 						fmt.Println()
 					} else {

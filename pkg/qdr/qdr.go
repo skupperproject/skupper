@@ -69,6 +69,5 @@ func ListRouterConnectors(mode types.QdrMode, namespace string, cli *kubernetes.
 	} else {
 		fmt.Println("Could not retrieve connection-token secrets: ", err.Error())
 	}
-	fmt.Println("Connectors: ", connectors)
 	return connectors
 }

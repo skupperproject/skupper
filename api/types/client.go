@@ -25,6 +25,6 @@ type VanRouterInspectResponse struct {
 }
 
 type VanConnectorInspectResponse struct {
-	Connector Connector
+	Connector *Connector
 	Connected bool
 }
