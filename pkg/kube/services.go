@@ -17,7 +17,7 @@ func getLabels(component string) map[string]string {
 	if component == "router" {
 		//the automeshing function of the router image expects the application
 		//to be used as a unique label for identifying routers to connect to
-		application = "skupper-router"
+		application = types.TransportDeploymentName
 	}
 	return map[string]string{
 		"application":          application,

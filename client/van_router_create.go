@@ -17,7 +17,7 @@ import (
 	"github.com/ajssmith/skupper/pkg/utils/configs"
 )
 
-func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRouterSpec, qdr *appsv1.Deployment) {
+func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRouterSpec, transport *appsv1.Deployment) {
 	if os.Getenv("SKUPPER_CONTROLLER_IMAGE") != "" {
 		van.Controller.Image = os.Getenv("SKUPPER_CONTROLLER_IMAGE")
 	} else {
@@ -40,8 +40,8 @@ func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRo
 	envVars := []corev1.EnvVar{}
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_PROXY_IMAGE", Value: proxyImage})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SERVICE_ACCOUNT", Value: "skupper"})
-	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: qdr.ObjectMeta.Name})
-	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(qdr.ObjectMeta.UID)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
+	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(transport.ObjectMeta.UID)})
 
 	volumes := &[]corev1.Volume{}
 	mounts := &[]corev1.VolumeMount{}
@@ -87,19 +87,19 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 
 	van.Namespace = client.Namespace
 	van.AuthMode = types.ConsoleAuthMode(options.AuthMode)
-	van.Qdr.LivenessPort = types.QdrLivenessPort
+	van.Transport.LivenessPort = types.TransportLivenessPort
 
 	if os.Getenv("QDROUTERD_MAGE") != "" {
-		van.Qdr.Image = os.Getenv("QDROUTERD_IMAGE")
+		van.Transport.Image = os.Getenv("QDROUTERD_IMAGE")
 	} else {
-		van.Qdr.Image = types.DefaultQdrImage
+		van.Transport.Image = types.DefaultTransportImage
 	}
-	van.Qdr.Replicas = 1
-	van.Qdr.Labels = map[string]string{
-		"application":          types.QdrDeploymentName,
-		"skupper.io/component": types.QdrComponentName,
+	van.Transport.Replicas = 1
+	van.Transport.Labels = map[string]string{
+		"application":          types.TransportDeploymentName,
+		"skupper.io/component": types.TransportComponentName,
 	}
-	van.Qdr.Annotations = types.QdrPrometheusAnnotations
+	van.Transport.Annotations = types.TransportPrometheusAnnotations
 
 	listeners := []types.Listener{}
 	interRouterListeners := []types.Listener{}
@@ -168,9 +168,9 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	// TODO: remove redundancy, needed for now for config template
 	van.Assembly.Name = van.Name
 	if options.IsEdge {
-		van.Assembly.Mode = string(types.QdrModeEdge)
+		van.Assembly.Mode = string(types.TransportModeEdge)
 	} else {
-		van.Assembly.Mode = string(types.QdrModeInterior)
+		van.Assembly.Mode = string(types.TransportModeInterior)
 	}
 	van.Assembly.Listeners = listeners
 	van.Assembly.InterRouterListeners = interRouterListeners
@@ -179,7 +179,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 
 	envVars := []corev1.EnvVar{}
 	if !options.IsEdge {
-		envVars = append(envVars, corev1.EnvVar{Name: "APPLICATION_NAME", Value: types.QdrDeploymentName})
+		envVars = append(envVars, corev1.EnvVar{Name: "APPLICATION_NAME", Value: types.TransportDeploymentName})
 		envVars = append(envVars, corev1.EnvVar{Name: "POD_NAMESPACE", ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
 				FieldPath: "metadata.namespace",
@@ -199,7 +199,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_PATH", Value: "/tmp/qdrouterd.sasldb"})
 	}
 	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: configs.QdrouterdConfig(&van.Assembly)})
-	van.Qdr.EnvVar = envVars
+	van.Transport.EnvVar = envVars
 
 	ports := []corev1.ContainerPort{}
 	ports = append(ports, corev1.ContainerPort{
@@ -219,7 +219,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	}
 	ports = append(ports, corev1.ContainerPort{
 		Name:          "http",
-		ContainerPort: types.QdrLivenessPort,
+		ContainerPort: types.TransportLivenessPort,
 	})
 	if !options.IsEdge {
 		ports = append(ports, corev1.ContainerPort{
@@ -231,7 +231,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 			ContainerPort: types.EdgeListenerPort,
 		})
 	}
-	van.Qdr.Ports = ports
+	van.Transport.Ports = ports
 
 	volumes := &[]corev1.Volume{}
 	mounts := &[]corev1.VolumeMount{}
@@ -245,22 +245,22 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 		kube.AppendSecretVolume(volumes, mounts, "skupper-console-users", "/etc/qpid-dispatch/sasl-users/")
 		kube.AppendConfigVolume(volumes, mounts, "skupper-sasl-config", "/etc/sasl2/")
 	}
-	van.Qdr.Volumes = *volumes
-	van.Qdr.VolumeMounts = *mounts
+	van.Transport.Volumes = *volumes
+	van.Transport.VolumeMounts = *mounts
 
 	roles := []types.Role{}
 	roles = append(roles, types.Role{
-		Name:  types.QdrViewRoleName,
-		Rules: types.QdrViewPolicyRule,
+		Name:  types.TransportViewRoleName,
+		Rules: types.TransportViewPolicyRule,
 	})
-	van.Qdr.Roles = roles
+	van.Transport.Roles = roles
 
 	roleBindings := []types.RoleBinding{}
 	roleBindings = append(roleBindings, types.RoleBinding{
-		ServiceAccount: types.QdrServiceAccountName,
-		Role:           types.QdrViewRoleName,
+		ServiceAccount: types.TransportServiceAccountName,
+		Role:           types.TransportViewRoleName,
 	})
-	van.Qdr.RoleBindings = roleBindings
+	van.Transport.RoleBindings = roleBindings
 
 	serviceAccounts := []types.ServiceAccount{}
 	annotation := map[string]string{}
@@ -270,10 +270,10 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 		}
 	}
 	serviceAccounts = append(serviceAccounts, types.ServiceAccount{
-		ServiceAccount: types.QdrServiceAccountName,
+		ServiceAccount: types.TransportServiceAccountName,
 		Annotations:    annotation,
 	})
-	van.Qdr.ServiceAccounts = serviceAccounts
+	van.Transport.ServiceAccounts = serviceAccounts
 
 	cas := []types.CertAuthority{}
 	cas = append(cas, types.CertAuthority{
@@ -394,7 +394,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 			Termination: routev1.TLSTerminationEdge,
 		})
 	}
-	van.Qdr.Services = svcs
+	van.Transport.Services = svcs
 
 	routes := []types.Route{}
 	routes = append(routes, types.Route{
@@ -439,16 +439,16 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 
 	van := GetVanRouterSpecFromOpts(options, cli, lbip)
 
-	dep := kube.NewQdrDeployment(van, cli.KubeClient)
+	dep := kube.NewTransportDeployment(van, cli.KubeClient)
 	ownerRef := kube.GetOwnerReference(dep)
 
-	for _, sa := range van.Qdr.ServiceAccounts {
+	for _, sa := range van.Transport.ServiceAccounts {
 		kube.NewServiceAccountWithOwner(sa, ownerRef, van.Namespace, cli.KubeClient)
 	}
-	for _, role := range van.Qdr.Roles {
+	for _, role := range van.Transport.Roles {
 		kube.NewRoleWithOwner(role, ownerRef, van.Namespace, cli.KubeClient)
 	}
-	for _, roleBinding := range van.Qdr.RoleBindings {
+	for _, roleBinding := range van.Transport.RoleBindings {
 		kube.NewRoleBindingWithOwner(roleBinding, ownerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, ca := range van.CertAuthoritys {
@@ -459,7 +459,7 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 			kube.NewSecretWithOwner(cred, ownerRef, van.Namespace, cli.KubeClient)
 		}
 	}
-	for _, svc := range van.Qdr.Services {
+	for _, svc := range van.Transport.Services {
 		kube.NewServiceWithOwner(svc, ownerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, rte := range van.Assembly.Routes {

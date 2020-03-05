@@ -1,0 +1,217 @@
+package kube
+
+import (
+	jsonencoding "encoding/json"
+	"fmt"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/ajssmith/skupper/api/types"
+)
+
+func UpdateConfigMapForHeadlessServiceInterface(serviceName string, headless types.Headless, port int, options types.VanServiceInterfaceCreateOptions, owner *metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) error {
+	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
+	if err == nil {
+		//is the service already defined?
+		jsonDef := current.Data[serviceName]
+		if jsonDef == "" {
+			serviceInterface := types.ServiceInterface{
+				Address:  serviceName,
+				Protocol: options.Protocol,
+				Port:     port,
+				Headless: &headless,
+			}
+			encoded, err := jsonencoding.Marshal(serviceInterface)
+			if err != nil {
+				return fmt.Errorf("Failed to create json for service definition: %s", err)
+			} else {
+				current.Data[serviceName] = string(encoded)
+			}
+		} else {
+			service := types.ServiceInterface{}
+			err = jsonencoding.Unmarshal([]byte(jsonDef), &service)
+			if err != nil {
+				return fmt.Errorf("Failed to read json for service definition %s: %s", serviceName, err)
+			} else {
+				if len(service.Targets) > 0 {
+					return fmt.Errorf("Non-headless service definition already exists for %s; unexpose first", serviceName)
+				}
+				service.Address = serviceName
+				service.Protocol = options.Protocol
+				service.Port = port
+				service.Headless = &headless
+
+				encoded, err := jsonencoding.Marshal(service)
+				if err != nil {
+					return fmt.Errorf("Failed to create json for service definition: %s", err)
+				} else {
+					current.Data[serviceName] = string(encoded)
+				}
+			}
+		}
+		_, err = cli.CoreV1().ConfigMaps(namespace).Update(current)
+		if err != nil {
+			return fmt.Errorf("Failed to update skupper-services config map: ", err.Error())
+		}
+	} else if errors.IsNotFound(err) {
+		serviceDef := types.ServiceInterface{
+			Address:  serviceName,
+			Protocol: options.Protocol,
+			Port:     port,
+			Headless: &headless,
+		}
+		jsonDef, err := jsonencoding.Marshal(serviceDef)
+		//need to create the configmap
+		configMap := corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "skupper-services",
+			},
+			Data: map[string]string{
+				serviceName: string(jsonDef),
+			},
+		}
+
+		if owner != nil {
+			configMap.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
+
+		_, err = cli.CoreV1().ConfigMaps(namespace).Create(&configMap)
+		if err != nil {
+			return fmt.Errorf("Failed to create skupper-services config map: ", err.Error())
+		}
+	} else {
+		return fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services'", err)
+	}
+	return nil
+}
+
+func UpdateConfigMapForServiceInterface(serviceName string, targetName string, selector string, port int, options types.VanServiceInterfaceCreateOptions, owner *metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) error {
+	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
+	if err == nil {
+		//is the service already defined?
+		serviceTarget := types.ServiceInterfaceTarget{
+			Selector: selector,
+		}
+		if targetName != "" {
+			serviceTarget.Name = targetName
+		}
+		if options.TargetPort != 0 {
+			serviceTarget.TargetPort = options.TargetPort
+		}
+		if current.Data == nil {
+			current.Data = make(map[string]string)
+		}
+		jsonDef := current.Data[serviceName]
+		if jsonDef == "" {
+			// "entry" seems a bit vague to me here
+			serviceInterface := types.ServiceInterface{
+				Address:  serviceName,
+				Protocol: options.Protocol,
+				Port:     port,
+				Targets: []types.ServiceInterfaceTarget{
+					serviceTarget,
+				},
+			}
+			encoded, err := jsonencoding.Marshal(serviceInterface)
+			if err != nil {
+				return fmt.Errorf("Failed to create json for service definition: %s", err)
+			} else {
+				current.Data[serviceName] = string(encoded)
+			}
+		} else {
+			service := types.ServiceInterface{}
+			err = jsonencoding.Unmarshal([]byte(jsonDef), &service)
+			if err != nil {
+				return fmt.Errorf("Failed to read json for service definition %s: %s", serviceName, err)
+			} else if service.Headless != nil {
+				return fmt.Errorf("Service %s already defined as headless. To allow target use skupper unexpose.", serviceName)
+			} else {
+				if options.TargetPort != 0 {
+					serviceTarget.TargetPort = options.TargetPort
+				} else if port != service.Port {
+					serviceTarget.TargetPort = port
+				}
+				modified := false
+				targets := []types.ServiceInterfaceTarget{}
+				for _, t := range service.Targets {
+					if t.Name == serviceTarget.Name {
+						modified = true
+						targets = append(targets, serviceTarget)
+					} else {
+						targets = append(targets, t)
+					}
+				}
+				if !modified {
+					targets = append(targets, serviceTarget)
+				}
+				service.Targets = targets
+				encoded, err := jsonencoding.Marshal(service)
+				if err != nil {
+					return fmt.Errorf("Failed to create json for service interface: %s", err)
+				} else {
+					current.Data[serviceName] = string(encoded)
+				}
+			}
+		}
+		_, err = cli.CoreV1().ConfigMaps(namespace).Update(current)
+		if err != nil {
+			return fmt.Errorf("Failed to update skupper-services config map: %s", err)
+		}
+	} else if errors.IsNotFound(err) {
+		serviceTarget := types.ServiceInterfaceTarget{
+			Selector: selector,
+		}
+		if targetName != "" {
+			serviceTarget.Name = targetName
+		}
+		if options.TargetPort != 0 {
+			serviceTarget.TargetPort = options.TargetPort
+		}
+		serviceInterface := types.ServiceInterface{
+			Address:  serviceName,
+			Protocol: options.Protocol,
+			Port:     port,
+			Targets: []types.ServiceInterfaceTarget{
+				serviceTarget,
+			},
+		}
+		jsonDef, err := jsonencoding.Marshal(serviceInterface)
+		//need to create the configmap
+		configMap := corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "skupper-services",
+			},
+			Data: map[string]string{
+				serviceName: string(jsonDef),
+			},
+		}
+
+		if owner != nil {
+			configMap.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
+
+		_, err = cli.CoreV1().ConfigMaps(namespace).Create(&configMap)
+		if err != nil {
+			return fmt.Errorf("Failed to create skupper-services config map: %s", err)
+		}
+	} else {
+		return fmt.Errorf("Could not retrieve service interface definitions from configmap: %s", err)
+	}
+	return nil
+
+}

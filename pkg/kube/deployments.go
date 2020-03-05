@@ -85,11 +85,11 @@ func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerRefe
 	return nil
 }
 
-func NewQdrDeployment(van *types.VanRouterSpec, cli *kubernetes.Clientset) *appsv1.Deployment {
+func NewTransportDeployment(van *types.VanRouterSpec, cli *kubernetes.Clientset) *appsv1.Deployment {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
-	existing, err := deployments.Get(types.QdrDeploymentName, metav1.GetOptions{})
+	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
-		fmt.Println("VAN site qdr already exists")
+		fmt.Println("VAN site transport already exists")
 		return existing
 	} else if errors.IsNotFound(err) {
 		dep := &appsv1.Deployment{
@@ -98,33 +98,33 @@ func NewQdrDeployment(van *types.VanRouterSpec, cli *kubernetes.Clientset) *apps
 				Kind:       "Deployment",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      types.QdrDeploymentName,
+				Name:      types.TransportDeploymentName,
 				Namespace: van.Namespace,
 			},
 			Spec: appsv1.DeploymentSpec{
-				Replicas: &van.Qdr.Replicas,
+				Replicas: &van.Transport.Replicas,
 				Selector: &metav1.LabelSelector{
-					MatchLabels: van.Qdr.Labels,
+					MatchLabels: van.Transport.Labels,
 				},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
-						Labels:      van.Qdr.Labels,
-						Annotations: van.Qdr.Annotations,
+						Labels:      van.Transport.Labels,
+						Annotations: van.Transport.Annotations,
 					},
 					Spec: corev1.PodSpec{
-						ServiceAccountName: types.QdrServiceAccountName,
-						Containers:         []corev1.Container{ContainerForQdr(van.Qdr)},
+						ServiceAccountName: types.TransportServiceAccountName,
+						Containers:         []corev1.Container{ContainerForTransport(van.Transport)},
 					},
 				},
 			},
 		}
 
-		dep.Spec.Template.Spec.Volumes = van.Qdr.Volumes
-		dep.Spec.Template.Spec.Containers[0].VolumeMounts = van.Qdr.VolumeMounts
+		dep.Spec.Template.Spec.Volumes = van.Transport.Volumes
+		dep.Spec.Template.Spec.Containers[0].VolumeMounts = van.Transport.VolumeMounts
 
 		created, err := deployments.Create(dep)
 		if err != nil {
-			fmt.Println("Failed to create qdr deployment: ", err.Error())
+			fmt.Println("Failed to create transport deployment: ", err.Error())
 			return nil
 		} else {
 			return created
@@ -132,7 +132,7 @@ func NewQdrDeployment(van *types.VanRouterSpec, cli *kubernetes.Clientset) *apps
 
 	} else {
 		dep := &appsv1.Deployment{}
-		fmt.Println("Failed to check qdr deployment: ", err.Error())
+		fmt.Println("Failed to check transport deployment: ", err.Error())
 		return dep
 	}
 

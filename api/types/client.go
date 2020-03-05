@@ -18,6 +18,14 @@ type VanRouterCreateOptions struct {
 	Replicas          int32
 }
 
+type VanServiceInterfaceCreateOptions struct {
+	Protocol   string
+	Address    string
+	Port       int
+	TargetPort int
+	Headless   bool
+}
+
 type VanRouterInspectResponse struct {
 	Status            VanRouterStatusSpec
 	QdrVersion        string

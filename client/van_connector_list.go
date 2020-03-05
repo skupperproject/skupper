@@ -11,15 +11,15 @@ import (
 
 func (cli *VanClient) VanConnectorList(ctx context.Context) ([]*types.Connector, error) {
 	var connectors []*types.Connector
-	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.QdrDeploymentName, metav1.GetOptions{})
+	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
-		mode := qdr.GetQdrMode(current)
+		mode := qdr.GetTransportMode(current)
 		secrets, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 		if err == nil {
 			var role types.ConnectorRole
 			var hostKey string
 			var portKey string
-			if mode == types.QdrModeEdge {
+			if mode == types.TransportModeEdge {
 				role = types.ConnectorRoleEdge
 				hostKey = "edge-host"
 				portKey = "edge-port"

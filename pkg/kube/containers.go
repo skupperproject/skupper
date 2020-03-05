@@ -16,10 +16,10 @@ func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 	return container
 }
 
-func ContainerForQdr(ds types.DeploymentSpec) corev1.Container {
+func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
 	container := corev1.Container{
 		Image: ds.Image,
-		Name:  types.QdrContainerName,
+		Name:  types.TransportContainerName,
 		LivenessProbe: &corev1.Probe{
 			InitialDelaySeconds: 60,
 			Handler: corev1.Handler{

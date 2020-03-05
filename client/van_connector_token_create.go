@@ -110,7 +110,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient) bool {
 
 func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject string, secretFile string) error {
 	// verify that the local deployment is interior mode
-	current, err := kube.GetDeployment(types.QdrDeploymentName, cli.Namespace, cli.KubeClient)
+	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 	// TODO: return error message for all the paths
 	if err == nil {
 		if qdr.IsInterior(current) {

@@ -46,8 +46,8 @@ type Connection struct {
 	Dir        string `json:"dir"`
 }
 
-func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) types.QdrConnectedSites {
-	result := types.QdrConnectedSites{}
+func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) types.TransportConnectedSites {
+	result := types.TransportConnectedSites{}
 	for _, n := range nodes {
 		edges, err := GetEdgeSitesForRouter(n.Id, namespace, clientset, config)
 		if err != nil {
@@ -73,8 +73,8 @@ func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace strin
 	return result
 }
 
-func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (types.QdrConnectedSites, error) {
-	result := types.QdrConnectedSites{}
+func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (types.TransportConnectedSites, error) {
+	result := types.TransportConnectedSites{}
 	if edge {
 		uplink, err := getEdgeUplink(namespace, clientset, config)
 		if err == nil {

@@ -13,15 +13,15 @@ import (
 func (cli *VanClient) VanConnectorInspect(ctx context.Context, name string) (*types.VanConnectorInspectResponse, error) {
 	vci := &types.VanConnectorInspectResponse{}
 
-	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.QdrDeploymentName, metav1.GetOptions{})
+	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
-		mode := qdr.GetQdrMode(current)
+		mode := qdr.GetTransportMode(current)
 		secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(name, metav1.GetOptions{})
 		if err == nil {
 			var role types.ConnectorRole
 			var hostKey string
 			var portKey string
-			if mode == types.QdrModeEdge {
+			if mode == types.TransportModeEdge {
 				role = types.ConnectorRoleEdge
 				hostKey = "edge-host"
 				portKey = "edge-port"

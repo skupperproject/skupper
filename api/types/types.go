@@ -32,29 +32,29 @@ type KeyValue struct {
 	Key, Value string
 }
 
-// QdrMode describes how a qdr is intended to be deployed, either interior or edge
-type QdrMode string
+// TransportMode describes how a qdr is intended to be deployed, either interior or edge
+type TransportMode string
 
 const (
-	// QdrModeInterior means the qdr will participate in inter-router protocol exchanges
-	QdrModeInterior QdrMode = "interior"
-	// QdrModeEdge means that the qdr will connect to interior routers for network access
-	QdrModeEdge = "edge"
+	// TransportModeInterior means the qdr will participate in inter-router protocol exchanges
+	TransportModeInterior TransportMode = "interior"
+	// TransportModeEdge means that the qdr will connect to interior routers for network access
+	TransportModeEdge = "edge"
 )
 
-// Qdr constants
+// Transport constants
 const (
-	QdrDeploymentName     string = "skupper-router"
-	QdrComponentName      string = "router"
-	DefaultQdrImage       string = "quay.io/interconnectedcloud/qdrouterd"
-	QdrContainerName      string = "router"
-	QdrLivenessPort       int32  = 9090
-	QdrServiceAccountName string = "skupper"
-	QdrViewRoleName       string = "skupper-view"
-	QdrEnvConfig          string = "QDROUTERD_CONF"
+	TransportDeploymentName     string = "skupper-router"
+	TransportComponentName      string = "router"
+	DefaultTransportImage       string = "quay.io/interconnectedcloud/qdrouterd"
+	TransportContainerName      string = "router"
+	TransportLivenessPort       int32  = 9090
+	TransportServiceAccountName string = "skupper"
+	TransportViewRoleName       string = "skupper-view"
+	TransportEnvConfig          string = "QDROUTERD_CONF"
 )
 
-var QdrViewPolicyRule = []rbacv1.PolicyRule{
+var TransportViewPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{""},
@@ -62,7 +62,7 @@ var QdrViewPolicyRule = []rbacv1.PolicyRule{
 	},
 }
 
-var QdrPrometheusAnnotations = map[string]string{
+var TransportPrometheusAnnotations = map[string]string{
 	"prometheus.io/port":   "9090",
 	"prometheus.io/scrape": "true",
 }
@@ -91,6 +91,11 @@ var ControllerEditPolicyRule = []rbacv1.PolicyRule{
 		Resources: []string{"deployments", "statefulsets"},
 	},
 }
+
+// Service Interface constants
+const (
+	ServiceInterfaceConfigMap string = "skupper-services"
+)
 
 // OpenShift constants
 const (
@@ -135,7 +140,7 @@ type VanRouterSpec struct {
 	Name           string          `json:"name,omitempty"`
 	Namespace      string          `json:"namespace,omitempty"`
 	AuthMode       ConsoleAuthMode `json:"authMode,omitempty"`
-	Qdr            DeploymentSpec  `json:"router,omitempty"`
+	Transport      DeploymentSpec  `json:"transport,omitempty"`
 	Controller     DeploymentSpec  `json:"controller,omitempty"`
 	Assembly       AssemblySpec    `json:"assembly,omitempty"`
 	Users          []User          `json:"users,omitempty"`
@@ -175,10 +180,10 @@ type AssemblySpec struct {
 }
 
 type VanRouterStatusSpec struct {
-	Mode             string            `json:"mode,omitempty"`
-	QdrReadyReplicas int32             `json:"qdrReadyReplicas,omitempty"`
-	ConnectedSites   QdrConnectedSites `json:"connectedSites,omitempty"`
-	BindingsCount    int               `json:"bindingsCount,omitempty"`
+	Mode                   string                  `json:"mode,omitempty"`
+	TransportReadyReplicas int32                   `json:"transportReadyReplicas,omitempty"`
+	ConnectedSites         TransportConnectedSites `json:"connectedSites,omitempty"`
+	BindingsCount          int                     `json:"bindingsCount,omitempty"`
 }
 
 type Listener struct {
@@ -268,9 +273,28 @@ type User struct {
 	Password string
 }
 
-// TODO: rename this
-type QdrConnectedSites struct {
+type TransportConnectedSites struct {
 	Direct   int
 	Indirect int
 	Total    int
+}
+
+type ServiceInterface struct {
+	Address  string                   `json:"address"`
+	Protocol string                   `json:"protocol"`
+	Port     int                      `json:"port"`
+	Headless *Headless                `json:"headless,omitempty"`
+	Targets  []ServiceInterfaceTarget `json:"targets,omitempty"`
+}
+
+type ServiceInterfaceTarget struct {
+	Name       string `json:"name,omitempty"`
+	Selector   string `json:"selector"`
+	TargetPort int    `json:"targetPort,omitempty"`
+}
+
+type Headless struct {
+	Name       string `json:"name"`
+	Size       int    `json:"size"`
+	TargetPort int    `json:"targetPort,omitempty"`
 }

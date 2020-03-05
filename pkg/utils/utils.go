@@ -16,12 +16,16 @@ package utils
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 )
+
+const alphanumerics = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 func RandomId(length int) string {
 	buffer := make([]byte, length)
 	rand.Read(buffer)
-	result := base64.StdEncoding.EncodeToString(buffer)
-	return result[:length]
+	max := len(alphanumerics)
+	for i := range buffer {
+		buffer[i] = alphanumerics[int(buffer[i])%max]
+	}
+	return string(buffer)
 }

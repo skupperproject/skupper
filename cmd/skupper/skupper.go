@@ -31,6 +31,21 @@ func requiredArg(name string) func(*cobra.Command, []string) error {
 	}
 }
 
+func exposeTarget() func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return fmt.Errorf("expose target must be specified (e.g. 'skupper expose deployment <name>'")
+		}
+		if len(args) > 2 {
+			return fmt.Errorf("illegal argument: %s", args[2])
+		}
+		if args[0] != "deployment" && args[0] != "statefulset" && args[0] != "pods" {
+			return fmt.Errorf("expose target type must be one of 'deployment', 'statefulset' or 'pods'")
+		}
+		return nil
+	}
+}
+
 func main() {
 	routev1.AddToScheme(scheme.Scheme)
 
@@ -126,7 +141,7 @@ func main() {
 			} else if errors.IsNotFound(err) {
 				fmt.Println("The VanRouter is not install in '" + cli.Namespace + "`")
 			} else {
-				fmt.Println("Error, unable to retrive VAN connections: ", err.Error())
+				fmt.Println("Error, unable to retrieve VAN connections: ", err.Error())
 			}
 		},
 	}
@@ -198,10 +213,10 @@ func main() {
 			vir, err := cli.VanRouterInspect(context.Background())
 			if err == nil {
 				var modedesc string = " in interior mode"
-				if vir.Status.Mode == types.QdrModeEdge {
+				if vir.Status.Mode == types.TransportModeEdge {
 					modedesc = " in edge mode"
 				}
-				if vir.Status.QdrReadyReplicas == 0 {
+				if vir.Status.TransportReadyReplicas == 0 {
 					fmt.Printf("VanRouter is installed in namespace '%q%s'. Status pending...", cli.Namespace, modedesc)
 				} else {
 					fmt.Printf("VanRouter is enabled for namespace '%q%s'.", cli.Namespace, modedesc)
@@ -218,6 +233,83 @@ func main() {
 				fmt.Println()
 			} else {
 				fmt.Println("Unable to retrieve skupper status: ", err.Error())
+			}
+		},
+	}
+
+	vanServiceInterfaceCreateOpts := types.VanServiceInterfaceCreateOptions{}
+	var cmdExpose = &cobra.Command{
+		Use:   "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>]",
+		Short: "Expose a set of pods through a Skupper address",
+		Args:  exposeTarget(),
+		Run: func(cmd *cobra.Command, args []string) {
+			cli, _ := client.NewClient(namespace, kubeContext)
+			err := cli.VanServiceInterfaceCreate(context.Background(), args[0], args[1], vanServiceInterfaceCreateOpts)
+
+			if err == nil {
+				fmt.Printf("VAN Service Interface Target %s exposed\n", args[1])
+			} else if errors.IsNotFound(err) {
+				fmt.Println("The VAN Router is not installed in '" + cli.Namespace + "`")
+			} else {
+				fmt.Println("Error, unable to create VAN service interface: ", err.Error())
+			}
+		},
+	}
+	cmdExpose.Flags().StringVar(&(vanServiceInterfaceCreateOpts.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
+	cmdExpose.Flags().StringVar(&(vanServiceInterfaceCreateOpts.Address), "address", "", "The Skupper address to expose")
+	cmdExpose.Flags().IntVar(&(vanServiceInterfaceCreateOpts.Port), "port", 0, "The port to expose on")
+	cmdExpose.Flags().IntVar(&(vanServiceInterfaceCreateOpts.TargetPort), "target-port", 0, "The port to target on pods")
+	cmdExpose.Flags().BoolVar(&(vanServiceInterfaceCreateOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
+
+	var unexposeAddress string
+	var cmdUnexpose = &cobra.Command{
+		Use:   "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>]",
+		Short: "Unexpose a set of pods previously exposed through a Skupper address",
+		Args:  exposeTarget(),
+		Run: func(cmd *cobra.Command, args []string) {
+			cli, _ := client.NewClient(namespace, kubeContext)
+			err := cli.VanServiceInterfaceRemove(context.Background(), args[0], args[1], unexposeAddress)
+			if err == nil {
+				fmt.Printf("VAN Service Interface Target %s unexposed\n", args[1])
+			} else {
+				fmt.Println("Error, unable to remove VAN service interface: ", err.Error())
+			}
+		},
+	}
+	cmdUnexpose.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
+
+	var cmdListExposed = &cobra.Command{
+		Use:   "list-exposed",
+		Short: "List services exposed over the Skupper network",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			cli, _ := client.NewClient(namespace, kubeContext)
+			vsis, err := cli.VanServiceInterfaceList(context.Background())
+			if err == nil {
+				if len(vsis) == 0 {
+					fmt.Println("No service interfaces defined")
+				} else {
+					fmt.Println("Services exposed through Skupper:")
+					for _, si := range vsis {
+						if len(si.Targets) == 0 {
+							fmt.Printf("    %s (%s port %d)", si.Address, si.Protocol, si.Port)
+							fmt.Println()
+						} else {
+							fmt.Printf("    %s (%s port %d) with targets", si.Address, si.Protocol, si.Port)
+							fmt.Println()
+							for _, t := range si.Targets {
+								var name string
+								if t.Name != "" {
+									name = fmt.Sprintf("name=%s", t.Name)
+								}
+								fmt.Printf("      => %s %s", t.Selector, name)
+								fmt.Println()
+							}
+						}
+					}
+				}
+			} else {
+				fmt.Println("Could not retrieve service interfaces:", err.Error())
 			}
 		},
 	}
@@ -243,7 +335,7 @@ func main() {
 	var rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
 	//	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdListConnectors, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdVersion)
-	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdCheckConnection, cmdListConnectors, cmdDisconnect, cmdStatus, cmdVersion)
+	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdCheckConnection, cmdListConnectors, cmdDisconnect, cmdStatus, cmdExpose, cmdUnexpose, cmdListExposed, cmdVersion)
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "kubernetes namespace to use")
 	rootCmd.Execute()

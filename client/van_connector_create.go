@@ -32,11 +32,11 @@ func isInterior(qdr *appsv1.Deployment) bool {
 	return match
 }
 
-func getQdrMode(dep *appsv1.Deployment) types.QdrMode {
+func getTransportMode(dep *appsv1.Deployment) types.TransportMode {
 	if qdr.IsInterior(dep) {
-		return types.QdrModeInterior
+		return types.TransportModeInterior
 	} else {
-		return types.QdrModeEdge
+		return types.TransportModeEdge
 	}
 }
 
@@ -76,9 +76,9 @@ func (cli *VanClient) VanConnectorCreate(ctx context.Context, secretFile string,
 		fmt.Println()
 		return err
 	}
-	current, err := kube.GetDeployment(types.QdrDeploymentName, cli.Namespace, cli.KubeClient)
+	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 	if err == nil {
-		mode := qdr.GetQdrMode(current)
+		mode := qdr.GetTransportMode(current)
 		if options.Name == "" {
 			options.Name = generateConnectorName(cli.Namespace, cli.KubeClient)
 		}
@@ -96,7 +96,7 @@ func (cli *VanClient) VanConnectorCreate(ctx context.Context, secretFile string,
 				Name: options.Name,
 				Cost: options.Cost,
 			}
-			if mode == types.QdrModeInterior {
+			if mode == types.TransportModeInterior {
 				connector.Host = secret.ObjectMeta.Annotations["inter-router-host"]
 				connector.Port = secret.ObjectMeta.Annotations["inter-router-port"]
 				connector.Role = string(types.ConnectorRoleInterRouter)

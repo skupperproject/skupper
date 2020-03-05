@@ -15,17 +15,17 @@ import (
 )
 
 func AddConnector(connector *types.Connector, qdrDep *appsv1.Deployment) {
-	config := kube.FindEnvVar(qdrDep.Spec.Template.Spec.Containers[0].Env, types.QdrEnvConfig)
+	config := kube.FindEnvVar(qdrDep.Spec.Template.Spec.Containers[0].Env, types.TransportEnvConfig)
 	if config == nil {
 		fmt.Println("Could not retrieve qdr config")
 	}
 	updated := config.Value + configs.ConnectorConfig(connector)
-	kube.SetEnvVarForDeployment(qdrDep, types.QdrEnvConfig, updated)
+	kube.SetEnvVarForDeployment(qdrDep, types.TransportEnvConfig, updated)
 	kube.AppendSecretVolume(&qdrDep.Spec.Template.Spec.Volumes, &qdrDep.Spec.Template.Spec.Containers[0].VolumeMounts, connector.Name, "/etc/qpid-dispatch-certs/"+connector.Name+"/")
 }
 
 func IsInterior(qdr *appsv1.Deployment) bool {
-	config := kube.FindEnvVar(qdr.Spec.Template.Spec.Containers[0].Env, types.QdrEnvConfig)
+	config := kube.FindEnvVar(qdr.Spec.Template.Spec.Containers[0].Env, types.TransportEnvConfig)
 	//match 'mode: interior' in that config
 	if config == nil {
 		log.Fatal("Could not retrieve qdr config")
@@ -34,22 +34,22 @@ func IsInterior(qdr *appsv1.Deployment) bool {
 	return match
 }
 
-func GetQdrMode(dep *appsv1.Deployment) types.QdrMode {
+func GetTransportMode(dep *appsv1.Deployment) types.TransportMode {
 	if IsInterior(dep) {
-		return types.QdrModeInterior
+		return types.TransportModeInterior
 	} else {
-		return types.QdrModeEdge
+		return types.TransportModeEdge
 	}
 }
 
-func ListRouterConnectors(mode types.QdrMode, namespace string, cli *kubernetes.Clientset) []types.Connector {
+func ListRouterConnectors(mode types.TransportMode, namespace string, cli *kubernetes.Clientset) []types.Connector {
 	var connectors []types.Connector
 	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 	if err == nil {
 		var role types.ConnectorRole
 		var hostKey string
 		var portKey string
-		if mode == types.QdrModeEdge {
+		if mode == types.TransportModeEdge {
 			role = types.ConnectorRoleEdge
 			hostKey = "edge-host"
 			portKey = "edge-port"
