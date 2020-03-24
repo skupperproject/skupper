@@ -66,7 +66,7 @@ func (c *Controller) ensureServiceInterfaceDefinitions(origin string, serviceInt
 
     for _, def := range serviceInterfaceDefs {
         // check if it already exists or exists from different origin
-        /  if !ok || existing.Origin == origin && !equivalentServiceRecord(si, existing)
+        //  if !ok || existing.Origin == origin && !equivalentServiceRecord(si, existing)
         if _, ok := c.byName[def.Address]; !ok {
             changed = append(changed, def)
         } 
