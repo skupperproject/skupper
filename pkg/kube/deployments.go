@@ -1,7 +1,9 @@
 package kube
 
 import (
+	jsonencoding "encoding/json"
 	"fmt"
+	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +23,14 @@ func GetOwnerReference(dep *appsv1.Deployment) metav1.OwnerReference {
 	}
 }
 
+func DeleteDeployment(name string, namespace string, cli *kubernetes.Clientset) error {
+	_, err := cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	if err == nil {
+		err = cli.AppsV1().Deployments(namespace).Delete(name, &metav1.DeleteOptions{})
+	}
+	return err
+}
+
 // todo, pass full client object with namespace and clientset
 func GetDeployment(name string, namespace string, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
 	existing, err := cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
@@ -29,6 +39,223 @@ func GetDeployment(name string, namespace string, cli *kubernetes.Clientset) (*a
 	} else {
 		return existing, err
 	}
+}
+
+func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace string, cli *kubernetes.Clientset) (*appsv1.StatefulSet, error) {
+	// Do stateful sets use a different name >>> config.origion ? config.headless.name
+	proxyName := serviceInterface.Address + "-proxy"
+
+	statefulSets := cli.AppsV1().StatefulSets(namespace)
+	deployments := cli.AppsV1().Deployments(namespace)
+	transportDep, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	serviceInterface.Origin = ""
+
+	encoded, err := jsonencoding.Marshal(serviceInterface)
+	if err != nil {
+		return nil, err
+	}
+
+	ownerRef := GetOwnerReference(transportDep)
+
+	var imageName string
+	if os.Getenv("PROXY_IMAGE") != "" {
+		imageName = os.Getenv("PROXY_IMAGE")
+	} else {
+		imageName = types.DefaultProxyImage
+	}
+
+	// TODO: Fix replicas
+
+	proxyStatefulSet := &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "StatefulSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            proxyName,
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Annotations: map[string]string{
+				types.ServiceQualifier: serviceInterface.Address,
+			},
+			Labels: map[string]string{
+				"internal.skupper.io/type": "proxy",
+			},
+		},
+		Spec: appsv1.StatefulSetSpec{
+			ServiceName: serviceInterface.Address,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"internal.skupper.io/service": serviceInterface.Address,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"internal.skupper.io/service": serviceInterface.Address,
+					},
+				},
+				Spec: corev1.PodSpec{
+					ServiceAccountName: types.TransportServiceAccountName,
+					Containers: []corev1.Container{
+						{
+							Image: imageName,
+							Name:  "proxy",
+							Env: []corev1.EnvVar{
+								{
+									Name:  "SKUPPER_PROXY_CONFIG",
+									Value: string(encoded),
+								},
+								{
+									Name: "NAMESPACE",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "metadata.namespace",
+										},
+									},
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "connect",
+									MountPath: "/etc/messaging/",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "connect",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "skupper",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	created, err := statefulSets.Create(proxyStatefulSet)
+
+	if err != nil {
+		return nil, err
+	} else {
+		return created, nil
+	}
+
+}
+
+func NewProxyDeployment(serviceInterface types.ServiceInterface, namespace string, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
+	proxyName := serviceInterface.Address + "-proxy"
+
+	deployments := cli.AppsV1().Deployments(namespace)
+	transportDep, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	serviceInterface.Origin = ""
+
+	encoded, err := jsonencoding.Marshal(serviceInterface)
+	if err != nil {
+		return nil, err
+	}
+
+	ownerRef := GetOwnerReference(transportDep)
+
+	var imageName string
+	if os.Getenv("PROXY_IMAGE") != "" {
+		imageName = os.Getenv("PROXY_IMAGE")
+	} else {
+		imageName = types.DefaultProxyImage
+	}
+
+	proxyDep := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            proxyName,
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Annotations: map[string]string{
+				types.ServiceQualifier: serviceInterface.Address,
+			},
+			Labels: map[string]string{
+				"internal.skupper.io/type": "proxy",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"internal.skupper.io/service": serviceInterface.Address,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"internal.skupper.io/service": serviceInterface.Address,
+					},
+				},
+				Spec: corev1.PodSpec{
+					ServiceAccountName: types.TransportServiceAccountName,
+					Containers: []corev1.Container{
+						{
+							Image: imageName,
+							Name:  "proxy",
+							Env: []corev1.EnvVar{
+								{
+									Name:  "SKUPPER_PROXY_CONFIG",
+									Value: string(encoded),
+								},
+								{
+									Name: "NAMESPACE",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "metadata.namespace",
+										},
+									},
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "connect",
+									MountPath: "/etc/messaging/",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "connect",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "skupper",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	created, err := deployments.Create(proxyDep)
+
+	if err != nil {
+		return nil, err
+	} else {
+		return created, nil
+	}
+
 }
 
 func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerReference, cli *kubernetes.Clientset) *appsv1.Deployment {

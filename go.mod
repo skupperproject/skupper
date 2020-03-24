@@ -3,7 +3,9 @@ module github.com/ajssmith/skupper
 go 1.13
 
 require (
+	github.com/Azure/go-amqp v0.12.7 // indirect
 	github.com/Azure/go-autorest/autorest v0.10.0 // indirect
+	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/gophercloud/gophercloud v0.8.0 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/openshift/api v0.0.0-20200109182645-c3cf38ec5571

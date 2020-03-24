@@ -18,6 +18,7 @@ import (
 )
 
 func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRouterSpec, transport *appsv1.Deployment) {
+
 	if os.Getenv("SKUPPER_CONTROLLER_IMAGE") != "" {
 		van.Controller.Image = os.Getenv("SKUPPER_CONTROLLER_IMAGE")
 	} else {
@@ -38,6 +39,7 @@ func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRo
 	}
 
 	envVars := []corev1.EnvVar{}
+	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_NAMESPACE", Value: van.Namespace})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_PROXY_IMAGE", Value: proxyImage})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SERVICE_ACCOUNT", Value: "skupper"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
@@ -113,6 +115,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	sslProfiles = append(sslProfiles, types.SslProfile{
 		Name: "skupper-amqps",
 	})
+	//TODO: vcabbage issue with EXTERNAL, requires ANONYMOUS,false
 	listeners = append(listeners, types.Listener{
 		Name:             "amqps",
 		Host:             "0.0.0.0",
@@ -366,6 +369,8 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 				Annotations: map[string]string{},
 				Termination: routev1.TLSTerminationEdge,
 			})
+			// if authmode internl then sasl config map and sasl users
+			// pick it up here!!!!
 		}
 	}
 	if !options.IsEdge {
@@ -465,6 +470,9 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 	for _, rte := range van.Assembly.Routes {
 		kube.NewRouteWithOwner(rte, ownerRef, van.Namespace, cli.RouteClient)
 	}
+
+	// TODO: should this be part of van spec?
+	kube.NewConfigMapWithOwner("skupper-services", ownerRef, van.Namespace, cli.KubeClient)
 
 	if !options.IsEdge {
 		for _, cred := range van.Credentials {

@@ -334,8 +334,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
-	//	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdListConnectors, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdVersion)
-	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdCheckConnection, cmdListConnectors, cmdDisconnect, cmdStatus, cmdExpose, cmdUnexpose, cmdListExposed, cmdVersion)
+	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed, cmdVersion)
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "kubernetes namespace to use")
 	rootCmd.Execute()

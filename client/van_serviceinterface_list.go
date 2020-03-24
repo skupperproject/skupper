@@ -15,12 +15,14 @@ func (cli *VanClient) VanServiceInterfaceList(ctx context.Context) ([]*types.Ser
 	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil {
 		for _, v := range current.Data {
-			si := types.ServiceInterface{}
-			err = jsonencoding.Unmarshal([]byte(v), &si)
-			if err != nil {
-				return vsis, err
-			} else {
-				vsis = append(vsis, &si)
+			if v != "" {
+				si := types.ServiceInterface{}
+				err = jsonencoding.Unmarshal([]byte(v), &si)
+				if err != nil {
+					return vsis, err
+				} else {
+					vsis = append(vsis, &si)
+				}
 			}
 		}
 		return vsis, nil

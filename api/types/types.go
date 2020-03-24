@@ -52,6 +52,7 @@ const (
 	TransportServiceAccountName string = "skupper"
 	TransportViewRoleName       string = "skupper-view"
 	TransportEnvConfig          string = "QDROUTERD_CONF"
+	TransportSaslConfig         string = "skupper-sasl-config"
 )
 
 var TransportViewPolicyRule = []rbacv1.PolicyRule{
@@ -69,8 +70,8 @@ var TransportPrometheusAnnotations = map[string]string{
 
 // Controller constants
 const (
-	ControllerDeploymentName     string = "skupper-proxy-controller"
-	ControllerComponentName      string = "controller"
+	ControllerDeploymentName string = "skupper-proxy-controller"
+	ControllerComponentName  string = "controller"
 	DefaultControllerImage       string = "quay.io/skupper/controller"
 	ControllerContainerName      string = "proxy-controller"
 	DefaultProxyImage            string = "quay.io/skupper/proxy"
@@ -91,6 +92,13 @@ var ControllerEditPolicyRule = []rbacv1.PolicyRule{
 		Resources: []string{"deployments", "statefulsets"},
 	},
 }
+
+// Skupper qualifiers
+const (
+	BaseQualifier     string = "skupper.io"
+	InternalQualifier string = "internal." + BaseQualifier
+	ServiceQualifier  string = InternalQualifier + "/service"
+)
 
 // Service Interface constants
 const (
@@ -135,6 +143,11 @@ const (
 //    ConnectorSecretLabel    KeyValue = KeyValue{Key: "skupper.io/type", Value: "connection-token",}
 )
 
+// Service Sync constants
+const (
+	ServiceSyncAddress = "mc/$skupper-service-sync"
+)
+
 // VanRouterSpec is the specification of VAN network with router, controller and assembly
 type VanRouterSpec struct {
 	Name           string          `json:"name,omitempty"`
@@ -159,6 +172,7 @@ type DeploymentSpec struct {
 	Ports           []corev1.ContainerPort `json:"ports,omitempty"`
 	Volumes         []corev1.Volume        `json:"volumes,omitempty"`
 	VolumeMounts    []corev1.VolumeMount   `json:"volumeMounts,omitempty"`
+	ConfigMaps      []ConfigMap            `json:"configMaps,omitempty"`
 	Roles           []Role                 `json:"roles,omitempty"`
 	RoleBindings    []RoleBinding          `json:"roleBinding,omitempty"`
 	ServiceAccounts []ServiceAccount       `json:"serviceAccounts,omitempty"`
@@ -225,6 +239,12 @@ type Connector struct {
 	LinkCapacity   int32  `json:"linkCapacity,omitempty"`
 }
 
+type ConfigMap struct {
+	Name  string `json:"name,omitempty"`
+	Key   string `json:"name,omitempty"`
+	Value string `json:"name,omitempty"`
+}
+
 type Role struct {
 	Name  string              `json:"name,omitempty"`
 	Rules []rbacv1.PolicyRule `json:"rules,omitempty"`
@@ -285,6 +305,7 @@ type ServiceInterface struct {
 	Port     int                      `json:"port"`
 	Headless *Headless                `json:"headless,omitempty"`
 	Targets  []ServiceInterfaceTarget `json:"targets,omitempty"`
+	Origin   string                   `json:"origin,omitempty"`
 }
 
 type ServiceInterfaceTarget struct {

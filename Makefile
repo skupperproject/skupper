@@ -1,9 +1,19 @@
 VERSION := $(shell git describe --tags --dirty=-modified)
+IMAGE := quay.io/ajssmith/skupper-proxy-controller
 
-all: build
+all: build-cmd build-controller
 
-build:
+build-cmd:
 	go build -ldflags="-X main.version=${VERSION}"  -o skupper cmd/skupper/skupper.go
+
+build-controller:
+	go build -ldflags="-X main.version=${VERSION}"  -o controller cmd/skupper-controller/main.go cmd/skupper-controller/controller.go cmd/skupper-controller/service_sync.go
+
+docker-build:
+	docker build -t ${IMAGE} .
+
+docker-push:
+	docker push ${IMAGE}
 
 clean:
 	rm -rf skupper release
