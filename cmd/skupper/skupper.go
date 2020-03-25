@@ -230,6 +230,13 @@ func main() {
 						fmt.Printf(" It is connected to %d other sites (%d indirectly).", vir.Status.ConnectedSites.Total, vir.Status.ConnectedSites.Indirect)
 					}
 				}
+                                if vir.ExposedServices == 0 {
+                                        fmt.Printf(" It has no exposed services.")
+                                } else if vir.ExposedServices == 1 {
+                                        fmt.Printf(" It has 1 exposed service.")
+                                } else {
+                                        fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
+                                }
 				fmt.Println()
 			} else {
 				fmt.Println("Unable to retrieve skupper status: ", err.Error())
@@ -324,7 +331,7 @@ func main() {
 			vir, err := cli.VanRouterInspect(context.Background())
 			if err == nil {
 				fmt.Printf("skupctl version              %s\n", version)
-				fmt.Printf("qdr version                  %s\n", vir.QdrVersion)
+				fmt.Printf("transport version            %s\n", vir.TransportVersion)
 				fmt.Printf("controller version           %s\n", vir.ControllerVersion)
 			} else {
 				fmt.Println("Unable to retrieve skupper component versions: ", err.Error())
