@@ -1,5 +1,5 @@
 VERSION := $(shell git describe --tags --dirty=-modified)
-IMAGE := quay.io/ajssmith/skupper-proxy-controller
+IMAGE := quay.io/ajssmith/controller
 
 all: build-cmd build-controller
 

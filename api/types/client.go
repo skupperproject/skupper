@@ -30,7 +30,7 @@ type VanRouterInspectResponse struct {
 	Status            VanRouterStatusSpec
 	TransportVersion  string
 	ControllerVersion string
-        ExposedServices   int
+	ExposedServices   int
 }
 
 type VanConnectorInspectResponse struct {

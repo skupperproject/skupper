@@ -32,12 +32,12 @@ func (cli *VanClient) VanRouterInspect(ctx context.Context) (*types.VanRouterIns
 
 		vir.TransportVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.TransportContainerName)
 		vir.ControllerVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.ControllerContainerName)
-                vsis, err := cli.VanServiceInterfaceList(context.Background())
-                if err != nil {
-                  vir.ExposedServices = 0
-                } else {
-                  vir.ExposedServices = len(vsis)
-                }
+		vsis, err := cli.VanServiceInterfaceList(context.Background())
+		if err != nil {
+			vir.ExposedServices = 0
+		} else {
+			vir.ExposedServices = len(vsis)
+		}
 	}
 	return vir, err
 

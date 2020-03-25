@@ -230,13 +230,13 @@ func main() {
 						fmt.Printf(" It is connected to %d other sites (%d indirectly).", vir.Status.ConnectedSites.Total, vir.Status.ConnectedSites.Indirect)
 					}
 				}
-                                if vir.ExposedServices == 0 {
-                                        fmt.Printf(" It has no exposed services.")
-                                } else if vir.ExposedServices == 1 {
-                                        fmt.Printf(" It has 1 exposed service.")
-                                } else {
-                                        fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
-                                }
+				if vir.ExposedServices == 0 {
+					fmt.Printf(" It has no exposed services.")
+				} else if vir.ExposedServices == 1 {
+					fmt.Printf(" It has 1 exposed service.")
+				} else {
+					fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
+				}
 				fmt.Println()
 			} else {
 				fmt.Println("Unable to retrieve skupper status: ", err.Error())

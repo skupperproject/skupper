@@ -15,20 +15,6 @@ import (
 	"github.com/ajssmith/skupper/pkg/kube"    
 )
 
-type ByAddress []types.ServiceInterface
-
-func (a ByAddress) Len() int {
-    return len(a)
-}
-
-func (a ByAddress) Less(i, j int) bool {
-    return a[i].Address > a[i].Address
-}
-
-func (a ByAddress) Swap(i, j int) {
-    a[i], a[j] = a[j], a[i]
-}
-
 func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.ServiceInterface) {
     var latest []types.ServiceInterface // becomes c.Local
     byName := make(map[string]types.ServiceInterface)
@@ -54,7 +40,7 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
         }
         byName[service.Address] = service
     }
-    sort.Sort(ByAddress(latest))
+    sort.Sort(types.ByServiceInterfaceAddress(latest))
     // TODO: detect changes
     c.Local = latest
     c.byName = byName
@@ -111,7 +97,13 @@ func (c *Controller) syncSender(sendLocal chan bool) {
     for {
         select {
         case <- ticker.C:
-            encoded, err := jsonencoding.Marshal(c.Local)
+            local := make([]types.ServiceInterface, 0)
+
+            for _, si := range c.Local {
+                local = append(local, si)
+            }
+
+            encoded, err := jsonencoding.Marshal(local)
             if err != nil {
                 log.Println("Failed to create json for service definition sync: ", err.Error())
                 return
@@ -142,7 +134,7 @@ func (c* Controller) runServiceSync() {
     }
 
     receiver, err := c.amqpSession.NewReceiver(
-        amqp.LinkSourceAddress(ServiceSyncAddress),
+        amqp.LinkSourceAddress(types.ServiceSyncAddress),
         amqp.LinkCredit(10),
     )
     if err != nil {

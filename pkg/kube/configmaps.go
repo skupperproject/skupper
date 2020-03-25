@@ -23,7 +23,6 @@ func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace s
 			Name:            name,
 			OwnerReferences: []metav1.OwnerReference{owner},
 		},
-		Data: map[string]string{"ServiceName": ""},
 	}
 
 	actual, err := kubeclient.CoreV1().ConfigMaps(namespace).Create(configMap)

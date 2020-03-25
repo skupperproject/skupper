@@ -9,14 +9,9 @@ import (
     "os"
     "os/signal"
     "syscall"
-    
-	//"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/client"
-)
 
-//TODO: Move to types
-const (
-	ServiceSyncAddress  = "mc/$skupper-service-sync"
+	"github.com/ajssmith/skupper/api/types"
+	"github.com/ajssmith/skupper/client"
 )
 
 func describe(i interface{}) {
@@ -85,7 +80,7 @@ func main() {
         log.Fatal("Error getting van client", err.Error())
     }
 
-	tlsConfig, err := getTlsConfig(true, "/etc/messaging/tls.crt", "/etc/messaging/tls.key", "/etc/messaging/ca.crt")
+	tlsConfig, err := getTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
     if err != nil {
         log.Fatal("Error getting tls config", err.Error())
     }

@@ -5,6 +5,7 @@ import (
     "fmt"
 	jsonencoding "encoding/json"    
     "log"
+    "os"
     "strings"
     "time"
 
@@ -15,6 +16,7 @@ import (
     corev1informer "k8s.io/client-go/informers/core/v1"
     "k8s.io/client-go/informers/internalinterfaces"    
     utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+    apimachinerytypes "k8s.io/apimachinery/pkg/types"
     "k8s.io/apimachinery/pkg/util/wait"
  	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -56,7 +58,7 @@ func NewController(cli *client.VanClient,origin string, tlsConfig *tls.Config) (
         time.Second*30,
         cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
         internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
-            options.LabelSelector = "internal.skupper.io/type=proxy"
+            options.LabelSelector = types.TypeProxyQualifier
         }))
     svcInformer := corev1informer.NewServiceInformer(
         cli.KubeClient,
@@ -230,6 +232,44 @@ func (c *Controller) ensureServiceFor(name string) {
     }
 }
 
+// TODO: move to pkg
+func equalOwnerRefs(a, b []metav1.OwnerReference) bool {
+    if len(a) != len(b) {
+        return false
+    }
+    for i, v := range a {
+        if v != b[i] {
+            return false
+        }
+    }
+    return true
+}
+
+func isOwned(service corev1.Service) bool {
+    ownerName := os.Getenv("OWNER_NAME")
+    ownerUid := os.Getenv("OWNER_UID")
+    if ownerName == "" || ownerUid == "" {
+        return false
+    }
+    ownerRefs := []metav1.OwnerReference {
+        {
+            APIVersion: "apps/v1",
+            Kind:       "Deployment",
+            Name:       ownerName,
+            UID:        apimachinerytypes.UID(ownerUid),
+        },
+	}
+    if controlled, ok := service.ObjectMeta.Annotations[types.ControlledQualifier]; ok {
+        if controlled == "true" {
+            return equalOwnerRefs(service.ObjectMeta.OwnerReferences, ownerRefs)
+        } else {
+            return false
+        }
+    } else {
+        return false
+    }
+}
+
 func (c *Controller) reconcile() error {
     log.Println("Reconciling...")
     
@@ -251,13 +291,9 @@ func (c *Controller) reconcile() error {
     
     for name, svc := range c.actualServices {
         if _, ok := c.desiredServices[name]; !ok {
-            // TODO: isOwned equivalent
-            if controlled, ok := svc.ObjectMeta.Annotations["internal.skupper.io/controlled"]; ok {
-                if controlled == "true" {
-                    // TODO: check if is_owned or has_original_selector to restore service
-                    log.Println("Deleting service: ", name)
-                    kube.DeleteService(name, c.vanClient.Namespace, c.vanClient.KubeClient)
-                }
+            if isOwned(svc) {
+                log.Println("Deleting service: ", name)
+                kube.DeleteService(name, c.vanClient.Namespace, c.vanClient.KubeClient)
             }
         }
     }
@@ -300,8 +336,7 @@ func (c *Controller) processNextConfigMapWorkItem() bool {
         cm, err := c.vanClient.KubeClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
         if err == nil {
             definitions := make(map[string]types.ServiceInterface)
-            // TODO: deal with initializing cm.Data with filler 
-            if len(cm.Data) > 1 {
+            if len(cm.Data) > 0 {
                 for _, v := range cm.Data {
                     si := types.ServiceInterface {}
                     err = jsonencoding.Unmarshal([]byte(v), &si)
@@ -371,7 +406,7 @@ func (c *Controller) processNextDeploymentWorkItem() bool {
             utilruntime.HandleError(fmt.Errorf("expected string in dep workqueue but got %#v",obj))
         } else {
             // TODO: get list from informer??
-            deps, err := c.vanClient.KubeClient.AppsV1().Deployments(c.vanClient.Namespace).List(metav1.ListOptions{LabelSelector: "internal.skupper.io/type=proxy"})
+            deps, err := c.vanClient.KubeClient.AppsV1().Deployments(c.vanClient.Namespace).List(metav1.ListOptions{LabelSelector: types.TypeProxyQualifier})
             if err != nil {
                 return err
             } else {

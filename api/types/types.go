@@ -70,13 +70,13 @@ var TransportPrometheusAnnotations = map[string]string{
 
 // Controller constants
 const (
-	ControllerDeploymentName string = "skupper-proxy-controller"
-	ControllerComponentName  string = "controller"
+	ControllerDeploymentName     string = "skupper-proxy-controller"
+	ControllerComponentName      string = "controller"
 	DefaultControllerImage       string = "quay.io/skupper/controller"
 	ControllerContainerName      string = "proxy-controller"
 	DefaultProxyImage            string = "quay.io/skupper/proxy"
 	ControllerServiceAccountName string = "skupper-proxy-controller"
-	ServiceSyncPath              string = "/etc/messaging/"
+	ControllerConfigPath         string = "/etc/messaging/"
 	ControllerEditRoleName       string = "skupper-edit"
 )
 
@@ -95,9 +95,18 @@ var ControllerEditPolicyRule = []rbacv1.PolicyRule{
 
 // Skupper qualifiers
 const (
-	BaseQualifier     string = "skupper.io"
-	InternalQualifier string = "internal." + BaseQualifier
-	ServiceQualifier  string = InternalQualifier + "/service"
+	BaseQualifier             string = "skupper.io"
+	InternalQualifier         string = "internal." + BaseQualifier
+	AddressQualifier          string = BaseQualifier + "/address"
+	ProxyQualifier            string = BaseQualifier + "/proxy"
+	VersionQualifier          string = BaseQualifier + "/version"
+	WeightQualifier           string = BaseQualifier + "/weight"
+	ControlledQualifier       string = InternalQualifier + "/controlled"
+	ServiceQualifier          string = InternalQualifier + "/service"
+	OriginQualifier           string = InternalQualifier + "/origin"
+	OriginalSelectorQualifier string = InternalQualifier + "/origin"
+	TypeQualifier             string = InternalQualifier + "/type"
+	TypeProxyQualifier        string = TypeQualifier + "=proxy"
 )
 
 // Service Interface constants
@@ -318,4 +327,18 @@ type Headless struct {
 	Name       string `json:"name"`
 	Size       int    `json:"size"`
 	TargetPort int    `json:"targetPort,omitempty"`
+}
+
+type ByServiceInterfaceAddress []ServiceInterface
+
+func (a ByServiceInterfaceAddress) Len() int {
+	return len(a)
+}
+
+func (a ByServiceInterfaceAddress) Less(i, j int) bool {
+	return a[i].Address > a[i].Address
+}
+
+func (a ByServiceInterfaceAddress) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
 }
