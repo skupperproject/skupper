@@ -28,8 +28,9 @@ type VanServiceInterfaceCreateOptions struct {
 
 type VanRouterInspectResponse struct {
 	Status            VanRouterStatusSpec
-	QdrVersion        string
+	TransportVersion  string
 	ControllerVersion string
+        ExposedServices   int
 }
 
 type VanConnectorInspectResponse struct {
