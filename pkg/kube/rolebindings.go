@@ -36,9 +36,9 @@ func NewRoleBindingWithOwner(rb types.RoleBinding, owner metav1.OwnerReference, 
 	actual, err := kubeclient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
-                        return nil, fmt.Errorf("Role binding %s already exists", name)
+			return nil, fmt.Errorf("Role binding %s already exists", name)
 		} else {
-                        return nil, fmt.Errorf("Could not create role binding %s : %w", name, err)
+			return nil, fmt.Errorf("Could not create role binding %s : %w", name, err)
 		}
 
 	}

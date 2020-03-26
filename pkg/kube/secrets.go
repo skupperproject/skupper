@@ -25,10 +25,10 @@ func NewCertAuthorityWithOwner(ca types.CertAuthority, owner metav1.OwnerReferen
 		if err == nil {
 			return &newca, nil
 		} else {
-                        return nil, fmt.Errorf("Failed to create CA %s : %w", ca.Name, err)
+			return nil, fmt.Errorf("Failed to create CA %s : %w", ca.Name, err)
 		}
 	} else {
-                return nil, fmt.Errorf("Failed to check CA %s : %w", ca.Name, err)
+		return nil, fmt.Errorf("Failed to check CA %s : %w", ca.Name, err)
 	}
 }
 
@@ -44,7 +44,7 @@ func NewSecretWithOwner(cred types.Credential, owner metav1.OwnerReference, name
 	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{owner}
 	_, err = cli.CoreV1().Secrets(namespace).Create(&secret)
 	if err != nil {
-                return nil, fmt.Errorf("Could not create secret: %w", err)
+		return nil, fmt.Errorf("Could not create secret: %w", err)
 	}
 
 	return &secret, nil
@@ -55,7 +55,7 @@ func DeleteSecret(name string, namespace string, cli *kubernetes.Clientset) erro
 	err := secrets.Delete(name, &metav1.DeleteOptions{})
 
 	if err != nil {
-                return fmt.Errorf("Failed to delete secret: %w", err)
-        }
-        return nil
+		return fmt.Errorf("Failed to delete secret: %w", err)
+	}
+	return nil
 }

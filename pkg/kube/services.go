@@ -134,6 +134,6 @@ func NewServiceWithOwner(svc types.Service, owner metav1.OwnerReference, namespa
 		} else {
 			return created, nil
 		}
-	} 
-        return nil, fmt.Errorf("Failed while checking service: %w", err)
+	}
+	return nil, fmt.Errorf("Failed while checking service: %w", err)
 }

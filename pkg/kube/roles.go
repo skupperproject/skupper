@@ -25,7 +25,7 @@ func NewRoleWithOwner(newrole types.Role, owner metav1.OwnerReference, namespace
 	}
 	actual, err := kubeclient.RbacV1().Roles(namespace).Create(role)
 	if err != nil {
-                return nil, fmt.Errorf("Could not create role: %w", err)
+		return nil, fmt.Errorf("Could not create role: %w", err)
 	}
 	return actual, nil
 }

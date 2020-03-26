@@ -25,7 +25,7 @@ func NewServiceAccountWithOwner(sa types.ServiceAccount, owner metav1.OwnerRefer
 	}
 	actual, err := cli.CoreV1().ServiceAccounts(namespace).Create(serviceaccount)
 	if err != nil {
-                return nil, fmt.Errorf("Could not create service account: %w", err)
+		return nil, fmt.Errorf("Could not create service account: %w", err)
 	}
 	return actual, nil
 }

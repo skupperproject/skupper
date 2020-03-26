@@ -28,7 +28,7 @@ func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace s
 	actual, err := kubeclient.CoreV1().ConfigMaps(namespace).Create(configMap)
 
 	if err != nil {
-                return nil, fmt.Errorf("Could not create ConfigMap %s: %w", name, err)
+		return nil, fmt.Errorf("Could not create ConfigMap %s: %w", name, err)
 	}
 
 	return actual, nil

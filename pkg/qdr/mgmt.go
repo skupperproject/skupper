@@ -51,7 +51,7 @@ func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace strin
 	for _, n := range nodes {
 		edges, err := GetEdgeSitesForRouter(n.Id, namespace, clientset, config)
 		if err != nil {
-                        return result, fmt.Errorf("Failed to check edge nodes for %s: %w", n.Id, err)
+			return result, fmt.Errorf("Failed to check edge nodes for %s: %w", n.Id, err)
 		}
 		if n.NextHop == "(self)" {
 			if direct {
@@ -83,9 +83,9 @@ func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Client
 				nodes, err := getNodesForRouter(uplink.Container, namespace, clientset, config)
 				if err == nil {
 					result, err := getConnectedSitesFromNodes(nodes, false, namespace, clientset, config)
-                                        if err != nil {
-                                                return result, err
-                                        }
+					if err != nil {
+						return result, err
+					}
 					return result, nil
 				} else {
 					fmt.Println("Failed to get nodes from uplink:", err)
@@ -100,9 +100,9 @@ func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Client
 		nodes, err := GetNodes(namespace, clientset, config)
 		if err == nil {
 			result, err = getConnectedSitesFromNodes(nodes, true, namespace, clientset, config)
-                        if err != nil {
-                                return result, err
-                        }
+			if err != nil {
+				return result, err
+			}
 			return result, nil
 		} else {
 			return result, err
