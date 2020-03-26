@@ -24,8 +24,7 @@ func NewRouteWithOwner(rte types.Route, owner metav1.OwnerReference, namespace s
 	}
 	current, err := rc.Routes(namespace).Get(rte.Name, metav1.GetOptions{})
 	if err == nil {
-		fmt.Println("Route", rte.Name, "already exists")
-		return current, nil
+		return current, fmt.Errorf("Route %s already exists", rte.Name)
 	} else if errors.IsNotFound(err) {
 		route := &routev1.Route{
 			TypeMeta: metav1.TypeMeta{
@@ -54,13 +53,11 @@ func NewRouteWithOwner(rte types.Route, owner metav1.OwnerReference, namespace s
 
 		created, err := rc.Routes(namespace).Create(route)
 		if err != nil {
-			fmt.Println("Failed to create route: ", err.Error())
-			return nil, err
+			return nil, fmt.Errorf("Failed to create route : %w", err)
 		} else {
 			return created, nil
 		}
 	} else {
-		fmt.Println("Failed while checking route: ", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("Failed while checking route: %w", err)
 	}
 }

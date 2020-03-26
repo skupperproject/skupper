@@ -5,14 +5,13 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ajssmith/skupper/api/types"
 )
 
-func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) *corev1.ConfigMap {
+func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*corev1.ConfigMap, error) {
 
 	configMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -29,14 +28,10 @@ func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace s
 	actual, err := kubeclient.CoreV1().ConfigMaps(namespace).Create(configMap)
 
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
-			fmt.Println("ConfigMap", name, "already exists")
-		} else {
-			fmt.Println("Could not create ConfigMap", name, ":", err)
-		}
+                return nil, fmt.Errorf("Could not create ConfigMap %s: %w", name, err)
 	}
 
-	return actual
+	return actual, nil
 }
 
 func GetConfigMap(name string, namespace string, cli *kubernetes.Clientset) (*corev1.ConfigMap, error) {

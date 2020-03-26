@@ -258,12 +258,11 @@ func NewProxyDeployment(serviceInterface types.ServiceInterface, namespace strin
 
 }
 
-func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerReference, cli *kubernetes.Clientset) *appsv1.Deployment {
+func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerReference, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.ControllerDeploymentName, metav1.GetOptions{})
 	if err == nil {
-		fmt.Println("VAN site controller already exists")
-		return existing
+		return existing, nil
 	} else if errors.IsNotFound(err) {
 		dep := &appsv1.Deployment{
 			TypeMeta: metav1.TypeMeta{
@@ -297,27 +296,22 @@ func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerRefe
 
 		created, err := deployments.Create(dep)
 		if err != nil {
-			fmt.Println("Failed to create controller deployment: ", err.Error())
-			return nil
+			return nil, fmt.Errorf("Failed to create controller deployment: %w", err)
 		} else {
-			return created
+			return created, nil
 		}
 
 	} else {
 		dep := &appsv1.Deployment{}
-		fmt.Println("Failed to check controller deployment: ", err.Error())
-		return dep
+		return dep, fmt.Errorf("Failed to check controller deployment: %w", err)
 	}
-
-	return nil
 }
 
-func NewTransportDeployment(van *types.VanRouterSpec, cli *kubernetes.Clientset) *appsv1.Deployment {
+func NewTransportDeployment(van *types.VanRouterSpec, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
-		fmt.Println("VAN site transport already exists")
-		return existing
+		return existing, nil
 	} else if errors.IsNotFound(err) {
 		dep := &appsv1.Deployment{
 			TypeMeta: metav1.TypeMeta{
@@ -351,17 +345,13 @@ func NewTransportDeployment(van *types.VanRouterSpec, cli *kubernetes.Clientset)
 
 		created, err := deployments.Create(dep)
 		if err != nil {
-			fmt.Println("Failed to create transport deployment: ", err.Error())
-			return nil
+			return nil, fmt.Errorf("Failed to create transport deployment: %w", err)
 		} else {
-			return created
+			return created, nil
 		}
 
 	} else {
 		dep := &appsv1.Deployment{}
-		fmt.Println("Failed to check transport deployment: ", err.Error())
-		return dep
+		return dep, fmt.Errorf("Failed to check transport deployment: %w", err)
 	}
-
-	return nil
 }

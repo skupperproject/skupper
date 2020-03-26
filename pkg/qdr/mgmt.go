@@ -46,13 +46,12 @@ type Connection struct {
 	Dir        string `json:"dir"`
 }
 
-func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) types.TransportConnectedSites {
+func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	for _, n := range nodes {
 		edges, err := GetEdgeSitesForRouter(n.Id, namespace, clientset, config)
 		if err != nil {
-			fmt.Printf("Failed to check edge nodes for %s: %s", n.Id, err)
-			fmt.Println()
+                        return result, fmt.Errorf("Failed to check edge nodes for %s: %w", n.Id, err)
 		}
 		if n.NextHop == "(self)" {
 			if direct {
@@ -70,7 +69,7 @@ func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace strin
 		}
 	}
 	result.Total = result.Direct + result.Indirect
-	return result
+	return result, nil
 }
 
 func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (types.TransportConnectedSites, error) {
@@ -83,7 +82,10 @@ func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Client
 			} else {
 				nodes, err := getNodesForRouter(uplink.Container, namespace, clientset, config)
 				if err == nil {
-					result = getConnectedSitesFromNodes(nodes, false, namespace, clientset, config)
+					result, err := getConnectedSitesFromNodes(nodes, false, namespace, clientset, config)
+                                        if err != nil {
+                                                return result, err
+                                        }
 					return result, nil
 				} else {
 					fmt.Println("Failed to get nodes from uplink:", err)
@@ -97,7 +99,10 @@ func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Client
 	} else {
 		nodes, err := GetNodes(namespace, clientset, config)
 		if err == nil {
-			result = getConnectedSitesFromNodes(nodes, true, namespace, clientset, config)
+			result, err = getConnectedSitesFromNodes(nodes, true, namespace, clientset, config)
+                        if err != nil {
+                                return result, err
+                        }
 			return result, nil
 		} else {
 			return result, err

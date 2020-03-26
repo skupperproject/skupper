@@ -110,7 +110,6 @@ func NewServiceForProxy(desiredService types.ServiceInterface, namespace string,
 func NewServiceWithOwner(svc types.Service, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*corev1.Service, error) {
 	current, err := kubeclient.CoreV1().Services(namespace).Get(svc.Name, metav1.GetOptions{})
 	if err == nil {
-		fmt.Println("Service", svc.Name, "already exists")
 		return current, nil
 	} else if errors.IsNotFound(err) {
 		labels := getLabels("router", "")
@@ -131,13 +130,10 @@ func NewServiceWithOwner(svc types.Service, owner metav1.OwnerReference, namespa
 		}
 		created, err := kubeclient.CoreV1().Services(namespace).Create(service)
 		if err != nil {
-			fmt.Println("Failed to create service: ", err.Error())
-			return nil, err
+			return nil, fmt.Errorf("Failed to create service: %w", err)
 		} else {
 			return created, nil
 		}
-	} else {
-		fmt.Println("Failed while checking service: ", err.Error())
-		return nil, err
-	}
+	} 
+        return nil, fmt.Errorf("Failed while checking service: %w", err)
 }
