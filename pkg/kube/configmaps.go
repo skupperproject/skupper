@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -28,9 +29,14 @@ func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace s
 	actual, err := kubeclient.CoreV1().ConfigMaps(namespace).Create(configMap)
 
 	if err != nil {
-		return nil, fmt.Errorf("Could not create ConfigMap %s: %w", name, err)
+		// TODO : come up with a policy for already-exists errors.
+		if errors.IsAlreadyExists(err) {
+			fmt.Println("ConfigMap", name, "already exists")
+			return actual, nil
+		} else {
+			return actual, fmt.Errorf("Could not create ConfigMap %s: %w", name, err)
+		}
 	}
-
 	return actual, nil
 }
 

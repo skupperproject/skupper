@@ -44,7 +44,14 @@ func NewSecretWithOwner(cred types.Credential, owner metav1.OwnerReference, name
 	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{owner}
 	_, err = cli.CoreV1().Secrets(namespace).Create(&secret)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create secret: %w", err)
+		if errors.IsAlreadyExists(err) {
+			// TODO : come up with a policy for already-exists errors.
+			fmt.Println("Secret already exists: ", cred.Name)
+		} else {
+			fmt.Println("Could not create secret: ", err.Error())
+		}
+		return nil, err
+
 	}
 
 	return &secret, nil
@@ -53,9 +60,12 @@ func NewSecretWithOwner(cred types.Credential, owner metav1.OwnerReference, name
 func DeleteSecret(name string, namespace string, cli *kubernetes.Clientset) error {
 	secrets := cli.CoreV1().Secrets(namespace)
 	err := secrets.Delete(name, &metav1.DeleteOptions{})
-
-	if err != nil {
+	if err == nil {
+		fmt.Println("Secret", name, "deleted")
+	} else if errors.IsNotFound(err) {
+		return fmt.Errorf("Secret %s does not exist.", name)
+	} else {
 		return fmt.Errorf("Failed to delete secret: %w", err)
 	}
-	return nil
+	return err
 }

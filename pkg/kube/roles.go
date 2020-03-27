@@ -6,6 +6,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ajssmith/skupper/api/types"
@@ -25,7 +26,14 @@ func NewRoleWithOwner(newrole types.Role, owner metav1.OwnerReference, namespace
 	}
 	actual, err := kubeclient.RbacV1().Roles(namespace).Create(role)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create role: %w", err)
+		// TODO : come up with a policy for already-exists errors.
+		if errors.IsAlreadyExists(err) {
+			fmt.Println("Role", newrole.Name, "already exists")
+			return actual, nil
+		} else {
+			return actual, fmt.Errorf("Could not create role %s: %w", newrole.Name, err)
+		}
+
 	}
 	return actual, nil
 }

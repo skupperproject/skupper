@@ -31,7 +31,7 @@ func DeleteDeployment(name string, namespace string, cli *kubernetes.Clientset) 
 	return err
 }
 
-// todo, pass full client object with namespace and clientset
+// TODO, pass full client object with namespace and clientset
 func GetDeployment(name string, namespace string, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
 	existing, err := cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 
 	//appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -25,7 +26,13 @@ func NewServiceAccountWithOwner(sa types.ServiceAccount, owner metav1.OwnerRefer
 	}
 	actual, err := cli.CoreV1().ServiceAccounts(namespace).Create(serviceaccount)
 	if err != nil {
-		return nil, fmt.Errorf("Could not create service account: %w", err)
+		// TODO : come up with a policy for already-exists errors.
+		if errors.IsAlreadyExists(err) {
+			fmt.Println("Service account", sa.ServiceAccount, "already exists")
+			return actual, nil
+		} else {
+			return actual, fmt.Errorf("Could not create service account %s : %w", sa.ServiceAccount, err)
+		}
 	}
 	return actual, nil
 }
