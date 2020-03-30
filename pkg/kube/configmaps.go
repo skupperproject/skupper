@@ -12,7 +12,7 @@ import (
 	"github.com/ajssmith/skupper/api/types"
 )
 
-func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) *corev1.ConfigMap {
+func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*corev1.ConfigMap, error) {
 
 	configMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -28,14 +28,15 @@ func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace s
 	actual, err := kubeclient.CoreV1().ConfigMaps(namespace).Create(configMap)
 
 	if err != nil {
+		// TODO : come up with a policy for already-exists errors.
 		if errors.IsAlreadyExists(err) {
 			fmt.Println("ConfigMap", name, "already exists")
+			return actual, nil
 		} else {
-			fmt.Println("Could not create ConfigMap", name, ":", err)
+			return actual, fmt.Errorf("Could not create ConfigMap %s: %w", name, err)
 		}
 	}
-
-	return actual
+	return actual, nil
 }
 
 func GetConfigMap(name string, namespace string, cli *kubernetes.Clientset) (*corev1.ConfigMap, error) {

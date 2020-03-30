@@ -12,7 +12,7 @@ import (
 	"github.com/ajssmith/skupper/api/types"
 )
 
-func NewServiceAccountWithOwner(sa types.ServiceAccount, owner metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) *corev1.ServiceAccount {
+func NewServiceAccountWithOwner(sa types.ServiceAccount, owner metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) (*corev1.ServiceAccount, error) {
 	serviceaccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -26,12 +26,13 @@ func NewServiceAccountWithOwner(sa types.ServiceAccount, owner metav1.OwnerRefer
 	}
 	actual, err := cli.CoreV1().ServiceAccounts(namespace).Create(serviceaccount)
 	if err != nil {
+		// TODO : come up with a policy for already-exists errors.
 		if errors.IsAlreadyExists(err) {
 			fmt.Println("Service account", sa.ServiceAccount, "already exists")
+			return actual, nil
 		} else {
-			fmt.Println("Could not create service account", sa.ServiceAccount, ":", err)
+			return actual, fmt.Errorf("Could not create service account %s : %w", sa.ServiceAccount, err)
 		}
-
 	}
-	return actual
+	return actual, nil
 }

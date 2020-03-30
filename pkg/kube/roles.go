@@ -12,7 +12,7 @@ import (
 	"github.com/ajssmith/skupper/api/types"
 )
 
-func NewRoleWithOwner(newrole types.Role, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) *rbacv1.Role {
+func NewRoleWithOwner(newrole types.Role, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*rbacv1.Role, error) {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -26,12 +26,14 @@ func NewRoleWithOwner(newrole types.Role, owner metav1.OwnerReference, namespace
 	}
 	actual, err := kubeclient.RbacV1().Roles(namespace).Create(role)
 	if err != nil {
+		// TODO : come up with a policy for already-exists errors.
 		if errors.IsAlreadyExists(err) {
 			fmt.Println("Role", newrole.Name, "already exists")
+			return actual, nil
 		} else {
-			fmt.Println("Could not create role", newrole.Name, ":", err)
+			return actual, fmt.Errorf("Could not create role %s: %w", newrole.Name, err)
 		}
 
 	}
-	return actual
+	return actual, nil
 }

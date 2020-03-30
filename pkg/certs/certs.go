@@ -229,21 +229,17 @@ func PutCertificateData(name string, secretFile string, certData CertificateData
 	}
 }
 
-func GetSecretContent(secretFile string) map[string][]byte {
+func GetSecretContent(secretFile string) (map[string][]byte, error) {
 	yaml, err := ioutil.ReadFile(secretFile)
 	if err != nil {
-		fmt.Printf("Could not read connection token: %s", err)
-		fmt.Println()
-		return nil
+		return nil, fmt.Errorf("Could not read connection token: %w", err)
 	}
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
 		scheme.Scheme)
 	var secret corev1.Secret
 	_, _, err = s.Decode(yaml, nil, &secret)
 	if err != nil {
-		fmt.Printf("Could not parse connection token: %s", err)
-		fmt.Println()
-		return nil
+		return nil, fmt.Errorf("Could not parse connection token: %w", err)
 	}
 	content := make(map[string][]byte)
 	for k, v := range secret.Data {
@@ -252,5 +248,5 @@ func GetSecretContent(secretFile string) map[string][]byte {
 	for k, v := range secret.ObjectMeta.Annotations {
 		content[k] = []byte(v)
 	}
-	return content
+	return content, nil
 }
