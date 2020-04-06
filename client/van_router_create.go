@@ -444,7 +444,10 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 
 	van := GetVanRouterSpecFromOpts(options, cli, lbip)
 
-	dep := kube.NewTransportDeployment(van, cli.KubeClient)
+	dep, err := kube.NewTransportDeployment(van, cli.KubeClient)
+	if err != nil {
+		return err
+	}
 	ownerRef := kube.GetOwnerReference(dep)
 
 	for _, sa := range van.Transport.ServiceAccounts {
@@ -520,7 +523,10 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 
 	if options.EnableController {
 		GetVanControllerSpec(options, van, dep)
-		depController := kube.NewControllerDeployment(van, ownerRef, cli.KubeClient)
+		depController, err := kube.NewControllerDeployment(van, ownerRef, cli.KubeClient)
+		if err != nil {
+			return err
+		}
 		ownerRef = kube.GetOwnerReference(depController)
 		for _, sa := range van.Controller.ServiceAccounts {
 			kube.NewServiceAccountWithOwner(sa, ownerRef, van.Namespace, cli.KubeClient)

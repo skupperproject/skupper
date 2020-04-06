@@ -13,7 +13,7 @@ import (
 	"github.com/ajssmith/skupper/api/types"
 )
 
-func NewRoleBindingWithOwner(rb types.RoleBinding, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) *rbacv1.RoleBinding {
+func NewRoleBindingWithOwner(rb types.RoleBinding, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*rbacv1.RoleBinding, error) {
 	name := rb.ServiceAccount + "-" + rb.Role
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -34,13 +34,15 @@ func NewRoleBindingWithOwner(rb types.RoleBinding, owner metav1.OwnerReference, 
 		},
 	}
 	actual, err := kubeclient.RbacV1().RoleBindings(namespace).Create(rolebinding)
+	// TODO : come up with a policy for already-exists errors.
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			fmt.Println("Role binding", name, "already exists")
+			return actual, nil
 		} else {
-			fmt.Println("Could not create role binding", name, ":", err)
+			return actual, fmt.Errorf("Could not create role binding %s : %w", name, err)
 		}
 
 	}
-	return actual
+	return actual, nil
 }
