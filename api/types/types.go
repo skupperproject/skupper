@@ -313,7 +313,7 @@ type ServiceInterface struct {
 	Protocol string                   `json:"protocol"`
 	Port     int                      `json:"port"`
 	Headless *Headless                `json:"headless,omitempty"`
-	Targets  []ServiceInterfaceTarget `json:"targets,omitempty"`
+	Targets  []ServiceInterfaceTarget `json:"targets"`
 	Origin   string                   `json:"origin,omitempty"`
 }
 

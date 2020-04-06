@@ -5,6 +5,7 @@ import (
     "fmt"
 	jsonencoding "encoding/json"    
     "log"
+    "reflect"
     "sort"
     "time"
 
@@ -15,22 +16,24 @@ import (
 	"github.com/ajssmith/skupper/pkg/kube"    
 )
 
+
 func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.ServiceInterface) {
     var latest []types.ServiceInterface // becomes c.Local
     byName := make(map[string]types.ServiceInterface)
-    
+    var added []types.ServiceInterface
+    var modified []types.ServiceInterface
+    var removed []types.ServiceInterface
+
     for name, original := range definitions {
         service := types.ServiceInterface {
-            Address: original.Address,
+            Address:  original.Address,
             Protocol: original.Protocol,
-            Port: original.Port,
-            Origin: original.Origin,
+            Port:     original.Port,
+            Origin:   original.Origin,
             Headless: original.Headless,
-            Targets: []types.ServiceInterfaceTarget{},
+            Targets:  []types.ServiceInterfaceTarget{},
         }
-        // TODO: validate assumption local has no origin
         if service.Origin != "" && service.Origin != "annotation" {
-            // if first time seeing this origin, set it up, also, how to age entries
             if _, ok := c.byOrigin[service.Origin]; !ok {
                 c.byOrigin[service.Origin] = make(map[string]types.ServiceInterface)
             }
@@ -40,8 +43,42 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
         }
         byName[service.Address] = service
     }
+
     sort.Sort(types.ByServiceInterfaceAddress(latest))
-    // TODO: detect changes
+
+    last := make(map[string]types.ServiceInterface)
+    for _, def := range c.Local {
+        last[def.Address] = def
+    }
+    current := make(map[string]types.ServiceInterface)
+    for _, def := range latest {
+        current[def.Address] = def
+    }
+
+    for _, def := range last {
+        if _, ok := current[def.Address]; !ok {
+            removed = append(removed, def)
+        } else if !reflect.DeepEqual(def, current[def.Address]) {
+            modified = append(modified, def)
+        }
+    }
+    for _, def := range current {
+        if _, ok := last[def.Address]; !ok {
+            added = append(added, def)
+        }
+    }
+
+    // TODO: detect and describe changes
+    if len(added) > 0 {
+        log.Println("Service interface(s) added", added)
+    }
+    if len(removed) > 0 {
+        log.Println("Service interface(s) removed", removed)
+    }
+    if len(modified) > 0 {
+        log.Println("Service interface(s) modified", modified)
+    }
+
     c.Local = latest
     c.byName = byName
 }

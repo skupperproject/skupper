@@ -49,6 +49,57 @@ type Controller struct {
     ssProxies       map[string]*appsv1.StatefulSet
 }
 
+func hasProxyAnnotation(service corev1.Service) bool {
+    if _, ok := service.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
+        return true
+    } else {
+        return false
+    }
+}
+
+func getProxyName (name string) string {
+    return name + "-proxy"
+}
+
+func getServiceName (name string) string {
+    return strings.TrimSuffix(name, "-proxy")
+}
+
+func hasOriginalSelector(service corev1.Service) bool {
+    if _, ok := service.ObjectMeta.Annotations[types.OriginalSelectorQualifier]; ok {
+        return true
+    } else {
+        return false
+    }
+}
+
+func equivalentProxyConfig(desired types.ServiceInterface, deployment appsv1.Deployment) bool {
+    envVar := kube.FindEnvVar(deployment.Spec.Template.Spec.Containers[0].Env, "SKUPPER_PROXY_CONFIG")
+    encodedDesired, _ := jsonencoding.Marshal(desired)
+    return string(encodedDesired) == envVar.Value
+}
+
+func (c *Controller) printAllKeys() {
+    depKeys := []string{}
+    proxyKeys := []string{}
+    svcKeys := []string{}
+
+    for key, _ := range c.proxies {
+        proxyKeys = append(proxyKeys, key)
+    }
+    for key, _ := range c.desiredServices {
+        depKeys = append(depKeys, key)
+    }
+    for key, _ := range c.actualServices {
+        svcKeys = append(svcKeys, key)
+    }
+
+    log.Println("Desired services: ", depKeys)
+    log.Println("Proxies: ", proxyKeys)
+    log.Println("Actual Services: ", svcKeys)
+
+}
+
 func NewController(cli *client.VanClient,origin string, tlsConfig *tls.Config) (*Controller, error) {
 
     // create informers
@@ -167,45 +218,26 @@ func (c *Controller) Run (stopCh <-chan struct{}) error {
     return nil
 }
 
-func getProxyName (name string) string {
-    return name + "-proxy"
-}
-
-func getServiceName (name string) string {
-    return strings.TrimSuffix(name, "-proxy")
-}
-
-func (c *Controller) printAllKeys() {
-    depKeys := []string{}
-    proxyKeys := []string{}
-    svcKeys := []string{}
-
-    for key, _ := range c.proxies {
-        proxyKeys = append(proxyKeys, key)
-    }
-    for key, _ := range c.desiredServices {
-        depKeys = append(depKeys, key)
-    }
-    for key, _ := range c.actualServices {
-        svcKeys = append(svcKeys, key)
-    }    
-
-    log.Println("Desired services: ", depKeys)
-    log.Println("Proxies: ", proxyKeys)
-    log.Println("Actual Services: ", svcKeys)
-
-}
-
-func (c *Controller) ensureProxyDeployment(name string) {
-    var ok bool
+func (c *Controller) ensureProxyDeployment(name string){
     proxyName := getProxyName(name)
+    proxy, proxyDefined := c.proxies[proxyName]
     serviceInterface := c.desiredServices[name]
     
-    if _, ok = c.proxies[proxyName]; !ok {
-        log.Printf("Need to create proxy for %s (%s)\n", serviceInterface.Address, proxyName)
-        proxyDep, err := kube.NewProxyDeployment(serviceInterface, c.vanClient.Namespace, c.vanClient.KubeClient)
-        if err == nil {
-            c.proxies[proxyName] = *proxyDep
+    if serviceInterface.Headless != nil {
+        log.Println("TODO: Proxy is for a stateful set")
+    } else {
+        if !proxyDefined {
+            log.Printf("Need to create proxy for %s (%s)\n", serviceInterface.Address, proxyName)
+            proxyDep, err := kube.NewProxyDeployment(serviceInterface, c.vanClient.Namespace, c.vanClient.KubeClient)
+            if err == nil {
+                c.proxies[proxyName] = *proxyDep
+            }
+        } else {
+            if !equivalentProxyConfig(serviceInterface, proxy) {
+                log.Println("TODO: Need to update proxy config for ", proxy.Name)
+             } else {
+                log.Println("TODO: Nothing to do here for proxy config", proxy.Name)
+             }
         }
     }
 }
@@ -251,6 +283,7 @@ func isOwned(service corev1.Service) bool {
     if ownerName == "" || ownerUid == "" {
         return false
     }
+
     ownerRefs := []metav1.OwnerReference {
         {
             APIVersion: "apps/v1",
@@ -259,6 +292,7 @@ func isOwned(service corev1.Service) bool {
             UID:        apimachinerytypes.UID(ownerUid),
         },
 	}
+
     if controlled, ok := service.ObjectMeta.Annotations[types.ControlledQualifier]; ok {
         if controlled == "true" {
             return equalOwnerRefs(service.ObjectMeta.OwnerReferences, ownerRefs)
@@ -284,7 +318,7 @@ func (c *Controller) reconcile() error {
         }
     }
 
-    // reconcole actual services with desired services:
+    // reconcile actual services with desired services:
     for name, _ := range c.desiredServices {
         c.ensureServiceFor(name)
     }
