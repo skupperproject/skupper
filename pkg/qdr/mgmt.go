@@ -27,8 +27,8 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type RouterNode struct {

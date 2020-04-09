@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/client"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 )
 
 var version = "undefined"
@@ -330,7 +330,7 @@ func main() {
 			cli, _ := client.NewClient(namespace, kubeContext)
 			vir, err := cli.VanRouterInspect(context.Background())
 			if err == nil {
-				fmt.Printf("skupctl version              %s\n", version)
+				fmt.Printf("client version               %s\n", version)
 				fmt.Printf("transport version            %s\n", vir.TransportVersion)
 				fmt.Printf("controller version           %s\n", vir.ControllerVersion)
 			} else {

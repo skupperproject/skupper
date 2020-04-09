@@ -9,9 +9,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/pkg/kube"
-	"github.com/ajssmith/skupper/pkg/utils/configs"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
 func AddConnector(connector *types.Connector, qdrDep *appsv1.Deployment) {

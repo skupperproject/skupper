@@ -7,10 +7,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/pkg/kube"
-	"github.com/ajssmith/skupper/pkg/qdr"
-	"github.com/ajssmith/skupper/pkg/utils/configs"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
 func removeConnector(name string, list []types.Connector) (bool, []types.Connector) {

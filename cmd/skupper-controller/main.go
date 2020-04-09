@@ -10,8 +10,8 @@ import (
     "os/signal"
     "syscall"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/client"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 )
 
 func describe(i interface{}) {

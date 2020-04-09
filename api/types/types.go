@@ -70,8 +70,9 @@ var TransportPrometheusAnnotations = map[string]string{
 
 // Controller constants
 const (
-	ControllerDeploymentName     string = "skupper-proxy-controller"
-	ControllerComponentName      string = "controller"
+	ControllerDeploymentName string = "skupper-proxy-controller"
+	ControllerComponentName  string = "controller"
+	//DefaultControllerImage       string = "quay.io/skupper/controller-golang" //TODO: rename
 	DefaultControllerImage       string = "quay.io/skupper/controller"
 	ControllerContainerName      string = "proxy-controller"
 	DefaultProxyImage            string = "quay.io/skupper/proxy"

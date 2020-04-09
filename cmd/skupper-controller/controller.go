@@ -23,9 +23,9 @@ import (
 
     amqp "github.com/Azure/go-amqp"
     
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/client"
-	"github.com/ajssmith/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type Controller struct {

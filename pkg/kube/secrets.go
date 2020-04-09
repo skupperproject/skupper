@@ -8,9 +8,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/pkg/certs"
-	"github.com/ajssmith/skupper/pkg/utils/configs"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/certs"
+	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
 func NewCertAuthorityWithOwner(ca types.CertAuthority, owner metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) (*corev1.Secret, error) {

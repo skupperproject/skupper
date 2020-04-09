@@ -1,4 +1,4 @@
-module github.com/ajssmith/skupper
+module github.com/skupperproject/skupper
 
 go 1.13
 
