@@ -12,8 +12,8 @@ import (
     utilruntime "k8s.io/apimachinery/pkg/util/runtime"    
     amqp "github.com/Azure/go-amqp"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/pkg/kube"    
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 

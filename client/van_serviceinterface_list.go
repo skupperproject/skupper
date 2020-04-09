@@ -6,7 +6,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/ajssmith/skupper/api/types"
+	"github.com/skupperproject/skupper/api/types"
 )
 
 func (cli *VanClient) VanServiceInterfaceList(ctx context.Context) ([]*types.ServiceInterface, error) {

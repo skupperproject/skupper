@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
-	"github.com/ajssmith/skupper/api/types"
+	"github.com/skupperproject/skupper/api/types"
 )
 
 func ConnectJson() string {

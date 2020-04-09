@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/ajssmith/skupper/api/types"
+	"github.com/skupperproject/skupper/api/types"
 )
 
 // VanRouterRemove delete a VAN (router and controller) deployment

@@ -11,10 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/pkg/certs"
-	"github.com/ajssmith/skupper/pkg/kube"
-	"github.com/ajssmith/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/certs"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 // TODO: should these move to types?

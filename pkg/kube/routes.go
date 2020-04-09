@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/ajssmith/skupper/api/types"
+	"github.com/skupperproject/skupper/api/types"
 )
 
 func GetRoute(name string, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {

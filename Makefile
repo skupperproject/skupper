@@ -1,5 +1,5 @@
 VERSION := $(shell git describe --tags --dirty=-modified)
-IMAGE := quay.io/ajssmith/controller
+IMAGE := quay.io/skupper/controller-golang
 
 all: build-cmd build-controller
 

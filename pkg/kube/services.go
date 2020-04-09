@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/ajssmith/skupper/api/types"
+	"github.com/skupperproject/skupper/api/types"
 )
 
 func getLabels(component string, name string) map[string]string {

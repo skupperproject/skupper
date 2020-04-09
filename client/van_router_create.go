@@ -11,10 +11,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/ajssmith/skupper/api/types"
-	"github.com/ajssmith/skupper/pkg/kube"
-	"github.com/ajssmith/skupper/pkg/utils"
-	"github.com/ajssmith/skupper/pkg/utils/configs"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
 func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRouterSpec, transport *appsv1.Deployment) {
@@ -116,6 +116,14 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 		Name: "skupper-amqps",
 	})
 	//TODO: vcabbage issue with EXTERNAL, requires ANONYMOUS,false
+	//listeners = append(listeners, types.Listener{
+	//	Name:             "amqps",
+	//	Host:             "0.0.0.0",
+	//	Port:             5671,
+	//	SslProfile:       "skupper-amqps",
+	//	SaslMechanisms:   "ANONYMOUS",
+	//	AuthenticatePeer: false,
+	//})
 	listeners = append(listeners, types.Listener{
 		Name:             "amqps",
 		Host:             "0.0.0.0",
