@@ -75,7 +75,7 @@ func main() {
 	stopCh := SetupSignalHandler()
 
     // todo, get context from env?
-    cli, err := client.NewClient(namespace, "")
+    cli, err := client.NewClient(namespace, "", "")
     if err != nil {
         log.Fatal("Error getting van client", err.Error())
     }
