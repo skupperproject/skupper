@@ -20,11 +20,16 @@ type VanClient struct {
 	RestConfig  *restclient.Config
 }
 
-func NewClient(namespace string, context string) (*VanClient, error) {
+func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {
 	c := &VanClient{}
 
+
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if kubeConfigPath != "" {
+		loadingRules = &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfigPath}
+	}
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(),
+		loadingRules,
 		&clientcmd.ConfigOverrides{
 			CurrentContext: context,
 		},

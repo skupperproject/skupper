@@ -51,6 +51,7 @@ func main() {
 
 	var kubeContext string
 	var namespace string
+	var kubeconfig string
 
 	var vanRouterCreateOpts types.VanRouterCreateOptions
 	var cmdInit = &cobra.Command{
@@ -59,7 +60,7 @@ func main() {
 		Long:  `init will setup a router and other supporting objects to provide a functional skupper installation that can then be connected to other skupper installations`,
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			cli.VanRouterCreate(context.Background(), vanRouterCreateOpts)
 			fmt.Println("Skupper is now installed in namespace '" + cli.Namespace + "'.  Use 'skupper status' to get more information.")
 		},
@@ -80,7 +81,7 @@ func main() {
 		Long:  `delete will delete any skupper related objects from the namespace`,
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			cli.VanRouterRemove(context.Background())
 		},
 	}
@@ -91,7 +92,7 @@ func main() {
 		Short: "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
 		Args:  requiredArg("output-file"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			cli.VanConnectorTokenCreate(context.Background(), clientIdentity, args[0])
 			//generateConnectSecret(clientIdentity, args[0], initKubeConfig(namespace, context))
 		},
@@ -104,7 +105,7 @@ func main() {
 		Short: "Connect this skupper installation to that which issued the specified connectionToken",
 		Args:  requiredArg("connection-token"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			cli.VanConnectorCreate(context.Background(), args[0], vanConnectorCreateOpts)
 		},
 	}
@@ -116,7 +117,7 @@ func main() {
 		Short: "Remove specified connection",
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			cli.VanConnectorRemove(context.Background(), args[0])
 		},
 	}
@@ -126,7 +127,7 @@ func main() {
 		Short: "List configured outgoing VAN connections",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			connectors, err := cli.VanConnectorList(context.Background())
 			if err == nil {
 				if len(connectors) == 0 {
@@ -152,7 +153,7 @@ func main() {
 		Short: "Check whether a connection to another Skupper site is active",
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			var connectors []*types.VanConnectorInspectResponse
 			connected := 0
 
@@ -209,7 +210,7 @@ func main() {
 		Short: "Report the status of the current Skupper site",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			vir, err := cli.VanRouterInspect(context.Background())
 			if err == nil {
 				var modedesc string = " in interior mode"
@@ -250,7 +251,7 @@ func main() {
 		Short: "Expose a set of pods through a Skupper address",
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.VanServiceInterfaceCreate(context.Background(), args[0], args[1], vanServiceInterfaceCreateOpts)
 
 			if err == nil {
@@ -274,7 +275,7 @@ func main() {
 		Short: "Unexpose a set of pods previously exposed through a Skupper address",
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.VanServiceInterfaceRemove(context.Background(), args[0], args[1], unexposeAddress)
 			if err == nil {
 				fmt.Printf("VAN Service Interface Target %s unexposed\n", args[1])
@@ -290,7 +291,7 @@ func main() {
 		Short: "List services exposed over the Skupper network",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			vsis, err := cli.VanServiceInterfaceList(context.Background())
 			if err == nil {
 				if len(vsis) == 0 {
@@ -327,7 +328,7 @@ func main() {
 		Short: "Report the version of the Skupper CLI and services",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext)
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			vir, err := cli.VanRouterInspect(context.Background())
 			if err == nil {
 				fmt.Printf("client version               %s\n", version)
@@ -342,6 +343,7 @@ func main() {
 	var rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
 	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed, cmdVersion)
+	rootCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "kubernetes namespace to use")
 	rootCmd.Execute()
