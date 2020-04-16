@@ -4,9 +4,14 @@
 *.dll
 *.so
 *.dylib
+skupper
+controller
 
 # Test binary, built with `go test -c`
 *.test
+
+# IDE specific files
+.idea
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
