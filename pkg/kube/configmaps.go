@@ -66,7 +66,7 @@ func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, o
 			return fmt.Errorf("Failed to update skupper-services config map: %s", err)
 		}
 	} else {
-		return fmt.Errorf("Could not retrive service definitions from configmap 'skupper-services`", err)
+		return fmt.Errorf("Could not retrive service definitions from configmap 'skupper-services', Error: %v", err)
 	}
 
 	return nil
@@ -96,7 +96,7 @@ func UpdateConfigMapForHeadlessServiceInterface(serviceName string, headless typ
 				return fmt.Errorf("Failed to read json for service definition %s: %s", serviceName, err)
 			} else {
 				if len(service.Targets) > 0 {
-					return fmt.Errorf("Non-headless service definition already exists for %s; unexpose first", serviceName)
+					return fmt.Errorf("Non-headless service definition already exists for %s; unexpose first\n", serviceName)
 				}
 				service.Address = serviceName
 				service.Protocol = options.Protocol
@@ -105,7 +105,7 @@ func UpdateConfigMapForHeadlessServiceInterface(serviceName string, headless typ
 
 				encoded, err := jsonencoding.Marshal(service)
 				if err != nil {
-					return fmt.Errorf("Failed to create json for service definition: %s", err)
+					return fmt.Errorf("Failed to create json for service definition: %s\n", err)
 				} else {
 					current.Data[serviceName] = string(encoded)
 				}
@@ -113,10 +113,10 @@ func UpdateConfigMapForHeadlessServiceInterface(serviceName string, headless typ
 		}
 		_, err = cli.CoreV1().ConfigMaps(namespace).Update(current)
 		if err != nil {
-			return fmt.Errorf("Failed to update skupper-services config map: ", err.Error())
+			return fmt.Errorf("Failed to update skupper-services config map: %v\n", err.Error())
 		}
 	} else {
-		return fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services'", err)
+		return fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services': %v\n", err)
 	}
 	return nil
 }

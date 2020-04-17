@@ -18,9 +18,6 @@ docker-push:
 clean:
 	rm -rf skupper release
 
-deps:
-	dep ensure
-
 package: release/windows.zip release/darwin.zip release/linux.tgz
 
 release/linux.tgz: release/linux/skupper
