@@ -1,26 +1,209 @@
-# Golang CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-go/ for more details
-version: 2
+version: 2.1
+
+commands:
+  make:
+    description: install kind cluster
+    parameters:
+      target:
+          default: ''
+          description: |
+            The Makefile target to run.
+          type: string
+    steps:
+      - run:
+          name: make
+          command: make << parameters.target >>
+
+yaml-templates:
+  branch_filters: &branch_filters
+    filters:
+      branches:
+        only: /.*/
+      tags:
+        only: /[0-9].*/
+
+  release_filters: &release_filters
+    filters:
+      branches:
+        ignore: /.*/
+      tags:
+        only: /[0-9].*/
+
+  restore_go_cache: &restore_go_cache
+    restore_cache:
+      keys:
+        - go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}-{{ checksum "go.sum" }}
+  go_mod_download: &go_mod_download
+    run:
+      name: Download Go Modules
+      command: go mod download
+  save_go_cache: &save_go_cache
+    save_cache:
+      key: go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}-{{ checksum "go.sum" }}
+      paths:
+        - "/go/pkg/mod"
+  compile_go_executable: &compile_go_executable
+    run:
+      name: Compile Go Executable
+      command: |
+        VERSION="${CIRCLE_TAG:-ci-${CIRCLE_BUILD_NUM}}"
+        go build -ldflags "-X main.version=${VERSION}" -o dist/${PLATFORM:-${GOOS}-${GOARCH}}/skupper${EXESUFFIX} ./cmd/skupper
+  store_dist: &store_dist
+    persist_to_workspace:
+      root: .
+      paths:
+        - dist
+
+workflows:
+  version: 2.1
+  build-workflow:
+    jobs:
+      - build-linux-386:
+          <<: *release_filters
+      - build-linux-amd64:
+          <<: *branch_filters
+      - build-darwin-386:
+          <<: *release_filters
+      - build-darwin-amd64:
+          <<: *branch_filters
+      - build-windows-386:
+          <<: *release_filters
+      - build-windows-amd64:
+          <<: *branch_filters
+      - build-linux-arm:
+          <<: *release_filters
+      - build-linux-arm64:
+          <<: *release_filters
+      - test:
+          <<: *branch_filters
+      - test_makefile:
+          <<: *branch_filters
+
+      - publish-github-release:
+          <<: *release_filters
+          requires:
+            - build-linux-386
+            - build-linux-amd64
+            - build-darwin-386
+            - build-darwin-amd64
+            - build-windows-386
+            - build-windows-amd64
+            - build-linux-arm
+            - build-linux-arm64
+            - test
+            - test_makefile
+
 jobs:
-  build:
+  test_makefile:
     docker:
-      # specify the version
-      - image: circleci/golang:1.9
+      - image: circleci/golang:1.13
+    steps:
+      - setup_remote_docker
+      - checkout
+      - make
+      - make:
+          target: docker-build
+      - make:
+          target: package
+      - make:
+          target: clean
 
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/postgres:9.4
-
-    #### TEMPLATE_NOTE: go expects specific checkout path representing url
-    #### expecting it in the form of
-    ####   /go/src/github.com/circleci/go-tool
-    ####   /go/src/bitbucket.org/circleci/go-tool
-    working_directory: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}
+  build-linux-amd64: &go_build
+    docker:
+      - image: circleci/golang:1.13
+    environment: &environment
+      GOOS: linux
+      GOARCH: amd64
+      PLATFORM: linux-amd64
     steps:
       - checkout
+      - <<: *restore_go_cache
+      - <<: *go_mod_download
+      - <<: *save_go_cache
+      - <<: *compile_go_executable
+      - <<: *store_dist
 
-      # specify any bash command here prefixed with `run: `
-      - run: go get -v -t -d ./...
-      - run: go test -v ./...
+  build-linux-386:
+    <<: *go_build
+    environment:
+      GOOS: linux
+      GOARCH: 386
+      PLATFORM: linux-i386
+
+  build-windows-386:
+    <<: *go_build
+    environment:
+      GOOS: windows
+      GOARCH: 386
+      PLATFORM: windows-i386
+      EXESUFFIX: ".exe"
+
+  build-windows-amd64:
+    <<: *go_build
+    environment:
+      GOOS: windows
+      GOARCH: amd64
+      PLATFORM: windows-amd64
+      EXESUFFIX: ".exe"
+
+  build-darwin-386:
+    <<: *go_build
+    environment:
+      GOOS: darwin
+      GOARCH: 386
+      PLATFORM: mac-i386
+
+  build-darwin-amd64:
+    <<: *go_build
+    environment:
+      GOOS: darwin
+      GOARCH: amd64
+      PLATFORM: mac-amd64
+
+  build-linux-arm:
+    <<: *go_build
+    environment:
+      GOOS: linux
+      GOARCH: arm
+      PLATFORM: linux-arm32
+
+  build-linux-arm64:
+    <<: *go_build
+    environment:
+      GOOS: linux
+      GOARCH: arm64
+      PLATFORM: linux-arm64
+
+  test:
+    <<: *go_build
+    steps:
+      - checkout
+      - <<: *restore_go_cache
+      - <<: *go_mod_download
+      - <<: *save_go_cache
+      - run:
+          name: Run Tests
+          command: go test ./...
+
+  publish-github-release:
+    docker:
+      - image: cibuilds/github:0.10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Create a Draft Release on GitHub"
+          command: |
+            VERSION="$CIRCLE_TAG"
+            BASEDIR=`pwd`
+            mkdir "${BASEDIR}/archives"
+            for p in `ls dist` ; do
+              cd "$BASEDIR/dist/$p"
+              if [[ $p == windows* ]] ; then
+                zip -q "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.zip" *
+              else
+                tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
+              fi
+            done
+            cd ${BASEDIR}
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
