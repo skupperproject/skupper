@@ -52,6 +52,9 @@ func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, o
 
 	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil {
+        if current.Data == nil {
+            current.Data = make(map[string]string)
+        }
 		for _, def := range changed {
 			jsonDef, _ := jsonencoding.Marshal(def)
 			current.Data[def.Address] = string(jsonDef)
@@ -75,6 +78,9 @@ func UpdateConfigMapForHeadlessServiceInterface(serviceName string, headless typ
 	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil {
 		//is the service already defined?
+        if current.Data == nil {
+            current.Data = make(map[string]string)
+        }
 		jsonDef := current.Data[serviceName]
 		if jsonDef == "" {
 			serviceInterface := types.ServiceInterface{
@@ -125,6 +131,9 @@ func UpdateConfigMapForServiceInterface(serviceName string, targetName string, s
 	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil {
 		//is the service already defined?
+        if current.Data == nil {
+            current.Data = make(map[string]string)
+        }
 		serviceTarget := types.ServiceInterfaceTarget{
 			Selector: selector,
 		}
