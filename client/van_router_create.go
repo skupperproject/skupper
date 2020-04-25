@@ -582,10 +582,10 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		}
 		_, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(configMap)
 		if err != nil {
-			return fmt.Errorf("Failed to create sasl config: ", err.Error())
+			return fmt.Errorf("Failed to create sasl config: %w", err)
 		}
 	} else {
-		return fmt.Errorf("Failed to check for sasl config: ", err.Error())
+		return fmt.Errorf("Failed to check for sasl config: %w", err)
 	}
 	return nil
 }
@@ -616,10 +616,10 @@ func (cli *VanClient) ensureSaslUsers(user string, password string, owner *metav
 
 		_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&secret)
 		if err != nil {
-			return fmt.Errorf("Failed to create console users secret: %s", err.Error())
+			return fmt.Errorf("Failed to create console users secret: %w", err)
 		}
 	} else {
-		return fmt.Errorf("Failed to create console users secret: %s", err.Error())
+		return fmt.Errorf("Failed to create console users secret: %w", err)
 	}
 	return nil
 }
