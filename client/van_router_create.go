@@ -409,20 +409,22 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	}
 	van.Transport.Services = svcs
 
-	routes := []types.Route{}
-	routes = append(routes, types.Route{
-		Name:          types.InterRouterRouteName,
-		TargetService: types.InterRouterProfile,
-		TargetPort:    types.InterRouterRole,
-		Termination:   routev1.TLSTerminationPassthrough,
-	})
-	routes = append(routes, types.Route{
-		Name:          types.EdgeRouteName,
-		TargetService: types.InterRouterProfile,
-		TargetPort:    types.EdgeRole,
-		Termination:   routev1.TLSTerminationPassthrough,
-	})
-	van.Assembly.Routes = routes
+	if !lbip {
+		routes := []types.Route{}
+		routes = append(routes, types.Route{
+			Name:          types.InterRouterRouteName,
+			TargetService: types.InterRouterProfile,
+			TargetPort:    types.InterRouterRole,
+			Termination:   routev1.TLSTerminationPassthrough,
+		})
+		routes = append(routes, types.Route{
+			Name:          types.EdgeRouteName,
+			TargetService: types.InterRouterProfile,
+			TargetPort:    types.EdgeRole,
+			Termination:   routev1.TLSTerminationPassthrough,
+		})
+		van.Assembly.Routes = routes
+	}
 	return van
 }
 

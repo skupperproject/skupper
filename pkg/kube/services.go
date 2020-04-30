@@ -128,6 +128,9 @@ func NewServiceWithOwner(svc types.Service, owner metav1.OwnerReference, namespa
 				Ports:    svc.Ports,
 			},
 		}
+		if svc.Type == "LoadBalancer" {
+			service.Spec.Type = corev1.ServiceTypeLoadBalancer
+		}
 		created, err := kubeclient.CoreV1().Services(namespace).Create(service)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create service: %w", err)
