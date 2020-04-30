@@ -78,6 +78,10 @@ func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRo
 	van.Controller.RoleBindings = roleBindings
 }
 
+func MustCreateOpenshiftRoutes(lbip bool, clusterLocal bool) bool {
+	return !lbip && !clusterLocal
+}
+
 func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanClient, lbip bool) *types.VanRouterSpec {
 	van := &types.VanRouterSpec{}
 	//todo: think through van name, router name, secret names, etc.
@@ -409,7 +413,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	}
 	van.Transport.Services = svcs
 
-	if !lbip {
+	if MustCreateOpenshiftRoutes(lbip, options.ClusterLocal) {
 		routes := []types.Route{}
 		routes = append(routes, types.Route{
 			Name:          types.InterRouterRouteName,
