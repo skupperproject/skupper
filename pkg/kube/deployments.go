@@ -23,7 +23,7 @@ func GetOwnerReference(dep *appsv1.Deployment) metav1.OwnerReference {
 	}
 }
 
-func DeleteDeployment(name string, namespace string, cli *kubernetes.Clientset) error {
+func DeleteDeployment(name string, namespace string, cli kubernetes.Interface) error {
 	_, err := cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
 	if err == nil {
 		err = cli.AppsV1().Deployments(namespace).Delete(name, &metav1.DeleteOptions{})
@@ -32,7 +32,7 @@ func DeleteDeployment(name string, namespace string, cli *kubernetes.Clientset) 
 }
 
 // TODO, pass full client object with namespace and clientset
-func GetDeployment(name string, namespace string, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
+func GetDeployment(name string, namespace string, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	existing, err := cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func GetDeployment(name string, namespace string, cli *kubernetes.Clientset) (*a
 	}
 }
 
-func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace string, cli *kubernetes.Clientset) (*appsv1.StatefulSet, error) {
+func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	// Do stateful sets use a different name >>> config.origion ? config.headless.name
 	proxyName := serviceInterface.Address + "-proxy"
 
@@ -152,7 +152,7 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace stri
 
 }
 
-func NewProxyDeployment(serviceInterface types.ServiceInterface, namespace string, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
+func NewProxyDeployment(serviceInterface types.ServiceInterface, namespace string, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	proxyName := serviceInterface.Address + "-proxy"
 
 	deployments := cli.AppsV1().Deployments(namespace)
@@ -258,7 +258,7 @@ func NewProxyDeployment(serviceInterface types.ServiceInterface, namespace strin
 
 }
 
-func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerReference, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
+func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.ControllerDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -307,7 +307,7 @@ func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerRefe
 	}
 }
 
-func NewTransportDeployment(van *types.VanRouterSpec, cli *kubernetes.Clientset) (*appsv1.Deployment, error) {
+func NewTransportDeployment(van *types.VanRouterSpec, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {

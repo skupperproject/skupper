@@ -13,7 +13,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func NewRoleBindingWithOwner(rb types.RoleBinding, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*rbacv1.RoleBinding, error) {
+func NewRoleBindingWithOwner(rb types.RoleBinding, owner metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*rbacv1.RoleBinding, error) {
 	name := rb.ServiceAccount + "-" + rb.Role
 	rolebinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{

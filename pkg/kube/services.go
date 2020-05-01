@@ -43,7 +43,7 @@ func GetLoadBalancerHostOrIP(service *corev1.Service) string {
 	return ""
 }
 
-func DeleteService(name string, namespace string, kubeclient *kubernetes.Clientset) error {
+func DeleteService(name string, namespace string, kubeclient kubernetes.Interface) error {
 	_, err := kubeclient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
 	if err == nil {
 		err = kubeclient.CoreV1().Services(namespace).Delete(name, &metav1.DeleteOptions{})
@@ -51,12 +51,12 @@ func DeleteService(name string, namespace string, kubeclient *kubernetes.Clients
 	return err
 }
 
-func GetService(name string, namespace string, kubeclient *kubernetes.Clientset) (*corev1.Service, error) {
+func GetService(name string, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	current, err := kubeclient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
 	return current, err
 }
 
-func NewServiceForProxy(desiredService types.ServiceInterface, namespace string, kubeclient *kubernetes.Clientset) (*corev1.Service, error) {
+func NewServiceForProxy(desiredService types.ServiceInterface, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	// TODO: Max for target port, 1024
 	// TODO: make common service creation and deal with annotation, label differences
 	deployments := kubeclient.AppsV1().Deployments(namespace)
@@ -107,7 +107,7 @@ func NewServiceForProxy(desiredService types.ServiceInterface, namespace string,
 
 }
 
-func NewServiceWithOwner(svc types.Service, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*corev1.Service, error) {
+func NewServiceWithOwner(svc types.Service, owner metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	current, err := kubeclient.CoreV1().Services(namespace).Get(svc.Name, metav1.GetOptions{})
 	if err == nil {
 		return current, nil

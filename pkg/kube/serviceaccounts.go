@@ -12,7 +12,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func NewServiceAccountWithOwner(sa types.ServiceAccount, owner metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) (*corev1.ServiceAccount, error) {
+func NewServiceAccountWithOwner(sa types.ServiceAccount, owner metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.ServiceAccount, error) {
 	serviceaccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",

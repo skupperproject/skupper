@@ -12,7 +12,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*corev1.ConfigMap, error) {
+func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {
 
 	configMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -39,7 +39,7 @@ func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace s
 	return actual, nil
 }
 
-func GetConfigMap(name string, namespace string, cli *kubernetes.Clientset) (*corev1.ConfigMap, error) {
+func GetConfigMap(name string, namespace string, cli kubernetes.Interface) (*corev1.ConfigMap, error) {
 	current, err := cli.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -48,13 +48,13 @@ func GetConfigMap(name string, namespace string, cli *kubernetes.Clientset) (*co
 	}
 }
 
-func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, origin string, namespace string, cli *kubernetes.Clientset) error {
+func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, origin string, namespace string, cli kubernetes.Interface) error {
 
 	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil {
-        if current.Data == nil {
-            current.Data = make(map[string]string)
-        }
+		if current.Data == nil {
+			current.Data = make(map[string]string)
+		}
 		for _, def := range changed {
 			jsonDef, _ := jsonencoding.Marshal(def)
 			current.Data[def.Address] = string(jsonDef)
@@ -74,13 +74,13 @@ func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, o
 
 	return nil
 }
-func UpdateConfigMapForHeadlessServiceInterface(serviceName string, headless types.Headless, port int, options types.VanServiceInterfaceCreateOptions, owner *metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) error {
+func UpdateConfigMapForHeadlessServiceInterface(serviceName string, headless types.Headless, port int, options types.VanServiceInterfaceCreateOptions, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) error {
 	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil {
 		//is the service already defined?
-        if current.Data == nil {
-            current.Data = make(map[string]string)
-        }
+		if current.Data == nil {
+			current.Data = make(map[string]string)
+		}
 		jsonDef := current.Data[serviceName]
 		if jsonDef == "" {
 			serviceInterface := types.ServiceInterface{
@@ -127,13 +127,13 @@ func UpdateConfigMapForHeadlessServiceInterface(serviceName string, headless typ
 	return nil
 }
 
-func UpdateConfigMapForServiceInterface(serviceName string, targetName string, selector string, port int, options types.VanServiceInterfaceCreateOptions, owner *metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) error {
+func UpdateConfigMapForServiceInterface(serviceName string, targetName string, selector string, port int, options types.VanServiceInterfaceCreateOptions, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) error {
 	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil {
 		//is the service already defined?
-        if current.Data == nil {
-            current.Data = make(map[string]string)
-        }
+		if current.Data == nil {
+			current.Data = make(map[string]string)
+		}
 		serviceTarget := types.ServiceInterfaceTarget{
 			Selector: selector,
 		}

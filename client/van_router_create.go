@@ -478,8 +478,10 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 	for _, svc := range van.Transport.Services {
 		kube.NewServiceWithOwner(svc, ownerRef, van.Namespace, cli.KubeClient)
 	}
-	for _, rte := range van.Assembly.Routes {
-		kube.NewRouteWithOwner(rte, ownerRef, van.Namespace, cli.RouteClient)
+	if cli.RouteClient != nil {
+		for _, rte := range van.Assembly.Routes {
+			kube.NewRouteWithOwner(rte, ownerRef, van.Namespace, cli.RouteClient)
+		}
 	}
 
 	// TODO: should this be part of van spec?

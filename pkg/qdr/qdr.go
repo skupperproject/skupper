@@ -42,7 +42,7 @@ func GetTransportMode(dep *appsv1.Deployment) types.TransportMode {
 	}
 }
 
-func ListRouterConnectors(mode types.TransportMode, namespace string, cli *kubernetes.Clientset) []types.Connector {
+func ListRouterConnectors(mode types.TransportMode, namespace string, cli kubernetes.Interface) []types.Connector {
 	var connectors []types.Connector
 	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 	if err == nil {

@@ -40,7 +40,7 @@ func getTransportMode(dep *appsv1.Deployment) types.TransportMode {
 	}
 }
 
-func generateConnectorName(namespace string, cli *kubernetes.Clientset) string {
+func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 	max := 1
 	if err == nil {
