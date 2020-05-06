@@ -13,7 +13,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
-func NewCertAuthorityWithOwner(ca types.CertAuthority, owner metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) (*corev1.Secret, error) {
+func NewCertAuthorityWithOwner(ca types.CertAuthority, owner metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
 
 	existing, err := cli.CoreV1().Secrets(namespace).Get(ca.Name, metav1.GetOptions{})
 	if err == nil {
@@ -32,7 +32,7 @@ func NewCertAuthorityWithOwner(ca types.CertAuthority, owner metav1.OwnerReferen
 	}
 }
 
-func NewSecretWithOwner(cred types.Credential, owner metav1.OwnerReference, namespace string, cli *kubernetes.Clientset) (*corev1.Secret, error) {
+func NewSecretWithOwner(cred types.Credential, owner metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
 	caSecret, err := cli.CoreV1().Secrets(namespace).Get(cred.CA, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
@@ -57,7 +57,7 @@ func NewSecretWithOwner(cred types.Credential, owner metav1.OwnerReference, name
 	return &secret, nil
 }
 
-func DeleteSecret(name string, namespace string, cli *kubernetes.Clientset) error {
+func DeleteSecret(name string, namespace string, cli kubernetes.Interface) error {
 	secrets := cli.CoreV1().Secrets(namespace)
 	err := secrets.Delete(name, &metav1.DeleteOptions{})
 	if err == nil {

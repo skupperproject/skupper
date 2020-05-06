@@ -12,7 +12,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func NewRoleWithOwner(newrole types.Role, owner metav1.OwnerReference, namespace string, kubeclient *kubernetes.Clientset) (*rbacv1.Role, error) {
+func NewRoleWithOwner(newrole types.Role, owner metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*rbacv1.Role, error) {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",

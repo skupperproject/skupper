@@ -15,14 +15,13 @@ import (
 // A VAN Client manages orchestration and communications with the network components
 type VanClient struct {
 	Namespace   string
-	KubeClient  *kubernetes.Clientset
+	KubeClient  kubernetes.Interface
 	RouteClient *routev1client.RouteV1Client
 	RestConfig  *restclient.Config
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {
 	c := &VanClient{}
-
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if kubeConfigPath != "" {

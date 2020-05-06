@@ -46,7 +46,7 @@ type Connection struct {
 	Dir        string `json:"dir"`
 }
 
-func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (types.TransportConnectedSites, error) {
+func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	for _, n := range nodes {
 		edges, err := GetEdgeSitesForRouter(n.Id, namespace, clientset, config)
@@ -72,7 +72,7 @@ func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace strin
 	return result, nil
 }
 
-func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (types.TransportConnectedSites, error) {
+func GetConnectedSites(edge bool, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	if edge {
 		uplink, err := getEdgeUplink(namespace, clientset, config)
@@ -110,7 +110,7 @@ func GetConnectedSites(edge bool, namespace string, clientset *kubernetes.Client
 	}
 }
 
-func GetEdgeSitesForRouter(routerid string, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (int, error) {
+func GetEdgeSitesForRouter(routerid string, namespace string, clientset kubernetes.Interface, config *restclient.Config) (int, error) {
 	connections, err := getConnectionsForRouter(routerid, namespace, clientset, config)
 	if err == nil {
 		count := 0
@@ -142,11 +142,11 @@ func get_query_for_router(typename string, routerid string) []string {
 	return results
 }
 
-func GetNodes(namespace string, clientset *kubernetes.Clientset, config *restclient.Config) ([]RouterNode, error) {
+func GetNodes(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]RouterNode, error) {
 	return getNodesForRouter("", namespace, clientset, config)
 }
 
-func getNodesForRouter(routerid, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) ([]RouterNode, error) {
+func getNodesForRouter(routerid, namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]RouterNode, error) {
 	command := get_query_for_router("node", routerid)
 	buffer, err := router_exec(command, namespace, clientset, config)
 	if err != nil {
@@ -172,7 +172,7 @@ func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Conn
 	return nil
 }
 
-func getEdgeUplink(namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (*Connection, error) {
+func getEdgeUplink(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*Connection, error) {
 	connections, err := GetConnections(namespace, clientset, config)
 	if err == nil {
 		for _, c := range connections {
@@ -186,11 +186,11 @@ func getEdgeUplink(namespace string, clientset *kubernetes.Clientset, config *re
 	}
 }
 
-func GetConnections(namespace string, clientset *kubernetes.Clientset, config *restclient.Config) ([]Connection, error) {
+func GetConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
 	return getConnectionsForRouter("", namespace, clientset, config)
 }
 
-func getConnectionsForRouter(routerid string, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) ([]Connection, error) {
+func getConnectionsForRouter(routerid string, namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
 	command := get_query_for_router("connection", routerid)
 	buffer, err := router_exec(command, namespace, clientset, config)
 	if err != nil {
@@ -207,7 +207,7 @@ func getConnectionsForRouter(routerid string, namespace string, clientset *kuber
 	}
 }
 
-func router_exec(command []string, namespace string, clientset *kubernetes.Clientset, config *restclient.Config) (*bytes.Buffer, error) {
+func router_exec(command []string, namespace string, clientset kubernetes.Interface, config *restclient.Config) (*bytes.Buffer, error) {
 	pod, err := kube.GetReadyPod(namespace, clientset, "router")
 	if err != nil {
 		return nil, err

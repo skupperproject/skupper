@@ -46,7 +46,7 @@ func FirstReadyPod(list []corev1.Pod) *corev1.Pod {
 	return nil
 }
 
-func GetReadyPod(namespace string, clientset *kubernetes.Clientset, component string) (*corev1.Pod, error) {
+func GetReadyPod(namespace string, clientset kubernetes.Interface, component string) (*corev1.Pod, error) {
 	selector := "skupper.io/component=" + component
 	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
@@ -76,7 +76,7 @@ func GetImageVersion(pod *corev1.Pod, container string) string {
 	return "not-found"
 }
 
-func GetComponentVersion(namespace string, clientset *kubernetes.Clientset, component string) string {
+func GetComponentVersion(namespace string, clientset kubernetes.Interface, component string) string {
 	pod, err := GetReadyPod(namespace, clientset, component)
 	if err == nil {
 		return GetImageVersion(pod, component)
