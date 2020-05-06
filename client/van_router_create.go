@@ -78,7 +78,7 @@ func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRo
 	van.Controller.RoleBindings = roleBindings
 }
 
-func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanClient, lbip bool) *types.VanRouterSpec {
+func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanClient) *types.VanRouterSpec {
 	van := &types.VanRouterSpec{}
 	//todo: think through van name, router name, secret names, etc.
 	if options.SkupperName == "" {
@@ -383,7 +383,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	}
 	if !options.IsEdge {
 		svctype := "ClusterIP"
-		if lbip {
+		if !options.ClusterLocal && client.RouteClient == nil {
 			svctype = "LoadBalancer"
 		}
 		svcs = append(svcs, types.Service{
@@ -409,7 +409,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	}
 	van.Transport.Services = svcs
 
-	if !lbip {
+	if !options.ClusterLocal && client.RouteClient != nil {
 		routes := []types.Route{}
 		routes = append(routes, types.Route{
 			Name:          types.InterRouterRouteName,
@@ -450,9 +450,7 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 		}
 	}
 
-	lbip := !options.ClusterLocal && cli.RouteClient == nil
-
-	van := GetVanRouterSpecFromOpts(options, cli, lbip)
+	van := GetVanRouterSpecFromOpts(options, cli)
 
 	dep, err := kube.NewTransportDeployment(van, cli.KubeClient)
 	if err != nil {
@@ -519,7 +517,7 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 							host = kube.GetLoadBalancerHostOrIP(service)
 						}
 						if host == "" {
-							fmt.Println("Failed to get LoadBalancer IP or Hostname for service skupper-internal")
+							return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service skupper-internal")
 						} else {
 							cred.Hosts = host
 							if len(host) < 64 {
