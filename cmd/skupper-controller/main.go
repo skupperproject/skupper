@@ -3,12 +3,12 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-    "fmt"
- 	"io/ioutil"
-    "log"
-    "os"
-    "os/signal"
-    "syscall"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -37,7 +37,6 @@ func SetupSignalHandler() (stopCh <-chan struct{}) {
 
 	return stop
 }
-
 
 func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 	var config tls.Config
@@ -69,34 +68,34 @@ func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 
 func main() {
 	origin := os.Getenv("SKUPPER_SERVICE_SYNC_ORIGIN")
-    namespace := os.Getenv("SKUPPER_NAMESPACE")
+	namespace := os.Getenv("SKUPPER_NAMESPACE")
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
-    // todo, get context from env?
-    cli, err := client.NewClient(namespace, "", "")
-    if err != nil {
-        log.Fatal("Error getting van client", err.Error())
-    }
+	// todo, get context from env?
+	cli, err := client.NewClient(namespace, "", "")
+	if err != nil {
+		log.Fatal("Error getting van client", err.Error())
+	}
 
 	tlsConfig, err := getTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
-    if err != nil {
-        log.Fatal("Error getting tls config", err.Error())
-    }
+	if err != nil {
+		log.Fatal("Error getting tls config", err.Error())
+	}
 
-    controller,err := NewController(cli, origin, tlsConfig)
-    if err != nil {
-        log.Fatal("Error getting new controller", err.Error())
-    }
+	controller, err := NewController(cli, origin, tlsConfig)
+	if err != nil {
+		log.Fatal("Error getting new controller", err.Error())
+	}
 
-    // fire up the informers
-    go controller.cmInformer.Run(stopCh)
-    go controller.depInformer.Run(stopCh)
-    go controller.svcInformer.Run(stopCh)
+	// fire up the informers
+	go controller.cmInformer.Run(stopCh)
+	go controller.depInformer.Run(stopCh)
+	go controller.svcInformer.Run(stopCh)
 
-    // start the controller workers
-    if err = controller.Run(stopCh); err != nil {
-        log.Fatal("Error running controller: %s", err.Error())
-    }
+	// start the controller workers
+	if err = controller.Run(stopCh); err != nil {
+		log.Fatal("Error running controller: %s", err.Error())
+	}
 }
