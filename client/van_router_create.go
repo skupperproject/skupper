@@ -9,6 +9,8 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -409,8 +411,8 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	}
 	van.Transport.Services = svcs
 
+	routes := []types.Route{}
 	if !options.ClusterLocal && client.RouteClient != nil {
-		routes := []types.Route{}
 		routes = append(routes, types.Route{
 			Name:          types.InterRouterRouteName,
 			TargetService: types.InterRouterProfile,
@@ -423,8 +425,17 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 			TargetPort:    types.EdgeRole,
 			Termination:   routev1.TLSTerminationPassthrough,
 		})
-		van.Assembly.Routes = routes
 	}
+	if options.EnableConsole && client.RouteClient != nil {
+		routes = append(routes, types.Route{
+			Name:          "skupper-router-console",
+			TargetService: types.ConsoleServiceName,
+			TargetPort:    types.ConsolePortName,
+			Termination:   routev1.TLSTerminationEdge,
+		})
+	}
+	van.Assembly.Routes = routes
+
 	return van
 }
 
@@ -457,6 +468,14 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 		return err
 	}
 	ownerRef := kube.GetOwnerReference(dep)
+	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+		if err := cli.ensureSaslConfig(&ownerRef); err != nil {
+			return err
+		}
+		if err := cli.ensureSaslUsers(options.User, options.Password, &ownerRef); err != nil {
+			return err
+		}
+	}
 
 	for _, sa := range van.Transport.ServiceAccounts {
 		kube.NewServiceAccountWithOwner(sa, ownerRef, van.Namespace, cli.KubeClient)
@@ -549,5 +568,77 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 		}
 	}
 
+	return nil
+}
+
+func (cli *VanClient) ensureSaslConfig(owner *metav1.OwnerReference) error {
+	name := "skupper-sasl-config"
+	_, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(name, metav1.GetOptions{})
+	if err == nil {
+		fmt.Println("sasl config already exists")
+	} else if errors.IsNotFound(err) {
+		config := `
+pwcheck_method: auxprop
+auxprop_plugin: sasldb
+sasldb_path: /tmp/qdrouterd.sasldb
+`
+		configMap := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Data: map[string]string{
+				"qdrouterd.conf": config,
+			},
+		}
+		if owner != nil {
+			configMap.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
+		_, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(configMap)
+		if err != nil {
+			return fmt.Errorf("Failed to create sasl config: %w", err)
+		}
+	} else {
+		return fmt.Errorf("Failed to check for sasl config: %w", err)
+	}
+	return nil
+}
+
+func (cli *VanClient) ensureSaslUsers(user string, password string, owner *metav1.OwnerReference) error {
+	name := "skupper-console-users"
+	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(name, metav1.GetOptions{})
+	if err == nil {
+		fmt.Println("console users secret already exists")
+	} else if errors.IsNotFound(err) {
+		secret := corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Data: map[string][]byte{
+				user: []byte(password),
+			},
+		}
+		if owner != nil {
+			secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
+
+		_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&secret)
+		if err != nil {
+			return fmt.Errorf("Failed to create console users secret: %w", err)
+		}
+	} else {
+		return fmt.Errorf("Failed to create console users secret: %w", err)
+	}
 	return nil
 }
