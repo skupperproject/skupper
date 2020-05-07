@@ -1,4 +1,13 @@
 version: 2.1
+orbs:
+    docker: circleci/docker@1.0.1
+    kube-orb: circleci/kubernetes@0.11.0
+    go: circleci/go@1.1.1
+
+executors:
+  local_cluster_test_executor:
+    machine:
+      image: circleci/classic:latest
 
 commands:
   make:
@@ -13,6 +22,70 @@ commands:
       - run:
           name: make
           command: make << parameters.target >>
+
+  minikube-install:
+    description: Installs the minikube executable onto the system.
+    parameters:
+      version:
+        default: v0.30.0
+        type: string
+    steps:
+      - run:
+          command: >-
+            curl -Lo minikube
+            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && 
+            chmod +x minikube && sudo
+            mv minikube /usr/local/bin/
+          name: Install Minikube Executable
+
+  minikube-start:
+    description: Starts the minikube service.
+    steps:
+      - run:
+          command: >-
+            minikube start --vm-driver=docker --cpus 2 --memory 2048
+          name: Start Minikube Cluster
+
+  minikube-start-load-balancer:
+    description: Starts the minikube tunnel
+    steps:
+      - run:
+          command: minikube tunnel
+          name: Start Minikube Tunnel
+          background: true
+
+  prepare_for_local_cluster_tests:
+    description: install right versions of go, docker, kubectl, and also build
+    steps:
+      - run:
+          #TODO add a comment saying why is this needed.
+          name: Export environment variables persistent in execution shell
+          command: |
+            echo 'export KUBECONFIG=/home/circleci/.kube/config' >> $BASH_ENV
+            echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
+            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
+            echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
+            source $BASH_ENV
+      - checkout
+      - run:
+          name: cleanup previous go installation
+          command: sudo rm -rf /usr/local/go
+      - docker/install-docker
+      - go/install
+      - kube-orb/install-kubectl
+      - run: make
+
+  run_cluster_tests:
+    description: run all e2e tests inside the current KUBECONFIG configured cluster
+    parameters:
+      args:
+        default: ""
+        type: string
+    steps:
+      - run:
+          name: Run Tests
+          command: go test -tags=integration -v ./test/integration/...
+      - run: kubectl get pods -n public1
 
 yaml-templates:
   branch_filters: &branch_filters
@@ -78,6 +151,11 @@ workflows:
           <<: *branch_filters
       - test_makefile:
           <<: *branch_filters
+
+      - minikube_local_cluster_tests:
+          <<: *branch_filters
+          pre-steps:
+            - prepare_for_local_cluster_tests
 
       - publish-github-release:
           <<: *release_filters
@@ -184,6 +262,16 @@ jobs:
       - run:
           name: Run Tests
           command: go test ./...
+
+  minikube_local_cluster_tests:
+    executor: local_cluster_test_executor
+    environment: &environment
+    steps:
+      - minikube-install
+      - minikube-start
+      - minikube-start-load-balancer
+      - run: kubectl cluster-info
+      - run_cluster_tests
 
   publish-github-release:
     docker:
