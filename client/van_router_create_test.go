@@ -48,9 +48,21 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		},
 		{
 			namespace:        "skupper",
-			expectedError:    "",
+			expectedError:    "Failed to get LoadBalancer IP or Hostname for service skupper-internal",
 			doc:              "test two",
 			skupperName:      "skupper2",
+			isEdge:           false,
+			enableController: true,
+			clusterLocal:     false,
+			depsExpected:     []string{"skupper-router"},
+			cmsExpected:      []string{"skupper-services"},
+			svcsExpected:     []string{"skupper-messaging", "skupper-internal"},
+		},
+		{
+			namespace:        "skupper",
+			expectedError:    "",
+			doc:              "test three",
+			skupperName:      "skupper3",
 			isEdge:           true,
 			enableController: true,
 			clusterLocal:     true,
@@ -61,8 +73,8 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		{
 			namespace:        "skupper",
 			expectedError:    "",
-			doc:              "test three",
-			skupperName:      "skupper3",
+			doc:              "test four",
+			skupperName:      "skupper4",
 			isEdge:           false,
 			enableController: false,
 			clusterLocal:     true,
@@ -131,8 +143,11 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 
 		// TODO: make more deterministic
 		time.Sleep(time.Second * 1)
-
-		assert.Check(t, err, c.doc)
+		if c.clusterLocal {
+			assert.Check(t, err, c.doc)
+		} else {
+			assert.Error(t, err, c.expectedError, c.doc)
+		}
 		assert.Assert(t, cmp.Equal(c.depsExpected, depsFound, trans), c.doc)
 		assert.Assert(t, cmp.Equal(c.cmsExpected, cmsFound, trans), c.doc)
 		assert.Assert(t, cmp.Equal(c.svcsExpected, svcsFound, trans), c.doc)
