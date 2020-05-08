@@ -60,43 +60,44 @@ workflows:
     jobs:
       - build-linux-386:
           <<: *release_filters
-      - build-linux-amd64:
-          <<: *branch_filters
-      - build-darwin-386:
-          <<: *release_filters
-      - build-darwin-amd64:
-          <<: *branch_filters
-      - build-windows-386:
-          <<: *release_filters
-      - build-windows-amd64:
-          <<: *branch_filters
-      - build-linux-arm:
-          <<: *release_filters
-      - build-linux-arm64:
-          <<: *release_filters
-      - test:
-          <<: *branch_filters
-      - test_makefile:
-          <<: *branch_filters
+      #- build-linux-amd64:
+          #<<: *branch_filters
+      #- build-darwin-386:
+          #<<: *release_filters
+      #- build-darwin-amd64:
+          #<<: *branch_filters
+      #- build-windows-386:
+          #<<: *release_filters
+      #- build-windows-amd64:
+          #<<: *branch_filters
+      #- build-linux-arm:
+          #<<: *release_filters
+      #- build-linux-arm64:
+          #<<: *release_filters
+      #- test:
+          #<<: *branch_filters
+      #- test_makefile:
+          #<<: *branch_filters
 
-      - publish-github-release:
-          <<: *release_filters
-          requires:
-            - build-linux-386
-            - build-linux-amd64
-            - build-darwin-386
-            - build-darwin-amd64
-            - build-windows-386
-            - build-windows-amd64
-            - build-linux-arm
-            - build-linux-arm64
-            - test
-            - test_makefile
+      #- publish-github-release:
+          #<<: *release_filters
+          #requires:
+            #- build-linux-386
+            #- build-linux-amd64
+            #- build-darwin-386
+            #- build-darwin-amd64
+            #- build-windows-386
+            #- build-windows-amd64
+            #- build-linux-arm
+            #- build-linux-arm64
+            #- test
+            #- test_makefile
 
 jobs:
   test_makefile:
-    docker:
-      - image: circleci/golang:1.13
+    executor:
+      name: go/default
+      tag: 1.13
     steps:
       - setup_remote_docker
       - checkout
@@ -109,17 +110,17 @@ jobs:
           target: clean
 
   build-linux-amd64: &go_build
-    docker:
-      - image: circleci/golang:1.13
+    executor:
+      name: go/default
+      tag: 1.13
     environment: &environment
       GOOS: linux
       GOARCH: amd64
       PLATFORM: linux-amd64
     steps:
       - checkout
-      - <<: *restore_go_cache
-      - <<: *go_mod_download
-      - <<: *save_go_cache
+      - go/mod-download-cached:
+          key: go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}
       - <<: *compile_go_executable
       - <<: *store_dist
 
