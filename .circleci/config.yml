@@ -6,6 +6,21 @@ orbs:
     go: circleci/go@1.1.1
 
 commands:
+
+  mod-download-cached:
+    description: Load cache if exists or create it
+    parameters:
+      key:
+        default: go-mod
+        description: The cache key to use. The key is immutable.
+        type: string
+    steps:
+      - go/load-cache:
+          key: '<< parameters.key >>'
+      - go/mod-download
+      - go/save-cache:
+          key: '<< parameters.key >>'
+
   make:
     description: install kind cluster
     parameters:
@@ -124,7 +139,7 @@ jobs:
       PLATFORM: linux-amd64
     steps:
       - checkout
-      - go/mod-download-cached:
+      - mod-download-cached:
           key: go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}
       - <<: *compile_go_executable
       - <<: *store_dist
@@ -183,13 +198,7 @@ jobs:
   test:
     <<: *go_build
     steps:
-      - checkout
-      - <<: *restore_go_cache
-      - <<: *go_mod_download
-      - <<: *save_go_cache
-      - run:
-          name: Run Tests
-          command: go test ./...
+      - go/test
 
   publish-github-release:
     docker:
