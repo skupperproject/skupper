@@ -131,9 +131,11 @@ jobs:
           target: clean
 
   build-linux-amd64: &go_build
-    executor:
-      name: go/default
-      tag: "1.13"
+    docker:
+      - image: circleci/golang:1.13
+    #executor:
+      #name: go/default
+      #tag: "1.13"
     environment: &environment
       GOOS: linux
       GOARCH: amd64
