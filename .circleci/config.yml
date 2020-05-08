@@ -132,7 +132,7 @@ jobs:
   build-linux-amd64: &go_build
     executor:
       name: go/default
-      tag: 1.13
+      tag: "1.13"
     environment: &environment
       GOOS: linux
       GOARCH: amd64
