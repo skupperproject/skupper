@@ -76,7 +76,7 @@ jobs:
   test_makefile:
     executor:
       name: go/default
-      tag: 1.13
+      tag: "1.13"
     steps:
       - setup_remote_docker
       - checkout
