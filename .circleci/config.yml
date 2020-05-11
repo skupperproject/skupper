@@ -1,39 +1,9 @@
-#
 version: 2.1
 
 orbs:
     docker: circleci/docker@1.0.1
     kube-orb: circleci/kubernetes@0.11.0
     go: circleci/go@1.1.1
-
-commands:
-
-  mod-download-cached:
-    description: Load cache if exists or create it
-    parameters:
-      key:
-        default: go-mod
-        description: The cache key to use. The key is immutable.
-        type: string
-    steps:
-      - go/load-cache:
-          key: '<< parameters.key >>'
-      - go/mod-download
-      - go/save-cache:
-          key: '<< parameters.key >>'
-
-  make:
-    description: install kind cluster
-    parameters:
-      target:
-          default: ''
-          description: |
-            The Makefile target to run.
-          type: string
-    steps:
-      - run:
-          name: make
-          command: make << parameters.target >>
 
 yaml-templates:
   branch_filters: &branch_filters
@@ -50,25 +20,13 @@ yaml-templates:
       tags:
         only: /[0-9].*/
 
-  restore_go_cache: &restore_go_cache
-    restore_cache:
-      keys:
-        - go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}-{{ checksum "go.sum" }}
-  go_mod_download: &go_mod_download
-    run:
-      name: Download Go Modules
-      command: go mod download
-  save_go_cache: &save_go_cache
-    save_cache:
-      key: go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}-{{ checksum "go.sum" }}
-      paths:
-        - "/go/pkg/mod"
   compile_go_executable: &compile_go_executable
     run:
       name: Compile Go Executable
       command: |
         VERSION="${CIRCLE_TAG:-ci-${CIRCLE_BUILD_NUM}}"
         go build -ldflags "-X main.version=${VERSION}" -o dist/${PLATFORM:-${GOOS}-${GOARCH}}/skupper${EXESUFFIX} ./cmd/skupper
+
   store_dist: &store_dist
     persist_to_workspace:
       root: .
@@ -122,28 +80,22 @@ jobs:
     steps:
       - setup_remote_docker
       - checkout
-      - make
-      - make:
-          target: docker-build
-      - make:
-          target: package
-      - make:
-          target: clean
+      - run: make
+      - run: make docker-build
+      - run: make package
+      - run: make clean
 
   build-linux-amd64: &go_build
-    docker:
-      - image: circleci/golang:1.13
-    #executor:
-      #name: go/default
-      #tag: "1.13"
+    executor:
+      name: go/default
+      tag: "1.13"
     environment: &environment
       GOOS: linux
       GOARCH: amd64
       PLATFORM: linux-amd64
     steps:
       - checkout
-      - mod-download-cached:
-          key: go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}
+      - go/mod-download-cached
       - <<: *compile_go_executable
       - <<: *store_dist
 
