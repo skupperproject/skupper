@@ -151,8 +151,12 @@ jobs:
       PLATFORM: linux-arm64
 
   test:
-    <<: *go_build
+    executor:
+      name: go/default
+      tag: "1.13"
     steps:
+      - checkout
+      - go/mod-download-cached
       - go/test
 
   publish-github-release:
