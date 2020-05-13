@@ -10,19 +10,6 @@ executors:
       image: circleci/classic:latest
 
 commands:
-  make:
-    description: install kind cluster
-    parameters:
-      target:
-          default: ''
-          description: |
-            The Makefile target to run.
-          type: string
-    steps:
-      - run:
-          name: make
-          command: make << parameters.target >>
-
   minikube-install:
     description: Installs the minikube executable onto the system.
     parameters:
@@ -102,25 +89,13 @@ yaml-templates:
       tags:
         only: /[0-9].*/
 
-  restore_go_cache: &restore_go_cache
-    restore_cache:
-      keys:
-        - go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}-{{ checksum "go.sum" }}
-  go_mod_download: &go_mod_download
-    run:
-      name: Download Go Modules
-      command: go mod download
-  save_go_cache: &save_go_cache
-    save_cache:
-      key: go-mod-v1-{{.Environment.GOOS}}-{{.Environment.GOARCH}}-{{ checksum "go.sum" }}
-      paths:
-        - "/go/pkg/mod"
   compile_go_executable: &compile_go_executable
     run:
       name: Compile Go Executable
       command: |
         VERSION="${CIRCLE_TAG:-ci-${CIRCLE_BUILD_NUM}}"
         go build -ldflags "-X main.version=${VERSION}" -o dist/${PLATFORM:-${GOOS}-${GOARCH}}/skupper${EXESUFFIX} ./cmd/skupper
+
   store_dist: &store_dist
     persist_to_workspace:
       root: .
@@ -173,31 +148,28 @@ workflows:
 
 jobs:
   test_makefile:
-    docker:
-      - image: circleci/golang:1.13
+    executor:
+      name: go/default
+      tag: "1.13"
     steps:
       - setup_remote_docker
       - checkout
-      - make
-      - make:
-          target: docker-build
-      - make:
-          target: package
-      - make:
-          target: clean
+      - run: make
+      - run: make docker-build
+      - run: make package
+      - run: make clean
 
   build-linux-amd64: &go_build
-    docker:
-      - image: circleci/golang:1.13
+    executor:
+      name: go/default
+      tag: "1.13"
     environment: &environment
       GOOS: linux
       GOARCH: amd64
       PLATFORM: linux-amd64
     steps:
       - checkout
-      - <<: *restore_go_cache
-      - <<: *go_mod_download
-      - <<: *save_go_cache
+      - go/mod-download-cached
       - <<: *compile_go_executable
       - <<: *store_dist
 
@@ -253,15 +225,13 @@ jobs:
       PLATFORM: linux-arm64
 
   test:
-    <<: *go_build
+    executor:
+      name: go/default
+      tag: "1.13"
     steps:
       - checkout
-      - <<: *restore_go_cache
-      - <<: *go_mod_download
-      - <<: *save_go_cache
-      - run:
-          name: Run Tests
-          command: go test ./...
+      - go/mod-download-cached
+      - go/test
 
   minikube_local_cluster_tests:
     executor: local_cluster_test_executor
