@@ -96,6 +96,6 @@ func main() {
 
 	// start the controller workers
 	if err = controller.Run(stopCh); err != nil {
-		log.Fatal("Error running controller: %s", err.Error())
+		log.Fatal("Error running controller: ", err.Error())
 	}
 }
