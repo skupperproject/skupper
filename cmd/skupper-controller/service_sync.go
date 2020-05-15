@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	amqp "github.com/Azure/go-amqp"
+	amqp "github.com/interconnectedcloud/go-amqp"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -155,7 +155,7 @@ func (c *Controller) runServiceSync() {
 
 	log.Println("Establishing connection to skupper-messaging service")
 
-	client, err := amqp.Dial("amqps://skupper-messaging:5671", amqp.ConnSASLAnonymous(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(c.tlsConfig))
+	client, err := amqp.Dial("amqps://skupper-messaging:5671", amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(c.tlsConfig))
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Failed to create amqp connection %s", err.Error()))
 		return
