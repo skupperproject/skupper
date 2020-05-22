@@ -134,7 +134,7 @@ func main() {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.VanConnectorRemove(context.Background(), args[0])
 			if err == nil {
-				fmt.Println("Connection %s has been removed", args[0])
+				fmt.Println("Connection '" + args[0] + "' has been removed")
 			} else {
 				fmt.Println("Failed to remove connection: ", err.Error())
 			}

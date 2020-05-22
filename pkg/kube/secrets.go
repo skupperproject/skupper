@@ -84,11 +84,10 @@ func DeleteSecret(name string, namespace string, cli kubernetes.Interface) error
 	secrets := cli.CoreV1().Secrets(namespace)
 	err := secrets.Delete(name, &metav1.DeleteOptions{})
 	if err == nil {
-		fmt.Println("Secret", name, "deleted")
+		return err
 	} else if errors.IsNotFound(err) {
 		return fmt.Errorf("Secret %s does not exist.", name)
 	} else {
 		return fmt.Errorf("Failed to delete secret: %w", err)
 	}
-	return err
 }
