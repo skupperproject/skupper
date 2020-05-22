@@ -17,7 +17,7 @@ func GetRoute(name string, namespace string, rc *routev1client.RouteV1Client) (*
 	return current, err
 }
 
-func NewRouteWithOwner(rte types.Route, owner metav1.OwnerReference, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {
+func NewRoute(rte types.Route, owner *metav1.OwnerReference, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {
 	insecurePolicy := routev1.InsecureEdgeTerminationPolicyNone
 	if rte.Termination != routev1.TLSTerminationPassthrough {
 		insecurePolicy = routev1.InsecureEdgeTerminationPolicyRedirect
@@ -32,8 +32,7 @@ func NewRouteWithOwner(rte types.Route, owner metav1.OwnerReference, namespace s
 				Kind:       "Route",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            rte.Name,
-				OwnerReferences: []metav1.OwnerReference{owner},
+				Name: rte.Name,
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
@@ -50,7 +49,11 @@ func NewRouteWithOwner(rte types.Route, owner metav1.OwnerReference, namespace s
 				},
 			},
 		}
-
+		if owner != nil {
+			route.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
 		created, err := rc.Routes(namespace).Create(route)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create route : %w", err)

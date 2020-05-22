@@ -65,7 +65,7 @@ func NewServiceForProxy(desiredService types.ServiceInterface, namespace string,
 		return nil, err
 	}
 
-	ownerRef := GetOwnerReference(transportDep)
+	ownerRef := GetDeploymentOwnerReference(transportDep)
 
 	current, err := kubeclient.CoreV1().Services(namespace).Get(desiredService.Address, metav1.GetOptions{})
 	if err == nil {
@@ -107,21 +107,21 @@ func NewServiceForProxy(desiredService types.ServiceInterface, namespace string,
 
 }
 
-func NewServiceWithOwner(svc types.Service, owner metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	current, err := kubeclient.CoreV1().Services(namespace).Get(svc.Name, metav1.GetOptions{})
+func NewService(svc types.Service, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+	services := kubeclient.CoreV1().Services(namespace)
+	existing, err := services.Get(svc.Name, metav1.GetOptions{})
 	if err == nil {
-		return current, nil
+		//TODO: already exists
+		return existing, nil
 	} else if errors.IsNotFound(err) {
-		labels := getLabels("router", "")
 		service := &corev1.Service{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
 				Kind:       "Service",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            svc.Name,
-				OwnerReferences: []metav1.OwnerReference{owner},
-				Annotations:     svc.Annotations,
+				Name:        svc.Name,
+				Annotations: svc.Annotations,
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: labels,
@@ -131,12 +131,21 @@ func NewServiceWithOwner(svc types.Service, owner metav1.OwnerReference, namespa
 		if svc.Type == "LoadBalancer" {
 			service.Spec.Type = corev1.ServiceTypeLoadBalancer
 		}
-		created, err := kubeclient.CoreV1().Services(namespace).Create(service)
+		if owner != nil {
+			service.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
+
+		created, err := services.Create(service)
+
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create service: %w", err)
 		} else {
 			return created, nil
 		}
+	} else {
+		service := &corev1.Service{}
+		return service, fmt.Errorf("Failed to check service: %w", err)
 	}
-	return nil, fmt.Errorf("Failed while checking service: %w", err)
 }

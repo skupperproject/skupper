@@ -13,36 +13,46 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func NewRoleBindingWithOwner(rb types.RoleBinding, owner metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*rbacv1.RoleBinding, error) {
+func NewRoleBinding(rb types.RoleBinding, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*rbacv1.RoleBinding, error) {
 	name := rb.ServiceAccount + "-" + rb.Role
-	rolebinding := &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			OwnerReferences: []metav1.OwnerReference{owner},
-		},
-		Subjects: []rbacv1.Subject{{
-			Kind: "ServiceAccount",
-			Name: rb.ServiceAccount,
-		}},
-		RoleRef: rbacv1.RoleRef{
-			Kind: "Role",
-			Name: rb.Role,
-		},
-	}
-	actual, err := kubeclient.RbacV1().RoleBindings(namespace).Create(rolebinding)
-	// TODO : come up with a policy for already-exists errors.
-	if err != nil {
-		if errors.IsAlreadyExists(err) {
-			fmt.Println("Role binding", name, "already exists")
-			return actual, nil
-		} else {
-			return actual, fmt.Errorf("Could not create role binding %s : %w", name, err)
+	roleBindings := kubeclient.RbacV1().RoleBindings(namespace)
+	existing, err := roleBindings.Get(name, metav1.GetOptions{})
+	if err == nil {
+		//TODO: already exists
+		return existing, nil
+	} else if errors.IsNotFound(err) {
+		rolebinding := &rbacv1.RoleBinding{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "RoleBinding",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Subjects: []rbacv1.Subject{{
+				Kind: "ServiceAccount",
+				Name: rb.ServiceAccount,
+			}},
+			RoleRef: rbacv1.RoleRef{
+				Kind: "Role",
+				Name: rb.Role,
+			},
+		}
+		if owner != nil {
+			rolebinding.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
 		}
 
+		created, err := roleBindings.Create(rolebinding)
+
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create role binding: %w", err)
+		} else {
+			return created, nil
+		}
+	} else {
+		rolebinding := &rbacv1.RoleBinding{}
+		return rolebinding, fmt.Errorf("Failed to check role binding: %w", err)
 	}
-	return actual, nil
 }

@@ -12,31 +12,53 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func NewConfigMapWithOwner(name string, owner metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {
-
-	configMap := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			OwnerReferences: []metav1.OwnerReference{owner},
-		},
+func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference {
+	return metav1.OwnerReference{
+		APIVersion: "core/v1",
+		Kind:       "ConfigMap",
+		Name:       config.ObjectMeta.Name,
+		UID:        config.ObjectMeta.UID,
 	}
 
-	actual, err := kubeclient.CoreV1().ConfigMaps(namespace).Create(configMap)
+}
 
-	if err != nil {
-		// TODO : come up with a policy for already-exists errors.
-		if errors.IsAlreadyExists(err) {
-			fmt.Println("ConfigMap", name, "already exists")
-			return actual, nil
-		} else {
-			return actual, fmt.Errorf("Could not create ConfigMap %s: %w", name, err)
+func NewConfigMap(name string, data *map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {
+	configMaps := kubeclient.CoreV1().ConfigMaps(namespace)
+	existing, err := configMaps.Get(name, metav1.GetOptions{})
+	if err == nil {
+		//TODO:  already exists
+		return existing, nil
+	} else if errors.IsNotFound(err) {
+		cm := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
 		}
+
+		if data != nil {
+			cm.Data = *data
+		}
+		if owner != nil {
+			cm.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
+
+		created, err := configMaps.Create(cm)
+
+		if err != nil {
+			return nil, fmt.Errorf("Failed to crate config map: %w", err)
+		} else {
+			return created, nil
+		}
+	} else {
+		cm := &corev1.ConfigMap{}
+		return cm, fmt.Errorf("Failed to check existing config maps: %w", err)
 	}
-	return actual, nil
 }
 
 func GetConfigMap(name string, namespace string, cli kubernetes.Interface) (*corev1.ConfigMap, error) {

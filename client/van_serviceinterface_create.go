@@ -32,7 +32,7 @@ func (cli *VanClient) VanServiceInterfaceCreate(ctx context.Context, targetType 
 	} else if options.Headless && targetType != "statefulset" {
 		return fmt.Errorf("The headless option is only supported for statefulsets")
 	} else {
-		owner := kube.GetOwnerReference(current)
+		owner := kube.GetDeploymentOwnerReference(current)
 		if targetType == "deployment" {
 			target, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(targetName, metav1.GetOptions{})
 			if err == nil {

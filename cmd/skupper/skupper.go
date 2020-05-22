@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -61,18 +62,23 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			cli.VanRouterCreate(context.Background(), vanRouterCreateOpts)
-			fmt.Println("Skupper is now installed in namespace '" + cli.Namespace + "'.  Use 'skupper status' to get more information.")
+			err := cli.VanRouterCreate(context.Background(), vanRouterCreateOpts)
+			if err != nil {
+				fmt.Println("Error, unable to init Skupper VAN router: ", err.Error())
+			} else {
+				fmt.Println("Skupper is now installed in namespace '" + cli.Namespace + "'.  Use 'skupper status' to get more information.")
+			}
 		},
 	}
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.SkupperName, "id", "", "", "Provide a specific identity for the skupper installation")
+	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.SkupperName, "site-name", "", "", "Provide a specific name for this skupper installation")
 	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.IsEdge, "edge", "", false, "Configure as an edge")
 	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableController, "enable-proxy-controller", "", true, "Setup the proxy controller as well as the router")
 	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Configure proxy controller to particiapte in service sync (not relevant if --enable-proxy-controller is false)")
-	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableConsole, "enable-router-console", "", false, "Enable router console")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.AuthMode, "router-console-auth", "", "", "Authentication mode for router console. One of: 'openshift', 'internal', 'unsecured'")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.User, "router-console-user", "", "", "Router console user. Valid only when --router-console-auth=internal")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.Password, "router-console-password", "", "", "Router console user. Valid only when --router-console-auth=internal")
+	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
+	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console")
+	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
+	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.ClusterLocal, "cluster-local", "", false, "Set up skupper to only accept connections from within the local cluster.")
 
 	var cmdDelete = &cobra.Command{
@@ -82,7 +88,12 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			cli.VanRouterRemove(context.Background())
+			err := cli.VanRouterRemove(context.Background())
+			if err == nil {
+				fmt.Println("Skupper is now removed from '" + cli.Namespace + "'.")
+			} else {
+				fmt.Println(err.Error())
+			}
 		},
 	}
 
@@ -93,8 +104,10 @@ func main() {
 		Args:  requiredArg("output-file"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			cli.VanConnectorTokenCreate(context.Background(), clientIdentity, args[0])
-			//generateConnectSecret(clientIdentity, args[0], initKubeConfig(namespace, context))
+			err := cli.VanConnectorTokenCreate(context.Background(), clientIdentity, args[0])
+			if err != nil {
+				fmt.Println("Failed to create connection token: ", err.Error())
+			}
 		},
 	}
 	cmdConnectionToken.Flags().StringVarP(&clientIdentity, "client-identity", "i", types.DefaultVanName, "Provide a specific identity as which connecting skupper installation will be authenticated")
@@ -106,6 +119,7 @@ func main() {
 		Args:  requiredArg("connection-token"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
+			// TODO: check error, return results for connection
 			cli.VanConnectorCreate(context.Background(), args[0], vanConnectorCreateOpts)
 		},
 	}
@@ -118,31 +132,11 @@ func main() {
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			cli.VanConnectorRemove(context.Background(), args[0])
-		},
-	}
-
-	var cmdListConnectors = &cobra.Command{
-		Use:   "list-connectors",
-		Short: "List configured outgoing VAN connections",
-		Args:  cobra.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			connectors, err := cli.VanConnectorList(context.Background())
+			err := cli.VanConnectorRemove(context.Background(), args[0])
 			if err == nil {
-				if len(connectors) == 0 {
-					fmt.Println("There are no connectors defined.")
-				} else {
-					fmt.Println("Connectors:")
-					for _, c := range connectors {
-						fmt.Printf("    %s:%s (name=%s)", c.Host, c.Port, c.Name)
-						fmt.Println()
-					}
-				}
-			} else if errors.IsNotFound(err) {
-				fmt.Println("The VanRouter is not install in '" + cli.Namespace + "`")
+				fmt.Println("Connection %s has been removed", args[0])
 			} else {
-				fmt.Println("Error, unable to retrieve VAN connections: ", err.Error())
+				fmt.Println("Failed to remove connection: ", err.Error())
 			}
 		},
 	}
@@ -245,6 +239,31 @@ func main() {
 		},
 	}
 
+	var cmdListConnectors = &cobra.Command{
+		Use:   "list-connectors",
+		Short: "List configured outgoing connections",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
+			connectors, err := cli.VanConnectorList(context.Background())
+			if err == nil {
+				if len(connectors) == 0 {
+					fmt.Println("There are no connectors defined.")
+				} else {
+					fmt.Println("Connectors:")
+					for _, c := range connectors {
+						fmt.Printf("    %s:%s (name=%s)", c.Host, c.Port, c.Name)
+						fmt.Println()
+					}
+				}
+			} else if errors.IsNotFound(err) {
+				fmt.Println("The VanRouter is not install in '" + cli.Namespace + "`")
+			} else {
+				fmt.Println("Error, unable to retrieve VAN connections: ", err.Error())
+			}
+		},
+	}
+
 	vanServiceInterfaceCreateOpts := types.VanServiceInterfaceCreateOptions{}
 	var cmdExpose = &cobra.Command{
 		Use:   "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>]",
@@ -252,8 +271,16 @@ func main() {
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanServiceInterfaceCreate(context.Background(), args[0], args[1], vanServiceInterfaceCreateOpts)
-
+			targetType := args[0]
+			var targetName string
+			if len(args) == 2 {
+				targetName = args[1]
+			} else {
+				parts := strings.Split(args[0], "/")
+				targetType = parts[0]
+				targetName = parts[1]
+			}
+			err := cli.VanServiceInterfaceCreate(context.Background(), targetType, targetName, vanServiceInterfaceCreateOpts)
 			if err == nil {
 				fmt.Printf("VAN Service Interface Target %s exposed\n", args[1])
 			} else if errors.IsNotFound(err) {
@@ -268,6 +295,7 @@ func main() {
 	cmdExpose.Flags().IntVar(&(vanServiceInterfaceCreateOpts.Port), "port", 0, "The port to expose on")
 	cmdExpose.Flags().IntVar(&(vanServiceInterfaceCreateOpts.TargetPort), "target-port", 0, "The port to target on pods")
 	cmdExpose.Flags().BoolVar(&(vanServiceInterfaceCreateOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
+	cmdExpose.Flags().StringVar(&(vanServiceInterfaceCreateOpts.Aggregate), "aggregate", "", "Aggregation strategy (one of 'json' or 'multipart').")
 
 	var unexposeAddress string
 	var cmdUnexpose = &cobra.Command{
@@ -276,9 +304,18 @@ func main() {
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanServiceInterfaceRemove(context.Background(), args[0], args[1], unexposeAddress)
+			targetType := args[0]
+			var targetName string
+			if len(args) == 2 {
+				targetName = args[1]
+			} else {
+				parts := strings.Split(args[0], "/")
+				targetType = parts[0]
+				targetName = parts[1]
+			}
+			err := cli.VanServiceInterfaceRemove(context.Background(), targetType, targetName, unexposeAddress)
 			if err == nil {
-				fmt.Printf("VAN Service Interface Target %s unexposed\n", args[1])
+				fmt.Printf("VAN Service Interface Target %s unexposed\n", targetName)
 			} else {
 				fmt.Println("Error, unable to remove VAN service interface: ", err.Error())
 			}
@@ -322,7 +359,6 @@ func main() {
 		},
 	}
 
-	// TODO: change to inspect
 	var cmdVersion = &cobra.Command{
 		Use:   "version",
 		Short: "Report the version of the Skupper CLI and services",
@@ -344,7 +380,7 @@ func main() {
 	rootCmd.Version = version
 	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed, cmdVersion)
 	rootCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "", "", "Path to the kubeconfig file to use")
-	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "kubeconfig context to use")
-	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "kubernetes namespace to use")
+	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
+	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
 	rootCmd.Execute()
 }

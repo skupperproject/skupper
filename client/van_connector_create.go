@@ -87,7 +87,7 @@ func (cli *VanClient) VanConnectorCreate(ctx context.Context, secretFile string,
 			"skupper.io/type": "connection-token",
 		}
 		secret.ObjectMeta.SetOwnerReferences([]metav1.OwnerReference{
-			kube.GetOwnerReference(current),
+			kube.GetDeploymentOwnerReference(current),
 		})
 		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&secret)
 		if err == nil {

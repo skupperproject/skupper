@@ -6,16 +6,17 @@ type VanConnectorCreateOptions struct {
 }
 
 type VanRouterCreateOptions struct {
-	SkupperName       string
-	IsEdge            bool
-	EnableController  bool
-	EnableServiceSync bool
-	EnableConsole     bool
-	AuthMode          string
-	User              string
-	Password          string
-	ClusterLocal      bool
-	Replicas          int32
+	SkupperName         string
+	IsEdge              bool
+	EnableController    bool
+	EnableServiceSync   bool
+	EnableRouterConsole bool
+	EnableConsole       bool
+	AuthMode            string
+	User                string
+	Password            string
+	ClusterLocal        bool
+	Replicas            int32
 }
 
 type VanServiceInterfaceCreateOptions struct {
@@ -24,6 +25,7 @@ type VanServiceInterfaceCreateOptions struct {
 	Port       int
 	TargetPort int
 	Headless   bool
+	Aggregate  string
 }
 
 type VanRouterInspectResponse struct {

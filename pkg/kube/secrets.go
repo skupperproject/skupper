@@ -13,14 +13,18 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
-func NewCertAuthorityWithOwner(ca types.CertAuthority, owner metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
+func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
 
 	existing, err := cli.CoreV1().Secrets(namespace).Get(ca.Name, metav1.GetOptions{})
 	if err == nil {
 		return existing, nil
 	} else if errors.IsNotFound(err) {
 		newca := certs.GenerateCASecret(ca.Name, ca.Name)
-		newca.ObjectMeta.OwnerReferences = []metav1.OwnerReference{owner}
+		if owner != nil {
+			newca.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
 		_, err := cli.CoreV1().Secrets(namespace).Create(&newca)
 		if err == nil {
 			return &newca, nil
@@ -32,17 +36,36 @@ func NewCertAuthorityWithOwner(ca types.CertAuthority, owner metav1.OwnerReferen
 	}
 }
 
-func NewSecretWithOwner(cred types.Credential, owner metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
-	caSecret, err := cli.CoreV1().Secrets(namespace).Get(cred.CA, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
+func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
+	var secret corev1.Secret
+
+	if cred.CA != "" {
+		caSecret, err := cli.CoreV1().Secrets(namespace).Get(cred.CA, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
+		}
+		secret = certs.GenerateSecret(cred.Name, cred.Subject, cred.Hosts, caSecret)
+		if cred.ConnectJson {
+			secret.Data["connect.json"] = []byte(configs.ConnectJson())
+		}
+	} else {
+		secret = corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: cred.Name,
+			},
+			Data: cred.Data,
+		}
 	}
-	secret := certs.GenerateSecret(cred.Name, cred.Subject, cred.Hosts, caSecret)
-	if cred.ConnectJson {
-		secret.Data["connect.json"] = []byte(configs.ConnectJson())
+	if owner != nil {
+		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+			*owner,
+		}
 	}
-	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{owner}
-	_, err = cli.CoreV1().Secrets(namespace).Create(&secret)
+	_, err := cli.CoreV1().Secrets(namespace).Create(&secret)
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			// TODO : come up with a policy for already-exists errors.
