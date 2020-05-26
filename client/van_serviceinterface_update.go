@@ -294,12 +294,12 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 		}
 		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
 		if err != nil {
-			return fmt.Errorf("Failed to update skupper-services config map: ", err.Error())
+			return fmt.Errorf("Failed to update skupper-services config map: %v", err.Error())
 		}
 	} else if errors.IsNotFound(err) {
-		return fmt.Errorf("No skupper service interfaces defined: ", err.Error())
+		return fmt.Errorf("No skupper service interfaces defined: %v", err.Error())
 	} else {
-		return fmt.Errorf("Could not retrieve service interfaces from configmap 'skupper-services'", err)
+		return fmt.Errorf("Could not retrieve service interfaces from configmap 'skupper-services': %v", err)
 	}
 	return nil
 }
@@ -316,7 +316,7 @@ func (cli *VanClient) VanServiceInterfaceUnbind(ctx context.Context, targetType 
 	} else if targetType == "pods" {
 		return fmt.Errorf("Target type for service interface not yet implemented")
 	} else {
-		return fmt.Errorf("Unsupported target type for service itnerface", targetType)
+		return fmt.Errorf("Unsupported target type for service interface %s", targetType)
 	}
 }
 
