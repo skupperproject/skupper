@@ -21,6 +21,47 @@ import (
 
 var version = "undefined"
 
+type ExposeOptions struct {
+	Protocol   string
+	Address    string
+	Port       int
+	TargetPort int
+	Headless   bool
+}
+
+func expose(cli *client.VanClient, ctx context.Context, targetType string, targetName string, options ExposeOptions) error {
+	serviceName := options.Address
+	if serviceName == "" {
+		serviceName = targetName
+	}
+	service, err := cli.VanServiceInterfaceInspect(ctx, serviceName)
+	if service == nil {
+		if options.Headless {
+			if targetType != "statefulset" {
+				return fmt.Errorf("The headless option is only supported for statefulsets")
+			}
+			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.Protocol, options.Address, options.Port)
+			if err != nil {
+				return err
+			}
+			return cli.VanServiceInterfaceUpdate(ctx, service)
+		} else {
+			service = &types.ServiceInterface {
+				Address: serviceName,
+				Port: options.Port,
+				Protocol: options.Protocol,
+			}
+		}
+ 	} else if service.Headless != nil {
+		return fmt.Errorf("Service already exposed as headless")
+	} else if options.Headless {
+		return fmt.Errorf("Service already exposed, cannot reconfigure as headless")
+	} else if options.Protocol != "" && service.Protocol != options.Protocol {
+		return fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
+	}
+	return cli.VanServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
+}
+
 func requiredArg(name string) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
@@ -289,14 +330,14 @@ func main() {
 		},
 	}
 
-	vanServiceInterfaceCreateOpts := types.VanServiceInterfaceCreateOptions{}
+	exposeOpts := ExposeOptions{}
 	var cmdExpose = &cobra.Command{
 		Use:   "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>]",
 		Short: "Expose a set of pods through a Skupper address",
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanServiceInterfaceExpose(context.Background(), args[0], args[1], vanServiceInterfaceCreateOpts)
+			err := expose(cli, context.Background(), args[0], args[1], exposeOpts)
 
 			if err == nil {
 				fmt.Printf("VAN Service Interface Target %s exposed\n", args[1])
@@ -307,11 +348,11 @@ func main() {
 			}
 		},
 	}
-	cmdExpose.Flags().StringVar(&(vanServiceInterfaceCreateOpts.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
-	cmdExpose.Flags().StringVar(&(vanServiceInterfaceCreateOpts.Address), "address", "", "The Skupper address to expose")
-	cmdExpose.Flags().IntVar(&(vanServiceInterfaceCreateOpts.Port), "port", 0, "The port to expose on")
-	cmdExpose.Flags().IntVar(&(vanServiceInterfaceCreateOpts.TargetPort), "target-port", 0, "The port to target on pods")
-	cmdExpose.Flags().BoolVar(&(vanServiceInterfaceCreateOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
+	cmdExpose.Flags().StringVar(&(exposeOpts.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
+	cmdExpose.Flags().StringVar(&(exposeOpts.Address), "address", "", "The Skupper address to expose")
+	cmdExpose.Flags().IntVar(&(exposeOpts.Port), "port", 0, "The port to expose on")
+	cmdExpose.Flags().IntVar(&(exposeOpts.TargetPort), "target-port", 0, "The port to target on pods")
+	cmdExpose.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
 
 	var unexposeAddress string
 	var cmdUnexpose = &cobra.Command{

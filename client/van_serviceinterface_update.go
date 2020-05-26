@@ -214,7 +214,7 @@ func (cli *VanClient) VanServiceInterfaceBind(ctx context.Context, service *type
 	}
 }
 
-func configureHeadlessService(targetName string, protocol string, address string, port int, cli *VanClient) (*types.ServiceInterface, error) {
+func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*types.ServiceInterface, error) {
 	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(targetName, metav1.GetOptions{})
 	if err == nil {
 		if address != "" && address != statefulset.Spec.ServiceName {
@@ -318,38 +318,5 @@ func (cli *VanClient) VanServiceInterfaceUnbind(ctx context.Context, targetType 
 	} else {
 		return fmt.Errorf("Unsupported target type for service interface %s", targetType)
 	}
-}
-
-func (cli *VanClient) VanServiceInterfaceExpose(ctx context.Context, targetType string, targetName string, options types.VanServiceInterfaceCreateOptions) error {
-	serviceName := options.Address
-	if serviceName == "" {
-		serviceName = targetName
-	}
-	service, err := cli.VanServiceInterfaceInspect(ctx, serviceName)
-	if service == nil {
-		if options.Headless {
-			if targetType != "statefulset" {
-				return fmt.Errorf("The headless option is only supported for statefulsets")
-			}
-			service, err = configureHeadlessService(targetName, options.Protocol, options.Address, options.Port, cli)
-			if err != nil {
-				return err
-			}
-			return cli.VanServiceInterfaceUpdate(ctx, service)
-		} else {
-			service = &types.ServiceInterface {
-				Address: serviceName,
-				Port: options.Port,
-				Protocol: options.Protocol,
-			}
-		}
- 	} else if service.Headless != nil {
-		return fmt.Errorf("Service already exposed as headless")
-	} else if options.Headless {
-		return fmt.Errorf("Service already exposed, cannot reconfigure as headless")
-	} else if options.Protocol != "" && service.Protocol != options.Protocol {
-		return fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
-	}
-	return cli.VanServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
 }
 
