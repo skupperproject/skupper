@@ -123,7 +123,7 @@ const (
 	ConsoleDefaultServiceTargetPort        int32  = 8080
 	ConsoleOpenShiftServicePort            int32  = 8888
 	ConsoleOpenShiftOauthServicePort       int32  = 443
-	ConsoleOpenShiftOuathServiceTargetPort int32  = 8443
+	ConsoleOpenShiftOauthServiceTargetPort int32  = 8443
 	ConsoleOpenShiftServingCerts           string = "skupper-proxy-certs"
 )
 
@@ -137,6 +137,8 @@ const (
 
 // Assembly constants
 const (
+	AmqpDefaultPort         int32  = 5672
+	AmqpsDefaultPort        int32  = 5671
 	EdgeRole                string = "edge"
 	EdgeRouteName           string = "skupper-edge"
 	EdgeListenerPort        int32  = 45671
@@ -269,7 +271,6 @@ type Route struct {
 	TargetService string
 	TargetPort    string
 	Termination   routev1.TLSTerminationType
-	SiteOwner     bool
 }
 
 type Service struct {
@@ -277,7 +278,6 @@ type Service struct {
 	Type        string
 	Ports       []corev1.ServicePort
 	Annotations map[string]string
-	SiteOwner   bool
 }
 
 type Credential struct {
@@ -287,13 +287,11 @@ type Credential struct {
 	Hosts       string
 	ConnectJson bool
 	Post        bool
-	SiteOwner   bool
 	Data        map[string][]byte
 }
 
 type CertAuthority struct {
-	Name      string
-	SiteOwner bool
+	Name string
 }
 
 type User struct {

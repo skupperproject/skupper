@@ -25,7 +25,6 @@ type VanServiceInterfaceCreateOptions struct {
 	Port       int
 	TargetPort int
 	Headless   bool
-	Aggregate  string
 }
 
 type VanRouterInspectResponse struct {

@@ -295,7 +295,6 @@ func main() {
 	cmdExpose.Flags().IntVar(&(vanServiceInterfaceCreateOpts.Port), "port", 0, "The port to expose on")
 	cmdExpose.Flags().IntVar(&(vanServiceInterfaceCreateOpts.TargetPort), "target-port", 0, "The port to target on pods")
 	cmdExpose.Flags().BoolVar(&(vanServiceInterfaceCreateOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
-	cmdExpose.Flags().StringVar(&(vanServiceInterfaceCreateOpts.Aggregate), "aggregate", "", "Aggregation strategy (one of 'json' or 'multipart').")
 
 	var unexposeAddress string
 	var cmdUnexpose = &cobra.Command{
