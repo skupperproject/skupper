@@ -154,14 +154,15 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 
 	r.Pub1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
 
-	var vanServiceInterfaceCreateOpts types.VanServiceInterfaceCreateOptions = types.VanServiceInterfaceCreateOptions{
-		Protocol:   "tcp",
+	service := types.ServiceInterface {
 		Address:    "tcp-go-echo",
+		Protocol:   "tcp",
 		Port:       9090,
-		TargetPort: 9090,
-		Headless:   false,
 	}
-	err = r.Pub1Cluster.VanClient.VanServiceInterfaceCreate(ctx, "deployment", "tcp-go-echo", vanServiceInterfaceCreateOpts)
+	err = r.Pub1Cluster.VanClient.VanServiceInterfaceCreate(ctx, &service)
+	assert.Check(r.T, err)
+
+	err = r.Pub1Cluster.VanClient.VanServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
 	assert.Check(r.T, err)
 
 	err = r.Pub1Cluster.VanClient.VanConnectorTokenCreate(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
