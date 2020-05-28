@@ -55,6 +55,7 @@ func QdrouterdConfig(assembly *types.AssemblySpec) string {
 router {
     mode: {{.Mode}}
     id: {{.Name}}-${HOSTNAME}
+    metadata: ${SKUPPER_SITE_ID}
 }
 {{range .Listeners}}
 

@@ -32,7 +32,7 @@ func getRootObject(cli *VanClient) (*metav1.OwnerReference, error) {
 	if err != nil {
 		return nil, err
 	} else {
-		owner := kube.GetOwnerReference(root)
+		owner := kube.GetDeploymentOwnerReference(root)
 		return &owner, nil
 	}
 }
@@ -58,8 +58,8 @@ func getServiceInterfaceTarget(targetType string, targetName string, deducePort 
 	if targetType == "deployment" {
 		deployment, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(targetName, metav1.GetOptions{})
 		if err == nil {
-			target := types.ServiceInterfaceTarget {
-				Name: deployment.ObjectMeta.Name,
+			target := types.ServiceInterfaceTarget{
+				Name:     deployment.ObjectMeta.Name,
 				Selector: stringifySelector(deployment.Spec.Selector.MatchLabels),
 			}
 			if deducePort {
@@ -75,8 +75,8 @@ func getServiceInterfaceTarget(targetType string, targetName string, deducePort 
 	} else if targetType == "statfulset" {
 		statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(targetName, metav1.GetOptions{})
 		if err == nil {
-			target := types.ServiceInterfaceTarget {
-				Name: statefulset.ObjectMeta.Name,
+			target := types.ServiceInterfaceTarget{
+				Name:     statefulset.ObjectMeta.Name,
 				Selector: stringifySelector(statefulset.Spec.Selector.MatchLabels),
 			}
 			if deducePort {
@@ -127,7 +127,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 				Kind:       "ConfigMap",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "skupper-services",
+				Name: "skupper-services",
 			},
 			Data: map[string]string{
 				service.Address: string(encoded),
@@ -222,11 +222,11 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 		}
 		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(statefulset.Spec.ServiceName, metav1.GetOptions{})
 		if err == nil {
-			def := types.ServiceInterface {
-				Address: statefulset.Spec.ServiceName,
-				Port: port,
+			def := types.ServiceInterface{
+				Address:  statefulset.Spec.ServiceName,
+				Port:     port,
 				Protocol: protocol,
-				Headless: &types.Headless {
+				Headless: &types.Headless{
 					Name: statefulset.ObjectMeta.Name,
 					Size: int(*statefulset.Spec.Replicas),
 				},
@@ -319,4 +319,3 @@ func (cli *VanClient) VanServiceInterfaceUnbind(ctx context.Context, targetType 
 		return fmt.Errorf("Unsupported target type for service interface %s", targetType)
 	}
 }
-

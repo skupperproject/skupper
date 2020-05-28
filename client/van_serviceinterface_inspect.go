@@ -32,4 +32,3 @@ func (cli *VanClient) VanServiceInterfaceInspect(ctx context.Context, address st
 		return nil, fmt.Errorf("Could not retrieve service interface definition: %s", err)
 	}
 }
-

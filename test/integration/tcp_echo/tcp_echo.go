@@ -154,10 +154,10 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 
 	r.Pub1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
 
-	service := types.ServiceInterface {
-		Address:    "tcp-go-echo",
-		Protocol:   "tcp",
-		Port:       9090,
+	service := types.ServiceInterface{
+		Address:  "tcp-go-echo",
+		Protocol: "tcp",
+		Port:     9090,
 	}
 	err = r.Pub1Cluster.VanClient.VanServiceInterfaceCreate(ctx, &service)
 	assert.Check(r.T, err)

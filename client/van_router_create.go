@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -19,7 +18,33 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
-func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRouterSpec, transport *appsv1.Deployment) {
+func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Container {
+	return &corev1.Container{
+		Image: "openshift/oauth-proxy:latest",
+		Name:  "oauth-proxy",
+		Args: []string{
+			"--https-address=:" + strconv.Itoa(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
+			"--provider=openshift",
+			"--openshift-service-account=" + serviceAccount,
+			"--upstream=http://localhost:" + servicePort,
+			"--tls-cert=/etc/tls/proxy-certs/tls.crt",
+			"--tls-key=/etc/tls/proxy-certs/tls.key",
+			"--cookie-secret=SECRET",
+		},
+		Ports: []corev1.ContainerPort{
+			corev1.ContainerPort{
+				Name:          "http",
+				ContainerPort: types.ConsoleDefaultServicePort,
+			},
+			corev1.ContainerPort{
+				Name:          "https",
+				ContainerPort: types.ConsoleOpenShiftOauthServiceTargetPort,
+			},
+		},
+	}
+}
+
+func (cli *VanClient) GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRouterSpec, transport *appsv1.Deployment) {
 
 	if os.Getenv("SKUPPER_CONTROLLER_IMAGE") != "" {
 		van.Controller.Image = os.Getenv("SKUPPER_CONTROLLER_IMAGE")
@@ -47,16 +72,41 @@ func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRo
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(transport.ObjectMeta.UID)})
 
-	volumes := &[]corev1.Volume{}
-	mounts := &[]corev1.VolumeMount{}
+	sidecars := []*corev1.Container{}
+	volumes := []corev1.Volume{}
+	mounts := make([][]corev1.VolumeMount, 0)
+	mounts = append(mounts, []corev1.VolumeMount{})
+
+	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+		csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
+		sidecars = append(sidecars, OauthProxyContainer("skupper-proxy-controller", csp))
+		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_PORT", Value: csp})
+		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_HOST", Value: "localhost"})
+		mounts = append(mounts, []corev1.VolumeMount{})
+		kube.AppendSecretVolume(&volumes, &mounts[1], "skupper-controller-certs", "/etc/tls/proxy-certs/")
+	} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
+		kube.AppendSecretVolume(&volumes, &mounts[0], "skupper-console-users", "/etc/console-users/")
+	}
+
 	if options.EnableServiceSync {
-		origin := utils.RandomId(10)
-		envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SERVICE_SYNC_ORIGIN", Value: origin})
-		kube.AppendSecretVolume(volumes, mounts, "skupper", "/etc/messaging/")
+		envVars = append(envVars, corev1.EnvVar{
+			Name: "SKUPPER_SERVICE_SYNC_ORIGIN",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						"skupper-site",
+					},
+					Key: "id",
+				},
+			},
+		})
+		kube.AppendSecretVolume(&volumes, &mounts[0], "skupper", "/etc/messaging/")
 	}
 	van.Controller.EnvVar = envVars
-	van.Controller.Volumes = *volumes
-	van.Controller.VolumeMounts = *mounts
+	van.Controller.Volumes = volumes
+	van.Controller.VolumeMounts = mounts
+	van.Controller.Sidecars = sidecars
 
 	serviceAccounts := []types.ServiceAccount{}
 	serviceAccounts = append(serviceAccounts, types.ServiceAccount{
@@ -78,18 +128,66 @@ func GetVanControllerSpec(options types.VanRouterCreateOptions, van *types.VanRo
 		Role:           "skupper-edit",
 	})
 	van.Controller.RoleBindings = roleBindings
+
+	svctype := "ClusterIP"
+	metricsPort := []corev1.ServicePort{
+		corev1.ServicePort{
+			Name:       "metrics",
+			Protocol:   "TCP",
+			Port:       types.ConsoleDefaultServicePort,
+			TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
+		},
+	}
+	termination := routev1.TLSTerminationEdge
+	annotations := map[string]string{}
+
+	svcs := []types.Service{}
+	if cli.RouteClient != nil {
+		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+			termination = routev1.TLSTerminationReencrypt
+			metricsPort = []corev1.ServicePort{
+				corev1.ServicePort{
+					Name:       "metrics",
+					Protocol:   "TCP",
+					Port:       types.ConsoleOpenShiftOauthServicePort,
+					TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
+				},
+			}
+			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-controller-certs"}
+		}
+	} else if !options.ClusterLocal {
+		svctype = "LoadBalancer"
+	}
+	svcs = append(svcs, types.Service{
+		Name:        "skupper-controller",
+		Ports:       metricsPort,
+		Type:        svctype,
+		Annotations: annotations,
+	})
+	van.Controller.Services = svcs
+
+	routes := []types.Route{}
+	if !options.ClusterLocal && cli.RouteClient != nil {
+		routes = append(routes, types.Route{
+			Name:          "skupper-controller",
+			TargetService: "skupper-controller",
+			TargetPort:    "metrics",
+			Termination:   termination,
+		})
+	}
+	van.Controller.Routes = routes
 }
 
-func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanClient) *types.VanRouterSpec {
+func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions) *types.VanRouterSpec {
 	van := &types.VanRouterSpec{}
 	//todo: think through van name, router name, secret names, etc.
 	if options.SkupperName == "" {
-		van.Name = client.Namespace
+		van.Name = cli.Namespace
 	} else {
 		van.Name = options.SkupperName
 	}
 
-	van.Namespace = client.Namespace
+	van.Namespace = cli.Namespace
 	van.AuthMode = types.ConsoleAuthMode(options.AuthMode)
 	van.Transport.LivenessPort = types.TransportLivenessPort
 
@@ -112,50 +210,43 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	listeners = append(listeners, types.Listener{
 		Name: "amqp",
 		Host: "localhost",
-		Port: 5672,
+		Port: types.AmqpDefaultPort,
 	})
 	sslProfiles = append(sslProfiles, types.SslProfile{
 		Name: "skupper-amqps",
 	})
-	//TODO: vcabbage issue with EXTERNAL, requires ANONYMOUS,false
-	//listeners = append(listeners, types.Listener{
-	//	Name:             "amqps",
-	//	Host:             "0.0.0.0",
-	//	Port:             5671,
-	//	SslProfile:       "skupper-amqps",
-	//	SaslMechanisms:   "ANONYMOUS",
-	//	AuthenticatePeer: false,
-	//})
 	listeners = append(listeners, types.Listener{
 		Name:             "amqps",
 		Host:             "0.0.0.0",
-		Port:             5671,
+		Port:             types.AmqpsDefaultPort,
 		SslProfile:       "skupper-amqps",
 		SaslMechanisms:   "EXTERNAL",
 		AuthenticatePeer: true,
 	})
-	if van.AuthMode == types.ConsoleAuthModeOpenshift {
-		listeners = append(listeners, types.Listener{
-			Name: types.ConsolePortName,
-			Host: "localhost",
-			Port: types.ConsoleOpenShiftServicePort,
-			Http: true,
-		})
-	} else if van.AuthMode == types.ConsoleAuthModeInternal {
-		listeners = append(listeners, types.Listener{
-			Name:             types.ConsolePortName,
-			Host:             "0.0.0.0",
-			Port:             types.ConsoleDefaultServicePort,
-			Http:             true,
-			AuthenticatePeer: true,
-		})
-	} else if van.AuthMode == types.ConsoleAuthModeUnsecured {
-		listeners = append(listeners, types.Listener{
-			Name: types.ConsolePortName,
-			Host: "0.0.0.0",
-			Port: types.ConsoleDefaultServicePort,
-			Http: true,
-		})
+	if options.EnableRouterConsole {
+		if van.AuthMode == types.ConsoleAuthModeOpenshift {
+			listeners = append(listeners, types.Listener{
+				Name: types.ConsolePortName,
+				Host: "localhost",
+				Port: types.ConsoleOpenShiftServicePort,
+				Http: true,
+			})
+		} else if van.AuthMode == types.ConsoleAuthModeInternal {
+			listeners = append(listeners, types.Listener{
+				Name:             types.ConsolePortName,
+				Host:             "0.0.0.0",
+				Port:             types.ConsoleDefaultServicePort,
+				Http:             true,
+				AuthenticatePeer: true,
+			})
+		} else if van.AuthMode == types.ConsoleAuthModeUnsecured {
+			listeners = append(listeners, types.Listener{
+				Name: types.ConsolePortName,
+				Host: "0.0.0.0",
+				Port: types.ConsoleDefaultServicePort,
+				Http: true,
+			})
+		}
 	}
 	if !options.IsEdge {
 		sslProfiles = append(sslProfiles, types.SslProfile{
@@ -212,23 +303,36 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_PATH", Value: "/tmp/qdrouterd.sasldb"})
 	}
 	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: configs.QdrouterdConfig(&van.Assembly)})
+	envVars = append(envVars, corev1.EnvVar{
+		Name: "SKUPPER_SITE_ID",
+		ValueFrom: &corev1.EnvVarSource{
+			ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					"skupper-site",
+				},
+				Key: "id",
+			},
+		},
+	})
 	van.Transport.EnvVar = envVars
 
 	ports := []corev1.ContainerPort{}
 	ports = append(ports, corev1.ContainerPort{
 		Name:          "amqps",
-		ContainerPort: 5671,
+		ContainerPort: types.AmqpsDefaultPort,
 	})
-	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-		ports = append(ports, corev1.ContainerPort{
-			Name:          types.ConsolePortName,
-			ContainerPort: types.ConsoleOpenShiftServicePort,
-		})
-	} else if options.AuthMode != "" {
-		ports = append(ports, corev1.ContainerPort{
-			Name:          types.ConsolePortName,
-			ContainerPort: types.ConsoleDefaultServicePort,
-		})
+	if options.EnableRouterConsole {
+		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+			ports = append(ports, corev1.ContainerPort{
+				Name:          types.ConsolePortName,
+				ContainerPort: types.ConsoleOpenShiftServicePort,
+			})
+		} else if options.AuthMode != "" {
+			ports = append(ports, corev1.ContainerPort{
+				Name:          types.ConsolePortName,
+				ContainerPort: types.ConsoleDefaultServicePort,
+			})
+		}
 	}
 	ports = append(ports, corev1.ContainerPort{
 		Name:          "http",
@@ -246,20 +350,27 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	}
 	van.Transport.Ports = ports
 
-	volumes := &[]corev1.Volume{}
-	mounts := &[]corev1.VolumeMount{}
-	kube.AppendSecretVolume(volumes, mounts, "skupper-amqps", "/etc/qpid-dispatch-certs/skupper-amqps/")
+	sidecars := []*corev1.Container{}
+	volumes := []corev1.Volume{}
+	mounts := make([][]corev1.VolumeMount, 0)
+	mounts = append(mounts, []corev1.VolumeMount{})
+	kube.AppendSecretVolume(&volumes, &mounts[0], "skupper-amqps", "/etc/qpid-dispatch-certs/skupper-amqps/")
 	if !options.IsEdge {
-		kube.AppendSecretVolume(volumes, mounts, "skupper-internal", "/etc/qpid-dispatch-certs/skupper-internal/")
+		kube.AppendSecretVolume(&volumes, &mounts[0], "skupper-internal", "/etc/qpid-dispatch-certs/skupper-internal/")
 	}
-	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-		kube.AppendSecretVolume(volumes, mounts, "skupper-proxy-certs", "/etc/tls/proxy-certs/")
-	} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-		kube.AppendSecretVolume(volumes, mounts, "skupper-console-users", "/etc/qpid-dispatch/sasl-users/")
-		kube.AppendConfigVolume(volumes, mounts, "skupper-sasl-config", "/etc/sasl2/")
+	if options.EnableRouterConsole {
+		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+			sidecars = append(sidecars, OauthProxyContainer("skupper", strconv.Itoa(int(types.ConsoleOpenShiftServicePort))))
+			mounts = append(mounts, []corev1.VolumeMount{})
+			kube.AppendSecretVolume(&volumes, &mounts[1], "skupper-proxy-certs", "/etc/tls/proxy-certs/")
+		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+			kube.AppendSecretVolume(&volumes, &mounts[0], "skupper-console-users", "/etc/qpid-dispatch/sasl-users/")
+			kube.AppendConfigVolume(&volumes, &mounts[0], "skupper-sasl-config", "/etc/sasl2/")
+		}
 	}
-	van.Transport.Volumes = *volumes
-	van.Transport.VolumeMounts = *mounts
+	van.Transport.Volumes = volumes
+	van.Transport.VolumeMounts = mounts
+	van.Transport.Sidecars = sidecars
 
 	roles := []types.Role{}
 	roles = append(roles, types.Role{
@@ -279,7 +390,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 	annotation := map[string]string{}
 	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 		annotation = map[string]string{
-			"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"skupper-console\"}}",
+			"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"skupper-router-console\"}}",
 		}
 	}
 	serviceAccounts = append(serviceAccounts, types.ServiceAccount{
@@ -304,7 +415,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 		CA:          "skupper-ca",
 		Name:        "skupper-amqps",
 		Subject:     "skupper-messaging",
-		Hosts:       "skupper-messaging,skupper-messaging." + client.Namespace + ".svc.cluster.local",
+		Hosts:       "skupper-messaging,skupper-messaging." + cli.Namespace + ".svc.cluster.local",
 		ConnectJson: false,
 		Post:        false,
 	})
@@ -331,6 +442,19 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 			Post:        post,
 		})
 	}
+	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+		credentials = append(credentials, types.Credential{
+			CA:          "",
+			Name:        "skupper-console-users",
+			Subject:     "",
+			Hosts:       "",
+			ConnectJson: false,
+			Post:        false,
+			Data: map[string][]byte{
+				options.User: []byte(options.Password),
+			},
+		})
+	}
 	van.Credentials = credentials
 
 	// TODO: this is a hack for ports, fix this
@@ -341,51 +465,47 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 			corev1.ServicePort{
 				Name:       "amqps",
 				Protocol:   "TCP",
-				Port:       5671,
-				TargetPort: intstr.FromInt(5671),
+				Port:       types.AmqpsDefaultPort,
+				TargetPort: intstr.FromInt(int(types.AmqpsDefaultPort)),
 			},
 		},
 		Type:        "",
 		Annotations: map[string]string{},
 	})
-	if options.EnableConsole {
+	if options.EnableRouterConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			svcs = append(svcs, types.Service{
-				Name: "skupper-console",
+				Name: "skupper-router-console",
 				Ports: []corev1.ServicePort{
 					corev1.ServicePort{
 						Name:       "console",
 						Protocol:   "TCP",
-						Port:       443,
-						TargetPort: intstr.FromInt(443),
+						Port:       types.ConsoleOpenShiftOauthServicePort,
+						TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
 					},
 				},
 				Type:        "",
 				Annotations: map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-proxy-certs"},
-				Termination: routev1.TLSTerminationReencrypt,
 			})
 		} else {
 			svcs = append(svcs, types.Service{
-				Name: "skupper-console",
+				Name: "skupper-router-console",
 				Ports: []corev1.ServicePort{
 					corev1.ServicePort{
 						Name:       "console",
 						Protocol:   "TCP",
-						Port:       8080,
-						TargetPort: intstr.FromInt(8080),
+						Port:       types.ConsoleDefaultServicePort,
+						TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
 					},
 				},
 				Type:        "",
 				Annotations: map[string]string{},
-				Termination: routev1.TLSTerminationEdge,
 			})
-			// if authmode internl then sasl config map and sasl users
-			// pick it up here!!!!
 		}
 	}
 	if !options.IsEdge {
 		svctype := "ClusterIP"
-		if !options.ClusterLocal && client.RouteClient == nil {
+		if !options.ClusterLocal && cli.RouteClient == nil {
 			svctype = "LoadBalancer"
 		}
 		svcs = append(svcs, types.Service{
@@ -394,25 +514,24 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 				corev1.ServicePort{
 					Name:       "inter-router",
 					Protocol:   "TCP",
-					Port:       55671,
-					TargetPort: intstr.FromInt(55671),
+					Port:       types.InterRouterListenerPort,
+					TargetPort: intstr.FromInt(int(types.InterRouterListenerPort)),
 				},
 				corev1.ServicePort{
 					Name:       "edge",
 					Protocol:   "TCP",
-					Port:       45671,
-					TargetPort: intstr.FromInt(45671),
+					Port:       types.EdgeListenerPort,
+					TargetPort: intstr.FromInt(int(types.EdgeListenerPort)),
 				},
 			},
 			Type:        svctype,
 			Annotations: map[string]string{},
-			Termination: routev1.TLSTerminationEdge,
 		})
 	}
 	van.Transport.Services = svcs
 
 	routes := []types.Route{}
-	if !options.ClusterLocal && client.RouteClient != nil {
+	if !options.ClusterLocal && cli.RouteClient != nil {
 		routes = append(routes, types.Route{
 			Name:          types.InterRouterRouteName,
 			TargetService: types.InterRouterProfile,
@@ -426,15 +545,19 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 			Termination:   routev1.TLSTerminationPassthrough,
 		})
 	}
-	if options.EnableConsole && client.RouteClient != nil {
+	if options.EnableRouterConsole && cli.RouteClient != nil {
+		termination := routev1.TLSTerminationEdge
+		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+			termination = routev1.TLSTerminationReencrypt
+		}
 		routes = append(routes, types.Route{
 			Name:          "skupper-router-console",
-			TargetService: types.ConsoleServiceName,
+			TargetService: "skupper-router-console",
 			TargetPort:    types.ConsolePortName,
-			Termination:   routev1.TLSTerminationEdge,
+			Termination:   termination,
 		})
 	}
-	van.Assembly.Routes = routes
+	van.Transport.Routes = routes
 
 	return van
 }
@@ -442,7 +565,7 @@ func GetVanRouterSpecFromOpts(options types.VanRouterCreateOptions, client *VanC
 // VanRouterCreate instantiates a VAN (router and controller) deployment
 func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRouterCreateOptions) error {
 	// todo return error
-	if options.EnableConsole {
+	if options.EnableRouterConsole || options.EnableConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeInternal) || options.AuthMode == "" {
 			options.AuthMode = string(types.ConsoleAuthModeInternal)
 			if options.User == "" {
@@ -461,50 +584,61 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 		}
 	}
 
-	van := GetVanRouterSpecFromOpts(options, cli)
+	van := cli.GetVanRouterSpecFromOpts(options)
 
-	dep, err := kube.NewTransportDeployment(van, cli.KubeClient)
+	siteData := &map[string]string{
+		"id":   utils.RandomId(10),
+		"name": van.Name,
+	}
+	siteConfig, err := kube.NewConfigMap(types.DefaultSiteName, siteData, nil, van.Namespace, cli.KubeClient)
 	if err != nil {
 		return err
 	}
-	ownerRef := kube.GetOwnerReference(dep)
-	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-		if err := cli.ensureSaslConfig(&ownerRef); err != nil {
-			return err
-		}
-		if err := cli.ensureSaslUsers(options.User, options.Password, &ownerRef); err != nil {
-			return err
-		}
+
+	siteOwnerRef := kube.GetConfigMapOwnerReference(siteConfig)
+	dep, err := kube.NewTransportDeployment(van, &siteOwnerRef, cli.KubeClient)
+	if err != nil {
+		return err
 	}
 
+	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+		config := `
+pwcheck_method: auxprop
+auxprop_plugin: sasldb
+sasldb_path: /tmp/qdrouterd.sasldb
+`
+		saslData := &map[string]string{
+			"qdrouterd.conf": config,
+		}
+		kube.NewConfigMap("skupper-sasl-config", saslData, &siteOwnerRef, van.Namespace, cli.KubeClient)
+	}
 	for _, sa := range van.Transport.ServiceAccounts {
-		kube.NewServiceAccountWithOwner(sa, ownerRef, van.Namespace, cli.KubeClient)
+		kube.NewServiceAccount(sa, &siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, role := range van.Transport.Roles {
-		kube.NewRoleWithOwner(role, ownerRef, van.Namespace, cli.KubeClient)
+		kube.NewRole(role, &siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, roleBinding := range van.Transport.RoleBindings {
-		kube.NewRoleBindingWithOwner(roleBinding, ownerRef, van.Namespace, cli.KubeClient)
+		kube.NewRoleBinding(roleBinding, &siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, ca := range van.CertAuthoritys {
-		kube.NewCertAuthorityWithOwner(ca, ownerRef, van.Namespace, cli.KubeClient)
+		kube.NewCertAuthority(ca, &siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, cred := range van.Credentials {
 		if !cred.Post {
-			kube.NewSecretWithOwner(cred, ownerRef, van.Namespace, cli.KubeClient)
+			kube.NewSecret(cred, &siteOwnerRef, van.Namespace, cli.KubeClient)
 		}
 	}
 	for _, svc := range van.Transport.Services {
-		kube.NewServiceWithOwner(svc, ownerRef, van.Namespace, cli.KubeClient)
+		kube.NewService(svc, van.Transport.Labels, &siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	if cli.RouteClient != nil {
-		for _, rte := range van.Assembly.Routes {
-			kube.NewRouteWithOwner(rte, ownerRef, van.Namespace, cli.RouteClient)
+		for _, rte := range van.Transport.Routes {
+			kube.NewRoute(rte, &siteOwnerRef, van.Namespace, cli.RouteClient)
 		}
 	}
 
-	// TODO: should this be part of van spec?
-	kube.NewConfigMapWithOwner("skupper-services", ownerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap("skupper-services", nil, &siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	if !options.IsEdge {
 		for _, cred := range van.Credentials {
@@ -545,100 +679,35 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanRout
 						}
 					}
 				}
-				kube.NewSecretWithOwner(cred, ownerRef, van.Namespace, cli.KubeClient)
+				kube.NewSecret(cred, &siteOwnerRef, van.Namespace, cli.KubeClient)
 			}
 		}
 	}
 
 	if options.EnableController {
-		GetVanControllerSpec(options, van, dep)
-		depController, err := kube.NewControllerDeployment(van, ownerRef, cli.KubeClient)
+		cli.GetVanControllerSpec(options, van, dep)
+		_, err := kube.NewControllerDeployment(van, siteOwnerRef, cli.KubeClient)
 		if err != nil {
 			return err
 		}
-		ownerRef = kube.GetOwnerReference(depController)
 		for _, sa := range van.Controller.ServiceAccounts {
-			kube.NewServiceAccountWithOwner(sa, ownerRef, van.Namespace, cli.KubeClient)
+			kube.NewServiceAccount(sa, &siteOwnerRef, van.Namespace, cli.KubeClient)
 		}
 		for _, role := range van.Controller.Roles {
-			kube.NewRoleWithOwner(role, ownerRef, van.Namespace, cli.KubeClient)
+			kube.NewRole(role, &siteOwnerRef, van.Namespace, cli.KubeClient)
 		}
 		for _, roleBinding := range van.Controller.RoleBindings {
-			kube.NewRoleBindingWithOwner(roleBinding, ownerRef, van.Namespace, cli.KubeClient)
+			kube.NewRoleBinding(roleBinding, &siteOwnerRef, van.Namespace, cli.KubeClient)
 		}
-	}
-
-	return nil
-}
-
-func (cli *VanClient) ensureSaslConfig(owner *metav1.OwnerReference) error {
-	name := "skupper-sasl-config"
-	_, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(name, metav1.GetOptions{})
-	if err == nil {
-		fmt.Println("sasl config already exists")
-	} else if errors.IsNotFound(err) {
-		config := `
-pwcheck_method: auxprop
-auxprop_plugin: sasldb
-sasldb_path: /tmp/qdrouterd.sasldb
-`
-		configMap := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "ConfigMap",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
-			Data: map[string]string{
-				"qdrouterd.conf": config,
-			},
+		for _, svc := range van.Controller.Services {
+			kube.NewService(svc, van.Controller.Labels, &siteOwnerRef, van.Namespace, cli.KubeClient)
 		}
-		if owner != nil {
-			configMap.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-				*owner,
+		if cli.RouteClient != nil {
+			for _, rte := range van.Controller.Routes {
+				kube.NewRoute(rte, &siteOwnerRef, van.Namespace, cli.RouteClient)
 			}
 		}
-		_, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(configMap)
-		if err != nil {
-			return fmt.Errorf("Failed to create sasl config: %w", err)
-		}
-	} else {
-		return fmt.Errorf("Failed to check for sasl config: %w", err)
 	}
-	return nil
-}
 
-func (cli *VanClient) ensureSaslUsers(user string, password string, owner *metav1.OwnerReference) error {
-	name := "skupper-console-users"
-	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(name, metav1.GetOptions{})
-	if err == nil {
-		fmt.Println("console users secret already exists")
-	} else if errors.IsNotFound(err) {
-		secret := corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
-			Data: map[string][]byte{
-				user: []byte(password),
-			},
-		}
-		if owner != nil {
-			secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-				*owner,
-			}
-		}
-
-		_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&secret)
-		if err != nil {
-			return fmt.Errorf("Failed to create console users secret: %w", err)
-		}
-	} else {
-		return fmt.Errorf("Failed to create console users secret: %w", err)
-	}
 	return nil
 }

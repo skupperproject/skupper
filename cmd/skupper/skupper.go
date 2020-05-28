@@ -46,13 +46,13 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 			}
 			return cli.VanServiceInterfaceUpdate(ctx, service)
 		} else {
-			service = &types.ServiceInterface {
-				Address: serviceName,
-				Port: options.Port,
+			service = &types.ServiceInterface{
+				Address:  serviceName,
+				Port:     options.Port,
 				Protocol: options.Protocol,
 			}
 		}
- 	} else if service.Headless != nil {
+	} else if service.Headless != nil {
 		return fmt.Errorf("Service already exposed as headless")
 	} else if options.Headless {
 		return fmt.Errorf("Service already exposed, cannot reconfigure as headless")
@@ -89,10 +89,9 @@ func exposeTarget() func(*cobra.Command, []string) error {
 	}
 }
 
-
-func createServiceArgs() func(*cobra.Command,[]string) error {
+func createServiceArgs() func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		if (len(args) < 1 || (!strings.Contains(args[0], ":") && len(args) < 2)) {
+		if len(args) < 1 || (!strings.Contains(args[0], ":") && len(args) < 2) {
 			return fmt.Errorf("Name and port must be specified")
 		}
 		if len(args) > 2 {
@@ -105,7 +104,7 @@ func createServiceArgs() func(*cobra.Command,[]string) error {
 	}
 }
 
-func deleteServiceArgs() func(*cobra.Command,[]string) error {
+func deleteServiceArgs() func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return fmt.Errorf("name of service to delete must be specified")
@@ -116,9 +115,9 @@ func deleteServiceArgs() func(*cobra.Command,[]string) error {
 	}
 }
 
-func bindArgs() func(*cobra.Command,[]string) error {
+func bindArgs() func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		if (len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3)) {
+		if len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3) {
 			return fmt.Errorf("Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')")
 		}
 		if len(args) > 3 {
@@ -146,18 +145,23 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			cli.VanRouterCreate(context.Background(), vanRouterCreateOpts)
-			fmt.Println("Skupper is now installed in namespace '" + cli.Namespace + "'.  Use 'skupper status' to get more information.")
+			err := cli.VanRouterCreate(context.Background(), vanRouterCreateOpts)
+			if err != nil {
+				fmt.Println("Error, unable to init Skupper VAN router: ", err.Error())
+			} else {
+				fmt.Println("Skupper is now installed in namespace '" + cli.Namespace + "'.  Use 'skupper status' to get more information.")
+			}
 		},
 	}
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.SkupperName, "id", "", "", "Provide a specific identity for the skupper installation")
+	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.SkupperName, "site-name", "", "", "Provide a specific name for this skupper installation")
 	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.IsEdge, "edge", "", false, "Configure as an edge")
 	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableController, "enable-proxy-controller", "", true, "Setup the proxy controller as well as the router")
 	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Configure proxy controller to particiapte in service sync (not relevant if --enable-proxy-controller is false)")
-	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableConsole, "enable-router-console", "", false, "Enable router console")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.AuthMode, "router-console-auth", "", "", "Authentication mode for router console. One of: 'openshift', 'internal', 'unsecured'")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.User, "router-console-user", "", "", "Router console user. Valid only when --router-console-auth=internal")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.Password, "router-console-password", "", "", "Router console user. Valid only when --router-console-auth=internal")
+	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
+	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console")
+	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
+	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.ClusterLocal, "cluster-local", "", false, "Set up skupper to only accept connections from within the local cluster.")
 
 	var cmdDelete = &cobra.Command{
@@ -167,7 +171,12 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			cli.VanRouterRemove(context.Background())
+			err := cli.VanRouterRemove(context.Background())
+			if err == nil {
+				fmt.Println("Skupper is now removed from '" + cli.Namespace + "'.")
+			} else {
+				fmt.Println(err.Error())
+			}
 		},
 	}
 
@@ -178,8 +187,10 @@ func main() {
 		Args:  requiredArg("output-file"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			cli.VanConnectorTokenCreate(context.Background(), clientIdentity, args[0])
-			//generateConnectSecret(clientIdentity, args[0], initKubeConfig(namespace, context))
+			err := cli.VanConnectorTokenCreate(context.Background(), clientIdentity, args[0])
+			if err != nil {
+				fmt.Println("Failed to create connection token: ", err.Error())
+			}
 		},
 	}
 	cmdConnectionToken.Flags().StringVarP(&clientIdentity, "client-identity", "i", types.DefaultVanName, "Provide a specific identity as which connecting skupper installation will be authenticated")
@@ -191,6 +202,7 @@ func main() {
 		Args:  requiredArg("connection-token"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
+			// TODO: check error, return results for connection
 			cli.VanConnectorCreate(context.Background(), args[0], vanConnectorCreateOpts)
 		},
 	}
@@ -203,13 +215,18 @@ func main() {
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			cli.VanConnectorRemove(context.Background(), args[0])
+			err := cli.VanConnectorRemove(context.Background(), args[0])
+			if err == nil {
+				fmt.Println("Connection '" + args[0] + "' has been removed")
+			} else {
+				fmt.Println("Failed to remove connection: ", err.Error())
+			}
 		},
 	}
 
 	var cmdListConnectors = &cobra.Command{
 		Use:   "list-connectors",
-		Short: "List configured outgoing VAN connections",
+		Short: "List configured outgoing connections",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
@@ -416,7 +433,7 @@ func main() {
 	var cmdCreateService = &cobra.Command{
 		Use:   "create <name> <port>",
 		Short: "Create a skupper service",
-		Args: createServiceArgs(),
+		Args:  createServiceArgs(),
 		Run: func(cmd *cobra.Command, args []string) {
 			var sPort string
 			if len(args) == 1 {
@@ -449,7 +466,7 @@ func main() {
 	var cmdDeleteService = &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a skupper service",
-		Args: deleteServiceArgs(),
+		Args:  deleteServiceArgs(),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.VanServiceInterfaceRemove(context.Background(), args[0])
@@ -465,7 +482,7 @@ func main() {
 	var cmdBind = &cobra.Command{
 		Use:   "bind <service-name> <target-type> <target-name>",
 		Short: "Bind a target to a service",
-		Args: bindArgs(),
+		Args:  bindArgs(),
 		Run: func(cmd *cobra.Command, args []string) {
 			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
 				fmt.Printf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
@@ -503,7 +520,7 @@ func main() {
 	var cmdUnbind = &cobra.Command{
 		Use:   "unbind <service-name> <target-type> <target-name>",
 		Short: "Unbind a target from a service",
-		Args: bindArgs(),
+		Args:  bindArgs(),
 		Run: func(cmd *cobra.Command, args []string) {
 			var targetType string
 			var targetName string
@@ -546,7 +563,7 @@ func main() {
 	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
 		cmdService, cmdBind, cmdUnbind, cmdVersion)
 	rootCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "", "", "Path to the kubeconfig file to use")
-	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "kubeconfig context to use")
-	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "kubernetes namespace to use")
+	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
+	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
 	rootCmd.Execute()
 }

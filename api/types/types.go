@@ -24,13 +24,9 @@ const (
 	// NamespaceDefault means the VAN is in the  skupper namespace which is applied when not specified by clients
 	NamespaceDefault    string = "skupper"
 	DefaultVanName      string = "skupper"
+	DefaultSiteName     string = "skupper-site"
 	ClusterLocalPostfix string = ".svc.cluster.local"
 )
-
-// KeyValue holds a key/value pair
-type KeyValue struct {
-	Key, Value string
-}
 
 // TransportMode describes how a qdr is intended to be deployed, either interior or edge
 type TransportMode string
@@ -127,7 +123,7 @@ const (
 	ConsoleDefaultServiceTargetPort        int32  = 8080
 	ConsoleOpenShiftServicePort            int32  = 8888
 	ConsoleOpenShiftOauthServicePort       int32  = 443
-	ConsoleOpenShiftOuathServiceTargetPort int32  = 8443
+	ConsoleOpenShiftOauthServiceTargetPort int32  = 8443
 	ConsoleOpenShiftServingCerts           string = "skupper-proxy-certs"
 )
 
@@ -141,6 +137,8 @@ const (
 
 // Assembly constants
 const (
+	AmqpDefaultPort         int32  = 5672
+	AmqpsDefaultPort        int32  = 5671
 	EdgeRole                string = "edge"
 	EdgeRouteName           string = "skupper-edge"
 	EdgeListenerPort        int32  = 45671
@@ -148,8 +146,6 @@ const (
 	InterRouterListenerPort int32  = 55671
 	InterRouterRouteName    string = "skupper-inter-router"
 	InterRouterProfile      string = "skupper-internal"
-
-//    ConnectorSecretLabel    KeyValue = KeyValue{Key: "skupper.io/type", Value: "connection-token",}
 )
 
 // Service Sync constants
@@ -180,12 +176,14 @@ type DeploymentSpec struct {
 	EnvVar          []corev1.EnvVar        `json:"envVar,omitempty"`
 	Ports           []corev1.ContainerPort `json:"ports,omitempty"`
 	Volumes         []corev1.Volume        `json:"volumes,omitempty"`
-	VolumeMounts    []corev1.VolumeMount   `json:"volumeMounts,omitempty"`
+	VolumeMounts    [][]corev1.VolumeMount `json:"volumeMounts,omitempty"`
 	ConfigMaps      []ConfigMap            `json:"configMaps,omitempty"`
 	Roles           []Role                 `json:"roles,omitempty"`
 	RoleBindings    []RoleBinding          `json:"roleBinding,omitempty"`
+	Routes          []Route                `json:"routes,omitempty"`
 	ServiceAccounts []ServiceAccount       `json:"serviceAccounts,omitempty"`
 	Services        []Service              `json:"services,omitempty"`
+	Sidecars        []*corev1.Container    `json:"sidecars,omitempty"`
 }
 
 // AssemblySpec for the links and connectors that form the VAN topology
@@ -199,7 +197,6 @@ type AssemblySpec struct {
 	Connectors            []Connector  `json:"connectors,omitempty"`
 	InterRouterConnectors []Connector  `json:"interRouterConnectors,omitempty"`
 	EdgeConnectors        []Connector  `json:"edgeConnectors,omitempty"`
-	Routes                []Route      `json:"routes,omitempty"`
 }
 
 type VanRouterStatusSpec struct {
@@ -281,7 +278,6 @@ type Service struct {
 	Type        string
 	Ports       []corev1.ServicePort
 	Annotations map[string]string
-	Termination routev1.TLSTerminationType
 }
 
 type Credential struct {
@@ -291,6 +287,7 @@ type Credential struct {
 	Hosts       string
 	ConnectJson bool
 	Post        bool
+	Data        map[string][]byte
 }
 
 type CertAuthority struct {

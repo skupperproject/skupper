@@ -12,13 +12,13 @@ import (
 
 // VanRouterRemove delete a VAN (router and controller) deployment
 func (cli *VanClient) VanRouterRemove(ctx context.Context) error {
-	err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Delete(types.TransportDeploymentName, &metav1.DeleteOptions{})
-	if err == nil {
-		fmt.Println("Skupper is now removed from '" + cli.Namespace + "'.")
-	} else if errors.IsNotFound(err) {
-		fmt.Println("Skupper not installed in '" + cli.Namespace + "'.")
-	} else {
-		fmt.Println("Error while trying to delete:", err.Error())
+	err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Delete(types.DefaultSiteName, &metav1.DeleteOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return fmt.Errorf("Skupper not installed in '"+cli.Namespace+"': %s", err.Error())
+		} else {
+			return fmt.Errorf("Error while trying to delete: %w", err.Error())
+		}
 	}
-	return err
+	return nil
 }

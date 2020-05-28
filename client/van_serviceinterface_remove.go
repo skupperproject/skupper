@@ -10,7 +10,7 @@ import (
 
 func (cli *VanClient) VanServiceInterfaceRemove(ctx context.Context, address string) error {
 	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-services", metav1.GetOptions{})
-	if err == nil && current.Data != nil  {
+	if err == nil && current.Data != nil {
 		jsonDef := current.Data[address]
 		if jsonDef == "" {
 			return fmt.Errorf("Could not find service %s", address)
