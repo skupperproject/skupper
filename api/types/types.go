@@ -306,12 +306,14 @@ type TransportConnectedSites struct {
 }
 
 type ServiceInterface struct {
-	Address  string                   `json:"address"`
-	Protocol string                   `json:"protocol"`
-	Port     int                      `json:"port"`
-	Headless *Headless                `json:"headless,omitempty"`
-	Targets  []ServiceInterfaceTarget `json:"targets"`
-	Origin   string                   `json:"origin,omitempty"`
+	Address      string                   `json:"address"`
+	Protocol     string                   `json:"protocol"`
+	Port         int                      `json:"port"`
+	EventChannel bool                     `json:"eventchannel,omitempty"`
+	Aggregate    string                   `json:"aggregate,omitempty"`
+	Headless     *Headless                `json:"headless,omitempty"`
+	Targets      []ServiceInterfaceTarget `json:"targets"`
+	Origin       string                   `json:"origin,omitempty"`
 }
 
 type ServiceInterfaceTarget struct {
