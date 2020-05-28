@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
 
 	"gotest.tools/assert"
 )
@@ -67,20 +67,27 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		// Create the client
 		cli, err := newMockClient("skupper", "", "")
 		assert.Check(t, err, c.name)
 
 		var service types.ServiceInterface
 
 		if c.init {
-			van := GetVanRouterSpecFromOpts(types.VanRouterCreateOptions{}, cli)
-			dep, err := kube.NewTransportDeployment(van, cli.KubeClient)
-			assert.Assert(t, cmp.Equal(err, nil))
+			van := cli.GetVanRouterSpecFromOpts(types.VanRouterCreateOptions{})
 
-			ownerRef := kube.GetOwnerReference(dep)
+			siteData := &map[string]string{
+				"id":   utils.RandomId(10),
+				"name": van.Name,
+			}
 
-			kube.NewConfigMapWithOwner("skupper-services", ownerRef, van.Namespace, cli.KubeClient)
+			siteConfig, err := kube.NewConfigMap(types.DefaultSiteName, siteData, nil, van.Namespace, cli.KubeClient)
+			if err != nil {
+				assert.Assert(t, err == nil)
+			}
+
+			siteOwnerRef := kube.GetConfigMapOwnerReference(siteConfig)
+			_, err = kube.NewTransportDeployment(van, &siteOwnerRef, cli.KubeClient)
+			assert.Assert(t, err == nil)
 
 			service = types.ServiceInterface{
 				Address:  c.addr,
@@ -94,17 +101,17 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 		err = cli.VanServiceInterfaceCreate(ctx, &service)
 
 		switch c.err {
-		case "": // There should be no error.
+		case "":
 			if err != nil {
 				fp(os.Stdout, "Test %s failure: %s  An error was reported where none was expected.\n", c.name, c.doc)
 			}
 			assert.Assert(t, err == nil)
-		case "error": // There should be some kind of error, but I don't know what it is.
+		case "error": 
 			if err == nil {
 				fp(os.Stdout, "Test %s failure: %s No error was reported, but one should have been.\n", c.name, c.doc)
 			}
 			assert.Assert(t, err != nil)
-		default: // There should be this exact error.
+		default: 
 			if c.err != err.Error() {
 				fp(os.Stdout, "Test %s failure: %s The reported error was different from the expected error.\n", c.name, c.doc)
 			}
