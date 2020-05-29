@@ -106,7 +106,7 @@ func forwardSendReceive(cc *cluster.ClusterContext, port string) {
 	//using the Kill only kills the first process
 
 	//TODO find a better solution for this
-	time.Sleep(20 * time.Second) //give time to port forwarding to start
+	time.Sleep(60 * time.Second) //give time to port forwarding to start
 
 	sendReceive("127.0.0.1:" + port)
 }

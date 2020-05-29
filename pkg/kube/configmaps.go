@@ -12,6 +12,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
+
 func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: "core/v1",
@@ -19,7 +20,6 @@ func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference 
 		Name:       config.ObjectMeta.Name,
 		UID:        config.ObjectMeta.UID,
 	}
-
 }
 
 func NewConfigMap(name string, data *map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {

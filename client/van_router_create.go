@@ -356,6 +356,17 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 			kube.AppendConfigVolume(&volumes, &mounts[0], "skupper-sasl-config", "/etc/sasl2/")
 		}
 	}
+	//TODO: make nicer
+	volumes = append(volumes, corev1.Volume{
+		Name: "bridge-config",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: "skupper-internal",
+				},
+			},
+		},
+	})
 	van.Transport.Volumes = volumes
 	van.Transport.VolumeMounts = mounts
 	van.Transport.Sidecars = sidecars
@@ -624,6 +635,10 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 
 	kube.NewConfigMap("skupper-services", nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+	initialBridges := map[string]string{
+		"bridges.json":"[]", //TODO: make this all nicer
+	}
+	kube.NewConfigMap("skupper-internal", &initialBridges, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	if !options.Spec.IsEdge {
 		for _, cred := range van.Credentials {

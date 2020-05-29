@@ -12,23 +12,10 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func getLabels(component string, name string) map[string]string {
-	//TODO: cleanup handling of labels
-	if component == "controller" {
-		return map[string]string{
-			"internal.skupper.io/service": name,
-		}
-	} else {
-		application := "skupper"
-		if component == "router" {
-			//the automeshing function of the router image expects the application
-			//to be used as a unique label for identifying routers to connect to
-			application = types.TransportDeploymentName
-		}
-		return map[string]string{
-			"application":          application,
-			"skupper.io/component": component,
-		}
+func getLabelsForRouter() map[string]string {
+	return map[string]string{
+		"application":          types.TransportDeploymentName,
+		"skupper.io/component": "router",
 	}
 }
 
@@ -56,55 +43,41 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 	return current, err
 }
 
-func NewServiceForProxy(desiredService types.ServiceInterface, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	// TODO: Max for target port, 1024
+func NewServiceForAddress(address string, port int, targetPort int, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	// TODO: make common service creation and deal with annotation, label differences
-	deployments := kubeclient.AppsV1().Deployments(namespace)
-	transportDep, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
+	labels := getLabelsForRouter()
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            address,
+			Annotations: map[string]string{
+				"internal.skupper.io/controlled": "true",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: labels,
+			Ports: []corev1.ServicePort{
+				corev1.ServicePort{
+					Name:       address,
+					Port:       int32(port),
+					TargetPort: intstr.FromInt(targetPort),
+				},
+			},
+		},
+	}
+	if owner != nil {
+		service.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
+
+	}
+	created, err := kubeclient.CoreV1().Services(namespace).Create(service)
 	if err != nil {
 		return nil, err
-	}
-
-	ownerRef := GetDeploymentOwnerReference(transportDep)
-
-	current, err := kubeclient.CoreV1().Services(namespace).Get(desiredService.Address, metav1.GetOptions{})
-	if err == nil {
-		// It shouldn't already exist??
-		return current, nil
 	} else {
-		labels := getLabels("controller", desiredService.Address)
-		service := &corev1.Service{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Service",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            desiredService.Address,
-				OwnerReferences: []metav1.OwnerReference{ownerRef},
-				Annotations: map[string]string{
-					"internal.skupper.io/controlled": "true",
-				},
-			},
-			Spec: corev1.ServiceSpec{
-				Selector: labels,
-				Ports: []corev1.ServicePort{
-					corev1.ServicePort{
-						Name:       desiredService.Address,
-						Port:       int32(desiredService.Port),
-						TargetPort: intstr.FromInt(desiredService.Port),
-					},
-				},
-			},
-		}
-
-		created, err := kubeclient.CoreV1().Services(namespace).Create(service)
-		if err != nil {
-			return nil, err
-		} else {
-			return created, nil
-		}
+		return created, nil
 	}
-
 }
 
 func NewService(svc types.Service, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
