@@ -40,6 +40,7 @@ rules:
   resources:
   - configmaps
   - pods
+  - pods/exec
   - services
   - secrets
   - serviceaccounts
