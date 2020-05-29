@@ -66,10 +66,10 @@ var TransportPrometheusAnnotations = map[string]string{
 
 // Controller constants
 const (
-	ControllerDeploymentName     string = "skupper-proxy-controller"
-	ControllerComponentName      string = "controller"
-	DefaultControllerImage       string = "quay.io/skupper/controller-golang"
-	ControllerContainerName      string = "proxy-controller"
+	ControllerDeploymentName     string = "skupper-service-controller"
+	ControllerComponentName      string = "service-controller"
+	DefaultControllerImage       string = "quay.io/skupper/service-controller"
+	ControllerContainerName      string = "service-controller"
 	DefaultProxyImage            string = "quay.io/skupper/proxy"
 	ControllerServiceAccountName string = "skupper-proxy-controller"
 	ControllerConfigPath         string = "/etc/messaging/"
@@ -101,8 +101,13 @@ const (
 	ServiceQualifier          string = InternalQualifier + "/service"
 	OriginQualifier           string = InternalQualifier + "/origin"
 	OriginalSelectorQualifier string = InternalQualifier + "/origin"
-	TypeQualifier             string = InternalQualifier + "/type"
-	TypeProxyQualifier        string = TypeQualifier + "=proxy"
+	InternalTypeQualifier     string = InternalQualifier + "/type"
+	SkupperTypeQualifier      string = BaseQualifier + "/type"
+	TypeProxyQualifier        string = InternalTypeQualifier + "=proxy"
+	TypeToken                 string = "connection-token"
+	TypeTokenQualifier        string = BaseQualifier + "/type=connection-token"
+	TypeTokenRequestQualifier string = BaseQualifier + "/type=connection-token-request"
+	TokenGeneratedBy          string = BaseQualifier + "/generated-by"
 )
 
 // Service Interface constants

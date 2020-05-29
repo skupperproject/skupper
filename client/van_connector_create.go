@@ -61,68 +61,85 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	return "conn" + strconv.Itoa(max)
 }
 
-func (cli *VanClient) VanConnectorCreate(ctx context.Context, secretFile string, options types.VanConnectorCreateOptions) error {
+func (cli *VanClient) VanConnectorCreateFromFile(ctx context.Context, secretFile string, options types.VanConnectorCreateOptions) error {
 	yaml, err := ioutil.ReadFile(secretFile)
 	if err != nil {
 		fmt.Println("Could not read connection token", err.Error())
 		return err
 	}
-	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
-		scheme.Scheme)
-	var secret corev1.Secret
-	_, _, err = s.Decode(yaml, nil, &secret)
-	if err != nil {
-		fmt.Printf("Could not parse connection token: %s", err)
-		fmt.Println()
-		return err
-	}
 	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 	if err == nil {
-		mode := qdr.GetTransportMode(current)
-		if options.Name == "" {
-			options.Name = generateConnectorName(cli.Namespace, cli.KubeClient)
-		}
-		secret.ObjectMeta.Name = options.Name
-		secret.ObjectMeta.Labels = map[string]string{
-			"skupper.io/type": "connection-token",
-		}
-		secret.ObjectMeta.SetOwnerReferences([]metav1.OwnerReference{
-			kube.GetDeploymentOwnerReference(current),
-		})
-		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&secret)
-		if err == nil {
-			//read annotations to get the host and port to connect to
-			connector := types.Connector{
-				Name: options.Name,
-				Cost: options.Cost,
-			}
-			if mode == types.TransportModeInterior {
-				connector.Host = secret.ObjectMeta.Annotations["inter-router-host"]
-				connector.Port = secret.ObjectMeta.Annotations["inter-router-port"]
-				connector.Role = string(types.ConnectorRoleInterRouter)
-			} else {
-				connector.Host = secret.ObjectMeta.Annotations["edge-host"]
-				connector.Port = secret.ObjectMeta.Annotations["edge-port"]
-				connector.Role = string(types.ConnectorRoleEdge)
-			}
-			qdr.AddConnector(&connector, current)
-			_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(current)
-			if err != nil {
-				fmt.Println("Failed to update qdr deployment: ", err.Error())
-			} else {
-				fmt.Printf("Skupper configured to connect to %s:%s (name=%s)", connector.Host, connector.Port, connector.Name)
-				fmt.Println()
-			}
-		} else if errors.IsAlreadyExists(err) {
-			fmt.Println("A connector secret of that name already exist, please choose a different name")
+		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
+			scheme.Scheme)
+		var secret corev1.Secret
+		_, _, err = s.Decode(yaml, nil, &secret)
+		if err != nil {
+			fmt.Printf("Could not parse connection token: %s", err)
+			fmt.Println()
 			return err
 		} else {
-			fmt.Println("Failed to create connector secret: ", err.Error())
-			return err
+			if options.Name == "" {
+				options.Name = generateConnectorName(cli.Namespace, cli.KubeClient)
+			}
+			secret.ObjectMeta.Name = options.Name
+			secret.ObjectMeta.Labels = map[string]string{
+				"skupper.io/type": "connection-token",
+			}
+			secret.ObjectMeta.SetOwnerReferences([]metav1.OwnerReference{
+				kube.GetDeploymentOwnerReference(current),
+			})
+			_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&secret)
+			if err == nil {
+				return cli.createConnector(ctx, &secret, options, current)
+			} else if errors.IsAlreadyExists(err) {
+				fmt.Println("A connector secret of that name already exist, please choose a different name")
+				return err
+			} else {
+				fmt.Println("Failed to create connector secret: ", err.Error())
+				return err
+			}
 		}
 	} else {
 		fmt.Println("Failed to retrieve qdr deployment: ", err.Error())
 		return err
 	}
+}
+
+func (cli *VanClient) VanConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.VanConnectorCreateOptions) error {
+	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+	if err == nil {
+		return cli.createConnector(ctx, secret, options, current)
+	} else {
+		fmt.Println("Failed to retrieve qdr deployment: ", err.Error())
+		return err
+	}
 	return nil
+}
+
+func (cli *VanClient) createConnector(ctx context.Context, secret *corev1.Secret, options types.VanConnectorCreateOptions, current *appsv1.Deployment) error {
+	mode := qdr.GetTransportMode(current)
+	//read annotations to get the host and port to connect to
+	connector := types.Connector{
+		Name: options.Name,
+		Cost: options.Cost,
+	}
+	if mode == types.TransportModeInterior {
+		connector.Host = secret.ObjectMeta.Annotations["inter-router-host"]
+		connector.Port = secret.ObjectMeta.Annotations["inter-router-port"]
+		connector.Role = string(types.ConnectorRoleInterRouter)
+	} else {
+		connector.Host = secret.ObjectMeta.Annotations["edge-host"]
+		connector.Port = secret.ObjectMeta.Annotations["edge-port"]
+		connector.Role = string(types.ConnectorRoleEdge)
+	}
+	qdr.AddConnector(&connector, current)
+	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(current)
+	if err != nil {
+		fmt.Println("Failed to update qdr deployment: ", err.Error())
+		return err
+	} else {
+		fmt.Printf("Skupper configured to connect to %s:%s (name=%s)", connector.Host, connector.Port, connector.Name)
+		fmt.Println()
+		return nil
+	}
 }

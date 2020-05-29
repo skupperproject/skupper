@@ -15,20 +15,22 @@ func TestConnectorCreateTokenInterior(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.VanRouterCreate(ctx, types.VanRouterCreateOptions{
-		SkupperName:       "skupper",
-		IsEdge:            false,
-		EnableController:  true,
-		EnableServiceSync: true,
-		EnableConsole:     false,
-		AuthMode:          "",
-		User:              "",
-		Password:          "",
-		ClusterLocal:      true,
+	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
+		Spec: types.VanSiteConfigSpec {
+			SkupperName:       "skupper",
+			IsEdge:            false,
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          "",
+			User:              "",
+			Password:          "",
+			ClusterLocal:      true,
+		},
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	err = cli.VanConnectorTokenCreate(ctx, "conn1", "./conn1.yaml")
+	err = cli.VanConnectorTokenCreateFile(ctx, "conn1", "./conn1.yaml")
 	assert.Check(t, err, "Unable to create connector token")
 
 	os.Remove("./conn1.yaml")
@@ -40,20 +42,22 @@ func TestConnectorCreateTokenEdge(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.VanRouterCreate(ctx, types.VanRouterCreateOptions{
-		SkupperName:       "skupper",
-		IsEdge:            true,
-		EnableController:  true,
-		EnableServiceSync: true,
-		EnableConsole:     false,
-		AuthMode:          "",
-		User:              "",
-		Password:          "",
-		ClusterLocal:      true,
+	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
+		Spec: types.VanSiteConfigSpec {
+			SkupperName:       "skupper",
+			IsEdge:            true,
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          "",
+			User:              "",
+			Password:          "",
+			ClusterLocal:      true,
+		},
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	err = cli.VanConnectorTokenCreate(ctx, "conn1", "/tmp/conn1.yaml")
+	err = cli.VanConnectorTokenCreateFile(ctx, "conn1", "/tmp/conn1.yaml")
 	assert.Error(t, err, "Edge configuration cannot accept connections", "Expect error when edge")
 
 }

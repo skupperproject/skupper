@@ -12,7 +12,7 @@ import (
 
 // VanRouterRemove delete a VAN (router and controller) deployment
 func (cli *VanClient) VanRouterRemove(ctx context.Context) error {
-	err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Delete(types.DefaultSiteName, &metav1.DeleteOptions{})
+	err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Delete(types.TransportDeploymentName, &metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return fmt.Errorf("Skupper not installed in '"+cli.Namespace+"': %s", err.Error())

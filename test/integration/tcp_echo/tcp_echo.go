@@ -139,17 +139,19 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
-	var vanRouterCreateOpts types.VanRouterCreateOptions = types.VanRouterCreateOptions{
-		SkupperName:       "",
-		IsEdge:            false,
-		EnableController:  true,
-		EnableServiceSync: true,
-		EnableConsole:     false,
-		AuthMode:          types.ConsoleAuthModeUnsecured,
-		User:              "nicob?",
-		Password:          "nopasswordd",
-		ClusterLocal:      false,
-		Replicas:          1,
+	vanRouterCreateOpts := types.VanSiteConfig{
+		Spec: types.VanSiteConfigSpec {
+			SkupperName:       "",
+			IsEdge:            false,
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          types.ConsoleAuthModeUnsecured,
+			User:              "nicob?",
+			Password:          "nopasswordd",
+			ClusterLocal:      false,
+			Replicas:          1,
+		},
 	}
 
 	r.Pub1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
@@ -165,7 +167,7 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 	err = r.Pub1Cluster.VanClient.VanServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
 	assert.Check(r.T, err)
 
-	err = r.Pub1Cluster.VanClient.VanConnectorTokenCreate(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
+	err = r.Pub1Cluster.VanClient.VanConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
 	assert.Check(r.T, err)
 
 	err = r.Priv1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
@@ -174,7 +176,7 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		Name: "",
 		Cost: 0,
 	}
-	r.Priv1Cluster.VanClient.VanConnectorCreate(ctx, "/tmp/public_secret.yaml", vanConnectorCreateOpts)
+	r.Priv1Cluster.VanClient.VanConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", vanConnectorCreateOpts)
 }
 
 func (r *TcpEchoClusterTestRunner) TearDown(ctx context.Context) {

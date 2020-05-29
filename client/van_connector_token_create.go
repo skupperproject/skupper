@@ -108,7 +108,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient) bool {
 	}
 }
 
-func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject string, secretFile string) error {
+func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject string) (*corev1.Secret, bool, error) {
 	// verify that the local deployment is interior mode
 	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 	// TODO: return error message for all the paths
@@ -123,31 +123,46 @@ func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject strin
 					secret := certs.GenerateSecret(subject, subject, hostPorts.Hosts, caSecret)
 					annotateConnectionToken(&secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
 					annotateConnectionToken(&secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
-
-					//generate yaml and save it to the specified path
-					s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-					out, err := os.Create(secretFile)
-					if err != nil {
-						return fmt.Errorf("Could not write to file " + secretFile + ": " + err.Error())
+					if secret.ObjectMeta.Labels == nil {
+						secret.ObjectMeta.Labels = map[string]string{}
 					}
-					err = s.Encode(&secret, out)
-					if err != nil {
-						return fmt.Errorf("Could not write out generated secret: " + err.Error())
-					} else {
-						var extra string
-						if hostPorts.LocalOnly {
-							extra = "(Note: token will only be valid for local cluster)"
-						}
-						fmt.Printf("Connection token written to %s %s", secretFile, extra)
-						fmt.Println()
-					}
+					secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
+					return &secret, hostPorts.LocalOnly, nil
+				} else {
+					//TODO: return the actual error
+					return nil, false, fmt.Errorf("Could not determine host/ports for token")
 				}
-				return nil
 			} else {
-				return err
+				return nil, false, err
 			}
 		} else {
-			return fmt.Errorf("Edge configuration cannot accept connections")
+			return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
+		}
+	} else {
+		return nil, false, err
+	}
+}
+
+func (cli *VanClient) VanConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
+	secret, localOnly, err := cli.VanConnectorTokenCreate(ctx, subject)
+	if err == nil {
+		//generate yaml and save it to the specified path
+		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
+		out, err := os.Create(secretFile)
+		if err != nil {
+			return fmt.Errorf("Could not write to file " + secretFile + ": " + err.Error())
+		}
+		err = s.Encode(secret, out)
+		if err != nil {
+			return fmt.Errorf("Could not write out generated secret: " + err.Error())
+		} else {
+			var extra string
+			if localOnly {
+				extra = "(Note: token will only be valid for local cluster)"
+			}
+			fmt.Printf("Connection token written to %s %s", secretFile, extra)
+			fmt.Println()
+			return nil
 		}
 	} else {
 		return err
