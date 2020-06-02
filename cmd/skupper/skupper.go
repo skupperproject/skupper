@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"os"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -130,6 +131,16 @@ func bindArgs() func(*cobra.Command, []string) error {
 	}
 }
 
+func check(err error) bool {
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+		return false
+	} else {
+		return true
+	}
+}
+
 func main() {
 	routev1.AddToScheme(scheme.Scheme)
 
@@ -137,7 +148,7 @@ func main() {
 	var namespace string
 	var kubeconfig string
 
-	var vanRouterCreateOpts types.VanRouterCreateOptions
+	var vanRouterCreateOpts types.VanSiteConfigSpec
 	var cmdInit = &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
@@ -145,11 +156,18 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanRouterCreate(context.Background(), vanRouterCreateOpts)
-			if err != nil {
-				fmt.Println("Error, unable to init Skupper VAN router: ", err.Error())
-			} else {
-				fmt.Println("Skupper is now installed in namespace '" + cli.Namespace + "'.  Use 'skupper status' to get more information.")
+			siteConfig, err := cli.VanSiteConfigInspect(context.Background(), nil)
+			if check(err) {
+				if siteConfig == nil {
+					siteConfig, err = cli.VanSiteConfigCreate(context.Background(), vanRouterCreateOpts)
+				}
+
+				if check(err) {
+					err = cli.VanRouterCreate(context.Background(), *siteConfig)
+					if check(err) {
+						fmt.Println("Skupper is now installed in namespace '" + cli.Namespace + "'.  Use 'skupper status' to get more information.")
+					}
+				}
 			}
 		},
 	}
@@ -171,11 +189,14 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanRouterRemove(context.Background())
-			if err == nil {
-				fmt.Println("Skupper is now removed from '" + cli.Namespace + "'.")
-			} else {
+			err := cli.VanSiteConfigRemove(context.Background())
+			if err != nil {
+				err = cli.VanRouterRemove(context.Background())
+			}
+			if err != nil {
 				fmt.Println(err.Error())
+			} else {
+				fmt.Println("Skupper is now removed from '" + cli.Namespace + "'.")
 			}
 		},
 	}
@@ -187,7 +208,7 @@ func main() {
 		Args:  requiredArg("output-file"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanConnectorTokenCreate(context.Background(), clientIdentity, args[0])
+			err := cli.VanConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
 			if err != nil {
 				fmt.Println("Failed to create connection token: ", err.Error())
 			}
@@ -202,8 +223,14 @@ func main() {
 		Args:  requiredArg("connection-token"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			// TODO: check error, return results for connection
-			cli.VanConnectorCreate(context.Background(), args[0], vanConnectorCreateOpts)
+			siteConfig, err := cli.VanSiteConfigInspect(context.Background(), nil)
+			if err != nil {
+				fmt.Println("Error, unable to retrieve site config: ", err.Error())
+			} else if siteConfig == nil || !siteConfig.Spec.SiteControlled {
+				cli.VanConnectorCreateFromFile(context.Background(), args[0], vanConnectorCreateOpts)
+			} else {
+				//TODO: just create the secret, site-controller will do the rest
+			}
 		},
 	}
 	cmdConnect.Flags().StringVarP(&vanConnectorCreateOpts.Name, "connection-name", "", "", "Provide a specific name for the connection (used when removing it with disconnect)")

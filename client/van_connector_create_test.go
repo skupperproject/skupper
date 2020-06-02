@@ -23,7 +23,7 @@ func TestConnectorCreateError(t *testing.T) {
 	// Create the client
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.VanConnectorCreate(ctx, "./somefile.yaml", types.VanConnectorCreateOptions{
+	err = cli.VanConnectorCreateFromFile(ctx, "./somefile.yaml", types.VanConnectorCreateOptions{
 		Name: "",
 		Cost: 1,
 	})
@@ -83,23 +83,25 @@ func TestConnectorCreateInterior(t *testing.T) {
 		informers.Start(ctx.Done())
 		cache.WaitForCacheSync(ctx.Done(), secretsInformer.HasSynced)
 
-		err = cli.VanRouterCreate(ctx, types.VanRouterCreateOptions{
-			SkupperName:       "skupper",
-			IsEdge:            false,
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			ClusterLocal:      true,
+		err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
+			Spec: types.VanSiteConfigSpec {
+				SkupperName:       "skupper",
+				IsEdge:            false,
+				EnableController:  true,
+				EnableServiceSync: true,
+				EnableConsole:     false,
+				AuthMode:          "",
+				User:              "",
+				Password:          "",
+				ClusterLocal:      true,
+			},
 		})
 		assert.Check(t, err, "Unable to create VAN router")
 
-		err = cli.VanConnectorTokenCreate(ctx, c.connName, testPath+c.connName+".yaml")
+		err = cli.VanConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
 		assert.Check(t, err, "Unable to create token")
 
-		err = cli.VanConnectorCreate(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
+		err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
 			Name: c.connName,
 			Cost: 1,
 		})

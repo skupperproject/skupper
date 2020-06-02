@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -42,17 +43,17 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		svcAccountsExpected  []string
 	}{
 		{
-			namespace:            "skupper",
-			expectedError:        "",
-			doc:                  "test one",
-			skupperName:          "skupper1",
-			isEdge:               false,
-			enableController:     true,
+			namespace:        "skupper",
+			expectedError:    "",
+			doc:              "test one",
+			skupperName:      "skupper1",
+			isEdge:           false,
+			enableController: true,
 			enableRouterConsole:  false,
 			authMode:             "",
-			clusterLocal:         true,
-			depsExpected:         []string{"skupper-proxy-controller", "skupper-router"},
-			cmsExpected:          []string{"skupper-site", "skupper-services"},
+			clusterLocal:     true,
+			depsExpected:     []string{"skupper-service-controller", "skupper-router"},
+			cmsExpected:      []string{"skupper-services"},
 			rolesExpected:        []string{"skupper-view", "skupper-edit"},
 			roleBindingsExpected: []string{"skupper-skupper-view", "skupper-proxy-controller-skupper-edit"},
 			secretsExpected: []string{"skupper-ca",
@@ -60,7 +61,7 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 				"skupper-amqps",
 				"skupper",
 				"skupper-internal"},
-			svcsExpected:        []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
+			svcsExpected:     []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
 			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
 		},
 		{
@@ -74,7 +75,7 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 			authMode:             "",
 			clusterLocal:         false,
 			depsExpected:         []string{"skupper-router"},
-			cmsExpected:          []string{"skupper-site", "skupper-services"},
+			cmsExpected:          []string{"skupper-services"},
 			rolesExpected:        []string{"skupper-view"},
 			roleBindingsExpected: []string{"skupper-skupper-view"},
 			secretsExpected: []string{"skupper-ca",
@@ -85,23 +86,23 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 			svcAccountsExpected: []string{"skupper"},
 		},
 		{
-			namespace:            "skupper",
-			expectedError:        "",
-			doc:                  "test three",
-			skupperName:          "skupper3",
-			isEdge:               true,
-			enableController:     true,
+			namespace:        "skupper",
+			expectedError:    "",
+			doc:              "test three",
+			skupperName:      "skupper3",
+			isEdge:           true,
+			enableController: true,
 			enableRouterConsole:  false,
 			authMode:             "",
-			clusterLocal:         true,
-			depsExpected:         []string{"skupper-router", "skupper-proxy-controller"},
-			cmsExpected:          []string{"skupper-site", "skupper-services"},
+			clusterLocal:     true,
+			depsExpected:     []string{"skupper-router", "skupper-service-controller"},
+			cmsExpected:      []string{"skupper-services"},
 			rolesExpected:        []string{"skupper-view", "skupper-edit"},
 			roleBindingsExpected: []string{"skupper-skupper-view", "skupper-proxy-controller-skupper-edit"},
 			secretsExpected: []string{"skupper-ca",
 				"skupper-amqps",
 				"skupper"},
-			svcsExpected:        []string{"skupper-messaging", "skupper-controller"},
+			svcsExpected:     []string{"skupper-messaging", "skupper-controller"},
 			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
 		},
 		{
@@ -115,7 +116,7 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 			authMode:             "",
 			clusterLocal:         true,
 			depsExpected:         []string{"skupper-router"},
-			cmsExpected:          []string{"skupper-site", "skupper-services"},
+			cmsExpected:          []string{"skupper-services"},
 			rolesExpected:        []string{"skupper-view"},
 			roleBindingsExpected: []string{"skupper-skupper-view"},
 			secretsExpected: []string{"skupper-ca",
@@ -136,8 +137,8 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 			enableRouterConsole:  true,
 			authMode:             "internal",
 			clusterLocal:         true,
-			depsExpected:         []string{"skupper-proxy-controller", "skupper-router"},
-			cmsExpected:          []string{"skupper-site", "skupper-services", "skupper-sasl-config"},
+			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
+			cmsExpected:          []string{"skupper-services", "skupper-sasl-config"},
 			rolesExpected:        []string{"skupper-view", "skupper-edit"},
 			roleBindingsExpected: []string{"skupper-skupper-view", "skupper-proxy-controller-skupper-edit"},
 			secretsExpected: []string{"skupper-ca",
@@ -159,8 +160,8 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 			enableRouterConsole:  true,
 			authMode:             "openshift",
 			clusterLocal:         true,
-			depsExpected:         []string{"skupper-proxy-controller", "skupper-router"},
-			cmsExpected:          []string{"skupper-site", "skupper-services"},
+			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
+			cmsExpected:          []string{"skupper-services"},
 			rolesExpected:        []string{"skupper-view", "skupper-edit"},
 			roleBindingsExpected: []string{"skupper-skupper-view", "skupper-proxy-controller-skupper-edit"},
 			secretsExpected: []string{"skupper-ca",
@@ -254,17 +255,19 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced)
 		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
 
-		err = cli.VanRouterCreate(ctx, types.VanRouterCreateOptions{
-			SkupperName:         c.skupperName,
-			IsEdge:              c.isEdge,
-			EnableController:    c.enableController,
-			EnableServiceSync:   true,
-			EnableRouterConsole: c.enableRouterConsole,
-			AuthMode:            c.authMode,
-			EnableConsole:       false,
-			User:                "",
-			Password:            "",
-			ClusterLocal:        c.clusterLocal,
+		err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
+			Spec: types.VanSiteConfigSpec {
+				SkupperName:       c.skupperName,
+				IsEdge:            c.isEdge,
+				EnableController:  c.enableController,
+				EnableServiceSync: true,
+				EnableRouterConsole: c.enableRouterConsole,
+				AuthMode:          c.authMode,
+				EnableConsole:     false,
+				User:              "",
+				Password:          "",
+				ClusterLocal:      c.clusterLocal,
+			},
 		})
 
 		// TODO: make more deterministic
@@ -275,11 +278,11 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 			assert.Error(t, err, c.expectedError, c.doc)
 		}
 		assert.Assert(t, cmp.Equal(c.depsExpected, depsFound, trans), c.doc)
-		assert.Assert(t, cmp.Equal(c.cmsExpected, cmsFound, trans), c.doc)
+		assert.Assert(t, cmp.Equal(c.cmsExpected, cmsFound, trans), fmt.Sprintf("in %s expected=%q, actual=%q", c.doc, c.cmsExpected, cmsFound))
 		assert.Assert(t, cmp.Equal(c.rolesExpected, rolesFound, trans), c.doc)
 		assert.Assert(t, cmp.Equal(c.roleBindingsExpected, roleBindingsFound, trans), c.doc)
 		assert.Assert(t, cmp.Equal(c.secretsExpected, secretsFound, trans), c.doc)
-		assert.Assert(t, cmp.Equal(c.svcsExpected, svcsFound, trans), c.doc)
+		assert.Assert(t, cmp.Equal(c.svcsExpected, svcsFound, trans), fmt.Sprintf("in %s expected=%q, actual=%q", c.doc, c.svcsExpected, svcsFound))
 		assert.Assert(t, cmp.Equal(c.svcAccountsExpected, svcAccountsFound, trans), c.doc)
 	}
 }

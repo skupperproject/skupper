@@ -42,16 +42,18 @@ func TestConnectorInspectNotFound(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.VanRouterCreate(ctx, types.VanRouterCreateOptions{
-		SkupperName:       "skupper",
-		IsEdge:            false,
-		EnableController:  true,
-		EnableServiceSync: true,
-		EnableConsole:     false,
-		AuthMode:          "",
-		User:              "",
-		Password:          "",
-		ClusterLocal:      true,
+	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
+		Spec: types.VanSiteConfigSpec {
+			SkupperName:       "skupper",
+			IsEdge:            false,
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          "",
+			User:              "",
+			Password:          "",
+			ClusterLocal:      true,
+		},
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
@@ -91,25 +93,27 @@ func TestConnectorInspectDefaults(t *testing.T) {
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
 
-	err = cli.VanRouterCreate(ctx, types.VanRouterCreateOptions{
-		SkupperName:       "skupper",
-		IsEdge:            false,
-		EnableController:  true,
-		EnableServiceSync: true,
-		EnableConsole:     false,
-		AuthMode:          "",
-		User:              "",
-		Password:          "",
-		ClusterLocal:      true,
+	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
+		Spec: types.VanSiteConfigSpec {
+			SkupperName:       "skupper",
+			IsEdge:            false,
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          "",
+			User:              "",
+			Password:          "",
+			ClusterLocal:      true,
+		},
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	for _, c := range testcases {
-		err = cli.VanConnectorTokenCreate(ctx, c.connName, testPath+c.connName+".yaml")
+		err = cli.VanConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
 		assert.Check(t, err, "Unable to create connector token "+c.connName)
 	}
 	for _, c := range testcases {
-		err = cli.VanConnectorCreate(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
+		err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
 			Name: c.connName,
 			Cost: 1,
 		})

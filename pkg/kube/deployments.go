@@ -258,7 +258,7 @@ func NewProxyDeployment(serviceInterface types.ServiceInterface, namespace strin
 
 }
 
-func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewControllerDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.ControllerDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -272,7 +272,6 @@ func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerRefe
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            types.ControllerDeploymentName,
 				Namespace:       van.Namespace,
-				OwnerReferences: []metav1.OwnerReference{ownerRef},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Replicas: &van.Controller.Replicas,
@@ -289,6 +288,9 @@ func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerRefe
 					},
 				},
 			},
+		}
+		if ownerRef != nil {
+			dep.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
 		}
 
 		for _, sc := range van.Controller.Sidecars {
@@ -313,7 +315,7 @@ func NewControllerDeployment(van *types.VanRouterSpec, ownerRef metav1.OwnerRefe
 	}
 }
 
-func NewTransportDeployment(van *types.VanRouterSpec, owner *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewTransportDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -350,9 +352,9 @@ func NewTransportDeployment(van *types.VanRouterSpec, owner *metav1.OwnerReferen
 			dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sc)
 		}
 
-		if owner != nil {
+		if ownerRef != nil {
 			dep.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-				*owner,
+				*ownerRef,
 			}
 		}
 		dep.Spec.Template.Spec.Volumes = van.Transport.Volumes
