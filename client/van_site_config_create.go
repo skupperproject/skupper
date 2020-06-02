@@ -16,10 +16,9 @@ func (cli *VanClient) VanSiteConfigCreate(ctx context.Context, spec types.VanSit
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "skupper-site",
+			Name: "skupper-site",
 		},
-		Data: map[string]string{
-		},
+		Data: map[string]string{},
 	}
 	if spec.SkupperName != "" {
 		siteConfig.Data["name"] = spec.SkupperName
@@ -50,7 +49,7 @@ func (cli *VanClient) VanSiteConfigCreate(ctx context.Context, spec types.VanSit
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {
-		siteConfig.ObjectMeta.Labels = map[string]string {
+		siteConfig.ObjectMeta.Labels = map[string]string{
 			"internal.skupper.io/site-controller-ignore": "true",
 		}
 	}

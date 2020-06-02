@@ -1,5 +1,7 @@
 VERSION := $(shell git describe --tags --dirty=-modified)
-IMAGE := quay.io/skupper/service-controller
+SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
+SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
+DOCKER := docker
 
 all: build-cmd build-controllers
 
@@ -15,10 +17,12 @@ build-site-controller:
 build-controllers: build-site-controller build-service-controller
 
 docker-build:
-	docker build -t ${IMAGE} .
+	${DOCKER} build -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
+	${DOCKER} build -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
 
 docker-push:
-	docker push ${IMAGE}
+	${DOCKER} push ${SERVICE_CONTROLLER_IMAGE}
+	${DOCKER} push ${SITE_CONTROLLER_IMAGE}
 
 clean:
 	rm -rf skupper release
