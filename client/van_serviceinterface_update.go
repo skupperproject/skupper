@@ -150,8 +150,22 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 }
 
 func validateServiceInterface(service *types.ServiceInterface) error {
+	if service.Headless != nil {
+		if service.Headless.TargetPort < 0 || 65535 < service.Headless.TargetPort {
+			return fmt.Errorf("Bad headless target port number: %d", service.Headless.TargetPort)
+		}
+	}
+
+	for _, target := range service.Targets {
+		if target.TargetPort < 0 || 65535 < target.TargetPort {
+			return fmt.Errorf("Bad target port number. Target: %s  Port: %d", target.Name, target.TargetPort)
+		}
+	}
+
 	//TODO: change service.Protocol to service.Mapping
-	if service.Aggregate != "" && service.EventChannel {
+	if service.Port < 0 || 65535 < service.Port {
+		return fmt.Errorf("Port %d is outside valid range.", service.Port)
+	} else if service.Aggregate != "" && service.EventChannel {
 		return fmt.Errorf("Only one of aggregate and event-channel can be specified for a given service.")
 	} else if service.Aggregate != "" && service.Aggregate != "json" && service.Aggregate != "multipart" {
 		return fmt.Errorf("%s is not a valid aggregation strategy. Choose 'json' or 'multipart'.", service.Aggregate)
