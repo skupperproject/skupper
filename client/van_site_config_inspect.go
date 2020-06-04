@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -24,17 +25,65 @@ func (cli *VanClient) VanSiteConfigInspect(ctx context.Context, input *corev1.Co
 		siteConfig = input
 	}
 	var result types.VanSiteConfig
-	result.Spec.SkupperName = siteConfig.Data["name"]
-	result.Spec.IsEdge = siteConfig.Data["edge"] == "true"
-	result.Spec.EnableController = siteConfig.Data["service-controller"] != "false"
-	result.Spec.EnableServiceSync = siteConfig.Data["service-sync"] != "false"
-	result.Spec.EnableConsole = siteConfig.Data["console"] != "false"
-	result.Spec.AuthMode = siteConfig.Data["console-authentication"]
-	result.Spec.User = siteConfig.Data["console-user"]
-	result.Spec.Password = siteConfig.Data["console-password"]
-	result.Spec.ClusterLocal = siteConfig.Data["cluster-local"] == "true"
+	if skupperName, ok := siteConfig.Data["name"]; ok {
+		result.Spec.SkupperName = skupperName
+	} else {
+		result.Spec.SkupperName = types.DefaultVanName
+	}
+	if isEdge, ok := siteConfig.Data["edge"]; ok {
+		result.Spec.IsEdge, _ = strconv.ParseBool(isEdge)
+	} else {
+		result.Spec.IsEdge = false
+	}
+	if enableController, ok := siteConfig.Data["service-controller"]; ok {
+		result.Spec.EnableController, _ = strconv.ParseBool(enableController)
+	} else {
+		result.Spec.EnableController = true
+	}
+	if enableServiceSync, ok := siteConfig.Data["service-sync"]; ok {
+		result.Spec.EnableServiceSync, _ = strconv.ParseBool(enableServiceSync)
+	} else {
+		result.Spec.EnableServiceSync = true
+	}
+	if enableConsole, ok := siteConfig.Data["console"]; ok {
+		result.Spec.EnableConsole, _ = strconv.ParseBool(enableConsole)
+	} else {
+		result.Spec.EnableConsole = false
+	}
+	if enableRouterConsole, ok := siteConfig.Data["router-console"]; ok {
+		result.Spec.EnableRouterConsole, _ = strconv.ParseBool(enableRouterConsole)
+	} else {
+		result.Spec.EnableRouterConsole = false
+	}
+	if authMode, ok := siteConfig.Data["console-authentication"]; ok {
+		result.Spec.AuthMode = authMode
+	} else {
+		result.Spec.AuthMode = ""
+	}
+	if user, ok := siteConfig.Data["console-user"]; ok {
+		result.Spec.User = user
+	} else {
+		result.Spec.User = ""
+	}
+	if password, ok := siteConfig.Data["console-password"]; ok {
+		result.Spec.Password = password
+	} else {
+		result.Spec.Password = ""
+	}
+	if clusterLocal, ok := siteConfig.Data["cluster-local"]; ok {
+		result.Spec.ClusterLocal, _ = strconv.ParseBool(clusterLocal)
+	} else {
+		result.Spec.ClusterLocal = false
+	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
-	result.Spec.SiteControlled = siteConfig.ObjectMeta.Labels == nil || siteConfig.ObjectMeta.Labels["internal.skupper.io/site-controller-ignore"] != ""
+	if siteConfig.ObjectMeta.Labels == nil {
+		result.Spec.SiteControlled = true
+	} else if ignore, ok := siteConfig.ObjectMeta.Labels["internal.skupper.io/site-controller-ignore"]; ok {
+		siteIgnore, _ := strconv.ParseBool(ignore)
+		result.Spec.SiteControlled = !siteIgnore
+	} else {
+		result.Spec.SiteControlled = true
+	}
 	result.Reference.UID = string(siteConfig.ObjectMeta.UID)
 	result.Reference.Name = siteConfig.ObjectMeta.Name
 	result.Reference.Kind = siteConfig.TypeMeta.Kind

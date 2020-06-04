@@ -18,7 +18,18 @@ func (cli *VanClient) VanSiteConfigCreate(ctx context.Context, spec types.VanSit
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "skupper-site",
 		},
-		Data: map[string]string{},
+		Data: map[string]string{
+			"name":                   types.DefaultVanName,
+			"edge":                   "false",
+			"service-controller":     "true",
+			"service-sync":           "true",
+			"console":                "false",
+			"router-console":         "false",
+			"console-authentication": "",
+			"console-user":           "",
+			"console-password":       "",
+			"cluster-local":          "false",
+		},
 	}
 	if spec.SkupperName != "" {
 		siteConfig.Data["name"] = spec.SkupperName
@@ -32,8 +43,11 @@ func (cli *VanClient) VanSiteConfigCreate(ctx context.Context, spec types.VanSit
 	if !spec.EnableServiceSync {
 		siteConfig.Data["service-sync"] = "false"
 	}
-	if !spec.EnableConsole {
-		siteConfig.Data["console"] = "false"
+	if spec.EnableConsole {
+		siteConfig.Data["console"] = "true"
+	}
+	if spec.EnableRouterConsole {
+		siteConfig.Data["router-console"] = "true"
 	}
 	if spec.AuthMode != "" {
 		siteConfig.Data["console-authentication"] = spec.AuthMode
