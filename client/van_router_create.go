@@ -11,8 +11,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	kubetypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -93,7 +93,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van 
 
 	if options.EnableServiceSync {
 		envVars = append(envVars, corev1.EnvVar{
-			Name: "SKUPPER_SERVICE_SYNC_ORIGIN",
+			Name:  "SKUPPER_SERVICE_SYNC_ORIGIN",
 			Value: siteId,
 		})
 		kube.AppendSecretVolume(&volumes, &mounts[0], "skupper", "/etc/messaging/")
@@ -293,13 +293,13 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 		})
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_MESH_DISCOVERY", Value: "QUERY"})
 	}
-	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+	if options.EnableRouterConsole && options.AuthMode == string(types.ConsoleAuthModeInternal) {
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_SOURCE", Value: "/etc/qpid-dispatch/sasl-users/"})
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_PATH", Value: "/tmp/qdrouterd.sasldb"})
 	}
 	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: configs.QdrouterdConfig(&van.Assembly)})
 	envVars = append(envVars, corev1.EnvVar{
-		Name: "SKUPPER_SITE_ID",
+		Name:  "SKUPPER_SITE_ID",
 		Value: siteId,
 	})
 	van.Transport.EnvVar = envVars
@@ -696,7 +696,6 @@ sasldb_path: /tmp/qdrouterd.sasldb
 
 	return nil
 }
-
 
 func asOwnerReference(ref types.VanSiteConfigReference) *metav1.OwnerReference {
 	if ref.Name == "" || ref.UID == "" {

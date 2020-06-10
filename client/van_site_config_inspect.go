@@ -28,7 +28,7 @@ func (cli *VanClient) VanSiteConfigInspect(ctx context.Context, input *corev1.Co
 	if skupperName, ok := siteConfig.Data["name"]; ok {
 		result.Spec.SkupperName = skupperName
 	} else {
-		result.Spec.SkupperName = types.DefaultVanName
+		result.Spec.SkupperName = cli.Namespace
 	}
 	if isEdge, ok := siteConfig.Data["edge"]; ok {
 		result.Spec.IsEdge, _ = strconv.ParseBool(isEdge)
@@ -48,7 +48,7 @@ func (cli *VanClient) VanSiteConfigInspect(ctx context.Context, input *corev1.Co
 	if enableConsole, ok := siteConfig.Data["console"]; ok {
 		result.Spec.EnableConsole, _ = strconv.ParseBool(enableConsole)
 	} else {
-		result.Spec.EnableConsole = false
+		result.Spec.EnableConsole = true
 	}
 	if enableRouterConsole, ok := siteConfig.Data["router-console"]; ok {
 		result.Spec.EnableRouterConsole, _ = strconv.ParseBool(enableRouterConsole)
@@ -58,7 +58,7 @@ func (cli *VanClient) VanSiteConfigInspect(ctx context.Context, input *corev1.Co
 	if authMode, ok := siteConfig.Data["console-authentication"]; ok {
 		result.Spec.AuthMode = authMode
 	} else {
-		result.Spec.AuthMode = ""
+		result.Spec.AuthMode = "internal"
 	}
 	if user, ok := siteConfig.Data["console-user"]; ok {
 		result.Spec.User = user
