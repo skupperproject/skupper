@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -94,10 +95,13 @@ func sendReceive(servAddr string) {
 		log.Panicf("Response from server different that expected: %s", string(reply))
 	}
 }
-
+func killAndWait(cmd *exec.Cmd) {
+	cmd.Process.Kill()
+	cmd.Process.Wait()
+}
 func forwardsendReceive(cc *cluster.ClusterContext) {
 	cmd := cc.KubectlExecAsync("port-forward service/tcp-go-echo 9090:9090")
-	defer cmd.Process.Kill()
+	defer killAndWait(cmd)
 
 	//TODO find a better solution for this
 	time.Sleep(20 * time.Second) //give time to port forwarding to start
