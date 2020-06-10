@@ -17,60 +17,51 @@ func NewMockClient(namespace string, context string, kubeConfigPath string) (*cl
 	}, nil
 }
 
-//TODO implementme
-//func verifyNamespaces(t *testing.T, ns NamespacesInterface, expected_namespaces []string)
-
-//add test of dns valid namespace
+//TODO add test of dns valid namespace i.e: - are not allowed in namespace name
 func TestClusterContextNamespaceCreationDeletion(t *testing.T) {
 	var err error
 	ns_prefix := "ns-prefix"
 	kc := "someconfig"
-	//ctx := context.Background()
 
 	cc := BuildClusterContext(t, ns_prefix, kc, NewMockClient)
 	NamespacesClient := cc.VanClient.KubeClient.CoreV1().Namespaces()
 
-	assert.Equal(t, "", cc.CurrentNamespace)
-	assert.Equal(t, 0, len(cc.Namespaces))
+	verifyNamespacesInCluster := func(expected_namespaces []string) {
+		//this only works in a mocked cluster where the only existing
+		//namespaces are those created by this test.
+		t.Helper()
+		list, err := NamespacesClient.List(metav1.ListOptions{})
+		assert.Assert(t, err)
+		assert.Equal(t, len(expected_namespaces), len(list.Items))
+		for i, ns := range list.Items {
+			assert.Equal(t, ns.Name, expected_namespaces[i])
+		}
+	}
+
+	verifyCurrentAndCount := func(expected_current string, count int) {
+		t.Helper()
+		assert.Equal(t, expected_current, cc.CurrentNamespace)
+		assert.Equal(t, count, len(cc.Namespaces))
+	}
+
+	verifyCurrentAndCount("", 0)
 
 	err = cc.CreateNamespace()
-	t.Logf("curr namespace = %v\n", cc.CurrentNamespace)
-	assert.Equal(t, ns_prefix+"-1", cc.CurrentNamespace)
-	assert.Equal(t, 1, len(cc.Namespaces))
 	assert.Assert(t, err)
 
-	list, err := NamespacesClient.List(metav1.ListOptions{})
-	assert.Assert(t, err)
-	assert.Equal(t, 1, len(list.Items))
-	assert.Equal(t, ns_prefix+"-1", list.Items[0].Name)
+	verifyCurrentAndCount(ns_prefix+"-1", 1)
+	verifyNamespacesInCluster([]string{ns_prefix + "-1"})
 
 	err = cc.CreateNamespace()
-	assert.Equal(t, ns_prefix+"-2", cc.CurrentNamespace)
-	assert.Equal(t, 2, len(cc.Namespaces))
 	assert.Assert(t, err)
 
-	list, err = NamespacesClient.List(metav1.ListOptions{})
-	assert.Assert(t, err)
-	assert.Equal(t, 2, len(list.Items))
-	assert.Equal(t, ns_prefix+"-1", list.Items[0].Name)
-	assert.Equal(t, ns_prefix+"-2", list.Items[1].Name)
+	verifyCurrentAndCount(ns_prefix+"-2", 2)
+	verifyNamespacesInCluster([]string{ns_prefix + "-1", ns_prefix + "-2"})
 
 	cc.DeleteNamespaces()
-	//TODO verify the namespace exists in the clientmock
 
-	assert.Equal(t, "", cc.CurrentNamespace)
-	assert.Equal(t, 0, len(cc.Namespaces))
-
-	list, err = NamespacesClient.List(metav1.ListOptions{})
-	assert.Assert(t, err)
-	assert.Equal(t, 0, len(list.Items))
-
-	NsSpec := &apiv1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns_prefix + "-1"}}
-	_, err = cc.VanClient.KubeClient.CoreV1().Namespaces().Create(NsSpec)
-	assert.Assert(t, err)
-
-	err = cc.CreateNamespace()
-	assert.Error(t, err, "namespaces \"ns-prefix-1\" already exists")
+	verifyCurrentAndCount("", 0)
+	verifyNamespacesInCluster([]string{})
 }
 
 func TestClusterContextNamespaceAlreadyExists(t *testing.T) {
@@ -89,7 +80,6 @@ func TestClusterContextNamespaceAlreadyExists(t *testing.T) {
 }
 
 func Test_getNextNamespace(t *testing.T) {
-	//var err error
 	prefix := "prefix"
 	cc := &ClusterContext{}
 	cc.NamespacePrefix = prefix
@@ -105,7 +95,6 @@ func Test_getNextNamespace(t *testing.T) {
 }
 
 func Test_moveToNextNamespace(t *testing.T) {
-	//var err error
 	prefix := "prefix"
 	cc := BuildClusterContext(t, prefix, "someconfig", NewMockClient)
 	cc.NamespacePrefix = prefix
