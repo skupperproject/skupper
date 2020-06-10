@@ -96,8 +96,15 @@ func sendReceive(servAddr string) {
 	}
 }
 func killAndWait(cmd *exec.Cmd) {
-	cmd.Process.Kill()
-	cmd.Process.Wait()
+	fmt.Printf("killing pid %v\n", cmd.Process.Pid)
+	err := cmd.Process.Kill()
+	if err != nil {
+		log.Panicln("kill failed: ", err.Error())
+	}
+	_, err = cmd.Process.Wait()
+	if err != nil {
+		log.Panicln("wait failed: ", err.Error())
+	}
 }
 func forwardsendReceive(cc *cluster.ClusterContext) {
 	cmd := cc.KubectlExecAsync("port-forward service/tcp-go-echo 9090:9090")
