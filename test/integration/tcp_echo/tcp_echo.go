@@ -101,19 +101,19 @@ func killAndWait(cmd *exec.Cmd) {
 	if err != nil {
 		log.Panicln("kill failed: ", err.Error())
 	}
-	_, err = cmd.Process.Wait()
+	err = cmd.Wait()
 	if err != nil {
 		log.Panicln("wait failed: ", err.Error())
 	}
 }
-func forwardsendReceive(cc *cluster.ClusterContext) {
-	cmd := cc.KubectlExecAsync("port-forward service/tcp-go-echo 9090:9090")
+func forwardsendReceive(cc *cluster.ClusterContext, port string) {
+	cmd := cc.KubectlExecAsync(fmt.Sprintf("port-forward service/tcp-go-echo %s:9090", port))
 	defer killAndWait(cmd)
 
 	//TODO find a better solution for this
 	time.Sleep(20 * time.Second) //give time to port forwarding to start
 
-	sendReceive("127.0.0.1:9090")
+	sendReceive("127.0.0.1:" + port)
 }
 
 func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
@@ -131,8 +131,8 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	fmt.Printf("Public service ClusterIp = %q\n", publicService.Spec.ClusterIP)
 	fmt.Printf("Private service ClusterIp = %q\n", privateService.Spec.ClusterIP)
 
-	forwardsendReceive(r.Pub1Cluster)
-	forwardsendReceive(r.Priv1Cluster)
+	forwardsendReceive(r.Pub1Cluster, "9090")
+	forwardsendReceive(r.Priv1Cluster, "9091")
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
