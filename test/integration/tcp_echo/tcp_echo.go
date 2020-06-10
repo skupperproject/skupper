@@ -132,20 +132,25 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
-	r.Pub1Cluster.CreateNamespace()
-	r.Priv1Cluster.CreateNamespace()
+	var err error
+	err = r.Pub1Cluster.CreateNamespace()
+	assert.Assert(r.T, err)
 
-	publicDeploymentsClient := r.Pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(r.Pub1Cluster.Namespace)
+	err = r.Priv1Cluster.CreateNamespace()
+	assert.Assert(r.T, err)
+
+	publicDeploymentsClient := r.Pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(r.Pub1Cluster.CurrentNamespace)
 
 	fmt.Println("Creating deployment...")
 	result, err := publicDeploymentsClient.Create(deployment)
-	assert.Check(r.T, err)
+	assert.Assert(r.T, err)
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-	fmt.Printf("Listing deployments in namespace %q:\n", "public")
+	//copiar de aca para listar losnamespaces!!
+	fmt.Printf("Listing deployments in namespace %q:\n", r.Pub1Cluster.CurrentNamespace)
 	list, err := publicDeploymentsClient.List(metav1.ListOptions{})
-	assert.Check(r.T, err)
+	assert.Assert(r.T, err)
 
 	for _, d := range list.Items {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
@@ -174,13 +179,13 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		Port:     9090,
 	}
 	err = r.Pub1Cluster.VanClient.VanServiceInterfaceCreate(ctx, &service)
-	assert.Check(r.T, err)
+	assert.Assert(r.T, err)
 
 	err = r.Pub1Cluster.VanClient.VanServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
-	assert.Check(r.T, err)
+	assert.Assert(r.T, err)
 
 	err = r.Pub1Cluster.VanClient.VanConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
-	assert.Check(r.T, err)
+	assert.Assert(r.T, err)
 
 	err = r.Priv1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
 

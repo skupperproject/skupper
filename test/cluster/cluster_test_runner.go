@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,12 +14,11 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skupperproject/skupper/client"
 	vanClient "github.com/skupperproject/skupper/client"
 )
 
 type ClusterTestRunnerInterface interface {
-	Build(t *testing.T, public1ConficFile, public2ConficFile, private1ConfigFile, private2ConfigFile string)
+	Build(t *testing.T)
 	Run()
 }
 
@@ -29,28 +30,40 @@ type ClusterTestRunnerBase struct {
 	T            *testing.T
 }
 
-func (r *ClusterTestRunnerBase) Build(t *testing.T, public1ConficFile, public2ConficFile, private1ConfigFile, private2ConfigFile string) {
-	r.Pub1Cluster = BuildClusterContext(t, "public1", public1ConficFile)
-	r.Pub2Cluster = BuildClusterContext(t, "public2", public2ConficFile)
-	r.Priv1Cluster = BuildClusterContext(t, "private1", private1ConfigFile)
-	r.Priv2Cluster = BuildClusterContext(t, "private2", private2ConfigFile)
+func (r *ClusterTestRunnerBase) Build(t *testing.T) {
+
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		homedir, err := os.UserHomeDir()
+		assert.Check(t, err)
+		kubeconfig = path.Join(homedir, ".kube/config")
+	}
+
+	//TODO assign here uniq, publicX and privateX namespaces instead of
+	//generic ones
+	r.Pub1Cluster = BuildClusterContext(t, "public1", kubeconfig, vanClient.NewClient)
+	r.Pub2Cluster = BuildClusterContext(t, "public2", kubeconfig, vanClient.NewClient)
+	r.Priv1Cluster = BuildClusterContext(t, "private1", kubeconfig, vanClient.NewClient)
+	r.Priv2Cluster = BuildClusterContext(t, "private2", kubeconfig, vanClient.NewClient)
 	r.T = t
 }
 
 type ClusterContext struct {
-	Namespace         string
+	NamespacePrefix   string
+	CurrentNamespace  string
+	Namespaces        []string
 	ClusterConfigFile string
 	VanClient         *vanClient.VanClient
 	t                 *testing.T
 }
 
-func BuildClusterContext(t *testing.T, namespace string, configFile string) *ClusterContext {
+func BuildClusterContext(t *testing.T, namespacePrefix string, configFile string, newVanClient func(namespace, context, kubeConfigPath string) (*vanClient.VanClient, error)) *ClusterContext {
 	var err error
 	cc := &ClusterContext{}
 	cc.t = t
-	cc.Namespace = namespace
+	cc.NamespacePrefix = namespacePrefix
 	cc.ClusterConfigFile = configFile
-	cc.VanClient, err = client.NewClient(cc.Namespace, "", cc.ClusterConfigFile)
+	cc.VanClient, err = newVanClient("", "", cc.ClusterConfigFile)
 	assert.Check(cc.t, err)
 	return cc
 }
@@ -75,7 +88,7 @@ func _exec(command string, wait bool) *exec.Cmd {
 }
 
 func (cc *ClusterContext) exec(main_command string, sub_command string, wait bool) *exec.Cmd {
-	return _exec("KUBECONFIG="+cc.ClusterConfigFile+" "+main_command+" "+cc.Namespace+" "+sub_command, wait)
+	return _exec("KUBECONFIG="+cc.ClusterConfigFile+" "+main_command+" "+cc.CurrentNamespace+" "+sub_command, wait)
 }
 
 func (cc *ClusterContext) SkupperExec(command string) *exec.Cmd {
@@ -94,17 +107,45 @@ func (cc *ClusterContext) KubectlExecAsync(command string) *exec.Cmd {
 	return cc._kubectl_exec(command, false)
 }
 
-func (cc *ClusterContext) CreateNamespace() {
-	NsSpec := &apiv1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: cc.Namespace}}
+func (cc *ClusterContext) getNextNamespace() string {
+	return cc.NamespacePrefix + "-" + strconv.Itoa((len(cc.Namespaces) + 1))
+}
+
+func (cc *ClusterContext) moveToNextNamespace() {
+	next := cc.getNextNamespace()
+	cc.Namespaces = append(cc.Namespaces, next)
+	cc.CurrentNamespace = next
+	cc.VanClient.Namespace = cc.CurrentNamespace
+}
+
+func (cc *ClusterContext) CreateNamespace() error {
+	ns := cc.getNextNamespace()
+	NsSpec := &apiv1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}
 	_, err := cc.VanClient.KubeClient.CoreV1().Namespaces().Create(NsSpec)
+	if err != nil {
+		return err
+	}
+	cc.moveToNextNamespace()
+	return nil
+}
+
+func (cc *ClusterContext) deleteNamespace(ns string) {
+	//remove from the list
+	err := cc.VanClient.KubeClient.CoreV1().Namespaces().Delete(ns, &metav1.DeleteOptions{})
 	assert.Check(cc.t, err)
 }
 
-func (cc *ClusterContext) DeleteNamespace() {
-	err := cc.VanClient.KubeClient.CoreV1().Namespaces().Delete(cc.Namespace, &metav1.DeleteOptions{})
-	if err != nil {
-		log.Panic(err.Error())
+func (cc *ClusterContext) DeleteNamespaces() {
+	for _, ns := range cc.Namespaces {
+		cc.deleteNamespace(ns)
 	}
+	cc.Namespaces = cc.Namespaces[:0]
+	cc.CurrentNamespace = ""
+}
+
+func (cc *ClusterContext) DeleteNamespace() {
+	assert.Equal(cc.t, 1, len(cc.Namespaces), "Use DeleteNamespaces")
+	cc.DeleteNamespaces()
 }
 
 func (cc *ClusterContext) GetService(name string, timeout_S time.Duration) *apiv1.Service {
@@ -115,7 +156,7 @@ func (cc *ClusterContext) GetService(name string, timeout_S time.Duration) *apiv
 		case <-timeout:
 			log.Panicln("Timed Out Waiting for service.")
 		case <-tick:
-			service, err := cc.VanClient.KubeClient.CoreV1().Services(cc.Namespace).Get(name, metav1.GetOptions{})
+			service, err := cc.VanClient.KubeClient.CoreV1().Services(cc.CurrentNamespace).Get(name, metav1.GetOptions{})
 			if err == nil {
 				return service
 			} else {
