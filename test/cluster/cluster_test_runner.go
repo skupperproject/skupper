@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -62,6 +63,8 @@ func _exec(command string, wait bool) {
 	if wait {
 		output, err = cmd.CombinedOutput()
 	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		cmd.Start()
 		return
 	}
