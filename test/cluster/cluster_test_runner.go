@@ -55,43 +55,43 @@ func BuildClusterContext(t *testing.T, namespace string, configFile string) *Clu
 	return cc
 }
 
-func _exec(command string, wait bool) {
+func _exec(command string, wait bool) *exec.Cmd {
 	var output []byte
 	var err error
 	fmt.Println(command)
 	cmd := exec.Command("sh", "-c", command)
 	if wait {
 		output, err = cmd.CombinedOutput()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(output))
 	} else {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Start()
-		return
 	}
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(output))
+	return cmd
 }
 
-func (cc *ClusterContext) exec(main_command string, sub_command string, wait bool) {
-	_exec("KUBECONFIG="+cc.ClusterConfigFile+" "+main_command+" "+cc.Namespace+" "+sub_command, wait)
+func (cc *ClusterContext) exec(main_command string, sub_command string, wait bool) *exec.Cmd {
+	return _exec("KUBECONFIG="+cc.ClusterConfigFile+" "+main_command+" "+cc.Namespace+" "+sub_command, wait)
 }
 
-func (cc *ClusterContext) SkupperExec(command string) {
-	cc.exec("./skupper -n ", command, true)
+func (cc *ClusterContext) SkupperExec(command string) *exec.Cmd {
+	return cc.exec("./skupper -n ", command, true)
 }
 
-func (cc *ClusterContext) _kubectl_exec(command string, wait bool) {
-	cc.exec("kubectl -n ", command, wait)
+func (cc *ClusterContext) _kubectl_exec(command string, wait bool) *exec.Cmd {
+	return cc.exec("kubectl -n ", command, wait)
 }
 
-func (cc *ClusterContext) KubectlExec(command string) {
-	cc._kubectl_exec(command, true)
+func (cc *ClusterContext) KubectlExec(command string) *exec.Cmd {
+	return cc._kubectl_exec(command, true)
 }
 
-func (cc *ClusterContext) KubectlExecAsync(command string) {
-	cc._kubectl_exec(command, false)
+func (cc *ClusterContext) KubectlExecAsync(command string) *exec.Cmd {
+	return cc._kubectl_exec(command, false)
 }
 
 func (cc *ClusterContext) CreateNamespace() {

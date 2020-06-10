@@ -95,6 +95,16 @@ func sendReceive(servAddr string) {
 	}
 }
 
+func forwardsendReceive(cc *cluster.ClusterContext) {
+	cmd := cc.KubectlExecAsync("port-forward service/tcp-go-echo 9090:9090")
+	defer cmd.Process.Kill()
+
+	//TODO find a better solution for this
+	time.Sleep(20 * time.Second) //give time to port forwarding to start
+
+	sendReceive("127.0.0.1:9090")
+}
+
 func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	var publicService *apiv1.Service
 	var privateService *apiv1.Service
@@ -105,18 +115,13 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	publicService = r.Pub1Cluster.GetService("tcp-go-echo", 3*minute)
 	privateService = r.Priv1Cluster.GetService("tcp-go-echo", 3*minute)
 
+	time.Sleep(20 * time.Second) //TODO XXX What is the right condition to wait for?
+
 	fmt.Printf("Public service ClusterIp = %q\n", publicService.Spec.ClusterIP)
 	fmt.Printf("Private service ClusterIp = %q\n", privateService.Spec.ClusterIP)
 
-	time.Sleep(20 * time.Second)
-
-	r.Pub1Cluster.KubectlExecAsync("port-forward service/tcp-go-echo 9090:9090")
-	r.Priv1Cluster.KubectlExecAsync("port-forward service/tcp-go-echo 9091:9090")
-
-	time.Sleep(20 * time.Second) //give time to port forwarding to start
-
-	sendReceive("127.0.0.1:9090")
-	sendReceive("127.0.0.1:9091")
+	forwardsendReceive(r.Pub1Cluster)
+	forwardsendReceive(r.Priv1Cluster)
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
@@ -140,7 +145,7 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 	}
 
 	vanRouterCreateOpts := types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec {
+		Spec: types.VanSiteConfigSpec{
 			SkupperName:       "",
 			IsEdge:            false,
 			EnableController:  true,
