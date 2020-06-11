@@ -23,7 +23,7 @@ func TestConnectorCreateError(t *testing.T) {
 	// Create the client
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.VanConnectorCreateFromFile(ctx, "./somefile.yaml", types.VanConnectorCreateOptions{
+	_, err = cli.VanConnectorCreateFromFile(ctx, "./somefile.yaml", types.VanConnectorCreateOptions{
 		Name: "",
 		Cost: 1,
 	})
@@ -101,7 +101,7 @@ func TestConnectorCreateInterior(t *testing.T) {
 		err = cli.VanConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
 		assert.Check(t, err, "Unable to create token")
 
-		err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
+		_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
 			Name: c.connName,
 			Cost: 1,
 		})

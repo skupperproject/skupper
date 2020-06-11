@@ -113,7 +113,7 @@ func TestConnectorInspectDefaults(t *testing.T) {
 		assert.Check(t, err, "Unable to create connector token "+c.connName)
 	}
 	for _, c := range testcases {
-		err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
+		_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
 			Name: c.connName,
 			Cost: 1,
 		})

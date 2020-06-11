@@ -252,8 +252,8 @@ type Connector struct {
 
 type ConfigMap struct {
 	Name  string `json:"name,omitempty"`
-	Key   string `json:"name,omitempty"`
-	Value string `json:"name,omitempty"`
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
 type Role struct {

@@ -91,7 +91,7 @@ func TestConnectorRemove(t *testing.T) {
 		assert.Check(t, err, "Unable to create connector token "+c.connName)
 
 		if c.createConn {
-			err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
+			_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
 				Name: c.connName,
 				Cost: 1,
 			})
