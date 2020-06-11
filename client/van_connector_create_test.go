@@ -12,6 +12,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -20,8 +21,8 @@ func TestConnectorCreateError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Create the client
-	cli, err := newMockClient("skupper", "", "")
+	cli, err := getVanClient(testing.Short(), "namespace")
+	assert.Assert(t, err)
 
 	err = cli.VanConnectorCreateFromFile(ctx, "./somefile.yaml", types.VanConnectorCreateOptions{
 		Name: "",
@@ -61,57 +62,77 @@ func TestConnectorCreateInterior(t *testing.T) {
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
 
+	var namespace string = "testconnectorcreateinterior"
+
+	cli, err := getVanClient(testing.Short(), namespace)
+	assert.Assert(t, err)
+
+	createNamespace := func() {
+		NsSpec := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+		_, err := cli.KubeClient.CoreV1().Namespaces().Create(NsSpec)
+		assert.Assert(t, err)
+	}
+
+	deleteNamespace := func() {
+		cli.KubeClient.CoreV1().Namespaces().Delete(namespace, &metav1.DeleteOptions{})
+	}
+
+	createNamespace()
+	defer deleteNamespace()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	secretsFound := []string{}
+	informers := informers.NewSharedInformerFactory(cli.KubeClient, 0)
+	secretsInformer := informers.Core().V1().Secrets().Informer()
+	secretsInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			secret := obj.(*corev1.Secret)
+			if !strings.HasPrefix(secret.Name, "skupper") {
+				secretsFound = append(secretsFound, secret.Name)
+			}
+		},
+	})
+
+	informers.Start(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), secretsInformer.HasSynced)
+
+	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
+		Spec: types.VanSiteConfigSpec{
+			SkupperName:       "skupper",
+			IsEdge:            false,
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          "",
+			User:              "",
+			Password:          "",
+			ClusterLocal:      true,
+		},
+	})
+	assert.Assert(t, err, "Unable to create VAN router")
+
 	for _, c := range testcases {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		secretsFound := []string{}
-
-		cli, err := newMockClient("skupper", "", "")
-
-		informers := informers.NewSharedInformerFactory(cli.KubeClient, 0)
-		secretsInformer := informers.Core().V1().Secrets().Informer()
-		secretsInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				secret := obj.(*corev1.Secret)
-				if !strings.HasPrefix(secret.Name, "skupper") {
-					secretsFound = append(secretsFound, secret.Name)
-				}
-			},
-		})
-
-		informers.Start(ctx.Done())
-		cache.WaitForCacheSync(ctx.Done(), secretsInformer.HasSynced)
-
-		err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-			Spec: types.VanSiteConfigSpec {
-				SkupperName:       "skupper",
-				IsEdge:            false,
-				EnableController:  true,
-				EnableServiceSync: true,
-				EnableConsole:     false,
-				AuthMode:          "",
-				User:              "",
-				Password:          "",
-				ClusterLocal:      true,
-			},
-		})
-		assert.Check(t, err, "Unable to create VAN router")
+		secretsFound = []string{}
 
 		err = cli.VanConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
-		assert.Check(t, err, "Unable to create token")
+		assert.Assert(t, err, "Unable to create token")
 
 		err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
 			Name: c.connName,
 			Cost: 1,
 		})
-		assert.Check(t, err, "Unable to create connector")
+		assert.Assert(t, err, "Unable to create connector")
 
 		// TODO: make more deterministic
 		time.Sleep(time.Second * 1)
+		t.Logf("secretsFound = %v", secretsFound)
 		assert.Assert(t, cmp.Equal(c.secretsExpected, secretsFound, trans), c.doc)
 	}
 
-	// clean up
 	os.RemoveAll(testPath)
 }
