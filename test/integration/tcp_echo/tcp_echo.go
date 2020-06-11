@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -95,6 +96,21 @@ func sendReceive(servAddr string) {
 	}
 }
 
+func forwardSendReceive(cc *cluster.ClusterContext, port string) {
+	cc.KubectlExecAsync(fmt.Sprintf("port-forward service/tcp-go-echo %s:9090", port))
+
+	defer exec.Command("pkill", "kubectl").Run() //XXX the forwarding needs to be redesigned, this is an ugly patch
+	//there is an issue with killing with the cmd.Kill() method...
+	//circleci 27472  0.0  0.0   4460   684 pts/3    S+   01:21   0:00 sh -c KUBECONFIG=/home/circleci/.kube/config kubectl -n  public1 port-forward service/tcp-go-echo 9090:9090
+	//circleci 27473  0.6  0.5 146188 41992 pts/3    Sl+  01:21   0:00 kubectl -n public1 port-forward service/tcp-go-echo 9090:9090
+	//using the Kill only kills the first process
+
+	//TODO find a better solution for this
+	time.Sleep(20 * time.Second) //give time to port forwarding to start
+
+	sendReceive("127.0.0.1:" + port)
+}
+
 func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	var publicService *apiv1.Service
 	var privateService *apiv1.Service
@@ -105,18 +121,14 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	publicService = r.Pub1Cluster.GetService("tcp-go-echo", 3*minute)
 	privateService = r.Priv1Cluster.GetService("tcp-go-echo", 3*minute)
 
+	time.Sleep(20 * time.Second) //TODO XXX What is the right condition to wait for?
+	//error: unable to forward port because pod is not running. Current status=Pending
+
 	fmt.Printf("Public service ClusterIp = %q\n", publicService.Spec.ClusterIP)
 	fmt.Printf("Private service ClusterIp = %q\n", privateService.Spec.ClusterIP)
 
-	time.Sleep(20 * time.Second)
-
-	r.Pub1Cluster.KubectlExecAsync("port-forward service/tcp-go-echo 9090:9090")
-	r.Priv1Cluster.KubectlExecAsync("port-forward service/tcp-go-echo 9091:9090")
-
-	time.Sleep(20 * time.Second) //give time to port forwarding to start
-
-	sendReceive("127.0.0.1:9090")
-	sendReceive("127.0.0.1:9091")
+	forwardSendReceive(r.Pub1Cluster, "9090")
+	forwardSendReceive(r.Priv1Cluster, "9091")
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
@@ -140,7 +152,7 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 	}
 
 	vanRouterCreateOpts := types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec {
+		Spec: types.VanSiteConfigSpec{
 			SkupperName:       "",
 			IsEdge:            false,
 			EnableController:  true,
