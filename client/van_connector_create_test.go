@@ -21,7 +21,7 @@ func TestConnectorCreateError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cli, err := getVanClient(testing.Short(), "namespace")
+	cli, err := newMockClient("my-namespace", "", "")
 	assert.Assert(t, err)
 
 	err = cli.VanConnectorCreateFromFile(ctx, "./somefile.yaml", types.VanConnectorCreateOptions{
@@ -64,7 +64,13 @@ func TestConnectorCreateInterior(t *testing.T) {
 
 	var namespace string = "testconnectorcreateinterior"
 
-	cli, err := getVanClient(testing.Short(), namespace)
+	var cli *VanClient
+	var err error
+	if *clusterRun {
+		cli, err = NewClient(namespace, "", "")
+	} else {
+		cli, err = newMockClient(namespace, "", "")
+	}
 	assert.Assert(t, err)
 
 	createNamespace := func() {
@@ -130,7 +136,6 @@ func TestConnectorCreateInterior(t *testing.T) {
 
 		// TODO: make more deterministic
 		time.Sleep(time.Second * 1)
-		t.Logf("secretsFound = %v", secretsFound)
 		assert.Assert(t, cmp.Equal(c.secretsExpected, secretsFound, trans), c.doc)
 	}
 

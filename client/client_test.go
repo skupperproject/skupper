@@ -2,7 +2,7 @@ package client
 
 import (
 	"flag"
-	"fmt"
+	"os"
 	"testing"
 
 	"gotest.tools/assert"
@@ -32,14 +32,9 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-var runOnRealCluster = flag.Bool("use-real-cluster", false, "client package tests will use KUBECONFIG configured cluster")
+var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
 
-func getVanClient(short bool, namespace string) (*VanClient, error) {
-
-	if *runOnRealCluster {
-		fmt.Println("Using real Client!")
-		return NewClient(namespace, "", "")
-	}
-	fmt.Println("Using mock client.")
-	return newMockClient(namespace, "", "")
+func TestMain(m *testing.M) {
+	flag.Parse()
+	os.Exit(m.Run())
 }

@@ -74,7 +74,7 @@ commands:
           command: go test -tags=integration -v ./test/integration/...
       - run:
           name: Run client tests in real cluster
-          command: go test -v -count=1 ./client -use-real-cluster
+          command: go test -v -count=1 ./client -use-cluster
 
 yaml-templates:
   release_filters: &release_filters
