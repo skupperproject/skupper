@@ -70,9 +70,11 @@ commands:
         type: string
     steps:
       - run:
-          name: Run Tests
+          name: Run Integration Tests
           command: go test -tags=integration -v ./test/integration/...
-      - run: kubectl get pods -n public1
+      - run:
+          name: Run client tests in real cluster
+          command: go test -v -count=1 ./client -use-cluster
 
 yaml-templates:
   release_filters: &release_filters
