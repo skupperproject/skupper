@@ -119,7 +119,6 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) 
 	return controller, nil
 }
 
-
 type ResourceVersionTest func(a interface{}, b interface{}) bool
 
 func ConfigMapResourceVersionTest(a interface{}, b interface{}) bool {
@@ -171,7 +170,7 @@ func (c *Controller) newEventHandler(category string, keyStrategy CacheKeyStrate
 		},
 		UpdateFunc: func(old, new interface{}) {
 			if !test(old, new) {
-			key, err := keyStrategy(category, new)
+				key, err := keyStrategy(category, new)
 				if err != nil {
 					utilruntime.HandleError(err)
 				} else {
@@ -252,11 +251,11 @@ func (c *Controller) deleteService(svc *corev1.Service) error {
 }
 
 func (c *Controller) updateActualServices() {
-	for _, v := range(c.bindings) {
+	for _, v := range c.bindings {
 		c.ensureServiceFor(v)
 	}
 	services := c.svcInformer.GetStore().List()
-	for _, v := range(services) {
+	for _, v := range services {
 		svc := v.(*corev1.Service)
 		if c.bindings[svc.ObjectMeta.Name] == nil && isOwned(svc) {
 			log.Println("No service binding found for ", svc.ObjectMeta.Name)
@@ -329,10 +328,6 @@ func (c *Controller) parseServiceDefinitions(cm *corev1.ConfigMap) map[string]ty
 			}
 		}
 		c.desiredServices = definitions
-		keys := []string{}
-		for key, _ := range c.desiredServices {
-			keys = append(keys, key)
-		}
 	}
 	return definitions
 }
@@ -441,7 +436,7 @@ func (c *Controller) updateBridgeConfig(name string) error {
 		if err != nil {
 			return fmt.Errorf("Error building required bridge config: %v", err.Error())
 		}
-		_, err = kube.NewConfigMap("skupper-internal"/*TODO define constant*/, &data, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
+		_, err = kube.NewConfigMap("skupper-internal" /*TODO define constant*/, &data, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
 		if err != nil {
 			return err
 		}
@@ -457,7 +452,16 @@ func (c *Controller) initialiseServiceBindingsMap() (map[string]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.ports.getPortAllocations(bridges), nil
+	allocations := c.ports.getPortAllocations(bridges)
+	//TODO: should deduce the ports in use by the router by
+	//reading config rather than hardcoding them here
+	c.ports.inuse(int(types.AmqpDefaultPort))
+	c.ports.inuse(int(types.AmqpsDefaultPort))
+	c.ports.inuse(int(types.EdgeListenerPort))
+	c.ports.inuse(int(types.InterRouterListenerPort))
+	c.ports.inuse(int(types.ConsoleDefaultServicePort))
+	c.ports.inuse(9090) //currently hardcoded in config
+	return allocations, nil
 
 }
 
@@ -508,12 +512,12 @@ func (c *Controller) processNextEvent() bool {
 							si := types.ServiceInterface{}
 							err := jsonencoding.Unmarshal([]byte(v), &si)
 							if err == nil {
-								updateServiceBindings(c, si, portAllocations)
+								c.updateServiceBindings(si, portAllocations)
 							} else {
 								log.Printf("Could not parse service definition for %s: %s", k, err)
 							}
 						}
-						for k, v := range(c.bindings) {
+						for k, v := range c.bindings {
 							_, ok := cm.Data[k]
 							if !ok {
 								if v != nil {
@@ -523,7 +527,7 @@ func (c *Controller) processNextEvent() bool {
 							}
 						}
 					} else if len(c.bindings) > 0 {
-						for k, v := range(c.bindings) {
+						for k, v := range c.bindings {
 							if v != nil {
 								v.stop()
 							}

@@ -20,21 +20,21 @@ const (
 )
 
 func newFreePorts() *FreePorts {
-	return &FreePorts {
+	return &FreePorts{
 		Available: []PortRange{
 			PortRange{
 				Start: MIN_PORT,
-				End: MAX_PORT,
+				End:   MAX_PORT,
 			},
 		},
 	}
 }
 
 func (ports *PortRange) extend(port int) bool {
-	if port == ports.Start - 1 {
+	if port == ports.Start-1 {
 		ports.Start = port
 		return true
-	} else if port == ports.End + 1 {
+	} else if port == ports.End+1 {
 		ports.End = port
 		return true
 	} else {
@@ -59,7 +59,7 @@ func (ports *PortRange) merge(other PortRange) bool {
 		ports.Start = other.Start
 		ports.End = other.End
 		return true
-	} else if other.Start > ports.End + 1 || other.End + 1 < ports.Start {
+	} else if other.Start > ports.End+1 || other.End+1 < ports.Start {
 		//no overlap
 		return false
 	} else if other.Start == (ports.End + 1) {
@@ -89,7 +89,7 @@ func (ports *PortRange) contains(port int) bool {
 
 func removePortRange(ports []PortRange, i int) []PortRange {
 	if len(ports) > 1 {
-		if i == len(ports) - 1 {
+		if i == len(ports)-1 {
 			return ports[:i]
 		} else if i == 0 {
 			return ports[1:]
@@ -105,13 +105,13 @@ func removePortRange(ports []PortRange, i int) []PortRange {
 
 func insertPortRange(ports []PortRange, extra PortRange, i int) []PortRange {
 	if i == 0 {
-		return append([]PortRange{extra,}, ports...)
-	} else if i + 1 > len(ports) {
+		return append([]PortRange{extra}, ports...)
+	} else if i+1 > len(ports) {
 		return append(ports, extra)
 	} else {
 		copy := []PortRange{}
-		for index, v := range(ports) {
-			if (index == i) {
+		for index, v := range ports {
+			if index == i {
 				copy = append(copy, extra)
 			}
 			copy = append(copy, v)
@@ -122,7 +122,7 @@ func insertPortRange(ports []PortRange, extra PortRange, i int) []PortRange {
 
 func (ports *FreePorts) String() string {
 	parts := []string{}
-	for _, r := range(ports.Available) {
+	for _, r := range ports.Available {
 		parts = append(parts, r.String())
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
@@ -134,7 +134,7 @@ func (ports *FreePorts) release(port int) bool {
 		if ports.Available[i].contains(port) {
 			return false
 		} else if ports.Available[i].extend(port) {
-			if i + 1 < len(ports.Available) && ports.Available[i].merge(ports.Available[i+1]) {
+			if i+1 < len(ports.Available) && ports.Available[i].merge(ports.Available[i+1]) {
 				//need to remove ports.Available[i+1]
 				ports.Available = removePortRange(ports.Available, i+1)
 			}
@@ -143,8 +143,8 @@ func (ports *FreePorts) release(port int) bool {
 	}
 	//need to append a new range
 	extra := PortRange{
-		Start:port,
-		End:port,
+		Start: port,
+		End:   port,
 	}
 	ports.Available = insertPortRange(ports.Available, extra, i)
 	return true
@@ -166,10 +166,10 @@ func (ports *FreePorts) inuse(port int) bool {
 			} else {
 				//need to split the range
 				extra := PortRange{
-					Start:port+1,
-					End:ports.Available[i].End,
+					Start: port + 1,
+					End:   ports.Available[i].End,
 				}
-				ports.Available[i].End = port-1
+				ports.Available[i].End = port - 1
 				ports.Available = insertPortRange(ports.Available, extra, i+1)
 			}
 			return true
@@ -190,33 +190,33 @@ func (ports *FreePorts) nextFreePort() (int, error) {
 
 func (ports *FreePorts) getPortAllocations(bridges *BridgeConfiguration) map[string]int {
 	allocations := map[string]int{}
-	for _, m := range(bridges.HttpConnectors) {
-		for _, b := range(m) {
+	for _, m := range bridges.HttpConnectors {
+		for _, b := range m {
 			allocations[b.Address] = b.Port
 			ports.inuse(b.Port)
 		}
 	}
-	for _, b := range(bridges.HttpListeners) {
+	for _, b := range bridges.HttpListeners {
 		allocations[b.Address] = b.Port
 		ports.inuse(b.Port)
 	}
-	for _, m := range(bridges.Http2Connectors) {
-		for _, b := range(m) {
+	for _, m := range bridges.Http2Connectors {
+		for _, b := range m {
 			allocations[b.Address] = b.Port
 			ports.inuse(b.Port)
 		}
 	}
-	for _, b := range(bridges.Http2Listeners) {
+	for _, b := range bridges.Http2Listeners {
 		allocations[b.Address] = b.Port
 		ports.inuse(b.Port)
 	}
-	for _, m := range(bridges.TcpConnectors) {
-		for _, b := range(m) {
+	for _, m := range bridges.TcpConnectors {
+		for _, b := range m {
 			allocations[b.Address] = b.Port
 			ports.inuse(b.Port)
 		}
 	}
-	for _, b := range(bridges.TcpListeners) {
+	for _, b := range bridges.TcpListeners {
 		allocations[b.Address] = b.Port
 		ports.inuse(b.Port)
 	}

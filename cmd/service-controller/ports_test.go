@@ -137,19 +137,19 @@ func TestPortReleaseCase2(t *testing.T) {
 }
 
 func TestMergePortRange1(t *testing.T) {
-	a := PortRange {
+	a := PortRange{
 		Start: 10,
-		End: 11,
+		End:   11,
 	}
-	b := PortRange {
+	b := PortRange{
 		Start: 8,
-		End: 15,
+		End:   15,
 	}
 	if b.merge(a) {
 		if b.Start != 8 && b.End != 15 {
-			t.Errorf(`expected %s, got %s`, b, PortRange {
+			t.Errorf(`expected %s, got %s`, b, PortRange{
 				Start: 8,
-				End: 15,
+				End:   15,
 			})
 		}
 	} else {
@@ -158,13 +158,13 @@ func TestMergePortRange1(t *testing.T) {
 }
 
 func TestMergePortRange2(t *testing.T) {
-	a := PortRange {
+	a := PortRange{
 		Start: 10,
-		End: 11,
+		End:   11,
 	}
-	b := PortRange {
+	b := PortRange{
 		Start: 8,
-		End: 15,
+		End:   15,
 	}
 	if a.merge(b) {
 		if a.Start != b.Start && a.End != b.End {
@@ -176,19 +176,19 @@ func TestMergePortRange2(t *testing.T) {
 }
 
 func TestMergePortRange3(t *testing.T) {
-	a := PortRange {
+	a := PortRange{
 		Start: 10,
-		End: 11,
+		End:   11,
 	}
-	b := PortRange {
+	b := PortRange{
 		Start: 8,
-		End: 9,
+		End:   9,
 	}
 	if a.merge(b) {
 		if a.Start != 8 && a.End != 11 {
-			t.Errorf(`expected %s, got %s`, b, PortRange {
+			t.Errorf(`expected %s, got %s`, b, PortRange{
 				Start: 8,
-				End: 11,
+				End:   11,
 			})
 		}
 	} else {
@@ -197,17 +197,17 @@ func TestMergePortRange3(t *testing.T) {
 }
 
 func TestMergePortRange4(t *testing.T) {
-	a := PortRange {
+	a := PortRange{
 		Start: 10,
-		End: 15,
+		End:   15,
 	}
-	b := PortRange {
+	b := PortRange{
 		Start: 12,
-		End: 19,
+		End:   19,
 	}
-	expected := PortRange {
+	expected := PortRange{
 		Start: 10,
-		End: 19,
+		End:   19,
 	}
 	if a.merge(b) {
 		if a.Start != expected.Start && a.End != expected.End {
@@ -219,17 +219,17 @@ func TestMergePortRange4(t *testing.T) {
 }
 
 func TestMergePortRange5(t *testing.T) {
-	a := PortRange {
+	a := PortRange{
 		Start: 20,
-		End: 25,
+		End:   25,
 	}
-	b := PortRange {
+	b := PortRange{
 		Start: 12,
-		End: 21,
+		End:   21,
 	}
-	expected := PortRange {
+	expected := PortRange{
 		Start: 12,
-		End: 25,
+		End:   25,
 	}
 	if a.merge(b) {
 		if a.Start != expected.Start && a.End != expected.End {
@@ -241,13 +241,13 @@ func TestMergePortRange5(t *testing.T) {
 }
 
 func TestMergePortRangeFailed(t *testing.T) {
-	a := PortRange {
+	a := PortRange{
 		Start: 20,
-		End: 25,
+		End:   25,
 	}
-	b := PortRange {
+	b := PortRange{
 		Start: 12,
-		End: 14,
+		End:   14,
 	}
 	if a.merge(b) {
 		t.Errorf(`merge should not succeed`)

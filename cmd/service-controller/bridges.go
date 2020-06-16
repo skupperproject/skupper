@@ -40,11 +40,11 @@ func (b *Bridge) checkName() string {
 
 func (b *Bridge) toMap() map[string]interface{} {
 	return map[string]interface{}{
-		"name": b.Name,
-		"host": b.Host,
-		"port": b.Port,
+		"name":    b.Name,
+		"host":    b.Host,
+		"port":    b.Port,
 		"address": b.Address,
-		"siteId": b.SiteId,
+		"siteId":  b.SiteId,
 	}
 }
 
@@ -61,13 +61,13 @@ type HttpBridge struct {
 
 func (b *HttpBridge) toMap() map[string]interface{} {
 	return map[string]interface{}{
-		"name": b.Name,
-		"host": b.Host,
-		"port": b.Port,
-		"address": b.Address,
-		"siteId": b.SiteId,
-		"http2": b.Http2,
-		"aggregation": b.Aggregation,
+		"name":         b.Name,
+		"host":         b.Host,
+		"port":         b.Port,
+		"address":      b.Address,
+		"siteId":       b.SiteId,
+		"http2":        b.Http2,
+		"aggregation":  b.Aggregation,
 		"eventChannel": b.EventChannel,
 	}
 }
@@ -106,14 +106,14 @@ type ServiceBindings struct {
 }
 
 type ServiceController struct {
-	bindings  map[string]*ServiceBindings
-	ports     *FreePorts
+	bindings map[string]*ServiceBindings
+	ports    *FreePorts
 }
 
 func newServiceController() *ServiceController {
 	return &ServiceController{
 		bindings: map[string]*ServiceBindings{},
-		ports: newFreePorts(),
+		ports:    newFreePorts(),
 	}
 }
 
@@ -126,7 +126,7 @@ func getTargetPort(service types.ServiceInterface, target types.ServiceInterface
 }
 
 func hasTargetForSelector(si types.ServiceInterface, selector string) bool {
-	for _, t := range(si.Targets) {
+	for _, t := range si.Targets {
 		if t.Selector == selector {
 			return true
 		}
@@ -134,9 +134,7 @@ func hasTargetForSelector(si types.ServiceInterface, selector string) bool {
 	return false
 }
 
-
-
-func updateServiceBindings(c *Controller, required types.ServiceInterface, portAllocations map[string]int) error {
+func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string]int) error {
 	if required.Headless != nil {
 		// TODO: setup headless
 		return fmt.Errorf("Headless services not yet handled by this controller!")
@@ -158,7 +156,7 @@ func updateServiceBindings(c *Controller, required types.ServiceInterface, portA
 			}
 		}
 		sb := newServiceBindings(required.Protocol, required.Address, required.Port, port)
-		for _, t := range(required.Targets) {
+		for _, t := range required.Targets {
 			sb.addTarget(t.Selector, getTargetPort(required, t), c)
 		}
 		c.bindings[required.Address] = sb
@@ -170,7 +168,7 @@ func updateServiceBindings(c *Controller, required types.ServiceInterface, portA
 		if bindings.publicPort != required.Port {
 			bindings.publicPort = required.Port
 		}
-		for _, t := range(required.Targets) {
+		for _, t := range required.Targets {
 			targetPort := getTargetPort(required, t)
 			target := bindings.targets[t.Selector]
 			if target == nil {
@@ -179,7 +177,7 @@ func updateServiceBindings(c *Controller, required types.ServiceInterface, portA
 				target.egressPort = targetPort
 			}
 		}
-		for k, _ := range(bindings.targets) {
+		for k, _ := range bindings.targets {
 			if !hasTargetForSelector(required, k) {
 				bindings.removeTarget(k)
 			}
@@ -190,17 +188,17 @@ func updateServiceBindings(c *Controller, required types.ServiceInterface, portA
 
 func newServiceBindings(protocol string, address string, publicPort int, ingressPort int) *ServiceBindings {
 	return &ServiceBindings{
-		protocol: protocol,
-		address: address,
-		publicPort: publicPort,
+		protocol:    protocol,
+		address:     address,
+		publicPort:  publicPort,
 		ingressPort: ingressPort,
-		targets: map[string]*EgressBindings{},
+		targets:     map[string]*EgressBindings{},
 	}
 }
 
 func (sb *ServiceBindings) addTarget(selector string, port int, controller *Controller) error {
-	sb.targets[selector] = &EgressBindings {
-		selector: selector,
+	sb.targets[selector] = &EgressBindings{
+		selector:   selector,
 		egressPort: port,
 		informer: corev1informer.NewFilteredPodInformer(
 			controller.vanClient.KubeClient,
@@ -212,7 +210,7 @@ func (sb *ServiceBindings) addTarget(selector string, port int, controller *Cont
 			})),
 		stopper: make(chan struct{}),
 	}
-	sb.targets[selector].informer.AddEventHandler(controller.newEventHandler("targetpods@" + sb.address, FixedKey, PodResourceVersionTest))
+	sb.targets[selector].informer.AddEventHandler(controller.newEventHandler("targetpods@"+sb.address, FixedKey, PodResourceVersionTest))
 	return sb.targets[selector].start()
 }
 
@@ -222,7 +220,7 @@ func (sb *ServiceBindings) removeTarget(selector string) {
 }
 
 func (sb *ServiceBindings) stop() {
-	for _, v := range(sb.targets) {
+	for _, v := range sb.targets {
 		if v != nil {
 			v.stop()
 		}
@@ -259,12 +257,12 @@ func (eb *EgressBindings) updateBridgeConfiguration(protocol string, address str
 
 func newBridgeConfiguration() *BridgeConfiguration {
 	return &BridgeConfiguration{
-		HttpConnectors: make(map[string]HttpBridgeMap),
-		HttpListeners: make(map[string]HttpBridge),
+		HttpConnectors:  make(map[string]HttpBridgeMap),
+		HttpListeners:   make(map[string]HttpBridge),
 		Http2Connectors: make(map[string]HttpBridgeMap),
-		Http2Listeners: make(map[string]HttpBridge),
-		TcpConnectors: make(map[string]BridgeMap),
-		TcpListeners: make(map[string]Bridge),
+		Http2Listeners:  make(map[string]HttpBridge),
+		TcpConnectors:   make(map[string]BridgeMap),
+		TcpListeners:    make(map[string]Bridge),
 	}
 }
 
@@ -294,16 +292,16 @@ func getBoolByKey(attributes map[string]interface{}, key string) bool {
 
 func (bc *BridgeConfiguration) addBridgeFromMap(entityType string, attributes map[string]interface{}) {
 	if isHttpBridgeEntity(entityType) {
-		bridge := HttpBridge {
-			Bridge: Bridge {
-				Name: getStringByKey(attributes, "name"),
-				Host: getStringByKey(attributes, "host"),
-				Port: getIntByKey(attributes, "port"),
+		bridge := HttpBridge{
+			Bridge: Bridge{
+				Name:    getStringByKey(attributes, "name"),
+				Host:    getStringByKey(attributes, "host"),
+				Port:    getIntByKey(attributes, "port"),
 				Address: getStringByKey(attributes, "address"),
-				SiteId: getStringByKey(attributes, "siteId"),
+				SiteId:  getStringByKey(attributes, "siteId"),
 			},
-			Http2: getBoolByKey(attributes, "http2"),
-			Aggregation: getStringByKey(attributes, "aggregation"),
+			Http2:        getBoolByKey(attributes, "http2"),
+			Aggregation:  getStringByKey(attributes, "aggregation"),
 			EventChannel: getBoolByKey(attributes, "eventChannel"),
 		}
 		bridge.checkName()
@@ -319,12 +317,12 @@ func (bc *BridgeConfiguration) addBridgeFromMap(entityType string, attributes ma
 		default:
 		}
 	} else {
-		bridge := Bridge {
-			Name: getStringByKey(attributes, "name"),
-			Host: getStringByKey(attributes, "host"),
-			Port: getIntByKey(attributes, "port"),
+		bridge := Bridge{
+			Name:    getStringByKey(attributes, "name"),
+			Host:    getStringByKey(attributes, "host"),
+			Port:    getIntByKey(attributes, "port"),
 			Address: getStringByKey(attributes, "address"),
-			SiteId: getStringByKey(attributes, "siteId"),
+			SiteId:  getStringByKey(attributes, "siteId"),
 		}
 		bridge.checkName()
 		switch entityType {
@@ -337,10 +335,9 @@ func (bc *BridgeConfiguration) addBridgeFromMap(entityType string, attributes ma
 	}
 }
 
-
 func isBridgeEntity(typename string) bool {
 	switch typename {
-		case
+	case
 		"tcpListener",
 		"tcpConnector":
 		return true
@@ -350,7 +347,7 @@ func isBridgeEntity(typename string) bool {
 
 func isHttpBridgeEntity(typename string) bool {
 	switch typename {
-		case
+	case
 		"httpListener",
 		"httpConnector",
 		"http2Listener",
@@ -359,7 +356,6 @@ func isHttpBridgeEntity(typename string) bool {
 	}
 	return false
 }
-
 
 const (
 	ProtocolTCP   string = "tcp"
@@ -370,7 +366,7 @@ const (
 func (m NestedBridgeMap) add(b Bridge) {
 	nm := m[b.Address]
 	if nm == nil {
-		m[b.Address] = BridgeMap {
+		m[b.Address] = BridgeMap{
 			b.Host: b,
 		}
 	} else {
@@ -381,7 +377,7 @@ func (m NestedBridgeMap) add(b Bridge) {
 func (m NestedHttpBridgeMap) add(b HttpBridge) {
 	nm := m[b.Address]
 	if nm == nil {
-		m[b.Address] = HttpBridgeMap {
+		m[b.Address] = HttpBridgeMap{
 			b.Host: b,
 		}
 	} else {
@@ -392,32 +388,32 @@ func (m NestedHttpBridgeMap) add(b HttpBridge) {
 func addEgressBridge(protocol string, host string, port int, address string, siteId string, bridges *BridgeConfiguration) (bool, error) {
 	switch protocol {
 	case ProtocolHTTP:
-		bridges.HttpConnectors.add(HttpBridge {
-			Bridge: Bridge {
-				Name: getBridgeName(address, host),
-				Host: host,
-				Port: port,
+		bridges.HttpConnectors.add(HttpBridge{
+			Bridge: Bridge{
+				Name:    getBridgeName(address, host),
+				Host:    host,
+				Port:    port,
 				Address: address,
-				SiteId: siteId,
+				SiteId:  siteId,
 			},
 		})
 	case ProtocolHTTP2:
-		bridges.Http2Connectors.add(HttpBridge {
-			Bridge: Bridge {
-				Name: getBridgeName(address, host),
-				Host: host,
-				Port: port,
+		bridges.Http2Connectors.add(HttpBridge{
+			Bridge: Bridge{
+				Name:    getBridgeName(address, host),
+				Host:    host,
+				Port:    port,
 				Address: address,
-				SiteId: siteId,
+				SiteId:  siteId,
 			},
 		})
 	case ProtocolTCP:
-		bridges.TcpConnectors.add(Bridge {
-			Name: getBridgeName(address, host),
-			Host: host,
-			Port: port,
+		bridges.TcpConnectors.add(Bridge{
+			Name:    getBridgeName(address, host),
+			Host:    host,
+			Port:    port,
 			Address: address,
-			SiteId: siteId,
+			SiteId:  siteId,
 		})
 	default:
 		return false, fmt.Errorf("Unrecognised protocol for service %s: %s", address, protocol)
@@ -428,32 +424,32 @@ func addEgressBridge(protocol string, host string, port int, address string, sit
 func addIngressBridge(protocol string, port int, address string, siteId string, bridges *BridgeConfiguration) (bool, error) {
 	switch protocol {
 	case ProtocolHTTP:
-		bridges.HttpListeners[address] = HttpBridge {
-			Bridge: Bridge {
-				Name: getBridgeName(address, ""),
-				Host: "0.0.0.0",
-				Port: port,
+		bridges.HttpListeners[address] = HttpBridge{
+			Bridge: Bridge{
+				Name:    getBridgeName(address, ""),
+				Host:    "0.0.0.0",
+				Port:    port,
 				Address: address,
-				SiteId: siteId,
+				SiteId:  siteId,
 			},
 		}
 	case ProtocolHTTP2:
-		bridges.Http2Listeners[address] = HttpBridge {
-			Bridge: Bridge {
-				Name: getBridgeName(address, ""),
-				Host: "0.0.0.0",
-				Port: port,
+		bridges.Http2Listeners[address] = HttpBridge{
+			Bridge: Bridge{
+				Name:    getBridgeName(address, ""),
+				Host:    "0.0.0.0",
+				Port:    port,
 				Address: address,
-				SiteId: siteId,
+				SiteId:  siteId,
 			},
 		}
 	case ProtocolTCP:
-		bridges.TcpListeners[address] = Bridge {
-			Name: getBridgeName(address, ""),
-			Host: "0.0.0.0",
-			Port: port,
+		bridges.TcpListeners[address] = Bridge{
+			Name:    getBridgeName(address, ""),
+			Host:    "0.0.0.0",
+			Port:    port,
 			Address: address,
-			SiteId: siteId,
+			SiteId:  siteId,
 		}
 	default:
 		return false, fmt.Errorf("Unrecognised protocol for service %s: %s", address, protocol)
@@ -482,7 +478,7 @@ func readBridgeConfiguration(data []byte) (*BridgeConfiguration, error) {
 	if !ok {
 		return nil, fmt.Errorf("Invalid JSON for bridge configuration, expected array at top level got %#v", obj)
 	}
-	for _, e :=  range(elements) {
+	for _, e := range elements {
 		element, ok := e.([]interface{})
 		if !ok || len(element) != 2 {
 			return nil, fmt.Errorf("Invalid JSON for bridge configuration, expected array with type and value got %#v", e)
@@ -505,43 +501,43 @@ func readBridgeConfiguration(data []byte) (*BridgeConfiguration, error) {
 
 func writeBridgeConfiguration(bridges *BridgeConfiguration) ([]byte, error) {
 	elements := []interface{}{}
-	for _, m := range(bridges.HttpConnectors) {
-		for _, b := range(m) {
+	for _, m := range bridges.HttpConnectors {
+		for _, b := range m {
 			elements = append(elements, []interface{}{
 				"httpConnector",
 				b.toMap(),
 			})
 		}
 	}
-	for _, b := range(bridges.HttpListeners) {
+	for _, b := range bridges.HttpListeners {
 		elements = append(elements, []interface{}{
 			"httpListener",
 			b.toMap(),
 		})
 	}
-	for _, m := range(bridges.Http2Connectors) {
-		for _, b := range(m) {
+	for _, m := range bridges.Http2Connectors {
+		for _, b := range m {
 			elements = append(elements, []interface{}{
 				"http2Connector",
 				b.toMap(),
 			})
 		}
 	}
-	for _, b := range(bridges.Http2Listeners) {
+	for _, b := range bridges.Http2Listeners {
 		elements = append(elements, []interface{}{
 			"http2Listener",
 			b.toMap(),
 		})
 	}
-	for _, m := range(bridges.TcpConnectors) {
-		for _, b := range(m) {
+	for _, m := range bridges.TcpConnectors {
+		for _, b := range m {
 			elements = append(elements, []interface{}{
 				"tcpConnector",
 				b.toMap(),
 			})
 		}
 	}
-	for _, b := range(bridges.TcpListeners) {
+	for _, b := range bridges.TcpListeners {
 		elements = append(elements, []interface{}{
 			"tcpListener",
 			b.toMap(),
@@ -551,12 +547,12 @@ func writeBridgeConfiguration(bridges *BridgeConfiguration) ([]byte, error) {
 }
 
 func (a BridgeMap) equivalent(b BridgeMap) bool {
-	for k, v := range(a) {
+	for k, v := range a {
 		if !v.equivalent(b[k]) {
 			return false
 		}
 	}
-	for k, v := range(b) {
+	for k, v := range b {
 		if !v.equivalent(a[k]) {
 			return false
 		}
@@ -565,12 +561,12 @@ func (a BridgeMap) equivalent(b BridgeMap) bool {
 }
 
 func (a HttpBridgeMap) equivalent(b HttpBridgeMap) bool {
-	for k, v := range(a) {
+	for k, v := range a {
 		if !v.equivalent(b[k]) {
 			return false
 		}
 	}
-	for k, v := range(b) {
+	for k, v := range b {
 		if !v.equivalent(a[k]) {
 			return false
 		}
@@ -579,12 +575,12 @@ func (a HttpBridgeMap) equivalent(b HttpBridgeMap) bool {
 }
 
 func (a NestedBridgeMap) equivalent(b NestedBridgeMap) bool {
-	for k, v := range(a) {
+	for k, v := range a {
 		if !v.equivalent(b[k]) {
 			return false
 		}
 	}
-	for k, v := range(b) {
+	for k, v := range b {
 		if !v.equivalent(a[k]) {
 			return false
 		}
@@ -593,12 +589,12 @@ func (a NestedBridgeMap) equivalent(b NestedBridgeMap) bool {
 }
 
 func (a NestedHttpBridgeMap) equivalent(b NestedHttpBridgeMap) bool {
-	for k, v := range(a) {
+	for k, v := range a {
 		if !v.equivalent(b[k]) {
 			return false
 		}
 	}
-	for k, v := range(b) {
+	for k, v := range b {
 		if !v.equivalent(a[k]) {
 			return false
 		}
