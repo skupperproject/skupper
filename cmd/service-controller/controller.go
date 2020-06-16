@@ -9,13 +9,11 @@ import (
 	"strings"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	appsv1informer "k8s.io/client-go/informers/apps/v1"
 	corev1informer "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/informers/internalinterfaces"
 	"k8s.io/client-go/tools/cache"
@@ -29,24 +27,21 @@ import (
 )
 
 type Controller struct {
-	origin          string
-	vanClient       *client.VanClient
-	tlsConfig       *tls.Config
-	depInformer     cache.SharedIndexInformer
-	cmInformer      cache.SharedIndexInformer
-	svcInformer     cache.SharedIndexInformer
-	cmWorkqueue     workqueue.RateLimitingInterface
-	depWorkqueue    workqueue.RateLimitingInterface
-	svcWorkqueue    workqueue.RateLimitingInterface
-	amqpClient      *amqp.Client
-	amqpSession     *amqp.Session
-	byOrigin        map[string]map[string]types.ServiceInterface
-	Local           []types.ServiceInterface
-	byName          map[string]types.ServiceInterface
-	desiredServices map[string]types.ServiceInterface
-	actualServices  map[string]corev1.Service
-	proxies         map[string]appsv1.Deployment
-	ssProxies       map[string]*appsv1.StatefulSet
+	origin            string
+	vanClient         *client.VanClient
+	tlsConfig         *tls.Config
+	bridgeDefInformer cache.SharedIndexInformer
+	svcDefInformer    cache.SharedIndexInformer
+	svcInformer       cache.SharedIndexInformer
+	events            workqueue.RateLimitingInterface
+	bindings          map[string]*ServiceBindings
+	ports             *FreePorts
+	amqpClient        *amqp.Client
+	amqpSession       *amqp.Session
+	byOrigin          map[string]map[string]types.ServiceInterface
+	Local             []types.ServiceInterface
+	byName            map[string]types.ServiceInterface
+	desiredServices   map[string]types.ServiceInterface
 }
 
 func hasProxyAnnotation(service corev1.Service) bool {
@@ -73,50 +68,15 @@ func hasOriginalSelector(service corev1.Service) bool {
 	}
 }
 
-func equivalentProxyConfig(desired types.ServiceInterface, deployment appsv1.Deployment) bool {
-	envVar := kube.FindEnvVar(deployment.Spec.Template.Spec.Containers[0].Env, "SKUPPER_PROXY_CONFIG")
-	encodedDesired, _ := jsonencoding.Marshal(desired)
-	return string(encodedDesired) == envVar.Value
-}
-
-func (c *Controller) printAllKeys() {
-	depKeys := []string{}
-	proxyKeys := []string{}
-	svcKeys := []string{}
-
-	for key, _ := range c.proxies {
-		proxyKeys = append(proxyKeys, key)
-	}
-	for key, _ := range c.desiredServices {
-		depKeys = append(depKeys, key)
-	}
-	for key, _ := range c.actualServices {
-		svcKeys = append(svcKeys, key)
-	}
-
-	log.Println("Desired services: ", depKeys)
-	log.Println("Proxies: ", proxyKeys)
-	log.Println("Actual Services: ", svcKeys)
-
-}
-
 func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) (*Controller, error) {
 
 	// create informers
-	depInformer := appsv1informer.NewFilteredDeploymentInformer(
-		cli.KubeClient,
-		cli.Namespace,
-		time.Second*30,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
-			options.LabelSelector = types.TypeProxyQualifier
-		}))
 	svcInformer := corev1informer.NewServiceInformer(
 		cli.KubeClient,
 		cli.Namespace,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
-	cmInformer := corev1informer.NewFilteredConfigMapInformer(
+	svcDefInformer := corev1informer.NewFilteredConfigMapInformer(
 		cli.KubeClient,
 		cli.Namespace,
 		time.Second*30,
@@ -124,92 +84,130 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) 
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
 			options.FieldSelector = "metadata.name=skupper-services"
 		}))
+	bridgeDefInformer := corev1informer.NewFilteredConfigMapInformer(
+		cli.KubeClient,
+		cli.Namespace,
+		time.Second*30,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
+			options.FieldSelector = "metadata.name=skupper-internal"
+		}))
 
-	// create a workqueue per informer
-	cmWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-controller-cm")
-	depWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-controller-dep")
-	svcWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-controller-svc")
+	events := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-service-controller")
 
 	controller := &Controller{
-		vanClient:    cli,
-		origin:       origin,
-		tlsConfig:    tlsConfig,
-		depInformer:  depInformer,
-		cmInformer:   cmInformer,
-		svcInformer:  svcInformer,
-		cmWorkqueue:  cmWorkqueue,
-		depWorkqueue: depWorkqueue,
-		svcWorkqueue: svcWorkqueue,
+		vanClient:         cli,
+		origin:            origin,
+		tlsConfig:         tlsConfig,
+		bridgeDefInformer: bridgeDefInformer,
+		svcDefInformer:    svcDefInformer,
+		svcInformer:       svcInformer,
+		events:            events,
+		ports:             newFreePorts(),
 	}
 
 	// Organize service definitions
 	controller.byOrigin = make(map[string]map[string]types.ServiceInterface)
 	controller.byName = make(map[string]types.ServiceInterface)
 	controller.desiredServices = make(map[string]types.ServiceInterface)
-	controller.actualServices = make(map[string]corev1.Service)
-	controller.proxies = make(map[string]appsv1.Deployment)
-	controller.ssProxies = make(map[string]*appsv1.StatefulSet)
 
 	log.Println("Setting up event handlers")
-	cmInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueConfigMap,
-		UpdateFunc: func(old, new interface{}) {
-			newCm := new.(*corev1.ConfigMap)
-			oldCm := old.(*corev1.ConfigMap)
-			if newCm.ResourceVersion == oldCm.ResourceVersion {
-				return
-			}
-			controller.enqueueConfigMap(new)
-		},
-	})
-
-	depInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueDeployment,
-		UpdateFunc: func(old, new interface{}) {
-			newDep := new.(*appsv1.Deployment)
-			oldDep := old.(*appsv1.Deployment)
-			if newDep.ResourceVersion == oldDep.ResourceVersion {
-				return
-			}
-			controller.enqueueDeployment(new)
-		},
-		DeleteFunc: controller.enqueueDeployment,
-	})
-
-	svcInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueService,
-		UpdateFunc: func(old, new interface{}) {
-			newSvc := new.(*corev1.Service)
-			oldSvc := old.(*corev1.Service)
-			if newSvc.ResourceVersion == oldSvc.ResourceVersion {
-				return
-			}
-			controller.enqueueService(new)
-		},
-		DeleteFunc: controller.enqueueService,
-	})
+	svcDefInformer.AddEventHandler(controller.newEventHandler("servicedefs", AnnotatedKey, ConfigMapResourceVersionTest))
+	bridgeDefInformer.AddEventHandler(controller.newEventHandler("bridges", AnnotatedKey, ConfigMapResourceVersionTest))
+	svcInformer.AddEventHandler(controller.newEventHandler("actual-services", AnnotatedKey, ServiceResourceVersionTest))
 
 	return controller, nil
 }
 
+type ResourceVersionTest func(a interface{}, b interface{}) bool
+
+func ConfigMapResourceVersionTest(a interface{}, b interface{}) bool {
+	aa := a.(*corev1.ConfigMap)
+	bb := b.(*corev1.ConfigMap)
+	return aa.ResourceVersion == bb.ResourceVersion
+}
+
+func PodResourceVersionTest(a interface{}, b interface{}) bool {
+	aa := a.(*corev1.Pod)
+	bb := b.(*corev1.Pod)
+	return aa.ResourceVersion == bb.ResourceVersion
+}
+
+func ServiceResourceVersionTest(a interface{}, b interface{}) bool {
+	aa := a.(*corev1.Service)
+	bb := b.(*corev1.Service)
+	return aa.ResourceVersion == bb.ResourceVersion
+}
+
+type CacheKeyStrategy func(category string, object interface{}) (string, error)
+
+func AnnotatedKey(category string, obj interface{}) (string, error) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return "", err
+	}
+	return category + "@" + key, nil
+}
+
+func FixedKey(category string, obj interface{}) (string, error) {
+	return category, nil
+}
+
+func splitKey(key string) (string, string) {
+	parts := strings.Split(key, "@")
+	return parts[0], parts[1]
+}
+
+func (c *Controller) newEventHandler(category string, keyStrategy CacheKeyStrategy, test ResourceVersionTest) *cache.ResourceEventHandlerFuncs {
+	return &cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			key, err := keyStrategy(category, obj)
+			if err != nil {
+				utilruntime.HandleError(err)
+			} else {
+				c.events.Add(key)
+			}
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if !test(old, new) {
+				key, err := keyStrategy(category, new)
+				if err != nil {
+					utilruntime.HandleError(err)
+				} else {
+					c.events.Add(key)
+				}
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			key, err := keyStrategy(category, obj)
+			if err != nil {
+				utilruntime.HandleError(err)
+			} else {
+				c.events.Add(key)
+			}
+		},
+	}
+}
+
 func (c *Controller) Run(stopCh <-chan struct{}) error {
+	// fire up the informers
+	go c.svcDefInformer.Run(stopCh)
+	go c.bridgeDefInformer.Run(stopCh)
+	go c.svcInformer.Run(stopCh)
+
 	defer utilruntime.HandleCrash()
-	defer c.cmWorkqueue.ShutDown()
-	defer c.depWorkqueue.ShutDown()
-	defer c.svcWorkqueue.ShutDown()
+	defer c.events.ShutDown()
 
 	log.Println("Starting the Skupper controller")
 
 	log.Println("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.cmInformer.HasSynced, c.depInformer.HasSynced, c.svcInformer.HasSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.svcDefInformer.HasSynced, c.bridgeDefInformer.HasSynced, c.svcInformer.HasSynced); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
 
 	log.Println("Starting workers")
 	go wait.Until(c.runServiceSync, time.Second, stopCh)
-	go wait.Until(c.runConfigMapWorker, time.Second, stopCh)
-	go wait.Until(c.runDeploymentWorker, time.Second, stopCh)
-	go wait.Until(c.runServiceWorker, time.Second, stopCh)
+	go wait.Until(c.runServiceCtrl, time.Second, stopCh)
 
 	log.Println("Started workers")
 	<-stopCh
@@ -218,48 +216,50 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *Controller) ensureProxyDeployment(name string) {
-	proxyName := getProxyName(name)
-	proxy, proxyDefined := c.proxies[proxyName]
-	serviceInterface := c.desiredServices[name]
+func (c *Controller) createServiceFor(desired *ServiceBindings) error {
+	log.Println("Creating new service for ", desired.address)
+	_, err := kube.NewServiceForAddress(desired.address, desired.publicPort, desired.ingressPort, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
+	if err != nil {
+		log.Printf("Error while creating service %s: %s", desired.address, err)
+	}
+	return err
+}
 
-	if serviceInterface.Headless != nil {
-		log.Println("TODO: Proxy is for a stateful set")
+func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Service) error {
+	//selector, port, targetPort
+	// TODO: check services changes
+	log.Printf("We need to check service changes for %s", actual.ObjectMeta.Name)
+	return nil
+}
+
+func (c *Controller) ensureServiceFor(desired *ServiceBindings) error {
+	log.Println("Checking service for: ", desired.address)
+	obj, exists, err := c.svcInformer.GetStore().GetByKey(c.namespaced(desired.address))
+	if err != nil {
+		return fmt.Errorf("Error checking service %s", err)
+	} else if !exists {
+		return c.createServiceFor(desired)
 	} else {
-		if !proxyDefined {
-			log.Printf("Need to create proxy for %s (%s)\n", serviceInterface.Address, proxyName)
-			proxyDep, err := kube.NewProxyDeployment(serviceInterface, c.vanClient.Namespace, c.vanClient.KubeClient)
-			if err == nil {
-				c.proxies[proxyName] = *proxyDep
-			}
-		} else {
-			if !equivalentProxyConfig(serviceInterface, proxy) {
-				log.Println("TODO: Need to update proxy config for ", proxy.Name)
-			} else {
-				log.Println("TODO: Nothing to do here for proxy config", proxy.Name)
-			}
-		}
+		svc := obj.(*corev1.Service)
+		return c.checkServiceFor(desired, svc)
 	}
 }
 
-func (c *Controller) ensureServiceFor(name string) {
-	log.Println("Checking service for: ", name)
-	var ok bool
-	desired, ok := c.desiredServices[name]
-	if !ok {
-		log.Println("Unable to retrieve desired service")
-		return
+func (c *Controller) deleteService(svc *corev1.Service) error {
+	log.Println("Deleting service ", svc.ObjectMeta.Name)
+	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(svc.ObjectMeta.Name, &metav1.DeleteOptions{})
+}
+
+func (c *Controller) updateActualServices() {
+	for _, v := range c.bindings {
+		c.ensureServiceFor(v)
 	}
-	if desired.Headless != nil {
-		// TODO: setup headless
-		log.Println("We have a headless service to set up")
-	} else {
-		if _, ok := c.actualServices[name]; !ok {
-			log.Println("Creating new service for proxy", name)
-			kube.NewServiceForProxy(desired, c.vanClient.Namespace, c.vanClient.KubeClient)
-		} else {
-			// TODO: check services changes
-			log.Println("We need to check service changes")
+	services := c.svcInformer.GetStore().List()
+	for _, v := range services {
+		svc := v.(*corev1.Service)
+		if c.bindings[svc.ObjectMeta.Name] == nil && isOwned(svc) {
+			log.Println("No service binding found for ", svc.ObjectMeta.Name)
+			c.deleteService(svc)
 		}
 	}
 }
@@ -277,20 +277,29 @@ func equalOwnerRefs(a, b []metav1.OwnerReference) bool {
 	return true
 }
 
-func isOwned(service corev1.Service) bool {
+func getOwnerReference() *metav1.OwnerReference {
 	ownerName := os.Getenv("OWNER_NAME")
 	ownerUid := os.Getenv("OWNER_UID")
 	if ownerName == "" || ownerUid == "" {
-		return false
-	}
-
-	ownerRefs := []metav1.OwnerReference{
-		{
+		return nil
+	} else {
+		return &metav1.OwnerReference{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
 			Name:       ownerName,
 			UID:        apimachinerytypes.UID(ownerUid),
-		},
+		}
+	}
+}
+
+func isOwned(service *corev1.Service) bool {
+	owner := getOwnerReference()
+	if owner == nil {
+		return false
+	}
+
+	ownerRefs := []metav1.OwnerReference{
+		*owner,
 	}
 
 	if controlled, ok := service.ObjectMeta.Annotations[types.ControlledQualifier]; ok {
@@ -304,159 +313,287 @@ func isOwned(service corev1.Service) bool {
 	}
 }
 
-func (c *Controller) reconcile() error {
-	log.Println("Reconciling...")
+func (c *Controller) namespaced(name string) string {
+	return c.vanClient.Namespace + "/" + name
+}
 
-	// reconcile proxy deployments with desired services:
-	for name, _ := range c.desiredServices {
-		c.ensureProxyDeployment(name)
-	}
-	for proxyname, _ := range c.proxies {
-		if _, ok := c.desiredServices[getServiceName(proxyname)]; !ok {
-			log.Println("Undeploying proxy: ", proxyname)
-			kube.DeleteDeployment(proxyname, c.vanClient.Namespace, c.vanClient.KubeClient)
-		}
-	}
-
-	// reconcile actual services with desired services:
-	for name, _ := range c.desiredServices {
-		c.ensureServiceFor(name)
-	}
-
-	for name, svc := range c.actualServices {
-		if _, ok := c.desiredServices[name]; !ok {
-			if isOwned(svc) {
-				log.Println("Deleting service: ", name)
-				kube.DeleteService(name, c.vanClient.Namespace, c.vanClient.KubeClient)
+func (c *Controller) parseServiceDefinitions(cm *corev1.ConfigMap) map[string]types.ServiceInterface {
+	definitions := make(map[string]types.ServiceInterface)
+	if len(cm.Data) > 0 {
+		for _, v := range cm.Data {
+			si := types.ServiceInterface{}
+			err := jsonencoding.Unmarshal([]byte(v), &si)
+			if err == nil {
+				definitions[si.Address] = si
 			}
 		}
+		c.desiredServices = definitions
 	}
+	return definitions
+}
 
+func (c *Controller) runServiceCtrl() {
+	for c.processNextEvent() {
+	}
+}
+
+const (
+	BRIDGE_CONFIG = "bridges.json"
+)
+
+func (c *Controller) getRequiredBridgeConfig() (string, error) {
+	bridges := requiredBridges(c.bindings, c.origin)
+	config, err := writeBridgeConfiguration(bridges)
+	if err != nil {
+		return "", fmt.Errorf("Error writing json for bridge config %s", err)
+	} else {
+		return string(config), nil
+	}
+}
+
+func (c *Controller) getRequiredBridgeConfigAsMap() (map[string]string, error) {
+	val, err := c.getRequiredBridgeConfig()
+	if err != nil {
+		return nil, err
+	} else {
+		return map[string]string{
+			BRIDGE_CONFIG: val,
+		}, nil
+	}
+}
+
+func (c *Controller) getInitialBridgeConfig() (*BridgeConfiguration, error) {
+	name := c.namespaced("skupper-internal")
+	obj, exists, err := c.bridgeDefInformer.GetStore().GetByKey(name)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading skupper-internal from cache: %s", err)
+	} else if exists {
+		cm, ok := obj.(*corev1.ConfigMap)
+		if !ok {
+			return nil, fmt.Errorf("Expected ConfigMap for %s but got %#v", name, obj)
+		}
+		if cm.Data == nil || cm.Data[BRIDGE_CONFIG] == "" {
+			return nil, nil
+		} else {
+			log.Printf("Reading initial bridge configuration: %s", cm.Data[BRIDGE_CONFIG])
+			currentBridges, err := readBridgeConfiguration([]byte(cm.Data[BRIDGE_CONFIG]))
+			if err != nil {
+				return nil, fmt.Errorf("Error reading bridge config from %s: %v", name, err.Error())
+			}
+			return currentBridges, nil
+		}
+	} else {
+		return nil, nil
+	}
+}
+
+func (c *Controller) updateBridgeConfig(name string) error {
+	obj, exists, err := c.bridgeDefInformer.GetStore().GetByKey(name)
+	if err != nil {
+		return fmt.Errorf("Error reading skupper-internal from cache: %s", err)
+	} else if exists {
+		cm, ok := obj.(*corev1.ConfigMap)
+		if !ok {
+			return fmt.Errorf("Expected ConfigMap for %s but got %#v", name, obj)
+		}
+		var update bool
+		if cm.Data == nil {
+			cm.Data, err = c.getRequiredBridgeConfigAsMap()
+			if err != nil {
+				return fmt.Errorf("Error building required bridge config: %v", err.Error())
+			}
+			update = true
+		} else if cm.Data[BRIDGE_CONFIG] == "" {
+			cm.Data[BRIDGE_CONFIG], err = c.getRequiredBridgeConfig()
+			if err != nil {
+				return fmt.Errorf("Error building required bridge config: %v", err.Error())
+			}
+			update = true
+		} else {
+			desiredBridges := requiredBridges(c.bindings, c.origin)
+			currentBridges, err := readBridgeConfiguration([]byte(cm.Data[BRIDGE_CONFIG]))
+			if err != nil {
+				return fmt.Errorf("Error reading bridge config from %s: %v", name, err.Error())
+			}
+			if updateBridgeConfiguration(desiredBridges, currentBridges) {
+				update = true
+				config, err := writeBridgeConfiguration(desiredBridges)
+				if err != nil {
+					return fmt.Errorf("Error writing json for bridge config %s", err)
+				}
+				cm.Data[BRIDGE_CONFIG] = string(config)
+			}
+		}
+		if update {
+			log.Printf("Updating %s", cm.ObjectMeta.Name)
+			_, err = c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Update(cm)
+			if err != nil {
+				return fmt.Errorf("Failed to update %s: %v", name, err.Error())
+			}
+		}
+	} else {
+		data, err := c.getRequiredBridgeConfigAsMap()
+		if err != nil {
+			return fmt.Errorf("Error building required bridge config: %v", err.Error())
+		}
+		_, err = kube.NewConfigMap("skupper-internal" /*TODO define constant*/, &data, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func (c *Controller) runConfigMapWorker() {
-	for c.processNextConfigMapWorkItem() {
+func (c *Controller) initialiseServiceBindingsMap() (map[string]int, error) {
+	c.bindings = map[string]*ServiceBindings{}
+	//on first initiliasing the service bindings map, need to get any
+	//port allocations from bridge config
+	bridges, err := c.getInitialBridgeConfig()
+	if err != nil {
+		return nil, err
 	}
+	allocations := c.ports.getPortAllocations(bridges)
+	//TODO: should deduce the ports in use by the router by
+	//reading config rather than hardcoding them here
+	c.ports.inuse(int(types.AmqpDefaultPort))
+	c.ports.inuse(int(types.AmqpsDefaultPort))
+	c.ports.inuse(int(types.EdgeListenerPort))
+	c.ports.inuse(int(types.InterRouterListenerPort))
+	c.ports.inuse(int(types.ConsoleDefaultServicePort))
+	c.ports.inuse(9090) //currently hardcoded in config
+	return allocations, nil
+
 }
 
-func (c *Controller) processNextConfigMapWorkItem() bool {
-	obj, shutdown := c.cmWorkqueue.Get()
+func (c *Controller) updateServiceSync(defs *corev1.ConfigMap) {
+	c.serviceSyncDefinitionsUpdated(c.parseServiceDefinitions(defs))
+}
+
+func (c *Controller) processNextEvent() bool {
+
+	obj, shutdown := c.events.Get()
 
 	if shutdown {
 		return false
 	}
 
 	err := func(obj interface{}) error {
-		defer c.cmWorkqueue.Done(obj)
+		defer c.events.Done(obj)
 
-		var key string
 		var ok bool
-
+		var key string
 		if key, ok = obj.(string); !ok {
 			// invalid item
-			c.cmWorkqueue.Forget(obj)
-			utilruntime.HandleError(fmt.Errorf("expected string in cm workqueue but got %#v", obj))
-			return nil
-		}
-		namespace, name, err := cache.SplitMetaNamespaceKey(key)
-		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
-			return nil
-		}
-
-		// TODO: is this ok or get from informer store?
-		// also, be able to use common pkg file kube.GetConfigMap
-		cm, err := c.vanClient.KubeClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
-		if err == nil {
-			definitions := make(map[string]types.ServiceInterface)
-			if len(cm.Data) > 0 {
-				for _, v := range cm.Data {
-					si := types.ServiceInterface{}
-					err = jsonencoding.Unmarshal([]byte(v), &si)
-					if err == nil {
-						definitions[si.Address] = si
+			c.events.Forget(obj)
+			return fmt.Errorf("expected string in events but got %#v", obj)
+		} else {
+			category, name := splitKey(key)
+			switch category {
+			case "servicedefs":
+				//get the configmap, parse the json, check against the current servicebindings map
+				obj, exists, err := c.svcDefInformer.GetStore().GetByKey(name)
+				if err != nil {
+					return fmt.Errorf("Error reading skupper-services from cache: %s", err)
+				} else if exists {
+					var portAllocations map[string]int
+					if c.bindings == nil {
+						portAllocations, err = c.initialiseServiceBindingsMap()
+						if err != nil {
+							return err
+						}
+					}
+					cm, ok := obj.(*corev1.ConfigMap)
+					if !ok {
+						return fmt.Errorf("Expected ConfigMap for %s but got %#v", name, obj)
+					}
+					c.updateServiceSync(cm)
+					if cm.Data != nil && len(cm.Data) > 0 {
+						for k, v := range cm.Data {
+							si := types.ServiceInterface{}
+							err := jsonencoding.Unmarshal([]byte(v), &si)
+							if err == nil {
+								c.updateServiceBindings(si, portAllocations)
+							} else {
+								log.Printf("Could not parse service definition for %s: %s", k, err)
+							}
+						}
+						for k, v := range c.bindings {
+							_, ok := cm.Data[k]
+							if !ok {
+								if v != nil {
+									v.stop()
+								}
+								delete(c.bindings, k)
+							}
+						}
+					} else if len(c.bindings) > 0 {
+						for k, v := range c.bindings {
+							if v != nil {
+								v.stop()
+							}
+							delete(c.bindings, k)
+						}
 					}
 				}
-				c.desiredServices = definitions
-				keys := []string{}
-				for key, _ := range c.desiredServices {
-					keys = append(keys, key)
+				c.updateBridgeConfig(c.namespaced("skupper-internal"))
+				c.updateActualServices()
+			case "bridges":
+				if c.bindings == nil {
+					//not yet initialised
+					return nil
 				}
-				log.Println("Desired service configuration updated: ", keys)
-				c.reconcile()
-			} else {
-				c.desiredServices = definitions
-				log.Println("No skupper services defined.")
-				c.reconcile()
+				err := c.updateBridgeConfig(name)
+				if err != nil {
+					return err
+				}
+			case "actual-services":
+				if c.bindings == nil {
+					//not yet initialised
+					return nil
+				}
+				log.Printf("service event for %s", name)
+				//name is fully qualified name of the actual service
+				obj, exists, err := c.svcInformer.GetStore().GetByKey(name)
+				if err != nil {
+					return fmt.Errorf("Error reading service %s from cache: %s", name, err)
+				} else if exists {
+					svc, ok := obj.(*corev1.Service)
+					if !ok {
+						return fmt.Errorf("Expected Service for %s but got %#v", name, obj)
+					}
+					bindings := c.bindings[svc.ObjectMeta.Name]
+					if bindings == nil {
+						if isOwned(svc) {
+							err = c.deleteService(svc)
+							if err != nil {
+								return err
+							}
+						}
+					} else {
+						//check that service matches binding def, else update it
+						err = c.checkServiceFor(bindings, svc)
+						if err != nil {
+							return err
+						}
+					}
+				} else {
+					bindings := c.bindings[name]
+					if bindings != nil {
+						err = c.createServiceFor(bindings)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			case "targetpods":
+				log.Printf("Got targetpods event %s", name)
+				//name is the address of the skupper service
+				c.updateBridgeConfig(c.namespaced("skupper-internal"))
+			default:
+				c.events.Forget(obj)
+				return fmt.Errorf("unexpected event key %s (%s, %s)", key, category, name)
 			}
-			c.serviceSyncDefinitionsUpdated(definitions)
-		}
-		c.cmWorkqueue.Forget(obj)
-		return nil
-	}(obj)
-
-	if err != nil {
-		utilruntime.HandleError(err)
-		return true
-	}
-
-	return true
-}
-
-// enqueueConfigMap takes a ConfigMap resource and converts it into a namespace/name
-// string which is then put onto the work queue. This method should *not* be
-// passed resources of any type other than ConfigMap.
-func (c *Controller) enqueueConfigMap(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		utilruntime.HandleError(err)
-		return
-	}
-	c.cmWorkqueue.Add(key)
-}
-
-func (c *Controller) runDeploymentWorker() {
-	for c.processNextDeploymentWorkItem() {
-	}
-}
-
-func (c *Controller) processNextDeploymentWorkItem() bool {
-
-	obj, shutdown := c.depWorkqueue.Get()
-
-	if shutdown {
-		return false
-	}
-
-	err := func(obj interface{}) error {
-		defer c.depWorkqueue.Done(obj)
-
-		var ok bool
-		if _, ok = obj.(string); !ok {
-			// invalid item
-			c.depWorkqueue.Forget(obj)
-			utilruntime.HandleError(fmt.Errorf("expected string in dep workqueue but got %#v", obj))
-		} else {
-			// TODO: get list from informer??
-			deps, err := c.vanClient.KubeClient.AppsV1().Deployments(c.vanClient.Namespace).List(metav1.ListOptions{LabelSelector: types.TypeProxyQualifier})
-			if err != nil {
-				return err
-			} else {
-				proxies := make(map[string]appsv1.Deployment)
-				for _, dep := range deps.Items {
-					proxies[dep.ObjectMeta.Name] = dep
-				}
-				c.proxies = proxies
-				keys := []string{}
-				for key, _ := range c.proxies {
-					keys = append(keys, key)
-				}
-				log.Println("proxy deployments updated: ", keys)
-				c.reconcile()
-			}
-			c.depWorkqueue.Forget(obj)
+			c.events.Forget(obj)
 		}
 		return nil
 	}(obj)
@@ -467,83 +604,4 @@ func (c *Controller) processNextDeploymentWorkItem() bool {
 	}
 
 	return true
-}
-
-// enqueueDeployment takes a Deployment resource and converts it into a namespace/name
-// string which is then put onto the work queue. This method should *not* be
-// passed resources of any type other than Deployment.
-func (c *Controller) enqueueDeployment(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		utilruntime.HandleError(err)
-		return
-	}
-	c.depWorkqueue.Add(key)
-}
-
-func (c *Controller) runServiceWorker() {
-	for c.processNextServiceWorkItem() {
-	}
-}
-
-func (c *Controller) processNextServiceWorkItem() bool {
-
-	obj, shutdown := c.svcWorkqueue.Get()
-
-	if shutdown {
-		return false
-	}
-
-	err := func(obj interface{}) error {
-		defer c.svcWorkqueue.Done(obj)
-
-		var ok bool
-		if _, ok = obj.(string); !ok {
-			// invalid item
-			c.svcWorkqueue.Forget(obj)
-			utilruntime.HandleError(fmt.Errorf("expected string in dep workqueue but got %#v", obj))
-		} else {
-			// TODO: get list from informer??
-			svcs, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).List(metav1.ListOptions{})
-			if err != nil {
-				return err
-			} else {
-				actualServices := make(map[string]corev1.Service)
-				for _, svc := range svcs.Items {
-					actualServices[svc.ObjectMeta.Name] = svc
-				}
-				c.actualServices = actualServices
-				keys := []string{}
-				for key, _ := range c.actualServices {
-					keys = append(keys, key)
-				}
-				log.Println("services updated: ", keys)
-				c.reconcile()
-			}
-			c.svcWorkqueue.Forget(obj)
-		}
-		return nil
-	}(obj)
-
-	if err != nil {
-		utilruntime.HandleError(err)
-		return true
-	}
-
-	return true
-}
-
-// enqueueService takes a Service resource and converts it into a namespace/name
-// string which is then put onto the work queue. This method should *not* be
-// passed resources of any type other than Service.
-func (c *Controller) enqueueService(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		utilruntime.HandleError(err)
-		return
-	}
-	fmt.Println("Enqueue service")
-	c.svcWorkqueue.Add(key)
 }

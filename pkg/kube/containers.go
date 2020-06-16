@@ -34,3 +34,23 @@ func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
 	}
 	return container
 }
+
+func ContainerForBridgeServer() corev1.Container {
+	container := corev1.Container{
+		Image: types.DefaultBridgeServerImage,
+		Name:  types.BridgeServerContainerName,
+		Env:   []corev1.EnvVar{
+			corev1.EnvVar{
+				Name: "CONF_FILE",
+				Value: "/etc/bridge-server/bridges.json",
+			},
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			corev1.VolumeMount{
+				Name:      "bridge-config",
+				MountPath: "/etc/bridge-server/",
+			},
+		},
+	}
+	return container
+}

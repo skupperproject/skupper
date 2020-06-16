@@ -342,7 +342,10 @@ func NewTransportDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerRefe
 					},
 					Spec: corev1.PodSpec{
 						ServiceAccountName: types.TransportServiceAccountName,
-						Containers:         []corev1.Container{ContainerForTransport(van.Transport)},
+						Containers:         []corev1.Container{
+							ContainerForTransport(van.Transport),
+							ContainerForBridgeServer(),
+						},
 					},
 				},
 			},

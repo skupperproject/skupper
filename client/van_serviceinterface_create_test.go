@@ -121,7 +121,7 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 			port:          1999,
 			err:           "",
 			depsExpected:  []string{"skupper-router", "skupper-service-controller"},
-			cmsExpected:   []string{"skupper-services"},
+			cmsExpected:   []string{"skupper-internal", "skupper-services"},
 			rolesExpected: []string{"skupper-edit", "skupper-view"},
 			svcsExpected:  []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
 			timeout:       5.0,

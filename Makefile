@@ -9,7 +9,7 @@ build-cmd:
 	go build -ldflags="-X main.version=${VERSION}"  -o skupper cmd/skupper/skupper.go
 
 build-service-controller:
-	go build -ldflags="-X main.version=${VERSION}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go
+	go build -ldflags="-X main.version=${VERSION}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go cmd/service-controller/ports.go
 
 build-site-controller:
 	go build -ldflags="-X main.version=${VERSION}"  -o site-controller cmd/site-controller/main.go cmd/site-controller/controller.go

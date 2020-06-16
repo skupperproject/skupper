@@ -49,6 +49,8 @@ const (
 	TransportViewRoleName       string = "skupper-view"
 	TransportEnvConfig          string = "QDROUTERD_CONF"
 	TransportSaslConfig         string = "skupper-sasl-config"
+	DefaultBridgeServerImage    string = "quay.io/gordons/bridge-server"
+	BridgeServerContainerName   string = "bridge-server"
 )
 
 var TransportViewPolicyRule = []rbacv1.PolicyRule{
@@ -68,7 +70,7 @@ var TransportPrometheusAnnotations = map[string]string{
 const (
 	ControllerDeploymentName     string = "skupper-service-controller"
 	ControllerComponentName      string = "service-controller"
-	DefaultControllerImage       string = "quay.io/skupper/service-controller"
+	DefaultControllerImage       string = "quay.io/gordons/service-controller:PR-50"
 	ControllerContainerName      string = "service-controller"
 	DefaultProxyImage            string = "quay.io/skupper/proxy"
 	ControllerServiceAccountName string = "skupper-proxy-controller"
@@ -80,7 +82,7 @@ var ControllerEditPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
 		APIGroups: []string{""},
-		Resources: []string{"services", "configmaps"},
+		Resources: []string{"services", "configmaps", "pods"},
 	},
 	{
 		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},

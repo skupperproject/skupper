@@ -89,11 +89,6 @@ func main() {
 		log.Fatal("Error getting new controller", err.Error())
 	}
 
-	// fire up the informers
-	go controller.cmInformer.Run(stopCh)
-	go controller.depInformer.Run(stopCh)
-	go controller.svcInformer.Run(stopCh)
-
 	// start the controller workers
 	if err = controller.Run(stopCh); err != nil {
 		log.Fatal("Error running controller: ", err.Error())
