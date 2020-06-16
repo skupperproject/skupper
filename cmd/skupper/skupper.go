@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
-	"os"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -227,9 +227,40 @@ func main() {
 			if err != nil {
 				fmt.Println("Error, unable to retrieve site config: ", err.Error())
 			} else if siteConfig == nil || !siteConfig.Spec.SiteControlled {
-				cli.VanConnectorCreateFromFile(context.Background(), args[0], vanConnectorCreateOpts)
+				secret, err := cli.VanConnectorCreateFromFile(context.Background(), args[0], vanConnectorCreateOpts)
+				if err != nil {
+					fmt.Println("Failed to create connection: ", err.Error())
+				} else {
+					if siteConfig.Spec.IsEdge {
+						fmt.Printf("Skupper configured to connect to %s:%s (name=%s)\n",
+							secret.ObjectMeta.Annotations["edge-host"],
+							secret.ObjectMeta.Annotations["edge-port"],
+							secret.ObjectMeta.Name)
+					} else {
+						fmt.Printf("Skupper configured to connect to %s:%s (name=%s)\n",
+							secret.ObjectMeta.Annotations["inter-router-host"],
+							secret.ObjectMeta.Annotations["inter-router-port"],
+							secret.ObjectMeta.Name)
+					}
+				}
 			} else {
-				//TODO: just create the secret, site-controller will do the rest
+				// create the secret, site-controller will do the rest
+				secret, err := cli.VanConnectorCreateSecretFromFile(context.Background(), args[0], vanConnectorCreateOpts)
+				if err != nil {
+					fmt.Println("Failed to create connection: ", err.Error())
+				} else {
+					if siteConfig.Spec.IsEdge {
+						fmt.Printf("Skupper site-controller configured to connect to %s:%s (name=%s)\n",
+							secret.ObjectMeta.Annotations["edge-host"],
+							secret.ObjectMeta.Annotations["edge-port"],
+							secret.ObjectMeta.Name)
+					} else {
+						fmt.Printf("Skupper site-controller configured to connect to %s:%s (name=%s)\n",
+							secret.ObjectMeta.Annotations["inter-router-host"],
+							secret.ObjectMeta.Annotations["inter-router-port"],
+							secret.ObjectMeta.Name)
+					}
+				}
 			}
 		},
 	}

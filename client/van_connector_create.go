@@ -61,11 +61,28 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	return "conn" + strconv.Itoa(max)
 }
 
-func (cli *VanClient) VanConnectorCreateFromFile(ctx context.Context, secretFile string, options types.VanConnectorCreateOptions) error {
+func (cli *VanClient) VanConnectorCreateFromFile(ctx context.Context, secretFile string, options types.VanConnectorCreateOptions) (*corev1.Secret, error) {
+	secret, err := cli.VanConnectorCreateSecretFromFile(ctx, secretFile, options)
+	if err == nil {
+		current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+		if err == nil {
+			if options.Name == "" {
+				options.Name = secret.ObjectMeta.Name
+			}
+			return secret, cli.createConnector(ctx, secret, options, current)
+		} else {
+			return nil, fmt.Errorf("Failed to retrieve transport deployment: %w", err)
+		}
+	} else {
+		return nil, err
+	}
+}
+
+func (cli *VanClient) VanConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.VanConnectorCreateOptions) (*corev1.Secret, error) {
 	yaml, err := ioutil.ReadFile(secretFile)
 	if err != nil {
 		fmt.Println("Could not read connection token", err.Error())
-		return err
+		return nil, err
 	}
 	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 	if err == nil {
@@ -74,9 +91,7 @@ func (cli *VanClient) VanConnectorCreateFromFile(ctx context.Context, secretFile
 		var secret corev1.Secret
 		_, _, err = s.Decode(yaml, nil, &secret)
 		if err != nil {
-			fmt.Printf("Could not parse connection token: %s", err)
-			fmt.Println()
-			return err
+			return nil, fmt.Errorf("Could not parse connection token: %w", err)
 		} else {
 			if options.Name == "" {
 				options.Name = generateConnectorName(cli.Namespace, cli.KubeClient)
@@ -90,18 +105,15 @@ func (cli *VanClient) VanConnectorCreateFromFile(ctx context.Context, secretFile
 			})
 			_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&secret)
 			if err == nil {
-				return cli.createConnector(ctx, &secret, options, current)
+				return &secret, nil
 			} else if errors.IsAlreadyExists(err) {
-				fmt.Println("A connector secret of that name already exist, please choose a different name")
-				return err
+				return &secret, fmt.Errorf("A connector secret of that name already exist, please choose a different name")
 			} else {
-				fmt.Println("Failed to create connector secret: ", err.Error())
-				return err
+				return nil, fmt.Errorf("Failed to create connector secret: %w", err)
 			}
 		}
 	} else {
-		fmt.Println("Failed to retrieve qdr deployment: ", err.Error())
-		return err
+		return nil, fmt.Errorf("Failed to retrieve router deployment: %w", err)
 	}
 }
 
@@ -110,10 +122,8 @@ func (cli *VanClient) VanConnectorCreate(ctx context.Context, secret *corev1.Sec
 	if err == nil {
 		return cli.createConnector(ctx, secret, options, current)
 	} else {
-		fmt.Println("Failed to retrieve qdr deployment: ", err.Error())
-		return err
+		return fmt.Errorf("Failed to retrieve router deployment: %w", err)
 	}
-	return nil
 }
 
 func (cli *VanClient) createConnector(ctx context.Context, secret *corev1.Secret, options types.VanConnectorCreateOptions, current *appsv1.Deployment) error {
@@ -135,11 +145,8 @@ func (cli *VanClient) createConnector(ctx context.Context, secret *corev1.Secret
 	qdr.AddConnector(&connector, current)
 	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(current)
 	if err != nil {
-		fmt.Println("Failed to update qdr deployment: ", err.Error())
-		return err
+		return fmt.Errorf("Failed to update qdr deployment: %w", err)
 	} else {
-		fmt.Printf("Skupper configured to connect to %s:%s (name=%s)", connector.Host, connector.Port, connector.Name)
-		fmt.Println()
 		return nil
 	}
 }
