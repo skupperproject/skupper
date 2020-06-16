@@ -70,7 +70,7 @@ var TransportPrometheusAnnotations = map[string]string{
 const (
 	ControllerDeploymentName     string = "skupper-service-controller"
 	ControllerComponentName      string = "service-controller"
-	DefaultControllerImage       string = "quay.io/gordons/service-controller:PR-50"
+	DefaultControllerImage       string = "quay.io/skupper/service-controller"
 	ControllerContainerName      string = "service-controller"
 	DefaultProxyImage            string = "quay.io/skupper/proxy"
 	ControllerServiceAccountName string = "skupper-proxy-controller"
