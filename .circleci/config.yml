@@ -13,9 +13,6 @@ commands:
   minikube-install:
     description: Installs the minikube executable onto the system.
     parameters:
-      version:
-        default: v0.30.0
-        type: string
     steps:
       - run:
           command: >-
