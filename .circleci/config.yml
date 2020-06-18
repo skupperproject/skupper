@@ -49,6 +49,8 @@ commands:
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
+            echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=${CI_SERVICE_CONTROLLER_IMAGE}:${CIRCLE_SHA1}' >> $BASH_ENV
+            echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=${CI_SITE_CONTROLLER_IMAGE}:${CIRCLE_SHA1}' >> $BASH_ENV
             source $BASH_ENV
       - checkout
       - run:
@@ -94,6 +96,10 @@ yaml-templates:
       paths:
         - dist
 
+  images_environment: &images_environment
+    CI_SERVICE_CONTROLLER_IMAGE: quay.io/nicob87/service-controller
+    CI_SITE_CONTROLLER_IMAGE: quay.io/nicob87/site-controller
+
 workflows:
   version: 2.1
   build-workflow:
@@ -103,7 +109,10 @@ workflows:
       - build-windows-amd64
       - test
       - test_makefile
+
       - minikube_local_cluster_tests:
+          requires:
+            - docker/publish
           pre-steps:
             - prepare_for_local_cluster_tests
 
@@ -131,6 +140,22 @@ workflows:
             - build-linux-arm64
             - test
             - test_makefile
+            - minikube_local_cluster_tests
+
+      - docker/publish:
+          executor: docker/docker
+          use-remote-docker: true
+          #remote-docker-dlc: true #option not enabled in my plan
+          dockerfile: Dockerfile.service-controller
+          registry: quay.io
+          image: nicob87/service-controller
+
+      - remove_from_registry:
+          requires:
+            - docker/publish
+            - minikube_local_cluster_tests
+
+
 
 jobs:
   test_makefile:
@@ -144,6 +169,18 @@ jobs:
       - run: make docker-build
       - run: make package
       - run: make clean
+
+  remove_from_registry:
+    environment:
+      <<: *images_environment
+    executor:
+      name: go/default
+      tag: "1.13"
+    steps:
+      - setup_remote_docker
+      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
+      - run: go get github.com/genuinetools/reg
+      - run: reg rm ${CI_SERVICE_CONTROLLER_IMAGE}:${CIRCLE_SHA1}
 
   build-linux-amd64: &go_build
     executor:
@@ -221,8 +258,10 @@ jobs:
 
   minikube_local_cluster_tests:
     executor: local_cluster_test_executor
-    environment: &environment
+    environment:
+      <<: *images_environment
     steps:
+      - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - minikube-install
       - minikube-start
       - minikube-start-load-balancer
