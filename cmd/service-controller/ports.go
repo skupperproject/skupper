@@ -190,35 +190,37 @@ func (ports *FreePorts) nextFreePort() (int, error) {
 
 func (ports *FreePorts) getPortAllocations(bridges *BridgeConfiguration) map[string]int {
 	allocations := map[string]int{}
-	for _, m := range bridges.HttpConnectors {
-		for _, b := range m {
+	if bridges != nil {
+		for _, m := range bridges.HttpConnectors {
+			for _, b := range m {
+				allocations[b.Address] = b.Port
+				ports.inuse(b.Port)
+			}
+		}
+		for _, b := range bridges.HttpListeners {
 			allocations[b.Address] = b.Port
 			ports.inuse(b.Port)
 		}
-	}
-	for _, b := range bridges.HttpListeners {
-		allocations[b.Address] = b.Port
-		ports.inuse(b.Port)
-	}
-	for _, m := range bridges.Http2Connectors {
-		for _, b := range m {
+		for _, m := range bridges.Http2Connectors {
+			for _, b := range m {
+				allocations[b.Address] = b.Port
+				ports.inuse(b.Port)
+			}
+		}
+		for _, b := range bridges.Http2Listeners {
 			allocations[b.Address] = b.Port
 			ports.inuse(b.Port)
 		}
-	}
-	for _, b := range bridges.Http2Listeners {
-		allocations[b.Address] = b.Port
-		ports.inuse(b.Port)
-	}
-	for _, m := range bridges.TcpConnectors {
-		for _, b := range m {
+		for _, m := range bridges.TcpConnectors {
+			for _, b := range m {
+				allocations[b.Address] = b.Port
+				ports.inuse(b.Port)
+			}
+		}
+		for _, b := range bridges.TcpListeners {
 			allocations[b.Address] = b.Port
 			ports.inuse(b.Port)
 		}
-	}
-	for _, b := range bridges.TcpListeners {
-		allocations[b.Address] = b.Port
-		ports.inuse(b.Port)
 	}
 	return allocations
 }
