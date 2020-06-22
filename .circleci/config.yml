@@ -4,6 +4,23 @@ orbs:
     kube-orb: circleci/kubernetes@0.11.0
     go: circleci/go@1.1.1
 
+parameters:
+  registry:
+    default: "quay.io"
+    type: string
+
+  org:
+    default: "nicob87"
+    type: string
+
+  ci_service_controller_image:
+    default: "service-controller"
+    type: string
+
+  ci_site_controller_image:
+    default: "site-controller"
+    type: string
+
 executors:
   local_cluster_test_executor:
     machine:
@@ -12,7 +29,6 @@ executors:
 commands:
   minikube-install:
     description: Installs the minikube executable onto the system.
-    parameters:
     steps:
       - run:
           command: >-
@@ -49,8 +65,8 @@ commands:
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
-            echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=${CI_SERVICE_CONTROLLER_IMAGE}:${CIRCLE_SHA1}' >> $BASH_ENV
-            echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=${CI_SITE_CONTROLLER_IMAGE}:${CIRCLE_SHA1}' >> $BASH_ENV
+            echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=${SERVICE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
+            echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=${SITE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
             source $BASH_ENV
       - checkout
       - run:
@@ -75,6 +91,29 @@ commands:
           name: Run client tests in real cluster
           command: go test -v -count=1 ./client -use-cluster
 
+  compile_go_program:
+    description: Compile specified platform.
+    parameters:
+      platform:
+        type: string
+      goos:
+        type: string
+      goarch:
+        type: string
+      exesuffix:
+        default: ""
+        type: string
+    steps:
+      - run:
+          name: Building << parameters.platform >>
+          command: >-
+            VERSION="${CIRCLE_TAG:-ci-${CIRCLE_BUILD_NUM}}"
+            GOOS=<< parameters.goos >>
+            GOARCH=<< parameters.goarch >>
+            go build -ldflags "-X main.version=${VERSION}"
+            -o dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>
+            ./cmd/skupper
+
 yaml-templates:
   release_filters: &release_filters
     filters:
@@ -83,32 +122,12 @@ yaml-templates:
       tags:
         only: /[0-9].*/
 
-  compile_go_executable: &compile_go_executable
-    run:
-      name: Compile Go Executable
-      command: |
-        VERSION="${CIRCLE_TAG:-ci-${CIRCLE_BUILD_NUM}}"
-        go build -ldflags "-X main.version=${VERSION}" -o dist/${PLATFORM:-${GOOS}-${GOARCH}}/skupper${EXESUFFIX} ./cmd/skupper
-
-  store_dist: &store_dist
-    persist_to_workspace:
-      root: .
-      paths:
-        - dist
-
-  images_environment: &images_environment
-    CI_SERVICE_CONTROLLER_IMAGE: quay.io/nicob87/service-controller
-    CI_SITE_CONTROLLER_IMAGE: quay.io/nicob87/site-controller
-
 workflows:
   version: 2.1
   build-workflow:
     jobs:
-      - build-linux-amd64
-      - build-darwin-amd64
-      - build-windows-amd64
+      - build-all
       - test
-      - test_makefile
 
       - minikube_local_cluster_tests:
           requires:
@@ -116,30 +135,12 @@ workflows:
           pre-steps:
             - prepare_for_local_cluster_tests
 
-      - build-linux-386:
-          <<: *release_filters
-      - build-darwin-386:
-          <<: *release_filters
-      - build-windows-386:
-          <<: *release_filters
-      - build-linux-arm:
-          <<: *release_filters
-      - build-linux-arm64:
-          <<: *release_filters
 
       - publish-github-release:
           <<: *release_filters
           requires:
-            - build-linux-386
-            - build-linux-amd64
-            - build-darwin-386
-            - build-darwin-amd64
-            - build-windows-386
-            - build-windows-amd64
-            - build-linux-arm
-            - build-linux-arm64
+            - build-all
             - test
-            - test_makefile
             - minikube_local_cluster_tests
 
       - docker/publish:
@@ -147,32 +148,30 @@ workflows:
           use-remote-docker: true
           #remote-docker-dlc: true #option not enabled in my plan
           dockerfile: Dockerfile.service-controller
-          registry: quay.io
-          image: nicob87/service-controller
+          registry: << pipeline.parameters.registry >>
+          image: << pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>
 
       - remove_from_registry:
           requires:
             - docker/publish
             - minikube_local_cluster_tests
 
-
-
 jobs:
-  test_makefile:
+  test:
     executor:
       name: go/default
       tag: "1.13"
     steps:
       - setup_remote_docker
       - checkout
+      - go/mod-download-cached
       - run: make
       - run: make docker-build
       - run: make package
       - run: make clean
+      - go/test
 
   remove_from_registry:
-    environment:
-      <<: *images_environment
     executor:
       name: go/default
       tag: "1.13"
@@ -180,86 +179,68 @@ jobs:
       - setup_remote_docker
       - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
       - run: go get github.com/genuinetools/reg
-      - run: reg rm ${CI_SERVICE_CONTROLLER_IMAGE}:${CIRCLE_SHA1}
+      - run: reg rm << pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1}
 
-  build-linux-amd64: &go_build
-    executor:
-      name: go/default
-      tag: "1.13"
-    environment: &environment
-      GOOS: linux
-      GOARCH: amd64
-      PLATFORM: linux-amd64
-    steps:
-      - checkout
-      - go/mod-download-cached
-      - <<: *compile_go_executable
-      - <<: *store_dist
-
-  build-linux-386:
-    <<: *go_build
-    environment:
-      GOOS: linux
-      GOARCH: 386
-      PLATFORM: linux-i386
-
-  build-windows-386:
-    <<: *go_build
-    environment:
-      GOOS: windows
-      GOARCH: 386
-      PLATFORM: windows-i386
-      EXESUFFIX: ".exe"
-
-  build-windows-amd64:
-    <<: *go_build
-    environment:
-      GOOS: windows
-      GOARCH: amd64
-      PLATFORM: windows-amd64
-      EXESUFFIX: ".exe"
-
-  build-darwin-386:
-    <<: *go_build
-    environment:
-      GOOS: darwin
-      GOARCH: 386
-      PLATFORM: mac-i386
-
-  build-darwin-amd64:
-    <<: *go_build
-    environment:
-      GOOS: darwin
-      GOARCH: amd64
-      PLATFORM: mac-amd64
-
-  build-linux-arm:
-    <<: *go_build
-    environment:
-      GOOS: linux
-      GOARCH: arm
-      PLATFORM: linux-arm32
-
-  build-linux-arm64:
-    <<: *go_build
-    environment:
-      GOOS: linux
-      GOARCH: arm64
-      PLATFORM: linux-arm64
-
-  test:
+  build-all:
     executor:
       name: go/default
       tag: "1.13"
     steps:
       - checkout
       - go/mod-download-cached
-      - go/test
+
+      - compile_go_program:
+          goos: linux
+          goarch: amd64
+          platform: linux-amd64
+
+      - compile_go_program:
+          goos: linux
+          goarch: "386"
+          platform: linux-i386
+
+      - compile_go_program:
+          goos: windows
+          goarch: "386"
+          platform: windows-i386
+          exesuffix: ".exe"
+
+      - compile_go_program:
+          goos: windows
+          goarch: amd64
+          platform: windows-amd64
+          exesuffix: ".exe"
+
+      - compile_go_program:
+          goos: darwin
+          goarch: "386"
+          platform: mac-i386
+
+      - compile_go_program:
+          goos: darwin
+          goarch: amd64
+          platform: mac-amd64
+
+      - compile_go_program:
+          goos: linux
+          goarch: arm
+          platform: linux-arm32
+
+      - compile_go_program:
+          goos: linux
+          goarch: arm64
+          platform: linux-arm64
+
+      - persist_to_workspace:
+          root: .
+          paths:
+              - dist
 
   minikube_local_cluster_tests:
     executor: local_cluster_test_executor
     environment:
-      <<: *images_environment
+      SERVICE_CONTROLLER_IMAGE_FQDN: quay.io/nicob87/service-controller
+      SITE_CONTROLLER_IMAGE_FQDN: quay.io/nicob87/site-controller
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - minikube-install
