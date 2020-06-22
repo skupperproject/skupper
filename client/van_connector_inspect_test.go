@@ -43,7 +43,7 @@ func TestConnectorInspectNotFound(t *testing.T) {
 	cli, err := newMockClient("skupper", "", "")
 
 	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec {
+		Spec: types.VanSiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -94,7 +94,7 @@ func TestConnectorInspectDefaults(t *testing.T) {
 	os.Mkdir(testPath, 0755)
 
 	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec {
+		Spec: types.VanSiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -114,8 +114,9 @@ func TestConnectorInspectDefaults(t *testing.T) {
 	}
 	for _, c := range testcases {
 		_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
-			Name: c.connName,
-			Cost: 1,
+			Name:             c.connName,
+			SkupperNamespace: "skupper",
+			Cost:             1,
 		})
 		assert.Check(t, err, "Unable to create connector for "+c.connName)
 	}

@@ -129,8 +129,9 @@ func TestConnectorCreateInterior(t *testing.T) {
 		assert.Assert(t, err, "Unable to create token")
 
 		_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
-			Name: c.connName,
-			Cost: 1,
+			Name:             c.connName,
+			SkupperNamespace: "testconnectorcreateinterior",
+			Cost:             1,
 		})
 		assert.Assert(t, err, "Unable to create connector")
 
