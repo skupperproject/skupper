@@ -181,8 +181,12 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 	} else {
 		van.Name = options.SkupperName
 	}
+	if options.SkupperNamespace == "" {
+		van.Namespace = cli.Namespace
+	} else {
+		van.Namespace = options.SkupperNamespace
+	}
 
-	van.Namespace = cli.Namespace
 	van.AuthMode = types.ConsoleAuthMode(options.AuthMode)
 	van.Transport.LivenessPort = types.TransportLivenessPort
 
@@ -414,7 +418,7 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 		CA:          "skupper-ca",
 		Name:        "skupper-amqps",
 		Subject:     "skupper-messaging",
-		Hosts:       "skupper-messaging,skupper-messaging." + cli.Namespace + ".svc.cluster.local",
+		Hosts:       "skupper-messaging,skupper-messaging." + van.Namespace + ".svc.cluster.local",
 		ConnectJson: false,
 		Post:        false,
 	})
@@ -442,16 +446,18 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 		})
 	}
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+		userData := map[string][]byte{}
+		if options.User != "" {
+			userData[options.User] = []byte(options.Password)
+		}
 		credentials = append(credentials, types.Credential{
 			CA:          "",
 			Name:        "skupper-console-users",
 			Subject:     "",
 			Hosts:       "",
 			ConnectJson: false,
+			Data:        userData,
 			Post:        false,
-			Data: map[string][]byte{
-				options.User: []byte(options.Password),
-			},
 		})
 	}
 	van.Credentials = credentials
@@ -636,7 +642,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 
 	kube.NewConfigMap("skupper-services", nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 	initialBridges := map[string]string{
-		"bridges.json":"[]", //TODO: make this all nicer
+		"bridges.json": "[]", //TODO: make this all nicer
 	}
 	kube.NewConfigMap("skupper-internal", &initialBridges, siteOwnerRef, van.Namespace, cli.KubeClient)
 

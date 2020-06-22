@@ -156,6 +156,8 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
+			//TODO: should cli allow init to diff ns?
+			vanRouterCreateOpts.SkupperNamespace = cli.Namespace
 			siteConfig, err := cli.VanSiteConfigInspect(context.Background(), nil)
 			if check(err) {
 				if siteConfig == nil {
@@ -227,6 +229,7 @@ func main() {
 			if err != nil {
 				fmt.Println("Error, unable to retrieve site config: ", err.Error())
 			} else if siteConfig == nil || !siteConfig.Spec.SiteControlled {
+				vanConnectorCreateOpts.SkupperNamespace = cli.Namespace
 				secret, err := cli.VanConnectorCreateFromFile(context.Background(), args[0], vanConnectorCreateOpts)
 				if err != nil {
 					fmt.Println("Failed to create connection: ", err.Error())
@@ -267,13 +270,17 @@ func main() {
 	cmdConnect.Flags().StringVarP(&vanConnectorCreateOpts.Name, "connection-name", "", "", "Provide a specific name for the connection (used when removing it with disconnect)")
 	cmdConnect.Flags().Int32VarP(&vanConnectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this connection.")
 
+	var vanConnectorRemoveOpts types.VanConnectorRemoveOptions
 	var cmdDisconnect = &cobra.Command{
 		Use:   "disconnect <name>",
 		Short: "Remove specified connection",
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanConnectorRemove(context.Background(), args[0])
+			vanConnectorRemoveOpts.Name = args[0]
+			vanConnectorRemoveOpts.SkupperNamespace = cli.Namespace
+			vanConnectorRemoveOpts.ForceCurrent = false
+			err := cli.VanConnectorRemove(context.Background(), vanConnectorRemoveOpts)
 			if err == nil {
 				fmt.Println("Connection '" + args[0] + "' has been removed")
 			} else {

@@ -9,11 +9,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1informer "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/informers/internalinterfaces"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
- 	"k8s.io/client-go/tools/cache"
+	corev1informer "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/internalinterfaces"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -21,35 +21,35 @@ import (
 )
 
 type SiteController struct {
-	vanClient     *client.VanClient
-	siteInformer  cache.SharedIndexInformer
-	tokenInformer cache.SharedIndexInformer
+	vanClient            *client.VanClient
+	siteInformer         cache.SharedIndexInformer
+	tokenInformer        cache.SharedIndexInformer
 	tokenRequestInformer cache.SharedIndexInformer
-	workqueue     workqueue.RateLimitingInterface
-	siteId        string
+	workqueue            workqueue.RateLimitingInterface
+	siteId               string
 }
 
 func NewSiteController(cli *client.VanClient) (*SiteController, error) {
-	siteInformer:= corev1informer.NewFilteredConfigMapInformer(
+	siteInformer := corev1informer.NewFilteredConfigMapInformer(
 		cli.KubeClient,
-		cli.Namespace,
+		metav1.NamespaceAll,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
 			options.FieldSelector = "metadata.name=skupper-site"
 			options.LabelSelector = "!internal.skupper.io/site-controller-ignore"
 		}))
-	tokenInformer:= corev1informer.NewFilteredSecretInformer(
+	tokenInformer := corev1informer.NewFilteredSecretInformer(
 		cli.KubeClient,
-		cli.Namespace,
+		metav1.NamespaceAll,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
 			options.LabelSelector = types.TypeTokenQualifier
 		}))
-	tokenRequestInformer:= corev1informer.NewFilteredSecretInformer(
+	tokenRequestInformer := corev1informer.NewFilteredSecretInformer(
 		cli.KubeClient,
-		cli.Namespace,
+		metav1.NamespaceAll,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
@@ -58,11 +58,11 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 	workqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-site-controller")
 
 	controller := &SiteController{
-		vanClient:    cli,
-		siteInformer:  siteInformer,
-		tokenInformer:  tokenInformer,
-		tokenRequestInformer:  tokenRequestInformer,
-		workqueue:  workqueue,
+		vanClient:            cli,
+		siteInformer:         siteInformer,
+		tokenInformer:        tokenInformer,
+		tokenRequestInformer: tokenRequestInformer,
+		workqueue:            workqueue,
 	}
 
 	siteInformer.AddEventHandler(controller.getHandlerFuncs(SiteConfig, configmapResourceVersionTest))
@@ -95,10 +95,13 @@ func (c *SiteController) getHandlerFuncs(category triggerType, test resourceVers
 				c.enqueueTrigger(new, category)
 			}
 		},
+		DeleteFunc: func(obj interface{}) {
+			c.enqueueTrigger(obj, category)
+		},
 	}
 }
 
-func (c *SiteController) Run (stopCh <-chan struct{}) error {
+func (c *SiteController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
@@ -124,14 +127,14 @@ func (c *SiteController) Run (stopCh <-chan struct{}) error {
 type triggerType int
 
 const (
-       SiteConfig triggerType = iota
-       Token
-       TokenRequest
+	SiteConfig triggerType = iota
+	Token
+	TokenRequest
 )
 
 type trigger struct {
-       key      string
-       category triggerType
+	key      string
+	category triggerType
 }
 
 func (c *SiteController) run() {
@@ -154,8 +157,7 @@ func (c *SiteController) processNextTrigger() bool {
 		c.workqueue.Forget(obj)
 		utilruntime.HandleError(fmt.Errorf("Invalid item on work queue %#v", obj))
 		return true
-        }
-
+	}
 
 	err := c.dispatchTrigger(t)
 	c.workqueue.Forget(obj)
@@ -181,16 +183,16 @@ func (c *SiteController) dispatchTrigger(trigger trigger) error {
 }
 
 func (c *SiteController) enqueueTrigger(obj interface{}, category triggerType) {
-       var key string
-       var err error
-       if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-               utilruntime.HandleError(err)
-               return
-       }
-       c.workqueue.Add(trigger{
-               key: key,
-               category: category,
-       })
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		utilruntime.HandleError(err)
+		return
+	}
+	c.workqueue.Add(trigger{
+		key:      key,
+		category: category,
+	})
 }
 
 func (c *SiteController) enqueueConfigMap(obj interface{}) {
@@ -212,6 +214,12 @@ func (c *SiteController) setSiteId(skupperSite *corev1.ConfigMap) {
 }
 
 func (c *SiteController) checkSite(key string) error {
+	// get site namespace
+	siteNamespace, _, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		log.Println("Error checking skupper-site namespace: ", err)
+		return err
+	}
 	//get skupper-site configmap
 	obj, exists, err := c.siteInformer.GetStore().GetByKey(key)
 	if err != nil {
@@ -225,13 +233,14 @@ func (c *SiteController) checkSite(key string) error {
 			wantEdgeMode := configmap.Data["edge"] == "true"
 			haveEdgeMode := vanRouterInspectResponse.Status.Mode == string(types.TransportModeEdge)
 			// TODO: enable richer comparison/checking (possibly with GetVanRouterSpecFromOpts?)
-			if  wantEdgeMode != haveEdgeMode {
+			if wantEdgeMode != haveEdgeMode {
 				//TODO: enable van router update
 			}
 			c.setSiteId(configmap)
 		} else if errors.IsNotFound(err) {
 			log.Println("Initialising skupper site ...")
 			siteConfig, _ := c.vanClient.VanSiteConfigInspect(context.Background(), configmap)
+			siteConfig.Spec.SkupperNamespace = siteNamespace
 			err = c.vanClient.VanRouterCreate(context.Background(), *siteConfig)
 			if err != nil {
 				log.Println("Error initialising skupper: ", err)
@@ -248,11 +257,21 @@ func (c *SiteController) checkSite(key string) error {
 	return nil
 }
 
-func (c *SiteController) connect(token *corev1.Secret) error {
+func (c *SiteController) connect(token *corev1.Secret, namespace string) error {
 	var options types.VanConnectorCreateOptions
 	options.Name = token.ObjectMeta.Name
+	options.SkupperNamespace = namespace
 	//TODO: infer cost from token metadata?
 	return c.vanClient.VanConnectorCreate(context.Background(), token, options)
+}
+
+func (c *SiteController) disconnect(name string, namespace string) error {
+	var options types.VanConnectorRemoveOptions
+	options.Name = name
+	options.SkupperNamespace = namespace
+	// Secret has already been deleted so force update to current active secrets
+	options.ForceCurrent = true
+	return c.vanClient.VanConnectorRemove(context.Background(), options)
 }
 
 func (c *SiteController) generate(token *corev1.Secret) error {
@@ -282,9 +301,15 @@ func (c *SiteController) checkAllTokens() {
 	//can we rely on the cache here?
 	tokens := c.tokenInformer.GetStore().List()
 	for _, t := range tokens {
+		var key string
+		var err error
+		var siteNamespace string
+		if key, err = cache.MetaNamespaceKeyFunc(t); err != nil {
+			siteNamespace, _, _ = cache.SplitMetaNamespaceKey(key)
+		}
 		token := t.(*corev1.Secret)
 		if !c.isOwnToken(token) {
-			err := c.connect(token)
+			err := c.connect(token, siteNamespace)
 			if err != nil {
 				log.Println("Error checking connection-token secret: ", err)
 			}
@@ -311,11 +336,23 @@ func (c *SiteController) checkToken(key string) error {
 			log.Println("Error checking connection-token secret: ", err)
 			return err
 		} else if exists {
-			token := obj.(*corev1.Secret)
-			if !c.isOwnToken(token) {
-				return c.connect(token)
+			siteNamespace, _, err := cache.SplitMetaNamespaceKey(key)
+			if err == nil {
+				token := obj.(*corev1.Secret)
+				if !c.isOwnToken(token) {
+					return c.connect(token, siteNamespace)
+				} else {
+					return nil
+				}
 			} else {
-				return nil
+				log.Println("Error getting namespace for token secret: ", err)
+			}
+		} else {
+			siteNamespace, secret, err := cache.SplitMetaNamespaceKey(key)
+			if err == nil {
+				return c.disconnect(secret, siteNamespace)
+			} else {
+				log.Println("Error getting secret name and namespace for token: ", err)
 			}
 		}
 	} else {

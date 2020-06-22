@@ -1,17 +1,31 @@
 package types
 
 type VanConnectorCreateOptions struct {
-	Name string
-	Cost int32
+	SkupperNamespace string
+	Name             string
+	Cost             int32
+}
+
+type VanConnectorRemoveOptions struct {
+	SkupperNamespace string
+	Name             string
+	ForceCurrent     bool
+}
+
+type VanConnectorInspectResponse struct {
+	SkupperNamespace string
+	Connector        *Connector
+	Connected        bool
 }
 
 type VanSiteConfig struct {
-	Spec             VanSiteConfigSpec
-	Reference        VanSiteConfigReference
+	Spec      VanSiteConfigSpec
+	Reference VanSiteConfigReference
 }
 
 type VanSiteConfigSpec struct {
 	SkupperName         string
+	SkupperNamespace    string
 	IsEdge              bool
 	EnableController    bool
 	EnableServiceSync   bool
@@ -45,9 +59,4 @@ type VanRouterInspectResponse struct {
 	TransportVersion  string
 	ControllerVersion string
 	ExposedServices   int
-}
-
-type VanConnectorInspectResponse struct {
-	Connector *Connector
-	Connected bool
 }

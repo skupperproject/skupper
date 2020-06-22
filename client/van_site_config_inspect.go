@@ -25,10 +25,16 @@ func (cli *VanClient) VanSiteConfigInspect(ctx context.Context, input *corev1.Co
 		siteConfig = input
 	}
 	var result types.VanSiteConfig
+	// TODO: what should the defaults be for name, namespace
 	if skupperName, ok := siteConfig.Data["name"]; ok {
 		result.Spec.SkupperName = skupperName
 	} else {
 		result.Spec.SkupperName = cli.Namespace
+	}
+	if skupperNamespace, ok := siteConfig.Data["namespace"]; ok {
+		result.Spec.SkupperNamespace = skupperNamespace
+	} else {
+		result.Spec.SkupperNamespace = cli.Namespace
 	}
 	if isEdge, ok := siteConfig.Data["edge"]; ok {
 		result.Spec.IsEdge, _ = strconv.ParseBool(isEdge)
