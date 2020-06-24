@@ -23,13 +23,17 @@ spec:
       serviceAccountName: skupper-site-controller
       containers:
       - name: site-controller
-        image: quay.io/ajssmith/site-controller
+        image: quay.io/skupper/site-controller
         env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+             fieldRef:
+               fieldPath: metadata.namespace
         - name: SKUPPER_SERVICE_CONTROLLER_IMAGE
           value: quay.io/skupper/service-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   labels:
     application: skupper-site-controller
@@ -86,7 +90,7 @@ rules:
   - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   labels:
     application: skupper-site-controller
@@ -94,8 +98,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: skupper-site-controller
-  namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: skupper-site-controller

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -30,9 +31,19 @@ type SiteController struct {
 }
 
 func NewSiteController(cli *client.VanClient) (*SiteController, error) {
+	var watchNamespace string
+
+	if os.Getenv("WATCH_NAMESPACE") != "" {
+		watchNamespace = os.Getenv("WATCH_NAMESPACE")
+		log.Println("Skupper site controler watching current namespace ", watchNamespace)
+	} else {
+		watchNamespace = metav1.NamespaceAll
+		log.Println("Skupper site controller watching all namespaces")
+	}
+
 	siteInformer := corev1informer.NewFilteredConfigMapInformer(
 		cli.KubeClient,
-		metav1.NamespaceAll,
+		watchNamespace,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
@@ -41,7 +52,7 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 		}))
 	tokenInformer := corev1informer.NewFilteredSecretInformer(
 		cli.KubeClient,
-		metav1.NamespaceAll,
+		watchNamespace,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
@@ -49,7 +60,7 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 		}))
 	tokenRequestInformer := corev1informer.NewFilteredSecretInformer(
 		cli.KubeClient,
-		metav1.NamespaceAll,
+		watchNamespace,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
@@ -304,22 +315,28 @@ func (c *SiteController) checkAllTokens() {
 		var key string
 		var err error
 		var siteNamespace string
-		if key, err = cache.MetaNamespaceKeyFunc(t); err != nil {
-			siteNamespace, _, _ = cache.SplitMetaNamespaceKey(key)
-		}
-		token := t.(*corev1.Secret)
-		if !c.isOwnToken(token) {
-			err := c.connect(token, siteNamespace)
-			if err != nil {
-				log.Println("Error checking connection-token secret: ", err)
+		if key, err = cache.MetaNamespaceKeyFunc(t); err == nil {
+			siteNamespace, _, err = cache.SplitMetaNamespaceKey(key)
+			if err == nil {
+				token := t.(*corev1.Secret)
+				if !c.isOwnToken(token) {
+					err := c.connect(token, siteNamespace)
+					if err != nil {
+						log.Println("Error using connection-token secret: ", err)
+					}
+				}
+			} else {
+				log.Println("Error checking connection-token secret namespace: ", err)
 			}
+		} else {
+			log.Println("Error checking connection-token secret: ", err)
 		}
 	}
 }
 
 func (c *SiteController) checkAllTokenRequests() {
 	//can we rely on the cache here?
-	tokens := c.tokenInformer.GetStore().List()
+	tokens := c.tokenRequestInformer.GetStore().List()
 	for _, t := range tokens {
 		token := t.(*corev1.Secret)
 		err := c.generate(token)
