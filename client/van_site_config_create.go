@@ -20,7 +20,6 @@ func (cli *VanClient) VanSiteConfigCreate(ctx context.Context, spec types.VanSit
 		},
 		Data: map[string]string{
 			"name":                   cli.Namespace,
-			"namespace":              "",
 			"edge":                   "false",
 			"service-controller":     "true",
 			"service-sync":           "true",
@@ -34,9 +33,6 @@ func (cli *VanClient) VanSiteConfigCreate(ctx context.Context, spec types.VanSit
 	}
 	if spec.SkupperName != "" {
 		siteConfig.Data["name"] = spec.SkupperName
-	}
-	if spec.SkupperNamespace != "" {
-		siteConfig.Data["namespace"] = spec.SkupperNamespace
 	}
 	if spec.IsEdge {
 		siteConfig.Data["edge"] = "true"
