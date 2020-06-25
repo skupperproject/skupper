@@ -8,7 +8,7 @@ The [Skupper](https://skupper.io/) command line enables you to:
 
 ## Getting `skupper`
 
-To install `skupper`, download the [latest release](https://github.com/skupperproject/skupper/releases).
+To install `skupper`, use the instructions in the [Getting Started](https://skupper.io/start/).
 
 
 ## Using `skupper`
@@ -17,7 +17,12 @@ To create your first VAN site:
 
 ```
 skupper init
-skupper connection-token /path/to/mysecret.yaml
+```
+
+You can later delete that site:
+
+```
+skupper delete
 ```
 
 To expose a service from the first site:
@@ -26,12 +31,25 @@ To expose a service from the first site:
 skupper expose
 ```
 
-To connect to the first site from a second site:
+To connect to this site from another site, you need to create an exchange tokens, for example:
+
+```
+skupper connection-token /path/to/mysecret.yaml
+```
+
+This command writes a token in the specified path, you can use that token from a second site by entering:
 
 ```
 skupper connect --secret /path/to/mysecret.yaml
 ```
 
+After waiting some time, check that the connection is working:
+
+```
+skupper status
+```
+
+This is a simple example, many connection options are available.
 For a complete list of `skupper` commands:
 
 ```
