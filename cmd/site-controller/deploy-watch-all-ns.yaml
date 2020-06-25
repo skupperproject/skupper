@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: skupper-site-controller
+  namespace: skupper-site-controller
   labels:
     application: skupper-site-controller
 ---
@@ -10,6 +11,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: skupper-site-controller
+  namespace: skupper-site-controller
 spec:
   replicas: 1
   selector:
@@ -29,7 +31,7 @@ spec:
           value: quay.io/skupper/service-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   labels:
     application: skupper-site-controller
@@ -86,7 +88,7 @@ rules:
   - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   labels:
     application: skupper-site-controller
@@ -94,7 +96,8 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: skupper-site-controller
+  namespace: skupper-site-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: ClusterRole
   name: skupper-site-controller

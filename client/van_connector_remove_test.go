@@ -73,7 +73,7 @@ func TestConnectorRemove(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), secretsInformer.HasSynced)
 
 		err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-			Spec: types.VanSiteConfigSpec {
+			Spec: types.VanSiteConfigSpec{
 				SkupperName:       "skupper",
 				IsEdge:            false,
 				EnableController:  true,
@@ -92,14 +92,19 @@ func TestConnectorRemove(t *testing.T) {
 
 		if c.createConn {
 			_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
-				Name: c.connName,
-				Cost: 1,
+				Name:             c.connName,
+				SkupperNamespace: "skupper",
+				Cost:             1,
 			})
 			assert.Check(t, err, "Unable to create connector for "+c.connName)
 		}
 
 		//TODO: remove should distinguish found, not found
-		err = cli.VanConnectorRemove(ctx, c.connName)
+		err = cli.VanConnectorRemove(ctx, types.VanConnectorRemoveOptions{
+			Name:             c.connName,
+			SkupperNamespace: "skupper",
+			ForceCurrent:     false,
+		})
 		assert.Check(t, err, "Unable to remove connector for "+c.connName)
 
 		if c.createConn {

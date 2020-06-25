@@ -26,12 +26,12 @@ func removeConnector(name string, list []types.Connector) (bool, []types.Connect
 	return found, updated
 }
 
-func (cli *VanClient) VanConnectorRemove(ctx context.Context, name string) error {
-	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+func (cli *VanClient) VanConnectorRemove(ctx context.Context, options types.VanConnectorRemoveOptions) error {
+	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
 	if err == nil {
 		mode := qdr.GetTransportMode(current)
-		found, connectors := removeConnector(name, qdr.ListRouterConnectors(mode, cli.Namespace, cli.KubeClient))
-		if found {
+		found, connectors := removeConnector(options.Name, qdr.ListRouterConnectors(mode, options.SkupperNamespace, cli.KubeClient))
+		if found || options.ForceCurrent {
 			// TODO: Do the following as qdr.RemoveConnector
 			config := kube.FindEnvVar(current.Spec.Template.Spec.Containers[0].Env, types.TransportEnvConfig)
 			if config == nil {
@@ -43,16 +43,16 @@ func (cli *VanClient) VanConnectorRemove(ctx context.Context, name string) error
 					updated += configs.ConnectorConfig(&c)
 				}
 				kube.SetEnvVarForDeployment(current, types.TransportEnvConfig, updated)
-				kube.RemoveSecretVolumeForDeployment(name, current, 0)
-				kube.DeleteSecret(name, cli.Namespace, cli.KubeClient)
-				_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(current)
+				kube.RemoveSecretVolumeForDeployment(options.Name, current, 0)
+				kube.DeleteSecret(options.Name, options.SkupperNamespace, cli.KubeClient)
+				_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
 				if err != nil {
 					fmt.Println("Failed to remove connection:", err.Error())
 				}
 			}
 		}
 	} else if errors.IsNotFound(err) {
-		fmt.Println("Skupper not enabled in: ", cli.Namespace)
+		fmt.Println("Skupper not enabled in: ", options.SkupperNamespace)
 	} else {
 		fmt.Println("Failed to retrieve transport deployment: ", err.Error())
 	}

@@ -171,6 +171,7 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		},
 	}
 
+	vanRouterCreateOpts.Spec.SkupperNamespace = r.Pub1Cluster.CurrentNamespace
 	r.Pub1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
 
 	service := types.ServiceInterface{
@@ -187,11 +188,13 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 	err = r.Pub1Cluster.VanClient.VanConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
 	assert.Assert(r.T, err)
 
+	vanRouterCreateOpts.Spec.SkupperNamespace = r.Priv1Cluster.CurrentNamespace
 	err = r.Priv1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
 
 	var vanConnectorCreateOpts types.VanConnectorCreateOptions = types.VanConnectorCreateOptions{
-		Name: "",
-		Cost: 0,
+		SkupperNamespace: r.Priv1Cluster.CurrentNamespace,
+		Name:             "",
+		Cost:             0,
 	}
 	r.Priv1Cluster.VanClient.VanConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", vanConnectorCreateOpts)
 }
