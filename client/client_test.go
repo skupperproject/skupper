@@ -3,10 +3,18 @@ package client
 import (
 	"flag"
 	"os"
+	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"gotest.tools/assert"
 )
+
+var trans = cmp.Transformer("Sort", func(in []string) []string {
+	out := append([]string(nil), in...)
+	sort.Strings(out)
+	return out
+})
 
 func TestNewClient(t *testing.T) {
 	testcases := []struct {
