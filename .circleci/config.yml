@@ -163,8 +163,8 @@ jobs:
       - checkout
       - go/mod-download-cached
       - run: make
-      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1} SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >>:${CIRCLE_SHA1} docker-build
-      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1} SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >>:${CIRCLE_SHA1} docker-push
+      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >> SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >> docker-build
+      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >> SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >> docker-push
       - run: make package
       - run: make clean
       - go/test
