@@ -1,12 +1,5 @@
-FROM golang:1.13
+FROM registry.access.redhat.com/ubi8-minimal
 
-WORKDIR /go/src/app
-COPY go.mod .
-COPY go.sum .
-RUN go mod download
-COPY . .
-
-RUN go build -o controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go cmd/service-controller/ports.go
-
-CMD ["/go/src/app/controller"]
-
+WORKDIR /app
+COPY service-controller /app
+CMD ["/app/service-controller"]

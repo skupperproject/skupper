@@ -16,7 +16,7 @@ build-site-controller:
 
 build-controllers: build-site-controller build-service-controller
 
-docker-build:
+docker-build: build-controllers
 	${DOCKER} build -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
 	${DOCKER} build -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
 
