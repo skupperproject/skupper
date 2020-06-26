@@ -67,6 +67,8 @@ commands:
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
             echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=${SERVICE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
             echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=${SITE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
+            echo 'export SERVICE_CONTROLLER_IMAGE=${SERVICE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=${SITE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
             source $BASH_ENV
       - checkout
       - run:
@@ -133,7 +135,6 @@ workflows:
           pre-steps:
             - prepare_for_local_cluster_tests
 
-
       - publish-github-release:
           <<: *release_filters
           requires:
@@ -155,8 +156,8 @@ jobs:
       - checkout
       - go/mod-download-cached
       - run: make
-      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >> SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >> docker-build
-      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1} SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >>:${CIRCLE_SHA1} docker-push
+      - run: make -e docker-build
+      - run: make -e docker-push
       - run: make package
       - run: make clean
       - go/test
