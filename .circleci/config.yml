@@ -130,8 +130,6 @@ workflows:
       - test
 
       - minikube_local_cluster_tests:
-          requires:
-            - docker/publish
           pre-steps:
             - prepare_for_local_cluster_tests
 
@@ -153,7 +151,6 @@ workflows:
 
       - remove_from_registry:
           requires:
-            - docker/publish
             - minikube_local_cluster_tests
 
 jobs:
@@ -166,7 +163,8 @@ jobs:
       - checkout
       - go/mod-download-cached
       - run: make
-      - run: make docker-build
+      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1} SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >>:${CIRCLE_SHA1} docker-build
+      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1} SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >>:${CIRCLE_SHA1} docker-push
       - run: make package
       - run: make clean
       - go/test
@@ -180,6 +178,7 @@ jobs:
       - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
       - run: go get github.com/genuinetools/reg
       - run: reg rm << pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1}
+      - run: reg rm << pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >>:${CIRCLE_SHA1}
 
   build-all:
     executor:
