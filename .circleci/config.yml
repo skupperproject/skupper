@@ -141,14 +141,6 @@ workflows:
             - test
             - minikube_local_cluster_tests
 
-      - docker/publish:
-          executor: docker/docker
-          use-remote-docker: true
-          #remote-docker-dlc: true #option not enabled in my plan
-          dockerfile: Dockerfile.service-controller
-          registry: << pipeline.parameters.registry >>
-          image: << pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>
-
       - remove_from_registry:
           requires:
             - minikube_local_cluster_tests
@@ -164,7 +156,7 @@ jobs:
       - go/mod-download-cached
       - run: make
       - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >> SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >> docker-build
-      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >> SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >> docker-push
+      - run: make SITE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1} SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >>:${CIRCLE_SHA1} docker-push
       - run: make package
       - run: make clean
       - go/test
