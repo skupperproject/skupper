@@ -28,10 +28,10 @@ format:
 	go fmt ./...
 
 client-mock-test:
-	go test -v ./client
+	go test -v -count=1 ./client
 
 client-cluster-test:
-	go test -v ./client -use-cluster
+	go test -v -count=1 ./client -use-cluster
 
 vet:
 	go vet ./...

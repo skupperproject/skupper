@@ -217,10 +217,9 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		}
 		assert.Check(t, err, c.doc)
 
-		if isCluster {
-			_, err = kube.NewNamespace(c.namespace, cli.KubeClient)
-			assert.Check(t, err, c.doc)
-		}
+		_, err = kube.NewNamespace(c.namespace, cli.KubeClient)
+		assert.Check(t, err, c.doc)
+		defer kube.DeleteNamespace(c.namespace, cli.KubeClient)
 
 		informers := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0, informers.WithNamespace(c.namespace))
 		depInformer := informers.Apps().V1().Deployments().Informer()
@@ -324,11 +323,6 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		}
 		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
 			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
-		}
-		//TODO: block on delete
-		if isCluster {
-			err = kube.DeleteNamespace(c.namespace, cli.KubeClient)
-			assert.Check(t, err, c.doc)
 		}
 	}
 }
