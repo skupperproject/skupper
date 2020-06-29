@@ -2,24 +2,23 @@ package client
 
 import (
 	"context"
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func (cli *VanClient) VanServiceInterfaceCreate(ctx context.Context, service *types.ServiceInterface) error {
+func (cli *VanClient) VanServiceInterfaceCreate(ctx context.Context, service *types.ServiceInterface, rs *types.Results) {
 	owner, err := getRootObject(cli)
 	if err == nil {
-		err = validateServiceInterface(service)
-		if err != nil {
-			return err
+		validateServiceInterface(service, rs)
+                if rs.ContainsError() {
+			rs.AddError("Aborting service interface creation due to error.")
+                        return
 		}
-		return updateServiceInterface(service, false, owner, cli)
+		updateServiceInterface(service, false, owner, cli, rs)
 	} else if errors.IsNotFound(err) {
-		return fmt.Errorf("Skupper not initialised in %s", cli.Namespace)
+                rs.AddError("Skupper not initialised in %s", cli.Namespace)
 	} else {
-		return err
+                rs.AddError("getRootObject error: %w", err)
+                return
 	}
 }

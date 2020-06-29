@@ -96,10 +96,11 @@ func getServiceInterfaceTarget(targetType string, targetName string, deducePort 
 	}
 }
 
-func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists bool, owner *metav1.OwnerReference, cli *VanClient) error {
+func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists bool, owner *metav1.OwnerReference, cli *VanClient, rs *types.Results) {
 	encoded, err := jsonencoding.Marshal(service)
 	if err != nil {
-		return fmt.Errorf("Failed to encode service interface as json: %s", err)
+                rs.AddError("Failed to encode service interface as json: %s", err)
+                return
 	}
 	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil {
@@ -111,14 +112,18 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 			} else {
 				current.Data[service.Address] = string(encoded)
 			}
+                        rs.AddInfo("Added service address |%s|", service.Address)
 			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
 			if err != nil {
-				return fmt.Errorf("Failed to update skupper-services config map: %s", err)
+                                rs.AddError("Failed to update skupper-services config map: %w", err)
+                                return
 			} else {
-				return nil
+                                rs.AddInfo("success")
+				return
 			}
 		} else {
-			return fmt.Errorf("Service %s already defined", service.Address)
+                        rs.AddWarning("Service %s is already defined.", service.Address)
+                        return
 		}
 	} else if errors.IsNotFound(err) {
 		configMap := corev1.ConfigMap{
@@ -140,74 +145,86 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 		}
 		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(&configMap)
 		if err != nil {
-			return fmt.Errorf("Failed to create skupper-services config map: %s", err)
+                        rs.AddError("Failed to create skupper-services config map: %s", err)
+                        return
 		} else {
-			return nil
+                        rs.AddInfo("success")
+			return 
 		}
 	} else {
-		return fmt.Errorf("Could not retrieve service interface definitions from configmap: %s", err)
+                rs.AddError("Could not retrieve service interface definitions from configmap: %s", err)
+                return
 	}
 }
 
-func validateServiceInterface(service *types.ServiceInterface) error {
+func validateServiceInterface(service *types.ServiceInterface, rs *types.Results) {
 	if service.Headless != nil {
 		if service.Headless.TargetPort < 0 || 65535 < service.Headless.TargetPort {
-			return fmt.Errorf("Bad headless target port number: %d", service.Headless.TargetPort)
+                        rs.AddError("Bad headless target port number: %d", service.Headless.TargetPort)
+                        return
 		}
 	}
 
 	for _, target := range service.Targets {
 		if target.TargetPort < 0 || 65535 < target.TargetPort {
-			return fmt.Errorf("Bad target port number. Target: %s  Port: %d", target.Name, target.TargetPort)
+                        rs.AddError("Bad target port number. Target: %s  Port: %d", target.Name, target.TargetPort)
+                        return
 		}
 	}
 
 	//TODO: change service.Protocol to service.Mapping
 	if service.Port < 0 || 65535 < service.Port {
-		return fmt.Errorf("Port %d is outside valid range.", service.Port)
+		rs.AddError("Port %d is outside valid range.", service.Port)
 	} else if service.Aggregate != "" && service.EventChannel {
-		return fmt.Errorf("Only one of aggregate and event-channel can be specified for a given service.")
+		rs.AddError("Only one of aggregate and event-channel can be specified for a given service.")
 	} else if service.Aggregate != "" && service.Aggregate != "json" && service.Aggregate != "multipart" {
-		return fmt.Errorf("%s is not a valid aggregation strategy. Choose 'json' or 'multipart'.", service.Aggregate)
+		rs.AddError("%s is not a valid aggregation strategy. Choose 'json' or 'multipart'.", service.Aggregate)
 	} else if service.Protocol != "" && service.Protocol != "tcp" && service.Protocol != "http" && service.Protocol != "http2" {
-		return fmt.Errorf("%s is not a valid mapping. Choose 'tcp', 'http' or 'http2'.", service.Protocol)
+		rs.AddError("%s is not a valid mapping. Choose 'tcp', 'http' or 'http2'.", service.Protocol)
 	} else if service.Aggregate != "" && service.Protocol != "http" {
-		return fmt.Errorf("The aggregate option is currently only valid for http")
+		rs.AddError("The aggregate option is currently only valid for http")
 	} else if service.EventChannel && service.Protocol != "http" {
-		return fmt.Errorf("The event-channel option is currently only valid for http")
+		rs.AddError("The event-channel option is currently only valid for http")
 	} else {
-		return nil
+		rs.AddInfo("Service Interface successfully validated.")
 	}
 }
 
-func (cli *VanClient) VanServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
+func (cli *VanClient) VanServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface, rs *types.Results) {
 	owner, err := getRootObject(cli)
 	if err == nil {
-		err = validateServiceInterface(service)
-		if err != nil {
-			return err
-		}
-		return updateServiceInterface(service, true, owner, cli)
+		validateServiceInterface(service, rs)
+                if rs.ContainsError() {
+                  rs.AddInfo("Aborting.")
+                  return
+                }
+		updateServiceInterface(service, true, owner, cli, rs)
+                return
 	} else if errors.IsNotFound(err) {
-		return fmt.Errorf("Skupper not initialised in %s", cli.Namespace)
+                rs.AddError("Skupper not initialised in %s", cli.Namespace)
+                return
 	} else {
-		return err
+                rs.AddError("getRootObject error: %w", err)
+		return 
 	}
 }
 
-func (cli *VanClient) VanServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
+func (cli *VanClient) VanServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int, rs *types.Results) {
 	owner, err := getRootObject(cli)
 	if err == nil {
-		err = validateServiceInterface(service)
-		if err != nil {
-			return err
-		}
+		validateServiceInterface(service, rs)
+                if rs.ContainsError() {
+                  rs.AddInfo("Aborting.")
+                  return
+                }
 		if protocol != "" && service.Protocol != protocol {
-			return fmt.Errorf("Invalid protocol %s for service with mapping %s", protocol, service.Protocol)
+                        rs.AddError("Invalid protocol %s for service with mapping %s", protocol, service.Protocol)
+			return
 		}
 		target, err := getServiceInterfaceTarget(targetType, targetName, service.Port == 0 && targetPort == 0, cli)
 		if err != nil {
-			return err
+                        rs.AddError("getServiceInterfaceTarget error: %w", err)
+			return
 		}
 		if target.TargetPort != 0 {
 			service.Port = target.TargetPort
@@ -220,11 +237,17 @@ func (cli *VanClient) VanServiceInterfaceBind(ctx context.Context, service *type
 			}
 		}
 		addTargetToServiceInterface(service, target)
-		return updateServiceInterface(service, true, owner, cli)
+		updateServiceInterface(service, true, owner, cli, rs)
+                if rs.ContainsError() {
+                  rs.AddError("Aborting.")
+                  return
+                }
 	} else if errors.IsNotFound(err) {
-		return fmt.Errorf("Skupper not initialised in %s", cli.Namespace)
+                rs.AddError("Skupper not initialised in %s", cli.Namespace)
+                return
 	} else {
-		return err
+                rs.AddError("getRootObject error: %w", err)
+		return
 	}
 }
 

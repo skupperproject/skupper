@@ -45,7 +45,12 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 			if err != nil {
 				return err
 			}
-			return cli.VanServiceInterfaceUpdate(ctx, service)
+                        var rs types.Results
+			cli.VanServiceInterfaceUpdate(ctx, service, &rs)
+                        if rs.ContainsError() {
+                          rs.Print(os.Stderr)
+                          return fmt.Errorf("temp placeholder error")
+                        }
 		} else {
 			service = &types.ServiceInterface{
 				Address:  serviceName,
@@ -60,7 +65,13 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
 		return fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
 	}
-	return cli.VanServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
+        var rs types.Results
+	cli.VanServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort, &rs)
+        if rs.ContainsError() {
+          rs.Print(os.Stderr)
+          return fmt.Errorf("temp placeholder error")
+        }
+  return nil
 }
 
 func requiredArg(name string) func(*cobra.Command, []string) error {
@@ -478,9 +489,10 @@ func main() {
 			} else {
 				serviceToCreate.Port = servicePort
 				cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-				err = cli.VanServiceInterfaceCreate(context.Background(), &serviceToCreate)
-				if err != nil {
-					fmt.Println(err.Error())
+                                var rs types.Results
+				cli.VanServiceInterfaceCreate(context.Background(), &serviceToCreate, &rs)
+				if rs.ContainsError() {
+					rs.Print(os.Stderr)
 				}
 			}
 		},
@@ -533,9 +545,10 @@ func main() {
 					fmt.Printf("Service %s not found", args[0])
 					fmt.Println()
 				} else {
-					err = cli.VanServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort)
-					if err != nil {
-						fmt.Println(err.Error())
+                                        var rs types.Results
+					cli.VanServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort, &rs)
+					if rs.ContainsError() {
+                                                rs.Print(os.Stderr)
 					}
 				}
 			}
