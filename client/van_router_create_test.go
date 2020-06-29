@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	//	"fmt"
-	//	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -320,7 +318,7 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" service accounts mismatch (-want +got):\n%s", diff)
 		}
 		//TODO: consider set up short specific opts
-		if !isCluster {
+		if !isCluster || (cli.RouteClient == nil && c.authMode == "openshift") {
 			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "proxy-certs") }))
 			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "controller-certs") }))
 		}
