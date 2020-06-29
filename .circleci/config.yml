@@ -5,20 +5,12 @@ orbs:
     go: circleci/go@1.1.1
 
 parameters:
-  registry:
-    default: "quay.io"
-    type: string
-
-  org:
-    default: "nicob87"
-    type: string
-
   ci_service_controller_image:
-    default: "service-controller"
+    default: quay.io/nicob87/service-controller:${CIRCLE_SHA1}
     type: string
 
   ci_site_controller_image:
-    default: "site-controller"
+    default: quay.io/nicob87/site-controller:${CIRCLE_SHA1}
     type: string
 
 executors:
@@ -58,17 +50,14 @@ commands:
     description: install right versions of go, docker, kubectl, and also build
     steps:
       - run:
-          #TODO add a comment saying why is this needed.
           name: Export environment variables persistent in execution shell
           command: |
             echo 'export KUBECONFIG=/home/circleci/.kube/config' >> $BASH_ENV
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
-            echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=${SERVICE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
-            echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=${SITE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
-            echo 'export SERVICE_CONTROLLER_IMAGE=${SERVICE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
-            echo 'export SITE_CONTROLLER_IMAGE=${SITE_CONTROLLER_IMAGE_FQDN}:${CIRCLE_SHA1}' >> $BASH_ENV
+            echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
+            echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
             source $BASH_ENV
       - checkout
       - run:
@@ -134,6 +123,8 @@ workflows:
       - minikube_local_cluster_tests:
           pre-steps:
             - prepare_for_local_cluster_tests
+          requires:
+            - test
 
       - publish-github-release:
           <<: *release_filters
@@ -144,6 +135,7 @@ workflows:
 
       - remove_from_registry:
           requires:
+            - test
             - minikube_local_cluster_tests
 
 jobs:
@@ -152,10 +144,17 @@ jobs:
       name: go/default
       tag: "1.13"
     steps:
+      - run:
+          name: Export environment variables persistent in execution shell
+          command: |
+            echo 'export SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
+            source $BASH_ENV
       - setup_remote_docker
       - checkout
       - go/mod-download-cached
       - run: make
+      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
       - run: make -e docker-build
       - run: make -e docker-push
       - run: make package
@@ -170,8 +169,8 @@ jobs:
       - setup_remote_docker
       - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
       - run: go get github.com/genuinetools/reg
-      - run: reg rm << pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_service_controller_image >>:${CIRCLE_SHA1}
-      - run: reg rm << pipeline.parameters.registry >>/<< pipeline.parameters.org >>/<< pipeline.parameters.ci_site_controller_image >>:${CIRCLE_SHA1}
+      - run: reg rm << pipeline.parameters.ci_service_controller_image >>
+      - run: reg rm << pipeline.parameters.ci_site_controller_image >>
 
   build-all:
     executor:
@@ -230,9 +229,6 @@ jobs:
 
   minikube_local_cluster_tests:
     executor: local_cluster_test_executor
-    environment:
-      SERVICE_CONTROLLER_IMAGE_FQDN: quay.io/nicob87/service-controller
-      SITE_CONTROLLER_IMAGE_FQDN: quay.io/nicob87/site-controller
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - minikube-install
