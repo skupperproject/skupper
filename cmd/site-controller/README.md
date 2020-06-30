@@ -10,27 +10,27 @@ The site controller provides declarative methods to manage a Skupper VAN site us
 
 ConfigMaps allow you to manage a Skupper site using the following parameters:
 
-`metadata:name` -  the site controller name in OpenShift
+`metadata:name` -  The site controller name in OpenShift. Required for the site controller to process the ConfigMap.
 
-`data:name` -  the VAN deployment or site name
+`data:name` -  The VAN deployment or site name.
 
 `data:cluster-local` -  (true/false) Set up skupper to only accept connections from within the local cluster.
 
-`data:console` -  (**true**/false) Enable skupper console
+`data:console` -  (**true**/false) Enable skupper console.
 
-`data:console-authentication` -  ('openshift', 'internal', 'unsecured') Autentication method
+`data:console-authentication` -  ('openshift', 'internal', 'unsecured') Autentication method.
 
-`data:console-user` -  username for 'unsecured' option
+`data:console-user` -  Username for 'internal' option.
 
-`data:console-password` - password for 'unsecured' option
+`data:console-password` - password for 'internal' option.
 
-`data:edge` -  (true/false) Set up an edge skupper site
+`data:edge` -  (true/false) Set up an edge skupper site.
 
-`data:router-console` - (true/false) Set up a Dispatch Router console (not recommended)
+`data:router-console` - (true/false) Set up a Dispatch Router console (not recommended).
 
-`data:service-controller` - 
+`data:service-controller` - (true/false) Run the service controller.
 
-`data:service-sync` -  
+`data:service-sync` - (**true**/false) Only relevant if the service controller is running. Determine if the service  controller participates in service synchronization.
 
 
 For example:
@@ -52,3 +52,5 @@ kind: ConfigMap
 metadata:
   name: skupper-site
 ```
+
+Note that `metadata:name` is required for the site controller to process the ConfigMap.
