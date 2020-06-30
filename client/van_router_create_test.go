@@ -2,13 +2,14 @@ package client
 
 import (
 	"context"
-	"fmt"
-	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -16,12 +17,6 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
-
-func transform(in []string) []string {
-	out := append([]string(nil), in...)
-	sort.Strings(out)
-	return out
-}
 
 func TestVanRouterCreateDefaults(t *testing.T) {
 	testcases := []struct {
@@ -33,6 +28,8 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		enableController     bool
 		enableRouterConsole  bool
 		authMode             string
+		user                 string
+		password             string
 		clusterLocal         bool
 		depsExpected         []string
 		cmsExpected          []string
@@ -41,16 +38,19 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		secretsExpected      []string
 		svcsExpected         []string
 		svcAccountsExpected  []string
+		opts                 []cmp.Option
 	}{
 		{
-			namespace:        "skupper",
-			expectedError:    "",
-			doc:              "test one",
-			skupperName:      "skupper1",
-			isEdge:           false,
-			enableController: true,
+			namespace:            "van-router-create1",
+			expectedError:        "",
+			doc:                  "test one",
+			skupperName:          "skupper1",
+			isEdge:               false,
+			enableController:     true,
 			enableRouterConsole:  false,
 			authMode:             "",
+			user:                 "",
+			password:             "",
 			clusterLocal:         true,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{"skupper-services", "skupper-internal"},
@@ -61,84 +61,59 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 				"skupper-amqps",
 				"skupper",
 				"skupper-internal"},
-			svcsExpected:     []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
+			svcsExpected:        []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
 			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
+			opts: []cmp.Option{
+				trans,
+				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "skupper") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "dockercfg") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "token") }),
+			},
 		},
 		{
-			namespace:            "skupper",
-			expectedError:        "Failed to get LoadBalancer IP or Hostname for service skupper-internal",
+			namespace:            "van-router-create2",
+			expectedError:        "",
 			doc:                  "test two",
 			skupperName:          "skupper2",
 			isEdge:               false,
 			enableController:     true,
-			enableRouterConsole:  false,
-			authMode:             "",
+			enableRouterConsole:  true,
+			authMode:             "unsecured",
+			user:                 "",
+			password:             "",
 			clusterLocal:         false,
-			depsExpected:         []string{"skupper-router"},
-			cmsExpected:          []string{"skupper-services", "skupper-internal"},
-			rolesExpected:        []string{"skupper-view"},
-			roleBindingsExpected: []string{"skupper-skupper-view"},
-			secretsExpected: []string{"skupper-ca",
-				"skupper-internal-ca",
-				"skupper-amqps",
-				"skupper"},
-			svcsExpected:        []string{"skupper-messaging", "skupper-internal"},
-			svcAccountsExpected: []string{"skupper"},
-		},
-		{
-			namespace:        "skupper",
-			expectedError:    "",
-			doc:              "test three",
-			skupperName:      "skupper3",
-			isEdge:           true,
-			enableController: true,
-			enableRouterConsole:  false,
-			authMode:             "",
-			clusterLocal:         true,
-			depsExpected:         []string{"skupper-router", "skupper-service-controller"},
+			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{"skupper-services", "skupper-internal"},
 			rolesExpected:        []string{"skupper-view", "skupper-edit"},
 			roleBindingsExpected: []string{"skupper-skupper-view", "skupper-proxy-controller-skupper-edit"},
-			secretsExpected: []string{"skupper-ca",
-				"skupper-amqps",
-				"skupper"},
-			svcsExpected:     []string{"skupper-messaging", "skupper-controller"},
-			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
-		},
-		{
-			namespace:            "skupper",
-			expectedError:        "",
-			doc:                  "test four",
-			skupperName:          "skupper4",
-			isEdge:               false,
-			enableController:     false,
-			enableRouterConsole:  false,
-			authMode:             "",
-			clusterLocal:         true,
-			depsExpected:         []string{"skupper-router"},
-			cmsExpected:          []string{"skupper-services", "skupper-internal"},
-			rolesExpected:        []string{"skupper-view"},
-			roleBindingsExpected: []string{"skupper-skupper-view"},
 			secretsExpected: []string{"skupper-ca",
 				"skupper-internal-ca",
 				"skupper-amqps",
 				"skupper",
 				"skupper-internal"},
-			svcsExpected:        []string{"skupper-messaging", "skupper-internal"},
-			svcAccountsExpected: []string{"skupper"},
+			svcsExpected:        []string{"skupper-messaging", "skupper-internal", "skupper-controller", "skupper-router-console"},
+			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
+			opts: []cmp.Option{
+				trans,
+				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "skupper") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "dockercfg") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "token") }),
+			},
 		},
 		{
-			namespace:            "gilligan",
+			namespace:            "van-router-create3",
 			expectedError:        "",
-			doc:                  "test five",
-			skupperName:          "skupper5",
+			doc:                  "test three",
+			skupperName:          "skupper3",
 			isEdge:               false,
 			enableController:     true,
 			enableRouterConsole:  true,
 			authMode:             "internal",
-			clusterLocal:         true,
+			user:                 "",
+			password:             "",
+			clusterLocal:         false,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
-			cmsExpected:          []string{"skupper-services", "skupper-sasl-config", "skupper-internal"},
+			cmsExpected:          []string{"skupper-services", "skupper-internal", "skupper-sasl-config"},
 			rolesExpected:        []string{"skupper-view", "skupper-edit"},
 			roleBindingsExpected: []string{"skupper-skupper-view", "skupper-proxy-controller-skupper-edit"},
 			secretsExpected: []string{"skupper-ca",
@@ -149,17 +124,25 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 				"skupper-console-users"},
 			svcsExpected:        []string{"skupper-messaging", "skupper-internal", "skupper-controller", "skupper-router-console"},
 			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
+			opts: []cmp.Option{
+				trans,
+				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "skupper") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "dockercfg") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "token") }),
+			},
 		},
 		{
-			namespace:            "ginger",
+			namespace:            "van-router-create4",
 			expectedError:        "",
-			doc:                  "test six",
-			skupperName:          "skupper6",
+			doc:                  "test four",
+			skupperName:          "skupper4",
 			isEdge:               false,
 			enableController:     true,
 			enableRouterConsole:  true,
 			authMode:             "openshift",
-			clusterLocal:         true,
+			user:                 "",
+			password:             "",
+			clusterLocal:         false,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{"skupper-services", "skupper-internal"},
 			rolesExpected:        []string{"skupper-view", "skupper-edit"},
@@ -168,17 +151,49 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 				"skupper-internal-ca",
 				"skupper-amqps",
 				"skupper",
-				"skupper-internal"},
+				"skupper-internal",
+				"skupper-controller-certs",
+				"skupper-proxy-certs"},
 			svcsExpected:        []string{"skupper-messaging", "skupper-internal", "skupper-controller", "skupper-router-console"},
 			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
+			opts: []cmp.Option{
+				trans,
+				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "skupper") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "dockercfg") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "token") }),
+			},
+		},
+		{
+			namespace:            "van-router-create5",
+			expectedError:        "",
+			doc:                  "test five",
+			skupperName:          "skupper5",
+			isEdge:               true,
+			enableController:     true,
+			enableRouterConsole:  true,
+			authMode:             "unsecured",
+			user:                 "Barney",
+			password:             "Rubble",
+			clusterLocal:         false,
+			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
+			cmsExpected:          []string{"skupper-services", "skupper-internal"},
+			rolesExpected:        []string{"skupper-view", "skupper-edit"},
+			roleBindingsExpected: []string{"skupper-skupper-view", "skupper-proxy-controller-skupper-edit"},
+			secretsExpected: []string{"skupper-ca",
+				"skupper-amqps",
+				"skupper"},
+			svcsExpected:        []string{"skupper-messaging", "skupper-controller", "skupper-router-console"},
+			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
+			opts: []cmp.Option{
+				trans,
+				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "skupper") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "dockercfg") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "token") }),
+			},
 		},
 	}
 
-	trans := cmp.Transformer("Sort", func(in []string) []string {
-		out := append([]string(nil), in...)
-		sort.Strings(out)
-		return out
-	})
+	isCluster := *clusterRun
 
 	for _, c := range testcases {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -193,10 +208,20 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		svcAccountsFound := []string{}
 
 		// Create the client
-		cli, err := newMockClient(c.namespace, "", "")
+		var cli *VanClient
+		var err error
+		if !isCluster {
+			cli, err = newMockClient(c.namespace, "", "")
+		} else {
+			cli, err = NewClient(c.namespace, "", "")
+		}
 		assert.Check(t, err, c.doc)
 
-		informers := informers.NewSharedInformerFactory(cli.KubeClient, 0)
+		_, err = kube.NewNamespace(c.namespace, cli.KubeClient)
+		assert.Check(t, err, c.doc)
+		defer kube.DeleteNamespace(c.namespace, cli.KubeClient)
+
+		informers := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0, informers.WithNamespace(c.namespace))
 		depInformer := informers.Apps().V1().Deployments().Informer()
 		depInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
@@ -256,33 +281,48 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
 
 		err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-			Spec: types.VanSiteConfigSpec {
-				SkupperName:       c.skupperName,
-				IsEdge:            c.isEdge,
-				EnableController:  c.enableController,
-				EnableServiceSync: true,
+			Spec: types.VanSiteConfigSpec{
+				SkupperName:         c.skupperName,
+				IsEdge:              c.isEdge,
+				EnableController:    c.enableController,
+				EnableServiceSync:   true,
 				EnableRouterConsole: c.enableRouterConsole,
-				AuthMode:          c.authMode,
-				EnableConsole:     false,
-				User:              "",
-				Password:          "",
-				ClusterLocal:      c.clusterLocal,
+				AuthMode:            c.authMode,
+				EnableConsole:       false,
+				User:                c.user,
+				Password:            c.password,
+				ClusterLocal:        c.clusterLocal || !isCluster,
 			},
 		})
 
 		// TODO: make more deterministic
 		time.Sleep(time.Second * 1)
-		if c.clusterLocal {
-			assert.Check(t, err, c.doc)
-		} else {
-			assert.Error(t, err, c.expectedError, c.doc)
+		assert.Check(t, err, c.doc)
+		if diff := cmp.Diff(c.depsExpected, depsFound, c.opts...); diff != "" {
+			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" deployments mismatch (-want +got):\n%s", diff)
 		}
-		assert.Assert(t, cmp.Equal(c.depsExpected, depsFound, trans), c.doc)
-		assert.Assert(t, cmp.Equal(c.cmsExpected, cmsFound, trans), fmt.Sprintf("in %s expected=%q, actual=%q", c.doc, c.cmsExpected, cmsFound))
-		assert.Assert(t, cmp.Equal(c.rolesExpected, rolesFound, trans), c.doc)
-		assert.Assert(t, cmp.Equal(c.roleBindingsExpected, roleBindingsFound, trans), c.doc)
-		assert.Assert(t, cmp.Equal(c.secretsExpected, secretsFound, trans), c.doc)
-		assert.Assert(t, cmp.Equal(c.svcsExpected, svcsFound, trans), fmt.Sprintf("in %s expected=%q, actual=%q", c.doc, c.svcsExpected, svcsFound))
-		assert.Assert(t, cmp.Equal(c.svcAccountsExpected, svcAccountsFound, trans), c.doc)
+		if diff := cmp.Diff(c.cmsExpected, cmsFound, c.opts...); diff != "" {
+			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" config maps mismatch (-want +got):\n%s", diff)
+		}
+		if diff := cmp.Diff(c.rolesExpected, rolesFound, c.opts...); diff != "" {
+			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" roles mismatch (-want +got):\n%s", diff)
+		}
+		if diff := cmp.Diff(c.roleBindingsExpected, roleBindingsFound, c.opts...); diff != "" {
+			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" role bindings mismatch (-want +got):\n%s", diff)
+		}
+		if diff := cmp.Diff(c.svcsExpected, svcsFound, c.opts...); diff != "" {
+			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" services mismatch (-want +got):\n%s", diff)
+		}
+		if diff := cmp.Diff(c.svcAccountsExpected, svcAccountsFound, c.opts...); diff != "" {
+			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" service accounts mismatch (-want +got):\n%s", diff)
+		}
+		//TODO: consider set up short specific opts
+		if !isCluster || (cli.RouteClient == nil && c.authMode == "openshift") {
+			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "proxy-certs") }))
+			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "controller-certs") }))
+		}
+		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
+			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
+		}
 	}
 }

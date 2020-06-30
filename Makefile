@@ -24,8 +24,20 @@ docker-push:
 	${DOCKER} push ${SERVICE_CONTROLLER_IMAGE}
 	${DOCKER} push ${SITE_CONTROLLER_IMAGE}
 
+format:
+	go fmt ./...
+
+client-mock-test:
+	go test -v -count=1 ./client
+
+client-cluster-test:
+	go test -v -count=1 ./client -use-cluster
+
+vet:
+	go vet ./...
+
 clean:
-	rm -rf skupper release
+	rm -rf skupper service-controller site-controller release
 
 package: release/windows.zip release/darwin.zip release/linux.tgz
 
