@@ -430,20 +430,27 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 		ConnectJson: true,
 		Post:        false,
 	})
-	// TODO: deal with clusterLocal and .Routes != nil
+
 	if !options.IsEdge {
-		post := false
-		if !options.ClusterLocal {
-			post = true
+		if options.ClusterLocal {
+			credentials = append(credentials, types.Credential{
+				CA:          "skupper-internal-ca",
+				Name:        "skupper-internal",
+				Subject:     "skupper-internal",
+				Hosts:       "skupper-internal." + van.Namespace,
+				ConnectJson: false,
+				Post:        false,
+			})
+		} else {
+			credentials = append(credentials, types.Credential{
+				CA:          "skupper-internal-ca",
+				Name:        "skupper-internal",
+				Subject:     "skupper-internal",
+				Hosts:       "",
+				ConnectJson: false,
+				Post:        true,
+			})
 		}
-		credentials = append(credentials, types.Credential{
-			CA:          "skupper-internal-ca",
-			Name:        "skupper-internal",
-			Subject:     "skupper-messaging",
-			Hosts:       "",
-			ConnectJson: false,
-			Post:        post,
-		})
 	}
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 		userData := map[string][]byte{}
