@@ -145,12 +145,10 @@ jobs:
       tag: "1.13"
     steps:
       - checkout
+      - go/mod-download-cached
       - run:
           name: "Enforce Go Formatted Code"
-          #command: (! go fmt ./... 2>&1 | read) || (git --no-pager diff && echo "Bad formatting! execute [$go fmt ./...] locally and push again!" && false)
-          #command: (! go fmt ./... 2>&1 | read) || (git --no-pager diff && echo "Bad formatting! execute [$go fmt ./...] locally and push again!" && false)
           command: (! go fmt ./... 2>&1 | read) || (git --no-pager diff && false)
-      - go/mod-download-cached
       - run:
           name: Export environment variables persistent in execution shell
           command: |
