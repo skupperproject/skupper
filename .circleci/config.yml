@@ -148,7 +148,7 @@ jobs:
       - go/mod-download-cached
       - run:
           name: "Enforce Go Formatted Code"
-          command: (! go fmt ./... 2>&1 | read) || (git --no-pager diff && echo "Bad formatting! execute \"go fmt ./...\" locally and push again!" && false)
+          command: (! go fmt ./... 2>&1 | read) || (git --no-pager diff && echo "Bad formatting! execute [$go fmt ./...] locally and push again!" && false)
       - run:
           name: Export environment variables persistent in execution shell
           command: |
