@@ -108,10 +108,10 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 		// of VAN service interface creation.
 		// I.e., certain deployments and services should be created.
 
-                // NOTE: about the mock client.
-                //       Once we have the ability to run these unit tests 
-                //       against a real cluster, the 'expected' lists below
-                //       will change.
+		// NOTE: about the mock client.
+		//       Once we have the ability to run these unit tests
+		//       against a real cluster, the 'expected' lists below
+		//       will change.
 		{
 			name:          "vsic_5",
 			doc:           "Check basic deployments.",

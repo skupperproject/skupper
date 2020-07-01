@@ -16,7 +16,7 @@ func TestConnectorCreateTokenInterior(t *testing.T) {
 	cli, err := newMockClient("skupper", "", "")
 
 	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec {
+		Spec: types.VanSiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -43,7 +43,7 @@ func TestConnectorCreateTokenEdge(t *testing.T) {
 	cli, err := newMockClient("skupper", "", "")
 
 	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec {
+		Spec: types.VanSiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            true,
 			EnableController:  true,
