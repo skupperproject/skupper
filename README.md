@@ -1,41 +1,34 @@
-# [WIP] skupper [WIP]
+# Skupper
 
-Note: this repository is a work in progress targeted for the consolidation
-and refactoring of the skupper implementation.
+Skupper enables cloud communication by enabling you to create a Virtual Application Network.
 
-Command line tool for setting up and managing skupper installations
+This application layer network decouples addressing from the underlying network infrastructure.
+This enables secure communication without a VPN.
 
-## Usage
+You can use Skupper to create a network from namespaces in one or more Kubernetes clusters as described in the [Getting Started](https://skupper.io/start/index.html).
+This guide describes a simple network, however there are no restrictions on the topology created which can include redundant paths.
 
-See `skupper help` or `skupper <command> --help` for details.
+Connecting one Skupper site to another site enables communication both ways.
+Communication can occur using any path available on the network, that is, direct connections are not required to enable communication.
 
-## Example
+Skupper supports [anycast](https://en.wikipedia.org/wiki/Anycast) and [multicast](https://en.wikipedia.org/wiki/Multicast) communication using the application layer network (VAN), allowing you to configure your topology to match business requirements.
 
-In one kubernetes context do:
+Skupper does not require any special privileges, that is, you do not require the `cluster-admin` role to create networks.
 
-```
-skupper init
-skupper connection-token /path/to/mysecret.yaml
-```
+# Useful Links
+Using Skupper
 
-In another context, e.g. another kubernetes cluster, do:
-
-```
-skupper init
-skupper connect --secret /path/to/mysecret.yaml
-```
-
-By default skupper will try to set itself up to allow connections from
-other skupper sites (using mutual TLS). It uses a LoadBalancer service
-or an OpenShift Route for this. If you don't want this, or your
-cluster is not set up to support those options, you can use the
-`--cluster-local` option to `skupper init` and will then be able only
-accept connections from skupper instances in different namespaces on
-the same cluster.
-
-Note: if using minikube, you can get the LoadBalancer service to setup
-an external ip by running minikube tunnel. (Or else use
---cluster-local as described above).
+* [Getting Started](https://skupper.io/start/index.html)
+* [Examples](https://skupper.io/examples/index.html)
+* [Documentation](https://skupper.io/docs/index.html)
 
 
+Developing Skupper
 
+* [Community](https://skupper.io/community/index.html)
+* [Site controller](cmd/site-controller/README.md)
+* [CLI](cmd/skupper/README.md) (This replaces the [Skupper CLI repo](https://github.com/skupperproject/skupper-cli))
+* [Console](/skupperproject/gilligan)
+
+# Licensing
+Skupper uses the [Apache QPID Dispatch Router](https://github.com/apache/qpid-dispatch) project and is released under the same [Apache License 2.0](https://github.com/skupperproject/skupper/blob/master/LICENSE).
