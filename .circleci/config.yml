@@ -117,26 +117,26 @@ workflows:
   version: 2.1
   build-workflow:
     jobs:
-      - build-all
+      #- build-all
       - test
 
-      - minikube_local_cluster_tests:
-          pre-steps:
-            - prepare_for_local_cluster_tests
-          requires:
-            - test
+      #- minikube_local_cluster_tests:
+          #pre-steps:
+            #- prepare_for_local_cluster_tests
+          #requires:
+            #- test
 
-      - publish-github-release:
-          <<: *release_filters
-          requires:
-            - build-all
-            - test
-            - minikube_local_cluster_tests
+      #- publish-github-release:
+          #<<: *release_filters
+          #requires:
+            #- build-all
+            #- test
+            #- minikube_local_cluster_tests
 
-      - remove_from_registry:
-          requires:
-            - test
-            - minikube_local_cluster_tests
+      #- remove_from_registry:
+          #requires:
+            #- test
+            #- minikube_local_cluster_tests
 
 jobs:
   test:
@@ -148,7 +148,8 @@ jobs:
       - go/mod-download-cached
       - run:
           name: "Enforce Go Formatted Code"
-          command: (! go fmt ./... 2>&1 | read) || (git --no-pager diff && echo "Bad formatting! execute [$go fmt ./...] locally and push again!" && false)
+          #command: (! go fmt ./... 2>&1 | read) || (git --no-pager diff && echo "Bad formatting! execute [$go fmt ./...] locally and push again!" && false)
+          command: (! go fmt ./... 2>&1 | read) || (git --no-pager diff && false)
       - run:
           name: Export environment variables persistent in execution shell
           command: |
