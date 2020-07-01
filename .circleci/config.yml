@@ -144,6 +144,16 @@ jobs:
       name: go/default
       tag: "1.13"
     steps:
+      - checkout
+      - run:
+          name: "Enforce Go Formatted Code"
+          command: >
+              if [ `go fmt ./... | wc -l` -ne 0 ]; then
+                git --no-pager diff
+                echo "Bad formatting! execute \"\$go fmt ./...\" locally and push again!"
+                exit 1
+              fi
+
       - run:
           name: Export environment variables persistent in execution shell
           command: |
@@ -151,7 +161,6 @@ jobs:
             echo 'export SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
             source $BASH_ENV
       - setup_remote_docker
-      - checkout
       - go/mod-download-cached
       - run: make
       - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
