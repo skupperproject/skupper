@@ -21,25 +21,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-// TODO put these in kube or utils
-func isInterior(qdr *appsv1.Deployment) bool {
-	config := kube.FindEnvVar(qdr.Spec.Template.Spec.Containers[0].Env, "QDROUTERD_CONF")
-	//match 'mode: interior' in that config
-	if config == nil {
-		log.Fatal("Could not retrieve qdr config")
-	}
-	match, _ := regexp.MatchString("mode:[ ]+interior", config.Value)
-	return match
-}
-
-func getTransportMode(dep *appsv1.Deployment) types.TransportMode {
-	if qdr.IsInterior(dep) {
-		return types.TransportModeInterior
-	} else {
-		return types.TransportModeEdge
-	}
-}
-
 func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 	max := 1
