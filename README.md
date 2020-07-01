@@ -3,12 +3,13 @@
 Skupper enables cloud communication by enabling you to create a Virtual Application Network.
 
 This application layer network decouples addressing from the underlying network infrastructure.
-One example usage is to provide a secure and simple alternative to a VPN.
+This enables communication without a VPN.
 
-You can use Skupper to create a network from namespaces inn one or more Kubernetes clusters as described in the [Getting Started](https://skupper.io/start/index.html).
+You can use Skupper to create a network from namespaces in one or more Kubernetes clusters as described in the [Getting Started](https://skupper.io/start/index.html).
 This guide describes a simple network, however there are no restrictions on the topology created which can include redundant paths.
 
-You can also create more complex networks, for example, a full mesh network.
+Connecting one Skupper site to another site enables communication both ways.
+Communication can occur using any path available on the network, that is, direct connections are not required to enable communication.
 
 Skupper supports [anycast](https://en.wikipedia.org/wiki/Anycast) and [multicast](https://en.wikipedia.org/wiki/Multicast) communication using the application layer network (VAN), allowing you to configure your topology to match business requirements.
 
