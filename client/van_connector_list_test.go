@@ -2,17 +2,13 @@ package client
 
 import (
 	"context"
-	"errors"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
-
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func TestVanConnectorListInterior(t *testing.T) {
@@ -63,14 +59,6 @@ func TestVanConnectorListInterior(t *testing.T) {
 			SkupperNamespace: namespace,
 			Cost:             1,
 		})
-		for i := 0; i < 5 && k8serrors.IsConflict(errors.Unwrap(err)); i++ {
-			time.Sleep(500 * time.Millisecond)
-			_, err = cli.VanConnectorCreateFromFile(ctx, testPath+connName+".yaml", types.VanConnectorCreateOptions{
-				Name:             connName,
-				SkupperNamespace: namespace,
-				Cost:             1,
-			})
-		}
 		assert.Check(t, err, "Unable to create connector for "+connName)
 	}
 	connectors, err := cli.VanConnectorList(ctx)

@@ -7,6 +7,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -124,7 +125,12 @@ func (cli *VanClient) createConnector(ctx context.Context, secret *corev1.Secret
 		connector.Role = string(types.ConnectorRoleEdge)
 	}
 	qdr.AddConnector(&connector, current)
+
 	_, err := cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
+	for i := 0; i < 10 && errors.IsConflict(err); i++ {
+		time.Sleep(500 * time.Millisecond)
+		_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
+	}
 	if err != nil {
 		return fmt.Errorf("Failed to update qdr deployment: %w", err)
 	} else {
