@@ -47,7 +47,7 @@ func main() {
 		log.Fatal("Error getting van client ", err.Error())
 	}
 
-	controller,err := NewSiteController(cli)
+	controller, err := NewSiteController(cli)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
 	}

@@ -270,8 +270,8 @@ func NewControllerDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerRef
 				Kind:       "Deployment",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            types.ControllerDeploymentName,
-				Namespace:       van.Namespace,
+				Name:      types.ControllerDeploymentName,
+				Namespace: van.Namespace,
 			},
 			Spec: appsv1.DeploymentSpec{
 				Replicas: &van.Controller.Replicas,
@@ -342,7 +342,7 @@ func NewTransportDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerRefe
 					},
 					Spec: corev1.PodSpec{
 						ServiceAccountName: types.TransportServiceAccountName,
-						Containers:         []corev1.Container{
+						Containers: []corev1.Container{
 							ContainerForTransport(van.Transport),
 							ContainerForBridgeServer(),
 						},

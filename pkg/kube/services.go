@@ -52,7 +52,7 @@ func NewServiceForAddress(address string, port int, targetPort int, owner *metav
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            address,
+			Name: address,
 			Annotations: map[string]string{
 				"internal.skupper.io/controlled": "true",
 			},

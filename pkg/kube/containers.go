@@ -39,9 +39,9 @@ func ContainerForBridgeServer() corev1.Container {
 	container := corev1.Container{
 		Image: types.DefaultBridgeServerImage,
 		Name:  types.BridgeServerContainerName,
-		Env:   []corev1.EnvVar{
+		Env: []corev1.EnvVar{
 			corev1.EnvVar{
-				Name: "CONF_FILE",
+				Name:  "CONF_FILE",
 				Value: "/etc/bridge-server/bridges.json",
 			},
 		},

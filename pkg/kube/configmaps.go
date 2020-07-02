@@ -12,7 +12,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-
 func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: "core/v1",
