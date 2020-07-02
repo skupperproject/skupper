@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 
@@ -117,12 +119,19 @@ func TestVanConnectorRemove(t *testing.T) {
 		}
 
 		//TODO: remove should distinguish found, not found
-		time.Sleep(time.Second * 5)
 		err = cli.VanConnectorRemove(ctx, types.VanConnectorRemoveOptions{
 			Name:             c.connName,
 			SkupperNamespace: c.namespace,
 			ForceCurrent:     false,
 		})
+		for i := 0; i < 5 && k8serrors.IsConflict(errors.Unwrap(err)); i++ {
+			time.Sleep(500 * time.Millisecond)
+			err = cli.VanConnectorRemove(ctx, types.VanConnectorRemoveOptions{
+				Name:             c.connName,
+				SkupperNamespace: c.namespace,
+				ForceCurrent:     false,
+			})
+		}
 		assert.Check(t, err, "Unable to remove connector for "+c.connName)
 
 		if c.createConn {

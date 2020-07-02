@@ -35,7 +35,7 @@ func (cli *VanClient) VanConnectorRemove(ctx context.Context, options types.VanC
 			// TODO: Do the following as qdr.RemoveConnector
 			config := kube.FindEnvVar(current.Spec.Template.Spec.Containers[0].Env, types.TransportEnvConfig)
 			if config == nil {
-				fmt.Println("Could not retrieve transport config")
+				return fmt.Errorf("Failed to remove connection, could not retrieve transport config")
 			} else {
 				pattern := "## Connectors: ##"
 				updated := strings.Split(config.Value, pattern)[0] + pattern
@@ -47,14 +47,14 @@ func (cli *VanClient) VanConnectorRemove(ctx context.Context, options types.VanC
 				kube.DeleteSecret(options.Name, options.SkupperNamespace, cli.KubeClient)
 				_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
 				if err != nil {
-					fmt.Println("Failed to remove connection:", err.Error())
+					return fmt.Errorf("Failed to remove connection: %w", err)
 				}
 			}
 		}
 	} else if errors.IsNotFound(err) {
-		fmt.Println("Skupper not enabled in: ", options.SkupperNamespace)
+		return fmt.Errorf("Skupper not enabled in: %s", options.SkupperNamespace)
 	} else {
-		fmt.Println("Failed to retrieve transport deployment: ", err.Error())
+		return fmt.Errorf("Failed to retrieve transport deployment: %w", err)
 	}
 	return err
 }
