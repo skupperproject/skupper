@@ -82,17 +82,32 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 	c.byName = byName
 }
 
+func equivalentServiceDefinition(a *types.ServiceInterface, b *types.ServiceInterface) bool {
+	if a.Protocol != b.Protocol || a.Port != b.Port || a.EventChannel != b.EventChannel || a.Aggregate != b.Aggregate {
+		return false
+	}
+	if a.Headless == nil && b.Headless == nil {
+		return true
+	} else if a.Headless != nil && b.Headless != nil {
+		if a.Headless.Name != b.Headless.Name || a.Headless.Size != b.Headless.Size || a.Headless.TargetPort != b.Headless.TargetPort {
+			return false
+		} else {
+			return true
+		}
+	} else {
+		return false
+	}
+}
+
 func (c *Controller) ensureServiceInterfaceDefinitions(origin string, serviceInterfaceDefs map[string]types.ServiceInterface) {
 	var changed []types.ServiceInterface
 	var deleted []string
 
 	for _, def := range serviceInterfaceDefs {
-		// check if it already exists or exists from different origin
-		//  if !ok || existing.Origin == origin && !equivalentServiceRecord(si, existing)
-		if _, ok := c.byName[def.Address]; !ok {
+		existing, ok := c.byName[def.Address]
+		if !ok || (existing.Origin == origin && !equivalentServiceDefinition(&def, &existing)) {
 			changed = append(changed, def)
 		}
-
 	}
 
 	// TODO: think about aging entries
