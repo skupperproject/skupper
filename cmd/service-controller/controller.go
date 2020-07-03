@@ -661,9 +661,17 @@ func (c *Controller) processNextEvent() bool {
 						}
 					}
 				} else {
-					bindings := c.bindings[name]
+					_, unqualified, err := cache.SplitMetaNamespaceKey(name)
+					if err != nil {
+						return fmt.Errorf("Could not determine name of deleted service from key %s: %w", name, err)
+					}
+					bindings := c.bindings[unqualified]
 					if bindings != nil {
-						err = c.createServiceFor(bindings)
+						if bindings.headless == nil {
+							err = c.createServiceFor(bindings)
+						} else if bindings.origin != "" {
+							err = c.createHeadlessServiceFor(bindings)
+						}
 						if err != nil {
 							return err
 						}
