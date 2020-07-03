@@ -44,8 +44,22 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 }
 
 func NewServiceForAddress(address string, port int, targetPort int, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	// TODO: make common service creation and deal with annotation, label differences
 	labels := getLabelsForRouter()
+	service := makeServiceObjectForAddress(address, port, targetPort, labels, owner)
+	return createServiceFromObject(service, namespace, kubeclient)
+}
+
+func NewHeadlessServiceForAddress(address string, port int, targetPort int, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+	labels := map[string]string{
+		"internal.skupper.io/service": "myservice2",
+	}
+	service := makeServiceObjectForAddress(address, port, targetPort, labels, owner)
+	service.Spec.ClusterIP = "None"
+	return createServiceFromObject(service, namespace, kubeclient)
+}
+
+func makeServiceObjectForAddress(address string, port int, targetPort int, labels map[string]string, owner *metav1.OwnerReference) *corev1.Service {
+	// TODO: make common service creation and deal with annotation, label differences
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -72,9 +86,13 @@ func NewServiceForAddress(address string, port int, targetPort int, owner *metav
 		service.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
 
 	}
+	return service
+}
+
+func createServiceFromObject(service *corev1.Service, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	created, err := kubeclient.CoreV1().Services(namespace).Create(service)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to create service: %w", err)
 	} else {
 		return created, nil
 	}
@@ -109,14 +127,7 @@ func NewService(svc types.Service, labels map[string]string, owner *metav1.Owner
 				*owner,
 			}
 		}
-
-		created, err := services.Create(service)
-
-		if err != nil {
-			return nil, fmt.Errorf("Failed to create service: %w", err)
-		} else {
-			return created, nil
-		}
+		return createServiceFromObject(service, namespace, kubeclient)
 	} else {
 		service := &corev1.Service{}
 		return service, fmt.Errorf("Failed to check service: %w", err)
