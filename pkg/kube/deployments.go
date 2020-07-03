@@ -41,18 +41,54 @@ func GetDeployment(name string, namespace string, cli kubernetes.Interface) (*ap
 	}
 }
 
-func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
-	// Do stateful sets use a different name >>> config.origion ? config.headless.name
-	proxyName := serviceInterface.Address + "-proxy"
+func getProxyStatefulSetName(definition types.ServiceInterface) string {
+	if definition.Origin == "" {
+		//in the originating site, the name cannot clash with
+		//the statefulset being exposed
+		return definition.Address + "-proxy"
+	} else {
+		//in all other sites, the name must match the
+		//statefulset that was exposed in the originating site
+		return definition.Headless.Name
+	}
+}
 
+func CheckProxyStatefulSet(desired types.ServiceInterface, actual *appsv1.StatefulSet, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
+	encoded, err := jsonencoding.Marshal(desired)
+	if err != nil {
+		return nil, err
+	}
+	if actual == nil {
+		actual, err = cli.AppsV1().StatefulSets(namespace).Get(getProxyStatefulSetName(desired), metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			return NewProxyStatefulSet(desired, namespace, cli)
+		} else if err != nil {
+			return nil, err
+		}
+	}
+	change := false
+	if desired.Headless.Size != int(*actual.Spec.Replicas) {
+		change = true
+		*actual.Spec.Replicas = int32(desired.Headless.Size)
+	}
+	config := FindEnvVar(actual.Spec.Template.Spec.Containers[0].Env, "SKUPPER_PROXY_CONFIG")
+	if config == nil || config.Value != string(encoded) {
+		SetEnvVarForStatefulSet(actual, "SKUPPER_PROXY_CONFIG", string(encoded))
+	}
+	if change {
+		return cli.AppsV1().StatefulSets(namespace).Update(actual)
+	} else {
+		return actual, nil
+	}
+}
+
+func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	statefulSets := cli.AppsV1().StatefulSets(namespace)
 	deployments := cli.AppsV1().Deployments(namespace)
 	transportDep, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-
-	serviceInterface.Origin = ""
 
 	encoded, err := jsonencoding.Marshal(serviceInterface)
 	if err != nil {
@@ -68,15 +104,14 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace stri
 		imageName = types.DefaultProxyImage
 	}
 
-	// TODO: Fix replicas
-
+	replicas := int32(serviceInterface.Headless.Size)
 	proxyStatefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            proxyName,
+			Name:            getProxyStatefulSetName(serviceInterface),
 			Namespace:       namespace,
 			OwnerReferences: []metav1.OwnerReference{ownerRef},
 			Annotations: map[string]string{
@@ -88,6 +123,7 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace stri
 		},
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName: serviceInterface.Address,
+			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"internal.skupper.io/service": serviceInterface.Address,

@@ -14,16 +14,28 @@ func FindEnvVar(env []corev1.EnvVar, name string) *corev1.EnvVar {
 	return nil
 }
 
-func SetEnvVarForDeployment(dep *appsv1.Deployment, name string, value string) {
-	original := dep.Spec.Template.Spec.Containers[0].Env
+func UpdateEnvVar(original []corev1.EnvVar, name string, value string) []corev1.EnvVar {
 	updated := []corev1.EnvVar{}
+	found := false
 	for _, v := range original {
 		if v.Name == name {
+			found = true
 			v.Value = value
 			updated = append(updated, corev1.EnvVar{Name: v.Name, Value: value})
 		} else {
 			updated = append(updated, v)
 		}
 	}
-	dep.Spec.Template.Spec.Containers[0].Env = updated
+	if !found {
+		updated = append(updated, corev1.EnvVar{Name: name, Value: value})
+	}
+	return updated
+}
+
+func SetEnvVarForDeployment(dep *appsv1.Deployment, name string, value string) {
+	dep.Spec.Template.Spec.Containers[0].Env = UpdateEnvVar(dep.Spec.Template.Spec.Containers[0].Env, name, value)
+}
+
+func SetEnvVarForStatefulSet(dep *appsv1.StatefulSet, name string, value string) {
+	dep.Spec.Template.Spec.Containers[0].Env = UpdateEnvVar(dep.Spec.Template.Spec.Containers[0].Env, name, value)
 }

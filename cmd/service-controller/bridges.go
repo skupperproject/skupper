@@ -98,11 +98,23 @@ type EgressBindings struct {
 }
 
 type ServiceBindings struct {
+	origin      string
 	protocol    string
 	address     string
 	publicPort  int
 	ingressPort int
+	headless    *types.Headless
 	targets     map[string]*EgressBindings
+}
+
+func asServiceInterface(bindings *ServiceBindings) types.ServiceInterface {
+	return types.ServiceInterface {
+		Address: bindings.address,
+		Protocol: bindings.protocol,
+		Port: bindings.publicPort,
+		Headless: bindings.headless,
+		Origin: bindings.origin,
+	}
 }
 
 type ServiceController struct {
@@ -135,10 +147,6 @@ func hasTargetForSelector(si types.ServiceInterface, selector string) bool {
 }
 
 func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string]int) error {
-	if required.Headless != nil {
-		// TODO: setup headless
-		return fmt.Errorf("Headless services not yet handled by this controller!")
-	}
 	bindings := c.bindings[required.Address]
 	if bindings == nil {
 		//create it
@@ -155,7 +163,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				return err
 			}
 		}
-		sb := newServiceBindings(required.Protocol, required.Address, required.Port, port)
+		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Port, required.Headless, port)
 		for _, t := range required.Targets {
 			sb.addTarget(t.Selector, getTargetPort(required, t), c)
 		}
@@ -167,6 +175,19 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		}
 		if bindings.publicPort != required.Port {
 			bindings.publicPort = required.Port
+		}
+		if required.Headless != nil {
+			if bindings.headless == nil {
+				bindings.headless = required.Headless
+			} else if bindings.headless.Name != required.Headless.Name {
+				bindings.headless.Name = required.Headless.Name
+			} else if bindings.headless.Size != required.Headless.Size {
+				bindings.headless.Size = required.Headless.Size
+			} else if bindings.headless.TargetPort != required.Headless.TargetPort {
+				bindings.headless.TargetPort = required.Headless.TargetPort
+			}
+		} else if bindings.headless != nil {
+			bindings.headless = nil
 		}
 		for _, t := range required.Targets {
 			targetPort := getTargetPort(required, t)
@@ -186,12 +207,14 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 	return nil
 }
 
-func newServiceBindings(protocol string, address string, publicPort int, ingressPort int) *ServiceBindings {
+func newServiceBindings(origin string, protocol string, address string, publicPort int, headless *types.Headless, ingressPort int) *ServiceBindings {
 	return &ServiceBindings{
+		origin:      origin,
 		protocol:    protocol,
 		address:     address,
 		publicPort:  publicPort,
 		ingressPort: ingressPort,
+		headless:    headless,
 		targets:     map[string]*EgressBindings{},
 	}
 }
@@ -228,10 +251,12 @@ func (sb *ServiceBindings) stop() {
 }
 
 func (sb *ServiceBindings) updateBridgeConfiguration(siteId string, bridges *BridgeConfiguration) {
-	addIngressBridge(sb.protocol, sb.ingressPort, sb.address, siteId, bridges)
-	for _, eb := range sb.targets {
-		eb.updateBridgeConfiguration(sb.protocol, sb.address, siteId, bridges)
-	}
+	if sb.headless == nil {
+		addIngressBridge(sb.protocol, sb.ingressPort, sb.address, siteId, bridges)
+		for _, eb := range sb.targets {
+			eb.updateBridgeConfiguration(sb.protocol, sb.address, siteId, bridges)
+		}
+	} // headless proxies are not specified through the main bridge configuration
 }
 
 func (eb *EgressBindings) start() error {
