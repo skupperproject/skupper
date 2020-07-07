@@ -244,9 +244,9 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 					Name: statefulset.ObjectMeta.Name,
 					Size: int(*statefulset.Spec.Replicas),
 				},
-				Targets: []types.ServiceInterfaceTarget {
-					types.ServiceInterfaceTarget {
-						Name: statefulset.ObjectMeta.Name,
+				Targets: []types.ServiceInterfaceTarget{
+					types.ServiceInterfaceTarget{
+						Name:     statefulset.ObjectMeta.Name,
 						Selector: stringifySelector(statefulset.Spec.Selector.MatchLabels),
 					},
 				},

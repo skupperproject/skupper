@@ -108,12 +108,12 @@ type ServiceBindings struct {
 }
 
 func asServiceInterface(bindings *ServiceBindings) types.ServiceInterface {
-	return types.ServiceInterface {
-		Address: bindings.address,
+	return types.ServiceInterface{
+		Address:  bindings.address,
 		Protocol: bindings.protocol,
-		Port: bindings.publicPort,
+		Port:     bindings.publicPort,
 		Headless: bindings.headless,
-		Origin: bindings.origin,
+		Origin:   bindings.origin,
 	}
 }
 
