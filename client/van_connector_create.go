@@ -7,6 +7,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,25 +21,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
-
-// TODO put these in kube or utils
-func isInterior(qdr *appsv1.Deployment) bool {
-	config := kube.FindEnvVar(qdr.Spec.Template.Spec.Containers[0].Env, "QDROUTERD_CONF")
-	//match 'mode: interior' in that config
-	if config == nil {
-		log.Fatal("Could not retrieve qdr config")
-	}
-	match, _ := regexp.MatchString("mode:[ ]+interior", config.Value)
-	return match
-}
-
-func getTransportMode(dep *appsv1.Deployment) types.TransportMode {
-	if qdr.IsInterior(dep) {
-		return types.TransportModeInterior
-	} else {
-		return types.TransportModeEdge
-	}
-}
 
 func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
@@ -143,7 +125,12 @@ func (cli *VanClient) createConnector(ctx context.Context, secret *corev1.Secret
 		connector.Role = string(types.ConnectorRoleEdge)
 	}
 	qdr.AddConnector(&connector, current)
+
 	_, err := cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
+	for i := 0; i < 10 && errors.IsConflict(err); i++ {
+		time.Sleep(500 * time.Millisecond)
+		_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
+	}
 	if err != nil {
 		return fmt.Errorf("Failed to update qdr deployment: %w", err)
 	} else {
