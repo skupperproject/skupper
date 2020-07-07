@@ -72,7 +72,7 @@ func getServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		} else {
 			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
 		}
-	} else if targetType == "statfulset" {
+	} else if targetType == "statefulset" {
 		statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(targetName, metav1.GetOptions{})
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
