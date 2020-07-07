@@ -29,28 +29,28 @@ import (
 )
 
 type Controller struct {
-	origin              string
-	vanClient           *client.VanClient
-	bridgeDefInformer   cache.SharedIndexInformer
-	svcDefInformer      cache.SharedIndexInformer
-	svcInformer         cache.SharedIndexInformer
-	headlessInformer    cache.SharedIndexInformer
+	origin            string
+	vanClient         *client.VanClient
+	bridgeDefInformer cache.SharedIndexInformer
+	svcDefInformer    cache.SharedIndexInformer
+	svcInformer       cache.SharedIndexInformer
+	headlessInformer  cache.SharedIndexInformer
 
 	//control loop state:
-	events              workqueue.RateLimitingInterface
-	bindings            map[string]*ServiceBindings
-	ports               *FreePorts
+	events   workqueue.RateLimitingInterface
+	bindings map[string]*ServiceBindings
+	ports    *FreePorts
 
 	//service_sync state:
-	tlsConfig           *tls.Config
-	amqpClient          *amqp.Client
-	amqpSession         *amqp.Session
-	byOrigin            map[string]map[string]types.ServiceInterface
-	Local               []types.ServiceInterface
-	byName              map[string]types.ServiceInterface
-	desiredServices     map[string]types.ServiceInterface
+	tlsConfig       *tls.Config
+	amqpClient      *amqp.Client
+	amqpSession     *amqp.Session
+	byOrigin        map[string]map[string]types.ServiceInterface
+	Local           []types.ServiceInterface
+	byName          map[string]types.ServiceInterface
+	desiredServices map[string]types.ServiceInterface
 
-	definitionMonitor   *DefinitionMonitor
+	definitionMonitor *DefinitionMonitor
 }
 
 func hasProxyAnnotation(service corev1.Service) bool {
@@ -514,7 +514,6 @@ func (c *Controller) initialiseServiceBindingsMap() (map[string]int, error) {
 	return allocations, nil
 
 }
-
 
 func (c *Controller) deleteServiceBindings(k string, v *ServiceBindings) {
 	if v != nil {

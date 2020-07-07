@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsv1informer "k8s.io/client-go/informers/apps/v1"
@@ -24,7 +24,7 @@ import (
 // headless services)
 type DefinitionMonitor struct {
 	origin              string
-	vanClient          *client.VanClient
+	vanClient           *client.VanClient
 	statefulSetInformer cache.SharedIndexInformer
 	svcDefInformer      cache.SharedIndexInformer
 	events              workqueue.RateLimitingInterface
@@ -32,12 +32,11 @@ type DefinitionMonitor struct {
 }
 
 func newDefinitionMonitor(origin string, client *client.VanClient, svcDefInformer cache.SharedIndexInformer) *DefinitionMonitor {
-	monitor := &DefinitionMonitor {
-		origin:  origin,
-		vanClient: client,
+	monitor := &DefinitionMonitor{
+		origin:         origin,
+		vanClient:      client,
 		svcDefInformer: svcDefInformer,
-		headless: make(map[string]types.ServiceInterface),
-
+		headless:       make(map[string]types.ServiceInterface),
 	}
 	monitor.statefulSetInformer = appsv1informer.NewStatefulSetInformer(
 		client.KubeClient,

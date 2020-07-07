@@ -123,7 +123,7 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace stri
 		},
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName: serviceInterface.Address,
-			Replicas: &replicas,
+			Replicas:    &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"internal.skupper.io/service": serviceInterface.Address,
