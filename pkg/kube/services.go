@@ -133,3 +133,14 @@ func NewService(svc types.Service, labels map[string]string, owner *metav1.Owner
 		return service, fmt.Errorf("Failed to check service: %w", err)
 	}
 }
+
+func GetLoadBalancerHostOrIp(service *corev1.Service) string {
+	for _, i := range service.Status.LoadBalancer.Ingress {
+		if i.IP != "" {
+			return i.IP
+		} else if i.Hostname != "" {
+			return i.Hostname
+		}
+	}
+	return ""
+}

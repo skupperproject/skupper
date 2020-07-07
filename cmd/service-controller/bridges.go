@@ -91,6 +91,7 @@ type BridgeConfiguration struct {
 }
 
 type EgressBindings struct {
+	name       string
 	selector   string
 	egressPort int
 	informer   cache.SharedIndexInformer
@@ -169,7 +170,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		}
 		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Port, required.Headless, port, required.Aggregate, required.EventChannel)
 		for _, t := range required.Targets {
-			sb.addTarget(t.Selector, getTargetPort(required, t), c)
+			sb.addTarget(t.Name, t.Selector, getTargetPort(required, t), c)
 		}
 		c.bindings[required.Address] = sb
 	} else {
@@ -197,7 +198,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			targetPort := getTargetPort(required, t)
 			target := bindings.targets[t.Selector]
 			if target == nil {
-				bindings.addTarget(t.Selector, targetPort, c)
+				bindings.addTarget(t.Name, t.Selector, targetPort, c)
 			} else if target.egressPort != targetPort {
 				target.egressPort = targetPort
 			}
@@ -225,8 +226,9 @@ func newServiceBindings(origin string, protocol string, address string, publicPo
 	}
 }
 
-func (sb *ServiceBindings) addTarget(selector string, port int, controller *Controller) error {
+func (sb *ServiceBindings) addTarget(name string, selector string, port int, controller *Controller) error {
 	sb.targets[selector] = &EgressBindings{
+		name:       name,
 		selector:   selector,
 		egressPort: port,
 		informer: corev1informer.NewFilteredPodInformer(
@@ -282,7 +284,7 @@ func (eb *EgressBindings) updateBridgeConfiguration(protocol string, address str
 	for _, p := range pods {
 		pod := p.(*corev1.Pod)
 		log.Printf("Adding pod for %s: %s", address, pod.ObjectMeta.Name)
-		addEgressBridge(protocol, pod.Status.PodIP, eb.egressPort, address, siteId, bridges)
+		addEgressBridge(protocol, pod.Status.PodIP, eb.egressPort, address, eb.name, siteId, bridges)
 	}
 }
 
@@ -416,12 +418,12 @@ func (m NestedHttpBridgeMap) add(b HttpBridge) {
 	}
 }
 
-func addEgressBridge(protocol string, host string, port int, address string, siteId string, bridges *BridgeConfiguration) (bool, error) {
+func addEgressBridge(protocol string, host string, port int, address string, target string, siteId string, bridges *BridgeConfiguration) (bool, error) {
 	switch protocol {
 	case ProtocolHTTP:
 		bridges.HttpConnectors.add(HttpBridge{
 			Bridge: Bridge{
-				Name:    getBridgeName(address, host),
+				Name:    getBridgeName(target, host),
 				Host:    host,
 				Port:    port,
 				Address: address,
@@ -431,7 +433,7 @@ func addEgressBridge(protocol string, host string, port int, address string, sit
 	case ProtocolHTTP2:
 		bridges.Http2Connectors.add(HttpBridge{
 			Bridge: Bridge{
-				Name:    getBridgeName(address, host),
+				Name:    getBridgeName(target, host),
 				Host:    host,
 				Port:    port,
 				Address: address,
@@ -440,7 +442,7 @@ func addEgressBridge(protocol string, host string, port int, address string, sit
 		})
 	case ProtocolTCP:
 		bridges.TcpConnectors.add(Bridge{
-			Name:    getBridgeName(address, host),
+			Name:    getBridgeName(target, host),
 			Host:    host,
 			Port:    port,
 			Address: address,

@@ -35,6 +35,7 @@ type RouterNode struct {
 	Id      string `json:"id"`
 	Name    string `json:"name"`
 	NextHop string `json:"nextHop"`
+	Address string `json:"address"`
 }
 
 type Connection struct {
