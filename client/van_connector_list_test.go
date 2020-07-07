@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
@@ -50,10 +51,14 @@ func TestVanConnectorListInterior(t *testing.T) {
 	assert.Check(t, err, "Unable to create VAN router")
 
 	for _, connName := range connNames {
+		// TODO: make more deterministic
+		time.Sleep(time.Second * 1)
 		err = cli.VanConnectorTokenCreateFile(ctx, connName, testPath+connName+".yaml")
 		assert.Check(t, err, "Unable to create connector token:"+connName)
 	}
 	for _, connName := range connNames {
+		// TODO: make more deterministic
+		time.Sleep(time.Second * 1)
 		_, err = cli.VanConnectorCreateFromFile(ctx, testPath+connName+".yaml", types.VanConnectorCreateOptions{
 			Name:             connName,
 			SkupperNamespace: namespace,
