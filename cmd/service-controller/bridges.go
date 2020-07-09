@@ -331,13 +331,13 @@ func (bc *BridgeConfiguration) addBridgeFromMap(entityType string, attributes ma
 		}
 		bridge.checkName()
 		switch entityType {
-		case "HttpConnector":
+		case "httpConnector":
 			bc.HttpConnectors.add(bridge)
-		case "HttpListener":
+		case "httpListener":
 			bc.HttpListeners[bridge.Address] = bridge
-		case "Http2Connector":
+		case "http2Connector":
 			bc.Http2Connectors.add(bridge)
-		case "Http2Listener":
+		case "http2Listener":
 			bc.Http2Listeners[bridge.Address] = bridge
 		default:
 		}
@@ -351,9 +351,9 @@ func (bc *BridgeConfiguration) addBridgeFromMap(entityType string, attributes ma
 		}
 		bridge.checkName()
 		switch entityType {
-		case "TcpConnector":
+		case "tcpConnector":
 			bc.TcpConnectors.add(bridge)
-		case "TcpListener":
+		case "tcpListener":
 			bc.TcpListeners[bridge.Address] = bridge
 		default:
 		}
@@ -495,7 +495,7 @@ func requiredBridges(services map[string]*ServiceBindings, siteId string) *Bridg
 func readBridgeConfiguration(data []byte) (*BridgeConfiguration, error) {
 	bridges := newBridgeConfiguration()
 	var obj interface{}
-	json.Unmarshal(data, obj)
+	json.Unmarshal(data, &obj)
 	if obj == nil {
 		return bridges, nil
 	}
