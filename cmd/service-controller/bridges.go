@@ -98,22 +98,26 @@ type EgressBindings struct {
 }
 
 type ServiceBindings struct {
-	origin      string
-	protocol    string
-	address     string
-	publicPort  int
-	ingressPort int
-	headless    *types.Headless
-	targets     map[string]*EgressBindings
+	origin       string
+	protocol     string
+	address      string
+	publicPort   int
+	ingressPort  int
+	aggregation  string
+	eventChannel bool
+	headless     *types.Headless
+	targets      map[string]*EgressBindings
 }
 
 func asServiceInterface(bindings *ServiceBindings) types.ServiceInterface {
 	return types.ServiceInterface{
-		Address:  bindings.address,
-		Protocol: bindings.protocol,
-		Port:     bindings.publicPort,
-		Headless: bindings.headless,
-		Origin:   bindings.origin,
+		Address:      bindings.address,
+		Protocol:     bindings.protocol,
+		Port:         bindings.publicPort,
+		Aggregate:    bindings.aggregation,
+		EventChannel: bindings.eventChannel,
+		Headless:     bindings.headless,
+		Origin:       bindings.origin,
 	}
 }
 
@@ -163,7 +167,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				return err
 			}
 		}
-		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Port, required.Headless, port)
+		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Port, required.Headless, port, required.Aggregate, required.EventChannel)
 		for _, t := range required.Targets {
 			sb.addTarget(t.Selector, getTargetPort(required, t), c)
 		}
@@ -207,15 +211,17 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 	return nil
 }
 
-func newServiceBindings(origin string, protocol string, address string, publicPort int, headless *types.Headless, ingressPort int) *ServiceBindings {
+func newServiceBindings(origin string, protocol string, address string, publicPort int, headless *types.Headless, ingressPort int, aggregation string, eventChannel bool) *ServiceBindings {
 	return &ServiceBindings{
-		origin:      origin,
-		protocol:    protocol,
-		address:     address,
-		publicPort:  publicPort,
-		ingressPort: ingressPort,
-		headless:    headless,
-		targets:     map[string]*EgressBindings{},
+		origin:       origin,
+		protocol:     protocol,
+		address:      address,
+		publicPort:   publicPort,
+		ingressPort:  ingressPort,
+		aggregation:  aggregation,
+		eventChannel: eventChannel,
+		headless:     headless,
+		targets:      map[string]*EgressBindings{},
 	}
 }
 
@@ -252,7 +258,7 @@ func (sb *ServiceBindings) stop() {
 
 func (sb *ServiceBindings) updateBridgeConfiguration(siteId string, bridges *BridgeConfiguration) {
 	if sb.headless == nil {
-		addIngressBridge(sb.protocol, sb.ingressPort, sb.address, siteId, bridges)
+		addIngressBridge(sb, siteId, bridges)
 		for _, eb := range sb.targets {
 			eb.updateBridgeConfiguration(sb.protocol, sb.address, siteId, bridges)
 		}
@@ -446,38 +452,42 @@ func addEgressBridge(protocol string, host string, port int, address string, sit
 	return true, nil
 }
 
-func addIngressBridge(protocol string, port int, address string, siteId string, bridges *BridgeConfiguration) (bool, error) {
-	switch protocol {
+func addIngressBridge(sb *ServiceBindings, siteId string, bridges *BridgeConfiguration) (bool, error) {
+	switch sb.protocol {
 	case ProtocolHTTP:
-		bridges.HttpListeners[address] = HttpBridge{
+		bridges.HttpListeners[sb.address] = HttpBridge{
 			Bridge: Bridge{
-				Name:    getBridgeName(address, ""),
+				Name:    getBridgeName(sb.address, ""),
 				Host:    "0.0.0.0",
-				Port:    port,
-				Address: address,
+				Port:    sb.ingressPort,
+				Address: sb.address,
 				SiteId:  siteId,
 			},
+			Aggregation:  sb.aggregation,
+			EventChannel: sb.eventChannel,
 		}
 	case ProtocolHTTP2:
-		bridges.Http2Listeners[address] = HttpBridge{
+		bridges.Http2Listeners[sb.address] = HttpBridge{
 			Bridge: Bridge{
-				Name:    getBridgeName(address, ""),
+				Name:    getBridgeName(sb.address, ""),
 				Host:    "0.0.0.0",
-				Port:    port,
-				Address: address,
+				Port:    sb.ingressPort,
+				Address: sb.address,
 				SiteId:  siteId,
 			},
+			Aggregation:  sb.aggregation,
+			EventChannel: sb.eventChannel,
 		}
 	case ProtocolTCP:
-		bridges.TcpListeners[address] = Bridge{
-			Name:    getBridgeName(address, ""),
+		bridges.TcpListeners[sb.address] = Bridge{
+			Name:    getBridgeName(sb.address, ""),
 			Host:    "0.0.0.0",
-			Port:    port,
-			Address: address,
+			Port:    sb.ingressPort,
+			Address: sb.address,
 			SiteId:  siteId,
 		}
 	default:
-		return false, fmt.Errorf("Unrecognised protocol for service %s: %s", address, protocol)
+		return false, fmt.Errorf("Unrecognised protocol for service %s: %s", sb.address, sb.protocol)
 	}
 	return true, nil
 }
