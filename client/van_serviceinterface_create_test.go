@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
-	"sort"
 	"testing"
 	"time"
 
@@ -20,30 +18,27 @@ import (
 
 // If this function detects a difference between the expected and observed
 // results, it asserts a test failure.
-func check_result(t *testing.T, timeout_seconds float64, expected []string, found *[]string, doc string) {
+func check_result(t *testing.T, timeoutSeconds float64, resultType string, expected []string, found *[]string, doc string) {
 	if len(expected) <= 0 {
 		return
 	}
+	// Sometimes it requires a little time for the requested entities to be
+	// created and for the informers to tell us about them.
+	// So -- count down by tenths of a second until the alotted timeout expires,
+	// or until we have at least the correct number of results.
 	for {
-		// Sometimes it requires a little time for the requested entities to be
-		// created and for the informers to tell us about them.
-		// So -- count down by tenths of a second until the alotted timeout expires,
-		// or until we have the correct number of results.
-		// If the latter -- check to make sure that they are as expected.
-		if timeout_seconds <= 0 {
-			assert.Assert(t, false, fmt.Sprintf("%s: timed out waiting for expected list size %d.\n", doc, len(expected)))
+		if timeoutSeconds <= 0 {
 			break
 		}
 		if len(*found) >= len(expected) {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
-		timeout_seconds -= 0.1
+		timeoutSeconds -= 0.1
 	}
-	sort.Strings(expected)
-	sort.Strings(*found)
-	report_string := fmt.Sprintf("%s: expected |%#v| found |%#v|\n", doc, expected, *found)
-	assert.Assert(t, cmp.Equal(expected, *found, nil), report_string)
+	if diff := cmp.Diff(expected, *found, trans); diff != "" {
+		t.Errorf("TestVanServiceInterfaceCreate %s mismatch (-want +got):\n%s", resultType, diff)
+	}
 }
 
 func TestVanServiceInterfaceCreate(t *testing.T) {
@@ -232,9 +227,9 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 		}
 
 		// Check all the lists of expected entities.
-		check_result(t, testcase.timeout, testcase.depsExpected, &depsFound, testcase.doc)
-		check_result(t, testcase.timeout, testcase.cmsExpected, &cmsFound, testcase.doc)
-		check_result(t, testcase.timeout, testcase.rolesExpected, &rolesFound, testcase.doc)
-		check_result(t, testcase.timeout, testcase.svcsExpected, &svcsFound, testcase.doc)
+		check_result(t, testcase.timeout, "dependencies", testcase.depsExpected, &depsFound, testcase.doc)
+		check_result(t, testcase.timeout, "config maps", testcase.cmsExpected, &cmsFound, testcase.doc)
+		check_result(t, testcase.timeout, "roles", testcase.rolesExpected, &rolesFound, testcase.doc)
+		check_result(t, testcase.timeout, "services", testcase.svcsExpected, &svcsFound, testcase.doc)
 	}
 }
