@@ -168,13 +168,14 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 func (c *Controller) runServiceSync() {
 	ctx := context.Background()
 
-	log.Println("Establishing connection to skupper-messaging service")
+	log.Println("Establishing connection to skupper-messaging service...")
 
 	client, err := amqp.Dial("amqps://skupper-messaging:5671", amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(c.tlsConfig))
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Failed to create amqp connection %s", err.Error()))
 		return
 	}
+	log.Println("connection to skupper-messaging service established")
 	c.amqpClient = client
 	defer c.amqpClient.Close()
 
@@ -225,13 +226,16 @@ func (c *Controller) runServiceSync() {
 						err := jsonencoding.Unmarshal([]byte(updates), &defs)
 						if err == nil {
 							indexed := make(map[string]types.ServiceInterface)
-							log.Printf("Received service-sync-update from %s: %s\n", origin, updates)
 							for _, def := range defs {
 								def.Origin = origin
 								indexed[def.Address] = def
 							}
 							c.ensureServiceInterfaceDefinitions(origin, indexed)
+						} else {
+							log.Printf("Skupper service sync update from %s was not valid json: %s", origin, err)
 						}
+					} else {
+						log.Printf("Skupper service sync update from %s was not a string", origin)
 					}
 				}
 			} else {
