@@ -307,9 +307,9 @@ func main() {
 					}
 				}
 			} else if errors.IsNotFound(err) {
-				fmt.Println("The VanRouter is not install in '" + cli.Namespace + "`")
+				fmt.Println("Skupper is not installed in '" + cli.Namespace + "`")
 			} else {
-				fmt.Println("Error, unable to retrieve VAN connections: ", err.Error())
+				fmt.Println("Error, unable to retrieve connections: ", err.Error())
 			}
 		},
 	}
@@ -385,9 +385,9 @@ func main() {
 					modedesc = " in edge mode"
 				}
 				if vir.Status.TransportReadyReplicas == 0 {
-					fmt.Printf("VanRouter is installed in namespace '%q%s'. Status pending...", cli.Namespace, modedesc)
+					fmt.Printf("Skupper is enabled for namespace '%q%s'. Status pending...", cli.Namespace, modedesc)
 				} else {
-					fmt.Printf("VanRouter is enabled for namespace '%q%s'.", cli.Namespace, modedesc)
+					fmt.Printf("Skupper is enabled for namespace '%q%s'.", cli.Namespace, modedesc)
 					if vir.Status.ConnectedSites.Total == 0 {
 						fmt.Printf(" It is not connected to any other sites.")
 					} else if vir.Status.ConnectedSites.Total == 1 {
@@ -422,11 +422,15 @@ func main() {
 			err := expose(cli, context.Background(), args[0], args[1], exposeOpts)
 
 			if err == nil {
-				fmt.Printf("VAN Service Interface Target %s exposed\n", args[1])
+				address := exposeOpts.Address
+				if address == "" {
+					address = args[1]
+				}
+				fmt.Printf("%s %s exposed as %s\n", args[0], args[1], address)
 			} else if errors.IsNotFound(err) {
-				fmt.Println("The VAN Router is not installed in '" + cli.Namespace + "`")
+				fmt.Println("Skupper is not installed in '" + cli.Namespace + "`")
 			} else {
-				fmt.Println("Error, unable to create VAN service interface: ", err.Error())
+				fmt.Println("Error, unable to create skupper service: ", err.Error())
 			}
 		},
 	}
@@ -445,9 +449,9 @@ func main() {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.VanServiceInterfaceUnbind(context.Background(), args[0], args[1], unexposeAddress, true)
 			if err == nil {
-				fmt.Printf("VAN Service Interface Target %s unexposed\n", args[1])
+				fmt.Printf("%s %s unexposed\n", args[0], args[1])
 			} else {
-				fmt.Println("Error, unable to remove VAN service interface: ", err.Error())
+				fmt.Println("Error, unable to skupper service: ", err.Error())
 			}
 		},
 	}
@@ -462,7 +466,7 @@ func main() {
 			vsis, err := cli.VanServiceInterfaceList(context.Background())
 			if err == nil {
 				if len(vsis) == 0 {
-					fmt.Println("No service interfaces defined")
+					fmt.Println("No services defined")
 				} else {
 					fmt.Println("Services exposed through Skupper:")
 					for _, si := range vsis {
@@ -484,7 +488,7 @@ func main() {
 					}
 				}
 			} else {
-				fmt.Println("Could not retrieve service interfaces:", err.Error())
+				fmt.Println("Could not retrieve services:", err.Error())
 			}
 		},
 	}
