@@ -183,13 +183,19 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 }
 
 func (cli *VanClient) VanServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
+
 	owner, err := getRootObject(cli)
 	if err == nil {
-		err = validateServiceInterface(service)
-		if err != nil {
-			return err
+		_, err = cli.VanServiceInterfaceInspect(ctx, service.Address)
+		if err == nil {
+			err = validateServiceInterface(service)
+			if err != nil {
+				return err
+			}
+			return updateServiceInterface(service, true, owner, cli)
+		} else {
+			return fmt.Errorf("Service not found: %w", err)
 		}
-		return updateServiceInterface(service, true, owner, cli)
 	} else if errors.IsNotFound(err) {
 		return fmt.Errorf("Skupper not initialised in %s", cli.Namespace)
 	} else {

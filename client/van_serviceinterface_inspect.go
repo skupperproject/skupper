@@ -16,7 +16,7 @@ func (cli *VanClient) VanServiceInterfaceInspect(ctx context.Context, address st
 	if err == nil {
 		jsonDef := current.Data[address]
 		if jsonDef == "" {
-			return nil, nil
+			return nil, fmt.Errorf("Service definition %s not found", address)
 		} else {
 			service := types.ServiceInterface{}
 			err = jsonencoding.Unmarshal([]byte(jsonDef), &service)

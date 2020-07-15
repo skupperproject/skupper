@@ -39,6 +39,11 @@ func DeleteService(name string, namespace string, kubeclient kubernetes.Interfac
 	return err
 }
 
+func UpdateService(service *corev1.Service, namespace string, kubeclient kubernetes.Interface) error {
+	_, err := kubeclient.CoreV1().Services(namespace).Update(service)
+	return err
+}
+
 func GetService(name string, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	current, err := kubeclient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
 	return current, err

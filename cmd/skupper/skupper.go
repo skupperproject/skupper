@@ -128,6 +128,17 @@ func deleteServiceArgs() func(*cobra.Command, []string) error {
 	}
 }
 
+func updateServiceArgs() func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return fmt.Errorf("name of service to update must be specified")
+		} else if len(args) > 1 {
+			return fmt.Errorf("illegal argument: %s", args[1])
+		}
+		return nil
+	}
+}
+
 func bindArgs() func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3) {
@@ -560,7 +571,7 @@ func main() {
 	}
 
 	var cmdService = &cobra.Command{
-		Use:   "service create <name> <port> or service delete port",
+		Use:   "service create <name> <port>, service update <name>, or service delete port",
 		Short: "Manage skupper service definitions",
 	}
 
@@ -614,6 +625,57 @@ func main() {
 		},
 	}
 	cmdService.AddCommand(cmdDeleteService)
+
+	var serviceToUpdate types.ServiceInterface
+	var cmdUpdateService = &cobra.Command{
+		Use:   "update <name>",
+		Short: "Update a skupper service",
+		Long:  "Update allows settings for an existing service to be changed. Note that for http and http2 protocol mappings, if --aggregate or --event-channel are not present, the current settings will not be retained",
+		Args:  updateServiceArgs(),
+		Run: func(cmd *cobra.Command, args []string) {
+			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
+			current, err := cli.VanServiceInterfaceInspect(context.Background(), args[0])
+			if err != nil {
+				fmt.Println(err.Error())
+			} else if current == nil {
+				fmt.Printf("Could not retrieve service interface definition: %s\n", args[0])
+			} else {
+				update := false
+				if serviceToUpdate.Port != 0 && serviceToUpdate.Port != current.Port {
+					update = true
+					current.Port = serviceToUpdate.Port
+				}
+				if serviceToUpdate.Protocol != "" && serviceToUpdate.Protocol != current.Protocol {
+					update = true
+					current.Protocol = serviceToUpdate.Protocol
+				}
+				if serviceToUpdate.Aggregate != current.Aggregate {
+					update = true
+					if serviceToUpdate.Aggregate != "" && !serviceToUpdate.EventChannel {
+						current.EventChannel = serviceToUpdate.EventChannel
+					}
+					current.Aggregate = serviceToUpdate.Aggregate
+				}
+				if serviceToUpdate.EventChannel != current.EventChannel {
+					update = true
+					if serviceToUpdate.EventChannel && serviceToUpdate.Aggregate == "" {
+						current.Aggregate = ""
+					}
+					current.EventChannel = serviceToUpdate.EventChannel
+				}
+				if update {
+					err := cli.VanServiceInterfaceUpdate(context.Background(), current)
+					if err != nil {
+						fmt.Println(err.Error())
+					}
+				}
+			}
+		},
+	}
+	cmdUpdateService.Flags().IntVar(&serviceToUpdate.Port, "port", 0, "The service port to modify")
+	cmdUpdateService.Flags().StringVar(&serviceToUpdate.Aggregate, "aggregate", "", "The aggregation strategy to modify. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
+	cmdUpdateService.Flags().BoolVar(&serviceToUpdate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+	cmdService.AddCommand(cmdUpdateService)
 
 	var targetPort int
 	var protocol string
