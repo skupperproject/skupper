@@ -197,6 +197,7 @@ func main() {
 			}
 			if err != nil {
 				fmt.Println(err.Error())
+				os.Exit(1)
 			} else {
 				fmt.Println("Skupper is now removed from '" + cli.Namespace + "'.")
 			}
@@ -213,6 +214,7 @@ func main() {
 			err := cli.VanConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
 			if err != nil {
 				fmt.Println("Failed to create connection token: ", err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -228,11 +230,13 @@ func main() {
 			siteConfig, err := cli.VanSiteConfigInspect(context.Background(), nil)
 			if err != nil {
 				fmt.Println("Error, unable to retrieve site config: ", err.Error())
+				os.Exit(1)
 			} else if siteConfig == nil || !siteConfig.Spec.SiteControlled {
 				vanConnectorCreateOpts.SkupperNamespace = cli.Namespace
 				secret, err := cli.VanConnectorCreateFromFile(context.Background(), args[0], vanConnectorCreateOpts)
 				if err != nil {
 					fmt.Println("Failed to create connection: ", err.Error())
+					os.Exit(1)
 				} else {
 					if siteConfig.Spec.IsEdge {
 						fmt.Printf("Skupper configured to connect to %s:%s (name=%s)\n",
@@ -251,6 +255,7 @@ func main() {
 				secret, err := cli.VanConnectorCreateSecretFromFile(context.Background(), args[0], vanConnectorCreateOpts)
 				if err != nil {
 					fmt.Println("Failed to create connection: ", err.Error())
+					os.Exit(1)
 				} else {
 					if siteConfig.Spec.IsEdge {
 						fmt.Printf("Skupper site-controller configured to connect to %s:%s (name=%s)\n",
@@ -285,6 +290,7 @@ func main() {
 				fmt.Println("Connection '" + args[0] + "' has been removed")
 			} else {
 				fmt.Println("Failed to remove connection: ", err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -308,8 +314,10 @@ func main() {
 				}
 			} else if errors.IsNotFound(err) {
 				fmt.Println("Skupper is not installed in '" + cli.Namespace + "`")
+				os.Exit(1)
 			} else {
 				fmt.Println("Error, unable to retrieve connections: ", err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -408,6 +416,7 @@ func main() {
 				fmt.Println()
 			} else {
 				fmt.Println("Unable to retrieve skupper status: ", err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -429,8 +438,10 @@ func main() {
 				fmt.Printf("%s %s exposed as %s\n", args[0], args[1], address)
 			} else if errors.IsNotFound(err) {
 				fmt.Println("Skupper is not installed in '" + cli.Namespace + "`")
+				os.Exit(1)
 			} else {
 				fmt.Println("Error, unable to create skupper service: ", err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -450,8 +461,10 @@ func main() {
 			err := cli.VanServiceInterfaceUnbind(context.Background(), args[0], args[1], unexposeAddress, true)
 			if err == nil {
 				fmt.Printf("%s %s unexposed\n", args[0], args[1])
+				os.Exit(1)
 			} else {
 				fmt.Println("Error, unable to skupper service: ", err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -489,6 +502,7 @@ func main() {
 				}
 			} else {
 				fmt.Println("Could not retrieve services:", err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -517,12 +531,14 @@ func main() {
 			if err != nil {
 				fmt.Printf("%s is not a valid port.", sPort)
 				fmt.Println()
+				os.Exit(1)
 			} else {
 				serviceToCreate.Port = servicePort
 				cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 				err = cli.VanServiceInterfaceCreate(context.Background(), &serviceToCreate)
 				if err != nil {
 					fmt.Println(err.Error())
+					os.Exit(1)
 				}
 			}
 		},
@@ -541,6 +557,7 @@ func main() {
 			err := cli.VanServiceInterfaceRemove(context.Background(), args[0])
 			if err != nil {
 				fmt.Println(err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -556,6 +573,7 @@ func main() {
 			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
 				fmt.Printf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
 				fmt.Println()
+				os.Exit(1)
 			} else {
 				var targetType string
 				var targetName string
@@ -571,9 +589,11 @@ func main() {
 				service, err := cli.VanServiceInterfaceInspect(context.Background(), args[0])
 				if err != nil {
 					fmt.Println(err.Error())
+					os.Exit(1)
 				} else if service == nil {
 					fmt.Printf("Service %s not found", args[0])
 					fmt.Println()
+					os.Exit(1)
 				} else {
 					err = cli.VanServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort)
 					if err != nil {
@@ -605,6 +625,7 @@ func main() {
 			err := cli.VanServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
 			if err != nil {
 				fmt.Println(err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -623,6 +644,7 @@ func main() {
 				fmt.Printf("controller version           %s\n", vir.ControllerVersion)
 			} else {
 				fmt.Println("Unable to retrieve skupper component versions: ", err.Error())
+				os.Exit(1)
 			}
 		},
 	}
@@ -634,5 +656,8 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
-	rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }

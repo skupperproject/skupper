@@ -25,7 +25,9 @@ func (cli *VanClient) VanServiceInterfaceRemove(ctx context.Context, address str
 		}
 	} else if errors.IsNotFound(err) {
 		return fmt.Errorf("No skupper services defined: %v", err.Error())
+	} else if current.Data == nil {
+		return fmt.Errorf("Service %s not defined", address)
 	} else {
-		return fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services': %v", err.Error())
+		return fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services': %s", err.Error())
 	}
 }
