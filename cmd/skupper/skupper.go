@@ -77,13 +77,21 @@ func requiredArg(name string) func(*cobra.Command, []string) error {
 
 func exposeTarget() func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		if len(args) < 2 {
-			return fmt.Errorf("expose target must be specified (e.g. 'skupper expose deployment <name>'")
+		if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
+			return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>'")
 		}
 		if len(args) > 2 {
 			return fmt.Errorf("illegal argument: %s", args[2])
 		}
-		if args[0] != "deployment" && args[0] != "statefulset" && args[0] != "pods" {
+		if len(args) > 1 && strings.Contains(args[0], "/") {
+			return fmt.Errorf("extra argument: %s", args[1])
+		}
+		targetType := args[0]
+		if strings.Contains(args[0], "/") {
+			parts := strings.Split(args[0], "/")
+			targetType = parts[0]
+		}
+		if targetType != "deployment" && targetType != "statefulset" && targetType != "pods" {
 			return fmt.Errorf("expose target type must be one of 'deployment', 'statefulset' or 'pods'")
 		}
 		return nil
@@ -428,14 +436,25 @@ func main() {
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := expose(cli, context.Background(), args[0], args[1], exposeOpts)
+
+			targetType := args[0]
+			var targetName string
+			if len(args) == 2 {
+				targetName = args[1]
+			} else {
+				parts := strings.Split(args[0], "/")
+				targetType = parts[0]
+				targetName = parts[1]
+			}
+
+			err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
 
 			if err == nil {
 				address := exposeOpts.Address
 				if address == "" {
-					address = args[1]
+					address = targetType
 				}
-				fmt.Printf("%s %s exposed as %s\n", args[0], args[1], address)
+				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, address)
 			} else if errors.IsNotFound(err) {
 				fmt.Println("Skupper is not installed in '" + cli.Namespace + "`")
 				os.Exit(1)
@@ -458,9 +477,18 @@ func main() {
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanServiceInterfaceUnbind(context.Background(), args[0], args[1], unexposeAddress, true)
+			targetType := args[0]
+			var targetName string
+			if len(args) == 2 {
+				targetName = args[1]
+			} else {
+				parts := strings.Split(args[0], "/")
+				targetType = parts[0]
+				targetName = parts[1]
+			}
+			err := cli.VanServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
 			if err == nil {
-				fmt.Printf("%s %s unexposed\n", args[0], args[1])
+				fmt.Printf("%s %s unexposed\n", targetType, targetName)
 				os.Exit(1)
 			} else {
 				fmt.Println("Error, unable to skupper service: ", err.Error())
