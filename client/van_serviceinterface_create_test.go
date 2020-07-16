@@ -38,8 +38,8 @@ func check_result(t *testing.T, name string, timeoutSeconds float64, resultType 
 		if len(*found) >= len(expected) {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
-		timeoutSeconds -= 0.1
+		time.Sleep(time.Second)
+		timeoutSeconds -= 1.0
 	}
 	if diff := cmp.Diff(expected, *found, trans); diff != "" {
 		t.Errorf("TestVanServiceInterfaceCreate %s : %s mismatch (-want +got):\n%s", name, resultType, diff)
@@ -48,19 +48,20 @@ func check_result(t *testing.T, name string, timeoutSeconds float64, resultType 
 
 func TestVanServiceInterfaceCreate(t *testing.T) {
 	testcases := []struct {
-		namespace     string
-		doc           string
-		init          bool
-		expectedErr   string
-		addr          string
-		proto         string
-		port          int
-		user          string
-		depsExpected  []string
-		cmsExpected   []string
-		rolesExpected []string
-		svcsExpected  []string
-		timeout       float64 // seconds
+		namespace        string
+		doc              string
+		init             bool
+		expectedErr      string
+		addr             string
+		proto            string
+		port             int
+		user             string
+		depsExpected     []string
+		cmsExpected      []string
+		rolesExpected    []string
+		svcsExpected     []string
+		realSvcsExpected []string
+		timeout          float64 // seconds
 	}{
 		// The first four tests look at error returns (or the lack thereof)
 		// caused by bad (or not bad) arguments. An expected error of "" means
@@ -80,7 +81,7 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 			namespace:   "vsic-2",
 			doc:         "Normal initialization.",
 			init:        true,
-			addr:        "half-addr",
+			addr:        "vsic-2-addr",
 			proto:       "tcp",
 			port:        5672,
 			expectedErr: "",
@@ -89,7 +90,7 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 			namespace:   "vsic-3",
 			doc:         "Bad protocol.",
 			init:        true,
-			addr:        "half-addr",
+			addr:        "vsic-3-addr",
 			proto:       "BISYNC",
 			port:        64000,
 			expectedErr: "BISYNC is not a valid mapping",
@@ -98,7 +99,7 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 			namespace:   "vsic-4",
 			doc:         "Bad port.",
 			init:        true,
-			addr:        "half-addr",
+			addr:        "vsic-4-addr",
 			proto:       "tcp",
 			port:        314159,
 			expectedErr: "outside valid range",
@@ -111,15 +112,22 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 			namespace:     "vsic-5",
 			doc:           "Check basic deployments.",
 			init:          true,
-			addr:          "half-addr",
+			addr:          "vsic-5-addr",
 			proto:         "tcp",
 			port:          1999,
 			expectedErr:   "",
 			depsExpected:  []string{"skupper-router", "skupper-service-controller"},
 			cmsExpected:   []string{"skupper-internal", "skupper-services"},
 			rolesExpected: []string{"skupper-edit", "skupper-view"},
-			svcsExpected:  []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
-			timeout:       10.0,
+			// The list of expected services is slightly different in
+			// the mock environment vs. a real cluster.
+			// It usually takes 10 or 12 seconds for the address service to
+			// show up, but I am giving it a large timeout here. The result
+			// checker will cut out as soon as it sees a result list of the
+			// right size.
+			svcsExpected:     []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
+			realSvcsExpected: []string{"skupper-messaging", "skupper-internal", "skupper-controller", "vsic-5-addr"},
+			timeout:          60.0,
 		},
 	}
 
@@ -246,6 +254,11 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 		check_result(t, testcase.namespace, testcase.timeout, "dependencies", testcase.depsExpected, &depsFound, testcase.doc)
 		check_result(t, testcase.namespace, testcase.timeout, "config maps", testcase.cmsExpected, &cmsFound, testcase.doc)
 		check_result(t, testcase.namespace, testcase.timeout, "roles", testcase.rolesExpected, &rolesFound, testcase.doc)
-		check_result(t, testcase.namespace, testcase.timeout, "services", testcase.svcsExpected, &svcsFound, testcase.doc)
+
+		if isCluster {
+			check_result(t, testcase.namespace, testcase.timeout, "services", testcase.realSvcsExpected, &svcsFound, testcase.doc)
+		} else {
+			check_result(t, testcase.namespace, testcase.timeout, "services", testcase.svcsExpected, &svcsFound, testcase.doc)
+		}
 	}
 }
