@@ -18,7 +18,7 @@ import (
 )
 
 type ClusterTestRunnerInterface interface {
-	Build(t *testing.T)
+	Build(t *testing.T, ns_suffix string) //is this interface used?
 	Run()
 }
 
@@ -30,21 +30,21 @@ type ClusterTestRunnerBase struct {
 	T            *testing.T
 }
 
-func (r *ClusterTestRunnerBase) Build(t *testing.T) {
+func (r *ClusterTestRunnerBase) Build(t *testing.T, ns_suffix string) {
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		homedir, err := os.UserHomeDir()
-		assert.Check(t, err)
+		assert.Assert(t, err)
 		kubeconfig = path.Join(homedir, ".kube/config")
 	}
 
 	//TODO assign here uniq, publicX and privateX namespaces instead of
 	//generic ones
-	r.Pub1Cluster = BuildClusterContext(t, "public1", kubeconfig, vanClient.NewClient)
-	r.Pub2Cluster = BuildClusterContext(t, "public2", kubeconfig, vanClient.NewClient)
-	r.Priv1Cluster = BuildClusterContext(t, "private1", kubeconfig, vanClient.NewClient)
-	r.Priv2Cluster = BuildClusterContext(t, "private2", kubeconfig, vanClient.NewClient)
+	r.Pub1Cluster = BuildClusterContext(t, "public1-"+ns_suffix, kubeconfig, vanClient.NewClient)
+	r.Pub2Cluster = BuildClusterContext(t, "public2-"+ns_suffix, kubeconfig, vanClient.NewClient)
+	r.Priv1Cluster = BuildClusterContext(t, "private1-"+ns_suffix, kubeconfig, vanClient.NewClient)
+	r.Priv2Cluster = BuildClusterContext(t, "private2-"+ns_suffix, kubeconfig, vanClient.NewClient)
 	r.T = t
 }
 
