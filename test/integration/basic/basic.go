@@ -48,20 +48,23 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.VanS
 	assert.Assert(r.T, err)
 
 	createOptsPublic.Spec.SkupperNamespace = r.Pub1Cluster.CurrentNamespace
-	r.Pub1Cluster.VanClient.VanRouterCreate(ctx, createOptsPublic)
+	err = r.Pub1Cluster.VanClient.VanRouterCreate(ctx, createOptsPublic)
+	assert.Assert(r.T, err)
 
 	err = r.Pub1Cluster.VanClient.VanConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
 	assert.Assert(r.T, err)
 
 	createOptsPrivate.Spec.SkupperNamespace = r.Priv1Cluster.CurrentNamespace
 	err = r.Priv1Cluster.VanClient.VanRouterCreate(ctx, createOptsPrivate)
+	assert.Assert(r.T, err)
 
 	var vanConnectorCreateOpts types.VanConnectorCreateOptions = types.VanConnectorCreateOptions{
 		SkupperNamespace: r.Priv1Cluster.CurrentNamespace,
 		Name:             "",
 		Cost:             0,
 	}
-	r.Priv1Cluster.VanClient.VanConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", vanConnectorCreateOpts)
+	_, err = r.Priv1Cluster.VanClient.VanConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", vanConnectorCreateOpts)
+	assert.Assert(r.T, err)
 }
 
 func (r *BasicTestRunner) TearDown(ctx context.Context) {
