@@ -33,7 +33,11 @@ type ExposeOptions struct {
 func expose(cli *client.VanClient, ctx context.Context, targetType string, targetName string, options ExposeOptions) error {
 	serviceName := options.Address
 	if serviceName == "" {
-		serviceName = targetName
+		if targetType == "service" {
+			return fmt.Errorf("The --address option is required for target type 'service'")
+		} else {
+			serviceName = targetName
+		}
 	}
 	service, err := cli.VanServiceInterfaceInspect(ctx, serviceName)
 	if service == nil {
@@ -91,8 +95,8 @@ func exposeTarget() func(*cobra.Command, []string) error {
 			parts := strings.Split(args[0], "/")
 			targetType = parts[0]
 		}
-		if targetType != "deployment" && targetType != "statefulset" && targetType != "pods" {
-			return fmt.Errorf("expose target type must be one of 'deployment', 'statefulset' or 'pods'")
+		if targetType != "deployment" && targetType != "statefulset" && targetType != "pods" && targetType != "service" {
+			return fmt.Errorf("expose target type must be one of 'deployment', 'statefulset', 'service' or 'pods'")
 		}
 		return nil
 	}
@@ -440,7 +444,7 @@ func main() {
 
 	exposeOpts := ExposeOptions{}
 	var cmdExpose = &cobra.Command{
-		Use:   "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>]",
+		Use:   "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short: "Expose a set of pods through a Skupper address",
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -461,7 +465,12 @@ func main() {
 			if err == nil {
 				address := exposeOpts.Address
 				if address == "" {
-					address = targetType
+					if args[0] == "service" {
+						fmt.Printf("--address option is required for target type 'service'")
+						os.Exit(1)
+					} else {
+						address = targetType
+					}
 				}
 				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, address)
 			} else if errors.IsNotFound(err) {
@@ -481,7 +490,7 @@ func main() {
 
 	var unexposeAddress string
 	var cmdUnexpose = &cobra.Command{
-		Use:   "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>]",
+		Use:   "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short: "Unexpose a set of pods previously exposed through a Skupper address",
 		Args:  exposeTarget(),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -531,7 +540,13 @@ func main() {
 								if t.Name != "" {
 									name = fmt.Sprintf("name=%s", t.Name)
 								}
-								fmt.Printf("      => %s %s", t.Selector, name)
+								if t.Selector != "" {
+									fmt.Printf("      => %s %s", t.Selector, name)
+								} else if t.Service != "" {
+									fmt.Printf("      => %s %s", t.Service, name)
+								} else {
+									fmt.Printf("      => %s (no selector)", name)
+								}
 								fmt.Println()
 							}
 						}

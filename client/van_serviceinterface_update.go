@@ -78,6 +78,21 @@ func getServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		}
 	} else if targetType == "pods" {
 		return nil, fmt.Errorf("VAN service interfaces for pods not yet implemented")
+	} else if targetType == "service" {
+		target := types.ServiceInterfaceTarget{
+			Name:    targetName,
+			Service: targetName,
+		}
+		if deducePort {
+			port, err := kube.GetPortForServiceTarget(targetName, cli.Namespace, cli.KubeClient)
+			if err != nil {
+				return nil, err
+			}
+			if port != 0 {
+				target.TargetPort = port
+			}
+		}
+		return &target, nil
 	} else {
 		return nil, fmt.Errorf("VAN service interface unsupported target type")
 	}
@@ -206,6 +221,13 @@ func (cli *VanClient) VanServiceInterfaceBind(ctx context.Context, service *type
 				target.TargetPort = targetPort
 			}
 		}
+		if service.Port == 0 {
+			if protocol == "http" {
+				service.Port = 80
+			} else {
+				return fmt.Errorf("Service port required and cannot be deduced.")
+			}
+		}
 		addTargetToServiceInterface(service, target)
 		return updateServiceInterface(service, true, owner, cli)
 	} else if errors.IsNotFound(err) {
@@ -312,7 +334,7 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 }
 
 func (cli *VanClient) VanServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error {
-	if targetType == "deployment" || targetType == "statefulset" {
+	if targetType == "deployment" || targetType == "statefulset" || targetType == "service" {
 		if address == "" {
 			err := removeServiceInterfaceTarget(targetName, targetName, deleteIfNoTargets, cli)
 			return err

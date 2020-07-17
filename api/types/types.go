@@ -49,7 +49,7 @@ const (
 	TransportViewRoleName       string = "skupper-view"
 	TransportEnvConfig          string = "QDROUTERD_CONF"
 	TransportSaslConfig         string = "skupper-sasl-config"
-	DefaultBridgeServerImage    string = "quay.io/skupper/bridge-server:0.3.0"
+	DefaultBridgeServerImage    string = "quay.io/skupper/bridge-server"
 	BridgeServerContainerName   string = "bridge-server"
 )
 
@@ -103,6 +103,7 @@ const (
 	AddressQualifier          string = BaseQualifier + "/address"
 	PortQualifier             string = BaseQualifier + "/port"
 	ProxyQualifier            string = BaseQualifier + "/proxy"
+	TargetServiceQualifier    string = BaseQualifier + "/target"
 	ControlledQualifier       string = InternalQualifier + "/controlled"
 	ServiceQualifier          string = InternalQualifier + "/service"
 	OriginQualifier           string = InternalQualifier + "/origin"
@@ -329,8 +330,9 @@ type ServiceInterface struct {
 
 type ServiceInterfaceTarget struct {
 	Name       string `json:"name,omitempty"`
-	Selector   string `json:"selector"`
+	Selector   string `json:"selector,omitempty"`
 	TargetPort int    `json:"targetPort,omitempty"`
+	Service    string `json:"service,omitempty"`
 }
 
 type Headless struct {
