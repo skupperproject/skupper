@@ -29,3 +29,16 @@ func RandomId(length int) string {
 	}
 	return string(buffer)
 }
+
+func StringifySelector(labels map[string]string) string {
+	result := ""
+	for k, v := range labels {
+		if result != "" {
+			result += ","
+		}
+		result += k
+		result += "="
+		result += v
+	}
+	return result
+}

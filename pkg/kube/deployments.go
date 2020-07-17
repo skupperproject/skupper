@@ -413,3 +413,11 @@ func NewTransportDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerRefe
 		return dep, fmt.Errorf("Failed to check transport deployment: %w", err)
 	}
 }
+
+func GetContainerPort(deployment *appsv1.Deployment) int32 {
+	if len(deployment.Spec.Template.Spec.Containers) > 0 && len(deployment.Spec.Template.Spec.Containers[0].Ports) > 0 {
+		return deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort
+	} else {
+		return 0
+	}
+}
