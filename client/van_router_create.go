@@ -47,11 +47,11 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 }
 
 func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van *types.VanRouterSpec, transport *appsv1.Deployment, siteId string) {
-        // service-controller container index
-        const (
-	    serviceController = iota
-	    oauthProxy
-        )
+	// service-controller container index
+	const (
+		serviceController = iota
+		oauthProxy
+	)
 
 	if os.Getenv("SKUPPER_SERVICE_CONTROLLER_IMAGE") != "" {
 		van.Controller.Image = os.Getenv("SKUPPER_SERVICE_CONTROLLER_IMAGE")
@@ -178,13 +178,13 @@ func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van 
 }
 
 func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, siteId string) *types.VanRouterSpec {
-       // skupper-router container index
-       // TODO: update after dataplance changes
-       const (
-           qdrouterd = iota
-	   bridgeServer
-	   oauthProxy
-        )
+	// skupper-router container index
+	// TODO: update after dataplance changes
+	const (
+		qdrouterd = iota
+		bridgeServer
+		oauthProxy
+	)
 
 	van := &types.VanRouterSpec{}
 	//todo: think through van name, router name, secret names, etc.
