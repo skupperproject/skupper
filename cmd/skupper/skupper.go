@@ -638,10 +638,10 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			cli, _ := client.NewClient(namespace, kubeContext, kubeconfig)
 			vir, err := cli.VanRouterInspect(context.Background())
+			fmt.Printf("%-30s %s\n", "client version", version)
 			if err == nil {
-				fmt.Printf("client version               %s\n", version)
-				fmt.Printf("transport version            %s\n", vir.TransportVersion)
-				fmt.Printf("controller version           %s\n", vir.ControllerVersion)
+				fmt.Printf("%-30s %s\n", "transport version", vir.TransportVersion)
+				fmt.Printf("%-30s %s\n", "controller version", vir.ControllerVersion)
 			} else {
 				fmt.Println("Unable to retrieve skupper component versions: ", err.Error())
 				os.Exit(1)

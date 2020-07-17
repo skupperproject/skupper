@@ -4,6 +4,9 @@
 *.dll
 *.so
 *.dylib
+service-controller
+site-controller
+skupper
 
 # Test binary, built with `go test -c`
 *.test

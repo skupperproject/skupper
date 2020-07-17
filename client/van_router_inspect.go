@@ -30,8 +30,8 @@ func (cli *VanClient) VanRouterInspect(ctx context.Context) (*types.VanRouterIns
 			vir.Status.ConnectedSites = connected
 		}
 
-		vir.TransportVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.TransportContainerName)
-		vir.ControllerVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.ControllerContainerName)
+		vir.TransportVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.TransportComponentName, types.TransportContainerName)
+		vir.ControllerVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.ControllerComponentName, types.ControllerContainerName)
 		vsis, err := cli.VanServiceInterfaceList(context.Background())
 		if err != nil {
 			vir.ExposedServices = 0
