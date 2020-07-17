@@ -76,10 +76,10 @@ func GetImageVersion(pod *corev1.Pod, container string) string {
 	return "not-found"
 }
 
-func GetComponentVersion(namespace string, clientset kubernetes.Interface, component string) string {
+func GetComponentVersion(namespace string, clientset kubernetes.Interface, component string, container string) string {
 	pod, err := GetReadyPod(namespace, clientset, component)
 	if err == nil {
-		return GetImageVersion(pod, component)
+		return GetImageVersion(pod, container)
 	} else {
 		return "not-found"
 	}
