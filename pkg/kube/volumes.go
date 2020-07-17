@@ -19,19 +19,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func AppendConfigVolume(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, name string, path string) {
+func AppendConfigVolume(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, volName string, refName string, path string) {
 	*volumes = append(*volumes, corev1.Volume{
-		Name: name,
+		Name: volName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: name,
+					Name: refName,
 				},
 			},
 		},
 	})
 	*mounts = append(*mounts, corev1.VolumeMount{
-		Name:      name,
+		Name:      volName,
 		MountPath: path,
 	})
 }
