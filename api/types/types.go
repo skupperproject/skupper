@@ -96,9 +96,8 @@ const (
 	BaseQualifier             string = "skupper.io"
 	InternalQualifier         string = "internal." + BaseQualifier
 	AddressQualifier          string = BaseQualifier + "/address"
+	PortQualifier             string = BaseQualifier + "/port"
 	ProxyQualifier            string = BaseQualifier + "/proxy"
-	VersionQualifier          string = BaseQualifier + "/version"
-	WeightQualifier           string = BaseQualifier + "/weight"
 	ControlledQualifier       string = InternalQualifier + "/controlled"
 	ServiceQualifier          string = InternalQualifier + "/service"
 	OriginQualifier           string = InternalQualifier + "/origin"

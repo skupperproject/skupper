@@ -11,21 +11,8 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
 )
-
-// TODO: Move to utils
-func stringifySelector(labels map[string]string) string {
-	result := ""
-	for k, v := range labels {
-		if result != "" {
-			result += ","
-		}
-		result += k
-		result += "="
-		result += v
-	}
-	return result
-}
 
 func getRootObject(cli *VanClient) (*metav1.OwnerReference, error) {
 	root, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
@@ -60,7 +47,7 @@ func getServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     deployment.ObjectMeta.Name,
-				Selector: stringifySelector(deployment.Spec.Selector.MatchLabels),
+				Selector: utils.StringifySelector(deployment.Spec.Selector.MatchLabels),
 			}
 			if deducePort {
 				//TODO: handle case where there is more than one container (need --container option?)
@@ -77,7 +64,7 @@ func getServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     statefulset.ObjectMeta.Name,
-				Selector: stringifySelector(statefulset.Spec.Selector.MatchLabels),
+				Selector: utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
 			}
 			if deducePort {
 				//TODO: handle case where there is more than one container (need --container option?)
@@ -247,7 +234,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 				Targets: []types.ServiceInterfaceTarget{
 					types.ServiceInterfaceTarget{
 						Name:     statefulset.ObjectMeta.Name,
-						Selector: stringifySelector(statefulset.Spec.Selector.MatchLabels),
+						Selector: utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
 					},
 				},
 			}
