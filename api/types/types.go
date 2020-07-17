@@ -49,7 +49,7 @@ const (
 	TransportViewRoleName       string = "skupper-view"
 	TransportEnvConfig          string = "QDROUTERD_CONF"
 	TransportSaslConfig         string = "skupper-sasl-config"
-	DefaultBridgeServerImage    string = "quay.io/gordons/bridge-server"
+	DefaultBridgeServerImage    string = "quay.io/skupper/bridge-server:0.3.0"
 	BridgeServerContainerName   string = "bridge-server"
 )
 
