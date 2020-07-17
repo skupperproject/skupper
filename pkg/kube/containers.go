@@ -45,12 +45,6 @@ func ContainerForBridgeServer() corev1.Container {
 				Value: "/etc/bridge-server/bridges.json",
 			},
 		},
-		VolumeMounts: []corev1.VolumeMount{
-			corev1.VolumeMount{
-				Name:      "bridge-config",
-				MountPath: "/etc/bridge-server/",
-			},
-		},
 	}
 	return container
 }

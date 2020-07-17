@@ -47,6 +47,11 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 }
 
 func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van *types.VanRouterSpec, transport *appsv1.Deployment, siteId string) {
+        // service-controller container index
+        const (
+	    serviceController = iota
+	    oauthProxy
+        )
 
 	if os.Getenv("SKUPPER_SERVICE_CONTROLLER_IMAGE") != "" {
 		van.Controller.Image = os.Getenv("SKUPPER_SERVICE_CONTROLLER_IMAGE")
@@ -76,8 +81,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van 
 
 	sidecars := []*corev1.Container{}
 	volumes := []corev1.Volume{}
-	mounts := make([][]corev1.VolumeMount, 0)
-	mounts = append(mounts, []corev1.VolumeMount{})
+	mounts := make([][]corev1.VolumeMount, 1)
 
 	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 		csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
@@ -85,10 +89,10 @@ func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van 
 		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_PORT", Value: csp})
 		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_HOST", Value: "localhost"})
 		mounts = append(mounts, []corev1.VolumeMount{})
-		kube.AppendSecretVolume(&volumes, &mounts[1], "skupper-controller-certs", "/etc/tls/proxy-certs/")
+		kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], "skupper-controller-certs", "/etc/tls/proxy-certs/")
 	} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
-		kube.AppendSecretVolume(&volumes, &mounts[0], "skupper-console-users", "/etc/console-users/")
+		kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
 	}
 
 	if options.EnableServiceSync {
@@ -96,7 +100,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van 
 			Name:  "SKUPPER_SERVICE_SYNC_ORIGIN",
 			Value: siteId,
 		})
-		kube.AppendSecretVolume(&volumes, &mounts[0], "skupper", "/etc/messaging/")
+		kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper", "/etc/messaging/")
 	}
 	van.Controller.EnvVar = envVars
 	van.Controller.Volumes = volumes
@@ -174,6 +178,14 @@ func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van 
 }
 
 func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, siteId string) *types.VanRouterSpec {
+       // skupper-router container index
+       // TODO: update after dataplance changes
+       const (
+           qdrouterd = iota
+	   bridgeServer
+	   oauthProxy
+        )
+
 	van := &types.VanRouterSpec{}
 	//todo: think through van name, router name, secret names, etc.
 	if options.SkupperName == "" {
@@ -344,33 +356,22 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 
 	sidecars := []*corev1.Container{}
 	volumes := []corev1.Volume{}
-	mounts := make([][]corev1.VolumeMount, 0)
-	mounts = append(mounts, []corev1.VolumeMount{})
-	kube.AppendSecretVolume(&volumes, &mounts[0], "skupper-amqps", "/etc/qpid-dispatch-certs/skupper-amqps/")
+	mounts := make([][]corev1.VolumeMount, 2)
+	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-amqps", "/etc/qpid-dispatch-certs/skupper-amqps/")
+	kube.AppendConfigVolume(&volumes, &mounts[bridgeServer], "bridge-config", "skupper-internal", "/etc/bridge-server")
 	if !options.IsEdge {
-		kube.AppendSecretVolume(&volumes, &mounts[0], "skupper-internal", "/etc/qpid-dispatch-certs/skupper-internal/")
+		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-internal", "/etc/qpid-dispatch-certs/skupper-internal/")
 	}
 	if options.EnableRouterConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			sidecars = append(sidecars, OauthProxyContainer("skupper", strconv.Itoa(int(types.ConsoleOpenShiftServicePort))))
 			mounts = append(mounts, []corev1.VolumeMount{})
-			kube.AppendSecretVolume(&volumes, &mounts[1], "skupper-proxy-certs", "/etc/tls/proxy-certs/")
+			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], "skupper-proxy-certs", "/etc/tls/proxy-certs/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-			kube.AppendSecretVolume(&volumes, &mounts[0], "skupper-console-users", "/etc/qpid-dispatch/sasl-users/")
-			kube.AppendConfigVolume(&volumes, &mounts[0], "skupper-sasl-config", "/etc/sasl2/")
+			kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-console-users", "/etc/qpid-dispatch/sasl-users/")
+			kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "skupper-sasl-config", "skupper-sasl-config", "/etc/sasl2/")
 		}
 	}
-	//TODO: make nicer
-	volumes = append(volumes, corev1.Volume{
-		Name: "bridge-config",
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: "skupper-internal",
-				},
-			},
-		},
-	})
 	van.Transport.Volumes = volumes
 	van.Transport.VolumeMounts = mounts
 	van.Transport.Sidecars = sidecars
