@@ -174,11 +174,6 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 	if protocol, ok := service.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
 		if port := deducePortFromService(service); port != 0 {
 			svc.Port = int(port)
-		} else if protocol == "http" {
-			svc.Port = 80
-		} else {
-			log.Printf("Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
-			return svc, false
 		}
 		svc.Protocol = protocol
 		if address, ok := service.ObjectMeta.Annotations[types.AddressQualifier]; ok {
@@ -186,15 +181,53 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 		} else {
 			svc.Address = service.ObjectMeta.Name
 		}
-		target := types.ServiceInterfaceTarget{
-			Name:     service.ObjectMeta.Name,
-			Selector: utils.StringifySelector(service.Spec.Selector),
-		}
-		if targetPort := deduceTargetPortFromService(service); targetPort != 0 {
-			target.TargetPort = targetPort
-		}
-		svc.Targets = []types.ServiceInterfaceTarget{
-			target,
+		if target, ok := service.ObjectMeta.Annotations[types.TargetServiceQualifier]; ok {
+			port, err := kube.GetPortForServiceTarget(target, m.vanClient.Namespace, m.vanClient.KubeClient)
+			if err != nil {
+				log.Printf("Could not deduce port for target service %s on annotated service %s: %s", target, service.ObjectMeta.Name, err)
+			}
+			if svc.Port == 0 {
+				if port != 0 {
+					svc.Port = port
+				} else if protocol == "http" {
+					svc.Port = 80
+				} else {
+					log.Printf("Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
+					return svc, false
+				}
+			}
+			svcTgt := types.ServiceInterfaceTarget{
+				Name:    target,
+				Service: target,
+			}
+			if port != 0 && port != svc.Port {
+				svcTgt.TargetPort = port
+			}
+			svc.Targets = []types.ServiceInterfaceTarget{
+				svcTgt,
+			}
+		} else if service.Spec.Selector != nil {
+			if svc.Port == 0 {
+				if protocol == "http" {
+					svc.Port = 80
+				} else {
+					log.Printf("Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
+					return svc, false
+				}
+			}
+			target := types.ServiceInterfaceTarget{
+				Name:     service.ObjectMeta.Name,
+				Selector: utils.StringifySelector(service.Spec.Selector),
+			}
+			if targetPort := deduceTargetPortFromService(service); targetPort != 0 {
+				target.TargetPort = targetPort
+			}
+			svc.Targets = []types.ServiceInterfaceTarget{
+				target,
+			}
+		} else {
+			log.Printf("Ignoring annotated service %s; no selector defined", service.ObjectMeta.Name)
+			return svc, false
 		}
 		svc.Origin = "annotation"
 		return svc, true

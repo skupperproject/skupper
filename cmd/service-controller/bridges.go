@@ -57,6 +57,7 @@ type HttpBridge struct {
 	Http2        bool
 	Aggregation  string
 	EventChannel bool
+	HostOverride string
 }
 
 func (b *HttpBridge) toMap() map[string]interface{} {
@@ -69,6 +70,7 @@ func (b *HttpBridge) toMap() map[string]interface{} {
 		"http2":        b.Http2,
 		"aggregation":  b.Aggregation,
 		"eventChannel": b.EventChannel,
+		"hostOverride": b.HostOverride,
 	}
 }
 
@@ -93,6 +95,7 @@ type BridgeConfiguration struct {
 type EgressBindings struct {
 	name       string
 	selector   string
+	service    string
 	egressPort int
 	informer   cache.SharedIndexInformer
 	stopper    chan struct{}
@@ -151,6 +154,15 @@ func hasTargetForSelector(si types.ServiceInterface, selector string) bool {
 	return false
 }
 
+func hasTargetForService(si types.ServiceInterface, service string) bool {
+	for _, t := range si.Targets {
+		if t.Service == service {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string]int) error {
 	bindings := c.bindings[required.Address]
 	if bindings == nil {
@@ -170,7 +182,11 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		}
 		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Port, required.Headless, port, required.Aggregate, required.EventChannel)
 		for _, t := range required.Targets {
-			sb.addTarget(t.Name, t.Selector, getTargetPort(required, t), c)
+			if t.Selector != "" {
+				sb.addSelectorTarget(t.Name, t.Selector, getTargetPort(required, t), c)
+			} else if t.Service != "" {
+				sb.addServiceTarget(t.Name, t.Service, getTargetPort(required, t), c)
+			}
 		}
 		c.bindings[required.Address] = sb
 	} else {
@@ -196,16 +212,31 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		}
 		for _, t := range required.Targets {
 			targetPort := getTargetPort(required, t)
-			target := bindings.targets[t.Selector]
-			if target == nil {
-				bindings.addTarget(t.Name, t.Selector, targetPort, c)
-			} else if target.egressPort != targetPort {
-				target.egressPort = targetPort
+			if t.Selector != "" {
+				target := bindings.targets[t.Selector]
+				if target == nil {
+					bindings.addSelectorTarget(t.Name, t.Selector, targetPort, c)
+				} else if target.egressPort != targetPort {
+					target.egressPort = targetPort
+				}
+			} else if t.Service != "" {
+				target := bindings.targets[t.Service]
+				if target == nil {
+					bindings.addServiceTarget(t.Name, t.Service, targetPort, c)
+				} else if target.egressPort != targetPort {
+					target.egressPort = targetPort
+				}
 			}
 		}
-		for k, _ := range bindings.targets {
-			if !hasTargetForSelector(required, k) {
-				bindings.removeTarget(k)
+		for k, v := range bindings.targets {
+			if v.selector != "" {
+				if !hasTargetForSelector(required, k) {
+					bindings.removeSelectorTarget(k)
+				}
+			} else if v.service != "" {
+				if !hasTargetForService(required, k) {
+					bindings.removeServiceTarget(k)
+				}
 			}
 		}
 	}
@@ -226,7 +257,7 @@ func newServiceBindings(origin string, protocol string, address string, publicPo
 	}
 }
 
-func (sb *ServiceBindings) addTarget(name string, selector string, port int, controller *Controller) error {
+func (sb *ServiceBindings) addSelectorTarget(name string, selector string, port int, controller *Controller) error {
 	sb.targets[selector] = &EgressBindings{
 		name:       name,
 		selector:   selector,
@@ -245,9 +276,23 @@ func (sb *ServiceBindings) addTarget(name string, selector string, port int, con
 	return sb.targets[selector].start()
 }
 
-func (sb *ServiceBindings) removeTarget(selector string) {
+func (sb *ServiceBindings) removeSelectorTarget(selector string) {
 	sb.targets[selector].stop()
 	delete(sb.targets, selector)
+}
+
+func (sb *ServiceBindings) addServiceTarget(name string, service string, port int, controller *Controller) error {
+	sb.targets[service] = &EgressBindings{
+		name:       name,
+		service:    service,
+		egressPort: port,
+		stopper:    make(chan struct{}),
+	}
+	return nil
+}
+
+func (sb *ServiceBindings) removeServiceTarget(service string) {
+	delete(sb.targets, service)
 }
 
 func (sb *ServiceBindings) stop() {
@@ -280,11 +325,15 @@ func (eb *EgressBindings) stop() {
 }
 
 func (eb *EgressBindings) updateBridgeConfiguration(protocol string, address string, siteId string, bridges *BridgeConfiguration) {
-	pods := eb.informer.GetStore().List()
-	for _, p := range pods {
-		pod := p.(*corev1.Pod)
-		log.Printf("Adding pod for %s: %s", address, pod.ObjectMeta.Name)
-		addEgressBridge(protocol, pod.Status.PodIP, eb.egressPort, address, eb.name, siteId, bridges)
+	if eb.selector != "" {
+		pods := eb.informer.GetStore().List()
+		for _, p := range pods {
+			pod := p.(*corev1.Pod)
+			log.Printf("Adding pod for %s: %s", address, pod.ObjectMeta.Name)
+			addEgressBridge(protocol, pod.Status.PodIP, eb.egressPort, address, eb.name, siteId, "", bridges)
+		}
+	} else if eb.service != "" {
+		addEgressBridge(protocol, eb.service, eb.egressPort, address, eb.name, siteId, eb.service, bridges)
 	}
 }
 
@@ -418,10 +467,10 @@ func (m NestedHttpBridgeMap) add(b HttpBridge) {
 	}
 }
 
-func addEgressBridge(protocol string, host string, port int, address string, target string, siteId string, bridges *BridgeConfiguration) (bool, error) {
+func addEgressBridge(protocol string, host string, port int, address string, target string, siteId string, hostOverride string, bridges *BridgeConfiguration) (bool, error) {
 	switch protocol {
 	case ProtocolHTTP:
-		bridges.HttpConnectors.add(HttpBridge{
+		b := HttpBridge{
 			Bridge: Bridge{
 				Name:    getBridgeName(target, host),
 				Host:    host,
@@ -429,7 +478,11 @@ func addEgressBridge(protocol string, host string, port int, address string, tar
 				Address: address,
 				SiteId:  siteId,
 			},
-		})
+		}
+		if hostOverride != "" {
+			b.HostOverride = hostOverride
+		}
+		bridges.HttpConnectors.add(b)
 	case ProtocolHTTP2:
 		bridges.Http2Connectors.add(HttpBridge{
 			Bridge: Bridge{

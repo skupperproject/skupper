@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -12,7 +13,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func getLabelsForRouter() map[string]string {
+func GetLabelsForRouter() map[string]string {
 	return map[string]string{
 		"application":          types.TransportDeploymentName,
 		"skupper.io/component": "router",
@@ -44,7 +45,7 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 }
 
 func NewServiceForAddress(address string, port int, targetPort int, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	labels := getLabelsForRouter()
+	labels := GetLabelsForRouter()
 	service := makeServiceObjectForAddress(address, port, targetPort, labels, owner)
 	return createServiceFromObject(service, namespace, kubeclient)
 }
@@ -143,4 +144,29 @@ func GetLoadBalancerHostOrIp(service *corev1.Service) string {
 		}
 	}
 	return ""
+}
+
+func GetPortForServiceTarget(targetName string, defaultNamespace string, kubeclient kubernetes.Interface) (int, error) {
+	parts := strings.Split(targetName, ".")
+	var name, namespace string
+	if len(parts) > 1 {
+		name = parts[0]
+		namespace = parts[1]
+	} else {
+		name = targetName
+		namespace = defaultNamespace
+	}
+	targetSvc, err := GetService(name, namespace, kubeclient)
+	if err == nil {
+		if len(targetSvc.Spec.Ports) > 0 {
+			return int(targetSvc.Spec.Ports[0].Port), nil
+		} else {
+			return 0, nil
+		}
+	} else if errors.IsNotFound(err) {
+		//don't consider the service not yet existing as an error, just can't deduce port
+		return 0, nil
+	} else {
+		return 0, err
+	}
 }

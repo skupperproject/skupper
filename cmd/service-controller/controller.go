@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsv1informer "k8s.io/client-go/informers/apps/v1"
@@ -282,10 +283,45 @@ func (c *Controller) createHeadlessServiceFor(desired *ServiceBindings) error {
 	return err
 }
 
+func equivalentSelectors(a map[string]string, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if v2, ok := b[k]; !ok || v != v2 {
+			return false
+		}
+	}
+	for k, v := range b {
+		if v2, ok := a[k]; !ok || v != v2 {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Service) error {
 	//selector, port, targetPort
 	// TODO: check services changes
 	log.Printf("We need to check service changes for %s", actual.ObjectMeta.Name)
+	update := false
+	if len(actual.Spec.Ports) > 0 {
+		if actual.Spec.Ports[0].Port != int32(desired.publicPort) {
+			update = true
+			actual.Spec.Ports[0].Port = int32(desired.publicPort)
+		}
+		if actual.Spec.Ports[0].TargetPort.IntValue() != desired.ingressPort {
+			update = true
+			actual.Spec.Ports[0].TargetPort = intstr.FromInt(desired.ingressPort)
+		}
+	}
+	if !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
+		actual.Spec.Selector = kube.GetLabelsForRouter()
+	}
+	if update {
+		_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(actual)
+		return err
+	}
 	return nil
 }
 
