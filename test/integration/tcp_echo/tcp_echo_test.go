@@ -10,7 +10,7 @@ import (
 func TestTcpEcho(t *testing.T) {
 	testRunner := &TcpEchoClusterTestRunner{}
 
-	testRunner.Build(t)
+	testRunner.Build(t, "tcp-echo")
 	ctx := context.Background()
 	testRunner.Run(ctx)
 }
