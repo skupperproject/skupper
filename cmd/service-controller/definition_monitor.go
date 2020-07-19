@@ -258,6 +258,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 			category, name := splitKey(key)
 			switch category {
 			case "servicedefs":
+				log.Print("[DefMon] Service definitions have changed")
 				//get the configmap, parse the json, check against the current servicebindings map
 				obj, exists, err := m.svcDefInformer.GetStore().GetByKey(name)
 				if err != nil {
@@ -295,6 +296,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						}
 					} else {
 						m.headless = make(map[string]types.ServiceInterface)
+						m.annotated = make(map[string]types.ServiceInterface)
 					}
 				}
 			case "statefulsets":
