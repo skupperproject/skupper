@@ -106,34 +106,49 @@ commands:
             ./cmd/skupper
 
 yaml-templates:
-  release_filters: &release_filters
+  branch_filters: &run_for_all_branches_and_v_prefixed_tags
+    filters:
+      tags:
+        only: /^v.*/
+
+  release_filters: &run_for_v_prefixed_tags
     filters:
       branches:
         ignore: /.*/
       tags:
-        only: /[0-9].*/
+        only: /^v.*/
+
+  release_requires: &release_requires
+    requires:
+      - build-all
+      - test
+      - minikube_local_cluster_tests
 
 workflows:
   version: 2.1
   build-workflow:
     jobs:
-      - build-all
-      - test
+      - build-all:
+          <<: *run_for_all_branches_and_v_prefixed_tags
+      - test:
+          <<: *run_for_all_branches_and_v_prefixed_tags
 
       - minikube_local_cluster_tests:
+          <<: *run_for_all_branches_and_v_prefixed_tags
           pre-steps:
             - prepare_for_local_cluster_tests
           requires:
             - test
 
-      - publish-github-release:
-          <<: *release_filters
-          requires:
-            - build-all
-            - test
-            - minikube_local_cluster_tests
+      - publish-github-release-artifacts:
+          <<: *run_for_v_prefixed_tags
+          <<: *release_requires
 
-      - remove_from_registry:
+      - publish-github-release-images:
+          <<: *run_for_v_prefixed_tags
+          <<: *release_requires
+
+      - remove_from_registry: # will not run for tags, by default
           requires:
             - test
             - minikube_local_cluster_tests
@@ -246,7 +261,7 @@ jobs:
       - run: kubectl cluster-info
       - run_cluster_tests
 
-  publish-github-release:
+  publish-github-release-artifacts:
     docker:
       - image: cibuilds/github:0.10
     steps:
@@ -255,7 +270,7 @@ jobs:
       - run:
           name: "Create a Draft Release on GitHub"
           command: |
-            VERSION="$CIRCLE_TAG"
+            VERSION="${CIRCLE_TAG}"
             BASEDIR=`pwd`
             mkdir "${BASEDIR}/archives"
             for p in `ls dist` ; do
@@ -268,3 +283,20 @@ jobs:
             done
             cd ${BASEDIR}
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
+
+  publish-github-release-images:
+    executor:
+      name: go/default
+      tag: "1.13"
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
+      - run:
+          name:
+          command: |
+            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/nicob87/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=quay.io/nicob87/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
+            source $BASH_ENV
+            make -e docker-build
+            make -e docker-push
