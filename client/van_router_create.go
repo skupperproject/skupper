@@ -108,9 +108,15 @@ func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van 
 	van.Controller.Sidecars = sidecars
 
 	serviceAccounts := []types.ServiceAccount{}
+	annotation := map[string]string{}
+	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+		annotation = map[string]string{
+			"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"skupper-controller\"}}",
+		}
+	}
 	serviceAccounts = append(serviceAccounts, types.ServiceAccount{
 		ServiceAccount: "skupper-proxy-controller",
-		Annotations:    map[string]string{},
+		Annotations:    annotation,
 	})
 	van.Controller.ServiceAccounts = serviceAccounts
 
