@@ -26,12 +26,32 @@ build-site-controller:
 
 build-controllers: build-site-controller build-service-controller
 
+build-service-controller-debug: BUILD_OPTS = -gcflags "all=-N -l"
+build-service-controller-debug: build-service-controller
+
+build-site-controller-debug: BUILD_OPTS = -gcflags "all=-N -l"
+build-site-controller-debug: build-site-controller
+
+build-controllers-debug: build-site-controller-debug build-service-controller-debug
+
 docker-build-test-image:
 	${DOCKER} build -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
 docker-build: docker-build-test-image
-	${DOCKER} build -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
-	${DOCKER} build -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
+	${DOCKER} build -t ${SERVICE_CONTROLLER_IMAGE}${DOCKER_SUFFIX} -f Dockerfile.service-controller${DOCKER_SUFFIX} .
+	${DOCKER} build -t ${SITE_CONTROLLER_IMAGE}${DOCKER_SUFFIX} -f Dockerfile.site-controller${DOCKER_SUFFIX} .
+
+docker-build-debug: DOCKER_SUFFIX = -debug
+docker-build-debug: docker-build
+	@echo
+	@echo "Before running skupper init, make sure to export SKUPPER_SERVICE_CONTROLLER_IMAGE and SKUPPER_SITE_CONTROLLER_IMAGE"
+	@echo "(pushing your debug images accordingly)"
+	@echo
+	@echo "You should also run: kubectl port-forward <podname> <local_port:remote_pod_port>"
+	@echo
+	@echo "Remote debug ports are:"
+	@echo "service-controller: 40000"
+	@echo "site-controller   : 40001"
 
 docker-push-test-image:
 	${DOCKER} push ${TEST_IMAGE}

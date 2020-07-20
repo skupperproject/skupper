@@ -1,0 +1,27 @@
+FROM golang:1.13 AS builder
+
+WORKDIR /go/src/app
+COPY go.mod .
+COPY go.sum .
+RUN go mod download && go get github.com/go-delve/delve/cmd/dlv
+COPY . .
+
+RUN make build-service-controller-debug
+
+FROM node:12 AS console-builder
+
+WORKDIR /skupper-console/
+ADD https://github.com/skupperproject/gilligan/archive/master.tar.gz .
+RUN tar -zxf master.tar.gz
+WORKDIR ./gilligan-master
+RUN yarn install && yarn build
+
+FROM registry.access.redhat.com/ubi8-minimal
+
+EXPOSE 40000
+
+WORKDIR /app
+COPY --from=builder /go/src/app/service-controller .
+COPY --from=builder /go/bin/dlv /
+COPY --from=console-builder /skupper-console/gilligan-master/build/ console
+CMD ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "exec", "/app/service-controller"]
