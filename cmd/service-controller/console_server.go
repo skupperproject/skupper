@@ -96,9 +96,17 @@ func (server *ConsoleServer) start(stopCh <-chan struct{}) error {
 }
 
 func (server *ConsoleServer) listen() {
+	addr := ":8080"
+	if os.Getenv("METRICS_PORT") != "" {
+		addr = ":" + os.Getenv("METRICS_PORT")
+	}
+	if os.Getenv("METRICS_HOST") != "" {
+		addr = os.Getenv("METRICS_HOST") + addr
+	}
+	log.Printf("Console server listening on %s", addr)
 	http.Handle("/DATA", authenticated(server))
 	http.Handle("/", authenticated(http.FileServer(http.Dir("/app/console/"))))
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
 type ServiceStats struct {
