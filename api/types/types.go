@@ -89,6 +89,11 @@ var ControllerEditPolicyRule = []rbacv1.PolicyRule{
 		APIGroups: []string{"apps"},
 		Resources: []string{"deployments", "statefulsets"},
 	},
+	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{"route.openshift.io"},
+		Resources: []string{"routes"},
+	},
 }
 
 // Skupper qualifiers

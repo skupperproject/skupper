@@ -38,17 +38,6 @@ func annotateConnectionToken(secret *corev1.Secret, role string, host string, po
 	secret.ObjectMeta.Annotations[role+"-port"] = port
 }
 
-func getLoadBalancerHostOrIp(service *corev1.Service) string {
-	for _, i := range service.Status.LoadBalancer.Ingress {
-		if i.IP != "" {
-			return i.IP
-		} else if i.Hostname != "" {
-			return i.Hostname
-		}
-	}
-	return ""
-}
-
 func configureHostPortsFromRoutes(result *RouterHostPorts, cli *VanClient) (bool, error) {
 	if cli.RouteClient == nil {
 		return false, nil
@@ -84,7 +73,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient) bool {
 			return false
 		} else {
 			if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
-				host := getLoadBalancerHostOrIp(service)
+				host := kube.GetLoadBalancerHostOrIp(service)
 				if host != "" {
 					result.Hosts = host
 					result.InterRouter.Host = host

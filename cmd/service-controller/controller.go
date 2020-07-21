@@ -51,6 +51,8 @@ type Controller struct {
 	desiredServices map[string]types.ServiceInterface
 
 	definitionMonitor *DefinitionMonitor
+	consoleServer     *ConsoleServer
+	siteQueryServer   *SiteQueryServer
 }
 
 func hasProxyAnnotation(service corev1.Service) bool {
@@ -134,6 +136,8 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) 
 	bridgeDefInformer.AddEventHandler(controller.newEventHandler("bridges", AnnotatedKey, ConfigMapResourceVersionTest))
 	svcInformer.AddEventHandler(controller.newEventHandler("actual-services", AnnotatedKey, ServiceResourceVersionTest))
 	headlessInformer.AddEventHandler(controller.newEventHandler("statefulset", AnnotatedKey, StatefulSetResourceVersionTest))
+	controller.consoleServer = newConsoleServer(cli, tlsConfig)
+	controller.siteQueryServer = newSiteQueryServer(tlsConfig)
 
 	controller.definitionMonitor = newDefinitionMonitor(controller.origin, controller.vanClient, controller.svcDefInformer, controller.svcInformer)
 	return controller, nil
@@ -173,6 +177,14 @@ func AnnotatedKey(category string, obj interface{}) (string, error) {
 		return "", err
 	}
 	return category + "@" + key, nil
+}
+
+func SimpleKey(category string, obj interface{}) (string, error) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		return "", err
+	}
+	return key, nil
 }
 
 func FixedKey(category string, obj interface{}) (string, error) {
@@ -237,9 +249,12 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	}
 
 	log.Println("Starting workers")
+	c.siteQueryServer.getLocalSiteInfo(c.vanClient)
+	go wait.Until(c.siteQueryServer.run, time.Second, stopCh)
 	go wait.Until(c.runServiceSync, time.Second, stopCh)
 	go wait.Until(c.runServiceCtrl, time.Second, stopCh)
 	c.definitionMonitor.start(stopCh)
+	c.consoleServer.start(stopCh)
 
 	log.Println("Started workers")
 	<-stopCh
