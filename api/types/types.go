@@ -49,7 +49,7 @@ const (
 	TransportViewRoleName       string = "skupper-view"
 	TransportEnvConfig          string = "QDROUTERD_CONF"
 	TransportSaslConfig         string = "skupper-sasl-config"
-	DefaultBridgeServerImage    string = "quay.io/skupper/bridge-server"
+	DefaultBridgeServerImage    string = "quay.io/skupper/bridge-server:0.3"
 	BridgeServerContainerName   string = "bridge-server"
 )
 
@@ -70,9 +70,9 @@ var TransportPrometheusAnnotations = map[string]string{
 const (
 	ControllerDeploymentName     string = "skupper-service-controller"
 	ControllerComponentName      string = "proxy-controller"
-	DefaultControllerImage       string = "quay.io/skupper/service-controller"
+	DefaultControllerImage       string = "quay.io/skupper/service-controller:0.3"
 	ControllerContainerName      string = "service-controller"
-	DefaultProxyImage            string = "quay.io/skupper/proxy"
+	DefaultProxyImage            string = "quay.io/skupper/proxy:0.3"
 	ControllerServiceAccountName string = "skupper-proxy-controller"
 	ControllerConfigPath         string = "/etc/messaging/"
 	ControllerEditRoleName       string = "skupper-edit"
