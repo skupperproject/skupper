@@ -314,7 +314,7 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 		}
 	}
 	if !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
-	        update = true
+		update = true
 		actual.Spec.Selector = kube.GetLabelsForRouter()
 	}
 	if update {
