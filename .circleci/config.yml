@@ -106,17 +106,17 @@ commands:
             ./cmd/skupper
 
 yaml-templates:
-  branch_filters: &run_for_all_branches_and_v_prefixed_tags
+  branch_filters: &run_for_all_branches_and_numeric_tags
     filters:
       tags:
-        only: /^v.*/
+        only: /[0-9].*/
 
-  release_filters: &run_for_v_prefixed_tags
+  release_filters: &run_for_numeric_tags
     filters:
       branches:
         ignore: /.*/
       tags:
-        only: /^v.*/
+        only: /[0-9].*/
 
   release_requires: &release_requires
     requires:
@@ -129,23 +129,23 @@ workflows:
   build-workflow:
     jobs:
       - build-all:
-          <<: *run_for_all_branches_and_v_prefixed_tags
+          <<: *run_for_all_branches_and_numeric_tags
       - test:
-          <<: *run_for_all_branches_and_v_prefixed_tags
+          <<: *run_for_all_branches_and_numeric_tags
 
       - minikube_local_cluster_tests:
-          <<: *run_for_all_branches_and_v_prefixed_tags
+          <<: *run_for_all_branches_and_numeric_tags
           pre-steps:
             - prepare_for_local_cluster_tests
           requires:
             - test
 
       - publish-github-release-artifacts:
-          <<: *run_for_v_prefixed_tags
+          <<: *run_for_numeric_tags
           <<: *release_requires
 
       - publish-github-release-images:
-          <<: *run_for_v_prefixed_tags
+          <<: *run_for_numeric_tags
           <<: *release_requires
 
       - remove_from_registry: # will not run for tags, by default
