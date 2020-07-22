@@ -125,8 +125,6 @@ func (s *SiteQueryServer) run() {
 		correlationId, ok := qdr.AsUint64(msg.Properties.CorrelationID)
 		if !ok {
 			log.Printf("WARN: Could not get correlationid from site query request: %#v (%T)", msg.Properties.CorrelationID, msg.Properties.CorrelationID)
-		} else {
-			log.Printf("Sending site query response for %v: %s", correlationId, string(bytes))
 		}
 		response := amqp.Message{
 			Properties: &amqp.MessageProperties{
