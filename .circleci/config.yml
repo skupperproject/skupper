@@ -98,7 +98,7 @@ commands:
       - run:
           name: Building << parameters.platform >>
           command: >-
-            VERSION="${CIRCLE_TAG:-ci-${CIRCLE_BUILD_NUM}}"
+            VERSION="${CIRCLE_TAG:-ci-${CIRCLE_BUILD_NUM}}";
             GOOS=<< parameters.goos >>
             GOARCH=<< parameters.goarch >>
             go build -ldflags "-X main.version=${VERSION}"
