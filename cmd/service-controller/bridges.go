@@ -357,11 +357,12 @@ func getStringByKey(attributes map[string]interface{}, key string) string {
 }
 
 func getIntByKey(attributes map[string]interface{}, key string) int {
-	i, ok := attributes[key].(int)
+	// Unmarshal stores float64 in interface value for JSON numbers
+	i, ok := attributes[key].(float64)
 	if !ok {
 		return 0
 	}
-	return i
+	return int(i)
 }
 
 func getBoolByKey(attributes map[string]interface{}, key string) bool {
