@@ -66,6 +66,7 @@ commands:
       - docker/install-docker
       - go/install
       - kube-orb/install-kubectl
+      - run: go get -u github.com/tsenart/vegeta
       - run: make
 
   run_cluster_tests:
