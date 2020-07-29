@@ -9,9 +9,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 func describe(i interface{}) {
@@ -87,6 +91,18 @@ func main() {
 	controller, err := NewController(cli, origin, tlsConfig)
 	if err != nil {
 		log.Fatal("Error getting new controller", err.Error())
+	}
+
+	log.Println("Waiting for Skupper transport to start")
+	pods, err := kube.GetDeploymentPods(types.TransportDeploymentName, namespace, cli.KubeClient)
+	if err != nil {
+		log.Fatal("Error getting transport deployment pods", err.Error())
+	}
+	for _, pod := range pods {
+		_, err := kube.WaitForPodStatus(namespace, cli.KubeClient, pod.Name, corev1.PodRunning, time.Second*180, time.Second*5)
+		if err != nil {
+			log.Fatal("Error waiting for skupper transport pod running status", err.Error())
+		}
 	}
 
 	// start the controller workers
