@@ -46,7 +46,7 @@ type Connection struct {
 	Dir        string `json:"dir"`
 }
 
-func getConnectedSitesFromNodesEdge(nodes []RouterNode, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
+func getConnectedSitesFromNodesEdge(namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	direct := make(map[string]bool)
 	indirect := make(map[string]bool)
@@ -112,28 +112,7 @@ func getConnectedSitesFromNodesInterior(nodes []RouterNode, namespace string, cl
 func GetConnectedSites(edge bool, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	if edge {
-		uplink, err := getEdgeUplink(namespace, clientset, config)
-		if err == nil {
-			if uplink == nil {
-				return result, nil
-			} else {
-
-				nodes, err := getNodesForRouter(uplink.Container, namespace, clientset, config)
-				if err == nil {
-					result, err := getConnectedSitesFromNodesEdge(nodes, namespace, clientset, config)
-					if err != nil {
-						return result, err
-					}
-					return result, nil
-				} else {
-					fmt.Println("Failed to get nodes from uplink:", err)
-					return result, err
-				}
-			}
-		} else {
-			fmt.Println("Failed to get edge uplink:", err)
-			return result, err
-		}
+		return getConnectedSitesFromNodesEdge(namespace, clientset, config)
 	} else {
 		nodes, err := GetNodes(namespace, clientset, config)
 		if err == nil {
@@ -209,20 +188,6 @@ func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Conn
 		}
 	}
 	return nil
-}
-
-func getEdgeUplink(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*Connection, error) {
-	connections, err := GetConnections(namespace, clientset, config)
-	if err == nil {
-		for _, c := range connections {
-			if c.Role == "edge" && c.Dir == "out" {
-				return &c, nil
-			}
-		}
-		return nil, nil
-	} else {
-		return nil, err
-	}
 }
 
 func GetConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
