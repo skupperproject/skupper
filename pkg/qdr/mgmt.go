@@ -47,7 +47,48 @@ type Connection struct {
 	Dir        string `json:"dir"`
 }
 
-func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
+func getConnectedSitesFromNodesEdge(namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
+	result := types.TransportConnectedSites{}
+	direct := make(map[string]bool)
+	indirect := make(map[string]bool)
+
+	connections, err := GetConnections(namespace, clientset, config)
+	if err != nil {
+		return result, err
+	}
+	// Go through this list once to add all of its
+	// members to the directly-connected list...
+	for _, c := range connections {
+		if c.Role == "edge" && c.Dir == "out" {
+			nodeName := fmt.Sprintf("router.node/%s", c.Container)
+			direct[nodeName] = true
+		}
+	}
+	// ...and go through it again to get all of
+	// the indirect nodes.
+	for _, c := range connections {
+		if c.Role == "edge" && c.Dir == "out" {
+			uplinkNodes, err := getNodesForRouter(c.Container, namespace, clientset, config)
+			if err != nil {
+				return result, err
+			}
+			for _, uplinkNode := range uplinkNodes {
+				// Don't count a node as being indirectly connected
+				// if we already know that it is directly connected.
+				if _, present := direct[uplinkNode.Name]; !present {
+					indirect[uplinkNode.Name] = true
+				}
+			}
+
+		}
+	}
+	result.Direct = len(direct)
+	result.Indirect = len(indirect)
+	result.Total = result.Direct + result.Indirect
+	return result, nil
+}
+
+func getConnectedSitesFromNodesInterior(nodes []RouterNode, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	for _, n := range nodes {
 		edges, err := GetEdgeSitesForRouter(n.Id, namespace, clientset, config)
@@ -55,11 +96,7 @@ func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace strin
 			return result, fmt.Errorf("Failed to check edge nodes for %s: %w", n.Id, err)
 		}
 		if n.NextHop == "(self)" {
-			if direct {
-				result.Direct += edges
-			} else {
-				result.Indirect += edges
-			}
+			result.Direct += edges
 		} else {
 			result.Indirect += edges
 			if n.NextHop == "" {
@@ -76,31 +113,11 @@ func getConnectedSitesFromNodes(nodes []RouterNode, direct bool, namespace strin
 func GetConnectedSites(edge bool, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	if edge {
-		uplink, err := getEdgeUplink(namespace, clientset, config)
-		if err == nil {
-			if uplink == nil {
-				return result, nil
-			} else {
-				nodes, err := getNodesForRouter(uplink.Container, namespace, clientset, config)
-				if err == nil {
-					result, err := getConnectedSitesFromNodes(nodes, false, namespace, clientset, config)
-					if err != nil {
-						return result, err
-					}
-					return result, nil
-				} else {
-					fmt.Println("Failed to get nodes from uplink:", err)
-					return result, err
-				}
-			}
-		} else {
-			fmt.Println("Failed to get edge uplink:", err)
-			return result, err
-		}
+		return getConnectedSitesFromNodesEdge(namespace, clientset, config)
 	} else {
 		nodes, err := GetNodes(namespace, clientset, config)
 		if err == nil {
-			result, err = getConnectedSitesFromNodes(nodes, true, namespace, clientset, config)
+			result, err = getConnectedSitesFromNodesInterior(nodes, namespace, clientset, config)
 			if err != nil {
 				return result, err
 			}
@@ -113,6 +130,7 @@ func GetConnectedSites(edge bool, namespace string, clientset kubernetes.Interfa
 
 func GetEdgeSitesForRouter(routerid string, namespace string, clientset kubernetes.Interface, config *restclient.Config) (int, error) {
 	connections, err := getConnectionsForRouter(routerid, namespace, clientset, config)
+
 	if err == nil {
 		count := 0
 		for _, c := range connections {
@@ -171,20 +189,6 @@ func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Conn
 		}
 	}
 	return nil
-}
-
-func getEdgeUplink(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*Connection, error) {
-	connections, err := GetConnections(namespace, clientset, config)
-	if err == nil {
-		for _, c := range connections {
-			if c.Role == "edge" && c.Dir == "out" {
-				return &c, nil
-			}
-		}
-		return nil, nil
-	} else {
-		return nil, err
-	}
 }
 
 func GetConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
