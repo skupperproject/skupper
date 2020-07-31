@@ -413,10 +413,14 @@ func main() {
 				if vir.Status.Mode == types.TransportModeEdge {
 					modedesc = " in edge mode"
 				}
+				sitename := ""
+				if vir.Status.SiteName != "" && vir.Status.SiteName != cli.Namespace {
+					sitename = fmt.Sprintf(" with site name %q", vir.Status.SiteName)
+				}
+				fmt.Printf("Skupper is enabled for namespace %q%s%s.", cli.Namespace, sitename, modedesc)
 				if vir.Status.TransportReadyReplicas == 0 {
-					fmt.Printf("Skupper is enabled for namespace %q%s. Status pending...", cli.Namespace, modedesc)
+					fmt.Printf("Status pending...")
 				} else {
-					fmt.Printf("Skupper is enabled for namespace %q%s.", cli.Namespace, modedesc)
 					if vir.Status.ConnectedSites.Total == 0 {
 						fmt.Printf(" It is not connected to any other sites.")
 					} else if vir.Status.ConnectedSites.Total == 1 {
