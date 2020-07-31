@@ -212,6 +212,7 @@ type AssemblySpec struct {
 }
 
 type VanRouterStatusSpec struct {
+	SiteName               string                  `json:"siteName,omitempty"`
 	Mode                   string                  `json:"mode,omitempty"`
 	TransportReadyReplicas int32                   `json:"transportReadyReplicas,omitempty"`
 	ConnectedSites         TransportConnectedSites `json:"connectedSites,omitempty"`
