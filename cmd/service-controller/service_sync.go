@@ -103,6 +103,8 @@ func (c *Controller) ensureServiceInterfaceDefinitions(origin string, serviceInt
 	var changed []types.ServiceInterface
 	var deleted []string
 
+	c.heardFrom[origin] = time.Now()
+
 	for _, def := range serviceInterfaceDefs {
 		existing, ok := c.byName[def.Address]
 		if !ok || (existing.Origin == origin && !equivalentServiceDefinition(&def, &existing)) {
@@ -110,7 +112,6 @@ func (c *Controller) ensureServiceInterfaceDefinitions(origin string, serviceInt
 		}
 	}
 
-	// TODO: think about aging entries
 	if _, ok := c.byOrigin[origin]; !ok {
 		c.byOrigin[origin] = make(map[string]types.ServiceInterface)
 	} else {
@@ -122,6 +123,10 @@ func (c *Controller) ensureServiceInterfaceDefinitions(origin string, serviceInt
 		}
 	}
 	kube.UpdateSkupperServices(changed, deleted, origin, c.vanClient.Namespace, c.vanClient.KubeClient)
+
+	for _, name := range deleted {
+		delete(c.byOrigin[origin], name)
+	}
 }
 
 func (c *Controller) syncSender(sendLocal chan bool) {
@@ -138,7 +143,8 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 		sender.Close(ctx)
 	}()
 
-	ticker := time.NewTicker(5 * time.Second)
+	tickerSend := time.NewTicker(5 * time.Second)
+	tickerAge := time.NewTicker(30 * time.Second)
 
 	properties.Subject = "service-sync-update"
 	request.Properties = &properties
@@ -147,7 +153,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-tickerSend.C:
 			local := make([]types.ServiceInterface, 0)
 
 			for _, si := range c.Local {
@@ -161,6 +167,34 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 			}
 			request.Value = string(encoded)
 			err = sender.Send(ctx, &request)
+
+		case <-tickerAge.C:
+			var agedOrigins []string
+
+			now := time.Now()
+
+			for origin, _ := range c.byOrigin {
+				var deleted []string
+
+				if lastHeard, ok := c.heardFrom[origin]; ok {
+					if now.Sub(lastHeard) >= 60*time.Second {
+						agedOrigins = append(agedOrigins, origin)
+						agedDefinitions := c.byOrigin[origin]
+						for name, _ := range agedDefinitions {
+							deleted = append(deleted, name)
+						}
+						if len(deleted) > 0 {
+							kube.UpdateSkupperServices([]types.ServiceInterface{}, deleted, origin, c.vanClient.Namespace, c.vanClient.KubeClient)
+						}
+					}
+				}
+			}
+
+			for _, originName := range agedOrigins {
+				log.Println("Service sync aged out service definitions from origin ", originName)
+				delete(c.heardFrom, originName)
+				delete(c.byOrigin, originName)
+			}
 		}
 	}
 }
@@ -168,14 +202,14 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 func (c *Controller) runServiceSync() {
 	ctx := context.Background()
 
-	log.Println("Establishing connection to skupper-messaging service...")
+	log.Println("Establishing connection to skupper-messaging service for service sync")
 
 	client, err := amqp.Dial("amqps://skupper-messaging:5671", amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(c.tlsConfig))
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Failed to create amqp connection %s", err.Error()))
 		return
 	}
-	log.Println("connection to skupper-messaging service established")
+	log.Println("Service sync connection to skupper-messaging service established")
 	c.amqpClient = client
 	defer c.amqpClient.Close()
 

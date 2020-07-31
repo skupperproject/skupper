@@ -50,6 +50,7 @@ type Controller struct {
 	Local           []types.ServiceInterface
 	byName          map[string]types.ServiceInterface
 	desiredServices map[string]types.ServiceInterface
+	heardFrom       map[string]time.Time
 
 	definitionMonitor *DefinitionMonitor
 	consoleServer     *ConsoleServer
@@ -131,6 +132,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) 
 	controller.byOrigin = make(map[string]map[string]types.ServiceInterface)
 	controller.byName = make(map[string]types.ServiceInterface)
 	controller.desiredServices = make(map[string]types.ServiceInterface)
+	controller.heardFrom = make(map[string]time.Time)
 
 	log.Println("Setting up event handlers")
 	svcDefInformer.AddEventHandler(controller.newEventHandler("servicedefs", AnnotatedKey, ConfigMapResourceVersionTest))
