@@ -316,6 +316,7 @@ type TransportConnectedSites struct {
 	Direct   int
 	Indirect int
 	Total    int
+	Warnings []string
 }
 
 type ServiceInterface struct {

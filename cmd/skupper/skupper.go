@@ -421,6 +421,13 @@ func main() {
 				if vir.Status.TransportReadyReplicas == 0 {
 					fmt.Printf("Status pending...")
 				} else {
+					if len(vir.Status.ConnectedSites.Warnings) > 0 {
+						for _, w := range vir.Status.ConnectedSites.Warnings {
+							fmt.Printf("Warning: %s", w)
+							fmt.Println()
+						}
+					}
+					fmt.Printf("Skupper is enabled for namespace %q%s.", cli.Namespace, modedesc)
 					if vir.Status.ConnectedSites.Total == 0 {
 						fmt.Printf(" It is not connected to any other sites.")
 					} else if vir.Status.ConnectedSites.Total == 1 {
