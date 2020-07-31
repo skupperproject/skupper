@@ -419,7 +419,7 @@ func main() {
 				}
 				fmt.Printf("Skupper is enabled for namespace %q%s%s.", cli.Namespace, sitename, modedesc)
 				if vir.Status.TransportReadyReplicas == 0 {
-					fmt.Printf("Status pending...")
+					fmt.Printf(" Status pending...")
 				} else {
 					if vir.Status.ConnectedSites.Total == 0 {
 						fmt.Printf(" It is not connected to any other sites.")
