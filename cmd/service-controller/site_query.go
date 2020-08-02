@@ -87,6 +87,7 @@ func (s *SiteQueryServer) run() {
 		utilruntime.HandleError(fmt.Errorf("Failed to create amqp connection for site query server: %s", err.Error()))
 		return
 	}
+	log.Println("Site query server connection to skupper-messaging service established")
 	defer client.Close()
 
 	session, err := client.NewSession()
