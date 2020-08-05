@@ -14,6 +14,8 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	batchv1 "k8s.io/api/batch/v1"
+
 	vanClient "github.com/skupperproject/skupper/client"
 )
 
@@ -166,4 +168,91 @@ func (cc *ClusterContext) GetService(name string, timeout_S time.Duration) *apiv
 
 		}
 	}
+}
+
+func getTestImage() string {
+	testImage := os.Getenv("TEST_IMAGE")
+	if testImage == "" {
+		testImage = "quay.io/skupper/skupper-tests"
+	}
+	return testImage
+}
+
+func int32Ptr(i int32) *int32 { return &i }
+
+func (cc *ClusterContext) CreateTestJob(name string, command []string) (*batchv1.Job, error) {
+
+	namespace := cc.CurrentNamespace
+	testImage := getTestImage()
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: batchv1.JobSpec{
+			BackoffLimit: int32Ptr(1), //one retry (no retries)
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+				},
+				Spec: apiv1.PodSpec{
+					Containers: []apiv1.Container{
+						{
+							Name:    name,
+							Image:   testImage,
+							Command: command,
+							Env: []apiv1.EnvVar{
+								{Name: "JOB", Value: name},
+							},
+							ImagePullPolicy: apiv1.PullIfNotPresent,
+						},
+					},
+					RestartPolicy: apiv1.RestartPolicyNever,
+				},
+			},
+		},
+	}
+
+	jobsClient := cc.VanClient.KubeClient.BatchV1().Jobs(namespace)
+
+	job, err := jobsClient.Create(job)
+
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
+}
+
+//TODO evaluate modifying this implementation to use informers instead of
+//pooling.
+func (cc *ClusterContext) WaitForJob(jobName string, timeout_S time.Duration) (*batchv1.Job, error) {
+
+	jobsClient := cc.VanClient.KubeClient.BatchV1().Jobs(cc.CurrentNamespace)
+
+	defer cc.KubectlExec("logs job/" + jobName)
+
+	cmd := fmt.Sprintf("get job/%s -o wide", jobName)
+	for {
+		select {
+		case <-time.After(timeout_S * time.Second):
+			return nil, fmt.Errorf("Timeout: Job is still active")
+		case <-time.Tick(5 * time.Second):
+			job, _ := jobsClient.Get(jobName, metav1.GetOptions{})
+			if job.Status.Active > 0 {
+				fmt.Println("Job is still active")
+				cc.KubectlExec(cmd)
+			} else {
+				if job.Status.Succeeded > 0 {
+					fmt.Println("Job Successful!!")
+					cc.KubectlExec(cmd)
+					return job, nil
+				}
+				fmt.Printf("Job failed!!!??, status = %v\n", job.Status)
+				cc.KubectlExec(cmd)
+				return job, nil
+			}
+		}
+	}
+
 }

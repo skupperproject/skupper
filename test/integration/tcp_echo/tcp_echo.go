@@ -3,10 +3,6 @@ package tcp_echo
 import (
 	"context"
 	"fmt"
-	"log"
-	"net"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -14,6 +10,8 @@ import (
 	"gotest.tools/assert"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -65,70 +63,43 @@ var deployment *appsv1.Deployment = &appsv1.Deployment{
 	},
 }
 
-func sendReceive(servAddr string) {
-	strEcho := "Halo"
-	tcpAddr, err := net.ResolveTCPAddr("tcp", servAddr)
-	if err != nil {
-		log.Panicln("ResolveTCPAddr failed:", err.Error())
-	}
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	if err != nil {
-		log.Panicln("Dial failed:", err.Error())
-	}
-	_, err = conn.Write([]byte(strEcho))
-	if err != nil {
-		log.Panicln("Write to server failed:", err.Error())
-	}
-
-	reply := make([]byte, 1024)
-
-	_, err = conn.Read(reply)
-	if err != nil {
-		log.Panicln("Write to server failed:", err.Error())
-	}
-	conn.Close()
-
-	log.Println("Sent to server = ", strEcho)
-	log.Println("Reply from server = ", string(reply))
-
-	if !strings.Contains(string(reply), strings.ToUpper(strEcho)) {
-		log.Panicf("Response from server different that expected: %s", string(reply))
-	}
-}
-
-func forwardSendReceive(cc *cluster.ClusterContext, port string) {
-	cc.KubectlExecAsync(fmt.Sprintf("port-forward service/tcp-go-echo %s:9090", port))
-
-	defer exec.Command("pkill", "kubectl").Run() //XXX the forwarding needs to be redesigned, this is an ugly patch
-	//there is an issue with killing with the cmd.Kill() method...
-	//circleci 27472  0.0  0.0   4460   684 pts/3    S+   01:21   0:00 sh -c KUBECONFIG=/home/circleci/.kube/config kubectl -n  public1 port-forward service/tcp-go-echo 9090:9090
-	//circleci 27473  0.6  0.5 146188 41992 pts/3    Sl+  01:21   0:00 kubectl -n public1 port-forward service/tcp-go-echo 9090:9090
-	//using the Kill only kills the first process
-
-	//TODO find a better solution for this
-	time.Sleep(60 * time.Second) //give time to port forwarding to start
-
-	sendReceive("127.0.0.1:" + port)
-}
-
 func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
-	var publicService *apiv1.Service
-	var privateService *apiv1.Service
 
-	r.Pub1Cluster.KubectlExec("get svc")
-	r.Priv1Cluster.KubectlExec("get svc")
+	//XXX
+	r.Pub1Cluster.GetService("tcp-go-echo", 5*minute)
+	r.Priv1Cluster.GetService("tcp-go-echo", 5*minute)
+	time.Sleep(20 * time.Second) //TODO What is the right condition to wait for?
 
-	publicService = r.Pub1Cluster.GetService("tcp-go-echo", 3*minute)
-	privateService = r.Priv1Cluster.GetService("tcp-go-echo", 3*minute)
+	jobName := "tcp-echo"
+	jobCmd := []string{"/go/src/app/tcp_echo_test", "-test.run", "Job"}
 
-	time.Sleep(20 * time.Second) //TODO XXX What is the right condition to wait for?
-	//error: unable to forward port because pod is not running. Current status=Pending
+	//Note here we are executing the same test but, in two different
+	//namespaces (or clusters), the same service must exist in both clusters
+	//because of the skupper connections and the "skupper exposed"
+	//deployment.
+	//TODO the pattern: create Job or jobs, wait for termination, and assert
+	//success probably will be moved to common cluster_test_runner.go
+	//source.
+	_, err := r.Pub1Cluster.CreateTestJob(jobName, jobCmd)
+	assert.Assert(r.T, err)
 
-	fmt.Printf("Public service ClusterIp = %q\n", publicService.Spec.ClusterIP)
-	fmt.Printf("Private service ClusterIp = %q\n", privateService.Spec.ClusterIP)
+	_, err = r.Priv1Cluster.CreateTestJob(jobName, jobCmd)
+	assert.Assert(r.T, err)
 
-	forwardSendReceive(r.Pub1Cluster, "9090")
-	forwardSendReceive(r.Priv1Cluster, "9091")
+	assertJob := func(job *batchv1.Job) {
+		r.T.Helper()
+		assert.Equal(r.T, int(job.Status.Succeeded), 1)
+		assert.Equal(r.T, int(job.Status.Active), 0)
+		assert.Equal(r.T, int(job.Status.Failed), 0)
+	}
+
+	job, err := r.Pub1Cluster.WaitForJob(jobName, 5*minute)
+	assert.Assert(r.T, err)
+	assertJob(job)
+
+	job, err = r.Priv1Cluster.WaitForJob(jobName, 5*minute)
+	assert.Assert(r.T, err)
+	assertJob(job)
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
@@ -147,7 +118,6 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-	//copiar de aca para listar losnamespaces!!
 	fmt.Printf("Listing deployments in namespace %q:\n", r.Pub1Cluster.CurrentNamespace)
 	list, err := publicDeploymentsClient.List(metav1.ListOptions{})
 	assert.Assert(r.T, err)
