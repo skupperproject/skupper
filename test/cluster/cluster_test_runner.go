@@ -75,10 +75,10 @@ func _exec(command string, wait bool) *exec.Cmd {
 	cmd := exec.Command("sh", "-c", command)
 	if wait {
 		output, err = cmd.CombinedOutput()
+		fmt.Println(string(output))
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(string(output))
 	} else {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
