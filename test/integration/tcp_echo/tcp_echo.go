@@ -71,7 +71,7 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	time.Sleep(20 * time.Second) //TODO What is the right condition to wait for?
 
 	jobName := "tcp-echo"
-	jobCmd := []string{"/go/src/app/tcp_echo_test", "-test.run", "Job"}
+	jobCmd := []string{"/app/tcp_echo_test", "-test.run", "Job"}
 
 	//Note here we are executing the same test but, in two different
 	//namespaces (or clusters), the same service must exist in both clusters

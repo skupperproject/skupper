@@ -9,10 +9,9 @@ RUN go mod download
 COPY . .
 RUN make build-tests
 
-#TODO look for a smaller base image
-FROM golang:1.13
+FROM registry.access.redhat.com/ubi8-minimal
 
-WORKDIR /go/src/app
+WORKDIR /app
 COPY --from=builder /go/src/app/tcp_echo_test .
 
 CMD ["ls"]
