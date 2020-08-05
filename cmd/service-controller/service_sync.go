@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"sort"
 	"time"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
@@ -17,7 +16,7 @@ import (
 )
 
 func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.ServiceInterface) {
-	var latest []types.ServiceInterface // becomes c.Local
+	latest := make(map[string]types.ServiceInterface) // becomes c.localServices
 	byName := make(map[string]types.ServiceInterface)
 	var added []types.ServiceInterface
 	var modified []types.ServiceInterface
@@ -38,31 +37,20 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 			}
 			c.byOrigin[service.Origin][name] = service
 		} else {
-			latest = append(latest, service)
+			latest[service.Address] = service
 		}
 		byName[service.Address] = service
 	}
 
-	sort.Sort(types.ByServiceInterfaceAddress(latest))
-
-	last := make(map[string]types.ServiceInterface)
-	for _, def := range c.Local {
-		last[def.Address] = def
-	}
-	current := make(map[string]types.ServiceInterface)
-	for _, def := range latest {
-		current[def.Address] = def
-	}
-
-	for _, def := range last {
-		if _, ok := current[def.Address]; !ok {
+	for _, def := range c.localServices {
+		if _, ok := latest[def.Address]; !ok {
 			removed = append(removed, def)
-		} else if !reflect.DeepEqual(def, current[def.Address]) {
+		} else if !reflect.DeepEqual(def, latest[def.Address]) {
 			modified = append(modified, def)
 		}
 	}
-	for _, def := range current {
-		if _, ok := last[def.Address]; !ok {
+	for _, def := range latest {
+		if _, ok := c.localServices[def.Address]; !ok {
 			added = append(added, def)
 		}
 	}
@@ -78,7 +66,7 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 		log.Println("Service interface(s) modified", modified)
 	}
 
-	c.Local = latest
+	c.localServices = latest
 	c.byName = byName
 }
 
@@ -118,10 +106,13 @@ func (c *Controller) ensureServiceInterfaceDefinitions(origin string, serviceInt
 		current := c.byOrigin[origin]
 		for name, _ := range current {
 			if _, ok := serviceInterfaceDefs[name]; !ok {
-				deleted = append(deleted, name)
+				if _, local := c.localServices[name]; !local {
+					deleted = append(deleted, name)
+				}
 			}
 		}
 	}
+
 	kube.UpdateSkupperServices(changed, deleted, origin, c.vanClient.Namespace, c.vanClient.KubeClient)
 
 	for _, name := range deleted {
@@ -156,7 +147,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 		case <-tickerSend.C:
 			local := make([]types.ServiceInterface, 0)
 
-			for _, si := range c.Local {
+			for _, si := range c.localServices {
 				local = append(local, si)
 			}
 
@@ -181,7 +172,9 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 						agedOrigins = append(agedOrigins, origin)
 						agedDefinitions := c.byOrigin[origin]
 						for name, _ := range agedDefinitions {
-							deleted = append(deleted, name)
+							if _, local := c.localServices[name]; !local {
+								deleted = append(deleted, name)
+							}
 						}
 						if len(deleted) > 0 {
 							kube.UpdateSkupperServices([]types.ServiceInterface{}, deleted, origin, c.vanClient.Namespace, c.vanClient.KubeClient)
