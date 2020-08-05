@@ -93,6 +93,7 @@ func (cc *ClusterContext) exec(main_command string, sub_command string, wait boo
 	return _exec("KUBECONFIG="+cc.ClusterConfigFile+" "+main_command+" "+cc.CurrentNamespace+" "+sub_command, wait)
 }
 
+//TODO remove this
 func (cc *ClusterContext) SkupperExec(command string) *exec.Cmd {
 	return cc.exec("./skupper -n ", command, true)
 }
@@ -101,6 +102,7 @@ func (cc *ClusterContext) _kubectl_exec(command string, wait bool) *exec.Cmd {
 	return cc.exec("kubectl -n ", command, wait)
 }
 
+//TODO return error instead of panic in case of exit code != 0
 func (cc *ClusterContext) KubectlExec(command string) *exec.Cmd {
 	return cc._kubectl_exec(command, true)
 }
