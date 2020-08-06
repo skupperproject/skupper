@@ -15,6 +15,15 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
+func (c *Controller) pareByOrigin(service string) {
+	for _, origin := range c.byOrigin {
+		if _, ok := origin[service]; ok {
+			delete(origin, service)
+			return
+		}
+	}
+}
+
 func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.ServiceInterface) {
 	latest := make(map[string]types.ServiceInterface) // becomes c.localServices
 	byName := make(map[string]types.ServiceInterface)
@@ -35,9 +44,14 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 			if _, ok := c.byOrigin[service.Origin]; !ok {
 				c.byOrigin[service.Origin] = make(map[string]types.ServiceInterface)
 			}
-			c.byOrigin[service.Origin][name] = service
+			// track by origin if not locally exposed
+			if _, ok := c.localServices[name]; !ok {
+				c.byOrigin[service.Origin][name] = service
+			}
 		} else {
 			latest[service.Address] = service
+			// may have previously been tracked by origin
+			c.pareByOrigin(service.Address)
 		}
 		byName[service.Address] = service
 	}
@@ -106,9 +120,7 @@ func (c *Controller) ensureServiceInterfaceDefinitions(origin string, serviceInt
 		current := c.byOrigin[origin]
 		for name, _ := range current {
 			if _, ok := serviceInterfaceDefs[name]; !ok {
-				if _, local := c.localServices[name]; !local {
-					deleted = append(deleted, name)
-				}
+				deleted = append(deleted, name)
 			}
 		}
 	}
@@ -172,9 +184,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 						agedOrigins = append(agedOrigins, origin)
 						agedDefinitions := c.byOrigin[origin]
 						for name, _ := range agedDefinitions {
-							if _, local := c.localServices[name]; !local {
-								deleted = append(deleted, name)
-							}
+							deleted = append(deleted, name)
 						}
 						if len(deleted) > 0 {
 							kube.UpdateSkupperServices([]types.ServiceInterface{}, deleted, origin, c.vanClient.Namespace, c.vanClient.KubeClient)
