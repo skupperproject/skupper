@@ -1,4 +1,4 @@
-VERSION := $(shell git describe --tags --dirty=-modified)
+VERSION := $(shell git describe --tags --dirty=-modified --always)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 DOCKER := docker
@@ -36,6 +36,16 @@ client-cluster-test:
 vet:
 	go vet ./...
 
+cmd-test:
+	go test -v -count=1 ./cmd/...
+
+pkg-test:
+	go test -v -count=1 ./pkg/...
+
+.PHONY: test
+test:
+	go test -v -count=1 ./pkg/... ./cmd/... ./client/...
+
 clean:
 	rm -rf skupper service-controller site-controller release
 
@@ -58,6 +68,4 @@ release/darwin/skupper: cmd/skupper/skupper.go
 
 release/darwin.zip: release/darwin/skupper
 	zip -j release/darwin.zip release/darwin/skupper
-
-
 
