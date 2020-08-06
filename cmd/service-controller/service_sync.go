@@ -44,10 +44,7 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 			if _, ok := c.byOrigin[service.Origin]; !ok {
 				c.byOrigin[service.Origin] = make(map[string]types.ServiceInterface)
 			}
-			// track by origin if not locally exposed
-			if _, ok := c.localServices[name]; !ok {
-				c.byOrigin[service.Origin][name] = service
-			}
+			c.byOrigin[service.Origin][name] = service
 		} else {
 			latest[service.Address] = service
 			// may have previously been tracked by origin
