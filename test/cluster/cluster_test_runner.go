@@ -193,7 +193,7 @@ func (cc *ClusterContext) CreateTestJob(name string, command []string) (*batchv1
 			Namespace: namespace,
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: int32Ptr(1), //one retry (no retries)
+			BackoffLimit: int32Ptr(3),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
@@ -234,24 +234,23 @@ func (cc *ClusterContext) WaitForJob(jobName string, timeout_S time.Duration) (*
 
 	defer cc.KubectlExec("logs job/" + jobName)
 
-	cmd := fmt.Sprintf("get job/%s -o wide", jobName)
 	for {
 		select {
 		case <-time.After(timeout_S * time.Second):
 			return nil, fmt.Errorf("Timeout: Job is still active")
 		case <-time.Tick(5 * time.Second):
 			job, _ := jobsClient.Get(jobName, metav1.GetOptions{})
+
+			cc.KubectlExec(fmt.Sprintf("get job/%s -o wide", jobName))
+
 			if job.Status.Active > 0 {
 				fmt.Println("Job is still active")
-				cc.KubectlExec(cmd)
 			} else {
 				if job.Status.Succeeded > 0 {
-					fmt.Println("Job Successful!!")
-					cc.KubectlExec(cmd)
+					fmt.Println("Job Successful!")
 					return job, nil
 				}
-				fmt.Printf("Job failed!!!??, status = %v\n", job.Status)
-				cc.KubectlExec(cmd)
+				fmt.Printf("Job failed?, status = %v\n", job.Status)
 				return job, nil
 			}
 		}
