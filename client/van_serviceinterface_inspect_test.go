@@ -42,7 +42,7 @@ func TestVanServiceInterfaceInspect(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-                // Run in a real cluster, or in a mock environment.
+		// Run in a real cluster, or in a mock environment.
 		var cli *VanClient
 		var err error
 		isCluster := *clusterRun
@@ -84,9 +84,9 @@ func TestVanServiceInterfaceInspect(t *testing.T) {
 		}
 		err = cli.VanServiceInterfaceCreate(ctx, &service)
 
-                // If initialization was not done, we should see an error.
-                // In this case, don't try to check the Service Interface -- 
-                // it isn't there.
+		// If initialization was not done, we should see an error.
+		// In this case, don't try to check the Service Interface --
+		// it isn't there.
 		if testcase.expectedCreationError != "" {
 			assert.Check(t,
 				err != nil && strings.Contains(err.Error(), testcase.expectedCreationError),
@@ -94,16 +94,32 @@ func TestVanServiceInterfaceInspect(t *testing.T) {
 				testcase.namespace,
 				testcase.expectedCreationError)
 		} else {
-			assert.Check(t, err, "Creation failed.")
+			assert.Check(t, err, "\n\nTest %s failure: Creation failed.\n", testcase.namespace)
 
 			// When we inspect the VanServiceInterface, make sure that the
 			// expected values have been set.
 			serviceInterface, err := cli.VanServiceInterfaceInspect(ctx, testcase.addr)
-			assert.Check(t, err, "Inspectionion failed.")
+			assert.Check(t, err, "Inspection failed.")
 
-			assert.Equal(t, testcase.addr, serviceInterface.Address, "Error in address.")
-			assert.Equal(t, testcase.proto, serviceInterface.Protocol, "Error in protocol.")
-			assert.Assert(t, nil == serviceInterface.Headless, "Error in headless.")
+			assert.Equal(t, testcase.addr, serviceInterface.Address,
+				"\n\nTest %s failure: Address was |%s| but should be |%s|.\n",
+				testcase.namespace,
+				serviceInterface.Address,
+				testcase.addr)
+			assert.Equal(t, testcase.proto, serviceInterface.Protocol,
+				"\n\nTest %s failure: Protocol was |%s| but should be |%s|.\n",
+				testcase.namespace,
+				serviceInterface.Protocol,
+				testcase.proto)
+			assert.Equal(t, testcase.port, serviceInterface.Port,
+				"\n\nTest %s failure: Port was %d but should be %d.\n",
+				testcase.namespace,
+				serviceInterface.Port,
+				testcase.port)
+			assert.Assert(t, nil == serviceInterface.Headless,
+				"\n\nTest %s failure: Headless was |%#v| but should be nil.\n",
+				testcase.namespace,
+				serviceInterface.Headless)
 		}
 	}
 }
