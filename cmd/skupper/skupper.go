@@ -64,6 +64,9 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
 		return fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
 	}
+
+	// service may exist from remote origin
+	service.Origin = ""
 	return cli.VanServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
 }
 

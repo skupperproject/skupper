@@ -47,7 +47,7 @@ type Controller struct {
 	amqpClient      *amqp.Client
 	amqpSession     *amqp.Session
 	byOrigin        map[string]map[string]types.ServiceInterface
-	Local           []types.ServiceInterface
+	localServices   map[string]types.ServiceInterface
 	byName          map[string]types.ServiceInterface
 	desiredServices map[string]types.ServiceInterface
 	heardFrom       map[string]time.Time
@@ -130,6 +130,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) 
 
 	// Organize service definitions
 	controller.byOrigin = make(map[string]map[string]types.ServiceInterface)
+	controller.localServices = make(map[string]types.ServiceInterface)
 	controller.byName = make(map[string]types.ServiceInterface)
 	controller.desiredServices = make(map[string]types.ServiceInterface)
 	controller.heardFrom = make(map[string]time.Time)
