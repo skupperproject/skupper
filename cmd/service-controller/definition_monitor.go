@@ -156,10 +156,15 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 		} else {
 			svc.Address = deployment.ObjectMeta.Name
 		}
+
+		selector := ""
+		if deployment.Spec.Selector != nil {
+			selector = utils.StringifySelector(deployment.Spec.Selector.MatchLabels)
+		}
 		svc.Targets = []types.ServiceInterfaceTarget{
 			types.ServiceInterfaceTarget{
 				Name:     deployment.ObjectMeta.Name,
-				Selector: utils.StringifySelector(deployment.Spec.Selector.MatchLabels),
+				Selector: selector,
 			},
 		}
 		svc.Origin = "annotation"
