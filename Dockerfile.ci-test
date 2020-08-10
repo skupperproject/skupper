@@ -12,6 +12,6 @@ RUN make build-tests
 FROM registry.access.redhat.com/ubi8-minimal
 
 WORKDIR /app
-COPY --from=builder /go/src/app/tcp_echo_test .
+COPY --from=builder /go/src/app/test/integration/bin ./
 
 CMD ["ls"]

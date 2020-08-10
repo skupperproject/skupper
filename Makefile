@@ -2,12 +2,15 @@ VERSION := $(shell git describe --tags --dirty=-modified)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 TEST_IMAGE := quay.io/skupper/skupper-tests
+TEST_BINARIES_FOLDER := ./test/integration/bin
 DOCKER := docker
+
 
 all: build-cmd build-controllers build-tests
 
 build-tests:
-	go test -c -tags=integration -v ./test/integration/tcp_echo -o tcp_echo_test
+	mkdir -p ${TEST_BINARIES_FOLDER}
+	go test -c -tags=integration -v ./test/integration/tcp_echo -o ${TEST_BINARIES_FOLDER}/tcp_echo_test
 
 build-cmd:
 	go build -ldflags="-X main.version=${VERSION}"  -o skupper cmd/skupper/skupper.go
