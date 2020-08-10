@@ -50,7 +50,7 @@ func NewConfigMap(name string, data *map[string]string, owner *metav1.OwnerRefer
 		created, err := configMaps.Create(cm)
 
 		if err != nil {
-			return nil, fmt.Errorf("Failed to crate config map: %w", err)
+			return nil, fmt.Errorf("Failed to create config map: %w", err)
 		} else {
 			return created, nil
 		}
