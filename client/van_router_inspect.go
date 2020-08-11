@@ -17,6 +17,10 @@ func (cli *VanClient) VanRouterInspect(ctx context.Context) (*types.VanRouterIns
 
 	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
+		siteConfig, err := cli.VanSiteConfigInspect(ctx, nil)
+		if err == nil && siteConfig != nil {
+			vir.Status.SiteName = siteConfig.Spec.SkupperName
+		}
 		vir.Status.Mode = string(qdr.GetTransportMode(current))
 		vir.Status.TransportReadyReplicas = current.Status.ReadyReplicas
 		connected, err := qdr.GetConnectedSites(vir.Status.Mode == types.TransportModeEdge, cli.Namespace, cli.KubeClient, cli.RestConfig)

@@ -87,6 +87,7 @@ func (s *SiteQueryServer) run() {
 		utilruntime.HandleError(fmt.Errorf("Failed to create amqp connection for site query server: %s", err.Error()))
 		return
 	}
+	log.Println("Site query server connection to skupper-messaging service established")
 	defer client.Close()
 
 	session, err := client.NewSession()
@@ -125,8 +126,6 @@ func (s *SiteQueryServer) run() {
 		correlationId, ok := qdr.AsUint64(msg.Properties.CorrelationID)
 		if !ok {
 			log.Printf("WARN: Could not get correlationid from site query request: %#v (%T)", msg.Properties.CorrelationID, msg.Properties.CorrelationID)
-		} else {
-			log.Printf("Sending site query response for %v: %s", correlationId, string(bytes))
 		}
 		response := amqp.Message{
 			Properties: &amqp.MessageProperties{

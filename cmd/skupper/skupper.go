@@ -64,6 +64,9 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
 		return fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
 	}
+
+	// service may exist from remote origin
+	service.Origin = ""
 	return cli.VanServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
 }
 
@@ -413,10 +416,20 @@ func main() {
 				if vir.Status.Mode == types.TransportModeEdge {
 					modedesc = " in edge mode"
 				}
+				sitename := ""
+				if vir.Status.SiteName != "" && vir.Status.SiteName != cli.Namespace {
+					sitename = fmt.Sprintf(" with site name %q", vir.Status.SiteName)
+				}
+				fmt.Printf("Skupper is enabled for namespace %q%s%s.", cli.Namespace, sitename, modedesc)
 				if vir.Status.TransportReadyReplicas == 0 {
-					fmt.Printf("Skupper is enabled for namespace '%q%s'. Status pending...", cli.Namespace, modedesc)
+					fmt.Printf(" Status pending...")
 				} else {
-					fmt.Printf("Skupper is enabled for namespace '%q%s'.", cli.Namespace, modedesc)
+					if len(vir.Status.ConnectedSites.Warnings) > 0 {
+						for _, w := range vir.Status.ConnectedSites.Warnings {
+							fmt.Printf("Warning: %s", w)
+							fmt.Println()
+						}
+					}
 					if vir.Status.ConnectedSites.Total == 0 {
 						fmt.Printf(" It is not connected to any other sites.")
 					} else if vir.Status.ConnectedSites.Total == 1 {

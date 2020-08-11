@@ -15,13 +15,17 @@ limitations under the License.
 package kube
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 func IsPodReady(pod *corev1.Pod) bool {
@@ -83,4 +87,22 @@ func GetComponentVersion(namespace string, clientset kubernetes.Interface, compo
 	} else {
 		return "not-found"
 	}
+}
+
+func WaitForPodStatus(namespace string, clientset kubernetes.Interface, podName string, status corev1.PodPhase, timeout time.Duration, interval time.Duration) (*corev1.Pod, error) {
+	var pod *corev1.Pod
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
+		pod, err = clientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+		if err != nil {
+			// pod does not exist yet
+			return false, nil
+		}
+		return pod.Status.Phase == status, nil
+	})
+
+	return pod, err
 }

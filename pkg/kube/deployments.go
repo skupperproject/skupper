@@ -14,6 +14,19 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
+func GetDeploymentPods(name string, namespace string, cli kubernetes.Interface) ([]corev1.Pod, error) {
+	deployment, err := GetDeployment(name, namespace, cli)
+	if err != nil {
+		return nil, err
+	}
+	options := metav1.ListOptions{LabelSelector: "application=" + deployment.Name}
+	podList, err := cli.CoreV1().Pods(namespace).List(options)
+	if err != nil {
+		return nil, err
+	}
+	return podList.Items, err
+}
+
 func GetDeploymentOwnerReference(dep *appsv1.Deployment) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: "apps/v1",
