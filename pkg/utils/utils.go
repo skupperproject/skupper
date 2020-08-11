@@ -16,6 +16,7 @@ package utils
 
 import (
 	"crypto/rand"
+	"strings"
 )
 
 const alphanumerics = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -41,4 +42,19 @@ func StringifySelector(labels map[string]string) string {
 		result += v
 	}
 	return result
+}
+
+// LabelToMap expects label string to be a comma separated
+// list of key and value pairs delimited by equals.
+func LabelToMap(label string) map[string]string {
+	m := map[string]string{}
+	labels := strings.Split(label, ",")
+	for _, l := range labels {
+		if !strings.Contains(l, "=") {
+			continue
+		}
+		entry := strings.Split(l, "=")
+		m[entry[0]] = entry[1]
+	}
+	return m
 }
