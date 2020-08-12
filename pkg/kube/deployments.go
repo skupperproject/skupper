@@ -1,9 +1,12 @@
 package kube
 
 import (
+	"context"
 	jsonencoding "encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"os"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -433,4 +436,24 @@ func GetContainerPort(deployment *appsv1.Deployment) int32 {
 	} else {
 		return 0
 	}
+}
+
+// WaitDeploymentReadyReplicas waits till given deployment contains the expected
+// number of readyReplicas, or until it times out
+func WaitDeploymentReadyReplicas(name string, namespace string, readyReplicas int, cli kubernetes.Interface, timeout, interval time.Duration) (*appsv1.Deployment, error) {
+	var dep *appsv1.Deployment
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
+		dep, err = cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			// dep does not exist yet
+			return false, nil
+		}
+		return dep.Status.ReadyReplicas == int32(readyReplicas), nil
+	})
+
+	return dep, err
 }
