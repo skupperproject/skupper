@@ -185,7 +185,7 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
 	owner, err := getRootObject(cli)
 	if err == nil {
-		_, err = cli.VanServiceInterfaceInspect(ctx, service.Address)
+		_, err = cli.ServiceInterfaceInspect(ctx, service.Address)
 		if err == nil {
 			err = validateServiceInterface(service)
 			if err != nil {

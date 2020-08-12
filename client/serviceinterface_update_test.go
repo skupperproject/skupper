@@ -256,7 +256,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	_, err = deployments.Create(httpDeployment)
 	assert.Assert(t, err)
 
-	err = cli.VanServiceInterfaceCreate(ctx, &types.ServiceInterface{
+	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
 		Address:      "noaddress",
 		Protocol:     "tcp",
 		Port:         12345,
@@ -265,8 +265,8 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	})
 	assert.Error(t, err, "Skupper not initialised in van-serviceinterface-update")
 
-	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -289,7 +289,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	}
 
 	// create three service definitions
-	err = cli.VanServiceInterfaceCreate(ctx, &types.ServiceInterface{
+	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
 		Address:      "tcp-go-echo",
 		Protocol:     "tcp",
 		Port:         9090,
@@ -298,7 +298,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	})
 	assert.Assert(t, err)
 
-	err = cli.VanServiceInterfaceCreate(ctx, &types.ServiceInterface{
+	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
 		Address:      "nginx",
 		Protocol:     "http",
 		Port:         8080,
@@ -307,7 +307,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	})
 	assert.Assert(t, err)
 
-	err = cli.VanServiceInterfaceCreate(ctx, &types.ServiceInterface{
+	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
 		Address:      "tcp-go-echo-ss",
 		Protocol:     "tcp",
 		Port:         9090,
@@ -318,26 +318,26 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 
 	// bind services to targets
 	// TODO: could range on list if target type was not needed for bind
-	si, err := cli.VanServiceInterfaceInspect(ctx, "tcp-go-echo")
+	si, err := cli.ServiceInterfaceInspect(ctx, "tcp-go-echo")
 	assert.Assert(t, err)
-	err = cli.VanServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", "tcp", 9090)
-	assert.Assert(t, err)
-
-	si, err = cli.VanServiceInterfaceInspect(ctx, "tcp-go-echo-ss")
-	assert.Assert(t, err)
-	err = cli.VanServiceInterfaceBind(ctx, si, "statefulset", "tcp-go-echo-ss", "tcp", 9090)
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", "tcp", 9090)
 	assert.Assert(t, err)
 
-	si, err = cli.VanServiceInterfaceInspect(ctx, "nginx")
+	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-ss")
+	assert.Assert(t, err)
+	err = cli.ServiceInterfaceBind(ctx, si, "statefulset", "tcp-go-echo-ss", "tcp", 9090)
+	assert.Assert(t, err)
+
+	si, err = cli.ServiceInterfaceInspect(ctx, "nginx")
 	assert.Assert(t, err)
 	// bad bind
-	err = cli.VanServiceInterfaceBind(ctx, si, "deployment", "nginx2", "http", 8080)
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx2", "http", 8080)
 	assert.Error(t, err, "Could not read deployment nginx2: deployments.apps \"nginx2\" not found")
 	// good bind
-	err = cli.VanServiceInterfaceBind(ctx, si, "deployment", "nginx", "http", 8080)
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx", "http", 8080)
 	assert.Assert(t, err)
 
-	items, err := cli.VanServiceInterfaceList(ctx)
+	items, err := cli.ServiceInterfaceList(ctx)
 	assert.Assert(t, err)
 	assert.Equal(t, len(items), 3)
 
@@ -345,7 +345,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		// this delay is for service-controller to update
 		time.Sleep(time.Second * 30)
 		if diff := cmp.Diff(svcsExpected, svcsFound, trans); diff != "" {
-			t.Errorf("TestVanServiceInterfaceUpdate services mismatch (-want +got):\n%s", diff)
+			t.Errorf("TestServiceInterfaceUpdate services mismatch (-want +got):\n%s", diff)
 		}
 	}
 
@@ -353,7 +353,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		si, err := cli.VanServiceInterfaceInspect(ctx, c.name)
+		si, err := cli.ServiceInterfaceInspect(ctx, c.name)
 		assert.Check(t, err, c.doc)
 
 		if c.port != 0 {
@@ -365,7 +365,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		if c.aggregate != si.Aggregate {
 			si.Aggregate = c.aggregate
 		}
-		err = cli.VanServiceInterfaceUpdate(ctx, si)
+		err = cli.ServiceInterfaceUpdate(ctx, si)
 		if c.expectedError == "" {
 			assert.Check(t, err, c.doc)
 		} else {
@@ -374,36 +374,36 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	}
 
 	// now check updates as expected
-	si, err = cli.VanServiceInterfaceInspect(ctx, "tcp-go-echo")
+	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo")
 	assert.Assert(t, err)
 	assert.Equal(t, si.Protocol, "tcp")
 	assert.Equal(t, si.Port, 9091)
 
-	si, err = cli.VanServiceInterfaceInspect(ctx, "nginx")
+	si, err = cli.ServiceInterfaceInspect(ctx, "nginx")
 	assert.Assert(t, err)
 	assert.Equal(t, si.Protocol, "http")
 	assert.Equal(t, si.EventChannel, true)
 
 	// unbind targets
-	err = cli.VanServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo", false)
+	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo", false)
 	assert.Assert(t, err)
 
-	err = cli.VanServiceInterfaceUnbind(ctx, "statefulset", "tcp-go-echo-ss", "tcp-go-echo-ss", false)
+	err = cli.ServiceInterfaceUnbind(ctx, "statefulset", "tcp-go-echo-ss", "tcp-go-echo-ss", false)
 	assert.Assert(t, err)
 
-	err = cli.VanServiceInterfaceUnbind(ctx, "deployment", "nginx", "nginx", false)
+	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "nginx", "nginx", false)
 	assert.Assert(t, err)
 
 	// and remove all defined services
-	items, err = cli.VanServiceInterfaceList(ctx)
+	items, err = cli.ServiceInterfaceList(ctx)
 	assert.Assert(t, err)
 	assert.Equal(t, len(items), 3)
 	for _, si := range items {
-		err = cli.VanServiceInterfaceRemove(ctx, si.Address)
+		err = cli.ServiceInterfaceRemove(ctx, si.Address)
 		assert.Assert(t, err)
 	}
 
-	items, err = cli.VanServiceInterfaceList(ctx)
+	items, err = cli.ServiceInterfaceList(ctx)
 	assert.Assert(t, err)
 	assert.Equal(t, len(items), 0)
 
