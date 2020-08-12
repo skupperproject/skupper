@@ -197,6 +197,12 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		if bindings.publicPort != required.Port {
 			bindings.publicPort = required.Port
 		}
+		if bindings.aggregation != required.Aggregate {
+			bindings.aggregation = required.Aggregate
+		}
+		if bindings.eventChannel != required.EventChannel {
+			bindings.eventChannel = required.EventChannel
+		}
 		if required.Headless != nil {
 			if bindings.headless == nil {
 				bindings.headless = required.Headless

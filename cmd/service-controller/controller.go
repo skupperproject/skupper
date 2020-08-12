@@ -304,9 +304,7 @@ func equivalentSelectors(a map[string]string, b map[string]string) bool {
 }
 
 func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Service) error {
-	//selector, port, targetPort
-	// TODO: check services changes
-	log.Printf("We need to check service changes for %s", actual.ObjectMeta.Name)
+	log.Printf("Checking service changes for %s", actual.ObjectMeta.Name)
 	update := false
 	if len(actual.Spec.Ports) > 0 {
 		if actual.Spec.Ports[0].Port != int32(desired.publicPort) {
@@ -319,6 +317,7 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 		}
 	}
 	if !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
+		update = true
 		actual.Spec.Selector = kube.GetLabelsForRouter()
 	}
 	if update {
