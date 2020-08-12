@@ -224,13 +224,13 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 
 func TearDownSimplePublicAndPrivate(r *ClusterTestRunnerBase) {
 	errMsg := "Something failed! aborting teardown"
-	err := RemoveNamespacesForContexes(r, []int{1}, []int{1})
+	err := RemoveNamespacesForContexts(r, []int{1}, []int{1})
 	if err != nil {
 		log.Warnf("%s: %s", errMsg, err.Error())
 	}
 }
 
-func RemoveNamespacesForContexes(r *ClusterTestRunnerBase, public []int, priv []int) error {
+func RemoveNamespacesForContexts(r *ClusterTestRunnerBase, public []int, priv []int) error {
 	removeNamespaces := func(private bool, ids []int) error {
 		for _, id := range ids {
 
