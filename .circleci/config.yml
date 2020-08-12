@@ -13,6 +13,10 @@ parameters:
     default: quay.io/nicob87/site-controller:${CIRCLE_SHA1}
     type: string
 
+  ci_test_image:
+    default: quay.io/nicob87/skupper-tests:${CIRCLE_SHA1}
+    type: string
+
 executors:
   local_cluster_test_executor:
     machine:
@@ -58,6 +62,7 @@ commands:
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
             echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
             echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
+            echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
             source $BASH_ENV
       - checkout
       - run:
@@ -174,6 +179,7 @@ jobs:
           command: |
             echo 'export SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
+            echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
             source $BASH_ENV
       - setup_remote_docker
       - go/mod-download-cached
@@ -195,6 +201,7 @@ jobs:
       - run: go get github.com/genuinetools/reg
       - run: reg rm << pipeline.parameters.ci_service_controller_image >>
       - run: reg rm << pipeline.parameters.ci_site_controller_image >>
+      - run: reg rm << pipeline.parameters.ci_test_image >>
 
   build-all:
     executor:
