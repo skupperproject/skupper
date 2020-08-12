@@ -44,9 +44,9 @@ var tcpDeployment *appsv1.Deployment = &appsv1.Deployment{
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Ports: []corev1.ContainerPort{
 							{
-								Name:          "http",
+								Name:          "tcp-go-echo",
 								Protocol:      corev1.ProtocolTCP,
-								ContainerPort: 80,
+								ContainerPort: 9090,
 							},
 						},
 					},
@@ -84,9 +84,9 @@ var tcpStatefulSet *appsv1.StatefulSet = &appsv1.StatefulSet{
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Ports: []corev1.ContainerPort{
 							{
-								Name:          "http",
+								Name:          "tcp-go-echo",
 								Protocol:      corev1.ProtocolTCP,
-								ContainerPort: 80,
+								ContainerPort: 9090,
 							},
 						},
 					},
@@ -180,7 +180,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			},
 		},
 		{
-			doc:           "test three",
+			doc:           "test four",
 			expectedError: "",
 			name:          "nginx",
 			port:          0,
@@ -191,7 +191,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			},
 		},
 		{
-			doc:           "test four",
+			doc:           "test five",
 			expectedError: "Only one of aggregate and event-channel can be specified for a given service.",
 			name:          "nginx",
 			port:          0,
@@ -280,8 +280,15 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	})
 	assert.Assert(t, err)
 
+	// wait for skupper transport to be running
+	pods, err := kube.GetDeploymentPods(types.TransportDeploymentName, namespace, cli.KubeClient)
+	assert.Assert(t, err)
+	for _, pod := range pods {
+		_, err := kube.WaitForPodStatus(namespace, cli.KubeClient, pod.Name, corev1.PodRunning, time.Second*180, time.Second*5)
+		assert.Assert(t, err)
+	}
+
 	// create three service definitions
-	time.Sleep(time.Second * 1)
 	err = cli.VanServiceInterfaceCreate(ctx, &types.ServiceInterface{
 		Address:      "tcp-go-echo",
 		Protocol:     "tcp",
@@ -308,8 +315,6 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		Aggregate:    "",
 	})
 	assert.Assert(t, err)
-
-	time.Sleep(time.Second * 1)
 
 	// bind services to targets
 	// TODO: could range on list if target type was not needed for bind
@@ -367,6 +372,17 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			assert.Error(t, err, c.expectedError)
 		}
 	}
+
+	// now check updates as expected
+	si, err = cli.VanServiceInterfaceInspect(ctx, "tcp-go-echo")
+	assert.Assert(t, err)
+	assert.Equal(t, si.Protocol, "tcp")
+	assert.Equal(t, si.Port, 9091)
+
+	si, err = cli.VanServiceInterfaceInspect(ctx, "nginx")
+	assert.Assert(t, err)
+	assert.Equal(t, si.Protocol, "http")
+	assert.Equal(t, si.EventChannel, true)
 
 	// unbind targets
 	err = cli.VanServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo", false)
