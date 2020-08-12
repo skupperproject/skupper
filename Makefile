@@ -2,7 +2,7 @@ VERSION := $(shell git describe --tags --dirty=-modified)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 TEST_IMAGE := quay.io/skupper/skupper-tests
-TEST_BINARIES_FOLDER := ./test/integration/bin
+TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
 
 
@@ -50,7 +50,7 @@ vet:
 	go vet ./...
 
 clean:
-	rm -rf skupper service-controller site-controller release
+	rm -rf skupper service-controller site-controller release ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz
 
