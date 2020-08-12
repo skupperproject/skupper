@@ -307,7 +307,7 @@ func NewProxyDeployment(serviceInterface types.ServiceInterface, namespace strin
 
 }
 
-func NewControllerDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.ControllerDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -364,7 +364,7 @@ func NewControllerDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerRef
 	}
 }
 
-func NewTransportDeployment(van *types.VanRouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {

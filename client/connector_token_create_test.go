@@ -15,8 +15,8 @@ func TestConnectorCreateTokenInterior(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -30,7 +30,7 @@ func TestConnectorCreateTokenInterior(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	err = cli.VanConnectorTokenCreateFile(ctx, "conn1", "./conn1.yaml")
+	err = cli.ConnectorTokenCreateFile(ctx, "conn1", "./conn1.yaml")
 	assert.Check(t, err, "Unable to create connector token")
 
 	os.Remove("./conn1.yaml")
@@ -42,8 +42,8 @@ func TestConnectorCreateTokenEdge(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            true,
 			EnableController:  true,
@@ -57,7 +57,7 @@ func TestConnectorCreateTokenEdge(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	err = cli.VanConnectorTokenCreateFile(ctx, "conn1", "/tmp/conn1.yaml")
+	err = cli.ConnectorTokenCreateFile(ctx, "conn1", "/tmp/conn1.yaml")
 	assert.Error(t, err, "Edge configuration cannot accept connections", "Expect error when edge")
 
 }

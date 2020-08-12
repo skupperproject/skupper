@@ -9,7 +9,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func (cli *VanClient) VanSiteConfigCreate(ctx context.Context, spec types.VanSiteConfigSpec) (*types.VanSiteConfig, error) {
+func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
 	siteConfig := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -74,5 +74,5 @@ func (cli *VanClient) VanSiteConfigCreate(ctx context.Context, spec types.VanSit
 	if actual.TypeMeta.Kind == "" || actual.TypeMeta.APIVersion == "" { //why??
 		actual.TypeMeta = siteConfig.TypeMeta
 	}
-	return cli.VanSiteConfigInspect(ctx, actual)
+	return cli.SiteConfigInspect(ctx, actual)
 }

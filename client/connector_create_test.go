@@ -17,21 +17,21 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func TestVanConnectorCreateError(t *testing.T) {
+func TestConnectorCreateError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	cli, err := newMockClient("my-namespace", "", "")
 	assert.Assert(t, err)
 
-	_, err = cli.VanConnectorCreateFromFile(ctx, "./somefile.yaml", types.VanConnectorCreateOptions{
+	_, err = cli.ConnectorCreateFromFile(ctx, "./somefile.yaml", types.ConnectorCreateOptions{
 		Name: "",
 		Cost: 1,
 	})
 	assert.Error(t, err, "open ./somefile.yaml: no such file or directory", "Expect error when file not found")
 }
 
-func TestVanConnectorCreateInterior(t *testing.T) {
+func TestConnectorCreateInterior(t *testing.T) {
 	testcases := []struct {
 		doc             string
 		expectedError   string
@@ -127,8 +127,8 @@ func TestVanConnectorCreateInterior(t *testing.T) {
 	informers.Start(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), secretsInformer.HasSynced)
 
-	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -146,10 +146,10 @@ func TestVanConnectorCreateInterior(t *testing.T) {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		err = cli.VanConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
+		err = cli.ConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
 		assert.Assert(t, err, "Unable to create token")
 
-		_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
+		_, err = cli.ConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.ConnectorCreateOptions{
 			Name:             c.connName,
 			SkupperNamespace: namespace,
 			Cost:             1,
@@ -159,13 +159,13 @@ func TestVanConnectorCreateInterior(t *testing.T) {
 			// TODO: make more deterministic
 			time.Sleep(time.Second * 1)
 			if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
-				t.Errorf("TestVanConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
+				t.Errorf("TestConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 			}
 			//assert.Assert(t, cmp.Equal(c.secretsExpected, secretsFound, trans), c.doc)
 		} else {
 			assert.Error(t, err, c.expectedError, c.doc)
 			if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
-				t.Errorf("TestVanConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
+				t.Errorf("TestConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 			}
 		}
 

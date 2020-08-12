@@ -12,7 +12,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func TestVanConnectorListInterior(t *testing.T) {
+func TestConnectorListInterior(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -35,8 +35,8 @@ func TestVanConnectorListInterior(t *testing.T) {
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
 
-	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -53,27 +53,27 @@ func TestVanConnectorListInterior(t *testing.T) {
 	for _, connName := range connNames {
 		// TODO: make more deterministic
 		time.Sleep(time.Second * 1)
-		err = cli.VanConnectorTokenCreateFile(ctx, connName, testPath+connName+".yaml")
+		err = cli.ConnectorTokenCreateFile(ctx, connName, testPath+connName+".yaml")
 		assert.Check(t, err, "Unable to create connector token:"+connName)
 	}
 	for _, connName := range connNames {
 		// TODO: make more deterministic
 		time.Sleep(time.Second * 1)
-		_, err = cli.VanConnectorCreateFromFile(ctx, testPath+connName+".yaml", types.VanConnectorCreateOptions{
+		_, err = cli.ConnectorCreateFromFile(ctx, testPath+connName+".yaml", types.ConnectorCreateOptions{
 			Name:             connName,
 			SkupperNamespace: namespace,
 			Cost:             1,
 		})
 		assert.Check(t, err, "Unable to create connector for "+connName)
 	}
-	connectors, err := cli.VanConnectorList(ctx)
+	connectors, err := cli.ConnectorList(ctx)
 	actualNames := []string{}
 	for _, connector := range connectors {
 		actualNames = append(actualNames, connector.Name)
 	}
 	assert.Check(t, err, "Unable to get connector list")
 	if diff := cmp.Diff(connNames, actualNames, trans); diff != "" {
-		t.Errorf("TestVanConnectorListInterior connectors mismatch (-want +got):\n%s", diff)
+		t.Errorf("TestConnectorListInterior connectors mismatch (-want +got):\n%s", diff)
 	}
 	os.RemoveAll(testPath)
 

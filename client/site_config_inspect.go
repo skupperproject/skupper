@@ -11,7 +11,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func (cli *VanClient) VanSiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*types.VanSiteConfig, error) {
+func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*types.SiteConfig, error) {
 	var siteConfig *corev1.ConfigMap
 	if input == nil {
 		cm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-site", metav1.GetOptions{})
@@ -25,7 +25,7 @@ func (cli *VanClient) VanSiteConfigInspect(ctx context.Context, input *corev1.Co
 		siteConfig = input
 	}
 
-	var result types.VanSiteConfig
+	var result types.SiteConfig
 	result.Spec.SkupperNamespace = siteConfig.Namespace
 	// TODO: what should the defaults be for name, namespace
 	if skupperName, ok := siteConfig.Data["name"]; ok {

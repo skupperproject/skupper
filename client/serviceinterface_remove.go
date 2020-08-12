@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *VanClient) VanServiceInterfaceRemove(ctx context.Context, address string) error {
+func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string) error {
 	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil && current.Data != nil {
 		jsonDef := current.Data[address]

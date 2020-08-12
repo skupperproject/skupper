@@ -10,8 +10,8 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-// VanRouterRemove delete a VAN (router and controller) deployment
-func (cli *VanClient) VanRouterRemove(ctx context.Context) error {
+// RouterRemove delete a VAN (router and controller) deployment
+func (cli *VanClient) RouterRemove(ctx context.Context) error {
 	err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Delete(types.TransportDeploymentName, &metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {

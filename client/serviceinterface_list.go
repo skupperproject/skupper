@@ -9,7 +9,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func (cli *VanClient) VanServiceInterfaceList(ctx context.Context) ([]*types.ServiceInterface, error) {
+func (cli *VanClient) ServiceInterfaceList(ctx context.Context) ([]*types.ServiceInterface, error) {
 	var vsis []*types.ServiceInterface
 
 	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})

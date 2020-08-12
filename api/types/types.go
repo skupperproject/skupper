@@ -165,8 +165,8 @@ const (
 	ServiceSyncAddress = "mc/$skupper-service-sync"
 )
 
-// VanRouterSpec is the specification of VAN network with router, controller and assembly
-type VanRouterSpec struct {
+// RouterSpec is the specification of VAN network with router, controller and assembly
+type RouterSpec struct {
 	Name           string          `json:"name,omitempty"`
 	Namespace      string          `json:"namespace,omitempty"`
 	AuthMode       ConsoleAuthMode `json:"authMode,omitempty"`
@@ -211,7 +211,7 @@ type AssemblySpec struct {
 	EdgeConnectors        []Connector  `json:"edgeConnectors,omitempty"`
 }
 
-type VanRouterStatusSpec struct {
+type RouterStatusSpec struct {
 	SiteName               string                  `json:"siteName,omitempty"`
 	Mode                   string                  `json:"mode,omitempty"`
 	TransportReadyReplicas int32                   `json:"transportReadyReplicas,omitempty"`

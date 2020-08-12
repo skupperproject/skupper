@@ -43,8 +43,8 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	return "conn" + strconv.Itoa(max)
 }
 
-func (cli *VanClient) VanConnectorCreateFromFile(ctx context.Context, secretFile string, options types.VanConnectorCreateOptions) (*corev1.Secret, error) {
-	secret, err := cli.VanConnectorCreateSecretFromFile(ctx, secretFile, options)
+func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
+	secret, err := cli.ConnectorCreateSecretFromFile(ctx, secretFile, options)
 	if err == nil {
 		current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
 		if err == nil {
@@ -60,7 +60,7 @@ func (cli *VanClient) VanConnectorCreateFromFile(ctx context.Context, secretFile
 	}
 }
 
-func (cli *VanClient) VanConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.VanConnectorCreateOptions) (*corev1.Secret, error) {
+func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	yaml, err := ioutil.ReadFile(secretFile)
 	if err != nil {
 		fmt.Println("Could not read connection token", err.Error())
@@ -99,7 +99,7 @@ func (cli *VanClient) VanConnectorCreateSecretFromFile(ctx context.Context, secr
 	}
 }
 
-func (cli *VanClient) VanConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.VanConnectorCreateOptions) error {
+func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
 	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
 	if err == nil {
 		return cli.createConnector(ctx, secret, options, current)
@@ -108,7 +108,7 @@ func (cli *VanClient) VanConnectorCreate(ctx context.Context, secret *corev1.Sec
 	}
 }
 
-func (cli *VanClient) createConnector(ctx context.Context, secret *corev1.Secret, options types.VanConnectorCreateOptions, current *appsv1.Deployment) error {
+func (cli *VanClient) createConnector(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions, current *appsv1.Deployment) error {
 	mode := qdr.GetTransportMode(current)
 	//read annotations to get the host and port to connect to
 	connector := types.Connector{
