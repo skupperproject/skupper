@@ -20,7 +20,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
-func TestVanConnectorRemove(t *testing.T) {
+func TestConnectorRemove(t *testing.T) {
 	testcases := []struct {
 		namespace      string
 		doc            string
@@ -91,8 +91,8 @@ func TestVanConnectorRemove(t *testing.T) {
 		informers.Start(ctx.Done())
 		cache.WaitForCacheSync(ctx.Done(), secretsInformer.HasSynced)
 
-		err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-			Spec: types.VanSiteConfigSpec{
+		err = cli.RouterCreate(ctx, types.SiteConfig{
+			Spec: types.SiteConfigSpec{
 				SkupperName:       "skupper",
 				IsEdge:            false,
 				EnableController:  true,
@@ -106,11 +106,11 @@ func TestVanConnectorRemove(t *testing.T) {
 		})
 		assert.Check(t, err, "Unable to create VAN router")
 
-		err = cli.VanConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
+		err = cli.ConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
 		assert.Check(t, err, "Unable to create connector token "+c.connName)
 
 		if c.createConn {
-			_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
+			_, err = cli.ConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.ConnectorCreateOptions{
 				Name:             c.connName,
 				SkupperNamespace: c.namespace,
 				Cost:             1,
@@ -119,14 +119,14 @@ func TestVanConnectorRemove(t *testing.T) {
 		}
 
 		//TODO: remove should distinguish found, not found
-		err = cli.VanConnectorRemove(ctx, types.VanConnectorRemoveOptions{
+		err = cli.ConnectorRemove(ctx, types.ConnectorRemoveOptions{
 			Name:             c.connName,
 			SkupperNamespace: c.namespace,
 			ForceCurrent:     false,
 		})
 		for i := 0; i < 5 && k8serrors.IsConflict(errors.Unwrap(err)); i++ {
 			time.Sleep(500 * time.Millisecond)
-			err = cli.VanConnectorRemove(ctx, types.VanConnectorRemoveOptions{
+			err = cli.ConnectorRemove(ctx, types.ConnectorRemoveOptions{
 				Name:             c.connName,
 				SkupperNamespace: c.namespace,
 				ForceCurrent:     false,
@@ -137,11 +137,11 @@ func TestVanConnectorRemove(t *testing.T) {
 		if c.createConn {
 			time.Sleep(time.Second * 1)
 			if diff := cmp.Diff(c.secretsRemoved, secretsRemoved, c.opts...); diff != "" {
-				t.Errorf("TestVanConnectorRemove"+c.doc+" secrets mismatch (-want +got):\n%s", diff)
+				t.Errorf("TestConnectorRemove"+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 			}
 		}
 
-		_, err = cli.VanConnectorInspect(ctx, c.connName)
+		_, err = cli.ConnectorInspect(ctx, c.connName)
 		assert.Error(t, err, `secrets "`+c.connName+`" not found`, "Expect error when connector is removed")
 	}
 

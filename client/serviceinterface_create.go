@@ -9,7 +9,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func (cli *VanClient) VanServiceInterfaceCreate(ctx context.Context, service *types.ServiceInterface) error {
+func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types.ServiceInterface) error {
 	owner, err := getRootObject(cli)
 	if err == nil {
 		err = validateServiceInterface(service)

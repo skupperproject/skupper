@@ -26,7 +26,7 @@ func removeConnector(name string, list []types.Connector) (bool, []types.Connect
 	return found, updated
 }
 
-func (cli *VanClient) VanConnectorRemove(ctx context.Context, options types.VanConnectorRemoveOptions) error {
+func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.ConnectorRemoveOptions) error {
 	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
 	if err == nil {
 		mode := qdr.GetTransportMode(current)

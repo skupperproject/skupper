@@ -126,8 +126,8 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
-	vanRouterCreateOpts := types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	routerCreateOpts := types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "",
 			IsEdge:            false,
 			EnableController:  true,
@@ -141,32 +141,32 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		},
 	}
 
-	vanRouterCreateOpts.Spec.SkupperNamespace = r.Pub1Cluster.CurrentNamespace
-	r.Pub1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
+	routerCreateOpts.Spec.SkupperNamespace = r.Pub1Cluster.CurrentNamespace
+	r.Pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
 	service := types.ServiceInterface{
 		Address:  "tcp-go-echo",
 		Protocol: "tcp",
 		Port:     9090,
 	}
-	err = r.Pub1Cluster.VanClient.VanServiceInterfaceCreate(ctx, &service)
+	err = r.Pub1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(r.T, err)
 
-	err = r.Pub1Cluster.VanClient.VanServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
+	err = r.Pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
 	assert.Assert(r.T, err)
 
-	err = r.Pub1Cluster.VanClient.VanConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
+	err = r.Pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
 	assert.Assert(r.T, err)
 
-	vanRouterCreateOpts.Spec.SkupperNamespace = r.Priv1Cluster.CurrentNamespace
-	err = r.Priv1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
+	routerCreateOpts.Spec.SkupperNamespace = r.Priv1Cluster.CurrentNamespace
+	err = r.Priv1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
-	var vanConnectorCreateOpts types.VanConnectorCreateOptions = types.VanConnectorCreateOptions{
+	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
 		SkupperNamespace: r.Priv1Cluster.CurrentNamespace,
 		Name:             "",
 		Cost:             0,
 	}
-	r.Priv1Cluster.VanClient.VanConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", vanConnectorCreateOpts)
+	r.Priv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
 }
 
 func (r *TcpEchoClusterTestRunner) TearDown(ctx context.Context) {

@@ -9,7 +9,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-func (cli *VanClient) VanConnectorList(ctx context.Context) ([]*types.Connector, error) {
+func (cli *VanClient) ConnectorList(ctx context.Context) ([]*types.Connector, error) {
 	var connectors []*types.Connector
 	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {

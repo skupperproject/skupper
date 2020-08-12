@@ -39,7 +39,7 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 			serviceName = targetName
 		}
 	}
-	service, err := cli.VanServiceInterfaceInspect(ctx, serviceName)
+	service, err := cli.ServiceInterfaceInspect(ctx, serviceName)
 	if service == nil {
 		if options.Headless {
 			if targetType != "statefulset" {
@@ -49,7 +49,7 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 			if err != nil {
 				return err
 			}
-			return cli.VanServiceInterfaceUpdate(ctx, service)
+			return cli.ServiceInterfaceUpdate(ctx, service)
 		} else {
 			service = &types.ServiceInterface{
 				Address:  serviceName,
@@ -67,7 +67,7 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 
 	// service may exist from remote origin
 	service.Origin = ""
-	return cli.VanServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
+	return cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
 }
 
 func requiredArg(name string) func(*cobra.Command, []string) error {
@@ -172,7 +172,7 @@ func main() {
 	var namespace string
 	var kubeconfig string
 
-	var vanRouterCreateOpts types.VanSiteConfigSpec
+	var routerCreateOpts types.SiteConfigSpec
 	var cmdInit = &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
@@ -181,15 +181,15 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
 			//TODO: should cli allow init to diff ns?
-			vanRouterCreateOpts.SkupperNamespace = cli.Namespace
-			siteConfig, err := cli.VanSiteConfigInspect(context.Background(), nil)
+			routerCreateOpts.SkupperNamespace = cli.Namespace
+			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 			if check(err) {
 				if siteConfig == nil {
-					siteConfig, err = cli.VanSiteConfigCreate(context.Background(), vanRouterCreateOpts)
+					siteConfig, err = cli.SiteConfigCreate(context.Background(), routerCreateOpts)
 				}
 
 				if check(err) {
-					err = cli.VanRouterCreate(context.Background(), *siteConfig)
+					err = cli.RouterCreate(context.Background(), *siteConfig)
 					if check(err) {
 						fmt.Println("Skupper is now installed in namespace '" + cli.Namespace + "'.  Use 'skupper status' to get more information.")
 					}
@@ -197,16 +197,16 @@ func main() {
 			}
 		},
 	}
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.SkupperName, "site-name", "", "", "Provide a specific name for this skupper installation")
-	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.IsEdge, "edge", "", false, "Configure as an edge")
-	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableController, "enable-proxy-controller", "", true, "Setup the proxy controller as well as the router")
-	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Configure proxy controller to particiapte in service sync (not relevant if --enable-proxy-controller is false)")
-	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
-	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
-	cmdInit.Flags().StringVarP(&vanRouterCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
-	cmdInit.Flags().BoolVarP(&vanRouterCreateOpts.ClusterLocal, "cluster-local", "", false, "Set up skupper to only accept connections from within the local cluster.")
+	cmdInit.Flags().StringVarP(&routerCreateOpts.SkupperName, "site-name", "", "", "Provide a specific name for this skupper installation")
+	cmdInit.Flags().BoolVarP(&routerCreateOpts.IsEdge, "edge", "", false, "Configure as an edge")
+	cmdInit.Flags().BoolVarP(&routerCreateOpts.EnableController, "enable-proxy-controller", "", true, "Setup the proxy controller as well as the router")
+	cmdInit.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Configure proxy controller to particiapte in service sync (not relevant if --enable-proxy-controller is false)")
+	cmdInit.Flags().BoolVarP(&routerCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
+	cmdInit.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console")
+	cmdInit.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
+	cmdInit.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmdInit.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmdInit.Flags().BoolVarP(&routerCreateOpts.ClusterLocal, "cluster-local", "", false, "Set up skupper to only accept connections from within the local cluster.")
 
 	var cmdDelete = &cobra.Command{
 		Use:   "delete",
@@ -215,9 +215,9 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanSiteConfigRemove(context.Background())
+			err := cli.SiteConfigRemove(context.Background())
 			if err != nil {
-				err = cli.VanRouterRemove(context.Background())
+				err = cli.RouterRemove(context.Background())
 			}
 			if err != nil {
 				fmt.Println(err.Error())
@@ -235,7 +235,7 @@ func main() {
 		Args:  requiredArg("output-file"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
+			err := cli.ConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
 			if err != nil {
 				fmt.Println("Failed to create connection token: ", err.Error())
 				os.Exit(1)
@@ -244,20 +244,20 @@ func main() {
 	}
 	cmdConnectionToken.Flags().StringVarP(&clientIdentity, "client-identity", "i", types.DefaultVanName, "Provide a specific identity as which connecting skupper installation will be authenticated")
 
-	var vanConnectorCreateOpts types.VanConnectorCreateOptions
+	var connectorCreateOpts types.ConnectorCreateOptions
 	var cmdConnect = &cobra.Command{
 		Use:   "connect <connection-token-file>",
 		Short: "Connect this skupper installation to that which issued the specified connectionToken",
 		Args:  requiredArg("connection-token"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			siteConfig, err := cli.VanSiteConfigInspect(context.Background(), nil)
+			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 			if err != nil {
 				fmt.Println("Error, unable to retrieve site config: ", err.Error())
 				os.Exit(1)
 			} else if siteConfig == nil || !siteConfig.Spec.SiteControlled {
-				vanConnectorCreateOpts.SkupperNamespace = cli.Namespace
-				secret, err := cli.VanConnectorCreateFromFile(context.Background(), args[0], vanConnectorCreateOpts)
+				connectorCreateOpts.SkupperNamespace = cli.Namespace
+				secret, err := cli.ConnectorCreateFromFile(context.Background(), args[0], connectorCreateOpts)
 				if err != nil {
 					fmt.Println("Failed to create connection: ", err.Error())
 					os.Exit(1)
@@ -276,7 +276,7 @@ func main() {
 				}
 			} else {
 				// create the secret, site-controller will do the rest
-				secret, err := cli.VanConnectorCreateSecretFromFile(context.Background(), args[0], vanConnectorCreateOpts)
+				secret, err := cli.ConnectorCreateSecretFromFile(context.Background(), args[0], connectorCreateOpts)
 				if err != nil {
 					fmt.Println("Failed to create connection: ", err.Error())
 					os.Exit(1)
@@ -296,20 +296,20 @@ func main() {
 			}
 		},
 	}
-	cmdConnect.Flags().StringVarP(&vanConnectorCreateOpts.Name, "connection-name", "", "", "Provide a specific name for the connection (used when removing it with disconnect)")
-	cmdConnect.Flags().Int32VarP(&vanConnectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this connection.")
+	cmdConnect.Flags().StringVarP(&connectorCreateOpts.Name, "connection-name", "", "", "Provide a specific name for the connection (used when removing it with disconnect)")
+	cmdConnect.Flags().Int32VarP(&connectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this connection.")
 
-	var vanConnectorRemoveOpts types.VanConnectorRemoveOptions
+	var connectorRemoveOpts types.ConnectorRemoveOptions
 	var cmdDisconnect = &cobra.Command{
 		Use:   "disconnect <name>",
 		Short: "Remove specified connection",
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			vanConnectorRemoveOpts.Name = args[0]
-			vanConnectorRemoveOpts.SkupperNamespace = cli.Namespace
-			vanConnectorRemoveOpts.ForceCurrent = false
-			err := cli.VanConnectorRemove(context.Background(), vanConnectorRemoveOpts)
+			connectorRemoveOpts.Name = args[0]
+			connectorRemoveOpts.SkupperNamespace = cli.Namespace
+			connectorRemoveOpts.ForceCurrent = false
+			err := cli.ConnectorRemove(context.Background(), connectorRemoveOpts)
 			if err == nil {
 				fmt.Println("Connection '" + args[0] + "' has been removed")
 			} else {
@@ -325,7 +325,7 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			connectors, err := cli.VanConnectorList(context.Background())
+			connectors, err := cli.ConnectorList(context.Background())
 			if err == nil {
 				if len(connectors) == 0 {
 					fmt.Println("There are no connectors defined.")
@@ -353,21 +353,21 @@ func main() {
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			var connectors []*types.VanConnectorInspectResponse
+			var connectors []*types.ConnectorInspectResponse
 			connected := 0
 
 			if args[0] == "all" {
-				vcis, err := cli.VanConnectorList(context.Background())
+				vcis, err := cli.ConnectorList(context.Background())
 				if err == nil {
 					for _, vci := range vcis {
-						connectors = append(connectors, &types.VanConnectorInspectResponse{
+						connectors = append(connectors, &types.ConnectorInspectResponse{
 							Connector: vci,
 							Connected: false,
 						})
 					}
 				}
 			} else {
-				vci, err := cli.VanConnectorInspect(context.Background(), args[0])
+				vci, err := cli.ConnectorInspect(context.Background(), args[0])
 				if err == nil {
 					connectors = append(connectors, vci)
 					if vci.Connected {
@@ -378,7 +378,7 @@ func main() {
 
 			for i := 0; connected < len(connectors) && i < waitFor; i++ {
 				for _, c := range connectors {
-					vci, err := cli.VanConnectorInspect(context.Background(), c.Connector.Name)
+					vci, err := cli.ConnectorInspect(context.Background(), c.Connector.Name)
 					if err == nil && vci.Connected && c.Connected == false {
 						c.Connected = true
 						connected++
@@ -410,7 +410,7 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			vir, err := cli.VanRouterInspect(context.Background())
+			vir, err := cli.RouterInspect(context.Background())
 			if err == nil {
 				var modedesc string = " in interior mode"
 				if vir.Status.Mode == types.TransportModeEdge {
@@ -517,7 +517,7 @@ func main() {
 				targetType = parts[0]
 				targetName = parts[1]
 			}
-			err := cli.VanServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
+			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
 			if err == nil {
 				fmt.Printf("%s %s unexposed\n", targetType, targetName)
 				os.Exit(1)
@@ -535,7 +535,7 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			vsis, err := cli.VanServiceInterfaceList(context.Background())
+			vsis, err := cli.ServiceInterfaceList(context.Background())
 			if err == nil {
 				if len(vsis) == 0 {
 					fmt.Println("No services defined")
@@ -600,7 +600,7 @@ func main() {
 			} else {
 				serviceToCreate.Port = servicePort
 				cli := NewClient(namespace, kubeContext, kubeconfig)
-				err = cli.VanServiceInterfaceCreate(context.Background(), &serviceToCreate)
+				err = cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
 				if err != nil {
 					fmt.Println(err.Error())
 					os.Exit(1)
@@ -619,7 +619,7 @@ func main() {
 		Args:  deleteServiceArgs(),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanServiceInterfaceRemove(context.Background(), args[0])
+			err := cli.ServiceInterfaceRemove(context.Background(), args[0])
 			if err != nil {
 				fmt.Println(err.Error())
 				os.Exit(1)
@@ -651,7 +651,7 @@ func main() {
 					targetName = args[2]
 				}
 				cli := NewClient(namespace, kubeContext, kubeconfig)
-				service, err := cli.VanServiceInterfaceInspect(context.Background(), args[0])
+				service, err := cli.ServiceInterfaceInspect(context.Background(), args[0])
 				if err != nil {
 					fmt.Println(err.Error())
 					os.Exit(1)
@@ -660,7 +660,7 @@ func main() {
 					fmt.Println()
 					os.Exit(1)
 				} else {
-					err = cli.VanServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort)
+					err = cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort)
 					if err != nil {
 						fmt.Println(err.Error())
 					}
@@ -687,7 +687,7 @@ func main() {
 				targetName = args[2]
 			}
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.VanServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
+			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
 			if err != nil {
 				fmt.Println(err.Error())
 				os.Exit(1)
@@ -702,7 +702,7 @@ func main() {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			vir, err := cli.VanRouterInspect(context.Background())
+			vir, err := cli.RouterInspect(context.Background())
 			fmt.Printf("%-30s %s\n", "client version", version)
 			if err == nil {
 				fmt.Printf("%-30s %s\n", "transport version", vir.TransportVersion)

@@ -182,7 +182,7 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 	}
 }
 
-func (cli *VanClient) VanServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
+func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
 	owner, err := getRootObject(cli)
 	if err == nil {
 		_, err = cli.VanServiceInterfaceInspect(ctx, service.Address)
@@ -202,7 +202,7 @@ func (cli *VanClient) VanServiceInterfaceUpdate(ctx context.Context, service *ty
 	}
 }
 
-func (cli *VanClient) VanServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
+func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
 	owner, err := getRootObject(cli)
 	if err == nil {
 		err = validateServiceInterface(service)
@@ -338,7 +338,7 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 	return nil
 }
 
-func (cli *VanClient) VanServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error {
+func (cli *VanClient) ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error {
 	if targetType == "deployment" || targetType == "statefulset" || targetType == "service" {
 		if address == "" {
 			err := removeServiceInterfaceTarget(targetName, targetName, deleteIfNoTargets, cli)

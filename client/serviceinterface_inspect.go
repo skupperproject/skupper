@@ -11,7 +11,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func (cli *VanClient) VanServiceInterfaceInspect(ctx context.Context, address string) (*types.ServiceInterface, error) {
+func (cli *VanClient) ServiceInterfaceInspect(ctx context.Context, address string) (*types.ServiceInterface, error) {
 	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-services", metav1.GetOptions{})
 	if err == nil {
 		jsonDef := current.Data[address]

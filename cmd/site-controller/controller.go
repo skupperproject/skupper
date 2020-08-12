@@ -238,21 +238,21 @@ func (c *SiteController) checkSite(key string) error {
 		return err
 	} else if exists {
 		configmap := obj.(*corev1.ConfigMap)
-		vanRouterInspectResponse, err := c.vanClient.VanRouterInspect(context.Background())
+		routerInspectResponse, err := c.vanClient.RouterInspect(context.Background())
 		if err == nil {
 			log.Println("Skupper site exists ", key)
 			wantEdgeMode := configmap.Data["edge"] == "true"
-			haveEdgeMode := vanRouterInspectResponse.Status.Mode == string(types.TransportModeEdge)
-			// TODO: enable richer comparison/checking (possibly with GetVanRouterSpecFromOpts?)
+			haveEdgeMode := routerInspectResponse.Status.Mode == string(types.TransportModeEdge)
+			// TODO: enable richer comparison/checking (possibly with GetRouterSpecFromOpts?)
 			if wantEdgeMode != haveEdgeMode {
 				//TODO: enable van router update
 			}
 			c.setSiteId(configmap)
 		} else if errors.IsNotFound(err) {
 			log.Println("Initialising skupper site ...")
-			siteConfig, _ := c.vanClient.VanSiteConfigInspect(context.Background(), configmap)
+			siteConfig, _ := c.vanClient.SiteConfigInspect(context.Background(), configmap)
 			siteConfig.Spec.SkupperNamespace = siteNamespace
-			err = c.vanClient.VanRouterCreate(context.Background(), *siteConfig)
+			err = c.vanClient.RouterCreate(context.Background(), *siteConfig)
 			if err != nil {
 				log.Println("Error initialising skupper: ", err)
 				return err
@@ -269,26 +269,26 @@ func (c *SiteController) checkSite(key string) error {
 }
 
 func (c *SiteController) connect(token *corev1.Secret, namespace string) error {
-	var options types.VanConnectorCreateOptions
+	var options types.ConnectorCreateOptions
 	options.Name = token.ObjectMeta.Name
 	options.SkupperNamespace = namespace
 	//TODO: infer cost from token metadata?
-	return c.vanClient.VanConnectorCreate(context.Background(), token, options)
+	return c.vanClient.ConnectorCreate(context.Background(), token, options)
 }
 
 func (c *SiteController) disconnect(name string, namespace string) error {
-	var options types.VanConnectorRemoveOptions
+	var options types.ConnectorRemoveOptions
 	options.Name = name
 	options.SkupperNamespace = namespace
 	// Secret has already been deleted so force update to current active secrets
 	options.ForceCurrent = true
-	return c.vanClient.VanConnectorRemove(context.Background(), options)
+	return c.vanClient.ConnectorRemove(context.Background(), options)
 }
 
 func (c *SiteController) generate(token *corev1.Secret) error {
 	log.Printf("Generating token for request %s...", token.ObjectMeta.Name)
 	log.Println()
-	generated, _, err := c.vanClient.VanConnectorTokenCreate(context.Background(), token.ObjectMeta.Name)
+	generated, _, err := c.vanClient.ConnectorTokenCreate(context.Background(), token.ObjectMeta.Name)
 	if err == nil {
 		token.Data = generated.Data
 		if token.ObjectMeta.Annotations == nil {

@@ -97,7 +97,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient) bool {
 	}
 }
 
-func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject string) (*corev1.Secret, bool, error) {
+func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string) (*corev1.Secret, bool, error) {
 	// verify that the local deployment is interior mode
 	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 	// TODO: return error message for all the paths
@@ -132,8 +132,8 @@ func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject strin
 	}
 }
 
-func (cli *VanClient) VanConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
-	secret, localOnly, err := cli.VanConnectorTokenCreate(ctx, subject)
+func (cli *VanClient) ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
+	secret, localOnly, err := cli.ConnectorTokenCreate(ctx, subject)
 	if err == nil {
 		//generate yaml and save it to the specified path
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)

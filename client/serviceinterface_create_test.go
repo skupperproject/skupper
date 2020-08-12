@@ -42,11 +42,11 @@ func check_result(t *testing.T, name string, timeoutSeconds float64, resultType 
 		timeoutSeconds -= 1.0
 	}
 	if diff := cmp.Diff(expected, *found, trans); diff != "" {
-		t.Errorf("TestVanServiceInterfaceCreate %s : %s mismatch (-want +got):\n%s", name, resultType, diff)
+		t.Errorf("TestServiceInterfaceCreate %s : %s mismatch (-want +got):\n%s", name, resultType, diff)
 	}
 }
 
-func TestVanServiceInterfaceCreate(t *testing.T) {
+func TestServiceInterfaceCreate(t *testing.T) {
 	testcases := []struct {
 		namespace        string
 		doc              string
@@ -214,8 +214,8 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 
 		// Create a router.
 		if testcase.init {
-			err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-				Spec: types.VanSiteConfigSpec{
+			err = cli.RouterCreate(ctx, types.SiteConfig{
+				Spec: types.SiteConfigSpec{
 					SkupperName:       testcase.namespace,
 					IsEdge:            false,
 					EnableController:  true,
@@ -236,7 +236,7 @@ func TestVanServiceInterfaceCreate(t *testing.T) {
 			Protocol: testcase.proto,
 			Port:     testcase.port,
 		}
-		observedError := cli.VanServiceInterfaceCreate(ctx, &service)
+		observedError := cli.ServiceInterfaceCreate(ctx, &service)
 
 		// Check error returns against what was expected.
 		switch testcase.expectedErr {

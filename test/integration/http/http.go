@@ -121,8 +121,8 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-	vanRouterCreateOpts := types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	routerCreateOpts := types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "",
 			IsEdge:            false,
 			EnableController:  true,
@@ -136,8 +136,8 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 		},
 	}
 
-	vanRouterCreateOpts.Spec.SkupperNamespace = r.Priv1Cluster.CurrentNamespace
-	r.Priv1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
+	routerCreateOpts.Spec.SkupperNamespace = r.Priv1Cluster.CurrentNamespace
+	r.Priv1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
 	service := types.ServiceInterface{
 		Address:  "httpbin",
@@ -145,24 +145,24 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 		Port:     80,
 	}
 
-	err = r.Priv1Cluster.VanClient.VanServiceInterfaceCreate(ctx, &service)
+	err = r.Priv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(r.T, err)
 
-	err = r.Priv1Cluster.VanClient.VanServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
+	err = r.Priv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
 	assert.Assert(r.T, err)
 
-	vanRouterCreateOpts.Spec.SkupperNamespace = r.Pub1Cluster.CurrentNamespace
-	err = r.Pub1Cluster.VanClient.VanRouterCreate(ctx, vanRouterCreateOpts)
+	routerCreateOpts.Spec.SkupperNamespace = r.Pub1Cluster.CurrentNamespace
+	err = r.Pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
-	err = r.Pub1Cluster.VanClient.VanConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
+	err = r.Pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
 	assert.Assert(r.T, err)
 
-	var vanConnectorCreateOpts types.VanConnectorCreateOptions = types.VanConnectorCreateOptions{
+	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
 		SkupperNamespace: r.Priv1Cluster.CurrentNamespace,
 		Name:             "",
 		Cost:             0,
 	}
-	r.Priv1Cluster.VanClient.VanConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", vanConnectorCreateOpts)
+	r.Priv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
 }
 
 func (r *HttpClusterTestRunner) TearDown(ctx context.Context) {

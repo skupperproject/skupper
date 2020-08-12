@@ -11,13 +11,13 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-// VanRouterInspect VAN deployment
-func (cli *VanClient) VanRouterInspect(ctx context.Context) (*types.VanRouterInspectResponse, error) {
-	vir := &types.VanRouterInspectResponse{}
+// RouterInspect VAN deployment
+func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectResponse, error) {
+	vir := &types.RouterInspectResponse{}
 
 	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
-		siteConfig, err := cli.VanSiteConfigInspect(ctx, nil)
+		siteConfig, err := cli.SiteConfigInspect(ctx, nil)
 		if err == nil && siteConfig != nil {
 			vir.Status.SiteName = siteConfig.Spec.SkupperName
 		}
@@ -36,7 +36,7 @@ func (cli *VanClient) VanRouterInspect(ctx context.Context) (*types.VanRouterIns
 
 		vir.TransportVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.TransportComponentName, types.TransportContainerName)
 		vir.ControllerVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.ControllerComponentName, types.ControllerContainerName)
-		vsis, err := cli.VanServiceInterfaceList(context.Background())
+		vsis, err := cli.ServiceInterfaceList(context.Background())
 		if err != nil {
 			vir.ExposedServices = 0
 		} else {

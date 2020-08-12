@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func TestVanRouterCreateDefaults(t *testing.T) {
+func TestRouterCreateDefaults(t *testing.T) {
 	testcases := []struct {
 		doc                  string
 		namespace            string
@@ -280,8 +280,8 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced)
 		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
 
-		err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-			Spec: types.VanSiteConfigSpec{
+		err = cli.RouterCreate(ctx, types.SiteConfig{
+			Spec: types.SiteConfigSpec{
 				SkupperName:         c.skupperName,
 				IsEdge:              c.isEdge,
 				EnableController:    c.enableController,
@@ -299,22 +299,22 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 		time.Sleep(time.Second * 1)
 		assert.Check(t, err, c.doc)
 		if diff := cmp.Diff(c.depsExpected, depsFound, c.opts...); diff != "" {
-			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" deployments mismatch (-want +got):\n%s", diff)
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" deployments mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.cmsExpected, cmsFound, c.opts...); diff != "" {
-			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" config maps mismatch (-want +got):\n%s", diff)
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" config maps mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.rolesExpected, rolesFound, c.opts...); diff != "" {
-			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" roles mismatch (-want +got):\n%s", diff)
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" roles mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.roleBindingsExpected, roleBindingsFound, c.opts...); diff != "" {
-			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" role bindings mismatch (-want +got):\n%s", diff)
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" role bindings mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.svcsExpected, svcsFound, c.opts...); diff != "" {
-			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" services mismatch (-want +got):\n%s", diff)
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" services mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.svcAccountsExpected, svcAccountsFound, c.opts...); diff != "" {
-			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" service accounts mismatch (-want +got):\n%s", diff)
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" service accounts mismatch (-want +got):\n%s", diff)
 		}
 		//TODO: consider set up short specific opts
 		if !isCluster || (cli.RouteClient == nil && c.authMode == "openshift") {
@@ -322,7 +322,7 @@ func TestVanRouterCreateDefaults(t *testing.T) {
 			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "controller-certs") }))
 		}
 		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
-			t.Errorf("TestVanRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 		}
 	}
 }

@@ -15,7 +15,7 @@ func TestConnectorInspectError(t *testing.T) {
 	// Create the client
 	cli, err := newMockClient("skupper", "", "")
 
-	_, err = cli.VanConnectorInspect(ctx, "conn1")
+	_, err = cli.ConnectorInspect(ctx, "conn1")
 	assert.Error(t, err, `deployments.apps "skupper-router" not found`, "Expect error when VAN is not deployed")
 }
 
@@ -42,8 +42,8 @@ func TestConnectorInspectNotFound(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -58,7 +58,7 @@ func TestConnectorInspectNotFound(t *testing.T) {
 	assert.Check(t, err, "Unable to create VAN router")
 
 	for _, c := range testcases {
-		_, err := cli.VanConnectorInspect(ctx, c.connName)
+		_, err := cli.ConnectorInspect(ctx, c.connName)
 		assert.Error(t, err, c.expectedError, c.doc)
 	}
 }
@@ -93,8 +93,8 @@ func TestConnectorInspectDefaults(t *testing.T) {
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
 
-	err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-		Spec: types.VanSiteConfigSpec{
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
 			IsEdge:            false,
 			EnableController:  true,
@@ -109,11 +109,11 @@ func TestConnectorInspectDefaults(t *testing.T) {
 	assert.Check(t, err, "Unable to create VAN router")
 
 	for _, c := range testcases {
-		err = cli.VanConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
+		err = cli.ConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
 		assert.Check(t, err, "Unable to create connector token "+c.connName)
 	}
 	for _, c := range testcases {
-		_, err = cli.VanConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.VanConnectorCreateOptions{
+		_, err = cli.ConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.ConnectorCreateOptions{
 			Name:             c.connName,
 			SkupperNamespace: "skupper",
 			Cost:             1,
@@ -121,7 +121,7 @@ func TestConnectorInspectDefaults(t *testing.T) {
 		assert.Check(t, err, "Unable to create connector for "+c.connName)
 	}
 	for _, c := range testcases {
-		_, err := cli.VanConnectorInspect(ctx, c.connName)
+		_, err := cli.ConnectorInspect(ctx, c.connName)
 		assert.Check(t, err, "Unabled to inspect connector for "+c.connName)
 	}
 

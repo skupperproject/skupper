@@ -9,9 +9,9 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-// VanConnectorInspect VAN connector instance
-func (cli *VanClient) VanConnectorInspect(ctx context.Context, name string) (*types.VanConnectorInspectResponse, error) {
-	vci := &types.VanConnectorInspectResponse{}
+// ConnectorInspect VAN connector instance
+func (cli *VanClient) ConnectorInspect(ctx context.Context, name string) (*types.ConnectorInspectResponse, error) {
+	vci := &types.ConnectorInspectResponse{}
 
 	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {

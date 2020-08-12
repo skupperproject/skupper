@@ -11,7 +11,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func TestVanServiceInterfaceInspect(t *testing.T) {
+func TestServiceInterfaceInspect(t *testing.T) {
 	testcases := []struct {
 		namespace             string
 		doc                   string
@@ -60,8 +60,8 @@ func TestVanServiceInterfaceInspect(t *testing.T) {
 		// Create a skupper router -- or don't if the test
 		// wants a creation error.
 		if testcase.init {
-			err = cli.VanRouterCreate(ctx, types.VanSiteConfig{
-				Spec: types.VanSiteConfigSpec{
+			err = cli.RouterCreate(ctx, types.SiteConfig{
+				Spec: types.SiteConfigSpec{
 					SkupperName:       testcase.namespace,
 					IsEdge:            false,
 					EnableController:  true,
@@ -76,13 +76,13 @@ func TestVanServiceInterfaceInspect(t *testing.T) {
 			assert.Check(t, err, "%s: Unable to create VAN router", testcase.namespace)
 		}
 
-		// Create the VanServiceInterface.
+		// Create the ServiceInterface.
 		service := types.ServiceInterface{
 			Address:  testcase.addr,
 			Protocol: testcase.proto,
 			Port:     testcase.port,
 		}
-		err = cli.VanServiceInterfaceCreate(ctx, &service)
+		err = cli.ServiceInterfaceCreate(ctx, &service)
 
 		// If initialization was not done, we should see an error.
 		// In this case, don't try to check the Service Interface --
@@ -96,9 +96,9 @@ func TestVanServiceInterfaceInspect(t *testing.T) {
 		} else {
 			assert.Check(t, err, "\n\nTest %s failure: Creation failed.\n", testcase.namespace)
 
-			// When we inspect the VanServiceInterface, make sure that the
+			// When we inspect the ServiceInterface, make sure that the
 			// expected values have been set.
-			serviceInterface, err := cli.VanServiceInterfaceInspect(ctx, testcase.addr)
+			serviceInterface, err := cli.ServiceInterfaceInspect(ctx, testcase.addr)
 			assert.Check(t, err, "Inspection failed.")
 
 			assert.Equal(t, testcase.addr, serviceInterface.Address,

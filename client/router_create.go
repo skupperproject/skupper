@@ -46,7 +46,7 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 	}
 }
 
-func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van *types.VanRouterSpec, transport *appsv1.Deployment, siteId string) {
+func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *types.RouterSpec, transport *appsv1.Deployment, siteId string) {
 	// service-controller container index
 	const (
 		serviceController = iota
@@ -185,7 +185,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.VanSiteConfigSpec, van 
 	van.Controller.Routes = routes
 }
 
-func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, siteId string) *types.VanRouterSpec {
+func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) *types.RouterSpec {
 	// skupper-router container index
 	// TODO: update after dataplance changes
 	const (
@@ -194,7 +194,7 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 		oauthProxy
 	)
 
-	van := &types.VanRouterSpec{}
+	van := &types.RouterSpec{}
 	//todo: think through van name, router name, secret names, etc.
 	if options.SkupperName == "" {
 		van.Name = cli.Namespace
@@ -583,8 +583,8 @@ func (cli *VanClient) GetVanRouterSpecFromOpts(options types.VanSiteConfigSpec, 
 	return van
 }
 
-// VanRouterCreate instantiates a VAN (router and controller) deployment
-func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanSiteConfig) error {
+// RouterCreate instantiates a VAN (router and controller) deployment
+func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig) error {
 	// todo return error
 	if options.Spec.EnableRouterConsole || options.Spec.EnableConsole {
 		if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) || options.Spec.AuthMode == "" {
@@ -609,7 +609,7 @@ func (cli *VanClient) VanRouterCreate(ctx context.Context, options types.VanSite
 	if siteId == "" {
 		siteId = utils.RandomId(10)
 	}
-	van := cli.GetVanRouterSpecFromOpts(options.Spec, siteId)
+	van := cli.GetRouterSpecFromOpts(options.Spec, siteId)
 	siteOwnerRef := asOwnerReference(options.Reference)
 	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, cli.KubeClient)
 	if err != nil {
@@ -734,7 +734,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	return nil
 }
 
-func asOwnerReference(ref types.VanSiteConfigReference) *metav1.OwnerReference {
+func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
 	if ref.Name == "" || ref.UID == "" {
 		return nil
 	}
