@@ -448,6 +448,9 @@ func main() {
 					fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
 				}
 				fmt.Println()
+				if vir.ConsoleUrl != "" {
+					fmt.Println("The site console url is: ", vir.ConsoleUrl)
+				}
 			} else {
 				fmt.Println("Unable to retrieve skupper status: ", err.Error())
 				os.Exit(1)

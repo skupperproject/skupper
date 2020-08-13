@@ -59,4 +59,5 @@ type RouterInspectResponse struct {
 	TransportVersion  string
 	ControllerVersion string
 	ExposedServices   int
+	ConsoleUrl        string
 }
