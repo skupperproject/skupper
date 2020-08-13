@@ -7,15 +7,14 @@ import (
 	"log"
 	"regexp"
 	"strconv"
-	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -45,19 +44,18 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	secret, err := cli.ConnectorCreateSecretFromFile(ctx, secretFile, options)
-	if err == nil {
-		current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
-		if err == nil {
-			if options.Name == "" {
-				options.Name = secret.ObjectMeta.Name
-			}
-			return secret, cli.createConnector(ctx, secret, options, current)
-		} else {
-			return nil, fmt.Errorf("Failed to retrieve transport deployment: %w", err)
-		}
-	} else {
+	if err != nil {
 		return nil, err
 	}
+	if options.Name == "" {
+		options.Name = secret.ObjectMeta.Name
+	}
+
+	err = cli.ConnectorCreate(ctx, secret, options)
+	if err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
@@ -100,40 +98,34 @@ func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretF
 }
 
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
-	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
-	if err == nil {
-		return cli.createConnector(ctx, secret, options, current)
-	} else {
-		return fmt.Errorf("Failed to retrieve router deployment: %w", err)
-	}
-}
 
-func (cli *VanClient) createConnector(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions, current *appsv1.Deployment) error {
-	mode := qdr.GetTransportMode(current)
-	//read annotations to get the host and port to connect to
-	connector := types.Connector{
-		Name: options.Name,
-		Cost: options.Cost,
-	}
-	if mode == types.TransportModeInterior {
-		connector.Host = secret.ObjectMeta.Annotations["inter-router-host"]
-		connector.Port = secret.ObjectMeta.Annotations["inter-router-port"]
-		connector.Role = string(types.ConnectorRoleInterRouter)
-	} else {
-		connector.Host = secret.ObjectMeta.Annotations["edge-host"]
-		connector.Port = secret.ObjectMeta.Annotations["edge-port"]
-		connector.Role = string(types.ConnectorRoleEdge)
-	}
-	qdr.AddConnector(&connector, current)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
+		if err != nil {
+			return err
+		}
+		mode := qdr.GetTransportMode(current)
+		//read annotations to get the host and port to connect to
+		connector := types.Connector{
+			Name: options.Name,
+			Cost: options.Cost,
+		}
+		if mode == types.TransportModeInterior {
+			connector.Host = secret.ObjectMeta.Annotations["inter-router-host"]
+			connector.Port = secret.ObjectMeta.Annotations["inter-router-port"]
+			connector.Role = string(types.ConnectorRoleInterRouter)
+		} else {
+			connector.Host = secret.ObjectMeta.Annotations["edge-host"]
+			connector.Port = secret.ObjectMeta.Annotations["edge-port"]
+			connector.Role = string(types.ConnectorRoleEdge)
+		}
+		qdr.AddConnector(&connector, current)
 
-	_, err := cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
-	for i := 0; i < 10 && errors.IsConflict(err); i++ {
-		time.Sleep(500 * time.Millisecond)
 		_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
-	}
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to update qdr deployment: %w", err)
-	} else {
-		return nil
 	}
+	return nil
 }
