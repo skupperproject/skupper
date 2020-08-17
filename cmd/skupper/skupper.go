@@ -450,6 +450,12 @@ func main() {
 				fmt.Println()
 				if vir.ConsoleUrl != "" {
 					fmt.Println("The site console url is: ", vir.ConsoleUrl)
+					siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+					if check(err) {
+						if siteConfig.Spec.AuthMode == "internal" {
+							fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-users'")
+						}
+					}
 				}
 			} else {
 				fmt.Println("Unable to retrieve skupper status: ", err.Error())
