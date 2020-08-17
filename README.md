@@ -31,4 +31,4 @@ Developing Skupper
 * [Console](/skupperproject/gilligan)
 
 # Licensing
-Skupper uses the [Apache QPID Dispatch Router](https://github.com/apache/qpid-dispatch) project and is released under the same [Apache License 2.0](https://github.com/skupperproject/skupper/blob/master/LICENSE).
+Skupper uses the [Apache Qpid Dispatch Router](https://github.com/apache/qpid-dispatch) project and is released under the same [Apache License 2.0](https://github.com/skupperproject/skupper/blob/master/LICENSE).
