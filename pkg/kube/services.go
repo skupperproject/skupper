@@ -99,40 +99,8 @@ func createServiceFromObject(service *corev1.Service, namespace string, kubeclie
 	}
 }
 
-func NewService(svc types.Service, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	services := kubeclient.CoreV1().Services(namespace)
-	existing, err := services.Get(svc.Name, metav1.GetOptions{})
-	if err == nil {
-		//TODO: already exists
-		return existing, nil
-	} else if errors.IsNotFound(err) {
-		service := &corev1.Service{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Service",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        svc.Name,
-				Annotations: svc.Annotations,
-			},
-			Spec: corev1.ServiceSpec{
-				Selector: labels,
-				Ports:    svc.Ports,
-			},
-		}
-		if svc.Type == "LoadBalancer" {
-			service.Spec.Type = corev1.ServiceTypeLoadBalancer
-		}
-		if owner != nil {
-			service.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-				*owner,
-			}
-		}
-		return createServiceFromObject(service, namespace, kubeclient)
-	} else {
-		service := &corev1.Service{}
-		return service, fmt.Errorf("Failed to check service: %w", err)
-	}
+func CreateService(service *corev1.Service, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+	return createServiceFromObject(service, namespace, kubeclient)
 }
 
 func GetLoadBalancerHostOrIp(service *corev1.Service) string {

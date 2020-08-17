@@ -180,22 +180,21 @@ type RouterSpec struct {
 
 // DeploymentSpec for the VAN router or controller components to run within a cluster
 type DeploymentSpec struct {
-	Image           string                 `json:"image,omitempty"`
-	Replicas        int32                  `json:"replicas,omitempty"`
-	LivenessPort    int32                  `json:"livenessPort,omitempty"`
-	Labels          map[string]string      `json:"labels,omitempty"`
-	Annotations     map[string]string      `json:"annotations,omitempty"`
-	EnvVar          []corev1.EnvVar        `json:"envVar,omitempty"`
-	Ports           []corev1.ContainerPort `json:"ports,omitempty"`
-	Volumes         []corev1.Volume        `json:"volumes,omitempty"`
-	VolumeMounts    [][]corev1.VolumeMount `json:"volumeMounts,omitempty"`
-	ConfigMaps      []ConfigMap            `json:"configMaps,omitempty"`
-	Roles           []Role                 `json:"roles,omitempty"`
-	RoleBindings    []RoleBinding          `json:"roleBinding,omitempty"`
-	Routes          []Route                `json:"routes,omitempty"`
-	ServiceAccounts []ServiceAccount       `json:"serviceAccounts,omitempty"`
-	Services        []Service              `json:"services,omitempty"`
-	Sidecars        []*corev1.Container    `json:"sidecars,omitempty"`
+	Image           string                   `json:"image,omitempty"`
+	Replicas        int32                    `json:"replicas,omitempty"`
+	LivenessPort    int32                    `json:"livenessPort,omitempty"`
+	Labels          map[string]string        `json:"labels,omitempty"`
+	Annotations     map[string]string        `json:"annotations,omitempty"`
+	EnvVar          []corev1.EnvVar          `json:"envVar,omitempty"`
+	Ports           []corev1.ContainerPort   `json:"ports,omitempty"`
+	Volumes         []corev1.Volume          `json:"volumes,omitempty"`
+	VolumeMounts    [][]corev1.VolumeMount   `json:"volumeMounts,omitempty"`
+	Roles           []*rbacv1.Role           `json:"roles,omitempty"`
+	RoleBindings    []*rbacv1.RoleBinding    `json:"roleBinding,omitempty"`
+	Routes          []*routev1.Route         `json:"routes,omitempty"`
+	ServiceAccounts []*corev1.ServiceAccount `json:"serviceAccounts,omitempty"`
+	Services        []*corev1.Service        `json:"services,omitempty"`
+	Sidecars        []*corev1.Container      `json:"sidecars,omitempty"`
 }
 
 // AssemblySpec for the links and connectors that form the VAN topology
@@ -256,41 +255,6 @@ type Connector struct {
 	VerifyHostname bool   `json:"verifyHostname,omitempty"`
 	SslProfile     string `json:"sslProfile,omitempty"`
 	LinkCapacity   int32  `json:"linkCapacity,omitempty"`
-}
-
-type ConfigMap struct {
-	Name  string `json:"name,omitempty"`
-	Key   string `json:"key,omitempty"`
-	Value string `json:"value,omitempty"`
-}
-
-type Role struct {
-	Name  string              `json:"name,omitempty"`
-	Rules []rbacv1.PolicyRule `json:"rules,omitempty"`
-}
-
-type RoleBinding struct {
-	ServiceAccount string `json:"serviceAccount,omitempty"`
-	Role           string `json:"role,omitempty"`
-}
-
-type ServiceAccount struct {
-	ServiceAccount string            `json:"serviceAccount,omitempty"`
-	Annotations    map[string]string `json:"annotations,omitempty"`
-}
-
-type Route struct {
-	Name          string
-	TargetService string
-	TargetPort    string
-	Termination   routev1.TLSTerminationType
-}
-
-type Service struct {
-	Name        string
-	Type        string
-	Ports       []corev1.ServicePort
-	Annotations map[string]string
 }
 
 type Credential struct {
