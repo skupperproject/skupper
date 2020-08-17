@@ -4,12 +4,36 @@ import (
 	"context"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
+
+func (cli *VanClient) getConsoleUrl() (string, error) {
+	if cli.RouteClient == nil {
+		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get("skupper-controller", metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		} else {
+			if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
+				host := kube.GetLoadBalancerHostOrIp(service)
+				return host, nil
+			} else {
+				return "", nil
+			}
+		}
+	} else {
+		route, err := cli.RouteClient.Routes(cli.Namespace).Get("skupper-controller", metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		} else {
+			return route.Spec.Host, nil
+		}
+	}
+}
 
 // RouterInspect VAN deployment
 func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectResponse, error) {
@@ -41,6 +65,12 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 			vir.ExposedServices = 0
 		} else {
 			vir.ExposedServices = len(vsis)
+		}
+		url, err := cli.getConsoleUrl()
+		if err != nil {
+			vir.ConsoleUrl = ""
+		} else {
+			vir.ConsoleUrl = "https://" + url
 		}
 	}
 	return vir, err
