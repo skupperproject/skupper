@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -27,8 +27,11 @@ func removeConnector(name string, list []types.Connector) (bool, []types.Connect
 }
 
 func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.ConnectorRemoveOptions) error {
-	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
-	if err == nil {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
+		if err != nil {
+			return err
+		}
 		mode := qdr.GetTransportMode(current)
 		found, connectors := removeConnector(options.Name, qdr.ListRouterConnectors(mode, options.SkupperNamespace, cli.KubeClient))
 		if found || options.ForceCurrent {
@@ -46,15 +49,13 @@ func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.Connect
 				kube.RemoveSecretVolumeForDeployment(options.Name, current, 0)
 				kube.DeleteSecret(options.Name, options.SkupperNamespace, cli.KubeClient)
 				_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
-				if err != nil {
-					return fmt.Errorf("Failed to remove connection: %w", err)
-				}
+				return err
 			}
 		}
-	} else if errors.IsNotFound(err) {
-		return fmt.Errorf("Skupper not enabled in: %s", options.SkupperNamespace)
-	} else {
-		return fmt.Errorf("Failed to retrieve transport deployment: %w", err)
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
 	}
-	return err
+	return nil
 }
