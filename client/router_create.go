@@ -10,6 +10,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -109,34 +110,59 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.VolumeMounts = mounts
 	van.Controller.Sidecars = sidecars
 
-	serviceAccounts := []types.ServiceAccount{}
+	serviceAccounts := []*corev1.ServiceAccount{}
 	annotation := map[string]string{}
 	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 		annotation = map[string]string{
 			"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"skupper-controller\"}}",
 		}
 	}
-	serviceAccounts = append(serviceAccounts, types.ServiceAccount{
-		ServiceAccount: "skupper-proxy-controller",
-		Annotations:    annotation,
+	serviceAccounts = append(serviceAccounts, &corev1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ServiceAccount",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "skupper-proxy-controller",
+			Annotations: annotation,
+		},
 	})
 	van.Controller.ServiceAccounts = serviceAccounts
 
-	roles := []types.Role{}
-	roles = append(roles, types.Role{
-		Name:  "skupper-edit",
+	roles := []*rbacv1.Role{}
+	roles = append(roles, &rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "skupper-edit",
+		},
 		Rules: types.ControllerEditPolicyRule,
 	})
 	van.Controller.Roles = roles
 
-	roleBindings := []types.RoleBinding{}
-	roleBindings = append(roleBindings, types.RoleBinding{
-		ServiceAccount: "skupper-proxy-controller",
-		Role:           "skupper-edit",
+	roleBindings := []*rbacv1.RoleBinding{}
+	roleBindings = append(roleBindings, &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "skupper-proxy-controller-skupper-edit",
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind: "ServiceAccount",
+			Name: "skupper-proxy-controller",
+		}},
+		RoleRef: rbacv1.RoleRef{
+			Kind: "Role",
+			Name: "skupper-edit",
+		},
 	})
 	van.Controller.RoleBindings = roleBindings
 
-	svctype := "ClusterIP"
+	svctype := corev1.ServiceTypeClusterIP
 	metricsPort := []corev1.ServicePort{
 		corev1.ServicePort{
 			Name:       "metrics",
@@ -148,7 +174,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	termination := routev1.TLSTerminationEdge
 	annotations := map[string]string{}
 
-	svcs := []types.Service{}
+	svcs := []*corev1.Service{}
 	if cli.RouteClient != nil {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			termination = routev1.TLSTerminationReencrypt
@@ -163,23 +189,49 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-controller-certs"}
 		}
 	} else if !options.ClusterLocal {
-		svctype = "LoadBalancer"
+		svctype = corev1.ServiceTypeLoadBalancer
 	}
-	svcs = append(svcs, types.Service{
-		Name:        "skupper-controller",
-		Ports:       metricsPort,
-		Type:        svctype,
-		Annotations: annotations,
+	svcs = append(svcs, &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "skupper-controller",
+			Annotations: annotations,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: van.Controller.Labels,
+			Ports:    metricsPort,
+			Type:     svctype,
+		},
 	})
 	van.Controller.Services = svcs
 
-	routes := []types.Route{}
+	routes := []*routev1.Route{}
 	if !options.ClusterLocal && cli.RouteClient != nil {
-		routes = append(routes, types.Route{
-			Name:          "skupper-controller",
-			TargetService: "skupper-controller",
-			TargetPort:    "metrics",
-			Termination:   termination,
+		routes = append(routes, &routev1.Route{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Route",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "skupper-controller",
+			},
+			Spec: routev1.RouteSpec{
+				Path: "",
+				Port: &routev1.RoutePort{
+					TargetPort: intstr.FromString("metrics"),
+				},
+				To: routev1.RouteTargetReference{
+					Kind: "Service",
+					Name: "skupper-controller",
+				},
+				TLS: &routev1.TLSConfig{
+					Termination:                   termination,
+					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+				},
+			},
 		})
 	}
 	van.Controller.Routes = routes
@@ -384,30 +436,55 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Transport.VolumeMounts = mounts
 	van.Transport.Sidecars = sidecars
 
-	roles := []types.Role{}
-	roles = append(roles, types.Role{
-		Name:  types.TransportViewRoleName,
+	roles := []*rbacv1.Role{}
+	roles = append(roles, &rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: types.TransportViewRoleName,
+		},
 		Rules: types.TransportViewPolicyRule,
 	})
 	van.Transport.Roles = roles
 
-	roleBindings := []types.RoleBinding{}
-	roleBindings = append(roleBindings, types.RoleBinding{
-		ServiceAccount: types.TransportServiceAccountName,
-		Role:           types.TransportViewRoleName,
+	roleBindings := []*rbacv1.RoleBinding{}
+	roleBindings = append(roleBindings, &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: types.TransportServiceAccountName + "-" + types.TransportViewRoleName,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind: "ServiceAccount",
+			Name: types.TransportServiceAccountName,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			Kind: "Role",
+			Name: types.TransportViewRoleName,
+		},
 	})
 	van.Transport.RoleBindings = roleBindings
 
-	serviceAccounts := []types.ServiceAccount{}
+	serviceAccounts := []*corev1.ServiceAccount{}
 	annotation := map[string]string{}
 	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 		annotation = map[string]string{
 			"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"skupper-router-console\"}}",
 		}
 	}
-	serviceAccounts = append(serviceAccounts, types.ServiceAccount{
-		ServiceAccount: types.TransportServiceAccountName,
-		Annotations:    annotation,
+	serviceAccounts = append(serviceAccounts, &corev1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ServiceAccount",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        types.TransportServiceAccountName,
+			Annotations: annotation,
+		},
 	})
 	van.Transport.ServiceAccounts = serviceAccounts
 
@@ -479,91 +556,161 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Credentials = credentials
 
 	// TODO: this is a hack for ports, fix this
-	svcs := []types.Service{}
-	svcs = append(svcs, types.Service{
-		Name: "skupper-messaging",
-		Ports: []corev1.ServicePort{
-			corev1.ServicePort{
-				Name:       "amqps",
-				Protocol:   "TCP",
-				Port:       types.AmqpsDefaultPort,
-				TargetPort: intstr.FromInt(int(types.AmqpsDefaultPort)),
-			},
+	svcs := []*corev1.Service{}
+	svcs = append(svcs, &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
 		},
-		Type:        "",
-		Annotations: map[string]string{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "skupper-messaging",
+			Annotations: map[string]string{},
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: van.Transport.Labels,
+			Ports: []corev1.ServicePort{
+				corev1.ServicePort{
+					Name:       "amqps",
+					Protocol:   "TCP",
+					Port:       types.AmqpsDefaultPort,
+					TargetPort: intstr.FromInt(int(types.AmqpsDefaultPort)),
+				},
+			},
+			Type: "",
+		},
 	})
 	if options.EnableRouterConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			svcs = append(svcs, types.Service{
-				Name: "skupper-router-console",
-				Ports: []corev1.ServicePort{
-					corev1.ServicePort{
-						Name:       "console",
-						Protocol:   "TCP",
-						Port:       types.ConsoleOpenShiftOauthServicePort,
-						TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
-					},
+			svcs = append(svcs, &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Service",
 				},
-				Type:        "",
-				Annotations: map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-proxy-certs"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "skupper-router-console",
+					Annotations: map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-proxy-certs"},
+				},
+				Spec: corev1.ServiceSpec{
+					Selector: van.Transport.Labels,
+					Ports: []corev1.ServicePort{
+						corev1.ServicePort{
+							Name:       "console",
+							Protocol:   "TCP",
+							Port:       types.ConsoleOpenShiftOauthServicePort,
+							TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
+						},
+					},
+					Type: "",
+				},
 			})
 		} else {
-			svcs = append(svcs, types.Service{
-				Name: "skupper-router-console",
-				Ports: []corev1.ServicePort{
-					corev1.ServicePort{
-						Name:       "console",
-						Protocol:   "TCP",
-						Port:       types.ConsoleDefaultServicePort,
-						TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
-					},
+			svcs = append(svcs, &corev1.Service{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Service",
 				},
-				Type:        "",
-				Annotations: map[string]string{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "skupper-router-console",
+					Annotations: map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Selector: van.Transport.Labels,
+					Ports: []corev1.ServicePort{
+						corev1.ServicePort{
+							Name:       "console",
+							Protocol:   "TCP",
+							Port:       types.ConsoleDefaultServicePort,
+							TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
+						},
+					},
+					Type: "",
+				},
 			})
 		}
 	}
 	if !options.IsEdge {
-		svctype := "ClusterIP"
+		svcType := corev1.ServiceTypeClusterIP
 		if !options.ClusterLocal && cli.RouteClient == nil {
-			svctype = "LoadBalancer"
+			svcType = corev1.ServiceTypeLoadBalancer
 		}
-		svcs = append(svcs, types.Service{
-			Name: "skupper-internal",
-			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
-					Name:       "inter-router",
-					Protocol:   "TCP",
-					Port:       types.InterRouterListenerPort,
-					TargetPort: intstr.FromInt(int(types.InterRouterListenerPort)),
-				},
-				corev1.ServicePort{
-					Name:       "edge",
-					Protocol:   "TCP",
-					Port:       types.EdgeListenerPort,
-					TargetPort: intstr.FromInt(int(types.EdgeListenerPort)),
-				},
+		svcs = append(svcs, &corev1.Service{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Service",
 			},
-			Type:        svctype,
-			Annotations: map[string]string{},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "skupper-internal",
+				Annotations: map[string]string{},
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: van.Transport.Labels,
+				Ports: []corev1.ServicePort{
+					corev1.ServicePort{
+						Name:       "inter-router",
+						Protocol:   "TCP",
+						Port:       types.InterRouterListenerPort,
+						TargetPort: intstr.FromInt(int(types.InterRouterListenerPort)),
+					},
+					corev1.ServicePort{
+						Name:       "edge",
+						Protocol:   "TCP",
+						Port:       types.EdgeListenerPort,
+						TargetPort: intstr.FromInt(int(types.EdgeListenerPort)),
+					},
+				},
+				Type: svcType,
+			},
 		})
 	}
 	van.Transport.Services = svcs
 
-	routes := []types.Route{}
+	routes := []*routev1.Route{}
 	if !options.ClusterLocal && cli.RouteClient != nil {
-		routes = append(routes, types.Route{
-			Name:          types.InterRouterRouteName,
-			TargetService: types.InterRouterProfile,
-			TargetPort:    types.InterRouterRole,
-			Termination:   routev1.TLSTerminationPassthrough,
+		routes = append(routes, &routev1.Route{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Route",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: types.InterRouterRouteName,
+			},
+			Spec: routev1.RouteSpec{
+				Path: "",
+				Port: &routev1.RoutePort{
+					TargetPort: intstr.FromString(types.InterRouterRole),
+				},
+				To: routev1.RouteTargetReference{
+					Kind: "Service",
+					Name: types.InterRouterProfile,
+				},
+				TLS: &routev1.TLSConfig{
+					Termination:                   routev1.TLSTerminationPassthrough,
+					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
+				},
+			},
 		})
-		routes = append(routes, types.Route{
-			Name:          types.EdgeRouteName,
-			TargetService: types.InterRouterProfile,
-			TargetPort:    types.EdgeRole,
-			Termination:   routev1.TLSTerminationPassthrough,
+		routes = append(routes, &routev1.Route{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Route",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: types.EdgeRouteName,
+			},
+			Spec: routev1.RouteSpec{
+				Path: "",
+				Port: &routev1.RoutePort{
+					TargetPort: intstr.FromString(types.EdgeRole),
+				},
+				To: routev1.RouteTargetReference{
+					Kind: "Service",
+					Name: types.InterRouterProfile,
+				},
+				TLS: &routev1.TLSConfig{
+					Termination:                   routev1.TLSTerminationPassthrough,
+					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
+				},
+			},
 		})
 	}
 	if options.EnableRouterConsole && cli.RouteClient != nil {
@@ -571,11 +718,28 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			termination = routev1.TLSTerminationReencrypt
 		}
-		routes = append(routes, types.Route{
-			Name:          "skupper-router-console",
-			TargetService: "skupper-router-console",
-			TargetPort:    types.ConsolePortName,
-			Termination:   termination,
+		routes = append(routes, &routev1.Route{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Route",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: types.EdgeRouteName,
+			},
+			Spec: routev1.RouteSpec{
+				Path: "",
+				Port: &routev1.RoutePort{
+					TargetPort: intstr.FromString(types.EdgeRole),
+				},
+				To: routev1.RouteTargetReference{
+					Kind: "Service",
+					Name: types.InterRouterProfile,
+				},
+				TLS: &routev1.TLSConfig{
+					Termination:                   termination,
+					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+				},
+			},
 		})
 	}
 	van.Transport.Routes = routes
@@ -631,13 +795,16 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		kube.NewConfigMap("skupper-sasl-config", saslData, siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, sa := range van.Transport.ServiceAccounts {
-		kube.NewServiceAccount(sa, siteOwnerRef, van.Namespace, cli.KubeClient)
+		sa.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+		kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
 	}
 	for _, role := range van.Transport.Roles {
-		kube.NewRole(role, siteOwnerRef, van.Namespace, cli.KubeClient)
+		role.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+		kube.CreateRole(van.Namespace, role, cli.KubeClient)
 	}
 	for _, roleBinding := range van.Transport.RoleBindings {
-		kube.NewRoleBinding(roleBinding, siteOwnerRef, van.Namespace, cli.KubeClient)
+		roleBinding.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+		kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
 	}
 	for _, ca := range van.CertAuthoritys {
 		kube.NewCertAuthority(ca, siteOwnerRef, van.Namespace, cli.KubeClient)
@@ -648,11 +815,13 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		}
 	}
 	for _, svc := range van.Transport.Services {
-		kube.NewService(svc, van.Transport.Labels, siteOwnerRef, van.Namespace, cli.KubeClient)
+		svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+		kube.CreateService(svc, van.Namespace, cli.KubeClient)
 	}
 	if cli.RouteClient != nil {
 		for _, rte := range van.Transport.Routes {
-			kube.NewRoute(rte, siteOwnerRef, van.Namespace, cli.RouteClient)
+			rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
 		}
 	}
 
@@ -713,20 +882,25 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			return err
 		}
 		for _, sa := range van.Controller.ServiceAccounts {
-			kube.NewServiceAccount(sa, siteOwnerRef, van.Namespace, cli.KubeClient)
+			sa.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
 		}
 		for _, role := range van.Controller.Roles {
-			kube.NewRole(role, siteOwnerRef, van.Namespace, cli.KubeClient)
+			role.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			kube.CreateRole(van.Namespace, role, cli.KubeClient)
 		}
 		for _, roleBinding := range van.Controller.RoleBindings {
-			kube.NewRoleBinding(roleBinding, siteOwnerRef, van.Namespace, cli.KubeClient)
+			roleBinding.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
 		}
 		for _, svc := range van.Controller.Services {
-			kube.NewService(svc, van.Controller.Labels, siteOwnerRef, van.Namespace, cli.KubeClient)
+			svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			kube.CreateService(svc, van.Namespace, cli.KubeClient)
 		}
 		if cli.RouteClient != nil {
 			for _, rte := range van.Controller.Routes {
-				kube.NewRoute(rte, siteOwnerRef, van.Namespace, cli.RouteClient)
+				rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+				kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
 			}
 		}
 	}
