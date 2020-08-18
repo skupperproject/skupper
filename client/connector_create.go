@@ -125,7 +125,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to update qdr deployment: %w", err)
+		return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
 	}
 	return nil
 }
