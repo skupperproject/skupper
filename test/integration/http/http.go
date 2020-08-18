@@ -24,8 +24,6 @@ type HttpClusterTestRunner struct {
 
 func int32Ptr(i int32) *int32 { return &i }
 
-const minute time.Duration = 60
-
 var httpbinDep *appsv1.Deployment = &appsv1.Deployment{
 	TypeMeta: metav1.TypeMeta{
 		APIVersion: "apps/v1",
@@ -76,8 +74,8 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context) {
 	//for tcp_echo test, since in case of reducing test may fail
 	//intermitently
 
-	r.Pub1Cluster.GetService("httpbin", 3*minute)
-	time.Sleep(20 * time.Second) //TODO XXX What is the right condition to wait for?
+	_, err := cluster.WaitForSkupperServiceToBeCreatedAndReadyToUse(r.Pub1Cluster, "httpbin")
+	assert.Assert(r.T, err)
 
 	r.Pub1Cluster.KubectlExecAsync(fmt.Sprintf("port-forward service/httpbin 8080:80"))
 	defer exec.Command("pkill", "kubectl").Run()

@@ -16,9 +16,9 @@ type BasicTestRunner struct {
 
 func (r *BasicTestRunner) RunTests(ctx context.Context) {
 
-	tick := time.Tick(5 * time.Second)
+	tick := time.Tick(cluster.DefaultTick)
+	timeout := time.After(cluster.ImagePullingAndResourceCreationTimeout)
 	wait_for_conn := func(cc *cluster.ClusterContext) {
-		timeout := time.After(120 * time.Second)
 		for {
 			select {
 			case <-timeout:
