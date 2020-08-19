@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -12,11 +11,30 @@ import (
 
 	"gotest.tools/assert"
 	apiv1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 
 	batchv1 "k8s.io/api/batch/v1"
 
 	vanClient "github.com/skupperproject/skupper/client"
+)
+
+const (
+	//until this issue: https://github.com/skupperproject/skupper/issues/163
+	//is fixed, this is the best we can do
+	SkupperServiceReadyPeriod              time.Duration = time.Minute
+	DefaultTick                                          = time.Second * 5
+	TestJobBackOffLimit                                  = 3
+	ImagePullingAndResourceCreationTimeout               = 10 * time.Minute
+)
+
+var (
+	DefaultRetry wait.Backoff = wait.Backoff{
+		Steps:    int(ImagePullingAndResourceCreationTimeout / DefaultTick),
+		Duration: DefaultTick,
+	}
 )
 
 type ClusterTestRunnerInterface interface {
@@ -57,6 +75,10 @@ type ClusterContext struct {
 	ClusterConfigFile string
 	VanClient         *vanClient.VanClient
 	t                 *testing.T
+}
+
+type ClusterContextInterface interface {
+	waitForSkupperServiceToBeCreated(name string, retryFn func() (*apiv1.Service, error), backoff wait.Backoff) (*apiv1.Service, error)
 }
 
 func BuildClusterContext(t *testing.T, namespacePrefix string, configFile string, newVanClient func(namespace, context, kubeConfigPath string) (*vanClient.VanClient, error)) *ClusterContext {
@@ -152,24 +174,41 @@ func (cc *ClusterContext) DeleteNamespace() {
 	cc.DeleteNamespaces()
 }
 
-func (cc *ClusterContext) GetService(name string, timeout_S time.Duration) *apiv1.Service {
-	timeout := time.After(timeout_S * time.Second)
-	tick := time.Tick(3 * time.Second)
-	for {
-		select {
-		case <-timeout:
-			log.Panicln("Timed Out Waiting for service.")
-		case <-tick:
-			service, err := cc.VanClient.KubeClient.CoreV1().Services(cc.CurrentNamespace).Get(name, metav1.GetOptions{})
-			if err == nil {
-				return service
-			} else {
-				log.Println("Service not ready yet, current pods state: ")
-				cc.KubectlExec("get pods -o wide") //TODO use clientset
-			}
-
-		}
+func (cc *ClusterContext) waitForSkupperServiceToBeCreated(name string, retryFn func() (*apiv1.Service, error), backoff wait.Backoff) (*apiv1.Service, error) {
+	var service *v1.Service = nil
+	var err error
+	isError := func(err error) bool {
+		return err != nil
 	}
+
+	_retryFn := func() (*apiv1.Service, error) {
+		cc.KubectlExec("get pods -o wide")
+		return cc.VanClient.KubeClient.CoreV1().Services(cc.CurrentNamespace).Get(name, metav1.GetOptions{})
+	}
+
+	if retryFn == nil {
+		retryFn = _retryFn
+	}
+
+	return service, retry.OnError(backoff, isError, func() error {
+		service, err = retryFn()
+		return err
+	})
+}
+
+func waitForSkupperServiceToBeCreatedAndReadyToUse(cc ClusterContextInterface, serviceName string, skupperServiceReadyPeriod time.Duration) (*apiv1.Service, error) {
+	service, err := cc.waitForSkupperServiceToBeCreated(serviceName, nil, DefaultRetry)
+	if err != nil {
+		return nil, err
+	}
+
+	time.Sleep(skupperServiceReadyPeriod)
+	return service, nil
+
+}
+
+func WaitForSkupperServiceToBeCreatedAndReadyToUse(cc ClusterContextInterface, serviceName string) (*apiv1.Service, error) {
+	return waitForSkupperServiceToBeCreatedAndReadyToUse(cc, serviceName, SkupperServiceReadyPeriod)
 }
 
 func getTestImage() string {
@@ -207,7 +246,7 @@ func (cc *ClusterContext) CreateTestJob(name string, command []string) (*batchv1
 							Env: []apiv1.EnvVar{
 								{Name: "JOB", Value: name},
 							},
-							ImagePullPolicy: apiv1.PullIfNotPresent,
+							ImagePullPolicy: apiv1.PullAlways,
 						},
 					},
 					RestartPolicy: apiv1.RestartPolicyNever,
@@ -228,20 +267,29 @@ func (cc *ClusterContext) CreateTestJob(name string, command []string) (*batchv1
 
 //TODO evaluate modifying this implementation to use informers instead of
 //pooling.
-func (cc *ClusterContext) WaitForJob(jobName string, timeout_S time.Duration) (*batchv1.Job, error) {
+func (cc *ClusterContext) WaitForJob(jobName string, timeout time.Duration) (*batchv1.Job, error) {
+
+	if timeout < DefaultTick {
+		return nil, fmt.Errorf("timeout too small: %v", timeout)
+	}
 
 	jobsClient := cc.VanClient.KubeClient.BatchV1().Jobs(cc.CurrentNamespace)
 
+	//TODO: in case of multiple retries, is it possible to print last, and
+	//previous logs?
 	defer cc.KubectlExec("logs job/" + jobName)
 
+	timeoutCh := time.After(timeout)
+	tick := time.Tick(DefaultTick)
 	for {
 		select {
-		case <-time.After(timeout_S * time.Second):
-			return nil, fmt.Errorf("Timeout: Job is still active")
-		case <-time.Tick(5 * time.Second):
+		case <-timeoutCh:
+			return nil, fmt.Errorf("Timeout: Job is still active: %s", jobName)
+		case <-tick:
 			job, _ := jobsClient.Get(jobName, metav1.GetOptions{})
 
 			cc.KubectlExec(fmt.Sprintf("get job/%s -o wide", jobName))
+			cc.KubectlExec("get pods -o wide")
 
 			if job.Status.Active > 0 {
 				fmt.Println("Job is still active")
