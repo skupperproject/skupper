@@ -152,18 +152,6 @@ workflows:
       - minikube_local_cluster_tests:
           <<: *minikube_local_cluster_tests
 
-      - publish-github-release-artifacts:
-          <<: *run_for_v_prefixed_tags
-          <<: *release_requires
-
-      - publish-github-release-images:
-          <<: *run_for_v_prefixed_tags
-          <<: *release_requires
-
-      - remove_from_registry: # will not run for tags, by default
-          requires:
-            - test
-            - minikube_local_cluster_tests
 
 jobs:
   test:
