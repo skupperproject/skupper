@@ -92,45 +92,23 @@ func BuildClusterContext(t *testing.T, namespacePrefix string, configFile string
 	return cc
 }
 
-func _exec(command string, wait bool) *exec.Cmd {
+func _exec(command string) ([]byte, error) {
 	var output []byte
 	var err error
 	fmt.Println(command)
 	cmd := exec.Command("sh", "-c", command)
-	if wait {
-		output, err = cmd.CombinedOutput()
-		fmt.Println(string(output))
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Start()
-	}
-	return cmd
+	output, err = cmd.CombinedOutput()
+	fmt.Println(string(output))
+	return output, err
 }
 
-func (cc *ClusterContext) exec(main_command string, sub_command string, wait bool) *exec.Cmd {
-	return _exec("KUBECONFIG="+cc.ClusterConfigFile+" "+main_command+" "+cc.CurrentNamespace+" "+sub_command, wait)
+func (cc *ClusterContext) exec(main_command string, sub_command string) ([]byte, error) {
+	return _exec("KUBECONFIG=" + cc.ClusterConfigFile + " " + main_command + " " + cc.CurrentNamespace + " " + sub_command)
 }
 
-//TODO remove this
-func (cc *ClusterContext) SkupperExec(command string) *exec.Cmd {
-	return cc.exec("./skupper -n ", command, true)
-}
-
-func (cc *ClusterContext) _kubectl_exec(command string, wait bool) *exec.Cmd {
-	return cc.exec("kubectl -n ", command, wait)
-}
-
-//TODO return error instead of panic in case of exit code != 0
-func (cc *ClusterContext) KubectlExec(command string) *exec.Cmd {
-	return cc._kubectl_exec(command, true)
-}
-
-func (cc *ClusterContext) KubectlExecAsync(command string) *exec.Cmd {
-	return cc._kubectl_exec(command, false)
+//do a simple test of this
+func (cc *ClusterContext) KubectlExec(command string) ([]byte, error) {
+	return cc.exec("kubectl -n ", command)
 }
 
 func (cc *ClusterContext) getNextNamespace() string {
@@ -304,4 +282,20 @@ func (cc *ClusterContext) WaitForJob(jobName string, timeout time.Duration) (*ba
 		}
 	}
 
+}
+
+func AssertJob(t *testing.T, job *batchv1.Job) {
+	t.Helper()
+	assert.Equal(t, int(job.Status.Succeeded), 1)
+	assert.Equal(t, int(job.Status.Active), 0)
+
+	if job.Status.Failed > 0 {
+		t.Logf("WARNING! THIS JOB NEEDED RETRIES TO SUCCEED! Job.Status.Failed = %d\n", job.Status.Failed)
+	}
+}
+
+func SkipTestJobIfMustBeSkipped(t *testing.T) {
+	if os.Getenv("JOB") == "" {
+		t.Skip("JOB environment variable not defined")
+	}
 }

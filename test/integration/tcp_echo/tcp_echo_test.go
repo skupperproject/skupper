@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"strings"
 	"testing"
 
+	"github.com/skupperproject/skupper/test/cluster"
 	"gotest.tools/assert"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -61,10 +61,6 @@ func sendReceive() error {
 }
 
 func TestTcpEchoJob(t *testing.T) {
-	job := os.Getenv("JOB")
-	if job == "" {
-		t.Skip("JOB environment variable not defined")
-		return
-	}
+	cluster.SkipTestJobIfMustBeSkipped(t)
 	assert.Assert(t, sendReceive())
 }
