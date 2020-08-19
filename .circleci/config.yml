@@ -129,6 +129,13 @@ yaml-templates:
       - test
       - minikube_local_cluster_tests
 
+  minikube_local_cluster_tests: &minikube_local_cluster_tests
+       <<: *run_for_all_branches_and_v_prefixed_tags
+       pre-steps:
+         - prepare_for_local_cluster_tests
+       requires:
+         - test
+
 workflows:
   version: 2.1
   build-workflow:
@@ -139,11 +146,11 @@ workflows:
           <<: *run_for_all_branches_and_v_prefixed_tags
 
       - minikube_local_cluster_tests:
-          <<: *run_for_all_branches_and_v_prefixed_tags
-          pre-steps:
-            - prepare_for_local_cluster_tests
-          requires:
-            - test
+          <<: *minikube_local_cluster_tests
+      - minikube_local_cluster_tests:
+          <<: *minikube_local_cluster_tests
+      - minikube_local_cluster_tests:
+          <<: *minikube_local_cluster_tests
 
       - publish-github-release-artifacts:
           <<: *run_for_v_prefixed_tags
