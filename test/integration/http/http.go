@@ -3,8 +3,6 @@ package http
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/cluster"
@@ -13,9 +11,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/davecgh/go-spew/spew"
-	vegeta "github.com/tsenart/vegeta/v12/lib"
 )
 
 type HttpClusterTestRunner struct {
@@ -77,30 +72,15 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context) {
 	_, err := cluster.WaitForSkupperServiceToBeCreatedAndReadyToUse(r.Pub1Cluster, "httpbin")
 	assert.Assert(r.T, err)
 
-	r.Pub1Cluster.KubectlExecAsync(fmt.Sprintf("port-forward service/httpbin 8080:80"))
-	defer exec.Command("pkill", "kubectl").Run()
-	time.Sleep(60 * time.Second) //give time to port forwarding to start
+	jobName := "http"
+	jobCmd := []string{"/app/http_test", "-test.run", "Job"}
 
-	// The test we are doing here is the most basic one, TODO add more
-	// testing, asserts, etc.
-	rate := vegeta.Rate{Freq: 100, Per: time.Second}
-	duration := 4 * time.Second
-	targeter := vegeta.NewStaticTargeter(vegeta.Target{
-		Method: "GET",
-		URL:    "http://localhost:8080/",
-	})
-	attacker := vegeta.NewAttacker()
+	_, err = r.Pub1Cluster.CreateTestJob(jobName, jobCmd)
+	assert.Assert(r.T, err)
 
-	var metrics vegeta.Metrics
-	for res := range attacker.Attack(targeter, rate, duration, "Big Bang!") {
-		metrics.Add(res)
-	}
-	metrics.Close()
-
-	spew.Dump(metrics)
-
-	// Success is the percentage of non-error responses.
-	assert.Assert(r.T, metrics.Success > 0.95, "too many errors! see the log for details.")
+	job, err := r.Pub1Cluster.WaitForJob(jobName, cluster.ImagePullingAndResourceCreationTimeout)
+	assert.Assert(r.T, err)
+	cluster.AssertJob(r.T, job)
 }
 
 func (r *HttpClusterTestRunner) Setup(ctx context.Context) {

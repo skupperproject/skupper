@@ -11,7 +11,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 
-	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -87,20 +86,13 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 
 	endTime = time.Now().Add(cluster.ImagePullingAndResourceCreationTimeout)
 
-	assertJob := func(job *batchv1.Job) {
-		r.T.Helper()
-		assert.Equal(r.T, int(job.Status.Succeeded), 1)
-		assert.Equal(r.T, int(job.Status.Active), 0)
-		//assert.Equal(r.T, int(job.Status.Failed), 0)
-	}
-
 	job, err := r.Pub1Cluster.WaitForJob(jobName, endTime.Sub(time.Now()))
 	assert.Assert(r.T, err)
-	assertJob(job)
+	cluster.AssertJob(r.T, job)
 
 	job, err = r.Priv1Cluster.WaitForJob(jobName, endTime.Sub(time.Now()))
 	assert.Assert(r.T, err)
-	assertJob(job)
+	cluster.AssertJob(r.T, job)
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
