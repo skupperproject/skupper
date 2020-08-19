@@ -145,12 +145,14 @@ workflows:
       - test:
           <<: *run_for_all_branches_and_v_prefixed_tags
 
-      - m0:
+      - minikube_local_cluster_tests:
+          name: m0
           <<: *minikube_local_cluster_tests
-      - m1:
+      - minikube_local_cluster_tests:
+          name: m1
           <<: *minikube_local_cluster_tests
-      - m2:
-          <<: *minikube_local_cluster_tests
+      #- m2:
+          #<<: *minikube_local_cluster_tests
       #- m3:
           #<<: *minikube_local_cluster_tests
       #- m4:
