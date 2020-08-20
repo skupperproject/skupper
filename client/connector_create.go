@@ -43,6 +43,9 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 }
 
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
+	if secretFile == cli.SecretFile {
+		return nil, fmt.Errorf("Can't form connection to self: |%s|\n", secretFile)
+	}
 	secret, err := cli.ConnectorCreateSecretFromFile(ctx, secretFile, options)
 	if err != nil {
 		return nil, err

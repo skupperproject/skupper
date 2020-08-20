@@ -18,6 +18,7 @@ type VanClient struct {
 	KubeClient  kubernetes.Interface
 	RouteClient *routev1client.RouteV1Client
 	RestConfig  *restclient.Config
+	SecretFile  string
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {

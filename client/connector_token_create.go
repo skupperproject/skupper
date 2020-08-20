@@ -149,8 +149,8 @@ func (cli *VanClient) ConnectorTokenCreateFile(ctx context.Context, subject stri
 			if localOnly {
 				extra = "(Note: token will only be valid for local cluster)"
 			}
-			fmt.Printf("Connection token written to %s %s", secretFile, extra)
-			fmt.Println()
+			fmt.Printf("Connection token written to %s %s\n", secretFile, extra)
+			cli.SecretFile = secretFile
 			return nil
 		}
 	} else {
