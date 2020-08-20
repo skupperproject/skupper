@@ -82,7 +82,7 @@ commands:
     steps:
       - run:
           name: Run Integration Tests
-          command: go test -tags=integration -v ./test/integration/...
+          command: go test -tags=integration -timeout=15m -v ./test/integration/...
       - run:
           name: Run client tests in real cluster
           command: go test -v -count=1 ./client -use-cluster
