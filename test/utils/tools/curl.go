@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -12,6 +13,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // CurlOpts allows specifying arguments to run curl on a pod
@@ -93,7 +95,22 @@ func Curl(kubeClient kubernetes.Interface, config *restclient.Config, ns, podNam
 	command = append(command, url)
 
 	// Executing through the API
-	_, stderr, err := k8s.Execute(kubeClient, config, ns, pod.Name, pod.Spec.Containers[0].Name, command)
+	curlDoneCh := make(chan struct{})
+	timeoutCh := time.After(time.Duration(opts.Timeout) * time.Second)
+	var stderr bytes.Buffer
+
+	go func() {
+		_, stderr, err = k8s.Execute(kubeClient, config, ns, pod.Name, pod.Spec.Containers[0].Name, command)
+		close(curlDoneCh)
+	}()
+
+	// wait on curl to finish or a timeout to happen
+	select {
+	case <-curlDoneCh:
+		break
+	case <-timeoutCh:
+		return response, fmt.Errorf("timed out waiting on curl")
+	}
 
 	// Curl's Output (not the Body, but regular Output or errors)
 	response.Output = stderr.String()

@@ -117,7 +117,7 @@ func TestAnnotatedResources(t *testing.T) {
 			// 4.2 Validate services from DATA endpoint (with retries)
 			var resp *tools.CurlResponse
 			var consoleData ConsoleData
-			err = utils.Retry(interval, 10, func() (bool, error) {
+			err = utils.Retry(interval, 20, func() (bool, error) {
 				resp, err = tools.Curl(cluster1.KubeClient, cluster1.RestConfig, cluster1.Namespace, "", dataEndpoint, curlOpts)
 				if err != nil {
 					return false, nil
@@ -153,16 +153,16 @@ func TestAnnotatedResources(t *testing.T) {
 
 			// 4.3. Validating all exposed services are reachable across clusters
 			for _, cluster := range []*vanClient.VanClient{cluster1, cluster2} {
-				for svc, _ := range test.expectedServicesProto {
+				for svc := range test.expectedServicesProto {
 					t.Logf("validating communication with service %s through %s", svc, cluster.Namespace)
 					// reaching service through proxy-controller's pod (with some attempts to make sure bridge is connected)
-					err = utils.Retry(interval, 10, func() (bool, error) {
+					err = utils.Retry(interval, 20, func() (bool, error) {
 						endpoint := fmt.Sprintf("http://%s:8080", svc)
-						resp, err = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{})
+						resp, err = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 10})
 						if err != nil {
 							return false, nil
 						}
-						return true, nil
+						return resp.StatusCode == 200, nil
 					})
 					assert.Assert(t, err, "unable to reach service %s through %s", svc, cluster.Namespace)
 					assert.Equal(t, resp.StatusCode, 200, "bad response received from service %s through %s", svc, cluster.Namespace)
