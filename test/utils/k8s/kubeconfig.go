@@ -13,7 +13,7 @@ import (
 // default KUBECONFIG environment variable (only if no flag
 // has been provided)
 func KubeConfigFiles(t *testing.T, includeEdge, includePublic bool) []string {
-	kubeConfigFiles := []string{}
+	var kubeConfigFiles []string
 	edgeConfigs := len(base.TestFlags.EdgeKubeConfigs)
 	pubConfigs := len(base.TestFlags.KubeConfigs)
 

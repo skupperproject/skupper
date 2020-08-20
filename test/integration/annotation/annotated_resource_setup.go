@@ -21,7 +21,7 @@ const (
 	nsCluster1 = "annotation-1"
 	nsCluster2 = "annotation-2"
 	timeout    = 120 * time.Second
-	interval   = 10 * time.Second
+	interval   = 20 * time.Second
 )
 
 var (
