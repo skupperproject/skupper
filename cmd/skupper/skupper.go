@@ -730,8 +730,7 @@ func init() {
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+	if rootCmd.Execute() != nil {
 		os.Exit(1)
 	}
 }
