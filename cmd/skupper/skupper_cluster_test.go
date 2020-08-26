@@ -98,6 +98,7 @@ func testCommand(t *testing.T, cmd *cobra.Command, testName string, expectedErro
 	lines := strings.Split(string(stdOutput), "\n")
 
 	if expectedError != "" {
+		assert.Assert(t, err != nil)
 		checkStringContains(t, err.Error(), expectedError)
 	} else {
 		assert.Check(t, err, testName)
@@ -157,7 +158,8 @@ var tcpStatefulSet *appsv1.StatefulSet = &appsv1.StatefulSet{
 		Name: "tcp-go-echo-ss",
 	},
 	Spec: appsv1.StatefulSetSpec{
-		Replicas: &ssReplicas,
+		Replicas:    &ssReplicas,
+		ServiceName: "tcp-go-echo-ss",
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{"application": "tcp-go-echo-ss"},
 		},
@@ -182,6 +184,26 @@ var tcpStatefulSet *appsv1.StatefulSet = &appsv1.StatefulSet{
 						},
 					},
 				},
+			},
+		},
+	},
+}
+var statefulSetService *corev1.Service = &corev1.Service{
+	TypeMeta: metav1.TypeMeta{
+		APIVersion: "v1",
+		Kind:       "Service",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "tcp-go-echo-ss",
+	},
+	Spec: corev1.ServiceSpec{
+		Selector: map[string]string{
+			"application": "tcp-go-echo-ss",
+		},
+		Ports: []corev1.ServicePort{
+			corev1.ServicePort{
+				Name: "tcp-go-echo",
+				Port: int32(9090),
 			},
 		},
 	},
@@ -833,7 +855,7 @@ func TestExposeWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "expose-test14",
-			args:            []string{"statefulset", "tcp-go-echo-ss", "--headless"},
+			args:            []string{"statefulset", "tcp-go-echo-ss", "--headless", "--address", "tcp-go-echo-ss"},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "Service already exposed, cannot reconfigure as headless",
@@ -875,9 +897,12 @@ func TestExposeWithCluster(t *testing.T) {
 		// create a target deployment as pre-condition
 		deployments := c.KubeClient.AppsV1().Deployments(namespace)
 		statefulSets := c.KubeClient.AppsV1().StatefulSets(namespace)
+		services := c.KubeClient.CoreV1().Services(namespace)
 		_, err = deployments.Create(tcpDeployment)
 		assert.Assert(t, err)
 		_, err = statefulSets.Create(tcpStatefulSet)
+		assert.Assert(t, err)
+		_, err = services.Create(statefulSetService)
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--edge"}...)

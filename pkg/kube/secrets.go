@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,7 +45,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 		if err != nil {
 			return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
 		}
-		secret = certs.GenerateSecret(cred.Name, cred.Subject, cred.Hosts, caSecret)
+		secret = certs.GenerateSecret(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), caSecret)
 		if cred.ConnectJson {
 			secret.Data["connect.json"] = []byte(configs.ConnectJson())
 		}

@@ -107,17 +107,20 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 	if namespace == "" {
 		namespace = cli.Namespace
 	}
-	// verify that the local deployment is interior mode
-	current, err := kube.GetDeployment(types.TransportDeploymentName, namespace, cli.KubeClient)
 	// TODO: return error message for all the paths
+	configmap, err := kube.GetConfigMap("skupper-internal", cli.Namespace, cli.KubeClient)
 	if err != nil {
-		return nil, false, fmt.Errorf("Could not find skupper router in %q: %s", namespace, err)
+		return nil, false, err
 	}
-	if !qdr.IsInterior(current) {
+	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return nil, false, err
+	}
+	if current.IsEdge() {
 		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
 	//TODO: creat const for ca
-	caSecret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get("skupper-internal-ca", metav1.GetOptions{})
+	caSecret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-internal-ca", metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}

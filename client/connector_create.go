@@ -166,28 +166,46 @@ func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretF
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
+		configmap, err := kube.GetConfigMap("skupper-internal" /*TODO: change to constant*/, options.SkupperNamespace, cli.KubeClient)
 		if err != nil {
 			return err
 		}
-		mode := qdr.GetTransportMode(current)
-		//read annotations to get the host and port to connect to
-		connector := types.Connector{
-			Name: options.Name,
-			Cost: options.Cost,
+		current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+		if err != nil {
+			return err
 		}
-		if mode == types.TransportModeInterior {
-			connector.Host = secret.ObjectMeta.Annotations["inter-router-host"]
-			connector.Port = secret.ObjectMeta.Annotations["inter-router-port"]
-			connector.Role = string(types.ConnectorRoleInterRouter)
-		} else {
+		//read annotations to get the host and port to connect to
+		profileName := options.Name + "-profile"
+		current.AddSslProfile(qdr.SslProfile{
+			Name: profileName,
+		})
+		connector := qdr.Connector{
+			Name:       options.Name,
+			Cost:       options.Cost,
+			SslProfile: profileName,
+		}
+		if current.IsEdge() {
 			connector.Host = secret.ObjectMeta.Annotations["edge-host"]
 			connector.Port = secret.ObjectMeta.Annotations["edge-port"]
-			connector.Role = string(types.ConnectorRoleEdge)
+			connector.Role = qdr.RoleEdge
+		} else {
+			connector.Host = secret.ObjectMeta.Annotations["inter-router-host"]
+			connector.Port = secret.ObjectMeta.Annotations["inter-router-port"]
+			connector.Role = qdr.RoleInterRouter
 		}
-		qdr.AddConnector(&connector, current)
-
-		_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(current)
+		current.AddConnector(connector)
+		current.UpdateConfigMap(configmap)
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(configmap)
+		if err != nil {
+			return err
+		}
+		//need to mount the secret so router can access certs and key
+		deployment, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
+		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, connector.Name, "/etc/qpid-dispatch-certs/"+profileName+"/")
+		_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(deployment)
+		if err != nil {
+			return err
+		}
 		return err
 	})
 	if err != nil {

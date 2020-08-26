@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	amqp "github.com/interconnectedcloud/go-amqp"
+	"log"
 	"strings"
 	"time"
 )
@@ -59,6 +60,30 @@ func (r Record) AsRecord(field string) Record {
 		return value
 	} else {
 		return nil
+	}
+}
+
+func asTcpEndpoint(record Record) TcpEndpoint {
+	return TcpEndpoint{
+		Name:    record.AsString("name"),
+		Host:    record.AsString("host"),
+		Port:    record.AsString("port"),
+		Address: record.AsString("address"),
+		SiteId:  record.AsString("siteId"),
+	}
+}
+
+func asHttpEndpoint(record Record) HttpEndpoint {
+	return HttpEndpoint{
+		Name:            record.AsString("name"),
+		Host:            record.AsString("host"),
+		Port:            record.AsString("port"),
+		Address:         record.AsString("address"),
+		SiteId:          record.AsString("siteId"),
+		ProtocolVersion: record.AsString("protocolVersion"),
+		Aggregation:     record.AsString("aggregation"),
+		EventChannel:    record.AsBool("eventChannel"),
+		HostOverride:    record.AsString("hostOverride"),
 	}
 }
 
@@ -245,6 +270,53 @@ func getRouterAddress(id string, edge bool) string {
 	} else {
 		return "amqp:/_topo/0/" + id
 	}
+}
+
+func (a *Agent) request(operation string, typename string, name string, attributes *map[string]interface{}) error {
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
+
+	var request amqp.Message
+	var properties amqp.MessageProperties
+	properties.ReplyTo = a.receiver.Address()
+	properties.CorrelationID = uint64(1)
+	request.Properties = &properties
+	request.ApplicationProperties = make(map[string]interface{})
+	request.ApplicationProperties["operation"] = operation
+	request.ApplicationProperties["type"] = typename
+	request.ApplicationProperties["name"] = name
+	if attributes != nil {
+		request.Value = attributes
+	}
+
+	if err := a.sender.Send(ctx, &request); err != nil {
+		a.Close()
+		return fmt.Errorf("Could not send request: %s", err)
+	}
+
+	response, err := a.receiver.Receive(ctx)
+	if err != nil {
+		a.Close()
+		return fmt.Errorf("Failed to receive reponse: %s", err)
+	}
+	response.Accept()
+	if status, ok := AsInt(response.ApplicationProperties["statusCode"]); !ok && !isOk(status) {
+		return fmt.Errorf("Query failed with: %s", response.ApplicationProperties["statusDescription"])
+	}
+	return nil
+}
+
+func (a *Agent) Create(typename string, name string, attributes map[string]interface{}) error {
+	log.Println("CREATE", typename, name, attributes)
+	return a.request("CREATE", typename, name, &attributes)
+}
+
+func (a *Agent) Delete(typename string, name string) error {
+	if name == "" {
+		return fmt.Errorf("Cannot delete entity of type %s with no name", typename)
+	}
+	log.Println("DELETE", typename, name)
+	return a.request("DELETE", typename, name, nil)
 }
 
 func (a *Agent) Query(typename string, attributes []string) ([]Record, error) {
@@ -591,26 +663,212 @@ func (a *Agent) getConnectedTo(routers []Router) error {
 
 func getBridgeTypes() []string {
 	return []string{
-		"org.apache.qpid.dispatch.router.tcpConnector",
-		"org.apache.qpid.dispatch.router.tcpListener",
-		"org.apache.qpid.dispatch.router.httpConnector",
-		"org.apache.qpid.dispatch.router.httpListener",
-		"org.apache.qpid.dispatch.router.http2Connector",
-		"org.apache.qpid.dispatch.router.http2Listener",
+		"org.apache.qpid.dispatch.tcpConnector",
+		"org.apache.qpid.dispatch.tcpListener",
+		"org.apache.qpid.dispatch.httpConnector",
+		"org.apache.qpid.dispatch.httpListener",
 	}
 }
 
-func (a *Agent) GetBridges(routers []Router) ([]Record, error) {
-	queries := queryAllAgentsForAllTypes(getBridgeTypes(), getBridgeServerAddressesFor(routers))
+func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
+	config := NewBridgeConfig()
+
+	results, err := a.Query("org.apache.qpid.dispatch.tcpConnector", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+		config.AddTcpConnector(asTcpEndpoint(record))
+	}
+
+	results, err = a.Query("org.apache.qpid.dispatch.tcpListener", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+		config.AddTcpListener(asTcpEndpoint(record))
+	}
+
+	results, err = a.Query("org.apache.qpid.dispatch.httpConnector", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+		config.AddHttpConnector(asHttpEndpoint(record))
+	}
+
+	results, err = a.Query("org.apache.qpid.dispatch.httpListener", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+		config.AddHttpListener(asHttpEndpoint(record))
+	}
+
+	return &config, nil
+}
+
+func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
+	for _, deleted := range changes.TcpConnectors.Deleted {
+		if err := a.Delete("org.apache.qpid.dispatch.tcpConnector", deleted); err != nil {
+			return fmt.Errorf("Error deleting tcp connectors: %s", err)
+		}
+	}
+	for _, deleted := range changes.HttpConnectors.Deleted {
+		if err := a.Delete("org.apache.qpid.dispatch.httpConnector", deleted); err != nil {
+			return fmt.Errorf("Error deleting http connectors: %s", err)
+		}
+	}
+	for _, deleted := range changes.TcpListeners.Deleted {
+		if err := a.Delete("org.apache.qpid.dispatch.tcpListener", deleted); err != nil {
+			return fmt.Errorf("Error deleting tcp listeners: %s", err)
+		}
+	}
+	for _, deleted := range changes.HttpListeners.Deleted {
+		if err := a.Delete("org.apache.qpid.dispatch.httpListener", deleted); err != nil {
+			return fmt.Errorf("Error deleting http listeners: %s", err)
+		}
+	}
+	for _, added := range changes.TcpConnectors.Added {
+		record := map[string]interface{}{}
+		if err := convert(added, &record); err != nil {
+			return fmt.Errorf("Failed to convert record: %s", err)
+		}
+		if err := a.Create("org.apache.qpid.dispatch.tcpConnector", added.Name, record); err != nil {
+			return fmt.Errorf("Error adding tcp connectors: %s", err)
+		}
+	}
+	for _, added := range changes.HttpConnectors.Added {
+		record := map[string]interface{}{}
+		convert(added, &record)
+		if err := a.Create("org.apache.qpid.dispatch.httpConnector", added.Name, record); err != nil {
+			return fmt.Errorf("Error adding http connectors: %s", err)
+		}
+	}
+	for _, added := range changes.TcpListeners.Added {
+		record := map[string]interface{}{}
+		convert(added, &record)
+		if err := a.Create("org.apache.qpid.dispatch.tcpListener", added.Name, record); err != nil {
+			return fmt.Errorf("Error adding tcp listeners: %s", err)
+		}
+	}
+	for _, added := range changes.HttpListeners.Added {
+		record := map[string]interface{}{}
+		convert(added, &record)
+		if err := a.Create("org.apache.qpid.dispatch.httpListener", added.Name, record); err != nil {
+			return fmt.Errorf("Error adding http listeners: %s", err)
+		}
+	}
+	return nil
+}
+
+func (a *Agent) GetBridges(routers []Router) ([]BridgeConfig, error) {
+	configs := []BridgeConfig{}
+	agents := getAddressesFor(routers)
+	for _, agent := range agents {
+		config := NewBridgeConfig()
+
+		results, err := a.QueryByAgentAddress("org.apache.qpid.dispatch.tcpConnector", []string{}, agent)
+		if err != nil {
+			return nil, err
+		}
+		for _, record := range results {
+			config.AddTcpConnector(asTcpEndpoint(record))
+		}
+		results, err = a.QueryByAgentAddress("org.apache.qpid.dispatch.tcpListener", []string{}, agent)
+		if err != nil {
+			return nil, err
+		}
+		for _, record := range results {
+			config.AddTcpListener(asTcpEndpoint(record))
+		}
+		results, err = a.QueryByAgentAddress("org.apache.qpid.dispatch.httpConnector", []string{}, agent)
+		if err != nil {
+			return nil, err
+		}
+		for _, record := range results {
+			config.AddHttpConnector(asHttpEndpoint(record))
+		}
+
+		results, err = a.QueryByAgentAddress("org.apache.qpid.dispatch.httpListener", []string{}, agent)
+		if err != nil {
+			return nil, err
+		}
+		for _, record := range results {
+			config.AddHttpListener(asHttpEndpoint(record))
+		}
+
+		configs = append(configs, config)
+	}
+	return configs, nil
+}
+
+type TcpConnection struct {
+	Name      string `json:"name"`
+	Host      string `json:"host"`
+	Address   string `json:"address"`
+	Direction string `json:"direction"`
+	BytesIn   int    `json:"bytesIn"`
+	BytesOut  int    `json:"bytesOut"`
+	Uptime    uint64 `json:"uptimeSeconds"`
+	LastIn    uint64 `json:"lastInSeconds"`
+	LastOut   uint64 `json:"lastOutSeconds"`
+}
+
+func (a *Agent) GetTcpConnections(routers []Router) ([][]TcpConnection, error) {
+	queries := queryAllAgents("org.apache.qpid.dispatch.tcpConnection", getAddressesFor(routers))
 	results, err := a.BatchQuery(queries)
 	if err != nil {
 		return nil, err
 	}
-	flattened := []Record{}
+	converted := [][]TcpConnection{}
 	for _, records := range results {
-		flattened = append(flattened, records...)
+		conns := []TcpConnection{}
+		for _, record := range records {
+			var conn TcpConnection
+			//simple := map[string]interface{}(record)
+			if err := convert(record, &conn); err != nil {
+				return converted, fmt.Errorf("Failed to convert to TcpConnection: %s", err)
+			}
+			conns = append(conns, conn)
+		}
+		converted = append(converted, conns)
 	}
-	return flattened, nil
+	return converted, nil
+}
+
+type HttpRequestInfo struct {
+	Name       string         `json:"name"`
+	Host       string         `json:"host"`
+	Address    string         `json:"address"`
+	Site       string         `json:"site"`
+	Direction  string         `json:"direction"`
+	Requests   int            `json:"requests"`
+	BytesIn    int            `json:"bytesIn"`
+	BytesOut   int            `json:"bytesOut"`
+	MaxLatency int            `json:"maxLatency"`
+	Details    map[string]int `json:"details"`
+}
+
+func (a *Agent) GetHttpRequestInfo(routers []Router) ([][]HttpRequestInfo, error) {
+	queries := queryAllAgents("org.apache.qpid.dispatch.httpRequestInfo", getAddressesFor(routers))
+	results, err := a.BatchQuery(queries)
+	if err != nil {
+		return nil, err
+	}
+	converted := [][]HttpRequestInfo{}
+	for _, records := range results {
+		reqs := []HttpRequestInfo{}
+		for _, record := range records {
+			var req HttpRequestInfo
+			if err := convert(record, &req); err != nil {
+				return converted, fmt.Errorf("Failed to convert to HttpRequestInfo: %s", err)
+			}
+			reqs = append(reqs, req)
+		}
+		converted = append(converted, reqs)
+	}
+	return converted, nil
 }
 
 func (a *Agent) getAllEdgeRouters(agents []string) ([]Router, error) {

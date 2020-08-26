@@ -2,7 +2,6 @@ package kube
 
 import (
 	"context"
-	jsonencoding "encoding/json"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"os"
@@ -76,15 +75,12 @@ func getProxyStatefulSetName(definition types.ServiceInterface) string {
 	}
 }
 
-func CheckProxyStatefulSet(desired types.ServiceInterface, actual *appsv1.StatefulSet, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
-	encoded, err := jsonencoding.Marshal(desired)
-	if err != nil {
-		return nil, err
-	}
+func CheckProxyStatefulSet(desired types.ServiceInterface, actual *appsv1.StatefulSet, desiredConfig string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	if actual == nil {
+		var err error
 		actual, err = cli.AppsV1().StatefulSets(namespace).Get(getProxyStatefulSetName(desired), metav1.GetOptions{})
 		if errors.IsNotFound(err) {
-			return NewProxyStatefulSet(desired, namespace, cli)
+			return NewProxyStatefulSet(desired, desiredConfig, namespace, cli)
 		} else if err != nil {
 			return nil, err
 		}
@@ -94,9 +90,10 @@ func CheckProxyStatefulSet(desired types.ServiceInterface, actual *appsv1.Statef
 		change = true
 		*actual.Spec.Replicas = int32(desired.Headless.Size)
 	}
-	config := FindEnvVar(actual.Spec.Template.Spec.Containers[0].Env, "SKUPPER_PROXY_CONFIG")
-	if config == nil || config.Value != string(encoded) {
-		SetEnvVarForStatefulSet(actual, "SKUPPER_PROXY_CONFIG", string(encoded))
+	actualConfig := FindEnvVar(actual.Spec.Template.Spec.Containers[0].Env, "QDROUTERD_CONF")
+	if actualConfig == nil || actualConfig.Value != desiredConfig {
+		SetEnvVarForStatefulSet(actual, "QDROUTERD_CONF", desiredConfig)
+		change = true
 	}
 	if change {
 		return cli.AppsV1().StatefulSets(namespace).Update(actual)
@@ -105,7 +102,7 @@ func CheckProxyStatefulSet(desired types.ServiceInterface, actual *appsv1.Statef
 	}
 }
 
-func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
+func NewProxyStatefulSet(serviceInterface types.ServiceInterface, config string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	statefulSets := cli.AppsV1().StatefulSets(namespace)
 	deployments := cli.AppsV1().Deployments(namespace)
 	transportDep, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
@@ -113,18 +110,13 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace stri
 		return nil, err
 	}
 
-	encoded, err := jsonencoding.Marshal(serviceInterface)
-	if err != nil {
-		return nil, err
-	}
-
 	ownerRef := GetDeploymentOwnerReference(transportDep)
 
 	var imageName string
-	if os.Getenv("PROXY_IMAGE") != "" {
-		imageName = os.Getenv("PROXY_IMAGE")
+	if os.Getenv("QDROUTERD_IMAGE") != "" {
+		imageName = os.Getenv("QDROUTERD_IMAGE")
 	} else {
-		imageName = types.DefaultProxyImage
+		imageName = types.DefaultTransportImage
 	}
 
 	replicas := int32(serviceInterface.Headless.Size)
@@ -166,8 +158,12 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace stri
 							Name:  "proxy",
 							Env: []corev1.EnvVar{
 								{
-									Name:  "SKUPPER_PROXY_CONFIG",
-									Value: string(encoded),
+									Name:  "QDROUTERD_CONF",
+									Value: config,
+								},
+								{
+									Name:  "QDROUTERD_CONF_TYPE",
+									Value: "json",
 								},
 								{
 									Name: "NAMESPACE",
@@ -180,18 +176,18 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace stri
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
-									Name:      "connect",
-									MountPath: "/etc/messaging/",
+									Name:      "uplink",
+									MountPath: "/etc/qpid-dispatch-certs/skupper-internal/",
 								},
 							},
 						},
 					},
 					Volumes: []corev1.Volume{
 						{
-							Name: "connect",
+							Name: "uplink",
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName: "skupper",
+									SecretName: "skupper-internal",
 								},
 							},
 						},
@@ -202,112 +198,6 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, namespace stri
 	}
 
 	created, err := statefulSets.Create(proxyStatefulSet)
-
-	if err != nil {
-		return nil, err
-	} else {
-		return created, nil
-	}
-
-}
-
-func NewProxyDeployment(serviceInterface types.ServiceInterface, namespace string, cli kubernetes.Interface) (*appsv1.Deployment, error) {
-	proxyName := serviceInterface.Address + "-proxy"
-
-	deployments := cli.AppsV1().Deployments(namespace)
-	transportDep, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	serviceInterface.Origin = ""
-
-	encoded, err := jsonencoding.Marshal(serviceInterface)
-	if err != nil {
-		return nil, err
-	}
-
-	ownerRef := GetDeploymentOwnerReference(transportDep)
-
-	var imageName string
-	if os.Getenv("PROXY_IMAGE") != "" {
-		imageName = os.Getenv("PROXY_IMAGE")
-	} else {
-		imageName = types.DefaultProxyImage
-	}
-
-	proxyDep := &appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            proxyName,
-			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
-			Annotations: map[string]string{
-				types.ServiceQualifier: serviceInterface.Address,
-			},
-			Labels: map[string]string{
-				"internal.skupper.io/type": "proxy",
-			},
-		},
-		Spec: appsv1.DeploymentSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"internal.skupper.io/service": serviceInterface.Address,
-				},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"internal.skupper.io/service": serviceInterface.Address,
-					},
-				},
-				Spec: corev1.PodSpec{
-					ServiceAccountName: types.TransportServiceAccountName,
-					Containers: []corev1.Container{
-						{
-							Image: imageName,
-							Name:  "proxy",
-							Env: []corev1.EnvVar{
-								{
-									Name:  "SKUPPER_PROXY_CONFIG",
-									Value: string(encoded),
-								},
-								{
-									Name: "NAMESPACE",
-									ValueFrom: &corev1.EnvVarSource{
-										FieldRef: &corev1.ObjectFieldSelector{
-											FieldPath: "metadata.namespace",
-										},
-									},
-								},
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "connect",
-									MountPath: "/etc/messaging/",
-								},
-							},
-						},
-					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "connect",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "skupper",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	created, err := deployments.Create(proxyDep)
 
 	if err != nil {
 		return nil, err
@@ -403,7 +293,6 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 						ServiceAccountName: types.TransportServiceAccountName,
 						Containers: []corev1.Container{
 							ContainerForTransport(van.Transport),
-							ContainerForBridgeServer(),
 						},
 					},
 				},

@@ -18,7 +18,7 @@ build-cmd:
 	go build -ldflags="-X main.version=${VERSION}"  -o skupper cmd/skupper/skupper.go
 
 build-service-controller:
-	go build -ldflags="-X main.version=${VERSION}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go
+	go build -ldflags="-X main.version=${VERSION}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/config_sync.go
 
 build-site-controller:
 	go build -ldflags="-X main.version=${VERSION}"  -o site-controller cmd/site-controller/main.go cmd/site-controller/controller.go

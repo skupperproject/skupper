@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+
+	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 type PortRange struct {
@@ -188,38 +191,33 @@ func (ports *FreePorts) nextFreePort() (int, error) {
 	}
 }
 
-func (ports *FreePorts) getPortAllocations(bridges *BridgeConfiguration) map[string]int {
+func portAsInt(port string) int {
+	result, _ := strconv.Atoi(port)
+	return result
+}
+
+func (ports *FreePorts) getPortAllocations(bridges *qdr.BridgeConfig) map[string]int {
 	allocations := map[string]int{}
 	if bridges != nil {
-		for _, m := range bridges.HttpConnectors {
-			for _, b := range m {
-				allocations[b.Address] = b.Port
-				ports.inuse(b.Port)
-			}
+		for _, b := range bridges.HttpConnectors {
+			port := portAsInt(b.Port)
+			allocations[b.Address] = port
+			ports.inuse(port)
 		}
 		for _, b := range bridges.HttpListeners {
-			allocations[b.Address] = b.Port
-			ports.inuse(b.Port)
+			port := portAsInt(b.Port)
+			allocations[b.Address] = port
+			ports.inuse(port)
 		}
-		for _, m := range bridges.Http2Connectors {
-			for _, b := range m {
-				allocations[b.Address] = b.Port
-				ports.inuse(b.Port)
-			}
-		}
-		for _, b := range bridges.Http2Listeners {
-			allocations[b.Address] = b.Port
-			ports.inuse(b.Port)
-		}
-		for _, m := range bridges.TcpConnectors {
-			for _, b := range m {
-				allocations[b.Address] = b.Port
-				ports.inuse(b.Port)
-			}
+		for _, b := range bridges.TcpConnectors {
+			port := portAsInt(b.Port)
+			allocations[b.Address] = port
+			ports.inuse(port)
 		}
 		for _, b := range bridges.TcpListeners {
-			allocations[b.Address] = b.Port
-			ports.inuse(b.Port)
+			port := portAsInt(b.Port)
+			allocations[b.Address] = port
+			ports.inuse(port)
 		}
 	}
 	return allocations

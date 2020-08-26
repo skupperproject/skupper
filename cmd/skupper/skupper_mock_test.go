@@ -330,7 +330,7 @@ func TestExpose_NotBinding(t *testing.T) {
 			options.Address = "ServiceName"
 			cli := &vanClientMock{}
 			cli.injectedReturns.serviceInterfaceInspect.err = fmt.Errorf("some error")
-			err := expose(cli, ctx, "deployment", "name", options)
+			_, err := expose(cli, ctx, "deployment", "name", options)
 			assert.Error(t, err, "some error")
 			assert.Equal(t, cli.serviceInterfaceInspectCalledWith[0], "ServiceName")
 		})
@@ -343,7 +343,7 @@ func TestExpose_NotBinding(t *testing.T) {
 
 			options.Headless = true
 
-			err = expose(cli, ctx, "service", "name", options)
+			_, err = expose(cli, ctx, "service", "name", options)
 			assert.Error(t, err, "The headless option is only supported for statefulsets")
 		})
 
@@ -356,7 +356,7 @@ func TestExpose_NotBinding(t *testing.T) {
 			options.Protocol = "theprotocol"
 			options.Port = 123
 
-			err = expose(cli, ctx, "statefulset", "name", options)
+			_, err = expose(cli, ctx, "statefulset", "name", options)
 			assert.Assert(t, err)
 
 			assert.Equal(t, len(cli.getHeadlessServiceConfigurationCalledWith), 1)
@@ -388,15 +388,15 @@ func TestExpose_NotBinding(t *testing.T) {
 			}
 			cli.injectedReturns.serviceInterfaceInspect.serviceInterface = injectedService
 
-			err = expose(cli, ctx, "service", "name", options)
+			_, err = expose(cli, ctx, "service", "name", options)
 			assert.Error(t, err, "Service already exposed as headless")
 
 			injectedService.Headless = nil
-			err = expose(cli, ctx, "service", "name", options)
+			_, err = expose(cli, ctx, "service", "name", options)
 			assert.Error(t, err, "Service already exposed, cannot reconfigure as headless")
 
 			options.Headless = false
-			err = expose(cli, ctx, "service", "name", options)
+			_, err = expose(cli, ctx, "service", "name", options)
 			assert.Error(t, err, fmt.Sprintf("Invalid protocol %s for service with mapping %s", options.Protocol, injectedService.Protocol))
 		})
 
@@ -440,8 +440,9 @@ func TestExpose_Binding(t *testing.T) {
 		func(t *testing.T) {
 			cli := &vanClientMock{}
 
-			err := expose(cli, ctx, "any", "name", options)
+			exposedAs, err := expose(cli, ctx, "any", "name", options)
 			assert.Assert(t, err)
+			assert.Equal(t, exposedAs, "TheService")
 			assert.Equal(t, len(cli.serviceInterfaceBindCalledWith), 1)
 			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
 
@@ -459,8 +460,9 @@ func TestExpose_Binding(t *testing.T) {
 			expectedBindCall.service = aService
 			cli.injectedReturns.serviceInterfaceInspect.serviceInterface = aService
 
-			err := expose(cli, ctx, "any", "name", options)
+			exposedAs, err := expose(cli, ctx, "any", "name", options)
 			assert.Assert(t, err)
+			assert.Equal(t, exposedAs, "TheService")
 
 			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
 		})
@@ -469,7 +471,7 @@ func TestExpose_Binding(t *testing.T) {
 		func(t *testing.T) {
 			cli := &vanClientMock{}
 			cli.injectedReturns.serviceInterfaceBind = fmt.Errorf("some error")
-			err := expose(cli, ctx, "any", "name", options)
+			_, err := expose(cli, ctx, "any", "name", options)
 			assert.Error(t, err, "Unable to create skupper service: some error")
 			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
 		})
@@ -478,7 +480,7 @@ func TestExpose_Binding(t *testing.T) {
 		func(t *testing.T) {
 			cli := &vanClientMock{}
 			cli.injectedReturns.serviceInterfaceBind = errors.NewNotFound(schema.GroupResource{}, "name")
-			err := expose(cli, ctx, "any", "name", options)
+			_, err := expose(cli, ctx, "any", "name", options)
 			assert.Error(t, err, "Skupper is not installed in Namespace: 'MockNamespace`")
 			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
 		})
