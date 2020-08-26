@@ -116,6 +116,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string) 
 						secret.ObjectMeta.Labels = map[string]string{}
 					}
 					secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
+                                        secret.ObjectMeta.Labels["originating-namespace"] = cli.Namespace
 					return &secret, hostPorts.LocalOnly, nil
 				} else {
 					//TODO: return the actual error
