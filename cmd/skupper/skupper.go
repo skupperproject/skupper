@@ -30,6 +30,14 @@ type ExposeOptions struct {
 	Headless   bool
 }
 
+type Options struct {
+	//all subCommands options will be moved to this struct when refactor is
+	//complete.
+	unexposeAddress string
+}
+
+var options Options
+
 func expose(cli *client.VanClient, ctx context.Context, targetType string, targetName string, options ExposeOptions) error {
 	serviceName := options.Address
 	if serviceName == "" {
@@ -154,16 +162,50 @@ func check(err error) bool {
 	}
 }
 
-func NewClient(namespace string, context string, kubeConfigPath string) *client.VanClient {
+//this function remains since os.Exit(1), is still used, once the all commands
+//are migrated, this function is not needed anymore.
+func NewClient(namespace string, context string, kubeConfigPath string) (*client.VanClient, error) {
 	cli, err := client.NewClient(namespace, context, kubeConfigPath)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	return cli
+	return cli, nil
 }
 
 var rootCmd *cobra.Command
+
+func silenceCobra() {
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
+}
+
+type vanClientInterface interface {
+	//all required methods will be added here while unit-testing all
+	//subcommands (for now, for testing unexpose we only need this one)
+	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
+}
+
+func unexposeRun(cmd *cobra.Command, args []string, options Options, cli vanClientInterface) error {
+	targetType := args[0]
+	var targetName string
+	if len(args) == 2 {
+		targetName = args[1]
+	} else {
+		parts := strings.Split(args[0], "/")
+		targetType = parts[0]
+		targetName = parts[1]
+	}
+	err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, options.unexposeAddress, true)
+	if err != nil {
+		return fmt.Errorf("Error, unable to skupper service: %s", err.Error())
+	}
+
+	fmt.Printf("%s %s unexposed\n", targetType, targetName)
+	return nil
+}
+
+type clientCommandFunc func(cmd *cobra.Command, args []string, options Options, cli vanClientInterface) error
 
 func init() {
 	routev1.AddToScheme(scheme.Scheme)
@@ -172,6 +214,18 @@ func init() {
 	var namespace string
 	var kubeconfig string
 
+	ClientCommand := func(run clientCommandFunc) func(cmd *cobra.Command, args []string) error {
+		return func(cmd *cobra.Command, args []string) error {
+			silenceCobra() //if needed this may be optional
+			cli, err := NewClient(namespace, kubeContext, kubeconfig)
+			if err != nil {
+				return err
+			}
+			err = run(cmd, args, options, cli)
+			return nil
+		}
+	}
+
 	var routerCreateOpts types.SiteConfigSpec
 	var cmdInit = &cobra.Command{
 		Use:   "init",
@@ -179,7 +233,7 @@ func init() {
 		Long:  `init will setup a router and other supporting objects to provide a functional skupper installation that can then be connected to other skupper installations`,
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			//TODO: should cli allow init to diff ns?
 			routerCreateOpts.SkupperNamespace = cli.Namespace
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
@@ -214,7 +268,7 @@ func init() {
 		Long:  `delete will delete any skupper related objects from the namespace`,
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.SiteConfigRemove(context.Background())
 			if err != nil {
 				err = cli.RouterRemove(context.Background())
@@ -234,7 +288,7 @@ func init() {
 		Short: "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
 		Args:  requiredArg("output-file"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.ConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
 			if err != nil {
 				fmt.Println("Failed to create connection token: ", err.Error())
@@ -250,7 +304,7 @@ func init() {
 		Short: "Connect this skupper installation to that which issued the specified connectionToken",
 		Args:  requiredArg("connection-token"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 			if err != nil {
 				fmt.Println("Error, unable to retrieve site config: ", err.Error())
@@ -305,7 +359,7 @@ func init() {
 		Short: "Remove specified connection",
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			connectorRemoveOpts.Name = args[0]
 			connectorRemoveOpts.SkupperNamespace = cli.Namespace
 			connectorRemoveOpts.ForceCurrent = false
@@ -324,7 +378,7 @@ func init() {
 		Short: "List configured outgoing connections",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			connectors, err := cli.ConnectorList(context.Background())
 			if err == nil {
 				if len(connectors) == 0 {
@@ -352,7 +406,7 @@ func init() {
 		Short: "Check whether a connection to another Skupper site is active",
 		Args:  requiredArg("connection name"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			var connectors []*types.ConnectorInspectResponse
 			connected := 0
 
@@ -409,7 +463,7 @@ func init() {
 		Short: "Report the status of the current Skupper site",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			vir, err := cli.RouterInspect(context.Background())
 			if err == nil {
 				var modedesc string = " in interior mode"
@@ -470,7 +524,7 @@ func init() {
 		Short: "Expose a set of pods through a Skupper address",
 		Args:  exposeTargetArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 
 			targetType := args[0]
 			var targetName string
@@ -510,40 +564,20 @@ func init() {
 	cmdExpose.Flags().IntVar(&(exposeOpts.TargetPort), "target-port", 0, "The port to target on pods")
 	cmdExpose.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
 
-	var unexposeAddress string
 	var cmdUnexpose = &cobra.Command{
 		Use:   "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short: "Unexpose a set of pods previously exposed through a Skupper address",
 		Args:  exposeTargetArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
-			targetType := args[0]
-			var targetName string
-			if len(args) == 2 {
-				targetName = args[1]
-			} else {
-				parts := strings.Split(args[0], "/")
-				targetType = parts[0]
-				targetName = parts[1]
-			}
-			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
-			if err == nil {
-				fmt.Printf("%s %s unexposed\n", targetType, targetName)
-				os.Exit(1)
-			} else {
-				fmt.Println("Error, unable to skupper service: ", err.Error())
-				os.Exit(1)
-			}
-		},
+		RunE:  ClientCommand(unexposeRun),
 	}
-	cmdUnexpose.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
+	cmdUnexpose.Flags().StringVar(&options.unexposeAddress, "address", "", "Skupper address the target was exposed as")
 
 	var cmdListExposed = &cobra.Command{
 		Use:   "list-exposed",
 		Short: "List services exposed over the Skupper network",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			vsis, err := cli.ServiceInterfaceList(context.Background())
 			if err == nil {
 				if len(vsis) == 0 {
@@ -608,7 +642,7 @@ func init() {
 				os.Exit(1)
 			} else {
 				serviceToCreate.Port = servicePort
-				cli := NewClient(namespace, kubeContext, kubeconfig)
+				cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 				err = cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
 				if err != nil {
 					fmt.Println(err.Error())
@@ -627,7 +661,7 @@ func init() {
 		Short: "Delete a skupper service",
 		Args:  requiredArg("service-name"),
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.ServiceInterfaceRemove(context.Background(), args[0])
 			if err != nil {
 				fmt.Println(err.Error())
@@ -659,7 +693,7 @@ func init() {
 					targetType = args[1]
 					targetName = args[2]
 				}
-				cli := NewClient(namespace, kubeContext, kubeconfig)
+				cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 				service, err := cli.ServiceInterfaceInspect(context.Background(), args[0])
 				if err != nil {
 					fmt.Println(err.Error())
@@ -695,7 +729,7 @@ func init() {
 				targetType = args[1]
 				targetName = args[2]
 			}
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
 			if err != nil {
 				fmt.Println(err.Error())
@@ -710,7 +744,7 @@ func init() {
 		Short: "Report the version of the Skupper CLI and services",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			cli := NewClient(namespace, kubeContext, kubeconfig)
+			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			vir, err := cli.RouterInspect(context.Background())
 			fmt.Printf("%-30s %s\n", "client version", version)
 			if err == nil {
