@@ -98,6 +98,10 @@ func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretF
 }
 
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
+        // Check this secret to make sure it's not one of ours.
+        if secret.Annotations["originating-namespace"] == cli.Namespace {
+          return fmt.Errorf("Can't connect to self. Namespace: |%s|", cli.Namespace)
+        }
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
@@ -105,7 +109,6 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			return err
 		}
 		mode := qdr.GetTransportMode(current)
-		//read annotations to get the host and port to connect to
 		connector := types.Connector{
 			Name: options.Name,
 			Cost: options.Cost,

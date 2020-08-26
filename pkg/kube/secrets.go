@@ -13,6 +13,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
+
 func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
 
 	existing, err := cli.CoreV1().Secrets(namespace).Get(ca.Name, metav1.GetOptions{})

@@ -112,11 +112,11 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string) 
 					secret := certs.GenerateSecret(subject, subject, hostPorts.Hosts, caSecret)
 					annotateConnectionToken(&secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
 					annotateConnectionToken(&secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
+                                        secret.ObjectMeta.Annotations["originating-namespace"] = cli.Namespace
 					if secret.ObjectMeta.Labels == nil {
 						secret.ObjectMeta.Labels = map[string]string{}
 					}
 					secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
-                                        secret.ObjectMeta.Labels["originating-namespace"] = cli.Namespace
 					return &secret, hostPorts.LocalOnly, nil
 				} else {
 					//TODO: return the actual error
