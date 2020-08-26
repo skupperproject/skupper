@@ -50,24 +50,24 @@ func parseTargetTypeAndName(args []string) (string, string) {
 	return targetType, targetName
 }
 
-func expose(cli types.VanClientInterface, ctx context.Context, targetType string, targetName string, options ExposeOptions) error {
+func expose(cli types.VanClientInterface, ctx context.Context, targetType string, targetName string, options ExposeOptions) (string, error) {
 	serviceName := options.Address
 
 	service, err := cli.ServiceInterfaceInspect(ctx, serviceName)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if service == nil {
 		if options.Headless {
 			if targetType != "statefulset" {
-				return fmt.Errorf("The headless option is only supported for statefulsets")
+				return "", fmt.Errorf("The headless option is only supported for statefulsets")
 			}
 			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.Protocol, options.Address, options.Port)
 			if err != nil {
-				return err
+				return "", err
 			}
-			return cli.ServiceInterfaceUpdate(ctx, service)
+			return service.Address, cli.ServiceInterfaceUpdate(ctx, service)
 		} else {
 			service = &types.ServiceInterface{
 				Address:  serviceName,
@@ -76,23 +76,23 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 			}
 		}
 	} else if service.Headless != nil {
-		return fmt.Errorf("Service already exposed as headless")
+		return "", fmt.Errorf("Service already exposed as headless")
 	} else if options.Headless {
-		return fmt.Errorf("Service already exposed, cannot reconfigure as headless")
+		return "", fmt.Errorf("Service already exposed, cannot reconfigure as headless")
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
-		return fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
+		return "", fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
 	}
 
 	// service may exist from remote origin
 	service.Origin = ""
 	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
 	if errors.IsNotFound(err) {
-		return SkupperNotInstalledError(cli.GetNamespace())
+		return "", SkupperNotInstalledError(cli.GetNamespace())
 	} else if err != nil {
-		return fmt.Errorf("Unable to create skupper service: %w", err)
+		return "", fmt.Errorf("Unable to create skupper service: %w", err)
 	}
 
-	return nil
+	return options.Address, nil
 }
 
 func stringSliceContains(s []string, e string) bool {
@@ -529,12 +529,14 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 				if targetType == "service" {
 					return fmt.Errorf("--address option is required for target type 'service'")
 				}
-				exposeOpts.Address = targetName
+				if !exposeOpts.Headless {
+					exposeOpts.Address = targetName
+				}
 			}
 
-			err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
+			addr, err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
 			if err == nil {
-				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, exposeOpts.Address)
+				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, addr)
 			}
 			return err
 		},

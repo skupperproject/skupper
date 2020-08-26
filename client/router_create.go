@@ -17,8 +17,8 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
-	"github.com/skupperproject/skupper/pkg/utils/configs"
 )
 
 func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Container {
@@ -66,21 +66,16 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		"skupper.io/component": "proxy-controller",
 	}
 
-	var proxyImage string
-	if os.Getenv("SKUPPER_PROXY_IMAGE") != "" {
-		proxyImage = os.Getenv("SKUPPER_PROXY_IMAGE")
-	} else {
-		proxyImage = types.DefaultProxyImage
-	}
-
 	envVars := []corev1.EnvVar{}
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_NAMESPACE", Value: van.Namespace})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SITE_NAME", Value: van.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SITE_ID", Value: siteId})
-	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_PROXY_IMAGE", Value: proxyImage})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SERVICE_ACCOUNT", Value: "skupper"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(transport.ObjectMeta.UID)})
+	if os.Getenv("QDROUTERD_IMAGE") != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_IMAGE", Value: os.Getenv("QDROUTERD_IMAGE")})
+	}
 
 	sidecars := []*corev1.Container{}
 	volumes := []corev1.Volume{}
@@ -242,7 +237,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	// TODO: update after dataplance changes
 	const (
 		qdrouterd = iota
-		bridgeServer
 		oauthProxy
 	)
 
@@ -274,19 +268,30 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.Transport.Annotations = types.TransportPrometheusAnnotations
 
-	listeners := []types.Listener{}
-	interRouterListeners := []types.Listener{}
-	edgeListeners := []types.Listener{}
-	sslProfiles := []types.SslProfile{}
-	listeners = append(listeners, types.Listener{
+	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, options.IsEdge)
+	routerConfig.AddAddress(qdr.Address{
+		Prefix:       "mc",
+		Distribution: "multicast",
+	})
+	routerConfig.AddListener(qdr.Listener{
+		Host:        "0.0.0.0",
+		Port:        9090,
+		Role:        "normal",
+		Http:        true,
+		HttpRootDir: "disabled",
+		Websockets:  false,
+		Healthz:     true,
+		Metrics:     true,
+	})
+	routerConfig.AddListener(qdr.Listener{
 		Name: "amqp",
 		Host: "localhost",
 		Port: types.AmqpDefaultPort,
 	})
-	sslProfiles = append(sslProfiles, types.SslProfile{
+	routerConfig.AddSslProfile(qdr.SslProfile{
 		Name: "skupper-amqps",
 	})
-	listeners = append(listeners, types.Listener{
+	routerConfig.AddListener(qdr.Listener{
 		Name:             "amqps",
 		Host:             "0.0.0.0",
 		Port:             types.AmqpsDefaultPort,
@@ -296,14 +301,14 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	})
 	if options.EnableRouterConsole {
 		if van.AuthMode == types.ConsoleAuthModeOpenshift {
-			listeners = append(listeners, types.Listener{
+			routerConfig.AddListener(qdr.Listener{
 				Name: types.ConsolePortName,
 				Host: "localhost",
 				Port: types.ConsoleOpenShiftServicePort,
 				Http: true,
 			})
 		} else if van.AuthMode == types.ConsoleAuthModeInternal {
-			listeners = append(listeners, types.Listener{
+			routerConfig.AddListener(qdr.Listener{
 				Name:             types.ConsolePortName,
 				Host:             "0.0.0.0",
 				Port:             types.ConsoleDefaultServicePort,
@@ -311,7 +316,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				AuthenticatePeer: true,
 			})
 		} else if van.AuthMode == types.ConsoleAuthModeUnsecured {
-			listeners = append(listeners, types.Listener{
+			routerConfig.AddListener(qdr.Listener{
 				Name: types.ConsolePortName,
 				Host: "0.0.0.0",
 				Port: types.ConsoleDefaultServicePort,
@@ -320,37 +325,29 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		}
 	}
 	if !options.IsEdge {
-		sslProfiles = append(sslProfiles, types.SslProfile{
-			Name: "skupper-internal",
+		routerConfig.AddSslProfile(qdr.SslProfile{
+			Name: types.InterRouterProfile,
 		})
-		interRouterListeners = append(interRouterListeners, types.Listener{
+		routerConfig.AddListener(qdr.Listener{
 			Name:             "interior-listener",
 			Host:             "0.0.0.0",
+			Role:             qdr.RoleInterRouter,
 			Port:             types.InterRouterListenerPort,
 			SslProfile:       types.InterRouterProfile,
 			SaslMechanisms:   "EXTERNAL",
 			AuthenticatePeer: true,
 		})
-		edgeListeners = append(edgeListeners, types.Listener{
+		routerConfig.AddListener(qdr.Listener{
 			Name:             "edge-listener",
 			Host:             "0.0.0.0",
+			Role:             qdr.RoleEdge,
 			Port:             types.EdgeListenerPort,
 			SslProfile:       types.InterRouterProfile,
 			SaslMechanisms:   "EXTERNAL",
 			AuthenticatePeer: true,
 		})
 	}
-	// TODO: remove redundancy, needed for now for config template
-	van.Assembly.Name = van.Name
-	if options.IsEdge {
-		van.Assembly.Mode = string(types.TransportModeEdge)
-	} else {
-		van.Assembly.Mode = string(types.TransportModeInterior)
-	}
-	van.Assembly.Listeners = listeners
-	van.Assembly.InterRouterListeners = interRouterListeners
-	van.Assembly.EdgeListeners = edgeListeners
-	van.Assembly.SslProfiles = sslProfiles
+	van.RouterConfig, _ = qdr.MarshalRouterConfig(routerConfig)
 
 	envVars := []corev1.EnvVar{}
 	if !options.IsEdge {
@@ -373,7 +370,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_SOURCE", Value: "/etc/qpid-dispatch/sasl-users/"})
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_PATH", Value: "/tmp/qdrouterd.sasldb"})
 	}
-	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: configs.QdrouterdConfig(&van.Assembly)})
+	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: "/etc/qpid-dispatch/config/" + types.TransportConfigFile})
+	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF_TYPE", Value: "json"})
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  "SKUPPER_SITE_ID",
 		Value: siteId,
@@ -416,9 +414,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 
 	sidecars := []*corev1.Container{}
 	volumes := []corev1.Volume{}
-	mounts := make([][]corev1.VolumeMount, 2)
+	mounts := make([][]corev1.VolumeMount, 1)
 	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-amqps", "/etc/qpid-dispatch-certs/skupper-amqps/")
-	kube.AppendConfigVolume(&volumes, &mounts[bridgeServer], "bridge-config", "skupper-internal", "/etc/bridge-server")
+	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", "skupper-internal", "/etc/qpid-dispatch/config/")
 	if !options.IsEdge {
 		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-internal", "/etc/qpid-dispatch-certs/skupper-internal/")
 	}
@@ -504,7 +502,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		CA:          "skupper-ca",
 		Name:        "skupper-amqps",
 		Subject:     "skupper-messaging",
-		Hosts:       "skupper-messaging,skupper-messaging." + van.Namespace + ".svc.cluster.local",
+		Hosts:       []string{"skupper-messaging,skupper-messaging." + van.Namespace + ".svc.cluster.local"},
 		ConnectJson: false,
 		Post:        false,
 	})
@@ -512,7 +510,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		CA:          "skupper-ca",
 		Name:        "skupper",
 		Subject:     "skupper-messaging",
-		Hosts:       "",
+		Hosts:       []string{},
 		ConnectJson: true,
 		Post:        false,
 	})
@@ -523,7 +521,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				CA:          "skupper-internal-ca",
 				Name:        "skupper-internal",
 				Subject:     "skupper-internal",
-				Hosts:       "skupper-internal." + van.Namespace,
+				Hosts:       []string{"skupper-internal." + van.Namespace},
 				ConnectJson: false,
 				Post:        false,
 			})
@@ -532,7 +530,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				CA:          "skupper-internal-ca",
 				Name:        "skupper-internal",
 				Subject:     "skupper-internal",
-				Hosts:       "",
+				Hosts:       []string{"skupper-internal." + van.Namespace},
 				ConnectJson: false,
 				Post:        true,
 			})
@@ -547,7 +545,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			CA:          "",
 			Name:        "skupper-console-users",
 			Subject:     "",
-			Hosts:       "",
 			ConnectJson: false,
 			Data:        userData,
 			Post:        false,
@@ -826,10 +823,8 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 
 	kube.NewConfigMap("skupper-services", nil, siteOwnerRef, van.Namespace, cli.KubeClient)
-	initialBridges := map[string]string{
-		"bridges.json": "[]", //TODO: make this all nicer
-	}
-	kube.NewConfigMap("skupper-internal", &initialBridges, siteOwnerRef, van.Namespace, cli.KubeClient)
+	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
+	kube.NewConfigMap("skupper-internal", &initialConfig, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	if !options.Spec.IsEdge {
 		for _, cred := range van.Credentials {
@@ -837,13 +832,13 @@ sasldb_path: /tmp/qdrouterd.sasldb
 				if cli.RouteClient != nil {
 					rte, err := kube.GetRoute(types.InterRouterRouteName, van.Namespace, cli.RouteClient)
 					if err == nil {
-						cred.Hosts = rte.Spec.Host
+						cred.Hosts = append(cred.Hosts, rte.Spec.Host)
 					} else {
 						fmt.Println("Failed to retrieve route: ", err.Error())
 					}
 					rte, err = kube.GetRoute(types.EdgeRouteName, van.Namespace, cli.RouteClient)
 					if err == nil {
-						cred.Hosts += "," + rte.Spec.Host
+						cred.Hosts = append(cred.Hosts, rte.Spec.Host)
 					} else {
 						fmt.Println("Failed to retrieve route: ", err.Error())
 					}
@@ -863,7 +858,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 						if host == "" {
 							return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service skupper-internal")
 						} else {
-							cred.Hosts = host
+							cred.Hosts = append(cred.Hosts, host)
 							if len(host) < 64 {
 								cred.Subject = host
 							}

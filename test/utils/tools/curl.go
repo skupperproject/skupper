@@ -116,7 +116,7 @@ func Curl(kubeClient kubernetes.Interface, config *restclient.Config, ns, podNam
 	response.Output = stderr.String()
 
 	if err != nil {
-		log.Printf("error executing curl")
+		log.Printf("error executing curl: %s", err)
 		return response, err
 	}
 

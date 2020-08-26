@@ -84,7 +84,7 @@ func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error writing json: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
-			fmt.Fprintf(w, string(bytes))
+			fmt.Fprintf(w, string(bytes)+"\n")
 		}
 	}
 }
@@ -132,13 +132,13 @@ type HttpServiceStats struct {
 
 type HttpRequestsReceived struct {
 	SiteId   string                      `json:"site_id"`
-	ByClient map[string]HttpRequestStats `json:"by_client"`
+	ByClient map[string]HttpRequestStats `json:"by_client,omitempty"`
 }
 
 type HttpRequestsHandled struct {
 	SiteId            string                      `json:"site_id"`
-	ByServer          map[string]HttpRequestStats `json:"by_server"`
-	ByOriginatingSite map[string]HttpRequestStats `json:"by_originating_site"`
+	ByServer          map[string]HttpRequestStats `json:"by_server,omitempty"`
+	ByOriginatingSite map[string]HttpRequestStats `json:"by_originating_site,omitempty"`
 }
 
 type HttpRequestStats struct {
@@ -152,8 +152,8 @@ type HttpRequestStats struct {
 
 type TcpServiceStats struct {
 	ServiceStats
-	ConnectionsIngress SiteConnectionsList `json:"connections_ingress"`
-	ConnectionsEgress  SiteConnectionsList `json:"connections_egress"`
+	ConnectionsIngress SiteConnectionsList `json:"connections_ingress,omitempty"`
+	ConnectionsEgress  SiteConnectionsList `json:"connections_egress,omitempty"`
 }
 
 type SiteConnectionsList []SiteConnections
@@ -212,6 +212,11 @@ func (a *HttpRequestStats) merge(b *HttpRequestStats) {
 	a.BytesOut += b.BytesOut
 	a.LatencyMax = max(a.LatencyMax, b.LatencyMax)
 	mergeCounts(a.Details, b.Details)
+	if a.ByHandlingSite == nil {
+		a.ByHandlingSite = b.ByHandlingSite
+	} else if b.ByHandlingSite != nil {
+		mergeHttpRequestStats(a.ByHandlingSite, b.ByHandlingSite)
+	}
 }
 
 func mergeHttpRequestStats(a map[string]HttpRequestStats, b map[string]HttpRequestStats) {
@@ -249,157 +254,6 @@ func getHttpRequestStats(in qdr.Record) map[string]HttpRequestStats {
 	return out
 }
 
-func mergeTcpConnectionStats(a map[string]ConnectionStats, b map[string]ConnectionStats) {
-	for k, v := range b {
-		a[k] = v
-	}
-}
-
-func getTcpConnectionStats(in qdr.Record) map[string]ConnectionStats {
-	out := map[string]ConnectionStats{}
-	for _, v := range in {
-		c, ok := v.(map[string]interface{})
-		r := qdr.Record(c)
-		if ok {
-			id := r.AsString("id")
-			out[id] = ConnectionStats{
-				Id:        id,
-				StartTime: r.AsUint64("start_time"),
-				LastOut:   r.AsUint64("last_out"),
-				LastIn:    r.AsUint64("last_in"),
-				BytesOut:  r.AsInt("bytes_out"),
-				BytesIn:   r.AsInt("bytes_in"),
-				Client:    r.AsString("client"),
-				Server:    r.AsString("server"),
-			}
-		}
-	}
-	return out
-}
-
-func (all SiteConnectionsList) update(connections *SiteConnections) SiteConnectionsList {
-	for _, c := range all {
-		if c.SiteId == connections.SiteId {
-			mergeTcpConnectionStats(c.Connections, connections.Connections)
-			return all
-		}
-	}
-	return append(all, *connections)
-}
-
-func (services TcpServiceStatsMap) update(protocol string, siteId string, metrics qdr.Record, target []ServiceTarget, iplookup *IpLookup) {
-	address := metrics.AsString("address")
-	ingress := SiteConnections{
-		SiteId:      siteId,
-		Connections: getTcpConnectionStats(iplookup.translateKeys(metrics.AsRecord("ingress"))),
-	}
-	egress := SiteConnections{
-		SiteId:      siteId,
-		Connections: getTcpConnectionStats(iplookup.translateKeys(metrics.AsRecord("egress"))),
-	}
-	service, ok := services[address]
-	if ok {
-		if len(target) > 0 {
-			service.Targets = append(service.Targets, target...)
-		}
-		if len(ingress.Connections) > 0 {
-			service.ConnectionsIngress = service.ConnectionsIngress.update(&ingress)
-		}
-		if len(egress.Connections) > 0 {
-			service.ConnectionsEgress = service.ConnectionsEgress.update(&egress)
-		}
-		services[address] = service
-	} else {
-		service = TcpServiceStats{
-			ServiceStats: ServiceStats{
-				Address:  address,
-				Protocol: protocol,
-				Targets:  target,
-			},
-		}
-		if len(ingress.Connections) > 0 {
-			service.ConnectionsIngress = []SiteConnections{ingress}
-		} else {
-			service.ConnectionsIngress = []SiteConnections{}
-		}
-		if len(egress.Connections) > 0 {
-			service.ConnectionsEgress = []SiteConnections{egress}
-		} else {
-			service.ConnectionsEgress = []SiteConnections{}
-		}
-		services[address] = service
-	}
-}
-
-func (requests HttpRequestsHandledList) update(request *HttpRequestsHandled) HttpRequestsHandledList {
-	for _, r := range requests {
-		if r.SiteId == request.SiteId {
-			mergeHttpRequestStats(r.ByServer, request.ByServer)
-			mergeHttpRequestStats(r.ByOriginatingSite, request.ByOriginatingSite)
-			return requests
-		}
-	}
-	return append(requests, *request)
-}
-
-func (requests HttpRequestsReceivedList) update(request *HttpRequestsReceived) HttpRequestsReceivedList {
-	for _, r := range requests {
-		if r.SiteId == request.SiteId {
-			mergeHttpRequestStats(r.ByClient, request.ByClient)
-			return requests
-		}
-	}
-	return append(requests, *request)
-}
-
-func (services HttpServiceStatsMap) update(protocol string, siteId string, metrics qdr.Record, target []ServiceTarget, iplookup *IpLookup) {
-	address := metrics.AsString("address")
-	ingress := metrics.AsRecord("ingress")
-	requestsReceived := HttpRequestsReceived{
-		SiteId:   siteId,
-		ByClient: getHttpRequestStats(iplookup.translateKeys(ingress.AsRecord("by_client"))),
-	}
-	egress := metrics.AsRecord("egress")
-	requestsHandled := HttpRequestsHandled{
-		SiteId:            siteId,
-		ByServer:          getHttpRequestStats(iplookup.translateKeys(egress.AsRecord("by_server"))),
-		ByOriginatingSite: getHttpRequestStats(egress.AsRecord("by_originating_site")),
-	}
-
-	service, ok := services[address]
-	if ok {
-		if len(target) > 0 {
-			service.Targets = append(service.Targets, target...)
-		}
-		if len(requestsReceived.ByClient) > 0 {
-			service.RequestsReceived = service.RequestsReceived.update(&requestsReceived)
-		}
-		if len(requestsHandled.ByServer) > 0 || len(requestsHandled.ByOriginatingSite) > 0 {
-			service.RequestsHandled = service.RequestsHandled.update(&requestsHandled)
-		}
-		services[address] = service
-	} else {
-		service = HttpServiceStats{
-			ServiceStats: ServiceStats{
-				Address:  address,
-				Protocol: protocol,
-				Targets:  target,
-			},
-		}
-		if len(requestsReceived.ByClient) > 0 {
-			service.RequestsReceived = []HttpRequestsReceived{requestsReceived}
-		} else {
-			service.RequestsReceived = []HttpRequestsReceived{}
-		}
-		if len(requestsHandled.ByServer) > 0 || len(requestsHandled.ByOriginatingSite) > 0 {
-			service.RequestsHandled = []HttpRequestsHandled{requestsHandled}
-		} else {
-			service.RequestsHandled = []HttpRequestsHandled{}
-		}
-		services[address] = service
-	}
-}
-
 func getTargetName(connectorName string) string {
 	parts := strings.Split(connectorName, "@")
 	if len(parts) > 0 {
@@ -409,31 +263,105 @@ func getTargetName(connectorName string) string {
 	}
 }
 
-func getServiceStats(bridges []qdr.Record, iplookup *IpLookup) []interface{} {
+func getHttpProtocol(protocolVersion string) string {
+	if protocolVersion == qdr.HttpVersion2 {
+		return "http2"
+	} else {
+		return "http"
+	}
+}
+
+func getTargetHost(iplookup *IpLookup, host string) string {
+	result := iplookup.getPodName(host)
+	if result == "" {
+		return host
+	} else {
+		return result
+	}
+}
+
+func getServiceStats(bridges []qdr.BridgeConfig, sites []Site, tcpconnections [][]qdr.TcpConnection, httpRequests [][]qdr.HttpRequestInfo, iplookup *IpLookup) []interface{} {
 	tcpServices := TcpServiceStatsMap{}
 	httpServices := HttpServiceStatsMap{}
 	for _, b := range bridges {
-		metrics := b.AsRecord("metrics")
-		target := []ServiceTarget{}
-		siteId := b.AsString("siteId")
-		bridgeType := b.AsString("type")
-		host := b.AsString("host")
-		if strings.HasSuffix(bridgeType, "Connector") {
-			target = append(target, ServiceTarget{
-				Name:   iplookup.getPodName(host),
-				Target: getTargetName(b.AsString("name")),
-				SiteId: siteId,
-			})
+		for _, c := range b.TcpConnectors {
+			target := []ServiceTarget{
+				ServiceTarget{
+					Name:   getTargetHost(iplookup, c.Host),
+					Target: getTargetName(c.Name),
+					SiteId: c.SiteId,
+				},
+			}
+			service, ok := tcpServices[c.Address]
+			if ok {
+				service.Targets = append(service.Targets, target...)
+				tcpServices[c.Address] = service
+			} else {
+				service = TcpServiceStats{
+					ServiceStats: ServiceStats{
+						Address:  c.Address,
+						Protocol: "tcp",
+						Targets:  target,
+					},
+				}
+				tcpServices[c.Address] = service
+			}
 		}
-		protocol := metrics.AsString("protocol")
-		switch protocol {
-		case "tcp":
-			tcpServices.update(protocol, siteId, metrics, target, iplookup)
-		case "http", "http2":
-			httpServices.update(protocol, siteId, metrics, target, iplookup)
-		default:
-			log.Printf("WARN: unrecognised protocol '%s' for %s", protocol, bridgeType)
+		for _, l := range b.TcpListeners {
+			if _, ok := tcpServices[l.Address]; !ok {
+				tcpServices[l.Address] = TcpServiceStats{
+					ServiceStats: ServiceStats{
+						Address:  l.Address,
+						Protocol: "tcp",
+					},
+				}
+			}
+
 		}
+		for _, c := range b.HttpConnectors {
+			target := []ServiceTarget{
+				ServiceTarget{
+					Name:   getTargetHost(iplookup, c.Host),
+					Target: getTargetName(c.Name),
+					SiteId: c.SiteId,
+				},
+			}
+			service, ok := httpServices[c.Address]
+			if ok {
+				service.Targets = append(service.Targets, target...)
+				httpServices[c.Address] = service
+			} else {
+				service = HttpServiceStats{
+					ServiceStats: ServiceStats{
+						Address:  c.Address,
+						Protocol: getHttpProtocol(c.ProtocolVersion),
+						Targets:  target,
+					},
+					RequestsReceived: HttpRequestsReceivedList{},
+					RequestsHandled:  HttpRequestsHandledList{},
+				}
+				httpServices[c.Address] = service
+			}
+		}
+		for _, l := range b.HttpListeners {
+			if _, ok := httpServices[l.Address]; !ok {
+				httpServices[l.Address] = HttpServiceStats{
+					ServiceStats: ServiceStats{
+						Address:  l.Address,
+						Protocol: getHttpProtocol(l.ProtocolVersion),
+					},
+					RequestsReceived: HttpRequestsReceivedList{},
+					RequestsHandled:  HttpRequestsHandledList{},
+				}
+			}
+
+		}
+	}
+	for i, c := range tcpconnections {
+		tcpServices.updateTcpConnectionStats(sites[i].SiteId, c, iplookup)
+	}
+	for i, r := range httpRequests {
+		httpServices.updateHttpRequestStats(sites[i].SiteId, r, iplookup)
 	}
 
 	services := []interface{}{}
@@ -444,6 +372,166 @@ func getServiceStats(bridges []qdr.Record, iplookup *IpLookup) []interface{} {
 		services = append(services, s)
 	}
 	return services
+}
+
+func getPeerIdentifier(addr string, iplookup *IpLookup) string {
+	parts := strings.Split(addr, ":")
+	peer := iplookup.getPodName(parts[0])
+	if peer == "" {
+		peer = parts[0]
+	}
+	return peer
+}
+
+type ConnectionStatsIndex map[string]map[string]ConnectionStats
+
+func asConnectionStats(connection *qdr.TcpConnection, iplookup *IpLookup) ConnectionStats {
+	stats := ConnectionStats{
+		Id:        connection.Name,
+		StartTime: connection.Uptime,
+		LastOut:   connection.LastOut,
+		LastIn:    connection.LastIn,
+		BytesIn:   connection.BytesIn,
+		BytesOut:  connection.BytesOut,
+	}
+	peer := getPeerIdentifier(connection.Host, iplookup)
+	if connection.Direction == "in" {
+		stats.Client = peer
+	} else {
+		stats.Server = peer
+	}
+	return stats
+}
+
+func (index ConnectionStatsIndex) updateTcpConnectionStats(c qdr.TcpConnection, iplookup *IpLookup) {
+	byId, ok := index[c.Address]
+	if ok {
+		byId[c.Name] = asConnectionStats(&c, iplookup)
+	} else {
+		index[c.Address] = map[string]ConnectionStats{
+			c.Name: asConnectionStats(&c, iplookup),
+		}
+	}
+}
+
+func (services TcpServiceStatsMap) updateTcpConnectionStats(siteId string, connections []qdr.TcpConnection, iplookup *IpLookup) {
+	log.Printf("Updating tcp connection stats for %s %d", siteId, len(connections))
+	ingress := ConnectionStatsIndex{}
+	egress := ConnectionStatsIndex{}
+	for _, c := range connections {
+		if c.Direction == "in" {
+			ingress.updateTcpConnectionStats(c, iplookup)
+		} else {
+			egress.updateTcpConnectionStats(c, iplookup)
+		}
+	}
+	for _, service := range services {
+		if ingress[service.Address] != nil {
+			service.ConnectionsIngress = append(service.ConnectionsIngress, SiteConnections{
+				SiteId:      siteId,
+				Connections: ingress[service.Address],
+			})
+		}
+		if egress[service.Address] != nil {
+			service.ConnectionsEgress = append(service.ConnectionsEgress, SiteConnections{
+				SiteId:      siteId,
+				Connections: egress[service.Address],
+			})
+		}
+		services[service.Address] = service
+		log.Printf("Adding site connection stats for %s to %s (%d %d)", siteId, service.Address, len(service.ConnectionsIngress), len(service.ConnectionsEgress))
+	}
+}
+
+type RequestStatsIndex map[string]map[string]HttpRequestStats
+
+func asHttpRequestStats(r *qdr.HttpRequestInfo) HttpRequestStats {
+	stats := HttpRequestStats{
+		Requests:   r.Requests,
+		LatencyMax: r.MaxLatency,
+		BytesIn:    r.BytesIn,
+		BytesOut:   r.BytesOut,
+		Details:    r.Details,
+	}
+	if r.Direction == "in" {
+		stats.ByHandlingSite = map[string]HttpRequestStats{
+			r.Site: stats,
+		}
+	}
+	return stats
+}
+
+func (index RequestStatsIndex) indexByHost(r *qdr.HttpRequestInfo, iplookup *IpLookup) {
+	host := iplookup.getPodName(r.Host)
+	if host == "" {
+		host = r.Host
+	}
+	_, ok := index[r.Address]
+	if ok {
+		stats, ok := index[r.Address][host]
+		if ok {
+			s := asHttpRequestStats(r)
+			stats.merge(&s)
+		} else {
+			stats = asHttpRequestStats(r)
+		}
+		index[r.Address][host] = stats
+	} else {
+		index[r.Address] = map[string]HttpRequestStats{
+			host: asHttpRequestStats(r),
+		}
+	}
+}
+
+func (index RequestStatsIndex) indexBySite(r *qdr.HttpRequestInfo) {
+	_, ok := index[r.Address]
+	if ok {
+		stats, ok := index[r.Address][r.Site]
+		if ok {
+			s := asHttpRequestStats(r)
+			stats.merge(&s)
+		} else {
+			stats = asHttpRequestStats(r)
+		}
+		index[r.Address][r.Site] = stats
+	} else {
+		index[r.Address] = map[string]HttpRequestStats{
+			r.Site: asHttpRequestStats(r),
+		}
+	}
+}
+
+func (services HttpServiceStatsMap) updateHttpRequestStats(siteId string, requests []qdr.HttpRequestInfo, iplookup *IpLookup) {
+	log.Printf("Updating http request stats for %s %d", siteId, len(requests))
+	byClient := RequestStatsIndex{}
+	byServer := RequestStatsIndex{}
+	byOriginatingSite := RequestStatsIndex{}
+	for _, r := range requests {
+		if r.Direction == "in" {
+			byClient.indexByHost(&r, iplookup)
+		} else {
+			byServer.indexByHost(&r, iplookup)
+			byOriginatingSite.indexBySite(&r)
+		}
+	}
+	log.Printf("Indexed http request stats for %s by client %#v by server %#v", siteId, byClient, byServer)
+	for _, service := range services {
+		if byClient[service.Address] != nil {
+			service.RequestsReceived = append(service.RequestsReceived, HttpRequestsReceived{
+				SiteId:   siteId,
+				ByClient: byClient[service.Address],
+			})
+		}
+		if byServer[service.Address] != nil || byOriginatingSite[service.Address] != nil {
+			service.RequestsHandled = append(service.RequestsHandled, HttpRequestsHandled{
+				SiteId:            siteId,
+				ByServer:          byServer[service.Address],
+				ByOriginatingSite: byOriginatingSite[service.Address],
+			})
+		}
+		services[service.Address] = service
+		log.Printf("Adding site request stats for %s to %s (%d %d)", siteId, service.Address, len(service.RequestsReceived), len(service.RequestsHandled))
+	}
 }
 
 type Site struct {
@@ -464,19 +552,37 @@ func replace(in []string, lookup map[string]string) []string {
 }
 
 func getSiteInfo(routers []qdr.Router) []Site {
-	sites := []Site{}
+	sites := map[string]Site{}
 	lookup := map[string]string{}
 	for _, r := range routers {
-		lookup[r.Id] = r.SiteId
+		if strings.Contains(r.Id, "skupper-router") {
+			lookup[r.Id] = r.SiteId
+		}
 	}
 	for _, r := range routers {
-		sites = append(sites, Site{
-			SiteId:    r.SiteId,
-			Connected: replace(r.ConnectedTo, lookup),
-			Edge:      r.Edge,
-		})
+		if strings.Contains(r.Id, "skupper-router") {
+			if site, ok := sites[r.SiteId]; ok {
+				site.Connected = append(site.Connected, replace(r.ConnectedTo, lookup)...)
+				sites[r.SiteId] = site
+				log.Printf("Updating site %s based on router %s ", r.SiteId, r.Id)
+			} else {
+				sites[r.SiteId] = Site{
+					SiteId:    r.SiteId,
+					Connected: replace(r.ConnectedTo, lookup),
+					Edge:      r.Edge,
+				}
+				log.Printf("Adding site %s based on router %s ", r.SiteId, r.Id)
+			}
+		} else {
+			log.Printf("Skipping router %s", r.Id)
+		}
 	}
-	return sites
+	sitelist := []Site{}
+	for _, s := range sites {
+		sitelist = append(sitelist, s)
+	}
+	log.Printf("Sites: %v %v", sites, sitelist)
+	return sitelist
 }
 
 type ConsoleData struct {
@@ -484,26 +590,48 @@ type ConsoleData struct {
 	Services []interface{} `json:"services"`
 }
 
+func getSiteRouters(routers []qdr.Router) []qdr.Router {
+	sites := map[string]qdr.Router{}
+	for _, r := range routers {
+		if strings.Contains(r.Id, "skupper-router") {
+			sites[r.SiteId] = r
+		}
+	}
+	list := []qdr.Router{}
+	for _, r := range sites {
+		list = append(list, r)
+	}
+	return list
+}
+
 func getConsoleData(agent *qdr.Agent, iplookup *IpLookup) (*ConsoleData, error) {
 	routers, err := agent.GetAllRouters()
 	if err != nil {
 		return nil, fmt.Errorf("Error retrieving routers: %s", err)
-	} else {
-		bridges, err := agent.GetBridges(routers)
-		if err != nil {
-			return nil, fmt.Errorf("Error retrieving bridges: %s", err)
-		} else {
-			log.Printf("Bridge data: %#v", bridges)
-			data := ConsoleData{
-				Sites:    getSiteInfo(routers),
-				Services: getServiceStats(bridges, iplookup),
-			}
-			//query each site for remaining information
-			err = getAllSiteInfo(agent, data.Sites)
-			if err != nil {
-				return nil, fmt.Errorf("Error with site queries: %s", err)
-			}
-			return &data, nil
-		}
 	}
+	//TODO: handle multiple routers per site, for now ensure we only have one router per site
+	routers = getSiteRouters(routers)
+	bridges, err := agent.GetBridges(routers)
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving bridge configuration: %s", err)
+	}
+	tcpConns, err := agent.GetTcpConnections(routers)
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving tcp connection stats: %s", err)
+	}
+	httpReqs, err := agent.GetHttpRequestInfo(routers)
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving http request stats: %s", err)
+	}
+	log.Printf("Bridge data: %#v", bridges)
+	data := ConsoleData{
+		Sites: getSiteInfo(routers),
+	}
+	data.Services = getServiceStats(bridges, data.Sites, tcpConns, httpReqs, iplookup)
+	//query each site for remaining information
+	err = getAllSiteInfo(agent, data.Sites)
+	if err != nil {
+		return nil, fmt.Errorf("Error with site queries: %s", err)
+	}
+	return &data, nil
 }

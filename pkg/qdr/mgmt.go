@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -94,12 +95,12 @@ func getConnectedSitesFromNodesEdge(namespace string, clientset kubernetes.Inter
 		edges, err := getEdgeConnectionsForInterior(interiorNode.Id, namespace, clientset, config)
 		if err != nil {
 			return result, err
-		} else {
-			for _, edge := range edges {
-				key := fmt.Sprintf("router.node/%s", edge.Container)
-				if _, present := direct[key]; !present && edge.Container != localId {
-					indirect[key] = true
-				}
+		}
+		edges = filterSiteRouters(edges)
+		for _, edge := range edges {
+			key := fmt.Sprintf("router.node/%s", edge.Container)
+			if _, present := direct[key]; !present && edge.Container != localId {
+				indirect[key] = true
 			}
 		}
 	}
@@ -119,6 +120,7 @@ func getConnectedSitesFromNodesInterior(nodes []RouterNode, namespace string, cl
 			if err != nil {
 				return result, fmt.Errorf("Failed to check edge nodes for %s: %w", n.Id, err)
 			}
+			edges = filterSiteRouters(edges)
 			for _, edge := range edges {
 				if _, present := direct[edge.Container]; !present {
 					direct[edge.Container] = true
@@ -133,6 +135,7 @@ func getConnectedSitesFromNodesInterior(nodes []RouterNode, namespace string, cl
 			if err != nil {
 				return result, fmt.Errorf("Failed to check edge nodes for %s: %w", n.Id, err)
 			}
+			edges = filterSiteRouters(edges)
 			for _, edge := range edges {
 				if _, present := direct[edge.Container]; !present {
 					if _, present = indirect[edge.Container]; !present {
@@ -232,6 +235,16 @@ func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Conn
 
 func GetConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
 	return getConnectionsForRouter("", namespace, clientset, config)
+}
+
+func filterSiteRouters(in []Connection) []Connection {
+	results := []Connection{}
+	for _, c := range in {
+		if strings.Contains(c.Container, "skupper-router") {
+			results = append(results, c)
+		}
+	}
+	return results
 }
 
 func getEdgeUplinkConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {

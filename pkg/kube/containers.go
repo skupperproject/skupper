@@ -4,7 +4,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"os"
 )
 
 // TODO - remove constants, get from spec
@@ -32,26 +31,6 @@ func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
 		},
 		Env:   ds.EnvVar,
 		Ports: ds.Ports,
-	}
-	return container
-}
-
-func ContainerForBridgeServer() corev1.Container {
-	var imageName string
-	if os.Getenv("SKUPPER_BRIDGE_SERVER_IMAGE") != "" {
-		imageName = os.Getenv("SKUPPER_BRIDGE_SERVER_IMAGE")
-	} else {
-		imageName = types.DefaultBridgeServerImage
-	}
-	container := corev1.Container{
-		Image: imageName,
-		Name:  types.BridgeServerContainerName,
-		Env: []corev1.EnvVar{
-			corev1.EnvVar{
-				Name:  "CONF_FILE",
-				Value: "/etc/bridge-server/bridges.json",
-			},
-		},
 	}
 	return container
 }

@@ -42,15 +42,14 @@ const (
 const (
 	TransportDeploymentName     string = "skupper-router"
 	TransportComponentName      string = "router"
-	DefaultTransportImage       string = "quay.io/interconnectedcloud/qdrouterd"
+	DefaultTransportImage       string = "quay.io/gordons/qdrouterd:0.4.0-alpha-1"
 	TransportContainerName      string = "router"
 	TransportLivenessPort       int32  = 9090
 	TransportServiceAccountName string = "skupper"
 	TransportViewRoleName       string = "skupper-view"
 	TransportEnvConfig          string = "QDROUTERD_CONF"
 	TransportSaslConfig         string = "skupper-sasl-config"
-	DefaultBridgeServerImage    string = "quay.io/skupper/bridge-server"
-	BridgeServerContainerName   string = "bridge-server"
+	TransportConfigFile         string = "qdrouterd.json"
 )
 
 var TransportViewPolicyRule = []rbacv1.PolicyRule{
@@ -72,7 +71,6 @@ const (
 	ControllerComponentName      string = "proxy-controller"
 	DefaultControllerImage       string = "quay.io/skupper/service-controller"
 	ControllerContainerName      string = "service-controller"
-	DefaultProxyImage            string = "quay.io/skupper/proxy"
 	ControllerServiceAccountName string = "skupper-proxy-controller"
 	ControllerConfigPath         string = "/etc/messaging/"
 	ControllerEditRoleName       string = "skupper-edit"
@@ -175,7 +173,7 @@ type RouterSpec struct {
 	AuthMode       ConsoleAuthMode `json:"authMode,omitempty"`
 	Transport      DeploymentSpec  `json:"transport,omitempty"`
 	Controller     DeploymentSpec  `json:"controller,omitempty"`
-	Assembly       AssemblySpec    `json:"assembly,omitempty"`
+	RouterConfig   string          `json:"routerConfig,omitempty"`
 	Users          []User          `json:"users,omitempty"`
 	CertAuthoritys []CertAuthority `json:"certAuthoritys,omitempty"`
 	Credentials    []Credential    `json:"credentials,omitempty"`
@@ -264,7 +262,7 @@ type Credential struct {
 	CA          string
 	Name        string
 	Subject     string
-	Hosts       string
+	Hosts       []string
 	ConnectJson bool
 	Post        bool
 	Data        map[string][]byte
