@@ -179,3 +179,22 @@ func Test_cmdUnexpose(t *testing.T) {
 	testError("depl", "Name", "theService:8080", "some error")
 	testError("depl/Name", "", "theService:8080", "other error")
 }
+
+func Test_cmdUnexposeParseArgs(t *testing.T) {
+	cmd_args := []string{"unexpose", "deployment/name", "--address", "theAddress"}
+	expected_subcmd_args := cmd_args[1:]
+	command, subcommand_args, err := rootCmd.Find(cmd_args)
+	assert.Assert(t, err)
+	assert.Assert(t, cmp.Equal(expected_subcmd_args, subcommand_args))
+
+	assert.Assert(t, command.ParseFlags([]string{}))
+	assert.Equal(t, options.unexposeAddress, "")
+
+	assert.Assert(t, command.ParseFlags(expected_subcmd_args))
+	assert.Equal(t, options.unexposeAddress, "theAddress")
+
+	//Probably this is excessive testing, as we are testing the cobra library
+	//itself, but, it is free!
+	assert.Error(t, command.ParseFlags([]string{"--address"}),
+		"flag needs an argument: --address")
+}
