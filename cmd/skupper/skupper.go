@@ -82,68 +82,62 @@ func requiredArg(name string) func(*cobra.Command, []string) error {
 	}
 }
 
-func exposeTarget() func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
-			return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>'")
+func stringSliceContains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
 		}
-		if len(args) > 2 {
-			return fmt.Errorf("illegal argument: %s", args[2])
-		}
-		if len(args) > 1 && strings.Contains(args[0], "/") {
-			return fmt.Errorf("extra argument: %s", args[1])
-		}
-		targetType := args[0]
-		if strings.Contains(args[0], "/") {
-			parts := strings.Split(args[0], "/")
-			targetType = parts[0]
-		}
-		if targetType != "deployment" && targetType != "statefulset" && targetType != "pods" && targetType != "service" {
-			return fmt.Errorf("expose target type must be one of 'deployment', 'statefulset', 'service' or 'pods'")
-		}
-		return nil
 	}
+	return false
 }
 
-func createServiceArgs() func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 || (!strings.Contains(args[0], ":") && len(args) < 2) {
-			return fmt.Errorf("Name and port must be specified")
-		}
-		if len(args) > 2 {
-			return fmt.Errorf("illegal argument: %s", args[2])
-		}
-		if len(args) > 1 && strings.Contains(args[0], ":") {
-			return fmt.Errorf("extra argument: %s", args[1])
-		}
-		return nil
+var validExposeTargets = []string{"deployment", "statefulset", "pods", "service"}
+
+func exposeTargetArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
+		return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>'")
 	}
+	if len(args) > 2 {
+		return fmt.Errorf("illegal argument: %s", args[2])
+	}
+	if len(args) > 1 && strings.Contains(args[0], "/") {
+		return fmt.Errorf("extra argument: %s", args[1])
+	}
+	targetType := args[0]
+	if strings.Contains(args[0], "/") {
+		parts := strings.Split(args[0], "/")
+		targetType = parts[0]
+	}
+	if !stringSliceContains(validExposeTargets, targetType) {
+		return fmt.Errorf("expose target type must be one of: [%s]", strings.Join(validExposeTargets, ", "))
+	}
+	return nil
 }
 
-func deleteServiceArgs() func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return fmt.Errorf("name of service to delete must be specified")
-		} else if len(args) > 1 {
-			return fmt.Errorf("illegal argument: %s", args[1])
-		}
-		return nil
+func createServiceArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 || (!strings.Contains(args[0], ":") && len(args) < 2) {
+		return fmt.Errorf("Name and port must be specified")
 	}
+	if len(args) > 2 {
+		return fmt.Errorf("illegal argument: %s", args[2])
+	}
+	if len(args) > 1 && strings.Contains(args[0], ":") {
+		return fmt.Errorf("extra argument: %s", args[1])
+	}
+	return nil
 }
 
-func bindArgs() func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3) {
-			return fmt.Errorf("Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')")
-		}
-		if len(args) > 3 {
-			return fmt.Errorf("illegal argument: %s", args[3])
-		}
-		if len(args) > 2 && strings.Contains(args[1], "/") {
-			return fmt.Errorf("extra argument: %s", args[2])
-		}
-		return nil
+func bindArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3) {
+		return fmt.Errorf("Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')")
 	}
+	if len(args) > 3 {
+		return fmt.Errorf("illegal argument: %s", args[3])
+	}
+	if len(args) > 2 && strings.Contains(args[1], "/") {
+		return fmt.Errorf("extra argument: %s", args[2])
+	}
+	return nil
 }
 
 func check(err error) bool {
@@ -165,7 +159,9 @@ func NewClient(namespace string, context string, kubeConfigPath string) *client.
 	return cli
 }
 
-func main() {
+var rootCmd *cobra.Command
+
+func init() {
 	routev1.AddToScheme(scheme.Scheme)
 
 	var kubeContext string
@@ -468,7 +464,7 @@ func main() {
 	var cmdExpose = &cobra.Command{
 		Use:   "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short: "Expose a set of pods through a Skupper address",
-		Args:  exposeTarget(),
+		Args:  exposeTargetArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
 
@@ -514,7 +510,7 @@ func main() {
 	var cmdUnexpose = &cobra.Command{
 		Use:   "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short: "Unexpose a set of pods previously exposed through a Skupper address",
-		Args:  exposeTarget(),
+		Args:  exposeTargetArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
 			targetType := args[0]
@@ -590,7 +586,7 @@ func main() {
 	var cmdCreateService = &cobra.Command{
 		Use:   "create <name> <port>",
 		Short: "Create a skupper service",
-		Args:  createServiceArgs(),
+		Args:  createServiceArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			var sPort string
 			if len(args) == 1 {
@@ -625,7 +621,7 @@ func main() {
 	var cmdDeleteService = &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a skupper service",
-		Args:  deleteServiceArgs(),
+		Args:  requiredArg("service-name"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.ServiceInterfaceRemove(context.Background(), args[0])
@@ -642,7 +638,7 @@ func main() {
 	var cmdBind = &cobra.Command{
 		Use:   "bind <service-name> <target-type> <target-name>",
 		Short: "Bind a target to a service",
-		Args:  bindArgs(),
+		Args:  bindArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
 				fmt.Printf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
@@ -677,13 +673,13 @@ func main() {
 			}
 		},
 	}
-	cmdBind.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2.")
+	cmdBind.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
 	cmdBind.Flags().IntVar(&targetPort, "target-port", 0, "The port the target is listening on.")
 
 	var cmdUnbind = &cobra.Command{
 		Use:   "unbind <service-name> <target-type> <target-name>",
 		Short: "Unbind a target from a service",
-		Args:  bindArgs(),
+		Args:  bindArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			var targetType string
 			var targetName string
@@ -723,13 +719,17 @@ func main() {
 		},
 	}
 
-	var rootCmd = &cobra.Command{Use: "skupper"}
+	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
 	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
 		cmdService, cmdBind, cmdUnbind, cmdVersion)
 	rootCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
+
+}
+
+func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
