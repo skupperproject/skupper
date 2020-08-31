@@ -14,7 +14,7 @@ WORKDIR /skupper-console/
 ADD https://github.com/skupperproject/gilligan/archive/master.tar.gz .
 RUN tar -zxf master.tar.gz
 WORKDIR ./gilligan-master
-RUN npm yarn && yarn build
+RUN yarn install && yarn build
 
 FROM registry.access.redhat.com/ubi8-minimal
 
