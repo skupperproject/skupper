@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -18,8 +17,6 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
-
-var fp = fmt.Fprintf
 
 // If this function detects a difference between the expected and observed
 // results, it asserts a test failure.
