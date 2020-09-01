@@ -4,31 +4,47 @@ package http
 
 import (
 	"context"
+	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/k8s"
+	"gotest.tools/assert"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/skupperproject/skupper/test/cluster"
 	vegeta "github.com/tsenart/vegeta/v12/lib"
-	"gotest.tools/assert"
 )
 
-func TestHttp(t *testing.T) {
-	testRunner := &HttpClusterTestRunner{}
+var (
+	testRunner = &HttpClusterTestRunner{}
+)
 
-	testRunner.Build(t, "http")
-	ctx := context.Background()
+func TestMain(m *testing.M) {
+	testRunner.Initialize(m)
+}
+
+func TestHttp(t *testing.T) {
+	needs := base.ClusterNeeds{
+		NamespaceId:     "http",
+		PublicClusters:  1,
+		PrivateClusters: 1,
+	}
+	testRunner.Build(t, needs, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	base.HandleInterruptSignal(testRunner.T, func(t *testing.T) {
+		testRunner.TearDown(ctx)
+		cancel()
+	})
 	testRunner.Run(ctx)
 }
 
 func TestHttpJob(t *testing.T) {
-	cluster.SkipTestJobIfMustBeSkipped(t)
+	k8s.SkipTestJobIfMustBeSkipped(t)
 
 	rate := vegeta.Rate{Freq: 100, Per: time.Second}
 	duration := 4 * time.Second
 	targeter := vegeta.NewStaticTargeter(vegeta.Target{
 		Method: "GET",
-		URL:    "http://httpbin:80/",
+		URL:    "http://httpbin:8080/",
 	})
 	attacker := vegeta.NewAttacker()
 

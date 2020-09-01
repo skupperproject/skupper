@@ -3,10 +3,12 @@ package tcp_echo
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/constants"
+	"github.com/skupperproject/skupper/test/utils/k8s"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/test/cluster"
 	"gotest.tools/assert"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,7 +18,7 @@ import (
 )
 
 type TcpEchoClusterTestRunner struct {
-	cluster.ClusterTestRunnerBase
+	base.ClusterTestRunnerBase
 }
 
 func int32Ptr(i int32) *int32 { return &i }
@@ -63,12 +65,15 @@ var deployment *appsv1.Deployment = &appsv1.Deployment{
 func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 
 	//XXX
-	endTime := time.Now().Add(cluster.ImagePullingAndResourceCreationTimeout)
+	endTime := time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
 
-	_, err := cluster.WaitForSkupperServiceToBeCreatedAndReadyToUse(r.Pub1Cluster, "tcp-go-echo")
+	pub1Cluster := r.GetPublicContext(1)
+	prv1Cluster := r.GetPrivateContext(1)
+
+	_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "tcp-go-echo")
 	assert.Assert(r.T, err)
 
-	_, err = cluster.WaitForSkupperServiceToBeCreatedAndReadyToUse(r.Priv1Cluster, "tcp-go-echo")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "tcp-go-echo")
 	assert.Assert(r.T, err)
 
 	jobName := "tcp-echo"
@@ -78,32 +83,34 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	//namespaces (or clusters), the same service must exist in both clusters
 	//because of the skupper connections and the "skupper exposed"
 	//deployment.
-	_, err = r.Pub1Cluster.CreateTestJob(jobName, jobCmd)
+	_, err = k8s.CreateTestJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, jobCmd)
 	assert.Assert(r.T, err)
 
-	_, err = r.Priv1Cluster.CreateTestJob(jobName, jobCmd)
+	_, err = k8s.CreateTestJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, jobCmd)
 	assert.Assert(r.T, err)
 
-	endTime = time.Now().Add(cluster.ImagePullingAndResourceCreationTimeout)
+	endTime = time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
 
-	job, err := r.Pub1Cluster.WaitForJob(jobName, endTime.Sub(time.Now()))
+	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
 	assert.Assert(r.T, err)
-	cluster.AssertJob(r.T, job)
+	k8s.AssertJob(r.T, job)
 
-	job, err = r.Priv1Cluster.WaitForJob(jobName, endTime.Sub(time.Now()))
+	job, err = k8s.WaitForJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
 	assert.Assert(r.T, err)
-	cluster.AssertJob(r.T, job)
+	k8s.AssertJob(r.T, job)
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 	var err error
-	err = r.Pub1Cluster.CreateNamespace()
+	pub1Cluster := r.GetPublicContext(1)
+	prv1Cluster := r.GetPrivateContext(1)
+	err = pub1Cluster.CreateNamespace()
 	assert.Assert(r.T, err)
 
-	err = r.Priv1Cluster.CreateNamespace()
+	err = prv1Cluster.CreateNamespace()
 	assert.Assert(r.T, err)
 
-	publicDeploymentsClient := r.Pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(r.Pub1Cluster.CurrentNamespace)
+	publicDeploymentsClient := pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace)
 
 	fmt.Println("Creating deployment...")
 	result, err := publicDeploymentsClient.Create(deployment)
@@ -111,7 +118,7 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-	fmt.Printf("Listing deployments in namespace %q:\n", r.Pub1Cluster.CurrentNamespace)
+	fmt.Printf("Listing deployments in namespace %q:\n", pub1Cluster.Namespace)
 	list, err := publicDeploymentsClient.List(metav1.ListOptions{})
 	assert.Assert(r.T, err)
 
@@ -134,37 +141,37 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		},
 	}
 
-	routerCreateOpts.Spec.SkupperNamespace = r.Pub1Cluster.CurrentNamespace
-	r.Pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
+	routerCreateOpts.Spec.SkupperNamespace = pub1Cluster.Namespace
+	pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
 	service := types.ServiceInterface{
 		Address:  "tcp-go-echo",
 		Protocol: "tcp",
 		Port:     9090,
 	}
-	err = r.Pub1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
+	err = pub1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(r.T, err)
 
-	err = r.Pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
+	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
 	assert.Assert(r.T, err)
 
-	err = r.Pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
+	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
 	assert.Assert(r.T, err)
 
-	routerCreateOpts.Spec.SkupperNamespace = r.Priv1Cluster.CurrentNamespace
-	err = r.Priv1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
+	routerCreateOpts.Spec.SkupperNamespace = prv1Cluster.Namespace
+	err = prv1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
-		SkupperNamespace: r.Priv1Cluster.CurrentNamespace,
+		SkupperNamespace: prv1Cluster.Namespace,
 		Name:             "",
 		Cost:             0,
 	}
-	r.Priv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
+	prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
 }
 
 func (r *TcpEchoClusterTestRunner) TearDown(ctx context.Context) {
-	r.Pub1Cluster.DeleteNamespace()
-	r.Priv1Cluster.DeleteNamespace()
+	r.GetPublicContext(1).DeleteNamespace()
+	r.GetPrivateContext(1).DeleteNamespace()
 }
 
 func (r *TcpEchoClusterTestRunner) Run(ctx context.Context) {

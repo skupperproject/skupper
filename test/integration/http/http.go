@@ -3,9 +3,10 @@ package http
 import (
 	"context"
 	"fmt"
-
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/test/cluster"
+	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/constants"
+	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -14,7 +15,7 @@ import (
 )
 
 type HttpClusterTestRunner struct {
-	cluster.ClusterTestRunnerBase
+	base.ClusterTestRunnerBase
 }
 
 func int32Ptr(i int32) *int32 { return &i }
@@ -48,8 +49,16 @@ var httpbinDep *appsv1.Deployment = &appsv1.Deployment{
 							{
 								Name:          "http",
 								Protocol:      apiv1.ProtocolTCP,
-								ContainerPort: 80,
+								ContainerPort: 8080,
 							},
+						},
+						Command: []string{
+							"gunicorn",
+							"-b",
+							"0.0.0.0:8080",
+							"httpbin:app",
+							"-k",
+							"gevent",
 						},
 					},
 				},
@@ -68,30 +77,33 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context) {
 	//for now I am just keeping them in the same values that we are using
 	//for tcp_echo test, since in case of reducing test may fail
 	//intermitently
-
-	_, err := cluster.WaitForSkupperServiceToBeCreatedAndReadyToUse(r.Pub1Cluster, "httpbin")
+	pubCluster1 := r.GetPublicContext(1)
+	_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
 	assert.Assert(r.T, err)
 
 	jobName := "http"
 	jobCmd := []string{"/app/http_test", "-test.run", "Job"}
 
-	_, err = r.Pub1Cluster.CreateTestJob(jobName, jobCmd)
+	_, err = k8s.CreateTestJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, jobCmd)
 	assert.Assert(r.T, err)
 
-	job, err := r.Pub1Cluster.WaitForJob(jobName, cluster.ImagePullingAndResourceCreationTimeout)
+	job, err := k8s.WaitForJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
 	assert.Assert(r.T, err)
-	cluster.AssertJob(r.T, job)
+	k8s.AssertJob(r.T, job)
 }
 
 func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 	var err error
-	err = r.Pub1Cluster.CreateNamespace()
+	pub1Cluster := r.GetPublicContext(1)
+	prv1Cluster := r.GetPrivateContext(1)
+
+	err = pub1Cluster.CreateNamespace()
 	assert.Assert(r.T, err)
 
-	err = r.Priv1Cluster.CreateNamespace()
+	err = prv1Cluster.CreateNamespace()
 	assert.Assert(r.T, err)
 
-	privateDeploymentsClient := r.Priv1Cluster.VanClient.KubeClient.AppsV1().Deployments(r.Priv1Cluster.CurrentNamespace)
+	privateDeploymentsClient := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)
 
 	fmt.Println("Creating deployment...")
 	result, err := privateDeploymentsClient.Create(httpbinDep)
@@ -114,38 +126,38 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 		},
 	}
 
-	routerCreateOpts.Spec.SkupperNamespace = r.Priv1Cluster.CurrentNamespace
-	r.Priv1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
+	routerCreateOpts.Spec.SkupperNamespace = prv1Cluster.Namespace
+	prv1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
 	service := types.ServiceInterface{
 		Address:  "httpbin",
 		Protocol: "http",
-		Port:     80,
+		Port:     8080,
 	}
 
-	err = r.Priv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
+	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(r.T, err)
 
-	err = r.Priv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
 	assert.Assert(r.T, err)
 
-	routerCreateOpts.Spec.SkupperNamespace = r.Pub1Cluster.CurrentNamespace
-	err = r.Pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
+	routerCreateOpts.Spec.SkupperNamespace = pub1Cluster.Namespace
+	err = pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
-	err = r.Pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
+	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
 	assert.Assert(r.T, err)
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
-		SkupperNamespace: r.Priv1Cluster.CurrentNamespace,
+		SkupperNamespace: prv1Cluster.Namespace,
 		Name:             "",
 		Cost:             0,
 	}
-	r.Priv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
+	prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
 }
 
 func (r *HttpClusterTestRunner) TearDown(ctx context.Context) {
-	r.Pub1Cluster.DeleteNamespace()
-	r.Priv1Cluster.DeleteNamespace()
+	r.GetPublicContext(1).DeleteNamespace()
+	r.GetPrivateContext(1).DeleteNamespace()
 }
 
 func (r *HttpClusterTestRunner) Run(ctx context.Context) {
