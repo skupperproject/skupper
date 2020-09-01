@@ -124,7 +124,7 @@ func GetPodContainerLogs(podName string, containerName string, namespace string,
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, podLogs)
 	if err != nil {
-	        return "", err
+		return "", err
 	}
 	str := buf.String()
 
