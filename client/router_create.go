@@ -62,7 +62,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.Replicas = 1
 	//TODO: change these to types constants
 	van.Controller.Labels = map[string]string{
-		"application":          "skupper",
+		"application":          "skupper-service-controller",
 		"skupper.io/component": "proxy-controller",
 	}
 

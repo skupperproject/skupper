@@ -15,17 +15,12 @@ limitations under the License.
 package qdr
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/remotecommand"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -310,43 +305,5 @@ func router_exec(command []string, namespace string, clientset kubernetes.Interf
 	if err != nil {
 		return nil, err
 	}
-
-	var stdout io.Writer
-
-	buffer := bytes.Buffer{}
-	stdout = bufio.NewWriter(&buffer)
-
-	restClient, err := restclient.RESTClientFor(config)
-	if err != nil {
-		panic(err)
-	}
-
-	req := restClient.Post().
-		Resource("pods").
-		Name(pod.Name).
-		Namespace(pod.Namespace).
-		SubResource("exec")
-	req.VersionedParams(&corev1.PodExecOptions{
-		Container: pod.Spec.Containers[0].Name,
-		Command:   command,
-		Stdin:     false,
-		Stdout:    true,
-		Stderr:    false,
-		TTY:       false,
-	}, scheme.ParameterCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
-	if err != nil {
-		panic(err)
-	}
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  nil,
-		Stdout: stdout,
-		Stderr: nil,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("Error executing %s: %v", command, err)
-	} else {
-		return &buffer, nil
-	}
+	return kube.ExecCommandInContainer(command, pod.Name, "router", namespace, clientset, config)
 }

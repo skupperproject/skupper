@@ -719,10 +719,30 @@ func init() {
 		},
 	}
 
+	var cmdDebug = &cobra.Command{
+		Use:   "debug dump <file> or debug action <tbd>",
+		Short: "Debug skupper installation",
+	}
+
+	var cmdDebugDump = &cobra.Command{
+		Use:   "dump <filename>",
+		Short: "Collect and save skupper logs, config, etc.",
+		Args:  requiredArg("save file"),
+		Run: func(cmd *cobra.Command, args []string) {
+			cli := NewClient(namespace, kubeContext, kubeconfig)
+			err := cli.SkupperDump(context.Background(), args[0], version)
+			if err != nil {
+				fmt.Println("Unable to save skupper details: ", err.Error())
+				os.Exit(1)
+			}
+		},
+	}
+	cmdDebug.AddCommand(cmdDebugDump)
+
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
 	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
-		cmdService, cmdBind, cmdUnbind, cmdVersion)
+		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug)
 	rootCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
