@@ -34,6 +34,7 @@ func TestConnectorListInterior(t *testing.T) {
 
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
 
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
@@ -75,6 +76,4 @@ func TestConnectorListInterior(t *testing.T) {
 	if diff := cmp.Diff(connNames, actualNames, trans); diff != "" {
 		t.Errorf("TestConnectorListInterior connectors mismatch (-want +got):\n%s", diff)
 	}
-	os.RemoveAll(testPath)
-
 }

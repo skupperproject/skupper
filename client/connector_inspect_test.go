@@ -92,6 +92,7 @@ func TestConnectorInspectDefaults(t *testing.T) {
 
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
 
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
@@ -124,7 +125,4 @@ func TestConnectorInspectDefaults(t *testing.T) {
 		_, err := cli.ConnectorInspect(ctx, c.connName)
 		assert.Check(t, err, "Unabled to inspect connector for "+c.connName)
 	}
-
-	os.RemoveAll(testPath)
-
 }

@@ -94,6 +94,7 @@ func TestConnectorCreateInterior(t *testing.T) {
 
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
 
 	var namespace string = "van-connector-create-interior"
 
@@ -170,5 +171,4 @@ func TestConnectorCreateInterior(t *testing.T) {
 		}
 
 	}
-	os.RemoveAll(testPath)
 }

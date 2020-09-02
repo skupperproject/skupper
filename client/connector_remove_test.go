@@ -58,6 +58,7 @@ func TestConnectorRemove(t *testing.T) {
 
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
 
 	for _, c := range testcases {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -144,7 +145,4 @@ func TestConnectorRemove(t *testing.T) {
 		_, err = cli.ConnectorInspect(ctx, c.connName)
 		assert.Error(t, err, `secrets "`+c.connName+`" not found`, "Expect error when connector is removed")
 	}
-
-	// cleanup
-	os.RemoveAll(testPath)
 }
