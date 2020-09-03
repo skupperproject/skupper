@@ -38,6 +38,21 @@ type Options struct {
 
 var options Options
 
+func parseTargetTypeAndName(args []string) (string, string) {
+	//this functions assumes it is called with the right arguments, wrong
+	//argument verification is done on the "Args:" functions
+	targetType := args[0]
+	var targetName string
+	if len(args) == 2 {
+		targetName = args[1]
+	} else {
+		parts := strings.Split(args[0], "/")
+		targetType = parts[0]
+		targetName = parts[1]
+	}
+	return targetType, targetName
+}
+
 func expose(cli *client.VanClient, ctx context.Context, targetType string, targetName string, options ExposeOptions) error {
 	serviceName := options.Address
 	if serviceName == "" {
@@ -187,15 +202,8 @@ type vanClientInterface interface {
 }
 
 func unexposeRun(cmd *cobra.Command, args []string, options Options, cli vanClientInterface) error {
-	targetType := args[0]
-	var targetName string
-	if len(args) == 2 {
-		targetName = args[1]
-	} else {
-		parts := strings.Split(args[0], "/")
-		targetType = parts[0]
-		targetName = parts[1]
-	}
+	targetType, targetName := parseTargetTypeAndName(args)
+
 	err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, options.unexposeAddress, true)
 	if err != nil {
 		return fmt.Errorf("Error, unable to skupper service: %s", err.Error())
@@ -683,16 +691,7 @@ func init() {
 				fmt.Println()
 				os.Exit(1)
 			} else {
-				var targetType string
-				var targetName string
-				if len(args) == 2 {
-					parts := strings.Split(args[1], "/")
-					targetType = parts[0]
-					targetName = parts[1]
-				} else if len(args) == 3 {
-					targetType = args[1]
-					targetName = args[2]
-				}
+				targetType, targetName := parseTargetTypeAndName(args[1:])
 				cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 				service, err := cli.ServiceInterfaceInspect(context.Background(), args[0])
 				if err != nil {
@@ -719,16 +718,7 @@ func init() {
 		Short: "Unbind a target from a service",
 		Args:  bindArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			var targetType string
-			var targetName string
-			if len(args) == 2 {
-				parts := strings.Split(args[1], "/")
-				targetType = parts[0]
-				targetName = parts[1]
-			} else if len(args) == 3 {
-				targetType = args[1]
-				targetName = args[2]
-			}
+			targetType, targetName := parseTargetTypeAndName(args[1:])
 			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
 			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
 			if err != nil {

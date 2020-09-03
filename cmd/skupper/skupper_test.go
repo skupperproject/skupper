@@ -198,3 +198,13 @@ func Test_cmdUnexposeParseArgs(t *testing.T) {
 	assert.Error(t, command.ParseFlags([]string{"--address"}),
 		"flag needs an argument: --address")
 }
+
+func Test_parseTargetTypeAndName(t *testing.T) {
+	targetType, targetName := parseTargetTypeAndName([]string{"type", "name"})
+	assert.Equal(t, targetType, "type")
+	assert.Equal(t, targetName, "name")
+
+	targetType, targetName = parseTargetTypeAndName([]string{"type/name"})
+	assert.Equal(t, targetType, "type")
+	assert.Equal(t, targetName, "name")
+}
