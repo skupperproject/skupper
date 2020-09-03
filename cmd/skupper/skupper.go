@@ -54,26 +54,28 @@ func parseTargetTypeAndName(args []string) (string, string) {
 	return targetType, targetName
 }
 
-func expose(cli *client.VanClient, ctx context.Context, targetType string, targetName string, options ExposeOptions) error {
-	serviceName := options.Address
+func exposeRun(cmd *cobra.Command, args []string, options Options, cli vanClientInterface) error {
+	ctx := context.Background()
+
+	targetType, targetName := parseTargetTypeAndName(args)
+
+	//args verification is done in exposeTargetArgs
+	serviceName := options.expose.Address
 	if serviceName == "" {
-		if targetType == "service" {
-			return fmt.Errorf("The --address option is required for target type 'service'")
-		} else {
-			serviceName = targetName
-		}
+		serviceName = targetName
 	}
+
 	service, err := cli.ServiceInterfaceInspect(ctx, serviceName)
 	if err != nil {
 		return err
 	}
 
 	if service == nil {
-		if options.Headless {
+		if options.expose.Headless {
 			if targetType != "statefulset" {
 				return fmt.Errorf("The headless option is only supported for statefulsets")
 			}
-			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.Protocol, options.Address, options.Port)
+			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.expose.Protocol, options.expose.Address, options.expose.Port)
 			if err != nil {
 				return err
 			}
@@ -81,21 +83,31 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 		} else {
 			service = &types.ServiceInterface{
 				Address:  serviceName,
-				Port:     options.Port,
-				Protocol: options.Protocol,
+				Port:     options.expose.Port,
+				Protocol: options.expose.Protocol,
 			}
 		}
 	} else if service.Headless != nil {
 		return fmt.Errorf("Service already exposed as headless")
-	} else if options.Headless {
+	} else if options.expose.Headless {
 		return fmt.Errorf("Service already exposed, cannot reconfigure as headless")
-	} else if options.Protocol != "" && service.Protocol != options.Protocol {
-		return fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
+	} else if options.expose.Protocol != "" && service.Protocol != options.expose.Protocol {
+		return fmt.Errorf("Invalid protocol %s for service with mapping %s", options.expose.Protocol, service.Protocol)
 	}
 
 	// service may exist from remote origin
 	service.Origin = ""
-	return cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
+	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.expose.Protocol, options.expose.TargetPort)
+
+	if errors.IsNotFound(err) {
+		return fmt.Errorf("Skupper is not installed in Namespace '%s`", cli.GetNamespace())
+	}
+	if err != nil {
+		return fmt.Errorf("Error, unable to create skupper service: %s", err.Error())
+	}
+
+	fmt.Printf("%s %s exposed as %s\n", targetType, targetName, serviceName)
+	return nil
 }
 
 func requiredArg(name string) func(*cobra.Command, []string) error {
@@ -544,45 +556,11 @@ func init() {
 		},
 	}
 
-	exposeOpts := ExposeOptions{}
 	var cmdExpose = &cobra.Command{
 		Use:   "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short: "Expose a set of pods through a Skupper address",
 		Args:  exposeTargetArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			cli, _ := NewClient(namespace, kubeContext, kubeconfig)
-
-			targetType := args[0]
-			var targetName string
-			if len(args) == 2 {
-				targetName = args[1]
-			} else {
-				parts := strings.Split(args[0], "/")
-				targetType = parts[0]
-				targetName = parts[1]
-			}
-
-			err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
-
-			if err == nil {
-				address := exposeOpts.Address
-				if address == "" {
-					if args[0] == "service" {
-						fmt.Printf("--address option is required for target type 'service'")
-						os.Exit(1)
-					} else {
-						address = targetType
-					}
-				}
-				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, address)
-			} else if errors.IsNotFound(err) {
-				fmt.Println("Skupper is not installed in '" + cli.Namespace + "`")
-				os.Exit(1)
-			} else {
-				fmt.Println("Error, unable to create skupper service: ", err.Error())
-				os.Exit(1)
-			}
-		},
+		RunE:  ClientCommand(exposeRun),
 	}
 	cmdExpose.Flags().StringVar(&(options.expose.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
 	cmdExpose.Flags().StringVar(&(options.expose.Address), "address", "", "The Skupper address to expose")
