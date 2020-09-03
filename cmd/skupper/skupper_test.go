@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
 )
 
@@ -115,9 +116,49 @@ type serviceInterfaceUnbindCallArgs struct {
 	deleteIfNoTargets               bool
 }
 
+type serviceInterfaceBindCallArgs struct {
+	service    *types.ServiceInterface
+	targetType string
+	targetName string
+	protocol   string
+	targetPort int
+}
+
+type getHeadlessServiceConfigurationCallArgs struct {
+	targetName string
+	protocol   string
+	address    string
+	port       int
+}
+
+type serviceInterfaceAndErrorReturns struct {
+	serviceInterface *types.ServiceInterface
+	err              error
+}
+
+type vanClientMockInjectedReturnValues struct {
+	serviceInterfaceUnbind          error
+	serviceInterfaceBind            error
+	serviceInterfaceInspect         serviceInterfaceAndErrorReturns
+	serviceInterfaceUpdate          error
+	getHeadlessServiceConfiguration serviceInterfaceAndErrorReturns
+}
+
 type vanClientMock struct {
-	serviceInterfaceUnbindCalledWith   []serviceInterfaceUnbindCallArgs
-	serviceInterfaceUnbindReturnsError string
+	serviceInterfaceUnbindCalledWith          []serviceInterfaceUnbindCallArgs
+	serviceInterfaceBindCalledWith            []serviceInterfaceBindCallArgs
+	serviceInterfaceInspectCalledWith         []string
+	getHeadlessServiceConfigurationCalledWith []getHeadlessServiceConfigurationCallArgs
+	serviceInterfaceUpdateCalledWith          []*types.ServiceInterface
+	injectedReturns                           vanClientMockInjectedReturnValues
+}
+
+func (v *vanClientMock) ResetCallHistory() {
+	v.serviceInterfaceBindCalledWith = nil
+	v.serviceInterfaceUnbindCalledWith = nil
+	v.serviceInterfaceInspectCalledWith = nil
+	v.getHeadlessServiceConfigurationCalledWith = nil
+	v.serviceInterfaceUpdateCalledWith = nil
 }
 
 func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error {
@@ -129,20 +170,52 @@ func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType s
 	}
 	v.serviceInterfaceUnbindCalledWith = append(v.serviceInterfaceUnbindCalledWith, calledWith)
 
-	if v.serviceInterfaceUnbindReturnsError != "" {
-		return fmt.Errorf("%s", v.serviceInterfaceUnbindReturnsError)
-	}
+	return v.injectedReturns.serviceInterfaceUnbind
+}
 
-	return nil
+func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
+	var calledWith = serviceInterfaceBindCallArgs{
+		service:    service,
+		targetType: targetType,
+		targetName: targetName,
+		protocol:   protocol,
+		targetPort: targetPort,
+	}
+	v.serviceInterfaceBindCalledWith = append(v.serviceInterfaceBindCalledWith, calledWith)
+
+	return v.injectedReturns.serviceInterfaceBind
+}
+
+func (v *vanClientMock) ServiceInterfaceInspect(ctx context.Context, address string) (*types.ServiceInterface, error) {
+	v.serviceInterfaceInspectCalledWith = append(v.serviceInterfaceInspectCalledWith, address)
+	return v.injectedReturns.serviceInterfaceInspect.serviceInterface, v.injectedReturns.serviceInterfaceInspect.err
+}
+
+func (v *vanClientMock) ServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
+	v.serviceInterfaceUpdateCalledWith = append(v.serviceInterfaceUpdateCalledWith, service)
+	return v.injectedReturns.serviceInterfaceUpdate
+}
+
+func (v *vanClientMock) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*types.ServiceInterface, error) {
+	var calledWith = getHeadlessServiceConfigurationCallArgs{
+		targetName: targetName,
+		protocol:   protocol,
+		address:    address,
+		port:       port,
+	}
+	v.getHeadlessServiceConfigurationCalledWith = append(v.getHeadlessServiceConfigurationCalledWith, calledWith)
+	return v.injectedReturns.getHeadlessServiceConfiguration.serviceInterface, v.injectedReturns.getHeadlessServiceConfiguration.err
+}
+
+func (cli *vanClientMock) GetNamespace() string {
+	return "MockNamespace"
 }
 
 func Test_cmdUnexpose(t *testing.T) {
-	test := func(targetType, targetName, address string, injectedError string) {
+	test := func(targetType, targetName, address string, cli *vanClientMock) {
 		options := Options{
 			unexposeAddress: address,
 		}
-		cli := vanClientMock{}
-		cli.serviceInterfaceUnbindReturnsError = injectedError
 
 		args := []string{targetType}
 
@@ -155,10 +228,10 @@ func Test_cmdUnexpose(t *testing.T) {
 			targetName = parts[1]
 		}
 
-		err := unexposeRun(nil, args, options, &cli)
+		err := unexposeRun(nil, args, options, cli)
 
-		if injectedError != "" {
-			assert.Error(t, err, "Error, unable to skupper service: "+injectedError)
+		if cli.injectedReturns.serviceInterfaceUnbind != nil {
+			assert.Error(t, err, "Error, unable to skupper service: "+cli.injectedReturns.serviceInterfaceUnbind.Error())
 		} else {
 			assert.Assert(t, err)
 		}
@@ -175,11 +248,17 @@ func Test_cmdUnexpose(t *testing.T) {
 	}
 
 	testSuccess := func(targetType, targetName, address string) {
-		test(targetType, targetName, address, "")
+		cli := &vanClientMock{}
+		test(targetType, targetName, address, cli)
 	}
 
 	testError := func(targetType, targetName, address string, errorString string) {
-		test(targetType, targetName, address, errorString)
+		cli := &vanClientMock{
+			injectedReturns: vanClientMockInjectedReturnValues{
+				serviceInterfaceUnbind: fmt.Errorf("%s", errorString),
+			},
+		}
+		test(targetType, targetName, address, cli)
 	}
 
 	testSuccess("depl", "Name", "theService:8080")
