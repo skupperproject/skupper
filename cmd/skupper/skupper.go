@@ -33,6 +33,7 @@ type ExposeOptions struct {
 type Options struct {
 	//all subCommands options will be moved to this struct when refactor is
 	//complete.
+	expose          ExposeOptions
 	unexposeAddress string
 }
 
@@ -121,6 +122,18 @@ func stringSliceContains(s []string, e string) bool {
 var validExposeTargets = []string{"deployment", "statefulset", "pods", "service"}
 
 func exposeTargetArgs(cmd *cobra.Command, args []string) error {
+	err := unexposeTargetArgs(cmd, args)
+	if err != nil {
+		return err
+	}
+	targetType, _ := parseTargetTypeAndName(args)
+	if options.expose.Address == "" && targetType == "service" {
+		return fmt.Errorf("The --address option is required for target type 'service'")
+	}
+	return nil
+}
+
+func unexposeTargetArgs(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
 		return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>'")
 	}
@@ -199,6 +212,11 @@ type vanClientInterface interface {
 	//all required methods will be added here while unit-testing all
 	//subcommands (for now, for testing unexpose we only need this one)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
+	ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error
+	ServiceInterfaceInspect(ctx context.Context, address string) (*types.ServiceInterface, error)
+	ServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error
+	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*types.ServiceInterface, error)
+	GetNamespace() string
 }
 
 func unexposeRun(cmd *cobra.Command, args []string, options Options, cli vanClientInterface) error {
@@ -566,16 +584,16 @@ func init() {
 			}
 		},
 	}
-	cmdExpose.Flags().StringVar(&(exposeOpts.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
-	cmdExpose.Flags().StringVar(&(exposeOpts.Address), "address", "", "The Skupper address to expose")
-	cmdExpose.Flags().IntVar(&(exposeOpts.Port), "port", 0, "The port to expose on")
-	cmdExpose.Flags().IntVar(&(exposeOpts.TargetPort), "target-port", 0, "The port to target on pods")
-	cmdExpose.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
+	cmdExpose.Flags().StringVar(&(options.expose.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
+	cmdExpose.Flags().StringVar(&(options.expose.Address), "address", "", "The Skupper address to expose")
+	cmdExpose.Flags().IntVar(&(options.expose.Port), "port", 0, "The port to expose on")
+	cmdExpose.Flags().IntVar(&(options.expose.TargetPort), "target-port", 0, "The port to target on pods")
+	cmdExpose.Flags().BoolVar(&(options.expose.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
 
 	var cmdUnexpose = &cobra.Command{
 		Use:   "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short: "Unexpose a set of pods previously exposed through a Skupper address",
-		Args:  exposeTargetArgs,
+		Args:  unexposeTargetArgs,
 		RunE:  ClientCommand(unexposeRun),
 	}
 	cmdUnexpose.Flags().StringVar(&options.unexposeAddress, "address", "", "Skupper address the target was exposed as")

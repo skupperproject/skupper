@@ -71,34 +71,43 @@ func Test_createServiceArgs(t *testing.T) {
 	assert.Error(t, c([]string{"service", "port", "other", "arg"}), "illegal argument: other")
 }
 
-func Test_exposeTargetArgs(t *testing.T) {
+func Test_unexposeTargetArgs(t *testing.T) {
 	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>'"
 	targetError := "expose target type must be one of: [deployment, statefulset, pods, service]"
 
-	e := func(args []string) error {
-		return exposeTargetArgs(nil, args)
+	u := func(args []string) error {
+		return unexposeTargetArgs(nil, args)
 	}
 
-	assert.Error(t, e([]string{}), genericError)
-	assert.Error(t, e([]string{"depl/name"}), targetError)
+	assert.Error(t, u([]string{}), genericError)
+	assert.Error(t, u([]string{"depl/name"}), targetError)
 
-	assert.Error(t, e([]string{"depl/name", "two"}), "extra argument: two")
-	assert.Error(t, e([]string{"depl/name", "two", "three"}), "illegal argument: three")
-	assert.Error(t, e([]string{"depl/name", "two", "three", "four"}), "illegal argument: three")
+	assert.Error(t, u([]string{"depl/name", "two"}), "extra argument: two")
+	assert.Error(t, u([]string{"depl/name", "two", "three"}), "illegal argument: three")
+	assert.Error(t, u([]string{"depl/name", "two", "three", "four"}), "illegal argument: three")
 
-	assert.Error(t, e([]string{"depl/name"}), targetError)
-	assert.Error(t, e([]string{"anything", "name"}), targetError)
+	assert.Error(t, u([]string{"depl/name"}), targetError)
+	assert.Error(t, u([]string{"anything", "name"}), targetError)
 
-	assert.Error(t, e([]string{"deployment"}), genericError)
+	assert.Error(t, u([]string{"deployment"}), genericError)
 
-	assert.Assert(t, e([]string{"deployment", "name"}))
+	assert.Assert(t, u([]string{"deployment", "name"}))
 
-	assert.Error(t, e([]string{"deployment", "name", "three"}), "illegal argument: three")
-	assert.Error(t, e([]string{"deployment", "name", "three", "four"}), "illegal argument: three")
+	assert.Error(t, u([]string{"deployment", "name", "three"}), "illegal argument: three")
+	assert.Error(t, u([]string{"deployment", "name", "three", "four"}), "illegal argument: three")
 
 	for _, target := range validExposeTargets {
-		assert.Assert(t, e([]string{target, "name"}))
+		assert.Assert(t, u([]string{target, "name"}))
 	}
+}
+
+func Test_exposeTargetArgs(t *testing.T) {
+	err := exposeTargetArgs(nil, []string{"service/name"})
+	assert.Error(t, err, "The --address option is required for target type 'service'")
+
+	options.expose.Address = "someAddress"
+	err = exposeTargetArgs(nil, []string{"service/name"})
+	assert.Assert(t, err)
 }
 
 type serviceInterfaceUnbindCallArgs struct {
