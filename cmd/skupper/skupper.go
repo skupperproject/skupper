@@ -40,6 +40,10 @@ func expose(cli *client.VanClient, ctx context.Context, targetType string, targe
 		}
 	}
 	service, err := cli.ServiceInterfaceInspect(ctx, serviceName)
+	if err != nil {
+		return err
+	}
+
 	if service == nil {
 		if options.Headless {
 			if targetType != "statefulset" {
