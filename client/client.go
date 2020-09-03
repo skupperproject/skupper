@@ -20,6 +20,10 @@ type VanClient struct {
 	RestConfig  *restclient.Config
 }
 
+func (cli *VanClient) GetNamespace() string {
+	return cli.Namespace
+}
+
 func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {
 	c := &VanClient{}
 
