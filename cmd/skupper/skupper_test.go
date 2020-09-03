@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
@@ -285,6 +288,175 @@ func Test_cmdUnexposeParseArgs(t *testing.T) {
 	//itself, but, it is free!
 	assert.Error(t, command.ParseFlags([]string{"--address"}),
 		"flag needs an argument: --address")
+}
+
+func Test_cmdExpose_Binding(t *testing.T) {
+
+	compare := func(a, b *serviceInterfaceBindCallArgs) {
+		t.Helper()
+		assert.Assert(t, a.targetType == b.targetType)
+		assert.Assert(t, a.targetName == b.targetName)
+		assert.Assert(t, a.protocol == b.protocol)
+		assert.Assert(t, a.targetPort == b.targetPort)
+		assert.Assert(t, a.service.Address == b.service.Address)
+		assert.Assert(t, a.service.Protocol == b.service.Protocol)
+		assert.Assert(t, a.service.Port == b.service.Port)
+	}
+	options := Options{}
+
+	test_protocol := "protocol"
+	options.expose.Address = "TheService"
+	options.expose.Headless = false
+	options.expose.Protocol = test_protocol
+	options.expose.Port = 123
+	options.expose.TargetPort = 234
+
+	expectedBindCall := serviceInterfaceBindCallArgs{
+		service: &types.ServiceInterface{
+			Address:  "TheService",
+			Protocol: test_protocol,
+			Port:     123,
+		},
+		targetType: "any",
+		targetName: "name",
+		protocol:   test_protocol,
+		targetPort: 234,
+	}
+
+	t.Run("service not existent and options.expose.headless == false",
+		func(t *testing.T) {
+			cli := vanClientMock{}
+
+			err := exposeRun(nil, []string{"any/name"}, options, &cli)
+			assert.Assert(t, err)
+			assert.Equal(t, len(cli.serviceInterfaceBindCalledWith), 1)
+			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
+
+		})
+
+	t.Run("service exists and Bind is successfull",
+		func(t *testing.T) {
+			cli := vanClientMock{}
+			aService := &types.ServiceInterface{
+				Address:  "TheOtherService",
+				Port:     options.expose.Port,
+				Protocol: options.expose.Protocol,
+			}
+			expectedBindCall := expectedBindCall
+			expectedBindCall.service = aService
+			cli.injectedReturns.serviceInterfaceInspect.serviceInterface = aService
+
+			err := exposeRun(nil, []string{"any/name"}, options, &cli)
+			assert.Assert(t, err)
+
+			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
+		})
+
+	t.Run("Bind fails: isNotFound",
+		func(t *testing.T) {
+			cli := vanClientMock{}
+			cli.injectedReturns.serviceInterfaceBind = fmt.Errorf("some error")
+			err := exposeRun(nil, []string{"any/name"}, options, &cli)
+			assert.Error(t, err, "Error, unable to create skupper service: some error")
+			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
+		})
+
+	t.Run("Bind fails: anyError",
+		func(t *testing.T) {
+			cli := vanClientMock{}
+			cli.injectedReturns.serviceInterfaceBind = errors.NewNotFound(schema.GroupResource{}, "name")
+			err := exposeRun(nil, []string{"any/name"}, options, &cli)
+			assert.Error(t, err, "Skupper is not installed in Namespace 'MockNamespace`")
+			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
+		})
+
+}
+
+func Test_cmdExpose(t *testing.T) {
+
+	var err error
+	options := Options{}
+	options.expose.Address = "ServiceName"
+
+	t.Run("ServiceInterfaceInspect returns error",
+		func(t *testing.T) {
+			cli := vanClientMock{}
+			cli.injectedReturns.serviceInterfaceInspect.err = fmt.Errorf("some error")
+			err := exposeRun(nil, []string{"deployment/name"}, options, &cli)
+			assert.Error(t, err, "some error")
+			assert.Equal(t, cli.serviceInterfaceInspectCalledWith[0], "ServiceName")
+		})
+
+	options.expose.Headless = true
+
+	t.Run("service not existent, headless option set, and targetType != statefulset ",
+		func(t *testing.T) {
+			cli := vanClientMock{}
+			cli = vanClientMock{
+				injectedReturns: vanClientMockInjectedReturnValues{
+					serviceInterfaceInspect: serviceInterfaceAndErrorReturns{
+						serviceInterface: nil,
+						err:              nil,
+					},
+				},
+			}
+
+			err = exposeRun(nil, []string{"service/name"}, options, &cli)
+			assert.Error(t, err, "The headless option is only supported for statefulsets")
+		})
+
+	options.expose.Protocol = "theprotocol"
+	options.expose.Port = 123
+
+	t.Run("service not existent, headless option set, and targetType == statefulset ",
+		func(t *testing.T) {
+			cli := vanClientMock{}
+			aService := &types.ServiceInterface{}
+			cli.injectedReturns.getHeadlessServiceConfiguration.serviceInterface = aService
+
+			err = exposeRun(nil, []string{"statefulset/name"}, options, &cli)
+			assert.Assert(t, err)
+
+			assert.Equal(t, len(cli.getHeadlessServiceConfigurationCalledWith), 1)
+			assert.Equal(t, len(cli.serviceInterfaceUpdateCalledWith), 1)
+
+			expectedGetHead := getHeadlessServiceConfigurationCallArgs{
+				targetName: "name",
+				protocol:   options.expose.Protocol,
+				address:    "ServiceName",
+				port:       options.expose.Port,
+			}
+
+			assert.Assert(t, cmp.Equal(cli.getHeadlessServiceConfigurationCalledWith[0], expectedGetHead, cmp.AllowUnexported(getHeadlessServiceConfigurationCallArgs{})))
+			assert.Assert(t, cli.serviceInterfaceUpdateCalledWith[0] == aService)
+		})
+
+	t.Run("serviceInterfaceInspect returns an existent service and options are wrong",
+		func(t *testing.T) {
+
+			cli := vanClientMock{}
+			test_protocol := "protocol"
+			options.expose.Headless = true
+			options.expose.Protocol = test_protocol + "diff"
+			injectedService := &types.ServiceInterface{
+				Protocol: test_protocol,
+				Headless: &types.Headless{
+					Name: "NotNil",
+				},
+			}
+			cli.injectedReturns.serviceInterfaceInspect.serviceInterface = injectedService
+
+			err = exposeRun(nil, []string{"service/name"}, options, &cli)
+			assert.Error(t, err, "Service already exposed as headless")
+
+			injectedService.Headless = nil
+			err = exposeRun(nil, []string{"service/name"}, options, &cli)
+			assert.Error(t, err, "Service already exposed, cannot reconfigure as headless")
+
+			options.expose.Headless = false
+			err = exposeRun(nil, []string{"service/name"}, options, &cli)
+			assert.Error(t, err, fmt.Sprintf("Invalid protocol %s for service with mapping %s", options.expose.Protocol, injectedService.Protocol))
+		})
 }
 
 func Test_parseTargetTypeAndName(t *testing.T) {
