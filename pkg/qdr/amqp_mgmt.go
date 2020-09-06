@@ -277,6 +277,8 @@ func AsInt(value interface{}) (int, bool) {
 		return int(value.(int32)), true
 	case int64:
 		return int(value.(int64)), true
+	case int:
+		return value.(int), true
 	default:
 		return 0, false
 	}
@@ -300,6 +302,8 @@ func AsUint64(value interface{}) (uint64, bool) {
 		return uint64(value.(int32)), true
 	case int64:
 		return uint64(value.(int64)), true
+	case int:
+		return uint64(value.(int)), true
 	default:
 		return 0, false
 	}
