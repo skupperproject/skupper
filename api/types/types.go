@@ -115,6 +115,7 @@ const (
 	TypeTokenQualifier        string = BaseQualifier + "/type=connection-token"
 	TypeTokenRequestQualifier string = BaseQualifier + "/type=connection-token-request"
 	TokenGeneratedBy          string = BaseQualifier + "/generated-by"
+	TokenCost                 string = BaseQualifier + "/cost"
 )
 
 // Service Interface constants
