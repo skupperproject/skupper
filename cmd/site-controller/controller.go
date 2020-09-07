@@ -287,8 +287,7 @@ func (c *SiteController) disconnect(name string, namespace string) error {
 
 func (c *SiteController) generate(token *corev1.Secret) error {
 	log.Printf("Generating token for request %s...", token.ObjectMeta.Name)
-	log.Println()
-	generated, _, err := c.vanClient.VanConnectorTokenCreate(context.Background(), token.ObjectMeta.Name)
+	generated, _, err := c.vanClient.VanConnectorTokenCreate(context.Background(), token.ObjectMeta.Name, token.ObjectMeta.Namespace)
 	if err == nil {
 		token.Data = generated.Data
 		if token.ObjectMeta.Annotations == nil {
@@ -299,11 +298,10 @@ func (c *SiteController) generate(token *corev1.Secret) error {
 		}
 		token.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
 		token.ObjectMeta.Annotations[types.TokenGeneratedBy] = c.siteId
-		_, err = c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Update(token)
+		_, err = c.vanClient.KubeClient.CoreV1().Secrets(token.ObjectMeta.Namespace).Update(token)
 		return err
 	} else {
 		log.Printf("Failed to generate token for request %s: %s", token.ObjectMeta.Name, err)
-		log.Println()
 		return err
 	}
 }
@@ -381,7 +379,6 @@ func (c *SiteController) checkToken(key string) error {
 func (c *SiteController) checkTokenRequest(key string) error {
 	if c.siteId != "" {
 		log.Printf("Handling token request for %s", key)
-		log.Println()
 		obj, exists, err := c.tokenRequestInformer.GetStore().GetByKey(key)
 		if err != nil {
 			log.Println("Error checking connection-token-request secret: ", err)

@@ -38,12 +38,15 @@ func annotateConnectionToken(secret *corev1.Secret, role string, host string, po
 	secret.ObjectMeta.Annotations[role+"-port"] = port
 }
 
-func configureHostPortsFromRoutes(result *RouterHostPorts, cli *VanClient) (bool, error) {
+func configureHostPortsFromRoutes(result *RouterHostPorts, cli *VanClient, namespace string) (bool, error) {
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
 	if cli.RouteClient == nil {
 		return false, nil
 	} else {
-		interRouterRoute, err1 := cli.RouteClient.Routes(cli.Namespace).Get("skupper-inter-router", metav1.GetOptions{})
-		edgeRoute, err2 := cli.RouteClient.Routes(cli.Namespace).Get("skupper-edge", metav1.GetOptions{})
+		interRouterRoute, err1 := cli.RouteClient.Routes(namespace).Get("skupper-inter-router", metav1.GetOptions{})
+		edgeRoute, err2 := cli.RouteClient.Routes(namespace).Get("skupper-edge", metav1.GetOptions{})
 		if err1 != nil && err2 != nil && errors.IsNotFound(err1) && errors.IsNotFound(err2) {
 			return false, nil
 		} else if err1 != nil {
@@ -61,14 +64,17 @@ func configureHostPortsFromRoutes(result *RouterHostPorts, cli *VanClient) (bool
 	}
 }
 
-func configureHostPorts(result *RouterHostPorts, cli *VanClient) bool {
-	ok, err := configureHostPortsFromRoutes(result, cli)
+func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace string) bool {
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
+	ok, err := configureHostPortsFromRoutes(result, cli, namespace)
 	if err != nil {
 		return false
 	} else if ok {
 		return ok
 	} else {
-		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get("skupper-internal", metav1.GetOptions{})
+		service, err := cli.KubeClient.CoreV1().Services(namespace).Get("skupper-internal", metav1.GetOptions{})
 		if err != nil {
 			return false
 		} else {
@@ -86,7 +92,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient) bool {
 				}
 			}
 			result.LocalOnly = true
-			host := fmt.Sprintf("skupper-internal.%s", cli.Namespace)
+			host := fmt.Sprintf("skupper-internal.%s", namespace)
 			result.Hosts = host
 			result.InterRouter.Host = host
 			result.InterRouter.Port = "55671"
@@ -97,18 +103,21 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient) bool {
 	}
 }
 
-func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject string) (*corev1.Secret, bool, error) {
+func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject string, namespace string) (*corev1.Secret, bool, error) {
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
 	// verify that the local deployment is interior mode
-	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+	current, err := kube.GetDeployment(types.TransportDeploymentName, namespace, cli.KubeClient)
 	// TODO: return error message for all the paths
 	if err == nil {
 		if qdr.IsInterior(current) {
 			//TODO: creat const for ca
-			caSecret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-internal-ca", metav1.GetOptions{})
+			caSecret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get("skupper-internal-ca", metav1.GetOptions{})
 			if err == nil {
 				//get the host and port for inter-router and edge
 				var hostPorts RouterHostPorts
-				if configureHostPorts(&hostPorts, cli) {
+				if configureHostPorts(&hostPorts, cli, namespace) {
 					secret := certs.GenerateSecret(subject, subject, hostPorts.Hosts, caSecret)
 					annotateConnectionToken(&secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
 					annotateConnectionToken(&secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
@@ -128,12 +137,12 @@ func (cli *VanClient) VanConnectorTokenCreate(ctx context.Context, subject strin
 			return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 		}
 	} else {
-		return nil, false, err
+		return nil, false, fmt.Errorf("Could not find skupper router in %q: %s", namespace, err)
 	}
 }
 
 func (cli *VanClient) VanConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
-	secret, localOnly, err := cli.VanConnectorTokenCreate(ctx, subject)
+	secret, localOnly, err := cli.VanConnectorTokenCreate(ctx, subject, "")
 	if err == nil {
 		//generate yaml and save it to the specified path
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
