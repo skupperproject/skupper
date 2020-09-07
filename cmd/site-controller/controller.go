@@ -27,7 +27,6 @@ type SiteController struct {
 	tokenInformer        cache.SharedIndexInformer
 	tokenRequestInformer cache.SharedIndexInformer
 	workqueue            workqueue.RateLimitingInterface
-	siteId               string
 }
 
 func NewSiteController(cli *client.VanClient) (*SiteController, error) {
@@ -214,8 +213,7 @@ func (c *SiteController) enqueueSecret(obj interface{}) {
 	c.enqueueTrigger(obj, Token)
 }
 
-func (c *SiteController) setSiteId(skupperSite *corev1.ConfigMap) {
-	c.siteId = string(skupperSite.ObjectMeta.UID)
+func (c *SiteController) checkAllForSite() {
 	// Now need to check whether there are any token requests already in place
 	log.Println("Checking tokens...")
 	c.checkAllTokens()
@@ -247,7 +245,7 @@ func (c *SiteController) checkSite(key string) error {
 			if wantEdgeMode != haveEdgeMode {
 				//TODO: enable van router update
 			}
-			c.setSiteId(configmap)
+			c.checkAllForSite()
 		} else if errors.IsNotFound(err) {
 			log.Println("Initialising skupper site ...")
 			siteConfig, _ := c.vanClient.VanSiteConfigInspect(context.Background(), configmap)
@@ -258,7 +256,7 @@ func (c *SiteController) checkSite(key string) error {
 				return err
 			} else {
 				log.Println("Skupper site initialised")
-				c.setSiteId(configmap)
+				c.checkAllForSite()
 			}
 		} else {
 			log.Println("Error inspecting VAN router: ", err)
@@ -269,6 +267,7 @@ func (c *SiteController) checkSite(key string) error {
 }
 
 func (c *SiteController) connect(token *corev1.Secret, namespace string) error {
+	log.Printf("Connecting site in %s using token %s", namespace, token.ObjectMeta.Name)
 	var options types.VanConnectorCreateOptions
 	options.Name = token.ObjectMeta.Name
 	options.SkupperNamespace = namespace
@@ -297,7 +296,10 @@ func (c *SiteController) generate(token *corev1.Secret) error {
 			token.ObjectMeta.Annotations[key] = value
 		}
 		token.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
-		token.ObjectMeta.Annotations[types.TokenGeneratedBy] = c.siteId
+		siteId := c.getSiteIdForNamespace(token.ObjectMeta.Namespace)
+		if siteId != "" {
+			token.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteId
+		}
 		_, err = c.vanClient.KubeClient.CoreV1().Secrets(token.ObjectMeta.Namespace).Update(token)
 		return err
 	} else {
@@ -317,7 +319,7 @@ func (c *SiteController) checkAllTokens() {
 			siteNamespace, _, err = cache.SplitMetaNamespaceKey(key)
 			if err == nil {
 				token := t.(*corev1.Secret)
-				if !c.isOwnToken(token) {
+				if c.isTokenValidInSite(token) {
 					err := c.connect(token, siteNamespace)
 					if err != nil {
 						log.Println("Error using connection-token secret: ", err)
@@ -345,58 +347,77 @@ func (c *SiteController) checkAllTokenRequests() {
 }
 
 func (c *SiteController) checkToken(key string) error {
-	if c.siteId != "" {
-		obj, exists, err := c.tokenInformer.GetStore().GetByKey(key)
-		if err != nil {
-			log.Println("Error checking connection-token secret: ", err)
-			return err
-		} else if exists {
-			siteNamespace, _, err := cache.SplitMetaNamespaceKey(key)
-			if err == nil {
-				token := obj.(*corev1.Secret)
-				if !c.isOwnToken(token) {
-					return c.connect(token, siteNamespace)
-				} else {
-					return nil
-				}
+	obj, exists, err := c.tokenInformer.GetStore().GetByKey(key)
+	if err != nil {
+		log.Println("Error checking connection-token secret: ", err)
+		return err
+	} else if exists {
+		siteNamespace, _, err := cache.SplitMetaNamespaceKey(key)
+		if err == nil {
+			token := obj.(*corev1.Secret)
+			if c.isTokenValidInSite(token) {
+				return c.connect(token, siteNamespace)
 			} else {
-				log.Println("Error getting namespace for token secret: ", err)
+				return nil
 			}
 		} else {
-			siteNamespace, secret, err := cache.SplitMetaNamespaceKey(key)
-			if err == nil {
-				return c.disconnect(secret, siteNamespace)
-			} else {
-				log.Println("Error getting secret name and namespace for token: ", err)
-			}
+			log.Println("Error getting namespace for token secret: ", err)
 		}
 	} else {
-		log.Println("Cannot handle token, as site not yet initialised")
+		siteNamespace, secret, err := cache.SplitMetaNamespaceKey(key)
+		if err == nil {
+			return c.disconnect(secret, siteNamespace)
+		} else {
+			log.Println("Error getting secret name and namespace for token: ", err)
+		}
 	}
 	return nil
 }
 
 func (c *SiteController) checkTokenRequest(key string) error {
-	if c.siteId != "" {
-		log.Printf("Handling token request for %s", key)
-		obj, exists, err := c.tokenRequestInformer.GetStore().GetByKey(key)
-		if err != nil {
-			log.Println("Error checking connection-token-request secret: ", err)
-			return err
-		} else if exists {
-			token := obj.(*corev1.Secret)
-			return c.generate(token)
+	log.Printf("Handling token request for %s", key)
+	obj, exists, err := c.tokenRequestInformer.GetStore().GetByKey(key)
+	if err != nil {
+		log.Println("Error checking connection-token-request secret: ", err)
+		return err
+	} else if exists {
+		token := obj.(*corev1.Secret)
+		if !c.isTokenRequestValidInSite(token) {
+			log.Println("Cannot handle token request, as site not yet initialised")
+			return nil
 		}
-	} else {
-		log.Println("Cannot handle token request, as site not yet initialised")
+		return c.generate(token)
 	}
 	return nil
 }
 
-func (c *SiteController) isOwnToken(token *corev1.Secret) bool {
-	if author, ok := token.ObjectMeta.Annotations[types.TokenGeneratedBy]; ok {
-		return author == c.siteId
+func (c *SiteController) getSiteIdForNamespace(namespace string) string {
+	cm, err := c.vanClient.KubeClient.CoreV1().ConfigMaps(namespace).Get("skupper-site", metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Printf("Could not obtain siteid for namespace %q, assuming not yet initialised", namespace)
+		} else {
+			log.Printf("Error checking siteid for namespace %q: %s", namespace, err)
+		}
+		return ""
+	}
+	return string(cm.ObjectMeta.UID)
+}
+
+func (c *SiteController) isTokenValidInSite(token *corev1.Secret) bool {
+	siteId := c.getSiteIdForNamespace(token.ObjectMeta.Namespace)
+	if author, ok := token.ObjectMeta.Annotations[types.TokenGeneratedBy]; ok && author == siteId {
+		//token was generated by this site so should not be applied
+		return false
 	} else {
+		return true
+	}
+}
+
+func (c *SiteController) isTokenRequestValidInSite(token *corev1.Secret) bool {
+	siteId := c.getSiteIdForNamespace(token.ObjectMeta.Namespace)
+	if siteId == "" {
 		return false
 	}
+	return true
 }
