@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -266,12 +267,29 @@ func (c *SiteController) checkSite(key string) error {
 	return nil
 }
 
+func getTokenCost(token *corev1.Secret) (int32, bool) {
+	if token.ObjectMeta.Annotations == nil {
+		return 0, false
+	}
+	if costString, ok := token.ObjectMeta.Annotations[types.TokenCost]; ok {
+		cost, err := strconv.Atoi(costString)
+		if err != nil {
+			log.Printf("Ignoring invalid cost annotation %q", costString)
+			return 0, false
+		}
+		return int32(cost), true
+	}
+	return 0, false
+}
+
 func (c *SiteController) connect(token *corev1.Secret, namespace string) error {
 	log.Printf("Connecting site in %s using token %s", namespace, token.ObjectMeta.Name)
 	var options types.VanConnectorCreateOptions
 	options.Name = token.ObjectMeta.Name
 	options.SkupperNamespace = namespace
-	//TODO: infer cost from token metadata?
+	if cost, ok := getTokenCost(token); ok {
+		options.Cost = cost
+	}
 	return c.vanClient.VanConnectorCreate(context.Background(), token, options)
 }
 
