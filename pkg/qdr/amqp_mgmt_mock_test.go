@@ -1,16 +1,15 @@
 package qdr
 
 import (
+	"flag"
 	"strings"
 	"testing"
-        "flag"
 
 	"crypto/tls"
 	"gotest.tools/assert"
 )
 
 var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
-
 
 func TestQDR(t *testing.T) {
 
