@@ -22,6 +22,7 @@ func runCommand(name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
 		return nil, err
@@ -75,10 +76,10 @@ func (cli *VanClient) writeConfigMap(name string, tw *tar.Writer) error {
 	return writeTar(name+"-configmap.yaml", b.Bytes(), time.Now(), tw)
 }
 
-func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version string) error {
+func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error {
 	configMaps := []string{"skupper-site", "skupper-services", "skupper-internal", "skupper-sasl-config"}
 	deployments := []string{"skupper-site-controller", "skupper-router", "skupper-service-controller"}
-	flags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
+	qdstatFlags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
 
 	tarFile, err := os.Create(tarName)
 	if err != nil {
@@ -91,13 +92,13 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
 
-	kv, err := runCommand("kubectl", "version", "--short")
+	kv, err := runCommand("kubectl", "version", "--short", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
 	if err == nil {
 		writeTar("k8s-versions.txt", kv, time.Now(), tw)
 	}
 
 	if cli.RouteClient != nil {
-		ocv, err := runCommand("oc", "version")
+		ocv, err := runCommand("oc", "version", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
 		if err == nil {
 			writeTar("oc-versions.txt", ocv, time.Now(), tw)
 		}
@@ -109,8 +110,8 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 		cversions = append(cversions, fmt.Sprintf("%-30s %s", "client version", version))
 		cversions = append(cversions, fmt.Sprintf("%-30s %s", "transport version", vir.TransportVersion))
 		cversions = append(cversions, fmt.Sprintf("%-30s %s\n", "controller version", vir.ControllerVersion))
+		writeTar("skupper-versions.txt", []byte(strings.Join(cversions, "\n")), time.Now(), tw)
 	}
-	writeTar("skupper-versions.txt", []byte(strings.Join(cversions, "\n")), time.Now(), tw)
 
 	for i := range deployments {
 		err := cli.writeDeployment(deployments[i], tw)
@@ -118,7 +119,9 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 			return err
 		}
 
-		podList, err := kube.GetDeploymentPods(deployments[i], cli.Namespace, cli.KubeClient)
+		component := kube.GetDeploymentLabel(deployments[i], "skupper.io/component", cli.Namespace, cli.KubeClient)
+
+		podList, err := kube.GetDeploymentPods(deployments[i], "skupper.io/component="+component, cli.Namespace, cli.KubeClient)
 		if errors.IsNotFound(err) {
 			continue
 		} else if err != nil {
@@ -128,10 +131,10 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 			for container := range pod.Spec.Containers {
 				if pod.Spec.Containers[container].Name == "router" {
 					// while we are here collect qdstats, logs will show these operations
-					for x := range flags {
-						qdr, err := kube.ExecCommandInContainer([]string{"qdstat", flags[x]}, pod.Name, "router", cli.Namespace, cli.KubeClient, cli.RestConfig)
+					for x := range qdstatFlags {
+						qdr, err := kube.ExecCommandInContainer([]string{"qdstat", qdstatFlags[x]}, pod.Name, "router", cli.Namespace, cli.KubeClient, cli.RestConfig)
 						if err == nil {
-							writeTar(pod.Name+"-qdstat"+flags[x]+".txt", qdr.Bytes(), time.Now(), tw)
+							writeTar(pod.Name+"-qdstat"+qdstatFlags[x]+".txt", qdr.Bytes(), time.Now(), tw)
 						} else {
 							continue
 

@@ -730,7 +730,7 @@ func init() {
 		Args:  requiredArg("save file"),
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
-			err := cli.SkupperDump(context.Background(), args[0], version)
+			err := cli.SkupperDump(context.Background(), args[0], version, kubeconfig, kubeContext)
 			if err != nil {
 				fmt.Println("Unable to save skupper details: ", err.Error())
 				os.Exit(1)
