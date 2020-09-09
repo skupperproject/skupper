@@ -172,8 +172,9 @@ func init() {
 	var cmdInit = &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
-		Long:  `init will setup a router and other supporting objects to provide a functional skupper installation that can then be connected to other skupper installations`,
-		Args:  cobra.NoArgs,
+		Long: `init will setup a router and other supporting objects to provide a functional skupper
+installation that can then be connected to other skupper installations`,
+		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := NewClient(namespace, kubeContext, kubeconfig)
 			//TODO: should cli allow init to diff ns?
