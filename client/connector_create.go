@@ -42,6 +42,17 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	return "conn" + strconv.Itoa(max)
 }
 
+func (cli *VanClient) isOwnToken(ctx context.Context, secret *corev1.Secret) (bool, error) {
+	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	if author, ok := secret.ObjectMeta.Annotations[types.TokenGeneratedBy]; ok {
+		return author == siteConfig.Reference.UID, nil
+	}
+	return false, nil
+}
+
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	secret, err := cli.ConnectorCreateSecretFromFile(ctx, secretFile, options)
 	if err != nil {
@@ -49,6 +60,17 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 	}
 	if options.Name == "" {
 		options.Name = secret.ObjectMeta.Name
+	}
+	ownToken, err := cli.isOwnToken(ctx, secret)
+	if err != nil {
+		return nil, fmt.Errorf("Can't check secret ownership: |%s|", err.Error())
+	}
+	if ownToken {
+		err := kube.DeleteSecret(options.Name, options.SkupperNamespace, cli.KubeClient)
+		if err != nil {
+			return nil, fmt.Errorf("Created connection to self with token |%s|! Error attempting to remove it: |%s|", secretFile, err.Error())
+		}
+		return nil, fmt.Errorf("Can't create connection to self with token |%s|", secretFile)
 	}
 
 	err = cli.ConnectorCreate(ctx, secret, options)
