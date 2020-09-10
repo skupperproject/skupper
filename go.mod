@@ -3,8 +3,12 @@ module github.com/skupperproject/skupper
 go 1.13
 
 require (
+	github.com/Azure/azure-sdk-for-go v46.0.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.10.0 // indirect
+	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
+	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1
+	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/google/go-cmp v0.4.0
 	github.com/gophercloud/gophercloud v0.8.0 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect

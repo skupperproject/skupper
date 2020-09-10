@@ -93,8 +93,8 @@ func main() {
 		log.Fatal("Error getting new controller", err.Error())
 	}
 
-	log.Println("Waiting for Skupper transport to start")
-	pods, err := kube.GetDeploymentPods(types.TransportDeploymentName, namespace, cli.KubeClient)
+	log.Println("Waiting for Skupper router component to start")
+	pods, err := kube.GetDeploymentPods(types.TransportDeploymentName, "skupper.io/component=router", namespace, cli.KubeClient)
 	if err != nil {
 		log.Fatal("Error getting transport deployment pods", err.Error())
 	}

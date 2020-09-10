@@ -15,9 +15,11 @@ limitations under the License.
 package kube
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -105,4 +107,26 @@ func WaitForPodStatus(namespace string, clientset kubernetes.Interface, podName 
 	})
 
 	return pod, err
+}
+
+func GetPodContainerLogs(podName string, containerName string, namespace string, clientset kubernetes.Interface) (string, error) {
+	podLogOpts := corev1.PodLogOptions{}
+	if containerName != "" {
+		podLogOpts.Container = containerName
+	}
+	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
+	podLogs, err := req.Stream()
+	if err != nil {
+		return "", err
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", err
+	}
+	str := buf.String()
+
+	return str, nil
 }
