@@ -59,7 +59,8 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	err = pub1Cluster.VanClient.RouterCreate(ctx, createOptsPublic)
 	assert.Assert(r.T, err)
 
-	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
+	const secretFile = "/tmp/public_basic_1_secret.yaml"
+	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
 	assert.Assert(r.T, err)
 
 	createOptsPrivate.Spec.SkupperNamespace = prv1Cluster.Namespace
@@ -71,7 +72,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 		Name:             "",
 		Cost:             0,
 	}
-	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
+	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
 	assert.Assert(r.T, err)
 }
 

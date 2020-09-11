@@ -8,11 +8,10 @@ import (
 const (
 	//until this issue: https://github.com/skupperproject/skupper/issues/163
 	//is fixed, this is the best we can do
-	SkupperServiceReadyPeriod              time.Duration = time.Minute
-	DefaultTick                                          = time.Second * 5
-	TestJobBackOffLimit                                  = 3
+	SkupperServiceReadyPeriod              time.Duration = 10 * time.Minute
+	DefaultTick                                          = 5 * time.Second
 	ImagePullingAndResourceCreationTimeout               = 10 * time.Minute
-	NamespaceDeleteTimeout                               = 1 * time.Minute
+	NamespaceDeleteTimeout                               = 2 * time.Minute
 )
 
 var (

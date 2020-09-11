@@ -70,10 +70,10 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	pub1Cluster := r.GetPublicContext(1)
 	prv1Cluster := r.GetPrivateContext(1)
 
-	_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err := k8s.WaitForServiceToBeAvailableDefaultTimeout(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "tcp-go-echo")
 	assert.Assert(r.T, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err = k8s.WaitForServiceToBeAvailableDefaultTimeout(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "tcp-go-echo")
 	assert.Assert(r.T, err)
 
 	jobName := "tcp-echo"
@@ -155,7 +155,8 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
 	assert.Assert(r.T, err)
 
-	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
+	const secretFile = "/tmp/public_tcp_echo_1_secret.yaml"
+	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
 	assert.Assert(r.T, err)
 
 	routerCreateOpts.Spec.SkupperNamespace = prv1Cluster.Namespace
@@ -166,7 +167,7 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		Name:             "",
 		Cost:             0,
 	}
-	prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
+	prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
 }
 
 func (r *TcpEchoClusterTestRunner) TearDown(ctx context.Context) {
