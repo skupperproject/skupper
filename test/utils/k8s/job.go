@@ -34,7 +34,6 @@ func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 			Namespace: namespace,
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: int32Ptr(3),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,

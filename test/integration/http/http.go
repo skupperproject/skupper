@@ -78,7 +78,7 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context) {
 	//for tcp_echo test, since in case of reducing test may fail
 	//intermitently
 	pubCluster1 := r.GetPublicContext(1)
-	_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
+	_, err := k8s.WaitForServiceToBeAvailableDefaultTimeout(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
 	assert.Assert(r.T, err)
 
 	jobName := "http"
@@ -144,7 +144,8 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 	routerCreateOpts.Spec.SkupperNamespace = pub1Cluster.Namespace
 	err = pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
-	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, "/tmp/public_secret.yaml")
+	const secretFile = "/tmp/public_http_1_secret.yaml"
+	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
 	assert.Assert(r.T, err)
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
@@ -152,7 +153,8 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 		Name:             "",
 		Cost:             0,
 	}
-	prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, "/tmp/public_secret.yaml", connectorCreateOpts)
+	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
+	assert.Assert(r.T, err)
 }
 
 func (r *HttpClusterTestRunner) TearDown(ctx context.Context) {
