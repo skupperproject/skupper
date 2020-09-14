@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -78,7 +79,7 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context) {
 	//for tcp_echo test, since in case of reducing test may fail
 	//intermitently
 	pubCluster1 := r.GetPublicContext(1)
-	_, err := k8s.WaitForServiceToBeAvailableDefaultTimeout(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
+	_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
 	assert.Assert(r.T, err)
 
 	jobName := "http"

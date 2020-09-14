@@ -2,15 +2,16 @@ package k8s
 
 import (
 	"fmt"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"gotest.tools/assert"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"os"
-	"testing"
-	"time"
 )
 
 func getTestImage() string {
@@ -34,6 +35,7 @@ func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 			Namespace: namespace,
 		},
 		Spec: batchv1.JobSpec{
+			BackoffLimit: int32Ptr(3),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,

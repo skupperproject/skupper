@@ -3,10 +3,11 @@ package tcp_echo
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
-	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
@@ -70,10 +71,10 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context) {
 	pub1Cluster := r.GetPublicContext(1)
 	prv1Cluster := r.GetPrivateContext(1)
 
-	_, err := k8s.WaitForServiceToBeAvailableDefaultTimeout(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "tcp-go-echo")
 	assert.Assert(r.T, err)
 
-	_, err = k8s.WaitForServiceToBeAvailableDefaultTimeout(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "tcp-go-echo")
 	assert.Assert(r.T, err)
 
 	jobName := "tcp-echo"
