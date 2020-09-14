@@ -24,7 +24,7 @@ build-site-controller:
 
 build-controllers: build-site-controller build-service-controller
 
-docker-build-test-image: build-tests
+docker-build-test-image:
 	${DOCKER} build -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
 docker-build: docker-build-test-image

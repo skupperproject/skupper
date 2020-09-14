@@ -73,11 +73,11 @@ func WaitForServiceToBeCreated(ns string, kubeClient kubernetes.Interface, name 
 }
 
 func WaitForServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Interface, serviceName string, serviceReadyPeriod time.Duration) (*apiv1.Service, error) {
-	time.Sleep(serviceReadyPeriod)
 	service, err := WaitForServiceToBeCreated(ns, kubeClient, serviceName, nil, constants.DefaultRetry)
 	if err != nil {
 		return nil, err
 	}
+	time.Sleep(serviceReadyPeriod)
 	return service, nil
 }
 
