@@ -2,6 +2,8 @@ package k8s
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/test/utils/constants"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,7 +12,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
-	"time"
 )
 
 func WaitForServiceToBeAvailableDefaultTimeout(ns string, kubeClient kubernetes.Interface, name string) (service *apiv1.Service, err error) {
@@ -82,5 +83,5 @@ func WaitForServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Int
 }
 
 func WaitForSkupperServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Interface, serviceName string) (*apiv1.Service, error) {
-	return WaitForServiceToBeCreatedAndReadyToUse(ns, kubeClient, serviceName, constants.SkupperServiceReadyPeriod)
+	return WaitForServiceToBeCreatedAndReadyToUse(ns, kubeClient, serviceName, time.Minute)
 }
