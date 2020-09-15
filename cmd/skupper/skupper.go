@@ -744,10 +744,27 @@ installation that can then be connected to other skupper installations`,
 	}
 	cmdDebug.AddCommand(cmdDebugDump)
 
+	completionLong := `
+Output shell completion code for bash.
+The shell code must be evaluated to provide interactive
+completion of skupper commands.  This can be done by sourcing it from
+the .bash_profile. i.e.: $ source <(skupper completion)
+`
+	var cmdCompletion = &cobra.Command{
+		Use:   "completion",
+		Short: "Output shell completion code for bash",
+		Long:  completionLong,
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			rootCmd.GenBashCompletion(os.Stdout)
+
+		},
+	}
+
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
 	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
-		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug)
+		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug, cmdCompletion)
 	rootCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
