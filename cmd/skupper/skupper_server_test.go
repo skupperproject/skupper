@@ -3,14 +3,16 @@ package main
 import (
 	"bytes"
 	"context"
-	//	"fmt"
-	//	"io/ioutil"
-	//	"os/exec"
 	"strings"
 	"testing"
 
+	"k8s.io/client-go/kubernetes/fake"
+
 	"github.com/spf13/cobra"
-	//	"gotest.tools/assert"
+	"gotest.tools/assert"
+
+	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 func executeCommand(cmd *cobra.Command, args ...string) (output string, err error) {
@@ -34,7 +36,8 @@ func checkStringOmits(t *testing.T, got, expected string) {
 		t.Errorf("Expected to not contain: \n %v\nGot: %v", expected, got)
 	}
 }
-func TestUnexposeCommandWithServer(t *testing.T) {
+
+func TestUnexposeCommandWithCluster(t *testing.T) {
 	testcases := []struct {
 		args        []string
 		flags       []string
@@ -87,12 +90,26 @@ func TestUnexposeCommandWithServer(t *testing.T) {
 		},
 	}
 
-        if !*serverRun {
-	    t.Skip("skipping test in non-server mode")
+	var cli *client.VanClient
+	ns := "cmd-unexpose-cluster-test"
+
+	if *clusterRun {
+		cli = NewClient(ns, "", "")
+	} else {
+		cli = &client.VanClient{
+			Namespace:  ns,
+			KubeClient: fake.NewSimpleClientset(),
+		}
 	}
 
-	ns := "skupper"
-	cli := NewClient(ns, "", "")
+	_, err := kube.NewNamespace(ns, cli.KubeClient)
+	assert.Check(t, err)
+	defer kube.DeleteNamespace(ns, cli.KubeClient)
+
+	// test case assumes skupper init'ed
+	initCmd := NewCmdInit(cli)
+	_, err = executeCommand(initCmd, []string{"--edge"}...)
+	assert.Assert(t, err)
 
 	for _, tc := range testcases {
 		cmd := NewCmdUnexpose(cli)

@@ -1,7 +1,7 @@
 package main
 
 import (
-        "flag"
+	"flag"
 	"os"
 	"testing"
 
@@ -93,10 +93,10 @@ func Test_exposeTargetArgs(t *testing.T) {
 	}
 }
 
-
-var serverRun = flag.Bool("use-server", false, "run tests against a configured server")
+var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
 	os.Exit(m.Run())
 }
+
