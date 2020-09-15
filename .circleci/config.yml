@@ -83,7 +83,8 @@ commands:
       - run:
           name: Run Integration Tests
           no_output_timeout: 30m
-          command: go test -tags=integration -timeout=30m -v ./test/integration/...
+          command: |
+            go test -tags=integration -v -p 1 ./test/integration/...
       - run:
           name: Run client tests in real cluster
           command: go test -v -count=1 ./client -use-cluster
