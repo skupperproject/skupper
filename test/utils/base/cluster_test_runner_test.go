@@ -1,17 +1,17 @@
 package base
 
 import (
+	"testing"
+
 	"github.com/skupperproject/skupper/client"
 	"gotest.tools/assert"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 func TestBuild(t *testing.T) {
-	var runner ClusterTestRunner
-	runner = &ClusterTestRunnerBase{}
+	runner := &ClusterTestRunnerBase{}
 	// only set this to true when running unit test
-	runner.(*ClusterTestRunnerBase).unitTestMock = true
+	runner.unitTestMock = true
 
 	tcs := []struct {
 		name             string
@@ -29,7 +29,7 @@ func TestBuild(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			setUnitTestFlags(tc.public, tc.private)
-			contexts := runner.Build(t, ClusterNeeds{
+			contexts := runner.BuildOrSkip(t, ClusterNeeds{
 				NamespaceId:     "unit-test",
 				PublicClusters:  tc.publicNeeded,
 				PrivateClusters: tc.privateNeeded,

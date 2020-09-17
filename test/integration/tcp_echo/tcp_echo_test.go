@@ -5,24 +5,23 @@ package tcp_echo
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/test/utils/base"
-	"github.com/skupperproject/skupper/test/utils/k8s"
 	"log"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/k8s"
 
 	"gotest.tools/assert"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
-var (
-	testRunner = &TcpEchoClusterTestRunner{}
-)
-
 func TestMain(m *testing.M) {
-	testRunner.Initialize(m)
+	base.ParseFlags()
+	os.Exit(m.Run())
 }
 
 func TestTcpEcho(t *testing.T) {
@@ -32,7 +31,8 @@ func TestTcpEcho(t *testing.T) {
 		PublicClusters:  1,
 		PrivateClusters: 1,
 	}
-	testRunner.Build(t, needs, nil)
+	testRunner := &TcpEchoClusterTestRunner{}
+	testRunner.BuildOrSkip(t, needs, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	base.HandleInterruptSignal(testRunner.T, func(t *testing.T) {
 		testRunner.TearDown(ctx)
