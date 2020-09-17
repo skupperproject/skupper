@@ -4,22 +4,21 @@ package http
 
 import (
 	"context"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
-	"testing"
-	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	vegeta "github.com/tsenart/vegeta/v12/lib"
 )
 
-var (
-	testRunner = &HttpClusterTestRunner{}
-)
-
 func TestMain(m *testing.M) {
-	testRunner.Initialize(m)
+	base.ParseFlags()
+	os.Exit(m.Run())
 }
 
 func TestHttp(t *testing.T) {
@@ -28,7 +27,8 @@ func TestHttp(t *testing.T) {
 		PublicClusters:  1,
 		PrivateClusters: 1,
 	}
-	testRunner.Build(t, needs, nil)
+	testRunner := &HttpClusterTestRunner{}
+	testRunner.BuildOrSkip(t, needs, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	base.HandleInterruptSignal(testRunner.T, func(t *testing.T) {
 		testRunner.TearDown(ctx)

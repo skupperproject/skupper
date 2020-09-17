@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"testing"
 )
 
 // TestFlags holds the common command line arguments
@@ -42,10 +41,11 @@ func (k *kubeConfigs) Set(file string) error {
 }
 
 var (
-	TestFlags testFlags
+	TestFlags   testFlags
+	FlagsParsed bool = false
 )
 
-func ParseFlags(m *testing.M) {
+func ParseFlags() {
 	// Registering flags to be parsed
 	flag.Var(&TestFlags.KubeConfigs, "kubeconfig", "KUBECONFIG files to be used. You can provide the --kubeconfig flag multiple times.")
 	flag.Var(&TestFlags.EdgeKubeConfigs, "edgekubeconfig", "Edge KUBECONFIG files to be used (other sites cannot connect to this cluster). You can provide the --edgekubeconfig flag multiple times.")

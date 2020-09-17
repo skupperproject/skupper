@@ -4,16 +4,15 @@ package basic
 
 import (
 	"context"
-	"github.com/skupperproject/skupper/test/utils/base"
+	"os"
 	"testing"
-)
 
-var (
-	testRunner BasicTestRunner
+	"github.com/skupperproject/skupper/test/utils/base"
 )
 
 func TestMain(m *testing.M) {
-	testRunner.Initialize(m)
+	base.ParseFlags()
+	os.Exit(m.Run())
 }
 
 func TestBasic(t *testing.T) {
@@ -22,7 +21,8 @@ func TestBasic(t *testing.T) {
 		PublicClusters:  1,
 		PrivateClusters: 1,
 	}
-	testRunner.Build(t, needs, nil)
+	testRunner := &BasicTestRunner{}
+	testRunner.BuildOrSkip(t, needs, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	base.HandleInterruptSignal(testRunner.T, func(t *testing.T) {
 		testRunner.TearDown(ctx)

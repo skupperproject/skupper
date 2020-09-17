@@ -2,10 +2,10 @@ package base
 
 import (
 	"fmt"
+	"testing"
+
 	vanClient "github.com/skupperproject/skupper/client"
 	"gotest.tools/assert"
-	"os"
-	"testing"
 )
 
 // ClusterNeeds enable customization of expected number of
@@ -26,10 +26,8 @@ type VanClientProvider func(namespace string, context string, kubeConfigPath str
 // ClusterTestRunner defines a common interface to initialize and prepare
 // tests for running against an external cluster
 type ClusterTestRunner interface {
-	// Initialize parses flags
-	Initialize(m *testing.M)
 	// Initialize ClusterContexts
-	Build(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext
+	BuildOrSkip(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext
 	// Return a specific public context
 	GetPublicContext(id int) *ClusterContext
 	// Return a specific private context
@@ -47,15 +45,7 @@ type ClusterTestRunnerBase struct {
 	unitTestMock      bool
 }
 
-// Initialize parses the command line arguments
-func (c *ClusterTestRunnerBase) Initialize(m *testing.M) {
-	// Parsing flags
-	ParseFlags(m)
-	// Running tests
-	os.Exit(m.Run())
-}
-
-func (c *ClusterTestRunnerBase) Build(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext {
+func (c *ClusterTestRunnerBase) BuildOrSkip(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext {
 
 	// Initializing internal properties
 	c.T = t
