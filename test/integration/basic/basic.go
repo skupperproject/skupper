@@ -3,9 +3,12 @@ package basic
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
+	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
-	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
@@ -15,24 +18,28 @@ type BasicTestRunner struct {
 	base.ClusterTestRunnerBase
 }
 
-func (r *BasicTestRunner) RunTests(ctx context.Context) {
+func (r *BasicTestRunner) RunTests(ctx context.Context, t *testing.T) {
 
-	pubCluster := r.GetPublicContext(1)
-	prvCluster := r.GetPrivateContext(1)
+	pubCluster, err := r.GetPublicContext(1)
+	assert.Assert(t, err)
+
+	prvCluster, err := r.GetPrivateContext(1)
+	assert.Assert(t, err)
+
 	tick := time.Tick(constants.DefaultTick)
 	timeout := time.After(constants.ImagePullingAndResourceCreationTimeout)
 	wait_for_conn := func(cc *base.ClusterContext) {
 		for {
 			select {
 			case <-ctx.Done():
-				r.T.Logf("context has been canceled")
-				r.T.FailNow()
+				t.Logf("context has been canceled")
+				t.FailNow()
 			case <-timeout:
-				assert.Assert(r.T, false, "Timeout waiting for connection")
+				assert.Assert(t, false, "Timeout waiting for connection")
 			case <-tick:
 				vir, err := cc.VanClient.RouterInspect(ctx)
 				if err == nil && vir.Status.ConnectedSites.Total == 1 {
-					r.T.Logf("Van sites connected!\n")
+					t.Logf("Van sites connected!\n")
 					return
 				} else {
 					fmt.Printf("Connection not ready yet, current pods state: \n")
@@ -45,27 +52,31 @@ func (r *BasicTestRunner) RunTests(ctx context.Context) {
 	wait_for_conn(prvCluster)
 }
 
-func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.SiteConfig, createOptsPrivate types.SiteConfig) {
+func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.SiteConfig, createOptsPrivate types.SiteConfig, t *testing.T) {
 	var err error
-	pub1Cluster := r.GetPublicContext(1)
-	prv1Cluster := r.GetPrivateContext(1)
+	pub1Cluster, err := r.GetPublicContext(1)
+	assert.Assert(t, err)
+
+	prv1Cluster, err := r.GetPrivateContext(1)
+	assert.Assert(t, err)
+
 	err = pub1Cluster.CreateNamespace()
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	err = prv1Cluster.CreateNamespace()
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	createOptsPublic.Spec.SkupperNamespace = pub1Cluster.Namespace
 	err = pub1Cluster.VanClient.RouterCreate(ctx, createOptsPublic)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	const secretFile = "/tmp/public_basic_1_secret.yaml"
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	createOptsPrivate.Spec.SkupperNamespace = prv1Cluster.Namespace
 	err = prv1Cluster.VanClient.RouterCreate(ctx, createOptsPrivate)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
 		SkupperNamespace: prv1Cluster.Namespace,
@@ -73,15 +84,27 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 		Cost:             0,
 	}
 	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 }
 
 func (r *BasicTestRunner) TearDown(ctx context.Context) {
-	r.GetPublicContext(1).DeleteNamespace()
-	r.GetPrivateContext(1).DeleteNamespace()
+	errMsg := "Something failed! aborting teardown"
+
+	pub, err := r.GetPublicContext(1)
+	if err != nil {
+		log.Warn(errMsg)
+	}
+
+	priv, err := r.GetPrivateContext(1)
+	if err != nil {
+		log.Warn(errMsg)
+	}
+
+	pub.DeleteNamespace()
+	priv.DeleteNamespace()
 }
 
-func (r *BasicTestRunner) Run(ctx context.Context) {
+func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 	testcases := []struct {
 		doc               string
 		createOptsPublic  types.SiteConfig
@@ -185,9 +208,9 @@ func (r *BasicTestRunner) Run(ctx context.Context) {
 	defer r.TearDown(ctx)
 
 	for _, c := range testcases {
-		r.T.Logf("Testing: %s\n", c.doc)
-		r.Setup(ctx, c.createOptsPublic, c.createOptsPrivate)
-		r.RunTests(ctx)
+		t.Logf("Testing: %s\n", c.doc)
+		r.Setup(ctx, c.createOptsPublic, c.createOptsPrivate, t)
+		r.RunTests(ctx, t)
 		r.TearDown(ctx)
 	}
 }

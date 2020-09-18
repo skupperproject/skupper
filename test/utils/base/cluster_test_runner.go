@@ -38,7 +38,6 @@ type ClusterTestRunner interface {
 
 // ClusterTestRunnerBase is a base implementation of ClusterTestRunner
 type ClusterTestRunnerBase struct {
-	T                 *testing.T
 	Needs             ClusterNeeds
 	ClusterContexts   []*ClusterContext
 	vanClientProvider VanClientProvider
@@ -48,7 +47,6 @@ type ClusterTestRunnerBase struct {
 func (c *ClusterTestRunnerBase) BuildOrSkip(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext {
 
 	// Initializing internal properties
-	c.T = t
 	c.vanClientProvider = vanClientProvider
 	c.ClusterContexts = []*ClusterContext{}
 
@@ -84,24 +82,24 @@ func (c *ClusterTestRunnerBase) BuildOrSkip(t *testing.T, needs ClusterNeeds, va
 	return c.ClusterContexts
 }
 
-func (c *ClusterTestRunnerBase) GetPublicContext(id int) *ClusterContext {
+func (c *ClusterTestRunnerBase) GetPublicContext(id int) (*ClusterContext, error) {
 	return c.GetContext(false, id)
 }
 
-func (c *ClusterTestRunnerBase) GetPrivateContext(id int) *ClusterContext {
+func (c *ClusterTestRunnerBase) GetPrivateContext(id int) (*ClusterContext, error) {
 	return c.GetContext(true, id)
 }
 
-func (c *ClusterTestRunnerBase) GetContext(private bool, id int) *ClusterContext {
+func (c *ClusterTestRunnerBase) GetContext(private bool, id int) (*ClusterContext, error) {
 	if len(c.ClusterContexts) > 0 {
 		for _, cc := range c.ClusterContexts {
 			if cc.Private == private && cc.Id == id {
-				return cc
+				return cc, nil
 			}
 		}
+		return nil, fmt.Errorf("ClusterContext not found")
 	}
-	c.T.Logf("requested context does not exist - id: %d - private: %v", id, private)
-	return nil
+	return nil, fmt.Errorf("ClusterContexts list is empty!")
 }
 
 func (c *ClusterTestRunnerBase) createClusterContexts(t *testing.T, needs ClusterNeeds) {

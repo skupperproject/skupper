@@ -24,9 +24,9 @@ func TestBasic(t *testing.T) {
 	testRunner := &BasicTestRunner{}
 	testRunner.BuildOrSkip(t, needs, nil)
 	ctx, cancel := context.WithCancel(context.Background())
-	base.HandleInterruptSignal(testRunner.T, func(t *testing.T) {
+	base.HandleInterruptSignal(t, func(t *testing.T) {
 		testRunner.TearDown(ctx)
 		cancel()
 	})
-	testRunner.Run(ctx)
+	testRunner.Run(ctx, t)
 }

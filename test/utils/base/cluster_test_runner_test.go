@@ -43,3 +43,50 @@ func TestBuild(t *testing.T) {
 		})
 	}
 }
+
+func TestGetContext(t *testing.T) {
+	notFoundError := "ClusterContext not found"
+	c := &ClusterTestRunnerBase{}
+	ccPublic := ClusterContext{
+		Private: false,
+		Id:      22,
+	}
+	ccPrivate := ClusterContext{
+		Private: true,
+		Id:      22,
+	}
+
+	cc, err := c.GetContext(true, 1)
+	assert.Error(t, err, "ClusterContexts list is empty!")
+	assert.Assert(t, cc == nil)
+
+	c.ClusterContexts = []*ClusterContext{&ccPublic}
+
+	cc, err = c.GetContext(true, 1)
+	assert.Error(t, err, notFoundError)
+
+	cc, err = c.GetContext(false, 1)
+	assert.Error(t, err, notFoundError)
+
+	cc, err = c.GetContext(true, 22)
+	assert.Error(t, err, notFoundError)
+
+	cc, err = c.GetContext(false, 22)
+	assert.Assert(t, err)
+	assert.Assert(t, &ccPublic == cc)
+
+	c.ClusterContexts = []*ClusterContext{&ccPrivate}
+
+	cc, err = c.GetContext(true, 1)
+	assert.Error(t, err, notFoundError)
+
+	cc, err = c.GetContext(false, 1)
+	assert.Error(t, err, notFoundError)
+
+	cc, err = c.GetContext(false, 22)
+	assert.Error(t, err, notFoundError)
+
+	cc, err = c.GetContext(true, 22)
+	assert.Assert(t, err)
+	assert.Assert(t, &ccPrivate == cc)
+}
