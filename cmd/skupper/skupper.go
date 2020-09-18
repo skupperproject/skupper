@@ -154,6 +154,11 @@ func check(err error) bool {
 	}
 }
 
+func silenceCobra(cmd *cobra.Command) {
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+}
+
 func NewClient(namespace string, context string, kubeConfigPath string) *client.VanClient {
 	cli, err := client.NewClient(namespace, context, kubeConfigPath)
 	if err != nil {
@@ -165,15 +170,17 @@ func NewClient(namespace string, context string, kubeConfigPath string) *client.
 
 var routerCreateOpts types.SiteConfigSpec
 
-func NewCmdInit(cli types.VanClientInterface) *cobra.Command {
+func NewCmdInit(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
 		Long: `Setup a router and other supporting objects to provide a functional skupper
 installation that can then be connected to other skupper installations`,
-		Args: cobra.NoArgs,
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			//TODO: should cli allow init to diff ns?
+			silenceCobra(cmd)
 			ns := cli.GetNamespace()
 			routerCreateOpts.SkupperNamespace = ns
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
@@ -206,13 +213,15 @@ installation that can then be connected to other skupper installations`,
 	return cmd
 }
 
-func NewCmdDelete(cli types.VanClientInterface) *cobra.Command {
+func NewCmdDelete(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete skupper installation",
-		Long:  `delete will delete any skupper related objects from the namespace`,
-		Args:  cobra.NoArgs,
+		Use:    "delete",
+		Short:  "Delete skupper installation",
+		Long:   `delete will delete any skupper related objects from the namespace`,
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			err := cli.SiteConfigRemove(context.Background())
 			if err != nil {
 				err = cli.RouterRemove(context.Background())
@@ -230,12 +239,14 @@ func NewCmdDelete(cli types.VanClientInterface) *cobra.Command {
 
 var clientIdentity string
 
-func NewCmdConnectionToken(cli types.VanClientInterface) *cobra.Command {
+func NewCmdConnectionToken(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "connection-token <output-file>",
-		Short: "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
-		Args:  requiredArg("output-file"),
+		Use:    "connection-token <output-file>",
+		Short:  "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
+		Args:   requiredArg("output-file"),
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			err := cli.ConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
 			if err != nil {
 				return fmt.Errorf("Failed to create connection token: %w", err)
@@ -250,12 +261,14 @@ func NewCmdConnectionToken(cli types.VanClientInterface) *cobra.Command {
 
 var connectorCreateOpts types.ConnectorCreateOptions
 
-func NewCmdConnect(cli types.VanClientInterface) *cobra.Command {
+func NewCmdConnect(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "connect <connection-token-file>",
-		Short: "Connect this skupper installation to that which issued the specified connectionToken",
-		Args:  requiredArg("connection-token"),
+		Use:    "connect <connection-token-file>",
+		Short:  "Connect this skupper installation to that which issued the specified connectionToken",
+		Args:   requiredArg("connection-token"),
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 			if err != nil {
 				fmt.Println("Unable to retrieve site config: ", err.Error())
@@ -308,12 +321,14 @@ func NewCmdConnect(cli types.VanClientInterface) *cobra.Command {
 
 var connectorRemoveOpts types.ConnectorRemoveOptions
 
-func NewCmdDisconnect(cli types.VanClientInterface) *cobra.Command {
+func NewCmdDisconnect(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "disconnect <name>",
-		Short: "Remove specified connection",
-		Args:  requiredArg("connection name"),
+		Use:    "disconnect <name>",
+		Short:  "Remove specified connection",
+		Args:   requiredArg("connection name"),
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			connectorRemoveOpts.Name = args[0]
 			connectorRemoveOpts.SkupperNamespace = cli.GetNamespace()
 			connectorRemoveOpts.ForceCurrent = false
@@ -330,12 +345,14 @@ func NewCmdDisconnect(cli types.VanClientInterface) *cobra.Command {
 	return cmd
 }
 
-func NewCmdListConnectors(cli types.VanClientInterface) *cobra.Command {
+func NewCmdListConnectors(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list-connectors",
-		Short: "List configured outgoing connections",
-		Args:  cobra.NoArgs,
+		Use:    "list-connectors",
+		Short:  "List configured outgoing connections",
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			connectors, err := cli.ConnectorList(context.Background())
 			if err == nil {
 				if len(connectors) == 0 {
@@ -360,12 +377,15 @@ func NewCmdListConnectors(cli types.VanClientInterface) *cobra.Command {
 
 var waitFor int
 
-func NewCmdCheckConnection(cli types.VanClientInterface) *cobra.Command {
+func NewCmdCheckConnection(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "check-connection all|<connection-name>",
-		Short: "Check whether a connection to another Skupper site is active",
-		Args:  requiredArg("connection name"),
+		Use:    "check-connection all|<connection-name>",
+		Short:  "Check whether a connection to another Skupper site is active",
+		Args:   requiredArg("connection name"),
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
 			var connectors []*types.ConnectorInspectResponse
 			connected := 0
 
@@ -422,12 +442,14 @@ func NewCmdCheckConnection(cli types.VanClientInterface) *cobra.Command {
 
 }
 
-func NewCmdStatus(cli types.VanClientInterface) *cobra.Command {
+func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Report the status of the current Skupper site",
-		Args:  cobra.NoArgs,
+		Use:    "status",
+		Short:  "Report the status of the current Skupper site",
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			vir, err := cli.RouterInspect(context.Background())
 			if err == nil {
 				ns := cli.GetNamespace()
@@ -487,12 +509,14 @@ func NewCmdStatus(cli types.VanClientInterface) *cobra.Command {
 
 var exposeOpts ExposeOptions
 
-func NewCmdExpose(cli types.VanClientInterface) *cobra.Command {
+func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
-		Short: "Expose a set of pods through a Skupper address",
-		Args:  exposeTargetArgs,
+		Use:    "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
+		Short:  "Expose a set of pods through a Skupper address",
+		Args:   exposeTargetArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			targetType := args[0]
 			var targetName string
 			if len(args) == 2 {
@@ -534,12 +558,14 @@ func NewCmdExpose(cli types.VanClientInterface) *cobra.Command {
 
 var unexposeAddress string
 
-func NewCmdUnexpose(cli types.VanClientInterface) *cobra.Command {
+func NewCmdUnexpose(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
-		Short: "Unexpose a set of pods previously exposed through a Skupper address",
-		Args:  exposeTargetArgs,
+		Use:    "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
+		Short:  "Unexpose a set of pods previously exposed through a Skupper address",
+		Args:   exposeTargetArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			targetType := args[0]
 			var targetName string
 			if len(args) == 2 {
@@ -563,12 +589,14 @@ func NewCmdUnexpose(cli types.VanClientInterface) *cobra.Command {
 	return cmd
 }
 
-func NewCmdListExposed(cli types.VanClientInterface) *cobra.Command {
+func NewCmdListExposed(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list-exposed",
-		Short: "List services exposed over the Skupper network",
-		Args:  cobra.NoArgs,
+		Use:    "list-exposed",
+		Short:  "List services exposed over the Skupper network",
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			vsis, err := cli.ServiceInterfaceList(context.Background())
 			if err == nil {
 				if len(vsis) == 0 {
@@ -619,12 +647,14 @@ func NewCmdService() *cobra.Command {
 
 var serviceToCreate types.ServiceInterface
 
-func NewCmdCreateService(cli types.VanClientInterface) *cobra.Command {
+func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create <name> <port>",
-		Short: "Create a skupper service",
-		Args:  createServiceArgs,
+		Use:    "create <name> <port>",
+		Short:  "Create a skupper service",
+		Args:   createServiceArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			var sPort string
 			if len(args) == 1 {
 				parts := strings.Split(args[0], ":")
@@ -654,12 +684,14 @@ func NewCmdCreateService(cli types.VanClientInterface) *cobra.Command {
 	return cmd
 }
 
-func NewCmdDeleteService(cli types.VanClientInterface) *cobra.Command {
+func NewCmdDeleteService(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <name>",
-		Short: "Delete a skupper service",
-		Args:  requiredArg("service-name"),
+		Use:    "delete <name>",
+		Short:  "Delete a skupper service",
+		Args:   requiredArg("service-name"),
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			err := cli.ServiceInterfaceRemove(context.Background(), args[0])
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -673,12 +705,14 @@ func NewCmdDeleteService(cli types.VanClientInterface) *cobra.Command {
 var targetPort int
 var protocol string
 
-func NewCmdBind(cli types.VanClientInterface) *cobra.Command {
+func NewCmdBind(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "bind <service-name> <target-type> <target-name>",
-		Short: "Bind a target to a service",
-		Args:  bindArgs,
+		Use:    "bind <service-name> <target-type> <target-name>",
+		Short:  "Bind a target to a service",
+		Args:   bindArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
 				return fmt.Errorf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
 			} else {
@@ -713,12 +747,14 @@ func NewCmdBind(cli types.VanClientInterface) *cobra.Command {
 	return cmd
 }
 
-func NewCmdUnbind(cli types.VanClientInterface) *cobra.Command {
+func NewCmdUnbind(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "unbind <service-name> <target-type> <target-name>",
-		Short: "Unbind a target from a service",
-		Args:  bindArgs,
+		Use:    "unbind <service-name> <target-type> <target-name>",
+		Short:  "Unbind a target from a service",
+		Args:   bindArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			var targetType string
 			var targetName string
 			if len(args) == 2 {
@@ -739,13 +775,15 @@ func NewCmdUnbind(cli types.VanClientInterface) *cobra.Command {
 	return cmd
 }
 
-func NewCmdVersion(cli types.VanClientInterface) *cobra.Command {
+func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 	// TODO: change to inspect
 	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "Report the version of the Skupper CLI and services",
-		Args:  cobra.NoArgs,
+		Use:    "version",
+		Short:  "Report the version of the Skupper CLI and services",
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
 			vir, err := cli.RouterInspect(context.Background())
 			fmt.Printf("%-30s %s\n", "client version", version)
 			if err == nil {
@@ -768,13 +806,15 @@ func NewCmdDebug() *cobra.Command {
 	return cmd
 }
 
-func NewCmdDebugDump(cli types.VanClientInterface) *cobra.Command {
+func NewCmdDebugDump(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dump <filename>",
-		Short: "Collect and save skupper logs, config, etc.",
-		Args:  requiredArg("save file"),
+		Use:    "dump <filename>",
+		Short:  "Collect and save skupper logs, config, etc.",
+		Args:   requiredArg("save file"),
+		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cli.SkupperDump(context.Background(), args[0], version, kubeconfig, kubeContext)
+			silenceCobra(cmd)
+			err := cli.SkupperDump(context.Background(), args[0], version, kubeConfigPath, kubeContext)
 			if err != nil {
 				return fmt.Errorf("Unable to save skupper details: %w", err)
 			}
@@ -784,49 +824,15 @@ func NewCmdDebugDump(cli types.VanClientInterface) *cobra.Command {
 	return cmd
 }
 
-var kubeContext string
-var namespace string
-var kubeconfig string
-var rootCmd *cobra.Command
-
-func init() {
-	routev1.AddToScheme(scheme.Scheme)
-
-	cli := NewClient(namespace, kubeContext, kubeconfig)
-
-	cmdInit := NewCmdInit(cli)
-	cmdDelete := NewCmdDelete(cli)
-	cmdConnectionToken := NewCmdConnectionToken(cli)
-	cmdConnect := NewCmdConnect(cli)
-	cmdDisconnect := NewCmdDisconnect(cli)
-	cmdListConnectors := NewCmdListConnectors(cli)
-	cmdCheckConnection := NewCmdCheckConnection(cli)
-	cmdStatus := NewCmdStatus(cli)
-	cmdExpose := NewCmdExpose(cli)
-	cmdUnexpose := NewCmdUnexpose(cli)
-	cmdListExposed := NewCmdListExposed(cli)
-	cmdCreateService := NewCmdCreateService(cli)
-	cmdDeleteService := NewCmdDeleteService(cli)
-	cmdBind := NewCmdBind(cli)
-	cmdUnbind := NewCmdUnbind(cli)
-	cmdVersion := NewCmdVersion(cli)
-	cmdDebugDump := NewCmdDebugDump(cli)
-
-	// setup subcommands
-	cmdService := NewCmdService()
-	cmdService.AddCommand(cmdCreateService)
-	cmdService.AddCommand(cmdDeleteService)
-
-	cmdDebug := NewCmdDebug()
-	cmdDebug.AddCommand(cmdDebugDump)
-
+func NewCmdCompletion() *cobra.Command {
 	completionLong := `
 Output shell completion code for bash.
 The shell code must be evaluated to provide interactive
 completion of skupper commands.  This can be done by sourcing it from
 the .bash_profile. i.e.: $ source <(skupper completion)
 `
-	var cmdCompletion = &cobra.Command{
+
+	cmd := &cobra.Command{
 		Use:   "completion",
 		Short: "Output shell completion code for bash",
 		Long:  completionLong,
@@ -836,20 +842,63 @@ the .bash_profile. i.e.: $ source <(skupper completion)
 
 		},
 	}
+        return cmd
+}
+
+type cobraFunc func(cmd *cobra.Command, args []string)
+
+func newClient(cmd *cobra.Command, args []string) {
+	cli = NewClient(namespace, kubeContext, kubeConfigPath)
+}
+
+var kubeContext string
+var namespace string
+var kubeConfigPath string
+var rootCmd *cobra.Command
+var cli types.VanClientInterface
+
+func init() {
+	routev1.AddToScheme(scheme.Scheme)
+
+	cmdInit := NewCmdInit(newClient)
+	cmdDelete := NewCmdDelete(newClient)
+	cmdConnectionToken := NewCmdConnectionToken(newClient)
+	cmdConnect := NewCmdConnect(newClient)
+	cmdDisconnect := NewCmdDisconnect(newClient)
+	cmdListConnectors := NewCmdListConnectors(newClient)
+	cmdCheckConnection := NewCmdCheckConnection(newClient)
+	cmdStatus := NewCmdStatus(newClient)
+	cmdExpose := NewCmdExpose(newClient)
+	cmdUnexpose := NewCmdUnexpose(newClient)
+	cmdListExposed := NewCmdListExposed(newClient)
+	cmdCreateService := NewCmdCreateService(newClient)
+	cmdDeleteService := NewCmdDeleteService(newClient)
+	cmdBind := NewCmdBind(newClient)
+	cmdUnbind := NewCmdUnbind(newClient)
+	cmdVersion := NewCmdVersion(newClient)
+	cmdDebugDump := NewCmdDebugDump(newClient)
+
+	// setup subcommands
+	cmdService := NewCmdService()
+	cmdService.AddCommand(cmdCreateService)
+	cmdService.AddCommand(cmdDeleteService)
+
+	cmdDebug := NewCmdDebug()
+	cmdDebug.AddCommand(cmdDebugDump)
+
+        cmdCompletion := NewCmdCompletion()
 
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
 	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
 		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug, cmdCompletion)
-	rootCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "", "", "Path to the kubeconfig file to use")
+	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
 
 }
 
 func main() {
-	rootCmd.SilenceUsage = true
-	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

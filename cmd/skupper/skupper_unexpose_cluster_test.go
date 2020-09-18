@@ -37,85 +37,113 @@ func checkStringOmits(t *testing.T, got, expected string) {
 	}
 }
 
-func TestUnexposeCommandWithCluster(t *testing.T) {
+func newMockClient(namespace string) *client.VanClient {
+	return &client.VanClient{
+		Namespace:  namespace,
+		KubeClient: fake.NewSimpleClientset(),
+	}
+}
+
+func testClient(cmd *cobra.Command, args []string) {
+	if *clusterRun {
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
+	} else {
+		cli = newMockClient(namespace)
+	}
+}
+
+func TestUnexposeWithCluster(t *testing.T) {
 	testcases := []struct {
 		args        []string
 		flags       []string
 		expectedOut string
+		expectedErr string
 	}{
 		{
 			args:        []string{"--help"},
 			flags:       []string{},
 			expectedOut: "Unexpose a set of pods previously exposed through a Skupper address",
+			expectedErr: "",
 		},
 		{
 			args:        []string{},
 			flags:       []string{},
-			expectedOut: "expose target and name must be specified (e.g. 'skupper expose deployment <name>'",
+			expectedErr: "expose target and name must be specified (e.g. 'skupper expose deployment <name>'",
 		},
 		{
 			args:        []string{"deployment"},
 			flags:       []string{},
-			expectedOut: "expose target and name must be specified (e.g. 'skupper expose deployment <name>'",
+			expectedErr: "expose target and name must be specified (e.g. 'skupper expose deployment <name>'",
 		},
 		{
 			args:        []string{"deployment", "tcp-not-deployed"},
 			flags:       []string{},
-			expectedOut: "Unable to unbind skupper service: Could not find entry for service interface tcp-not-deployed",
+			expectedErr: "Unable to unbind skupper service:",
 		},
 		{
 			args:        []string{"deployment/tcp-not-deployed"},
 			flags:       []string{},
-			expectedOut: "Unable to unbind skupper service: Could not find entry for service interface tcp-not-deployed",
+			expectedErr: "Unable to unbind skupper service:",
 		},
 		{
 			args:        []string{"deployent", "tcp-not-deployed"},
 			flags:       []string{},
-			expectedOut: "expose target type must be one of: [deployment, statefulset, pods, service]",
+			expectedErr: "expose target type must be one of: [deployment, statefulset, pods, service]",
 		},
 		{
 			args:        []string{"pods", "tcp-not-deployed"},
 			flags:       []string{},
-			expectedOut: "Error: Unable to unbind skupper service: Target type for service interface not yet implemented",
+			expectedErr: "Unable to unbind skupper service: Target type for service interface not yet implemented",
 		},
 		{
 			args:        []string{"deployment", "tcp-not-deployed", "extraArg"},
 			flags:       []string{},
-			expectedOut: "Error: illegal argument: extraArg",
+			expectedErr: "illegal argument: extraArg",
 		},
 		{
 			args:        []string{"deployment", "tcp-not-deployed", "extraArg", "extraExtraArg"},
 			flags:       []string{},
-			expectedOut: "Error: illegal argument: extraArg",
+			expectedErr: "illegal argument: extraArg",
 		},
 	}
 
-	var cli *client.VanClient
-	ns := "cmd-unexpose-cluster-test"
+	// along with cli these are package vars
+	namespace = "cmd-unexpose-cluster-test"
+	kubeContext = ""
+	kubeConfigPath = ""
 
+	// test cases assume running skupper, set up pre-condition
 	if *clusterRun {
-		cli = NewClient(ns, "", "")
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
-		cli = &client.VanClient{
-			Namespace:  ns,
-			KubeClient: fake.NewSimpleClientset(),
-		}
+		cli = newMockClient(namespace)
 	}
 
-	_, err := kube.NewNamespace(ns, cli.KubeClient)
-	assert.Check(t, err)
-	defer kube.DeleteNamespace(ns, cli.KubeClient)
-
-	// test case assumes skupper init'ed
-	initCmd := NewCmdInit(cli)
-	_, err = executeCommand(initCmd, []string{"--edge"}...)
+	if c, ok := cli.(*client.VanClient); ok {
+		_, err := kube.NewNamespace(namespace, c.KubeClient)
+		assert.Check(t, err)
+		defer kube.DeleteNamespace(namespace, c.KubeClient)
+	}
+	initCmd := NewCmdInit(testClient)
+	silenceCobra(initCmd)
+	_, err := executeCommand(initCmd, []string{"--edge"}...)
 	assert.Assert(t, err)
 
 	for _, tc := range testcases {
-		cmd := NewCmdUnexpose(cli)
-		cmd.SilenceUsage = true
-		output, _ := executeCommand(cmd, tc.args...)
-		checkStringContains(t, output, tc.expectedOut)
+		cmd := NewCmdUnexpose(testClient)
+		silenceCobra(cmd)
+		output, err := executeCommand(cmd, tc.args...)
+
+		if tc.expectedErr != "" {
+			checkStringContains(t, err.Error(), tc.expectedErr)
+		} else {
+			assert.Assert(t, err)
+		}
+		if tc.expectedOut != "" {
+			checkStringContains(t, output, tc.expectedOut)
+		} else {
+			assert.Equal(t, output, "")
+		}
 	}
 
 }
