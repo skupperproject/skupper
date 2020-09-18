@@ -30,11 +30,11 @@ func TestHttp(t *testing.T) {
 	testRunner := &HttpClusterTestRunner{}
 	testRunner.BuildOrSkip(t, needs, nil)
 	ctx, cancel := context.WithCancel(context.Background())
-	base.HandleInterruptSignal(testRunner.T, func(t *testing.T) {
+	base.HandleInterruptSignal(t, func(t *testing.T) {
 		testRunner.TearDown(ctx)
 		cancel()
 	})
-	testRunner.Run(ctx)
+	testRunner.Run(ctx, t)
 }
 
 func TestHttpJob(t *testing.T) {

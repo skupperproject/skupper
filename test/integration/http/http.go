@@ -3,7 +3,9 @@ package http
 import (
 	"context"
 	"fmt"
+	"testing"
 
+	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -72,43 +74,47 @@ func sendReceive(servAddr string) {
 	return
 }
 
-func (r *HttpClusterTestRunner) RunTests(ctx context.Context) {
+func (r *HttpClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 	//TODO https://github.com/skupperproject/skupper/issues/95
 	//all this hardcoded sleeps must be fixed, probably along with #95
 	//for now I am just keeping them in the same values that we are using
 	//for tcp_echo test, since in case of reducing test may fail
 	//intermitently
-	pubCluster1 := r.GetPublicContext(1)
-	_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
-	assert.Assert(r.T, err)
+	pubCluster1, err := r.GetPublicContext(1)
+	assert.Assert(t, err)
+
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
+	assert.Assert(t, err)
 
 	jobName := "http"
 	jobCmd := []string{"/app/http_test", "-test.run", "Job"}
 
 	_, err = k8s.CreateTestJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, jobCmd)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	job, err := k8s.WaitForJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
-	assert.Assert(r.T, err)
-	k8s.AssertJob(r.T, job)
+	assert.Assert(t, err)
+	k8s.AssertJob(t, job)
 }
 
-func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
-	var err error
-	pub1Cluster := r.GetPublicContext(1)
-	prv1Cluster := r.GetPrivateContext(1)
+func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
+	pub1Cluster, err := r.GetPublicContext(1)
+	assert.Assert(t, err)
+
+	prv1Cluster, err := r.GetPrivateContext(1)
+	assert.Assert(t, err)
 
 	err = pub1Cluster.CreateNamespace()
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	err = prv1Cluster.CreateNamespace()
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	privateDeploymentsClient := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)
 
 	fmt.Println("Creating deployment...")
 	result, err := privateDeploymentsClient.Create(httpbinDep)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
@@ -137,17 +143,17 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 	}
 
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	routerCreateOpts.Spec.SkupperNamespace = pub1Cluster.Namespace
 	err = pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
 
 	const secretFile = "/tmp/public_http_1_secret.yaml"
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
 		SkupperNamespace: prv1Cluster.Namespace,
@@ -155,16 +161,30 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 		Cost:             0,
 	}
 	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
-	assert.Assert(r.T, err)
+	assert.Assert(t, err)
 }
 
 func (r *HttpClusterTestRunner) TearDown(ctx context.Context) {
-	r.GetPublicContext(1).DeleteNamespace()
-	r.GetPrivateContext(1).DeleteNamespace()
+	errMsg := "Something failed! aborting teardown"
+
+	pub, err := r.GetPublicContext(1)
+	if err != nil {
+		log.Warn(errMsg)
+		return
+	}
+
+	priv, err := r.GetPrivateContext(1)
+	if err != nil {
+		log.Warn(errMsg)
+		return
+	}
+
+	pub.DeleteNamespace()
+	priv.DeleteNamespace()
 }
 
-func (r *HttpClusterTestRunner) Run(ctx context.Context) {
+func (r *HttpClusterTestRunner) Run(ctx context.Context, t *testing.T) {
 	defer r.TearDown(ctx)
-	r.Setup(ctx)
-	r.RunTests(ctx)
+	r.Setup(ctx, t)
+	r.RunTests(ctx, t)
 }
