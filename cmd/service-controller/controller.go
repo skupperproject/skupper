@@ -318,7 +318,8 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 			actual.Spec.Ports[0].TargetPort = intstr.FromInt(desired.ingressPort)
 		}
 	}
-	if !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
+	if desired.headless == nil && !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
+		update = true
 		actual.Spec.Selector = kube.GetLabelsForRouter()
 	}
 	if update {
