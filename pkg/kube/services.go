@@ -52,7 +52,7 @@ func NewServiceForAddress(address string, port int, targetPort int, owner *metav
 
 func NewHeadlessServiceForAddress(address string, port int, targetPort int, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	labels := map[string]string{
-		"internal.skupper.io/service": "myservice2",
+		"internal.skupper.io/service": address,
 	}
 	service := makeServiceObjectForAddress(address, port, targetPort, labels, owner)
 	service.Spec.ClusterIP = "None"
