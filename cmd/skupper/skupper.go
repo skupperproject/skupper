@@ -842,7 +842,7 @@ the .bash_profile. i.e.: $ source <(skupper completion)
 
 		},
 	}
-        return cmd
+	return cmd
 }
 
 type cobraFunc func(cmd *cobra.Command, args []string)
@@ -886,7 +886,7 @@ func init() {
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
 
-        cmdCompletion := NewCmdCompletion()
+	cmdCompletion := NewCmdCompletion()
 
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
