@@ -29,11 +29,11 @@ type ClusterTestRunner interface {
 	// Initialize ClusterContexts
 	BuildOrSkip(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext
 	// Return a specific public context
-	GetPublicContext(id int) *ClusterContext
+	GetPublicContext(id int) (*ClusterContext, error)
 	// Return a specific private context
-	GetPrivateContext(id int) *ClusterContext
+	GetPrivateContext(id int) (*ClusterContext, error)
 	// Return a specific context
-	GetContext(private bool, id int) *ClusterContext
+	GetContext(private bool, id int) (*ClusterContext, error)
 }
 
 // ClusterTestRunnerBase is a base implementation of ClusterTestRunner
@@ -43,6 +43,8 @@ type ClusterTestRunnerBase struct {
 	vanClientProvider VanClientProvider
 	unitTestMock      bool
 }
+
+var _ ClusterTestRunner = &ClusterTestRunnerBase{}
 
 func (c *ClusterTestRunnerBase) BuildOrSkip(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext {
 
