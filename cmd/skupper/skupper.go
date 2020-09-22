@@ -30,6 +30,21 @@ type ExposeOptions struct {
 	Headless   bool
 }
 
+func parseTargetTypeAndName(args []string) (string, string) {
+	//this functions assumes it is called with the right arguments, wrong
+	//argument verification is done on the "Args:" functions
+	targetType := args[0]
+	var targetName string
+	if len(args) == 2 {
+		targetName = args[1]
+	} else {
+		parts := strings.Split(args[0], "/")
+		targetType = parts[0]
+		targetName = parts[1]
+	}
+	return targetType, targetName
+}
+
 func expose(cli types.VanClientInterface, ctx context.Context, targetType string, targetName string, options ExposeOptions) error {
 	serviceName := options.Address
 	if serviceName == "" {
@@ -517,15 +532,8 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			targetType := args[0]
-			var targetName string
-			if len(args) == 2 {
-				targetName = args[1]
-			} else {
-				parts := strings.Split(args[0], "/")
-				targetType = parts[0]
-				targetName = parts[1]
-			}
+
+			targetType, targetName := parseTargetTypeAndName(args)
 
 			err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
 
@@ -566,15 +574,9 @@ func NewCmdUnexpose(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			targetType := args[0]
-			var targetName string
-			if len(args) == 2 {
-				targetName = args[1]
-			} else {
-				parts := strings.Split(args[0], "/")
-				targetType = parts[0]
-				targetName = parts[1]
-			}
+
+			targetType, targetName := parseTargetTypeAndName(args)
+
 			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
 			if err == nil {
 				fmt.Printf("%s %s unexposed\n", targetType, targetName)
@@ -716,17 +718,10 @@ func NewCmdBind(newClient cobraFunc) *cobra.Command {
 			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
 				return fmt.Errorf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
 			} else {
-				var targetType string
-				var targetName string
-				if len(args) == 2 {
-					parts := strings.Split(args[1], "/")
-					targetType = parts[0]
-					targetName = parts[1]
-				} else if len(args) == 3 {
-					targetType = args[1]
-					targetName = args[2]
-				}
+				targetType, targetName := parseTargetTypeAndName(args[1:])
+
 				service, err := cli.ServiceInterfaceInspect(context.Background(), args[0])
+
 				if err != nil {
 					return fmt.Errorf("%w", err)
 				} else if service == nil {
@@ -755,16 +750,9 @@ func NewCmdUnbind(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			var targetType string
-			var targetName string
-			if len(args) == 2 {
-				parts := strings.Split(args[1], "/")
-				targetType = parts[0]
-				targetName = parts[1]
-			} else if len(args) == 3 {
-				targetType = args[1]
-				targetName = args[2]
-			}
+
+			targetType, targetName := parseTargetTypeAndName(args[1:])
+
 			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
 			if err != nil {
 				return fmt.Errorf("%w", err)

@@ -20,6 +20,16 @@ func Test_requiredArg(t *testing.T) {
 	assert.Assert(t, r([]string{"OneArgument"}))
 }
 
+func Test_parseTargetTypeAndName(t *testing.T) {
+	targetType, targetName := parseTargetTypeAndName([]string{"type", "name"})
+	assert.Equal(t, targetType, "type")
+	assert.Equal(t, targetName, "name")
+
+	targetType, targetName = parseTargetTypeAndName([]string{"type/name"})
+	assert.Equal(t, targetType, "type")
+	assert.Equal(t, targetName, "name")
+}
+
 func Test_bindArgs(t *testing.T) {
 	genericError := "Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')"
 	b := func(args []string) error {
