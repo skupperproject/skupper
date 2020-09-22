@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"os"
 	"testing"
 
 	"gotest.tools/assert"
@@ -89,4 +91,11 @@ func Test_exposeTargetArgs(t *testing.T) {
 	for _, target := range validExposeTargets {
 		assert.Assert(t, e([]string{target, "name"}))
 	}
+}
+
+var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	os.Exit(m.Run())
 }
