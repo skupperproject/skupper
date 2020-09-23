@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
+	certs "github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -42,7 +43,32 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	return "conn" + strconv.Itoa(max)
 }
 
+func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, error) {
+	content, err := certs.GetSecretContent(secretFile)
+	if err != nil {
+		return false, err
+	}
+	generatedBy, ok := content["skupper.io/generated-by"]
+	if !ok {
+		return false, fmt.Errorf("Can't find secret origin.")
+	}
+	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	return siteConfig.Reference.UID == string(generatedBy), nil
+}
+
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
+	// Disallow self-connection: make sure this token does not belong to this Skupper router.
+	ownToken, err := cli.isOwnToken(ctx, secretFile)
+	if err != nil {
+		return nil, fmt.Errorf("Can't check secret ownership: '%s'", err.Error())
+	}
+	if ownToken {
+		return nil, fmt.Errorf("Can't create connection to self with token '%s'", secretFile)
+	}
+	// Token will not cause self-connection. Make the connector.
 	secret, err := cli.ConnectorCreateSecretFromFile(ctx, secretFile, options)
 	if err != nil {
 		return nil, err
