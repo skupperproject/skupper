@@ -170,7 +170,6 @@ func check(err error) bool {
 }
 
 func silenceCobra(cmd *cobra.Command) {
-	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 }
 
@@ -888,7 +887,6 @@ func init() {
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }
