@@ -30,6 +30,11 @@ type ExposeOptions struct {
 	Headless   bool
 }
 
+func SkupperNotInstalledError(namespace string) error {
+	return fmt.Errorf("Skupper is not installed in Namespace: '" + namespace + "`")
+
+}
+
 func parseTargetTypeAndName(args []string) (string, string) {
 	//this functions assumes it is called with the right arguments, wrong
 	//argument verification is done on the "Args:" functions
@@ -82,7 +87,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 	service.Origin = ""
 	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
 	if errors.IsNotFound(err) {
-		return fmt.Errorf("Skupper is not installed in '" + cli.GetNamespace() + "`")
+		return SkupperNotInstalledError(cli.GetNamespace())
 	} else if err != nil {
 		return fmt.Errorf("Unable to create skupper service: %w", err)
 	}
@@ -362,7 +367,7 @@ func NewCmdListConnectors(newClient cobraFunc) *cobra.Command {
 					}
 				}
 			} else if errors.IsNotFound(err) {
-				return fmt.Errorf("Skupper is not installed in '" + cli.GetNamespace() + "`")
+				return SkupperNotInstalledError(cli.GetNamespace())
 			} else {
 				return fmt.Errorf("Unable to retrieve connections: %w", err)
 			}
