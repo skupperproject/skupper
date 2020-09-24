@@ -114,6 +114,7 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 
 	routerCreateSpec := types.SiteConfigSpec{
 		SkupperName:       "",
+		SkupperNamespace:  prv1Cluster.Namespace,
 		IsEdge:            false,
 		EnableController:  true,
 		EnableServiceSync: true,
@@ -125,9 +126,10 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 		Replicas:          1,
 	}
 	// Configure the public namespace.
-	routerCreateSpec.SkupperNamespace = prv1Cluster.Namespace
 	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
-	prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
+	assert.Assert(r.T, err)
+	err = prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
+	assert.Assert(r.T, err)
 
 	service := types.ServiceInterface{
 		Address:  "httpbin",
@@ -143,8 +145,10 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 
 	// Configure the public namespace.
 	routerCreateSpec.SkupperNamespace = pub1Cluster.Namespace
-	publicSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+	assert.Assert(r.T, err)
 	err = pub1Cluster.VanClient.RouterCreate(ctx, *publicSiteConfig)
+	assert.Assert(r.T, err)
 
 	const secretFile = "/tmp/public_http_1_secret.yaml"
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
