@@ -112,23 +112,22 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-	routerCreateOpts := types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "",
-			IsEdge:            false,
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          types.ConsoleAuthModeUnsecured,
-			User:              "nicob?",
-			Password:          "nopasswordd",
-			ClusterLocal:      false,
-			Replicas:          1,
-		},
+	routerCreateSpec := types.SiteConfigSpec{
+		SkupperName:       "",
+		IsEdge:            false,
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          types.ConsoleAuthModeUnsecured,
+		User:              "nicob?",
+		Password:          "nopasswordd",
+		ClusterLocal:      false,
+		Replicas:          1,
 	}
-
-	routerCreateOpts.Spec.SkupperNamespace = prv1Cluster.Namespace
-	prv1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
+	// Configure the public namespace.
+	routerCreateSpec.SkupperNamespace = prv1Cluster.Namespace
+	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+	prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
 
 	service := types.ServiceInterface{
 		Address:  "httpbin",
@@ -142,8 +141,10 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context) {
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
 	assert.Assert(r.T, err)
 
-	routerCreateOpts.Spec.SkupperNamespace = pub1Cluster.Namespace
-	err = pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
+	// Configure the public namespace.
+	routerCreateSpec.SkupperNamespace = pub1Cluster.Namespace
+	publicSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+	err = pub1Cluster.VanClient.RouterCreate(ctx, *publicSiteConfig)
 
 	const secretFile = "/tmp/public_http_1_secret.yaml"
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
