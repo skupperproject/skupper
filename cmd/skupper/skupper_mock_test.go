@@ -483,3 +483,21 @@ func TestExpose_Binding(t *testing.T) {
 			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
 		})
 }
+
+func TestCmdExposeRun(t *testing.T) {
+	cmd := NewCmdExpose(nil)
+	cli = &vanClientMock{} //the global cli is used by the "RunE" func
+	cli := cli.(*vanClientMock)
+
+	args := []string{"service", "name"}
+	exposeOpts.Address = ""
+
+	err := cmd.RunE(&cobra.Command{}, args)
+	assert.Error(t, err, "--address option is required for target type 'service'")
+
+	//hack: forcing a expose function call error
+	args = []string{"pods", "name"}
+	cli.injectedReturns.serviceInterfaceInspect.err = fmt.Errorf("some error")
+	err = cmd.RunE(&cobra.Command{}, args)
+	assert.Error(t, err, "some error")
+}
