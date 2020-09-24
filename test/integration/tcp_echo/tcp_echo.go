@@ -127,23 +127,25 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
-	routerCreateOpts := types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "",
-			IsEdge:            false,
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          types.ConsoleAuthModeUnsecured,
-			User:              "nicob?",
-			Password:          "nopasswordd",
-			ClusterLocal:      false,
-			Replicas:          1,
-		},
+	// Configure public cluster.
+	routerCreateSpec := types.SiteConfigSpec{
+		SkupperName:       "",
+		SkupperNamespace:  pub1Cluster.Namespace,
+		IsEdge:            false,
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          types.ConsoleAuthModeUnsecured,
+		User:              "nicob?",
+		Password:          "nopasswordd",
+		ClusterLocal:      false,
+		Replicas:          1,
 	}
+	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+	assert.Assert(r.T, err)
 
-	routerCreateOpts.Spec.SkupperNamespace = pub1Cluster.Namespace
-	pub1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
+	err = pub1Cluster.VanClient.RouterCreate(ctx, *publicSiteConfig)
+	assert.Assert(r.T, err)
 
 	service := types.ServiceInterface{
 		Address:  "tcp-go-echo",
@@ -160,8 +162,11 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context) {
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
 	assert.Assert(r.T, err)
 
-	routerCreateOpts.Spec.SkupperNamespace = prv1Cluster.Namespace
-	err = prv1Cluster.VanClient.RouterCreate(ctx, routerCreateOpts)
+	// Configure private cluster.
+	routerCreateSpec.SkupperNamespace = prv1Cluster.Namespace
+	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+
+	err = prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
 		SkupperNamespace: prv1Cluster.Namespace,
