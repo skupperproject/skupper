@@ -21,6 +21,7 @@ func executeCommand(cmd *cobra.Command, args ...string) (output string, err erro
 	cmd.SetErr(buf)
 	cmd.SetArgs(args)
 
+	cmd.SilenceErrors = true
 	err = cmd.ExecuteContext(context.Background())
 	return buf.String(), err
 }
