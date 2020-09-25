@@ -147,16 +147,6 @@ func bindArgs(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func check(err error) bool {
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-		return false
-	} else {
-		return true
-	}
-}
-
 func silenceCobra(cmd *cobra.Command) {
 	cmd.SilenceUsage = true
 }
@@ -186,18 +176,22 @@ installation that can then be connected to other skupper installations`,
 			ns := cli.GetNamespace()
 			routerCreateOpts.SkupperNamespace = ns
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-			if check(err) {
-				if siteConfig == nil {
-					siteConfig, err = cli.SiteConfigCreate(context.Background(), routerCreateOpts)
-				}
+			if err != nil {
+				return err
+			}
 
-				if check(err) {
-					err = cli.RouterCreate(context.Background(), *siteConfig)
-					if check(err) {
-						fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
-					}
+			if siteConfig == nil {
+				siteConfig, err = cli.SiteConfigCreate(context.Background(), routerCreateOpts)
+				if err != nil {
+					return err
 				}
 			}
+
+			err = cli.RouterCreate(context.Background(), *siteConfig)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
 			return nil
 		},
 	}
@@ -494,10 +488,11 @@ func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 				if vir.ConsoleUrl != "" {
 					fmt.Println("The site console url is: ", vir.ConsoleUrl)
 					siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-					if check(err) {
-						if siteConfig.Spec.AuthMode == "internal" {
-							fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-users'")
-						}
+					if err != nil {
+						return err
+					}
+					if siteConfig.Spec.AuthMode == "internal" {
+						fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-users'")
 					}
 				}
 			} else {
