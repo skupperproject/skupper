@@ -256,3 +256,58 @@ func TestCmdUnexposeRun(t *testing.T) {
 	testError("depl", "Name", "theService:8080", "some error")
 	testError("depl/Name", "", "theService:8080", "other error")
 }
+
+func TestCmdInit(t *testing.T) {
+	cmd := NewCmdInit(nil)
+	var lcli (*vanClientMock)
+	args := []string{}
+	resetCli := func() {
+		cli = &vanClientMock{}
+		lcli = cli.(*vanClientMock)
+	}
+
+	t.Run("SiteConfigInspectReturnsError",
+		func(t *testing.T) {
+			resetCli()
+			lcli.injectedReturns.siteConfigInspect.err = fmt.Errorf("some error")
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "some error")
+			assert.Assert(t, lcli.siteConfigInspectCalledWith[0] == nil)
+		})
+
+	t.Run("SiteConfigInspectReturns nil, and SiteConfigCreateFails",
+		func(t *testing.T) {
+			resetCli()
+			lcli.injectedReturns.siteConfigCreate.err = fmt.Errorf("some error")
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "some error")
+			assert.Assert(t, lcli.siteConfigCreateCalledWith[0] == routerCreateOpts)
+		})
+
+	t.Run("routerCreateFails",
+		func(t *testing.T) {
+			resetCli()
+
+			siteConfig := types.SiteConfig{
+				Spec: types.SiteConfigSpec{
+					SkupperName: "TheName",
+				},
+			}
+			lcli.injectedReturns.siteConfigInspect.siteConfig = &siteConfig
+			lcli.injectedReturns.routerCreate = fmt.Errorf("a error")
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "a error")
+			assert.Assert(t, cmp.Equal(lcli.routerCreateCalledWith[0], siteConfig))
+		})
+
+	t.Run("routerCreateSucceeds",
+		func(t *testing.T) {
+			resetCli()
+			lcli.injectedReturns.siteConfigInspect.siteConfig = &types.SiteConfig{}
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Assert(t, err)
+			assert.Assert(t, len(lcli.siteConfigInspectCalledWith) == 1)
+			assert.Assert(t, len(lcli.siteConfigCreateCalledWith) == 0)
+			assert.Assert(t, len(lcli.routerCreateCalledWith) == 1)
+		})
+}
