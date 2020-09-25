@@ -89,18 +89,6 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 	return cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
 }
 
-func requiredArg(name string) func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return fmt.Errorf("%s must be specified", name)
-		}
-		if len(args) > 1 {
-			return fmt.Errorf("illegal argument: %s", args[1])
-		}
-		return nil
-	}
-}
-
 func stringSliceContains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
@@ -257,7 +245,7 @@ func NewCmdConnectionToken(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "connection-token <output-file>",
 		Short:  "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
-		Args:   requiredArg("output-file"),
+		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
@@ -279,7 +267,7 @@ func NewCmdConnect(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "connect <connection-token-file>",
 		Short:  "Connect this skupper installation to that which issued the specified connectionToken",
-		Args:   requiredArg("connection-token"),
+		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
@@ -339,7 +327,7 @@ func NewCmdDisconnect(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "disconnect <name>",
 		Short:  "Remove specified connection",
-		Args:   requiredArg("connection name"),
+		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
@@ -395,7 +383,7 @@ func NewCmdCheckConnection(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "check-connection all|<connection-name>",
 		Short:  "Check whether a connection to another Skupper site is active",
-		Args:   requiredArg("connection name"),
+		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
@@ -689,7 +677,7 @@ func NewCmdDeleteService(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "delete <name>",
 		Short:  "Delete a skupper service",
-		Args:   requiredArg("service-name"),
+		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
@@ -797,7 +785,7 @@ func NewCmdDebugDump(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "dump <filename>",
 		Short:  "Collect and save skupper logs, config, etc.",
-		Args:   requiredArg("save file"),
+		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)

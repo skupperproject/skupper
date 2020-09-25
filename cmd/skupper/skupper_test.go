@@ -8,18 +8,6 @@ import (
 	"gotest.tools/assert"
 )
 
-func Test_requiredArg(t *testing.T) {
-	r := func(args []string) error {
-		return requiredArg("testArg")(nil, args)
-	}
-
-	assert.Error(t, r([]string{}), "testArg must be specified")
-	assert.Error(t, r([]string{"too", "many"}), "illegal argument: many")
-	assert.Error(t, r([]string{"too", "many", "more"}), "illegal argument: many")
-
-	assert.Assert(t, r([]string{"OneArgument"}))
-}
-
 func Test_parseTargetTypeAndName(t *testing.T) {
 	targetType, targetName := parseTargetTypeAndName([]string{"type", "name"})
 	assert.Equal(t, targetType, "type")
