@@ -106,6 +106,14 @@ func stringSliceContains(s []string, e string) bool {
 
 var validExposeTargets = []string{"deployment", "statefulset", "pods", "service"}
 
+func verifyTargetTypeFromArgs(args []string) error {
+	targetType, _ := parseTargetTypeAndName(args)
+	if !stringSliceContains(validExposeTargets, targetType) {
+		return fmt.Errorf("target type must be one of: [%s]", strings.Join(validExposeTargets, ", "))
+	}
+	return nil
+}
+
 func exposeTargetArgs(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
 		return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>'")
@@ -116,15 +124,7 @@ func exposeTargetArgs(cmd *cobra.Command, args []string) error {
 	if len(args) > 1 && strings.Contains(args[0], "/") {
 		return fmt.Errorf("extra argument: %s", args[1])
 	}
-	targetType := args[0]
-	if strings.Contains(args[0], "/") {
-		parts := strings.Split(args[0], "/")
-		targetType = parts[0]
-	}
-	if !stringSliceContains(validExposeTargets, targetType) {
-		return fmt.Errorf("expose target type must be one of: [%s]", strings.Join(validExposeTargets, ", "))
-	}
-	return nil
+	return verifyTargetTypeFromArgs(args)
 }
 
 func createServiceArgs(cmd *cobra.Command, args []string) error {
@@ -150,7 +150,7 @@ func bindArgs(cmd *cobra.Command, args []string) error {
 	if len(args) > 2 && strings.Contains(args[1], "/") {
 		return fmt.Errorf("extra argument: %s", args[2])
 	}
-	return nil
+	return verifyTargetTypeFromArgs(args[1:])
 }
 
 func silenceCobra(cmd *cobra.Command) {

@@ -32,13 +32,16 @@ func Test_bindArgs(t *testing.T) {
 	//must this fail?
 	//assert.Error(t, b([]string{"one/two", "resource/name"}), genericError)
 
-	assert.Assert(t, b([]string{"one", "resource/name"}))
+	assert.Error(t, b([]string{"one", "resource/name"}), "target type must be one of: [deployment, statefulset, pods, service]")
+
+	assert.Assert(t, b([]string{"one", "pods/name"}))
+	assert.Assert(t, b([]string{"one", "pods", "name"}))
+
 	//note  illegal vs extra
 	assert.Error(t, b([]string{"one", "resource/name", "three"}), "extra argument: three")
 	assert.Error(t, b([]string{"one", "resource/name", "three", "four"}), "illegal argument: four")
 	assert.Error(t, b([]string{"one", "resource/name", "three", "four", "five"}), "illegal argument: four")
 
-	assert.Assert(t, b([]string{"one", "resource", "name"}))
 	assert.Error(t, b([]string{"one", "resource", "name", "four"}), "illegal argument: four")
 	assert.Error(t, b([]string{"one", "resource", "name", "four", "five"}), "illegal argument: four")
 }
@@ -63,7 +66,7 @@ func Test_createServiceArgs(t *testing.T) {
 
 func Test_exposeTargetArgs(t *testing.T) {
 	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>'"
-	targetError := "expose target type must be one of: [deployment, statefulset, pods, service]"
+	targetError := "target type must be one of: [deployment, statefulset, pods, service]"
 
 	e := func(args []string) error {
 		return exposeTargetArgs(nil, args)
