@@ -501,3 +501,79 @@ func TestCmdExposeRun(t *testing.T) {
 	err = cmd.RunE(&cobra.Command{}, args)
 	assert.Error(t, err, "some error")
 }
+
+func TestCmdBind(t *testing.T) {
+	cmd := NewCmdBind(nil)
+	var lcli *vanClientMock
+	args := []string{}
+	resetCli := func() {
+		cli = &vanClientMock{}
+		lcli = cli.(*vanClientMock)
+	}
+
+	t.Run("invalidProtocol",
+		func(t *testing.T) {
+			resetCli()
+			protocol = "invalidProtocol"
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "invalidProtocol is not a valid protocol. Choose 'tcp', 'http' or 'http2'.")
+		})
+
+	t.Run("serviceNotFound",
+		func(t *testing.T) {
+			resetCli()
+			protocol = "tcp"
+			args = []string{"TheService", "type", "name"}
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "Service TheService not found")
+		})
+
+	t.Run("ServiceInterfaceInspect_fails",
+		func(t *testing.T) {
+			resetCli()
+			protocol = "tcp"
+			args = []string{"TheService", "type", "name"}
+			lcli.injectedReturns.serviceInterfaceInspect.err = fmt.Errorf("some error")
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "some error")
+		})
+
+	injectedService := &types.ServiceInterface{
+		Protocol: "tcp",
+		Headless: &types.Headless{
+			Name: "NotNil",
+		},
+	}
+
+	t.Run("Success",
+		func(t *testing.T) {
+			resetCli()
+			protocol = "tcp"
+			targetPort = 567
+			args = []string{"TheService", "type", "name"}
+			lcli.injectedReturns.serviceInterfaceInspect.serviceInterface = injectedService
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Assert(t, err)
+			assert.Assert(t, len(lcli.serviceInterfaceBindCalledWith) == 1)
+			c := lcli.serviceInterfaceBindCalledWith[0]
+			assert.Assert(t, c.protocol == "tcp")
+			assert.Assert(t, c.targetType == "type")
+			assert.Assert(t, c.targetName == "name")
+			assert.Assert(t, c.targetPort == 567)
+			assert.Assert(t, c.service == injectedService)
+
+		})
+
+	t.Run("ServiceInterfaceBindFails",
+		func(t *testing.T) {
+			resetCli()
+			protocol = "tcp"
+			targetPort = 567
+			args = []string{"TheService", "type", "name"}
+			lcli.injectedReturns.serviceInterfaceInspect.serviceInterface = injectedService
+			lcli.injectedReturns.serviceInterfaceBind = fmt.Errorf("some error")
+			err := cmd.RunE(&cobra.Command{}, args)
+
+			assert.Error(t, err, "some error")
+		})
+}
