@@ -33,9 +33,21 @@ type getHeadlessServiceConfigurationCallArgs struct {
 	port       int
 }
 
+type siteConfigInspectCallArgs struct {
+	targetName string
+	protocol   string
+	address    string
+	port       int
+}
+
 type serviceInterfaceAndErrorReturns struct {
 	serviceInterface *types.ServiceInterface
 	err              error
+}
+
+type siteConfigAndErrorReturns struct {
+	siteConfig *types.SiteConfig
+	err        error
 }
 
 type vanClientMockInjectedReturnValues struct {
@@ -44,6 +56,9 @@ type vanClientMockInjectedReturnValues struct {
 	serviceInterfaceInspect         serviceInterfaceAndErrorReturns
 	serviceInterfaceUpdate          error
 	getHeadlessServiceConfiguration serviceInterfaceAndErrorReturns
+	siteConfigInspect               siteConfigAndErrorReturns
+	siteConfigCreate                siteConfigAndErrorReturns
+	routerCreate                    error
 }
 
 type vanClientMock struct {
@@ -52,6 +67,9 @@ type vanClientMock struct {
 	serviceInterfaceInspectCalledWith         []string
 	getHeadlessServiceConfigurationCalledWith []getHeadlessServiceConfigurationCallArgs
 	serviceInterfaceUpdateCalledWith          []*types.ServiceInterface
+	siteConfigInspectCalledWith               []*corev1.ConfigMap
+	routerCreateCalledWith                    []types.SiteConfig
+	siteConfigCreateCalledWith                []types.SiteConfigSpec
 	injectedReturns                           vanClientMockInjectedReturnValues
 }
 
@@ -64,7 +82,8 @@ func (v *vanClientMock) ResetCallHistory() {
 }
 
 func (v *vanClientMock) RouterCreate(ctx context.Context, options types.SiteConfig) error {
-	return nil
+	v.routerCreateCalledWith = append(v.routerCreateCalledWith, options)
+	return v.injectedReturns.routerCreate
 }
 func (v *vanClientMock) RouterInspect(ctx context.Context) (*types.RouterInspectResponse, error) {
 	return nil, nil
@@ -115,14 +134,19 @@ func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType s
 }
 
 func (v *vanClientMock) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
-	return nil, nil
+	v.siteConfigCreateCalledWith = append(v.siteConfigCreateCalledWith, spec)
+	return v.injectedReturns.siteConfigCreate.siteConfig, v.injectedReturns.siteConfigCreate.err
 }
+
 func (v *vanClientMock) SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*types.SiteConfig, error) {
-	return nil, nil
+	v.siteConfigInspectCalledWith = append(v.siteConfigInspectCalledWith, input)
+	return v.injectedReturns.siteConfigInspect.siteConfig, v.injectedReturns.siteConfigInspect.err
 }
+
 func (v *vanClientMock) SiteConfigRemove(ctx context.Context) error {
 	return nil
 }
+
 func (v *vanClientMock) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error {
 	return nil
 }
@@ -231,4 +255,59 @@ func TestCmdUnexposeRun(t *testing.T) {
 
 	testError("depl", "Name", "theService:8080", "some error")
 	testError("depl/Name", "", "theService:8080", "other error")
+}
+
+func TestCmdInit(t *testing.T) {
+	cmd := NewCmdInit(nil)
+	var lcli (*vanClientMock)
+	args := []string{}
+	resetCli := func() {
+		cli = &vanClientMock{}
+		lcli = cli.(*vanClientMock)
+	}
+
+	t.Run("SiteConfigInspectReturnsError",
+		func(t *testing.T) {
+			resetCli()
+			lcli.injectedReturns.siteConfigInspect.err = fmt.Errorf("some error")
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "some error")
+			assert.Assert(t, lcli.siteConfigInspectCalledWith[0] == nil)
+		})
+
+	t.Run("SiteConfigInspectReturns nil, and SiteConfigCreateFails",
+		func(t *testing.T) {
+			resetCli()
+			lcli.injectedReturns.siteConfigCreate.err = fmt.Errorf("some error")
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "some error")
+			assert.Assert(t, lcli.siteConfigCreateCalledWith[0] == routerCreateOpts)
+		})
+
+	t.Run("routerCreateFails",
+		func(t *testing.T) {
+			resetCli()
+
+			siteConfig := types.SiteConfig{
+				Spec: types.SiteConfigSpec{
+					SkupperName: "TheName",
+				},
+			}
+			lcli.injectedReturns.siteConfigInspect.siteConfig = &siteConfig
+			lcli.injectedReturns.routerCreate = fmt.Errorf("a error")
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Error(t, err, "a error")
+			assert.Assert(t, cmp.Equal(lcli.routerCreateCalledWith[0], siteConfig))
+		})
+
+	t.Run("routerCreateSucceeds",
+		func(t *testing.T) {
+			resetCli()
+			lcli.injectedReturns.siteConfigInspect.siteConfig = &types.SiteConfig{}
+			err := cmd.RunE(&cobra.Command{}, args)
+			assert.Assert(t, err)
+			assert.Assert(t, len(lcli.siteConfigInspectCalledWith) == 1)
+			assert.Assert(t, len(lcli.siteConfigCreateCalledWith) == 0)
+			assert.Assert(t, len(lcli.routerCreateCalledWith) == 1)
+		})
 }
