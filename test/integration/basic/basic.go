@@ -52,7 +52,7 @@ func (r *BasicTestRunner) RunTests(ctx context.Context, t *testing.T) {
 	wait_for_conn(prvCluster)
 }
 
-func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.SiteConfig, createOptsPrivate types.SiteConfig, t *testing.T) {
+func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.SiteConfigSpec, createOptsPrivate types.SiteConfigSpec, t *testing.T) {
 	var err error
 	pub1Cluster, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
@@ -66,16 +66,20 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	err = prv1Cluster.CreateNamespace()
 	assert.Assert(t, err)
 
-	createOptsPublic.Spec.SkupperNamespace = pub1Cluster.Namespace
-	err = pub1Cluster.VanClient.RouterCreate(ctx, createOptsPublic)
+	createOptsPublic.SkupperNamespace = pub1Cluster.Namespace
+	siteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), createOptsPublic)
+	assert.Assert(t, err)
+	err = pub1Cluster.VanClient.RouterCreate(ctx, *siteConfig)
 	assert.Assert(t, err)
 
 	const secretFile = "/tmp/public_basic_1_secret.yaml"
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
 	assert.Assert(t, err)
 
-	createOptsPrivate.Spec.SkupperNamespace = prv1Cluster.Namespace
-	err = prv1Cluster.VanClient.RouterCreate(ctx, createOptsPrivate)
+	createOptsPrivate.SkupperNamespace = prv1Cluster.Namespace
+	siteConfig, err = prv1Cluster.VanClient.SiteConfigCreate(context.Background(), createOptsPrivate)
+	assert.Assert(t, err)
+	err = prv1Cluster.VanClient.RouterCreate(ctx, *siteConfig)
 	assert.Assert(t, err)
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
@@ -107,100 +111,88 @@ func (r *BasicTestRunner) TearDown(ctx context.Context) {
 func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 	testcases := []struct {
 		doc               string
-		createOptsPublic  types.SiteConfig
-		createOptsPrivate types.SiteConfig
+		createOptsPublic  types.SiteConfigSpec
+		createOptsPrivate types.SiteConfigSpec
 	}{
 		{
 			doc: "Connecting, two internals, clusterLocal=true",
-			createOptsPublic: types.SiteConfig{
-				Spec: types.SiteConfigSpec{
-					SkupperName:       "",
-					IsEdge:            false,
-					EnableController:  true,
-					EnableServiceSync: true,
-					EnableConsole:     false,
-					AuthMode:          types.ConsoleAuthModeUnsecured,
-					User:              "nicob?",
-					Password:          "nopasswordd",
-					ClusterLocal:      true,
-					Replicas:          1,
-				},
+			createOptsPublic: types.SiteConfigSpec{
+				SkupperName:       "",
+				IsEdge:            false,
+				EnableController:  true,
+				EnableServiceSync: true,
+				EnableConsole:     false,
+				AuthMode:          types.ConsoleAuthModeUnsecured,
+				User:              "nicob?",
+				Password:          "nopasswordd",
+				ClusterLocal:      true,
+				Replicas:          1,
 			},
-			createOptsPrivate: types.SiteConfig{
-				Spec: types.SiteConfigSpec{
-					SkupperName:       "",
-					IsEdge:            false,
-					EnableController:  true,
-					EnableServiceSync: true,
-					EnableConsole:     false,
-					AuthMode:          types.ConsoleAuthModeUnsecured,
-					User:              "nicob?",
-					Password:          "nopasswordd",
-					ClusterLocal:      true,
-					Replicas:          1,
-				},
+			createOptsPrivate: types.SiteConfigSpec{
+				SkupperName:       "",
+				IsEdge:            false,
+				EnableController:  true,
+				EnableServiceSync: true,
+				EnableConsole:     false,
+				AuthMode:          types.ConsoleAuthModeUnsecured,
+				User:              "nicob?",
+				Password:          "nopasswordd",
+				ClusterLocal:      true,
+				Replicas:          1,
 			},
 		},
 		{
 			doc: "Connecting, two internals, clusterLocal=false",
-			createOptsPublic: types.SiteConfig{
-				Spec: types.SiteConfigSpec{
-					SkupperName:       "",
-					IsEdge:            false,
-					EnableController:  true,
-					EnableServiceSync: true,
-					EnableConsole:     false,
-					AuthMode:          types.ConsoleAuthModeUnsecured,
-					User:              "nicob?",
-					Password:          "nopasswordd",
-					ClusterLocal:      false,
-					Replicas:          1,
-				},
+			createOptsPublic: types.SiteConfigSpec{
+				SkupperName:       "",
+				IsEdge:            false,
+				EnableController:  true,
+				EnableServiceSync: true,
+				EnableConsole:     false,
+				AuthMode:          types.ConsoleAuthModeUnsecured,
+				User:              "nicob?",
+				Password:          "nopasswordd",
+				ClusterLocal:      false,
+				Replicas:          1,
 			},
-			createOptsPrivate: types.SiteConfig{
-				Spec: types.SiteConfigSpec{
-					SkupperName:       "",
-					IsEdge:            false,
-					EnableController:  true,
-					EnableServiceSync: true,
-					EnableConsole:     false,
-					AuthMode:          types.ConsoleAuthModeUnsecured,
-					User:              "nicob?",
-					Password:          "nopasswordd",
-					ClusterLocal:      false,
-					Replicas:          1,
-				},
+			createOptsPrivate: types.SiteConfigSpec{
+				SkupperName:       "",
+				IsEdge:            false,
+				EnableController:  true,
+				EnableServiceSync: true,
+				EnableConsole:     false,
+				AuthMode:          types.ConsoleAuthModeUnsecured,
+				User:              "nicob?",
+				Password:          "nopasswordd",
+				ClusterLocal:      false,
+				Replicas:          1,
 			},
 		},
 		{
 			doc: "connecting, Private Edge, Public Internal, clusterLocal=true",
-			createOptsPublic: types.SiteConfig{
-				Spec: types.SiteConfigSpec{
-					SkupperName:       "",
-					IsEdge:            false,
-					EnableController:  true,
-					EnableServiceSync: true,
-					EnableConsole:     false,
-					AuthMode:          types.ConsoleAuthModeUnsecured,
-					User:              "nicob?",
-					Password:          "nopasswordd",
-					ClusterLocal:      true,
-					Replicas:          1,
-				},
+			createOptsPublic: types.SiteConfigSpec{
+				SkupperName:       "",
+				IsEdge:            false,
+				EnableController:  true,
+				EnableServiceSync: true,
+				EnableConsole:     false,
+				AuthMode:          types.ConsoleAuthModeUnsecured,
+				User:              "nicob?",
+				Password:          "nopasswordd",
+				ClusterLocal:      true,
+				Replicas:          1,
 			},
-			createOptsPrivate: types.SiteConfig{
-				Spec: types.SiteConfigSpec{
-					SkupperName:       "",
-					IsEdge:            true,
-					EnableController:  true,
-					EnableServiceSync: true,
-					EnableConsole:     false,
-					AuthMode:          types.ConsoleAuthModeUnsecured,
-					User:              "nicob?",
-					Password:          "nopasswordd",
-					ClusterLocal:      true,
-					Replicas:          1,
-				},
+			createOptsPrivate: types.SiteConfigSpec{
+				SkupperName:       "",
+				IsEdge:            true,
+				EnableController:  true,
+				EnableServiceSync: true,
+				EnableConsole:     false,
+				AuthMode:          types.ConsoleAuthModeUnsecured,
+				User:              "nicob?",
+				Password:          "nopasswordd",
+				ClusterLocal:      true,
+				Replicas:          1,
 			},
 		},
 	}
