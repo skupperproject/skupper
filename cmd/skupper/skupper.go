@@ -30,6 +30,11 @@ type ExposeOptions struct {
 	Headless   bool
 }
 
+func SkupperNotInstalledError(namespace string) error {
+	return fmt.Errorf("Skupper is not installed in Namespace: '" + namespace + "`")
+
+}
+
 func parseTargetTypeAndName(args []string) (string, string) {
 	//this functions assumes it is called with the right arguments, wrong
 	//argument verification is done on the "Args:" functions
@@ -47,13 +52,7 @@ func parseTargetTypeAndName(args []string) (string, string) {
 
 func expose(cli types.VanClientInterface, ctx context.Context, targetType string, targetName string, options ExposeOptions) error {
 	serviceName := options.Address
-	if serviceName == "" {
-		if targetType == "service" {
-			return fmt.Errorf("The --address option is required for target type 'service'")
-		} else {
-			serviceName = targetName
-		}
-	}
+
 	service, err := cli.ServiceInterfaceInspect(ctx, serviceName)
 	if err != nil {
 		return err
@@ -86,7 +85,14 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 
 	// service may exist from remote origin
 	service.Origin = ""
-	return cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
+	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
+	if errors.IsNotFound(err) {
+		return SkupperNotInstalledError(cli.GetNamespace())
+	} else if err != nil {
+		return fmt.Errorf("Unable to create skupper service: %w", err)
+	}
+
+	return nil
 }
 
 func stringSliceContains(s []string, e string) bool {
@@ -361,7 +367,7 @@ func NewCmdListConnectors(newClient cobraFunc) *cobra.Command {
 					}
 				}
 			} else if errors.IsNotFound(err) {
-				return fmt.Errorf("Skupper is not installed in '" + cli.GetNamespace() + "`")
+				return SkupperNotInstalledError(cli.GetNamespace())
 			} else {
 				return fmt.Errorf("Unable to retrieve connections: %w", err)
 			}
@@ -517,24 +523,20 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 
 			targetType, targetName := parseTargetTypeAndName(args)
 
-			err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
-
-			if err == nil {
-				address := exposeOpts.Address
-				if address == "" {
-					if args[0] == "service" {
-						return fmt.Errorf("--address option is required for target type 'service'")
-					} else {
-						address = targetType
-					}
+			//silence cobra may be moved below the "if" we want to print
+			//the usage message along with this error
+			if exposeOpts.Address == "" {
+				if targetType == "service" {
+					return fmt.Errorf("--address option is required for target type 'service'")
 				}
-				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, address)
-			} else if errors.IsNotFound(err) {
-				return fmt.Errorf("Skupper is not installed in '" + cli.GetNamespace() + "`")
-			} else {
-				return fmt.Errorf("Unable to create skupper service: %w", err)
+				exposeOpts.Address = targetType
 			}
-			return nil
+
+			err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
+			if err == nil {
+				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, exposeOpts.Address)
+			}
+			return err
 		},
 	}
 	cmd.Flags().StringVar(&(exposeOpts.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
