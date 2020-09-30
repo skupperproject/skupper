@@ -88,6 +88,9 @@ commands:
       - run:
           name: Run client tests in real cluster
           command: go test -v -count=1 ./client -use-cluster
+      - run:
+          name: Run skupper cli tests in real cluster
+          command: go test -v -count=1 ./cmd/skupper -use-cluster
 
   compile_go_program:
     description: Compile specified platform.

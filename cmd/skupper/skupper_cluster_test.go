@@ -1126,9 +1126,11 @@ func TestListExposedWithCluster(t *testing.T) {
 
 	skupperInit(t, []string{"--edge"}...)
 
-	exposeCmd := NewCmdExpose(testClient)
-	silenceCobra(exposeCmd)
-	testCommand(t, exposeCmd, "cmd-list-exposed-cluster-test", "", "deployment tcp-go-echo exposed as deployment", "", []string{"deployment", "tcp-go-echo", "--port", "9090"}...)
+	if *clusterRun {
+		exposeCmd := NewCmdExpose(testClient)
+		silenceCobra(exposeCmd)
+		testCommand(t, exposeCmd, "cmd-list-exposed-cluster-test", "", "deployment tcp-go-echo exposed as deployment", "", []string{"deployment", "tcp-go-echo", "--port", "9090"}...)
+	}
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1281,9 +1283,11 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 	}
 	skupperInit(t, []string{"--edge"}...)
 
-	createCmd := NewCmdCreateService(testClient)
-	silenceCobra(createCmd)
-	testCommand(t, createCmd, "", "", "", "", []string{"tcp-go-echo-b:9090"}...)
+	if *clusterRun {
+		createCmd := NewCmdCreateService(testClient)
+		silenceCobra(createCmd)
+		testCommand(t, createCmd, "", "", "", "", []string{"tcp-go-echo-b:9090"}...)
+	}
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1485,7 +1489,7 @@ func TestVersionWithCluster(t *testing.T) {
 			expectedCapture: "client version",
 			expectedOutput:  "",
 			expectedError:   "",
-			realCluster:     false,
+			realCluster:     true,
 		},
 	}
 
