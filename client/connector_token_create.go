@@ -146,7 +146,6 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 }
 
 func (cli *VanClient) ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
-	fmt.Fprintf(os.Stdout, "MDEBUG in ConnectorTokenCreateFile: namespace is |%s|\n", cli.Namespace)
 	secret, localOnly, err := cli.ConnectorTokenCreate(ctx, subject, "")
 	if err == nil {
 		//generate yaml and save it to the specified path

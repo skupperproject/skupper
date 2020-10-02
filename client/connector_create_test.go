@@ -34,6 +34,13 @@ func TestConnectorCreateError(t *testing.T) {
 }
 
 func TestConnectorCreateInterior(t *testing.T) {
+	if !*clusterRun {
+		lightRed := "\033[1;31m"
+		resetColor := "\033[0m"
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
+		return
+	}
+
 	testcases := []struct {
 		doc             string
 		expectedError   string
@@ -156,21 +163,14 @@ func TestConnectorCreateInterior(t *testing.T) {
 func TestSelfConnect(t *testing.T) {
 
 	if !*clusterRun {
-		var red string = "\033[1;31m"
-		var resetColor string = "\033[0m"
-		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(red), string(resetColor)))
-		return
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	if !*clusterRun {
 		lightRed := "\033[1;31m"
 		resetColor := "\033[0m"
 		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
 		return
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	var publicClient *VanClient
 	var err error

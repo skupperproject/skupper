@@ -20,8 +20,6 @@ import (
 	certs "github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
-
-	"os"
 )
 
 func generateConnectorName(namespace string, cli kubernetes.Interface) string {
@@ -62,7 +60,6 @@ func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, 
 }
 
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
-	fmt.Fprintf(os.Stdout, "MDEBUG in ConnectorCreateFromFile namespace |%s|\n", cli.Namespace)
 	// Disallow self-connection: make sure this token does not belong to this Skupper router.
 	ownToken, err := cli.isOwnToken(ctx, secretFile)
 	if err != nil {
