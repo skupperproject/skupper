@@ -62,7 +62,7 @@ func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, 
 }
 
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
-	fp(os.Stdout, "MDEBUG in ConnectorCreateFromFile namespace |%s|\n", cli.Namespace)
+	fmt.Fprintf(os.Stdout, "MDEBUG in ConnectorCreateFromFile namespace |%s|\n", cli.Namespace)
 	// Disallow self-connection: make sure this token does not belong to this Skupper router.
 	ownToken, err := cli.isOwnToken(ctx, secretFile)
 	if err != nil {

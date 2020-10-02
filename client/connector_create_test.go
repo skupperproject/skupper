@@ -19,8 +19,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-var fp = fmt.Fprintf
-
 func TestConnectorCreateError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
