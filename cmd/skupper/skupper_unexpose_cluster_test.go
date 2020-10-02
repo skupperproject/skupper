@@ -89,7 +89,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 		{
 			args:        []string{"deployent", "tcp-not-deployed"},
 			flags:       []string{},
-			expectedErr: "expose target type must be one of: [deployment, statefulset, pods, service]",
+			expectedErr: "target type must be one of: [deployment, statefulset, pods, service]",
 		},
 		{
 			args:        []string{"pods", "tcp-not-deployed"},
