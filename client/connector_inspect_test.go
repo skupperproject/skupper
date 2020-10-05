@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+        "fmt"
 	"os"
 	"testing"
 
