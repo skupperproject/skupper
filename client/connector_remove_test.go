@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -21,6 +22,13 @@ import (
 )
 
 func TestConnectorRemove(t *testing.T) {
+	if !*clusterRun {
+		lightRed := "\033[1;31m"
+		resetColor := "\033[0m"
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
+		return
+	}
+
 	testcases := []struct {
 		namespace      string
 		doc            string
