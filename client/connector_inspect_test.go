@@ -68,6 +68,14 @@ func TestConnectorInspectNotFound(t *testing.T) {
 }
 
 func TestConnectorInspectDefaults(t *testing.T) {
+
+	if !*clusterRun {
+		var red string = "\033[1;31m"
+		var resetColor string = "\033[0m"
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(red), string(resetColor)))
+		return
+	}
+
 	testcases := []struct {
 		doc           string
 		expectedError string
