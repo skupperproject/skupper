@@ -83,5 +83,6 @@ func WaitForServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Int
 }
 
 func WaitForSkupperServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Interface, serviceName string) (*apiv1.Service, error) {
+	fmt.Printf("Waiting for skupper service: %s\n", serviceName)
 	return WaitForServiceToBeCreatedAndReadyToUse(ns, kubeClient, serviceName, time.Minute)
 }
