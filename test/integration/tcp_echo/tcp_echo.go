@@ -107,17 +107,10 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
-	var err error
 	pub1Cluster, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
-	prv1Cluster, err := r.GetPrivateContext(1)
-	assert.Assert(t, err)
-
-	err = pub1Cluster.CreateNamespace()
-	assert.Assert(t, err)
-
-	err = prv1Cluster.CreateNamespace()
+	err = base.SetupSimplePublicPrivateAndConnect(ctx, &r.ClusterTestRunnerBase, "tcp_echo")
 	assert.Assert(t, err)
 
 	publicDeploymentsClient := pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace)
@@ -136,26 +129,6 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
-	// Configure public cluster.
-	routerCreateSpec := types.SiteConfigSpec{
-		SkupperName:       "",
-		SkupperNamespace:  pub1Cluster.Namespace,
-		IsEdge:            false,
-		EnableController:  true,
-		EnableServiceSync: true,
-		EnableConsole:     false,
-		AuthMode:          types.ConsoleAuthModeUnsecured,
-		User:              "nicob?",
-		Password:          "nopasswordd",
-		ClusterLocal:      false,
-		Replicas:          1,
-	}
-	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
-	assert.Assert(t, err)
-
-	err = pub1Cluster.VanClient.RouterCreate(ctx, *publicSiteConfig)
-	assert.Assert(t, err)
-
 	service := types.ServiceInterface{
 		Address:  "tcp-go-echo",
 		Protocol: "tcp",
@@ -166,44 +139,10 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 
 	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
 	assert.Assert(t, err)
-
-	const secretFile = "/tmp/public_tcp_echo_1_secret.yaml"
-	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
-	assert.Assert(t, err)
-
-	// Configure private cluster.
-	routerCreateSpec.SkupperNamespace = prv1Cluster.Namespace
-	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
-
-	err = prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
-
-	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
-		SkupperNamespace: prv1Cluster.Namespace,
-		Name:             "",
-		Cost:             0,
-	}
-	prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
-}
-
-func (r *TcpEchoClusterTestRunner) TearDown(ctx context.Context) {
-	errMsg := "Something failed! aborting teardown"
-
-	pub, err := r.GetPublicContext(1)
-	if err != nil {
-		log.Warn(errMsg)
-	}
-
-	priv, err := r.GetPrivateContext(1)
-	if err != nil {
-		log.Warn(errMsg)
-	}
-
-	pub.DeleteNamespace()
-	priv.DeleteNamespace()
 }
 
 func (r *TcpEchoClusterTestRunner) Run(ctx context.Context, t *testing.T) {
-	defer r.TearDown(ctx)
+	defer base.TearDownSimplePublicAndPrivate(&r.ClusterTestRunnerBase)
 	r.Setup(ctx, t)
 	r.RunTests(ctx, t)
 }
