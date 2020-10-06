@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -94,6 +93,8 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 
 	job, err := k8s.WaitForJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
 	assert.Assert(t, err)
+	pubCluster1.KubectlExec("logs job/" + jobName)
+
 	k8s.AssertJob(t, job)
 }
 

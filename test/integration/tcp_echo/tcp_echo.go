@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -99,10 +98,12 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 
 	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
 	assert.Assert(t, err)
+	pub1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
 	job, err = k8s.WaitForJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
 	assert.Assert(t, err)
+	prv1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 }
 
