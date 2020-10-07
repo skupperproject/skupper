@@ -192,12 +192,12 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	kubeConfigPath := ""
 	kubeContext := ""
 
-        // Test:
+	// Test:
 	// Create sites in two namespaces
 	// Create connection token
 	// Connect from private to public site
 	//
-	
+
 	publicNamespace := "site-controller-cluster-test-" + strings.ToLower(utils.RandomId(4))
 	publicCli, err := client.NewClient(publicNamespace, kubeContext, kubeConfigPath)
 	assert.Check(t, err)
