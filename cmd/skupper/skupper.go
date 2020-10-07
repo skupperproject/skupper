@@ -529,7 +529,7 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 				if targetType == "service" {
 					return fmt.Errorf("--address option is required for target type 'service'")
 				}
-				exposeOpts.Address = targetType
+				exposeOpts.Address = targetName
 			}
 
 			err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
