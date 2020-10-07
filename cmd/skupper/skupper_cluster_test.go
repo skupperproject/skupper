@@ -772,7 +772,7 @@ func TestExposeWithCluster(t *testing.T) {
 			args:            []string{"deployent", "tcp-not-deployed"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "expose target type must be one of: [deployment, statefulset, pods, service]",
+			expectedError:   "target type must be one of: [deployment, statefulset, pods, service]",
 			realCluster:     false,
 		},
 		{
@@ -820,7 +820,7 @@ func TestExposeWithCluster(t *testing.T) {
 			args:            []string{"deployment", "tcp-not-deployed", "--headless"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "Unable to create skupper service: The headless option is only supported for statefulsets",
+			expectedError:   "Service already exposed, cannot reconfigure as headless",
 			realCluster:     false,
 		},
 		{
@@ -836,7 +836,7 @@ func TestExposeWithCluster(t *testing.T) {
 			args:            []string{"statefulset", "tcp-go-echo-ss", "--headless"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "Unable to create skupper service: Service already exposed, cannot reconfigure as headless",
+			expectedError:   "Service already exposed, cannot reconfigure as headless",
 			realCluster:     true,
 		},
 		{
@@ -844,12 +844,12 @@ func TestExposeWithCluster(t *testing.T) {
 			args:            []string{"service", "tcp-go-echo"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "The --address option is required for target type 'service'",
+			expectedError:   "--address option is required for target type 'service'",
 			realCluster:     true,
 		},
 		{
 			doc:             "expose-test16",
-			args:            []string{"service", "tcp-go-echo", "--address", "tcp-go-echo"},
+			args:            []string{"service", "tcp-go-echo", "--port", "9090", "--address", "tcp-go-echo"},
 			expectedCapture: "service tcp-go-echo exposed as tcp-go-echo",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -939,7 +939,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 			args:            []string{"deployent", "tcp-not-deployed"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "expose target type must be one of: [deployment, statefulset, pods, service]",
+			expectedError:   "target type must be one of: [deployment, statefulset, pods, service]",
 			realCluster:     false,
 		},
 		{
