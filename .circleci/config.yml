@@ -91,6 +91,9 @@ commands:
       - run:
           name: Run skupper cli tests in real cluster
           command: go test -v -count=1 ./cmd/skupper -use-cluster
+      - run:
+          name: Run site-controller tests in real cluster
+          command: go test -v -count=1 ./cmd/site-controller -use-cluster
 
   compile_go_program:
     description: Compile specified platform.
