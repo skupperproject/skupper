@@ -821,7 +821,7 @@ func TestExposeWithCluster(t *testing.T) {
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "Service already exposed, cannot reconfigure as headless",
-			realCluster:     false,
+			realCluster:     true,
 		},
 		{
 			doc:             "expose-test13",
