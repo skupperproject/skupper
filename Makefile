@@ -12,6 +12,7 @@ build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
 	go test -c -tags=integration -v ./test/integration/tcp_echo -o ${TEST_BINARIES_FOLDER}/tcp_echo_test
 	go test -c -tags=integration -v ./test/integration/http -o ${TEST_BINARIES_FOLDER}/http_test
+	go test -c -tags=integration -v ./test/integration/bookinfo -o ${TEST_BINARIES_FOLDER}/bookinfo_test
 
 build-cmd:
 	go build -ldflags="-X main.version=${VERSION}"  -o skupper cmd/skupper/skupper.go
