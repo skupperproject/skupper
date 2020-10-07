@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -94,20 +93,16 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 
 	job, err := k8s.WaitForJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
 	assert.Assert(t, err)
+	pubCluster1.KubectlExec("logs job/" + jobName)
+
 	k8s.AssertJob(t, job)
 }
 
 func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
-	pub1Cluster, err := r.GetPublicContext(1)
-	assert.Assert(t, err)
-
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	err = pub1Cluster.CreateNamespace()
-	assert.Assert(t, err)
-
-	err = prv1Cluster.CreateNamespace()
+	err = base.SetupSimplePublicPrivateAndConnect(ctx, &r.ClusterTestRunnerBase, "http")
 	assert.Assert(t, err)
 
 	privateDeploymentsClient := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)
@@ -117,25 +112,6 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 	assert.Assert(t, err)
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
-
-	routerCreateSpec := types.SiteConfigSpec{
-		SkupperName:       "",
-		SkupperNamespace:  prv1Cluster.Namespace,
-		IsEdge:            false,
-		EnableController:  true,
-		EnableServiceSync: true,
-		EnableConsole:     false,
-		AuthMode:          types.ConsoleAuthModeUnsecured,
-		User:              "nicob?",
-		Password:          "nopasswordd",
-		ClusterLocal:      false,
-		Replicas:          1,
-	}
-	// Configure the public namespace.
-	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
-	assert.Assert(t, err)
-	err = prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
-	assert.Assert(t, err)
 
 	service := types.ServiceInterface{
 		Address:  "httpbin",
@@ -148,48 +124,10 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
 	assert.Assert(t, err)
-
-	// Configure the public namespace.
-	routerCreateSpec.SkupperNamespace = pub1Cluster.Namespace
-	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
-	assert.Assert(t, err)
-	err = pub1Cluster.VanClient.RouterCreate(ctx, *publicSiteConfig)
-	assert.Assert(t, err)
-
-	const secretFile = "/tmp/public_http_1_secret.yaml"
-	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
-	assert.Assert(t, err)
-
-	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
-		SkupperNamespace: prv1Cluster.Namespace,
-		Name:             "",
-		Cost:             0,
-	}
-	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
-	assert.Assert(t, err)
-}
-
-func (r *HttpClusterTestRunner) TearDown(ctx context.Context) {
-	errMsg := "Something failed! aborting teardown"
-
-	pub, err := r.GetPublicContext(1)
-	if err != nil {
-		log.Warn(errMsg)
-		return
-	}
-
-	priv, err := r.GetPrivateContext(1)
-	if err != nil {
-		log.Warn(errMsg)
-		return
-	}
-
-	pub.DeleteNamespace()
-	priv.DeleteNamespace()
 }
 
 func (r *HttpClusterTestRunner) Run(ctx context.Context, t *testing.T) {
-	defer r.TearDown(ctx)
+	defer base.TearDownSimplePublicAndPrivate(&r.ClusterTestRunnerBase)
 	r.Setup(ctx, t)
 	r.RunTests(ctx, t)
 }

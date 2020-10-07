@@ -1,9 +1,12 @@
 package base
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
+	"github.com/prometheus/common/log"
+	"github.com/skupperproject/skupper/api/types"
 	vanClient "github.com/skupperproject/skupper/client"
 	"gotest.tools/assert"
 )
@@ -146,4 +149,102 @@ func (c *ClusterTestRunnerBase) createClusterContext(t *testing.T, needs Cluster
 		c.ClusterContexts = append(c.ClusterContexts, cc)
 	}
 
+}
+
+func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunnerBase, prefix string) error {
+
+	var err error
+	pub1Cluster, err := r.GetPublicContext(1)
+	if err != nil {
+		return err
+	}
+
+	prv1Cluster, err := r.GetPrivateContext(1)
+	if err != nil {
+		return err
+	}
+
+	err = pub1Cluster.CreateNamespace()
+	if err != nil {
+		return err
+	}
+
+	err = prv1Cluster.CreateNamespace()
+	if err != nil {
+		return err
+	}
+
+	// Configure public cluster.
+	routerCreateSpec := types.SiteConfigSpec{
+		SkupperName:       "",
+		IsEdge:            false,
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          types.ConsoleAuthModeUnsecured,
+		User:              "nicob?",
+		Password:          "nopasswordd",
+		ClusterLocal:      false,
+		Replicas:          1,
+	}
+	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+	if err != nil {
+		return err
+	}
+
+	err = pub1Cluster.VanClient.RouterCreate(ctx, *publicSiteConfig)
+	if err != nil {
+		return err
+	}
+
+	secretFile := "/tmp/" + prefix + "_public_secret.yaml"
+	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
+	if err != nil {
+		return err
+	}
+
+	// Configure private cluster.
+	routerCreateSpec.SkupperNamespace = prv1Cluster.Namespace
+	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+
+	err = prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
+	if err != nil {
+		return err
+	}
+
+	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
+		SkupperNamespace: prv1Cluster.Namespace,
+		Name:             "",
+		Cost:             0,
+	}
+	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
+	return err
+
+}
+
+func TearDownSimplePublicAndPrivate(r *ClusterTestRunnerBase) {
+	errMsg := "Something failed! aborting teardown"
+	err := RemoveNamespacesForContexes(r, []int{1}, []int{1})
+	if err != nil {
+		log.Warnf("%s: %s", errMsg, err.Error())
+	}
+}
+
+func RemoveNamespacesForContexes(r *ClusterTestRunnerBase, public []int, priv []int) error {
+	removeNamespaces := func(private bool, ids []int) error {
+		for id := range ids {
+
+			cc, err := r.GetContext(private, id)
+			if err != nil {
+				return err
+			}
+			cc.DeleteNamespace()
+		}
+		return nil
+	}
+	err := removeNamespaces(true, priv)
+	if err != nil {
+		return err
+	}
+	return removeNamespaces(false, public)
 }
