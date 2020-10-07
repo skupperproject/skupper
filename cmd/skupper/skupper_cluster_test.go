@@ -21,6 +21,16 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
+type testCase struct {
+	doc             string
+	args            []string
+	expectedCapture string
+	expectedOutput  string
+	expectedError   string
+	realCluster     bool
+	createConn      bool
+}
+
 func executeCommand(cmd *cobra.Command, args ...string) (cmdOut string, err error) {
 	bufOut := new(bytes.Buffer)
 	cmd.SetOut(bufOut)
@@ -178,14 +188,7 @@ var tcpStatefulSet *appsv1.StatefulSet = &appsv1.StatefulSet{
 }
 
 func TestInitInteriorWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "init-test1",
 			args:            []string{"--help"},
@@ -224,14 +227,7 @@ func TestInitInteriorWithCluster(t *testing.T) {
 }
 
 func TestDeleteWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "delete-test1",
 			args:            []string{"--help"},
@@ -279,14 +275,7 @@ func TestDeleteWithCluster(t *testing.T) {
 }
 
 func TestConnectionTokenWithEdgeCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "connection-token-test1",
 			args:            []string{"--help"},
@@ -343,14 +332,7 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 }
 
 func TestConnectionTokenWithInteriorCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "connection-token-test1",
 			args:            []string{"--help"},
@@ -407,14 +389,7 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 }
 
 func TestConnectWithEdgeCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "connect-test1",
 			args:            []string{"--help"},
@@ -462,14 +437,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 }
 
 func TestConnectWithInteriorCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "connect-test1",
 			args:            []string{"--help"},
@@ -517,14 +485,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 }
 
 func TestDisconnectWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "disconnect-test1",
 			args:            []string{"--help"},
@@ -572,15 +533,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 }
 
 func TestListConnectorsWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-		createConn      bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "list-connectors-test1",
 			args:            []string{"--help"},
@@ -646,15 +599,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 }
 
 func TestCheckConnectionWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-		createConn      bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "check-connection-test1",
 			args:            []string{"--help"},
@@ -733,14 +678,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 }
 
 func TestStatusWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "status-test1",
 			args:            []string{"--help"},
@@ -788,14 +726,7 @@ func TestStatusWithCluster(t *testing.T) {
 }
 
 func TestExposeWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "expose-test1",
 			args:            []string{"--help"},
@@ -962,14 +893,7 @@ func TestExposeWithCluster(t *testing.T) {
 }
 
 func TestUnexposeWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "unexpose-test1",
 			args:            []string{"--help"},
@@ -1074,19 +998,10 @@ func TestUnexposeWithCluster(t *testing.T) {
 }
 
 func TestListExposedWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		flags           []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "list-exposed-test1",
 			args:            []string{"--help"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "List services exposed over the Skupper network",
 			expectedError:   "",
@@ -1095,7 +1010,6 @@ func TestListExposedWithCluster(t *testing.T) {
 		{
 			doc:             "list-exposed-test2",
 			args:            []string{},
-			flags:           []string{},
 			expectedCapture: "Services exposed through Skupper",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -1143,19 +1057,10 @@ func TestListExposedWithCluster(t *testing.T) {
 }
 
 func TestCreateServiceWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		flags           []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "create-service-test1",
 			args:            []string{"--help"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "Create a skupper service",
 			expectedError:   "",
@@ -1164,7 +1069,6 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		{
 			doc:             "create-service-test2",
 			args:            []string{"tcp-go-echo-a", "9090"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -1173,7 +1077,6 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		{
 			doc:             "create-service-test3",
 			args:            []string{"tcp-go-echo-b", "909x"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "909x is not a valid port",
@@ -1182,7 +1085,6 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		{
 			doc:             "create-service-test4",
 			args:            []string{"tcp-go-echo-c:9090"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -1192,7 +1094,6 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		{
 			doc:             "create-service-test5",
 			args:            []string{"tcp-go-echo-c:909x"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "909x is not a valid port",
@@ -1228,19 +1129,10 @@ func TestCreateServiceWithCluster(t *testing.T) {
 }
 
 func TestDeleteServiceWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		flags           []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "delete-service-test1",
 			args:            []string{"--help"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "Delete a skupper service",
 			expectedError:   "",
@@ -1249,7 +1141,6 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 		{
 			doc:             "delete-service-test2",
 			args:            []string{"tcp-go-echo-a"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "Could not find service tcp-go-echo-a",
@@ -1258,7 +1149,6 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 		{
 			doc:             "delete-service-test3",
 			args:            []string{"tcp-go-echo-b"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -1300,19 +1190,10 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 }
 
 func TestBindWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		flags           []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "bind-test1",
 			args:            []string{"--help"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "Bind a target to a service",
 			expectedError:   "",
@@ -1321,7 +1202,6 @@ func TestBindWithCluster(t *testing.T) {
 		{
 			doc:             "bind-test2",
 			args:            []string{"tcp-go-echo-a", "deployment", "tcp-go-echo-a"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "Service tcp-go-echo-a not found",
@@ -1330,7 +1210,6 @@ func TestBindWithCluster(t *testing.T) {
 		{
 			doc:             "bind-test3",
 			args:            []string{"tcp-go-echo", "deployment", "tcp-go-echo"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -1339,7 +1218,6 @@ func TestBindWithCluster(t *testing.T) {
 		{
 			doc:             "bind-test4",
 			args:            []string{"tcp-go-echo", "deployment", "tcp-go-echo3", "--protocol", "sctp"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "sctp is not a valid protocol. Choose 'tcp', 'http' or 'http2'",
@@ -1386,19 +1264,10 @@ func TestBindWithCluster(t *testing.T) {
 }
 
 func TestUnbindWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		flags           []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "unbind-test1",
 			args:            []string{"--help"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "Unbind a target from a service",
 			expectedError:   "",
@@ -1407,7 +1276,6 @@ func TestUnbindWithCluster(t *testing.T) {
 		{
 			doc:             "unbind-test2",
 			args:            []string{"tcp-go-echo-a", "deployment", "tcp-go-echo-a"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "Could not find entry for service interface tcp-go-echo-a",
@@ -1416,7 +1284,6 @@ func TestUnbindWithCluster(t *testing.T) {
 		{
 			doc:             "unbind-test3",
 			args:            []string{"tcp-go-echo", "deployment", "tcp-go-echo"},
-			flags:           []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -1467,14 +1334,7 @@ func TestUnbindWithCluster(t *testing.T) {
 }
 
 func TestVersionWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "version-test1",
 			args:            []string{"--help"},
@@ -1521,14 +1381,7 @@ func TestVersionWithCluster(t *testing.T) {
 }
 
 func TestDebugDumpWithCluster(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		args            []string
-		expectedCapture string
-		expectedOutput  string
-		expectedError   string
-		realCluster     bool
-	}{
+	testcases := []testCase{
 		{
 			doc:             "debug-dump-test1",
 			args:            []string{"--help"},
