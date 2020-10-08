@@ -94,6 +94,17 @@ func Test_exposeTargetArgs(t *testing.T) {
 	}
 }
 
+func Test_cmdExposeParseArgs(t *testing.T) {
+	cmd_args := []string{"deployment/name", "--address", "theAddress"}
+	cmd := NewCmdExpose(nil)
+
+	assert.Assert(t, cmd.ParseFlags([]string{}))
+	assert.Equal(t, exposeOpts.Address, "")
+
+	assert.Assert(t, cmd.ParseFlags(cmd_args))
+	assert.Equal(t, exposeOpts.Address, "theAddress")
+}
+
 var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
 
 func TestMain(m *testing.M) {
