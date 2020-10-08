@@ -52,9 +52,8 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 			time.Sleep(500 * time.Millisecond)
 			connected, err = qdr.GetConnectedSites(vir.Status.Mode == types.TransportModeEdge, cli.Namespace, cli.KubeClient, cli.RestConfig)
 		}
-		if err != nil {
-			return nil, err
-		} else {
+
+		if err == nil {
 			vir.Status.ConnectedSites = connected
 		}
 
@@ -73,6 +72,7 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 			vir.ConsoleUrl = "https://" + url
 		}
 	}
+
 	return vir, err
 
 }
