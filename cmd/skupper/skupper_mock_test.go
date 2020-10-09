@@ -500,6 +500,7 @@ func TestCmdExposeRun(t *testing.T) {
 	cli.injectedReturns.serviceInterfaceInspect.err = fmt.Errorf("some error")
 	err = cmd.RunE(&cobra.Command{}, args)
 	assert.Error(t, err, "some error")
+	assert.Assert(t, exposeOpts.Address == "name")
 }
 
 func TestCmdBind(t *testing.T) {
