@@ -206,14 +206,6 @@ func (c *SiteController) enqueueTrigger(obj interface{}, category triggerType) {
 	})
 }
 
-func (c *SiteController) enqueueConfigMap(obj interface{}) {
-	c.enqueueTrigger(obj, SiteConfig)
-}
-
-func (c *SiteController) enqueueSecret(obj interface{}) {
-	c.enqueueTrigger(obj, Token)
-}
-
 func (c *SiteController) checkAllForSite() {
 	// Now need to check whether there are any token requests already in place
 	log.Println("Checking tokens...")
@@ -294,6 +286,7 @@ func (c *SiteController) connect(token *corev1.Secret, namespace string) error {
 }
 
 func (c *SiteController) disconnect(name string, namespace string) error {
+	log.Printf("Disconnecting connector %s from site in %s", name, namespace)
 	var options types.ConnectorRemoveOptions
 	options.Name = name
 	options.SkupperNamespace = namespace
@@ -330,25 +323,8 @@ func (c *SiteController) checkAllTokens() {
 	//can we rely on the cache here?
 	tokens := c.tokenInformer.GetStore().List()
 	for _, t := range tokens {
-		var key string
-		var err error
-		var siteNamespace string
-		if key, err = cache.MetaNamespaceKeyFunc(t); err == nil {
-			siteNamespace, _, err = cache.SplitMetaNamespaceKey(key)
-			if err == nil {
-				token := t.(*corev1.Secret)
-				if c.isTokenValidInSite(token) {
-					err := c.connect(token, siteNamespace)
-					if err != nil {
-						log.Println("Error using connection-token secret: ", err)
-					}
-				}
-			} else {
-				log.Println("Error checking connection-token secret namespace: ", err)
-			}
-		} else {
-			log.Println("Error checking connection-token secret: ", err)
-		}
+		// service from the workqueue
+		c.enqueueTrigger(t, Token)
 	}
 }
 
@@ -356,11 +332,8 @@ func (c *SiteController) checkAllTokenRequests() {
 	//can we rely on the cache here?
 	tokens := c.tokenRequestInformer.GetStore().List()
 	for _, t := range tokens {
-		token := t.(*corev1.Secret)
-		err := c.generate(token)
-		if err != nil {
-			log.Println("Error checking connection-token secret: ", err)
-		}
+		// service from workqueue
+		c.enqueueTrigger(t, TokenRequest)
 	}
 }
 
