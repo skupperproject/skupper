@@ -400,7 +400,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 		},
 		{
 			doc:             "connect-test2",
-			args:            []string{"/tmp/foo.yaml"},
+			args:            []string{"/tmp/foo.yaml", "--connection-name", "edge-conn1"},
 			expectedCapture: "Skupper configured to connect to",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -448,7 +448,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 		},
 		{
 			doc:             "connect-test2",
-			args:            []string{"/tmp/foo.yaml"},
+			args:            []string{"/tmp/foo.yaml", "--connection-name", "interior-conn1"},
 			expectedCapture: "Skupper configured to connect to",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -794,7 +794,7 @@ func TestExposeWithCluster(t *testing.T) {
 		{
 			doc:             "expose-test9",
 			args:            []string{"deployment", "tcp-go-echo", "--port", "9090"},
-			expectedCapture: "deployment tcp-go-echo exposed as deployment",
+			expectedCapture: "deployment tcp-go-echo exposed as tcp-go-echo",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -802,7 +802,7 @@ func TestExposeWithCluster(t *testing.T) {
 		{
 			doc:             "expose-test10",
 			args:            []string{"deployment", "tcp-go-echo", "--port", "1234567890"},
-			expectedCapture: "deployment tcp-go-echo exposed as deployment",
+			expectedCapture: "deployment tcp-go-echo exposed as tcp-go-echo",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -820,13 +820,13 @@ func TestExposeWithCluster(t *testing.T) {
 			args:            []string{"deployment", "tcp-not-deployed", "--headless"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "Service already exposed, cannot reconfigure as headless",
+			expectedError:   "The headless option is only supported for statefulsets",
 			realCluster:     true,
 		},
 		{
 			doc:             "expose-test13",
 			args:            []string{"statefulset", "tcp-go-echo-ss"},
-			expectedCapture: "statefulset tcp-go-echo-ss exposed as statefulset",
+			expectedCapture: "statefulset tcp-go-echo-ss exposed as tcp-go-echo",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -1043,7 +1043,7 @@ func TestListExposedWithCluster(t *testing.T) {
 	if *clusterRun {
 		exposeCmd := NewCmdExpose(testClient)
 		silenceCobra(exposeCmd)
-		testCommand(t, exposeCmd, "cmd-list-exposed-cluster-test", "", "deployment tcp-go-echo exposed as deployment", "", []string{"deployment", "tcp-go-echo", "--port", "9090"}...)
+		testCommand(t, exposeCmd, "cmd-list-exposed-cluster-test", "", "deployment tcp-go-echo exposed as tcp-go-echo", "", []string{"deployment", "tcp-go-echo", "--port", "9090"}...)
 	}
 
 	for _, tc := range testcases {
