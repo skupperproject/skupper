@@ -15,7 +15,7 @@ import (
 	"gotest.tools/assert"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/informers"
+	corev1informer "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -112,8 +112,11 @@ func TestConnectorCreateInterior(t *testing.T) {
 	defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
 
 	secretsFound := []string{}
-	informers := informers.NewSharedInformerFactory(tokenCreatorClient.KubeClient, 0)
-	secretsInformer := informers.Core().V1().Secrets().Informer()
+	secretsInformer := corev1informer.NewSecretInformer(
+		tokenUserClient.KubeClient,
+		tokenUserNamespace,
+		time.Second*30,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	secretsInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			secret := obj.(*corev1.Secret)
@@ -123,7 +126,7 @@ func TestConnectorCreateInterior(t *testing.T) {
 		},
 	})
 
-	informers.Start(ctx.Done())
+	go secretsInformer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), secretsInformer.HasSynced)
 
 	testPath := "./tmp/"
