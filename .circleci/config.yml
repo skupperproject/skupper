@@ -149,6 +149,7 @@ workflows:
             - prepare_for_local_cluster_tests
           requires:
             - test
+            - build_and_push_test_images
 
       - publish-github-release-artifacts:
           <<: *run_for_v_prefixed_tags
@@ -178,7 +179,17 @@ jobs:
                 echo "Bad formatting! execute \"\$make format\" locally and push again!"
                 exit 1
               fi
+      - go/mod-download-cached
+      - run: make
+      - run: make package
+      - run: make clean
+      - go/test
 
+  build_and_push_test_images:
+    executor: local_cluster_test_executor
+    steps:
+      - docker/install-docker
+      - checkout
       - run:
           name: Export environment variables persistent in execution shell
           command: |
@@ -186,15 +197,10 @@ jobs:
             echo 'export SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
             echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
             source $BASH_ENV
-      - setup_remote_docker
-      - go/mod-download-cached
-      - run: make
-      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
+      - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - run: make -e docker-build
+      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
       - run: make -e docker-push
-      - run: make package
-      - run: make clean
-      - go/test
 
   remove_from_registry:
     executor:
