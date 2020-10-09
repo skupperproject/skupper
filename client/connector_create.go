@@ -60,6 +60,11 @@ func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, 
 }
 
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
+	// Before doing any checks, make sure that Skupper is running.
+	if _, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient); err != nil {
+		return nil, err
+	}
+
 	// Disallow self-connection: make sure this token does not belong to this Skupper router.
 	ownToken, err := cli.isOwnToken(ctx, secretFile)
 	if err != nil {
