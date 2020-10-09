@@ -142,6 +142,8 @@ workflows:
           <<: *run_for_all_branches_and_v_prefixed_tags
       - test:
           <<: *run_for_all_branches_and_v_prefixed_tags
+      - build_and_push_test_images:
+          <<: *run_for_all_branches_and_v_prefixed_tags
 
       - minikube_local_cluster_tests:
           <<: *run_for_all_branches_and_v_prefixed_tags
