@@ -129,14 +129,14 @@ func TestConnectorCreateInterior(t *testing.T) {
 	defer kube.DeleteNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
 	defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
 
-	secretsFound := []string{}
+	secretsFound := make(map[string]bool, 0)
 	informers := informers.NewSharedInformerFactory(tokenCreatorClient.KubeClient, 0)
 	secretsInformer := informers.Core().V1().Secrets().Informer()
 	secretsInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			secret := obj.(*corev1.Secret)
 			if !strings.HasPrefix(secret.Name, "skupper") {
-				secretsFound = append(secretsFound, secret.Name)
+				secretsFound[secret.Name] = true
 			}
 		},
 	})
@@ -160,17 +160,20 @@ func TestConnectorCreateInterior(t *testing.T) {
 			SkupperNamespace: tokenUserNamespace,
 			Cost:             1,
 		})
+		uniqueSecrets := make([]string, 0)
+		for k := range secretsFound {
+			uniqueSecrets = append(uniqueSecrets, k)
+		}
 		if c.expectedError == "" {
 			assert.Assert(t, err, "Unable to create connector")
 			// TODO: make more deterministic
 			time.Sleep(time.Second * 1)
-			if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
+			if diff := cmp.Diff(c.secretsExpected, uniqueSecrets, c.opts...); diff != "" {
 				t.Errorf("TestConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 			}
-			//assert.Assert(t, cmp.Equal(c.secretsExpected, secretsFound, trans), c.doc)
 		} else {
 			assert.Error(t, err, c.expectedError, c.doc)
-			if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
+			if diff := cmp.Diff(c.secretsExpected, uniqueSecrets, c.opts...); diff != "" {
 				t.Errorf("TestConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 			}
 		}
