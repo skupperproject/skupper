@@ -19,24 +19,42 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+var lightRed string = "\033[1;31m"
+var resetColor string = "\033[0m"
+
 func TestConnectorCreateError(t *testing.T) {
+	if !*clusterRun {
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
+		return
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cli, err := newMockClient("my-namespace", "", "")
-	assert.Assert(t, err)
+	var cli *VanClient
+	var err error
+	ns := "namespace-for-testconnectorcreateerror"
+	cli, err = NewClient(ns, "", "")
+	assert.Check(t, err, ns)
 
-	_, err = cli.ConnectorCreateFromFile(ctx, "./somefile.yaml", types.ConnectorCreateOptions{
-		Name: "",
-		Cost: 1,
+	_, err = kube.NewNamespace(ns, cli.KubeClient)
+	assert.Check(t, err, ns)
+	defer kube.DeleteNamespace(ns, cli.KubeClient)
+	configureSiteAndCreateRouter(t, ctx, cli, "public")
+
+	// We forget to actually create the token...
+	// ... so the connector creation should fail.
+	secretFileName := "last-night-i-met-upon-the-stair.yaml"
+	_, err = cli.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+		Name:             "a-token-file-that-wasnt-there",
+		SkupperNamespace: ns,
+		Cost:             1,
 	})
-	assert.ErrorContains(t, err, "open ./somefile.yaml: no such file or directory", "Expect error when file not found")
+	assert.Assert(t, strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func TestConnectorCreateInterior(t *testing.T) {
 	if !*clusterRun {
-		lightRed := "\033[1;31m"
-		resetColor := "\033[0m"
 		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
 		return
 	}
@@ -161,7 +179,6 @@ func TestConnectorCreateInterior(t *testing.T) {
 }
 
 func TestSelfConnect(t *testing.T) {
-
 	if !*clusterRun {
 		lightRed := "\033[1;31m"
 		resetColor := "\033[0m"
