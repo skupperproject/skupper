@@ -129,6 +129,10 @@ func TestConnectorCreateInterior(t *testing.T) {
 	defer kube.DeleteNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
 	defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
 
+	// To avoid multiple reports of same connector, implement a
+	// Set with a map of connector name to boolean. At the edn,
+	// extract all of its keys as a list of strings to compare
+	// to the list that was expected.
 	secretsFound := make(map[string]bool, 0)
 	informers := informers.NewSharedInformerFactory(tokenCreatorClient.KubeClient, 0)
 	secretsInformer := informers.Core().V1().Secrets().Informer()
