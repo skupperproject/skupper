@@ -232,7 +232,7 @@ func TearDownSimplePublicAndPrivate(r *ClusterTestRunnerBase) {
 
 func RemoveNamespacesForContexes(r *ClusterTestRunnerBase, public []int, priv []int) error {
 	removeNamespaces := func(private bool, ids []int) error {
-		for id := range ids {
+		for _, id := range ids {
 
 			cc, err := r.GetContext(private, id)
 			if err != nil {
