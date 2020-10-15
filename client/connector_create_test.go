@@ -35,8 +35,6 @@ func TestConnectorCreateError(t *testing.T) {
 		cli, err = newMockClient(ns, "", "")
 	}
 	assert.Assert(t, err)
-	cli, err = NewClient(ns, "", "")
-	assert.Check(t, err, ns)
 
 	_, err = kube.NewNamespace(ns, cli.KubeClient)
 	assert.Check(t, err, ns)
