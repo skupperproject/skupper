@@ -224,8 +224,15 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 				Name:     service.ObjectMeta.Name,
 				Selector: utils.StringifySelector(service.Spec.Selector),
 			}
-			if targetPort := deduceTargetPortFromService(service); targetPort != 0 {
-				target.TargetPort = targetPort
+			if curSvc, ok := m.annotated[svc.Address]; !ok {
+				// If getting target port from new annotated service, deduce target port from service
+				if targetPort := deduceTargetPortFromService(service); targetPort != 0 {
+					target.TargetPort = targetPort
+				}
+			} else {
+				// If getting target port from previously annotated service, deduce target port from existing existing annotation
+				// as in this case the target port might have been already modified
+				target.TargetPort = curSvc.Port
 			}
 			svc.Targets = []types.ServiceInterfaceTarget{
 				target,

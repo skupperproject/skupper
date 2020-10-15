@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -216,9 +217,14 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		} else if bindings.headless != nil {
 			bindings.headless = nil
 		}
+
+		hasSkupperSelector := false
 		for _, t := range required.Targets {
 			targetPort := getTargetPort(required, t)
-			if t.Selector != "" {
+			if strings.Contains(t.Selector, "skupper.io/component=router") {
+				hasSkupperSelector = true
+			}
+			if t.Selector != "" && !hasSkupperSelector {
 				target := bindings.targets[t.Selector]
 				if target == nil {
 					bindings.addSelectorTarget(t.Name, t.Selector, targetPort, c)
@@ -236,7 +242,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		}
 		for k, v := range bindings.targets {
 			if v.selector != "" {
-				if !hasTargetForSelector(required, k) {
+				if !hasTargetForSelector(required, k) && !hasSkupperSelector {
 					bindings.removeSelectorTarget(k)
 				}
 			} else if v.service != "" {
