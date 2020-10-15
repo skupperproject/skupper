@@ -19,24 +19,37 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+var lightRed string = "\033[1;31m"
+var resetColor string = "\033[0m"
+
 func TestConnectorCreateError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cli, err := newMockClient("my-namespace", "", "")
-	assert.Assert(t, err)
+	var cli *VanClient
+	var err error
+	ns := "namespace-for-testconnectorcreateerror"
+	cli, err = NewClient(ns, "", "")
+	assert.Check(t, err, ns)
 
-	_, err = cli.ConnectorCreateFromFile(ctx, "./somefile.yaml", types.ConnectorCreateOptions{
-		Name: "",
-		Cost: 1,
+	_, err = kube.NewNamespace(ns, cli.KubeClient)
+	assert.Check(t, err, ns)
+	defer kube.DeleteNamespace(ns, cli.KubeClient)
+	configureSiteAndCreateRouter(t, ctx, cli, "public")
+
+	// We forget to actually create the token...
+	// ... so the connector creation should fail.
+	secretFileName := "last-night-i-met-upon-the-stair.yaml"
+	_, err = cli.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+		Name:             "a-token-file-that-wasnt-there",
+		SkupperNamespace: ns,
+		Cost:             1,
 	})
-	assert.ErrorContains(t, err, "open ./somefile.yaml: no such file or directory", "Expect error when file not found")
+	assert.Assert(t, strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func TestConnectorCreateInterior(t *testing.T) {
 	if !*clusterRun {
-		lightRed := "\033[1;31m"
-		resetColor := "\033[0m"
 		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
 		return
 	}
@@ -111,7 +124,10 @@ func TestConnectorCreateInterior(t *testing.T) {
 	defer kube.DeleteNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
 	defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
 
-	secretsFound := []string{}
+	// Make a set of found secrets. Later, make a list of all
+	// secrets from the keys of this set. This eliminates
+	// duplicate reports of the same secret.
+	secretsFound := make(map[string]bool)
 	secretsInformer := corev1informer.NewSecretInformer(
 		tokenUserClient.KubeClient,
 		tokenUserNamespace,
@@ -121,7 +137,7 @@ func TestConnectorCreateInterior(t *testing.T) {
 		AddFunc: func(obj interface{}) {
 			secret := obj.(*corev1.Secret)
 			if !strings.HasPrefix(secret.Name, "skupper") {
-				secretsFound = append(secretsFound, secret.Name)
+				secretsFound[secret.Name] = true
 			}
 		},
 	})
@@ -145,17 +161,21 @@ func TestConnectorCreateInterior(t *testing.T) {
 			SkupperNamespace: tokenUserNamespace,
 			Cost:             1,
 		})
+		uniqueSecrets := make([]string, 0)
+		for k, _ := range secretsFound {
+			uniqueSecrets = append(uniqueSecrets, k)
+		}
+
 		if c.expectedError == "" {
 			assert.Assert(t, err, "Unable to create connector")
 			// TODO: make more deterministic
 			time.Sleep(time.Second * 1)
-			if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
+			if diff := cmp.Diff(c.secretsExpected, uniqueSecrets, c.opts...); diff != "" {
 				t.Errorf("TestConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 			}
-			//assert.Assert(t, cmp.Equal(c.secretsExpected, secretsFound, trans), c.doc)
 		} else {
 			assert.Error(t, err, c.expectedError, c.doc)
-			if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
+			if diff := cmp.Diff(c.secretsExpected, uniqueSecrets, c.opts...); diff != "" {
 				t.Errorf("TestConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 			}
 		}
