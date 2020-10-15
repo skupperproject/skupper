@@ -29,6 +29,12 @@ func TestConnectorCreateError(t *testing.T) {
 	var cli *VanClient
 	var err error
 	ns := "namespace-for-testconnectorcreateerror"
+	if *clusterRun {
+		cli, err = NewClient(ns, "", "")
+	} else {
+		cli, err = newMockClient(ns, "", "")
+	}
+	assert.Assert(t, err)
 	cli, err = NewClient(ns, "", "")
 	assert.Check(t, err, ns)
 
