@@ -98,24 +98,26 @@ var ControllerEditPolicyRule = []rbacv1.PolicyRule{
 
 // Skupper qualifiers
 const (
-	BaseQualifier             string = "skupper.io"
-	InternalQualifier         string = "internal." + BaseQualifier
-	AddressQualifier          string = BaseQualifier + "/address"
-	PortQualifier             string = BaseQualifier + "/port"
-	ProxyQualifier            string = BaseQualifier + "/proxy"
-	TargetServiceQualifier    string = BaseQualifier + "/target"
-	ControlledQualifier       string = InternalQualifier + "/controlled"
-	ServiceQualifier          string = InternalQualifier + "/service"
-	OriginQualifier           string = InternalQualifier + "/origin"
-	OriginalSelectorQualifier string = InternalQualifier + "/origin"
-	InternalTypeQualifier     string = InternalQualifier + "/type"
-	SkupperTypeQualifier      string = BaseQualifier + "/type"
-	TypeProxyQualifier        string = InternalTypeQualifier + "=proxy"
-	TypeToken                 string = "connection-token"
-	TypeTokenQualifier        string = BaseQualifier + "/type=connection-token"
-	TypeTokenRequestQualifier string = BaseQualifier + "/type=connection-token-request"
-	TokenGeneratedBy          string = BaseQualifier + "/generated-by"
-	TokenCost                 string = BaseQualifier + "/cost"
+	BaseQualifier               string = "skupper.io"
+	InternalQualifier           string = "internal." + BaseQualifier
+	AddressQualifier            string = BaseQualifier + "/address"
+	PortQualifier               string = BaseQualifier + "/port"
+	ProxyQualifier              string = BaseQualifier + "/proxy"
+	TargetServiceQualifier      string = BaseQualifier + "/target"
+	ControlledQualifier         string = InternalQualifier + "/controlled"
+	ServiceQualifier            string = InternalQualifier + "/service"
+	OriginQualifier             string = InternalQualifier + "/origin"
+	OriginalSelectorQualifier   string = InternalQualifier + "/originalSelector"
+	OriginalPortQualifier       string = InternalQualifier + "/originalPort"
+	OriginalTargetPortQualifier string = InternalQualifier + "/originalTargetPort"
+	InternalTypeQualifier       string = InternalQualifier + "/type"
+	SkupperTypeQualifier        string = BaseQualifier + "/type"
+	TypeProxyQualifier          string = InternalTypeQualifier + "=proxy"
+	TypeToken                   string = "connection-token"
+	TypeTokenQualifier          string = BaseQualifier + "/type=connection-token"
+	TypeTokenRequestQualifier   string = BaseQualifier + "/type=connection-token-request"
+	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
+	TokenCost                   string = BaseQualifier + "/cost"
 )
 
 // Service Interface constants

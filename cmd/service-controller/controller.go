@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,12 +75,21 @@ func getServiceName(name string) string {
 	return strings.TrimSuffix(name, "-proxy")
 }
 
+func hasSkupperAnnotation(service corev1.Service, annotation string) bool {
+	_, ok := service.ObjectMeta.Annotations[annotation]
+	return ok
+}
+
 func hasOriginalSelector(service corev1.Service) bool {
-	if _, ok := service.ObjectMeta.Annotations[types.OriginalSelectorQualifier]; ok {
-		return true
-	} else {
-		return false
-	}
+	return hasSkupperAnnotation(service, types.OriginalSelectorQualifier)
+}
+
+func hasOriginalPort(service corev1.Service) bool {
+	return hasSkupperAnnotation(service, types.OriginalPortQualifier)
+}
+
+func hasOriginalTargetPort(service corev1.Service) bool {
+	return hasSkupperAnnotation(service, types.OriginalTargetPortQualifier)
 }
 
 func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) (*Controller, error) {
@@ -309,15 +320,24 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 	if len(actual.Spec.Ports) > 0 {
 		if actual.Spec.Ports[0].Port != int32(desired.publicPort) {
 			update = true
+			if !hasOriginalPort(*actual) {
+				actual.ObjectMeta.Annotations[types.OriginalPortQualifier] = strconv.FormatInt(int64(actual.Spec.Ports[0].Port), 10)
+			}
 			actual.Spec.Ports[0].Port = int32(desired.publicPort)
 		}
 		if actual.Spec.Ports[0].TargetPort.IntValue() != desired.ingressPort {
 			update = true
+			if !hasOriginalTargetPort(*actual) {
+				actual.ObjectMeta.Annotations[types.OriginalTargetPortQualifier] = strconv.FormatInt(int64(actual.Spec.Ports[0].TargetPort.IntVal), 10)
+			}
 			actual.Spec.Ports[0].TargetPort = intstr.FromInt(desired.ingressPort)
 		}
 	}
 	if desired.headless == nil && !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
 		update = true
+		if !hasOriginalSelector(*actual) {
+			actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = utils.StringifySelector(actual.Spec.Selector)
+		}
 		actual.Spec.Selector = kube.GetLabelsForRouter()
 	}
 	if update {

@@ -9,6 +9,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsv1informer "k8s.io/client-go/informers/apps/v1"
@@ -282,6 +283,33 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name strin
 	return nil
 }
 
+func (m *DefinitionMonitor) restoreServiceDefinitions(service *corev1.Service) error {
+	updated := false
+	if hasOriginalSelector(*service) {
+		updated = true
+		originalSelector := service.ObjectMeta.Annotations[types.OriginalSelectorQualifier]
+		delete(service.ObjectMeta.Annotations, types.OriginalSelectorQualifier)
+		service.Spec.Selector = utils.LabelToMap(originalSelector)
+	}
+	if hasOriginalPort(*service) {
+		updated = true
+		originalPort, _ := strconv.Atoi(service.ObjectMeta.Annotations[types.OriginalPortQualifier])
+		delete(service.ObjectMeta.Annotations, types.OriginalPortQualifier)
+		service.Spec.Ports[0].Port = int32(originalPort)
+	}
+	if hasOriginalTargetPort(*service) {
+		updated = true
+		originalTargetPort, _ := strconv.Atoi(service.ObjectMeta.Annotations[types.OriginalTargetPortQualifier])
+		delete(service.ObjectMeta.Annotations, types.OriginalTargetPortQualifier)
+		service.Spec.Ports[0].TargetPort = intstr.FromInt(originalTargetPort)
+	}
+	if updated {
+		_, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Update(service)
+		return err
+	}
+	return nil
+}
+
 func (m *DefinitionMonitor) processNextEvent() bool {
 
 	obj, shutdown := m.events.Get()
@@ -473,6 +501,10 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						err := m.deleteServiceDefinitionForAnnotatedService(name)
 						if err != nil {
 							return fmt.Errorf("Failed to delete service definition on service %s which is no longer annotated: %s", name, err)
+						}
+						err = m.restoreServiceDefinitions(service)
+						if err != nil {
+							return fmt.Errorf("Failed to restore service definitions on service %s: %s", name, err)
 						}
 					}
 				} else {
