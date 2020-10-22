@@ -133,7 +133,10 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 		return true
 	}
 	if len(desired.Targets) > 0 {
-		if actual.Targets[0].Name != actual.Targets[0].Name || actual.Targets[0].Selector != actual.Targets[0].Selector {
+		nameChanged := actual.Targets[0].Name != desired.Targets[0].Name
+		selectorChanged := actual.Targets[0].Selector != desired.Targets[0].Selector
+		targetPortChanged := actual.Targets[0].TargetPort != desired.Targets[0].TargetPort
+		if nameChanged || selectorChanged || targetPortChanged {
 			return true
 		}
 	}
@@ -221,19 +224,29 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 					return svc, false
 				}
 			}
+
+			// By default we use what is defined in the service itself as the
+			// selector, but if the service is already exposed (and pointing to
+			// the router) and the original selector annotation is available,
+			// use it instead so that the target will be the correct endpoint.
+			svcSelector := utils.StringifySelector(service.Spec.Selector)
+			if hasRouterSelector(*service) && hasOriginalSelector(*service) {
+				svcSelector = service.Annotations[types.OriginalSelectorQualifier]
+			}
 			target := types.ServiceInterfaceTarget{
 				Name:     service.ObjectMeta.Name,
-				Selector: utils.StringifySelector(service.Spec.Selector),
+				Selector: svcSelector,
 			}
-			if curSvc, ok := m.annotated[svc.Address]; !ok {
+			if !hasOriginalTargetPort(*service) {
 				// If getting target port from new annotated service, deduce target port from service
 				if targetPort := deduceTargetPortFromService(service); targetPort != 0 {
 					target.TargetPort = targetPort
 				}
 			} else {
-				// If getting target port from previously annotated service, deduce target port from existing existing annotation
+				// If getting target port from previously annotated service, deduce target port from existing annotation
 				// as in this case the target port might have been already modified
-				target.TargetPort = curSvc.Port
+				originalTargetPort, _ := strconv.Atoi(service.Annotations[types.OriginalTargetPortQualifier])
+				target.TargetPort = originalTargetPort
 			}
 			svc.Targets = []types.ServiceInterfaceTarget{
 				target,
@@ -291,17 +304,15 @@ func (m *DefinitionMonitor) restoreServiceDefinitions(service *corev1.Service) e
 		delete(service.ObjectMeta.Annotations, types.OriginalSelectorQualifier)
 		service.Spec.Selector = utils.LabelToMap(originalSelector)
 	}
-	if hasOriginalPort(*service) {
-		updated = true
-		originalPort, _ := strconv.Atoi(service.ObjectMeta.Annotations[types.OriginalPortQualifier])
-		delete(service.ObjectMeta.Annotations, types.OriginalPortQualifier)
-		service.Spec.Ports[0].Port = int32(originalPort)
-	}
 	if hasOriginalTargetPort(*service) {
 		updated = true
 		originalTargetPort, _ := strconv.Atoi(service.ObjectMeta.Annotations[types.OriginalTargetPortQualifier])
 		delete(service.ObjectMeta.Annotations, types.OriginalTargetPortQualifier)
 		service.Spec.Ports[0].TargetPort = intstr.FromInt(originalTargetPort)
+	}
+	if hasOriginalAssigned(*service) {
+		updated = true
+		delete(service.ObjectMeta.Annotations, types.OriginalAssignedQualifier)
 	}
 	if updated {
 		_, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Update(service)
