@@ -80,16 +80,21 @@ func hasSkupperAnnotation(service corev1.Service, annotation string) bool {
 	return ok
 }
 
+func hasRouterSelector(service corev1.Service) bool {
+	_, ok := service.Spec.Selector["skupper.io/component"]
+	return ok
+}
+
 func hasOriginalSelector(service corev1.Service) bool {
 	return hasSkupperAnnotation(service, types.OriginalSelectorQualifier)
 }
 
-func hasOriginalPort(service corev1.Service) bool {
-	return hasSkupperAnnotation(service, types.OriginalPortQualifier)
-}
-
 func hasOriginalTargetPort(service corev1.Service) bool {
 	return hasSkupperAnnotation(service, types.OriginalTargetPortQualifier)
+}
+
+func hasOriginalAssigned(service corev1.Service) bool {
+	return hasSkupperAnnotation(service, types.OriginalAssignedQualifier)
 }
 
 func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) (*Controller, error) {
@@ -320,22 +325,23 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 	if len(actual.Spec.Ports) > 0 {
 		if actual.Spec.Ports[0].Port != int32(desired.publicPort) {
 			update = true
-			if !hasOriginalPort(*actual) {
-				actual.ObjectMeta.Annotations[types.OriginalPortQualifier] = strconv.FormatInt(int64(actual.Spec.Ports[0].Port), 10)
-			}
 			actual.Spec.Ports[0].Port = int32(desired.publicPort)
 		}
 		if actual.Spec.Ports[0].TargetPort.IntValue() != desired.ingressPort {
 			update = true
-			if !hasOriginalTargetPort(*actual) {
-				actual.ObjectMeta.Annotations[types.OriginalTargetPortQualifier] = strconv.FormatInt(int64(actual.Spec.Ports[0].TargetPort.IntVal), 10)
+			originalAssignedPort, _ := strconv.Atoi(actual.Annotations[types.OriginalAssignedQualifier])
+			actualTargetPort := actual.Spec.Ports[0].TargetPort.IntValue()
+			// If target port has been modified by user
+			if actualTargetPort != originalAssignedPort {
+				actual.ObjectMeta.Annotations[types.OriginalTargetPortQualifier] = strconv.Itoa(actualTargetPort)
 			}
+			actual.ObjectMeta.Annotations[types.OriginalAssignedQualifier] = strconv.Itoa(desired.ingressPort)
 			actual.Spec.Ports[0].TargetPort = intstr.FromInt(desired.ingressPort)
 		}
 	}
 	if desired.headless == nil && !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
 		update = true
-		if !hasOriginalSelector(*actual) {
+		if !hasOriginalSelector(*actual) || !hasRouterSelector(*actual) {
 			actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = utils.StringifySelector(actual.Spec.Selector)
 		}
 		actual.Spec.Selector = kube.GetLabelsForRouter()

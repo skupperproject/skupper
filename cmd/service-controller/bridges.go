@@ -224,7 +224,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			if strings.Contains(t.Selector, "skupper.io/component=router") {
 				hasSkupperSelector = true
 			}
-			if t.Selector != "" && !hasSkupperSelector {
+			if t.Selector != "" {
 				target := bindings.targets[t.Selector]
 				if target == nil {
 					bindings.addSelectorTarget(t.Name, t.Selector, targetPort, c)
