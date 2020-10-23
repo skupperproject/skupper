@@ -341,9 +341,7 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 	}
 	if desired.headless == nil && !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
 		update = true
-		if !hasOriginalSelector(*actual) || !hasRouterSelector(*actual) {
-			actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = utils.StringifySelector(actual.Spec.Selector)
-		}
+		actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = utils.StringifySelector(actual.Spec.Selector)
 		actual.Spec.Selector = kube.GetLabelsForRouter()
 	}
 	if update {
