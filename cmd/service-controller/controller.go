@@ -331,6 +331,9 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 			update = true
 			originalAssignedPort, _ := strconv.Atoi(actual.Annotations[types.OriginalAssignedQualifier])
 			actualTargetPort := actual.Spec.Ports[0].TargetPort.IntValue()
+			if actual.ObjectMeta.Annotations == nil {
+				actual.ObjectMeta.Annotations = map[string]string{}
+			}
 			// If target port has been modified by user
 			if actualTargetPort != originalAssignedPort {
 				actual.ObjectMeta.Annotations[types.OriginalTargetPortQualifier] = strconv.Itoa(actualTargetPort)
@@ -341,6 +344,9 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 	}
 	if desired.headless == nil && !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
 		update = true
+		if actual.ObjectMeta.Annotations == nil {
+			actual.ObjectMeta.Annotations = map[string]string{}
+		}
 		actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = utils.StringifySelector(actual.Spec.Selector)
 		actual.Spec.Selector = kube.GetLabelsForRouter()
 	}
