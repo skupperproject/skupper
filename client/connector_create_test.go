@@ -108,7 +108,7 @@ func TestConnectorCreateInterior(t *testing.T) {
 	tokenCreatorNamespace := "van-connector-create-interior"
 	tokenUserNamespace := "van-connector-create-edge"
 	tokenCreatorClient, tokenUserClient, err := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
-        assert.Assert(t, err, "Unable to create namespaces")
+	assert.Assert(t, err, "Unable to create namespaces")
 	defer kube.DeleteNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
 	defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
 
@@ -227,10 +227,10 @@ func TestMultipleConnect(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-        tokenCreatorNamespace := "creator"
-        tokenUserNamespace    := "user"
-        creatorClient, userClient, err := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
-        assert.Assert(t, err, "Can't set up namespaces")
+	tokenCreatorNamespace := "creator"
+	tokenUserNamespace := "user"
+	creatorClient, userClient, err := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
+	assert.Assert(t, err, "Can't set up namespaces")
 	defer kube.DeleteNamespace(tokenCreatorNamespace, creatorClient.KubeClient)
 	defer kube.DeleteNamespace(tokenUserNamespace, userClient.KubeClient)
 
@@ -240,23 +240,23 @@ func TestMultipleConnect(t *testing.T) {
 	defer os.RemoveAll(testPath)
 
 	// Create the connection token for Public ---------------------------------
-	connectionName := "conn1"
+	connectionName := "token1"
 	secretFileName := testPath + connectionName + ".yaml"
 	err = creatorClient.ConnectorTokenCreateFile(ctx, connectionName, secretFileName)
 	assert.Assert(t, err, "Unable to create token")
 
-	// Now use it to make a connection from userClient to creatorClient.
+	// Use the token to make a connector.
 	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
-		Name:             connectionName,
+		Name:             "conn1",
 		SkupperNamespace: tokenCreatorNamespace,
 		Cost:             1,
 	})
 	assert.Assert(t, err, "Can't make first connection")
 
 	// Try to make a second connection.
-        // This should fail.
+	// This should fail.
 	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
-		Name:             connectionName,
+		Name:             "conn2",
 		SkupperNamespace: tokenCreatorNamespace,
 		Cost:             1,
 	})
@@ -271,18 +271,18 @@ func setupTwoNamespaces(t *testing.T, ctx context.Context, tokenCreatorNamespace
 		tokenCreatorClient, err = newMockClient(tokenCreatorNamespace, "", "")
 		tokenUserClient, err = newMockClient(tokenUserNamespace, "", "")
 	}
-        if err != nil {
-	return nil, nil, err
-        }
+	if err != nil {
+		return nil, nil, err
+	}
 
 	_, err = kube.NewNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
-        if err != nil {
-	return nil, nil, err
-        }
+	if err != nil {
+		return nil, nil, err
+	}
 	_, err = kube.NewNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
-        if err != nil {
-	return nil, nil, err
-        }
+	if err != nil {
+		return nil, nil, err
+	}
 
 	configureSiteAndCreateRouter(t, ctx, tokenCreatorClient, "tokenCreator")
 	configureSiteAndCreateRouter(t, ctx, tokenUserClient, "tokenUser")
