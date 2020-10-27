@@ -108,7 +108,8 @@ func TestConnectorInspectDefaults(t *testing.T) {
 	// Create and set up the two namespaces that we will be using.
 	tokenCreatorNamespace := "van-connector-inspect-interior"
 	tokenUserNamespace := "van-connector-inspect-edge"
-	tokenCreatorClient, tokenUserClient := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
+	tokenCreatorClient, tokenUserClient, err := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
+        assert.Assert(t, err, "Can't set up namespaces")
 	defer kube.DeleteNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
 	defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
 

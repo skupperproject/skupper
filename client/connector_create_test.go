@@ -107,7 +107,8 @@ func TestConnectorCreateInterior(t *testing.T) {
 	// Create and set up the two namespaces that we will be using.
 	tokenCreatorNamespace := "van-connector-create-interior"
 	tokenUserNamespace := "van-connector-create-edge"
-	tokenCreatorClient, tokenUserClient := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
+	tokenCreatorClient, tokenUserClient, err := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
+        assert.Assert(t, err, "Unable to create namespaces")
 	defer kube.DeleteNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
 	defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
 
@@ -213,8 +214,56 @@ func TestSelfConnect(t *testing.T) {
 	assert.Assert(t, err != nil, "Self-connection should fail.")
 }
 
-func setupTwoNamespaces(t *testing.T, ctx context.Context, tokenCreatorNamespace, tokenUserNamespace string) (tokenCreatorClient, tokenUserClient *VanClient) {
+func TestMultipleConnect(t *testing.T) {
+
+	if !*clusterRun {
+		lightRed := "\033[1;31m"
+		resetColor := "\033[0m"
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
+		return
+	}
+
 	var err error
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+        tokenCreatorNamespace := "creator"
+        tokenUserNamespace    := "user"
+        creatorClient, userClient, err := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
+        assert.Assert(t, err, "Can't set up namespaces")
+	defer kube.DeleteNamespace(tokenCreatorNamespace, creatorClient.KubeClient)
+	defer kube.DeleteNamespace(tokenUserNamespace, userClient.KubeClient)
+
+	// Here's where we will put the connection token.
+	testPath := "./tmp/"
+	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
+
+	// Create the connection token for Public ---------------------------------
+	connectionName := "conn1"
+	secretFileName := testPath + connectionName + ".yaml"
+	err = creatorClient.ConnectorTokenCreateFile(ctx, connectionName, secretFileName)
+	assert.Assert(t, err, "Unable to create token")
+
+	// Now use it to make a connection from userClient to creatorClient.
+	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+		Name:             connectionName,
+		SkupperNamespace: tokenCreatorNamespace,
+		Cost:             1,
+	})
+	assert.Assert(t, err, "Can't make first connection")
+
+	// Try to make a second connection.
+        // This should fail.
+	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+		Name:             connectionName,
+		SkupperNamespace: tokenCreatorNamespace,
+		Cost:             1,
+	})
+	assert.Assert(t, err != nil, "Second connection attempt should fail")
+}
+
+func setupTwoNamespaces(t *testing.T, ctx context.Context, tokenCreatorNamespace, tokenUserNamespace string) (tokenCreatorClient, tokenUserClient *VanClient, err error) {
 	if *clusterRun {
 		tokenCreatorClient, err = NewClient(tokenCreatorNamespace, "", "")
 		tokenUserClient, err = NewClient(tokenUserNamespace, "", "")
@@ -222,17 +271,23 @@ func setupTwoNamespaces(t *testing.T, ctx context.Context, tokenCreatorNamespace
 		tokenCreatorClient, err = newMockClient(tokenCreatorNamespace, "", "")
 		tokenUserClient, err = newMockClient(tokenUserNamespace, "", "")
 	}
-	assert.Assert(t, err)
+        if err != nil {
+	return nil, nil, err
+        }
 
 	_, err = kube.NewNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
-	assert.Assert(t, err)
+        if err != nil {
+	return nil, nil, err
+        }
 	_, err = kube.NewNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
-	assert.Assert(t, err)
+        if err != nil {
+	return nil, nil, err
+        }
 
 	configureSiteAndCreateRouter(t, ctx, tokenCreatorClient, "tokenCreator")
 	configureSiteAndCreateRouter(t, ctx, tokenUserClient, "tokenUser")
 
-	return tokenCreatorClient, tokenUserClient
+	return tokenCreatorClient, tokenUserClient, nil
 }
 
 func configureSiteAndCreateRouter(t *testing.T, ctx context.Context, cli *VanClient, name string) {

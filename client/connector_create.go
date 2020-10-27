@@ -43,19 +43,30 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	return "conn" + strconv.Itoa(max)
 }
 
+func secretFileAuthor(ctx context.Context, secretFile string) (author string, err error) {
+  content, err := certs.GetSecretContent(secretFile)
+  if err != nil {
+    return "", err
+  }
+  generatedBy, ok := content["skupper.io/generated-by"]
+  if !ok {
+    return "", fmt.Errorf("Can't find secret origin.")
+  }
+  return string(generatedBy), nil
+}
+
 func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, error) {
-	content, err := certs.GetSecretContent(secretFile)
-	if err != nil {
-		return false, err
-	}
-	generatedBy, ok := content["skupper.io/generated-by"]
-	if !ok {
-		return false, fmt.Errorf("Can't find secret origin.")
-	}
+        generatedBy, err := secretFileAuthor(ctx, secretFile)
+        if err != nil {
+          return false, err
+        }
 	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
 	if err != nil {
 		return false, err
 	}
+        if siteConfig == nil {
+          return false, fmt.Errorf("No site config")
+        }
 	return siteConfig.Reference.UID == string(generatedBy), nil
 }
 
