@@ -4,19 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
+        "strings"
 	"testing"
-	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
-
-	corev1 "k8s.io/api/core/v1"
-	corev1informer "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/tools/cache"
 )
 
 var lightRed string = "\033[1;31m"
@@ -50,141 +43,6 @@ func TestConnectorCreateError(t *testing.T) {
 		Cost:             1,
 	})
 	assert.Assert(t, strings.Contains(err.Error(), "no such file or directory"))
-}
-
-func TestConnectorCreateInterior(t *testing.T) {
-	if !*clusterRun {
-		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
-		return
-	}
-
-	testcases := []struct {
-		doc             string
-		expectedError   string
-		connName        string
-		connFile        string
-		secretsExpected []string
-		opts            []cmp.Option
-	}{
-		{
-			doc:             "Expect generated name to be conn1",
-			expectedError:   "",
-			connName:        "",
-			secretsExpected: []string{"conn1"},
-			opts: []cmp.Option{
-				trans,
-				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "conn") }),
-			},
-		},
-		{
-			doc:             "Expect secret name to be as provided: conn2",
-			expectedError:   "",
-			connName:        "conn2",
-			secretsExpected: []string{"conn1", "conn2"},
-			opts: []cmp.Option{
-				trans,
-				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "conn") }),
-			},
-		},
-		{
-			doc:             "Expect secret name to be as provided: conn3",
-			expectedError:   "",
-			connName:        "conn3",
-			secretsExpected: []string{"conn1", "conn2", "conn3"},
-			opts: []cmp.Option{
-				trans,
-				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "conn") }),
-			},
-		},
-		{
-			doc:             "Expect secret already exists: conn2",
-			expectedError:   "A connector secret of that name already exist, please choose a different name",
-			connName:        "conn2",
-			secretsExpected: []string{"conn1", "conn2", "conn3"},
-			opts: []cmp.Option{
-				trans,
-				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "conn") }),
-			},
-		},
-		{
-			doc:             "Expect generated name to be conn4",
-			expectedError:   "",
-			connName:        "",
-			secretsExpected: []string{"conn1", "conn2", "conn3", "conn4"},
-			opts: []cmp.Option{
-				trans,
-				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "conn") }),
-			},
-		},
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Create and set up the two namespaces that we will be using.
-	tokenCreatorNamespace := "van-connector-create-interior"
-	tokenUserNamespace := "van-connector-create-edge"
-	tokenCreatorClient, tokenUserClient := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
-	defer kube.DeleteNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
-	defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
-
-	// Make a set of found secrets. Later, make a list of all
-	// secrets from the keys of this set. This eliminates
-	// duplicate reports of the same secret.
-	secretsFound := make(map[string]bool)
-	secretsInformer := corev1informer.NewSecretInformer(
-		tokenUserClient.KubeClient,
-		tokenUserNamespace,
-		time.Second*30,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
-	secretsInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			secret := obj.(*corev1.Secret)
-			if !strings.HasPrefix(secret.Name, "skupper") {
-				secretsFound[secret.Name] = true
-			}
-		},
-	})
-
-	go secretsInformer.Run(ctx.Done())
-	cache.WaitForCacheSync(ctx.Done(), secretsInformer.HasSynced)
-
-	testPath := "./tmp/"
-	os.Mkdir(testPath, 0755)
-	defer os.RemoveAll(testPath)
-
-	for _, c := range testcases {
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		err := tokenCreatorClient.ConnectorTokenCreateFile(ctx, c.connName, testPath+c.connName+".yaml")
-		assert.Assert(t, err, "Unable to create token")
-
-		_, err = tokenUserClient.ConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.ConnectorCreateOptions{
-			Name:             c.connName,
-			SkupperNamespace: tokenUserNamespace,
-			Cost:             1,
-		})
-		uniqueSecrets := make([]string, 0)
-		for k, _ := range secretsFound {
-			uniqueSecrets = append(uniqueSecrets, k)
-		}
-
-		if c.expectedError == "" {
-			assert.Assert(t, err, "Unable to create connector")
-			// TODO: make more deterministic
-			time.Sleep(time.Second * 1)
-			if diff := cmp.Diff(c.secretsExpected, uniqueSecrets, c.opts...); diff != "" {
-				t.Errorf("TestConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
-			}
-		} else {
-			assert.Error(t, err, c.expectedError, c.doc)
-			if diff := cmp.Diff(c.secretsExpected, uniqueSecrets, c.opts...); diff != "" {
-				t.Errorf("TestConnectorCreateInterior "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
-			}
-		}
-
-	}
 }
 
 func TestSelfConnect(t *testing.T) {
@@ -237,8 +95,56 @@ func TestSelfConnect(t *testing.T) {
 	assert.Assert(t, err != nil, "Self-connection should fail.")
 }
 
-func setupTwoNamespaces(t *testing.T, ctx context.Context, tokenCreatorNamespace, tokenUserNamespace string) (tokenCreatorClient, tokenUserClient *VanClient) {
+func TestMultipleConnect(t *testing.T) {
+
+	if !*clusterRun {
+		lightRed := "\033[1;31m"
+		resetColor := "\033[0m"
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
+		return
+	}
+
 	var err error
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tokenCreatorNamespace := "creator"
+	tokenUserNamespace := "user"
+	creatorClient, userClient, err := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
+	assert.Assert(t, err, "Can't set up namespaces")
+	defer kube.DeleteNamespace(tokenCreatorNamespace, creatorClient.KubeClient)
+	defer kube.DeleteNamespace(tokenUserNamespace, userClient.KubeClient)
+
+	// Here's where we will put the connection token.
+	testPath := "./tmp/"
+	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
+
+	// Create the connection token for Public ---------------------------------
+	connectionName := "token1"
+	secretFileName := testPath + connectionName + ".yaml"
+	err = creatorClient.ConnectorTokenCreateFile(ctx, connectionName, secretFileName)
+	assert.Assert(t, err, "Unable to create token")
+
+	// Use the token to make a connector.
+	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+		Name:             "conn1",
+		SkupperNamespace: tokenCreatorNamespace,
+		Cost:             1,
+	})
+	assert.Assert(t, err, "Can't make first connection")
+
+	// Try to make a second connection.
+	// This should fail.
+	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+		Name:             "conn2",
+		SkupperNamespace: tokenCreatorNamespace,
+		Cost:             1,
+	})
+	assert.Assert(t, err != nil, "Second connection attempt should fail")
+}
+
+func setupTwoNamespaces(t *testing.T, ctx context.Context, tokenCreatorNamespace, tokenUserNamespace string) (tokenCreatorClient, tokenUserClient *VanClient, err error) {
 	if *clusterRun {
 		tokenCreatorClient, err = NewClient(tokenCreatorNamespace, "", "")
 		tokenUserClient, err = NewClient(tokenUserNamespace, "", "")
@@ -246,17 +152,23 @@ func setupTwoNamespaces(t *testing.T, ctx context.Context, tokenCreatorNamespace
 		tokenCreatorClient, err = newMockClient(tokenCreatorNamespace, "", "")
 		tokenUserClient, err = newMockClient(tokenUserNamespace, "", "")
 	}
-	assert.Assert(t, err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	_, err = kube.NewNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
-	assert.Assert(t, err)
+	if err != nil {
+		return nil, nil, err
+	}
 	_, err = kube.NewNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
-	assert.Assert(t, err)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	configureSiteAndCreateRouter(t, ctx, tokenCreatorClient, "tokenCreator")
 	configureSiteAndCreateRouter(t, ctx, tokenUserClient, "tokenUser")
 
-	return tokenCreatorClient, tokenUserClient
+	return tokenCreatorClient, tokenUserClient, nil
 }
 
 func configureSiteAndCreateRouter(t *testing.T, ctx context.Context, cli *VanClient, name string) {
