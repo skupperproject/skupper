@@ -7,7 +7,7 @@ COPY go.sum .
 RUN go mod download
 
 COPY . .
-RUN make build-site-controller
+RUN make
 
 
 FROM registry.access.redhat.com/ubi8-minimal
