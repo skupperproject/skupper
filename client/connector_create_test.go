@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-        "strings"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
