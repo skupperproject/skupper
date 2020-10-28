@@ -78,7 +78,7 @@ func TestConnectorRemove(t *testing.T) {
 		tokenCreatorNamespace := c.namespace + "-token-creator"
 		tokenUserNamespace := c.namespace + "-token-user"
 		tokenCreatorClient, tokenUserClient, err := setupTwoNamespaces(t, ctx, tokenCreatorNamespace, tokenUserNamespace)
-                assert.Assert(t, err, "Can't set up namespaces")
+		assert.Assert(t, err, "Can't set up namespaces")
 		defer kube.DeleteNamespace(tokenCreatorNamespace, tokenCreatorClient.KubeClient)
 		defer kube.DeleteNamespace(tokenUserNamespace, tokenUserClient.KubeClient)
 
