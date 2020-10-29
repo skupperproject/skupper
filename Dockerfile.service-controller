@@ -8,17 +8,10 @@ COPY . .
 
 RUN make
 
-FROM node:12 AS console-builder
-
-WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/gilligan/archive/master.tar.gz .
-RUN tar -zxf master.tar.gz
-WORKDIR ./gilligan-master
-RUN yarn install && yarn build
-
 FROM registry.access.redhat.com/ubi8-minimal
 
 WORKDIR /app
 COPY --from=builder /go/src/app/service-controller .
-COPY --from=console-builder /skupper-console/gilligan-master/build/ console
+COPY --from=quay.io/nicob87/gilligan:latest /app/console console
+
 CMD ["/app/service-controller"]
