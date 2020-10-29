@@ -195,6 +195,7 @@ jobs:
     steps:
       - docker/install-docker
       - checkout
+      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
       - run:
           name: Export environment variables persistent in execution shell
           command: |
@@ -202,9 +203,7 @@ jobs:
             echo 'export SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
             echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
             source $BASH_ENV
-      - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - run: make -e docker-build
-      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
       - run: make -e docker-push
 
   remove_from_registry:
