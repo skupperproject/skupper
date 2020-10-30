@@ -43,18 +43,29 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	return "conn" + strconv.Itoa(max)
 }
 
-func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, error) {
+func secretFileAuthor(ctx context.Context, secretFile string) (author string, err error) {
 	content, err := certs.GetSecretContent(secretFile)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	generatedBy, ok := content["skupper.io/generated-by"]
 	if !ok {
-		return false, fmt.Errorf("Can't find secret origin.")
+		return "", fmt.Errorf("Can't find secret origin.")
+	}
+	return string(generatedBy), nil
+}
+
+func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, error) {
+	generatedBy, err := secretFileAuthor(ctx, secretFile)
+	if err != nil {
+		return false, err
 	}
 	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
 	if err != nil {
 		return false, err
+	}
+	if siteConfig == nil {
+		return false, fmt.Errorf("No site config")
 	}
 	return siteConfig.Reference.UID == string(generatedBy), nil
 }
@@ -73,7 +84,31 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 	if ownToken {
 		return nil, fmt.Errorf("Can't create connection to self with token '%s'", secretFile)
 	}
-	// Token will not cause self-connection. Make the connector.
+
+	// Also disallow multiple use of same token.
+	// Find its author, then compare against authors of already-existing
+	// secrets that we have used to make connections.
+	newConnectionAuthor, err := secretFileAuthor(ctx, secretFile)
+	if err != nil {
+
+		return nil, err
+	}
+
+	secrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
+	if err != nil {
+		return nil, fmt.Errorf("Can't retrieve secrets.")
+	}
+
+	for _, oldSecret := range secrets.Items {
+		oldConnectionAuthor, ok := oldSecret.Annotations["skupper.io/generated-by"]
+		if !ok {
+			return nil, fmt.Errorf("A secret has no author.")
+		}
+		if newConnectionAuthor == oldConnectionAuthor {
+			return nil, fmt.Errorf("Already connected to \"%s\".", newConnectionAuthor)
+		}
+	}
+
 	secret, err := cli.ConnectorCreateSecretFromFile(ctx, secretFile, options)
 	if err != nil {
 		return nil, err
@@ -118,7 +153,7 @@ func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretF
 			if err == nil {
 				return &secret, nil
 			} else if errors.IsAlreadyExists(err) {
-				return &secret, fmt.Errorf("A connector secret of that name already exist, please choose a different name")
+				return &secret, fmt.Errorf("The connector secret \"%s\"already exists, please choose a different name", secret.ObjectMeta.Name)
 			} else {
 				return nil, fmt.Errorf("Failed to create connector secret: %w", err)
 			}
