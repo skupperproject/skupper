@@ -6,7 +6,7 @@ COPY go.sum .
 RUN go mod download
 COPY . .
 
-RUN make build-service-controller
+RUN make
 
 FROM node:12 AS console-builder
 
