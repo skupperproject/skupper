@@ -51,7 +51,6 @@ func TestSelfConnect(t *testing.T) {
 		lightRed := "\033[1;31m"
 		resetColor := "\033[0m"
 		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
-		return
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -101,7 +100,6 @@ func TestMultipleConnect(t *testing.T) {
 		lightRed := "\033[1;31m"
 		resetColor := "\033[0m"
 		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
-		return
 	}
 
 	var err error
