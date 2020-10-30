@@ -3,12 +3,12 @@
 package annotation
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	vanClient "github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -124,8 +124,8 @@ func TestAnnotatedResources(t *testing.T) {
 			// 4.2 Validate services from DATA endpoint (with retries)
 			var consoleData base.ConsoleData
 			backoff := constants.DefaultRetry
+			ctx, cancelFn = context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
 
-			EXTRAINFO := true
 			err = utils.RetryWithContext(ctx, backoff.Duration, func() (bool, error) {
 				log.Printf("Trying to retrieve ConsoleData...")
 				// 4.2.1. retrieve ConsoleData and eventual error
@@ -159,13 +159,8 @@ func TestAnnotatedResources(t *testing.T) {
 				if !res {
 					log.Printf("services and protocols do not match yet expected: %s - got: %s", test.expectedServicesProto, servicesFound)
 				}
-				EXTRAINFO = false
 				return res, nil
 			})
-			if EXTRAINFO {
-				log.Printf("DEBUG WHAT IS GOING ON NOW!!!")
-				time.Sleep(2 * time.Minute)
-			}
 			assert.Assert(t, err, "timed out waiting for expected services/protocol list to match")
 			log.Printf("console data has been validated")
 
