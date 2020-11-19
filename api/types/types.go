@@ -42,7 +42,7 @@ const (
 const (
 	TransportDeploymentName     string = "skupper-router"
 	TransportComponentName      string = "router"
-	DefaultTransportImage       string = "quay.io/gordons/qdrouterd:0.4.0-alpha-1"
+	DefaultTransportImage       string = "quay.io/skupper/qdrouterd:0.4"
 	TransportContainerName      string = "router"
 	TransportLivenessPort       int32  = 9090
 	TransportServiceAccountName string = "skupper"
@@ -69,7 +69,7 @@ var TransportPrometheusAnnotations = map[string]string{
 const (
 	ControllerDeploymentName     string = "skupper-service-controller"
 	ControllerComponentName      string = "proxy-controller"
-	DefaultControllerImage       string = "quay.io/skupper/service-controller"
+	DefaultControllerImage       string = "quay.io/skupper/service-controller:0.4"
 	ControllerContainerName      string = "service-controller"
 	ControllerServiceAccountName string = "skupper-proxy-controller"
 	ControllerConfigPath         string = "/etc/messaging/"
