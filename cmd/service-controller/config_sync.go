@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -93,8 +94,14 @@ func (c *ConfigSync) processNextEvent() bool {
 	}(obj)
 
 	if err != nil {
+		if c.events.NumRequeues(obj) < 5 {
+			log.Printf("[config sync] Requeuing %v after error: %v", obj, err)
+			c.events.AddRateLimited(obj)
+		} else {
+			log.Printf("[config sync] Delayed requeue %v after error: %v", obj, err)
+			c.events.AddAfter(obj, time.Duration(math.Min(float64(c.events.NumRequeues(obj)/5), 10))*time.Minute)
+		}
 		utilruntime.HandleError(err)
-		return true
 	}
 
 	return true
