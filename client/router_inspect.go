@@ -74,9 +74,7 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 			vir.ExposedServices = len(vsis)
 		}
 		url, err := cli.getConsoleUrl()
-		if err != nil {
-			vir.ConsoleUrl = ""
-		} else {
+		if url != "" {
 			vir.ConsoleUrl = "https://" + url
 		}
 	}
