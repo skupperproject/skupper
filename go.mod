@@ -20,6 +20,7 @@ require (
 	github.com/prometheus/common v0.4.0
 	github.com/spf13/cobra v0.0.6
 	github.com/tsenart/vegeta/v12 v12.8.3
+	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.0
