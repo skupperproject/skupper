@@ -77,8 +77,8 @@ func TestHttp2Job(t *testing.T) {
 	assert.Assert(t, err)
 
 	body := string(_body)
-	fmt.Printf("body:\n%s\n", body) //TODO remove this line
-	assert.Assert(t, strings.Contains(body, "A simple HTTP Request &amp; Response Service."))
+	assert.Assert(t, strings.Contains(body, "A simple HTTP Request &amp; Response Service."), body)
+	assert.Assert(t, resp.Status == "200 OK", resp.Status)
 }
 
 func testHttpJob(t *testing.T, url string) {
