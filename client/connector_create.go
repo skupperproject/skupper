@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/common/log"
 	"io/ioutil"
-	"log"
 	"regexp"
 	"strconv"
 
@@ -50,7 +50,7 @@ func secretFileAuthor(ctx context.Context, secretFile string) (author string, er
 	}
 	generatedBy, ok := content["skupper.io/generated-by"]
 	if !ok {
-		return "", fmt.Errorf("Can't find secret origin.")
+		return "unknown", nil
 	}
 	return string(generatedBy), nil
 }
@@ -90,8 +90,13 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 	// secrets that we have used to make connections.
 	newConnectionAuthor, err := secretFileAuthor(ctx, secretFile)
 	if err != nil {
-
 		return nil, err
+	}
+
+	alreadyWarned := false
+	if newConnectionAuthor == "unknown" {
+		log.Warnf("Connecting with old-version secret with no 'generated-by' annotation. Multiple connections are possible.")
+		alreadyWarned = true
 	}
 
 	secrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
@@ -102,7 +107,10 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 	for _, oldSecret := range secrets.Items {
 		oldConnectionAuthor, ok := oldSecret.Annotations["skupper.io/generated-by"]
 		if !ok {
-			return nil, fmt.Errorf("A secret has no author.")
+			if !alreadyWarned {
+				log.Warnf("Old-version secret with no 'generated-by' annotation.")
+				alreadyWarned = true
+			}
 		}
 		if newConnectionAuthor == oldConnectionAuthor {
 			return nil, fmt.Errorf("Already connected to \"%s\".", newConnectionAuthor)
