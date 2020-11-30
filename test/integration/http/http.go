@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -12,6 +13,7 @@ import (
 	"gotest.tools/assert"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -116,6 +118,36 @@ var nghttp2Dep *appsv1.Deployment = &appsv1.Deployment{
 	},
 }
 
+var h2loadJob = &batchv1.Job{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "h2load",
+		//Namespace: namespace,
+	},
+	Spec: batchv1.JobSpec{
+		BackoffLimit: int32Ptr(3),
+		Template: apiv1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "h2load",
+			},
+			Spec: apiv1.PodSpec{
+				Containers: []apiv1.Container{
+					{
+						Name:  "h2load",
+						Image: "docker.io/svagi/nghttp2",
+						//Command: []string{"h2load", "-n10", "-c10", "-m10", "http://nghttp2:8443"},
+						Command: []string{"h2load", "-n1000", "-c1", "-m1", "http://nghttp2:8443"},
+						Env: []apiv1.EnvVar{
+							{Name: "JOB", Value: "h2load"},
+						},
+						ImagePullPolicy: apiv1.PullAlways,
+					},
+				},
+				RestartPolicy: apiv1.RestartPolicyNever,
+			},
+		},
+	},
+}
+
 func (r *HttpClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 	pubCluster1, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
@@ -150,6 +182,15 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 	t.Run("http2", func(t *testing.T) {
 		runJob(pubCluster1, "http2", "TestHttp2Job")
 		waitJob(pubCluster1, "http2")
+		jobsClient := pubCluster1.VanClient.KubeClient.BatchV1().Jobs(pubCluster1.Namespace)
+		_, err = jobsClient.Create(h2loadJob)
+		assert.Assert(t, err)
+		waitJob(pubCluster1, "h2load")
+
+		_output, err := pubCluster1.KubectlExec("logs job/" + "h2load")
+		assert.Assert(t, err)
+		output := string(_output)
+		assert.Assert(t, strings.Contains(output, "1000 succeeded"), output)
 	})
 }
 
