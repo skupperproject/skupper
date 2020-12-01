@@ -172,7 +172,7 @@ func TestAnnotatedResources(t *testing.T) {
 					// reaching service through proxy-controller's pod (with some attempts to make sure bridge is connected)
 					err = utils.Retry(backoff.Duration, backoff.Steps, func() (bool, error) {
 						endpoint := fmt.Sprintf("http://%s:8080", svc)
-						resp, err = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 15})
+						resp, err = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 10})
 						if err != nil {
 							return false, nil
 						}
