@@ -142,11 +142,15 @@ func (r *HttpClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 		k8s.AssertJob(t, job)
 	}
 
-	runJob(pubCluster1, "http1", "TestHttpJob")
-	waitJob(pubCluster1, "http1")
+	t.Run("http1", func(t *testing.T) {
+		runJob(pubCluster1, "http1", "TestHttpJob")
+		waitJob(pubCluster1, "http1")
+	})
 
-	runJob(pubCluster1, "http2", "TestHttp2Job")
-	waitJob(pubCluster1, "http2")
+	t.Run("http2", func(t *testing.T) {
+		runJob(pubCluster1, "http2", "TestHttp2Job")
+		waitJob(pubCluster1, "http2")
+	})
 }
 
 func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
