@@ -37,7 +37,7 @@ func TestConnectorCreateError(t *testing.T) {
 	// We forget to actually create the token...
 	// ... so the connector creation should fail.
 	secretFileName := "last-night-i-met-upon-the-stair.yaml"
-	_, err = cli.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+	_, _, err = cli.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
 		Name:             "a-token-file-that-wasnt-there",
 		SkupperNamespace: ns,
 		Cost:             1,
@@ -86,7 +86,7 @@ func TestSelfConnect(t *testing.T) {
 
 	// And now try to use it ... to connect to Public!
 	// This attempt at self-connection should fail.
-	_, err = publicClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+	_, _, err = publicClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
 		Name:             connectionName,
 		SkupperNamespace: publicNamespace,
 		Cost:             1,
@@ -125,7 +125,7 @@ func TestMultipleConnect(t *testing.T) {
 	assert.Assert(t, err, "Unable to create token")
 
 	// Use the token to make a connector.
-	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+	_, _, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
 		Name:             "conn1",
 		SkupperNamespace: tokenCreatorNamespace,
 		Cost:             1,
@@ -134,7 +134,7 @@ func TestMultipleConnect(t *testing.T) {
 
 	// Try to make a second connection.
 	// This should fail.
-	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
+	_, _, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
 		Name:             "conn2",
 		SkupperNamespace: tokenCreatorNamespace,
 		Cost:             1,

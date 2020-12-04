@@ -115,6 +115,7 @@ const (
 	TypeTokenQualifier          string = BaseQualifier + "/type=connection-token"
 	TypeTokenRequestQualifier   string = BaseQualifier + "/type=connection-token-request"
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
+	TokenVersion                string = BaseQualifier + "/version"
 	TokenCost                   string = BaseQualifier + "/cost"
 )
 
@@ -150,15 +151,16 @@ const (
 
 // Assembly constants
 const (
-	AmqpDefaultPort         int32  = 5672
-	AmqpsDefaultPort        int32  = 5671
-	EdgeRole                string = "edge"
-	EdgeRouteName           string = "skupper-edge"
-	EdgeListenerPort        int32  = 45671
-	InterRouterRole         string = "inter-router"
-	InterRouterListenerPort int32  = 55671
-	InterRouterRouteName    string = "skupper-inter-router"
-	InterRouterProfile      string = "skupper-internal"
+	SkupperVersion          float64 = 4.0
+	AmqpDefaultPort         int32   = 5672
+	AmqpsDefaultPort        int32   = 5671
+	EdgeRole                string  = "edge"
+	EdgeRouteName           string  = "skupper-edge"
+	EdgeListenerPort        int32   = 45671
+	InterRouterRole         string  = "inter-router"
+	InterRouterListenerPort int32   = 55671
+	InterRouterRouteName    string  = "skupper-inter-router"
+	InterRouterProfile      string  = "skupper-internal"
 )
 
 // Service Sync constants

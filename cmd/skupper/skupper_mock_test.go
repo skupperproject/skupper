@@ -93,8 +93,8 @@ func (v *vanClientMock) RouterInspect(ctx context.Context) (*types.RouterInspect
 func (v *vanClientMock) RouterRemove(ctx context.Context) error {
 	return nil
 }
-func (v *vanClientMock) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
-	return nil, nil
+func (v *vanClientMock) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, float64, error) {
+	return nil, 0.0, nil
 }
 func (v *vanClientMock) ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	return nil, nil

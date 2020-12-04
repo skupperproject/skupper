@@ -20,6 +20,7 @@ import (
 	certs "github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"os"
 )
 
 func generateConnectorName(namespace string, cli kubernetes.Interface) string {
@@ -41,6 +42,19 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 		log.Fatal("Could not retrieve connection-token secrets:", err)
 	}
 	return "conn" + strconv.Itoa(max)
+}
+
+func secretFileVersion(ctx context.Context, secretFile string) (float64, error) {
+	content, err := certs.GetSecretContent(secretFile)
+	if err != nil {
+		return 0.0, err
+	}
+	version_str, ok := content["skupper.io/version"]
+	if !ok {
+		return 0.0, fmt.Errorf("Can't find secret version.")
+	}
+
+	return strconv.ParseFloat(string(version_str), 64)
 }
 
 func secretFileAuthor(ctx context.Context, secretFile string) (author string, err error) {
@@ -70,19 +84,24 @@ func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, 
 	return siteConfig.Reference.UID == string(generatedBy), nil
 }
 
-func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
+func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, float64, error) {
 	// Before doing any checks, make sure that Skupper is running.
 	if _, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient); err != nil {
-		return nil, err
+		return nil, 0.0, err
+	}
+
+	version, err := secretFileVersion(ctx, secretFile)
+	if err != nil {
+		return nil, 0.0, err
 	}
 
 	// Disallow self-connection: make sure this token does not belong to this Skupper router.
 	ownToken, err := cli.isOwnToken(ctx, secretFile)
 	if err != nil {
-		return nil, fmt.Errorf("Can't check secret ownership: '%s'", err.Error())
+		return nil, 0.0, fmt.Errorf("Can't check secret ownership: '%s'", err.Error())
 	}
 	if ownToken {
-		return nil, fmt.Errorf("Can't create connection to self with token '%s'", secretFile)
+		return nil, 0.0, fmt.Errorf("Can't create connection to self with token '%s'", secretFile)
 	}
 
 	// Also disallow multiple use of same token.
@@ -90,28 +109,27 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 	// secrets that we have used to make connections.
 	newConnectionAuthor, err := secretFileAuthor(ctx, secretFile)
 	if err != nil {
-
-		return nil, err
+		return nil, 0.0, err
 	}
 
 	secrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 	if err != nil {
-		return nil, fmt.Errorf("Can't retrieve secrets.")
+		return nil, 0.0, fmt.Errorf("Can't retrieve secrets.")
 	}
 
 	for _, oldSecret := range secrets.Items {
 		oldConnectionAuthor, ok := oldSecret.Annotations["skupper.io/generated-by"]
 		if !ok {
-			return nil, fmt.Errorf("A secret has no author.")
+			return nil, 0.0, fmt.Errorf("A secret has no author.")
 		}
 		if newConnectionAuthor == oldConnectionAuthor {
-			return nil, fmt.Errorf("Already connected to \"%s\".", newConnectionAuthor)
+			return nil, 0.0, fmt.Errorf("Already connected to \"%s\".", newConnectionAuthor)
 		}
 	}
 
 	secret, err := cli.ConnectorCreateSecretFromFile(ctx, secretFile, options)
 	if err != nil {
-		return nil, err
+		return nil, 0.0, err
 	}
 	if options.Name == "" {
 		options.Name = secret.ObjectMeta.Name
@@ -119,9 +137,10 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 
 	err = cli.ConnectorCreate(ctx, secret, options)
 	if err != nil {
-		return nil, err
+		return nil, 0.0, err
 	}
-	return secret, nil
+	fmt.Fprintf(os.Stdout, "ConnectorCreateFromFile returning version %.2f\n", version)
+	return secret, version, nil
 }
 
 func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {

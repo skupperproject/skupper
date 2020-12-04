@@ -144,6 +144,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 	}
 	if siteConfig != nil {
 		secret.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteConfig.Reference.UID
+		secret.ObjectMeta.Annotations[types.TokenVersion] = fmt.Sprintf("%.2f", types.SkupperVersion)
 	}
 	return &secret, hostPorts.LocalOnly, nil
 }

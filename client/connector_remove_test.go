@@ -100,7 +100,7 @@ func TestConnectorRemove(t *testing.T) {
 		assert.Check(t, err, "Unable to create connector token "+c.connName)
 
 		if c.createConn {
-			_, err = tokenUserClient.ConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.ConnectorCreateOptions{
+			_, _, err = tokenUserClient.ConnectorCreateFromFile(ctx, testPath+c.connName+".yaml", types.ConnectorCreateOptions{
 				Name:             c.connName,
 				SkupperNamespace: tokenUserNamespace,
 				Cost:             1,

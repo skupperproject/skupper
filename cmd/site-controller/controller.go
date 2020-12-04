@@ -310,6 +310,7 @@ func (c *SiteController) generate(token *corev1.Secret) error {
 		siteId := c.getSiteIdForNamespace(token.ObjectMeta.Namespace)
 		if siteId != "" {
 			token.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteId
+			token.ObjectMeta.Annotations[types.TokenVersion] = fmt.Sprintf("%.2f", types.SkupperVersion)
 		}
 		_, err = c.vanClient.KubeClient.CoreV1().Secrets(token.ObjectMeta.Namespace).Update(token)
 		return err

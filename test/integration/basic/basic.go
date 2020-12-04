@@ -61,7 +61,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 		Name:             "",
 		Cost:             0,
 	}
-	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
+	_, _, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
 	assert.Assert(t, err)
 }
 

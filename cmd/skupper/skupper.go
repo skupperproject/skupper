@@ -277,7 +277,7 @@ func NewCmdConnect(newClient cobraFunc) *cobra.Command {
 				os.Exit(1)
 			} else if siteConfig == nil || !siteConfig.Spec.SiteControlled {
 				connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
-				secret, err := cli.ConnectorCreateFromFile(context.Background(), args[0], connectorCreateOpts)
+				secret, _, err := cli.ConnectorCreateFromFile(context.Background(), args[0], connectorCreateOpts)
 				if err != nil {
 					return fmt.Errorf("Failed to create connection: %w", err)
 				} else {

@@ -199,7 +199,7 @@ func CreateVan(t *testing.T, testRunner base.ClusterTestRunner) {
 	assert.Assert(t, err, "unable to create token to cluster1")
 
 	// Connecting cluster2 to cluster1
-	secret, err := prv.VanClient.ConnectorCreateFromFile(ctx, tokenFile, types.ConnectorCreateOptions{SkupperNamespace: prv.Namespace})
+	secret, _, err := prv.VanClient.ConnectorCreateFromFile(ctx, tokenFile, types.ConnectorCreateOptions{SkupperNamespace: prv.Namespace})
 	assert.Assert(t, err, "unable to create connection to cluster1")
 	assert.Assert(t, secret != nil)
 
