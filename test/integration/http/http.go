@@ -69,33 +69,88 @@ var httpbinDep *appsv1.Deployment = &appsv1.Deployment{
 	},
 }
 
-func sendReceive(servAddr string) {
-	return
+var nghttp2Dep *appsv1.Deployment = &appsv1.Deployment{
+	TypeMeta: metav1.TypeMeta{
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "nghttp2",
+	},
+	Spec: appsv1.DeploymentSpec{
+		Replicas: int32Ptr(1),
+		Selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{"application": "nghttp2"},
+		},
+		Template: apiv1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"application": "nghttp2",
+				},
+			},
+			Spec: apiv1.PodSpec{
+				Containers: []apiv1.Container{
+					{
+						Name:            "nghttp2",
+						Image:           "docker.io/svagi/nghttp2",
+						ImagePullPolicy: apiv1.PullIfNotPresent,
+						Ports: []apiv1.ContainerPort{
+							{
+								Name:          "nghttp2",
+								Protocol:      apiv1.ProtocolTCP,
+								ContainerPort: 8443,
+							},
+						},
+						//docker run -p 8443:8443 --network my-bridge-network -it svagi/nghttp2 nghttpx  -f"0.0.0.0,8443;no-tls" -b172.18.0.2,80 -L INFO
+						Command: []string{
+							"nghttpx",
+							"-f0.0.0.0,8443;no-tls",
+							"-bhttpbin,8080",
+							"-L",
+							"INFO",
+						},
+					},
+				},
+			},
+		},
+	},
 }
 
 func (r *HttpClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
-	//TODO https://github.com/skupperproject/skupper/issues/95
-	//all this hardcoded sleeps must be fixed, probably along with #95
-	//for now I am just keeping them in the same values that we are using
-	//for tcp_echo test, since in case of reducing test may fail
-	//intermitently
 	pubCluster1, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
 	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
 	assert.Assert(t, err)
 
-	jobName := "http"
-	jobCmd := []string{"/app/http_test", "-test.run", "Job"}
-
-	_, err = k8s.CreateTestJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, jobCmd)
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "nghttp2")
 	assert.Assert(t, err)
 
-	job, err := k8s.WaitForJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
-	assert.Assert(t, err)
-	pubCluster1.KubectlExec("logs job/" + jobName)
+	runJob := func(cc *base.ClusterContext, jobName, testName string) {
+		t.Helper()
+		jobCmd := []string{"/app/http_test", "-test.run", testName}
 
-	k8s.AssertJob(t, job)
+		_, err = k8s.CreateTestJob(cc.Namespace, cc.VanClient.KubeClient, jobName, jobCmd)
+		assert.Assert(t, err)
+	}
+
+	waitJob := func(cc *base.ClusterContext, jobName string) {
+		t.Helper()
+		job, err := k8s.WaitForJob(cc.Namespace, cc.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
+		assert.Assert(t, err)
+		cc.KubectlExec("logs job/" + jobName)
+		k8s.AssertJob(t, job)
+	}
+
+	t.Run("http1", func(t *testing.T) {
+		runJob(pubCluster1, "http1", "TestHttpJob")
+		waitJob(pubCluster1, "http1")
+	})
+
+	t.Run("http2", func(t *testing.T) {
+		runJob(pubCluster1, "http2", "TestHttp2Job")
+		waitJob(pubCluster1, "http2")
+	})
 }
 
 func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
@@ -107,11 +162,17 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 
 	privateDeploymentsClient := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)
 
-	fmt.Println("Creating deployment...")
-	result, err := privateDeploymentsClient.Create(httpbinDep)
-	assert.Assert(t, err)
+	createDeploymentInPrivateSite := func(dep *appsv1.Deployment) {
+		t.Helper()
+		fmt.Println("Creating httpbin deployment...")
+		result, err := privateDeploymentsClient.Create(dep)
+		assert.Assert(t, err)
 
-	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
+		fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
+	}
+
+	createDeploymentInPrivateSite(httpbinDep)
+	createDeploymentInPrivateSite(nghttp2Dep)
 
 	service := types.ServiceInterface{
 		Address:  "httpbin",
@@ -124,6 +185,31 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
 	assert.Assert(t, err)
+
+	http2service := types.ServiceInterface{
+		Address:  "nghttp2",
+		Protocol: "http2",
+		Port:     8443,
+	}
+
+	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http2service)
+	assert.Assert(t, err)
+
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2service, "deployment", "nghttp2", "http2", 0)
+	assert.Assert(t, err)
+
+	http21service := types.ServiceInterface{
+		Address:  "nghttp1",
+		Protocol: "http",
+		Port:     8443,
+	}
+
+	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http21service)
+	assert.Assert(t, err)
+
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http21service, "deployment", "nghttp2", "http", 0)
+	assert.Assert(t, err)
+
 }
 
 func (r *HttpClusterTestRunner) Run(ctx context.Context, t *testing.T) {
