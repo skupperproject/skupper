@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"gotest.tools/assert"
 	batchv1 "k8s.io/api/batch/v1"
@@ -33,12 +34,18 @@ func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels: map[string]string{
+				"job": name,
+			},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: int32Ptr(3),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
+					Labels: map[string]string{
+						"job": name,
+					},
 				},
 				Spec: apiv1.PodSpec{
 					Containers: []apiv1.Container{
@@ -108,4 +115,16 @@ func AssertJob(t *testing.T, job *batchv1.Job) {
 	if job.Status.Failed > 0 {
 		t.Logf("WARNING! THIS JOB NEEDED RETRIES TO SUCCEED! Job.Status.Failed = %d\n", job.Status.Failed)
 	}
+}
+
+func GetJobLogs(ns string, kubeClient kubernetes.Interface, name string) (string, error) {
+	pods, err := kube.GetDeploymentPods("", fmt.Sprintf("job=%s", name), ns, kubeClient)
+	if err != nil {
+		return "", err
+	}
+	log, err := kube.GetPodContainerLogs(pods[0].Name, pods[0].Spec.Containers[0].Name, ns, kubeClient)
+	if err != nil {
+		return "", err
+	}
+	return log, nil
 }

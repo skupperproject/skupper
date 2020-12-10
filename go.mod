@@ -9,8 +9,9 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fortytw2/leaktest v1.3.0 // indirect
+	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.2
-	github.com/google/uuid v1.1.1
+	github.com/google/uuid v1.1.2
 	github.com/gophercloud/gophercloud v0.8.0 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/interconnectedcloud/go-amqp v0.12.6-0.20200506124159-f51e540008b5
@@ -20,7 +21,12 @@ require (
 	github.com/spf13/cobra v0.0.6
 	github.com/tsenart/vegeta/v12 v12.8.3
 	go.mongodb.org/mongo-driver v1.4.4
-	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
+	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
+	golang.org/x/sys v0.0.0-20210105210732-16f7687f5001 // indirect
+	golang.org/x/text v0.3.4 // indirect
+	google.golang.org/genproto v0.0.0-20210106152847-07624b53cd92 // indirect
+	google.golang.org/grpc v1.35.0
+	google.golang.org/protobuf v1.25.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.0
