@@ -14,6 +14,7 @@ build-tests:
 	go test -c -tags=job -v ./test/integration/http/job -o ${TEST_BINARIES_FOLDER}/http_test
 	go test -c -tags=job -v ./test/integration/bookinfo/job -o ${TEST_BINARIES_FOLDER}/bookinfo_test
 	go test -c -tags=job -v ./test/integration/mongodb/job -o ${TEST_BINARIES_FOLDER}/mongo_test
+	go test -c -tags=job -v ./test/integration/hipstershop/job -o ${TEST_BINARIES_FOLDER}/grpcclient_test
 
 build-cmd:
 	go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
