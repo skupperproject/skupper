@@ -174,7 +174,9 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		cmInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				cm := obj.(*corev1.ConfigMap)
-				cmsFound = append(cmsFound, cm.Name)
+				if cm.Name != "kube-root-ca.crt" { //seems to be something added in more recent kubernetes?
+					cmsFound = append(cmsFound, cm.Name)
+				}
 			},
 		})
 		informerList = append(informerList, cmInformer)
