@@ -42,7 +42,7 @@ const (
 const (
 	TransportDeploymentName     string = "skupper-router"
 	TransportComponentName      string = "router"
-	DefaultTransportImage       string = "quay.io/skupper/qdrouterd:0.4"
+	DefaultTransportImage       string = "quay.io/skupper/qdrouterd:master"
 	TransportContainerName      string = "router"
 	TransportLivenessPort       int32  = 9090
 	TransportServiceAccountName string = "skupper"
