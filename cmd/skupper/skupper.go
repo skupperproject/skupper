@@ -852,10 +852,16 @@ func init() {
 	cmdVersion := NewCmdVersion(newClient)
 	cmdDebugDump := NewCmdDebugDump(newClient)
 
+	//backwards compatibility commands hidden
+	cmdBind.Hidden = true
+	cmdUnbind.Hidden = true
+
 	// setup subcommands
 	cmdService := NewCmdService()
 	cmdService.AddCommand(cmdCreateService)
 	cmdService.AddCommand(cmdDeleteService)
+	cmdService.AddCommand(NewCmdBind(newClient))
+	cmdService.AddCommand(NewCmdUnbind(newClient))
 
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
