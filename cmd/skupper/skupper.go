@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -261,89 +260,24 @@ func NewCmdConnectionToken(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
-var connectorCreateOpts types.ConnectorCreateOptions
-
 func NewCmdConnect(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "connect <connection-token-file>",
-		Short:  "Connect this skupper installation to that which issued the specified connectionToken",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-			if err != nil {
-				fmt.Println("Unable to retrieve site config: ", err.Error())
-				os.Exit(1)
-			} else if siteConfig == nil || !siteConfig.Spec.SiteControlled {
-				connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
-				secret, err := cli.ConnectorCreateFromFile(context.Background(), args[0], connectorCreateOpts)
-				if err != nil {
-					return fmt.Errorf("Failed to create connection: %w", err)
-				} else {
-					if siteConfig.Spec.IsEdge {
-						fmt.Printf("Skupper configured to connect to %s:%s (name=%s)\n",
-							secret.ObjectMeta.Annotations["edge-host"],
-							secret.ObjectMeta.Annotations["edge-port"],
-							secret.ObjectMeta.Name)
-					} else {
-						fmt.Printf("Skupper configured to connect to %s:%s (name=%s)\n",
-							secret.ObjectMeta.Annotations["inter-router-host"],
-							secret.ObjectMeta.Annotations["inter-router-port"],
-							secret.ObjectMeta.Name)
-					}
-				}
-			} else {
-				// create the secret, site-controller will do the rest
-				secret, err := cli.ConnectorCreateSecretFromFile(context.Background(), args[0], connectorCreateOpts)
-				if err != nil {
-					return fmt.Errorf("Failed to create connection: %w", err)
-				} else {
-					if siteConfig.Spec.IsEdge {
-						fmt.Printf("Skupper site-controller configured to connect to %s:%s (name=%s)\n",
-							secret.ObjectMeta.Annotations["edge-host"],
-							secret.ObjectMeta.Annotations["edge-port"],
-							secret.ObjectMeta.Name)
-					} else {
-						fmt.Printf("Skupper site-controller configured to connect to %s:%s (name=%s)\n",
-							secret.ObjectMeta.Annotations["inter-router-host"],
-							secret.ObjectMeta.Annotations["inter-router-port"],
-							secret.ObjectMeta.Name)
-					}
-				}
-			}
-			return nil
-		},
-	}
-	cmd.Flags().StringVarP(&connectorCreateOpts.Name, "connection-name", "", "", "Provide a specific name for the connection (used when removing it with disconnect)")
-	cmd.Flags().Int32VarP(&connectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this connection.")
-
+	cmd := NewCmdLinkCreate(newClient, "connection-name")
+	cmd.Use = "connect <connection-token-file>"
+	cmd.Short = "Connect this skupper installation to that which issued the specified connectionToken"
 	return cmd
+
 }
-
-var connectorRemoveOpts types.ConnectorRemoveOptions
-
 func NewCmdDisconnect(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "disconnect <name>",
-		Short:  "Remove specified connection",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			connectorRemoveOpts.Name = args[0]
-			connectorRemoveOpts.SkupperNamespace = cli.GetNamespace()
-			connectorRemoveOpts.ForceCurrent = false
-			err := cli.ConnectorRemove(context.Background(), connectorRemoveOpts)
-			if err == nil {
-				fmt.Println("Connection '" + args[0] + "' has been removed")
-			} else {
-				return fmt.Errorf("Failed to remove connection: %w", err)
-			}
-			return nil
-		},
-	}
+	cmd := NewCmdLinkDelete(newClient)
+	cmd.Use = "disconnect <name>"
+	cmd.Short = "Remove specified connection"
+	return cmd
 
+}
+func NewCmdCheckConnection(newClient cobraFunc) *cobra.Command {
+	cmd := NewCmdLinkStatus(newClient)
+	cmd.Use = "check-connection all|<connection-name>"
+	cmd.Short = "Check whether a connection to another Skupper site is active"
 	return cmd
 }
 
@@ -375,73 +309,6 @@ func NewCmdListConnectors(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	return cmd
-}
-
-var waitFor int
-
-func NewCmdCheckConnection(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "check-connection all|<connection-name>",
-		Short:  "Check whether a connection to another Skupper site is active",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			var connectors []*types.ConnectorInspectResponse
-			connected := 0
-
-			if args[0] == "all" {
-				vcis, err := cli.ConnectorList(context.Background())
-				if err == nil {
-					for _, vci := range vcis {
-						connectors = append(connectors, &types.ConnectorInspectResponse{
-							Connector: vci,
-							Connected: false,
-						})
-					}
-				}
-			} else {
-				vci, err := cli.ConnectorInspect(context.Background(), args[0])
-				if err == nil {
-					connectors = append(connectors, vci)
-					if vci.Connected {
-						connected++
-					}
-				}
-			}
-
-			for i := 0; connected < len(connectors) && i < waitFor; i++ {
-				for _, c := range connectors {
-					vci, err := cli.ConnectorInspect(context.Background(), c.Connector.Name)
-					if err == nil && vci.Connected && c.Connected == false {
-						c.Connected = true
-						connected++
-					}
-				}
-				time.Sleep(time.Second)
-			}
-
-			if len(connectors) == 0 {
-				fmt.Println("There are no connectors configured or active")
-			} else {
-				for _, c := range connectors {
-					if c.Connected {
-						fmt.Printf("Connection for %s is active", c.Connector.Name)
-						fmt.Println()
-					} else {
-						fmt.Printf("Connection for %s not active", c.Connector.Name)
-						fmt.Println()
-					}
-				}
-			}
-			return nil
-		},
-	}
-	cmd.Flags().IntVar(&waitFor, "wait", 1, "The number of seconds to wait for connections to become active")
-
-	return cmd
-
 }
 
 func NewCmdStatus(newClient cobraFunc) *cobra.Command {
@@ -837,10 +704,6 @@ func init() {
 	cmdInit := NewCmdInit(newClient)
 	cmdDelete := NewCmdDelete(newClient)
 	cmdConnectionToken := NewCmdConnectionToken(newClient)
-	cmdConnect := NewCmdConnect(newClient)
-	cmdDisconnect := NewCmdDisconnect(newClient)
-	cmdListConnectors := NewCmdListConnectors(newClient)
-	cmdCheckConnection := NewCmdCheckConnection(newClient)
 	cmdStatus := NewCmdStatus(newClient)
 	cmdExpose := NewCmdExpose(newClient)
 	cmdUnexpose := NewCmdUnexpose(newClient)
@@ -859,6 +722,16 @@ func init() {
 	cmdUnbind.Deprecated = deprecatedMessage
 	cmdUnbind.Hidden = true
 
+	cmdListConnectors := NewCmdListConnectors(newClient) //listconnectors just keeped
+	cmdListConnectors.Hidden = true
+
+	cmdConnect := NewCmdConnect(newClient)
+	cmdConnect.Hidden = true
+	cmdDisconnect := NewCmdDisconnect(newClient)
+	cmdDisconnect.Hidden = true
+	cmdCheckConnection := NewCmdCheckConnection(newClient)
+	cmdCheckConnection.Hidden = true
+
 	// setup subcommands
 	cmdService := NewCmdService()
 	cmdService.AddCommand(cmdCreateService)
@@ -869,11 +742,16 @@ func init() {
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
 
+	cmdLink := NewCmdLink()
+	cmdLink.AddCommand(NewCmdLinkCreate(newClient, ""))
+	cmdLink.AddCommand(NewCmdLinkDelete(newClient))
+	cmdLink.AddCommand(NewCmdLinkStatus(newClient))
+
 	cmdCompletion := NewCmdCompletion()
 
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
-	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
+	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdLink, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
 		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug, cmdCompletion)
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
