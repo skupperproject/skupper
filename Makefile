@@ -16,7 +16,7 @@ build-tests:
 	go test -c -tags=integration -v ./test/integration/mongodb -o ${TEST_BINARIES_FOLDER}/mongo_test
 
 build-cmd:
-	go build -ldflags="-X main.version=${VERSION}"  -o skupper cmd/skupper/skupper.go
+	go build -ldflags="-X main.version=${VERSION}"  -o skupper ./cmd/skupper
 
 build-service-controller:
 	go build -ldflags="-X main.version=${VERSION}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/config_sync.go
@@ -71,16 +71,16 @@ release/linux.tgz: release/linux/skupper
 	tar -czf release/linux.tgz -C release/linux/ skupper
 
 release/linux/skupper: cmd/skupper/skupper.go
-	GOOS=linux GOARCH=amd64 go build -ldflags="-X main.version=${VERSION}" -o release/linux/skupper cmd/skupper/skupper.go
+	GOOS=linux GOARCH=amd64 go build -ldflags="-X main.version=${VERSION}" -o release/linux/skupper ./cmd/skupper
 
 release/windows/skupper: cmd/skupper/skupper.go
-	GOOS=windows GOARCH=amd64 go build -ldflags="-X main.version=${VERSION}" -o release/windows/skupper cmd/skupper/skupper.go
+	GOOS=windows GOARCH=amd64 go build -ldflags="-X main.version=${VERSION}" -o release/windows/skupper ./cmd/skupper
 
 release/windows.zip: release/windows/skupper
 	zip -j release/windows.zip release/windows/skupper
 
 release/darwin/skupper: cmd/skupper/skupper.go
-	GOOS=darwin GOARCH=amd64 go build -ldflags="-X main.version=${VERSION}" -o release/darwin/skupper cmd/skupper/skupper.go
+	GOOS=darwin GOARCH=amd64 go build -ldflags="-X main.version=${VERSION}" -o release/darwin/skupper ./cmd/skupper
 
 release/darwin.zip: release/darwin/skupper
 	zip -j release/darwin.zip release/darwin/skupper

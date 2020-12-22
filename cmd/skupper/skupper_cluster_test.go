@@ -519,7 +519,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 		{
 			doc:             "disconnect-test2",
 			args:            []string{"conn1"},
-			expectedCapture: "Connection 'conn1' has been removed",
+			expectedCapture: "Link 'conn1' has been removed",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
