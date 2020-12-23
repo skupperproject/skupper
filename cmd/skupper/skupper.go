@@ -241,22 +241,9 @@ func NewCmdDelete(newClient cobraFunc) *cobra.Command {
 var clientIdentity string
 
 func NewCmdConnectionToken(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "connection-token <output-file>",
-		Short:  "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			err := cli.ConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
-			if err != nil {
-				return fmt.Errorf("Failed to create connection token: %w", err)
-			}
-			return nil
-		},
-	}
-	cmd.Flags().StringVarP(&clientIdentity, "client-identity", "i", types.DefaultVanName, "Provide a specific identity as which connecting skupper installation will be authenticated")
-
+	cmd := NewCmdTokenCreate(newClient, "client-identity")
+	cmd.Use = "connection-token <output-file>"
+	cmd.Short = "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site."
 	return cmd
 }
 
@@ -703,7 +690,6 @@ func init() {
 
 	cmdInit := NewCmdInit(newClient)
 	cmdDelete := NewCmdDelete(newClient)
-	cmdConnectionToken := NewCmdConnectionToken(newClient)
 	cmdStatus := NewCmdStatus(newClient)
 	cmdExpose := NewCmdExpose(newClient)
 	cmdUnexpose := NewCmdUnexpose(newClient)
@@ -732,6 +718,9 @@ func init() {
 	cmdCheckConnection := NewCmdCheckConnection(newClient)
 	cmdCheckConnection.Hidden = true
 
+	cmdConnectionToken := NewCmdConnectionToken(newClient)
+	cmdConnectionToken.Hidden = true
+
 	// setup subcommands
 	cmdService := NewCmdService()
 	cmdService.AddCommand(cmdCreateService)
@@ -747,12 +736,33 @@ func init() {
 	cmdLink.AddCommand(NewCmdLinkDelete(newClient))
 	cmdLink.AddCommand(NewCmdLinkStatus(newClient))
 
+	cmdToken := NewCmdToken()
+	cmdToken.AddCommand(NewCmdTokenCreate(newClient, ""))
+
 	cmdCompletion := NewCmdCompletion()
 
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = version
-	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdLink, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
-		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug, cmdCompletion)
+	rootCmd.AddCommand(cmdInit,
+		cmdDelete,
+		cmdConnectionToken,
+		cmdToken,
+		cmdLink,
+		cmdConnect,
+		cmdDisconnect,
+		cmdCheckConnection,
+		cmdStatus,
+		cmdListConnectors,
+		cmdExpose,
+		cmdUnexpose,
+		cmdListExposed,
+		cmdService,
+		cmdBind,
+		cmdUnbind,
+		cmdVersion,
+		cmdDebug,
+		cmdCompletion)
+
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
