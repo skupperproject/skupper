@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/spf13/cobra"
 
@@ -862,14 +863,85 @@ func init() {
 
 	cmdCompletion := NewCmdCompletion()
 
-	rootCmd = &cobra.Command{Use: "skupper"}
-	rootCmd.Version = version
-	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
-		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug, cmdCompletion)
+	rootCmd = &cobra.Command{
+		Use: "skupper",
+		// Run: func(cmd *cobra.Command, args []string) { cmd.Help() },
+		// commented ^, not sure if this is required, this comes from:
+		// https://github.com/google/kf/pull/130/files
+	}
+
+	//rootCmd.Version = version //left out for now, this is the --version
+	//flag, that does not exist on kubectl (and we are using the kubectl
+	//templater)
+
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
 
+	//rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
+	//cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug, cmdCompletion)
+
+	//Init left out just as an example of the "Other commands" group
+	rootCmd.AddCommand(cmdInit)
+
+	//this list may be deduplicated, this is just  POC for now
+	commands := map[string]*cobra.Command{
+		//"init":             cmdInit,
+		"delete":           cmdDelete,
+		"connection-token": cmdConnectionToken,
+		"connect":          cmdConnect,
+		"disconnect":       cmdDisconnect,
+		"check-connection": cmdCheckConnection,
+		"status":           cmdStatus,
+		"list-connectors":  cmdListConnectors,
+		"expose":           cmdExpose,
+		"unexpose":         cmdUnexpose,
+		"list-exposed":     cmdListExposed,
+		"service":          cmdService,
+		"bind":             cmdBind,
+		"unbind":           cmdUnbind,
+		"version":          cmdVersion,
+		"debug":            cmdDebug,
+		"completion":       cmdCompletion,
+	}
+
+	groups := templates.CommandGroups{}
+	groups = append(groups, createGroup(commands, "Basic commands",
+		//"init",
+		"delete",
+		"connection-token",
+		"connect",
+		"disconnect",
+		"check-connection",
+		"status",
+		"list-connectors",
+		"expose",
+		"unexpose",
+		"list-exposed",
+		"service",
+		"bind",
+		"unbind",
+		"version",
+		"completion"))
+	groups = append(groups, createGroup(commands, "Advanced commands", "debug"))
+	groups.Add(rootCmd)
+	templates.ActsAsRootCommand(rootCmd, nil, groups...)
+
+}
+
+func createGroup(commands map[string]*cobra.Command, msg string, commandNames ...string) templates.CommandGroup {
+	g := templates.CommandGroup{
+		Message: msg,
+	}
+	for _, name := range commandNames {
+		cmd, ok := commands[name]
+		if !ok {
+			panic("unknown command: " + name)
+		}
+		g.Commands = append(g.Commands, cmd)
+		delete(commands, name)
+	}
+	return g
 }
 
 func main() {
