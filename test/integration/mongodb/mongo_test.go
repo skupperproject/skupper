@@ -43,33 +43,68 @@ type Post struct {
 	Body  string `json:"body,omitempty"`
 }
 
-func InsertPost(client *mongo.Client, title string, body string) error {
-	post := Post{title, body}
-	collection := client.Database("my_database").Collection("posts")
-	insertResult, err := collection.InsertOne(context.TODO(), post)
-	if err != nil {
-		return err
+var expected = Post{Title: "TheName", Body: "TheBody"}
+var TOTAL_DB_DOCUMENTS = 1000
+var DB_NAME = "my_database"
+var COLLECTION_NAME = "posts"
+
+func InsertAllPosts(client *mongo.Client, ctx context.Context) error {
+	post := Post{expected.Title, expected.Body}
+	collection := client.Database(DB_NAME).Collection(COLLECTION_NAME)
+
+	for i := 0; i < TOTAL_DB_DOCUMENTS; i++ {
+		_, err := collection.InsertOne(ctx, post)
+		if err != nil {
+			return err
+		}
 	}
-	fmt.Println("Inserted post with ID:", insertResult.InsertedID)
 	return nil
 }
 
-func GetPost(client *mongo.Client) (error, Post) {
+func CountDocuments(client *mongo.Client, expected_count int, ctx context.Context) error {
+	collection := client.Database(DB_NAME).Collection(COLLECTION_NAME)
+	count, err := collection.CountDocuments(ctx, bson.D{})
+	if err != nil {
+		return err
+	}
+	if int(count) != expected_count {
+		return fmt.Errorf("expected: %d, got %d", expected_count, count)
+	}
+	return nil
+}
 
-	collection := client.Database("my_database").Collection("posts")
+func PopAllExpectedPosts(client *mongo.Client, ctx context.Context) error {
+
+	collection := client.Database(DB_NAME).Collection(COLLECTION_NAME)
 	filter := bson.D{}
 	var post Post
 
-	err := collection.FindOne(context.TODO(), filter).Decode(&post)
+	count, err := collection.CountDocuments(ctx, filter)
 	if err != nil {
-		return err, Post{}
+		return err
 	}
-	return nil, post
+
+	if int(count) != TOTAL_DB_DOCUMENTS {
+		return fmt.Errorf("wrong number of documents in secondary DB, expected: %d, got: %d", TOTAL_DB_DOCUMENTS, count)
+
+	}
+
+	for i := 0; i < int(count); i++ {
+		post = Post{}
+		err = collection.FindOneAndDelete(ctx, filter).Decode(&post)
+		if err != nil {
+			return err
+		}
+		if post != expected {
+			return fmt.Errorf("extracted document different than expected. got: %v, expected: %v", post, expected)
+		}
+
+	}
+	return nil
 }
 
 func TestMongoJob(t *testing.T) {
 	k8s.SkipTestJobIfMustBeSkipped(t)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -85,12 +120,15 @@ func TestMongoJob(t *testing.T) {
 	defer client_a.Disconnect(ctx)
 	defer client_b.Disconnect(ctx)
 
-	expected := Post{Title: "TheName", Body: "TheBody"}
-
-	err := InsertPost(client_a, expected.Title, expected.Body)
+	err := InsertAllPosts(client_a, ctx)
 	assert.Assert(t, err)
 
-	err, post := GetPost(client_b)
+	err = CountDocuments(client_b, TOTAL_DB_DOCUMENTS, ctx)
 	assert.Assert(t, err)
-	assert.Assert(t, post == expected)
+
+	err = PopAllExpectedPosts(client_a, ctx)
+	assert.Assert(t, err)
+
+	err = CountDocuments(client_b, 0, ctx)
+	assert.Assert(t, err)
 }
