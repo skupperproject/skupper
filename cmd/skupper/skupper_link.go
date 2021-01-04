@@ -23,7 +23,6 @@ func NewCmdLink() *cobra.Command {
 
 var connectorCreateOpts types.ConnectorCreateOptions
 
-//deprecated
 func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 
 	if flag == "" { //hack for backwards compatibility
