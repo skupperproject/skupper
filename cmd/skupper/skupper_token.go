@@ -20,10 +20,13 @@ func NewCmdToken() *cobra.Command {
 }
 
 func NewCmdTokenCreate(newClient cobraFunc, flag string) *cobra.Command {
-	subflag := "i"
-	if flag == "" {
-		flag = "name"
-		subflag = "n"
+	subflag := ""
+	if flag == "client-identity" {
+		subflag = "i"
+	} else if flag == "" {
+		flag = "name" //default
+	} else {
+		panic("flag argument must be \"client-identity\" or \"\"")
 	}
 	cmd := &cobra.Command{
 		Use:    "create <output-token-file>",
