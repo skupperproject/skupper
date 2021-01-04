@@ -710,16 +710,25 @@ func init() {
 
 	cmdListConnectors := NewCmdListConnectors(newClient) //listconnectors just keeped
 	cmdListConnectors.Hidden = true
+	cmdListConnectors.Deprecated = "please use 'skupper link status all'"
+
+	linkDeprecationMessage := "please use 'skupper link [create|delete|status]' instead."
 
 	cmdConnect := NewCmdConnect(newClient)
 	cmdConnect.Hidden = true
+	cmdConnect.Deprecated = linkDeprecationMessage
+
 	cmdDisconnect := NewCmdDisconnect(newClient)
 	cmdDisconnect.Hidden = true
+	cmdDisconnect.Deprecated = linkDeprecationMessage
+
 	cmdCheckConnection := NewCmdCheckConnection(newClient)
 	cmdCheckConnection.Hidden = true
+	cmdCheckConnection.Deprecated = linkDeprecationMessage
 
 	cmdConnectionToken := NewCmdConnectionToken(newClient)
 	cmdConnectionToken.Hidden = true
+	cmdConnectionToken.Deprecated = "please use 'skupper token create' instead."
 
 	// setup subcommands
 	cmdService := NewCmdService()
