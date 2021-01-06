@@ -20,7 +20,7 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 		} else {
 			if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
 				host := kube.GetLoadBalancerHostOrIp(service)
-				return host, nil
+				return "http://" + host + ":8080", nil
 			} else {
 				return "", nil
 			}
@@ -30,7 +30,7 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 		if err != nil {
 			return "", err
 		} else {
-			return route.Spec.Host, nil
+			return "https://" + route.Spec.Host, nil
 		}
 	}
 }
@@ -75,7 +75,7 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 		}
 		url, err := cli.getConsoleUrl()
 		if url != "" {
-			vir.ConsoleUrl = "https://" + url
+			vir.ConsoleUrl = url
 		}
 	}
 
