@@ -37,8 +37,6 @@ func TestMain(m *testing.M) {
 // table that starts verifying initial state and then applies modifications
 // to validate if Skupper is reacting as expected.
 func TestAnnotatedResources(t *testing.T) {
-	t.Skip("Disabled for now, it is too flaky probably due to a resources change in the circle ci")
-
 	testTable := []test{
 		{
 			name:          "services-pre-annotated",
