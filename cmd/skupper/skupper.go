@@ -20,6 +20,28 @@ import (
 	"github.com/skupperproject/skupper/client"
 )
 
+const (
+	bash_completion_func = `# $1 is the name of resource (required)
+# $2 is template string for kubectl get (optional)
+__kubectl_parse_get()
+{
+    local template
+    template="${2:-"{{ range .items  }}{{ .metadata.name }} {{ end }}"}"
+    local kubectl_out
+    if kubectl_out=$(__kubectl_debug_out "kubectl get $(__kubectl_override_flags) -o template --template=\"${template}\" \"$1\""); then
+        COMPREPLY+=( $( compgen -W "${kubectl_out[*]}" -- "$cur" ) )
+    fi
+}
+
+
+__kubectl_get_resource_namespace()
+{
+    __kubectl_parse_get "namespace"
+}
+
+`
+)
+
 type ExposeOptions struct {
 	Protocol   string
 	Address    string
@@ -830,7 +852,9 @@ func init() {
 
 	cmdCompletion := NewCmdCompletion()
 
-	rootCmd = &cobra.Command{Use: "skupper"}
+	rootCmd = &cobra.Command{Use: "skupper",
+		BashCompletionFunction: bash_completion_func,
+	}
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
 		cmdUpdate,
@@ -855,6 +879,17 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
+
+	nsFlag := rootCmd.Flag("namespace")
+	if nsFlag != nil {
+		if nsFlag.Annotations == nil {
+			nsFlag.Annotations = map[string][]string{}
+		}
+		nsFlag.Annotations[cobra.BashCompCustom] = append(
+			nsFlag.Annotations[cobra.BashCompCustom],
+			"__kubectl_get_resource_namespace",
+		)
+	}
 
 }
 
