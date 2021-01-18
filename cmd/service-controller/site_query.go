@@ -23,6 +23,7 @@ import (
 type SiteInfo struct {
 	SiteId    string
 	SiteName  string
+	Version   string
 	Namespace string
 	Url       string
 }
@@ -42,6 +43,7 @@ func (s *SiteQueryServer) getLocalSiteInfo(vanClient *client.VanClient) {
 	s.siteInfo.SiteId = os.Getenv("SKUPPER_SITE_ID")
 	s.siteInfo.SiteName = os.Getenv("SKUPPER_SITE_NAME")
 	s.siteInfo.Namespace = os.Getenv("SKUPPER_NAMESPACE")
+	s.siteInfo.Version = client.Version
 	url, err := getSiteUrl(vanClient)
 	if err != nil {
 		log.Printf("Failed to get site url: %s", err)
@@ -162,6 +164,7 @@ func getAllSiteInfo(agent *qdr.Agent, sites []Site) error {
 			sites[i].SiteName = info.SiteName
 			sites[i].Namespace = info.Namespace
 			sites[i].Url = info.Url
+			sites[i].Version = info.Version
 		}
 	}
 	if len(errors) > 0 {

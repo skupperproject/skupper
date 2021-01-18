@@ -1,9 +1,9 @@
 package client
 
 import (
+	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
 	"os"
-	"github.com/skupperproject/skupper/api/types"
 )
 
 const (
@@ -35,8 +35,8 @@ func GetRouterImagePullPolicy() string {
 }
 
 func GetRouterImageDetails() types.ImageDetails {
-	return types.ImageDetails {
-		Name: GetRouterImageName(),
+	return types.ImageDetails{
+		Name:       GetRouterImageName(),
 		PullPolicy: GetRouterImagePullPolicy(),
 	}
 }
@@ -68,8 +68,8 @@ func GetServiceControllerImagePullPolicy() string {
 }
 
 func GetServiceControllerImageDetails() types.ImageDetails {
-	return types.ImageDetails {
-		Name: GetServiceControllerImageName(),
+	return types.ImageDetails{
+		Name:       GetServiceControllerImageName(),
 		PullPolicy: GetServiceControllerImagePullPolicy(),
 	}
 }

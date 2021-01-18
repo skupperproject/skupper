@@ -6,22 +6,28 @@ import (
 )
 
 func TestInitialConfig(t *testing.T) {
-	config := InitialConfig("foo", "bar", true)
+	config := InitialConfig("foo", "bar", "1.2.3", true)
 	if config.Metadata.Id != "foo" {
 		t.Errorf("Invalid id, expected 'foo' got %q", config.Metadata.Id)
 	}
-	if config.Metadata.Metadata != "bar" {
-		t.Errorf("Invalid metadata, expected 'bar' got %q", config.Metadata.Metadata)
+	if getSiteMetadata(config.Metadata.Metadata).Id != "bar" {
+		t.Errorf("Invalid metadata, expected id to be 'bar' got %q", getSiteMetadata(config.Metadata.Metadata).Id)
+	}
+	if getSiteMetadata(config.Metadata.Metadata).Version != "1.2.3" {
+		t.Errorf("Invalid metadata, expected version to be '1.2.3' got %q", getSiteMetadata(config.Metadata.Metadata).Version)
 	}
 	if config.Metadata.Mode != ModeEdge {
 		t.Errorf("Invalid id, expected %q got %q", ModeEdge, config.Metadata.Mode)
 	}
-	config = InitialConfig("bing", "bong", false)
+	config = InitialConfig("bing", "bong", "3.2.1", false)
 	if config.Metadata.Id != "bing" {
 		t.Errorf("Invalid id, expected 'bing' got %q", config.Metadata.Id)
 	}
-	if config.Metadata.Metadata != "bong" {
-		t.Errorf("Invalid metadata, expected 'bong' got %q", config.Metadata.Metadata)
+	if getSiteMetadata(config.Metadata.Metadata).Id != "bong" {
+		t.Errorf("Invalid metadata, expectedsite id to be 'bong' got %q", getSiteMetadata(config.Metadata.Metadata).Id)
+	}
+	if getSiteMetadata(config.Metadata.Metadata).Version != "3.2.1" {
+		t.Errorf("Invalid metadata, expected version to be '3.2.1' got %q", getSiteMetadata(config.Metadata.Metadata).Version)
 	}
 	if config.Metadata.Mode != ModeInterior {
 		t.Errorf("Invalid id, expected %q got %q", ModeInterior, config.Metadata.Mode)
@@ -29,7 +35,7 @@ func TestInitialConfig(t *testing.T) {
 }
 
 func TestAddListener(t *testing.T) {
-	config := InitialConfig("foo", "bar", true)
+	config := InitialConfig("foo", "bar", "undefined", true)
 	config.AddListener(Listener{
 		Name: "l1",
 		Port: 5672,
@@ -50,7 +56,7 @@ func TestAddListener(t *testing.T) {
 }
 
 func TestAddSslProfile(t *testing.T) {
-	config := InitialConfig("foo", "bar", true)
+	config := InitialConfig("foo", "bar", "undefined", true)
 	config.AddSslProfile(SslProfile{
 		Name:     "myprofile",
 		CertFile: "/my/certs/cert.pem",
@@ -73,7 +79,7 @@ func TestAddSslProfile(t *testing.T) {
 }
 
 func TestAddAddress(t *testing.T) {
-	config := InitialConfig("foo", "bar", true)
+	config := InitialConfig("foo", "bar", "undefined", true)
 	config.AddAddress(Address{
 		Prefix:       "foo",
 		Distribution: DistributionMulticast,
