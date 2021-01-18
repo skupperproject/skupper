@@ -561,7 +561,7 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *ServiceBindings, statefuls
 		return err
 	}
 
-	_, err = kube.CheckProxyStatefulSet(serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err = kube.CheckProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient.KubeClient)
 	return err
 }
 
@@ -572,7 +572,7 @@ func (c *Controller) createHeadlessProxyFor(bindings *ServiceBindings) error {
 		return err
 	}
 
-	_, err = kube.NewProxyStatefulSet(serviceInterface, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err = kube.NewProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, config, c.vanClient.Namespace, c.vanClient.KubeClient)
 	return err
 }
 

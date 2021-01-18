@@ -9,7 +9,8 @@ import (
 // TODO - remove constants, get from spec
 func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 	container := corev1.Container{
-		Image: ds.Image,
+		Image: ds.Image.Name,
+		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
 		Name:  types.ControllerContainerName,
 		Env:   ds.EnvVar,
 	}
@@ -18,7 +19,8 @@ func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 
 func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
 	container := corev1.Container{
-		Image: ds.Image,
+		Image: ds.Image.Name,
+		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
 		Name:  types.TransportContainerName,
 		LivenessProbe: &corev1.Probe{
 			InitialDelaySeconds: 60,
