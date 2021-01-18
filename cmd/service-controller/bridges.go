@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
@@ -278,8 +279,12 @@ func (eb *EgressBindings) updateBridgeConfiguration(sb *ServiceBindings, siteId 
 		pods := eb.informer.GetStore().List()
 		for _, p := range pods {
 			pod := p.(*corev1.Pod)
-			log.Printf("Adding pod for %s: %s", sb.address, pod.ObjectMeta.Name)
-			addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPort, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, bridges)
+			if kube.IsPodRunning(pod) && kube.IsPodReady(pod) && pod.DeletionTimestamp == nil {
+				log.Printf("Adding pod for %s: %s", sb.address, pod.ObjectMeta.Name)
+				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPort, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, bridges)
+			} else {
+				log.Printf("Pod for %s not ready/running: %s", sb.address, pod.ObjectMeta.Name)
+			}
 		}
 	} else if eb.service != "" {
 		addEgressBridge(sb.protocol, eb.service, eb.egressPort, sb.address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, bridges)
