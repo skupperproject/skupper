@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/utils"
-	"os"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -75,12 +74,12 @@ func getProxyStatefulSetName(definition types.ServiceInterface) string {
 	}
 }
 
-func CheckProxyStatefulSet(desired types.ServiceInterface, actual *appsv1.StatefulSet, desiredConfig string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
+func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterface, actual *appsv1.StatefulSet, desiredConfig string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	if actual == nil {
 		var err error
 		actual, err = cli.AppsV1().StatefulSets(namespace).Get(getProxyStatefulSetName(desired), metav1.GetOptions{})
 		if errors.IsNotFound(err) {
-			return NewProxyStatefulSet(desired, desiredConfig, namespace, cli)
+			return NewProxyStatefulSet(image, desired, desiredConfig, namespace, cli)
 		} else if err != nil {
 			return nil, err
 		}
@@ -102,7 +101,7 @@ func CheckProxyStatefulSet(desired types.ServiceInterface, actual *appsv1.Statef
 	}
 }
 
-func NewProxyStatefulSet(serviceInterface types.ServiceInterface, config string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
+func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.ServiceInterface, config string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	statefulSets := cli.AppsV1().StatefulSets(namespace)
 	deployments := cli.AppsV1().Deployments(namespace)
 	transportDep, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
@@ -111,13 +110,6 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, config string,
 	}
 
 	ownerRef := GetDeploymentOwnerReference(transportDep)
-
-	var imageName string
-	if os.Getenv("QDROUTERD_IMAGE") != "" {
-		imageName = os.Getenv("QDROUTERD_IMAGE")
-	} else {
-		imageName = types.DefaultTransportImage
-	}
 
 	replicas := int32(serviceInterface.Headless.Size)
 	proxyStatefulSet := &appsv1.StatefulSet{
@@ -154,7 +146,8 @@ func NewProxyStatefulSet(serviceInterface types.ServiceInterface, config string,
 					ServiceAccountName: types.TransportServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Image: imageName,
+							Image: image.Name,
+							ImagePullPolicy: GetPullPolicy(image.PullPolicy),
 							Name:  "proxy",
 							Env: []corev1.EnvVar{
 								{

@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -54,11 +53,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		oauthProxy
 	)
 
-	if os.Getenv("SKUPPER_SERVICE_CONTROLLER_IMAGE") != "" {
-		van.Controller.Image = os.Getenv("SKUPPER_SERVICE_CONTROLLER_IMAGE")
-	} else {
-		van.Controller.Image = types.DefaultControllerImage
-	}
+	van.Controller.Image = GetServiceControllerImageDetails()
 	van.Controller.Replicas = 1
 	//TODO: change these to types constants
 	van.Controller.Labels = map[string]string{
@@ -73,9 +68,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SERVICE_ACCOUNT", Value: "skupper"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(transport.ObjectMeta.UID)})
-	if os.Getenv("QDROUTERD_IMAGE") != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_IMAGE", Value: os.Getenv("QDROUTERD_IMAGE")})
-	}
+	envVars = addRouterImageOverrideToEnv(envVars)
 
 	sidecars := []*corev1.Container{}
 	volumes := []corev1.Volume{}
@@ -256,11 +249,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.AuthMode = types.ConsoleAuthMode(options.AuthMode)
 	van.Transport.LivenessPort = types.TransportLivenessPort
 
-	if os.Getenv("QDROUTERD_IMAGE") != "" {
-		van.Transport.Image = os.Getenv("QDROUTERD_IMAGE")
-	} else {
-		van.Transport.Image = types.DefaultTransportImage
-	}
+	van.Transport.Image = GetRouterImageDetails()
 	van.Transport.Replicas = 1
 	van.Transport.Labels = map[string]string{
 		"application":          types.TransportDeploymentName,
