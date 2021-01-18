@@ -146,9 +146,9 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 					ServiceAccountName: types.TransportServiceAccountName,
 					Containers: []corev1.Container{
 						{
-							Image: image.Name,
+							Image:           image.Name,
 							ImagePullPolicy: GetPullPolicy(image.PullPolicy),
-							Name:  "proxy",
+							Name:            "proxy",
 							Env: []corev1.EnvVar{
 								{
 									Name:  "QDROUTERD_CONF",

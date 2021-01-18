@@ -20,8 +20,6 @@ import (
 	"github.com/skupperproject/skupper/client"
 )
 
-var version = "undefined"
-
 type ExposeOptions struct {
 	Protocol   string
 	Address    string
@@ -759,7 +757,7 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 			vir, err := cli.RouterInspect(context.Background())
-			fmt.Printf("%-30s %s\n", "client version", version)
+			fmt.Printf("%-30s %s\n", "client version", client.Version)
 			if err == nil {
 				fmt.Printf("%-30s %s\n", "transport version", vir.TransportVersion)
 				fmt.Printf("%-30s %s\n", "controller version", vir.ControllerVersion)
@@ -788,7 +786,7 @@ func NewCmdDebugDump(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			err := cli.SkupperDump(context.Background(), args[0], version, kubeConfigPath, kubeContext)
+			err := cli.SkupperDump(context.Background(), args[0], client.Version, kubeConfigPath, kubeContext)
 			if err != nil {
 				return fmt.Errorf("Unable to save skupper details: %w", err)
 			}
@@ -863,7 +861,7 @@ func init() {
 	cmdCompletion := NewCmdCompletion()
 
 	rootCmd = &cobra.Command{Use: "skupper"}
-	rootCmd.Version = version
+	rootCmd.Version = client.Version
 	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
 		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug, cmdCompletion)
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")

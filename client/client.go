@@ -12,6 +12,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var Version = "undefined"
+
 // A VAN Client manages orchestration and communications with the network components
 type VanClient struct {
 	Namespace   string

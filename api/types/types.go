@@ -178,8 +178,8 @@ type RouterSpec struct {
 }
 
 type ImageDetails struct {
-	Name       string                   `json:"image,omitempty"`
-	PullPolicy string                   `json:"imagePullPolicy,omitempty"`
+	Name       string `json:"image,omitempty"`
+	PullPolicy string `json:"imagePullPolicy,omitempty"`
 }
 
 // DeploymentSpec for the VAN router or controller components to run within a cluster

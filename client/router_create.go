@@ -257,7 +257,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.Transport.Annotations = types.TransportPrometheusAnnotations
 
-	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, options.IsEdge)
+	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, Version, options.IsEdge)
 	routerConfig.AddAddress(qdr.Address{
 		Prefix:       "mc",
 		Distribution: "multicast",

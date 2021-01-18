@@ -90,7 +90,7 @@ func TestQDR(t *testing.T) {
 	// asRouter ------------------------------------
 	record["metadata"] = "my_metadata"
 	router := asRouter(record)
-	assert.Assert(t, router.Id == record["id"] && router.SiteId == record["metadata"] && router.Edge == false, "asRouter failure.")
+	assert.Assert(t, router.Id == record["id"] && router.Site.Id == record["metadata"] && router.Edge == false, "asRouter failure.")
 
 	record["mode"] = "edge"
 	router = asRouter(record)
@@ -156,4 +156,23 @@ func TestQDR(t *testing.T) {
 	val64, ok = AsUint64(lyingString)
 	assert.Assert(t, !ok && val64 == 0, "AsUint64 was fooled by a deceptive string.")
 
+}
+
+func TestSiteMetadata(t *testing.T) {
+	a := SiteMetadata{
+		Id:      "foo",
+		Version: "1.2.3",
+	}
+	b := getSiteMetadata(getSiteMetadataString(a.Id, a.Version))
+	if b.Id != a.Id {
+		t.Errorf("Invalid metadata, expected id to be %q got %q", a.Id, b.Id)
+	}
+	if b.Version != a.Version {
+		t.Errorf("Invalid metadata, expected version to be %q got %q", a.Id, b.Id)
+	}
+	id := "I am not an object"
+	c := getSiteMetadata(id)
+	if c.Id != id {
+		t.Errorf("Invalid metadata, expected id to be %q got %q", id, c.Id)
+	}
 }

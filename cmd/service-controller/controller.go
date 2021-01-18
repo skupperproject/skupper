@@ -556,7 +556,7 @@ func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error 
 
 func (c *Controller) ensureHeadlessProxyFor(bindings *ServiceBindings, statefulset *appsv1.StatefulSet) error {
 	serviceInterface := asServiceInterface(bindings)
-	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, c.vanClient.Namespace)
+	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, client.Version, c.vanClient.Namespace)
 	if err != nil {
 		return err
 	}
@@ -567,7 +567,7 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *ServiceBindings, statefuls
 
 func (c *Controller) createHeadlessProxyFor(bindings *ServiceBindings) error {
 	serviceInterface := asServiceInterface(bindings)
-	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, c.vanClient.Namespace)
+	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, client.Version, c.vanClient.Namespace)
 	if err != nil {
 		return err
 	}

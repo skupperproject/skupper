@@ -12,6 +12,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -152,6 +153,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 	request.Properties = &properties
 	request.ApplicationProperties = make(map[string]interface{})
 	request.ApplicationProperties["origin"] = c.origin
+	request.ApplicationProperties["version"] = client.Version
 
 	for {
 		select {

@@ -31,11 +31,11 @@ type BridgeConfig struct {
 	HttpConnectors HttpEndpointMap
 }
 
-func InitialConfig(id string, metadata string, edge bool) RouterConfig {
+func InitialConfig(id string, siteId string, version string, edge bool) RouterConfig {
 	config := RouterConfig{
 		Metadata: RouterMetadata{
 			Id:       id,
-			Metadata: metadata,
+			Metadata: getSiteMetadataString(siteId, version),
 		},
 		Addresses:   map[string]Address{},
 		SslProfiles: map[string]SslProfile{},
@@ -611,8 +611,8 @@ func (a *BridgeConfigDifference) Print() {
 	log.Printf("HttpListeners added=%v, deleted=%v", a.HttpListeners.Added, a.HttpListeners.Deleted)
 }
 
-func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, namespace string) (string, error) {
-	config := InitialConfig("$HOSTNAME", siteId, true)
+func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, version string, namespace string) (string, error) {
+	config := InitialConfig("$HOSTNAME", siteId, version, true)
 	//add edge-connector
 	config.AddSslProfile(SslProfile{
 		Name: types.InterRouterProfile,
