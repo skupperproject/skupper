@@ -11,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -94,15 +92,9 @@ func main() {
 	}
 
 	log.Println("Waiting for Skupper router component to start")
-	pods, err := kube.GetDeploymentPods(types.TransportDeploymentName, "skupper.io/component=router", namespace, cli.KubeClient)
+	_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
 	if err != nil {
-		log.Fatal("Error getting transport deployment pods", err.Error())
-	}
-	for _, pod := range pods {
-		_, err := kube.WaitForPodStatus(namespace, cli.KubeClient, pod.Name, corev1.PodRunning, time.Second*180, time.Second*5)
-		if err != nil {
-			log.Fatal("Error waiting for skupper transport pod running status", err.Error())
-		}
+		log.Fatal("Error waiting for transport deployment to be ready", err.Error())
 	}
 
 	// start the controller workers

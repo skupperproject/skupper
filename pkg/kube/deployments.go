@@ -353,3 +353,22 @@ func WaitDeploymentReadyReplicas(name string, namespace string, readyReplicas in
 
 	return dep, err
 }
+
+// WaitDeploymentReady waits till given deployment contains at least one ReadyReplicas, or until it times out
+func WaitDeploymentReady(name string, namespace string, cli kubernetes.Interface, timeout, interval time.Duration) (*appsv1.Deployment, error) {
+	var dep *appsv1.Deployment
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
+		dep, err = cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			// dep does not exist yet
+			return false, nil
+		}
+		return dep.Status.ReadyReplicas > 0, nil
+	})
+
+	return dep, err
+}
