@@ -377,7 +377,7 @@ func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 						return err
 					}
 					if siteConfig.Spec.AuthMode == "internal" {
-						fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-users'")
+						fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-console-users'")
 					}
 				}
 			} else {
