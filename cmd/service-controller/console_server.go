@@ -67,6 +67,40 @@ func authenticated(h http.Handler) http.Handler {
 	}
 }
 
+type VersionInfo struct {
+	ServiceControllerVersion string `json:"service_controller_version"`
+	RouterVersion            string `json:"router_version"`
+	SiteVersion              string `json:"site_version"`
+}
+
+func (server *ConsoleServer) version() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		v := VersionInfo{
+			ServiceControllerVersion: client.Version,
+		}
+		agent, err := server.agentPool.Get()
+		if err != nil {
+			log.Printf("Could not get management agent : %s", err)
+		} else {
+			router, err := agent.GetLocalRouter()
+			server.agentPool.Put(agent)
+			if err != nil {
+				log.Printf("Error retrieving local router version: %s", err)
+			} else {
+				v.RouterVersion = router.Version
+				v.SiteVersion = router.Site.Version
+			}
+		}
+		bytes, err := json.MarshalIndent(v, "", "    ")
+		if err != nil {
+			log.Printf("Error writing version: %s", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			fmt.Fprintf(w, string(bytes)+"\n")
+		}
+	})
+}
+
 func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	agent, err := server.agentPool.Get()
 	if err != nil {
@@ -105,6 +139,7 @@ func (server *ConsoleServer) listen() {
 	}
 	log.Printf("Console server listening on %s", addr)
 	http.Handle("/DATA", authenticated(server))
+	http.Handle("/Version", authenticated(server.version()))
 	http.Handle("/", authenticated(http.FileServer(http.Dir("/app/console/"))))
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
