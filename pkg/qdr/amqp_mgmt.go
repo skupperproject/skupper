@@ -25,6 +25,7 @@ type Router struct {
 	Address     string
 	Edge        bool
 	Site        SiteMetadata
+	Version     string
 	ConnectedTo []string
 }
 
@@ -135,8 +136,9 @@ func asRouterNode(record Record) RouterNode {
 
 func asRouter(record Record) *Router {
 	r := Router{
-		Id:   record.AsString("id"),
-		Site: getSiteMetadata(record.AsString("metadata")),
+		Id:      record.AsString("id"),
+		Site:    getSiteMetadata(record.AsString("metadata")),
+		Version: record.AsString("version"),
 	}
 	if record.AsString("mode") == "edge" {
 		r.Edge = true
@@ -231,7 +233,7 @@ func Connect(url string, config *tls.Config) (*Agent, error) {
 		anonymous:  anonymous,
 		receiver:   receiver,
 	}
-	a.local, err = a.getLocalRouter()
+	a.local, err = a.GetLocalRouter()
 	if err != nil {
 		return a, fmt.Errorf("Failed to lookup local router details: %s", err)
 	}
@@ -940,7 +942,7 @@ func (a *Agent) getEdgeRouters(agent string) ([]Router, error) {
 	return edges, nil
 }
 
-func (a *Agent) getLocalRouter() (*Router, error) {
+func (a *Agent) GetLocalRouter() (*Router, error) {
 	records, err := a.Query("org.apache.qpid.dispatch.router", []string{})
 	if err != nil {
 		return nil, err
