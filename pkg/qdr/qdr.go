@@ -138,6 +138,14 @@ func (r *RouterConfig) UpdateBridgeConfig(desired BridgeConfig) bool {
 	}
 }
 
+func (r *RouterConfig) GetSiteMetadata() SiteMetadata {
+	return getSiteMetadata(r.Metadata.Metadata)
+}
+
+func (r *RouterConfig) SetSiteMetadata(site *SiteMetadata) {
+	r.Metadata.Metadata = getSiteMetadataString(site.Id, site.Version)
+}
+
 func (bc *BridgeConfig) AddTcpConnector(e TcpEndpoint) {
 	bc.TcpConnectors[e.Name] = e
 }

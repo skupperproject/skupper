@@ -405,7 +405,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	volumes := []corev1.Volume{}
 	mounts := make([][]corev1.VolumeMount, 1)
 	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-amqps", "/etc/qpid-dispatch-certs/skupper-amqps/")
-	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", "skupper-internal", "/etc/qpid-dispatch/config/")
+	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", types.TransportConfigMapName, "/etc/qpid-dispatch/config/")
 	if !options.IsEdge {
 		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-internal", "/etc/qpid-dispatch-certs/skupper-internal/")
 	}
@@ -813,7 +813,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 
 	kube.NewConfigMap("skupper-services", nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
-	kube.NewConfigMap("skupper-internal", &initialConfig, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	if !options.Spec.IsEdge {
 		for _, cred := range van.Credentials {

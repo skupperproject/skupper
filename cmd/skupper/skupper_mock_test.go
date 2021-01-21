@@ -93,6 +93,12 @@ func (v *vanClientMock) RouterInspect(ctx context.Context) (*types.RouterInspect
 func (v *vanClientMock) RouterRemove(ctx context.Context) error {
 	return nil
 }
+func (v *vanClientMock) RouterUpdateVersion(ctx context.Context, hup bool) (bool, error) {
+	return true, nil
+}
+func (v *vanClientMock) RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error) {
+	return true, nil
+}
 func (v *vanClientMock) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	return nil, nil
 }

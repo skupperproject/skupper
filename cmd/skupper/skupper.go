@@ -237,6 +237,33 @@ func NewCmdDelete(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
+var forceHup bool
+
+func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "update",
+		Short:  "Update skupper installation version",
+		Long:   "Update the skupper site to " + client.Version,
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			updated, err := cli.RouterUpdateVersion(context.Background(), forceHup)
+			if err != nil {
+				return err
+			}
+			if updated {
+				fmt.Println("Skupper is now updated in '" + cli.GetNamespace() + "'.")
+			} else {
+				fmt.Println("No update required in '" + cli.GetNamespace() + "'.")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&forceHup, "force-restart", "", false, "Restart skupper daemons even if image tag is not updated")
+	return cmd
+}
+
 var clientIdentity string
 
 func NewCmdConnectionToken(newClient cobraFunc) *cobra.Command {
@@ -831,6 +858,7 @@ func init() {
 
 	cmdInit := NewCmdInit(newClient)
 	cmdDelete := NewCmdDelete(newClient)
+	cmdUpdate := NewCmdUpdate(newClient)
 	cmdConnectionToken := NewCmdConnectionToken(newClient)
 	cmdConnect := NewCmdConnect(newClient)
 	cmdDisconnect := NewCmdDisconnect(newClient)
@@ -859,7 +887,7 @@ func init() {
 
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.Version = client.Version
-	rootCmd.AddCommand(cmdInit, cmdDelete, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
+	rootCmd.AddCommand(cmdInit, cmdDelete, cmdUpdate, cmdConnectionToken, cmdConnect, cmdDisconnect, cmdCheckConnection, cmdStatus, cmdListConnectors, cmdExpose, cmdUnexpose, cmdListExposed,
 		cmdService, cmdBind, cmdUnbind, cmdVersion, cmdDebug, cmdCompletion)
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")

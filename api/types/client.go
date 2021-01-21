@@ -72,6 +72,8 @@ type VanClientInterface interface {
 	RouterCreate(ctx context.Context, options SiteConfig) error
 	RouterInspect(ctx context.Context) (*RouterInspectResponse, error)
 	RouterRemove(ctx context.Context) error
+	RouterUpdateVersion(ctx context.Context, hup bool) (bool, error)
+	RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error)
 	ConnectorCreateFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreate(ctx context.Context, secret *corev1.Secret, options ConnectorCreateOptions) error
