@@ -5,6 +5,7 @@ TEST_IMAGE := quay.io/skupper/skupper-tests
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
 LDFLAGS := -X github.com/skupperproject/skupper/client.Version=${VERSION}
+DEBUG_OPTS := 
 
 all: build-cmd build-controllers build-tests
 
@@ -19,17 +20,17 @@ build-cmd:
 	go build -ldflags="${LDFLAGS}"  -o skupper cmd/skupper/skupper.go
 
 build-service-controller:
-	go build -ldflags="${LDFLAGS}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/config_sync.go
+	go build -ldflags="${LDFLAGS}" ${DEBUG_OPTS}  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/config_sync.go
 
 build-site-controller:
-	go build -ldflags="${LDFLAGS}"  -o site-controller cmd/site-controller/main.go cmd/site-controller/controller.go
+	go build -ldflags="${LDFLAGS}" ${DEBUG_OPTS}  -o site-controller cmd/site-controller/main.go cmd/site-controller/controller.go
 
 build-controllers: build-site-controller build-service-controller
 
-build-service-controller-debug: BUILD_OPTS = -gcflags "all=-N -l"
+build-service-controller-debug: DEBUG_OPTS = -gcflags "all=-N -l"
 build-service-controller-debug: build-service-controller
 
-build-site-controller-debug: BUILD_OPTS = -gcflags "all=-N -l"
+build-site-controller-debug: DEBUG_OPTS = -gcflags "all=-N -l"
 build-site-controller-debug: build-site-controller
 
 build-controllers-debug: build-site-controller-debug build-service-controller-debug
