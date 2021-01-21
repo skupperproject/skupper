@@ -200,6 +200,10 @@ func (cli *vanClientMock) GetNamespace() string {
 	return "MockNamespace"
 }
 
+func (cli *vanClientMock) GetVersion(component string, name string) string {
+	return "not-found"
+}
+
 func TestCmdUnexposeRun(t *testing.T) {
 	cmd := NewCmdUnexpose(nil)
 	test := func(targetType, targetName, address string) {

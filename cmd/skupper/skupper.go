@@ -18,7 +18,6 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type ExposeOptions struct {
@@ -758,12 +757,9 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			ns := cli.GetNamespace()
-			kc := cli.GetKubeClient()
-
 			fmt.Printf("%-30s %s\n", "client version", client.Version)
-			fmt.Printf("%-30s %s\n", "transport version", kube.GetComponentVersion(ns, kc, types.TransportComponentName, types.TransportContainerName))
-			fmt.Printf("%-30s %s\n", "controller version", kube.GetComponentVersion(ns, kc, types.ControllerComponentName, types.ControllerContainerName))
+			fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
+			fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
 
 			return nil
 		},
