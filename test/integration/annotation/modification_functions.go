@@ -2,6 +2,7 @@ package annotation
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -142,4 +143,36 @@ func addAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 		_, err = cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(svcTarget)
 		assert.Assert(t, err)
 	}
+}
+
+// debugAnnotatedResources prints current status for the exposed resources
+func debugAnnotatedResources(t *testing.T, testRunner base.ClusterTestRunner) {
+	pub, _ := testRunner.GetPublicContext(1)
+	prv, _ := testRunner.GetPrivateContext(1)
+
+	log.Printf("Debugging exposed resources (by annotation):")
+	i := 0
+	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
+		// Retrieving the deployment
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get("nginx", v1.GetOptions{})
+		assert.Assert(t, err)
+		log.Printf("Deployment: %s - Annotations: %s", dep.Name, dep.Annotations)
+		if len(dep.Annotations) > 0 {
+			i++
+		}
+
+		// Retrieving services
+		svcList, _ := cluster.KubeClient.CoreV1().Services(cluster.Namespace).List(v1.ListOptions{
+			LabelSelector: "app=nginx",
+		})
+
+		for _, svc := range svcList.Items {
+			log.Printf("Service   : %s - Annotations: %s", svc.Name, svc.Annotations)
+			if _, ok := svc.Annotations[types.ProxyQualifier]; ok {
+				i++
+			}
+		}
+
+	}
+	log.Printf("Number of exposed resources found (with %s annotation): %d", types.ProxyQualifier, i)
 }

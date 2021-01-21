@@ -139,6 +139,9 @@ func TestAnnotatedResources(t *testing.T) {
 
 				// 4.2.2. retry till expected amount of sites and services match
 				if test.expectedSites != len(consoleData.Sites) || len(test.expectedServicesProto) != len(consoleData.Services) {
+					log.Printf("ConsoleData do not match yet")
+					log.Printf("Number of sites  [expected: %d - found: %d]", test.expectedSites, len(consoleData.Sites))
+					log.Printf("Exposed services [expected: %d - found: %d]", len(test.expectedServicesProto), len(consoleData.Services))
 					return false, nil
 				}
 
@@ -158,6 +161,7 @@ func TestAnnotatedResources(t *testing.T) {
 				res := reflect.DeepEqual(test.expectedServicesProto, servicesFound)
 				if !res {
 					log.Printf("services and protocols do not match yet expected: %s - got: %s", test.expectedServicesProto, servicesFound)
+					debugAnnotatedResources(t, testRunner)
 				}
 				return res, nil
 			})
