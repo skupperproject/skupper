@@ -125,7 +125,8 @@ func (c *SiteController) Run(stopCh <-chan struct{}) error {
 	if ok := cache.WaitForCacheSync(stopCh, c.siteInformer.HasSynced, c.tokenInformer.HasSynced); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
-
+	log.Printf("Checking if sites need updates (%s)", client.Version)
+	c.updateChecks()
 	log.Println("Starting workers")
 	go wait.Until(c.run, time.Second, stopCh)
 	log.Println("Started workers")
@@ -411,4 +412,22 @@ func (c *SiteController) isTokenRequestValidInSite(token *corev1.Secret) bool {
 		return false
 	}
 	return true
+}
+
+func (c *SiteController) updateChecks() {
+	sites := c.siteInformer.GetStore().List()
+	for _, s := range sites {
+		if site, ok := s.(*corev1.ConfigMap); ok {
+			updated, err := c.vanClient.RouterUpdateVersionInNamespace(context.Background(), false, site.ObjectMeta.Namespace)
+			if err != nil {
+				log.Printf("Version update check failed for namespace %q: %s", site.ObjectMeta.Namespace, err)
+			} else if updated {
+				log.Printf("Updated version for namespace %q", site.ObjectMeta.Namespace)
+			} else {
+				log.Printf("Version update not required for namespace %q", site.ObjectMeta.Namespace)
+			}
+		} else {
+			log.Printf("Unexpected item in site informer store: %v", s)
+		}
+	}
 }

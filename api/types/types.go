@@ -49,6 +49,7 @@ const (
 	TransportEnvConfig          string = "QDROUTERD_CONF"
 	TransportSaslConfig         string = "skupper-sasl-config"
 	TransportConfigFile         string = "qdrouterd.json"
+	TransportConfigMapName      string = "skupper-internal"
 )
 
 var TransportViewPolicyRule = []rbacv1.PolicyRule{
@@ -114,6 +115,7 @@ const (
 	TypeTokenRequestQualifier   string = BaseQualifier + "/type=connection-token-request"
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
 	TokenCost                   string = BaseQualifier + "/cost"
+	UpdatedAnnotation           string = InternalQualifier + "/updated"
 )
 
 // Service Interface constants
