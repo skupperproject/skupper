@@ -4,6 +4,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type ConnectorCreateOptions struct {
@@ -93,4 +94,5 @@ type VanClientInterface interface {
 	SiteConfigRemove(ctx context.Context) error
 	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error
 	GetNamespace() string
+	GetKubeClient() kubernetes.Interface
 }

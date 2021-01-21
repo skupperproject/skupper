@@ -26,6 +26,10 @@ func (cli *VanClient) GetNamespace() string {
 	return cli.Namespace
 }
 
+func (cli *VanClient) GetKubeClient() kubernetes.Interface {
+	return cli.KubeClient
+}
+
 func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {
 	c := &VanClient{}
 
