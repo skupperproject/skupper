@@ -756,14 +756,11 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			vir, err := cli.RouterInspect(context.Background())
+
 			fmt.Printf("%-30s %s\n", "client version", client.Version)
-			if err == nil {
-				fmt.Printf("%-30s %s\n", "transport version", vir.TransportVersion)
-				fmt.Printf("%-30s %s\n", "controller version", vir.ControllerVersion)
-			} else {
-				return fmt.Errorf("Unable to retrieve skupper component versions: %w", err)
-			}
+			fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
+			fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
+
 			return nil
 		},
 	}

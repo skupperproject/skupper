@@ -10,6 +10,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 var Version = "undefined"
@@ -24,6 +26,14 @@ type VanClient struct {
 
 func (cli *VanClient) GetNamespace() string {
 	return cli.Namespace
+}
+
+func (cli *VanClient) GetKubeClient() kubernetes.Interface {
+	return cli.KubeClient
+}
+
+func (cli *VanClient) GetVersion(component string, name string) string {
+	return kube.GetComponentVersion(cli.Namespace, cli.KubeClient, component, name)
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {
