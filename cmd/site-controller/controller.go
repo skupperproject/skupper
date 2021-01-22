@@ -229,7 +229,7 @@ func (c *SiteController) checkSite(key string) error {
 		return err
 	} else if exists {
 		configmap := obj.(*corev1.ConfigMap)
-		routerInspectResponse, err := c.vanClient.RouterInspect(context.Background())
+		routerInspectResponse, err := c.vanClient.RouterInspectNamespace(context.Background(), configmap.ObjectMeta.Namespace)
 		if err == nil {
 			log.Println("Skupper site exists ", key)
 			wantEdgeMode := configmap.Data["edge"] == "true"

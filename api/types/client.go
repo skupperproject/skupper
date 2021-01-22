@@ -71,6 +71,7 @@ type RouterInspectResponse struct {
 type VanClientInterface interface {
 	RouterCreate(ctx context.Context, options SiteConfig) error
 	RouterInspect(ctx context.Context) (*RouterInspectResponse, error)
+	RouterInspectNamespace(ctx context.Context, namespace string) (*RouterInspectResponse, error)
 	RouterRemove(ctx context.Context) error
 	ConnectorCreateFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)

@@ -35,11 +35,15 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 	}
 }
 
-// RouterInspect VAN deployment
 func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectResponse, error) {
+	return cli.RouterInspectNamespace(ctx, cli.Namespace)
+}
+
+// RouterInspect VAN deployment
+func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace string) (*types.RouterInspectResponse, error) {
 	vir := &types.RouterInspectResponse{}
 
-	configmap, err := kube.GetConfigMap("skupper-internal", cli.Namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap("skupper-internal", namespace, cli.KubeClient)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +51,7 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 	if err != nil {
 		return nil, err
 	}
-	current, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	current, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
 		siteConfig, err := cli.SiteConfigInspect(ctx, nil)
 		if err == nil && siteConfig != nil {
@@ -55,18 +59,18 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 		}
 		vir.Status.Mode = string(routerConfig.Metadata.Mode)
 		vir.Status.TransportReadyReplicas = current.Status.ReadyReplicas
-		connected, err := qdr.GetConnectedSites(vir.Status.Mode == types.TransportModeEdge, cli.Namespace, cli.KubeClient, cli.RestConfig)
+		connected, err := qdr.GetConnectedSites(vir.Status.Mode == types.TransportModeEdge, namespace, cli.KubeClient, cli.RestConfig)
 		for i := 0; i < 5 && err != nil; i++ {
 			time.Sleep(500 * time.Millisecond)
-			connected, err = qdr.GetConnectedSites(vir.Status.Mode == types.TransportModeEdge, cli.Namespace, cli.KubeClient, cli.RestConfig)
+			connected, err = qdr.GetConnectedSites(vir.Status.Mode == types.TransportModeEdge, namespace, cli.KubeClient, cli.RestConfig)
 		}
 
 		if err == nil {
 			vir.Status.ConnectedSites = connected
 		}
 
-		vir.TransportVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.TransportComponentName, types.TransportContainerName)
-		vir.ControllerVersion = kube.GetComponentVersion(cli.Namespace, cli.KubeClient, types.ControllerComponentName, types.ControllerContainerName)
+		vir.TransportVersion = kube.GetComponentVersion(namespace, cli.KubeClient, types.TransportComponentName, types.TransportContainerName)
+		vir.ControllerVersion = kube.GetComponentVersion(namespace, cli.KubeClient, types.ControllerComponentName, types.ControllerContainerName)
 		vsis, err := cli.ServiceInterfaceList(context.Background())
 		if err != nil {
 			vir.ExposedServices = 0
