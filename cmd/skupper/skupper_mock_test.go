@@ -90,6 +90,9 @@ func (v *vanClientMock) RouterCreate(ctx context.Context, options types.SiteConf
 func (v *vanClientMock) RouterInspect(ctx context.Context) (*types.RouterInspectResponse, error) {
 	return nil, nil
 }
+func (v *vanClientMock) RouterInspectNamespace(ctx context.Context, namespace string) (*types.RouterInspectResponse, error) {
+	return nil, nil
+}
 func (v *vanClientMock) RouterRemove(ctx context.Context) error {
 	return nil
 }

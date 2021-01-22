@@ -71,6 +71,7 @@ type RouterInspectResponse struct {
 type VanClientInterface interface {
 	RouterCreate(ctx context.Context, options SiteConfig) error
 	RouterInspect(ctx context.Context) (*RouterInspectResponse, error)
+	RouterInspectNamespace(ctx context.Context, namespace string) (*RouterInspectResponse, error)
 	RouterRemove(ctx context.Context) error
 	RouterUpdateVersion(ctx context.Context, hup bool) (bool, error)
 	RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error)

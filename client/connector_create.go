@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"reflect"
 	"regexp"
 	"strconv"
 
@@ -174,11 +175,15 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		if err != nil {
 			return err
 		}
+		updated := false
 		//read annotations to get the host and port to connect to
 		profileName := options.Name + "-profile"
-		current.AddSslProfile(qdr.SslProfile{
-			Name: profileName,
-		})
+		if _, ok := current.SslProfiles[profileName]; !ok {
+			current.AddSslProfile(qdr.SslProfile{
+				Name: profileName,
+			})
+			updated = true
+		}
 		connector := qdr.Connector{
 			Name:       options.Name,
 			Cost:       options.Cost,
@@ -193,20 +198,31 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			connector.Port = secret.ObjectMeta.Annotations["inter-router-port"]
 			connector.Role = qdr.RoleInterRouter
 		}
-		current.AddConnector(connector)
-		current.UpdateConfigMap(configmap)
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(configmap)
-		if err != nil {
+		if existing, ok := current.Connectors[connector.Name]; ok {
+			if !reflect.DeepEqual(existing, connector) {
+				current.Connectors[connector.Name] = connector
+				updated = true
+			}
+		} else {
+			current.AddConnector(connector)
+			updated = true
+		}
+		if updated {
+			current.UpdateConfigMap(configmap)
+			_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(configmap)
+			if err != nil {
+				return err
+			}
+			//need to mount the secret so router can access certs and key
+			deployment, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
+			kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, connector.Name, "/etc/qpid-dispatch-certs/"+profileName+"/")
+			_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(deployment)
+			if err != nil {
+				return err
+			}
 			return err
 		}
-		//need to mount the secret so router can access certs and key
-		deployment, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
-		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, connector.Name, "/etc/qpid-dispatch-certs/"+profileName+"/")
-		_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(deployment)
-		if err != nil {
-			return err
-		}
-		return err
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
