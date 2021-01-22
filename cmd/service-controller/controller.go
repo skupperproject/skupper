@@ -765,6 +765,12 @@ func (c *Controller) processNextEvent() bool {
 	}(obj)
 
 	if err != nil {
+		if c.events.NumRequeues(obj) < 5 {
+			log.Printf("[controller] Requeuing %v after error: %v", obj, err)
+			c.events.AddRateLimited(obj)
+		} else {
+			log.Printf("[controller] Giving up on %v after error: %v", obj, err)
+		}
 		utilruntime.HandleError(err)
 		return true
 	}
