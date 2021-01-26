@@ -116,9 +116,9 @@ var waitFor int
 
 func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "status all|<connection-name>",
+		Use:    "status [<connection-name>]",
 		Short:  "Check whether a link to another Skupper site is active",
-		Args:   cobra.ExactArgs(1),
+		Args:   cobra.MaximumNArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
@@ -126,7 +126,12 @@ func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 			var connectors []*types.ConnectorInspectResponse
 			connected := 0
 
-			if args[0] == "all" {
+			linkName := "all"
+			if len(args) == 1 {
+				linkName = args[0]
+			}
+
+			if linkName == "all" {
 				vcis, err := cli.ConnectorList(context.Background())
 				if err == nil {
 					for _, vci := range vcis {

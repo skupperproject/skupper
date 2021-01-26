@@ -710,7 +710,7 @@ func init() {
 
 	cmdListConnectors := NewCmdListConnectors(newClient) //listconnectors just keeped
 	cmdListConnectors.Hidden = true
-	cmdListConnectors.Deprecated = "please use 'skupper link status all'"
+	cmdListConnectors.Deprecated = "please use 'skupper link status'"
 
 	linkDeprecationMessage := "please use 'skupper link [create|delete|status]' instead."
 
