@@ -37,7 +37,6 @@ func TestMain(m *testing.M) {
 // table that starts verifying initial state and then applies modifications
 // to validate if Skupper is reacting as expected.
 func TestAnnotatedResources(t *testing.T) {
-
 	testTable := []test{
 		{
 			name:          "services-pre-annotated",
