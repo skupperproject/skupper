@@ -142,7 +142,7 @@ func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 					}
 				}
 			} else {
-				vci, err := cli.ConnectorInspect(context.Background(), args[0])
+				vci, err := cli.ConnectorInspect(context.Background(), linkName)
 				if err == nil {
 					connectors = append(connectors, vci)
 					if vci.Connected {
