@@ -556,23 +556,23 @@ func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error 
 
 func (c *Controller) ensureHeadlessProxyFor(bindings *ServiceBindings, statefulset *appsv1.StatefulSet) error {
 	serviceInterface := asServiceInterface(bindings)
-	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, c.vanClient.Namespace)
+	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, client.Version, c.vanClient.Namespace)
 	if err != nil {
 		return err
 	}
 
-	_, err = kube.CheckProxyStatefulSet(serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err = kube.CheckProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient.KubeClient)
 	return err
 }
 
 func (c *Controller) createHeadlessProxyFor(bindings *ServiceBindings) error {
 	serviceInterface := asServiceInterface(bindings)
-	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, c.vanClient.Namespace)
+	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, client.Version, c.vanClient.Namespace)
 	if err != nil {
 		return err
 	}
 
-	_, err = kube.NewProxyStatefulSet(serviceInterface, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err = kube.NewProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, config, c.vanClient.Namespace, c.vanClient.KubeClient)
 	return err
 }
 
@@ -765,6 +765,12 @@ func (c *Controller) processNextEvent() bool {
 	}(obj)
 
 	if err != nil {
+		if c.events.NumRequeues(obj) < 5 {
+			log.Printf("[controller] Requeuing %v after error: %v", obj, err)
+			c.events.AddRateLimited(obj)
+		} else {
+			log.Printf("[controller] Giving up on %v after error: %v", obj, err)
+		}
 		utilruntime.HandleError(err)
 		return true
 	}

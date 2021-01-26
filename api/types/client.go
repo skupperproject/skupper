@@ -71,7 +71,10 @@ type RouterInspectResponse struct {
 type VanClientInterface interface {
 	RouterCreate(ctx context.Context, options SiteConfig) error
 	RouterInspect(ctx context.Context) (*RouterInspectResponse, error)
+	RouterInspectNamespace(ctx context.Context, namespace string) (*RouterInspectResponse, error)
 	RouterRemove(ctx context.Context) error
+	RouterUpdateVersion(ctx context.Context, hup bool) (bool, error)
+	RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error)
 	ConnectorCreateFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreate(ctx context.Context, secret *corev1.Secret, options ConnectorCreateOptions) error
@@ -93,4 +96,5 @@ type VanClientInterface interface {
 	SiteConfigRemove(ctx context.Context) error
 	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error
 	GetNamespace() string
+	GetVersion(component string, name string) string
 }

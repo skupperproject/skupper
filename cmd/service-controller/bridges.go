@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
@@ -256,7 +257,7 @@ func (sb *ServiceBindings) updateBridgeConfiguration(siteId string, bridges *qdr
 	if sb.headless == nil {
 		addIngressBridge(sb, siteId, bridges)
 		for _, eb := range sb.targets {
-			eb.updateBridgeConfiguration(sb.protocol, sb.address, siteId, bridges)
+			eb.updateBridgeConfiguration(sb, siteId, bridges)
 		}
 	} // headless proxies are not specified through the main bridge configuration
 }
@@ -273,16 +274,20 @@ func (eb *EgressBindings) stop() {
 	close(eb.stopper)
 }
 
-func (eb *EgressBindings) updateBridgeConfiguration(protocol string, address string, siteId string, bridges *qdr.BridgeConfig) {
+func (eb *EgressBindings) updateBridgeConfiguration(sb *ServiceBindings, siteId string, bridges *qdr.BridgeConfig) {
 	if eb.selector != "" {
 		pods := eb.informer.GetStore().List()
 		for _, p := range pods {
 			pod := p.(*corev1.Pod)
-			log.Printf("Adding pod for %s: %s", address, pod.ObjectMeta.Name)
-			addEgressBridge(protocol, pod.Status.PodIP, eb.egressPort, address, eb.name, siteId, "", bridges)
+			if kube.IsPodRunning(pod) && kube.IsPodReady(pod) && pod.DeletionTimestamp == nil {
+				log.Printf("Adding pod for %s: %s", sb.address, pod.ObjectMeta.Name)
+				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPort, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, bridges)
+			} else {
+				log.Printf("Pod for %s not ready/running: %s", sb.address, pod.ObjectMeta.Name)
+			}
 		}
 	} else if eb.service != "" {
-		addEgressBridge(protocol, eb.service, eb.egressPort, address, eb.name, siteId, eb.service, bridges)
+		addEgressBridge(sb.protocol, eb.service, eb.egressPort, sb.address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, bridges)
 	}
 }
 
@@ -297,7 +302,7 @@ const (
 	ProtocolHTTP2 string = "http2"
 )
 
-func addEgressBridge(protocol string, host string, port int, address string, target string, siteId string, hostOverride string, bridges *qdr.BridgeConfig) (bool, error) {
+func addEgressBridge(protocol string, host string, port int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, bridges *qdr.BridgeConfig) (bool, error) {
 	if host == "" {
 		return false, fmt.Errorf("Cannot add connector without host (%s %s)", address, protocol)
 	}
@@ -309,6 +314,14 @@ func addEgressBridge(protocol string, host string, port int, address string, tar
 			Port:    strconv.Itoa(port),
 			Address: address,
 			SiteId:  siteId,
+		}
+		if aggregation != "" {
+			b.Aggregation = aggregation
+			b.Address = "mc/" + b.Address
+		}
+		if eventchannel {
+			b.EventChannel = eventchannel
+			b.Address = "mc/" + b.Address
 		}
 		if hostOverride != "" {
 			b.HostOverride = hostOverride
@@ -340,15 +353,20 @@ func addEgressBridge(protocol string, host string, port int, address string, tar
 func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeConfig) (bool, error) {
 	switch sb.protocol {
 	case ProtocolHTTP:
+		address := sb.address
+		if sb.aggregation != "" || sb.eventChannel {
+			address = "mc/" + address
+		}
 		bridges.AddHttpListener(qdr.HttpEndpoint{
 			Name:         getBridgeName(sb.address, ""),
 			Host:         "0.0.0.0",
 			Port:         strconv.Itoa(sb.ingressPort),
-			Address:      sb.address,
+			Address:      address,
 			SiteId:       siteId,
 			Aggregation:  sb.aggregation,
 			EventChannel: sb.eventChannel,
 		})
+
 	case ProtocolHTTP2:
 		bridges.AddHttpListener(qdr.HttpEndpoint{
 			Name:            getBridgeName(sb.address, ""),

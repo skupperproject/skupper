@@ -3,6 +3,7 @@ package qdr
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	amqp "github.com/interconnectedcloud/go-amqp"
 	"log"
@@ -23,8 +24,34 @@ type Router struct {
 	Id          string
 	Address     string
 	Edge        bool
-	SiteId      string
+	Site        SiteMetadata
+	Version     string
 	ConnectedTo []string
+}
+
+type SiteMetadata struct {
+	Id      string `json:"id,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
+func getSiteMetadata(metadata string) SiteMetadata {
+	result := SiteMetadata{}
+	err := json.Unmarshal([]byte(metadata), &result)
+	if err != nil {
+		log.Printf("Assuming old format for router metadata %s: %s", metadata, err)
+		//assume old format, where metadata just holds site id
+		result.Id = metadata
+	}
+	return result
+}
+
+func getSiteMetadataString(siteId string, version string) string {
+	siteDetails := SiteMetadata{
+		Id:      siteId,
+		Version: version,
+	}
+	metadata, _ := json.Marshal(siteDetails)
+	return string(metadata)
 }
 
 type Record map[string]interface{}
@@ -109,8 +136,9 @@ func asRouterNode(record Record) RouterNode {
 
 func asRouter(record Record) *Router {
 	r := Router{
-		Id:     record.AsString("id"),
-		SiteId: record.AsString("metadata"),
+		Id:      record.AsString("id"),
+		Site:    getSiteMetadata(record.AsString("metadata")),
+		Version: record.AsString("version"),
 	}
 	if record.AsString("mode") == "edge" {
 		r.Edge = true
@@ -205,7 +233,7 @@ func Connect(url string, config *tls.Config) (*Agent, error) {
 		anonymous:  anonymous,
 		receiver:   receiver,
 	}
-	a.local, err = a.getLocalRouter()
+	a.local, err = a.GetLocalRouter()
 	if err != nil {
 		return a, fmt.Errorf("Failed to lookup local router details: %s", err)
 	}
@@ -640,7 +668,7 @@ func (a *Agent) getSiteIds(routers []Router) error {
 	}
 	for i, records := range results {
 		if len(records) == 1 {
-			routers[i].SiteId = records[0].AsString("metadata")
+			routers[i].Site = getSiteMetadata(records[0].AsString("metadata"))
 		} else {
 			return fmt.Errorf("Unexpected number of router records: %d", len(records))
 		}
@@ -914,7 +942,7 @@ func (a *Agent) getEdgeRouters(agent string) ([]Router, error) {
 	return edges, nil
 }
 
-func (a *Agent) getLocalRouter() (*Router, error) {
+func (a *Agent) GetLocalRouter() (*Router, error) {
 	records, err := a.Query("org.apache.qpid.dispatch.router", []string{})
 	if err != nil {
 		return nil, err

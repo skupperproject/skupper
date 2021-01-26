@@ -90,8 +90,17 @@ func (v *vanClientMock) RouterCreate(ctx context.Context, options types.SiteConf
 func (v *vanClientMock) RouterInspect(ctx context.Context) (*types.RouterInspectResponse, error) {
 	return nil, nil
 }
+func (v *vanClientMock) RouterInspectNamespace(ctx context.Context, namespace string) (*types.RouterInspectResponse, error) {
+	return nil, nil
+}
 func (v *vanClientMock) RouterRemove(ctx context.Context) error {
 	return nil
+}
+func (v *vanClientMock) RouterUpdateVersion(ctx context.Context, hup bool) (bool, error) {
+	return true, nil
+}
+func (v *vanClientMock) RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error) {
+	return true, nil
 }
 func (v *vanClientMock) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	return nil, nil
@@ -198,6 +207,10 @@ func (v *vanClientMock) GetHeadlessServiceConfiguration(targetName string, proto
 
 func (cli *vanClientMock) GetNamespace() string {
 	return "MockNamespace"
+}
+
+func (cli *vanClientMock) GetVersion(component string, name string) string {
+	return "not-found"
 }
 
 func TestCmdUnexposeRun(t *testing.T) {

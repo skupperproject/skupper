@@ -19,8 +19,6 @@ import (
 	"github.com/skupperproject/skupper/client"
 )
 
-var version = "undefined"
-
 type ExposeOptions struct {
 	Protocol   string
 	Address    string
@@ -235,6 +233,33 @@ func NewCmdDelete(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
+
+var forceHup bool
+
+func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "update",
+		Short:  "Update skupper installation version",
+		Long:   "Update the skupper site to " + client.Version,
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			updated, err := cli.RouterUpdateVersion(context.Background(), forceHup)
+			if err != nil {
+				return err
+			}
+			if updated {
+				fmt.Println("Skupper is now updated in '" + cli.GetNamespace() + "'.")
+			} else {
+				fmt.Println("No update required in '" + cli.GetNamespace() + "'.")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&forceHup, "force-restart", "", false, "Restart skupper daemons even if image tag is not updated")
 	return cmd
 }
 
@@ -612,14 +637,11 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			vir, err := cli.RouterInspect(context.Background())
-			fmt.Printf("%-30s %s\n", "client version", version)
-			if err == nil {
-				fmt.Printf("%-30s %s\n", "transport version", vir.TransportVersion)
-				fmt.Printf("%-30s %s\n", "controller version", vir.ControllerVersion)
-			} else {
-				return fmt.Errorf("Unable to retrieve skupper component versions: %w", err)
-			}
+
+			fmt.Printf("%-30s %s\n", "client version", client.Version)
+			fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
+			fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
+
 			return nil
 		},
 	}
@@ -642,7 +664,7 @@ func NewCmdDebugDump(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			err := cli.SkupperDump(context.Background(), args[0], version, kubeConfigPath, kubeContext)
+			err := cli.SkupperDump(context.Background(), args[0], client.Version, kubeConfigPath, kubeContext)
 			if err != nil {
 				return fmt.Errorf("Unable to save skupper details: %w", err)
 			}
@@ -690,6 +712,7 @@ func init() {
 
 	cmdInit := NewCmdInit(newClient)
 	cmdDelete := NewCmdDelete(newClient)
+	cmdUpdate := NewCmdUpdate(newClient)
 	cmdStatus := NewCmdStatus(newClient)
 	cmdExpose := NewCmdExpose(newClient)
 	cmdUnexpose := NewCmdUnexpose(newClient)
@@ -751,9 +774,10 @@ func init() {
 	cmdCompletion := NewCmdCompletion()
 
 	rootCmd = &cobra.Command{Use: "skupper"}
-	rootCmd.Version = version
+	rootCmd.Version = client.Version
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
+		cmdUpdate,
 		cmdConnectionToken,
 		cmdToken,
 		cmdLink,

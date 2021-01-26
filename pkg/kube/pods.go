@@ -30,6 +30,19 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
+func GetPullPolicy(policy string) corev1.PullPolicy {
+	switch policy {
+	case string(corev1.PullAlways):
+		return corev1.PullAlways
+	case string(corev1.PullNever):
+		return corev1.PullNever
+	case string(corev1.PullIfNotPresent):
+		return corev1.PullIfNotPresent
+	default:
+		return ""
+	}
+}
+
 func IsPodReady(pod *corev1.Pod) bool {
 	for _, c := range pod.Status.Conditions {
 		if c.Type == corev1.PodReady {

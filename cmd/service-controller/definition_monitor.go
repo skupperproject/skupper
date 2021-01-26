@@ -534,6 +534,12 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 	}(obj)
 
 	if err != nil {
+		if m.events.NumRequeues(obj) < 5 {
+			log.Printf("[definition-monitor] Requeuing %v after error: %v", obj, err)
+			m.events.AddRateLimited(obj)
+		} else {
+			log.Printf("[definition-monitor] Giving up on %v after error: %v", obj, err)
+		}
 		utilruntime.HandleError(err)
 		return true
 	}

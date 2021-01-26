@@ -12,6 +12,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -33,12 +34,14 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 
 	for name, original := range definitions {
 		service := types.ServiceInterface{
-			Address:  original.Address,
-			Protocol: original.Protocol,
-			Port:     original.Port,
-			Origin:   original.Origin,
-			Headless: original.Headless,
-			Targets:  []types.ServiceInterfaceTarget{},
+			Address:      original.Address,
+			Protocol:     original.Protocol,
+			Port:         original.Port,
+			Origin:       original.Origin,
+			Headless:     original.Headless,
+			Aggregate:    original.Aggregate,
+			EventChannel: original.EventChannel,
+			Targets:      []types.ServiceInterfaceTarget{},
 		}
 		if service.Origin != "" && service.Origin != "annotation" {
 			if _, ok := c.byOrigin[service.Origin]; !ok {
@@ -150,6 +153,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 	request.Properties = &properties
 	request.ApplicationProperties = make(map[string]interface{})
 	request.ApplicationProperties["origin"] = c.origin
+	request.ApplicationProperties["version"] = client.Version
 
 	for {
 		select {

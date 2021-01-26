@@ -42,7 +42,6 @@ const (
 const (
 	TransportDeploymentName     string = "skupper-router"
 	TransportComponentName      string = "router"
-	DefaultTransportImage       string = "quay.io/skupper/qdrouterd:master"
 	TransportContainerName      string = "router"
 	TransportLivenessPort       int32  = 9090
 	TransportServiceAccountName string = "skupper"
@@ -50,6 +49,7 @@ const (
 	TransportEnvConfig          string = "QDROUTERD_CONF"
 	TransportSaslConfig         string = "skupper-sasl-config"
 	TransportConfigFile         string = "qdrouterd.json"
+	TransportConfigMapName      string = "skupper-internal"
 )
 
 var TransportViewPolicyRule = []rbacv1.PolicyRule{
@@ -69,7 +69,6 @@ var TransportPrometheusAnnotations = map[string]string{
 const (
 	ControllerDeploymentName     string = "skupper-service-controller"
 	ControllerComponentName      string = "proxy-controller"
-	DefaultControllerImage       string = "quay.io/skupper/service-controller:0.4"
 	ControllerContainerName      string = "service-controller"
 	ControllerServiceAccountName string = "skupper-proxy-controller"
 	ControllerConfigPath         string = "/etc/messaging/"
@@ -116,6 +115,7 @@ const (
 	TypeTokenRequestQualifier   string = BaseQualifier + "/type=connection-token-request"
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
 	TokenCost                   string = BaseQualifier + "/cost"
+	UpdatedAnnotation           string = InternalQualifier + "/updated"
 )
 
 // Service Interface constants
@@ -179,9 +179,14 @@ type RouterSpec struct {
 	Credentials    []Credential    `json:"credentials,omitempty"`
 }
 
+type ImageDetails struct {
+	Name       string `json:"image,omitempty"`
+	PullPolicy string `json:"imagePullPolicy,omitempty"`
+}
+
 // DeploymentSpec for the VAN router or controller components to run within a cluster
 type DeploymentSpec struct {
-	Image           string                   `json:"image,omitempty"`
+	Image           ImageDetails             `json:"image,omitempty"`
 	Replicas        int32                    `json:"replicas,omitempty"`
 	LivenessPort    int32                    `json:"livenessPort,omitempty"`
 	Labels          map[string]string        `json:"labels,omitempty"`
