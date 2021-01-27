@@ -792,7 +792,6 @@ func init() {
 	cmdCompletion := NewCmdCompletion()
 
 	rootCmd = &cobra.Command{Use: "skupper"}
-	rootCmd.Version = client.Version
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
 		cmdUpdate,
