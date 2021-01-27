@@ -381,7 +381,11 @@ func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 					}
 				}
 			} else {
-				return fmt.Errorf("Unable to retrieve skupper status: %w", err)
+				if vir == nil {
+					fmt.Printf("Skupper is not enabled in namespace '%s'\n", cli.GetNamespace())
+				} else {
+					return fmt.Errorf("Unable to retrieve skupper status: %w", err)
+				}
 			}
 			return nil
 		},
