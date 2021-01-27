@@ -285,7 +285,7 @@ func TestCmdInit(t *testing.T) {
 		func(t *testing.T) {
 			resetCli()
 			lcli.injectedReturns.siteConfigInspect.err = fmt.Errorf("some error")
-			err := cmd.RunE(&cobra.Command{}, args)
+			err := cmd.RunE(cmd, args)
 			assert.Error(t, err, "some error")
 			assert.Assert(t, lcli.siteConfigInspectCalledWith[0] == nil)
 		})
@@ -294,7 +294,7 @@ func TestCmdInit(t *testing.T) {
 		func(t *testing.T) {
 			resetCli()
 			lcli.injectedReturns.siteConfigCreate.err = fmt.Errorf("some error")
-			err := cmd.RunE(&cobra.Command{}, args)
+			err := cmd.RunE(cmd, args)
 			assert.Error(t, err, "some error")
 			assert.Assert(t, lcli.siteConfigCreateCalledWith[0] == routerCreateOpts)
 		})
@@ -310,7 +310,7 @@ func TestCmdInit(t *testing.T) {
 			}
 			lcli.injectedReturns.siteConfigInspect.siteConfig = &siteConfig
 			lcli.injectedReturns.routerCreate = fmt.Errorf("a error")
-			err := cmd.RunE(&cobra.Command{}, args)
+			err := cmd.RunE(cmd, args)
 			assert.Error(t, err, "a error")
 			assert.Assert(t, cmp.Equal(lcli.routerCreateCalledWith[0], siteConfig))
 		})
@@ -319,7 +319,7 @@ func TestCmdInit(t *testing.T) {
 		func(t *testing.T) {
 			resetCli()
 			lcli.injectedReturns.siteConfigInspect.siteConfig = &types.SiteConfig{}
-			err := cmd.RunE(&cobra.Command{}, args)
+			err := cmd.RunE(cmd, args)
 			assert.Assert(t, err)
 			assert.Assert(t, len(lcli.siteConfigInspectCalledWith) == 1)
 			assert.Assert(t, len(lcli.siteConfigCreateCalledWith) == 0)
