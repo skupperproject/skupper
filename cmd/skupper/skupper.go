@@ -475,8 +475,14 @@ func NewCmdUnexpose(newClient cobraFunc) *cobra.Command {
 }
 
 func NewCmdListExposed(newClient cobraFunc) *cobra.Command {
+	cmd := NewCmdServiceStatus(newClient)
+	cmd.Use = "list-exposed"
+	return cmd
+}
+
+func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "list-exposed",
+		Use:    "status",
 		Short:  "List services exposed over the Skupper network",
 		Args:   cobra.NoArgs,
 		PreRun: newClient,
@@ -737,6 +743,7 @@ func init() {
 	cmdListExposed := NewCmdListExposed(newClient)
 	cmdCreateService := NewCmdCreateService(newClient)
 	cmdDeleteService := NewCmdDeleteService(newClient)
+	cmdStatusService := NewCmdServiceStatus(newClient)
 	cmdBind := NewCmdBind(newClient)
 	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClient)
@@ -771,12 +778,16 @@ func init() {
 	cmdConnectionToken.Hidden = true
 	cmdConnectionToken.Deprecated = "please use 'skupper token create' instead."
 
+	cmdListExposed.Hidden = true
+	cmdListExposed.Deprecated = "please use 'skupper service status' instead."
+
 	// setup subcommands
 	cmdService := NewCmdService()
 	cmdService.AddCommand(cmdCreateService)
 	cmdService.AddCommand(cmdDeleteService)
 	cmdService.AddCommand(NewCmdBind(newClient))
 	cmdService.AddCommand(NewCmdUnbind(newClient))
+	cmdService.AddCommand(cmdStatusService)
 
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
