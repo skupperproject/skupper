@@ -51,6 +51,17 @@ func (i *IpLookup) getPodName(ip string) string {
 	return i.lookup[ip]
 }
 
+//support data.NameMapping interface
+func (i *IpLookup) Lookup(ip string) string {
+	name := i.getPodName(ip)
+	log.Printf("LOOKUP: %s -> %s", ip, name)
+	if name == "" {
+		return ip
+	} else {
+		return name
+	}
+}
+
 func (i *IpLookup) translateKeys(ips map[string]interface{}) map[string]interface{} {
 	out := map[string]interface{}{}
 	i.lock.RLock()
