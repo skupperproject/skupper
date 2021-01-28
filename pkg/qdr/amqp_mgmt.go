@@ -13,6 +13,7 @@ import (
 
 type Agent struct {
 	connection *amqp.Client
+	session    *amqp.Session
 	sender     *amqp.Sender
 	anonymous  *amqp.Sender
 	receiver   *amqp.Receiver
@@ -229,6 +230,7 @@ func Connect(url string, config *tls.Config) (*Agent, error) {
 	}
 	a := &Agent{
 		connection: connection,
+		session:    session,
 		sender:     sender,
 		anonymous:  anonymous,
 		receiver:   receiver,
@@ -238,6 +240,13 @@ func Connect(url string, config *tls.Config) (*Agent, error) {
 		return a, fmt.Errorf("Failed to lookup local router details: %s", err)
 	}
 	return a, nil
+}
+
+func (a *Agent) newReceiver(address string) (*amqp.Receiver, error) {
+	return a.session.NewReceiver(
+		amqp.LinkSourceAddress(address),
+		amqp.LinkCredit(10),
+	)
 }
 
 func (a *Agent) Close() error {
@@ -622,6 +631,16 @@ func getBridgeServerAddressesFor(routers []Router) []string {
 	return agents
 }
 
+func GetRoutersForSite(routers []Router, siteId string) []Router {
+	list := []Router{}
+	for _, r := range routers {
+		if r.Site.Id == siteId {
+			list = append(list, r)
+		}
+	}
+	return list
+}
+
 func (a *Agent) GetAllRouters() ([]Router, error) {
 	nodes, err := a.GetInteriorNodes()
 	if err != nil {
@@ -835,6 +854,11 @@ func (a *Agent) GetBridges(routers []Router) ([]BridgeConfig, error) {
 	return configs, nil
 }
 
+const (
+	DirectionIn  string = "in"
+	DirectionOut string = "out"
+)
+
 type TcpConnection struct {
 	Name      string `json:"name"`
 	Host      string `json:"host"`
@@ -847,6 +871,18 @@ type TcpConnection struct {
 	LastOut   uint64 `json:"lastOutSeconds"`
 }
 
+func getTcpConnectionsFromRecords(records []Record) ([]TcpConnection, error) {
+	conns := []TcpConnection{}
+	for _, record := range records {
+		var conn TcpConnection
+		if err := convert(record, &conn); err != nil {
+			return conns, fmt.Errorf("Failed to convert to TcpConnection: %s", err)
+		}
+		conns = append(conns, conn)
+	}
+	return conns, nil
+}
+
 func (a *Agent) GetTcpConnections(routers []Router) ([][]TcpConnection, error) {
 	queries := queryAllAgents("org.apache.qpid.dispatch.tcpConnection", getAddressesFor(routers))
 	results, err := a.BatchQuery(queries)
@@ -855,18 +891,21 @@ func (a *Agent) GetTcpConnections(routers []Router) ([][]TcpConnection, error) {
 	}
 	converted := [][]TcpConnection{}
 	for _, records := range results {
-		conns := []TcpConnection{}
-		for _, record := range records {
-			var conn TcpConnection
-			//simple := map[string]interface{}(record)
-			if err := convert(record, &conn); err != nil {
-				return converted, fmt.Errorf("Failed to convert to TcpConnection: %s", err)
-			}
-			conns = append(conns, conn)
+		conns, err := getTcpConnectionsFromRecords(records)
+		if err != nil {
+			return converted, err
 		}
 		converted = append(converted, conns)
 	}
 	return converted, nil
+}
+
+func (a *Agent) GetLocalTcpConnections() ([]TcpConnection, error) {
+	records, err := a.Query("org.apache.qpid.dispatch.tcpConnection", []string{})
+	if err != nil {
+		return nil, err
+	}
+	return getTcpConnectionsFromRecords(records)
 }
 
 type HttpRequestInfo struct {
@@ -882,6 +921,18 @@ type HttpRequestInfo struct {
 	Details    map[string]int `json:"details"`
 }
 
+func getHttpRequestInfoFromRecords(records []Record) ([]HttpRequestInfo, error) {
+	reqs := []HttpRequestInfo{}
+	for _, record := range records {
+		var req HttpRequestInfo
+		if err := convert(record, &req); err != nil {
+			return reqs, fmt.Errorf("Failed to convert to HttpRequestInfo: %s", err)
+		}
+		reqs = append(reqs, req)
+	}
+	return reqs, nil
+}
+
 func (a *Agent) GetHttpRequestInfo(routers []Router) ([][]HttpRequestInfo, error) {
 	queries := queryAllAgents("org.apache.qpid.dispatch.httpRequestInfo", getAddressesFor(routers))
 	results, err := a.BatchQuery(queries)
@@ -890,17 +941,21 @@ func (a *Agent) GetHttpRequestInfo(routers []Router) ([][]HttpRequestInfo, error
 	}
 	converted := [][]HttpRequestInfo{}
 	for _, records := range results {
-		reqs := []HttpRequestInfo{}
-		for _, record := range records {
-			var req HttpRequestInfo
-			if err := convert(record, &req); err != nil {
-				return converted, fmt.Errorf("Failed to convert to HttpRequestInfo: %s", err)
-			}
-			reqs = append(reqs, req)
+		reqs, err := getHttpRequestInfoFromRecords(records)
+		if err != nil {
+			return converted, err
 		}
 		converted = append(converted, reqs)
 	}
 	return converted, nil
+}
+
+func (a *Agent) GetLocalHttpRequestInfo() ([]HttpRequestInfo, error) {
+	records, err := a.Query("org.apache.qpid.dispatch.httpRequestInfo", []string{})
+	if err != nil {
+		return nil, err
+	}
+	return getHttpRequestInfoFromRecords(records)
 }
 
 func (a *Agent) getAllEdgeRouters(agents []string) ([]Router, error) {
@@ -911,7 +966,7 @@ func (a *Agent) getAllEdgeRouters(agents []string) ([]Router, error) {
 		return nil, err
 	}
 	for _, c := range connections {
-		if c.Role == "edge" && c.Dir == "in" {
+		if c.Role == "edge" && c.Dir == DirectionIn {
 			router := Router{
 				Id:      c.Container,
 				Edge:    true,
@@ -930,7 +985,7 @@ func (a *Agent) getEdgeRouters(agent string) ([]Router, error) {
 	}
 	edges := []Router{}
 	for _, c := range connections {
-		if c.Role == "edge" && c.Dir == "in" {
+		if c.Role == "edge" && c.Dir == DirectionIn {
 			router := Router{
 				Id:      c.Container,
 				Edge:    true,
@@ -971,49 +1026,50 @@ func (a *Agent) getInteriorAddressForUplink() (string, error) {
 	return "", fmt.Errorf("Could not find uplink connection")
 }
 
-func (a *Agent) SiteQuery(addresses []string) ([]string, error) {
-	fmt.Printf("SiteQuery(%v)\n", addresses)
-	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+func (a *Agent) Request(request *Request) (*Response, error) {
+	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 
-	batchResults := make([]string, len(addresses))
-	for i, to := range addresses {
-		request := amqp.Message{
-			Properties: &amqp.MessageProperties{
-				To:            to,
-				ReplyTo:       a.receiver.Address(),
-				CorrelationID: uint64(i),
-			},
-			Value: nil,
-		}
-		err := a.anonymous.Send(ctx, &request)
-		if err != nil {
-			a.Close()
-			return nil, fmt.Errorf("Could not send request: %s", err)
-		}
+	requestMsg := amqp.Message{
+		Properties: &amqp.MessageProperties{
+			To:      request.Address,
+			Subject: request.Type,
+			ReplyTo: a.receiver.Address(),
+		},
+		ApplicationProperties: map[string]interface{}{},
+		Value:                 nil,
 	}
-	errors := []string{}
-	for i := 0; i < len(addresses); i++ {
-		fmt.Printf("Waiting for response %d of %d\n", (i + 1), len(addresses))
-		response, err := a.receiver.Receive(ctx)
-		if err != nil {
-			a.Close()
-			return nil, fmt.Errorf("Failed to receive reponse: %s", err)
-		}
-		response.Accept()
-		responseIndex, ok := response.Properties.CorrelationID.(uint64)
-		if !ok {
-			errors = append(errors, fmt.Sprintf("Could not get correct correlation id from response: %#v (%T)", response.Properties.CorrelationID, response.Properties.CorrelationID))
-		} else {
-			if body, ok := response.Value.(string); ok {
-				batchResults[responseIndex] = body
-			} else {
-				errors = append(errors, fmt.Sprintf("Bad response: %#v", response.Value))
+	for k, v := range request.Properties {
+		requestMsg.ApplicationProperties[k] = v
+	}
+	requestMsg.ApplicationProperties[VersionProperty] = request.Version
+
+	err := a.anonymous.Send(ctx, &requestMsg)
+	if err != nil {
+		a.Close()
+		return nil, fmt.Errorf("Could not send request: %s", err)
+	}
+	responseMsg, err := a.receiver.Receive(ctx)
+	if err != nil {
+		a.Close()
+		return nil, fmt.Errorf("Failed to receive reponse: %s", err)
+	}
+	responseMsg.Accept()
+
+	response := Response{
+		Type: responseMsg.Properties.Subject,
+	}
+	for k, v := range responseMsg.ApplicationProperties {
+		if k == VersionProperty {
+			if version, ok := v.(string); ok {
+				response.Version = version
 			}
+		} else {
+			response.Properties[k] = v
 		}
 	}
-	if len(errors) > 0 {
-		return nil, fmt.Errorf(strings.Join(errors, ", "))
+	if body, ok := responseMsg.Value.(string); ok {
+		response.Body = body
 	}
-	return batchResults, nil
+	return &response, nil
 }

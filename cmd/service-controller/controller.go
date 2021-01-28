@@ -159,7 +159,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) 
 	svcInformer.AddEventHandler(controller.newEventHandler("actual-services", AnnotatedKey, ServiceResourceVersionTest))
 	headlessInformer.AddEventHandler(controller.newEventHandler("statefulset", AnnotatedKey, StatefulSetResourceVersionTest))
 	controller.consoleServer = newConsoleServer(cli, tlsConfig)
-	controller.siteQueryServer = newSiteQueryServer(tlsConfig)
+	controller.siteQueryServer = newSiteQueryServer(cli, tlsConfig)
 
 	controller.definitionMonitor = newDefinitionMonitor(controller.origin, controller.vanClient, controller.svcDefInformer, controller.svcInformer)
 	controller.configSync = newConfigSync(controller.bridgeDefInformer, tlsConfig)
@@ -272,11 +272,10 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	}
 
 	log.Println("Starting workers")
-	c.siteQueryServer.getLocalSiteInfo(c.vanClient)
-	go wait.Until(c.siteQueryServer.run, time.Second, stopCh)
 	go wait.Until(c.runServiceSync, time.Second, stopCh)
 	go wait.Until(c.runServiceCtrl, time.Second, stopCh)
 	c.definitionMonitor.start(stopCh)
+	c.siteQueryServer.start(stopCh)
 	c.consoleServer.start(stopCh)
 	c.configSync.start(stopCh)
 

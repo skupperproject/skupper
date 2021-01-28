@@ -162,6 +162,36 @@ func (bc *BridgeConfig) AddHttpListener(e HttpEndpoint) {
 	bc.HttpListeners[e.Name] = e
 }
 
+func GetHttpConnectors(bridges []BridgeConfig) []HttpEndpoint {
+	connectors := []HttpEndpoint{}
+	for _, bridge := range bridges {
+		for _, connector := range bridge.HttpConnectors {
+			connectors = append(connectors, connector)
+		}
+	}
+	return connectors
+}
+
+func GetHttpListeners(bridges []BridgeConfig) []HttpEndpoint {
+	listeners := []HttpEndpoint{}
+	for _, bridge := range bridges {
+		for _, listener := range bridge.HttpListeners {
+			listeners = append(listeners, listener)
+		}
+	}
+	return listeners
+}
+
+func GetTcpConnectors(bridges []BridgeConfig) []TcpEndpoint {
+	connectors := []TcpEndpoint{}
+	for _, bridge := range bridges {
+		for _, connector := range bridge.TcpConnectors {
+			connectors = append(connectors, connector)
+		}
+	}
+	return connectors
+}
+
 type Role string
 
 const (

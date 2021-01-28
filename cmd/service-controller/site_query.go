@@ -7,36 +7,33 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
-
-	amqp "github.com/interconnectedcloud/go-amqp"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/data"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-type SiteInfo struct {
-	SiteId    string
-	SiteName  string
-	Version   string
-	Namespace string
-	Url       string
-}
-
 type SiteQueryServer struct {
 	tlsConfig *tls.Config
-	siteInfo  SiteInfo
+	agentPool *qdr.AgentPool
+	server    *qdr.RequestServer
+	iplookup  *IpLookup
+	siteInfo  data.Site
 }
 
-func newSiteQueryServer(tlsConfig *tls.Config) *SiteQueryServer {
-	return &SiteQueryServer{
-		tlsConfig: tlsConfig,
+func newSiteQueryServer(cli *client.VanClient, config *tls.Config) *SiteQueryServer {
+	sqs := SiteQueryServer{
+		tlsConfig: config,
+		agentPool: qdr.NewAgentPool("amqps://skupper-messaging:5671", config),
+		iplookup:  NewIpLookup(cli),
 	}
+	sqs.getLocalSiteInfo(cli)
+	sqs.server = qdr.NewRequestServer(getSiteQueryAddress(sqs.siteInfo.SiteId), &sqs, sqs.agentPool)
+	return &sqs
 }
 
 func (s *SiteQueryServer) getLocalSiteInfo(vanClient *client.VanClient) {
@@ -50,6 +47,27 @@ func (s *SiteQueryServer) getLocalSiteInfo(vanClient *client.VanClient) {
 	} else {
 		s.siteInfo.Url = url
 	}
+}
+
+func (s *SiteQueryServer) getLocalSiteQueryData() (data.SiteQueryData, error) {
+	data := data.SiteQueryData{
+		Site: s.siteInfo,
+	}
+	agent, err := s.agentPool.Get()
+	if err != nil {
+		return data, fmt.Errorf("Could not get management agent: %s", err)
+	}
+	defer s.agentPool.Put(agent)
+
+	routers, err := agent.GetAllRouters()
+	if err != nil {
+		return data, fmt.Errorf("Error retrieving routers: %s", err)
+	}
+	err = getServiceInfo(agent, routers, &data, s.iplookup)
+	if err != nil {
+		return data, fmt.Errorf("Error getting local service info: %s", err)
+	}
+	return data, nil
 }
 
 func getSiteUrl(vanClient *client.VanClient) (string, error) {
@@ -79,96 +97,105 @@ func getSiteQueryAddress(siteId string) string {
 	return siteId + "/skupper-site-query"
 }
 
+func (s *SiteQueryServer) Request(request *qdr.Request) (*qdr.Response, error) {
+	//if request has explicit version, send SiteQueryData, else send LegacySiteData
+	if request.Version == "" {
+		log.Printf("Sending legacy data for request")
+		data := s.siteInfo.AsLegacySiteInfo()
+		bytes, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("Could not encode response: %s", err)
+		}
+		return &qdr.Response{
+			Version: client.Version,
+			Body:    string(bytes),
+		}, nil
+	} else {
+		data, err := s.getLocalSiteQueryData()
+		if err != nil {
+			return nil, fmt.Errorf("Could not get response: %s", err)
+		}
+		bytes, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("Could not encode response: %s", err)
+		}
+		return &qdr.Response{
+			Version: client.Version,
+			Body:    string(bytes),
+		}, nil
+	}
+}
+
 func (s *SiteQueryServer) run() {
-	ctx := context.Background()
-
-	log.Println("Establishing connection to skupper-messaging service for site query server")
-
-	client, err := amqp.Dial("amqps://skupper-messaging:5671", amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(s.tlsConfig))
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Failed to create amqp connection for site query server: %s", err.Error()))
-		return
-	}
-	log.Println("Site query server connection to skupper-messaging service established")
-	defer client.Close()
-
-	session, err := client.NewSession()
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Failed to create amqp session %s", err.Error()))
-		return
-	}
-
-	receiver, err := session.NewReceiver(
-		amqp.LinkSourceAddress(getSiteQueryAddress(s.siteInfo.SiteId)),
-		amqp.LinkCredit(10),
-	)
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Failed to create amqp receiver %s", err.Error()))
-		return
-	}
-	sender, err := session.NewSender()
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Failed to create sender: %s", err))
-		return
-	}
 	for {
-		msg, err := receiver.Receive(ctx)
+		ctxt := context.Background()
+		err := s.server.Run(ctxt)
 		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("Failed reading message from service sync %s", err.Error()))
-			return
-		}
-		msg.Accept()
-
-		bytes, err := json.Marshal(s.siteInfo)
-		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("Could not encode response: %s", err))
-			return
-		}
-
-		correlationId, ok := qdr.AsUint64(msg.Properties.CorrelationID)
-		if !ok {
-			log.Printf("WARN: Could not get correlationid from site query request: %#v (%T)", msg.Properties.CorrelationID, msg.Properties.CorrelationID)
-		}
-		response := amqp.Message{
-			Properties: &amqp.MessageProperties{
-				To:            msg.Properties.ReplyTo,
-				CorrelationID: correlationId,
-			},
-			Value: string(bytes),
-		}
-
-		err = sender.Send(ctx, &response)
-		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("Could not send response: %s", err))
-			return
+			log.Printf("[site-query] Error handling requests: %s", err)
 		}
 	}
 }
 
-func getAllSiteInfo(agent *qdr.Agent, sites []Site) error {
-	addresses := make([]string, len(sites))
+func (s *SiteQueryServer) start(stopCh <-chan struct{}) error {
+	err := s.iplookup.start(stopCh)
+	go s.run()
+	return err
+}
+
+func querySites(agent qdr.RequestResponse, sites []data.SiteQueryData) {
 	for i, s := range sites {
-		addresses[i] = getSiteQueryAddress(s.SiteId)
-	}
-	results, err := agent.SiteQuery(addresses)
-	if err != nil {
-		return err
-	}
-	errors := []string{}
-	for i, r := range results {
-		info := SiteInfo{}
-		err := json.Unmarshal([]byte(r), &info)
+		request := qdr.Request{
+			Address: getSiteQueryAddress(s.SiteId),
+			Version: client.Version,
+		}
+		response, err := agent.Request(&request)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("Error parsing json for site query '%s' from %s: %s", r, sites[i].SiteId, err))
+			log.Printf("[site-query] Request to %s failed: %s", s.SiteId, err)
+		} else if response.Version == "" {
+			//assume legacy version of site-query protocol
+			info := data.LegacySiteInfo{}
+			err := json.Unmarshal([]byte(response.Body), &info)
+			if err != nil {
+				log.Printf("[site-query] Error parsing legacy json %q from %s: %s", response.Body, s.SiteId, err)
+			} else {
+				sites[i].SiteName = info.SiteName
+				sites[i].Namespace = info.Namespace
+				sites[i].Url = info.Url
+				sites[i].Version = info.Version
+			}
 		} else {
-			sites[i].SiteName = info.SiteName
-			sites[i].Namespace = info.Namespace
-			sites[i].Url = info.Url
-			sites[i].Version = info.Version
+			site := data.SiteQueryData{}
+			err := json.Unmarshal([]byte(response.Body), &site)
+			if err != nil {
+				log.Printf("Error parsing json for site query %q from %s: %s", response.Body, s.SiteId, err)
+			} else {
+				sites[i].SiteName = site.SiteName
+				sites[i].Namespace = site.Namespace
+				sites[i].Url = site.Url
+				sites[i].Version = site.Version
+				sites[i].TcpServices = site.TcpServices
+				sites[i].HttpServices = site.HttpServices
+			}
 		}
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, ", "))
+}
+
+func getServiceInfo(agent *qdr.Agent, network []qdr.Router, site *data.SiteQueryData, lookup data.NameMapping) error {
+	routers := qdr.GetRoutersForSite(network, site.SiteId)
+	bridges, err := agent.GetBridges(routers)
+	if err != nil {
+		return fmt.Errorf("Error retrieving bridge configuration: %s", err)
 	}
+	httpRequestInfo, err := agent.GetHttpRequestInfo(routers)
+	if err != nil {
+		return fmt.Errorf("Error retrieving http request info: %s", err)
+	}
+	tcpConnections, err := agent.GetTcpConnections(routers)
+	if err != nil {
+		return fmt.Errorf("Error retrieving tcp connection info: %s", err)
+	}
+
+	site.HttpServices = data.GetHttpServices(site.SiteId, httpRequestInfo, qdr.GetHttpConnectors(bridges), qdr.GetHttpListeners(bridges), lookup)
+	site.TcpServices = data.GetTcpServices(site.SiteId, tcpConnections, qdr.GetTcpConnectors(bridges), lookup)
 	return nil
 }
