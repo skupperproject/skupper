@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -165,7 +166,27 @@ func NewClient(namespace string, context string, kubeConfigPath string) *client.
 
 var routerCreateOpts types.SiteConfigSpec
 
+// TODO unit-test me
+func inStringSlice(options []string, value string) bool {
+	l := options[:] //do a copy to avoid modifying the original list
+	sort.Sort(sort.StringSlice(l))
+
+	// from library doc:
+	// SearchStrings searches for x in a sorted slice of strings and returns the index
+	// as specified by Search. The return value is the index to insert x if x is not
+	// present (it could be len(a)).
+	// The slice must be sorted in ascending order.
+	//
+	position := sort.SearchStrings(l, value)
+	if position == len(l) || (l[position] != value) {
+		return false
+	}
+	return true
+}
+
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
+	routerModeInteriorValue := "interior"
+	routerModeEdgeValue := "edge"
 	var routerMode string
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -186,8 +207,11 @@ installation that can then be connected to other skupper installations`,
 			}
 
 			if routerModeFlag.Changed {
-				routerCreateOpts.IsEdge = routerMode == "edge"
-
+				options := []string{routerModeInteriorValue, routerModeEdgeValue}
+				if !inStringSlice(options, routerMode) {
+					return fmt.Errorf(`invalid "--router-mode=%v", it must be one of "%v"`, routerMode, strings.Join(options, ", "))
+				}
+				routerCreateOpts.IsEdge = routerMode == routerModeEdgeValue
 			}
 
 			routerCreateOpts.SkupperNamespace = ns
@@ -225,7 +249,7 @@ installation that can then be connected to other skupper installations`,
 	f := cmd.Flag("edge")
 	f.Deprecated = "This flag is deprecated, use --router-mode [interior|edge]"
 	f.Hidden = true
-	cmd.Flags().StringVarP(&routerMode, "router-mode", "", "edge", "Skupper router-mode")
+	cmd.Flags().StringVarP(&routerMode, "router-mode", "", routerModeInteriorValue, "Skupper router-mode")
 
 	return cmd
 }
