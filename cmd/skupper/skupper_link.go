@@ -60,6 +60,7 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 				}
 			} else {
 				// create the secret, site-controller will do the rest
+				connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
 				secret, err := cli.ConnectorCreateSecretFromFile(context.Background(), args[0], connectorCreateOpts)
 				if err != nil {
 					return fmt.Errorf("Failed to create connection: %w", err)
