@@ -275,7 +275,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			AuthMode:          "",
 			User:              "",
 			Password:          "",
-			ClusterLocal:      true,
+			Ingress:           types.IngressNoneString,
 		},
 	})
 	assert.Assert(t, err)

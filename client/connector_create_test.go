@@ -179,7 +179,7 @@ func configureSiteAndCreateRouter(t *testing.T, ctx context.Context, cli *VanCli
 		AuthMode:          "",
 		User:              "",
 		Password:          "",
-		ClusterLocal:      true,
+		Ingress:           types.IngressNoneString,
 	}
 	siteConfig, err := cli.SiteConfigCreate(context.Background(), routerCreateOpts)
 	assert.Assert(t, err, "Unable to configure %s site", name)

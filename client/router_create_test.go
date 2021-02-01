@@ -280,6 +280,16 @@ func TestRouterCreateDefaults(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced)
 		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
 
+		getIngress := func() string {
+			//true is none
+			//false is loadBalanced?
+			//need to know if this is ocp or kubernetes
+			if c.clusterLocal || !isCluster {
+				return types.IngressNoneString
+			}
+			return types.IngressLoadBalancerString
+		}
+
 		err = cli.RouterCreate(ctx, types.SiteConfig{
 			Spec: types.SiteConfigSpec{
 				SkupperName:         c.skupperName,
@@ -291,7 +301,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				EnableConsole:       false,
 				User:                c.user,
 				Password:            c.password,
-				ClusterLocal:        c.clusterLocal || !isCluster,
+				Ingress:             getIngress(),
 			},
 		})
 

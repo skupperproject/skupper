@@ -28,7 +28,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			"console-authentication": "internal",
 			"console-user":           "",
 			"console-password":       "",
-			"cluster-local":          "false",
+			"ingress":                types.IngressLoadBalancerString,
 		},
 	}
 	if spec.SkupperName != "" {
@@ -58,8 +58,8 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.Password != "" {
 		siteConfig.Data["console-password"] = spec.Password
 	}
-	if spec.ClusterLocal {
-		siteConfig.Data["cluster-local"] = "true"
+	if spec.Ingress != "" { // XXX ?! isn't this an error?
+		siteConfig.Data["ingress"] = spec.Ingress
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {

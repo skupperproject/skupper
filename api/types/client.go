@@ -40,7 +40,7 @@ type SiteConfigSpec struct {
 	AuthMode            string
 	User                string
 	Password            string
-	ClusterLocal        bool
+	Ingress             string
 	Replicas            int32
 	SiteControlled      bool
 }
