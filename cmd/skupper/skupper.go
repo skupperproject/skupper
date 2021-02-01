@@ -184,6 +184,8 @@ func inStringSlice(options []string, value string) bool {
 	return true
 }
 
+var ClusterLocal bool
+
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
 	routerModeInteriorValue := "interior"
 	routerModeEdgeValue := "edge"
@@ -212,6 +214,19 @@ installation that can then be connected to other skupper installations`,
 					return fmt.Errorf(`invalid "--router-mode=%v", it must be one of "%v"`, routerMode, strings.Join(options, ", "))
 				}
 				routerCreateOpts.IsEdge = routerMode == routerModeEdgeValue
+			}
+
+			routerIngressFlag := cmd.Flag("ingress")
+			routerClusterLocalFlag := cmd.Flag("cluster-local")
+
+			if routerIngressFlag.Changed && routerClusterLocalFlag.Changed {
+				return fmt.Errorf(`You can not use the deprecated --cluster-local, and --ingress together, use "--ingress none" as equivalent of --cluster-local`)
+			}
+
+			if routerClusterLocalFlag.Changed {
+				if ClusterLocal { //this is redundant, because "if changed" it must be true, but it is also correct
+					routerCreateOpts.Ingress = types.IngressNoneString
+				}
 			}
 
 			routerCreateOpts.SkupperNamespace = ns
@@ -243,7 +258,8 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
-	cmd.Flags().BoolVarP(&routerCreateOpts.ClusterLocal, "cluster-local", "", false, "Set up skupper to only accept connections from within the local cluster.")
+	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up skupper to only accept connections from within the local cluster.")
+	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "loadbalancer", "[loadbalancer|route|none].")
 
 	cmd.Flags().BoolVarP(&routerCreateOpts.IsEdge, "edge", "", false, "Configure as an edge")
 	f := cmd.Flag("edge")
