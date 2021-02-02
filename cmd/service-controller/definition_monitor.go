@@ -26,31 +26,41 @@ import (
 // changes to other entities (currently statefulsets exposed via
 // headless services)
 type DefinitionMonitor struct {
-	origin               string
-	vanClient            *client.VanClient
-	statefulSetInformer  cache.SharedIndexInformer
-	deploymentInformer   cache.SharedIndexInformer
-	svcDefInformer       cache.SharedIndexInformer
-	svcInformer          cache.SharedIndexInformer
-	events               workqueue.RateLimitingInterface
-	headless             map[string]types.ServiceInterface
-	annotated            map[string]types.ServiceInterface
-	annotatedDeployments map[string]string
-	annotatedServices    map[string]string
+	origin                string
+	vanClient             *client.VanClient
+	statefulSetInformer   cache.SharedIndexInformer
+	daemonSetInformer     cache.SharedIndexInformer
+	deploymentInformer    cache.SharedIndexInformer
+	svcDefInformer        cache.SharedIndexInformer
+	svcInformer           cache.SharedIndexInformer
+	events                workqueue.RateLimitingInterface
+	headless              map[string]types.ServiceInterface
+	annotated             map[string]types.ServiceInterface
+	annotatedDeployments  map[string]string
+	annotatedStatefulSets map[string]string
+	annotatedDaemonSets   map[string]string
+	annotatedServices     map[string]string
 }
 
 func newDefinitionMonitor(origin string, client *client.VanClient, svcDefInformer cache.SharedIndexInformer, svcInformer cache.SharedIndexInformer) *DefinitionMonitor {
 	monitor := &DefinitionMonitor{
-		origin:               origin,
-		vanClient:            client,
-		svcDefInformer:       svcDefInformer,
-		svcInformer:          svcInformer,
-		headless:             make(map[string]types.ServiceInterface),
-		annotated:            make(map[string]types.ServiceInterface),
-		annotatedDeployments: make(map[string]string),
-		annotatedServices:    make(map[string]string),
+		origin:                origin,
+		vanClient:             client,
+		svcDefInformer:        svcDefInformer,
+		svcInformer:           svcInformer,
+		headless:              make(map[string]types.ServiceInterface),
+		annotated:             make(map[string]types.ServiceInterface),
+		annotatedDeployments:  make(map[string]string),
+		annotatedStatefulSets: make(map[string]string),
+		annotatedDaemonSets:   make(map[string]string),
+		annotatedServices:     make(map[string]string),
 	}
 	monitor.statefulSetInformer = appsv1informer.NewStatefulSetInformer(
+		client.KubeClient,
+		client.Namespace,
+		time.Second*30,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	monitor.daemonSetInformer = appsv1informer.NewDaemonSetInformer(
 		client.KubeClient,
 		client.Namespace,
 		time.Second*30,
@@ -63,6 +73,7 @@ func newDefinitionMonitor(origin string, client *client.VanClient, svcDefInforme
 	monitor.events = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-service-monitor")
 
 	monitor.statefulSetInformer.AddEventHandler(newEventHandlerFor(monitor.events, "statefulsets", AnnotatedKey, StatefulSetResourceVersionTest))
+	monitor.daemonSetInformer.AddEventHandler(newEventHandlerFor(monitor.events, "daemonsets", AnnotatedKey, DaemonSetResourceVersionTest))
 	monitor.deploymentInformer.AddEventHandler(newEventHandlerFor(monitor.events, "deployments", AnnotatedKey, DeploymentResourceVersionTest))
 	monitor.svcDefInformer.AddEventHandler(newEventHandlerFor(monitor.events, "servicedefs", AnnotatedKey, ConfigMapResourceVersionTest))
 	monitor.svcInformer.AddEventHandler(newEventHandlerFor(monitor.events, "services", AnnotatedKey, ServiceResourceVersionTest))
@@ -76,10 +87,17 @@ func DeploymentResourceVersionTest(a interface{}, b interface{}) bool {
 	return aa.ResourceVersion == bb.ResourceVersion
 }
 
+func DaemonSetResourceVersionTest(a interface{}, b interface{}) bool {
+	aa := a.(*appsv1.DaemonSet)
+	bb := b.(*appsv1.DaemonSet)
+	return aa.ResourceVersion == bb.ResourceVersion
+}
+
 func (m *DefinitionMonitor) start(stopCh <-chan struct{}) error {
 	go m.statefulSetInformer.Run(stopCh)
+	go m.daemonSetInformer.Run(stopCh)
 	go m.deploymentInformer.Run(stopCh)
-	if ok := cache.WaitForCacheSync(stopCh, m.statefulSetInformer.HasSynced, m.deploymentInformer.HasSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, m.statefulSetInformer.HasSynced, m.daemonSetInformer.HasSynced, m.deploymentInformer.HasSynced); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
 	go wait.Until(m.runDefinitionMonitor, time.Second, stopCh)
@@ -105,6 +123,30 @@ func deducePort(deployment *appsv1.Deployment) int {
 		}
 	} else {
 		return int(kube.GetContainerPort(deployment))
+	}
+}
+
+func deducePortFromStatefulSet(statefulSet *appsv1.StatefulSet) int {
+	if port, ok := statefulSet.ObjectMeta.Annotations[types.PortQualifier]; ok {
+		if iport, err := strconv.Atoi(port); err == nil {
+			return iport
+		} else {
+			return 0
+		}
+	} else {
+		return int(kube.GetContainerPortForStatefulSet(statefulSet))
+	}
+}
+
+func deducePortFromDaemonSet(daemonSet *appsv1.DaemonSet) int {
+	if port, ok := daemonSet.ObjectMeta.Annotations[types.PortQualifier]; ok {
+		if iport, err := strconv.Atoi(port); err == nil {
+			return iport
+		} else {
+			return 0
+		}
+	} else {
+		return int(kube.GetContainerPortForDaemonSet(daemonSet))
 	}
 }
 
@@ -168,6 +210,76 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 		svc.Targets = []types.ServiceInterfaceTarget{
 			types.ServiceInterfaceTarget{
 				Name:     deployment.ObjectMeta.Name,
+				Selector: selector,
+			},
+		}
+		svc.Origin = "annotation"
+		return svc, true
+	} else {
+		return svc, false
+	}
+}
+
+func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefulset *appsv1.StatefulSet) (types.ServiceInterface, bool) {
+	var svc types.ServiceInterface
+	if protocol, ok := statefulset.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
+		if port := deducePortFromStatefulSet(statefulset); port != 0 {
+			svc.Port = int(port)
+		} else if protocol == "http" {
+			svc.Port = 80
+		} else {
+			log.Printf("Ignoring annotated statefulset %s; cannot deduce port", statefulset.ObjectMeta.Name)
+			return svc, false
+		}
+		svc.Protocol = protocol
+		if address, ok := statefulset.ObjectMeta.Annotations[types.AddressQualifier]; ok {
+			svc.Address = address
+		} else {
+			svc.Address = statefulset.ObjectMeta.Name
+		}
+
+		selector := ""
+		if statefulset.Spec.Selector != nil {
+			selector = utils.StringifySelector(statefulset.Spec.Selector.MatchLabels)
+		}
+		svc.Targets = []types.ServiceInterfaceTarget{
+			types.ServiceInterfaceTarget{
+				Name:     statefulset.ObjectMeta.Name,
+				Selector: selector,
+			},
+		}
+		svc.Origin = "annotation"
+		return svc, true
+	} else {
+		return svc, false
+	}
+}
+
+func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset *appsv1.DaemonSet) (types.ServiceInterface, bool) {
+	var svc types.ServiceInterface
+	if protocol, ok := daemonset.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
+		if port := deducePortFromDaemonSet(daemonset); port != 0 {
+			svc.Port = int(port)
+		} else if protocol == "http" {
+			svc.Port = 80
+		} else {
+			log.Printf("Ignoring annotated daemonset %s; cannot deduce port", daemonset.ObjectMeta.Name)
+			return svc, false
+		}
+		svc.Protocol = protocol
+		if address, ok := daemonset.ObjectMeta.Annotations[types.AddressQualifier]; ok {
+			svc.Address = address
+		} else {
+			svc.Address = daemonset.ObjectMeta.Name
+		}
+
+		selector := ""
+		if daemonset.Spec.Selector != nil {
+			selector = utils.StringifySelector(daemonset.Spec.Selector.MatchLabels)
+		}
+		svc.Targets = []types.ServiceInterfaceTarget{
+			types.ServiceInterfaceTarget{
+				Name:     daemonset.ObjectMeta.Name,
 				Selector: selector,
 			},
 		}
@@ -277,6 +389,14 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAddress(address string) er
 
 func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedDeployment(name string) error {
 	return m.deleteServiceDefinitionForAnnotatedObject(name, "deployment", m.annotatedDeployments)
+}
+
+func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedStatefulSet(name string) error {
+	return m.deleteServiceDefinitionForAnnotatedObject(name, "statefulset", m.annotatedStatefulSets)
+}
+
+func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedDaemonSet(name string) error {
+	return m.deleteServiceDefinitionForAnnotatedObject(name, "daemonset", m.annotatedDaemonSets)
 }
 
 func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedService(name string) error {
@@ -393,6 +513,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					if !ok {
 						return fmt.Errorf("Expected StatefulSet for %s but got %#v", name, obj)
 					}
+					//is this statefulset one that has been exposed with the headless option?
 					svc, ok := m.headless[statefulset.ObjectMeta.Name]
 					if ok {
 						if svc.Headless.Size != int(*statefulset.Spec.Replicas) {
@@ -402,6 +523,40 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							}
 							deleted := []string{}
 							kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.Namespace, m.vanClient.KubeClient)
+						}
+					} else {
+						//does it have a skupper annotation?
+						if desired, ok := m.getServiceDefinitionFromAnnotatedStatefulSet(statefulset); ok {
+							log.Printf("[DefMon] Checking annotated statefulSet %s", name)
+							actual, ok := m.annotated[desired.Address]
+							if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
+								log.Printf("[DefMon] Updating service definition for annotated statefulSet %s to %#v", name, desired)
+								changed := []types.ServiceInterface{
+									desired,
+								}
+								deleted := []string{}
+								err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+								if err != nil {
+									return fmt.Errorf("failed to update service definition for annotated statefulSet %s: %s", name, err)
+								}
+							}
+							if address, ok := m.annotatedStatefulSets[name]; ok {
+								if address != desired.Address {
+									log.Printf("[DefMon] Address changed for annotated statefulSet %s. Was %s, now %s", name, address, desired.Address)
+									if err := m.deleteServiceDefinitionForAddress(address); err != nil {
+										return fmt.Errorf("Failed to delete stale service definition for %s", address)
+									}
+									m.annotatedStatefulSets[name] = desired.Address
+								}
+							} else {
+								m.annotatedStatefulSets[name] = desired.Address
+							}
+
+						} else {
+							err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name)
+							if err != nil {
+								return fmt.Errorf("Failed to delete service definition on statefulset %s which is no longer annotated: %s", name, err)
+							}
 						}
 					}
 				} else {
@@ -416,6 +571,11 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							svc.Address,
 						}
 						kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.Namespace, m.vanClient.KubeClient)
+					} else {
+						err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name)
+						if err != nil {
+							return fmt.Errorf("Failed to delete service definition on statefulset %s which is no longer annotated: %s", name, err)
+						}
 					}
 				}
 			case "deployments":
@@ -467,6 +627,57 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					err := m.deleteServiceDefinitionForAnnotatedDeployment(name)
 					if err != nil {
 						return fmt.Errorf("Failed to delete service definition on removal of previously annotated deployment %s: %s", name, err)
+					}
+				}
+			case "daemonsets":
+				log.Printf("[DefMon] daemonset event for %s", name)
+				obj, exists, err := m.daemonSetInformer.GetStore().GetByKey(name)
+				if err != nil {
+					return fmt.Errorf("Error reading daemonset %s from cache: %s", name, err)
+				} else if exists {
+					daemonSet, ok := obj.(*appsv1.DaemonSet)
+					if !ok {
+						return fmt.Errorf("Expected DaemonSet for %s but got %#v", name, obj)
+					}
+
+					desired, ok := m.getServiceDefinitionFromAnnotatedDaemonSet(daemonSet)
+					if ok {
+						log.Printf("[DefMon] Checking annotated daemonset %s", name)
+						actual, ok := m.annotated[desired.Address]
+						if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
+							log.Printf("[DefMon] Updating service definition for annotated daemonset %s to %#v", name, desired)
+							changed := []types.ServiceInterface{
+								desired,
+							}
+							deleted := []string{}
+							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+							if err != nil {
+								return fmt.Errorf("failed to update service definition for annotated daemonset %s: %s", name, err)
+							}
+						}
+						address, ok := m.annotatedDaemonSets[name]
+						if ok {
+							if address != desired.Address {
+								log.Printf("[DefMon] Address changed for annotated daemonset %s. Was %s, now %s", name, address, desired.Address)
+								if err := m.deleteServiceDefinitionForAddress(address); err != nil {
+									return fmt.Errorf("Failed to delete stale service definition for %s", address)
+								}
+								m.annotatedDaemonSets[name] = desired.Address
+							}
+						} else {
+							m.annotatedDaemonSets[name] = desired.Address
+						}
+
+					} else {
+						err := m.deleteServiceDefinitionForAnnotatedDaemonSet(name)
+						if err != nil {
+							return fmt.Errorf("Failed to delete service definition on daemonset %s which is no longer annotated: %s", name, err)
+						}
+					}
+				} else {
+					err := m.deleteServiceDefinitionForAnnotatedDaemonSet(name)
+					if err != nil {
+						return fmt.Errorf("Failed to delete service definition on removal of previously annotated daemonset %s: %s", name, err)
 					}
 				}
 			case "services":

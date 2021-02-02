@@ -56,7 +56,7 @@ func Setup(t *testing.T, testRunner base.ClusterTestRunner) {
 // Teardown ensures all resources are removed
 // when test completes
 func TearDown(t *testing.T, testRunner base.ClusterTestRunner) {
-	t.Logf("Tearding down")
+	t.Logf("Tearing down")
 	t.Log("Deleting namespaces")
 	base.TearDownSimplePublicAndPrivate(testRunner.(*base.ClusterTestRunnerBase))
 }
@@ -74,6 +74,14 @@ func TearDown(t *testing.T, testRunner base.ClusterTestRunner) {
 //   annotations:
 //     skupper.io/proxy: tcp
 //     skupper.io/address: nginx-1-dep-web
+// statefulset/nginx  ## cluster1
+//   annotations:
+//     skupper.io/proxy: tcp
+//     skupper.io/address: nginx-1-ss-web
+// daemonset/nginx  ## cluster1
+//   annotations:
+//     skupper.io/proxy: tcp
+//     skupper.io/address: nginx-1-ds-web
 // service/nginx-1-svc-exp-notarget  ## cluster1
 //   annotations:
 //     skupper.io/proxy: tcp
@@ -85,6 +93,14 @@ func TearDown(t *testing.T, testRunner base.ClusterTestRunner) {
 //   annotations:
 //     skupper.io/proxy: tcp
 //     skupper.io/address: nginx-2-dep-web
+// statefulset/nginx  ## cluster2
+//   annotations:
+//     skupper.io/proxy: tcp
+//     skupper.io/address: nginx-2-ss-web
+// daemonset/nginx  ## cluster2
+//   annotations:
+//     skupper.io/proxy: tcp
+//     skupper.io/address: nginx-2-ds-web
 // service/nginx-2-svc-exp-notarget  ## cluster2
 //   annotations:
 //     skupper.io/proxy: tcp
@@ -108,12 +124,17 @@ func DeployResources(t *testing.T, testRunner base.ClusterTestRunner) {
 
 		// Annotations (optional) to deployment and services
 		depAnnotations := map[string]string{}
+		statefulSetAnnotations := map[string]string{}
+		daemonSetAnnotations := map[string]string{}
 		svcNoTargetAnnotations := map[string]string{}
 		svcTargetAnnotations := map[string]string{}
-		populateAnnotations(clusterIdx, depAnnotations, svcNoTargetAnnotations, svcTargetAnnotations)
+		populateAnnotations(clusterIdx, depAnnotations, svcNoTargetAnnotations, svcTargetAnnotations,
+			statefulSetAnnotations, daemonSetAnnotations)
 
 		// One single deployment will be created (for the nginx http server)
 		createDeployment(t, cluster, depAnnotations)
+		createStatefulSet(t, cluster, statefulSetAnnotations)
+		createDaemonSet(t, cluster, daemonSetAnnotations)
 
 		// Now create two services. One that does not have a target address,
 		// and another that provides a target address.
@@ -140,7 +161,8 @@ func DeployResources(t *testing.T, testRunner base.ClusterTestRunner) {
 
 // populateAnnotations annotates the provide maps with static
 // annotations for the deployment, and for each of the services
-func populateAnnotations(clusterIdx int, depAnnotations map[string]string, svcNoTargetAnnotations map[string]string, svcTargetAnnotations map[string]string) {
+func populateAnnotations(clusterIdx int, depAnnotations map[string]string, svcNoTargetAnnotations map[string]string, svcTargetAnnotations map[string]string,
+	statefulSetAnnotations map[string]string, daemonSetAnnotations map[string]string) {
 	// Define a static set of annotations to the deployment
 	depAnnotations[types.ProxyQualifier] = "tcp"
 	depAnnotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-dep-web", clusterIdx)
@@ -151,6 +173,14 @@ func populateAnnotations(clusterIdx int, depAnnotations map[string]string, svcNo
 	// Set annotations to the service with target address
 	svcTargetAnnotations[types.ProxyQualifier] = "http"
 	svcTargetAnnotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-svc-exp-target", clusterIdx)
+
+	//set annotations on statefulset
+	statefulSetAnnotations[types.ProxyQualifier] = "tcp"
+	statefulSetAnnotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-ss-web", clusterIdx)
+
+	//set annotations on daemonset
+	daemonSetAnnotations[types.ProxyQualifier] = "tcp"
+	daemonSetAnnotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-ds-web", clusterIdx)
 }
 
 // CreateVan deploys Skupper to both clusters then generates a
@@ -255,6 +285,119 @@ func createDeployment(t *testing.T, cluster *client.VanClient, annotations map[s
 	assert.Assert(t, err)
 
 	return dep
+}
+
+func createStatefulSet(t *testing.T, cluster *client.VanClient, annotations map[string]string) *v1.StatefulSet {
+	name := "nginx-ss"
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name + "-internal",
+			Labels: map[string]string{
+				"app": name,
+			},
+			Annotations: annotations,
+		},
+		Spec: corev1.ServiceSpec{
+			ClusterIP: "",
+			Ports: []corev1.ServicePort{
+				{Name: "web", Port: 8080},
+			},
+			Selector: map[string]string{
+				"app": name,
+			},
+		},
+	}
+
+	// Creating the new service
+	svc, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Create(svc)
+	assert.Assert(t, err)
+	replicas := int32(1)
+	ss := &v1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   cluster.Namespace,
+			Annotations: annotations,
+			Labels: map[string]string{
+				"app": name,
+			},
+		},
+		Spec: v1.StatefulSetSpec{
+			ServiceName: name + "-internal",
+			Replicas:    &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": name,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": name,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "nginx", Image: "nginxinc/nginx-unprivileged:stable-alpine", Ports: []corev1.ContainerPort{{Name: "web", ContainerPort: 8080}}, ImagePullPolicy: corev1.PullIfNotPresent},
+					},
+					RestartPolicy: corev1.RestartPolicyAlways,
+				},
+			},
+		},
+	}
+
+	// Deploying resource
+	ss, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(ss)
+	assert.Assert(t, err)
+
+	// Wait for statefulSet to be ready
+	ss, err = kube.WaitStatefulSetReadyReplicas(ss.Name, cluster.Namespace, 1, cluster.KubeClient, timeout, interval)
+	assert.Assert(t, err)
+
+	return ss
+}
+
+func createDaemonSet(t *testing.T, cluster *client.VanClient, annotations map[string]string) *v1.DaemonSet {
+	name := "nginx-ds"
+	ds := &v1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   cluster.Namespace,
+			Annotations: annotations,
+			Labels: map[string]string{
+				"app": name,
+			},
+		},
+		Spec: v1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": name,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": name,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "nginx", Image: "nginxinc/nginx-unprivileged:stable-alpine", Ports: []corev1.ContainerPort{{Name: "web", ContainerPort: 8080}}, ImagePullPolicy: corev1.PullIfNotPresent},
+					},
+					RestartPolicy: corev1.RestartPolicyAlways,
+				},
+			},
+		},
+	}
+
+	// Deploying resource
+	ds, err := cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Create(ds)
+	assert.Assert(t, err)
+
+	// Wait for daemonSet to be ready
+	ds, err = kube.WaitDaemonSetReady(ds.Name, cluster.Namespace, cluster.KubeClient, timeout, interval)
+	assert.Assert(t, err)
+
+	return ds
 }
 
 // createService creates a new service at the provided cluster/namespace

@@ -50,6 +50,10 @@ func TestAnnotatedResources(t *testing.T) {
 				"nginx-2-svc-exp-notarget": "tcp",
 				"nginx-1-svc-exp-target":   "http",
 				"nginx-2-svc-exp-target":   "http",
+				"nginx-1-ss-web":           "tcp",
+				"nginx-2-ss-web":           "tcp",
+				"nginx-1-ds-web":           "tcp",
+				"nginx-2-ds-web":           "tcp",
 			},
 		},
 		{
@@ -64,6 +68,10 @@ func TestAnnotatedResources(t *testing.T) {
 				"nginx-2-svc-exp-notarget": "http",
 				"nginx-1-svc-exp-target":   "tcp",
 				"nginx-2-svc-exp-target":   "tcp",
+				"nginx-1-ss-web":           "http",
+				"nginx-2-ss-web":           "http",
+				"nginx-1-ds-web":           "http",
+				"nginx-2-ds-web":           "http",
 			},
 		},
 		{
@@ -85,6 +93,10 @@ func TestAnnotatedResources(t *testing.T) {
 				"nginx-2-svc-exp-notarget": "tcp",
 				"nginx-1-svc-exp-target":   "http",
 				"nginx-2-svc-exp-target":   "http",
+				"nginx-1-ss-web":           "tcp",
+				"nginx-2-ss-web":           "tcp",
+				"nginx-1-ds-web":           "tcp",
+				"nginx-2-ds-web":           "tcp",
 			},
 		},
 	}
