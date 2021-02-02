@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -58,9 +59,14 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (Consol
 
 	// 4.2.1. Parsing ConsoleData response
 	if err = json.Unmarshal([]byte(resp.Body), &consoleData); err != nil {
-		log.Printf("error unmarshalling ConsoleData: %s", err)
-		log.Printf("invalid response body: %s", resp.Body)
-		return consoleData, err
+		if strings.HasPrefix(resp.Body, "Error") {
+			log.Printf(resp.Body)
+			return consoleData, fmt.Errorf(resp.Body)
+		} else {
+			log.Printf("error unmarshalling ConsoleData: %s", err)
+			log.Printf("invalid response body: %s", resp.Body)
+			return consoleData, err
+		}
 	}
 
 	return consoleData, nil

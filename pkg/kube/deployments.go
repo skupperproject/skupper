@@ -327,6 +327,22 @@ func GetContainerPort(deployment *appsv1.Deployment) int32 {
 	}
 }
 
+func GetContainerPortForStatefulSet(statefulSet *appsv1.StatefulSet) int32 {
+	if len(statefulSet.Spec.Template.Spec.Containers) > 0 && len(statefulSet.Spec.Template.Spec.Containers[0].Ports) > 0 {
+		return statefulSet.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort
+	} else {
+		return 0
+	}
+}
+
+func GetContainerPortForDaemonSet(daemonSet *appsv1.DaemonSet) int32 {
+	if len(daemonSet.Spec.Template.Spec.Containers) > 0 && len(daemonSet.Spec.Template.Spec.Containers[0].Ports) > 0 {
+		return daemonSet.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort
+	} else {
+		return 0
+	}
+}
+
 // WaitDeploymentReadyReplicas waits till given deployment contains the expected
 // number of readyReplicas, or until it times out
 func WaitDeploymentReadyReplicas(name string, namespace string, readyReplicas int, cli kubernetes.Interface, timeout, interval time.Duration) (*appsv1.Deployment, error) {
@@ -347,6 +363,24 @@ func WaitDeploymentReadyReplicas(name string, namespace string, readyReplicas in
 	return dep, err
 }
 
+func WaitStatefulSetReadyReplicas(name string, namespace string, readyReplicas int, cli kubernetes.Interface, timeout, interval time.Duration) (*appsv1.StatefulSet, error) {
+	var ss *appsv1.StatefulSet
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
+		ss, err = cli.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			// ss does not exist yet
+			return false, nil
+		}
+		return ss.Status.ReadyReplicas == int32(readyReplicas), nil
+	})
+
+	return ss, err
+}
+
 // WaitDeploymentReady waits till given deployment contains at least one ReadyReplicas, or until it times out
 func WaitDeploymentReady(name string, namespace string, cli kubernetes.Interface, timeout, interval time.Duration) (*appsv1.Deployment, error) {
 	var dep *appsv1.Deployment
@@ -361,6 +395,23 @@ func WaitDeploymentReady(name string, namespace string, cli kubernetes.Interface
 			return false, nil
 		}
 		return dep.Status.ReadyReplicas > 0, nil
+	})
+
+	return dep, err
+}
+
+func WaitDaemonSetReady(name string, namespace string, cli kubernetes.Interface, timeout, interval time.Duration) (*appsv1.DaemonSet, error) {
+	var dep *appsv1.DaemonSet
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
+		dep, err = cli.AppsV1().DaemonSets(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		return dep.Status.NumberReady > 0, nil
 	})
 
 	return dep, err

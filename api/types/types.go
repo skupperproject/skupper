@@ -88,6 +88,11 @@ var ControllerEditPolicyRule = []rbacv1.PolicyRule{
 	},
 	{
 		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{"apps"},
+		Resources: []string{"daemonsets"},
+	},
+	{
+		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{"route.openshift.io"},
 		Resources: []string{"routes"},
 	},
