@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	test_utils "github.com/skupperproject/skupper/test/utils"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -281,13 +282,10 @@ func TestRouterCreateDefaults(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
 
 		getIngress := func() string {
-			//true is none
-			//false is loadBalanced?
-			//need to know if this is ocp or kubernetes
 			if c.clusterLocal || !isCluster {
 				return types.IngressNoneString
 			}
-			return types.IngressLoadBalancerString
+			return test_utils.RouteOrLoadBalancerFromEnv()
 		}
 
 		err = cli.RouterCreate(ctx, types.SiteConfig{
