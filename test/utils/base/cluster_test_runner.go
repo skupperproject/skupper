@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	vanClient "github.com/skupperproject/skupper/client"
+	test_utils "github.com/skupperproject/skupper/test/utils"
 	"gotest.tools/assert"
 )
 
@@ -184,7 +185,7 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 		AuthMode:          types.ConsoleAuthModeUnsecured,
 		User:              "nicob?",
 		Password:          "nopasswordd",
-		Ingress:           types.IngressLoadBalancerString,
+		Ingress:           test_utils.RouteOrLoadBalancerFromEnv(),
 		Replicas:          1,
 	}
 	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)

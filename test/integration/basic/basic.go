@@ -6,6 +6,7 @@ import (
 
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
+	test_utils "github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"gotest.tools/assert"
 )
@@ -126,7 +127,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				Ingress:           types.IngressLoadBalancerString,
+				Ingress:           test_utils.RouteOrLoadBalancerFromEnv(),
 				Replicas:          1,
 			},
 			createOptsPrivate: types.SiteConfigSpec{
@@ -138,7 +139,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				Ingress:           types.IngressLoadBalancerString,
+				Ingress:           test_utils.RouteOrLoadBalancerFromEnv(),
 				Replicas:          1,
 			},
 		},
