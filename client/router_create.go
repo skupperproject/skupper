@@ -163,7 +163,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	annotations := map[string]string{}
 
 	svcs := []*corev1.Service{}
-	if options.Ingress == types.IngressRouteString {
+	if options.IsIngressRoute() {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			termination = routev1.TLSTerminationReencrypt
 			metricsPort = []corev1.ServicePort{
@@ -176,7 +176,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			}
 			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-controller-certs"}
 		}
-	} else if options.Ingress == types.IngressLoadBalancerString {
+	} else if options.IsIngressLoadBalancer() {
 		svctype = corev1.ServiceTypeLoadBalancer
 	}
 	svcs = append(svcs, &corev1.Service{
@@ -197,7 +197,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.Services = svcs
 
 	routes := []*routev1.Route{}
-	if options.Ingress == types.IngressRouteString {
+	if options.IsIngressRoute() {
 		routes = append(routes, &routev1.Route{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -505,7 +505,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	})
 
 	if !options.IsEdge {
-		if options.Ingress == types.IngressNoneString {
+		if options.IsIngressNone() {
 			credentials = append(credentials, types.Credential{
 				CA:          "skupper-internal-ca",
 				Name:        "skupper-internal",
@@ -616,7 +616,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	if !options.IsEdge {
 		svcType := corev1.ServiceTypeClusterIP
-		if options.Ingress == types.IngressLoadBalancerString {
+		if options.IsIngressLoadBalancer() {
 			svcType = corev1.ServiceTypeLoadBalancer
 		}
 		svcs = append(svcs, &corev1.Service{
@@ -651,7 +651,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Transport.Services = svcs
 
 	routes := []*routev1.Route{}
-	if options.Ingress == types.IngressRouteString {
+	if options.IsIngressRoute() {
 		routes = append(routes, &routev1.Route{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -736,7 +736,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 // RouterCreate instantiates a VAN (router and controller) deployment
 func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig) error {
 	// todo return error
-	if options.Spec.Ingress == types.IngressRouteString && cli.RouteClient == nil {
+	if options.Spec.IsIngressRoute() && cli.RouteClient == nil {
 		return fmt.Errorf("Routes client had not been initialized, is this an OCP cluster?")
 	}
 

@@ -326,7 +326,3 @@ func (a ByServiceInterfaceAddress) Less(i, j int) bool {
 func (a ByServiceInterfaceAddress) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
-
-var IngressRouteString = "route"
-var IngressLoadBalancerString = "loadbalancer"
-var IngressNoneString = "none"

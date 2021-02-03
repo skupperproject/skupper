@@ -45,6 +45,22 @@ type SiteConfigSpec struct {
 	SiteControlled      bool
 }
 
+const (
+	IngressRouteString        string = "route"
+	IngressLoadBalancerString string = "loadbalancer"
+	IngressNoneString         string = "none"
+)
+
+func (s *SiteConfigSpec) IsIngressRoute() bool {
+	return s.Ingress == IngressRouteString
+}
+func (s *SiteConfigSpec) IsIngressLoadBalancer() bool {
+	return s.Ingress == IngressLoadBalancerString
+}
+func (s *SiteConfigSpec) IsIngressNone() bool {
+	return s.Ingress == IngressNoneString
+}
+
 type SiteConfigReference struct {
 	UID        string
 	Name       string
