@@ -230,14 +230,14 @@ func (c *SiteController) checkSite(key string) error {
 		return err
 	} else if exists {
 		configmap := obj.(*corev1.ConfigMap)
-		routerInspectResponse, err := c.vanClient.RouterInspectNamespace(context.Background(), configmap.ObjectMeta.Namespace)
+		_, err := c.vanClient.RouterInspectNamespace(context.Background(), configmap.ObjectMeta.Namespace)
 		if err == nil {
 			log.Println("Skupper site exists ", key)
-			wantEdgeMode := configmap.Data["edge"] == "true"
-			haveEdgeMode := routerInspectResponse.Status.Mode == string(types.TransportModeEdge)
-			// TODO: enable richer comparison/checking (possibly with GetRouterSpecFromOpts?)
-			if wantEdgeMode != haveEdgeMode {
-				//TODO: enable van router update
+			updated, err := c.vanClient.RouterUpdateLogging(context.Background(), configmap, true)
+			if err != nil {
+				log.Println("Error checking router logging configuration: ", err)
+			} else if updated {
+				log.Println("Updated router logging for ", key)
 			}
 			c.checkAllForSite()
 		} else if errors.IsNotFound(err) {

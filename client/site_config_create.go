@@ -25,6 +25,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			"service-sync":           "true",
 			"console":                "true",
 			"router-console":         "false",
+			"router-logging":         "",
 			"console-authentication": "internal",
 			"console-user":           "",
 			"console-password":       "",
@@ -60,6 +61,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.ClusterLocal {
 		siteConfig.Data["cluster-local"] = "true"
+	}
+	if spec.RouterLogging != nil {
+		siteConfig.Data["router-logging"] = RouterLogConfigToString(spec.RouterLogging)
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {

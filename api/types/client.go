@@ -29,6 +29,11 @@ type SiteConfig struct {
 	Reference SiteConfigReference
 }
 
+type RouterLogConfig struct {
+	Module string
+	Level  string
+}
+
 type SiteConfigSpec struct {
 	SkupperName         string
 	SkupperNamespace    string
@@ -43,6 +48,7 @@ type SiteConfigSpec struct {
 	ClusterLocal        bool
 	Replicas            int32
 	SiteControlled      bool
+	RouterLogging       []RouterLogConfig
 }
 
 type SiteConfigReference struct {
@@ -92,6 +98,7 @@ type VanClientInterface interface {
 	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*ServiceInterface, error)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
 	SiteConfigCreate(ctx context.Context, spec SiteConfigSpec) (*SiteConfig, error)
+	SiteConfigUpdate(ctx context.Context, spec SiteConfigSpec) (bool, error)
 	SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*SiteConfig, error)
 	SiteConfigRemove(ctx context.Context) error
 	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error

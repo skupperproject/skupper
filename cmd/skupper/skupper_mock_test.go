@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -147,6 +148,10 @@ func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType s
 func (v *vanClientMock) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
 	v.siteConfigCreateCalledWith = append(v.siteConfigCreateCalledWith, spec)
 	return v.injectedReturns.siteConfigCreate.siteConfig, v.injectedReturns.siteConfigCreate.err
+}
+
+func (v *vanClientMock) SiteConfigUpdate(ctx context.Context, spec types.SiteConfigSpec) (bool, error) {
+	return false, nil
 }
 
 func (v *vanClientMock) SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*types.SiteConfig, error) {
@@ -296,7 +301,7 @@ func TestCmdInit(t *testing.T) {
 			lcli.injectedReturns.siteConfigCreate.err = fmt.Errorf("some error")
 			err := cmd.RunE(cmd, args)
 			assert.Error(t, err, "some error")
-			assert.Assert(t, lcli.siteConfigCreateCalledWith[0] == routerCreateOpts)
+			assert.Assert(t, reflect.DeepEqual(lcli.siteConfigCreateCalledWith[0], routerCreateOpts))
 		})
 
 	t.Run("routerCreateFails",

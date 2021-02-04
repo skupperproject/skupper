@@ -165,6 +165,7 @@ func NewClient(namespace string, context string, kubeConfigPath string) *client.
 }
 
 var routerCreateOpts types.SiteConfigSpec
+var routerLogging string
 
 // TODO unit-test me
 func inStringSlice(options []string, value string) bool {
@@ -219,11 +220,26 @@ installation that can then be connected to other skupper installations`,
 			if err != nil {
 				return err
 			}
+			if routerLogging != "" {
+				logConfig, err := client.ParseRouterLogConfig(routerLogging)
+				if err != nil {
+					return fmt.Errorf("Bad value for --router-logging: %s", err)
+				}
+				routerCreateOpts.RouterLogging = logConfig
+			}
 
 			if siteConfig == nil {
 				siteConfig, err = cli.SiteConfigCreate(context.Background(), routerCreateOpts)
 				if err != nil {
 					return err
+				}
+			} else {
+				updated, err := cli.SiteConfigUpdate(context.Background(), routerCreateOpts)
+				if err != nil {
+					return fmt.Errorf("Error while trying to update router logging: %s", err)
+				}
+				if updated {
+					fmt.Println("Router logging updated")
 				}
 			}
 
@@ -239,6 +255,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.SkupperName, "site-name", "", "", "Provide a specific name for this skupper installation")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Configure proxy controller to particiapte in service sync (not relevant if --enable-proxy-controller is false)")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
+	cmd.Flags().StringVarP(&routerLogging, "router-logging", "", "", "Logging settings for router (e.g. trace,debug,info,notice,warning,error)")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console")
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
