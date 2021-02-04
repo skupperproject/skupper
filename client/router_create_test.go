@@ -10,7 +10,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
-	test_utils "github.com/skupperproject/skupper/test/utils"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -285,7 +284,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			if c.clusterLocal || !isCluster {
 				return types.IngressNoneString
 			}
-			return test_utils.RouteOrLoadBalancerFromEnv()
+			return GetIngressRouteIfPossibleLoadBalancerIfNot(cli)
 		}
 
 		err = cli.RouterCreate(ctx, types.SiteConfig{

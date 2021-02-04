@@ -2,6 +2,7 @@ package client
 
 import (
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
+	"github.com/skupperproject/skupper/api/types"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/discovery"
@@ -80,4 +81,11 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*VanCli
 	}
 
 	return c, nil
+}
+
+func GetIngressRouteIfPossibleLoadBalancerIfNot(cli *VanClient) string {
+	if cli.RouteClient == nil {
+		return types.IngressLoadBalancerString
+	}
+	return types.IngressRouteString
 }

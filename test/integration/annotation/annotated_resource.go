@@ -10,7 +10,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
-	test_utils "github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"gotest.tools/assert"
@@ -169,7 +168,7 @@ func CreateVan(t *testing.T, testRunner base.ClusterTestRunner) {
 		EnableServiceSync: true,
 		User:              "admin",
 		Password:          "admin",
-		Ingress:           test_utils.RouteOrLoadBalancerFromEnv(),
+		Ingress:           client.GetIngressRouteIfPossibleLoadBalancerIfNot(pub.VanClient),
 	}
 
 	// If using only 1 cluster, set ClusterLocal to True

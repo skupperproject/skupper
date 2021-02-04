@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
-	test_utils "github.com/skupperproject/skupper/test/utils"
+	vanClient "github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"gotest.tools/assert"
 )
@@ -84,6 +84,9 @@ func (r *BasicTestRunner) TearDown(ctx context.Context) {
 }
 
 func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
+	pubCluster, err := r.GetPublicContext(1)
+	assert.Assert(t, err)
+
 	testcases := []struct {
 		doc               string
 		createOptsPublic  types.SiteConfigSpec
@@ -127,7 +130,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				Ingress:           test_utils.RouteOrLoadBalancerFromEnv(),
+				Ingress:           vanClient.GetIngressRouteIfPossibleLoadBalancerIfNot(pubCluster.VanClient),
 				Replicas:          1,
 			},
 			createOptsPrivate: types.SiteConfigSpec{
@@ -139,7 +142,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				Ingress:           test_utils.RouteOrLoadBalancerFromEnv(),
+				Ingress:           vanClient.GetIngressRouteIfPossibleLoadBalancerIfNot(pubCluster.VanClient),
 				Replicas:          1,
 			},
 		},
