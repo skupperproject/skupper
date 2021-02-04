@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -93,6 +94,42 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 	return updateRouter || updateController || updateSite, nil
+}
+
+func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.ConfigMap, hup bool) (bool, error) {
+	siteConfig, err := cli.SiteConfigInspect(ctx, settings)
+	if err != nil {
+		return false, err
+	}
+	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(settings.ObjectMeta.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return false, err
+	}
+	updated := configureRouterLogging(routerConfig, siteConfig.Spec.RouterLogging)
+	if updated {
+		routerConfig.WriteToConfigMap(configmap)
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(settings.ObjectMeta.Namespace).Update(configmap)
+		if err != nil {
+			return false, err
+		}
+		if hup {
+			router, err := cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+			if err != nil {
+				return false, err
+			}
+			touch(router)
+			_, err = cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Update(router)
+			if err != nil {
+				return false, err
+			}
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 func touch(deployment *appsv1.Deployment) {

@@ -6,6 +6,7 @@ import (
 	"log"
 	"reflect"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -18,6 +19,7 @@ type RouterConfig struct {
 	Listeners   map[string]Listener
 	Connectors  map[string]Connector
 	Addresses   map[string]Address
+	LogConfig   map[string]LogConfig
 	Bridges     BridgeConfig
 }
 
@@ -41,6 +43,7 @@ func InitialConfig(id string, siteId string, version string, edge bool) RouterCo
 		SslProfiles: map[string]SslProfile{},
 		Listeners:   map[string]Listener{},
 		Connectors:  map[string]Connector{},
+		LogConfig:   map[string]LogConfig{},
 		Bridges: BridgeConfig{
 			TcpListeners:   map[string]TcpEndpoint{},
 			TcpConnectors:  map[string]TcpEndpoint{},
@@ -192,6 +195,53 @@ func GetTcpConnectors(bridges []BridgeConfig) []TcpEndpoint {
 	return connectors
 }
 
+func (r *RouterConfig) SetLogLevel(module string, level string) bool {
+	if level != "" {
+		config := LogConfig{
+			Module: module,
+			Enable: level,
+		}
+		if module == "" {
+			config.Module = "DEFAULT"
+		}
+		if !strings.HasSuffix(level, "+") {
+			config.Enable = level + "+"
+		}
+		if r.LogConfig == nil {
+			r.LogConfig = map[string]LogConfig{}
+		}
+		if r.LogConfig[config.Module] != config {
+			r.LogConfig[config.Module] = config
+			return true
+		}
+	}
+	return false
+}
+
+func (r *RouterConfig) SetLogLevels(levels map[string]string) bool {
+	keys := map[string]bool{}
+	for k, _ := range levels {
+		if k == "" {
+			keys["DEFAULT"] = true
+		} else {
+			keys[k] = true
+		}
+	}
+	changed := false
+	for name, level := range levels {
+		if r.SetLogLevel(name, level) {
+			changed = true
+		}
+	}
+	for key, _ := range r.LogConfig {
+		if _, ok := keys[key]; !ok {
+			delete(r.LogConfig, key)
+			changed = true
+		}
+	}
+	return changed
+}
+
 type Role string
 
 const (
@@ -222,6 +272,11 @@ type SslProfile struct {
 	CertFile       string `json:"certFile,omitempty"`
 	PrivateKeyFile string `json:"privateKeyFile,omitempty"`
 	CaCertFile     string `json:"caCertFile,omitempty"`
+}
+
+type LogConfig struct {
+	Module string `json:"module"`
+	Enable string `json:"enable"`
 }
 
 type Listener struct {
@@ -306,6 +361,7 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 		SslProfiles: map[string]SslProfile{},
 		Listeners:   map[string]Listener{},
 		Connectors:  map[string]Connector{},
+		LogConfig:   map[string]LogConfig{},
 		Bridges: BridgeConfig{
 			TcpListeners:   map[string]TcpEndpoint{},
 			TcpConnectors:  map[string]TcpEndpoint{},
@@ -367,6 +423,13 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
 			}
 			result.SslProfiles[sslProfile.Name] = sslProfile
+		case "log":
+			logConfig := LogConfig{}
+			err = convert(element[1], &logConfig)
+			if err != nil {
+				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+			}
+			result.LogConfig[logConfig.Module] = logConfig
 		case "tcpConnector":
 			connector := TcpEndpoint{}
 			err = convert(element[1], &connector)
@@ -460,6 +523,13 @@ func MarshalRouterConfig(config RouterConfig) (string, error) {
 	for _, e := range config.Bridges.HttpListeners {
 		tuple := []interface{}{
 			"httpListener",
+			e,
+		}
+		elements = append(elements, tuple)
+	}
+	for _, e := range config.LogConfig {
+		tuple := []interface{}{
+			"log",
 			e,
 		}
 		elements = append(elements, tuple)

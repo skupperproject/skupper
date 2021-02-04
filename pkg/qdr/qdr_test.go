@@ -340,6 +340,75 @@ func TestUnmarshalErrorInvalidHttpListenerValue(t *testing.T) {
 	}
 }
 
+func TestUnmarshalErrorInvalidLogValue(t *testing.T) {
+	_, err := UnmarshalRouterConfig(`[["log", ["wrong"]]]`)
+	if err == nil {
+		t.Errorf("Expected error for invalid log value")
+	}
+}
+
+func checkLevel(t *testing.T, config *RouterConfig, mod string, level string) {
+	entry, ok := config.LogConfig[mod]
+	if ok && entry.Module != mod {
+		t.Errorf("Inconsistent log config for %s. Expected %q got %q", mod, mod, entry.Module)
+	}
+	if entry.Enable != level {
+		t.Errorf("Incorrect log level for %s. Expected %q got %q", mod, level, entry.Enable)
+	}
+}
+
+func TestMarshalUnmarshalRouterConfigWithLogging(t *testing.T) {
+	input := RouterConfig{}
+	desired := map[string]string{
+		"":         "debug",
+		"ROUTER":   "info",
+		"PROTOCOL": "trace+",
+		"POLICY":   "notice",
+	}
+	changed := input.SetLogLevels(desired)
+	if !changed {
+		t.Errorf("Expected change to be indicated")
+	}
+	data, err := MarshalRouterConfig(input)
+	if err != nil {
+		t.Errorf("Failed to marshal: %v", err)
+	}
+	output, err := UnmarshalRouterConfig(data)
+	if err != nil {
+		t.Errorf("Failed to unmarshal: %v", err)
+	}
+	if !reflect.DeepEqual(input.Metadata, output.Metadata) {
+		t.Errorf("Incorrect metadata. Expected %#v got %#v", input.Metadata, output.Metadata)
+	}
+	checkLevel(t, &input, "ROUTER", "info+")
+	checkLevel(t, &input, "PROTOCOL", "trace+")
+	checkLevel(t, &input, "POLICY", "notice+")
+	checkLevel(t, &input, "DEFAULT", "debug+")
+
+	if !reflect.DeepEqual(input.LogConfig, output.LogConfig) {
+		t.Errorf("Incorrect log config. Expected %#v got %#v", input.LogConfig, output.LogConfig)
+	}
+	changed = input.SetLogLevels(desired)
+	if changed {
+		t.Errorf("Expected no change to be indicated")
+	}
+	changed = output.SetLogLevels(desired)
+	if changed {
+		t.Errorf("Expected no change to be indicated")
+	}
+	delete(desired, "POLICY")
+	desired["TCP_ADAPTOR"] = "notice"
+	changed = input.SetLogLevels(desired)
+	if !changed {
+		t.Errorf("Expected change to be indicated after altering config")
+	}
+	checkLevel(t, &input, "ROUTER", "info+")
+	checkLevel(t, &input, "PROTOCOL", "trace+")
+	checkLevel(t, &input, "POLICY", "")
+	checkLevel(t, &input, "TCP_ADAPTOR", "notice+")
+	checkLevel(t, &input, "DEFAULT", "debug+")
+}
+
 func TestFailedConvert(t *testing.T) {
 	a := []string{"random"}
 	b := SslProfile{}
