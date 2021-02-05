@@ -232,12 +232,28 @@ func (c *SiteController) checkSite(key string) error {
 		configmap := obj.(*corev1.ConfigMap)
 		_, err := c.vanClient.RouterInspectNamespace(context.Background(), configmap.ObjectMeta.Namespace)
 		if err == nil {
-			log.Println("Skupper site exists ", key)
-			updated, err := c.vanClient.RouterUpdateLogging(context.Background(), configmap, true)
+			log.Println("Skupper site exists", key)
+			updatedLogging, err := c.vanClient.RouterUpdateLogging(context.Background(), configmap, false)
 			if err != nil {
-				log.Println("Error checking router logging configuration: ", err)
-			} else if updated {
-				log.Println("Updated router logging for ", key)
+				log.Println("Error checking router logging configuration:", err)
+			}
+			updatedDebugMode, err := c.vanClient.RouterUpdateDebugMode(context.Background(), configmap)
+			if err != nil {
+				log.Println("Error updating router debug mode:", err)
+			}
+			if updatedLogging {
+				if updatedDebugMode {
+					log.Println("Updated router logging and debug mode for", key)
+				} else {
+					err = c.vanClient.RouterRestart(context.Background(), configmap.ObjectMeta.Namespace)
+					if err != nil {
+						log.Println("Error restarting router:", err)
+					} else {
+						log.Println("Updated router logging for", key)
+					}
+				}
+			} else if updatedDebugMode {
+				log.Println("Updated debug mode for", key)
 			}
 			c.checkAllForSite()
 		} else if errors.IsNotFound(err) {

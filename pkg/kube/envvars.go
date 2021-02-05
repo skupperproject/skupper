@@ -32,6 +32,24 @@ func UpdateEnvVar(original []corev1.EnvVar, name string, value string) []corev1.
 	return updated
 }
 
+func GetEnvVarForDeployment(dep *appsv1.Deployment, name string) string {
+	ev := FindEnvVar(dep.Spec.Template.Spec.Containers[0].Env, name)
+	if ev == nil {
+		return ""
+	}
+	return ev.Value
+}
+
+func DeleteEnvVarForDeployment(dep *appsv1.Deployment, name string) {
+	updated := []corev1.EnvVar{}
+	for _, v := range dep.Spec.Template.Spec.Containers[0].Env {
+		if v.Name != name {
+			updated = append(updated, v)
+		}
+	}
+	dep.Spec.Template.Spec.Containers[0].Env = updated
+}
+
 func SetEnvVarForDeployment(dep *appsv1.Deployment, name string, value string) {
 	dep.Spec.Template.Spec.Containers[0].Env = UpdateEnvVar(dep.Spec.Template.Spec.Containers[0].Env, name, value)
 }

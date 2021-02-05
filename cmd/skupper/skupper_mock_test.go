@@ -150,8 +150,8 @@ func (v *vanClientMock) SiteConfigCreate(ctx context.Context, spec types.SiteCon
 	return v.injectedReturns.siteConfigCreate.siteConfig, v.injectedReturns.siteConfigCreate.err
 }
 
-func (v *vanClientMock) SiteConfigUpdate(ctx context.Context, spec types.SiteConfigSpec) (bool, error) {
-	return false, nil
+func (v *vanClientMock) SiteConfigUpdate(ctx context.Context, spec types.SiteConfigSpec) ([]string, error) {
+	return nil, nil
 }
 
 func (v *vanClientMock) SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*types.SiteConfig, error) {
