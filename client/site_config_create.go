@@ -65,6 +65,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.RouterLogging != nil {
 		siteConfig.Data["router-logging"] = RouterLogConfigToString(spec.RouterLogging)
 	}
+	if spec.RouterDebugMode != "" {
+		siteConfig.Data["router-debug-mode"] = spec.RouterDebugMode
+	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {
 		siteConfig.ObjectMeta.Labels = map[string]string{

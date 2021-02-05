@@ -91,6 +91,9 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 	result.Reference.Name = siteConfig.ObjectMeta.Name
 	result.Reference.Kind = siteConfig.TypeMeta.Kind
 	result.Reference.APIVersion = siteConfig.TypeMeta.APIVersion
+	if routerDebugMode, ok := siteConfig.Data["router-debug-mode"]; ok && routerDebugMode != "" {
+		result.Spec.RouterDebugMode = routerDebugMode
+	}
 	if routerLogging, ok := siteConfig.Data["router-logging"]; ok && routerLogging != "" {
 		logConf, err := ParseRouterLogConfig(routerLogging)
 		if err != nil {

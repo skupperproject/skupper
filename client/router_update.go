@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
@@ -130,6 +131,42 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 		return true, nil
 	}
 	return false, nil
+}
+
+func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev1.ConfigMap) (bool, error) {
+	siteConfig, err := cli.SiteConfigInspect(ctx, settings)
+	if err != nil {
+		return false, err
+	}
+	router, err := cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	current := kube.GetEnvVarForDeployment(router, "QDROUTERD_DEBUG")
+	if current == siteConfig.Spec.RouterDebugMode {
+		return false, nil
+	}
+	if siteConfig.Spec.RouterDebugMode == "" {
+		kube.DeleteEnvVarForDeployment(router, "QDROUTERD_DEBUG")
+	} else {
+		kube.SetEnvVarForDeployment(router, "QDROUTERD_DEBUG", siteConfig.Spec.RouterDebugMode)
+	}
+	_, err = cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Update(router)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+
+}
+
+func (cli *VanClient) RouterRestart(ctx context.Context, namespace string) error {
+	router, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	touch(router)
+	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(router)
+	return err
 }
 
 func touch(deployment *appsv1.Deployment) {

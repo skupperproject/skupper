@@ -9,27 +9,55 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteConfigSpec) (bool, error) {
+func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteConfigSpec) ([]string, error) {
 	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-site", metav1.GetOptions{})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	//For now, only update logging (TODO: update of other options)
-	latest := RouterLogConfigToString(config.RouterLogging)
-	if configmap.Data["router-logging"] == latest {
-		return false, nil
+	//For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
+	latestLogging := RouterLogConfigToString(config.RouterLogging)
+	updateLogging := false
+	if configmap.Data["router-logging"] != latestLogging {
+		configmap.Data["router-logging"] = latestLogging
+		updateLogging = true
 	}
-	configmap.Data["router-logging"] = latest
-	configmap, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(configmap)
-	if err != nil {
-		return false, err
+	updateDebugMode := false
+	if configmap.Data["router-debug-mode"] != config.RouterDebugMode {
+		configmap.Data["router-debug-mode"] = config.RouterDebugMode
+		updateDebugMode = true
 	}
-	updated, err := cli.RouterUpdateLogging(ctx, configmap, true)
-	if errors.IsNotFound(err) {
-		return false, nil
+	if updateLogging || updateDebugMode {
+		configmap, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(configmap)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if err != nil {
-		return false, err
+	updates := []string{}
+	if updateLogging {
+		updated, err := cli.RouterUpdateLogging(ctx, configmap, !updateDebugMode)
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !updated {
+			return nil, nil
+		}
+		updates = append(updates, "router logging")
 	}
-	return updated, nil
+	if updateDebugMode {
+		updated, err := cli.RouterUpdateDebugMode(ctx, configmap)
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !updated {
+			return nil, nil
+		}
+		updates = append(updates, "router debug mode")
+	}
+	return updates, nil
 }
