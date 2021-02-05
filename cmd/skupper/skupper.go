@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -165,7 +166,28 @@ func NewClient(namespace string, context string, kubeConfigPath string) *client.
 
 var routerCreateOpts types.SiteConfigSpec
 
+// TODO unit-test me
+func inStringSlice(options []string, value string) bool {
+	l := options[:] //do a copy to avoid modifying the original list
+	sort.Sort(sort.StringSlice(l))
+
+	// from library doc:
+	// SearchStrings searches for x in a sorted slice of strings and returns the index
+	// as specified by Search. The return value is the index to insert x if x is not
+	// present (it could be len(a)).
+	// The slice must be sorted in ascending order.
+	//
+	position := sort.SearchStrings(l, value)
+	if position == len(l) || (l[position] != value) {
+		return false
+	}
+	return true
+}
+
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
+	routerModeInteriorValue := "interior"
+	routerModeEdgeValue := "edge"
+	var routerMode string
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
@@ -177,6 +199,21 @@ installation that can then be connected to other skupper installations`,
 			//TODO: should cli allow init to diff ns?
 			silenceCobra(cmd)
 			ns := cli.GetNamespace()
+
+			routerModeFlag := cmd.Flag("router-mode")
+			edgeFlag := cmd.Flag("edge")
+			if routerModeFlag.Changed && edgeFlag.Changed {
+				return fmt.Errorf("You can not use the deprecated --edge, and --router-mode together, use --router-mode")
+			}
+
+			if routerModeFlag.Changed {
+				options := []string{routerModeInteriorValue, routerModeEdgeValue}
+				if !inStringSlice(options, routerMode) {
+					return fmt.Errorf(`invalid "--router-mode=%v", it must be one of "%v"`, routerMode, strings.Join(options, ", "))
+				}
+				routerCreateOpts.IsEdge = routerMode == routerModeEdgeValue
+			}
+
 			routerCreateOpts.SkupperNamespace = ns
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 			if err != nil {
@@ -198,9 +235,8 @@ installation that can then be connected to other skupper installations`,
 			return nil
 		},
 	}
+	routerCreateOpts.EnableController = true
 	cmd.Flags().StringVarP(&routerCreateOpts.SkupperName, "site-name", "", "", "Provide a specific name for this skupper installation")
-	cmd.Flags().BoolVarP(&routerCreateOpts.IsEdge, "edge", "", false, "Configure as an edge")
-	cmd.Flags().BoolVarP(&routerCreateOpts.EnableController, "enable-proxy-controller", "", true, "Setup the proxy controller as well as the router")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Configure proxy controller to particiapte in service sync (not relevant if --enable-proxy-controller is false)")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console")
@@ -208,6 +244,12 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().BoolVarP(&routerCreateOpts.ClusterLocal, "cluster-local", "", false, "Set up skupper to only accept connections from within the local cluster.")
+
+	cmd.Flags().BoolVarP(&routerCreateOpts.IsEdge, "edge", "", false, "Configure as an edge")
+	f := cmd.Flag("edge")
+	f.Deprecated = "This flag is deprecated, use --router-mode [interior|edge]"
+	f.Hidden = true
+	cmd.Flags().StringVarP(&routerMode, "router-mode", "", routerModeInteriorValue, "Skupper router-mode")
 
 	return cmd
 }
@@ -461,8 +503,14 @@ func NewCmdUnexpose(newClient cobraFunc) *cobra.Command {
 }
 
 func NewCmdListExposed(newClient cobraFunc) *cobra.Command {
+	cmd := NewCmdServiceStatus(newClient)
+	cmd.Use = "list-exposed"
+	return cmd
+}
+
+func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "list-exposed",
+		Use:    "status",
 		Short:  "List services exposed over the Skupper network",
 		Args:   cobra.NoArgs,
 		PreRun: newClient,
@@ -723,6 +771,7 @@ func init() {
 	cmdListExposed := NewCmdListExposed(newClient)
 	cmdCreateService := NewCmdCreateService(newClient)
 	cmdDeleteService := NewCmdDeleteService(newClient)
+	cmdStatusService := NewCmdServiceStatus(newClient)
 	cmdBind := NewCmdBind(newClient)
 	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClient)
@@ -757,12 +806,16 @@ func init() {
 	cmdConnectionToken.Hidden = true
 	cmdConnectionToken.Deprecated = "please use 'skupper token create' instead."
 
+	cmdListExposed.Hidden = true
+	cmdListExposed.Deprecated = "please use 'skupper service status' instead."
+
 	// setup subcommands
 	cmdService := NewCmdService()
 	cmdService.AddCommand(cmdCreateService)
 	cmdService.AddCommand(cmdDeleteService)
 	cmdService.AddCommand(NewCmdBind(newClient))
 	cmdService.AddCommand(NewCmdUnbind(newClient))
+	cmdService.AddCommand(cmdStatusService)
 
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
@@ -778,7 +831,6 @@ func init() {
 	cmdCompletion := NewCmdCompletion()
 
 	rootCmd = &cobra.Command{Use: "skupper"}
-	rootCmd.Version = client.Version
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
 		cmdUpdate,
