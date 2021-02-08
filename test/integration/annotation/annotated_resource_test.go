@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	vanClient "github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/data"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -133,7 +134,7 @@ func TestAnnotatedResources(t *testing.T) {
 			log.Printf("modification has been applied")
 
 			// 4.2 Validate services from DATA endpoint (with retries)
-			var consoleData base.ConsoleData
+			var consoleData data.ConsoleData
 			backoff := constants.DefaultRetry
 			ctx, cancelFn = context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
 
