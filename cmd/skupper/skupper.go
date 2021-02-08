@@ -30,6 +30,8 @@ __kubectl_parse_get()
     local kubectl_out
     if kubectl_out=$(__kubectl_debug_out "kubectl get $(__kubectl_override_flags) -o template --template=\"${template}\" \"$1\""); then
         COMPREPLY+=( $( compgen -W "${kubectl_out[*]}" -- "$cur" ) )
+    else kubectl_out=$(__kubectl_debug_out "oc get $(__kubectl_override_flags) -o template --template=\"${template}\" \"$1\"")
+        COMPREPLY+=( $( compgen -W "${kubectl_out[*]}" -- "$cur" ) )
     fi
 }
 
