@@ -113,4 +113,5 @@ type VanClientInterface interface {
 	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error
 	GetNamespace() string
 	GetVersion(component string, name string) string
+	GetIngressRouteIfPossibleLoadBalancerIfNot() string
 }

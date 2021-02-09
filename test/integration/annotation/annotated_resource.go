@@ -168,7 +168,7 @@ func CreateVan(t *testing.T, testRunner base.ClusterTestRunner) {
 		EnableServiceSync: true,
 		User:              "admin",
 		Password:          "admin",
-		Ingress:           client.GetIngressRouteIfPossibleLoadBalancerIfNot(pub.VanClient),
+		Ingress:           pub.VanClient.GetIngressRouteIfPossibleLoadBalancerIfNot(),
 	}
 
 	// If using only 1 cluster, set ClusterLocal to True

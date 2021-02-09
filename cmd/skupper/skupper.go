@@ -221,12 +221,12 @@ installation that can then be connected to other skupper installations`,
 
 			if routerIngressFlag.Changed && routerClusterLocalFlag.Changed {
 				return fmt.Errorf(`You can not use the deprecated --cluster-local, and --ingress together, use "--ingress none" as equivalent of --cluster-local`)
-			}
-
-			if routerClusterLocalFlag.Changed {
+			} else if routerClusterLocalFlag.Changed {
 				if ClusterLocal { //this is redundant, because "if changed" it must be true, but it is also correct
 					routerCreateOpts.Ingress = types.IngressNoneString
 				}
+			} else if !routerIngressFlag.Changed {
+				routerCreateOpts.Ingress = cli.GetIngressRouteIfPossibleLoadBalancerIfNot()
 			}
 
 			routerCreateOpts.SkupperNamespace = ns

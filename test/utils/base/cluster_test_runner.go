@@ -185,7 +185,7 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 		AuthMode:          types.ConsoleAuthModeUnsecured,
 		User:              "nicob?",
 		Password:          "nopasswordd",
-		Ingress:           vanClient.GetIngressRouteIfPossibleLoadBalancerIfNot(pub1Cluster.VanClient),
+		Ingress:           pub1Cluster.VanClient.GetIngressRouteIfPossibleLoadBalancerIfNot(),
 		Replicas:          1,
 	}
 	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
