@@ -6,7 +6,6 @@ import (
 
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
-	vanClient "github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"gotest.tools/assert"
 )
