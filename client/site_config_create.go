@@ -21,7 +21,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		},
 		Data: map[string]string{
 			"name":                   cli.Namespace,
-			"edge":                   "false",
+			"router-mode":            string(types.TransportModeInterior),
 			"service-controller":     "true",
 			"service-sync":           "true",
 			"console":                "true",
@@ -36,8 +36,8 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.SkupperName != "" {
 		siteConfig.Data["name"] = spec.SkupperName
 	}
-	if spec.IsEdge {
-		siteConfig.Data["edge"] = "true"
+	if spec.RouterMode != "" {
+		siteConfig.Data["router-mode"] = spec.RouterMode
 	}
 	if !spec.EnableController {
 		siteConfig.Data["service-controller"] = "false"

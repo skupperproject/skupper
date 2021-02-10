@@ -63,7 +63,7 @@ func TestServiceInterfaceInspect(t *testing.T) {
 			err = cli.RouterCreate(ctx, types.SiteConfig{
 				Spec: types.SiteConfigSpec{
 					SkupperName:       testcase.namespace,
-					IsEdge:            false,
+					RouterMode:        string(types.TransportModeInterior),
 					EnableController:  true,
 					EnableServiceSync: true,
 					EnableConsole:     false,

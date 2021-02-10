@@ -178,7 +178,7 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 	// Configure public cluster.
 	routerCreateSpec := types.SiteConfigSpec{
 		SkupperName:       "",
-		IsEdge:            false,
+		RouterMode:        string(types.TransportModeInterior),
 		EnableController:  true,
 		EnableServiceSync: true,
 		EnableConsole:     false,

@@ -258,7 +258,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.Transport.Annotations = types.TransportPrometheusAnnotations
 
-	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, Version, options.IsEdge)
+	isEdge := options.RouterMode == string(types.TransportModeEdge)
+	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, Version, isEdge)
 	if options.RouterLogging != nil {
 		configureRouterLogging(&routerConfig, options.RouterLogging)
 	}
@@ -317,7 +318,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			})
 		}
 	}
-	if !options.IsEdge {
+	if !isEdge {
 		routerConfig.AddSslProfile(qdr.SslProfile{
 			Name: types.InterRouterProfile,
 		})
@@ -343,7 +344,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.RouterConfig, _ = qdr.MarshalRouterConfig(routerConfig)
 
 	envVars := []corev1.EnvVar{}
-	if !options.IsEdge {
+	if !isEdge {
 		envVars = append(envVars, corev1.EnvVar{Name: "APPLICATION_NAME", Value: types.TransportDeploymentName})
 		envVars = append(envVars, corev1.EnvVar{Name: "POD_NAMESPACE", ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
@@ -399,7 +400,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Name:          "http",
 		ContainerPort: types.TransportLivenessPort,
 	})
-	if !options.IsEdge {
+	if isEdge {
 		ports = append(ports, corev1.ContainerPort{
 			Name:          types.InterRouterRole,
 			ContainerPort: types.InterRouterListenerPort,
@@ -416,7 +417,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	mounts := make([][]corev1.VolumeMount, 1)
 	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-amqps", "/etc/qpid-dispatch-certs/skupper-amqps/")
 	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", types.TransportConfigMapName, "/etc/qpid-dispatch/config/")
-	if !options.IsEdge {
+	if !isEdge {
 		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-internal", "/etc/qpid-dispatch-certs/skupper-internal/")
 	}
 	if options.EnableRouterConsole {
@@ -489,7 +490,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	cas = append(cas, types.CertAuthority{
 		Name: "skupper-ca",
 	})
-	if !options.IsEdge {
+	if !isEdge {
 		cas = append(cas, types.CertAuthority{
 			Name: "skupper-internal-ca",
 		})
@@ -514,7 +515,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Post:        false,
 	})
 
-	if !options.IsEdge {
+	if !isEdge {
 		if options.IsIngressNone() {
 			credentials = append(credentials, types.Credential{
 				CA:          "skupper-internal-ca",
@@ -624,7 +625,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			})
 		}
 	}
-	if !options.IsEdge {
+	if !isEdge {
 		svcType := corev1.ServiceTypeClusterIP
 		if options.IsIngressLoadBalancer() {
 			svcType = corev1.ServiceTypeLoadBalancer
@@ -829,7 +830,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
 	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, siteOwnerRef, van.Namespace, cli.KubeClient)
 
-	if !options.Spec.IsEdge {
+	if options.Spec.RouterMode == string(types.TransportModeInterior) {
 		for _, cred := range van.Credentials {
 			if cred.Post {
 				if options.Spec.IsIngressRoute() {

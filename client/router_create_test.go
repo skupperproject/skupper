@@ -24,7 +24,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		namespace            string
 		expectedError        string
 		skupperName          string
-		isEdge               bool
+		routerMode           string
 		enableController     bool
 		enableRouterConsole  bool
 		enableConsole        bool
@@ -46,7 +46,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			expectedError:        "",
 			doc:                  "test one",
 			skupperName:          "skupper1",
-			isEdge:               false,
+			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
 			enableRouterConsole:  false,
 			enableConsole:        false,
@@ -77,7 +77,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			expectedError:        "",
 			doc:                  "test two",
 			skupperName:          "skupper2",
-			isEdge:               false,
+			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
 			enableRouterConsole:  true,
 			enableConsole:        true,
@@ -108,7 +108,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			expectedError:        "",
 			doc:                  "test three",
 			skupperName:          "skupper3",
-			isEdge:               false,
+			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
 			enableRouterConsole:  true,
 			enableConsole:        true,
@@ -140,7 +140,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			expectedError:        "",
 			doc:                  "test four",
 			skupperName:          "skupper4",
-			isEdge:               false,
+			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
 			enableRouterConsole:  true,
 			enableConsole:        true,
@@ -173,7 +173,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			expectedError:        "",
 			doc:                  "test five",
 			skupperName:          "skupper5",
-			isEdge:               true,
+			routerMode:           string(types.TransportModeEdge),
 			enableController:     true,
 			enableRouterConsole:  true,
 			enableConsole:        true,
@@ -296,7 +296,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		err = cli.RouterCreate(ctx, types.SiteConfig{
 			Spec: types.SiteConfigSpec{
 				SkupperName:         c.skupperName,
-				IsEdge:              c.isEdge,
+				RouterMode:          c.routerMode,
 				EnableController:    c.enableController,
 				EnableServiceSync:   true,
 				EnableRouterConsole: c.enableRouterConsole,

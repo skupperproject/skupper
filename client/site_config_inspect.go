@@ -33,10 +33,10 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 	} else {
 		result.Spec.SkupperName = cli.Namespace
 	}
-	if isEdge, ok := siteConfig.Data["edge"]; ok {
-		result.Spec.IsEdge, _ = strconv.ParseBool(isEdge)
+	if routerMode, ok := siteConfig.Data["router-mode"]; ok {
+		result.Spec.RouterMode = routerMode
 	} else {
-		result.Spec.IsEdge = false
+		result.Spec.RouterMode = string(types.TransportModeInterior)
 	}
 	if enableController, ok := siteConfig.Data["service-controller"]; ok {
 		result.Spec.EnableController, _ = strconv.ParseBool(enableController)

@@ -37,7 +37,7 @@ type RouterLogConfig struct {
 type SiteConfigSpec struct {
 	SkupperName         string
 	SkupperNamespace    string
-	IsEdge              bool
+	RouterMode          string
 	EnableController    bool
 	EnableServiceSync   bool
 	EnableRouterConsole bool
