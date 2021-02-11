@@ -129,7 +129,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				Ingress:           pubCluster.VanClient.GetIngressRouteIfPossibleLoadBalancerIfNot(),
+				Ingress:           pubCluster.VanClient.GetIngressDefault(),
 				Replicas:          1,
 			},
 			createOptsPrivate: types.SiteConfigSpec{
@@ -141,7 +141,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				Ingress:           pubCluster.VanClient.GetIngressRouteIfPossibleLoadBalancerIfNot(),
+				Ingress:           pubCluster.VanClient.GetIngressDefault(),
 				Replicas:          1,
 			},
 		},

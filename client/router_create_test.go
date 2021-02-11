@@ -284,7 +284,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			if c.clusterLocal || !isCluster {
 				return types.IngressNoneString
 			}
-			return cli.GetIngressRouteIfPossibleLoadBalancerIfNot()
+			return cli.GetIngressDefault()
 		}
 
 		err = cli.RouterCreate(ctx, types.SiteConfig{

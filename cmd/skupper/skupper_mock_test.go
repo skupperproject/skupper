@@ -83,7 +83,7 @@ func (v *vanClientMock) ResetCallHistory() {
 	v.serviceInterfaceUpdateCalledWith = nil
 }
 
-func (v *vanClientMock) GetIngressRouteIfPossibleLoadBalancerIfNot() string {
+func (v *vanClientMock) GetIngressDefault() string {
 	return types.IngressRouteString
 }
 

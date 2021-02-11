@@ -226,7 +226,7 @@ installation that can then be connected to other skupper installations`,
 					routerCreateOpts.Ingress = types.IngressNoneString
 				}
 			} else if !routerIngressFlag.Changed {
-				routerCreateOpts.Ingress = cli.GetIngressRouteIfPossibleLoadBalancerIfNot()
+				routerCreateOpts.Ingress = cli.GetIngressDefault()
 			}
 
 			routerCreateOpts.SkupperNamespace = ns

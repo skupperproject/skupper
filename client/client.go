@@ -83,7 +83,7 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*VanCli
 	return c, nil
 }
 
-func (cli *VanClient) GetIngressRouteIfPossibleLoadBalancerIfNot() string {
+func (cli *VanClient) GetIngressDefault() string {
 	if cli.RouteClient == nil {
 		return types.IngressLoadBalancerString
 	}

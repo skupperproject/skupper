@@ -808,7 +808,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
 		kube.CreateService(svc, van.Namespace, cli.KubeClient)
 	}
-	if cli.RouteClient != nil {
+	if options.Spec.IsIngressRoute() {
 		for _, rte := range van.Transport.Routes {
 			rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
 			kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
@@ -822,7 +822,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	if !options.Spec.IsEdge {
 		for _, cred := range van.Credentials {
 			if cred.Post {
-				if cli.RouteClient != nil {
+				if options.Spec.IsIngressRoute() {
 					rte, err := kube.GetRoute(types.InterRouterRouteName, van.Namespace, cli.RouteClient)
 					if err == nil {
 						cred.Hosts = append(cred.Hosts, rte.Spec.Host)
@@ -885,7 +885,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
 			kube.CreateService(svc, van.Namespace, cli.KubeClient)
 		}
-		if cli.RouteClient != nil {
+		if options.Spec.IsIngressRoute() {
 			for _, rte := range van.Controller.Routes {
 				rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
 				kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
