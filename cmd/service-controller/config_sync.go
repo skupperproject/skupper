@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
 	"math"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
@@ -49,9 +49,14 @@ func (c *ConfigSync) runConfigSync() {
 	}
 }
 
+const (
+	ConfigSyncEvent string = "ConfigSyncEvent"
+	ConfigSyncError string = "ConfigSyncError"
+)
+
 func (c *ConfigSync) processNextEvent() bool {
 	obj, shutdown := c.events.Get()
-	log.Printf("[config_sync] Got sync event")
+	event.Record(ConfigSyncEvent, "sync triggered")
 
 	if shutdown {
 		return false
@@ -64,7 +69,7 @@ func (c *ConfigSync) processNextEvent() bool {
 		var key string
 		if key, ok = obj.(string); !ok {
 			// invalid item
-			log.Printf("[config_sync] Invalid sync event")
+			event.Recordf(ConfigSyncError, "expected string in events but got %#v", obj)
 			c.events.Forget(obj)
 			return fmt.Errorf("expected string in events but got %#v", obj)
 		} else {
@@ -83,22 +88,22 @@ func (c *ConfigSync) processNextEvent() bool {
 				}
 				err = c.syncConfig(bridges)
 				if err != nil {
-					log.Printf("[config_sync] Sync failed")
+					event.Recordf(ConfigSyncError, "sync failed: %s", err)
 					return err
 				}
 			}
 		}
-		log.Printf("[config_sync] Sync suceeded")
+		event.Record(ConfigSyncEvent, "sync suceeded")
 		c.events.Forget(obj)
 		return nil
 	}(obj)
 
 	if err != nil {
 		if c.events.NumRequeues(obj) < 5 {
-			log.Printf("[config sync] Requeuing %v after error: %v", obj, err)
+			event.Recordf(ConfigSyncError, "Requeuing %v after error: %v", obj, err)
 			c.events.AddRateLimited(obj)
 		} else {
-			log.Printf("[config sync] Delayed requeue %v after error: %v", obj, err)
+			event.Recordf(ConfigSyncError, "Delayed requeue %v after error: %v", obj, err)
 			c.events.AddAfter(obj, time.Duration(math.Min(float64(c.events.NumRequeues(obj)/5), 10))*time.Minute)
 		}
 		utilruntime.HandleError(err)
@@ -140,6 +145,5 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 	if !synced {
 		return fmt.Errorf("Failed to sync bridge config")
 	}
-	log.Println("Bridge config synced")
 	return nil
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/event"
 )
 
 type IpLookup struct {
@@ -54,7 +54,6 @@ func (i *IpLookup) getPodName(ip string) string {
 //support data.NameMapping interface
 func (i *IpLookup) Lookup(ip string) string {
 	name := i.getPodName(ip)
-	log.Printf("LOOKUP: %s -> %s", ip, name)
 	if name == "" {
 		return ip
 	} else {
@@ -76,8 +75,12 @@ func (i *IpLookup) translateKeys(ips map[string]interface{}) map[string]interfac
 	return out
 }
 
+const (
+	IpMappingEvent string = "IpMappingEvent"
+)
+
 func (i *IpLookup) updateLookup(name string, key string, ip string) {
-	log.Printf("%s mapped to %s", ip, name)
+	event.Recordf(IpMappingEvent, "%s mapped to %s", ip, name)
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	i.lookup[ip] = name
@@ -145,7 +148,7 @@ func (i *IpLookup) processNextEvent() bool {
 			} else {
 				ip := i.deleteLookup(key)
 				if ip != "" {
-					log.Printf("mapping for %s deleted", ip)
+					event.Recordf(IpMappingEvent, "mapping for %s deleted", ip)
 				}
 			}
 		}

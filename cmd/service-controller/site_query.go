@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
@@ -13,8 +12,14 @@ import (
 
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/data"
+	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
+)
+
+const (
+	SiteQueryError string   = "SiteQueryError"
+	SiteQueryRequest string = "SiteQueryRequest"
 )
 
 type SiteQueryServer struct {
@@ -36,6 +41,9 @@ func newSiteQueryServer(cli *client.VanClient, config *tls.Config) *SiteQuerySer
 	return &sqs
 }
 
+func siteQueryError(err error) {
+}
+
 func (s *SiteQueryServer) getLocalSiteInfo(vanClient *client.VanClient) {
 	s.siteInfo.SiteId = os.Getenv("SKUPPER_SITE_ID")
 	s.siteInfo.SiteName = os.Getenv("SKUPPER_SITE_NAME")
@@ -43,7 +51,7 @@ func (s *SiteQueryServer) getLocalSiteInfo(vanClient *client.VanClient) {
 	s.siteInfo.Version = client.Version
 	url, err := getSiteUrl(vanClient)
 	if err != nil {
-		log.Printf("Failed to get site url: %s", err)
+		event.Recordf(SiteQueryError, "Failed to get site url: %s", err)
 	} else {
 		s.siteInfo.Url = url
 	}
@@ -100,7 +108,7 @@ func getSiteQueryAddress(siteId string) string {
 func (s *SiteQueryServer) Request(request *qdr.Request) (*qdr.Response, error) {
 	//if request has explicit version, send SiteQueryData, else send LegacySiteData
 	if request.Version == "" {
-		log.Printf("Sending legacy data for request")
+		event.Record(SiteQueryRequest, "legacy site data request")
 		data := s.siteInfo.AsLegacySiteInfo()
 		bytes, err := json.Marshal(data)
 		if err != nil {
@@ -111,6 +119,7 @@ func (s *SiteQueryServer) Request(request *qdr.Request) (*qdr.Response, error) {
 			Body:    string(bytes),
 		}, nil
 	} else {
+		event.Record(SiteQueryRequest, "site data request")
 		data, err := s.getLocalSiteQueryData()
 		if err != nil {
 			return nil, fmt.Errorf("Could not get response: %s", err)
@@ -131,7 +140,7 @@ func (s *SiteQueryServer) run() {
 		ctxt := context.Background()
 		err := s.server.Run(ctxt)
 		if err != nil {
-			log.Printf("[site-query] Error handling requests: %s", err)
+			event.Recordf(SiteQueryError, "Error handling requests: %s", err)
 		}
 	}
 }
@@ -150,13 +159,13 @@ func querySites(agent qdr.RequestResponse, sites []data.SiteQueryData) {
 		}
 		response, err := agent.Request(&request)
 		if err != nil {
-			log.Printf("[site-query] Request to %s failed: %s", s.SiteId, err)
+			event.Recordf(SiteQueryError, "Request to %s failed: %s", s.SiteId, err)
 		} else if response.Version == "" {
 			//assume legacy version of site-query protocol
 			info := data.LegacySiteInfo{}
 			err := json.Unmarshal([]byte(response.Body), &info)
 			if err != nil {
-				log.Printf("[site-query] Error parsing legacy json %q from %s: %s", response.Body, s.SiteId, err)
+				event.Recordf(SiteQueryError, "Error parsing legacy json %q from %s: %s", response.Body, s.SiteId, err)
 			} else {
 				sites[i].SiteName = info.SiteName
 				sites[i].Namespace = info.Namespace
@@ -167,7 +176,7 @@ func querySites(agent qdr.RequestResponse, sites []data.SiteQueryData) {
 			site := data.SiteQueryData{}
 			err := json.Unmarshal([]byte(response.Body), &site)
 			if err != nil {
-				log.Printf("Error parsing json for site query %q from %s: %s", response.Body, s.SiteId, err)
+				event.Recordf(SiteQueryError, "Error parsing json for site query %q from %s: %s", response.Body, s.SiteId, err)
 			} else {
 				sites[i].SiteName = site.SiteName
 				sites[i].Namespace = site.Namespace

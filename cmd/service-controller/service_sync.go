@@ -4,7 +4,6 @@ import (
 	"context"
 	jsonencoding "encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"time"
 
@@ -13,7 +12,15 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
+)
+
+const (
+	ServiceSyncServiceEvent string = "ServiceSyncServiceEvent"
+	ServiceSyncSiteEvent    string = "ServiceSyncSiteEvent"
+	ServiceSyncConnection   string = "ServiceSyncConnection"
+	ServiceSyncError        string = "ServiceSyncError"
 )
 
 func (c *Controller) pareByOrigin(service string) {
@@ -71,13 +78,13 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 
 	// TODO: detect and describe changes
 	if len(added) > 0 {
-		log.Println("Service interface(s) added", added)
+		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) added %s", added)
 	}
 	if len(removed) > 0 {
-		log.Println("Service interface(s) removed", removed)
+		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) removed %s", removed)
 	}
 	if len(modified) > 0 {
-		log.Println("Service interface(s) modified", modified)
+		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) modified %s", modified)
 	}
 
 	c.localServices = latest
@@ -139,7 +146,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 	ctx := context.Background()
 	sender, err := c.amqpSession.NewSender(amqp.LinkTargetAddress(types.ServiceSyncAddress))
 	if err != nil {
-		log.Fatal("Failed to create sender: ", err.Error())
+		event.Recordf(ServiceSyncError, "Failed to create sender: %s", err.Error())
 	}
 
 	defer func() {
@@ -166,7 +173,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 
 			encoded, err := jsonencoding.Marshal(local)
 			if err != nil {
-				log.Println("Failed to create json for service definition sync: ", err.Error())
+				event.Recordf(ServiceSyncError, "Failed to create json for service definition sync: %s", err.Error())
 				return
 			}
 			request.Value = string(encoded)
@@ -195,7 +202,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 			}
 
 			for _, originName := range agedOrigins {
-				log.Println("Service sync aged out service definitions from origin ", originName)
+				event.Recordf(ServiceSyncSiteEvent, "Service sync aged out service definitions from origin ", originName)
 				delete(c.heardFrom, originName)
 				delete(c.byOrigin, originName)
 			}
@@ -206,14 +213,15 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 func (c *Controller) runServiceSync() {
 	ctx := context.Background()
 
-	log.Println("Establishing connection to skupper-messaging service for service sync")
+	event.Record(ServiceSyncConnection, "Establishing connection to skupper-messaging service for service sync")
 
 	client, err := amqp.Dial("amqps://skupper-messaging:5671", amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(c.tlsConfig))
 	if err != nil {
+		event.Recordf(ServiceSyncConnection, "Failed to create amqp connection %s", err.Error())
 		utilruntime.HandleError(fmt.Errorf("Failed to create amqp connection %s", err.Error()))
 		return
 	}
-	log.Println("Service sync connection to skupper-messaging service established")
+	event.Record(ServiceSyncConnection, "Service sync connection to skupper-messaging service established")
 	c.amqpClient = client
 	defer c.amqpClient.Close()
 
@@ -253,10 +261,7 @@ func (c *Controller) runServiceSync() {
 		msg.Accept()
 		subject := msg.Properties.Subject
 
-		if subject == "service-sync-request" {
-			//sendLocal <- true
-			log.Println("Controller received service sync request")
-		} else if subject == "service-sync-update" {
+		if subject == "service-sync-update" {
 			if origin, ok = msg.ApplicationProperties["origin"].(string); ok {
 				if origin != c.origin {
 					if updates, ok := msg.Value.(string); ok {
@@ -270,17 +275,17 @@ func (c *Controller) runServiceSync() {
 							}
 							c.ensureServiceInterfaceDefinitions(origin, indexed)
 						} else {
-							log.Printf("Skupper service sync update from %s was not valid json: %s", origin, err)
+							event.Recordf(ServiceSyncError, "Skupper service sync update from %s was not valid json: %s", origin, err)
 						}
 					} else {
-						log.Printf("Skupper service sync update from %s was not a string", origin)
+						event.Recordf(ServiceSyncError, "Skupper service sync update from %s was not a string", origin)
 					}
 				}
 			} else {
-				log.Println("Skupper service sync update type assertion error")
+				event.Record(ServiceSyncError, "Skupper service sync update type assertion error")
 			}
 		} else {
-			log.Println("Service sync subject not valid")
+			event.Record(ServiceSyncError, "Service sync subject not valid")
 		}
 	}
 }
