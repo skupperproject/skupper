@@ -14,7 +14,14 @@ import (
 
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/data"
+	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/qdr"
+)
+
+const (
+	HttpInternalServerError string = "HttpServerError"
+	HttpAuthFailure         string = "HttpAuthenticationFailure"
+	SiteVersionConflict     string = "SiteVersionConflict"
 )
 
 type ConsoleServer struct {
@@ -32,9 +39,9 @@ func authenticate(dir string, user string, password string) bool {
 	file, err := os.Open(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			log.Printf("Failed to authenticate %s, no such user exists", user)
+			event.Recordf(HttpAuthFailure, "Failed to authenticate %s, no such user exists", user)
 		} else {
-			log.Printf("Failed to authenticate %s: %s", user, err)
+			event.Recordf(HttpAuthFailure, "Failed to authenticate %s: %s", user, err)
 		}
 		return false
 	}
@@ -42,7 +49,7 @@ func authenticate(dir string, user string, password string) bool {
 
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Printf("Failed to authenticate %s: %s", user, err)
+		event.Recordf(HttpAuthFailure, "Failed to authenticate %s: %s", user, err)
 		return false
 	}
 	return string(bytes) == password
@@ -72,6 +79,11 @@ type VersionInfo struct {
 	SiteVersion              string `json:"site_version"`
 }
 
+func (server *ConsoleServer) httpInternalError(w http.ResponseWriter, err error) {
+	event.Record(HttpInternalServerError, err.Error())
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
 func (server *ConsoleServer) version() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		v := VersionInfo{
@@ -79,47 +91,56 @@ func (server *ConsoleServer) version() http.Handler {
 		}
 		agent, err := server.agentPool.Get()
 		if err != nil {
-			log.Printf("Could not get management agent : %s", err)
-		} else {
-			router, err := agent.GetLocalRouter()
-			server.agentPool.Put(agent)
-			if err != nil {
-				log.Printf("Error retrieving local router version: %s", err)
-			} else {
-				v.RouterVersion = router.Version
-				v.SiteVersion = router.Site.Version
-			}
+			server.httpInternalError(w, fmt.Errorf("Could not get management agent : %s", err))
+			return
 		}
+		router, err := agent.GetLocalRouter()
+		server.agentPool.Put(agent)
+		if err != nil {
+			server.httpInternalError(w, fmt.Errorf("Error retrieving local router version: %s", err))
+			return
+		}
+		v.RouterVersion = router.Version
+		v.SiteVersion = router.Site.Version
 		bytes, err := json.MarshalIndent(v, "", "    ")
 		if err != nil {
-			log.Printf("Error writing version: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			fmt.Fprintf(w, string(bytes)+"\n")
+			server.httpInternalError(w, fmt.Errorf("Error writing version: %s", err))
+			return
 		}
+		fmt.Fprintf(w, string(bytes)+"\n")
+	})
+}
+
+func (server *ConsoleServer) serveEvents() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		e := event.Query()
+		bytes, err := json.MarshalIndent(e, "", "    ")
+		if err != nil {
+			server.httpInternalError(w, fmt.Errorf("Error writing events: %s", err))
+			return
+		}
+		fmt.Fprintf(w, string(bytes)+"\n")
 	})
 }
 
 func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	agent, err := server.agentPool.Get()
 	if err != nil {
-		log.Printf("Could not get management agent : %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		server.httpInternalError(w, fmt.Errorf("Could not get management agent : %s", err))
+		return
 	}
 	data, err := getConsoleData(agent)
 	server.agentPool.Put(agent)
 	if err != nil {
-		log.Printf("Error retrieving console data: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	} else {
-		bytes, err := json.MarshalIndent(data, "", "    ")
-		if err != nil {
-			log.Printf("Error writing json: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			fmt.Fprintf(w, string(bytes)+"\n")
-		}
+		server.httpInternalError(w, fmt.Errorf("Error retrieving console data: %s", err))
+		return
 	}
+	bytes, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+		return
+	}
+	fmt.Fprintf(w, string(bytes)+"\n")
 }
 
 func (server *ConsoleServer) start(stopCh <-chan struct{}) error {
@@ -138,12 +159,21 @@ func (server *ConsoleServer) listen() {
 	log.Printf("Console server listening on %s", addr)
 	http.Handle("/DATA", authenticated(server))
 	http.Handle("/Version", authenticated(server.version()))
+	http.Handle("/Events", authenticated(server.serveEvents()))
 	http.Handle("/", authenticated(http.FileServer(http.Dir("/app/console/"))))
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
+func (server *ConsoleServer) listenLocal() {
+	addr := "localhost:8181"
+	mux := http.NewServeMux()
+	mux.Handle("/DATA", server)
+	mux.Handle("/Version", server.version())
+	http.Handle("/Events", server.serveEvents())
+	log.Fatal(http.ListenAndServe(addr, mux))
+}
+
 func set(m map[string]map[string]bool, k1 string, k2 string) {
-	log.Printf("CONNECTED %s %s", k1, k2)
 	m2, ok := m[k1]
 	if !ok {
 		m2 = map[string]bool{}
@@ -169,7 +199,7 @@ func getAllSites(routers []qdr.Router) []data.SiteQueryData {
 				},
 			}
 		} else if r.Site.Version != site.Version {
-			log.Printf("Conflicting site version for %s: %s != %s", site.SiteId, site.Version, r.Site.Version)
+			event.Recordf(SiteVersionConflict, "Conflicting site version for %s: %s != %s", site.SiteId, site.Version, r.Site.Version)
 		}
 	}
 	for _, r := range routers {

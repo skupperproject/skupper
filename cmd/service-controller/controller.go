@@ -28,6 +28,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -61,6 +62,14 @@ type Controller struct {
 	siteQueryServer   *SiteQueryServer
 	configSync        *ConfigSync
 }
+
+const (
+	ServiceControllerEvent       string = "ServiceControllerEvent"
+	ServiceControllerError       string = "ServiceControllerError"
+	ServiceControllerCreateEvent string = "ServiceControllerCreateEvent"
+	ServiceControllerUpdateEvent string = "ServiceControllerUpdateEvent"
+	ServiceControllerDeleteEvent string = "ServiceControllerDeleteEvent"
+)
 
 func hasProxyAnnotation(service corev1.Service) bool {
 	if _, ok := service.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
@@ -278,6 +287,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 		go wait.Until(c.runServiceSync, time.Second, stopCh)
 	}
 	go wait.Until(c.runServiceCtrl, time.Second, stopCh)
+	event.StartDefaultEventStore(stopCh)
 	c.definitionMonitor.start(stopCh)
 	c.siteQueryServer.start(stopCh)
 	c.consoleServer.start(stopCh)
@@ -293,19 +303,19 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) createServiceFor(desired *ServiceBindings) error {
-	log.Println("Creating new service for ", desired.address)
+	event.Recordf(ServiceControllerCreateEvent, "Creating new service for %s", desired.address)
 	_, err := kube.NewServiceForAddress(desired.address, desired.publicPort, desired.ingressPort, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
 	if err != nil {
-		log.Printf("Error while creating service %s: %s", desired.address, err)
+		event.Recordf(ServiceControllerError, "Error while creating service %s: %s", desired.address, err)
 	}
 	return err
 }
 
 func (c *Controller) createHeadlessServiceFor(desired *ServiceBindings) error {
-	log.Println("Creating new headless service for ", desired.address)
+	event.Recordf(ServiceControllerCreateEvent, "Creating new headless service for %s", desired.address)
 	_, err := kube.NewHeadlessServiceForAddress(desired.address, desired.publicPort, desired.ingressPort, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
 	if err != nil {
-		log.Printf("Error while creating headless service %s: %s", desired.address, err)
+		event.Recordf(ServiceControllerError, "Error while creating headless service %s: %s", desired.address, err)
 	}
 	return err
 }
@@ -328,7 +338,7 @@ func equivalentSelectors(a map[string]string, b map[string]string) bool {
 }
 
 func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Service) error {
-	log.Printf("Checking service changes for %s", actual.ObjectMeta.Name)
+	event.Recordf(ServiceControllerEvent, "Checking service changes for %s", actual.ObjectMeta.Name)
 	update := false
 	if len(actual.Spec.Ports) > 0 {
 		if actual.Spec.Ports[0].Port != int32(desired.publicPort) {
@@ -366,7 +376,7 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 }
 
 func (c *Controller) ensureServiceFor(desired *ServiceBindings) error {
-	log.Println("Checking service for: ", desired.address)
+	event.Recordf(ServiceControllerEvent, "Checking service for: %s", desired.address)
 	obj, exists, err := c.svcInformer.GetStore().GetByKey(c.namespaced(desired.address))
 	if err != nil {
 		return fmt.Errorf("Error checking service %s", err)
@@ -375,7 +385,7 @@ func (c *Controller) ensureServiceFor(desired *ServiceBindings) error {
 			return c.createServiceFor(desired)
 		} else if desired.origin == "" {
 			// i.e. originating namespace
-			log.Printf("Headless service does not exist for for %s", desired.address)
+			event.Recordf(ServiceControllerError, "Headless service does not exist for for %s", desired.address)
 			return nil
 		} else {
 			return c.createHeadlessServiceFor(desired)
@@ -387,7 +397,7 @@ func (c *Controller) ensureServiceFor(desired *ServiceBindings) error {
 }
 
 func (c *Controller) deleteService(svc *corev1.Service) error {
-	log.Println("Deleting service ", svc.ObjectMeta.Name)
+	event.Recordf(ServiceControllerDeleteEvent, "Deleting service %s", svc.ObjectMeta.Name)
 	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(svc.ObjectMeta.Name, &metav1.DeleteOptions{})
 }
 
@@ -399,7 +409,7 @@ func (c *Controller) updateActualServices() {
 	for _, v := range services {
 		svc := v.(*corev1.Service)
 		if c.bindings[svc.ObjectMeta.Name] == nil && isOwned(svc) {
-			log.Println("No service binding found for ", svc.ObjectMeta.Name)
+			event.Recordf(ServiceControllerDeleteEvent, "No service binding found for %s", svc.ObjectMeta.Name)
 			c.deleteService(svc)
 		}
 	}
@@ -511,7 +521,7 @@ func (c *Controller) updateBridgeConfig(name string) error {
 			return fmt.Errorf("Error updating %s: %s", cm.ObjectMeta.Name, err)
 		}
 		if update {
-			log.Printf("Updating %s", cm.ObjectMeta.Name)
+			event.Recordf(ServiceControllerUpdateEvent, "Updating %s", cm.ObjectMeta.Name)
 			_, err = c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Update(cm)
 			if err != nil {
 				return fmt.Errorf("Failed to update %s: %v", name, err.Error())
@@ -616,7 +626,7 @@ func (c *Controller) processNextEvent() bool {
 			category, name := splitKey(key)
 			switch category {
 			case "servicedefs":
-				log.Printf("Service definitions have changed")
+				event.Record(ServiceControllerEvent, "Service definitions have changed")
 				//get the configmap, parse the json, check against the current servicebindings map
 				obj, exists, err := c.svcDefInformer.GetStore().GetByKey(name)
 				if err != nil {
@@ -641,7 +651,7 @@ func (c *Controller) processNextEvent() bool {
 							if err == nil {
 								c.updateServiceBindings(si, portAllocations)
 							} else {
-								log.Printf("Could not parse service definition for %s: %s", k, err)
+								event.Recordf(ServiceControllerError, "Could not parse service definition for %s: %s", k, err)
 							}
 						}
 						for k, v := range c.bindings {
@@ -673,7 +683,7 @@ func (c *Controller) processNextEvent() bool {
 					//not yet initialised
 					return nil
 				}
-				log.Printf("service event for %s", name)
+				event.Recordf(ServiceControllerEvent, "service event for %s", name)
 				//name is fully qualified name of the actual service
 				obj, exists, err := c.svcInformer.GetStore().GetByKey(name)
 				if err != nil {
@@ -716,11 +726,11 @@ func (c *Controller) processNextEvent() bool {
 					}
 				}
 			case "targetpods":
-				log.Printf("Got targetpods event %s", name)
+				event.Recordf(ServiceControllerEvent, "Got targetpods event %s", name)
 				//name is the address of the skupper service
 				c.updateBridgeConfig(c.namespaced("skupper-internal"))
 			case "statefulset":
-				log.Printf("Got statefulset proxy event %s", name)
+				event.Recordf(ServiceControllerEvent, "Got statefulset proxy event %s", name)
 				obj, exists, err := c.headlessInformer.GetStore().GetByKey(name)
 				if err != nil {
 					return fmt.Errorf("Error reading statefulset %s from cache: %s", name, err)
@@ -769,10 +779,10 @@ func (c *Controller) processNextEvent() bool {
 
 	if err != nil {
 		if c.events.NumRequeues(obj) < 5 {
-			log.Printf("[controller] Requeuing %v after error: %v", obj, err)
+			event.Recordf(ServiceControllerError, "Requeuing %v after error: %v", obj, err)
 			c.events.AddRateLimited(obj)
 		} else {
-			log.Printf("[controller] Giving up on %v after error: %v", obj, err)
+			event.Recordf(ServiceControllerError, "Giving up on %v after error: %v", obj, err)
 		}
 		utilruntime.HandleError(err)
 		return true

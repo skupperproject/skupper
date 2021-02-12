@@ -3,7 +3,6 @@ package main
 import (
 	jsonencoding "encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
@@ -41,6 +41,14 @@ type DefinitionMonitor struct {
 	annotatedDaemonSets   map[string]string
 	annotatedServices     map[string]string
 }
+
+const (
+	DefinitionMonitorIgnored       string = "DefinitionMonitorIgnored"
+	DefinitionMonitorEvent         string = "DefinitionMonitorEvent"
+	DefinitionMonitorError         string = "DefinitionMonitorEvent"
+	DefinitionMonitorDeletionEvent string = "DefinitionMonitorDeletionEvent"
+	DefinitionMonitorUpdateEvent   string = "DefinitionMonitorUpdateEvent"
+)
 
 func newDefinitionMonitor(origin string, client *client.VanClient, svcDefInformer cache.SharedIndexInformer, svcInformer cache.SharedIndexInformer) *DefinitionMonitor {
 	monitor := &DefinitionMonitor{
@@ -193,7 +201,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 		} else if protocol == "http" {
 			svc.Port = 80
 		} else {
-			log.Printf("Ignoring annotated deployment %s; cannot deduce port", deployment.ObjectMeta.Name)
+			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated deployment %s; cannot deduce port", deployment.ObjectMeta.Name)
 			return svc, false
 		}
 		svc.Protocol = protocol
@@ -228,7 +236,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 		} else if protocol == "http" {
 			svc.Port = 80
 		} else {
-			log.Printf("Ignoring annotated statefulset %s; cannot deduce port", statefulset.ObjectMeta.Name)
+			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated statefulset %s; cannot deduce port", statefulset.ObjectMeta.Name)
 			return svc, false
 		}
 		svc.Protocol = protocol
@@ -263,7 +271,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset
 		} else if protocol == "http" {
 			svc.Port = 80
 		} else {
-			log.Printf("Ignoring annotated daemonset %s; cannot deduce port", daemonset.ObjectMeta.Name)
+			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated daemonset %s; cannot deduce port", daemonset.ObjectMeta.Name)
 			return svc, false
 		}
 		svc.Protocol = protocol
@@ -305,7 +313,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 		if target, ok := service.ObjectMeta.Annotations[types.TargetServiceQualifier]; ok {
 			port, err := kube.GetPortForServiceTarget(target, m.vanClient.Namespace, m.vanClient.KubeClient)
 			if err != nil {
-				log.Printf("Could not deduce port for target service %s on annotated service %s: %s", target, service.ObjectMeta.Name, err)
+				event.Recordf(DefinitionMonitorError, "Could not deduce port for target service %s on annotated service %s: %s", target, service.ObjectMeta.Name, err)
 			}
 			if svc.Port == 0 {
 				if port != 0 {
@@ -313,7 +321,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 				} else if protocol == "http" {
 					svc.Port = 80
 				} else {
-					log.Printf("Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
+					event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
 					return svc, false
 				}
 			}
@@ -332,7 +340,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 				if protocol == "http" {
 					svc.Port = 80
 				} else {
-					log.Printf("Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
+					event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
 					return svc, false
 				}
 			}
@@ -364,7 +372,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 				target,
 			}
 		} else {
-			log.Printf("Ignoring annotated service %s; no selector defined", service.ObjectMeta.Name)
+			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated service %s; no selector defined", service.ObjectMeta.Name)
 			return svc, false
 		}
 		svc.Origin = "annotation"
@@ -406,7 +414,7 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedService(name stri
 func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name string, objectType string, index map[string]string) error {
 	address, ok := index[name]
 	if ok {
-		log.Printf("[DefMon] Deleting service definition for annotated %s %s", objectType, name)
+		event.Recordf(DefinitionMonitorDeletionEvent, "Deleting service definition for annotated %s %s", objectType, name)
 		err := m.deleteServiceDefinitionForAddress(address)
 		if err != nil {
 			return err
@@ -462,7 +470,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 			category, name := splitKey(key)
 			switch category {
 			case "servicedefs":
-				log.Print("[DefMon] Service definitions have changed")
+				event.Recordf(DefinitionMonitorEvent, "Service definitions have changed")
 				//get the configmap, parse the json, check against the current servicebindings map
 				obj, exists, err := m.svcDefInformer.GetStore().GetByKey(name)
 				if err != nil {
@@ -483,7 +491,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 									m.annotated[svc.Address] = svc
 								}
 							} else {
-								log.Printf("[DefMon] Could not parse service definition for %s: %s", k, err)
+								event.Recordf(DefinitionMonitorError, "Could not parse service definition for %s: %s", k, err)
 							}
 						}
 						for k, v := range m.headless {
@@ -504,7 +512,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					}
 				}
 			case "statefulsets":
-				log.Printf("[DefMon] statefulset event for %s", name)
+				event.Recordf(DefinitionMonitorEvent, "statefulset event for %s", name)
 				obj, exists, err := m.statefulSetInformer.GetStore().GetByKey(name)
 				if err != nil {
 					return fmt.Errorf("Error reading statefulset %s from cache: %s", name, err)
@@ -527,10 +535,10 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					} else {
 						//does it have a skupper annotation?
 						if desired, ok := m.getServiceDefinitionFromAnnotatedStatefulSet(statefulset); ok {
-							log.Printf("[DefMon] Checking annotated statefulSet %s", name)
+							event.Recordf(DefinitionMonitorEvent, "Checking annotated statefulSet %s", name)
 							actual, ok := m.annotated[desired.Address]
 							if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
-								log.Printf("[DefMon] Updating service definition for annotated statefulSet %s to %#v", name, desired)
+								event.Recordf(DefinitionMonitorUpdateEvent, "Updating service definition for annotated statefulSet %s to %#v", name, desired)
 								changed := []types.ServiceInterface{
 									desired,
 								}
@@ -542,7 +550,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							}
 							if address, ok := m.annotatedStatefulSets[name]; ok {
 								if address != desired.Address {
-									log.Printf("[DefMon] Address changed for annotated statefulSet %s. Was %s, now %s", name, address, desired.Address)
+									event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated statefulSet %s. Was %s, now %s", name, address, desired.Address)
 									if err := m.deleteServiceDefinitionForAddress(address); err != nil {
 										return fmt.Errorf("Failed to delete stale service definition for %s", address)
 									}
@@ -579,7 +587,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					}
 				}
 			case "deployments":
-				log.Printf("[DefMon] deployment event for %s", name)
+				event.Recordf(DefinitionMonitorEvent, "deployment event for %s", name)
 				obj, exists, err := m.deploymentInformer.GetStore().GetByKey(name)
 				if err != nil {
 					return fmt.Errorf("Error reading deployment %s from cache: %s", name, err)
@@ -591,10 +599,10 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 
 					desired, ok := m.getServiceDefinitionFromAnnotatedDeployment(deployment)
 					if ok {
-						log.Printf("[DefMon] Checking annotated deployment %s", name)
+						event.Recordf(DefinitionMonitorEvent, "Checking annotated deployment %s", name)
 						actual, ok := m.annotated[desired.Address]
 						if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
-							log.Printf("[DefMon] Updating service definition for annotated deployment %s to %#v", name, desired)
+							event.Recordf(DefinitionMonitorUpdateEvent, "Updating service definition for annotated deployment %s to %#v", name, desired)
 							changed := []types.ServiceInterface{
 								desired,
 							}
@@ -607,7 +615,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						address, ok := m.annotatedDeployments[name]
 						if ok {
 							if address != desired.Address {
-								log.Printf("[DefMon] Address changed for annotated deployment %s. Was %s, now %s", name, address, desired.Address)
+								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated deployment %s. Was %s, now %s", name, address, desired.Address)
 								if err := m.deleteServiceDefinitionForAddress(address); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
@@ -630,7 +638,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					}
 				}
 			case "daemonsets":
-				log.Printf("[DefMon] daemonset event for %s", name)
+				event.Recordf(DefinitionMonitorEvent, "daemonset event for %s", name)
 				obj, exists, err := m.daemonSetInformer.GetStore().GetByKey(name)
 				if err != nil {
 					return fmt.Errorf("Error reading daemonset %s from cache: %s", name, err)
@@ -642,10 +650,10 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 
 					desired, ok := m.getServiceDefinitionFromAnnotatedDaemonSet(daemonSet)
 					if ok {
-						log.Printf("[DefMon] Checking annotated daemonset %s", name)
+						event.Recordf(DefinitionMonitorEvent, "Checking annotated daemonset %s", name)
 						actual, ok := m.annotated[desired.Address]
 						if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
-							log.Printf("[DefMon] Updating service definition for annotated daemonset %s to %#v", name, desired)
+							event.Recordf(DefinitionMonitorUpdateEvent, "Updating service definition for annotated daemonset %s to %#v", name, desired)
 							changed := []types.ServiceInterface{
 								desired,
 							}
@@ -658,7 +666,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						address, ok := m.annotatedDaemonSets[name]
 						if ok {
 							if address != desired.Address {
-								log.Printf("[DefMon] Address changed for annotated daemonset %s. Was %s, now %s", name, address, desired.Address)
+								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated daemonset %s. Was %s, now %s", name, address, desired.Address)
 								if err := m.deleteServiceDefinitionForAddress(address); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
@@ -681,7 +689,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					}
 				}
 			case "services":
-				log.Printf("[DefMon] service event for %s", name)
+				event.Recordf(DefinitionMonitorEvent, "service event for %s", name)
 				obj, exists, err := m.svcInformer.GetStore().GetByKey(name)
 				if err != nil {
 					return fmt.Errorf("Error reading service %s from cache: %s", name, err)
@@ -693,10 +701,10 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 
 					desired, ok := m.getServiceDefinitionFromAnnotatedService(service)
 					if ok {
-						log.Printf("[DefMon] Checking annotated service %s", name)
+						event.Recordf(DefinitionMonitorEvent, "Checking annotated service %s", name)
 						actual, ok := m.annotated[desired.Address]
 						if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
-							log.Printf("[DefMon] Updating service definition for annotated service %s to %#v", name, desired)
+							event.Recordf(DefinitionMonitorUpdateEvent, "Updating service definition for annotated service %s to %#v", name, desired)
 							changed := []types.ServiceInterface{
 								desired,
 							}
@@ -709,7 +717,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						address, ok := m.annotatedServices[name]
 						if ok {
 							if address != desired.Address {
-								log.Printf("[DefMon] Address changed for annotated service %s. Was %s, now %s", name, address, desired.Address)
+								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated service %s. Was %s, now %s", name, address, desired.Address)
 								if err := m.deleteServiceDefinitionForAddress(address); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
@@ -746,10 +754,10 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 
 	if err != nil {
 		if m.events.NumRequeues(obj) < 5 {
-			log.Printf("[definition-monitor] Requeuing %v after error: %v", obj, err)
+			event.Recordf(DefinitionMonitorError, "Requeuing %v after error: %v", obj, err)
 			m.events.AddRateLimited(obj)
 		} else {
-			log.Printf("[definition-monitor] Giving up on %v after error: %v", obj, err)
+			event.Recordf(DefinitionMonitorError, "Giving up on %v after error: %v", obj, err)
 		}
 		utilruntime.HandleError(err)
 		return true
