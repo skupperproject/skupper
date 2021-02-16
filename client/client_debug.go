@@ -140,6 +140,11 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 
 						}
 					}
+				} else if pod.Spec.Containers[container].Name == "service-controller" {
+					events, err := kube.ExecCommandInContainer([]string{"get", "events"}, pod.Name, "service-controller", cli.Namespace, cli.KubeClient, cli.RestConfig)
+					if err == nil {
+						writeTar(pod.Name+"-events.txt", events.Bytes(), time.Now(), tw)
+					}
 				}
 
 				log, err := kube.GetPodContainerLogs(pod.Name, pod.Spec.Containers[container].Name, cli.Namespace, cli.KubeClient)

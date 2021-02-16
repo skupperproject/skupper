@@ -43,13 +43,13 @@ func TestEventStore(t *testing.T) {
 	stopper := make(chan struct{})
 	StartDefaultEventStore(stopper)
 	Record("foo", "foo, bar and baz!")
-	expected := []EventGroup {
+	expected := []EventGroup{
 		{
-			Name: "foo",
+			Name:  "foo",
 			Total: 1,
-			Counts: []EventCount {
+			Counts: []EventCount{
 				{
-					Key: "foo, bar and baz!",
+					Key:   "foo, bar and baz!",
 					Count: 1,
 				},
 			},
@@ -61,27 +61,27 @@ func TestEventStore(t *testing.T) {
 	Record("foo", "something else")
 	Recordf("foo", "%s, %s and %s!", "foo", "bar", "baz")
 	Record("whatsit", "blah")
-	expected = []EventGroup {
+	expected = []EventGroup{
 		{
-			Name: "whatsit",
+			Name:  "whatsit",
 			Total: 1,
-			Counts: []EventCount {
+			Counts: []EventCount{
 				{
-					Key: "blah",
+					Key:   "blah",
 					Count: 1,
 				},
 			},
 		},
 		{
-			Name: "foo",
+			Name:  "foo",
 			Total: 3,
-			Counts: []EventCount {
+			Counts: []EventCount{
 				{
-					Key: "foo, bar and baz!",
+					Key:   "foo, bar and baz!",
 					Count: 2,
 				},
 				{
-					Key: "something else",
+					Key:   "something else",
 					Count: 1,
 				},
 			},
@@ -94,39 +94,39 @@ func TestEventStore(t *testing.T) {
 	Record("foo", "two")
 	Record("foo", "three")
 	Record("foo", "four")
-	expected = []EventGroup {
+	expected = []EventGroup{
 		{
-			Name: "foo",
+			Name:  "foo",
 			Total: 7,
-			Counts: []EventCount {
+			Counts: []EventCount{
 				{
-					Key: "four",
+					Key:   "four",
 					Count: 1,
 				},
 				{
-					Key: "three",
+					Key:   "three",
 					Count: 1,
 				},
 				{
-					Key: "two",
+					Key:   "two",
 					Count: 1,
 				},
 				{
-					Key: "one",
+					Key:   "one",
 					Count: 1,
 				},
 				{
-					Key: "foo, bar and baz!",
+					Key:   "foo, bar and baz!",
 					Count: 2,
 				},
 			},
 		},
 		{
-			Name: "whatsit",
+			Name:  "whatsit",
 			Total: 1,
-			Counts: []EventCount {
+			Counts: []EventCount{
 				{
-					Key: "blah",
+					Key:   "blah",
 					Count: 1,
 				},
 			},
