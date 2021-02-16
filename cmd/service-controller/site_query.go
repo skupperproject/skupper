@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	SiteQueryError string   = "SiteQueryError"
+	SiteQueryError   string = "SiteQueryError"
 	SiteQueryRequest string = "SiteQueryRequest"
 )
 

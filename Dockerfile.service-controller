@@ -20,5 +20,6 @@ FROM registry.access.redhat.com/ubi8-minimal
 
 WORKDIR /app
 COPY --from=builder /go/src/app/service-controller .
+COPY --from=builder /go/src/app/get /usr/local/bin/get
 COPY --from=console-builder /skupper-console/gilligan-master/build/ console
 CMD ["/app/service-controller"]

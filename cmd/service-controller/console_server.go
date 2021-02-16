@@ -11,6 +11,8 @@ import (
 	"os"
 	"path"
 	"strings"
+	"text/tabwriter"
+	"time"
 
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/data"
@@ -111,40 +113,160 @@ func (server *ConsoleServer) version() http.Handler {
 	})
 }
 
+const (
+	MaxFieldLength int = 60
+)
+
+func wrap(text string, width int) []string {
+	words := strings.Fields(text)
+	wrapped := []string{}
+	line := ""
+	for _, word := range words {
+		if len(word)+len(line)+1 > width {
+			wrapped = append(wrapped, line)
+			line = word
+		} else {
+			if line == "" {
+				line = word
+			} else {
+				line = line + " " + word
+			}
+		}
+	}
+	wrapped = append(wrapped, line)
+	return wrapped
+}
+
 func (server *ConsoleServer) serveEvents() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		e := event.Query()
-		bytes, err := json.MarshalIndent(e, "", "    ")
-		if err != nil {
-			server.httpInternalError(w, fmt.Errorf("Error writing events: %s", err))
-			return
+		options := r.URL.Query()
+		output := options.Get("output")
+		if output == "json" {
+			bytes, err := json.MarshalIndent(e, "", "    ")
+			if err != nil {
+				server.httpInternalError(w, fmt.Errorf("Error writing events: %s", err))
+				return
+			}
+			fmt.Fprintf(w, string(bytes)+"\n")
+		} else {
+			tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
+			fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", "NAME", "COUNT", " ", "AGE"))
+			for _, group := range e {
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%d\t%s\t%s", group.Name, group.Total, " ", time.Since(group.LastOccurrence).Round(time.Second)))
+				for _, detail := range group.Counts {
+					if len(detail.Key) > MaxFieldLength {
+						lines := wrap(detail.Key, MaxFieldLength)
+						for i, line := range lines {
+							if i == 0 {
+								fmt.Fprintln(tw, fmt.Sprintf("%s\t%d\t%s\t%s", " ", detail.Count, line, time.Since(detail.LastOccurrence).Round(time.Second)))
+							} else {
+								fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", " ", " ", line, ""))
+							}
+						}
+					} else {
+						fmt.Fprintln(tw, fmt.Sprintf("%s\t%d\t%s\t%s", " ", detail.Count, detail.Key, time.Since(detail.LastOccurrence).Round(time.Second)))
+					}
+				}
+			}
+			tw.Flush()
 		}
-		fmt.Fprintf(w, string(bytes)+"\n")
 	})
 }
 
-func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (server *ConsoleServer) serveSites() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		d := server.getData(w)
+		if d != nil {
+			options := r.URL.Query()
+			output := options.Get("output")
+			if output == "json" {
+				bytes, err := json.MarshalIndent(d.Sites, "", "    ")
+				if err != nil {
+					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+				} else {
+					fmt.Fprintf(w, string(bytes)+"\n")
+				}
+			} else {
+				tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s", "ID", "NAME", "EDGE", "VERSION", "NAMESPACE", "URL", "CONNECTED TO"))
+				for _, site := range d.Sites {
+					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%t\t%s\t%s\t%s\t%s", site.SiteId, site.SiteName, site.Edge, site.Version, site.Namespace, site.Url, strings.Join(site.Connected, " ")))
+				}
+				tw.Flush()
+
+			}
+		}
+	})
+}
+
+func (server *ConsoleServer) serveServices() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		d := server.getData(w)
+		if d != nil {
+			options := r.URL.Query()
+			output := options.Get("output")
+			if output == "json" {
+				bytes, err := json.MarshalIndent(d.Services, "", "    ")
+				if err != nil {
+					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+				} else {
+					fmt.Fprintf(w, string(bytes)+"\n")
+				}
+			} else {
+				tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", "ADDRESS", "PROTOCOL", "TARGET", "SITE"))
+				for _, s := range d.Services {
+					var service *data.Service
+					if hs, ok := s.(data.HttpService); ok {
+						service = &hs.Service
+					}
+					if ts, ok := s.(data.TcpService); ok {
+						service = &ts.Service
+					}
+					if service != nil {
+						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", service.Address, service.Protocol, "", ""))
+						for _, target := range service.Targets {
+							fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", "", "", target.Name, target.SiteId))
+						}
+					}
+				}
+				tw.Flush()
+			}
+		}
+	})
+}
+
+func (server *ConsoleServer) getData(w http.ResponseWriter) *data.ConsoleData {
 	agent, err := server.agentPool.Get()
 	if err != nil {
 		server.httpInternalError(w, fmt.Errorf("Could not get management agent : %s", err))
-		return
+		return nil
 	}
 	data, err := getConsoleData(agent)
 	server.agentPool.Put(agent)
 	if err != nil {
-		server.httpInternalError(w, fmt.Errorf("Error retrieving console data: %s", err))
-		return
+		server.httpInternalError(w, err)
+		return nil
 	}
-	bytes, err := json.MarshalIndent(data, "", "    ")
-	if err != nil {
-		server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
-		return
+	return data
+}
+
+func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	data := server.getData(w)
+	if data != nil {
+		bytes, err := json.MarshalIndent(data, "", "    ")
+		if err != nil {
+			server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+		} else {
+			fmt.Fprintf(w, string(bytes)+"\n")
+		}
 	}
-	fmt.Fprintf(w, string(bytes)+"\n")
 }
 
 func (server *ConsoleServer) start(stopCh <-chan struct{}) error {
 	go server.listen()
+	go server.listenLocal()
 	return nil
 }
 
@@ -158,8 +280,8 @@ func (server *ConsoleServer) listen() {
 	}
 	log.Printf("Console server listening on %s", addr)
 	http.Handle("/DATA", authenticated(server))
-	http.Handle("/Version", authenticated(server.version()))
-	http.Handle("/Events", authenticated(server.serveEvents()))
+	http.Handle("/version", authenticated(server.version()))
+	http.Handle("/events", authenticated(server.serveEvents()))
 	http.Handle("/", authenticated(http.FileServer(http.Dir("/app/console/"))))
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
@@ -168,8 +290,10 @@ func (server *ConsoleServer) listenLocal() {
 	addr := "localhost:8181"
 	mux := http.NewServeMux()
 	mux.Handle("/DATA", server)
-	mux.Handle("/Version", server.version())
-	http.Handle("/Events", server.serveEvents())
+	mux.Handle("/version", server.version())
+	mux.Handle("/events", server.serveEvents())
+	mux.Handle("/sites", server.serveSites())
+	mux.Handle("/services", server.serveServices())
 	log.Fatal(http.ListenAndServe(addr, mux))
 }
 

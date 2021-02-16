@@ -6,7 +6,7 @@ TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
 LDFLAGS := -X github.com/skupperproject/skupper/client.Version=${VERSION}
 
-all: build-cmd build-controllers build-tests
+all: build-cmd build-get build-controllers build-tests
 
 build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
@@ -17,6 +17,9 @@ build-tests:
 
 build-cmd:
 	go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
+
+build-get:
+	go build -ldflags="${LDFLAGS}"  -o get ./cmd/get
 
 build-service-controller:
 	go build -ldflags="${LDFLAGS}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/config_sync.go

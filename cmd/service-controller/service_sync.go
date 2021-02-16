@@ -5,6 +5,7 @@ import (
 	jsonencoding "encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
@@ -30,6 +31,14 @@ func (c *Controller) pareByOrigin(service string) {
 			return
 		}
 	}
+}
+
+func getAddresses(services []types.ServiceInterface) []string {
+	addresses := []string{}
+	for _, service := range services {
+		addresses = append(addresses, service.Address)
+	}
+	return addresses
 }
 
 func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.ServiceInterface) {
@@ -78,13 +87,13 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 
 	// TODO: detect and describe changes
 	if len(added) > 0 {
-		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) added %s", added)
+		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) added %s", strings.Join(getAddresses(added), ","))
 	}
 	if len(removed) > 0 {
-		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) removed %s", removed)
+		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) removed %s", strings.Join(getAddresses(removed), ","))
 	}
 	if len(modified) > 0 {
-		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) modified %s", modified)
+		event.Recordf(ServiceSyncServiceEvent, "Service interface(s) modified %s", strings.Join(getAddresses(modified), ","))
 	}
 
 	c.localServices = latest
@@ -202,7 +211,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 			}
 
 			for _, originName := range agedOrigins {
-				event.Recordf(ServiceSyncSiteEvent, "Service sync aged out service definitions from origin ", originName)
+				event.Recordf(ServiceSyncSiteEvent, "Service sync aged out service definitions from origin %s", originName)
 				delete(c.heardFrom, originName)
 				delete(c.byOrigin, originName)
 			}

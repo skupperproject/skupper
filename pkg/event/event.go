@@ -11,9 +11,9 @@ const (
 )
 
 type Event struct {
-	Name          string
-	Detail        string
-	Occurrence    time.Time
+	Name       string
+	Detail     string
+	Occurrence time.Time
 }
 
 type EventCount struct {
@@ -30,25 +30,25 @@ type EventGroup struct {
 }
 
 type EventStore struct {
-	events        map[string]EventGroup
-	incoming      chan Event
-	queries       chan []EventGroup
+	events   map[string]EventGroup
+	incoming chan Event
+	queries  chan []EventGroup
 }
 
 func NewEventStore() *EventStore {
-	return &EventStore {
-		events: map[string]EventGroup{},
+	return &EventStore{
+		events:   map[string]EventGroup{},
 		incoming: make(chan Event),
-		queries: make(chan []EventGroup),
+		queries:  make(chan []EventGroup),
 	}
 }
 
 func (store *EventStore) latest() []EventGroup {
 	result := []EventGroup{}
-	for _, v:= range store.events {
+	for _, v := range store.events {
 		result = append(result, v)
 	}
-	sort.Slice(result, func (i, j int) bool { return result[i].LastOccurrence.After(result[j].LastOccurrence) })
+	sort.Slice(result, func(i, j int) bool { return result[i].LastOccurrence.After(result[j].LastOccurrence) })
 	return result
 }
 
@@ -71,7 +71,7 @@ func (store *EventStore) run(stopCh <-chan struct{}) {
 }
 
 func (store *EventStore) Record(name string, detail string) {
-	store.incoming <- Event {
+	store.incoming <- Event{
 		Name:       name,
 		Detail:     detail,
 		Occurrence: time.Now(),
@@ -83,7 +83,7 @@ func (store *EventStore) Recordf(name string, format string, args ...interface{}
 }
 
 func (store *EventStore) Query() []EventGroup {
-	response := <- store.queries
+	response := <-store.queries
 	return response
 }
 
@@ -106,13 +106,13 @@ func (e *EventGroup) Merge(event Event) {
 	e.Total++
 	e.LastOccurrence = event.Occurrence
 	if !e.updateCounts(event.Detail, event.Occurrence) {
-		e.Counts = append(e.Counts, EventCount {
-			Key: event.Detail,
-			Count: 1,
+		e.Counts = append(e.Counts, EventCount{
+			Key:            event.Detail,
+			Count:          1,
 			LastOccurrence: event.Occurrence,
 		})
 	}
-	sort.Slice(e.Counts, func (i, j int) bool { return e.Counts[i].LastOccurrence.After(e.Counts[j].LastOccurrence) })
+	sort.Slice(e.Counts, func(i, j int) bool { return e.Counts[i].LastOccurrence.After(e.Counts[j].LastOccurrence) })
 	if len(e.Counts) > MaxMessagesPerEventType {
 		e.Counts = e.Counts[:MaxMessagesPerEventType]
 	}
