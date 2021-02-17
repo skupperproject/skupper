@@ -69,8 +69,9 @@ func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 }
 
 func main() {
-	origin := os.Getenv("SKUPPER_SERVICE_SYNC_ORIGIN")
+	origin := os.Getenv("SKUPPER_SITE_ID")
 	namespace := os.Getenv("SKUPPER_NAMESPACE")
+	disableServiceSync := os.Getenv("SKUPPER_DISABLE_SERVICE_SYNC")
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
@@ -86,7 +87,7 @@ func main() {
 		log.Fatal("Error getting tls config", err.Error())
 	}
 
-	controller, err := NewController(cli, origin, tlsConfig)
+	controller, err := NewController(cli, origin, tlsConfig, disableServiceSync == "true")
 	if err != nil {
 		log.Fatal("Error getting new controller", err.Error())
 	}
