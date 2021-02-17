@@ -46,14 +46,15 @@ type Controller struct {
 	ports    *FreePorts
 
 	//service_sync state:
-	tlsConfig       *tls.Config
-	amqpClient      *amqp.Client
-	amqpSession     *amqp.Session
-	byOrigin        map[string]map[string]types.ServiceInterface
-	localServices   map[string]types.ServiceInterface
-	byName          map[string]types.ServiceInterface
-	desiredServices map[string]types.ServiceInterface
-	heardFrom       map[string]time.Time
+	disableServiceSync bool
+	tlsConfig          *tls.Config
+	amqpClient         *amqp.Client
+	amqpSession        *amqp.Session
+	byOrigin           map[string]map[string]types.ServiceInterface
+	localServices      map[string]types.ServiceInterface
+	byName             map[string]types.ServiceInterface
+	desiredServices    map[string]types.ServiceInterface
+	heardFrom          map[string]time.Time
 
 	definitionMonitor *DefinitionMonitor
 	consoleServer     *ConsoleServer
@@ -99,7 +100,7 @@ func hasOriginalAssigned(service corev1.Service) bool {
 	return hasSkupperAnnotation(service, types.OriginalAssignedQualifier)
 }
 
-func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) (*Controller, error) {
+func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, disableServiceSync bool) (*Controller, error) {
 
 	// create informers
 	svcInformer := corev1informer.NewServiceInformer(
@@ -135,15 +136,16 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config) 
 	events := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-service-controller")
 
 	controller := &Controller{
-		vanClient:         cli,
-		origin:            origin,
-		tlsConfig:         tlsConfig,
-		bridgeDefInformer: bridgeDefInformer,
-		svcDefInformer:    svcDefInformer,
-		svcInformer:       svcInformer,
-		headlessInformer:  headlessInformer,
-		events:            events,
-		ports:             newFreePorts(),
+		vanClient:          cli,
+		origin:             origin,
+		tlsConfig:          tlsConfig,
+		bridgeDefInformer:  bridgeDefInformer,
+		svcDefInformer:     svcDefInformer,
+		svcInformer:        svcInformer,
+		headlessInformer:   headlessInformer,
+		events:             events,
+		ports:              newFreePorts(),
+		disableServiceSync: disableServiceSync,
 	}
 
 	// Organize service definitions
@@ -272,7 +274,9 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	}
 
 	log.Println("Starting workers")
-	go wait.Until(c.runServiceSync, time.Second, stopCh)
+	if !c.disableServiceSync {
+		go wait.Until(c.runServiceSync, time.Second, stopCh)
+	}
 	go wait.Until(c.runServiceCtrl, time.Second, stopCh)
 	c.definitionMonitor.start(stopCh)
 	c.siteQueryServer.start(stopCh)

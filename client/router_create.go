@@ -69,6 +69,9 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(transport.ObjectMeta.UID)})
 	envVars = addRouterImageOverrideToEnv(envVars)
+	if !options.EnableServiceSync {
+		envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_DISABLE_SERVICE_SYNC", Value: "true"})
+	}
 
 	sidecars := []*corev1.Container{}
 	volumes := []corev1.Volume{}
@@ -85,14 +88,8 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
 		kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
 	}
-
-	if options.EnableServiceSync {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "SKUPPER_SERVICE_SYNC_ORIGIN",
-			Value: siteId,
-		})
-		kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper", "/etc/messaging/")
-	}
+	//mount secret needed for communication with router
+	kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper", "/etc/messaging/")
 	van.Controller.EnvVar = envVars
 	van.Controller.Volumes = volumes
 	van.Controller.VolumeMounts = mounts
