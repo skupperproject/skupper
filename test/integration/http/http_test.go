@@ -68,7 +68,8 @@ func TestHttp2Job(t *testing.T) {
 		},
 	}
 
-	resp, _ := client.Get("http://nghttp2:8443/")
+	resp, err := client.Get("http://nghttp2:8443/")
+	assert.Assert(t, err)
 	fmt.Printf("Client Proto: %d\n", resp.ProtoMajor)
 	fmt.Println("Client Header:", resp.Header)
 

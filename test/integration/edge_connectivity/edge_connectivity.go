@@ -40,7 +40,7 @@ func (r *EdgeConnectivityTestRunner) RunTests(testCase *TestCase, ctx context.Co
 	assert.Assert(t, err)
 
 	tick := time.Tick(constants.DefaultTick)
-	timeout := time.After(constants.ImagePullingAndResourceCreationTimeout)
+	timeout := time.After(constants.TestSuiteTimeout)
 	wait_for_conn := func(cc *base.ClusterContext, countConnections bool) (err error) {
 		for {
 			select {
@@ -54,6 +54,7 @@ func (r *EdgeConnectivityTestRunner) RunTests(testCase *TestCase, ctx context.Co
 				if err == nil && vir.Status.ConnectedSites.Total >= 1 {
 					t.Logf("Van sites connected!\n")
 					if err != nil {
+						t.Log(err)
 						return err
 					}
 					if !countConnections {
@@ -61,7 +62,13 @@ func (r *EdgeConnectivityTestRunner) RunTests(testCase *TestCase, ctx context.Co
 					}
 					if testCase.direct_count == vir.Status.ConnectedSites.Direct &&
 						testCase.indirect_count == vir.Status.ConnectedSites.Indirect {
+						t.Logf("Connected sites count match!")
 						return nil
+					} else {
+						t.Logf("Connected sites count do not match yet...")
+						t.Logf("Direct connections found   : %d [expected: %d]", vir.Status.ConnectedSites.Direct, testCase.direct_count)
+						t.Logf("Indirect connections found : %d [expected: %d]", vir.Status.ConnectedSites.Indirect, testCase.indirect_count)
+						t.Logf("Connected sites info       : %v", vir.Status.ConnectedSites)
 					}
 				} else {
 					fmt.Printf("Connection not ready yet, current pods state: \n")
@@ -92,6 +99,11 @@ func (r *EdgeConnectivityTestRunner) Setup(ctx context.Context, testCase *TestCa
 	for i := 0; i < int(createOptsPublic.Replicas); i++ {
 		pub1Cluster, err := r.GetPublicContext(i + 1) // These numbers are 1-based.
 		assert.Assert(t, err)
+
+		// If running against multiple clusters, ingress should be determined dynamically
+		if base.MultipleClusters(t) {
+			createOptsPublic.Ingress = pub1Cluster.VanClient.GetIngressDefault()
+		}
 
 		err = pub1Cluster.CreateNamespace()
 		assert.Assert(t, err)
@@ -178,7 +190,7 @@ func (r *EdgeConnectivityTestRunner) TearDown(ctx context.Context, testcase *Tes
 func (r *EdgeConnectivityTestRunner) Run(ctx context.Context, testcase *TestCase, t *testing.T) {
 
 	r.Setup(ctx, testcase, t)
+	defer r.TearDown(ctx, testcase) // pass in testcase as arg, get rid of current_testcase global.
 	err := r.RunTests(testcase, ctx, t)
-	r.TearDown(ctx, testcase) // pass in testcase as arg, get rid of current_testcase global.
 	assert.Assert(t, err)
 }
