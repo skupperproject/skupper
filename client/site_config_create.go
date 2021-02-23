@@ -29,7 +29,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			"console-authentication": "internal",
 			"console-user":           "",
 			"console-password":       "",
-			"cluster-local":          "false",
+			"ingress":                types.IngressLoadBalancerString,
 		},
 	}
 	if spec.SkupperName != "" {
@@ -59,8 +59,8 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.Password != "" {
 		siteConfig.Data["console-password"] = spec.Password
 	}
-	if spec.ClusterLocal {
-		siteConfig.Data["cluster-local"] = "true"
+	if spec.Ingress != "" {
+		siteConfig.Data["ingress"] = spec.Ingress
 	}
 	if spec.RouterLogging != nil {
 		siteConfig.Data["router-logging"] = RouterLogConfigToString(spec.RouterLogging)

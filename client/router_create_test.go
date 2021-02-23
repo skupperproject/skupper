@@ -280,6 +280,13 @@ func TestRouterCreateDefaults(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced)
 		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
 
+		getIngress := func() string {
+			if c.clusterLocal || !isCluster {
+				return types.IngressNoneString
+			}
+			return cli.GetIngressDefault()
+		}
+
 		err = cli.RouterCreate(ctx, types.SiteConfig{
 			Spec: types.SiteConfigSpec{
 				SkupperName:         c.skupperName,
@@ -291,7 +298,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				EnableConsole:       false,
 				User:                c.user,
 				Password:            c.password,
-				ClusterLocal:        c.clusterLocal || !isCluster,
+				Ingress:             getIngress(),
 			},
 		})
 

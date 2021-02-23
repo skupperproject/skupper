@@ -198,14 +198,14 @@ func CreateVan(t *testing.T, testRunner base.ClusterTestRunner) {
 		EnableServiceSync: true,
 		User:              "admin",
 		Password:          "admin",
-		ClusterLocal:      false,
+		Ingress:           pub.VanClient.GetIngressDefault(),
 	}
 
 	// If using only 1 cluster, set ClusterLocal to True
 	if !base.MultipleClusters(t) {
-		siteConfigSpec.ClusterLocal = true
+		siteConfigSpec.Ingress = types.IngressNoneString
 	}
-	t.Logf("setting siteConfigSpec to run with ClusterLocal=%v", siteConfigSpec.ClusterLocal)
+	t.Logf("setting siteConfigSpec to run with Ingress=%v", siteConfigSpec.Ingress)
 
 	// Creating the router on cluster1
 	siteConfig, err := pub.VanClient.SiteConfigCreate(ctx, siteConfigSpec)

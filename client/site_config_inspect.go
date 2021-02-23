@@ -73,10 +73,10 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 	} else {
 		result.Spec.Password = ""
 	}
-	if clusterLocal, ok := siteConfig.Data["cluster-local"]; ok {
-		result.Spec.ClusterLocal, _ = strconv.ParseBool(clusterLocal)
+	if ingress, ok := siteConfig.Data["ingress"]; ok {
+		result.Spec.Ingress = ingress
 	} else {
-		result.Spec.ClusterLocal = false
+		result.Spec.Ingress = types.IngressLoadBalancerString
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if siteConfig.ObjectMeta.Labels == nil {

@@ -34,11 +34,11 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 			"--cookie-secret=SECRET",
 		},
 		Ports: []corev1.ContainerPort{
-			corev1.ContainerPort{
+			{
 				Name:          "http",
 				ContainerPort: types.ConsoleDefaultServicePort,
 			},
-			corev1.ContainerPort{
+			{
 				Name:          "https",
 				ContainerPort: types.ConsoleOpenShiftOauthServiceTargetPort,
 			},
@@ -149,7 +149,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 
 	svctype := corev1.ServiceTypeClusterIP
 	metricsPort := []corev1.ServicePort{
-		corev1.ServicePort{
+		{
 			Name:       "metrics",
 			Protocol:   "TCP",
 			Port:       types.ConsoleDefaultServicePort,
@@ -160,11 +160,11 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	annotations := map[string]string{}
 
 	svcs := []*corev1.Service{}
-	if cli.RouteClient != nil {
+	if options.IsIngressRoute() {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			termination = routev1.TLSTerminationReencrypt
 			metricsPort = []corev1.ServicePort{
-				corev1.ServicePort{
+				{
 					Name:       "metrics",
 					Protocol:   "TCP",
 					Port:       types.ConsoleOpenShiftOauthServicePort,
@@ -173,7 +173,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			}
 			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-controller-certs"}
 		}
-	} else if !options.ClusterLocal {
+	} else if options.IsIngressLoadBalancer() {
 		svctype = corev1.ServiceTypeLoadBalancer
 	}
 	svcs = append(svcs, &corev1.Service{
@@ -194,7 +194,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.Services = svcs
 
 	routes := []*routev1.Route{}
-	if !options.ClusterLocal && cli.RouteClient != nil {
+	if options.IsIngressRoute() {
 		routes = append(routes, &routev1.Route{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -511,7 +511,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	})
 
 	if !options.IsEdge {
-		if options.ClusterLocal {
+		if options.IsIngressNone() {
 			credentials = append(credentials, types.Credential{
 				CA:          "skupper-internal-ca",
 				Name:        "skupper-internal",
@@ -561,7 +561,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Spec: corev1.ServiceSpec{
 			Selector: van.Transport.Labels,
 			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
+				{
 					Name:       "amqps",
 					Protocol:   "TCP",
 					Port:       types.AmqpsDefaultPort,
@@ -585,7 +585,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				Spec: corev1.ServiceSpec{
 					Selector: van.Transport.Labels,
 					Ports: []corev1.ServicePort{
-						corev1.ServicePort{
+						{
 							Name:       "console",
 							Protocol:   "TCP",
 							Port:       types.ConsoleOpenShiftOauthServicePort,
@@ -608,7 +608,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				Spec: corev1.ServiceSpec{
 					Selector: van.Transport.Labels,
 					Ports: []corev1.ServicePort{
-						corev1.ServicePort{
+						{
 							Name:       "console",
 							Protocol:   "TCP",
 							Port:       types.ConsoleDefaultServicePort,
@@ -622,7 +622,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	if !options.IsEdge {
 		svcType := corev1.ServiceTypeClusterIP
-		if !options.ClusterLocal && cli.RouteClient == nil {
+		if options.IsIngressLoadBalancer() {
 			svcType = corev1.ServiceTypeLoadBalancer
 		}
 		svcs = append(svcs, &corev1.Service{
@@ -637,13 +637,13 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Spec: corev1.ServiceSpec{
 				Selector: van.Transport.Labels,
 				Ports: []corev1.ServicePort{
-					corev1.ServicePort{
+					{
 						Name:       "inter-router",
 						Protocol:   "TCP",
 						Port:       types.InterRouterListenerPort,
 						TargetPort: intstr.FromInt(int(types.InterRouterListenerPort)),
 					},
-					corev1.ServicePort{
+					{
 						Name:       "edge",
 						Protocol:   "TCP",
 						Port:       types.EdgeListenerPort,
@@ -657,7 +657,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Transport.Services = svcs
 
 	routes := []*routev1.Route{}
-	if !options.ClusterLocal && cli.RouteClient != nil {
+	if options.IsIngressRoute() {
 		routes = append(routes, &routev1.Route{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -742,6 +742,10 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 // RouterCreate instantiates a VAN (router and controller) deployment
 func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig) error {
 	// todo return error
+	if options.Spec.IsIngressRoute() && cli.RouteClient == nil {
+		return fmt.Errorf("Routes client had not been initialized, is this an OCP cluster?")
+	}
+
 	if options.Spec.EnableRouterConsole || options.Spec.EnableConsole {
 		if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) || options.Spec.AuthMode == "" {
 			options.Spec.AuthMode = string(types.ConsoleAuthModeInternal)
@@ -810,7 +814,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
 		kube.CreateService(svc, van.Namespace, cli.KubeClient)
 	}
-	if cli.RouteClient != nil {
+	if options.Spec.IsIngressRoute() {
 		for _, rte := range van.Transport.Routes {
 			rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
 			kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
@@ -824,7 +828,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	if !options.Spec.IsEdge {
 		for _, cred := range van.Credentials {
 			if cred.Post {
-				if cli.RouteClient != nil {
+				if options.Spec.IsIngressRoute() {
 					rte, err := kube.GetRoute(types.InterRouterRouteName, van.Namespace, cli.RouteClient)
 					if err == nil {
 						cred.Hosts = append(cred.Hosts, rte.Spec.Host)
@@ -887,7 +891,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
 			kube.CreateService(svc, van.Namespace, cli.KubeClient)
 		}
-		if cli.RouteClient != nil {
+		if options.Spec.IsIngressRoute() {
 			for _, rte := range van.Controller.Routes {
 				rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
 				kube.CreateRoute(rte, van.Namespace, cli.RouteClient)

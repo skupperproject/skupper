@@ -137,6 +137,7 @@ func (c *ClusterTestRunnerBase) createClusterContext(t *testing.T, needs Cluster
 		assert.Assert(t, err, "error initializing VanClient")
 
 		// craeting the ClusterContext
+		// aca!
 		cc := &ClusterContext{
 			Namespace:  ns,
 			KubeConfig: kubeConfig,
@@ -184,7 +185,7 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 		AuthMode:          types.ConsoleAuthModeUnsecured,
 		User:              "nicob?",
 		Password:          "nopasswordd",
-		ClusterLocal:      false,
+		Ingress:           pub1Cluster.VanClient.GetIngressDefault(),
 		Replicas:          1,
 	}
 	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)

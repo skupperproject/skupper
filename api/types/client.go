@@ -45,11 +45,27 @@ type SiteConfigSpec struct {
 	AuthMode            string
 	User                string
 	Password            string
-	ClusterLocal        bool
+	Ingress             string
 	Replicas            int32
 	SiteControlled      bool
 	RouterLogging       []RouterLogConfig
 	RouterDebugMode     string
+}
+
+const (
+	IngressRouteString        string = "route"
+	IngressLoadBalancerString string = "loadbalancer"
+	IngressNoneString         string = "none"
+)
+
+func (s *SiteConfigSpec) IsIngressRoute() bool {
+	return s.Ingress == IngressRouteString
+}
+func (s *SiteConfigSpec) IsIngressLoadBalancer() bool {
+	return s.Ingress == IngressLoadBalancerString
+}
+func (s *SiteConfigSpec) IsIngressNone() bool {
+	return s.Ingress == IngressNoneString
 }
 
 type SiteConfigReference struct {
@@ -105,4 +121,5 @@ type VanClientInterface interface {
 	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error
 	GetNamespace() string
 	GetVersion(component string, name string) string
+	GetIngressDefault() string
 }

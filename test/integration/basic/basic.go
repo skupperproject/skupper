@@ -83,6 +83,9 @@ func (r *BasicTestRunner) TearDown(ctx context.Context) {
 }
 
 func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
+	pubCluster, err := r.GetPublicContext(1)
+	assert.Assert(t, err)
+
 	testcases := []struct {
 		doc               string
 		createOptsPublic  types.SiteConfigSpec
@@ -99,7 +102,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				ClusterLocal:      true,
+				Ingress:           types.IngressNoneString,
 				Replicas:          1,
 			},
 			createOptsPrivate: types.SiteConfigSpec{
@@ -111,7 +114,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				ClusterLocal:      true,
+				Ingress:           types.IngressNoneString,
 				Replicas:          1,
 			},
 		},
@@ -126,7 +129,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				ClusterLocal:      false,
+				Ingress:           pubCluster.VanClient.GetIngressDefault(),
 				Replicas:          1,
 			},
 			createOptsPrivate: types.SiteConfigSpec{
@@ -138,7 +141,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				ClusterLocal:      false,
+				Ingress:           pubCluster.VanClient.GetIngressDefault(),
 				Replicas:          1,
 			},
 		},
@@ -153,7 +156,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				ClusterLocal:      true,
+				Ingress:           types.IngressNoneString,
 				Replicas:          1,
 			},
 			createOptsPrivate: types.SiteConfigSpec{
@@ -165,7 +168,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				AuthMode:          types.ConsoleAuthModeUnsecured,
 				User:              "nicob?",
 				Password:          "nopasswordd",
-				ClusterLocal:      true,
+				Ingress:           types.IngressNoneString,
 				Replicas:          1,
 			},
 		},

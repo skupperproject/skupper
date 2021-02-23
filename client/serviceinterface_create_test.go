@@ -223,7 +223,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 					AuthMode:          "",
 					User:              "",
 					Password:          "",
-					ClusterLocal:      true,
+					Ingress:           types.IngressNoneString,
 				},
 			})
 			assert.Check(t, err, "Unable to create VAN router")
