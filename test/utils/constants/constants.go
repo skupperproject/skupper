@@ -1,8 +1,9 @@
 package constants
 
 import (
-	"k8s.io/apimachinery/pkg/util/wait"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -11,6 +12,7 @@ const (
 	SkupperServiceReadyPeriod              time.Duration = 10 * time.Minute
 	DefaultTick                                          = 5 * time.Second
 	ImagePullingAndResourceCreationTimeout               = 10 * time.Minute
+	TestSuiteTimeout                                     = 20 * time.Minute
 	NamespaceDeleteTimeout                               = 2 * time.Minute
 )
 

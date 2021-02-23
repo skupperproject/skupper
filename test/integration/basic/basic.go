@@ -87,12 +87,14 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 	assert.Assert(t, err)
 
 	testcases := []struct {
-		doc               string
-		createOptsPublic  types.SiteConfigSpec
-		createOptsPrivate types.SiteConfigSpec
+		doc                string
+		skipOnMultiCluster bool
+		createOptsPublic   types.SiteConfigSpec
+		createOptsPrivate  types.SiteConfigSpec
 	}{
 		{
-			doc: "Connecting, two internals, clusterLocal=true",
+			doc:                "Connecting, two internals, clusterLocal=true",
+			skipOnMultiCluster: true,
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -119,7 +121,8 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			},
 		},
 		{
-			doc: "Connecting, two internals, clusterLocal=false",
+			doc:                "Connecting, two internals, clusterLocal=false",
+			skipOnMultiCluster: false,
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -146,7 +149,8 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			},
 		},
 		{
-			doc: "connecting, Private Edge, Public Internal, clusterLocal=true",
+			doc:                "connecting, Private Edge, Public Internal, clusterLocal=true",
+			skipOnMultiCluster: true,
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -177,6 +181,10 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 	defer r.TearDown(ctx)
 
 	for _, c := range testcases {
+		if c.skipOnMultiCluster && base.MultipleClusters(t) {
+			t.Logf("Skipping: %s [this test only runs against a single cluster]\n", c.doc)
+			continue
+		}
 		t.Logf("Testing: %s\n", c.doc)
 		r.Setup(ctx, c.createOptsPublic, c.createOptsPrivate, t)
 		r.RunTests(ctx, t)

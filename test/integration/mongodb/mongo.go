@@ -79,7 +79,7 @@ func Setup(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
 }
 
 func Run(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
-	//defer base.TearDownSimplePublicAndPrivate(r)
+	defer base.TearDownSimplePublicAndPrivate(r)
 	Setup(ctx, t, r)
 	RunTests(ctx, t, r)
 }

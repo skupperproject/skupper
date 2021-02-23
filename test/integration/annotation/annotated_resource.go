@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	ctx, cancelFn = context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
+	ctx, cancelFn = context.WithTimeout(context.Background(), constants.TestSuiteTimeout)
 )
 
 // test allows defining the matrix to run the test table
