@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,6 +75,11 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			"internal.skupper.io/site-controller-ignore": "true",
 		}
 	}
+
+	if spec.IsIngressRoute() && cli.RouteClient == nil {
+		return nil, fmt.Errorf("OpenShift cluster not detected for --ingress type route")
+	}
+
 	actual, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(siteConfig)
 	if err != nil {
 		return nil, err

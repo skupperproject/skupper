@@ -743,7 +743,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig) error {
 	// todo return error
 	if options.Spec.IsIngressRoute() && cli.RouteClient == nil {
-		return fmt.Errorf("Routes client had not been initialized, is this an OCP cluster?")
+		return fmt.Errorf("OpenShift cluster not detected for --ingress type route")
 	}
 
 	if options.Spec.EnableRouterConsole || options.Spec.EnableConsole {
