@@ -7,6 +7,7 @@ import (
 	"fmt"
 	amqp "github.com/interconnectedcloud/go-amqp"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -721,6 +722,64 @@ func getBridgeTypes() []string {
 	}
 }
 
+func (a *Agent) GetLocalTcpListener(address string, port int) (*TcpEndpoint, error) {
+	results, err := a.Query("org.apache.qpid.dispatch.tcpListener", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+		listener := asTcpEndpoint(record)
+		if listener.Port == strconv.Itoa(port) || listener.Address == address {
+			return &listener, nil
+		}
+	}
+	return nil, nil
+}
+
+func (a *Agent) GetLocalHttpListener(address string, port int) (*HttpEndpoint, error) {
+	results, err := a.Query("org.apache.qpid.dispatch.httpListener", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+		listener := asHttpEndpoint(record)
+		if listener.Port == strconv.Itoa(port) || listener.Address == address {
+			return &listener, nil
+		}
+	}
+	return nil, nil
+}
+
+func (a *Agent) GetLocalTcpConnectors(address string) ([]TcpEndpoint, error) {
+	results, err := a.Query("org.apache.qpid.dispatch.tcpConnector", []string{})
+	if err != nil {
+		return nil, err
+	}
+	matched := []TcpEndpoint{}
+	for _, record := range results {
+		connector := asTcpEndpoint(record)
+		if connector.Address == address {
+			matched = append(matched, connector)
+		}
+	}
+	return matched, nil
+}
+
+func (a *Agent) GetLocalHttpConnectors(address string) ([]HttpEndpoint, error) {
+	results, err := a.Query("org.apache.qpid.dispatch.httpConnector", []string{})
+	if err != nil {
+		return nil, err
+	}
+	matched := []HttpEndpoint{}
+	for _, record := range results {
+		connector := asHttpEndpoint(record)
+		if connector.Address == address {
+			matched = append(matched, connector)
+		}
+	}
+	return matched, nil
+}
+
 func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
 	config := NewBridgeConfig()
 
@@ -1039,6 +1098,9 @@ func (a *Agent) Request(request *Request) (*Response, error) {
 		ApplicationProperties: map[string]interface{}{},
 		Value:                 nil,
 	}
+	if request.Body != "" {
+		requestMsg.Value = request.Body
+	}
 	for k, v := range request.Properties {
 		requestMsg.ApplicationProperties[k] = v
 	}
@@ -1047,7 +1109,7 @@ func (a *Agent) Request(request *Request) (*Response, error) {
 	err := a.anonymous.Send(ctx, &requestMsg)
 	if err != nil {
 		a.Close()
-		return nil, fmt.Errorf("Could not send request: %s", err)
+		return nil, fmt.Errorf("Could not send %s request: %s", request.Type, err)
 	}
 	responseMsg, err := a.receiver.Receive(ctx)
 	if err != nil {

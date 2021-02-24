@@ -16,6 +16,7 @@ type Request struct {
 	Type       string
 	Version    string
 	Properties map[string]interface{}
+	Body       string
 }
 
 type Response struct {
@@ -66,7 +67,6 @@ func (s *RequestServer) serve(ctx context.Context, receiver *amqp.Receiver, send
 		if err != nil {
 			return fmt.Errorf("Failed reading request from %s: %s", s.address, err.Error())
 		}
-		requestMsg.Accept()
 
 		request := Request{
 			Address:    requestMsg.Properties.To,
@@ -82,34 +82,44 @@ func (s *RequestServer) serve(ctx context.Context, receiver *amqp.Receiver, send
 				request.Properties[k] = v
 			}
 		}
+		if body, ok := requestMsg.Value.(string); ok {
+			request.Body = body
+		}
 
 		response, err := s.handler.Request(&request)
 		if err != nil {
-			//TODO: send back error response to avoid
-			//requesting client having to time out
+			requestMsg.Reject(&amqp.Error{
+				Condition:   amqp.ErrorInternalError,
+				Description: err.Error(),
+			})
 			return err
-		}
+		} else {
+			requestMsg.Accept()
+			responseMsg := amqp.Message{
+				Properties: &amqp.MessageProperties{
+					To:      requestMsg.Properties.ReplyTo,
+					Subject: response.Type,
+				},
+				ApplicationProperties: map[string]interface{}{},
+				Value:                 response.Body,
+			}
+			correlationId, ok := AsUint64(requestMsg.Properties.CorrelationID)
+			if !ok {
+				responseMsg.Properties.CorrelationID = correlationId
+			}
+			for k, v := range response.Properties {
+				responseMsg.ApplicationProperties[k] = v
+			}
+			responseMsg.ApplicationProperties[VersionProperty] = response.Version
 
-		responseMsg := amqp.Message{
-			Properties: &amqp.MessageProperties{
-				To:      requestMsg.Properties.ReplyTo,
-				Subject: response.Type,
-			},
-			ApplicationProperties: map[string]interface{}{},
-			Value:                 response.Body,
-		}
-		correlationId, ok := AsUint64(requestMsg.Properties.CorrelationID)
-		if !ok {
-			responseMsg.Properties.CorrelationID = correlationId
-		}
-		for k, v := range response.Properties {
-			responseMsg.ApplicationProperties[k] = v
-		}
-		responseMsg.ApplicationProperties[VersionProperty] = response.Version
-
-		err = sender.Send(ctx, &responseMsg)
-		if err != nil {
-			return fmt.Errorf("Could not send response: %s", err)
+			err = sender.Send(ctx, &responseMsg)
+			if err != nil {
+				requestMsg.Reject(&amqp.Error{
+					Condition:   amqp.ErrorInternalError,
+					Description: "Could not send response: " + err.Error(),
+				})
+				return fmt.Errorf("Could not send response: %s", err)
+			}
 		}
 	}
 }
