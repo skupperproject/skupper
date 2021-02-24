@@ -27,6 +27,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		isEdge               bool
 		enableController     bool
 		enableRouterConsole  bool
+		enableConsole        bool
 		authMode             string
 		user                 string
 		password             string
@@ -48,6 +49,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			isEdge:               false,
 			enableController:     true,
 			enableRouterConsole:  false,
+			enableConsole:        false,
 			authMode:             "",
 			user:                 "",
 			password:             "",
@@ -61,7 +63,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				"skupper-amqps",
 				"skupper",
 				"skupper-internal"},
-			svcsExpected:        []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
+			svcsExpected:        []string{"skupper-messaging", "skupper-internal"},
 			svcAccountsExpected: []string{"skupper", "skupper-proxy-controller"},
 			opts: []cmp.Option{
 				trans,
@@ -78,6 +80,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			isEdge:               false,
 			enableController:     true,
 			enableRouterConsole:  true,
+			enableConsole:        true,
 			authMode:             "unsecured",
 			user:                 "",
 			password:             "",
@@ -108,6 +111,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			isEdge:               false,
 			enableController:     true,
 			enableRouterConsole:  true,
+			enableConsole:        true,
 			authMode:             "internal",
 			user:                 "",
 			password:             "",
@@ -139,6 +143,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			isEdge:               false,
 			enableController:     true,
 			enableRouterConsole:  true,
+			enableConsole:        true,
 			authMode:             "openshift",
 			user:                 "",
 			password:             "",
@@ -171,6 +176,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			isEdge:               true,
 			enableController:     true,
 			enableRouterConsole:  true,
+			enableConsole:        true,
 			authMode:             "unsecured",
 			user:                 "Barney",
 			password:             "Rubble",
@@ -295,7 +301,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				EnableServiceSync:   true,
 				EnableRouterConsole: c.enableRouterConsole,
 				AuthMode:            c.authMode,
-				EnableConsole:       false,
+				EnableConsole:       c.enableConsole,
 				User:                c.user,
 				Password:            c.password,
 				Ingress:             getIngress(),

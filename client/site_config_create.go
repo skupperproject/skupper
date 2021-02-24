@@ -45,8 +45,8 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if !spec.EnableServiceSync {
 		siteConfig.Data["service-sync"] = "false"
 	}
-	if spec.EnableConsole {
-		siteConfig.Data["console"] = "true"
+	if !spec.EnableConsole {
+		siteConfig.Data["console"] = "false"
 	}
 	if spec.EnableRouterConsole {
 		siteConfig.Data["router-console"] = "true"
