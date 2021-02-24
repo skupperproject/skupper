@@ -104,12 +104,20 @@ func (server *ConsoleServer) version() http.Handler {
 		}
 		v.RouterVersion = router.Version
 		v.SiteVersion = router.Site.Version
-		bytes, err := json.MarshalIndent(v, "", "    ")
-		if err != nil {
-			server.httpInternalError(w, fmt.Errorf("Error writing version: %s", err))
-			return
+		if wantsJsonOutput(r) {
+			bytes, err := json.MarshalIndent(v, "", "    ")
+			if err != nil {
+				server.httpInternalError(w, fmt.Errorf("Error writing version: %s", err))
+				return
+			}
+			fmt.Fprintf(w, string(bytes)+"\n")
+		} else {
+			tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
+			fmt.Fprintln(tw, "site\t"+v.SiteVersion)
+			fmt.Fprintln(tw, "service-controller\t"+v.ServiceControllerVersion)
+			fmt.Fprintln(tw, "router\t"+v.RouterVersion)
+			tw.Flush()
 		}
-		fmt.Fprintf(w, string(bytes)+"\n")
 	})
 }
 
@@ -137,12 +145,16 @@ func wrap(text string, width int) []string {
 	return wrapped
 }
 
+func wantsJsonOutput(r *http.Request) bool {
+	options := r.URL.Query()
+	output := options.Get("output")
+	return output == "json"
+}
+
 func (server *ConsoleServer) serveEvents() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		e := event.Query()
-		options := r.URL.Query()
-		output := options.Get("output")
-		if output == "json" {
+		if wantsJsonOutput(r) {
 			bytes, err := json.MarshalIndent(e, "", "    ")
 			if err != nil {
 				server.httpInternalError(w, fmt.Errorf("Error writing events: %s", err))
@@ -178,9 +190,7 @@ func (server *ConsoleServer) serveSites() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		d := server.getData(w)
 		if d != nil {
-			options := r.URL.Query()
-			output := options.Get("output")
-			if output == "json" {
+			if wantsJsonOutput(r) {
 				bytes, err := json.MarshalIndent(d.Sites, "", "    ")
 				if err != nil {
 					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
@@ -204,9 +214,7 @@ func (server *ConsoleServer) serveServices() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		d := server.getData(w)
 		if d != nil {
-			options := r.URL.Query()
-			output := options.Get("output")
-			if output == "json" {
+			if wantsJsonOutput(r) {
 				bytes, err := json.MarshalIndent(d.Services, "", "    ")
 				if err != nil {
 					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
@@ -232,6 +240,72 @@ func (server *ConsoleServer) serveServices() http.Handler {
 					}
 				}
 				tw.Flush()
+			}
+		}
+	})
+}
+
+func removeEmpty(input []string) []string {
+	output := []string{}
+	for _, s := range input {
+		if s != "" {
+			output = append(output, s)
+		}
+	}
+	return output
+}
+
+func (server *ConsoleServer) checkService() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		agent, err := server.agentPool.Get()
+		if err != nil {
+			server.httpInternalError(w, fmt.Errorf("Could not get management agent : %s", err))
+		} else {
+			//what is the name of the service to check?
+			path := removeEmpty(strings.Split(r.URL.Path, "/"))
+			log.Printf("Path is %v (%d)", path, len(path))
+			if len(path) == 2 {
+				address := path[1]
+				data, err := checkService(agent, address)
+				server.agentPool.Put(agent)
+				if err != nil {
+					server.httpInternalError(w, err)
+				} else {
+					if wantsJsonOutput(r) {
+						bytes, err := json.MarshalIndent(data, "", "    ")
+						if err != nil {
+							server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+						} else {
+							fmt.Fprintf(w, string(bytes)+"\n")
+						}
+					} else {
+						if len(data.Observations) > 0 {
+							for _, observation := range data.Observations {
+								fmt.Fprintln(w, observation)
+							}
+							if data.HasDetailObservations() {
+								fmt.Fprintln(w, "")
+								fmt.Fprintln(w, "Details:")
+								fmt.Fprintln(w, "")
+								tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
+								for _, site := range data.Details {
+									for i, observation := range site.Observations {
+										if i == 0 {
+											fmt.Fprintln(tw, fmt.Sprintf("%s\t%s", site.SiteId, observation))
+										} else {
+											fmt.Fprintln(tw, fmt.Sprintf("%s\t%s", "", observation))
+										}
+									}
+								}
+								tw.Flush()
+							}
+						} else {
+							fmt.Fprintln(w, "No issues found")
+						}
+					}
+				}
+			} else {
+				http.Error(w, "Invalid path", http.StatusNotFound)
 			}
 		}
 	})
@@ -282,6 +356,7 @@ func (server *ConsoleServer) listen() {
 	http.Handle("/DATA", authenticated(server))
 	http.Handle("/version", authenticated(server.version()))
 	http.Handle("/events", authenticated(server.serveEvents()))
+	http.Handle("/servicecheck/", server.checkService())
 	http.Handle("/", authenticated(http.FileServer(http.Dir("/app/console/"))))
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
@@ -294,6 +369,7 @@ func (server *ConsoleServer) listenLocal() {
 	mux.Handle("/events", server.serveEvents())
 	mux.Handle("/sites", server.serveSites())
 	mux.Handle("/services", server.serveServices())
+	mux.Handle("/servicecheck/", server.checkService())
 	log.Fatal(http.ListenAndServe(addr, mux))
 }
 
@@ -363,4 +439,28 @@ func getConsoleData(agent *qdr.Agent) (*data.ConsoleData, error) {
 	consoleData := &data.ConsoleData{}
 	consoleData.Merge(sites)
 	return consoleData, nil
+}
+
+func checkService(agent *qdr.Agent, address string) (*data.ServiceCheck, error) {
+	//get all routers of version 0.5 and up
+	routers, err := agent.GetAllRouters()
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving routers: %s", err)
+	}
+	allSites := getAllSites(routers)
+	serviceCheck := data.ServiceCheck{}
+	sites := map[string]data.Site{}
+	for _, site := range allSites {
+		if site.Version != "" {
+			sites[site.SiteId] = site.Site
+			serviceCheck.Details = append(serviceCheck.Details, data.ServiceDetail{
+				SiteId: site.SiteId,
+			})
+		}
+	}
+	err = checkServiceForSites(agent, address, &serviceCheck)
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving service detail: %s", err)
+	}
+	return &serviceCheck, nil
 }
