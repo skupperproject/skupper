@@ -77,16 +77,18 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	volumes := []corev1.Volume{}
 	mounts := make([][]corev1.VolumeMount, 1)
 
-	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-		csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
-		sidecars = append(sidecars, OauthProxyContainer("skupper-proxy-controller", csp))
-		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_PORT", Value: csp})
-		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_HOST", Value: "localhost"})
-		mounts = append(mounts, []corev1.VolumeMount{})
-		kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], "skupper-controller-certs", "/etc/tls/proxy-certs/")
-	} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-		envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
-		kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
+	if options.EnableConsole {
+		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+			csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
+			sidecars = append(sidecars, OauthProxyContainer("skupper-proxy-controller", csp))
+			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_PORT", Value: csp})
+			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_HOST", Value: "localhost"})
+			mounts = append(mounts, []corev1.VolumeMount{})
+			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], "skupper-controller-certs", "/etc/tls/proxy-certs/")
+		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
+			kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
+		}
 	}
 	//mount secret needed for communication with router
 	kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper", "/etc/messaging/")
@@ -147,79 +149,81 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	})
 	van.Controller.RoleBindings = roleBindings
 
-	svctype := corev1.ServiceTypeClusterIP
-	metricsPort := []corev1.ServicePort{
-		{
-			Name:       "metrics",
-			Protocol:   "TCP",
-			Port:       types.ConsoleDefaultServicePort,
-			TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
-		},
-	}
-	termination := routev1.TLSTerminationEdge
-	annotations := map[string]string{}
-
-	svcs := []*corev1.Service{}
-	if options.IsIngressRoute() {
-		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			termination = routev1.TLSTerminationReencrypt
-			metricsPort = []corev1.ServicePort{
-				{
-					Name:       "metrics",
-					Protocol:   "TCP",
-					Port:       types.ConsoleOpenShiftOauthServicePort,
-					TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
-				},
-			}
-			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-controller-certs"}
+	if options.EnableConsole {
+		svctype := corev1.ServiceTypeClusterIP
+		metricsPort := []corev1.ServicePort{
+			{
+				Name:       "metrics",
+				Protocol:   "TCP",
+				Port:       types.ConsoleDefaultServicePort,
+				TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
+			},
 		}
-	} else if options.IsIngressLoadBalancer() {
-		svctype = corev1.ServiceTypeLoadBalancer
-	}
-	svcs = append(svcs, &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "skupper-controller",
-			Annotations: annotations,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: van.Controller.Labels,
-			Ports:    metricsPort,
-			Type:     svctype,
-		},
-	})
-	van.Controller.Services = svcs
+		termination := routev1.TLSTerminationEdge
+		annotations := map[string]string{}
 
-	routes := []*routev1.Route{}
-	if options.IsIngressRoute() {
-		routes = append(routes, &routev1.Route{
+		svcs := []*corev1.Service{}
+		if options.IsIngressRoute() {
+			if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+				termination = routev1.TLSTerminationReencrypt
+				metricsPort = []corev1.ServicePort{
+					{
+						Name:       "metrics",
+						Protocol:   "TCP",
+						Port:       types.ConsoleOpenShiftOauthServicePort,
+						TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
+					},
+				}
+				annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-controller-certs"}
+			}
+		} else if options.IsIngressLoadBalancer() {
+			svctype = corev1.ServiceTypeLoadBalancer
+		}
+		svcs = append(svcs, &corev1.Service{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
-				Kind:       "Route",
+				Kind:       "Service",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "skupper-controller",
+				Name:        "skupper-controller",
+				Annotations: annotations,
 			},
-			Spec: routev1.RouteSpec{
-				Path: "",
-				Port: &routev1.RoutePort{
-					TargetPort: intstr.FromString("metrics"),
-				},
-				To: routev1.RouteTargetReference{
-					Kind: "Service",
-					Name: "skupper-controller",
-				},
-				TLS: &routev1.TLSConfig{
-					Termination:                   termination,
-					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
-				},
+			Spec: corev1.ServiceSpec{
+				Selector: van.Controller.Labels,
+				Ports:    metricsPort,
+				Type:     svctype,
 			},
 		})
+		van.Controller.Services = svcs
+
+		routes := []*routev1.Route{}
+		if options.IsIngressRoute() {
+			routes = append(routes, &routev1.Route{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Route",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "skupper-controller",
+				},
+				Spec: routev1.RouteSpec{
+					Path: "",
+					Port: &routev1.RoutePort{
+						TargetPort: intstr.FromString("metrics"),
+					},
+					To: routev1.RouteTargetReference{
+						Kind: "Service",
+						Name: "skupper-controller",
+					},
+					TLS: &routev1.TLSConfig{
+						Termination:                   termination,
+						InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+					},
+				},
+			})
+		}
+		van.Controller.Routes = routes
 	}
-	van.Controller.Routes = routes
 }
 
 func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) *types.RouterSpec {

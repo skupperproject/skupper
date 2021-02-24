@@ -122,8 +122,8 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			// show up, but I am giving it a large timeout here. The result
 			// checker will cut out as soon as it sees a result list of the
 			// right size.
-			svcsExpected:     []string{"skupper-messaging", "skupper-internal", "skupper-controller"},
-			realSvcsExpected: []string{"skupper-messaging", "skupper-internal", "skupper-controller", "vsic-5-addr"},
+			svcsExpected:     []string{"skupper-messaging", "skupper-internal"},
+			realSvcsExpected: []string{"skupper-messaging", "skupper-internal", "vsic-5-addr"},
 			timeout:          60.0,
 		},
 	}
