@@ -36,7 +36,16 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 	if routerMode, ok := siteConfig.Data["router-mode"]; ok {
 		result.Spec.RouterMode = routerMode
 	} else {
-		result.Spec.RouterMode = string(types.TransportModeInterior)
+		// check for deprecated key
+		if isEdge, ok := siteConfig.Data["edge"]; ok {
+			if isEdge == "true" {
+				result.Spec.RouterMode = string(types.TransportModeEdge)
+			} else {
+				result.Spec.RouterMode = string(types.TransportModeInterior)
+			}
+		} else {
+			result.Spec.RouterMode = string(types.TransportModeInterior)
+		}
 	}
 	if enableController, ok := siteConfig.Data["service-controller"]; ok {
 		result.Spec.EnableController, _ = strconv.ParseBool(enableController)
@@ -76,7 +85,16 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 	if ingress, ok := siteConfig.Data["ingress"]; ok {
 		result.Spec.Ingress = ingress
 	} else {
-		result.Spec.Ingress = types.IngressLoadBalancerString
+		// check for deprecated key
+		if clusterLocal, ok := siteConfig.Data["cluster-local"]; ok {
+			if clusterLocal == "true" {
+				result.Spec.Ingress = types.IngressNoneString
+			} else {
+				result.Spec.Ingress = types.IngressLoadBalancerString
+			}
+		} else {
+			result.Spec.Ingress = types.IngressLoadBalancerString
+		}
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if siteConfig.ObjectMeta.Labels == nil {
