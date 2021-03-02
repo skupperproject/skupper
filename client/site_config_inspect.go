@@ -93,7 +93,7 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 				result.Spec.Ingress = types.IngressLoadBalancerString
 			}
 		} else {
-			result.Spec.Ingress = types.IngressLoadBalancerString
+			result.Spec.Ingress = cli.GetIngressDefault()
 		}
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?

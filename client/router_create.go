@@ -400,7 +400,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Name:          "http",
 		ContainerPort: types.TransportLivenessPort,
 	})
-	if isEdge {
+	if !isEdge {
 		ports = append(ports, corev1.ContainerPort{
 			Name:          types.InterRouterRole,
 			ContainerPort: types.InterRouterListenerPort,
