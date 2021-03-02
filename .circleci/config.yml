@@ -17,6 +17,10 @@ parameters:
     default: quay.io/nicob87/skupper-tests:${CIRCLE_SHA1}
     type: string
 
+  ci_router_image:
+    default: quay.io/interconnectedcloud/qdrouterd:nightly
+    type: string
+
 executors:
   local_cluster_test_executor:
     machine:
@@ -63,6 +67,7 @@ commands:
             echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
             echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
             echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
+            echo 'export QDROUTERD_IMAGE=<< pipeline.parameters.ci_router_image >>' >> $BASH_ENV
             source $BASH_ENV
       - checkout
       - run:
