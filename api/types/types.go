@@ -35,7 +35,7 @@ const (
 	// TransportModeInterior means the qdr will participate in inter-router protocol exchanges
 	TransportModeInterior TransportMode = "interior"
 	// TransportModeEdge means that the qdr will connect to interior routers for network access
-	TransportModeEdge = "edge"
+	TransportModeEdge TransportMode = "edge"
 )
 
 // Transport constants

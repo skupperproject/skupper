@@ -427,7 +427,7 @@ func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 			if err == nil {
 				ns := cli.GetNamespace()
 				var modedesc string = " in interior mode"
-				if vir.Status.Mode == types.TransportModeEdge {
+				if vir.Status.Mode == string(types.TransportModeEdge) {
 					modedesc = " in edge mode"
 				}
 				sitename := ""
