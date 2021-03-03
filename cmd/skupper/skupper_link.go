@@ -46,7 +46,7 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("Failed to create connection: %w", err)
 				} else {
-					if siteConfig.Spec.IsEdge {
+					if siteConfig.Spec.RouterMode == string(types.TransportModeEdge) {
 						fmt.Printf("Skupper configured to connect to %s:%s (name=%s)\n",
 							secret.ObjectMeta.Annotations["edge-host"],
 							secret.ObjectMeta.Annotations["edge-port"],
@@ -65,7 +65,7 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("Failed to create connection: %w", err)
 				} else {
-					if siteConfig.Spec.IsEdge {
+					if siteConfig.Spec.RouterMode == string(types.TransportModeEdge) {
 						fmt.Printf("Skupper site-controller configured to connect to %s:%s (name=%s)\n",
 							secret.ObjectMeta.Annotations["edge-host"],
 							secret.ObjectMeta.Annotations["edge-port"],

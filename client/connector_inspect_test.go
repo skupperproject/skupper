@@ -47,7 +47,7 @@ func TestConnectorInspectNotFound(t *testing.T) {
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
-			IsEdge:            false,
+			RouterMode:        string(types.TransportModeInterior),
 			EnableController:  true,
 			EnableServiceSync: true,
 			EnableConsole:     false,

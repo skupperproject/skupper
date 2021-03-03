@@ -35,7 +35,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			diagram: []string{"edge  -->  interior"},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -47,7 +47,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            true,
+				RouterMode:        string(types.TransportModeEdge),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -71,7 +71,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				"edge  -->  interior-2"},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -83,7 +83,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            true,
+				RouterMode:        string(types.TransportModeEdge),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -108,7 +108,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				"interior-1  --> interior-2"},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -120,7 +120,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            true,
+				RouterMode:        string(types.TransportModeEdge),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -147,7 +147,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				"edge  -->  interior-3"},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -159,7 +159,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            true,
+				RouterMode:        string(types.TransportModeEdge),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -183,7 +183,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				"interior-1  -->  interior-2"},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -195,7 +195,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            true,
+				RouterMode:        string(types.TransportModeEdge),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,

@@ -188,9 +188,8 @@ func inStringSlice(options []string, value string) bool {
 var ClusterLocal bool
 
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
-	routerModeInteriorValue := "interior"
-	routerModeEdgeValue := "edge"
 	var routerMode string
+	var isEdge bool
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
@@ -210,11 +209,17 @@ installation that can then be connected to other skupper installations`,
 			}
 
 			if routerModeFlag.Changed {
-				options := []string{routerModeInteriorValue, routerModeEdgeValue}
+				options := []string{string(types.TransportModeInterior), string(types.TransportModeEdge)}
 				if !inStringSlice(options, routerMode) {
 					return fmt.Errorf(`invalid "--router-mode=%v", it must be one of "%v"`, routerMode, strings.Join(options, ", "))
 				}
-				routerCreateOpts.IsEdge = routerMode == routerModeEdgeValue
+				routerCreateOpts.RouterMode = routerMode
+			} else {
+				if isEdge {
+					routerCreateOpts.RouterMode = string(types.TransportModeEdge)
+				} else {
+					routerCreateOpts.RouterMode = string(types.TransportModeInterior)
+				}
 			}
 
 			routerIngressFlag := cmd.Flag("ingress")
@@ -290,11 +295,11 @@ installation that can then be connected to other skupper installations`,
 	f.Hidden = true
 	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "loadbalancer", "Setup Skupper ingress to one of: [loadbalancer|route|none].")
 
-	cmd.Flags().BoolVarP(&routerCreateOpts.IsEdge, "edge", "", false, "Configure as an edge")
+	cmd.Flags().BoolVarP(&isEdge, "edge", "", false, "Configure as an edge")
 	f = cmd.Flag("edge")
 	f.Deprecated = "This flag is deprecated, use --router-mode [interior|edge]"
 	f.Hidden = true
-	cmd.Flags().StringVarP(&routerMode, "router-mode", "", routerModeInteriorValue, "Skupper router-mode")
+	cmd.Flags().StringVarP(&routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
 
 	return cmd
 }
@@ -422,7 +427,7 @@ func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 			if err == nil {
 				ns := cli.GetNamespace()
 				var modedesc string = " in interior mode"
-				if vir.Status.Mode == types.TransportModeEdge {
+				if vir.Status.Mode == string(types.TransportModeEdge) {
 					modedesc = " in edge mode"
 				}
 				sitename := ""

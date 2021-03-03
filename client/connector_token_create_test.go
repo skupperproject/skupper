@@ -18,7 +18,7 @@ func TestConnectorCreateTokenInterior(t *testing.T) {
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
-			IsEdge:            false,
+			RouterMode:        string(types.TransportModeInterior),
 			EnableController:  true,
 			EnableServiceSync: true,
 			EnableConsole:     false,
@@ -45,7 +45,7 @@ func TestConnectorCreateTokenEdge(t *testing.T) {
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
 			SkupperName:       "skupper",
-			IsEdge:            true,
+			RouterMode:        string(types.TransportModeEdge),
 			EnableController:  true,
 			EnableServiceSync: true,
 			EnableConsole:     false,

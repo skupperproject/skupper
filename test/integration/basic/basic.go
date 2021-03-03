@@ -95,7 +95,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			doc: "Connecting, two internals, clusterLocal=true",
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -107,7 +107,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -122,7 +122,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			doc: "Connecting, two internals, clusterLocal=false",
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -134,7 +134,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -149,7 +149,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			doc: "connecting, Private Edge, Public Internal, clusterLocal=true",
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            false,
+				RouterMode:        string(types.TransportModeInterior),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,
@@ -161,7 +161,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
-				IsEdge:            true,
+				RouterMode:        string(types.TransportModeEdge),
 				EnableController:  true,
 				EnableServiceSync: true,
 				EnableConsole:     false,

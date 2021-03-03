@@ -172,7 +172,7 @@ func setupTwoNamespaces(t *testing.T, ctx context.Context, tokenCreatorNamespace
 func configureSiteAndCreateRouter(t *testing.T, ctx context.Context, cli *VanClient, name string) {
 	routerCreateOpts := types.SiteConfigSpec{
 		SkupperName:       "skupper",
-		IsEdge:            false,
+		RouterMode:        string(types.TransportModeInterior),
 		EnableController:  true,
 		EnableServiceSync: true,
 		EnableConsole:     false,
