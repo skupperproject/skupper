@@ -12,7 +12,7 @@ import (
 
 func (cli *VanClient) ConnectorList(ctx context.Context) ([]*types.Connector, error) {
 	var connectors []*types.Connector
-	configmap, err := kube.GetConfigMap("skupper-internal", cli.Namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
 	if err != nil {
 		return connectors, err
 	}

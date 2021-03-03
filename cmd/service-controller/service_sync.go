@@ -222,15 +222,15 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 func (c *Controller) runServiceSync() {
 	ctx := context.Background()
 
-	event.Record(ServiceSyncConnection, "Establishing connection to skupper-messaging service for service sync")
+	event.Recordf(ServiceSyncConnection, "Establishing connection to %s service for service sync", types.LocalTransportServiceName)
 
-	client, err := amqp.Dial("amqps://skupper-messaging:5671", amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(c.tlsConfig))
+	client, err := amqp.Dial("amqps://"+types.LocalTransportServiceName+":5671", amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(c.tlsConfig))
 	if err != nil {
 		event.Recordf(ServiceSyncConnection, "Failed to create amqp connection %s", err.Error())
 		utilruntime.HandleError(fmt.Errorf("Failed to create amqp connection %s", err.Error()))
 		return
 	}
-	event.Record(ServiceSyncConnection, "Service sync connection to skupper-messaging service established")
+	event.Recordf(ServiceSyncConnection, "Service sync connection to %s service established", types.LocalTransportServiceName)
 	c.amqpClient = client
 	defer c.amqpClient.Close()
 

@@ -167,7 +167,7 @@ func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretF
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		configmap, err := kube.GetConfigMap("skupper-internal" /*TODO: change to constant*/, options.SkupperNamespace, cli.KubeClient)
+		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, options.SkupperNamespace, cli.KubeClient)
 		if err != nil {
 			return err
 		}

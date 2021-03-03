@@ -70,7 +70,7 @@ func GetConfigMap(name string, namespace string, cli kubernetes.Interface) (*cor
 }
 
 func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, origin string, namespace string, cli kubernetes.Interface) error {
-	current, err := cli.CoreV1().ConfigMaps(namespace).Get("skupper-services", metav1.GetOptions{})
+	current, err := cli.CoreV1().ConfigMaps(namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil {
 		if current.Data == nil {
 			current.Data = make(map[string]string)

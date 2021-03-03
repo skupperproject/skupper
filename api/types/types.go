@@ -44,15 +44,18 @@ const (
 	TransportComponentName      string = "router"
 	TransportContainerName      string = "router"
 	TransportLivenessPort       int32  = 9090
-	TransportServiceAccountName string = "skupper"
-	TransportViewRoleName       string = "skupper-view"
+	TransportServiceAccountName string = "skupper-router"
+	TransportRoleName           string = "skupper-router"
+	TransportRoleBindingName    string = "skupper-router"
 	TransportEnvConfig          string = "QDROUTERD_CONF"
 	TransportSaslConfig         string = "skupper-sasl-config"
 	TransportConfigFile         string = "qdrouterd.json"
 	TransportConfigMapName      string = "skupper-internal"
+	TransportServiceName        string = "skupper-router"
+	LocalTransportServiceName   string = "skupper-router-local"
 )
 
-var TransportViewPolicyRule = []rbacv1.PolicyRule{
+var TransportPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{""},
@@ -70,12 +73,14 @@ const (
 	ControllerDeploymentName     string = "skupper-service-controller"
 	ControllerComponentName      string = "proxy-controller"
 	ControllerContainerName      string = "service-controller"
-	ControllerServiceAccountName string = "skupper-proxy-controller"
+	ControllerServiceAccountName string = "skupper-service-controller"
+	ControllerRoleBindingName    string = "skupper-service-controller"
+	ControllerRoleName           string = "skupper-service-controller"
 	ControllerConfigPath         string = "/etc/messaging/"
-	ControllerEditRoleName       string = "skupper-edit"
+	ControllerServiceName        string = "skupper"
 )
 
-var ControllerEditPolicyRule = []rbacv1.PolicyRule{
+var ControllerPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
 		APIGroups: []string{""},
@@ -97,6 +102,17 @@ var ControllerEditPolicyRule = []rbacv1.PolicyRule{
 		Resources: []string{"routes"},
 	},
 }
+
+// Certifcates/Secrets constants
+const (
+	LocalClientSecret        string = "skupper-local-client"
+	LocalServerSecret        string = "skupper-local-server"
+	LocalCaSecret            string = "skupper-local-ca"
+	SiteServerSecret         string = "skupper-site-server"
+	SiteCaSecret             string = "skupper-site-ca"
+	OauthConsoleSecret       string = "skupper-console-certs"
+	OauthRouterConsoleSecret string = "skupper-router-console-certs"
+)
 
 // Skupper qualifiers
 const (
@@ -136,13 +152,12 @@ const (
 // Console constants
 const (
 	ConsolePortName                        string = "console"
-	ConsoleServiceName                     string = "skupper-console"
 	ConsoleDefaultServicePort              int32  = 8080
 	ConsoleDefaultServiceTargetPort        int32  = 8080
 	ConsoleOpenShiftServicePort            int32  = 8888
 	ConsoleOpenShiftOauthServicePort       int32  = 443
 	ConsoleOpenShiftOauthServiceTargetPort int32  = 8443
-	ConsoleOpenShiftServingCerts           string = "skupper-proxy-certs"
+	ConsoleRouteName                       string = "skupper"
 )
 
 type ConsoleAuthMode string

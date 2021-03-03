@@ -279,7 +279,7 @@ func TestUpdateSkupperServices(t *testing.T) {
 			if test.hasSkupperServices {
 				cm := &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "skupper-services",
+						Name: types.ServiceInterfaceConfigMap,
 					},
 				}
 				if test.currentData != nil {
@@ -301,7 +301,7 @@ func TestUpdateSkupperServices(t *testing.T) {
 
 			// Validating data
 			if test.hasSkupperServices {
-				cm, _ := kubeClient.CoreV1().ConfigMaps(NS).Get("skupper-services", metav1.GetOptions{})
+				cm, _ := kubeClient.CoreV1().ConfigMaps(NS).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 				assert.Equal(t, test.expectedData == nil, cm.Data == nil)
 
 				// Stringify expectedData first

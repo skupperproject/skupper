@@ -488,7 +488,7 @@ func (c *Controller) runServiceCtrl() {
 }
 
 func (c *Controller) getInitialBridgeConfig() (*qdr.BridgeConfig, error) {
-	name := c.namespaced("skupper-internal")
+	name := c.namespaced(types.TransportConfigMapName)
 	obj, exists, err := c.bridgeDefInformer.GetStore().GetByKey(name)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading skupper-internal from cache: %s", err)
@@ -665,7 +665,7 @@ func (c *Controller) processNextEvent() bool {
 						}
 					}
 				}
-				c.updateBridgeConfig(c.namespaced("skupper-internal"))
+				c.updateBridgeConfig(c.namespaced(types.TransportConfigMapName))
 				c.updateActualServices()
 				c.updateHeadlessProxies()
 			case "bridges":
@@ -727,7 +727,7 @@ func (c *Controller) processNextEvent() bool {
 			case "targetpods":
 				event.Recordf(ServiceControllerEvent, "Got targetpods event %s", name)
 				//name is the address of the skupper service
-				c.updateBridgeConfig(c.namespaced("skupper-internal"))
+				c.updateBridgeConfig(c.namespaced(types.TransportConfigMapName))
 			case "statefulset":
 				event.Recordf(ServiceControllerEvent, "Got statefulset proxy event %s", name)
 				obj, exists, err := c.headlessInformer.GetStore().GetByKey(name)

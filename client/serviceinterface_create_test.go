@@ -114,16 +114,16 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			port:          1999,
 			expectedErr:   "",
 			depsExpected:  []string{"skupper-router", "skupper-service-controller"},
-			cmsExpected:   []string{"skupper-internal", "skupper-services"},
-			rolesExpected: []string{"skupper-edit", "skupper-view"},
+			cmsExpected:   []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
+			rolesExpected: []string{types.ControllerRoleName, types.TransportRoleName},
 			// The list of expected services is slightly different in
 			// the mock environment vs. a real cluster.
 			// It usually takes 10 or 12 seconds for the address service to
 			// show up, but I am giving it a large timeout here. The result
 			// checker will cut out as soon as it sees a result list of the
 			// right size.
-			svcsExpected:     []string{"skupper-messaging", "skupper-internal"},
-			realSvcsExpected: []string{"skupper-messaging", "skupper-internal", "vsic-5-addr"},
+			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName},
+			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, "vsic-5-addr"},
 			timeout:          60.0,
 		},
 	}
