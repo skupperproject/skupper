@@ -728,7 +728,7 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 	config.AddConnector(Connector{
 		Name:       "uplink",
 		SslProfile: types.InterRouterProfile,
-		Host:       "skupper-internal." + namespace,
+		Host:       types.TransportServiceName + "." + namespace,
 		Port:       strconv.Itoa(int(types.EdgeListenerPort)),
 		Role:       RoleEdge,
 	})

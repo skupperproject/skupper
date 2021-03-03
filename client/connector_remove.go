@@ -17,7 +17,7 @@ func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.Connect
 		if err != nil {
 			return err
 		}
-		configmap, err := kube.GetConfigMap("skupper-internal", options.SkupperNamespace, cli.KubeClient)
+		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, options.SkupperNamespace, cli.KubeClient)
 		if err != nil {
 			return err
 		}

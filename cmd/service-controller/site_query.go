@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/data"
 	"github.com/skupperproject/skupper/pkg/event"
@@ -38,7 +39,7 @@ func newSiteQueryServer(cli *client.VanClient, config *tls.Config) *SiteQuerySer
 	sqs := SiteQueryServer{
 		client:    cli,
 		tlsConfig: config,
-		agentPool: qdr.NewAgentPool("amqps://skupper-messaging:5671", config),
+		agentPool: qdr.NewAgentPool("amqps://"+types.LocalTransportServiceName+":5671", config),
 		iplookup:  NewIpLookup(cli),
 	}
 	sqs.getLocalSiteInfo()
@@ -85,7 +86,7 @@ func (s *SiteQueryServer) getLocalSiteQueryData() (data.SiteQueryData, error) {
 
 func getSiteUrl(vanClient *client.VanClient) (string, error) {
 	if vanClient.RouteClient == nil {
-		service, err := vanClient.KubeClient.CoreV1().Services(vanClient.Namespace).Get("skupper-internal", metav1.GetOptions{})
+		service, err := vanClient.KubeClient.CoreV1().Services(vanClient.Namespace).Get(types.TransportServiceName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {

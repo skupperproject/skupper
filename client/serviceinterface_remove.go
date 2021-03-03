@@ -6,10 +6,12 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/skupperproject/skupper/api/types"
 )
 
 func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string) error {
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-services", metav1.GetOptions{})
+	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil && current.Data != nil {
 		jsonDef := current.Data[address]
 		if jsonDef == "" {

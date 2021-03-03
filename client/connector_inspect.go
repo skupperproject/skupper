@@ -14,7 +14,7 @@ import (
 func (cli *VanClient) ConnectorInspect(ctx context.Context, name string) (*types.ConnectorInspectResponse, error) {
 	vci := &types.ConnectorInspectResponse{}
 
-	configmap, err := kube.GetConfigMap("skupper-internal", cli.Namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
 	if err != nil {
 		return nil, err
 	}

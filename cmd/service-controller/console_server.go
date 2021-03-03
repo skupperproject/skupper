@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/data"
 	"github.com/skupperproject/skupper/pkg/event"
@@ -32,7 +33,7 @@ type ConsoleServer struct {
 
 func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer {
 	return &ConsoleServer{
-		agentPool: qdr.NewAgentPool("amqps://skupper-messaging:5671", config),
+		agentPool: qdr.NewAgentPool("amqps://"+types.LocalTransportServiceName+":5671", config),
 	}
 }
 

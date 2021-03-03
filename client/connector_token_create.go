@@ -74,7 +74,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 	} else if ok {
 		return ok
 	} else {
-		service, err := cli.KubeClient.CoreV1().Services(namespace).Get("skupper-internal", metav1.GetOptions{})
+		service, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.TransportServiceName, metav1.GetOptions{})
 		if err != nil {
 			return false
 		} else {
@@ -92,7 +92,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 				}
 			}
 			result.LocalOnly = true
-			host := fmt.Sprintf("skupper-internal.%s", namespace)
+			host := fmt.Sprintf("%s.%s", types.TransportServiceName, namespace)
 			result.Hosts = host
 			result.InterRouter.Host = host
 			result.InterRouter.Port = "55671"
@@ -108,7 +108,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 		namespace = cli.Namespace
 	}
 	// TODO: return error message for all the paths
-	configmap, err := kube.GetConfigMap("skupper-internal", cli.Namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
 	if err != nil {
 		return nil, false, err
 	}
@@ -120,7 +120,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
 	//TODO: creat const for ca
-	caSecret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-internal-ca", metav1.GetOptions{})
+	caSecret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}

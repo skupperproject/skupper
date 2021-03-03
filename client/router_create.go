@@ -65,7 +65,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_NAMESPACE", Value: van.Namespace})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SITE_NAME", Value: van.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SITE_ID", Value: siteId})
-	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SERVICE_ACCOUNT", Value: "skupper"})
+	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SERVICE_ACCOUNT", Value: types.TransportServiceAccountName})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(transport.ObjectMeta.UID)})
 	envVars = addRouterImageOverrideToEnv(envVars)
@@ -80,18 +80,18 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	if options.EnableConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
-			sidecars = append(sidecars, OauthProxyContainer("skupper-proxy-controller", csp))
+			sidecars = append(sidecars, OauthProxyContainer(types.ControllerServiceAccountName, csp))
 			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_PORT", Value: csp})
 			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_HOST", Value: "localhost"})
 			mounts = append(mounts, []corev1.VolumeMount{})
-			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], "skupper-controller-certs", "/etc/tls/proxy-certs/")
+			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.OauthConsoleSecret, "/etc/tls/proxy-certs/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
 			kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
 		}
 	}
 	//mount secret needed for communication with router
-	kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper", "/etc/messaging/")
+	kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.LocalClientSecret, "/etc/messaging/")
 	van.Controller.EnvVar = envVars
 	van.Controller.Volumes = volumes
 	van.Controller.VolumeMounts = mounts
@@ -101,7 +101,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	annotation := map[string]string{}
 	if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 		annotation = map[string]string{
-			"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"skupper-controller\"}}",
+			"serviceaccounts.openshift.io/oauth-redirectreference.primary": "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"" + types.ConsoleRouteName + "\"}}",
 		}
 	}
 	serviceAccounts = append(serviceAccounts, &corev1.ServiceAccount{
@@ -110,7 +110,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Kind:       "ServiceAccount",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "skupper-proxy-controller",
+			Name:        types.ControllerServiceAccountName,
 			Annotations: annotation,
 		},
 	})
@@ -123,9 +123,9 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "skupper-edit",
+			Name: types.ControllerRoleName,
 		},
-		Rules: types.ControllerEditPolicyRule,
+		Rules: types.ControllerPolicyRule,
 	})
 	van.Controller.Roles = roles
 
@@ -136,15 +136,15 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "skupper-proxy-controller-skupper-edit",
+			Name: types.ControllerRoleBindingName,
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind: "ServiceAccount",
-			Name: "skupper-proxy-controller",
+			Name: types.ControllerServiceAccountName,
 		}},
 		RoleRef: rbacv1.RoleRef{
 			Kind: "Role",
-			Name: "skupper-edit",
+			Name: types.ControllerRoleName,
 		},
 	})
 	van.Controller.RoleBindings = roleBindings
@@ -174,7 +174,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 						TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
 					},
 				}
-				annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-controller-certs"}
+				annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.OauthConsoleSecret}
 			}
 		} else if options.IsIngressLoadBalancer() {
 			svctype = corev1.ServiceTypeLoadBalancer
@@ -185,7 +185,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				Kind:       "Service",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        "skupper-controller",
+				Name:        types.ControllerServiceName,
 				Annotations: annotations,
 			},
 			Spec: corev1.ServiceSpec{
@@ -204,7 +204,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 					Kind:       "Route",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "skupper-controller",
+					Name: types.ConsoleRouteName,
 				},
 				Spec: routev1.RouteSpec{
 					Path: "",
@@ -213,7 +213,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 					},
 					To: routev1.RouteTargetReference{
 						Kind: "Service",
-						Name: "skupper-controller",
+						Name: types.ControllerServiceName,
 					},
 					TLS: &routev1.TLSConfig{
 						Termination:                   termination,
@@ -415,16 +415,16 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	sidecars := []*corev1.Container{}
 	volumes := []corev1.Volume{}
 	mounts := make([][]corev1.VolumeMount, 1)
-	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-amqps", "/etc/qpid-dispatch-certs/skupper-amqps/")
+	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.LocalServerSecret, "/etc/qpid-dispatch-certs/skupper-amqps/")
 	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", types.TransportConfigMapName, "/etc/qpid-dispatch/config/")
 	if !isEdge {
-		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-internal", "/etc/qpid-dispatch-certs/skupper-internal/")
+		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.SiteServerSecret, "/etc/qpid-dispatch-certs/skupper-internal/")
 	}
 	if options.EnableRouterConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			sidecars = append(sidecars, OauthProxyContainer("skupper", strconv.Itoa(int(types.ConsoleOpenShiftServicePort))))
+			sidecars = append(sidecars, OauthProxyContainer(types.TransportServiceAccountName, strconv.Itoa(int(types.ConsoleOpenShiftServicePort))))
 			mounts = append(mounts, []corev1.VolumeMount{})
-			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], "skupper-proxy-certs", "/etc/tls/proxy-certs/")
+			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.OauthRouterConsoleSecret, "/etc/tls/proxy-certs/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 			kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-console-users", "/etc/qpid-dispatch/sasl-users/")
 			kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "skupper-sasl-config", "skupper-sasl-config", "/etc/sasl2/")
@@ -441,9 +441,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.TransportViewRoleName,
+			Name: types.TransportRoleName,
 		},
-		Rules: types.TransportViewPolicyRule,
+		Rules: types.TransportPolicyRule,
 	})
 	van.Transport.Roles = roles
 
@@ -454,7 +454,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.TransportServiceAccountName + "-" + types.TransportViewRoleName,
+			Name: types.TransportRoleBindingName,
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind: "ServiceAccount",
@@ -462,7 +462,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		}},
 		RoleRef: rbacv1.RoleRef{
 			Kind: "Role",
-			Name: types.TransportViewRoleName,
+			Name: types.TransportRoleName,
 		},
 	})
 	van.Transport.RoleBindings = roleBindings
@@ -488,28 +488,28 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 
 	cas := []types.CertAuthority{}
 	cas = append(cas, types.CertAuthority{
-		Name: "skupper-ca",
+		Name: types.LocalCaSecret,
 	})
 	if !isEdge {
 		cas = append(cas, types.CertAuthority{
-			Name: "skupper-internal-ca",
+			Name: types.SiteCaSecret,
 		})
 	}
 	van.CertAuthoritys = cas
 
 	credentials := []types.Credential{}
 	credentials = append(credentials, types.Credential{
-		CA:          "skupper-ca",
-		Name:        "skupper-amqps",
-		Subject:     "skupper-messaging",
-		Hosts:       []string{"skupper-messaging,skupper-messaging." + van.Namespace + ".svc.cluster.local"},
+		CA:          types.LocalCaSecret,
+		Name:        types.LocalServerSecret,
+		Subject:     types.LocalTransportServiceName,
+		Hosts:       []string{types.LocalTransportServiceName, types.LocalTransportServiceName + "." + van.Namespace + ".svc.cluster.local"},
 		ConnectJson: false,
 		Post:        false,
 	})
 	credentials = append(credentials, types.Credential{
-		CA:          "skupper-ca",
-		Name:        "skupper",
-		Subject:     "skupper-messaging",
+		CA:          types.LocalCaSecret,
+		Name:        types.LocalClientSecret,
+		Subject:     types.LocalTransportServiceName,
 		Hosts:       []string{},
 		ConnectJson: true,
 		Post:        false,
@@ -518,19 +518,19 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	if !isEdge {
 		if options.IsIngressNone() {
 			credentials = append(credentials, types.Credential{
-				CA:          "skupper-internal-ca",
-				Name:        "skupper-internal",
-				Subject:     "skupper-internal",
-				Hosts:       []string{"skupper-internal." + van.Namespace},
+				CA:          types.SiteCaSecret,
+				Name:        types.SiteServerSecret,
+				Subject:     types.TransportServiceName,
+				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
 				ConnectJson: false,
 				Post:        false,
 			})
 		} else {
 			credentials = append(credentials, types.Credential{
-				CA:          "skupper-internal-ca",
-				Name:        "skupper-internal",
-				Subject:     "skupper-internal",
-				Hosts:       []string{"skupper-internal." + van.Namespace},
+				CA:          types.SiteCaSecret,
+				Name:        types.SiteServerSecret,
+				Subject:     types.TransportServiceName,
+				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
 				ConnectJson: false,
 				Post:        true,
 			})
@@ -560,7 +560,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "skupper-messaging",
+			Name:        types.LocalTransportServiceName,
 			Annotations: map[string]string{},
 		},
 		Spec: corev1.ServiceSpec{
@@ -585,7 +585,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "skupper-router-console",
-					Annotations: map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": "skupper-proxy-certs"},
+					Annotations: map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.OauthRouterConsoleSecret},
 				},
 				Spec: corev1.ServiceSpec{
 					Selector: van.Transport.Labels,
@@ -636,7 +636,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				Kind:       "Service",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        "skupper-internal",
+				Name:        types.TransportServiceName,
 				Annotations: map[string]string{},
 			},
 			Spec: corev1.ServiceSpec{
@@ -678,7 +678,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				},
 				To: routev1.RouteTargetReference{
 					Kind: "Service",
-					Name: types.InterRouterProfile,
+					Name: types.TransportServiceName,
 				},
 				TLS: &routev1.TLSConfig{
 					Termination:                   routev1.TLSTerminationPassthrough,
@@ -701,7 +701,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				},
 				To: routev1.RouteTargetReference{
 					Kind: "Service",
-					Name: types.InterRouterProfile,
+					Name: types.TransportServiceName,
 				},
 				TLS: &routev1.TLSConfig{
 					Termination:                   routev1.TLSTerminationPassthrough,
@@ -826,7 +826,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		}
 	}
 
-	kube.NewConfigMap("skupper-services", nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap(types.ServiceInterfaceConfigMap, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
 	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, siteOwnerRef, van.Namespace, cli.KubeClient)
 
@@ -848,7 +848,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 					}
 
 				} else {
-					service, err := kube.GetService(types.InterRouterProfile, van.Namespace, cli.KubeClient)
+					service, err := kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
 					if err == nil {
 						host := kube.GetLoadBalancerHostOrIP(service)
 						for i := 0; host == "" && i < 120; i++ {
@@ -856,11 +856,11 @@ sasldb_path: /tmp/qdrouterd.sasldb
 								fmt.Println("Waiting for LoadBalancer IP or hostname...")
 							}
 							time.Sleep(time.Second)
-							service, err = kube.GetService(types.InterRouterProfile, van.Namespace, cli.KubeClient)
+							service, err = kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
 							host = kube.GetLoadBalancerHostOrIP(service)
 						}
 						if host == "" {
-							return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service skupper-internal")
+							return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", types.TransportServiceName)
 						} else {
 							cred.Hosts = append(cred.Hosts, host)
 							if len(host) < 64 {

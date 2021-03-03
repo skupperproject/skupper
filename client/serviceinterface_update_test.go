@@ -231,7 +231,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	defer cancel()
 
 	svcsFound := []string{}
-	svcsExpected := []string{"skupper-messaging", "skupper-internal", "nginx", "tcp-go-echo", "tcp-go-echo-ss"}
+	svcsExpected := []string{types.LocalTransportServiceName, types.TransportServiceName, "nginx", "tcp-go-echo", "tcp-go-echo-ss"}
 
 	informers := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0, informers.WithNamespace(namespace))
 	svcInformer := informers.Core().V1().Services().Informer()

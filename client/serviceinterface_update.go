@@ -103,7 +103,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 	if err != nil {
 		return fmt.Errorf("Failed to encode service interface as json: %s", err)
 	}
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-services", metav1.GetOptions{})
+	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil {
 		if overwriteIfExists || current.Data == nil || current.Data[service.Address] == "" {
 			if current.Data == nil {
@@ -129,7 +129,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 				Kind:       "ConfigMap",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "skupper-services",
+				Name: types.ServiceInterfaceConfigMap,
 			},
 			Data: map[string]string{
 				service.Address: string(encoded),
@@ -290,7 +290,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 }
 
 func removeServiceInterfaceTarget(serviceName string, targetName string, deleteIfNoTargets bool, cli *VanClient) error {
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-services", metav1.GetOptions{})
+	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil {
 		jsonDef := current.Data[serviceName]
 		if jsonDef == "" {

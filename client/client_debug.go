@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -77,7 +78,7 @@ func (cli *VanClient) writeConfigMap(name string, tw *tar.Writer) error {
 }
 
 func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error {
-	configMaps := []string{"skupper-site", "skupper-services", "skupper-internal", "skupper-sasl-config"}
+	configMaps := []string{"skupper-site", types.ServiceInterfaceConfigMap, types.TransportConfigMapName, "skupper-sasl-config"}
 	deployments := []string{"skupper-site-controller", "skupper-router", "skupper-service-controller"}
 	qdstatFlags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
 

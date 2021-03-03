@@ -14,7 +14,7 @@ import (
 
 func (cli *VanClient) getConsoleUrl() (string, error) {
 	if cli.RouteClient == nil {
-		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get("skupper-controller", metav1.GetOptions{})
+		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
@@ -26,7 +26,7 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 			}
 		}
 	} else {
-		route, err := cli.RouteClient.Routes(cli.Namespace).Get("skupper-controller", metav1.GetOptions{})
+		route, err := cli.RouteClient.Routes(cli.Namespace).Get(types.ConsoleRouteName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
@@ -43,7 +43,7 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace string) (*types.RouterInspectResponse, error) {
 	vir := &types.RouterInspectResponse{}
 
-	configmap, err := kube.GetConfigMap("skupper-internal", namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli.KubeClient)
 	if err != nil {
 		return nil, err
 	}

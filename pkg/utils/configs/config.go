@@ -11,7 +11,7 @@ func ConnectJson() string {
 	connect_json := `
 {
     "scheme": "amqps",
-    "host": "skupper-messaging",
+    "host": "` + types.LocalTransportServiceName + `",
     "port": "5671",
     "tls": {
         "ca": "/etc/messaging/ca.crt",
