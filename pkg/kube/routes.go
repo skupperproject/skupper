@@ -29,3 +29,16 @@ func CreateRoute(route *routev1.Route, namespace string, rc *routev1client.Route
 		return nil, fmt.Errorf("Failed while checking route: %w", err)
 	}
 }
+
+func UpdateTargetServiceForRoute(routeName string, serviceName string, namespace string, rc *routev1client.RouteV1Client) error {
+	current, err := rc.Routes(namespace).Get(routeName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	current.Spec.To.Name = serviceName
+	_, err = rc.Routes(namespace).Update(current)
+	if err != nil {
+		return err
+	}
+	return nil
+}

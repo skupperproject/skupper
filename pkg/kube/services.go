@@ -138,3 +138,44 @@ func GetPortForServiceTarget(targetName string, defaultNamespace string, kubecli
 		return 0, err
 	}
 }
+
+func CopyService(src string, dest string, annotations map[string]string, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+	original, err := kubeclient.CoreV1().Services(namespace).Get(src, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            dest,
+			Annotations:     original.ObjectMeta.Annotations,
+			OwnerReferences: original.ObjectMeta.OwnerReferences,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: original.Spec.Selector,
+			Type:     original.Spec.Type,
+		},
+	}
+	for key, _ := range service.ObjectMeta.Annotations {
+		if alternative, ok := annotations[key]; ok {
+			service.ObjectMeta.Annotations[key] = alternative
+		}
+	}
+	for _, port := range original.Spec.Ports {
+		service.Spec.Ports = append(service.Spec.Ports, corev1.ServicePort{
+			Name:       port.Name,
+			Protocol:   port.Protocol,
+			Port:       port.Port,
+			TargetPort: port.TargetPort,
+		})
+	}
+
+	copied, err := kubeclient.CoreV1().Services(namespace).Create(service)
+	if err != nil {
+		return nil, err
+	}
+	return copied, nil
+}

@@ -6,32 +6,6 @@ metadata:
   labels:
     application: skupper-site-controller
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: skupper-site-controller
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      application: skupper-site-controller
-  template:
-    metadata:
-      labels:
-        application: skupper-site-controller
-    spec:
-      serviceAccountName: skupper-site-controller
-      containers:
-      - name: site-controller
-        image: quay.io/skupper/site-controller
-        env:
-        - name: WATCH_NAMESPACE
-          valueFrom:
-             fieldRef:
-               fieldPath: metadata.namespace
-        - name: SKUPPER_SERVICE_CONTROLLER_IMAGE
-          value: quay.io/skupper/service-controller
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -60,6 +34,7 @@ rules:
   resources:
   - deployments
   - statefulsets
+  - daemonsets
   verbs:
   - get
   - list
@@ -102,3 +77,27 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: skupper-site-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-site-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      application: skupper-site-controller
+  template:
+    metadata:
+      labels:
+        application: skupper-site-controller
+    spec:
+      serviceAccountName: skupper-site-controller
+      containers:
+      - name: site-controller
+        image: quay.io/skupper/site-controller
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+             fieldRef:
+               fieldPath: metadata.namespace
