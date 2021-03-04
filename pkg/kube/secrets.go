@@ -92,3 +92,30 @@ func DeleteSecret(name string, namespace string, cli kubernetes.Interface) error
 		return fmt.Errorf("Failed to delete secret: %w", err)
 	}
 }
+
+func CopySecret(src string, dest string, namespace string, kubeclient kubernetes.Interface) error {
+	original, err := kubeclient.CoreV1().Secrets(namespace).Get(src, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	secret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            dest,
+			Annotations:     original.ObjectMeta.Annotations,
+			OwnerReferences: original.ObjectMeta.OwnerReferences,
+		},
+		Data: original.Data,
+		Type: original.Type,
+	}
+
+	_, err = kubeclient.CoreV1().Secrets(namespace).Create(&secret)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}

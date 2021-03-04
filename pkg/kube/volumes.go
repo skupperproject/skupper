@@ -68,3 +68,30 @@ func RemoveSecretVolumeForDeployment(name string, dep *appsv1.Deployment, index 
 	}
 	dep.Spec.Template.Spec.Containers[index].VolumeMounts = volumeMounts
 }
+
+func UpdateSecretVolume(spec *corev1.PodSpec, oldname string, name string) {
+	for i, volume := range spec.Volumes {
+		if volume.Name == oldname {
+			spec.Volumes[i] = corev1.Volume{
+				Name: name,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: name,
+					},
+				},
+			}
+			break
+		}
+	}
+	for i, _ := range spec.Containers {
+		for j, mount := range spec.Containers[i].VolumeMounts {
+			if mount.Name == oldname {
+				spec.Containers[i].VolumeMounts[j] = corev1.VolumeMount{
+					Name:      name,
+					MountPath: mount.MountPath,
+				}
+				break
+			}
+		}
+	}
+}
