@@ -8,9 +8,6 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/test/utils/base"
-	"github.com/skupperproject/skupper/test/utils/k8s"
-
-	"gotest.tools/assert"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
@@ -34,9 +31,4 @@ func TestTcpEcho(t *testing.T) {
 		cancel()
 	})
 	testRunner.Run(ctx, t)
-}
-
-func TestTcpEchoJob(t *testing.T) {
-	k8s.SkipTestJobIfMustBeSkipped(t)
-	assert.Assert(t, SendReceive("tcp-go-echo:9090"))
 }
