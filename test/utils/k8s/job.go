@@ -109,9 +109,3 @@ func AssertJob(t *testing.T, job *batchv1.Job) {
 		t.Logf("WARNING! THIS JOB NEEDED RETRIES TO SUCCEED! Job.Status.Failed = %d\n", job.Status.Failed)
 	}
 }
-
-func SkipTestJobIfMustBeSkipped(t *testing.T) {
-	if os.Getenv("JOB") == "" {
-		t.Skip("JOB environment variable not defined")
-	}
-}
