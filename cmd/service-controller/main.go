@@ -13,6 +13,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -86,6 +87,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Error getting tls config", err.Error())
 	}
+
+	event.StartDefaultEventStore(stopCh)
 
 	controller, err := NewController(cli, origin, tlsConfig, disableServiceSync == "true")
 	if err != nil {
