@@ -282,6 +282,16 @@ func (s *SiteQueryServer) getServiceDetail(context context.Context, address stri
 		} else {
 			if detail.Definition.Address != listener.Address {
 				detail.AddObservation(fmt.Sprintf("Wrong address for http listener on %d", detail.IngressBinding.ServiceTargetPort))
+			} else {
+				port, err := strconv.Atoi(listener.Port)
+				if err != nil {
+					detail.AddObservation(fmt.Sprintf("Bad port for listener %s: %s %s", listener.Name, listener.Port, err))
+				}
+				detail.IngressBinding.ListenerPort = port
+				if detail.IngressBinding.ListenerPort != detail.IngressBinding.ServiceTargetPort {
+					detail.AddObservation(fmt.Sprintf("listener port does not match service target port (%d != %d)",
+						detail.IngressBinding.ListenerPort, detail.IngressBinding.ServiceTargetPort))
+				}
 			}
 		}
 
