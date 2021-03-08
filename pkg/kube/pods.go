@@ -124,6 +124,10 @@ func WaitForPodStatus(namespace string, clientset kubernetes.Interface, podName 
 
 func GetPodContainerLogs(podName string, containerName string, namespace string, clientset kubernetes.Interface) (string, error) {
 	podLogOpts := corev1.PodLogOptions{}
+	return GetPodContainerLogsWithOpts(podName, containerName, namespace, clientset, podLogOpts)
+}
+
+func GetPodContainerLogsWithOpts(podName string, containerName string, namespace string, clientset kubernetes.Interface, podLogOpts corev1.PodLogOptions) (string, error) {
 	if containerName != "" {
 		podLogOpts.Container = containerName
 	}
