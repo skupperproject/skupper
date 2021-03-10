@@ -46,6 +46,7 @@ type SiteConfigSpec struct {
 	User                string
 	Password            string
 	Ingress             string
+	ConsoleIngress      string
 	Replicas            int32
 	SiteControlled      bool
 	RouterLogging       []RouterLogConfig
@@ -67,6 +68,22 @@ func (s *SiteConfigSpec) IsIngressLoadBalancer() bool {
 }
 func (s *SiteConfigSpec) IsIngressNone() bool {
 	return s.Ingress == IngressNoneString
+}
+
+func (s *SiteConfigSpec) IsConsoleIngressRoute() bool {
+	return s.getConsoleIngress() == IngressRouteString
+}
+func (s *SiteConfigSpec) IsConsoleIngressLoadBalancer() bool {
+	return s.getConsoleIngress() == IngressLoadBalancerString
+}
+func (s *SiteConfigSpec) IsConsoleIngressNone() bool {
+	return s.getConsoleIngress() == IngressNoneString
+}
+func (s *SiteConfigSpec) getConsoleIngress() string {
+	if s.ConsoleIngress == "" {
+		return s.Ingress
+	}
+	return s.ConsoleIngress
 }
 
 type SiteConfigReference struct {
