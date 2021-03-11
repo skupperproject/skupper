@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -84,6 +85,24 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 		return s.Ingress
 	}
 	return s.ConsoleIngress
+}
+
+func isValidIngress(ingress string) bool {
+	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNoneString
+}
+
+func (s *SiteConfigSpec) CheckIngress() error {
+	if !isValidIngress(s.Ingress) {
+		return fmt.Errorf("Invalid value for ingress: %s", s.Ingress)
+	}
+	return nil
+}
+
+func (s *SiteConfigSpec) CheckConsoleIngress() error {
+	if !isValidIngress(s.ConsoleIngress) {
+		return fmt.Errorf("Invalid value for console-ingress: %s", s.ConsoleIngress)
+	}
+	return nil
 }
 
 type SiteConfigReference struct {
