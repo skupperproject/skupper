@@ -130,7 +130,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return false, err
 		}
-		consoleUsesLoadbalancer = controllerSvc.Spec.Type == corev1.ServiceTypeLoadBalancer
+		if controllerSvc != nil {
+			consoleUsesLoadbalancer = controllerSvc.Spec.Type == corev1.ServiceTypeLoadBalancer
+		}
 		//update annotation on skupper-router-console if it exists
 		routerConsoleService, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.RouterConsoleServiceName, metav1.GetOptions{})
 		if err == nil {
