@@ -93,8 +93,22 @@ func hasSkupperAnnotation(service corev1.Service, annotation string) bool {
 }
 
 func hasRouterSelector(service corev1.Service) bool {
-	_, ok := service.Spec.Selector["skupper.io/component"]
-	return ok
+	value, ok := service.Spec.Selector[types.ComponentAnnotation]
+	return ok && value == types.RouterComponent
+}
+
+func getApplicationSelector(service *corev1.Service) string {
+	if hasRouterSelector(*service) {
+		selector := map[string]string{}
+		for key, value := range service.Spec.Selector {
+			if key != types.ComponentAnnotation && !(key == "application" && value == "skupper-router") {
+				selector[key] = value
+			}
+		}
+		return utils.StringifySelector(selector)
+	} else {
+		return utils.StringifySelector(service.Spec.Selector)
+	}
 }
 
 func hasOriginalSelector(service corev1.Service) bool {
@@ -364,7 +378,10 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 		if actual.ObjectMeta.Annotations == nil {
 			actual.ObjectMeta.Annotations = map[string]string{}
 		}
-		actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = utils.StringifySelector(actual.Spec.Selector)
+		originalSelector := getApplicationSelector(actual)
+		if originalSelector != "" {
+			actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = originalSelector
+		}
 		actual.Spec.Selector = kube.GetLabelsForRouter()
 	}
 	if update {
