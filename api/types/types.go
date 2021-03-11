@@ -138,6 +138,8 @@ const (
 	TokenCost                   string = BaseQualifier + "/cost"
 	UpdatedAnnotation           string = InternalQualifier + "/updated"
 	AnnotationExcludes          string = BaseQualifier + "/exclude-annotations"
+	ComponentAnnotation         string = BaseQualifier + "/component"
+	RouterComponent             string = "router"
 )
 
 // Service Interface constants
