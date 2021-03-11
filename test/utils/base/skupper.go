@@ -8,9 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/data"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/tools"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // WaitForSkupperConnectedSites waits till total number of sites are connected
@@ -36,6 +39,34 @@ func WaitForSkupperConnectedSites(ctx context.Context, cc *ClusterContext, sites
 			}
 		}
 	}
+}
+
+func WaitSkupperRunning(c *ClusterContext) error {
+	for _, component := range []string{types.TransportComponentName, types.ControllerComponentName} {
+		if err := WaitSkupperComponentRunning(c, component); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
+
+	tick := constants.DefaultTick
+	timeout := constants.ImagePullingAndResourceCreationTimeout
+
+	// wait for skupper router component to be running
+	pods, err := kube.GetDeploymentPods("", "skupper.io/component="+component, c.Namespace, c.VanClient.KubeClient)
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods {
+		if _, err := kube.WaitForPodStatus(c.Namespace, c.VanClient.KubeClient, pod.Name, corev1.PodRunning, timeout, tick); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetConsoleData returns the ConsoleData by querying localhost:8080/DATA
