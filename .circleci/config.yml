@@ -84,6 +84,7 @@ commands:
           name: Run Integration Tests
           no_output_timeout: 60m
           command: |
+            make build-cmd && sudo install skupper /usr/local/bin
             go test -tags=integration -timeout=60m -v -p 1 ./test/integration/...
       - run:
           name: Run client tests in real cluster
