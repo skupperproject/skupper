@@ -246,6 +246,12 @@ installation that can then be connected to other skupper installations`,
 					routerCreateOpts.Annotations[parts[0]] = ""
 				}
 			}
+			if err := routerCreateOpts.CheckIngress(); err != nil {
+				return err
+			}
+			if err := routerCreateOpts.CheckConsoleIngress(); err != nil {
+				return err
+			}
 
 			routerCreateOpts.SkupperNamespace = ns
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
@@ -306,7 +312,7 @@ installation that can then be connected to other skupper installations`,
 	f := cmd.Flag("cluster-local")
 	f.Deprecated = "This flag is deprecated, use --ingress [loadbalancer|route|none]"
 	f.Hidden = true
-	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "loadbalancer", "Setup Skupper ingress to one of: [loadbalancer|route|none].")
+	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: [loadbalancer|route|none]. If not specified route is used when available, otherwise loadbalancer is used.")
 	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: [loadbalancer|route|none].")
 
 	cmd.Flags().BoolVarP(&isEdge, "edge", "", false, "Configure as an edge")
