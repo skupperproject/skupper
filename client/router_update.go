@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"reflect"
 	"strings"
 	"time"
 
@@ -562,6 +563,45 @@ func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev
 	}
 	return true, nil
 
+}
+
+func (cli *VanClient) updateAnnotationsOnDeployment(ctx context.Context, namespace string, name string, annotations map[string]string) (bool, error) {
+	deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	if !reflect.DeepEqual(annotations, deployment.Spec.Template.ObjectMeta.Annotations) {
+		deployment.Spec.Template.ObjectMeta.Annotations = annotations
+		_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(deployment)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func (cli *VanClient) RouterUpdateAnnotations(ctx context.Context, settings *corev1.ConfigMap) (bool, error) {
+	siteConfig, err := cli.SiteConfigInspect(ctx, settings)
+	if err != nil {
+		return false, err
+	}
+	updated, err := cli.updateAnnotationsOnDeployment(ctx, settings.ObjectMeta.Namespace, types.ControllerDeploymentName, siteConfig.Spec.Annotations)
+	if err != nil {
+		return updated, err
+	}
+	transportAnnotations := map[string]string{}
+	for key, value := range types.TransportPrometheusAnnotations {
+		transportAnnotations[key] = value
+	}
+	for key, value := range siteConfig.Spec.Annotations {
+		transportAnnotations[key] = value
+	}
+	updated, err = cli.updateAnnotationsOnDeployment(ctx, settings.ObjectMeta.Namespace, types.TransportDeploymentName, transportAnnotations)
+	if err != nil {
+		return updated, err
+	}
+	return updated, nil
 }
 
 func (cli *VanClient) RouterRestart(ctx context.Context, namespace string) error {
