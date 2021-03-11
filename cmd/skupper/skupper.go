@@ -189,6 +189,7 @@ var ClusterLocal bool
 
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
 	var routerMode string
+	annotations := []string{}
 	var isEdge bool
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -233,6 +234,17 @@ installation that can then be connected to other skupper installations`,
 				}
 			} else if !routerIngressFlag.Changed {
 				routerCreateOpts.Ingress = cli.GetIngressDefault()
+			}
+			for _, a := range annotations {
+				parts := strings.Split(a, "=")
+				if routerCreateOpts.Annotations == nil {
+					routerCreateOpts.Annotations = map[string]string{}
+				}
+				if len(parts) > 1 {
+					routerCreateOpts.Annotations[parts[0]] = parts[1]
+				} else {
+					routerCreateOpts.Annotations[parts[0]] = ""
+				}
 			}
 
 			routerCreateOpts.SkupperNamespace = ns
@@ -288,6 +300,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmd.Flags().StringSliceVar(&annotations, "annotations", []string{}, "Annotations to add to skupper deployments")
 
 	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept connections from within the local cluster.")
 	f := cmd.Flag("cluster-local")
