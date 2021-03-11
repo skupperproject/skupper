@@ -17,7 +17,8 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "skupper-site",
+			Name:        "skupper-site",
+			Annotations: spec.Annotations,
 		},
 		Data: map[string]string{
 			"name":                   cli.Namespace,

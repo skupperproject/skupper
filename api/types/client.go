@@ -50,6 +50,7 @@ type SiteConfigSpec struct {
 	SiteControlled      bool
 	RouterLogging       []RouterLogConfig
 	RouterDebugMode     string
+	Annotations         map[string]string
 }
 
 const (
