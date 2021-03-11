@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -119,5 +120,18 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 		}
 		result.Spec.RouterLogging = logConf
 	}
+	exclusions := []string{}
+	annotations := map[string]string{}
+	for key, value := range siteConfig.ObjectMeta.Annotations {
+		if key == types.AnnotationExcludes {
+			exclusions = strings.Split(value, ",")
+		} else {
+			annotations[key] = value
+		}
+	}
+	for _, key := range exclusions {
+		delete(annotations, key)
+	}
+	result.Spec.Annotations = annotations
 	return &result, nil
 }

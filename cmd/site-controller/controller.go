@@ -255,6 +255,13 @@ func (c *SiteController) checkSite(key string) error {
 			} else if updatedDebugMode {
 				log.Println("Updated debug mode for", key)
 			}
+			updatedAnnotations, err := c.vanClient.RouterUpdateAnnotations(context.Background(), configmap)
+			if err != nil {
+				log.Println("Error checking annotations:", err)
+			} else if updatedAnnotations {
+				log.Println("Updated annotations for", key)
+			}
+
 			c.checkAllForSite()
 		} else if errors.IsNotFound(err) {
 			log.Println("Initialising skupper site ...")

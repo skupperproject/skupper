@@ -222,7 +222,8 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 				},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
-						Labels: van.Controller.Labels,
+						Labels:      van.Controller.Labels,
+						Annotations: van.Controller.Annotations,
 					},
 					Spec: corev1.PodSpec{
 						ServiceAccountName: types.ControllerServiceAccountName,

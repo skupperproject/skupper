@@ -257,6 +257,10 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		"skupper.io/component": types.TransportComponentName,
 	}
 	van.Transport.Annotations = types.TransportPrometheusAnnotations
+	van.Controller.Annotations = options.Annotations
+	for key, value := range options.Annotations {
+		van.Transport.Annotations[key] = value
+	}
 
 	isEdge := options.RouterMode == string(types.TransportModeEdge)
 	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, Version, isEdge, 3)
