@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
@@ -13,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"testing"
 )
 
 func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
@@ -211,7 +212,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 	}
 
 	// Helper used to prepare test table
-	annotatedService := func(name string, proxyAnnotationProtocol string, addressAnnotation string, targetAnnotation string, labels map[string]string, targetPort int, ports ...int) *corev1.Service {
+	annotatedService := func(name string, proxyAnnotationProtocol string, addressAnnotation string, targetAnnotation string, labels map[string]string, originalSelector string, originalTargetPort string, targetPort int, ports ...int) *corev1.Service {
 
 		annotations := map[string]string{}
 		if proxyAnnotationProtocol != "" {
@@ -222,6 +223,14 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 		}
 		if targetAnnotation != "" {
 			annotations[types.TargetServiceQualifier] = targetAnnotation
+		}
+
+		if originalSelector != "" {
+			annotations[types.OriginalSelectorQualifier] = originalSelector
+		}
+
+		if originalTargetPort != "" {
+			annotations[types.OriginalTargetPortQualifier] = originalTargetPort
 		}
 
 		// Only initialize the selector pointer if a label has been provided
@@ -258,10 +267,10 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 	// Create fake target services
 	var err error
 	// good path with target service providing port
-	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(annotatedService("targetsvc", "", "", "", nil, 0, 8888))
+	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(annotatedService("targetsvc", "", "", "", nil, "", "", 0, 8888))
 	assert.NilError(t, err)
 	// this is used to test case when protocol is http but target service does not provide a port, so it uses 80
-	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(annotatedService("targetsvcnoport", "", "", "", nil, 0))
+	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(annotatedService("targetsvcnoport", "", "", "", nil, "", "", 0))
 	assert.NilError(t, err)
 
 	// Mock error when trying to get info for badtargetsvc
@@ -274,11 +283,11 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 	})
 
 	testTable := []test{
-		{"no-proxy", annotatedService("", "", "", "", nil, 0), result{
+		{"no-proxy", annotatedService("", "", "", "", nil, "", "", 0), result{
 			service: types.ServiceInterface{},
 			success: false,
 		}},
-		{"no-target-no-selector", annotatedService("svc", "http", "", "", nil, 0), result{
+		{"no-target-no-selector", annotatedService("svc", "http", "", "", nil, "", "", 0), result{
 			service: types.ServiceInterface{
 				Address:  "svc",
 				Protocol: "http",
@@ -286,7 +295,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			},
 			success: false,
 		}},
-		{"http-8080-targetsvc-8888", annotatedService("svc", "http", "address", "targetsvc", nil, 0, 8080), result{
+		{"http-8080-targetsvc-8888", annotatedService("svc", "http", "address", "targetsvc", nil, "", "", 0, 8080), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
@@ -303,7 +312,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			},
 			success: true,
 		}},
-		{"http-80-targetsvcnoport", annotatedService("svc", "http", "address", "targetsvcnoport", nil, 0), result{
+		{"http-80-targetsvcnoport", annotatedService("svc", "http", "address", "targetsvcnoport", nil, "", "", 0), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
@@ -320,7 +329,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			},
 			success: true,
 		}},
-		{"tcp-noport-targetsvcnoport", annotatedService("svc", "tcp", "address", "targetsvcnoport", nil, 0), result{
+		{"tcp-noport-targetsvcnoport", annotatedService("svc", "tcp", "address", "targetsvcnoport", nil, "", "", 0), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "tcp",
@@ -328,7 +337,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			},
 			success: false,
 		}},
-		{"tcp-noport-targetsvc-8888", annotatedService("svc", "tcp", "address", "targetsvc", nil, 0), result{
+		{"tcp-noport-targetsvc-8888", annotatedService("svc", "tcp", "address", "targetsvc", nil, "", "", 0), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "tcp",
@@ -345,7 +354,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			},
 			success: true,
 		}},
-		{"bad-target-service", annotatedService("svc", "http", "address", "badtargetsvc", nil, 0, 8080), result{
+		{"bad-target-service", annotatedService("svc", "http", "address", "badtargetsvc", nil, "", "", 0, 8080), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
@@ -362,7 +371,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			},
 			success: true,
 		}},
-		{"tcp-noport-targetsvc-8888", annotatedService("svc", "tcp", "address", "targetsvc", nil, 0), result{
+		{"tcp-noport-targetsvc-8888", annotatedService("svc", "tcp", "address", "targetsvc", nil, "", "", 0), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "tcp",
@@ -380,7 +389,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			success: true,
 		}},
 		{"tcp-noport-selector", annotatedService("svc", "tcp", "address", "",
-			map[string]string{"label1": "value1"}, 0), result{
+			map[string]string{"label1": "value1"}, "", "", 0), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "tcp",
@@ -389,7 +398,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			success: false,
 		}},
 		{"http-noport-selector", annotatedService("svc", "http", "address", "",
-			map[string]string{"label1": "value1"}, 0), result{
+			map[string]string{"label1": "value1"}, "", "", 0), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
@@ -405,7 +414,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			success: true,
 		}},
 		{"http-8080-selector", annotatedService("svc", "http", "address", "",
-			map[string]string{"label1": "value1"}, 8888, 8080), result{
+			map[string]string{"label1": "value1"}, "", "", 8888, 8080), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
@@ -420,6 +429,38 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 				Origin: "annotation",
 			},
 			success: true,
+		}},
+		{"http-8080-original-selector",
+			annotatedService("svc", "http", "address", "",
+				map[string]string{types.ComponentAnnotation: types.RouterComponent, types.ProxyQualifier: "http"},
+				"label1=value1", "8080", 1024, 8080),
+			result{
+				service: types.ServiceInterface{
+					Address:  "address",
+					Protocol: "http",
+					Port:     8080,
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:       "svc",
+							Selector:   "label1=value1",
+							TargetPort: 8080,
+						},
+					},
+					Origin: "annotation",
+				},
+				success: true,
+			},
+		},
+		{"http-8080-bad-original-selector", annotatedService("svc", "http", "", "", map[string]string{
+			types.ComponentAnnotation: types.RouterComponent,
+		}, "", "", 0, 8080), result{
+			service: types.ServiceInterface{
+				Address:  "svc",
+				Protocol: "http",
+				Port:     8080,
+				Targets:  []types.ServiceInterfaceTarget{},
+			},
+			success: false,
 		}},
 	}
 
