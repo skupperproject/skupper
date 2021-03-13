@@ -6,7 +6,7 @@ import (
 )
 
 func TestInitialConfig(t *testing.T) {
-	config := InitialConfig("foo", "bar", "1.2.3", true)
+	config := InitialConfig("foo", "bar", "1.2.3", true, 10)
 	if config.Metadata.Id != "foo" {
 		t.Errorf("Invalid id, expected 'foo' got %q", config.Metadata.Id)
 	}
@@ -19,7 +19,10 @@ func TestInitialConfig(t *testing.T) {
 	if config.Metadata.Mode != ModeEdge {
 		t.Errorf("Invalid id, expected %q got %q", ModeEdge, config.Metadata.Mode)
 	}
-	config = InitialConfig("bing", "bong", "3.2.1", false)
+	if config.Metadata.HelloMaxAgeSeconds != "10" {
+		t.Errorf("Invalid id, expected %q got %q", "10", config.Metadata.HelloMaxAgeSeconds)
+	}
+	config = InitialConfig("bing", "bong", "3.2.1", false, 5)
 	if config.Metadata.Id != "bing" {
 		t.Errorf("Invalid id, expected 'bing' got %q", config.Metadata.Id)
 	}
@@ -32,10 +35,13 @@ func TestInitialConfig(t *testing.T) {
 	if config.Metadata.Mode != ModeInterior {
 		t.Errorf("Invalid id, expected %q got %q", ModeInterior, config.Metadata.Mode)
 	}
+	if config.Metadata.HelloMaxAgeSeconds != "5" {
+		t.Errorf("Invalid id, expected %q got %q", "10", config.Metadata.HelloMaxAgeSeconds)
+	}
 }
 
 func TestAddListener(t *testing.T) {
-	config := InitialConfig("foo", "bar", "undefined", true)
+	config := InitialConfig("foo", "bar", "undefined", true, 3)
 	config.AddListener(Listener{
 		Name: "l1",
 		Port: 5672,
@@ -56,7 +62,7 @@ func TestAddListener(t *testing.T) {
 }
 
 func TestAddSslProfile(t *testing.T) {
-	config := InitialConfig("foo", "bar", "undefined", true)
+	config := InitialConfig("foo", "bar", "undefined", true, 3)
 	config.AddSslProfile(SslProfile{
 		Name:     "myprofile",
 		CertFile: "/my/certs/cert.pem",
@@ -79,7 +85,7 @@ func TestAddSslProfile(t *testing.T) {
 }
 
 func TestAddAddress(t *testing.T) {
-	config := InitialConfig("foo", "bar", "undefined", true)
+	config := InitialConfig("foo", "bar", "undefined", true, 3)
 	config.AddAddress(Address{
 		Prefix:       "foo",
 		Distribution: DistributionMulticast,
@@ -92,9 +98,10 @@ func TestAddAddress(t *testing.T) {
 func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 	input := RouterConfig{
 		Metadata: RouterMetadata{
-			Id:       "${HOSTNAME}",
-			Mode:     ModeEdge,
-			Metadata: "MySiteId",
+			Id:                 "${HOSTNAME}",
+			Mode:               ModeEdge,
+			Metadata:           "MySiteId",
+			HelloMaxAgeSeconds: "5",
 		},
 		SslProfiles: map[string]SslProfile{
 			"one": SslProfile{
