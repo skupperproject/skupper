@@ -33,11 +33,12 @@ type BridgeConfig struct {
 	HttpConnectors HttpEndpointMap
 }
 
-func InitialConfig(id string, siteId string, version string, edge bool) RouterConfig {
+func InitialConfig(id string, siteId string, version string, edge bool, helloAge int) RouterConfig {
 	config := RouterConfig{
 		Metadata: RouterMetadata{
-			Id:       id,
-			Metadata: getSiteMetadataString(siteId, version),
+			Id:                 id,
+			HelloMaxAgeSeconds: strconv.Itoa(helloAge),
+			Metadata:           getSiteMetadataString(siteId, version),
 		},
 		Addresses:   map[string]Address{},
 		SslProfiles: map[string]SslProfile{},
@@ -262,9 +263,10 @@ const (
 )
 
 type RouterMetadata struct {
-	Id       string `json:"id,omitempty"`
-	Mode     Mode   `json:"mode,omitempty"`
-	Metadata string `json:"metadata,omitempty"`
+	Id                 string `json:"id,omitempty"`
+	Mode               Mode   `json:"mode,omitempty"`
+	HelloMaxAgeSeconds string `json:"helloMaxAgeSeconds,omitempty"`
+	Metadata           string `json:"metadata,omitempty"`
 }
 
 type SslProfile struct {
@@ -720,7 +722,7 @@ func (a *BridgeConfigDifference) Print() {
 }
 
 func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, version string, namespace string) (string, error) {
-	config := InitialConfig("$HOSTNAME", siteId, version, true)
+	config := InitialConfig("$HOSTNAME", siteId, version, true, 3)
 	//add edge-connector
 	config.AddSslProfile(SslProfile{
 		Name: types.InterRouterProfile,
