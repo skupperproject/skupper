@@ -259,7 +259,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Transport.Annotations = types.TransportPrometheusAnnotations
 
 	isEdge := options.RouterMode == string(types.TransportModeEdge)
-	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, Version, isEdge)
+	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, Version, isEdge, 3)
 	if options.RouterLogging != nil {
 		configureRouterLogging(&routerConfig, options.RouterLogging)
 	}
