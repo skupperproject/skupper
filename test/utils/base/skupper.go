@@ -70,5 +70,50 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 		}
 	}
 
+	var ServiceByType []interface{}
+	var tcpsvc data.TcpService
+	var httpsvc data.HttpService
+
+	// Iterate over Services
+	for _, elem := range consoleData.Services {
+
+		svcmap, ok := elem.(map[string]interface{})
+		if !ok {
+			log.Printf("[GetConsoleData] - Unable to determine protocol")
+			continue
+		}
+
+		svcProto, ok := svcmap["protocol"]
+		if !ok {
+			log.Println("[GetConsoleData] - Unable to determine protocol ", svcProto)
+			continue
+		}
+
+		// Marshal the element
+		svcmarsh, err := json.Marshal(elem)
+		if err != nil {
+			log.Println("[GetConsoleData] - Error marshalling svc", err)
+			break
+		}
+
+		// HTTP Service
+		if svcProto == "http" {
+			if err = json.Unmarshal(svcmarsh, &httpsvc); err == nil {
+				ServiceByType = append(ServiceByType, httpsvc)
+			}
+			// TCP Service
+		} else if svcProto == "tcp" {
+			if err = json.Unmarshal(svcmarsh, &tcpsvc); err == nil {
+				ServiceByType = append(ServiceByType, tcpsvc)
+			}
+			// Protocol not HTTP nor TCP
+		} else {
+			fmt.Println("[GetConsoleData] - Unsupported protocol ", svcProto)
+		}
+	}
+
+	// Replace Services in consoleData
+	consoleData.Services = ServiceByType
+
 	return consoleData, nil
 }
