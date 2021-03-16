@@ -160,12 +160,24 @@ func TestAnnotatedResources(t *testing.T) {
 				// 4.2.3. populating map of services/protocols returned
 				servicesFound := map[string]string{}
 				for _, svc := range consoleData.Services {
-					svcMap, ok := svc.(map[string]interface{})
-					assert.Assert(t, ok)
-					address, ok := svcMap["address"].(string)
-					assert.Assert(t, ok)
-					protocol, ok := svcMap["protocol"].(string)
-					assert.Assert(t, ok)
+
+					var protocol string
+					var address string
+
+					switch svcType := svc.(type) {
+					// HTTP Service
+					case data.HttpService:
+						protocol = svc.(data.HttpService).Protocol
+						address = svc.(data.HttpService).Address
+					// TCP Service
+					case data.TcpService:
+						protocol = svc.(data.TcpService).Protocol
+						address = svc.(data.TcpService).Address
+					// Unknown Service
+					default:
+						log.Printf("Unable to identify Service type for : %s", svcType)
+					}
+
 					servicesFound[address] = protocol
 				}
 
