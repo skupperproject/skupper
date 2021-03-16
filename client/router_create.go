@@ -721,16 +721,16 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				Kind:       "Route",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: types.EdgeRouteName,
+				Name: types.RouterConsoleRouteName,
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
 				Port: &routev1.RoutePort{
-					TargetPort: intstr.FromString(types.EdgeRole),
+					TargetPort: intstr.FromString(types.ConsolePortName),
 				},
 				To: routev1.RouteTargetReference{
 					Kind: "Service",
-					Name: types.InterRouterProfile,
+					Name: types.RouterConsoleServiceName,
 				},
 				TLS: &routev1.TLSConfig{
 					Termination:                   termination,

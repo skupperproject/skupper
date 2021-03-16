@@ -158,6 +158,7 @@ const (
 	ConsoleOpenShiftOauthServicePort       int32  = 443
 	ConsoleOpenShiftOauthServiceTargetPort int32  = 8443
 	ConsoleRouteName                       string = "skupper"
+	RouterConsoleRouteName                 string = "skupper-router-console"
 	RouterConsoleServiceName               string = "skupper-router-console"
 )
 
