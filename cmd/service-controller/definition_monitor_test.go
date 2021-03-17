@@ -185,6 +185,7 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 }
 
 func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
+	event.StartDefaultEventStore(nil)
 
 	// Types to compose test table
 	type result struct {
