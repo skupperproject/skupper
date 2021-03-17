@@ -158,7 +158,11 @@ func silenceCobra(cmd *cobra.Command) {
 func NewClient(namespace string, context string, kubeConfigPath string) *client.VanClient {
 	cli, err := client.NewClient(namespace, context, kubeConfigPath)
 	if err != nil {
-		fmt.Println(err.Error())
+		if strings.Contains(err.Error(), "invalid configuration: no configuration has been provided") {
+			fmt.Printf("%s. Please point to an existing, complete config file.\n", err.Error())
+		} else {
+			fmt.Println(err.Error())
+		}
 		os.Exit(1)
 	}
 	return cli
@@ -759,8 +763,7 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-
-			fmt.Printf("%-30s %s\n", "client version", client.Version)
+			// Note: client version emitted during newClient pre run
 			fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
 			fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
 
@@ -820,6 +823,11 @@ the .bash_profile. i.e.: $ source <(skupper completion)
 type cobraFunc func(cmd *cobra.Command, args []string)
 
 func newClient(cmd *cobra.Command, args []string) {
+	if cmd.Name() == "version" {
+		// provide version even if there is no client config
+		// as NewClient will exit
+		fmt.Printf("%-30s %s\n", "client version", client.Version)
+	}
 	cli = NewClient(namespace, kubeContext, kubeConfigPath)
 }
 

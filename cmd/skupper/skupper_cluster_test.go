@@ -1371,7 +1371,7 @@ func TestVersionWithCluster(t *testing.T) {
 		{
 			doc:             "version-test2",
 			args:            []string{},
-			expectedCapture: "client version",
+			expectedCapture: "transport version",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
