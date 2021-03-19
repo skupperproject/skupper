@@ -326,24 +326,31 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		routerConfig.AddSslProfile(qdr.SslProfile{
 			Name: types.InterRouterProfile,
 		})
-		routerConfig.AddListener(qdr.Listener{
-			Name:             "interior-listener",
-			Host:             "0.0.0.0",
-			Role:             qdr.RoleInterRouter,
-			Port:             types.InterRouterListenerPort,
-			SslProfile:       types.InterRouterProfile,
-			SaslMechanisms:   "EXTERNAL",
-			AuthenticatePeer: true,
-		})
-		routerConfig.AddListener(qdr.Listener{
-			Name:             "edge-listener",
-			Host:             "0.0.0.0",
-			Role:             qdr.RoleEdge,
-			Port:             types.EdgeListenerPort,
-			SslProfile:       types.InterRouterProfile,
-			SaslMechanisms:   "EXTERNAL",
-			AuthenticatePeer: true,
-		})
+		listeners := []qdr.Listener{
+			{
+				Name:             "interior-listener",
+				Host:             "0.0.0.0",
+				Role:             qdr.RoleInterRouter,
+				Port:             types.InterRouterListenerPort,
+				SslProfile:       types.InterRouterProfile,
+				SaslMechanisms:   "EXTERNAL",
+				AuthenticatePeer: true,
+			},
+			{
+				Name:             "edge-listener",
+				Host:             "0.0.0.0",
+				Role:             qdr.RoleEdge,
+				Port:             types.EdgeListenerPort,
+				SslProfile:       types.InterRouterProfile,
+				SaslMechanisms:   "EXTERNAL",
+				AuthenticatePeer: true,
+			},
+		}
+		for _, listener := range listeners {
+			listener.SetMaxFrameSize(options.RouterMaxFrameSize)
+			listener.SetMaxSessionFrames(options.RouterMaxSessionFrames)
+			routerConfig.AddListener(listener)
+		}
 	}
 	van.RouterConfig, _ = qdr.MarshalRouterConfig(routerConfig)
 
