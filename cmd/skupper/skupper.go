@@ -321,7 +321,17 @@ installation that can then be connected to other skupper installations`,
 	f.Hidden = true
 	cmd.Flags().StringVarP(&routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
 
+	cmd.Flags().IntVar(&routerCreateOpts.RouterMaxFrameSize, "xp-router-max-frame-size", 0, "Set  max frame size on inter-router listeners/connectors")
+	cmd.Flags().IntVar(&routerCreateOpts.RouterMaxSessionFrames, "xp-router-max-session-frames", 0, "Set  max session frames on inter-router listeners/connectors")
+	hideFlag(cmd, "xp-router-max-frame-size")
+	hideFlag(cmd, "xp-router-max-session-frames")
+
 	return cmd
+}
+
+func hideFlag(cmd *cobra.Command, name string) {
+	f := cmd.Flag(name)
+	f.Hidden = true
 }
 
 func NewCmdDelete(newClient cobraFunc) *cobra.Command {

@@ -36,23 +36,25 @@ type RouterLogConfig struct {
 }
 
 type SiteConfigSpec struct {
-	SkupperName         string
-	SkupperNamespace    string
-	RouterMode          string
-	EnableController    bool
-	EnableServiceSync   bool
-	EnableRouterConsole bool
-	EnableConsole       bool
-	AuthMode            string
-	User                string
-	Password            string
-	Ingress             string
-	ConsoleIngress      string
-	Replicas            int32
-	SiteControlled      bool
-	RouterLogging       []RouterLogConfig
-	RouterDebugMode     string
-	Annotations         map[string]string
+	SkupperName            string
+	SkupperNamespace       string
+	RouterMode             string
+	EnableController       bool
+	EnableServiceSync      bool
+	EnableRouterConsole    bool
+	EnableConsole          bool
+	AuthMode               string
+	User                   string
+	Password               string
+	Ingress                string
+	ConsoleIngress         string
+	Replicas               int32
+	SiteControlled         bool
+	RouterLogging          []RouterLogConfig
+	RouterDebugMode        string
+	RouterMaxFrameSize     int
+	RouterMaxSessionFrames int
+	Annotations            map[string]string
 }
 
 const (

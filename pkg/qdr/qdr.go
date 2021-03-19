@@ -297,18 +297,54 @@ type Listener struct {
 	Websockets       bool   `json:"websockets,omitempty"`
 	Healthz          bool   `json:"healthz,omitempty"`
 	Metrics          bool   `json:"metrics,omitempty"`
+	MaxFrameSize     int    `json:"maxFrameSize,omitempty"`
+	MaxSessionFrames int    `json:"maxSessionFrames,omitempty"`
+}
+
+func (l *Listener) SetMaxFrameSize(value int) {
+	if value == 0 {
+		l.MaxFrameSize = types.RouterMaxFrameSizeDefault
+	} else {
+		l.MaxFrameSize = value
+	}
+}
+
+func (l *Listener) SetMaxSessionFrames(value int) {
+	if value == 0 {
+		l.MaxSessionFrames = types.RouterMaxSessionFramesDefault
+	} else {
+		l.MaxSessionFrames = value
+	}
 }
 
 type Connector struct {
-	Name           string `json:"name,omitempty"`
-	Role           Role   `json:"role,omitempty"`
-	Host           string `json:"host"`
-	Port           string `json:"port"`
-	RouteContainer bool   `json:"routeContainer,omitempty"`
-	Cost           int32  `json:"cost,omitempty"`
-	VerifyHostname bool   `json:"verifyHostname,omitempty"`
-	SslProfile     string `json:"sslProfile,omitempty"`
-	LinkCapacity   int32  `json:"linkCapacity,omitempty"`
+	Name             string `json:"name,omitempty"`
+	Role             Role   `json:"role,omitempty"`
+	Host             string `json:"host"`
+	Port             string `json:"port"`
+	RouteContainer   bool   `json:"routeContainer,omitempty"`
+	Cost             int32  `json:"cost,omitempty"`
+	VerifyHostname   bool   `json:"verifyHostname,omitempty"`
+	SslProfile       string `json:"sslProfile,omitempty"`
+	LinkCapacity     int32  `json:"linkCapacity,omitempty"`
+	MaxFrameSize     int    `json:"maxFrameSize,omitempty"`
+	MaxSessionFrames int    `json:"maxSessionFrames,omitempty"`
+}
+
+func (c *Connector) SetMaxFrameSize(value int) {
+	if value == 0 {
+		c.MaxFrameSize = types.RouterMaxFrameSizeDefault
+	} else {
+		c.MaxFrameSize = value
+	}
+}
+
+func (c *Connector) SetMaxSessionFrames(value int) {
+	if value == 0 {
+		c.MaxSessionFrames = types.RouterMaxSessionFramesDefault
+	} else {
+		c.MaxSessionFrames = value
+	}
 }
 
 type Distribution string
