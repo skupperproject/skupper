@@ -167,6 +167,10 @@ func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretF
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+		if err != nil {
+			return err
+		}
 		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, options.SkupperNamespace, cli.KubeClient)
 		if err != nil {
 			return err
@@ -189,6 +193,8 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			Cost:       options.Cost,
 			SslProfile: profileName,
 		}
+		connector.SetMaxFrameSize(siteConfig.Spec.RouterMaxFrameSize)
+		connector.SetMaxSessionFrames(siteConfig.Spec.RouterMaxSessionFrames)
 		if current.IsEdge() {
 			connector.Host = secret.ObjectMeta.Annotations["edge-host"]
 			connector.Port = secret.ObjectMeta.Annotations["edge-port"]

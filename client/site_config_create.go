@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,6 +73,12 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.RouterDebugMode != "" {
 		siteConfig.Data["router-debug-mode"] = spec.RouterDebugMode
+	}
+	if spec.RouterMaxFrameSize != 0 {
+		siteConfig.Data["xp-router-max-frame-size"] = strconv.Itoa(spec.RouterMaxFrameSize)
+	}
+	if spec.RouterMaxSessionFrames != 0 {
+		siteConfig.Data["xp-router-max-session-frames"] = strconv.Itoa(spec.RouterMaxSessionFrames)
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {

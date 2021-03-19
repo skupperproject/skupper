@@ -123,6 +123,20 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 		}
 		result.Spec.RouterLogging = logConf
 	}
+	if routerMaxFrameSize, ok := siteConfig.Data["xp-router-max-frame-size"]; ok && routerMaxFrameSize != "" {
+		val, err := strconv.Atoi(routerMaxFrameSize)
+		if err != nil {
+			return &result, err
+		}
+		result.Spec.RouterMaxFrameSize = val
+	}
+	if routerMaxSessionFrames, ok := siteConfig.Data["xp-router-max-session-frames"]; ok && routerMaxSessionFrames != "" {
+		val, err := strconv.Atoi(routerMaxSessionFrames)
+		if err != nil {
+			return &result, err
+		}
+		result.Spec.RouterMaxSessionFrames = val
+	}
 	exclusions := []string{}
 	annotations := map[string]string{}
 	for key, value := range siteConfig.ObjectMeta.Annotations {
