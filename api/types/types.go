@@ -40,19 +40,21 @@ const (
 
 // Transport constants
 const (
-	TransportDeploymentName     string = "skupper-router"
-	TransportComponentName      string = "router"
-	TransportContainerName      string = "router"
-	TransportLivenessPort       int32  = 9090
-	TransportServiceAccountName string = "skupper-router"
-	TransportRoleName           string = "skupper-router"
-	TransportRoleBindingName    string = "skupper-router"
-	TransportEnvConfig          string = "QDROUTERD_CONF"
-	TransportSaslConfig         string = "skupper-sasl-config"
-	TransportConfigFile         string = "qdrouterd.json"
-	TransportConfigMapName      string = "skupper-internal"
-	TransportServiceName        string = "skupper-router"
-	LocalTransportServiceName   string = "skupper-router-local"
+	TransportDeploymentName       string = "skupper-router"
+	TransportComponentName        string = "router"
+	TransportContainerName        string = "router"
+	TransportLivenessPort         int32  = 9090
+	TransportServiceAccountName   string = "skupper-router"
+	TransportRoleName             string = "skupper-router"
+	TransportRoleBindingName      string = "skupper-router"
+	TransportEnvConfig            string = "QDROUTERD_CONF"
+	TransportSaslConfig           string = "skupper-sasl-config"
+	TransportConfigFile           string = "qdrouterd.json"
+	TransportConfigMapName        string = "skupper-internal"
+	TransportServiceName          string = "skupper-router"
+	LocalTransportServiceName     string = "skupper-router-local"
+	RouterMaxFrameSizeDefault     int    = 16384
+	RouterMaxSessionFramesDefault int    = 640
 )
 
 var TransportPolicyRule = []rbacv1.PolicyRule{
