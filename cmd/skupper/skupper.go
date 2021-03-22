@@ -156,7 +156,11 @@ func silenceCobra(cmd *cobra.Command) {
 	cmd.SilenceUsage = true
 }
 
-func NewClient(namespace string, context string, kubeConfigPath string, exitOnError bool) *client.VanClient {
+func NewClient(namespace string, context string, kubeConfigPath string) *client.VanClient {
+	return NewClientHandleError(namespace, context, kubeConfigPath, true)
+}
+
+func NewClientHandleError(namespace string, context string, kubeConfigPath string, exitOnError bool) *client.VanClient {
 	cli, err := client.NewClient(namespace, context, kubeConfigPath)
 	if err != nil {
 		if exitOnError {
@@ -835,11 +839,11 @@ the .bash_profile. i.e.: $ source <(skupper completion)
 type cobraFunc func(cmd *cobra.Command, args []string)
 
 func newClient(cmd *cobra.Command, args []string) {
-	cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+	cli = NewClient(namespace, kubeContext, kubeConfigPath)
 }
 
 func newClientSansExit(cmd *cobra.Command, args []string) {
-	cli = NewClient(namespace, kubeContext, kubeConfigPath, false)
+	cli = NewClientHandleError(namespace, kubeContext, kubeConfigPath, false)
 }
 
 var kubeContext string

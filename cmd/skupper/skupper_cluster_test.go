@@ -63,7 +63,7 @@ func newMockClient(namespace string) *client.VanClient {
 
 func testClient(cmd *cobra.Command, args []string) {
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -226,7 +226,7 @@ func TestInitInteriorWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -273,7 +273,7 @@ func TestDeleteWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -329,7 +329,7 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -386,7 +386,7 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -435,7 +435,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -483,7 +483,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -531,7 +531,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -590,7 +590,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -670,7 +670,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -724,7 +724,7 @@ func TestStatusWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -884,7 +884,7 @@ func TestExposeWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -998,7 +998,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -1047,7 +1047,7 @@ func TestListExposedWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -1131,7 +1131,7 @@ func TestCreateServiceWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -1186,7 +1186,7 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -1255,7 +1255,7 @@ func TestBindWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -1321,7 +1321,7 @@ func TestUnbindWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -1383,7 +1383,7 @@ func TestVersionWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
@@ -1430,7 +1430,7 @@ func TestDebugDumpWithCluster(t *testing.T) {
 	kubeConfigPath = ""
 
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath, true)
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
 		cli = newMockClient(namespace)
 	}
