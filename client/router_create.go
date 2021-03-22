@@ -666,7 +666,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Transport.Services = svcs
 
 	routes := []*routev1.Route{}
-	if options.IsIngressRoute() {
+	if !isEdge && options.IsIngressRoute() {
 		routes = append(routes, &routev1.Route{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
