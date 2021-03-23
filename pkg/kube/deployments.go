@@ -180,7 +180,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 							Name: "uplink",
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName: types.TransportConfigMapName,
+									SecretName: types.SiteServerSecret,
 								},
 							},
 						},
