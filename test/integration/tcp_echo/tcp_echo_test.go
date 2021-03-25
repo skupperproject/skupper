@@ -1,4 +1,4 @@
-// +build integration
+// +build integration smoke
 
 package tcp_echo
 
