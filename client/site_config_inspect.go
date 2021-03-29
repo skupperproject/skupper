@@ -133,6 +133,8 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 			return &result, err
 		}
 		result.Spec.RouterMaxFrameSize = val
+	} else {
+		result.Spec.RouterMaxFrameSize = types.RouterMaxFrameSizeDefault
 	}
 	if routerMaxSessionFrames, ok := siteConfig.Data["xp-router-max-session-frames"]; ok && routerMaxSessionFrames != "" {
 		val, err := strconv.Atoi(routerMaxSessionFrames)
@@ -140,6 +142,8 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 			return &result, err
 		}
 		result.Spec.RouterMaxSessionFrames = val
+	} else {
+		result.Spec.RouterMaxSessionFrames = types.RouterMaxSessionFramesDefault
 	}
 	exclusions := []string{}
 	annotations := map[string]string{}
