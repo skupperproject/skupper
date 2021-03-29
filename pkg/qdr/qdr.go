@@ -302,19 +302,11 @@ type Listener struct {
 }
 
 func (l *Listener) SetMaxFrameSize(value int) {
-	if value == 0 {
-		l.MaxFrameSize = types.RouterMaxFrameSizeDefault
-	} else {
-		l.MaxFrameSize = value
-	}
+	l.MaxFrameSize = value
 }
 
 func (l *Listener) SetMaxSessionFrames(value int) {
-	if value == 0 {
-		l.MaxSessionFrames = types.RouterMaxSessionFramesDefault
-	} else {
-		l.MaxSessionFrames = value
-	}
+	l.MaxSessionFrames = value
 }
 
 type Connector struct {
@@ -332,19 +324,11 @@ type Connector struct {
 }
 
 func (c *Connector) SetMaxFrameSize(value int) {
-	if value == 0 {
-		c.MaxFrameSize = types.RouterMaxFrameSizeDefault
-	} else {
-		c.MaxFrameSize = value
-	}
+	c.MaxFrameSize = value
 }
 
 func (c *Connector) SetMaxSessionFrames(value int) {
-	if value == 0 {
-		c.MaxSessionFrames = types.RouterMaxSessionFramesDefault
-	} else {
-		c.MaxSessionFrames = value
-	}
+	c.MaxSessionFrames = value
 }
 
 type Distribution string

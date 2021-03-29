@@ -74,10 +74,10 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.RouterDebugMode != "" {
 		siteConfig.Data["router-debug-mode"] = spec.RouterDebugMode
 	}
-	if spec.RouterMaxFrameSize != 0 {
+	if spec.RouterMaxFrameSize != types.RouterMaxFrameSizeDefault {
 		siteConfig.Data["xp-router-max-frame-size"] = strconv.Itoa(spec.RouterMaxFrameSize)
 	}
-	if spec.RouterMaxSessionFrames != 0 {
+	if spec.RouterMaxSessionFrames != types.RouterMaxSessionFramesDefault {
 		siteConfig.Data["xp-router-max-session-frames"] = strconv.Itoa(spec.RouterMaxSessionFrames)
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
