@@ -13,9 +13,13 @@ import (
 )
 
 func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*types.SiteConfig, error) {
+	return cli.SiteConfigInspectInNamespace(ctx, input, cli.Namespace)
+}
+
+func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *corev1.ConfigMap, namespace string) (*types.SiteConfig, error) {
 	var siteConfig *corev1.ConfigMap
 	if input == nil {
-		cm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-site", metav1.GetOptions{})
+		cm, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get("skupper-site", metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			return nil, nil
 		} else if err != nil {
@@ -32,7 +36,7 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 	if skupperName, ok := siteConfig.Data["name"]; ok {
 		result.Spec.SkupperName = skupperName
 	} else {
-		result.Spec.SkupperName = cli.Namespace
+		result.Spec.SkupperName = namespace
 	}
 	if routerMode, ok := siteConfig.Data["router-mode"]; ok {
 		result.Spec.RouterMode = routerMode
