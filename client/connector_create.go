@@ -167,7 +167,7 @@ func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretF
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+		siteConfig, err := cli.SiteConfigInspectInNamespace(ctx, nil, options.SkupperNamespace)
 		if err != nil {
 			return err
 		}
