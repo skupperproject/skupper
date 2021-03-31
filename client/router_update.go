@@ -137,6 +137,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		//update annotation on skupper-router-console if it exists
 		routerConsoleService, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.RouterConsoleServiceName, metav1.GetOptions{})
 		if err == nil {
+			if routerConsoleService.ObjectMeta.Annotations == nil {
+				routerConsoleService.ObjectMeta.Annotations = map[string]string{}
+			}
 			routerConsoleService.ObjectMeta.Annotations["service.alpha.openshift.io/serving-cert-secret-name"] = types.OauthRouterConsoleSecret
 			_, err := cli.KubeClient.CoreV1().Services(namespace).Update(routerConsoleService)
 			if err != nil {
