@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -156,10 +157,22 @@ func silenceCobra(cmd *cobra.Command) {
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) *client.VanClient {
+	return NewClientHandleError(namespace, context, kubeConfigPath, true)
+}
+
+func NewClientHandleError(namespace string, context string, kubeConfigPath string, exitOnError bool) *client.VanClient {
 	cli, err := client.NewClient(namespace, context, kubeConfigPath)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		if exitOnError {
+			if strings.Contains(err.Error(), "invalid configuration: no configuration has been provided") {
+				fmt.Printf("%s. Please point to an existing, complete config file.\n", err.Error())
+			} else {
+				fmt.Println(err.Error())
+			}
+			os.Exit(1)
+		} else {
+			return nil
+		}
 	}
 	return cli
 }
@@ -760,8 +773,11 @@ func NewCmdUnbind(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
+func IsZero(v reflect.Value) bool {
+	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
+}
+
 func NewCmdVersion(newClient cobraFunc) *cobra.Command {
-	// TODO: change to inspect
 	cmd := &cobra.Command{
 		Use:    "version",
 		Short:  "Report the version of the Skupper CLI and services",
@@ -769,11 +785,14 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-
 			fmt.Printf("%-30s %s\n", "client version", client.Version)
-			fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
-			fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
-
+			if !IsZero(reflect.ValueOf(cli)) {
+				fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
+				fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
+			} else {
+				fmt.Printf("%-30s %s\n", "transport version", "not-found (no configuration has been provided)")
+				fmt.Printf("%-30s %s\n", "controller version", "not-found (no configuration has been provided)")
+			}
 			return nil
 		},
 	}
@@ -833,6 +852,10 @@ func newClient(cmd *cobra.Command, args []string) {
 	cli = NewClient(namespace, kubeContext, kubeConfigPath)
 }
 
+func newClientSansExit(cmd *cobra.Command, args []string) {
+	cli = NewClientHandleError(namespace, kubeContext, kubeConfigPath, false)
+}
+
 var kubeContext string
 var namespace string
 var kubeConfigPath string
@@ -854,7 +877,7 @@ func init() {
 	cmdStatusService := NewCmdServiceStatus(newClient)
 	cmdBind := NewCmdBind(newClient)
 	cmdUnbind := NewCmdUnbind(newClient)
-	cmdVersion := NewCmdVersion(newClient)
+	cmdVersion := NewCmdVersion(newClientSansExit)
 	cmdDebugDump := NewCmdDebugDump(newClient)
 
 	//backwards compatibility commands hidden
