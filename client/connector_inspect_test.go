@@ -17,7 +17,7 @@ func TestConnectorInspectError(t *testing.T) {
 	assert.Check(t, err, "Unabled to create client.")
 
 	_, err = cli.ConnectorInspect(ctx, "conn1")
-	assert.Error(t, err, `configmaps "`+types.TransportConfigMapName+`" not found`, "Expect error when VAN is not deployed")
+	assert.Error(t, err, "Skupper is not installed in "+cli.Namespace, "Expect error when VAN is not deployed")
 }
 
 func TestConnectorInspectNotFound(t *testing.T) {

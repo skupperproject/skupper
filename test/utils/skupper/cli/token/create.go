@@ -39,7 +39,7 @@ func (t *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	log.Printf("Validating 'skupper token create'")
 
 	log.Println("validating stdout")
-	expectedOutput := fmt.Sprintf("Connection token written to %s", t.FileName)
+	expectedOutput := fmt.Sprintf("Token written to %s", t.FileName)
 	if !strings.Contains(stdout, expectedOutput) {
 		err = fmt.Errorf("output did not match - expected: %s - found: %s", expectedOutput, stdout)
 		return
