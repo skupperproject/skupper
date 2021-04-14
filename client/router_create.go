@@ -808,32 +808,53 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 	for _, sa := range van.Transport.ServiceAccounts {
 		sa.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-		kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
+		_, err = kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
+		if err != nil {
+			return err
+		}
 	}
 	for _, role := range van.Transport.Roles {
 		role.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-		kube.CreateRole(van.Namespace, role, cli.KubeClient)
+		_, err = kube.CreateRole(van.Namespace, role, cli.KubeClient)
+		if err != nil {
+			return err
+		}
 	}
 	for _, roleBinding := range van.Transport.RoleBindings {
 		roleBinding.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-		kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
+		_, err = kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
+		if err != nil {
+			return err
+		}
 	}
 	for _, ca := range van.CertAuthoritys {
-		kube.NewCertAuthority(ca, siteOwnerRef, van.Namespace, cli.KubeClient)
+		_, err = kube.NewCertAuthority(ca, siteOwnerRef, van.Namespace, cli.KubeClient)
+		if err != nil {
+			return err
+		}
 	}
 	for _, cred := range van.Credentials {
 		if !cred.Post {
-			kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
+			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	for _, svc := range van.Transport.Services {
 		svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-		kube.CreateService(svc, van.Namespace, cli.KubeClient)
+		_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
+		if err != nil {
+			return err
+		}
 	}
 	if options.Spec.IsIngressRoute() {
 		for _, rte := range van.Transport.Routes {
 			rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-			kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
+			_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -893,24 +914,39 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		}
 		for _, sa := range van.Controller.ServiceAccounts {
 			sa.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-			kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
+			_, err = kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
+			if err != nil {
+				return err
+			}
 		}
 		for _, role := range van.Controller.Roles {
 			role.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-			kube.CreateRole(van.Namespace, role, cli.KubeClient)
+			_, err = kube.CreateRole(van.Namespace, role, cli.KubeClient)
+			if err != nil {
+				return err
+			}
 		}
 		for _, roleBinding := range van.Controller.RoleBindings {
 			roleBinding.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-			kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
+			_, err = kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
+			if err != nil {
+				return err
+			}
 		}
 		for _, svc := range van.Controller.Services {
 			svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-			kube.CreateService(svc, van.Namespace, cli.KubeClient)
+			_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
+			if err != nil {
+				return err
+			}
 		}
 		if options.Spec.IsIngressRoute() {
 			for _, rte := range van.Controller.Routes {
 				rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
-				kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
+				_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
