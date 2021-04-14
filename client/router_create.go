@@ -787,14 +787,11 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 	}
 	van := cli.GetRouterSpecFromOpts(options.Spec, siteId)
 	siteOwnerRef := asOwnerReference(options.Reference)
-	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, cli.KubeClient)
-	if err != nil {
-		return err
+	var ownerRefs []metav1.OwnerReference
+	if siteOwnerRef != nil {
+		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 	}
-	if siteOwnerRef == nil {
-		depRef := kube.GetDeploymentOwnerReference(dep)
-		siteOwnerRef = &depRef
-	}
+	var err error
 	if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) {
 		config := `
 pwcheck_method: auxprop
@@ -807,21 +804,21 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		kube.NewConfigMap("skupper-sasl-config", saslData, siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, sa := range van.Transport.ServiceAccounts {
-		sa.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+		sa.ObjectMeta.OwnerReferences = ownerRefs
 		_, err = kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
 		if err != nil {
 			return err
 		}
 	}
 	for _, role := range van.Transport.Roles {
-		role.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+		role.ObjectMeta.OwnerReferences = ownerRefs
 		_, err = kube.CreateRole(van.Namespace, role, cli.KubeClient)
 		if err != nil {
 			return err
 		}
 	}
 	for _, roleBinding := range van.Transport.RoleBindings {
-		roleBinding.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+		roleBinding.ObjectMeta.OwnerReferences = ownerRefs
 		_, err = kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
 		if err != nil {
 			return err
@@ -842,7 +839,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		}
 	}
 	for _, svc := range van.Transport.Services {
-		svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+		svc.ObjectMeta.OwnerReferences = ownerRefs
 		_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
 		if err != nil {
 			return err
@@ -850,12 +847,16 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 	if options.Spec.IsIngressRoute() {
 		for _, rte := range van.Transport.Routes {
-			rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			rte.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
 			if err != nil {
 				return err
 			}
 		}
+	}
+	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, cli.KubeClient)
+	if err != nil {
+		return err
 	}
 
 	kube.NewConfigMap(types.ServiceInterfaceConfigMap, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
@@ -908,33 +909,29 @@ sasldb_path: /tmp/qdrouterd.sasldb
 
 	if options.Spec.EnableController {
 		cli.GetVanControllerSpec(options.Spec, van, dep, siteId)
-		_, err := kube.NewControllerDeployment(van, siteOwnerRef, cli.KubeClient)
-		if err != nil {
-			return err
-		}
 		for _, sa := range van.Controller.ServiceAccounts {
-			sa.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			sa.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
 			if err != nil {
 				return err
 			}
 		}
 		for _, role := range van.Controller.Roles {
-			role.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			role.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateRole(van.Namespace, role, cli.KubeClient)
 			if err != nil {
 				return err
 			}
 		}
 		for _, roleBinding := range van.Controller.RoleBindings {
-			roleBinding.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			roleBinding.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
 			if err != nil {
 				return err
 			}
 		}
 		for _, svc := range van.Controller.Services {
-			svc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+			svc.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
 			if err != nil {
 				return err
@@ -942,12 +939,16 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		}
 		if options.Spec.IsIngressRoute() {
 			for _, rte := range van.Controller.Routes {
-				rte.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*siteOwnerRef}
+				rte.ObjectMeta.OwnerReferences = ownerRefs
 				_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
 				if err != nil {
 					return err
 				}
 			}
+		}
+		_, err = kube.NewControllerDeployment(van, siteOwnerRef, cli.KubeClient)
+		if err != nil {
+			return err
 		}
 	}
 
