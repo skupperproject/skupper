@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -78,6 +79,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SITE_NAME", Value: van.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SITE_ID", Value: siteId})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SERVICE_ACCOUNT", Value: types.TransportServiceAccountName})
+	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_ROUTER_MODE", Value: options.RouterMode})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(transport.ObjectMeta.UID)})
 	envVars = addRouterImageOverrideToEnv(envVars)
@@ -101,6 +103,9 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
 			kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
 		}
+	}
+	if options.RouterMode != string(types.TransportModeEdge) {
+		kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ClaimsServerSecret, "/etc/service-controller/certs/")
 	}
 	//mount secret needed for communication with router
 	kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.LocalClientSecret, "/etc/messaging/")
@@ -161,54 +166,33 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	})
 	van.Controller.RoleBindings = roleBindings
 
+	svctype := corev1.ServiceTypeClusterIP
+	annotations := map[string]string{}
+	controllerPorts := []corev1.ServicePort{}
+	routes := []*routev1.Route{}
 	if options.EnableConsole {
-		svctype := corev1.ServiceTypeClusterIP
-		metricsPort := []corev1.ServicePort{
-			{
-				Name:       "metrics",
-				Protocol:   "TCP",
-				Port:       types.ConsoleDefaultServicePort,
-				TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
-			},
-		}
 		termination := routev1.TLSTerminationEdge
-		annotations := map[string]string{}
+		metricsPort := corev1.ServicePort{
+			Name:       "metrics",
+			Protocol:   "TCP",
+			Port:       types.ConsoleDefaultServicePort,
+			TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
+		}
 
-		svcs := []*corev1.Service{}
 		if options.IsConsoleIngressRoute() {
 			if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 				termination = routev1.TLSTerminationReencrypt
-				metricsPort = []corev1.ServicePort{
-					{
-						Name:       "metrics",
-						Protocol:   "TCP",
-						Port:       types.ConsoleOpenShiftOauthServicePort,
-						TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
-					},
+				metricsPort = corev1.ServicePort{
+					Name:       "metrics",
+					Protocol:   "TCP",
+					Port:       types.ConsoleOpenShiftOauthServicePort,
+					TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
 				}
 				annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.OauthConsoleSecret}
 			}
 		} else if options.IsConsoleIngressLoadBalancer() {
 			svctype = corev1.ServiceTypeLoadBalancer
 		}
-		svcs = append(svcs, &corev1.Service{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Service",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        types.ControllerServiceName,
-				Annotations: annotations,
-			},
-			Spec: corev1.ServiceSpec{
-				Selector: van.Controller.Labels,
-				Ports:    metricsPort,
-				Type:     svctype,
-			},
-		})
-		van.Controller.Services = svcs
-
-		routes := []*routev1.Route{}
 		if options.IsConsoleIngressRoute() {
 			routes = append(routes, &routev1.Route{
 				TypeMeta: metav1.TypeMeta{
@@ -234,8 +218,62 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				},
 			})
 		}
-		van.Controller.Routes = routes
+		controllerPorts = append(controllerPorts, metricsPort)
 	}
+	if options.RouterMode != string(types.TransportModeEdge) {
+		controllerPorts = append(controllerPorts, corev1.ServicePort{
+			Name:     types.ClaimRedemptionPortName,
+			Protocol: "TCP",
+			Port:     types.ClaimRedemptionPort,
+		})
+		if options.IsIngressRoute() {
+			routes = append(routes, &routev1.Route{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Route",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: types.ClaimRedemptionRouteName,
+				},
+				Spec: routev1.RouteSpec{
+					Path: "",
+					Port: &routev1.RoutePort{
+						TargetPort: intstr.FromString(types.ClaimRedemptionPortName),
+					},
+					To: routev1.RouteTargetReference{
+						Kind: "Service",
+						Name: types.ControllerServiceName,
+					},
+					TLS: &routev1.TLSConfig{
+						Termination:                   routev1.TLSTerminationPassthrough,
+						InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+					},
+				},
+			})
+		}
+	}
+
+	svcs := []*corev1.Service{}
+	if len(controllerPorts) > 0 {
+		svcs = append(svcs, &corev1.Service{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Service",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        types.ControllerServiceName,
+				Annotations: annotations,
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: van.Controller.Labels,
+				Ports:    controllerPorts,
+				Type:     svctype,
+			},
+		})
+	}
+	van.Controller.Services = svcs
+
+	van.Controller.Routes = routes
 }
 
 func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) error {
@@ -586,25 +624,22 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	})
 
 	if !isEdge {
-		if options.IsIngressNone() {
-			credentials = append(credentials, types.Credential{
-				CA:          types.SiteCaSecret,
-				Name:        types.SiteServerSecret,
-				Subject:     types.TransportServiceName,
-				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
-				ConnectJson: false,
-				Post:        false,
-			})
-		} else {
-			credentials = append(credentials, types.Credential{
-				CA:          types.SiteCaSecret,
-				Name:        types.SiteServerSecret,
-				Subject:     types.TransportServiceName,
-				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
-				ConnectJson: false,
-				Post:        true,
-			})
-		}
+		credentials = append(credentials, types.Credential{
+			CA:          types.SiteCaSecret,
+			Name:        types.SiteServerSecret,
+			Subject:     types.TransportServiceName,
+			Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
+			ConnectJson: false,
+			Post:        !options.IsIngressNone(),
+		})
+		van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
+			CA:          types.SiteCaSecret,
+			Name:        types.ClaimsServerSecret,
+			Subject:     types.ControllerServiceName,
+			Hosts:       []string{types.ControllerServiceName + "." + van.Namespace},
+			ConnectJson: false,
+			Post:        !options.IsIngressNone(),
+		})
 	}
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 		userData := map[string][]byte{}
@@ -620,7 +655,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Post:        false,
 		})
 	}
-	van.Credentials = credentials
+	van.TransportCredentials = credentials
 
 	// TODO: this is a hack for ports, fix this
 	svcs := []*corev1.Service{}
@@ -889,7 +924,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			return err
 		}
 	}
-	for _, cred := range van.Credentials {
+	for _, cred := range van.TransportCredentials {
 		if !cred.Post {
 			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
 			if err != nil && !errors.IsAlreadyExists(err) {
@@ -923,7 +958,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
-		for _, cred := range van.Credentials {
+		for _, cred := range van.TransportCredentials {
 			if cred.Post {
 				if options.Spec.IsIngressRoute() {
 					rte, err := kube.GetRoute(types.InterRouterRouteName, van.Namespace, cli.RouteClient)
@@ -1009,6 +1044,25 @@ sasldb_path: /tmp/qdrouterd.sasldb
 				}
 			}
 		}
+		for _, cred := range van.ControllerCredentials {
+			if options.Spec.IsIngressRoute() {
+				rte, err := kube.GetRoute(types.ClaimRedemptionRouteName, van.Namespace, cli.RouteClient)
+				if err == nil {
+					cred.Hosts = append(cred.Hosts, rte.Spec.Host)
+				} else {
+					log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
+				}
+			} else if options.Spec.IsIngressLoadBalancer() {
+				err = cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, van.Namespace, &cred)
+				if err != nil {
+					return err
+				}
+			}
+			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				return err
+			}
+		}
 		_, err = kube.NewControllerDeployment(van, siteOwnerRef, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
@@ -1016,6 +1070,34 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 
 	return nil
+}
+
+func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace string, cred *types.Credential) error {
+	service, err := kube.GetService(serviceName, namespace, cli.KubeClient)
+	if err != nil {
+		return err
+	}
+	if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		return nil
+	}
+	host := kube.GetLoadBalancerHostOrIP(service)
+	for i := 0; host == "" && i < 120; i++ {
+		if i == 0 {
+			fmt.Println("Waiting for LoadBalancer IP or hostname...")
+		}
+		time.Sleep(time.Second)
+		service, err = kube.GetService(serviceName, namespace, cli.KubeClient)
+		host = kube.GetLoadBalancerHostOrIP(service)
+	}
+	if host == "" {
+		return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", serviceName)
+	} else {
+		cred.Hosts = append(cred.Hosts, host)
+		if len(host) < 64 {
+			cred.Subject = host
+		}
+		return nil
+	}
 }
 
 func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {

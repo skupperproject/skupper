@@ -74,7 +74,7 @@ func (l *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 	if !l.Active {
 		activePrefix = "not"
 	}
-	outRegex := regexp.MustCompile(fmt.Sprintf(`Connection for %s %s active`, connName, activePrefix))
+	outRegex := regexp.MustCompile(fmt.Sprintf(`Link %s %s active`, connName, activePrefix))
 
 	// Ensure stdout matches expected regexp
 	if !outRegex.MatchString(stdout) {

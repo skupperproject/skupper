@@ -478,7 +478,7 @@ func NewCmdListConnectors(newClient cobraFunc) *cobra.Command {
 				} else {
 					fmt.Println("Connectors:")
 					for _, c := range connectors {
-						fmt.Printf("    %s:%s (name=%s)", c.Host, c.Port, c.Name)
+						fmt.Printf("    %s (name=%s)", c.Url, c.Name)
 						fmt.Println()
 					}
 				}

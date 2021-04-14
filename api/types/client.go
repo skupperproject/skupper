@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -19,10 +20,13 @@ type ConnectorRemoveOptions struct {
 	ForceCurrent     bool
 }
 
-type ConnectorInspectResponse struct {
-	SkupperNamespace string
-	Connector        *Connector
-	Connected        bool
+type LinkStatus struct {
+	Name        string
+	Url         string
+	Cost        int
+	Connected   bool
+	Configured  bool
+	Description string
 }
 
 type SiteConfig struct {
@@ -159,11 +163,12 @@ type VanClientInterface interface {
 	ConnectorCreateFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreate(ctx context.Context, secret *corev1.Secret, options ConnectorCreateOptions) error
-	ConnectorInspect(ctx context.Context, name string) (*ConnectorInspectResponse, error)
-	ConnectorList(ctx context.Context) ([]*Connector, error)
+	ConnectorInspect(ctx context.Context, name string) (*LinkStatus, error)
+	ConnectorList(ctx context.Context) ([]LinkStatus, error)
 	ConnectorRemove(ctx context.Context, options ConnectorRemoveOptions) error
 	ConnectorTokenCreate(ctx context.Context, subject string, namespace string) (*corev1.Secret, bool, error)
 	ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error
+	TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error
 	ServiceInterfaceCreate(ctx context.Context, service *ServiceInterface) error
 	ServiceInterfaceInspect(ctx context.Context, address string) (*ServiceInterface, error)
 	ServiceInterfaceList(ctx context.Context) ([]*ServiceInterface, error)

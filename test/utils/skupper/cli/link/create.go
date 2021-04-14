@@ -50,7 +50,7 @@ func (l *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	}
 
 	// Example: Skupper configured to connect to 10.0.0.1:45671 (name=conn1)
-	outRegex := regexp.MustCompile(fmt.Sprintf(`Skupper configured to connect to .* \(name=%s\)`, connectionNameRegex))
+	outRegex := regexp.MustCompile(fmt.Sprintf(`Site configured to link to .* \(name=%s\)`, connectionNameRegex))
 
 	// Ensure stdout matches expected regexp
 	if !outRegex.MatchString(stdout) {

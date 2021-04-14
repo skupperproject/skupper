@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/spf13/cobra"
@@ -40,42 +41,28 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 			if err != nil {
 				fmt.Println("Unable to retrieve site config: ", err.Error())
 				os.Exit(1)
-			} else if siteConfig == nil || !siteConfig.Spec.SiteControlled {
-				connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
-				secret, err := cli.ConnectorCreateFromFile(context.Background(), args[0], connectorCreateOpts)
-				if err != nil {
-					return fmt.Errorf("Failed to create connection: %w", err)
-				} else {
-					if siteConfig.Spec.RouterMode == string(types.TransportModeEdge) {
-						fmt.Printf("Skupper configured to connect to %s:%s (name=%s)\n",
-							secret.ObjectMeta.Annotations["edge-host"],
-							secret.ObjectMeta.Annotations["edge-port"],
-							secret.ObjectMeta.Name)
-					} else {
-						fmt.Printf("Skupper configured to connect to %s:%s (name=%s)\n",
-							secret.ObjectMeta.Annotations["inter-router-host"],
-							secret.ObjectMeta.Annotations["inter-router-port"],
-							secret.ObjectMeta.Name)
-					}
-				}
+			}
+			connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
+			secret, err := cli.ConnectorCreateSecretFromFile(context.Background(), args[0], connectorCreateOpts)
+			if err != nil {
+				return fmt.Errorf("Failed to create connection: %w", err)
 			} else {
-				// create the secret, site-controller will do the rest
-				connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
-				secret, err := cli.ConnectorCreateSecretFromFile(context.Background(), args[0], connectorCreateOpts)
-				if err != nil {
-					return fmt.Errorf("Failed to create connection: %w", err)
-				} else {
+				if secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeToken {
 					if siteConfig.Spec.RouterMode == string(types.TransportModeEdge) {
-						fmt.Printf("Skupper site-controller configured to connect to %s:%s (name=%s)\n",
+						fmt.Printf("Site configured to link to %s:%s (name=%s)\n",
 							secret.ObjectMeta.Annotations["edge-host"],
 							secret.ObjectMeta.Annotations["edge-port"],
 							secret.ObjectMeta.Name)
 					} else {
-						fmt.Printf("Skupper site-controller configured to connect to %s:%s (name=%s)\n",
+						fmt.Printf("Site configured to link to %s:%s (name=%s)\n",
 							secret.ObjectMeta.Annotations["inter-router-host"],
 							secret.ObjectMeta.Annotations["inter-router-port"],
 							secret.ObjectMeta.Name)
 					}
+				} else {
+					fmt.Printf("Site configured to link to %s (name=%s)\n",
+						secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey],
+						secret.ObjectMeta.Name)
 				}
 			}
 			return nil
@@ -115,6 +102,15 @@ func NewCmdLinkDelete(newClient cobraFunc) *cobra.Command {
 
 var waitFor int
 
+func allConnected(links []types.LinkStatus) bool {
+	for _, l := range links {
+		if !l.Connected {
+			return false
+		}
+	}
+	return true
+}
+
 func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status [<connection-name>]",
@@ -124,62 +120,67 @@ func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			var connectors []*types.ConnectorInspectResponse
-			connected := 0
-
-			linkName := "all"
-			if len(args) == 1 {
-				linkName = args[0]
-			}
-
-			if linkName == "all" {
-				vcis, err := cli.ConnectorList(context.Background())
-				if err == nil {
-					for _, vci := range vcis {
-						connectors = append(connectors, &types.ConnectorInspectResponse{
-							Connector: vci,
-							Connected: false,
-						})
+			if len(args) == 1 && args[0] != "all" {
+				for i := 0; ; i++ {
+					if i > 0 {
+						time.Sleep(time.Second)
+					}
+					link, err := cli.ConnectorInspect(context.Background(), args[0])
+					if errors.IsNotFound(err) {
+						fmt.Printf("No such link %q", args[0])
+						fmt.Println()
+						break
+					} else if err != nil {
+						fmt.Println(err)
+						break
+					} else if link.Connected {
+						fmt.Printf("Link %s is active", link.Name)
+						fmt.Println()
+						break
+					} else if i == waitFor {
+						if link.Description != "" {
+							fmt.Printf("Link %s not active (%s)", link.Name, link.Description)
+						} else {
+							fmt.Printf("Link %s not active", link.Name)
+						}
+						fmt.Println()
+						break
 					}
 				}
 			} else {
-				vci, err := cli.ConnectorInspect(context.Background(), linkName)
-				if err == nil {
-					connectors = append(connectors, vci)
-					if vci.Connected {
-						connected++
+				for i := 0; ; i++ {
+					if i > 0 {
+						time.Sleep(time.Second)
 					}
-				}
-			}
-
-			for i := 0; connected < len(connectors) && i < waitFor; i++ {
-				for _, c := range connectors {
-					vci, err := cli.ConnectorInspect(context.Background(), c.Connector.Name)
-					if err == nil && vci.Connected && c.Connected == false {
-						c.Connected = true
-						connected++
-					}
-				}
-				time.Sleep(time.Second)
-			}
-
-			if len(connectors) == 0 {
-				fmt.Println("There are no connectors configured or active")
-			} else {
-				for _, c := range connectors {
-					if c.Connected {
-						fmt.Printf("Connection for %s is active", c.Connector.Name)
-						fmt.Println()
-					} else {
-						fmt.Printf("Connection for %s not active", c.Connector.Name)
-						fmt.Println()
+					links, err := cli.ConnectorList(context.Background())
+					if err != nil {
+						fmt.Println(err)
+						break
+					} else if allConnected(links) || i == waitFor {
+						if len(links) == 0 {
+							fmt.Println("There are no links configured or active")
+						}
+						for _, link := range links {
+							if link.Connected {
+								fmt.Printf("Link %s is active", link.Name)
+								fmt.Println()
+							} else {
+								if link.Description != "" {
+									fmt.Printf("Link %s not active (%s)", link.Name, link.Description)
+								} else {
+									fmt.Printf("Link %s not active", link.Name)
+								}
+								fmt.Println()
+							}
+						}
+						break
 					}
 				}
 			}
 			return nil
 		},
 	}
-	cmd.Flags().IntVar(&waitFor, "wait", 1, "The number of seconds to wait for connections to become active")
+	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for connections to become active")
 
 	return cmd
 

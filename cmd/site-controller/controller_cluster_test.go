@@ -59,38 +59,38 @@ var connTokenReq *corev1.Secret = &corev1.Secret{
 }
 
 func waitForConnection(cli *client.VanClient, name string) error {
-	var vci *types.ConnectorInspectResponse
+	var link *types.LinkStatus
 	var err error
 
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*300)
 	defer cancel()
 
 	err = utils.RetryWithContext(ctx, time.Second*5, func() (bool, error) {
-		vci, err = cli.ConnectorInspect(ctx, name)
+		link, err = cli.ConnectorInspect(ctx, name)
 		if err != nil {
 			return false, nil
 		}
 
-		return vci.Connected == true, nil
+		return link.Connected == true, nil
 	})
 
 	return err
 }
 
 func waitForNoConnections(cli *client.VanClient) error {
-	var connectors []*types.Connector
+	var links []types.LinkStatus
 	var err error
 
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*300)
 	defer cancel()
 
 	err = utils.RetryWithContext(ctx, time.Second*5, func() (bool, error) {
-		connectors, err = cli.ConnectorList(ctx)
+		links, err = cli.ConnectorList(ctx)
 		if err != nil {
 			return false, nil
 		}
 
-		return len(connectors) == 0, nil
+		return len(links) == 0, nil
 	})
 
 	return err
