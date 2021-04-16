@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -103,52 +104,60 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 	if err != nil {
 		return fmt.Errorf("Failed to encode service interface as json: %s", err)
 	}
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
-	if err == nil {
-		if overwriteIfExists || current.Data == nil || current.Data[service.Address] == "" {
-			if current.Data == nil {
-				current.Data = map[string]string{
-					service.Address: string(encoded),
+	var unretryable error = nil
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+		if err == nil {
+			if overwriteIfExists || current.Data == nil || current.Data[service.Address] == "" {
+				if current.Data == nil {
+					current.Data = map[string]string{
+						service.Address: string(encoded),
+					}
+				} else {
+					current.Data[service.Address] = string(encoded)
+				}
+				_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+				if err != nil {
+					return fmt.Errorf("Failed to update skupper-services config map: %s", err)
+				} else {
+					return nil
 				}
 			} else {
-				current.Data[service.Address] = string(encoded)
+				unretryable = fmt.Errorf("Service %s already defined", service.Address)
+				return nil
 			}
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+		} else if errors.IsNotFound(err) {
+			configMap := corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: types.ServiceInterfaceConfigMap,
+				},
+				Data: map[string]string{
+					service.Address: string(encoded),
+				},
+			}
+			if owner != nil {
+				configMap.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+					*owner,
+				}
+			}
+			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(&configMap)
 			if err != nil {
-				return fmt.Errorf("Failed to update skupper-services config map: %s", err)
+				return fmt.Errorf("Failed to create skupper-services config map: %s", err)
 			} else {
 				return nil
 			}
 		} else {
-			return fmt.Errorf("Service %s already defined", service.Address)
+			return fmt.Errorf("Could not retrieve service interface definitions from configmap: %s", err)
 		}
-	} else if errors.IsNotFound(err) {
-		configMap := corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: types.ServiceInterfaceConfigMap,
-			},
-			Data: map[string]string{
-				service.Address: string(encoded),
-			},
-		}
-		if owner != nil {
-			configMap.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-				*owner,
-			}
-		}
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(&configMap)
-		if err != nil {
-			return fmt.Errorf("Failed to create skupper-services config map: %s", err)
-		} else {
-			return nil
-		}
-	} else {
-		return fmt.Errorf("Could not retrieve service interface definitions from configmap: %s", err)
+	})
+	if unretryable != nil {
+		return unretryable
 	}
+	return err
 }
 
 func validateServiceInterface(service *types.ServiceInterface) error {
