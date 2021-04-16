@@ -391,9 +391,11 @@ func WaitDeploymentReady(name string, namespace string, cli kubernetes.Interface
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
 		dep, err = cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
-		if err != nil {
+		if errors.IsNotFound(err) {
 			// dep does not exist yet
 			return false, nil
+		} else if err != nil {
+			return false, err
 		}
 		return dep.Status.ReadyReplicas > 0, nil
 	})
