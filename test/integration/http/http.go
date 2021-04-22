@@ -3,15 +3,14 @@ package http
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strings"
-	"testing"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
+	"regexp"
+	"strings"
+	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -274,9 +273,44 @@ func runHeyTestTable(t *testing.T, jobCluster *base.ClusterContext) {
 			jobName:         "h1hey50wrk60sec",
 			targetURL:       "http://nginx1:8080",
 		},
+		{
+			name:            "t1hey5wrk30sec",
+			doc:             "Send request using 5 concurrent workers during 30 seconds via TCP",
+			cluster:         jobCluster,
+			numOfWorkers:    "5",
+			durationOfTests: "30s",
+			jobName:         "t1hey5wrk30sec",
+			targetURL:       "http://httptcp:8080",
+		},
+		{
+			name:            "t1hey50wrk30sec",
+			doc:             "Send request using 50 concurrent workers during 30 seconds via TCP",
+			cluster:         jobCluster,
+			numOfWorkers:    "50",
+			durationOfTests: "30s",
+			jobName:         "t1hey50wrk30sec",
+			targetURL:       "http://httptcp:8080",
+		},
+		{
+			name:            "t1hey5wrk60sec",
+			doc:             "Send request using 5 concurrent workers during 60 seconds via TCP",
+			cluster:         jobCluster,
+			numOfWorkers:    "5",
+			durationOfTests: "60s",
+			jobName:         "t1hey5wrk60sec",
+			targetURL:       "http://httptcp:8080",
+		},
+		{
+			name:            "t1hey50wrk60sec",
+			doc:             "Send request using 50 concurrent workers during 60 seconds via TCP",
+			cluster:         jobCluster,
+			numOfWorkers:    "50",
+			durationOfTests: "60s",
+			jobName:         "t1hey50wrk60sec",
+			targetURL:       "http://httptcp:8080",
+		},
 	}
 
-	// Iterate over test table
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			runHeyTesWithParameter(t, test.cluster, test.numOfWorkers, test.durationOfTests, test.jobName, test.targetURL)
@@ -378,6 +412,7 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 	// Create the deployment for HTTP2
 	createDeploymentInPrivateSite(nghttp2Dep)
 
+	// Expose HTTP1
 	service := types.ServiceInterface{
 		Address:  "nginx1",
 		Protocol: "http",
@@ -390,6 +425,7 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "nginx1", "http", 0)
 	assert.Assert(t, err)
 
+	// Expose HTTP2
 	http2service := types.ServiceInterface{
 		Address:  "nghttp2",
 		Protocol: "http2",
@@ -414,6 +450,18 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http21service, "deployment", "nghttp2", "http", 0)
 	assert.Assert(t, err)
 
+	// Expose HTTP1 as TCP
+	tcpService := types.ServiceInterface{
+		Address:  "httptcp",
+		Protocol: "tcp",
+		Port:     8080,
+	}
+
+	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &tcpService)
+	assert.Assert(t, err)
+
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &tcpService, "deployment", "nginx1", "tcp", 8080)
+	assert.Assert(t, err)
 }
 
 func (r *HttpClusterTestRunner) Run(ctx context.Context, t *testing.T) {
