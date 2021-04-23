@@ -94,13 +94,17 @@ func (r *RouterConfig) IsEdge() bool {
 	return r.Metadata.Mode == ModeEdge
 }
 
-func (r *RouterConfig) AddSslProfile(s SslProfile) {
+func (r *RouterConfig) AddSslProfileWithPath(path string, s SslProfile) {
 	if s.CertFile == "" && s.CaCertFile == "" && s.PrivateKeyFile == "" {
-		s.CertFile = fmt.Sprintf("/etc/qpid-dispatch-certs/%s/tls.crt", s.Name)
-		s.PrivateKeyFile = fmt.Sprintf("/etc/qpid-dispatch-certs/%s/tls.key", s.Name)
-		s.CaCertFile = fmt.Sprintf("/etc/qpid-dispatch-certs/%s/ca.crt", s.Name)
+		s.CertFile = fmt.Sprintf(path+"/%s/tls.crt", s.Name)
+		s.PrivateKeyFile = fmt.Sprintf(path+"/%s/tls.key", s.Name)
+		s.CaCertFile = fmt.Sprintf(path+"/%s/ca.crt", s.Name)
 	}
 	r.SslProfiles[s.Name] = s
+}
+
+func (r *RouterConfig) AddSslProfile(s SslProfile) {
+	r.AddSslProfileWithPath("/etc/qpid-dispatch-certs", s)
 }
 
 func (r *RouterConfig) RemoveSslProfile(name string) bool {

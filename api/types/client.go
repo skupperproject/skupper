@@ -149,6 +149,18 @@ type RouterInspectResponse struct {
 	ConsoleUrl        string
 }
 
+type ExternalServiceCreateOptions struct {
+	Protocol      string
+	Address       string
+	EgressHost    string
+	EgressPort    string
+	CreateUnit    bool
+	BuildPackage  bool
+	PackageName   string
+	PackagePath   string
+	PackageType   string
+}
+
 type VanClientInterface interface {
 	RouterCreate(ctx context.Context, options SiteConfig) error
 	RouterInspect(ctx context.Context) (*RouterInspectResponse, error)
@@ -172,6 +184,7 @@ type VanClientInterface interface {
 	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error
 	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*ServiceInterface, error)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
+	ExternalServiceCreate(ctx context.Context, options ExternalServiceCreateOptions) error
 	SiteConfigCreate(ctx context.Context, spec SiteConfigSpec) (*SiteConfig, error)
 	SiteConfigUpdate(ctx context.Context, spec SiteConfigSpec) ([]string, error)
 	SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*SiteConfig, error)

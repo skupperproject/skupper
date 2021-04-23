@@ -185,6 +185,19 @@ func bindArgs(cmd *cobra.Command, args []string) error {
 	return verifyTargetTypeFromArgs(args[1:])
 }
 
+func createExternalServiceArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 2 || (!strings.Contains(args[1], ":") && len(args) < 3) {
+		return fmt.Errorf("External Service name, target host and port must all be specified")
+	}
+	if len(args) > 3 {
+		return fmt.Errorf("illegal argument: %s", args[3])
+	}
+	if len(args) > 2 && strings.Contains(args[1], ":") {
+		return fmt.Errorf("extra argument: %s", args[2])
+	}
+	return nil
+}
+
 func silenceCobra(cmd *cobra.Command) {
 	cmd.SilenceUsage = true
 }
@@ -830,8 +843,68 @@ func NewCmdUnbind(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
+
 func IsZero(v reflect.Value) bool {
 	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
+
+func NewCmdExternalService() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "external-service build <name> <host:port> or external-service detach <name>",
+		Short: "Manage skupper external-service definitions",
+	}
+	return cmd
+}
+
+var externalServiceProtocol string
+var externalServiceToCreate types.ExternalServiceCreateOptions
+
+func NewCmdCreateExternalService(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "create <address> <egress-host> <egress-port>",
+		Short:  "Create an external service proxy package for to the skupper network",
+		Args:   createExternalServiceArgs,
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			if len(args) == 2 {
+				parts := strings.Split(args[1], ":")
+				externalServiceToCreate.EgressHost = parts[0]
+				externalServiceToCreate.EgressPort = parts[1]
+			} else {
+				externalServiceToCreate.EgressHost = args[1]
+				externalServiceToCreate.EgressPort = args[2]
+			}
+
+			externalServiceToCreate.Address = args[0]
+			if externalServiceToCreate.PackageName == "" {
+				externalServiceToCreate.PackageName = args[0]
+			}
+			if externalServiceToCreate.PackagePath == "" {
+				current, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("Failed to get current working dir: %w", err)
+				} else {
+					externalServiceToCreate.PackagePath = current
+				}
+			} else {
+				fmt.Println("Check that path exists first: ", externalServiceToCreate.PackagePath)
+			}
+
+			err := cli.ExternalServiceCreate(context.Background(), externalServiceToCreate)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			// print success and where package went?
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&externalServiceToCreate.Protocol, "protocol", "tcp", "The protocol to proxy (tcp, http or http2).")
+	cmd.Flags().BoolVar(&externalServiceToCreate.CreateUnit, "create-unit", true, "Create a local systemd user unit service for the external proxy")
+	cmd.Flags().BoolVar(&externalServiceToCreate.BuildPackage, "build-package", false, "Build a package for the external proxy")
+	cmd.Flags().StringVar(&externalServiceToCreate.PackageName, "name", "", "The name of external service to create. Defaults to service address value")
+	cmd.Flags().StringVar(&externalServiceToCreate.PackagePath, "package-path", "", "The directory to place package. Defaults to current directory")
+	cmd.Flags().StringVar(&externalServiceToCreate.PackageType, "package-type", "rpm", "The type of package to build (rpm, tar or deb)")
+	return cmd
 }
 
 func NewCmdVersion(newClient cobraFunc) *cobra.Command {
@@ -936,6 +1009,7 @@ func init() {
 	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClientSansExit)
 	cmdDebugDump := NewCmdDebugDump(newClient)
+	cmdCreateExternalService := NewCmdCreateExternalService(newClient)
 
 	//backwards compatibility commands hidden
 	deprecatedMessage := "please use 'skupper service [bind|unbind]' instead"
@@ -977,6 +1051,9 @@ func init() {
 	cmdService.AddCommand(NewCmdUnbind(newClient))
 	cmdService.AddCommand(cmdStatusService)
 
+	cmdExternalService := NewCmdExternalService()
+	cmdExternalService.AddCommand(cmdCreateExternalService)
+
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
 
@@ -1010,7 +1087,9 @@ func init() {
 		cmdUnbind,
 		cmdVersion,
 		cmdDebug,
-		cmdCompletion)
+		cmdCompletion,
+		cmdExternalService,
+	)
 
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
