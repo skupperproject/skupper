@@ -193,8 +193,8 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			Cost:       options.Cost,
 			SslProfile: profileName,
 		}
-		connector.SetMaxFrameSize(siteConfig.Spec.RouterMaxFrameSize)
-		connector.SetMaxSessionFrames(siteConfig.Spec.RouterMaxSessionFrames)
+		connector.SetMaxFrameSize(siteConfig.Spec.Router.MaxFrameSize)
+		connector.SetMaxSessionFrames(siteConfig.Spec.Router.MaxSessionFrames)
 		if current.IsEdge() {
 			connector.Host = secret.ObjectMeta.Annotations["edge-host"]
 			connector.Port = secret.ObjectMeta.Annotations["edge-port"]

@@ -118,45 +118,91 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	result.Reference.Kind = siteConfig.TypeMeta.Kind
 	result.Reference.APIVersion = siteConfig.TypeMeta.APIVersion
 	if routerDebugMode, ok := siteConfig.Data["router-debug-mode"]; ok && routerDebugMode != "" {
-		result.Spec.RouterDebugMode = routerDebugMode
+		result.Spec.Router.DebugMode = routerDebugMode
 	}
 	if routerLogging, ok := siteConfig.Data["router-logging"]; ok && routerLogging != "" {
 		logConf, err := ParseRouterLogConfig(routerLogging)
 		if err != nil {
 			return &result, err
 		}
-		result.Spec.RouterLogging = logConf
+		result.Spec.Router.Logging = logConf
 	}
+	if routerCpu, ok := siteConfig.Data["router-cpu"]; ok && routerCpu != "" {
+		result.Spec.Router.Cpu = routerCpu
+	}
+	if routerMemory, ok := siteConfig.Data["router-memory"]; ok && routerMemory != "" {
+		result.Spec.Router.Memory = routerMemory
+	}
+	if routerNodeSelector, ok := siteConfig.Data["router-node-selector"]; ok && routerNodeSelector != "" {
+		result.Spec.Router.NodeSelector = routerNodeSelector
+	}
+	if routerAffinity, ok := siteConfig.Data["router-affinity"]; ok && routerAffinity != "" {
+		result.Spec.Router.Affinity = routerAffinity
+	}
+	if routerAntiAffinity, ok := siteConfig.Data["router-anti-affinity"]; ok && routerAntiAffinity != "" {
+		result.Spec.Router.AntiAffinity = routerAntiAffinity
+	}
+
 	if routerMaxFrameSize, ok := siteConfig.Data["xp-router-max-frame-size"]; ok && routerMaxFrameSize != "" {
 		val, err := strconv.Atoi(routerMaxFrameSize)
 		if err != nil {
 			return &result, err
 		}
-		result.Spec.RouterMaxFrameSize = val
+		result.Spec.Router.MaxFrameSize = val
 	} else {
-		result.Spec.RouterMaxFrameSize = types.RouterMaxFrameSizeDefault
+		result.Spec.Router.MaxFrameSize = types.RouterMaxFrameSizeDefault
 	}
 	if routerMaxSessionFrames, ok := siteConfig.Data["xp-router-max-session-frames"]; ok && routerMaxSessionFrames != "" {
 		val, err := strconv.Atoi(routerMaxSessionFrames)
 		if err != nil {
 			return &result, err
 		}
-		result.Spec.RouterMaxSessionFrames = val
+		result.Spec.Router.MaxSessionFrames = val
 	} else {
-		result.Spec.RouterMaxSessionFrames = types.RouterMaxSessionFramesDefault
+		result.Spec.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
 	}
-	exclusions := []string{}
+
+	if controllerCpu, ok := siteConfig.Data["controller-cpu"]; ok && controllerCpu != "" {
+		result.Spec.Controller.Cpu = controllerCpu
+	}
+	if controllerMemory, ok := siteConfig.Data["controller-memory"]; ok && controllerMemory != "" {
+		result.Spec.Controller.Memory = controllerMemory
+	}
+	if controllerNodeSelector, ok := siteConfig.Data["controller-node-selector"]; ok && controllerNodeSelector != "" {
+		result.Spec.Controller.NodeSelector = controllerNodeSelector
+	}
+	if controllerAffinity, ok := siteConfig.Data["controller-affinity"]; ok && controllerAffinity != "" {
+		result.Spec.Controller.Affinity = controllerAffinity
+	}
+	if controllerAntiAffinity, ok := siteConfig.Data["controller-anti-affinity"]; ok && controllerAntiAffinity != "" {
+		result.Spec.Controller.AntiAffinity = controllerAntiAffinity
+	}
+
+	annotationExclusions := []string{}
+	labelExclusions := []string{}
 	annotations := map[string]string{}
 	for key, value := range siteConfig.ObjectMeta.Annotations {
 		if key == types.AnnotationExcludes {
-			exclusions = strings.Split(value, ",")
+			annotationExclusions = strings.Split(value, ",")
+		} else if key == types.LabelExcludes {
+			labelExclusions = strings.Split(value, ",")
 		} else {
 			annotations[key] = value
 		}
 	}
-	for _, key := range exclusions {
+	for _, key := range annotationExclusions {
 		delete(annotations, key)
 	}
 	result.Spec.Annotations = annotations
+	labels := map[string]string{}
+	for key, value := range siteConfig.ObjectMeta.Labels {
+		if key != types.SiteControllerIgnore {
+			labels[key] = value
+		}
+	}
+	for _, key := range labelExclusions {
+		delete(labels, key)
+	}
+	result.Spec.Labels = labels
 	return &result, nil
 }

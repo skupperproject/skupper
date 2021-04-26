@@ -197,7 +197,7 @@ func TestAnnotatedResources(t *testing.T) {
 				for svc := range test.expectedServicesProto {
 					var resp *tools.CurlResponse
 					log.Printf("validating communication with service %s through %s", svc, cluster.Namespace)
-					// reaching service through proxy-controller's pod (with some attempts to make sure bridge is connected)
+					// reaching service through service-controller's pod (with some attempts to make sure bridge is connected)
 					err = utils.Retry(backoff.Duration, backoff.Steps, func() (bool, error) {
 						endpoint := fmt.Sprintf("http://%s:8080", svc)
 						resp, err = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 10})

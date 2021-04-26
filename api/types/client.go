@@ -35,26 +35,41 @@ type RouterLogConfig struct {
 	Level  string
 }
 
+type Tuning struct {
+	NodeSelector string
+	Affinity     string
+	AntiAffinity string
+	Cpu          string
+	Memory       string
+}
+
+type RouterOptions struct {
+	Tuning
+	Logging          []RouterLogConfig
+	DebugMode        string
+	MaxFrameSize     int
+	MaxSessionFrames int
+}
+
 type SiteConfigSpec struct {
-	SkupperName            string
-	SkupperNamespace       string
-	RouterMode             string
-	EnableController       bool
-	EnableServiceSync      bool
-	EnableRouterConsole    bool
-	EnableConsole          bool
-	AuthMode               string
-	User                   string
-	Password               string
-	Ingress                string
-	ConsoleIngress         string
-	Replicas               int32
-	SiteControlled         bool
-	RouterLogging          []RouterLogConfig
-	RouterDebugMode        string
-	RouterMaxFrameSize     int
-	RouterMaxSessionFrames int
-	Annotations            map[string]string
+	SkupperName         string
+	SkupperNamespace    string
+	RouterMode          string
+	EnableController    bool
+	EnableServiceSync   bool
+	EnableRouterConsole bool
+	EnableConsole       bool
+	AuthMode            string
+	User                string
+	Password            string
+	Ingress             string
+	ConsoleIngress      string
+	Replicas            int32
+	SiteControlled      bool
+	Annotations         map[string]string
+	Labels              map[string]string
+	Router              RouterOptions
+	Controller          Tuning
 }
 
 const (
