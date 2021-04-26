@@ -313,7 +313,7 @@ func addEgressBridge(protocol string, host string, port int, address string, tar
 	switch protocol {
 	case ProtocolHTTP:
 		b := qdr.HttpEndpoint{
-			Name:    getBridgeName(target, host),
+			Name:    getBridgeName(address+"."+target, host),
 			Host:    host,
 			Port:    strconv.Itoa(port),
 			Address: address,
@@ -333,7 +333,7 @@ func addEgressBridge(protocol string, host string, port int, address string, tar
 		bridges.AddHttpConnector(b)
 	case ProtocolHTTP2:
 		bridges.AddHttpConnector(qdr.HttpEndpoint{
-			Name:            getBridgeName(target, host),
+			Name:            getBridgeName(address+"."+target, host),
 			Host:            host,
 			Port:            strconv.Itoa(port),
 			Address:         address,
@@ -342,7 +342,7 @@ func addEgressBridge(protocol string, host string, port int, address string, tar
 		})
 	case ProtocolTCP:
 		bridges.AddTcpConnector(qdr.TcpEndpoint{
-			Name:    getBridgeName(target, host),
+			Name:    getBridgeName(address+"."+target, host),
 			Host:    host,
 			Port:    strconv.Itoa(port),
 			Address: address,
