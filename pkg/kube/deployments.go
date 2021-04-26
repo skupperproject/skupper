@@ -218,7 +218,7 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 			Spec: appsv1.DeploymentSpec{
 				Replicas: &van.Controller.Replicas,
 				Selector: &metav1.LabelSelector{
-					MatchLabels: van.Controller.Labels,
+					MatchLabels: van.Controller.LabelSelector,
 				},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
@@ -236,6 +236,7 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 			dep.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
 		}
 
+		setAffinity(&van.Controller, &dep.Spec.Template.Spec)
 		for _, sc := range van.Controller.Sidecars {
 			dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sc)
 		}
@@ -258,6 +259,46 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 	}
 }
 
+func setAffinity(spec *types.DeploymentSpec, podspec *corev1.PodSpec) {
+	if len(spec.NodeSelector) > 0 {
+		podspec.NodeSelector = spec.NodeSelector
+	}
+
+	if len(spec.Affinity) > 0 || len(spec.AntiAffinity) > 0 {
+		podspec.Affinity = &corev1.Affinity{}
+		if len(spec.Affinity) > 0 {
+			podspec.Affinity.PodAffinity = &corev1.PodAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: spec.Affinity,
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			}
+		}
+		if len(spec.AntiAffinity) > 0 {
+			podspec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: spec.AntiAffinity,
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			}
+		}
+	}
+}
+
 func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
@@ -276,7 +317,7 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 			Spec: appsv1.DeploymentSpec{
 				Replicas: &van.Transport.Replicas,
 				Selector: &metav1.LabelSelector{
-					MatchLabels: van.Transport.Labels,
+					MatchLabels: van.Transport.LabelSelector,
 				},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
@@ -293,6 +334,7 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 			},
 		}
 
+		setAffinity(&van.Transport, &dep.Spec.Template.Spec)
 		for _, sc := range van.Transport.Sidecars {
 			dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sc)
 		}

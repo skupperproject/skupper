@@ -519,7 +519,7 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 	if err != nil {
 		return false, err
 	}
-	updated := configureRouterLogging(routerConfig, siteConfig.Spec.RouterLogging)
+	updated := configureRouterLogging(routerConfig, siteConfig.Spec.Router.Logging)
 	if updated {
 		routerConfig.WriteToConfigMap(configmap)
 		_, err = cli.KubeClient.CoreV1().ConfigMaps(settings.ObjectMeta.Namespace).Update(configmap)
@@ -552,13 +552,13 @@ func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev
 		return false, err
 	}
 	current := kube.GetEnvVarForDeployment(router, "QDROUTERD_DEBUG")
-	if current == siteConfig.Spec.RouterDebugMode {
+	if current == siteConfig.Spec.Router.DebugMode {
 		return false, nil
 	}
-	if siteConfig.Spec.RouterDebugMode == "" {
+	if siteConfig.Spec.Router.DebugMode == "" {
 		kube.DeleteEnvVarForDeployment(router, "QDROUTERD_DEBUG")
 	} else {
-		kube.SetEnvVarForDeployment(router, "QDROUTERD_DEBUG", siteConfig.Spec.RouterDebugMode)
+		kube.SetEnvVarForDeployment(router, "QDROUTERD_DEBUG", siteConfig.Spec.Router.DebugMode)
 	}
 	_, err = cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Update(router)
 	if err != nil {

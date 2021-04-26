@@ -15,15 +15,15 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 		return nil, err
 	}
 	//For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
-	latestLogging := RouterLogConfigToString(config.RouterLogging)
+	latestLogging := RouterLogConfigToString(config.Router.Logging)
 	updateLogging := false
 	if configmap.Data["router-logging"] != latestLogging {
 		configmap.Data["router-logging"] = latestLogging
 		updateLogging = true
 	}
 	updateDebugMode := false
-	if configmap.Data["router-debug-mode"] != config.RouterDebugMode {
-		configmap.Data["router-debug-mode"] = config.RouterDebugMode
+	if configmap.Data["router-debug-mode"] != config.Router.DebugMode {
+		configmap.Data["router-debug-mode"] = config.Router.DebugMode
 		updateDebugMode = true
 	}
 	if updateLogging || updateDebugMode {

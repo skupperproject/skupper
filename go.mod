@@ -18,6 +18,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20200109173103-2763c6378941
 	github.com/prometheus/common v0.4.0
 	github.com/spf13/cobra v0.0.6
+	github.com/spf13/pflag v1.0.5
 	github.com/tsenart/vegeta/v12 v12.8.3
 	go.mongodb.org/mongo-driver v1.4.4
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2

@@ -179,11 +179,25 @@ func NewClientHandleError(namespace string, context string, kubeConfigPath strin
 var routerCreateOpts types.SiteConfigSpec
 var routerLogging string
 
+func asMap(entries []string) map[string]string {
+	result := map[string]string{}
+	for _, entry := range entries {
+		parts := strings.Split(entry, "=")
+		if len(parts) > 1 {
+			result[parts[0]] = parts[1]
+		} else {
+			result[parts[0]] = ""
+		}
+	}
+	return result
+}
+
 var ClusterLocal bool
 
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
 	var routerMode string
 	annotations := []string{}
+	labels := []string{}
 	var isEdge bool
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -229,17 +243,8 @@ installation that can then be connected to other skupper installations`,
 			} else if !routerIngressFlag.Changed {
 				routerCreateOpts.Ingress = cli.GetIngressDefault()
 			}
-			for _, a := range annotations {
-				parts := strings.Split(a, "=")
-				if routerCreateOpts.Annotations == nil {
-					routerCreateOpts.Annotations = map[string]string{}
-				}
-				if len(parts) > 1 {
-					routerCreateOpts.Annotations[parts[0]] = parts[1]
-				} else {
-					routerCreateOpts.Annotations[parts[0]] = ""
-				}
-			}
+			routerCreateOpts.Annotations = asMap(annotations)
+			routerCreateOpts.Labels = asMap(labels)
 			if err := routerCreateOpts.CheckIngress(); err != nil {
 				return err
 			}
@@ -257,11 +262,11 @@ installation that can then be connected to other skupper installations`,
 				if err != nil {
 					return fmt.Errorf("Bad value for --router-logging: %s", err)
 				}
-				routerCreateOpts.RouterLogging = logConfig
+				routerCreateOpts.Router.Logging = logConfig
 			}
-			if routerCreateOpts.RouterDebugMode != "" {
-				if routerCreateOpts.RouterDebugMode != "valgrind" && routerCreateOpts.RouterDebugMode != "gdb" {
-					return fmt.Errorf("Bad value for --router-debug-mode: %s (use 'valgrind' or 'gdb')", routerCreateOpts.RouterDebugMode)
+			if routerCreateOpts.Router.DebugMode != "" {
+				if routerCreateOpts.Router.DebugMode != "valgrind" && routerCreateOpts.Router.DebugMode != "gdb" {
+					return fmt.Errorf("Bad value for --router-debug-mode: %s (use 'valgrind' or 'gdb')", routerCreateOpts.Router.DebugMode)
 				}
 			}
 
@@ -292,33 +297,48 @@ installation that can then be connected to other skupper installations`,
 	}
 	routerCreateOpts.EnableController = true
 	cmd.Flags().StringVarP(&routerCreateOpts.SkupperName, "site-name", "", "", "Provide a specific name for this skupper installation")
-	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
-	cmd.Flags().BoolVarP(&routerCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
-	cmd.Flags().StringVarP(&routerLogging, "router-logging", "", "", "Logging settings for router (e.g. trace,debug,info,notice,warning,error)")
-	cmd.Flags().StringVarP(&routerCreateOpts.RouterDebugMode, "router-debug-mode", "", "", "Enable debug mode for router ('valgrind' or 'gdb' are valid values)")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", true, "Enable skupper console")
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
-	cmd.Flags().StringSliceVar(&annotations, "annotations", []string{}, "Annotations to add to skupper deployments")
+	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: [loadbalancer|route|none]. If not specified route is used when available, otherwise loadbalancer is used.")
+	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: [loadbalancer|route|none].")
+	cmd.Flags().StringVarP(&routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
+
+	cmd.Flags().StringSliceVar(&annotations, "annotations", []string{}, "Annotations to add to skupper pods")
+	cmd.Flags().StringSliceVar(&labels, "labels", []string{}, "Labels to add to skupper pods")
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
+	cmd.Flags().StringVarP(&routerLogging, "router-logging", "", "", "Logging settings for router (e.g. trace,debug,info,notice,warning,error)")
+	cmd.Flags().StringVarP(&routerCreateOpts.Router.DebugMode, "router-debug-mode", "", "", "Enable debug mode for router ('valgrind' or 'gdb' are valid values)")
+
+	cmd.Flags().StringVar(&routerCreateOpts.Router.Cpu, "router-cpu", "", "CPU request for router pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Router.Memory, "router-memory", "", "Memory request for router pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Router.NodeSelector, "router-node-selector", "", "Node selector to control placement of router pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Router.Affinity, "router-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Router.AntiAffinity, "router-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
+
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.Cpu, "controller-cpu", "", "CPU request for controller pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.Memory, "controller-memory", "", "Memory request for controller pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.NodeSelector, "controller-node-selector", "", "Node selector to control placement of controller pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.Affinity, "controller-pod-affinity", "", "Pod affinity label matches to control placement of controller pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.AntiAffinity, "controller-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of controller pods")
 
 	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept connections from within the local cluster.")
 	f := cmd.Flag("cluster-local")
 	f.Deprecated = "This flag is deprecated, use --ingress [loadbalancer|route|none]"
 	f.Hidden = true
-	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: [loadbalancer|route|none]. If not specified route is used when available, otherwise loadbalancer is used.")
-	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: [loadbalancer|route|none].")
 
 	cmd.Flags().BoolVarP(&isEdge, "edge", "", false, "Configure as an edge")
 	f = cmd.Flag("edge")
 	f.Deprecated = "This flag is deprecated, use --router-mode [interior|edge]"
 	f.Hidden = true
-	cmd.Flags().StringVarP(&routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
 
-	cmd.Flags().IntVar(&routerCreateOpts.RouterMaxFrameSize, "xp-router-max-frame-size", types.RouterMaxFrameSizeDefault, "Set  max frame size on inter-router listeners/connectors")
-	cmd.Flags().IntVar(&routerCreateOpts.RouterMaxSessionFrames, "xp-router-max-session-frames", types.RouterMaxSessionFramesDefault, "Set  max session frames on inter-router listeners/connectors")
+	cmd.Flags().IntVar(&routerCreateOpts.Router.MaxFrameSize, "xp-router-max-frame-size", types.RouterMaxFrameSizeDefault, "Set  max frame size on inter-router listeners/connectors")
+	cmd.Flags().IntVar(&routerCreateOpts.Router.MaxSessionFrames, "xp-router-max-session-frames", types.RouterMaxSessionFramesDefault, "Set  max session frames on inter-router listeners/connectors")
 	hideFlag(cmd, "xp-router-max-frame-size")
 	hideFlag(cmd, "xp-router-max-session-frames")
+	cmd.Flags().SortFlags = false
 
 	return cmd
 }

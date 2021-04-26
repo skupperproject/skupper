@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -11,9 +12,11 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -336,6 +339,618 @@ func TestRouterCreateDefaults(t *testing.T) {
 		}
 		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
+		}
+	}
+}
+
+func TestRouterResourcesOptions(t *testing.T) {
+	testcases := []struct {
+		cpuOption      string
+		memoryOption   string
+		expectedCpu    string
+		expectedMemory string
+	}{
+		{
+			cpuOption:      "2",
+			memoryOption:   "1G",
+			expectedCpu:    "2",
+			expectedMemory: "1G",
+		},
+		{
+			cpuOption:   "0.8",
+			expectedCpu: "800m",
+		},
+		{
+			cpuOption:   "650m",
+			expectedCpu: "650m",
+		},
+		{
+			memoryOption:   "500M",
+			expectedMemory: "500M",
+		},
+		{},
+	}
+
+	isCluster := *clusterRun
+
+	for i, c := range testcases {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		namespace := fmt.Sprintf("router-resources-%d", i+1)
+		var cli *VanClient
+		var err error
+		if !isCluster {
+			cli, err = newMockClient(namespace, "", "")
+		} else {
+			cli, err = NewClient(namespace, "", "")
+		}
+		assert.Check(t, err, namespace)
+
+		_, err = kube.NewNamespace(namespace, cli.KubeClient)
+		assert.Check(t, err, namespace)
+		defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+		opts := types.SiteConfigSpec{}
+		opts.Ingress = "none"
+		opts.Router.Tuning.Cpu = c.cpuOption
+		opts.Router.Tuning.Memory = c.memoryOption
+		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
+		assert.Check(t, err, namespace)
+
+		err = cli.RouterCreate(ctx, *siteConfig)
+		assert.Check(t, err, namespace)
+
+		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
+		assert.Check(t, err, namespace)
+
+		container := deployment.Spec.Template.Spec.Containers[0]
+		if c.expectedMemory != "" {
+			quantity := container.Resources.Requests[corev1.ResourceMemory]
+			assert.Equal(t, c.expectedMemory, quantity.String())
+		} else {
+			_, ok := container.Resources.Requests[corev1.ResourceMemory]
+			assert.Assert(t, !ok, namespace)
+		}
+		if c.expectedCpu != "" {
+			quantity := container.Resources.Requests[corev1.ResourceCPU]
+			assert.Equal(t, c.expectedCpu, quantity.String())
+		} else {
+			_, ok := container.Resources.Requests[corev1.ResourceCPU]
+			assert.Assert(t, !ok, namespace)
+		}
+	}
+}
+
+func TestRouterAffinityOptions(t *testing.T) {
+	testcases := []struct {
+		affinityOption     string
+		antiAffinityOption string
+		affinityLabels     map[string]string
+		antiAffinityLabels map[string]string
+	}{
+		{
+			affinityOption:     "app.kubernetes.io/name=foo",
+			antiAffinityOption: "app.kubernetes.io/name=bar",
+			affinityLabels: map[string]string{
+				"app.kubernetes.io/name": "foo",
+			},
+			antiAffinityLabels: map[string]string{
+				"app.kubernetes.io/name": "bar",
+			},
+		},
+		{
+			affinityOption: "app.kubernetes.io/name=foo",
+			affinityLabels: map[string]string{
+				"app.kubernetes.io/name": "foo",
+			},
+		},
+		{
+			antiAffinityOption: "app.kubernetes.io/name=bar",
+			antiAffinityLabels: map[string]string{
+				"app.kubernetes.io/name": "bar",
+			},
+		},
+		{
+			affinityOption:     "app.kubernetes.io/name=foo,flavour=strawberry",
+			antiAffinityOption: "app.kubernetes.io/name=bar,flavour=vanilla",
+			affinityLabels: map[string]string{
+				"app.kubernetes.io/name": "foo",
+				"flavour":                "strawberry",
+			},
+			antiAffinityLabels: map[string]string{
+				"app.kubernetes.io/name": "bar",
+				"flavour":                "vanilla",
+			},
+		},
+		{},
+	}
+
+	isCluster := *clusterRun
+
+	for i, c := range testcases {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		namespace := fmt.Sprintf("router-affinity-%d", i+1)
+		var cli *VanClient
+		var err error
+		if !isCluster {
+			cli, err = newMockClient(namespace, "", "")
+		} else {
+			cli, err = NewClient(namespace, "", "")
+		}
+		assert.Check(t, err, namespace)
+
+		_, err = kube.NewNamespace(namespace, cli.KubeClient)
+		assert.Check(t, err, namespace)
+		defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+		opts := types.SiteConfigSpec{}
+		opts.Ingress = "none"
+		opts.Router.Tuning.Affinity = c.affinityOption
+		opts.Router.Tuning.AntiAffinity = c.antiAffinityOption
+		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
+		assert.Check(t, err, namespace)
+
+		err = cli.RouterCreate(ctx, *siteConfig)
+		assert.Check(t, err, namespace)
+
+		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
+		assert.Check(t, err, namespace)
+
+		spec := deployment.Spec.Template.Spec
+		if len(c.affinityLabels) > 0 {
+			rules := spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+			assert.Equal(t, 1, len(rules), namespace)
+			assert.Equal(t, int32(100), rules[0].Weight, namespace)
+			assert.Equal(t, "kubernetes.io/hostname", rules[0].PodAffinityTerm.TopologyKey, namespace)
+			actualLabels := rules[0].PodAffinityTerm.LabelSelector.MatchLabels
+			for key, value := range c.affinityLabels {
+				assert.Equal(t, value, actualLabels[key], namespace)
+			}
+			for key, value := range actualLabels {
+				assert.Equal(t, c.affinityLabels[key], value, namespace)
+			}
+		} else if len(c.antiAffinityLabels) > 0 {
+			assert.Assert(t, is.Nil(spec.Affinity.PodAffinity), namespace)
+		} else {
+			assert.Assert(t, is.Nil(spec.Affinity), namespace)
+		}
+		if len(c.antiAffinityLabels) > 0 {
+			rules := spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+			assert.Equal(t, 1, len(rules), namespace)
+			assert.Equal(t, int32(100), rules[0].Weight, namespace)
+			assert.Equal(t, "kubernetes.io/hostname", rules[0].PodAffinityTerm.TopologyKey, namespace)
+			actualLabels := rules[0].PodAffinityTerm.LabelSelector.MatchLabels
+			for key, value := range c.antiAffinityLabels {
+				assert.Equal(t, value, actualLabels[key], namespace)
+			}
+			for key, value := range actualLabels {
+				assert.Equal(t, c.antiAffinityLabels[key], value, namespace)
+			}
+		} else if len(c.affinityLabels) > 0 {
+			assert.Assert(t, is.Nil(spec.Affinity.PodAntiAffinity), namespace)
+		} else {
+			assert.Assert(t, is.Nil(spec.Affinity), namespace)
+		}
+	}
+}
+
+func TestRouterNodeSelectorOption(t *testing.T) {
+	testcases := []struct {
+		option   string
+		expected map[string]string
+	}{
+		{
+			option: "kubernetes.io/hostname=foo",
+			expected: map[string]string{
+				"kubernetes.io/hostname": "foo",
+			},
+		},
+		{
+			option: "kubernetes.io/hostname=foo,bar=baz",
+			expected: map[string]string{
+				"kubernetes.io/hostname": "foo",
+				"bar":                    "baz",
+			},
+		},
+		{},
+	}
+
+	isCluster := *clusterRun
+
+	for i, c := range testcases {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		namespace := fmt.Sprintf("router-node-selector-%d", i+1)
+		var cli *VanClient
+		var err error
+		if !isCluster {
+			cli, err = newMockClient(namespace, "", "")
+		} else {
+			cli, err = NewClient(namespace, "", "")
+		}
+		assert.Check(t, err, namespace)
+
+		_, err = kube.NewNamespace(namespace, cli.KubeClient)
+		assert.Check(t, err, namespace)
+		defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+		opts := types.SiteConfigSpec{}
+		opts.Ingress = "none"
+		opts.Router.Tuning.NodeSelector = c.option
+		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
+		assert.Check(t, err, namespace)
+
+		err = cli.RouterCreate(ctx, *siteConfig)
+		assert.Check(t, err, namespace)
+
+		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
+		assert.Check(t, err, namespace)
+
+		spec := deployment.Spec.Template.Spec
+		if len(c.expected) > 0 {
+			for key, value := range c.expected {
+				assert.Equal(t, value, spec.NodeSelector[key], namespace)
+			}
+			for key, value := range spec.NodeSelector {
+				assert.Equal(t, c.expected[key], value, namespace)
+			}
+		}
+	}
+}
+
+func TestControllerAffinityOptions(t *testing.T) {
+	testcases := []struct {
+		affinityOption     string
+		antiAffinityOption string
+		affinityLabels     map[string]string
+		antiAffinityLabels map[string]string
+	}{
+		{
+			affinityOption:     "app.kubernetes.io/name=foo",
+			antiAffinityOption: "app.kubernetes.io/name=bar",
+			affinityLabels: map[string]string{
+				"app.kubernetes.io/name": "foo",
+			},
+			antiAffinityLabels: map[string]string{
+				"app.kubernetes.io/name": "bar",
+			},
+		},
+		{
+			affinityOption: "app.kubernetes.io/name=foo",
+			affinityLabels: map[string]string{
+				"app.kubernetes.io/name": "foo",
+			},
+		},
+		{
+			antiAffinityOption: "app.kubernetes.io/name=bar",
+			antiAffinityLabels: map[string]string{
+				"app.kubernetes.io/name": "bar",
+			},
+		},
+		{
+			affinityOption:     "app.kubernetes.io/name=foo,flavour=strawberry",
+			antiAffinityOption: "app.kubernetes.io/name=bar,flavour=vanilla",
+			affinityLabels: map[string]string{
+				"app.kubernetes.io/name": "foo",
+				"flavour":                "strawberry",
+			},
+			antiAffinityLabels: map[string]string{
+				"app.kubernetes.io/name": "bar",
+				"flavour":                "vanilla",
+			},
+		},
+		{},
+	}
+
+	isCluster := *clusterRun
+
+	for i, c := range testcases {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		namespace := fmt.Sprintf("controller-affinity-%d", i+1)
+		var cli *VanClient
+		var err error
+		if !isCluster {
+			cli, err = newMockClient(namespace, "", "")
+		} else {
+			cli, err = NewClient(namespace, "", "")
+		}
+		assert.Check(t, err, namespace)
+
+		_, err = kube.NewNamespace(namespace, cli.KubeClient)
+		assert.Check(t, err, namespace)
+		defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+		opts := types.SiteConfigSpec{}
+		opts.Ingress = "none"
+		opts.EnableController = true
+		opts.Controller.Affinity = c.affinityOption
+		opts.Controller.AntiAffinity = c.antiAffinityOption
+		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
+		assert.Check(t, err, namespace)
+
+		err = cli.RouterCreate(ctx, *siteConfig)
+		assert.Check(t, err, namespace)
+
+		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
+		assert.Check(t, err, namespace)
+
+		spec := deployment.Spec.Template.Spec
+		if len(c.affinityLabels) > 0 {
+			assert.Assert(t, spec.Affinity != nil, namespace)
+			assert.Assert(t, spec.Affinity.PodAffinity != nil, namespace)
+			rules := spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+			assert.Equal(t, 1, len(rules), namespace)
+			assert.Equal(t, int32(100), rules[0].Weight, namespace)
+			assert.Equal(t, "kubernetes.io/hostname", rules[0].PodAffinityTerm.TopologyKey, namespace)
+			actualLabels := rules[0].PodAffinityTerm.LabelSelector.MatchLabels
+			for key, value := range c.affinityLabels {
+				assert.Equal(t, value, actualLabels[key], namespace)
+			}
+			for key, value := range actualLabels {
+				assert.Equal(t, c.affinityLabels[key], value, namespace)
+			}
+		} else if len(c.antiAffinityLabels) > 0 {
+			assert.Assert(t, is.Nil(spec.Affinity.PodAffinity), namespace)
+		} else {
+			assert.Assert(t, is.Nil(spec.Affinity), namespace)
+		}
+		if len(c.antiAffinityLabels) > 0 {
+			assert.Assert(t, spec.Affinity != nil, namespace)
+			assert.Assert(t, spec.Affinity.PodAntiAffinity != nil, namespace)
+			rules := spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+			assert.Equal(t, 1, len(rules), namespace)
+			assert.Equal(t, int32(100), rules[0].Weight, namespace)
+			assert.Equal(t, "kubernetes.io/hostname", rules[0].PodAffinityTerm.TopologyKey, namespace)
+			actualLabels := rules[0].PodAffinityTerm.LabelSelector.MatchLabels
+			for key, value := range c.antiAffinityLabels {
+				assert.Equal(t, value, actualLabels[key], namespace)
+			}
+			for key, value := range actualLabels {
+				assert.Equal(t, c.antiAffinityLabels[key], value, namespace)
+			}
+		} else if len(c.affinityLabels) > 0 {
+			assert.Assert(t, is.Nil(spec.Affinity.PodAntiAffinity), namespace)
+		} else {
+			assert.Assert(t, is.Nil(spec.Affinity), namespace)
+		}
+	}
+}
+
+func TestControllerNodeSelectorOption(t *testing.T) {
+	testcases := []struct {
+		option   string
+		expected map[string]string
+	}{
+		{
+			option: "kubernetes.io/hostname=foo",
+			expected: map[string]string{
+				"kubernetes.io/hostname": "foo",
+			},
+		},
+		{
+			option: "kubernetes.io/hostname=foo,bar=baz",
+			expected: map[string]string{
+				"kubernetes.io/hostname": "foo",
+				"bar":                    "baz",
+			},
+		},
+		{},
+	}
+
+	isCluster := *clusterRun
+
+	for i, c := range testcases {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		namespace := fmt.Sprintf("controller-node-selector-%d", i+1)
+		var cli *VanClient
+		var err error
+		if !isCluster {
+			cli, err = newMockClient(namespace, "", "")
+		} else {
+			cli, err = NewClient(namespace, "", "")
+		}
+		assert.Check(t, err, namespace)
+
+		_, err = kube.NewNamespace(namespace, cli.KubeClient)
+		assert.Check(t, err, namespace)
+		defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+		opts := types.SiteConfigSpec{}
+		opts.Ingress = "none"
+		opts.EnableController = true
+		opts.Controller.NodeSelector = c.option
+		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
+		assert.Check(t, err, namespace)
+
+		err = cli.RouterCreate(ctx, *siteConfig)
+		assert.Check(t, err, namespace)
+
+		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
+		assert.Check(t, err, namespace)
+
+		spec := deployment.Spec.Template.Spec
+		if len(c.expected) > 0 {
+			for key, value := range c.expected {
+				assert.Equal(t, value, spec.NodeSelector[key], namespace)
+			}
+			for key, value := range spec.NodeSelector {
+				assert.Equal(t, c.expected[key], value, namespace)
+			}
+		}
+	}
+}
+
+func TestControllerResourcesOptions(t *testing.T) {
+	testcases := []struct {
+		cpuOption      string
+		memoryOption   string
+		expectedCpu    string
+		expectedMemory string
+	}{
+		{
+			cpuOption:      "2",
+			memoryOption:   "1G",
+			expectedCpu:    "2",
+			expectedMemory: "1G",
+		},
+		{
+			cpuOption:   "0.8",
+			expectedCpu: "800m",
+		},
+		{
+			cpuOption:   "650m",
+			expectedCpu: "650m",
+		},
+		{
+			memoryOption:   "500M",
+			expectedMemory: "500M",
+		},
+		{},
+	}
+
+	isCluster := *clusterRun
+
+	for i, c := range testcases {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		namespace := fmt.Sprintf("controller-resources-%d", i+1)
+		var cli *VanClient
+		var err error
+		if !isCluster {
+			cli, err = newMockClient(namespace, "", "")
+		} else {
+			cli, err = NewClient(namespace, "", "")
+		}
+		assert.Check(t, err, namespace)
+
+		_, err = kube.NewNamespace(namespace, cli.KubeClient)
+		assert.Check(t, err, namespace)
+		defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+		opts := types.SiteConfigSpec{}
+		opts.Ingress = "none"
+		opts.EnableController = true
+		opts.Controller.Cpu = c.cpuOption
+		opts.Controller.Memory = c.memoryOption
+		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
+		assert.Check(t, err, namespace)
+
+		err = cli.RouterCreate(ctx, *siteConfig)
+		assert.Check(t, err, namespace)
+
+		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
+		assert.Check(t, err, namespace)
+		assert.Assert(t, len(deployment.Spec.Template.Spec.Containers) > 0, namespace)
+
+		container := deployment.Spec.Template.Spec.Containers[0]
+		if c.expectedMemory != "" {
+			quantity := container.Resources.Requests[corev1.ResourceMemory]
+			assert.Equal(t, c.expectedMemory, quantity.String())
+		} else {
+			_, ok := container.Resources.Requests[corev1.ResourceMemory]
+			assert.Assert(t, !ok, namespace)
+		}
+		if c.expectedCpu != "" {
+			quantity := container.Resources.Requests[corev1.ResourceCPU]
+			assert.Equal(t, c.expectedCpu, quantity.String())
+		} else {
+			_, ok := container.Resources.Requests[corev1.ResourceCPU]
+			assert.Assert(t, !ok, namespace)
+		}
+	}
+}
+
+func TestLabelandAnnotationOptions(t *testing.T) {
+	deployments := []string{"skupper-router", "skupper-service-controller"}
+	testcases := []struct {
+		requestedLabels      map[string]string
+		requestedAnnotations map[string]string
+		expectedLabels       map[string]string
+		expectedAnnotations  map[string]string
+	}{
+		{
+			requestedLabels: map[string]string{
+				"foo": "bar",
+			},
+			expectedLabels: map[string]string{
+				"foo": "bar",
+			},
+		},
+		{
+			requestedAnnotations: map[string]string{
+				"foo": "bar",
+			},
+			expectedAnnotations: map[string]string{
+				"foo": "bar",
+			},
+		},
+		{
+			requestedLabels: map[string]string{
+				"a": "b",
+			},
+			expectedLabels: map[string]string{
+				"a": "b",
+			},
+			requestedAnnotations: map[string]string{
+				"c": "d",
+			},
+			expectedAnnotations: map[string]string{
+				"c": "d",
+			},
+		},
+	}
+
+	isCluster := *clusterRun
+
+	for i, c := range testcases {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		namespace := fmt.Sprintf("router-labelling-%d", i+1)
+		var cli *VanClient
+		var err error
+		if !isCluster {
+			cli, err = newMockClient(namespace, "", "")
+		} else {
+			cli, err = NewClient(namespace, "", "")
+		}
+		assert.Check(t, err, namespace)
+
+		_, err = kube.NewNamespace(namespace, cli.KubeClient)
+		assert.Check(t, err, namespace)
+		defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+		opts := types.SiteConfigSpec{
+			Labels:           c.requestedLabels,
+			Annotations:      c.requestedAnnotations,
+			Ingress:          "none",
+			EnableController: true,
+		}
+		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
+		assert.Check(t, err, namespace)
+
+		err = cli.RouterCreate(ctx, *siteConfig)
+		assert.Check(t, err, namespace)
+
+		for _, name := range deployments {
+			deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+			assert.Check(t, err, namespace)
+
+			for key, value := range c.expectedLabels {
+				assert.Equal(t, deployment.Spec.Template.Labels[key], value, namespace)
+			}
+			for key, value := range c.expectedAnnotations {
+				assert.Equal(t, deployment.Spec.Template.Annotations[key], value, namespace)
+			}
 		}
 	}
 }

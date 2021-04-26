@@ -51,7 +51,7 @@ type CurlResponse struct {
 }
 
 // Curl runs curl on a given pod (or if empty, it will try to find
-// the proxy-controller pod and run against it).
+// the service-controller pod and run against it).
 func Curl(kubeClient kubernetes.Interface, config *restclient.Config, ns, podName, url string, opts CurlOpts) (*CurlResponse, error) {
 	var pod *v1.Pod
 	var err error
@@ -64,7 +64,7 @@ func Curl(kubeClient kubernetes.Interface, config *restclient.Config, ns, podNam
 	if podName == "" {
 		// If podName not provided try running against the skupper-controller podName
 		podList, err := kubeClient.CoreV1().Pods(ns).List(metav1.ListOptions{
-			LabelSelector: "skupper.io/component=proxy-controller",
+			LabelSelector: "skupper.io/component=service-controller",
 			Limit:         1,
 		})
 		if err != nil {

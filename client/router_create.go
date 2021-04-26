@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -55,10 +56,19 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 
 	van.Controller.Image = GetServiceControllerImageDetails()
 	van.Controller.Replicas = 1
-	//TODO: change these to types constants
+	van.Controller.LabelSelector = map[string]string{
+		types.ComponentAnnotation: types.ControllerComponentName,
+	}
 	van.Controller.Labels = map[string]string{
-		"application":          "skupper",
-		"skupper.io/component": "proxy-controller",
+		types.AppLabel:    types.ControllerDeploymentName,
+		types.PartOfLabel: types.AppName,
+	}
+	for key, value := range van.Controller.LabelSelector {
+		van.Controller.Labels[key] = value
+	}
+	van.Controller.Annotations = options.Annotations
+	for key, value := range options.Labels {
+		van.Controller.Labels[key] = value
 	}
 
 	envVars := []corev1.EnvVar{}
@@ -226,6 +236,36 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	}
 }
 
+func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) error {
+	var err error
+	if options.Affinity != "" {
+		spec.Affinity = utils.LabelToMap(options.Affinity)
+	}
+	if options.AntiAffinity != "" {
+		spec.AntiAffinity = utils.LabelToMap(options.AntiAffinity)
+	}
+	if options.NodeSelector != "" {
+		spec.NodeSelector = utils.LabelToMap(options.NodeSelector)
+	}
+	if options.Cpu != "" {
+		cpuQuantity, err := resource.ParseQuantity(options.Cpu)
+		if err == nil {
+			spec.CpuRequest = &cpuQuantity
+		} else {
+			err = fmt.Errorf("Invalid value for cpu: %s", err)
+		}
+	}
+	if options.Memory != "" {
+		memoryQuantity, err := resource.ParseQuantity(options.Memory)
+		if err == nil {
+			spec.MemoryRequest = &memoryQuantity
+		} else {
+			err = fmt.Errorf("Invalid value for memory: %s", err)
+		}
+	}
+	return err
+}
+
 func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) *types.RouterSpec {
 	// skupper-router container index
 	// TODO: update after dataplance changes
@@ -252,20 +292,33 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 
 	van.Transport.Image = GetRouterImageDetails()
 	van.Transport.Replicas = 1
+	van.Transport.LabelSelector = map[string]string{
+		types.ComponentAnnotation: types.TransportComponentName,
+	}
 	van.Transport.Labels = map[string]string{
-		"application":          types.TransportDeploymentName,
-		"skupper.io/component": types.TransportComponentName,
+		types.PartOfLabel: types.AppName,
+		types.AppLabel:    types.TransportDeploymentName,
+		"application":     types.TransportDeploymentName, //needed by automeshing in image
+	}
+	for key, value := range van.Transport.LabelSelector {
+		van.Transport.Labels[key] = value
+	}
+	for key, value := range options.Labels {
+		van.Transport.Labels[key] = value
 	}
 	van.Transport.Annotations = types.TransportPrometheusAnnotations
-	van.Controller.Annotations = options.Annotations
 	for key, value := range options.Annotations {
 		van.Transport.Annotations[key] = value
+	}
+	err := configureDeployment(&van.Transport, &options.Router.Tuning)
+	if err != nil {
+		fmt.Println("Error configuring router:", err)
 	}
 
 	isEdge := options.RouterMode == string(types.TransportModeEdge)
 	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, Version, isEdge, 3)
-	if options.RouterLogging != nil {
-		configureRouterLogging(&routerConfig, options.RouterLogging)
+	if options.Router.Logging != nil {
+		configureRouterLogging(&routerConfig, options.Router.Logging)
 	}
 	routerConfig.AddAddress(qdr.Address{
 		Prefix:       "mc",
@@ -347,8 +400,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			},
 		}
 		for _, listener := range listeners {
-			listener.SetMaxFrameSize(options.RouterMaxFrameSize)
-			listener.SetMaxSessionFrames(options.RouterMaxSessionFrames)
+			listener.SetMaxFrameSize(options.Router.MaxFrameSize)
+			listener.SetMaxSessionFrames(options.Router.MaxSessionFrames)
 			routerConfig.AddListener(listener)
 		}
 	}
@@ -381,10 +434,10 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Name:  "SKUPPER_SITE_ID",
 		Value: siteId,
 	})
-	if options.RouterDebugMode != "" {
+	if options.Router.DebugMode != "" {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "QDROUTERD_DEBUG",
-			Value: options.RouterDebugMode,
+			Value: options.Router.DebugMode,
 		})
 	}
 	van.Transport.EnvVar = envVars
@@ -909,6 +962,10 @@ sasldb_path: /tmp/qdrouterd.sasldb
 
 	if options.Spec.EnableController {
 		cli.GetVanControllerSpec(options.Spec, van, dep, siteId)
+		err := configureDeployment(&van.Controller, &options.Spec.Controller)
+		if err != nil {
+			fmt.Println("Error configuring controller:", err)
+		}
 		for _, sa := range van.Controller.ServiceAccounts {
 			sa.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)

@@ -18,6 +18,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -73,7 +74,7 @@ var TransportPrometheusAnnotations = map[string]string{
 // Controller constants
 const (
 	ControllerDeploymentName     string = "skupper-service-controller"
-	ControllerComponentName      string = "proxy-controller"
+	ControllerComponentName      string = "service-controller"
 	ControllerContainerName      string = "service-controller"
 	ControllerServiceAccountName string = "skupper-service-controller"
 	ControllerRoleBindingName    string = "skupper-service-controller"
@@ -140,8 +141,17 @@ const (
 	TokenCost                   string = BaseQualifier + "/cost"
 	UpdatedAnnotation           string = InternalQualifier + "/updated"
 	AnnotationExcludes          string = BaseQualifier + "/exclude-annotations"
+	LabelExcludes               string = BaseQualifier + "/exclude-labels"
 	ComponentAnnotation         string = BaseQualifier + "/component"
+	SiteControllerIgnore        string = InternalQualifier + "/site-controller-ignore"
 	RouterComponent             string = "router"
+)
+
+//standard labels
+const (
+	AppLabel    string = "app.kubernetes.io/name"
+	PartOfLabel string = "app.kubernetes.io/part-of"
+	AppName     string = "skupper"
 )
 
 // Service Interface constants
@@ -218,6 +228,7 @@ type DeploymentSpec struct {
 	LivenessPort    int32                    `json:"livenessPort,omitempty"`
 	Labels          map[string]string        `json:"labels,omitempty"`
 	Annotations     map[string]string        `json:"annotations,omitempty"`
+	LabelSelector   map[string]string        `json:"labelSelector,omitempty"`
 	EnvVar          []corev1.EnvVar          `json:"envVar,omitempty"`
 	Ports           []corev1.ContainerPort   `json:"ports,omitempty"`
 	Volumes         []corev1.Volume          `json:"volumes,omitempty"`
@@ -228,6 +239,11 @@ type DeploymentSpec struct {
 	ServiceAccounts []*corev1.ServiceAccount `json:"serviceAccounts,omitempty"`
 	Services        []*corev1.Service        `json:"services,omitempty"`
 	Sidecars        []*corev1.Container      `json:"sidecars,omitempty"`
+	Affinity        map[string]string        `json:"affinity,omitempty"`
+	AntiAffinity    map[string]string        `json:"antiAffinity,omitempty"`
+	NodeSelector    map[string]string        `json:"nodeSelector,omitempty"`
+	CpuRequest      *resource.Quantity       `json:"cpuRequest,omitempty"`
+	MemoryRequest   *resource.Quantity       `json:"memoryRequest,omitempty"`
 }
 
 // AssemblySpec for the links and connectors that form the VAN topology

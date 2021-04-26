@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -20,6 +21,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "skupper-site",
 			Annotations: spec.Annotations,
+			Labels:      spec.Labels,
 		},
 		Data: map[string]string{
 			"name":                   cli.Namespace,
@@ -68,23 +70,66 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.ConsoleIngress != "" {
 		siteConfig.Data["console-ingress"] = spec.ConsoleIngress
 	}
-	if spec.RouterLogging != nil {
-		siteConfig.Data["router-logging"] = RouterLogConfigToString(spec.RouterLogging)
+	if spec.Router.Logging != nil {
+		siteConfig.Data["router-logging"] = RouterLogConfigToString(spec.Router.Logging)
 	}
-	if spec.RouterDebugMode != "" {
-		siteConfig.Data["router-debug-mode"] = spec.RouterDebugMode
+	if spec.Router.DebugMode != "" {
+		siteConfig.Data["router-debug-mode"] = spec.Router.DebugMode
 	}
-	if spec.RouterMaxFrameSize != types.RouterMaxFrameSizeDefault {
-		siteConfig.Data["xp-router-max-frame-size"] = strconv.Itoa(spec.RouterMaxFrameSize)
+	if spec.Router.Cpu != "" {
+		if _, err := resource.ParseQuantity(spec.Router.Cpu); err != nil {
+			return nil, fmt.Errorf("Invalid value for router-cpu %q: %s", spec.Router.Cpu, err)
+		}
+		siteConfig.Data["router-cpu"] = spec.Router.Cpu
 	}
-	if spec.RouterMaxSessionFrames != types.RouterMaxSessionFramesDefault {
-		siteConfig.Data["xp-router-max-session-frames"] = strconv.Itoa(spec.RouterMaxSessionFrames)
+	if spec.Router.Memory != "" {
+		if _, err := resource.ParseQuantity(spec.Router.Memory); err != nil {
+			return nil, fmt.Errorf("Invalid value for router-memory %q: %s", spec.Router.Memory, err)
+		}
+		siteConfig.Data["router-memory"] = spec.Router.Memory
+	}
+	if spec.Router.Affinity != "" {
+		siteConfig.Data["router-affinity"] = spec.Router.Affinity
+	}
+	if spec.Router.AntiAffinity != "" {
+		siteConfig.Data["router-anti-affinity"] = spec.Router.AntiAffinity
+	}
+	if spec.Router.NodeSelector != "" {
+		siteConfig.Data["router-node-selector"] = spec.Router.NodeSelector
+	}
+	if spec.Router.MaxFrameSize != types.RouterMaxFrameSizeDefault {
+		siteConfig.Data["xp-router-max-frame-size"] = strconv.Itoa(spec.Router.MaxFrameSize)
+	}
+	if spec.Router.MaxSessionFrames != types.RouterMaxSessionFramesDefault {
+		siteConfig.Data["xp-router-max-session-frames"] = strconv.Itoa(spec.Router.MaxSessionFrames)
+	}
+	if spec.Controller.Cpu != "" {
+		if _, err := resource.ParseQuantity(spec.Controller.Cpu); err != nil {
+			return nil, fmt.Errorf("Invalid value for controller-cpu %q: %s", spec.Controller.Cpu, err)
+		}
+		siteConfig.Data["controller-cpu"] = spec.Controller.Cpu
+	}
+	if spec.Controller.Memory != "" {
+		if _, err := resource.ParseQuantity(spec.Controller.Memory); err != nil {
+			return nil, fmt.Errorf("Invalid value for controller-memory %q: %s", spec.Controller.Memory, err)
+		}
+		siteConfig.Data["controller-memory"] = spec.Controller.Memory
+	}
+	if spec.Controller.Affinity != "" {
+		siteConfig.Data["controller-affinity"] = spec.Controller.Affinity
+	}
+	if spec.Controller.AntiAffinity != "" {
+		siteConfig.Data["controller-anti-affinity"] = spec.Controller.AntiAffinity
+	}
+	if spec.Controller.NodeSelector != "" {
+		siteConfig.Data["controller-node-selector"] = spec.Controller.NodeSelector
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {
-		siteConfig.ObjectMeta.Labels = map[string]string{
-			"internal.skupper.io/site-controller-ignore": "true",
+		if siteConfig.ObjectMeta.Labels == nil {
+			siteConfig.ObjectMeta.Labels = map[string]string{}
 		}
+		siteConfig.ObjectMeta.Labels[types.SiteControllerIgnore] = "true"
 	}
 
 	if spec.IsIngressRoute() && cli.RouteClient == nil {
