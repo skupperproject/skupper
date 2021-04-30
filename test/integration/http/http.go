@@ -36,30 +36,30 @@ type test struct {
 
 func int32Ptr(i int32) *int32 { return &i }
 
-var httpbinDep *appsv1.Deployment = &appsv1.Deployment{
+var nginxDep *appsv1.Deployment = &appsv1.Deployment{
 	TypeMeta: metav1.TypeMeta{
 		APIVersion: "apps/v1",
 		Kind:       "Deployment",
 	},
 	ObjectMeta: metav1.ObjectMeta{
-		Name: "httpbin",
+		Name: "nginx1",
 	},
 	Spec: appsv1.DeploymentSpec{
 		Replicas: int32Ptr(1),
 		Selector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{"application": "httpbin"},
+			MatchLabels: map[string]string{"application": "nginx1"},
 		},
 		Template: apiv1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					"application": "httpbin",
+					"application": "nginx1",
 				},
 			},
 			Spec: apiv1.PodSpec{
 				Containers: []apiv1.Container{
 					{
-						Name:            "httpbin",
-						Image:           "docker.io/kennethreitz/httpbin",
+						Name:            "nginx1",
+						Image:           "nginxinc/nginx-unprivileged:stable-alpine",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -67,14 +67,6 @@ var httpbinDep *appsv1.Deployment = &appsv1.Deployment{
 								Protocol:      apiv1.ProtocolTCP,
 								ContainerPort: 8080,
 							},
-						},
-						Command: []string{
-							"gunicorn",
-							"-b",
-							"0.0.0.0:8080",
-							"httpbin:app",
-							"-k",
-							"gevent",
 						},
 					},
 				},
@@ -103,6 +95,18 @@ var nghttp2Dep *appsv1.Deployment = &appsv1.Deployment{
 				},
 			},
 			Spec: apiv1.PodSpec{
+				Volumes: []apiv1.Volume{
+					{
+						Name: "index-html",
+						VolumeSource: apiv1.VolumeSource{
+							ConfigMap: &apiv1.ConfigMapVolumeSource{
+								LocalObjectReference: apiv1.LocalObjectReference{
+									Name: "index-html",
+								},
+							},
+						},
+					},
+				},
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp2",
@@ -115,13 +119,16 @@ var nghttp2Dep *appsv1.Deployment = &appsv1.Deployment{
 								ContainerPort: 8443,
 							},
 						},
-						//docker run -p 8443:8443 --network my-bridge-network -it svagi/nghttp2 nghttpx  -f"0.0.0.0,8443;no-tls" -b172.18.0.2,80 -L INFO
 						Command: []string{
-							"nghttpx",
-							"-f0.0.0.0,8443;no-tls",
-							"-bhttpbin,8080",
-							"-L",
-							"INFO",
+							"nghttpd",
+							"--no-tls",
+							"-v",
+							"8443",
+							"-d",
+							"/webroot/",
+						},
+						VolumeMounts: []apiv1.VolumeMount{
+							{Name: "index-html", MountPath: "/webroot", ReadOnly: true},
 						},
 					},
 				},
@@ -238,7 +245,7 @@ func runHeyTestTable(t *testing.T, jobCluster *base.ClusterContext) {
 			numOfWorkers:    "5",
 			durationOfTests: "30s",
 			jobName:         "h1hey5wrk30sec",
-			targetURL:       "http://httpbin:8080",
+			targetURL:       "http://nginx1:8080",
 		},
 		{
 			name:            "h1hey50wrk30sec",
@@ -247,7 +254,7 @@ func runHeyTestTable(t *testing.T, jobCluster *base.ClusterContext) {
 			numOfWorkers:    "50",
 			durationOfTests: "30s",
 			jobName:         "h1hey50wrk30sec",
-			targetURL:       "http://httpbin:8080",
+			targetURL:       "http://nginx1:8080",
 		},
 		{
 			name:            "h1hey5wrk60sec",
@@ -256,7 +263,7 @@ func runHeyTestTable(t *testing.T, jobCluster *base.ClusterContext) {
 			numOfWorkers:    "5",
 			durationOfTests: "60s",
 			jobName:         "h1hey5wrk60sec",
-			targetURL:       "http://httpbin:8080",
+			targetURL:       "http://nginx1:8080",
 		},
 		{
 			name:            "h1hey50wrk60sec",
@@ -265,7 +272,7 @@ func runHeyTestTable(t *testing.T, jobCluster *base.ClusterContext) {
 			numOfWorkers:    "50",
 			durationOfTests: "60s",
 			jobName:         "h1hey50wrk60sec",
-			targetURL:       "http://httpbin:8080",
+			targetURL:       "http://nginx1:8080",
 		},
 	}
 
@@ -281,7 +288,7 @@ func (r *HttpClusterTestRunner) RunTests(t *testing.T) {
 	pubCluster1, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "httpbin")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "nginx1")
 	assert.Assert(t, err)
 
 	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "nghttp2")
@@ -343,18 +350,36 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 
 	createDeploymentInPrivateSite := func(dep *appsv1.Deployment) {
 		t.Helper()
-		fmt.Println("Creating httpbin deployment...")
+		fmt.Println("Creating nginx1 deployment...")
 		result, err := privateDeploymentsClient.Create(dep)
 		assert.Assert(t, err)
 
 		fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 	}
 
-	createDeploymentInPrivateSite(httpbinDep)
+	// Create the deployment for HTTP
+	createDeploymentInPrivateSite(nginxDep)
+
+	// Create the configMap for index.html
+	cmData := make(map[string]string)
+	cmData["index.html"] = "<html><body>A simple HTTP Request &amp; Response Service.</body></html>"
+
+	indexHTMLConfigMap := apiv1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "index-html",
+		},
+		Data: cmData,
+	}
+
+	configMaps := prv1Cluster.VanClient.KubeClient.CoreV1().ConfigMaps(prv1Cluster.Namespace)
+	_, err = configMaps.Create((*apiv1.ConfigMap)(&indexHTMLConfigMap))
+	assert.Assert(t, err)
+
+	// Create the deployment for HTTP2
 	createDeploymentInPrivateSite(nghttp2Dep)
 
 	service := types.ServiceInterface{
-		Address:  "httpbin",
+		Address:  "nginx1",
 		Protocol: "http",
 		Port:     8080,
 	}
@@ -362,7 +387,7 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "httpbin", "http", 0)
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "nginx1", "http", 0)
 	assert.Assert(t, err)
 
 	http2service := types.ServiceInterface{

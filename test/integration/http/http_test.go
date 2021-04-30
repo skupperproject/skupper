@@ -4,10 +4,9 @@ package http
 
 import (
 	"context"
+	"github.com/skupperproject/skupper/test/utils/base"
 	"os"
 	"testing"
-
-	"github.com/skupperproject/skupper/test/utils/base"
 )
 
 func TestMain(m *testing.M) {
