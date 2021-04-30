@@ -19,7 +19,7 @@ import (
 )
 
 func TestHttpJob(t *testing.T) {
-	testHttpJob(t, "http://httpbin:8080/")
+	testHttpJob(t, "http://nginx1:8080/")
 }
 
 func TestHttp2Job(t *testing.T) {
@@ -76,7 +76,7 @@ func testHttpJob(t *testing.T, url string) {
 	spew.Dump(metrics)
 
 	// Success is the percentage of non-error responses.
-	assert.Assert(t, metrics.Success > 0.95, "too many errors! see the log for details.")
+	assert.Assert(t, metrics.Success > 0.98, "too many errors! see the log for details.")
 
 	fmt.Printf("Success!!\n")
 }
