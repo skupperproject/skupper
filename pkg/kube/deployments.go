@@ -190,6 +190,57 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 		},
 	}
 
+	podspec := &proxyStatefulSet.Spec.Template.Spec
+	if len(serviceInterface.Headless.NodeSelector) > 0 {
+		podspec.NodeSelector = serviceInterface.Headless.NodeSelector
+	}
+
+	if len(serviceInterface.Headless.Affinity) > 0 || len(serviceInterface.Headless.AntiAffinity) > 0 {
+		podspec.Affinity = &corev1.Affinity{}
+		if len(serviceInterface.Headless.Affinity) > 0 {
+			podspec.Affinity.PodAffinity = &corev1.PodAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: serviceInterface.Headless.Affinity,
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			}
+		}
+		if len(serviceInterface.Headless.AntiAffinity) > 0 {
+			podspec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: serviceInterface.Headless.AntiAffinity,
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			}
+		}
+	}
+	if serviceInterface.Headless.CpuRequest != nil || serviceInterface.Headless.MemoryRequest != nil {
+		container := &podspec.Containers[0]
+		container.Resources = corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{},
+		}
+		if serviceInterface.Headless.CpuRequest != nil {
+			container.Resources.Requests[corev1.ResourceCPU] = *serviceInterface.Headless.CpuRequest
+		}
+		if serviceInterface.Headless.MemoryRequest != nil {
+			container.Resources.Requests[corev1.ResourceMemory] = *serviceInterface.Headless.MemoryRequest
+		}
+	}
+
 	created, err := statefulSets.Create(proxyStatefulSet)
 
 	if err != nil {

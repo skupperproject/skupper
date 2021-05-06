@@ -11,6 +11,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -18,14 +19,16 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type ExposeOptions struct {
-	Protocol   string
-	Address    string
-	Port       int
-	TargetPort int
-	Headless   bool
+	Protocol    string
+	Address     string
+	Port        int
+	TargetPort  int
+	Headless    bool
+	ProxyTuning types.Tuning
 }
 
 func SkupperNotInstalledError(namespace string) error {
@@ -48,6 +51,36 @@ func parseTargetTypeAndName(args []string) (string, string) {
 	return targetType, targetName
 }
 
+func configureHeadlessProxy(spec *types.Headless, options *types.Tuning) error {
+	var err error
+	if options.Affinity != "" {
+		spec.Affinity = utils.LabelToMap(options.Affinity)
+	}
+	if options.AntiAffinity != "" {
+		spec.AntiAffinity = utils.LabelToMap(options.AntiAffinity)
+	}
+	if options.NodeSelector != "" {
+		spec.NodeSelector = utils.LabelToMap(options.NodeSelector)
+	}
+	if options.Cpu != "" {
+		cpuQuantity, err := resource.ParseQuantity(options.Cpu)
+		if err == nil {
+			spec.CpuRequest = &cpuQuantity
+		} else {
+			err = fmt.Errorf("Invalid value for cpu: %s", err)
+		}
+	}
+	if options.Memory != "" {
+		memoryQuantity, err := resource.ParseQuantity(options.Memory)
+		if err == nil {
+			spec.MemoryRequest = &memoryQuantity
+		} else {
+			err = fmt.Errorf("Invalid value for memory: %s", err)
+		}
+	}
+	return err
+}
+
 func expose(cli types.VanClientInterface, ctx context.Context, targetType string, targetName string, options ExposeOptions) (string, error) {
 	serviceName := options.Address
 
@@ -65,6 +98,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 			if err != nil {
 				return "", err
 			}
+			err = configureHeadlessProxy(service.Headless, &options.ProxyTuning)
 			return service.Address, cli.ServiceInterfaceUpdate(ctx, service)
 		} else {
 			service = &types.ServiceInterface{
@@ -552,6 +586,23 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 					exposeOpts.Address = targetName
 				}
 			}
+			if !exposeOpts.Headless {
+				if exposeOpts.ProxyTuning.Cpu != "" {
+					return fmt.Errorf("--proxy-cpu option is only valid for headless services")
+				}
+				if exposeOpts.ProxyTuning.Memory != "" {
+					return fmt.Errorf("--proxy-memory option is only valid for headless services")
+				}
+				if exposeOpts.ProxyTuning.Affinity != "" {
+					return fmt.Errorf("--proxy-pod-affinity option is only valid for headless services")
+				}
+				if exposeOpts.ProxyTuning.AntiAffinity != "" {
+					return fmt.Errorf("--proxy-pod-antiaffinity option is only valid for headless services")
+				}
+				if exposeOpts.ProxyTuning.NodeSelector != "" {
+					return fmt.Errorf("--proxy-node-selector option is only valid for headless services")
+				}
+			}
 
 			addr, err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
 			if err == nil {
@@ -565,6 +616,11 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().IntVar(&(exposeOpts.Port), "port", 0, "The port to expose on")
 	cmd.Flags().IntVar(&(exposeOpts.TargetPort), "target-port", 0, "The port to target on pods")
 	cmd.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
+	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Cpu, "proxy-cpu", "", "CPU request for router pods")
+	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Memory, "proxy-memory", "", "Memory request for router pods")
+	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
+	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
+	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
 
 	return cmd
 }

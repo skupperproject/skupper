@@ -351,9 +351,14 @@ type ServiceInterfaceTarget struct {
 }
 
 type Headless struct {
-	Name       string `json:"name"`
-	Size       int    `json:"size"`
-	TargetPort int    `json:"targetPort,omitempty"`
+	Name          string             `json:"name"`
+	Size          int                `json:"size"`
+	TargetPort    int                `json:"targetPort,omitempty"`
+	Affinity      map[string]string  `json:"affinity,omitempty"`
+	AntiAffinity  map[string]string  `json:"antiAffinity,omitempty"`
+	NodeSelector  map[string]string  `json:"nodeSelector,omitempty"`
+	CpuRequest    *resource.Quantity `json:"cpuRequest,omitempty"`
+	MemoryRequest *resource.Quantity `json:"memoryRequest,omitempty"`
 }
 
 type ByServiceInterfaceAddress []ServiceInterface
