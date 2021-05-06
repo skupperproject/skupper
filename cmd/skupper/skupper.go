@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -180,24 +179,6 @@ func NewClientHandleError(namespace string, context string, kubeConfigPath strin
 var routerCreateOpts types.SiteConfigSpec
 var routerLogging string
 
-// TODO unit-test me
-func inStringSlice(options []string, value string) bool {
-	l := options[:] //do a copy to avoid modifying the original list
-	sort.Sort(sort.StringSlice(l))
-
-	// from library doc:
-	// SearchStrings searches for x in a sorted slice of strings and returns the index
-	// as specified by Search. The return value is the index to insert x if x is not
-	// present (it could be len(a)).
-	// The slice must be sorted in ascending order.
-	//
-	position := sort.SearchStrings(l, value)
-	if position == len(l) || (l[position] != value) {
-		return false
-	}
-	return true
-}
-
 var ClusterLocal bool
 
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
@@ -224,7 +205,7 @@ installation that can then be connected to other skupper installations`,
 
 			if routerModeFlag.Changed {
 				options := []string{string(types.TransportModeInterior), string(types.TransportModeEdge)}
-				if !inStringSlice(options, routerMode) {
+				if !stringSliceContains(options, routerMode) {
 					return fmt.Errorf(`invalid "--router-mode=%v", it must be one of "%v"`, routerMode, strings.Join(options, ", "))
 				}
 				routerCreateOpts.RouterMode = routerMode
