@@ -11,6 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
@@ -864,34 +865,34 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	for _, sa := range van.Transport.ServiceAccounts {
 		sa.ObjectMeta.OwnerReferences = ownerRefs
 		_, err = kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
-		if err != nil {
+		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	for _, role := range van.Transport.Roles {
 		role.ObjectMeta.OwnerReferences = ownerRefs
 		_, err = kube.CreateRole(van.Namespace, role, cli.KubeClient)
-		if err != nil {
+		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	for _, roleBinding := range van.Transport.RoleBindings {
 		roleBinding.ObjectMeta.OwnerReferences = ownerRefs
 		_, err = kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
-		if err != nil {
+		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	for _, ca := range van.CertAuthoritys {
 		_, err = kube.NewCertAuthority(ca, siteOwnerRef, van.Namespace, cli.KubeClient)
-		if err != nil {
+		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	for _, cred := range van.Credentials {
 		if !cred.Post {
 			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
 		}
@@ -899,7 +900,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	for _, svc := range van.Transport.Services {
 		svc.ObjectMeta.OwnerReferences = ownerRefs
 		_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
-		if err != nil {
+		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -907,13 +908,13 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		for _, rte := range van.Transport.Routes {
 			rte.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
 		}
 	}
 	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, cli.KubeClient)
-	if err != nil {
+	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
 
@@ -974,28 +975,28 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		for _, sa := range van.Controller.ServiceAccounts {
 			sa.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
 		}
 		for _, role := range van.Controller.Roles {
 			role.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateRole(van.Namespace, role, cli.KubeClient)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
 		}
 		for _, roleBinding := range van.Controller.RoleBindings {
 			roleBinding.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
 		}
 		for _, svc := range van.Controller.Services {
 			svc.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
-			if err != nil {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
 		}
@@ -1003,13 +1004,13 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			for _, rte := range van.Controller.Routes {
 				rte.ObjectMeta.OwnerReferences = ownerRefs
 				_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
-				if err != nil {
+				if err != nil && !errors.IsAlreadyExists(err) {
 					return err
 				}
 			}
 		}
 		_, err = kube.NewControllerDeployment(van, siteOwnerRef, cli.KubeClient)
-		if err != nil {
+		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}

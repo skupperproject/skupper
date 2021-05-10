@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -93,7 +92,7 @@ func makeServiceObjectForAddress(address string, port int, targetPort int, label
 func createServiceFromObject(service *corev1.Service, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	created, err := kubeclient.CoreV1().Services(namespace).Create(service)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create service: %w", err)
+		return nil, err
 	} else {
 		return created, nil
 	}
