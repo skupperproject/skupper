@@ -21,7 +21,7 @@ func CreateRoute(route *routev1.Route, namespace string, rc *routev1client.Route
 	} else if errors.IsNotFound(err) {
 		created, err := rc.Routes(namespace).Create(route)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create route : %w", err)
+			return nil, err
 		} else {
 			return created, nil
 		}
