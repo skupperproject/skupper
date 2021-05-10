@@ -51,6 +51,10 @@ type RouterOptions struct {
 	MaxSessionFrames int
 }
 
+type ControllerOptions struct {
+	Tuning
+}
+
 type SiteConfigSpec struct {
 	SkupperName         string
 	SkupperNamespace    string
@@ -69,7 +73,7 @@ type SiteConfigSpec struct {
 	Annotations         map[string]string
 	Labels              map[string]string
 	Router              RouterOptions
-	Controller          Tuning
+	Controller          ControllerOptions
 }
 
 const (

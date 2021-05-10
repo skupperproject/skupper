@@ -962,7 +962,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 
 	if options.Spec.EnableController {
 		cli.GetVanControllerSpec(options.Spec, van, dep, siteId)
-		err := configureDeployment(&van.Controller, &options.Spec.Controller)
+		err := configureDeployment(&van.Controller, &options.Spec.Controller.Tuning)
 		if err != nil {
 			fmt.Println("Error configuring controller:", err)
 		}
