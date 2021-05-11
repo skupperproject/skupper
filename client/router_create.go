@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -237,7 +238,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 }
 
 func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) error {
-	var err error
+	errs := []string{}
 	if options.Affinity != "" {
 		spec.Affinity = utils.LabelToMap(options.Affinity)
 	}
@@ -248,22 +249,26 @@ func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) erro
 		spec.NodeSelector = utils.LabelToMap(options.NodeSelector)
 	}
 	if options.Cpu != "" {
-		cpuQuantity, err := resource.ParseQuantity(options.Cpu)
+		cpu, err := resource.ParseQuantity(options.Cpu)
 		if err == nil {
-			spec.CpuRequest = &cpuQuantity
+			spec.CpuRequest = &cpu
 		} else {
-			err = fmt.Errorf("Invalid value for cpu: %s", err)
+			errs = append(errs, fmt.Sprintf("Invalid value for cpu: %s", err))
 		}
 	}
 	if options.Memory != "" {
-		memoryQuantity, err := resource.ParseQuantity(options.Memory)
+		memory, err := resource.ParseQuantity(options.Memory)
 		if err == nil {
-			spec.MemoryRequest = &memoryQuantity
+			spec.MemoryRequest = &memory
 		} else {
-			err = fmt.Errorf("Invalid value for memory: %s", err)
+			errs = append(errs, fmt.Sprintf("Invalid value for memory: %s", err))
 		}
 	}
-	return err
+	if len(errs) > 0 {
+		return fmt.Errorf(strings.Join(errs, ", "))
+	} else {
+		return nil
+	}
 }
 
 func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) *types.RouterSpec {
