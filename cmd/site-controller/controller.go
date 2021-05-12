@@ -48,7 +48,7 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
 			options.FieldSelector = "metadata.name=skupper-site"
-			options.LabelSelector = "!internal.skupper.io/site-controller-ignore"
+			options.LabelSelector = "!" + types.SiteControllerIgnore
 		}))
 	tokenInformer := corev1informer.NewFilteredSecretInformer(
 		cli.KubeClient,
@@ -407,7 +407,7 @@ func (c *SiteController) checkTokenRequest(key string) error {
 }
 
 func (c *SiteController) getSiteIdForNamespace(namespace string) string {
-	cm, err := c.vanClient.KubeClient.CoreV1().ConfigMaps(namespace).Get("skupper-site", metav1.GetOptions{})
+	cm, err := c.vanClient.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Printf("Could not obtain siteid for namespace %q, assuming not yet initialised", namespace)
