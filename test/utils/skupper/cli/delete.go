@@ -46,7 +46,7 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		attempt++
 		log.Printf("validating skupper resources have been removed - attempt: %d", attempt)
 		// site config is gone
-		_, err = cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get("skupper-site", metav1.GetOptions{})
+		_, err = cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
 		if err == nil {
 			log.Printf("skupper-site config map still exists")
 			return false, nil

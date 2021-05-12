@@ -10,20 +10,20 @@ import (
 )
 
 func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteConfigSpec) ([]string, error) {
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get("skupper-site", metav1.GetOptions{})
+	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	//For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
 	latestLogging := RouterLogConfigToString(config.Router.Logging)
 	updateLogging := false
-	if configmap.Data["router-logging"] != latestLogging {
-		configmap.Data["router-logging"] = latestLogging
+	if configmap.Data[SiteConfigRouterLoggingKey] != latestLogging {
+		configmap.Data[SiteConfigRouterLoggingKey] = latestLogging
 		updateLogging = true
 	}
 	updateDebugMode := false
-	if configmap.Data["router-debug-mode"] != config.Router.DebugMode {
-		configmap.Data["router-debug-mode"] = config.Router.DebugMode
+	if configmap.Data[SiteConfigRouterDebugModeKey] != config.Router.DebugMode {
+		configmap.Data[SiteConfigRouterDebugModeKey] = config.Router.DebugMode
 		updateDebugMode = true
 	}
 	if updateLogging || updateDebugMode {

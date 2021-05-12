@@ -19,7 +19,7 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *corev1.ConfigMap, namespace string) (*types.SiteConfig, error) {
 	var siteConfig *corev1.ConfigMap
 	if input == nil {
-		cm, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get("skupper-site", metav1.GetOptions{})
+		cm, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			return nil, nil
 		} else if err != nil {
@@ -33,12 +33,12 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	var result types.SiteConfig
 	result.Spec.SkupperNamespace = siteConfig.Namespace
 	// TODO: what should the defaults be for name, namespace
-	if skupperName, ok := siteConfig.Data["name"]; ok {
+	if skupperName, ok := siteConfig.Data[SiteConfigNameKey]; ok {
 		result.Spec.SkupperName = skupperName
 	} else {
 		result.Spec.SkupperName = namespace
 	}
-	if routerMode, ok := siteConfig.Data["router-mode"]; ok {
+	if routerMode, ok := siteConfig.Data[SiteConfigRouterModeKey]; ok {
 		result.Spec.RouterMode = routerMode
 	} else {
 		// check for deprecated key
@@ -52,42 +52,42 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 			result.Spec.RouterMode = string(types.TransportModeInterior)
 		}
 	}
-	if enableController, ok := siteConfig.Data["service-controller"]; ok {
+	if enableController, ok := siteConfig.Data[SiteConfigServiceControllerKey]; ok {
 		result.Spec.EnableController, _ = strconv.ParseBool(enableController)
 	} else {
 		result.Spec.EnableController = true
 	}
-	if enableServiceSync, ok := siteConfig.Data["service-sync"]; ok {
+	if enableServiceSync, ok := siteConfig.Data[SiteConfigServiceSyncKey]; ok {
 		result.Spec.EnableServiceSync, _ = strconv.ParseBool(enableServiceSync)
 	} else {
 		result.Spec.EnableServiceSync = true
 	}
-	if enableConsole, ok := siteConfig.Data["console"]; ok {
+	if enableConsole, ok := siteConfig.Data[SiteConfigConsoleKey]; ok {
 		result.Spec.EnableConsole, _ = strconv.ParseBool(enableConsole)
 	} else {
 		result.Spec.EnableConsole = true
 	}
-	if enableRouterConsole, ok := siteConfig.Data["router-console"]; ok {
+	if enableRouterConsole, ok := siteConfig.Data[SiteConfigRouterConsoleKey]; ok {
 		result.Spec.EnableRouterConsole, _ = strconv.ParseBool(enableRouterConsole)
 	} else {
 		result.Spec.EnableRouterConsole = false
 	}
-	if authMode, ok := siteConfig.Data["console-authentication"]; ok {
+	if authMode, ok := siteConfig.Data[SiteConfigConsoleAuthenticationKey]; ok {
 		result.Spec.AuthMode = authMode
 	} else {
-		result.Spec.AuthMode = "internal"
+		result.Spec.AuthMode = types.ConsoleAuthModeInternal
 	}
-	if user, ok := siteConfig.Data["console-user"]; ok {
+	if user, ok := siteConfig.Data[SiteConfigConsoleUserKey]; ok {
 		result.Spec.User = user
 	} else {
 		result.Spec.User = ""
 	}
-	if password, ok := siteConfig.Data["console-password"]; ok {
+	if password, ok := siteConfig.Data[SiteConfigConsolePasswordKey]; ok {
 		result.Spec.Password = password
 	} else {
 		result.Spec.Password = ""
 	}
-	if ingress, ok := siteConfig.Data["ingress"]; ok {
+	if ingress, ok := siteConfig.Data[SiteConfigIngressKey]; ok {
 		result.Spec.Ingress = ingress
 	} else {
 		// check for deprecated key
@@ -101,13 +101,13 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 			result.Spec.Ingress = cli.GetIngressDefault()
 		}
 	}
-	if consoleIngress, ok := siteConfig.Data["console-ingress"]; ok {
+	if consoleIngress, ok := siteConfig.Data[SiteConfigConsoleIngressKey]; ok {
 		result.Spec.ConsoleIngress = consoleIngress
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if siteConfig.ObjectMeta.Labels == nil {
 		result.Spec.SiteControlled = true
-	} else if ignore, ok := siteConfig.ObjectMeta.Labels["internal.skupper.io/site-controller-ignore"]; ok {
+	} else if ignore, ok := siteConfig.ObjectMeta.Labels[types.SiteControllerIgnore]; ok {
 		siteIgnore, _ := strconv.ParseBool(ignore)
 		result.Spec.SiteControlled = !siteIgnore
 	} else {
@@ -117,33 +117,33 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	result.Reference.Name = siteConfig.ObjectMeta.Name
 	result.Reference.Kind = siteConfig.TypeMeta.Kind
 	result.Reference.APIVersion = siteConfig.TypeMeta.APIVersion
-	if routerDebugMode, ok := siteConfig.Data["router-debug-mode"]; ok && routerDebugMode != "" {
+	if routerDebugMode, ok := siteConfig.Data[SiteConfigRouterDebugModeKey]; ok && routerDebugMode != "" {
 		result.Spec.Router.DebugMode = routerDebugMode
 	}
-	if routerLogging, ok := siteConfig.Data["router-logging"]; ok && routerLogging != "" {
+	if routerLogging, ok := siteConfig.Data[SiteConfigRouterLoggingKey]; ok && routerLogging != "" {
 		logConf, err := ParseRouterLogConfig(routerLogging)
 		if err != nil {
 			return &result, err
 		}
 		result.Spec.Router.Logging = logConf
 	}
-	if routerCpu, ok := siteConfig.Data["router-cpu"]; ok && routerCpu != "" {
+	if routerCpu, ok := siteConfig.Data[SiteConfigRouterCpuKey]; ok && routerCpu != "" {
 		result.Spec.Router.Cpu = routerCpu
 	}
-	if routerMemory, ok := siteConfig.Data["router-memory"]; ok && routerMemory != "" {
+	if routerMemory, ok := siteConfig.Data[SiteConfigRouterMemoryKey]; ok && routerMemory != "" {
 		result.Spec.Router.Memory = routerMemory
 	}
-	if routerNodeSelector, ok := siteConfig.Data["router-node-selector"]; ok && routerNodeSelector != "" {
+	if routerNodeSelector, ok := siteConfig.Data[SiteConfigRouterNodeSelectorKey]; ok && routerNodeSelector != "" {
 		result.Spec.Router.NodeSelector = routerNodeSelector
 	}
-	if routerAffinity, ok := siteConfig.Data["router-affinity"]; ok && routerAffinity != "" {
+	if routerAffinity, ok := siteConfig.Data[SiteConfigRouterAffinityKey]; ok && routerAffinity != "" {
 		result.Spec.Router.Affinity = routerAffinity
 	}
-	if routerAntiAffinity, ok := siteConfig.Data["router-anti-affinity"]; ok && routerAntiAffinity != "" {
+	if routerAntiAffinity, ok := siteConfig.Data[SiteConfigRouterAntiAffinityKey]; ok && routerAntiAffinity != "" {
 		result.Spec.Router.AntiAffinity = routerAntiAffinity
 	}
 
-	if routerMaxFrameSize, ok := siteConfig.Data["xp-router-max-frame-size"]; ok && routerMaxFrameSize != "" {
+	if routerMaxFrameSize, ok := siteConfig.Data[SiteConfigRouterMaxFrameSizeKey]; ok && routerMaxFrameSize != "" {
 		val, err := strconv.Atoi(routerMaxFrameSize)
 		if err != nil {
 			return &result, err
@@ -152,7 +152,7 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	} else {
 		result.Spec.Router.MaxFrameSize = types.RouterMaxFrameSizeDefault
 	}
-	if routerMaxSessionFrames, ok := siteConfig.Data["xp-router-max-session-frames"]; ok && routerMaxSessionFrames != "" {
+	if routerMaxSessionFrames, ok := siteConfig.Data[SiteConfigRouterMaxSessionFramesKey]; ok && routerMaxSessionFrames != "" {
 		val, err := strconv.Atoi(routerMaxSessionFrames)
 		if err != nil {
 			return &result, err
@@ -162,19 +162,19 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		result.Spec.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
 	}
 
-	if controllerCpu, ok := siteConfig.Data["controller-cpu"]; ok && controllerCpu != "" {
+	if controllerCpu, ok := siteConfig.Data[SiteConfigControllerCpuKey]; ok && controllerCpu != "" {
 		result.Spec.Controller.Cpu = controllerCpu
 	}
-	if controllerMemory, ok := siteConfig.Data["controller-memory"]; ok && controllerMemory != "" {
+	if controllerMemory, ok := siteConfig.Data[SiteConfigControllerMemoryKey]; ok && controllerMemory != "" {
 		result.Spec.Controller.Memory = controllerMemory
 	}
-	if controllerNodeSelector, ok := siteConfig.Data["controller-node-selector"]; ok && controllerNodeSelector != "" {
+	if controllerNodeSelector, ok := siteConfig.Data[SiteConfigControllerNodeSelectorKey]; ok && controllerNodeSelector != "" {
 		result.Spec.Controller.NodeSelector = controllerNodeSelector
 	}
-	if controllerAffinity, ok := siteConfig.Data["controller-affinity"]; ok && controllerAffinity != "" {
+	if controllerAffinity, ok := siteConfig.Data[SiteConfigControllerAffinityKey]; ok && controllerAffinity != "" {
 		result.Spec.Controller.Affinity = controllerAffinity
 	}
-	if controllerAntiAffinity, ok := siteConfig.Data["controller-anti-affinity"]; ok && controllerAntiAffinity != "" {
+	if controllerAntiAffinity, ok := siteConfig.Data[SiteConfigControllerAntiAffinityKey]; ok && controllerAntiAffinity != "" {
 		result.Spec.Controller.AntiAffinity = controllerAntiAffinity
 	}
 

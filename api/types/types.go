@@ -27,6 +27,7 @@ const (
 	DefaultVanName      string = "skupper"
 	DefaultSiteName     string = "skupper-site"
 	ClusterLocalPostfix string = ".svc.cluster.local"
+	SiteConfigMapName   string = "skupper-site"
 )
 
 // TransportMode describes how a qdr is intended to be deployed, either interior or edge
