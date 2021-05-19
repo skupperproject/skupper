@@ -16,6 +16,5 @@ func HandleInterruptSignal(t *testing.T, fn func(*testing.T)) {
 		<-sigChannel
 		t.Logf("interrupt signal received")
 		fn(t)
-		t.FailNow()
 	}()
 }
