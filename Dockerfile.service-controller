@@ -11,9 +11,9 @@ RUN make
 FROM node:12.18 AS console-builder
 
 WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/gilligan/archive/master.tar.gz .
-RUN tar -zxf master.tar.gz
-WORKDIR ./gilligan-master
+ADD https://github.com/skupperproject/gilligan/archive/refs/tags/v0.6.tar.gz .
+RUN tar -zxf v0.6.tar.gz
+WORKDIR ./gilligan-0.6
 RUN yarn install && yarn build
 
 FROM registry.access.redhat.com/ubi8-minimal
@@ -21,5 +21,5 @@ FROM registry.access.redhat.com/ubi8-minimal
 WORKDIR /app
 COPY --from=builder /go/src/app/service-controller .
 COPY --from=builder /go/src/app/get /usr/local/bin/get
-COPY --from=console-builder /skupper-console/gilligan-master/build/ console
+COPY --from=console-builder /skupper-console/gilligan-0.6/build/ console
 CMD ["/app/service-controller"]
