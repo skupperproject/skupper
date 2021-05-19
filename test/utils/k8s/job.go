@@ -100,7 +100,7 @@ func WaitForJob(ns string, kubeClient kubernetes.Interface, jobName string, time
 					return job, nil
 				}
 				fmt.Printf("Job failed?, status = %v\n", job.Status)
-				return job, nil
+				return job, fmt.Errorf("Job failed. Status: %v", job.Status)
 			}
 		}
 	}
@@ -122,9 +122,67 @@ func GetJobLogs(ns string, kubeClient kubernetes.Interface, name string) (string
 	if err != nil {
 		return "", err
 	}
-	log, err := kube.GetPodContainerLogs(pods[0].Name, pods[0].Spec.Containers[0].Name, ns, kubeClient)
+	// Consider just the latest pod
+	latestPod := pods[0]
+	for _, pod := range pods {
+		if pod.CreationTimestamp.After(latestPod.CreationTimestamp.Time) {
+			latestPod = pod
+		}
+	}
+	log, err := kube.GetPodContainerLogs(latestPod.Name, latestPod.Spec.Containers[0].Name, ns, kubeClient)
 	if err != nil {
 		return "", err
 	}
 	return log, nil
+}
+
+type JobOpts struct {
+	Image        string
+	BackoffLimit int
+	Restart      apiv1.RestartPolicy
+	Env          map[string]string
+	Labels       map[string]string
+	Args         []string
+	ResourceReq  apiv1.ResourceRequirements
+}
+
+func NewJob(name, namespace string, opts JobOpts) *batchv1.Job {
+	backoffLimit := int32(opts.BackoffLimit)
+	envVar := []apiv1.EnvVar{}
+	terminationSecs := int64(60)
+
+	// add env vars if any provided
+	for name, val := range opts.Env {
+		envVar = append(envVar, apiv1.EnvVar{
+			Name:  name,
+			Value: val,
+		})
+	}
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    opts.Labels,
+		},
+		Spec: batchv1.JobSpec{
+			BackoffLimit: &backoffLimit,
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+					Labels:    opts.Labels,
+				},
+				Spec: apiv1.PodSpec{
+					Containers: []apiv1.Container{
+						{Name: name, Image: opts.Image, Env: envVar, Args: opts.Args, Resources: opts.ResourceReq},
+					},
+					RestartPolicy:                 opts.Restart,
+					TerminationGracePeriodSeconds: &terminationSecs,
+				},
+			},
+		},
+	}
+
+	return job
 }

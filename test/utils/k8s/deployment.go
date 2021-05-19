@@ -16,6 +16,7 @@ type DeploymentOpts struct {
 	Command       []string
 	Args          []string
 	EnvVars       []v12.EnvVar
+	ResourceReq   v12.ResourceRequirements
 }
 
 func NewDeployment(name, namespace string, opts DeploymentOpts) (*v1.Deployment, error) {
@@ -38,7 +39,7 @@ func NewDeployment(name, namespace string, opts DeploymentOpts) (*v1.Deployment,
 
 	// Container to use
 	containers := []v12.Container{
-		{Name: name, Image: opts.Image, ImagePullPolicy: v12.PullAlways, Env: opts.EnvVars},
+		{Name: name, Image: opts.Image, ImagePullPolicy: v12.PullAlways, Env: opts.EnvVars, Resources: opts.ResourceReq},
 	}
 	// Customize commands and arguments if any informed
 	if len(opts.Command) > 0 {
