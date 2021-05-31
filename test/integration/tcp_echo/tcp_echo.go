@@ -3,6 +3,7 @@ package tcp_echo
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,6 +106,28 @@ func (r *TcpEchoClusterTestRunner) RunTests(ctx context.Context, t *testing.T) {
 	assert.Assert(t, err)
 	prv1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
+
+	// Running netcat
+	for _, cluster := range []*base.ClusterContext{pub1Cluster, prv1Cluster} {
+		t.Logf("Running netcat job against %s", cluster.Namespace)
+		ncJob := k8s.NewJob("netcat", cluster.Namespace, k8s.JobOpts{
+			Image:   "quay.io/prometheus/busybox",
+			Restart: apiv1.RestartPolicyNever,
+			Labels:  map[string]string{"job": "netcat"},
+			Command: []string{"sh"},
+			Args:    []string{"-c", "echo Halo | nc tcp-go-echo 9090"},
+		})
+		// Asserting job has been created
+		_, err := cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Create(ncJob)
+		assert.Assert(t, err)
+		// Asserting job completed
+		_, err = k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, ncJob.Name, time.Minute)
+		assert.Assert(t, err)
+		// Asserting job output
+		logs, err := k8s.GetJobLogs(cluster.Namespace, cluster.VanClient.KubeClient, ncJob.Name)
+		assert.Assert(t, err)
+		assert.Assert(t, strings.Contains(logs, "HALO"), "invalid response - %s", logs)
+	}
 }
 
 func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
