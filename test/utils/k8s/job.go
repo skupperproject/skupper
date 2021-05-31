@@ -142,6 +142,7 @@ type JobOpts struct {
 	Restart      apiv1.RestartPolicy
 	Env          map[string]string
 	Labels       map[string]string
+	Command      []string
 	Args         []string
 	ResourceReq  apiv1.ResourceRequirements
 }
@@ -175,7 +176,7 @@ func NewJob(name, namespace string, opts JobOpts) *batchv1.Job {
 				},
 				Spec: apiv1.PodSpec{
 					Containers: []apiv1.Container{
-						{Name: name, Image: opts.Image, Env: envVar, Args: opts.Args, Resources: opts.ResourceReq},
+						{Name: name, Image: opts.Image, Env: envVar, Command: opts.Command, Args: opts.Args, Resources: opts.ResourceReq},
 					},
 					RestartPolicy:                 opts.Restart,
 					TerminationGracePeriodSeconds: &terminationSecs,
