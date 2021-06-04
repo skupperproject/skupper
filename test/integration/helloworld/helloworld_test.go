@@ -1,5 +1,5 @@
-/*// +build integration cli
- */
+// +build integration cli
+
 package helloworld
 
 import (
@@ -114,6 +114,10 @@ func TestHelloWorldCLI(t *testing.T) {
 						SiteName:            "private",
 						EnableConsole:       false,
 						EnableRouterConsole: false,
+						RouterCPU:           "100m",
+						RouterMemory:        "32Mi",
+						ControllerCPU:       "50m",
+						ControllerMemory:    "16Mi",
 						//ConsoleIngress:      "none",
 					},
 					// skupper status - verify initialized as edge

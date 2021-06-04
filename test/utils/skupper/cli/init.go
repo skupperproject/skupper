@@ -29,6 +29,10 @@ type InitTester struct {
 	RouterDebugMode     string
 	RouterLogging       string
 	RouterMode          string
+	RouterCPU           string
+	RouterMemory        string
+	ControllerCPU       string
+	ControllerMemory    string
 	SiteName            string
 	EnableConsole       bool
 	EnableRouterConsole bool
@@ -62,6 +66,18 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 	}
 	if s.RouterMode != "" {
 		args = append(args, "--router-mode", s.RouterMode)
+	}
+	if s.RouterCPU != "" {
+		args = append(args, "--router-cpu", s.RouterCPU)
+	}
+	if s.RouterMemory != "" {
+		args = append(args, "--router-memory", s.RouterMemory)
+	}
+	if s.ControllerCPU != "" {
+		args = append(args, "--controller-cpu", s.ControllerCPU)
+	}
+	if s.ControllerMemory != "" {
+		args = append(args, "--controller-memory", s.ControllerMemory)
 	}
 	if s.SiteName != "" {
 		args = append(args, "--site-name", s.SiteName)
@@ -135,6 +151,18 @@ func (s *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	// Validating router console
 	log.Println("Validating router console")
 	if err = s.validateRouterConsole(cluster); err != nil {
+		return
+	}
+
+	// Validating router cpu and memory requests
+	log.Println("Validating router cpu and memory requests")
+	if err = s.validateRouterCPUMemory(cluster); err != nil {
+		return
+	}
+
+	// Validating controller cpu and memory requests
+	log.Println("Validating controller cpu and memory requests")
+	if err = s.validateControllerCPUMemory(cluster); err != nil {
 		return
 	}
 
@@ -424,5 +452,79 @@ func (s *InitTester) validateRouterConsole(cluster *base.ClusterContext) error {
 		}
 	}
 
+	return nil
+}
+
+func (s *InitTester) validateRouterCPUMemory(cluster *base.ClusterContext) error {
+	// expect resources to be defined at router container
+	expectResources := s.RouterCPU != "" || s.RouterMemory != ""
+
+	// retrieving the router pods
+	routerSelector := fmt.Sprintf("%s=%s", types.ComponentAnnotation, types.TransportComponentName)
+	pods, err := kube.GetDeploymentPods("", routerSelector, cluster.Namespace, cluster.VanClient.KubeClient)
+	if err != nil {
+		return err
+	}
+
+	// looping through pods
+	for _, pod := range pods {
+		for _, container := range pod.Spec.Containers {
+			if !expectResources {
+				// If not expecting requests, but something is defined throw an error
+				if len(container.Resources.Requests) > 0 {
+					return fmt.Errorf("resources not requested but defined in the router (pod: %s, container: %s) - requests: %v",
+						pod.Name, container.Name, container.Resources.Requests)
+				}
+			} else {
+				// If requests have been specified, assert the correct values have been defined
+				cpu := container.Resources.Requests.Cpu().String()
+				mem := container.Resources.Requests.Memory().String()
+
+				if s.RouterCPU != cpu {
+					return fmt.Errorf("--router-cpu defined as: [%s] but container has: [%s]", s.RouterCPU, cpu)
+				}
+				if s.RouterMemory != mem {
+					return fmt.Errorf("--router-memory defined as: [%s] but container has: [%s]", s.RouterMemory, mem)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (s *InitTester) validateControllerCPUMemory(cluster *base.ClusterContext) error {
+	// expect resources to be defined at service controller container
+	expectResources := s.ControllerCPU != "" || s.ControllerMemory != ""
+
+	// retrieving the service controller pods
+	controllerSelector := fmt.Sprintf("%s=%s", types.ComponentAnnotation, types.ControllerComponentName)
+	pods, err := kube.GetDeploymentPods("", controllerSelector, cluster.Namespace, cluster.VanClient.KubeClient)
+	if err != nil {
+		return err
+	}
+
+	// looping through pods
+	for _, pod := range pods {
+		for _, container := range pod.Spec.Containers {
+			if !expectResources {
+				// If not expecting requests, but something is defined throw an error
+				if len(container.Resources.Requests) > 0 {
+					return fmt.Errorf("resources not requested but defined in the controller (pod: %s, container: %s) - requests: %v",
+						pod.Name, container.Name, container.Resources.Requests)
+				}
+			} else {
+				// If requests have been specified, assert the correct values have been defined
+				cpu := container.Resources.Requests.Cpu().String()
+				mem := container.Resources.Requests.Memory().String()
+
+				if s.ControllerCPU != cpu {
+					return fmt.Errorf("--controller-cpu defined as: [%s] but container has: [%s]", s.ControllerCPU, cpu)
+				}
+				if s.ControllerMemory != mem {
+					return fmt.Errorf("--controller-memory defined as: [%s] but container has: [%s]", s.ControllerMemory, mem)
+				}
+			}
+		}
+	}
 	return nil
 }
