@@ -328,7 +328,7 @@ func (cli *VanClient) ProxyInit(ctx context.Context, proxyName string) (string, 
 	proxyConfig.AddListener(qdr.Listener{
 		Name: "amqp",
 		Host: "localhost",
-		Port: 5672,
+		Port: types.AmqpDefaultPort,
 	})
 
 	proxyConfig.AddSslProfileWithPath("{{.DataDir}}/qpid-dispatch-certs", qdr.SslProfile{
