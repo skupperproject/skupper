@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -185,15 +186,28 @@ func bindArgs(cmd *cobra.Command, args []string) error {
 	return verifyTargetTypeFromArgs(args[1:])
 }
 
-func createExternalServiceArgs(cmd *cobra.Command, args []string) error {
+func exposeProxyArgs(cmd *cobra.Command, args []string) error {
 	if len(args) < 2 || (!strings.Contains(args[1], ":") && len(args) < 3) {
-		return fmt.Errorf("External Service name, target host and port must all be specified")
+		return fmt.Errorf("Proxy service address, target host and port must all be specified")
 	}
 	if len(args) > 3 {
 		return fmt.Errorf("illegal argument: %s", args[3])
 	}
 	if len(args) > 2 && strings.Contains(args[1], ":") {
 		return fmt.Errorf("extra argument: %s", args[2])
+	}
+	return nil
+}
+
+func bindProxyArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 3 || (!strings.Contains(args[2], ":") && len(args) < 4) {
+		return fmt.Errorf("Proxy name, service address, target host and port must all be specified")
+	}
+	if len(args) > 4 {
+		return fmt.Errorf("illegal argument: %s", args[4])
+	}
+	if len(args) > 3 && strings.Contains(args[2], ":") {
+		return fmt.Errorf("extra argument: %s", args[3])
 	}
 	return nil
 }
@@ -843,67 +857,305 @@ func NewCmdUnbind(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
-
 func IsZero(v reflect.Value) bool {
 	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 
-func NewCmdExternalService() *cobra.Command {
+func NewCmdProxy() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "external-service build <name> <host:port> or external-service detach <name>",
-		Short: "Manage skupper external-service definitions",
+		Use:   "proxy init or proxy delete <proxy-name>",
+		Short: "Manage skupper proxy definitions",
 	}
 	return cmd
 }
 
-var externalServiceProtocol string
-var externalServiceToCreate types.ExternalServiceCreateOptions
+var proxyName string
 
-func NewCmdCreateExternalService(newClient cobraFunc) *cobra.Command {
+func NewCmdInitProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "create <address> <egress-host> <egress-port>",
-		Short:  "Create an external service proxy package for to the skupper network",
-		Args:   createExternalServiceArgs,
+		Use:    "init",
+		Short:  "Initialize a proxy for the skupper network",
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			name, err := cli.ProxyInit(context.Background(), proxyName)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			} else {
+				fmt.Printf("Skupper proxy %s created\n", name)
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&proxyName, "name", "", "The name of proxy definition")
+	return cmd
+}
+
+func NewCmdDeleteProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "delete <name>",
+		Short:  "Remove a proxy definition",
+		Args:   cobra.ExactArgs(1),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			err := cli.ProxyRemove(context.Background(), args[0])
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+var proxyExposeOptions types.ProxyExposeOptions
+
+func NewCmdExposeProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "expose <address> <host> <port>",
+		Short:  "Create a proxy for the skupper network and expose service",
+		Args:   exposeProxyArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 			if len(args) == 2 {
 				parts := strings.Split(args[1], ":")
-				externalServiceToCreate.EgressHost = parts[0]
-				externalServiceToCreate.EgressPort = parts[1]
+				proxyExposeOptions.Egress.Host = parts[0]
+				proxyExposeOptions.Egress.Port = parts[1]
 			} else {
-				externalServiceToCreate.EgressHost = args[1]
-				externalServiceToCreate.EgressPort = args[2]
+				proxyExposeOptions.Egress.Host = args[1]
+				proxyExposeOptions.Egress.Port = args[2]
 			}
+			proxyExposeOptions.Egress.Address = args[0]
+			proxyExposeOptions.Egress.ErrIfNoSvc = false
 
-			externalServiceToCreate.Address = args[0]
-			if externalServiceToCreate.PackageName == "" {
-				externalServiceToCreate.PackageName = args[0]
-			}
-			if externalServiceToCreate.PackagePath == "" {
-				current, err := os.Getwd()
-				if err != nil {
-					return fmt.Errorf("Failed to get current working dir: %w", err)
-				} else {
-					externalServiceToCreate.PackagePath = current
-				}
-			} else {
-				fmt.Println("Check that path exists first: ", externalServiceToCreate.PackagePath)
-			}
-
-			err := cli.ExternalServiceCreate(context.Background(), externalServiceToCreate)
+			name, err := cli.ProxyExpose(context.Background(), proxyExposeOptions)
 			if err != nil {
 				return fmt.Errorf("%w", err)
+			} else {
+				fmt.Printf("Skupper proxy %s created\n", name)
 			}
-			// print success and where package went?
+
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&externalServiceToCreate.Protocol, "protocol", "tcp", "The protocol to proxy (tcp, http or http2).")
-	cmd.Flags().BoolVar(&externalServiceToCreate.CreateUnit, "create-unit", true, "Create a local systemd user unit service for the external proxy")
-	cmd.Flags().BoolVar(&externalServiceToCreate.BuildPackage, "build-package", false, "Build a package for the external proxy")
-	cmd.Flags().StringVar(&externalServiceToCreate.PackageName, "name", "", "The name of external service to create. Defaults to service address value")
-	cmd.Flags().StringVar(&externalServiceToCreate.PackagePath, "package-path", "", "The directory to place package. Defaults to current directory")
-	cmd.Flags().StringVar(&externalServiceToCreate.PackageType, "package-type", "rpm", "The type of package to build (rpm, tar or deb)")
+	cmd.Flags().StringVar(&proxyExposeOptions.Egress.Protocol, "protocol", "tcp", "The protocol to proxy (tcp, http or http2).")
+	cmd.Flags().StringVar(&proxyExposeOptions.ProxyName, "name", "", "The name of external service to create. Defaults to service address value")
+	return cmd
+}
+
+func NewCmdUnexposeProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "unexpose <name> <address>",
+		Short:  "Remove an exposed proxy",
+		Args:   cobra.ExactArgs(2),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			err := cli.ProxyUnexpose(context.Background(), args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+var proxyBindOptions types.ProxyBindOptions
+
+func NewCmdBindProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "bind <proxy-name> <address> <host> <port>",
+		Short:  "Bind a proxy service for the skupper network",
+		Args:   bindProxyArgs,
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			if len(args) == 3 {
+				parts := strings.Split(args[2], ":")
+				proxyBindOptions.Host = parts[0]
+				proxyBindOptions.Port = parts[1]
+			} else {
+				proxyBindOptions.Host = args[2]
+				proxyBindOptions.Port = args[3]
+			}
+			proxyBindOptions.Address = args[1]
+			proxyBindOptions.ErrIfNoSvc = true
+
+			err := cli.ProxyBind(context.Background(), args[0], proxyBindOptions)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&proxyBindOptions.Protocol, "protocol", "tcp", "The protocol to proxy (tcp, http or http2).")
+	return cmd
+}
+
+func NewCmdUnbindProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "unbind <proxy-name> <address>",
+		Short:  "Unbind a proxy service from the skupper network",
+		Args:   cobra.ExactArgs(2),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			err := cli.ProxyUnbind(context.Background(), args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&protocol, "protocol", "tcp", "The protocol to proxy (tcp, http or http2).")
+	return cmd
+}
+
+func NewCmdInspectProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "inspect <proxy-name>",
+		Short:  "Inspect a Skupper proxy",
+		Args:   cobra.ExactArgs(1),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			proxyName := args[0]
+
+			inspect, err := cli.ProxyInspect(context.Background(), proxyName)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			fmt.Printf("%-30s %s\n", "Name", inspect.ProxyName)
+			fmt.Printf("%-30s %s\n", "Version", strings.TrimSuffix(inspect.ProxyVersion, "\n"))
+			fmt.Printf("%-30s %s\n", "URL", inspect.ProxyUrl)
+
+			fmt.Println("")
+			fmt.Println("Proxy Definitions:")
+			tw := new(tabwriter.Writer)
+			tw.Init(os.Stdout, 0, 4, 1, ' ', 0)
+			fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "TYPE", "SERVICE", "ADDRESS", "HOST", "PORT", "LOCAL PORT"))
+			for _, connector := range inspect.TcpConnectors {
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "expose", strings.TrimPrefix(connector.Name, proxyName+"-egress-"), connector.Address, connector.Host, connector.Port, ""))
+			}
+			for _, listener := range inspect.TcpListeners {
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "forward", strings.TrimPrefix(listener.Name, proxyName+"-ingress-"), listener.Address, listener.Host, listener.Port, listener.LocalPort))
+			}
+			tw.Flush()
+
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+var proxyForwardService types.ServiceInterface
+var loopback bool
+
+func NewCmdForwardProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "forward <proxy-name> <address> <port>",
+		Short:  "Forward a service address from a Skupper proxy",
+		Args:   cobra.ExactArgs(3),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			forwardPort, err := strconv.Atoi(args[2])
+			if err != nil {
+				return fmt.Errorf("%s is not a valid forward port", args[2])
+			}
+
+			proxyForwardService.Address = args[1]
+			proxyForwardService.Port = forwardPort
+
+			err = cli.ProxyForward(context.Background(), args[0], loopback, &proxyForwardService)
+			//			err = cli.ProxyForward(context.Background(), args[0], lPort, loopback, &proxyForwardService)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&proxyForwardService.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
+	cmd.Flags().StringVar(&proxyForwardService.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
+	cmd.Flags().BoolVar(&proxyForwardService.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+	cmd.Flags().BoolVarP(&loopback, "loopback", "", false, "Forward from loopback only")
+	return cmd
+}
+
+func NewCmdUnforwardProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "unforward <proxy-name> <address>",
+		Short:  "Stop forwarding a service to the skupper network",
+		Args:   cobra.ExactArgs(2),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			err := cli.ProxyUnforward(context.Background(), args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&protocol, "protocol", "tcp", "The protocol to proxy (tcp, http or http2).")
+	return cmd
+}
+
+func NewCmdStartProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "start <proxy-name>",
+		Short:  "start proxy definition as instance",
+		Args:   cobra.ExactArgs(1),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			err := cli.ProxyStart(context.Background(), args[0])
+			if err != nil {
+				return fmt.Errorf("Unable to start proxy definition: %w", err)
+			}
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+func NewCmdStopProxy(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "stop <proxy-name>",
+		Short:  "stop proxy instance",
+		Args:   cobra.ExactArgs(1),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			err := cli.ProxyStop(context.Background(), args[0])
+			if err != nil {
+				return fmt.Errorf("Unable to stop proxy definition: %w", err)
+			}
+			return nil
+		},
+	}
+
 	return cmd
 }
 
@@ -1009,7 +1261,18 @@ func init() {
 	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClientSansExit)
 	cmdDebugDump := NewCmdDebugDump(newClient)
-	cmdCreateExternalService := NewCmdCreateExternalService(newClient)
+
+	cmdInitProxy := NewCmdInitProxy(newClient)
+	cmdDeleteProxy := NewCmdDeleteProxy(newClient)
+	cmdExposeProxy := NewCmdExposeProxy(newClient)
+	cmdUnexposeProxy := NewCmdUnexposeProxy(newClient)
+	cmdInspectProxy := NewCmdInspectProxy(newClient)
+	cmdBindProxy := NewCmdBindProxy(newClient)
+	cmdUnbindProxy := NewCmdUnbindProxy(newClient)
+	cmdForwardProxy := NewCmdForwardProxy(newClient)
+	cmdUnforwardProxy := NewCmdUnforwardProxy(newClient)
+	cmdStartProxy := NewCmdStartProxy(newClient)
+	cmdStopProxy := NewCmdStopProxy(newClient)
 
 	//backwards compatibility commands hidden
 	deprecatedMessage := "please use 'skupper service [bind|unbind]' instead"
@@ -1051,8 +1314,18 @@ func init() {
 	cmdService.AddCommand(NewCmdUnbind(newClient))
 	cmdService.AddCommand(cmdStatusService)
 
-	cmdExternalService := NewCmdExternalService()
-	cmdExternalService.AddCommand(cmdCreateExternalService)
+	cmdProxy := NewCmdProxy()
+	cmdProxy.AddCommand(cmdInitProxy)
+	cmdProxy.AddCommand(cmdDeleteProxy)
+	cmdProxy.AddCommand(cmdExposeProxy)
+	cmdProxy.AddCommand(cmdUnexposeProxy)
+	cmdProxy.AddCommand(cmdInspectProxy)
+	cmdProxy.AddCommand(cmdBindProxy)
+	cmdProxy.AddCommand(cmdUnbindProxy)
+	cmdProxy.AddCommand(cmdForwardProxy)
+	cmdProxy.AddCommand(cmdUnforwardProxy)
+	cmdProxy.AddCommand(cmdStartProxy)
+	cmdProxy.AddCommand(cmdStopProxy)
 
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
@@ -1088,7 +1361,7 @@ func init() {
 		cmdVersion,
 		cmdDebug,
 		cmdCompletion,
-		cmdExternalService,
+		cmdProxy,
 	)
 
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")

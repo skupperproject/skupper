@@ -125,8 +125,16 @@ func (r *RouterConfig) AddTcpConnector(e TcpEndpoint) {
 	r.Bridges.AddTcpConnector(e)
 }
 
+func (r *RouterConfig) RemoveTcpConnector(name string) (bool, TcpEndpoint) {
+	return r.Bridges.RemoveTcpConnector(name)
+}
+
 func (r *RouterConfig) AddTcpListener(e TcpEndpoint) {
 	r.Bridges.AddTcpListener(e)
+}
+
+func (r *RouterConfig) RemoveTcpListener(name string) (bool, TcpEndpoint) {
+	return r.Bridges.RemoveTcpListener(name)
 }
 
 func (r *RouterConfig) AddHttpConnector(e HttpEndpoint) {
@@ -158,8 +166,28 @@ func (bc *BridgeConfig) AddTcpConnector(e TcpEndpoint) {
 	bc.TcpConnectors[e.Name] = e
 }
 
+func (bc *BridgeConfig) RemoveTcpConnector(name string) (bool, TcpEndpoint) {
+	tc, ok := bc.TcpConnectors[name]
+	if ok {
+		delete(bc.TcpConnectors, name)
+		return true, tc
+	} else {
+		return false, TcpEndpoint{}
+	}
+}
+
 func (bc *BridgeConfig) AddTcpListener(e TcpEndpoint) {
 	bc.TcpListeners[e.Name] = e
+}
+
+func (bc *BridgeConfig) RemoveTcpListener(name string) (bool, TcpEndpoint) {
+	tc, ok := bc.TcpListeners[name]
+	if ok {
+		delete(bc.TcpListeners, name)
+		return true, tc
+	} else {
+		return false, TcpEndpoint{}
+	}
 }
 
 func (bc *BridgeConfig) AddHttpConnector(e HttpEndpoint) {

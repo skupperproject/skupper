@@ -149,16 +149,33 @@ type RouterInspectResponse struct {
 	ConsoleUrl        string
 }
 
-type ExternalServiceCreateOptions struct {
-	Protocol      string
-	Address       string
-	EgressHost    string
-	EgressPort    string
-	CreateUnit    bool
-	BuildPackage  bool
-	PackageName   string
-	PackagePath   string
-	PackageType   string
+type ProxyBindOptions struct {
+	Protocol   string
+	Address    string
+	Host       string
+	Port       string
+	ErrIfNoSvc bool
+}
+
+type ProxyExposeOptions struct {
+	ProxyName string
+	Egress    ProxyBindOptions
+}
+
+type ProxyEndpoint struct {
+	Name      string `json:"name,omitempty"`
+	Host      string `json:"host,omitempty"`
+	Port      string `json:"port,omitempty"`
+	Address   string `json:"address,omitempty"`
+	LocalPort string `json:"active,omitempty"`
+}
+
+type ProxyInspectResponse struct {
+	ProxyName     string
+	ProxyUrl      string
+	ProxyVersion  string
+	TcpConnectors map[string]ProxyEndpoint
+	TcpListeners  map[string]ProxyEndpoint
 }
 
 type VanClientInterface interface {
@@ -184,7 +201,17 @@ type VanClientInterface interface {
 	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error
 	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*ServiceInterface, error)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
-	ExternalServiceCreate(ctx context.Context, options ExternalServiceCreateOptions) error
+	ProxyStart(ctx context.Context, proxyName string) error
+	ProxyStop(ctx context.Context, proxyName string) error
+	ProxyBind(ctx context.Context, proxyName string, egress ProxyBindOptions) error
+	ProxyUnbind(ctx context.Context, proxyName string, address string) error
+	ProxyExpose(ctx context.Context, options ProxyExposeOptions) (string, error)
+	ProxyForward(ctx context.Context, proxyName string, loopback bool, service *ServiceInterface) error
+	ProxyInit(ctx context.Context, proxyName string) (string, error)
+	ProxyInspect(ctx context.Context, proxyName string) (*ProxyInspectResponse, error)
+	ProxyRemove(ctx context.Context, proxyName string) error
+	ProxyUnexpose(ctx context.Context, proxyName string, address string) error
+	ProxyUnforward(ctx context.Context, proxyName string, address string) error
 	SiteConfigCreate(ctx context.Context, spec SiteConfigSpec) (*SiteConfig, error)
 	SiteConfigUpdate(ctx context.Context, spec SiteConfigSpec) ([]string, error)
 	SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*SiteConfig, error)
