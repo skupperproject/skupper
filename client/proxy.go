@@ -184,10 +184,8 @@ func stopProxyUserService(unitDir, proxyName string) error {
 func checkPortFree(protocol, port string) bool {
 	l, err := net.Listen(protocol, ":"+port)
 	if err != nil {
-		fmt.Println("Port is in use: ", port)
 		return false
 	} else {
-		fmt.Println("Port is not in use: ", port)
 		defer l.Close()
 		return true
 	}
@@ -598,18 +596,14 @@ func (cli *VanClient) ProxyExpose(ctx context.Context, options types.ProxyExpose
 }
 
 func (cli *VanClient) ProxyUnexpose(ctx context.Context, proxyName string, address string) error {
-	err := cli.ProxyUnbind(ctx, proxyName, address)
-	if err != nil {
-		return err
-	}
-
-	// Note: unexpose implicitly removes the service
+	// Note: no need to unbind as proxy is being deleted
+	// Note: unexpose implicitly removes the cluster service
 	si, err := cli.ServiceInterfaceInspect(ctx, address)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve service: %w", err)
 	}
 
-	// todo: only remove service if not used
+	// todo: only remove service if not used, is this necessary
 	if si != nil && len(si.Targets) == 0 && si.Origin == "" {
 		err := cli.ServiceInterfaceRemove(ctx, address)
 		if err != nil {
@@ -617,23 +611,15 @@ func (cli *VanClient) ProxyUnexpose(ctx context.Context, proxyName string, addre
 		}
 	}
 
-	configmap, err := kube.GetConfigMap(proxyPrefix+proxyName, cli.GetNamespace(), cli.KubeClient)
+	// Note: unexpose will stop and remove proxy independent of bridge configuration
+	err = cli.ProxyStop(ctx, proxyName)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve proxy configmap: %w", err)
+		return err
 	}
-	proxyConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
-	// check if service has any remaining listeners or connectors, delete if not
-	if len(proxyConfig.Bridges.TcpListeners) == 0 && len(proxyConfig.Bridges.TcpConnectors) == 0 {
-		err = cli.ProxyStop(ctx, proxyName)
-		if err != nil {
-			return err
-		}
-
-		err = cli.ProxyRemove(ctx, proxyName)
-		if err != nil {
-			return err
-		}
+	err = cli.ProxyRemove(ctx, proxyName)
+	if err != nil {
+		return err
 	}
 
 	return nil

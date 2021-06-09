@@ -206,12 +206,12 @@ type VanClientInterface interface {
 	ProxyBind(ctx context.Context, proxyName string, egress ProxyBindOptions) error
 	ProxyUnbind(ctx context.Context, proxyName string, address string) error
 	ProxyExpose(ctx context.Context, options ProxyExposeOptions) (string, error)
+	ProxyUnexpose(ctx context.Context, proxyName string, address string) error
 	ProxyForward(ctx context.Context, proxyName string, loopback bool, service *ServiceInterface) error
+	ProxyUnforward(ctx context.Context, proxyName string, address string) error
 	ProxyInit(ctx context.Context, proxyName string) (string, error)
 	ProxyInspect(ctx context.Context, proxyName string) (*ProxyInspectResponse, error)
 	ProxyRemove(ctx context.Context, proxyName string) error
-	ProxyUnexpose(ctx context.Context, proxyName string, address string) error
-	ProxyUnforward(ctx context.Context, proxyName string, address string) error
 	SiteConfigCreate(ctx context.Context, spec SiteConfigSpec) (*SiteConfig, error)
 	SiteConfigUpdate(ctx context.Context, spec SiteConfigSpec) ([]string, error)
 	SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*SiteConfig, error)
