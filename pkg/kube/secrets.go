@@ -119,3 +119,23 @@ func CopySecret(src string, dest string, namespace string, kubeclient kubernetes
 	return nil
 
 }
+
+func RegenerateCertAuthority(name string, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
+	current, err := cli.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	regenerated := certs.GenerateCASecret(name, name)
+	current.Data = regenerated.Data
+	return cli.CoreV1().Secrets(namespace).Update(current)
+}
+
+func RegenerateCredentials(credential types.Credential, namespace string, ca *corev1.Secret, cli kubernetes.Interface) (*corev1.Secret, error) {
+	current, err := cli.CoreV1().Secrets(namespace).Get(credential.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	regenerated := certs.GenerateSecret(credential.Name, credential.Subject, strings.Join(credential.Hosts, ","), ca)
+	current.Data = regenerated.Data
+	return cli.CoreV1().Secrets(namespace).Update(current)
+}
