@@ -541,6 +541,16 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	return updateRouter || updateController || updateSite, nil
 }
 
+func (cli *VanClient) restartRouter(namespace string) error {
+	router, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	touch(router)
+	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(router)
+	return err
+}
+
 func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.ConfigMap, hup bool) (bool, error) {
 	siteConfig, err := cli.SiteConfigInspect(ctx, settings)
 	if err != nil {
@@ -562,12 +572,7 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 			return false, err
 		}
 		if hup {
-			router, err := cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			touch(router)
-			_, err = cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Update(router)
+			err = cli.restartRouter(settings.ObjectMeta.Namespace)
 			if err != nil {
 				return false, err
 			}
@@ -796,4 +801,14 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 		return err
 	}
 	return nil
+}
+
+func (cli *VanClient) restartController(namespace string) error {
+	controller, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	touch(controller)
+	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(controller)
+	return err
 }

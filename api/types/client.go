@@ -185,4 +185,5 @@ type VanClientInterface interface {
 	GetNamespace() string
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
+	RevokeAccess(ctx context.Context) error
 }

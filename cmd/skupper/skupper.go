@@ -882,6 +882,26 @@ func NewCmdDebugDump(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
+func NewCmdRevokeaccess(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "revoke-access",
+		Short: "Revoke all previously granted access to the site.",
+		Long: `This will invalidate all previously issued tokens and require that all
+links to this site be re-established with new tokens.`,
+		Args:   cobra.ExactArgs(0),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			err := cli.RevokeAccess(context.Background())
+			if err != nil {
+				return fmt.Errorf("Unable to revoke access: %w", err)
+			}
+			return nil
+		},
+	}
+	return cmd
+}
+
 func NewCmdCompletion() *cobra.Command {
 	completionLong := `
 Output shell completion code for bash.
@@ -990,6 +1010,8 @@ func init() {
 
 	cmdCompletion := NewCmdCompletion()
 
+	cmdRevokeAll := NewCmdRevokeaccess(newClient)
+
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
@@ -1010,7 +1032,8 @@ func init() {
 		cmdUnbind,
 		cmdVersion,
 		cmdDebug,
-		cmdCompletion)
+		cmdCompletion,
+		cmdRevokeAll)
 
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
