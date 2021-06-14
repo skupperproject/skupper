@@ -1018,6 +1018,34 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	return nil
 }
 
+func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace string, cred *types.Credential) error {
+	service, err := kube.GetService(serviceName, namespace, cli.KubeClient)
+	if err != nil {
+		return err
+	}
+	if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		return nil
+	}
+	host := kube.GetLoadBalancerHostOrIP(service)
+	for i := 0; host == "" && i < 120; i++ {
+		if i == 0 {
+			fmt.Println("Waiting for LoadBalancer IP or hostname...")
+		}
+		time.Sleep(time.Second)
+		service, err = kube.GetService(serviceName, namespace, cli.KubeClient)
+		host = kube.GetLoadBalancerHostOrIP(service)
+	}
+	if host == "" {
+		return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", serviceName)
+	} else {
+		cred.Hosts = append(cred.Hosts, host)
+		if len(host) < 64 {
+			cred.Subject = host
+		}
+		return nil
+	}
+}
+
 func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
 	if ref.Name == "" || ref.UID == "" {
 		return nil
