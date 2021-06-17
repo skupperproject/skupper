@@ -35,6 +35,25 @@ func getClaimsPort(service *corev1.Service) int32 {
 	return 0
 }
 
+func getClaimsNodePort(service *corev1.Service) (int32, error) {
+	for _, port := range service.Spec.Ports {
+		if port.Name == types.ClaimRedemptionPortName {
+			return port.NodePort, nil
+		}
+	}
+	return 0, fmt.Errorf("NodePort for claims not found.")
+}
+
+func (cli *VanClient) getControllerIngressHost() (string, error) {
+	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
+	if err != nil {
+		return "", err
+	} else if len(configmap.Data) > 0 && configmap.Data[SiteConfigControllerIngressHostKey] != "" {
+		return configmap.Data[SiteConfigControllerIngressHostKey], nil
+	}
+	return "", fmt.Errorf("Controller ingress host not defined, cannot use claims for nodeport without it.")
+}
+
 func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error {
 	current, err := cli.getRouterConfig()
 	if err != nil {
@@ -63,6 +82,16 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 		localOnly = false
 	} else if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		host = kube.GetLoadBalancerHostOrIp(service)
+		localOnly = false
+	} else if service.Spec.Type == corev1.ServiceTypeNodePort {
+		host, err = cli.getControllerIngressHost()
+		if err != nil {
+			return err
+		}
+		port, err = getClaimsNodePort(service)
+		if err != nil {
+			return err
+		}
 		localOnly = false
 	}
 	recordName, err := uuid.NewUUID()
