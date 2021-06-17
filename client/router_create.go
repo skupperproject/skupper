@@ -192,6 +192,8 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			}
 		} else if options.IsConsoleIngressLoadBalancer() {
 			svctype = corev1.ServiceTypeLoadBalancer
+		} else if options.IsConsoleIngressNodePort() {
+			svctype = corev1.ServiceTypeNodePort
 		}
 		if options.IsConsoleIngressRoute() {
 			routes = append(routes, &routev1.Route{
@@ -624,22 +626,60 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	})
 
 	if !isEdge {
-		credentials = append(credentials, types.Credential{
-			CA:          types.SiteCaSecret,
-			Name:        types.SiteServerSecret,
-			Subject:     types.TransportServiceName,
-			Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
-			ConnectJson: false,
-			Post:        !options.IsIngressNone(),
-		})
-		van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
-			CA:          types.SiteCaSecret,
-			Name:        types.ClaimsServerSecret,
-			Subject:     types.ControllerServiceName,
-			Hosts:       []string{types.ControllerServiceName + "." + van.Namespace},
-			ConnectJson: false,
-			Post:        !options.IsIngressNone(),
-		})
+		if options.IsIngressNone() {
+			credentials = append(credentials, types.Credential{
+				CA:          types.SiteCaSecret,
+				Name:        types.SiteServerSecret,
+				Subject:     types.TransportServiceName,
+				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
+				ConnectJson: false,
+				Post:        false,
+			})
+			van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
+				CA:          types.SiteCaSecret,
+				Name:        types.ClaimsServerSecret,
+				Subject:     types.ControllerServiceName,
+				Hosts:       []string{types.ControllerServiceName + "." + van.Namespace},
+				ConnectJson: false,
+				Post:        false,
+			})
+		} else if options.IsIngressNodePort() {
+			credentials = append(credentials, types.Credential{
+				CA:          types.SiteCaSecret,
+				Name:        types.SiteServerSecret,
+				Subject:     options.Router.IngressHost,
+				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
+				ConnectJson: false,
+				Post:        false,
+			})
+			if options.Controller.IngressHost != "" {
+				van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
+					CA:          types.SiteCaSecret,
+					Name:        types.ClaimsServerSecret,
+					Subject:     types.ControllerServiceName,
+					Hosts:       []string{options.Controller.IngressHost},
+					ConnectJson: false,
+					Post:        false,
+				})
+			}
+		} else {
+			credentials = append(credentials, types.Credential{
+				CA:          types.SiteCaSecret,
+				Name:        types.SiteServerSecret,
+				Subject:     types.TransportServiceName,
+				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
+				ConnectJson: false,
+				Post:        true,
+			})
+			van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
+				CA:          types.SiteCaSecret,
+				Name:        types.ClaimsServerSecret,
+				Subject:     types.ControllerServiceName,
+				Hosts:       []string{types.ControllerServiceName + "." + van.Namespace},
+				ConnectJson: false,
+				Post:        true,
+			})
+		}
 	}
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 		userData := map[string][]byte{}
@@ -734,6 +774,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		svcType := corev1.ServiceTypeClusterIP
 		if options.IsIngressLoadBalancer() {
 			svcType = corev1.ServiceTypeLoadBalancer
+		} else if options.IsIngressNodePort() {
+			svcType = corev1.ServiceTypeNodePort
 		}
 		svcs = append(svcs, &corev1.Service{
 			TypeMeta: metav1.TypeMeta{
@@ -973,7 +1015,6 @@ sasldb_path: /tmp/qdrouterd.sasldb
 					} else {
 						fmt.Println("Failed to retrieve route: ", err.Error())
 					}
-
 				} else {
 					service, err := kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
 					if err == nil {

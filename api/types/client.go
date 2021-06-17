@@ -53,10 +53,12 @@ type RouterOptions struct {
 	DebugMode        string
 	MaxFrameSize     int
 	MaxSessionFrames int
+	IngressHost      string
 }
 
 type ControllerOptions struct {
 	Tuning
+	IngressHost string
 }
 
 type SiteConfigSpec struct {
@@ -83,6 +85,7 @@ type SiteConfigSpec struct {
 const (
 	IngressRouteString        string = "route"
 	IngressLoadBalancerString string = "loadbalancer"
+	IngressNodePortString     string = "nodeport"
 	IngressNoneString         string = "none"
 )
 
@@ -91,6 +94,9 @@ func (s *SiteConfigSpec) IsIngressRoute() bool {
 }
 func (s *SiteConfigSpec) IsIngressLoadBalancer() bool {
 	return s.Ingress == IngressLoadBalancerString
+}
+func (s *SiteConfigSpec) IsIngressNodePort() bool {
+	return s.Ingress == IngressNodePortString
 }
 func (s *SiteConfigSpec) IsIngressNone() bool {
 	return s.Ingress == IngressNoneString
@@ -101,6 +107,9 @@ func (s *SiteConfigSpec) IsConsoleIngressRoute() bool {
 }
 func (s *SiteConfigSpec) IsConsoleIngressLoadBalancer() bool {
 	return s.getConsoleIngress() == IngressLoadBalancerString
+}
+func (s *SiteConfigSpec) IsConsoleIngressNodePort() bool {
+	return s.getConsoleIngress() == IngressNodePortString
 }
 func (s *SiteConfigSpec) IsConsoleIngressNone() bool {
 	return s.getConsoleIngress() == IngressNoneString
@@ -113,7 +122,7 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 }
 
 func isValidIngress(ingress string) bool {
-	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNoneString
+	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNodePortString || ingress == IngressNoneString
 }
 
 func (s *SiteConfigSpec) CheckIngress() error {
