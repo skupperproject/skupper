@@ -145,6 +145,26 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: types.SiteConfigSpec{
+				Ingress: "nodeport",
+				Router: types.RouterOptions{
+					IngressHost: "foo.com",
+				},
+			},
+			expected: types.SiteConfigSpec{
+				SkupperName:      "site-config-roundtrip-6",
+				SkupperNamespace: "site-config-roundtrip-6",
+				Ingress:          "nodeport",
+				RouterMode:       "interior",
+				AuthMode:         "internal",
+				Annotations:      map[string]string{},
+				Labels:           map[string]string{},
+				Router: types.RouterOptions{
+					IngressHost: "foo.com",
+				},
+			},
+		},
 	}
 
 	isCluster := *clusterRun

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +22,21 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 			if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
 				host := kube.GetLoadBalancerHostOrIp(service)
 				return "http://" + host + ":8080", nil
+			} else if service.Spec.Type == corev1.ServiceTypeNodePort {
+				port := ""
+				for _, p := range service.Spec.Ports {
+					if p.Name == "metrics" {
+						port = strconv.Itoa(int(p.NodePort))
+					}
+				}
+				config, err := cli.SiteConfigInspect(context.Background(), nil)
+				if err != nil {
+					return "", err
+				}
+				if config.Spec.Controller.IngressHost == "" || port == "" {
+					return "", nil
+				}
+				return "http://" + config.Spec.Controller.IngressHost + ":" + port, nil
 			} else {
 				return "", nil
 			}
