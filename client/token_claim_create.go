@@ -56,27 +56,51 @@ func (cli *VanClient) getControllerIngressHost() (string, error) {
 	return "", fmt.Errorf("Controller ingress host not defined, cannot use claims for nodeport without it. A certificate token can be generated directly with --token-type=cert.")
 }
 
-func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error {
-	current, err := cli.getRouterConfig()
+func (cli *VanClient) TokenClaimCreateFile(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error {
+	claim, localOnly, err := cli.TokenClaimCreate(ctx, name, password, expiry, uses)
 	if err != nil {
 		return err
 	}
+	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
+	out, err := os.Create(secretFile)
+	if err != nil {
+		return fmt.Errorf("Could not write to file " + secretFile + ": " + err.Error())
+	}
+	err = s.Encode(claim, out)
+	if err != nil {
+		return fmt.Errorf("Could not write out generated secret: " + err.Error())
+	} else {
+		var extra string
+		if localOnly {
+			extra = "(Note: token will only be valid for local cluster)"
+		}
+		fmt.Printf("Token written to %s %s", secretFile, extra)
+		fmt.Println()
+		return nil
+	}
+}
+
+func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error) {
+	current, err := cli.getRouterConfig()
+	if err != nil {
+		return nil, false, err
+	}
 	if current.IsEdge() {
-		return fmt.Errorf("Edge configuration cannot accept connections")
+		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
 	service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	port := getClaimsPort(service)
 	if port == 0 {
-		return fmt.Errorf("Site cannot accept connections")
+		return nil, false, fmt.Errorf("Site cannot accept connections")
 	}
 	host := fmt.Sprintf("%s.%s", types.ControllerServiceName, cli.Namespace)
 	localOnly := true
 	ok, err := configureClaimHostFromRoutes(&host, cli)
 	if err != nil {
-		return err
+		return nil, false, err
 	} else if ok {
 		// host configured from route
 		port = 443
@@ -87,17 +111,17 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 	} else if service.Spec.Type == corev1.ServiceTypeNodePort {
 		host, err = cli.getControllerIngressHost()
 		if err != nil {
-			return err
+			return nil, false, err
 		}
 		port, err = getClaimsNodePort(service)
 		if err != nil {
-			return err
+			return nil, false, err
 		}
 		localOnly = false
 	} else {
 		ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
 		if err != nil {
-			return err
+			return nil, false, err
 		}
 		if len(ingressRoutes) > 0 {
 			for _, route := range ingressRoutes {
@@ -112,13 +136,13 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 	}
 	recordName, err := uuid.NewUUID()
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	protocol := "https"
 	url := fmt.Sprintf("%s://%s:%d/%s", protocol, host, port, recordName.String())
 	caSecret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	claim := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -165,30 +189,14 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 	}
 	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&record)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 
 	siteId := getSiteId(service)
 	if siteId != "" {
 		claim.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteId
 	}
-	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-	out, err := os.Create(secretFile)
-	if err != nil {
-		return fmt.Errorf("Could not write to file " + secretFile + ": " + err.Error())
-	}
-	err = s.Encode(&claim, out)
-	if err != nil {
-		return fmt.Errorf("Could not write out generated secret: " + err.Error())
-	} else {
-		var extra string
-		if localOnly {
-			extra = "(Note: token will only be valid for local cluster)"
-		}
-		fmt.Printf("Token written to %s %s", secretFile, extra)
-		fmt.Println()
-		return nil
-	}
+	return &claim, localOnly, nil
 }
 
 func configureClaimHostFromRoutes(host *string, cli *VanClient) (bool, error) {

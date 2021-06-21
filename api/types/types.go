@@ -156,6 +156,7 @@ const (
 	RouterComponent             string = "router"
 	ClaimExpiration             string = BaseQualifier + "/claim-expiration"
 	ClaimsRemaining             string = BaseQualifier + "/claims-remaining"
+	ClaimsMade                  string = BaseQualifier + "/claims-made"
 	ClaimUrlAnnotationKey       string = BaseQualifier + "/url"
 	ClaimPasswordDataKey        string = "password"
 	ClaimCaCertDataKey          string = "ca.crt"

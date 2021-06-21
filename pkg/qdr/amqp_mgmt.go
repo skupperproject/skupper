@@ -1085,6 +1085,41 @@ func (a *Agent) getInteriorAddressForUplink() (string, error) {
 	return "", fmt.Errorf("Could not find uplink connection")
 }
 
+type ConnectorStatus struct {
+	Name        string
+	Host        string
+	Port        string
+	Role        string
+	Cost        int
+	Status      string
+	Description string
+}
+
+func asConnectorStatus(record Record) ConnectorStatus {
+	return ConnectorStatus{
+		Name:        record.AsString("name"),
+		Host:        record.AsString("host"),
+		Port:        record.AsString("port"),
+		Role:        record.AsString("role"),
+		Cost:        record.AsInt("cost"),
+		Status:      record.AsString("connectionStatus"),
+		Description: record.AsString("connectionMsg"),
+	}
+}
+
+func (a *Agent) GetLocalConnectorStatus() (map[string]ConnectorStatus, error) {
+	results, err := a.Query("org.apache.qpid.dispatch.connector", []string{})
+	if err != nil {
+		return nil, err
+	}
+	connectors := map[string]ConnectorStatus{}
+	for _, record := range results {
+		c := asConnectorStatus(record)
+		connectors[c.Name] = c
+	}
+	return connectors, nil
+}
+
 func (a *Agent) Request(request *Request) (*Response, error) {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()

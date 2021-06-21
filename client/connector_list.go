@@ -19,7 +19,9 @@ func getLinkStatus(s *corev1.Secret, edge bool, connections []qdr.Connection) ty
 	}
 	if s.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeClaimRequest {
 		link.Url = s.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey]
-		link.Description = "Failed to redeem claim: " + s.ObjectMeta.Annotations[types.StatusAnnotationKey]
+		if desc, ok := s.ObjectMeta.Annotations[types.StatusAnnotationKey]; ok {
+			link.Description = "Failed to redeem claim: " + desc
+		}
 		link.Configured = false
 	} else {
 		if edge {

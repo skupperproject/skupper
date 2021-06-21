@@ -111,7 +111,7 @@ func (v *vanClientMock) RouterUpdateVersionInNamespace(ctx context.Context, hup 
 func (v *vanClientMock) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	return nil, nil
 }
-func (v *vanClientMock) ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
+func (v *vanClientMock) ConnectorCreateSecretFromData(ctx context.Context, secretData []byte, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	return nil, nil
 }
 
@@ -134,7 +134,10 @@ func (v *vanClientMock) ConnectorTokenCreate(ctx context.Context, subject string
 func (v *vanClientMock) ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
 	return nil
 }
-func (v *vanClientMock) TokenClaimCreate(ctx context.Context, subject string, password []byte, expiry time.Duration, uses int, secretFile string) error {
+func (v *vanClientMock) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error) {
+	return nil, true, nil
+}
+func (v *vanClientMock) TokenClaimCreateFile(ctx context.Context, subject string, password []byte, expiry time.Duration, uses int, secretFile string) error {
 	return nil
 }
 func (v *vanClientMock) ServiceInterfaceCreate(ctx context.Context, service *types.ServiceInterface) error {
