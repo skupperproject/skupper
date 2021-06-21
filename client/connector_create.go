@@ -111,7 +111,12 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 		}
 	}
 
-	secret, err := cli.ConnectorCreateSecretFromFile(ctx, secretFile, options)
+	yaml, err := ioutil.ReadFile(secretFile)
+	if err != nil {
+		fmt.Println("Could not read connection token", err.Error())
+		return nil, err
+	}
+	secret, err := cli.ConnectorCreateSecretFromData(ctx, yaml, options)
 	if err != nil {
 		return nil, err
 	}
@@ -159,18 +164,13 @@ func verify(secret *corev1.Secret) error {
 	return nil
 }
 
-func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
-	yaml, err := ioutil.ReadFile(secretFile)
-	if err != nil {
-		fmt.Println("Could not read connection token", err.Error())
-		return nil, err
-	}
+func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretData []byte, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
 	if err == nil {
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
 			scheme.Scheme)
 		var secret corev1.Secret
-		_, _, err = s.Decode(yaml, nil, &secret)
+		_, _, err = s.Decode(secretData, nil, &secret)
 		if err != nil {
 			return nil, fmt.Errorf("Could not parse connection token: %w", err)
 		} else {

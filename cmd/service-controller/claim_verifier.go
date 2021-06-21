@@ -71,29 +71,37 @@ func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (stri
 	if !bytes.Equal(claim.Data["password"], data) {
 		return "Claim refused", http.StatusForbidden
 	}
-	if claim.ObjectMeta.Annotations != nil {
-		if uses, ok := claim.ObjectMeta.Annotations[types.ClaimsRemaining]; ok {
-			remainingUses, err := strconv.Atoi(uses)
-			if err != nil {
-				event.Recordf(TokenClaimVerification, "Cannot determine remaining uses: %s", err)
-				return "Corrupted claim", http.StatusInternalServerError
-			}
-			remainingUses -= 1
-			if remainingUses == 0 {
-				err := server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Delete(name, &metav1.DeleteOptions{})
-				if err != nil {
-					event.Recordf(TokenClaimVerification, "Error deleting claim after last use: %s", err)
-					return "Internal error", http.StatusServiceUnavailable
-				}
-			} else {
-				claim.ObjectMeta.Annotations[types.ClaimsRemaining] = strconv.Itoa(remainingUses)
-				_, err := server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Update(claim)
-				if err != nil {
-					event.Recordf(TokenClaimVerification, "Error updating remaining uses: %s", err)
-					return "Internal error", http.StatusServiceUnavailable
-				}
-			}
+	if claim.ObjectMeta.Annotations == nil {
+		claim.ObjectMeta.Annotations = map[string]string{}
+	}
+	if uses, ok := claim.ObjectMeta.Annotations[types.ClaimsRemaining]; ok {
+		remainingUses, err := strconv.Atoi(uses)
+		if err != nil {
+			event.Recordf(TokenClaimVerification, "Cannot determine remaining uses: %s", err)
+			return "Corrupted claim", http.StatusInternalServerError
 		}
+		if remainingUses == 0 {
+			event.Recordf(TokenClaimVerification, "Claim %s already used", name)
+			return "No such claim", http.StatusNotFound
+		}
+		remainingUses -= 1
+		claim.ObjectMeta.Annotations[types.ClaimsRemaining] = strconv.Itoa(remainingUses)
+	}
+	if value, ok := claim.ObjectMeta.Annotations[types.ClaimsMade]; ok {
+		made, err := strconv.Atoi(value)
+		if err != nil {
+			event.Recordf(TokenClaimVerification, "Cannot determine claims made: %s", err)
+			return "Corrupted claim", http.StatusInternalServerError
+		}
+		made += 1
+		claim.ObjectMeta.Annotations[types.ClaimsMade] = strconv.Itoa(made)
+	} else {
+		claim.ObjectMeta.Annotations[types.ClaimsMade] = "1"
+	}
+	_, err = server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Update(claim)
+	if err != nil {
+		event.Recordf(TokenClaimVerification, "Error updating remaining uses: %s", err)
+		return "Internal error", http.StatusServiceUnavailable
 	}
 	return "ok", http.StatusOK
 }

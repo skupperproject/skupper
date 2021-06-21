@@ -15,7 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func skupperInit(cli *client.VanClient, ctx context.Context, name string) error {
+func skupperInit(cli *client.VanClient, name string) error {
+	ctx := context.Background()
 	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{SkupperName: name, Ingress: "none"})
 	if err != nil {
 		return err
@@ -82,7 +83,7 @@ func TestTokenHandler(t *testing.T) {
 	handler := newTokenHandler(cli, "site-a")
 
 	name := "foo"
-	err := skupperInit(cli, context.Background(), name)
+	err := skupperInit(cli, name)
 	assert.Check(t, err, name)
 
 	var tests = []struct {

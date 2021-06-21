@@ -53,8 +53,8 @@ func TestTokenClaimCreateInterior(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	filename := "./link1.yaml"
-	err = cli.TokenClaimCreate(ctx, "link1", []byte("abcde"), 0, 5, filename)
+	filename := "./conn1.yaml"
+	err = cli.TokenClaimCreateFile(ctx, "link1", []byte("abcde"), 0, 5, filename)
 	assert.Check(t, err, "Unable to create connector token")
 
 	claim, err := readSecretFromFile(filename)
@@ -104,7 +104,7 @@ func TestTokenClaimCreateEdge(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	err = cli.TokenClaimCreate(ctx, "link1", []byte("abcde"), 0, 5, "./link1.yaml")
+	err = cli.TokenClaimCreateFile(ctx, "conn1", []byte("abcde"), 0, 5, "./link1.yaml")
 	assert.Error(t, err, "Edge configuration cannot accept connections", "Expect error when edge")
 
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/event"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -95,19 +94,20 @@ func TestClaimVerifier(t *testing.T) {
 	record, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("a", metav1.GetOptions{})
 	assert.Check(t, err, "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsRemaining], "1", "claim-verifier-test: a")
+	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsMade], "1", "claim-verifier-test: a")
 
 	//test password checking
 	secret, _, code = verifier.redeemClaim("a", "foo", []byte("blahblah"), generator)
 	assert.Equal(t, code, http.StatusForbidden, "claim-verifier-test: a, bad password")
 	assert.Assert(t, secret == nil, "claim-verifier-test: a, bad password")
 
-	//test that used up claim is deleted
 	secret, _, code = verifier.redeemClaim("a", "foo", []byte("abcdefg"), generator)
 	assert.Equal(t, code, http.StatusOK, "claim-verifier-test: a 2nd attempt")
 	assert.Equal(t, secret, generator.Secret, "claim-verifier-test: a 2nd attempt")
 	assert.Equal(t, secret.ObjectMeta.Name, "foo", "claim-verifier-test: a 2nd attempt")
 	record, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("a", metav1.GetOptions{})
-	assert.Assert(t, errors.IsNotFound(err), "claim-verifier-test: a 2nd attempt")
+	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsRemaining], "0", "claim-verifier-test: a")
+	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsMade], "2", "claim-verifier-test: a")
 
 	//test claim that does not exist
 	secret, _, code = verifier.redeemClaim("not-there", "foo", []byte("abcdefg"), generator)

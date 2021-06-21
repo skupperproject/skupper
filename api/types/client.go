@@ -27,6 +27,7 @@ type LinkStatus struct {
 	Connected   bool
 	Configured  bool
 	Description string
+	Created     string
 }
 
 type SiteConfig struct {
@@ -245,14 +246,15 @@ type VanClientInterface interface {
 	RouterUpdateVersion(ctx context.Context, hup bool) (bool, error)
 	RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error)
 	ConnectorCreateFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
-	ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
+	ConnectorCreateSecretFromData(ctx context.Context, secretData []byte, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreate(ctx context.Context, secret *corev1.Secret, options ConnectorCreateOptions) error
 	ConnectorInspect(ctx context.Context, name string) (*LinkStatus, error)
 	ConnectorList(ctx context.Context) ([]LinkStatus, error)
 	ConnectorRemove(ctx context.Context, options ConnectorRemoveOptions) error
 	ConnectorTokenCreate(ctx context.Context, subject string, namespace string) (*corev1.Secret, bool, error)
 	ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error
-	TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error
+	TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error)
+	TokenClaimCreateFile(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error
 	ServiceInterfaceCreate(ctx context.Context, service *ServiceInterface) error
 	ServiceInterfaceInspect(ctx context.Context, address string) (*ServiceInterface, error)
 	ServiceInterfaceList(ctx context.Context) ([]*ServiceInterface, error)

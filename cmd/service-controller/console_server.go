@@ -14,6 +14,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/data"
@@ -29,11 +31,16 @@ const (
 
 type ConsoleServer struct {
 	agentPool *qdr.AgentPool
+	tokens    *TokenManager
+	links     *LinkManager
 }
 
 func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer {
+	pool := qdr.NewAgentPool("amqps://"+types.LocalTransportServiceName+":5671", config)
 	return &ConsoleServer{
-		agentPool: qdr.NewAgentPool("amqps://"+types.LocalTransportServiceName+":5671", config),
+		agentPool: pool,
+		tokens:    newTokenManager(cli),
+		links:     newLinkManager(cli, pool),
 	}
 }
 
@@ -119,6 +126,12 @@ func (server *ConsoleServer) version() http.Handler {
 			fmt.Fprintln(tw, "router\t"+v.RouterVersion)
 			tw.Flush()
 		}
+	})
+}
+
+func (server *ConsoleServer) site() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, os.Getenv("SKUPPER_SITE_ID"))
 	})
 }
 
@@ -263,10 +276,8 @@ func (server *ConsoleServer) checkService() http.Handler {
 			server.httpInternalError(w, fmt.Errorf("Could not get management agent : %s", err))
 		} else {
 			//what is the name of the service to check?
-			path := removeEmpty(strings.Split(r.URL.Path, "/"))
-			log.Printf("Path is %v (%d)", path, len(path))
-			if len(path) == 2 {
-				address := path[1]
+			vars := mux.Vars(r)
+			if address, ok := vars["name"]; ok {
 				data, err := checkService(agent, address)
 				server.agentPool.Put(agent)
 				if err != nil {
@@ -339,12 +350,32 @@ func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (server *ConsoleServer) writeJson(obj interface{}, w http.ResponseWriter) {
+	bytes, err := json.MarshalIndent(obj, "", "    ")
+	if err != nil {
+		server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+	} else {
+		fmt.Fprintf(w, string(bytes)+"\n")
+	}
+}
+
 func (server *ConsoleServer) start(stopCh <-chan struct{}) error {
 	go server.listen()
 	go server.listenLocal()
 	return nil
 }
 
+func cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,DELETE")
+		next.ServeHTTP(w, r)
+	})
+}
 func (server *ConsoleServer) listen() {
 	addr := ":8080"
 	if os.Getenv("METRICS_PORT") != "" {
@@ -354,24 +385,35 @@ func (server *ConsoleServer) listen() {
 		addr = os.Getenv("METRICS_HOST") + addr
 	}
 	log.Printf("Console server listening on %s", addr)
-	http.Handle("/DATA", authenticated(server))
-	http.Handle("/version", authenticated(server.version()))
-	http.Handle("/events", authenticated(server.serveEvents()))
-	http.Handle("/servicecheck/", server.checkService())
-	http.Handle("/", authenticated(http.FileServer(http.Dir("/app/console/"))))
-	log.Fatal(http.ListenAndServe(addr, nil))
+	r := mux.NewRouter()
+	r.Handle("/DATA", authenticated(server))
+	r.Handle("/tokens", authenticated(serveTokens(server.tokens)))
+	r.Handle("/tokens/", authenticated(serveTokens(server.tokens)))
+	r.Handle("/tokens/{name}", authenticated(serveTokens(server.tokens)))
+	r.Handle("/links", authenticated(serveLinks(server.links)))
+	r.Handle("/links/", authenticated(serveLinks(server.links)))
+	r.Handle("/links/{name}", authenticated(serveLinks(server.links)))
+	r.Handle("/version", authenticated(server.version()))
+	r.Handle("/site", authenticated(server.site()))
+	r.Handle("/events", authenticated(server.serveEvents()))
+	r.Handle("/servicecheck/{name}", server.checkService())
+	r.PathPrefix("/").Handler(authenticated(http.FileServer(http.Dir("/app/console/"))))
+	if os.Getenv("USE_CORS") != "" {
+		r.Use(cors)
+	}
+	log.Fatal(http.ListenAndServe(addr, r))
 }
 
 func (server *ConsoleServer) listenLocal() {
 	addr := "localhost:8181"
-	mux := http.NewServeMux()
-	mux.Handle("/DATA", server)
-	mux.Handle("/version", server.version())
-	mux.Handle("/events", server.serveEvents())
-	mux.Handle("/sites", server.serveSites())
-	mux.Handle("/services", server.serveServices())
-	mux.Handle("/servicecheck/", server.checkService())
-	log.Fatal(http.ListenAndServe(addr, mux))
+	r := mux.NewRouter()
+	r.Handle("/DATA", server)
+	r.Handle("/version", server.version())
+	r.Handle("/events", server.serveEvents())
+	r.Handle("/sites", server.serveSites())
+	r.Handle("/services", server.serveServices())
+	r.Handle("/servicecheck/{name}", server.checkService())
+	log.Fatal(http.ListenAndServe(addr, r))
 }
 
 func set(m map[string]map[string]bool, k1 string, k2 string) {
