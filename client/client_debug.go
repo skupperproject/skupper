@@ -38,8 +38,14 @@ func writeTar(name string, data []byte, ts time.Time, tw *tar.Writer) error {
 		Size:    int64(len(data)),
 		ModTime: ts,
 	}
-	tw.WriteHeader(hdr)
-	tw.Write(data)
+	err := tw.WriteHeader(hdr)
+	if err != nil {
+		return fmt.Errorf("Failed to write tar file header: %w", err)
+	}
+	_, err = tw.Write(data)
+	if err != nil {
+		return fmt.Errorf("Failed to write to tar archive: %w", err)
+	}
 	return nil
 }
 

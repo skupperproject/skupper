@@ -149,6 +149,11 @@ type RouterInspectResponse struct {
 	ConsoleUrl        string
 }
 
+type ProxyInitOptions struct {
+	Name       string `json:"name,omitempty"`
+	StartProxy bool   `json:"startProxy,omitempty`
+}
+
 type ProxyBindOptions struct {
 	Protocol   string
 	Address    string
@@ -201,15 +206,14 @@ type VanClientInterface interface {
 	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error
 	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*ServiceInterface, error)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
-	ProxyStart(ctx context.Context, proxyName string) error
-	ProxyStop(ctx context.Context, proxyName string) error
 	ProxyBind(ctx context.Context, proxyName string, egress ProxyBindOptions) error
 	ProxyUnbind(ctx context.Context, proxyName string, address string) error
 	ProxyExpose(ctx context.Context, options ProxyExposeOptions) (string, error)
 	ProxyUnexpose(ctx context.Context, proxyName string, address string) error
 	ProxyForward(ctx context.Context, proxyName string, loopback bool, service *ServiceInterface) error
 	ProxyUnforward(ctx context.Context, proxyName string, address string) error
-	ProxyInit(ctx context.Context, proxyName string) (string, error)
+	ProxyInit(ctx context.Context, options ProxyInitOptions) (string, error)
+	ProxyDownload(ctx context.Context, proxyName string, downloadPath string) error
 	ProxyInspect(ctx context.Context, proxyName string) (*ProxyInspectResponse, error)
 	ProxyRemove(ctx context.Context, proxyName string) error
 	SiteConfigCreate(ctx context.Context, spec SiteConfigSpec) (*SiteConfig, error)

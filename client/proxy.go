@@ -1,7 +1,9 @@
 package client
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"text/template"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -24,13 +27,7 @@ import (
 )
 
 const (
-	proxyPrefix       string = "skupper-proxy-"
-	localShare        string = "/.local/share/skupper/"
-	systemShare       string = "/usr/share/"
-	userServiceConfig string = "/.config/systemd/user"
-	qdrBinaryPath     string = "/usr/sbin/qdrouterd"
-
-//	qdrBinaryPath     string = "/usr/local/bin/qdrouterd"
+	proxyPrefix string = "skupper-proxy-"
 )
 
 type UnitInfo struct {
@@ -44,23 +41,148 @@ func serviceForQdr(info UnitInfo) string {
 	service := `
 [Unit]
 Description=Qpid Dispatch router daemon
-{{ if .IsSystemService }}
+{{- if .IsSystemService }}
 Requires=network.target
 After=network.target
-{{ end }}
+{{- end }}
 
 [Service]
 Type=simple
-ExecStart={{.Binary}} -c {{.ConfigPath}}{{.ProxyName}}/config/qdrouterd.json
+ExecStart={{.Binary}} -c {{.ConfigPath}}/config/qdrouterd.json
 
 [Install]
+{{- if .IsSystemService }}
 WantedBy=multi-user.target
+{{- else}}
+WantedBy=default.target
+{{- end}}
 `
 	var buf bytes.Buffer
 	qdrService := template.Must(template.New("qdrService").Parse(service))
 	qdrService.Execute(&buf, info)
 
 	return buf.String()
+}
+
+func expandVars() string {
+	// TODO: include license header?
+	expand := `
+from __future__ import print_function
+import sys
+import os
+
+try:
+	filename = sys.argv[1]
+	is_file = os.path.isfile(filename)
+	if not is_file:
+		raise Exception()
+except Exception as e:
+	print ("Usage: python3 expandvars.py <absolute_file_path>. Example - python3 expandvars.py /tmp/qdrouterd.conf")
+	## Unix programs generally use 2 for command line syntax errors
+	sys.exit(2)
+
+out_list = []
+with open(filename) as f:
+	for line in f:
+		if line.startswith("#") or not '$' in line:
+			out_list.append(line)
+		else:
+			out_list.append(os.path.expandvars(line))
+
+with open(filename, 'w') as f:
+	for out in out_list:
+		f.write(out)
+`
+	return expand
+}
+
+func launchScript(info UnitInfo) string {
+	launch := `
+#!/bin/sh
+
+if result=$(command -v qdrouterd 2>&1); then
+    qdr_bin=$result
+else
+    echo "qdrouterd could not be found. Please 'dnf install qpid-dispatch-router'"
+    exit
+fi
+
+proxy_name={{.ProxyName}}
+
+share_dir=${XDG_DATA_HOME:-~/.local/share}
+config_dir=${XDG_CONFIG_HOME:-~/.config}
+
+certs_dir=$share_dir/skupper/$proxy_name/qpid-dispatch-certs
+qdrcfg_dir=$share_dir/skupper/$proxy_name/config
+
+export ROUTER_ID=$(uuidgen)
+export QDR_CONF_DIR=$share_dir/skupper/$proxy_name
+export QDR_BIN_PATH=${QDROUTERD_HOME:-$qdr_bin}
+
+mkdir -p $config_dir/systemd/user
+mkdir -p $qdrcfg_dir
+mkdir -p $certs_dir
+
+cp -R ./qpid-dispatch-certs/* $certs_dir
+cp ./service/$proxy_name.service $config_dir/systemd/user/
+cp ./config/qdrouterd.json $qdrcfg_dir
+
+python3 ./expandvars.py $config_dir/systemd/user/$proxy_name.service
+python3 ./expandvars.py $qdrcfg_dir/qdrouterd.json
+
+systemctl --user enable $proxy_name.service
+systemctl --user daemon-reload
+systemctl --user start $proxy_name.service
+
+`
+	var buf bytes.Buffer
+	launchScript := template.Must(template.New("launchScript").Parse(launch))
+	launchScript.Execute(&buf, info)
+
+	return buf.String()
+}
+
+func removeScript(info UnitInfo) string {
+	remove := `
+#!/bin/sh
+
+proxy_name={{.ProxyName}}
+
+share_dir=${XDG_DATA_HOME:-~/.local/share}
+config_dir=${XDG_CONFIG_HOME:-~/.config}
+
+systemctl --user stop $proxy_name.service
+systemctl --user disable $proxy_name.service
+systemctl --user daemon-reload
+
+rm -rf $share_dir/skupper/$proxy_name
+rm $config_dir/systemd/user/$proxy_name.service
+`
+	var buf bytes.Buffer
+	removeScript := template.Must(template.New("removeScript").Parse(remove))
+	removeScript.Execute(&buf, info)
+
+	return buf.String()
+}
+
+func getDataHome() string {
+	dataHome, ok := os.LookupEnv("XDG_DATA_HOME")
+	if !ok {
+		homeDir, _ := os.UserHomeDir()
+		return homeDir + "/.local/share"
+	} else {
+		return dataHome
+	}
+}
+
+func getConfigHome() string {
+	configHome, ok := os.LookupEnv("XDG_CONFIG_HOME")
+	if !ok {
+		homeDir, _ := os.UserHomeDir()
+		return homeDir + "/.config"
+	} else {
+		return configHome
+	}
 }
 
 func newUUID() string {
@@ -210,11 +332,11 @@ type ProxyInstance struct {
 }
 
 func (cli *VanClient) setupProxyDataDirs(ctx context.Context, proxyName string) error {
-	homeDir, _ := os.UserHomeDir()
-	localDir := homeDir + localShare + proxyName
+	proxyDir := getDataHome() + "/skupper/" + proxyName
+
 	certs := []string{"tls.crt", "tls.key", "ca.crt"}
 
-	err := setupLocalDir(localDir)
+	err := setupLocalDir(proxyDir)
 	if err != nil {
 		return err
 	}
@@ -225,7 +347,7 @@ func (cli *VanClient) setupProxyDataDirs(ctx context.Context, proxyName string) 
 	}
 
 	for _, cert := range certs {
-		err = ioutil.WriteFile(localDir+"/qpid-dispatch-certs/conn1-profile/"+cert, secret.Data[cert], 0644)
+		err = ioutil.WriteFile(proxyDir+"/qpid-dispatch-certs/conn1-profile/"+cert, secret.Data[cert], 0644)
 		if err != nil {
 			return fmt.Errorf("Failed to write cert file: %w", err)
 		}
@@ -257,7 +379,7 @@ func (cli *VanClient) setupProxyDataDirs(ctx context.Context, proxyName string) 
 	}
 	// store the url for instance queries
 	url := fmt.Sprintf("amqp://127.0.0.1:%s", strconv.Itoa(amqpPort))
-	err = ioutil.WriteFile(localDir+"/config/url.txt", []byte(url), 0644)
+	err = ioutil.WriteFile(proxyDir+"/config/url.txt", []byte(url), 0644)
 
 	// Iterate through the config and check free ports, get port if in use
 	for name, tcpListener := range proxyConfig.Bridges.TcpListeners {
@@ -266,7 +388,6 @@ func (cli *VanClient) setupProxyDataDirs(ctx context.Context, proxyName string) 
 			if err != nil {
 				return fmt.Errorf("Unable to get free port for listener: %w", err)
 			}
-			fmt.Printf("A free port to use for %s is %d\n", tcpListener.Port, portToUse)
 			proxyConfig.Bridges.TcpListeners[name] = qdr.TcpEndpoint{
 				Name:    tcpListener.Name,
 				Host:    tcpListener.Host,
@@ -281,7 +402,7 @@ func (cli *VanClient) setupProxyDataDirs(ctx context.Context, proxyName string) 
 	hostname, _ := os.Hostname()
 
 	instance := ProxyInstance{
-		DataDir:  localDir,
+		DataDir:  proxyDir,
 		RouterID: newUUID(),
 		Hostname: hostname,
 	}
@@ -293,7 +414,7 @@ func (cli *VanClient) setupProxyDataDirs(ctx context.Context, proxyName string) 
 		return fmt.Errorf("Failed to parse proxy configmap: %w", err)
 	}
 
-	err = ioutil.WriteFile(localDir+"/config/qdrouterd.json", buf.Bytes(), 0644)
+	err = ioutil.WriteFile(proxyDir+"/config/qdrouterd.json", buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write config file: %w", err)
 	}
@@ -301,8 +422,9 @@ func (cli *VanClient) setupProxyDataDirs(ctx context.Context, proxyName string) 
 	return nil
 }
 
-func (cli *VanClient) ProxyInit(ctx context.Context, proxyName string) (string, error) {
+func (cli *VanClient) ProxyInit(ctx context.Context, options types.ProxyInitOptions) (string, error) {
 	var err error
+	proxyName := options.Name
 
 	if proxyName == "" {
 		proxyName, err = generateProxyName(cli.GetNamespace(), cli.KubeClient)
@@ -354,18 +476,105 @@ func (cli *VanClient) ProxyInit(ctx context.Context, proxyName string) (string, 
 		return "", fmt.Errorf("Failed to create proxy config map: %w", err)
 	}
 
+	if options.StartProxy {
+		err = cli.proxyStart(ctx, proxyName)
+		if err != nil {
+			return proxyName, err
+		}
+	}
 	return proxyName, nil
 }
 
-func (cli *VanClient) ProxyStart(ctx context.Context, proxyName string) error {
-	homeDir, _ := os.UserHomeDir()
-	localDir := homeDir + localShare + proxyName
+func (cli *VanClient) ProxyDownload(ctx context.Context, proxyName string, downloadPath string) error {
+	certs := []string{"tls.crt", "tls.key", "ca.crt"}
 
-	_, err := os.Stat(qdrBinaryPath)
-	if os.IsNotExist(err) {
+	tarFile, err := os.Create(downloadPath + "/" + proxyName + ".tar.gz")
+	if err != nil {
+		return fmt.Errorf("Unable to create download file: %w", err)
+	}
+
+	// compress tar
+	gz := gzip.NewWriter(tarFile)
+	defer gz.Close()
+	tw := tar.NewWriter(gz)
+	defer tw.Close()
+
+	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(proxyPrefix+proxyName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to retreive external proxy secret: %w", err)
+	}
+
+	for _, cert := range certs {
+		err = writeTar("qpid-dispatch-certs/conn1-profile/"+cert, secret.Data[cert], time.Now(), tw)
+		if err != nil {
+			return err
+		}
+	}
+
+	configmap, err := kube.GetConfigMap(proxyPrefix+proxyName, cli.GetNamespace(), cli.KubeClient)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve proxy configmap: %w", err)
+	}
+	proxyConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+
+	mc, _ := qdr.MarshalRouterConfig(*proxyConfig)
+
+	instance := ProxyInstance{
+		DataDir:  "${QDR_CONF_DIR}",
+		RouterID: "${ROUTER_ID}",
+		Hostname: "${HOSTNAME}",
+	}
+	var buf bytes.Buffer
+	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
+	qdrConfig.Execute(&buf, instance)
+
+	if err != nil {
+		return fmt.Errorf("Failed to parse proxy configmap: %w", err)
+	}
+
+	err = writeTar("config/qdrouterd.json", buf.Bytes(), time.Now(), tw)
+	if err != nil {
+		return err
+	}
+
+	proxyInfo := UnitInfo{
+		IsSystemService: false,
+		Binary:          "${QDR_BIN_PATH}",
+		ConfigPath:      "${QDR_CONF_DIR}",
+		ProxyName:       proxyName,
+	}
+
+	qdrUserUnit := serviceForQdr(proxyInfo)
+	err = writeTar("service/"+proxyName+".service", []byte(qdrUserUnit), time.Now(), tw)
+	if err != nil {
+		return err
+	}
+
+	launch := launchScript(proxyInfo)
+	err = writeTar("launch.sh", []byte(launch), time.Now(), tw)
+	if err != nil {
+		return err
+	}
+
+	remove := removeScript(proxyInfo)
+	err = writeTar("remove.sh", []byte(remove), time.Now(), tw)
+	if err != nil {
+		return err
+	}
+
+	expand := expandVars()
+	err = writeTar("expandvars.py", []byte(expand), time.Now(), tw)
+	return nil
+}
+
+func (cli *VanClient) proxyStart(ctx context.Context, proxyName string) error {
+	proxyDir := getDataHome() + "/skupper/" + proxyName
+	svcDir := getConfigHome() + "/systemd/user"
+
+	qdrBinaryPath, err := exec.LookPath("qdrouterd")
+	if err != nil {
 		return fmt.Errorf("qdrouterd not available, please 'dnf install qpid-dispatch-router' first")
 	}
-	// check for qdr min version
 
 	err = cli.setupProxyDataDirs(context.Background(), proxyName)
 	if err != nil {
@@ -375,15 +584,15 @@ func (cli *VanClient) ProxyStart(ctx context.Context, proxyName string) error {
 	qdrUserUnit := serviceForQdr(UnitInfo{
 		IsSystemService: false,
 		Binary:          qdrBinaryPath,
-		ConfigPath:      homeDir + localShare,
+		ConfigPath:      proxyDir,
 		ProxyName:       proxyName,
 	})
-	err = ioutil.WriteFile(localDir+"/user/"+proxyName+".service", []byte(qdrUserUnit), 0644)
+	err = ioutil.WriteFile(proxyDir+"/user/"+proxyName+".service", []byte(qdrUserUnit), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write unit file: %w", err)
 	}
 
-	err = startProxyUserService(proxyName, homeDir+"/"+userServiceConfig, localDir)
+	err = startProxyUserService(proxyName, svcDir, proxyDir)
 	if err != nil {
 		return fmt.Errorf("Failed to create start service: %w", err)
 	}
@@ -391,10 +600,9 @@ func (cli *VanClient) ProxyStart(ctx context.Context, proxyName string) error {
 	return nil
 }
 
-func (cli *VanClient) ProxyStop(ctx context.Context, proxyName string) error {
-	homeDir, _ := os.UserHomeDir()
-	localDir := homeDir + localShare + proxyName
-	unitDir := homeDir + "/" + userServiceConfig
+func (cli *VanClient) proxyStop(ctx context.Context, proxyName string) error {
+	proxyDir := getDataHome() + "/skupper/" + proxyName
+	svcDir := getConfigHome() + "/systemd/user"
 
 	// TODO: this should return accumulated errors but get throught the whole thing
 
@@ -408,10 +616,10 @@ func (cli *VanClient) ProxyStop(ctx context.Context, proxyName string) error {
 	}
 
 	if isActive(proxyName) {
-		stopProxyUserService(unitDir, proxyName)
+		stopProxyUserService(svcDir, proxyName)
 	}
 
-	err = os.RemoveAll(localDir)
+	err = os.RemoveAll(proxyDir)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("Unable to remove proxy local directory: %w", err)
 	}
@@ -426,19 +634,19 @@ func (cli *VanClient) ProxyRemove(ctx context.Context, proxyName string) error {
 		return fmt.Errorf("Unable to delete proxy definition, need proxy name")
 	}
 
-	err := cli.ProxyStop(ctx, proxyName)
+	err := cli.proxyStop(ctx, proxyName)
 	if err != nil {
 		return fmt.Errorf("Not able to stop proxy %w", err)
 	}
 
 	err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Delete(proxyPrefix+proxyName, &metav1.DeleteOptions{})
 	if err != nil {
-		fmt.Println("Unbable to remove proxy secret", err.Error())
+		return fmt.Errorf("Unbable to remove proxy secret: %w", err)
 	}
 
 	err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Delete(proxyPrefix+proxyName, &metav1.DeleteOptions{})
 	if err != nil {
-		fmt.Println("Unbable to remove proxy config map", err.Error())
+		return fmt.Errorf("Unbable to remove proxy config map: %w", err)
 	}
 	return nil
 }
@@ -456,8 +664,7 @@ func convert(from interface{}, to interface{}) error {
 }
 
 func (cli *VanClient) ProxyBind(ctx context.Context, proxyName string, egress types.ProxyBindOptions) error {
-	homeDir, _ := os.UserHomeDir()
-	localDir := homeDir + localShare + proxyName
+	proxyDir := getDataHome() + "/skupper/" + proxyName
 
 	_, err := getRootObject(cli)
 	if err != nil {
@@ -496,11 +703,20 @@ func (cli *VanClient) ProxyBind(ctx context.Context, proxyName string, egress ty
 	}
 
 	if isActive(proxyName) {
-		url, err := ioutil.ReadFile(localDir + "/config/url.txt")
+		mc, err := qdr.MarshalRouterConfig(*proxyConfig)
+		if err != nil {
+			return fmt.Errorf("Failed to marshall router config: %w", err)
+		}
+
+		err = ioutil.WriteFile(proxyDir+"/config/qdrouterd.json", []byte(mc), 0644)
+		if err != nil {
+			return fmt.Errorf("Failed to write config file: %w", err)
+		}
+
+		url, err := ioutil.ReadFile(proxyDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
 		if err != nil {
-			fmt.Println("Agent error: ", err.Error())
-			return nil
+			return fmt.Errorf("Agent error adding tcp connector: %w", err)
 		}
 		record := map[string]interface{}{}
 		if err = convert(endpoint, &record); err != nil {
@@ -515,8 +731,7 @@ func (cli *VanClient) ProxyBind(ctx context.Context, proxyName string, egress ty
 }
 
 func (cli *VanClient) ProxyUnbind(ctx context.Context, proxyName string, address string) error {
-	homeDir, _ := os.UserHomeDir()
-	localDir := homeDir + localShare + proxyName
+	proxyDir := getDataHome() + "/skupper/" + proxyName
 
 	_, err := getRootObject(cli)
 	if err != nil {
@@ -539,14 +754,23 @@ func (cli *VanClient) ProxyUnbind(ctx context.Context, proxyName string, address
 	}
 
 	if isActive(proxyName) && deleted {
-		url, err := ioutil.ReadFile(localDir + "/config/url.txt")
+		mc, err := qdr.MarshalRouterConfig(*proxyConfig)
+		if err != nil {
+			return fmt.Errorf("Failed to marshall router config: %w", err)
+		}
+
+		err = ioutil.WriteFile(proxyDir+"/config/qdrouterd.json", []byte(mc), 0644)
+		if err != nil {
+			return fmt.Errorf("Failed to write config file: %w", err)
+		}
+
+		url, err := ioutil.ReadFile(proxyDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
 		if err != nil {
-			fmt.Println("Agent error: ", err.Error())
-			return nil
+			return fmt.Errorf("qdr agent error: %w", err)
 		}
 		if err = agent.Delete("org.apache.qpid.dispatch.tcpConnector", proxyName+"-egress-"+address); err != nil {
-			return fmt.Errorf("Error adding tcp connector : %w", err)
+			return fmt.Errorf("Error removing tcp connector : %w", err)
 		}
 		agent.Close()
 	}
@@ -556,7 +780,10 @@ func (cli *VanClient) ProxyUnbind(ctx context.Context, proxyName string, address
 
 func (cli *VanClient) ProxyExpose(ctx context.Context, options types.ProxyExposeOptions) (string, error) {
 
-	proxyName, err := cli.ProxyInit(ctx, options.ProxyName)
+	proxyName, err := cli.ProxyInit(ctx, types.ProxyInitOptions{
+		Name:       options.ProxyName,
+		StartProxy: false,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -584,10 +811,10 @@ func (cli *VanClient) ProxyExpose(ctx context.Context, options types.ProxyExpose
 
 	err = cli.ProxyBind(ctx, proxyName, options.Egress)
 	if err != nil {
-		fmt.Println("bind error: ", err.Error())
+		return proxyName, err
 	}
 
-	err = cli.ProxyStart(ctx, proxyName)
+	err = cli.proxyStart(ctx, proxyName)
 	if err != nil {
 		return proxyName, err
 	}
@@ -612,7 +839,7 @@ func (cli *VanClient) ProxyUnexpose(ctx context.Context, proxyName string, addre
 	}
 
 	// Note: unexpose will stop and remove proxy independent of bridge configuration
-	err = cli.ProxyStop(ctx, proxyName)
+	err = cli.proxyStop(ctx, proxyName)
 	if err != nil {
 		return err
 	}
@@ -626,8 +853,7 @@ func (cli *VanClient) ProxyUnexpose(ctx context.Context, proxyName string, addre
 }
 
 func (cli *VanClient) ProxyInspect(ctx context.Context, proxyName string) (*types.ProxyInspectResponse, error) {
-	homeDir, _ := os.UserHomeDir()
-	localDir := homeDir + localShare + proxyName
+	proxyDir := getDataHome() + "/skupper/" + proxyName
 
 	_, err := getRootObject(cli)
 	if err != nil {
@@ -644,8 +870,9 @@ func (cli *VanClient) ProxyInspect(ctx context.Context, proxyName string) (*type
 
 	var url []byte
 	var bc *qdr.BridgeConfig
-	if isActive(proxyName) {
-		url, err = ioutil.ReadFile(localDir + "/config/url.txt")
+	isActive := isActive(proxyName)
+	if isActive {
+		url, err = ioutil.ReadFile(proxyDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
 		if err != nil {
 			return &types.ProxyInspectResponse{}, err
@@ -679,12 +906,16 @@ func (cli *VanClient) ProxyInspect(ctx context.Context, proxyName string) (*type
 	}
 
 	for name, listener := range proxyConfig.Bridges.TcpListeners {
+		localPort := ""
+		if isActive {
+			localPort = bc.TcpListeners[listener.Name].Port
+		}
 		inspect.TcpListeners[name] = types.ProxyEndpoint{
 			Name:      listener.Name,
 			Host:      listener.Host,
 			Port:      listener.Port,
 			Address:   listener.Address,
-			LocalPort: bc.TcpListeners[listener.Name].Port,
+			LocalPort: localPort,
 		}
 	}
 
@@ -692,8 +923,7 @@ func (cli *VanClient) ProxyInspect(ctx context.Context, proxyName string) (*type
 }
 
 func (cli *VanClient) ProxyForward(ctx context.Context, proxyName string, loopback bool, service *types.ServiceInterface) error {
-	homeDir, _ := os.UserHomeDir()
-	localDir := homeDir + localShare + proxyName
+	proxyDir := getDataHome() + "/skupper/" + proxyName
 
 	_, err := getRootObject(cli)
 	if err != nil {
@@ -734,11 +964,22 @@ func (cli *VanClient) ProxyForward(ctx context.Context, proxyName string, loopba
 
 	if isActive(proxyName) {
 		var freePort int
-		url, err := ioutil.ReadFile(localDir + "/config/url.txt")
+
+		// TODO: port collision on subsequent startup?
+		mc, err := qdr.MarshalRouterConfig(*proxyConfig)
+		if err != nil {
+			return fmt.Errorf("Failed to marshall router config: %w", err)
+		}
+
+		err = ioutil.WriteFile(proxyDir+"/config/qdrouterd.json", []byte(mc), 0644)
+		if err != nil {
+			return fmt.Errorf("Failed to write config file: %w", err)
+		}
+
+		url, err := ioutil.ReadFile(proxyDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
 		if err != nil {
-			fmt.Println("Agent error: ", err.Error())
-			return nil
+			return fmt.Errorf("qdr agent error: %w", err)
 		}
 
 		//check if service port is free otherwise get a free port
@@ -750,7 +991,6 @@ func (cli *VanClient) ProxyForward(ctx context.Context, proxyName string, loopba
 				return fmt.Errorf("Unable to get free port for listener: %w", err)
 			} else {
 				endpoint.Port = strconv.Itoa(freePort)
-				fmt.Println("Forward port to use is: ", endpoint.Port)
 			}
 		}
 
@@ -767,8 +1007,7 @@ func (cli *VanClient) ProxyForward(ctx context.Context, proxyName string, loopba
 }
 
 func (cli *VanClient) ProxyUnforward(ctx context.Context, proxyName string, address string) error {
-	homeDir, _ := os.UserHomeDir()
-	localDir := homeDir + localShare + proxyName
+	proxyDir := getDataHome() + "/skupper/" + proxyName
 
 	_, err := getRootObject(cli)
 	if err != nil {
@@ -791,11 +1030,20 @@ func (cli *VanClient) ProxyUnforward(ctx context.Context, proxyName string, addr
 	}
 
 	if isActive(proxyName) && deleted {
-		url, err := ioutil.ReadFile(localDir + "/config/url.txt")
+		mc, err := qdr.MarshalRouterConfig(*proxyConfig)
+		if err != nil {
+			return fmt.Errorf("Failed to marshall router config: %w", err)
+		}
+
+		err = ioutil.WriteFile(proxyDir+"/config/qdrouterd.json", []byte(mc), 0644)
+		if err != nil {
+			return fmt.Errorf("Failed to write config file: %w", err)
+		}
+
+		url, err := ioutil.ReadFile(proxyDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
 		if err != nil {
-			fmt.Println("Agent error: ", err.Error())
-			return nil
+			return fmt.Errorf("qdr agent error: %w", err)
 		}
 		if err = agent.Delete("org.apache.qpid.dispatch.tcpListener", proxyName+"-ingress-"+address); err != nil {
 			return fmt.Errorf("Error removing tcp listener : %w", err)

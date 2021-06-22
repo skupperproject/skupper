@@ -1,8 +1,12 @@
 package client
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
+	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +16,94 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
 )
+
+func TestProxyDownload(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var cli *VanClient
+	var err error
+
+	namespace := "test-proxy-download-" + strings.ToLower(utils.RandomId(4))
+	kubeContext := ""
+	kubeConfigPath := ""
+
+	//isCluster := *clusterRun
+	if *clusterRun {
+		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
+	} else {
+		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
+	}
+	assert.Check(t, err, "test-proxy-download-")
+	_, err = kube.NewNamespace(namespace, cli.KubeClient)
+	assert.Check(t, err, "test-proxy-download-")
+	defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+	// Create a router.
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
+			SkupperName:       "test-proxy-download-",
+			RouterMode:        string(types.TransportModeInterior),
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          "",
+			User:              "",
+			Password:          "",
+			Ingress:           types.IngressNoneString,
+		},
+	})
+	assert.Check(t, err, "Unable to create VAN router")
+
+	proxyName, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
+		Name:       "download",
+		StartProxy: false,
+	})
+	assert.Assert(t, observedError)
+	assert.Equal(t, proxyName, "download")
+
+	// Here's where we will put the proxy download file.
+	testPath := "./tmp/"
+	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
+
+	observedError = cli.ProxyDownload(ctx, "download", testPath)
+	assert.Assert(t, observedError)
+
+	file, observedError := os.Open(testPath + "download.tar.gz")
+	defer file.Close()
+	assert.Assert(t, observedError)
+
+	gzf, observedError := gzip.NewReader(file)
+	assert.Assert(t, observedError)
+
+	tarReader := tar.NewReader(gzf)
+
+	files := []string{
+		"qpid-dispatch-certs/conn1-profile/tls.crt",
+		"qpid-dispatch-certs/conn1-profile/tls.key",
+		"qpid-dispatch-certs/conn1-profile/ca.crt",
+		"config/qdrouterd.json",
+		"service/download.service",
+		"launch.sh",
+		"remove.sh",
+		"expandvars.py",
+	}
+
+	i := 0
+	for {
+		header, observedError := tarReader.Next()
+
+		if observedError == io.EOF {
+			break
+		}
+		assert.Assert(t, observedError)
+		assert.Equal(t, header.Name, files[i])
+
+		i++
+	}
+	assert.Equal(t, i, len(files))
+}
 
 func TestProxyForward(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -86,13 +178,16 @@ func TestProxyForward(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &mongoService)
 	assert.Assert(t, observedError)
 
-	proxyName, observedError := cli.ProxyInit(ctx, "")
+	proxyName, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
+		Name:       "",
+		StartProxy: false,
+	})
 	assert.Assert(t, observedError)
 
 	observedError = cli.ProxyForward(ctx, proxyName, false, &echoService)
 	assert.Assert(t, observedError)
 
-	observedError = cli.ProxyStart(ctx, proxyName)
+	observedError = cli.proxyStart(ctx, proxyName)
 	assert.Assert(t, observedError)
 
 	// Note: need delay for service to start up
@@ -104,14 +199,16 @@ func TestProxyForward(t *testing.T) {
 	observedError = cli.ProxyForward(ctx, proxyName, true, &echoService2)
 	assert.Assert(t, observedError)
 
-	_, observedError = cli.ProxyInspect(ctx, proxyName)
+	proxyInspect, observedError := cli.ProxyInspect(ctx, proxyName)
 	assert.Assert(t, observedError)
+	assert.Equal(t, len(proxyInspect.TcpListeners), 3)
+	assert.Equal(t, len(proxyInspect.TcpConnectors), 0)
 
 	// Now undo
 	observedError = cli.ProxyUnforward(ctx, proxyName, "tcp-go-echo")
 	assert.Assert(t, observedError)
 
-	observedError = cli.ProxyStop(ctx, proxyName)
+	observedError = cli.proxyStop(ctx, proxyName)
 	assert.Assert(t, observedError)
 
 	observedError = cli.ProxyRemove(ctx, proxyName)
@@ -169,7 +266,10 @@ func TestProxyBind(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, observedError)
 
-	proxyName, observedError := cli.ProxyInit(ctx, "")
+	proxyName, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
+		Name:       "",
+		StartProxy: false,
+	})
 	assert.Assert(t, observedError)
 
 	egress := types.ProxyBindOptions{
@@ -182,7 +282,7 @@ func TestProxyBind(t *testing.T) {
 	observedError = cli.ProxyBind(ctx, proxyName, egress)
 	assert.Assert(t, observedError)
 
-	observedError = cli.ProxyStart(ctx, proxyName)
+	observedError = cli.proxyStart(ctx, proxyName)
 	assert.Assert(t, observedError)
 
 	// Note: need delay for service to start up
@@ -197,7 +297,7 @@ func TestProxyBind(t *testing.T) {
 	observedError = cli.ProxyUnbind(ctx, proxyName, "tcp-go-echo")
 	assert.Assert(t, observedError)
 
-	observedError = cli.ProxyStop(ctx, proxyName)
+	observedError = cli.proxyStop(ctx, proxyName)
 	assert.Assert(t, observedError)
 
 	observedError = cli.ProxyRemove(ctx, proxyName)
@@ -342,6 +442,7 @@ func TestProxyInit(t *testing.T) {
 	testcases := []struct {
 		doc           string
 		init          bool
+		start         bool
 		initName      string
 		actualName    string
 		remove        bool
@@ -351,6 +452,7 @@ func TestProxyInit(t *testing.T) {
 	}{
 		{
 			init:          true,
+			start:         false,
 			initName:      "",
 			actualName:    "proxy1",
 			remove:        true,
@@ -360,6 +462,7 @@ func TestProxyInit(t *testing.T) {
 		},
 		{
 			init:          false,
+			start:         false,
 			initName:      "",
 			actualName:    "proxy1",
 			remove:        true,
@@ -369,6 +472,7 @@ func TestProxyInit(t *testing.T) {
 		},
 		{
 			init:          true,
+			start:         false,
 			initName:      "",
 			actualName:    "proxy2",
 			remove:        true,
@@ -378,6 +482,7 @@ func TestProxyInit(t *testing.T) {
 		},
 		{
 			init:          true,
+			start:         false,
 			initName:      "meow",
 			actualName:    "meow",
 			remove:        true,
@@ -387,12 +492,23 @@ func TestProxyInit(t *testing.T) {
 		},
 		{
 			init:          false,
+			start:         false,
 			initName:      "",
 			actualName:    "",
 			remove:        true,
 			removeName:    "bark",
 			expectedError: "",
 			url:           "not active",
+		},
+		{
+			init:          true,
+			start:         true,
+			initName:      "hippo",
+			actualName:    "hippo",
+			remove:        true,
+			removeName:    "hippo",
+			expectedError: "",
+			url:           "amqp://127.0.0.1:5672",
 		},
 	}
 
@@ -406,7 +522,6 @@ func TestProxyInit(t *testing.T) {
 	kubeContext := ""
 	kubeConfigPath := ""
 
-	//isCluster := *clusterRun
 	if *clusterRun {
 		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
@@ -417,7 +532,10 @@ func TestProxyInit(t *testing.T) {
 	assert.Check(t, err, "test-proxy-init-remove")
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
-	_, observedError := cli.ProxyInit(ctx, "")
+	_, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
+		Name:       "",
+		StartProxy: true,
+	})
 	assert.Check(t, strings.Contains(observedError.Error(), "Skupper not initialized"))
 
 	// Create a router.
@@ -439,10 +557,16 @@ func TestProxyInit(t *testing.T) {
 	// Init loop
 	for _, tc := range testcases {
 		if tc.init {
-			proxyName, observedError := cli.ProxyInit(ctx, tc.initName)
+			proxyName, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
+				Name:       tc.initName,
+				StartProxy: tc.start,
+			})
 			assert.Assert(t, observedError)
 			assert.Equal(t, proxyName, tc.actualName)
 
+			if tc.start {
+				time.Sleep(time.Second * 1)
+			}
 			proxyInspect, observedError := cli.ProxyInspect(ctx, proxyName)
 			assert.Assert(t, observedError)
 			assert.Equal(t, proxyInspect.ProxyName, tc.actualName)
