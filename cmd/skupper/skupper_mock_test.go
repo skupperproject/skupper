@@ -149,6 +149,46 @@ func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType s
 	return v.injectedReturns.serviceInterfaceUnbind
 }
 
+func (v *vanClientMock) ProxyBind(ctx context.Context, proxyName string, egress types.ProxyBindOptions) error {
+	return nil
+}
+
+func (v *vanClientMock) ProxyUnbind(ctx context.Context, proxyName string, address string) error {
+	return nil
+}
+
+func (v *vanClientMock) ProxyExpose(ctx context.Context, options types.ProxyExposeOptions) (string, error) {
+	return "", nil
+}
+
+func (v *vanClientMock) ProxyUnexpose(ctx context.Context, proxyName string, address string) error {
+	return nil
+}
+
+func (v *vanClientMock) ProxyForward(ctx context.Context, proxyName string, loopback bool, service *types.ServiceInterface) error {
+	return nil
+}
+
+func (v *vanClientMock) ProxyUnforward(ctx context.Context, proxyName string, address string) error {
+	return nil
+}
+
+func (v *vanClientMock) ProxyInit(ctx context.Context, options types.ProxyInitOptions) (string, error) {
+	return "", nil
+}
+
+func (v *vanClientMock) ProxyDownload(ctx context.Context, proxyName string, downloadPath string) error {
+	return nil
+}
+
+func (v *vanClientMock) ProxyInspect(ctx context.Context, proxyName string) (*types.ProxyInspectResponse, error) {
+	return &types.ProxyInspectResponse{}, nil
+}
+
+func (v *vanClientMock) ProxyRemove(ctx context.Context, proxyName string) error {
+	return nil
+}
+
 func (v *vanClientMock) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
 	v.siteConfigCreateCalledWith = append(v.siteConfigCreateCalledWith, spec)
 	return v.injectedReturns.siteConfigCreate.siteConfig, v.injectedReturns.siteConfigCreate.err
