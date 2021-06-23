@@ -859,6 +859,7 @@ func NewCmdUnbind(newClient cobraFunc) *cobra.Command {
 
 func IsZero(v reflect.Value) bool {
 	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
+}
 
 func NewCmdProxy() *cobra.Command {
 	cmd := &cobra.Command{
@@ -941,7 +942,7 @@ var proxyExposeOptions types.ProxyExposeOptions
 func NewCmdExposeProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "expose <address> <host> <port>",
-		Short:  "Expose a service process via proxy through a Skupper address",
+		Short:  "Expose a service process via proxy through a skupper address",
 		Args:   exposeProxyArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -975,7 +976,7 @@ func NewCmdExposeProxy(newClient cobraFunc) *cobra.Command {
 func NewCmdUnexposeProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unexpose <name> <address>",
-		Short:  "Unexpose a service process previously exposed via proxy through a Skupper address",
+		Short:  "Unexpose a service process previously exposed via proxy through a skupper address",
 		Args:   cobra.ExactArgs(2),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -998,7 +999,7 @@ var proxyBindOptions types.ProxyBindOptions
 func NewCmdBindProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "bind <proxy-name> <address> <host> <port>",
-		Short:  "Bind a service process via proxy to a Skupper service",
+		Short:  "Bind a service process via proxy to a skupper service",
 		Args:   bindProxyArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1029,7 +1030,7 @@ func NewCmdBindProxy(newClient cobraFunc) *cobra.Command {
 func NewCmdUnbindProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unbind <proxy-name> <address>",
-		Short:  "Unbind the service process from the Skupper network",
+		Short:  "Unbind the service process from the skupper network",
 		Args:   cobra.ExactArgs(2),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1050,7 +1051,7 @@ func NewCmdUnbindProxy(newClient cobraFunc) *cobra.Command {
 func NewCmdStatusProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status <proxy-name>",
-		Short:  "Report the status of a proxy for the current Skupper site",
+		Short:  "Report the status of a proxy for the current skupper site",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1092,7 +1093,7 @@ var loopback bool
 func NewCmdForwardProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "forward <proxy-name> <address> <port>",
-		Short:  "Forward a service address via proxy to the Skupper network",
+		Short:  "Forward a service address via proxy to the skupper network",
 		Args:   cobra.ExactArgs(3),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1125,7 +1126,7 @@ func NewCmdForwardProxy(newClient cobraFunc) *cobra.Command {
 func NewCmdUnforwardProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unforward <proxy-name> <address>",
-		Short:  "Stop forwarding a service address via proxy to the Skupper network",
+		Short:  "Stop forwarding a service address via proxy to the skupper network",
 		Args:   cobra.ExactArgs(2),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {

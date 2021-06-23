@@ -491,16 +491,6 @@ func TestProxyInit(t *testing.T) {
 			url:           "not active",
 		},
 		{
-			init:          false,
-			start:         false,
-			initName:      "",
-			actualName:    "",
-			remove:        true,
-			removeName:    "bark",
-			expectedError: "",
-			url:           "not active",
-		},
-		{
 			init:          true,
 			start:         true,
 			initName:      "hippo",
