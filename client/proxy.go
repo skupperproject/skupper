@@ -203,7 +203,7 @@ func generateProxyName(namespace string, cli kubernetes.Interface) (string, erro
 	proxies, err := cli.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=proxy-definition"})
 	max := 1
 	if err == nil {
-		proxy_name_pattern := regexp.MustCompile("proxy([0-9])+")
+		proxy_name_pattern := regexp.MustCompile("proxy([0-9]+)+")
 		for _, s := range proxies.Items {
 			count := proxy_name_pattern.FindStringSubmatch(s.ObjectMeta.Name)
 			if len(count) > 1 {
@@ -380,6 +380,9 @@ func (cli *VanClient) setupProxyDataDirs(ctx context.Context, proxyName string) 
 	// store the url for instance queries
 	url := fmt.Sprintf("amqp://127.0.0.1:%s", strconv.Itoa(amqpPort))
 	err = ioutil.WriteFile(proxyDir+"/config/url.txt", []byte(url), 0644)
+	if err != nil {
+		return fmt.Errorf("Failed to write instance url file: %w", err)
+	}
 
 	// Iterate through the config and check free ports, get port if in use
 	for name, tcpListener := range proxyConfig.Bridges.TcpListeners {
@@ -714,7 +717,12 @@ func (cli *VanClient) ProxyBind(ctx context.Context, proxyName string, egress ty
 		}
 
 		url, err := ioutil.ReadFile(proxyDir + "/config/url.txt")
+		if err != nil {
+			return fmt.Errorf("Failed to read instance url file: %w", err)
+		}
+
 		agent, err := qdr.Connect(string(url), nil)
+		defer agent.Close()
 		if err != nil {
 			return fmt.Errorf("Agent error adding tcp connector: %w", err)
 		}
@@ -725,7 +733,6 @@ func (cli *VanClient) ProxyBind(ctx context.Context, proxyName string, egress ty
 		if err = agent.Create("org.apache.qpid.dispatch.tcpConnector", endpoint.Name, record); err != nil {
 			return fmt.Errorf("Error adding tcp connector : %w", err)
 		}
-		agent.Close()
 	}
 	return nil
 }
@@ -765,14 +772,18 @@ func (cli *VanClient) ProxyUnbind(ctx context.Context, proxyName string, address
 		}
 
 		url, err := ioutil.ReadFile(proxyDir + "/config/url.txt")
+		if err != nil {
+			return fmt.Errorf("Failed to read instance url file: %w", err)
+		}
+
 		agent, err := qdr.Connect(string(url), nil)
+		defer agent.Close()
 		if err != nil {
 			return fmt.Errorf("qdr agent error: %w", err)
 		}
 		if err = agent.Delete("org.apache.qpid.dispatch.tcpConnector", proxyName+"-egress-"+address); err != nil {
 			return fmt.Errorf("Error removing tcp connector : %w", err)
 		}
-		agent.Close()
 	}
 
 	return nil

@@ -187,11 +187,11 @@ func TestProxyForward(t *testing.T) {
 	observedError = cli.ProxyForward(ctx, proxyName, false, &echoService)
 	assert.Assert(t, observedError)
 
-	observedError = cli.proxyStart(ctx, proxyName)
-	assert.Assert(t, observedError)
+	//	observedError = cli.proxyStart(ctx, proxyName)
+	//	assert.Assert(t, observedError)
 
 	// Note: need delay for service to start up
-	time.Sleep(time.Second * 1)
+	//	time.Sleep(time.Second * 1)
 
 	observedError = cli.ProxyForward(ctx, proxyName, true, &mongoService)
 	assert.Assert(t, observedError)
@@ -208,8 +208,8 @@ func TestProxyForward(t *testing.T) {
 	observedError = cli.ProxyUnforward(ctx, proxyName, "tcp-go-echo")
 	assert.Assert(t, observedError)
 
-	observedError = cli.proxyStop(ctx, proxyName)
-	assert.Assert(t, observedError)
+	//	observedError = cli.proxyStop(ctx, proxyName)
+	//	assert.Assert(t, observedError)
 
 	observedError = cli.ProxyRemove(ctx, proxyName)
 	assert.Assert(t, observedError)
@@ -282,11 +282,11 @@ func TestProxyBind(t *testing.T) {
 	observedError = cli.ProxyBind(ctx, proxyName, egress)
 	assert.Assert(t, observedError)
 
-	observedError = cli.proxyStart(ctx, proxyName)
-	assert.Assert(t, observedError)
+	// observedError = cli.proxyStart(ctx, proxyName)
+	// assert.Assert(t, observedError)
 
 	// Note: need delay for service to start up
-	time.Sleep(time.Second * 1)
+	//	time.Sleep(time.Second * 1)
 
 	egress.Address = "mongo-db"
 	egress.Port = "27017"
@@ -297,146 +297,16 @@ func TestProxyBind(t *testing.T) {
 	observedError = cli.ProxyUnbind(ctx, proxyName, "tcp-go-echo")
 	assert.Assert(t, observedError)
 
-	observedError = cli.proxyStop(ctx, proxyName)
+	//	observedError = cli.proxyStop(ctx, proxyName)
+	//	assert.Assert(t, observedError)
+
+	proxyInspect, observedError := cli.ProxyInspect(ctx, proxyName)
 	assert.Assert(t, observedError)
+	assert.Equal(t, len(proxyInspect.TcpListeners), 0)
+	assert.Equal(t, len(proxyInspect.TcpConnectors), 1)
 
 	observedError = cli.ProxyRemove(ctx, proxyName)
 	assert.Assert(t, observedError)
-}
-func TestProxyExpose(t *testing.T) {
-	testcases := []struct {
-		doc             string
-		expose          bool
-		exposeProtocol  string
-		exposeAddress   string
-		exposeHost      string
-		exposePort      string
-		exposeName      string
-		actualName      string
-		unexpose        bool
-		unexposeAddress string
-		expectedError   string
-		inspect         bool
-		url             string
-	}{
-		{
-			expose:          true,
-			exposeProtocol:  "tcp",
-			exposeAddress:   "tcp-go-echo",
-			exposeHost:      "localhost",
-			exposePort:      "9090",
-			exposeName:      "",
-			actualName:      "proxy1",
-			unexpose:        true,
-			unexposeAddress: "",
-			expectedError:   "",
-			inspect:         true,
-			url:             "amqp://127.0.0.1:5672",
-		},
-		{
-			expose:          true,
-			exposeProtocol:  "tcp",
-			exposeAddress:   "mongo-db",
-			exposeHost:      "localhost",
-			exposePort:      "27017",
-			exposeName:      "",
-			actualName:      "proxy2",
-			unexpose:        true,
-			unexposeAddress: "",
-			expectedError:   "",
-			inspect:         true,
-			url:             "",
-		},
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var cli *VanClient
-	var err error
-
-	namespace := "test-proxy-expose-" + strings.ToLower(utils.RandomId(4))
-	kubeContext := ""
-	kubeConfigPath := ""
-
-	//isCluster := *clusterRun
-	if *clusterRun {
-		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
-	}
-	assert.Check(t, err, "test-proxy-expose")
-	_, err = kube.NewNamespace(namespace, cli.KubeClient)
-	assert.Check(t, err, "test-proxy-expose")
-	defer kube.DeleteNamespace(namespace, cli.KubeClient)
-
-	// Create a router.
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-proxy-expose",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
-	})
-	assert.Check(t, err, "Unable to create VAN router")
-
-	// Expose loop
-	for _, tc := range testcases {
-		if tc.expose {
-			exposeOptions := types.ProxyExposeOptions{
-				ProxyName: tc.exposeName,
-				Egress: types.ProxyBindOptions{
-					Protocol: tc.exposeProtocol,
-					Host:     tc.exposeHost,
-					Port:     tc.exposePort,
-					Address:  tc.exposeAddress,
-				},
-			}
-			proxyName, observedError := cli.ProxyExpose(ctx, exposeOptions)
-			assert.Assert(t, observedError)
-			assert.Equal(t, proxyName, tc.actualName)
-		}
-	}
-
-	// Note: need delay for service to start up
-	time.Sleep(time.Second * 1)
-
-	// Inspect loop
-	for _, tc := range testcases {
-		if tc.inspect {
-			proxyInspect, observedError := cli.ProxyInspect(ctx, tc.actualName)
-			assert.Assert(t, observedError)
-			assert.Equal(t, proxyInspect.ProxyName, tc.actualName)
-			if tc.url != "" {
-				assert.Equal(t, proxyInspect.ProxyUrl, tc.url)
-			}
-		}
-	}
-
-	// Unexpose loop
-	for _, tc := range testcases {
-		if tc.unexpose {
-			observedError := cli.ProxyUnexpose(ctx, tc.actualName, tc.exposeAddress)
-
-			switch tc.expectedError {
-			case "":
-				assert.Check(t, observedError == nil || strings.Contains(observedError.Error(), "already defined"), "Test failure: An error was reported where none was expected. The error was |%s|.\n", observedError)
-			default:
-				if observedError == nil {
-					assert.Check(t, observedError != nil, "Test failure: The expected error |%s| was not reported.\n", tc.expectedError)
-				} else {
-					assert.Check(t, strings.Contains(observedError.Error(), tc.expectedError), "Test failure: The reported error |%s| did not have the expected prefix |%s|.\n", observedError.Error(), tc.expectedError)
-				}
-			}
-		}
-	}
-
 }
 func TestProxyInit(t *testing.T) {
 	testcases := []struct {
@@ -489,16 +359,6 @@ func TestProxyInit(t *testing.T) {
 			removeName:    "meow",
 			expectedError: "",
 			url:           "not active",
-		},
-		{
-			init:          true,
-			start:         true,
-			initName:      "hippo",
-			actualName:    "hippo",
-			remove:        true,
-			removeName:    "hippo",
-			expectedError: "",
-			url:           "amqp://127.0.0.1:5672",
 		},
 	}
 
