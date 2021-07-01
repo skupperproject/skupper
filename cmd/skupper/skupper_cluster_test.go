@@ -1441,7 +1441,15 @@ func TestDebugDumpWithCluster(t *testing.T) {
 		{
 			doc:             "debug-dump-test2",
 			args:            []string{"./tmp/dump.txt"},
-			expectedCapture: "",
+			expectedCapture: "Skupper dump details written to compressed archive:  ./tmp/dump.txt",
+			expectedOutput:  "",
+			expectedError:   "",
+			realCluster:     true,
+		},
+		{
+			doc:             "debug-dump-test3",
+			args:            []string{"./tmp/dump"},
+			expectedCapture: "Skupper dump details written to compressed archive:  ./tmp/dump.tar.gz",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
