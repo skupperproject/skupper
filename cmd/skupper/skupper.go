@@ -866,15 +866,17 @@ func NewCmdDebug() *cobra.Command {
 
 func NewCmdDebugDump(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "dump <filename>",
-		Short:  "Collect and save skupper logs, config, etc.",
+		Use:    "dump <filename>.tar.gz",
+		Short:  "Collect and store skupper logs, config, etc. to compressed archive file",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			err := cli.SkupperDump(context.Background(), args[0], client.Version, kubeConfigPath, kubeContext)
+			file, err := cli.SkupperDump(context.Background(), args[0], client.Version, kubeConfigPath, kubeContext)
 			if err != nil {
-				return fmt.Errorf("Unable to save skupper details: %w", err)
+				return fmt.Errorf("Unable to save skupper dump details: %w", err)
+			} else {
+				fmt.Println("Skupper dump details written to compressed archive: ", file)
 			}
 			return nil
 		},

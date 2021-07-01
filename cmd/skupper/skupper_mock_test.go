@@ -171,8 +171,8 @@ func (v *vanClientMock) SiteConfigRemove(ctx context.Context) error {
 	return nil
 }
 
-func (v *vanClientMock) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error {
-	return nil
+func (v *vanClientMock) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error) {
+	return "", nil
 }
 
 func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {

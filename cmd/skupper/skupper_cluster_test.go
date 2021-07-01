@@ -1434,7 +1434,7 @@ func TestDebugDumpWithCluster(t *testing.T) {
 			doc:             "debug-dump-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Collect and save skupper logs, config, etc.",
+			expectedOutput:  "Collect and store skupper logs, config, etc. to compressed archive file",
 			expectedError:   "",
 			realCluster:     false,
 		},

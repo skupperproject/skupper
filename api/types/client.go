@@ -181,7 +181,7 @@ type VanClientInterface interface {
 	SiteConfigUpdate(ctx context.Context, spec SiteConfigSpec) ([]string, error)
 	SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*SiteConfig, error)
 	SiteConfigRemove(ctx context.Context) error
-	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error
+	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error)
 	GetNamespace() string
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
