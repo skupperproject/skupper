@@ -626,60 +626,31 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	})
 
 	if !isEdge {
-		if options.IsIngressNone() {
-			credentials = append(credentials, types.Credential{
-				CA:          types.SiteCaSecret,
-				Name:        types.SiteServerSecret,
-				Subject:     types.TransportServiceName,
-				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
-				ConnectJson: false,
-				Post:        false,
-			})
-			van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
-				CA:          types.SiteCaSecret,
-				Name:        types.ClaimsServerSecret,
-				Subject:     types.ControllerServiceName,
-				Hosts:       []string{types.ControllerServiceName + "." + van.Namespace},
-				ConnectJson: false,
-				Post:        false,
-			})
-		} else if options.IsIngressNodePort() {
-			credentials = append(credentials, types.Credential{
-				CA:          types.SiteCaSecret,
-				Name:        types.SiteServerSecret,
-				Subject:     options.Router.IngressHost,
-				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
-				ConnectJson: false,
-				Post:        false,
-			})
-			if options.Controller.IngressHost != "" {
-				van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
-					CA:          types.SiteCaSecret,
-					Name:        types.ClaimsServerSecret,
-					Subject:     types.ControllerServiceName,
-					Hosts:       []string{options.Controller.IngressHost},
-					ConnectJson: false,
-					Post:        false,
-				})
-			}
-		} else {
-			credentials = append(credentials, types.Credential{
-				CA:          types.SiteCaSecret,
-				Name:        types.SiteServerSecret,
-				Subject:     types.TransportServiceName,
-				Hosts:       []string{types.TransportServiceName + "." + van.Namespace},
-				ConnectJson: false,
-				Post:        true,
-			})
-			van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
-				CA:          types.SiteCaSecret,
-				Name:        types.ClaimsServerSecret,
-				Subject:     types.ControllerServiceName,
-				Hosts:       []string{types.ControllerServiceName + "." + van.Namespace},
-				ConnectJson: false,
-				Post:        true,
-			})
+		routerHosts := []string{types.TransportServiceName + "." + van.Namespace}
+		if options.Router.IngressHost != "" {
+			routerHosts = append(routerHosts, options.Router.IngressHost)
 		}
+		controllerHosts := []string{types.ControllerServiceName + "." + van.Namespace}
+		if options.Controller.IngressHost != "" {
+			controllerHosts = append(controllerHosts, options.Controller.IngressHost)
+		}
+		post := !(options.IsIngressNone() || options.IsIngressNodePort())
+		credentials = append(credentials, types.Credential{
+			CA:          types.SiteCaSecret,
+			Name:        types.SiteServerSecret,
+			Subject:     types.TransportServiceName,
+			Hosts:       routerHosts,
+			ConnectJson: false,
+			Post:        post,
+		})
+		van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
+			CA:          types.SiteCaSecret,
+			Name:        types.ClaimsServerSecret,
+			Subject:     types.ControllerServiceName,
+			Hosts:       controllerHosts,
+			ConnectJson: false,
+			Post:        post,
+		})
 	}
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 		userData := map[string][]byte{}
