@@ -185,6 +185,10 @@ func (v *vanClientMock) ProxyInspect(ctx context.Context, proxyName string) (*ty
 	return &types.ProxyInspectResponse{}, nil
 }
 
+func (v *vanClientMock) ProxyList(ctx context.Context) ([]*types.ProxyInspectResponse, error) {
+	return nil, nil
+}
+
 func (v *vanClientMock) ProxyRemove(ctx context.Context, proxyName string) error {
 	return nil
 }

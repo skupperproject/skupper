@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
@@ -103,7 +104,12 @@ func launchScript(info UnitInfo) string {
 if result=$(command -v qdrouterd 2>&1); then
     qdr_bin=$result
 else
-    echo "qdrouterd could not be found. Please 'dnf install qpid-dispatch-router'"
+    echo "qdrouterd could not be found. Please 'install qdrouterd'"
+    exit
+fi
+
+if [[ -z "$(command -v python3 2>&1)" ]]; then
+    echo "python3 could not be found. Please 'install python3'"
     exit
 fi
 
@@ -115,7 +121,7 @@ config_dir=${XDG_CONFIG_HOME:-~/.config}
 certs_dir=$share_dir/skupper/$proxy_name/qpid-dispatch-certs
 qdrcfg_dir=$share_dir/skupper/$proxy_name/config
 
-export ROUTER_ID=$(uuidgen)
+export ROUTER_ID=$(cat /proc/sys/kernel/random/uuid)
 export QDR_CONF_DIR=$share_dir/skupper/$proxy_name
 export QDR_BIN_PATH=${QDROUTERD_HOME:-$qdr_bin}
 
@@ -429,7 +435,16 @@ func (cli *VanClient) ProxyInit(ctx context.Context, options types.ProxyInitOpti
 	var err error
 	proxyName := options.Name
 
-	if proxyName == "" {
+	if proxyName != "" {
+		nameRegex := regexp.MustCompile(`^[a-z]([a-z0-9-]*[a-z0-9])*$`)
+		if !nameRegex.MatchString(proxyName) {
+			return "", fmt.Errorf("Proxy name must consist of lower case letters, numerals and '-'. Must start with a letter.")
+		}
+		_, err := kube.GetConfigMap(proxyPrefix+proxyName, cli.GetNamespace(), cli.KubeClient)
+		if err == nil {
+			return "", fmt.Errorf("Proxy name already exists: %s", proxyName)
+		}
+	} else {
 		proxyName, err = generateProxyName(cli.GetNamespace(), cli.KubeClient)
 		if err != nil {
 			return "", fmt.Errorf("Unable to generate proxy name: %w", err)
@@ -504,7 +519,7 @@ func (cli *VanClient) ProxyDownload(ctx context.Context, proxyName string, downl
 
 	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(proxyPrefix+proxyName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to retreive external proxy secret: %w", err)
+		return fmt.Errorf("Failed to retrieve external proxy secret: %w", err)
 	}
 
 	for _, cert := range certs {
@@ -581,7 +596,12 @@ func (cli *VanClient) proxyStart(ctx context.Context, proxyName string) error {
 
 	err = cli.setupProxyDataDirs(context.Background(), proxyName)
 	if err != nil {
-		return fmt.Errorf("Failed to create user service: %w", err)
+		return fmt.Errorf("Failed to setup proxy local directories: %w", err)
+	}
+
+	err = os.MkdirAll(svcDir, 0755)
+	if err != nil {
+		return fmt.Errorf("Failed to create proxy service directory: %w", err)
 	}
 
 	qdrUserUnit := serviceForQdr(UnitInfo{
@@ -597,7 +617,7 @@ func (cli *VanClient) proxyStart(ctx context.Context, proxyName string) error {
 
 	err = startProxyUserService(proxyName, svcDir, proxyDir)
 	if err != nil {
-		return fmt.Errorf("Failed to create start service: %w", err)
+		return fmt.Errorf("Failed to create user service: %w", err)
 	}
 
 	return nil
@@ -644,12 +664,12 @@ func (cli *VanClient) ProxyRemove(ctx context.Context, proxyName string) error {
 
 	err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Delete(proxyPrefix+proxyName, &metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("Unbable to remove proxy secret: %w", err)
+		return fmt.Errorf("Unable to remove proxy secret: %w", err)
 	}
 
 	err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Delete(proxyPrefix+proxyName, &metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("Unbable to remove proxy config map: %w", err)
+		return fmt.Errorf("Unable to remove proxy config map: %w", err)
 	}
 	return nil
 }
@@ -863,6 +883,21 @@ func (cli *VanClient) ProxyUnexpose(ctx context.Context, proxyName string, addre
 	return nil
 }
 
+func (cli *VanClient) ProxyList(ctx context.Context) ([]*types.ProxyInspectResponse, error) {
+	var list []*types.ProxyInspectResponse
+	proxies, err := cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).List(metav1.ListOptions{LabelSelector: "skupper.io/type=proxy-definition"})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, proxy := range proxies.Items {
+		inspect, _ := cli.ProxyInspect(ctx, strings.TrimPrefix(proxy.ObjectMeta.Name, proxyPrefix))
+		list = append(list, inspect)
+	}
+
+	return list, nil
+}
+
 func (cli *VanClient) ProxyInspect(ctx context.Context, proxyName string) (*types.ProxyInspectResponse, error) {
 	proxyDir := getDataHome() + "/skupper/" + proxyName
 
@@ -885,6 +920,7 @@ func (cli *VanClient) ProxyInspect(ctx context.Context, proxyName string) (*type
 	if isActive {
 		url, err = ioutil.ReadFile(proxyDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
+		defer agent.Close()
 		if err != nil {
 			return &types.ProxyInspectResponse{}, err
 		}
@@ -892,7 +928,6 @@ func (cli *VanClient) ProxyInspect(ctx context.Context, proxyName string) (*type
 		if err != nil {
 			return &types.ProxyInspectResponse{}, err
 		}
-		agent.Close()
 	} else {
 		url = []byte("not active")
 	}
@@ -989,6 +1024,7 @@ func (cli *VanClient) ProxyForward(ctx context.Context, proxyName string, loopba
 
 		url, err := ioutil.ReadFile(proxyDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
+		defer agent.Close()
 		if err != nil {
 			return fmt.Errorf("qdr agent error: %w", err)
 		}
@@ -1012,7 +1048,6 @@ func (cli *VanClient) ProxyForward(ctx context.Context, proxyName string, loopba
 		if err = agent.Create("org.apache.qpid.dispatch.tcpListener", endpoint.Name, record); err != nil {
 			return fmt.Errorf("Error adding tcp listener : %w", err)
 		}
-		agent.Close()
 	}
 	return nil
 }
@@ -1053,13 +1088,13 @@ func (cli *VanClient) ProxyUnforward(ctx context.Context, proxyName string, addr
 
 		url, err := ioutil.ReadFile(proxyDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
+		defer agent.Close()
 		if err != nil {
 			return fmt.Errorf("qdr agent error: %w", err)
 		}
 		if err = agent.Delete("org.apache.qpid.dispatch.tcpListener", proxyName+"-ingress-"+address); err != nil {
 			return fmt.Errorf("Error removing tcp listener : %w", err)
 		}
-		agent.Close()
 	}
 
 	return nil

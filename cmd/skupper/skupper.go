@@ -1052,33 +1052,60 @@ func NewCmdStatusProxy(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status <proxy-name>",
 		Short:  "Report the status of a proxy for the current skupper site",
-		Args:   cobra.ExactArgs(1),
+		Args:   cobra.MaximumNArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			proxyName := args[0]
 
-			inspect, err := cli.ProxyInspect(context.Background(), proxyName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
+			if len(args) == 1 && args[0] != "all" {
+				proxyName := args[0]
+				inspect, err := cli.ProxyInspect(context.Background(), proxyName)
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				}
 
-			fmt.Printf("%-30s %s\n", "Name", inspect.ProxyName)
-			fmt.Printf("%-30s %s\n", "Version", strings.TrimSuffix(inspect.ProxyVersion, "\n"))
-			fmt.Printf("%-30s %s\n", "URL", inspect.ProxyUrl)
+				fmt.Printf("%-30s %s\n", "Name", inspect.ProxyName)
+				fmt.Printf("%-30s %s\n", "Version", strings.TrimSuffix(inspect.ProxyVersion, "\n"))
+				fmt.Printf("%-30s %s\n", "URL", inspect.ProxyUrl)
 
-			fmt.Println("")
-			fmt.Println("Proxy Definitions:")
-			tw := new(tabwriter.Writer)
-			tw.Init(os.Stdout, 0, 4, 1, ' ', 0)
-			fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "TYPE", "SERVICE", "ADDRESS", "HOST", "PORT", "FORWARD_PORT"))
-			for _, connector := range inspect.TcpConnectors {
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "bind", strings.TrimPrefix(connector.Name, proxyName+"-egress-"), connector.Address, connector.Host, connector.Port, ""))
+				fmt.Println("")
+
+				if len(inspect.TcpConnectors) == 0 && len(inspect.TcpListeners) == 0 {
+					fmt.Println("No Services Defined")
+				} else {
+					fmt.Println("Service Definitions:")
+					tw := new(tabwriter.Writer)
+					tw.Init(os.Stdout, 0, 4, 1, ' ', 0)
+					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "TYPE", "SERVICE", "ADDRESS", "HOST", "PORT", "FORWARD_PORT"))
+					for _, connector := range inspect.TcpConnectors {
+						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "bind", strings.TrimPrefix(connector.Name, proxyName+"-egress-"), connector.Address, connector.Host, connector.Port, ""))
+					}
+					for _, listener := range inspect.TcpListeners {
+						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "forward", strings.TrimPrefix(listener.Name, proxyName+"-ingress-"), listener.Address, listener.Host, listener.Port, listener.LocalPort))
+					}
+					tw.Flush()
+				}
+			} else {
+				proxies, err := cli.ProxyList(context.Background())
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				}
+
+				if len(proxies) == 0 {
+					fmt.Println("No proxy definitions found")
+					return nil
+				}
+
+				fmt.Println("Proxy Definitions Summary")
+				fmt.Println("")
+				tw := new(tabwriter.Writer)
+				tw.Init(os.Stdout, 0, 4, 2, ' ', 0)
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t", "NAME", "BINDS", "FORWARDS", "URL"))
+				for _, proxy := range proxies {
+					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t", proxy.ProxyName, strconv.Itoa(len(proxy.TcpConnectors)), strconv.Itoa(len(proxy.TcpListeners)), proxy.ProxyUrl))
+				}
+				tw.Flush()
 			}
-			for _, listener := range inspect.TcpListeners {
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "forward", strings.TrimPrefix(listener.Name, proxyName+"-ingress-"), listener.Address, listener.Host, listener.Port, listener.LocalPort))
-			}
-			tw.Flush()
 
 			return nil
 		},

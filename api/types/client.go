@@ -215,6 +215,7 @@ type VanClientInterface interface {
 	ProxyInit(ctx context.Context, options ProxyInitOptions) (string, error)
 	ProxyDownload(ctx context.Context, proxyName string, downloadPath string) error
 	ProxyInspect(ctx context.Context, proxyName string) (*ProxyInspectResponse, error)
+	ProxyList(ctx context.Context) ([]*ProxyInspectResponse, error)
 	ProxyRemove(ctx context.Context, proxyName string) error
 	SiteConfigCreate(ctx context.Context, spec SiteConfigSpec) (*SiteConfig, error)
 	SiteConfigUpdate(ctx context.Context, spec SiteConfigSpec) ([]string, error)

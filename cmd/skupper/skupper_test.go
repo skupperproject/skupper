@@ -8,7 +8,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func Test_parseTargetTypeAndName(t *testing.T) {
+func TestParseTargetTypeAndName(t *testing.T) {
 	targetType, targetName := parseTargetTypeAndName([]string{"type", "name"})
 	assert.Equal(t, targetType, "type")
 	assert.Equal(t, targetName, "name")
@@ -18,7 +18,7 @@ func Test_parseTargetTypeAndName(t *testing.T) {
 	assert.Equal(t, targetName, "name")
 }
 
-func Test_bindArgs(t *testing.T) {
+func TestBindArgs(t *testing.T) {
 	genericError := "Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')"
 	b := func(args []string) error {
 		return bindArgs(nil, args)
@@ -46,7 +46,7 @@ func Test_bindArgs(t *testing.T) {
 	assert.Error(t, b([]string{"one", "resource", "name", "four", "five"}), "illegal argument: four")
 }
 
-func Test_createServiceArgs(t *testing.T) {
+func TestCreateServiceArgs(t *testing.T) {
 	c := func(args []string) error {
 		return createServiceArgs(nil, args)
 	}
@@ -64,7 +64,7 @@ func Test_createServiceArgs(t *testing.T) {
 	assert.Error(t, c([]string{"service", "port", "other", "arg"}), "illegal argument: other")
 }
 
-func Test_exposeTargetArgs(t *testing.T) {
+func TestExposeTargetArgs(t *testing.T) {
 	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>'"
 	targetError := "target type must be one of: [deployment, statefulset, pods, service]"
 
@@ -94,7 +94,7 @@ func Test_exposeTargetArgs(t *testing.T) {
 	}
 }
 
-func Test_cmdExposeParseArgs(t *testing.T) {
+func TestExposeParseArgs(t *testing.T) {
 	cmd_args := []string{"deployment/name", "--address", "theAddress"}
 	cmd := NewCmdExpose(nil)
 
@@ -106,6 +106,45 @@ func Test_cmdExposeParseArgs(t *testing.T) {
 }
 
 var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
+
+func TestBindProxyArgs(t *testing.T) {
+	genericError := "Proxy name, service address, target host and port must all be specified"
+	b := func(args []string) error {
+		return bindProxyArgs(nil, args)
+	}
+
+	assert.Error(t, b([]string{}), genericError)
+	assert.Error(t, b([]string{"oneArg"}), genericError)
+	assert.Error(t, b([]string{"oneArg", "twoArg"}), genericError)
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg"}), genericError)
+
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "threeArg:fourArg"}))
+
+	//note  illegal vs extra
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg:fourArg", "fiveArg"}), "extra argument: fiveArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "illegal argument: fiveArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg", "sixArg"}), "illegal argument: fiveArg")
+}
+
+func TestExposeProxyArgs(t *testing.T) {
+	genericError := "Proxy service address, target host and port must all be specified"
+	b := func(args []string) error {
+		return exposeProxyArgs(nil, args)
+	}
+
+	assert.Error(t, b([]string{}), genericError)
+	assert.Error(t, b([]string{"oneArg"}), genericError)
+	assert.Error(t, b([]string{"oneArg", "twoArg"}), genericError)
+
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "threeArg"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg:threeArg"}))
+
+	//note  illegal vs extra
+	assert.Error(t, b([]string{"oneArg", "twoArg:threeArg", "fourArg"}), "extra argument: fourArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "illegal argument: fourArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "illegal argument: fourArg")
+}
 
 func TestMain(m *testing.M) {
 	flag.Parse()

@@ -34,9 +34,9 @@ func TestProxyDownload(t *testing.T) {
 	} else {
 		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
 	}
-	assert.Check(t, err, "test-proxy-download-")
+	assert.Check(t, err, namespace)
 	_, err = kube.NewNamespace(namespace, cli.KubeClient)
-	assert.Check(t, err, "test-proxy-download-")
+	assert.Check(t, err, namespace)
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
 	// Create a router.
