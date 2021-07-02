@@ -74,6 +74,7 @@ type SiteConfigSpec struct {
 	Password            string
 	Ingress             string
 	ConsoleIngress      string
+	IngressHost         string
 	Replicas            int32
 	SiteControlled      bool
 	Annotations         map[string]string
@@ -86,6 +87,7 @@ const (
 	IngressRouteString        string = "route"
 	IngressLoadBalancerString string = "loadbalancer"
 	IngressNodePortString     string = "nodeport"
+	IngressNginxIngressString string = "nginx-ingress-v1"
 	IngressNoneString         string = "none"
 )
 
@@ -97,6 +99,9 @@ func (s *SiteConfigSpec) IsIngressLoadBalancer() bool {
 }
 func (s *SiteConfigSpec) IsIngressNodePort() bool {
 	return s.Ingress == IngressNodePortString
+}
+func (s *SiteConfigSpec) IsIngressNginxIngress() bool {
+	return s.Ingress == IngressNginxIngressString
 }
 func (s *SiteConfigSpec) IsIngressNone() bool {
 	return s.Ingress == IngressNoneString
@@ -111,6 +116,9 @@ func (s *SiteConfigSpec) IsConsoleIngressLoadBalancer() bool {
 func (s *SiteConfigSpec) IsConsoleIngressNodePort() bool {
 	return s.getConsoleIngress() == IngressNodePortString
 }
+func (s *SiteConfigSpec) IsConsoleIngressNginxIngress() bool {
+	return s.getConsoleIngress() == IngressNginxIngressString
+}
 func (s *SiteConfigSpec) IsConsoleIngressNone() bool {
 	return s.getConsoleIngress() == IngressNoneString
 }
@@ -122,7 +130,7 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 }
 
 func isValidIngress(ingress string) bool {
-	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNodePortString || ingress == IngressNoneString
+	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNodePortString || ingress == IngressNginxIngressString || ingress == IngressNoneString
 }
 
 func (s *SiteConfigSpec) CheckIngress() error {
@@ -137,6 +145,20 @@ func (s *SiteConfigSpec) CheckConsoleIngress() error {
 		return fmt.Errorf("Invalid value for console-ingress: %s", s.ConsoleIngress)
 	}
 	return nil
+}
+
+func (s *SiteConfigSpec) GetRouterIngressHost() string {
+	if s.Router.IngressHost != "" {
+		return s.Router.IngressHost
+	}
+	return s.IngressHost
+}
+
+func (s *SiteConfigSpec) GetControllerIngressHost() string {
+	if s.Controller.IngressHost != "" {
+		return s.Controller.IngressHost
+	}
+	return s.IngressHost
 }
 
 type SiteConfigReference struct {

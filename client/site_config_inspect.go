@@ -104,6 +104,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	if consoleIngress, ok := siteConfig.Data[SiteConfigConsoleIngressKey]; ok {
 		result.Spec.ConsoleIngress = consoleIngress
 	}
+	if ingressHost, ok := siteConfig.Data[SiteConfigIngressHostKey]; ok {
+		result.Spec.IngressHost = ingressHost
+	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if siteConfig.ObjectMeta.Labels == nil {
 		result.Spec.SiteControlled = true

@@ -627,14 +627,32 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 
 	if !isEdge {
 		routerHosts := []string{types.TransportServiceName + "." + van.Namespace}
-		if options.Router.IngressHost != "" {
-			routerHosts = append(routerHosts, options.Router.IngressHost)
-		}
 		controllerHosts := []string{types.ControllerServiceName + "." + van.Namespace}
-		if options.Controller.IngressHost != "" {
-			controllerHosts = append(controllerHosts, options.Controller.IngressHost)
+		routerIngressHost := options.GetRouterIngressHost()
+		controllerIngressHost := options.GetControllerIngressHost()
+		post := false // indicates whether credentials need to be revised after creating appropriate ingress resources
+		if options.IsIngressNginxIngress() {
+			if routerIngressHost != "" {
+				routerHosts = append(routerHosts, "inter-router."+routerIngressHost)
+				routerHosts = append(routerHosts, "edge."+routerIngressHost)
+			} else {
+				post = true
+			}
+			if controllerIngressHost != "" {
+				controllerHosts = append(controllerHosts, "claims."+controllerIngressHost)
+			} else {
+				post = true
+			}
+		} else if options.IsIngressLoadBalancer() || options.IsIngressRoute() {
+			post = true
+		} else {
+			if routerIngressHost != "" {
+				routerHosts = append(routerHosts, routerIngressHost)
+			}
+			if controllerIngressHost != "" {
+				controllerHosts = append(controllerHosts, controllerIngressHost)
+			}
 		}
-		post := !(options.IsIngressNone() || options.IsIngressNodePort())
 		credentials = append(credentials, types.Credential{
 			CA:          types.SiteCaSecret,
 			Name:        types.SiteServerSecret,
@@ -971,6 +989,12 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
+		if options.Spec.IsIngressNginxIngress() {
+			err = cli.createIngress(options)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				return err
+			}
+		}
 		for _, cred := range van.TransportCredentials {
 			if cred.Post {
 				if options.Spec.IsIngressRoute() {
@@ -986,7 +1010,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 					} else {
 						fmt.Println("Failed to retrieve route: ", err.Error())
 					}
-				} else {
+				} else if options.Spec.IsIngressLoadBalancer() {
 					service, err := kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
 					if err == nil {
 						host := kube.GetLoadBalancerHostOrIP(service)
@@ -1006,6 +1030,11 @@ sasldb_path: /tmp/qdrouterd.sasldb
 								cred.Subject = host
 							}
 						}
+					}
+				} else if options.Spec.IsIngressNginxIngress() {
+					err = cli.appendIngressHost([]string{"inter-router", "edge"}, van.Namespace, &cred)
+					if err != nil {
+						return err
 					}
 				}
 				kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
@@ -1069,6 +1098,11 @@ sasldb_path: /tmp/qdrouterd.sasldb
 				if err != nil {
 					return err
 				}
+			} else if options.Spec.IsIngressNginxIngress() && cred.Post {
+				err = cli.appendIngressHost([]string{"claims"}, van.Namespace, &cred)
+				if err != nil {
+					return err
+				}
 			}
 			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
 			if err != nil && !errors.IsAlreadyExists(err) {
@@ -1080,7 +1114,21 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			return err
 		}
 	}
+	return nil
+}
 
+func (cli *VanClient) appendIngressHost(prefixes []string, namespace string, cred *types.Credential) error {
+	routes, err := kube.GetIngressRoutes("skupper-ingress", namespace, cli.KubeClient)
+	if err != nil {
+		return err
+	}
+	for _, route := range routes {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(route.Host, prefix) {
+				cred.Hosts = append(cred.Hosts, route.Host)
+			}
+		}
+	}
 	return nil
 }
 
@@ -1110,6 +1158,57 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace s
 		}
 		return nil
 	}
+}
+
+func (cli *VanClient) createIngress(site types.SiteConfig) error {
+	namespace := site.Spec.SkupperNamespace
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
+
+	var routes []kube.IngressRoute
+	if site.Spec.EnableController {
+		if site.Spec.GetControllerIngressHost() != "" {
+			routes = append(routes, kube.IngressRoute{
+				Host:        "claims." + site.Spec.GetControllerIngressHost(),
+				ServiceName: types.ControllerServiceName,
+				ServicePort: int(types.ClaimRedemptionPort),
+			})
+		} else {
+			routes = append(routes, kube.IngressRoute{
+				Host:        "claims",
+				ServiceName: types.ControllerServiceName,
+				ServicePort: int(types.ClaimRedemptionPort),
+				Resolve:     true,
+			})
+		}
+	}
+	if site.Spec.GetRouterIngressHost() != "" {
+		routes = append(routes, kube.IngressRoute{
+			Host:        "inter-router." + site.Spec.GetRouterIngressHost(),
+			ServiceName: types.TransportServiceName,
+			ServicePort: int(types.InterRouterListenerPort),
+		})
+		routes = append(routes, kube.IngressRoute{
+			Host:        "edge." + site.Spec.GetRouterIngressHost(),
+			ServiceName: types.TransportServiceName,
+			ServicePort: int(types.EdgeListenerPort),
+		})
+	} else {
+		routes = append(routes, kube.IngressRoute{
+			Host:        "inter-router",
+			ServiceName: types.TransportServiceName,
+			ServicePort: int(types.InterRouterListenerPort),
+			Resolve:     true,
+		})
+		routes = append(routes, kube.IngressRoute{
+			Host:        "edge",
+			ServiceName: types.TransportServiceName,
+			ServicePort: int(types.EdgeListenerPort),
+			Resolve:     true,
+		})
+	}
+	return kube.CreatePassthroughIngress("skupper-ingress", routes, asOwnerReference(site.Reference), cli.Namespace, cli.KubeClient)
 }
 
 func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {

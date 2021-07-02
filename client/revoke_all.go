@@ -37,6 +37,10 @@ func (cli *VanClient) regenerateSiteSecret(ca *corev1.Secret) error {
 		if err != nil {
 			return err
 		}
+		err = cli.appendIngressHost([]string{"inter-router", "edge"}, cli.Namespace, &siteServerSecret)
+		if err != nil {
+			return err
+		}
 	}
 	_, err := kube.RegenerateCredentials(siteServerSecret, cli.Namespace, ca, cli.KubeClient)
 	if err != nil {
@@ -63,6 +67,10 @@ func (cli *VanClient) regenerateClaimsSecret(ca *corev1.Secret) error {
 	}
 	if !usingRoutes {
 		err := cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, cli.Namespace, &claimsServerSecret)
+		if err != nil {
+			return err
+		}
+		err = cli.appendIngressHost([]string{"claims"}, cli.Namespace, &claimsServerSecret)
 		if err != nil {
 			return err
 		}

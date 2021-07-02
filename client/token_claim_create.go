@@ -93,6 +93,21 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 			return err
 		}
 		localOnly = false
+	} else {
+		ingressRoutes, err := kube.GetIngressRoutes("skupper-ingress", cli.Namespace, cli.KubeClient)
+		if err != nil {
+			return err
+		}
+		if len(ingressRoutes) > 0 {
+			for _, route := range ingressRoutes {
+				if route.ServicePort == int(types.ClaimRedemptionPort) {
+					host = route.Host
+					port = 443
+					localOnly = false
+					break
+				}
+			}
+		}
 	}
 	recordName, err := uuid.NewUUID()
 	if err != nil {
