@@ -105,6 +105,11 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 		APIGroups: []string{"route.openshift.io"},
 		Resources: []string{"routes"},
 	},
+	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{"networking.k8s.io"},
+		Resources: []string{"ingresses"},
+	},
 }
 
 // Certifcates/Secrets constants

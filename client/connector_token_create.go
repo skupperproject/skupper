@@ -124,6 +124,30 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 			} else if service.Spec.Type == corev1.ServiceTypeNodePort && getNodePorts(result, service) {
 				getIngressHost(result, cli, namespace)
 				return true
+			} else {
+				ingressRoutes, err := kube.GetIngressRoutes("skupper-ingress", cli.Namespace, cli.KubeClient)
+				if err != nil {
+					fmt.Printf("Could not check for ingress: %s", err)
+					fmt.Println()
+				} else if len(ingressRoutes) > 0 {
+					var edgeHost string
+					var interRouterHost string
+					for _, route := range ingressRoutes {
+						if route.ServicePort == int(types.InterRouterListenerPort) {
+							interRouterHost = route.Host
+						} else if route.ServicePort == int(types.EdgeListenerPort) {
+							edgeHost = route.Host
+						}
+					}
+					if edgeHost != "" && interRouterHost != "" {
+						result.Edge.Host = edgeHost
+						result.Edge.Port = "443"
+						result.InterRouter.Host = interRouterHost
+						result.InterRouter.Port = "443"
+						result.Hosts = edgeHost + "," + interRouterHost
+						return true
+					}
+				}
 			}
 			result.LocalOnly = true
 			host := fmt.Sprintf("%s.%s", types.TransportServiceName, namespace)

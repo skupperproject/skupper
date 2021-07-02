@@ -54,6 +54,16 @@ rules:
   - create
   - delete
 - apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings
