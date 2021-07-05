@@ -15,6 +15,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/console"
 	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -236,6 +237,15 @@ func (s *InitTester) ValidateConsole(cluster *base.ClusterContext) error {
 }
 
 func (s *InitTester) ValidateIngress(cluster *base.ClusterContext) error {
+	// If edge mode assert there is no skupper-router service defined
+	if s.RouterMode == string(types.TransportModeEdge) {
+		_, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(types.TransportServiceName, v1.GetOptions{})
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
 	ingress := s.Ingress
 	if ingress == "" {
 		ingress = cluster.VanClient.GetIngressDefault()
@@ -248,6 +258,8 @@ func (s *InitTester) ValidateConsoleIngress(cluster *base.ClusterContext) error 
 	if ingress == "" {
 		if s.Ingress != "" {
 			ingress = s.Ingress
+		} else if !s.EnableConsole {
+			ingress = types.IngressNoneString
 		} else {
 			ingress = cluster.VanClient.GetIngressDefault()
 		}
