@@ -15,6 +15,7 @@ func (cli *VanClient) regenerateSiteSecret(ca *corev1.Secret) error {
 	siteServerSecret := types.Credential{
 		Name:    types.SiteServerSecret,
 		Subject: types.TransportServiceName,
+		Hosts:   []string{types.TransportServiceName + "." + cli.Namespace},
 	}
 	usingRoutes := false
 	if cli.RouteClient != nil {
@@ -48,6 +49,7 @@ func (cli *VanClient) regenerateClaimsSecret(ca *corev1.Secret) error {
 	claimsServerSecret := types.Credential{
 		Name:    types.ClaimsServerSecret,
 		Subject: types.ControllerServiceName,
+		Hosts:   []string{types.ControllerServiceName + "." + cli.Namespace},
 	}
 	usingRoutes := false
 	if cli.RouteClient != nil {
