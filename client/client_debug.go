@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -77,14 +78,21 @@ func (cli *VanClient) writeConfigMap(name string, tw *tar.Writer) error {
 	return writeTar(name+"-configmap.yaml", b.Bytes(), time.Now(), tw)
 }
 
-func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error {
+func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error) {
 	configMaps := []string{types.SiteConfigMapName, types.ServiceInterfaceConfigMap, types.TransportConfigMapName, "skupper-sasl-config"}
 	deployments := []string{"skupper-site-controller", "skupper-router", "skupper-service-controller"}
 	qdstatFlags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
 
-	tarFile, err := os.Create(tarName)
+	dumpFile := tarName
+
+	// Add extension if not present
+	if filepath.Ext(dumpFile) == "" {
+		dumpFile = dumpFile + ".tar.gz"
+	}
+
+	tarFile, err := os.Create(dumpFile)
 	if err != nil {
-		return err
+		return dumpFile, err
 	}
 
 	// compress tar
@@ -117,7 +125,7 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 	for i := range deployments {
 		err := cli.writeDeployment(deployments[i], tw)
 		if err != nil {
-			return err
+			return dumpFile, err
 		}
 
 		component := kube.GetDeploymentLabel(deployments[i], "skupper.io/component", cli.Namespace, cli.KubeClient)
@@ -126,7 +134,7 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 		if errors.IsNotFound(err) {
 			continue
 		} else if err != nil {
-			return err
+			return dumpFile, err
 		}
 		for _, pod := range podList {
 			for container := range pod.Spec.Containers {
@@ -159,8 +167,8 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 	for i := range configMaps {
 		err := cli.writeConfigMap(configMaps[i], tw)
 		if err != nil {
-			return err
+			return dumpFile, err
 		}
 	}
-	return nil
+	return dumpFile, nil
 }
