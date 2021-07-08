@@ -264,6 +264,70 @@ func TestToken(t *testing.T) {
 					},
 				}},
 			},
+		}, {
+			Name: "revoke-access",
+			Tasks: []cli.SkupperTask{
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					// skupper token create - verify token has been created
+					&token.CreateTester{
+						FileName: tokenFile,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					// skupper link create - connect to public and verify connection created
+					&link.CreateTester{
+						TokenFile: tokenFile,
+					},
+					// skupper link status - to assert sites are connected
+					&link.StatusTester{
+						Active: true,
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					// skupper revoke-access - to revoke access to all emitted certificates
+					&cli.RevokeAccessTester{
+						ExpectClaimRecordsDeleted: true,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					// skupper link status - to assert sites are no longer connected
+					&link.StatusTester{
+						Active: false,
+					},
+					// skupper link delete - to remove it
+					&link.DeleteTester{
+						Name: "conn1",
+					},
+					// skupper status - to assert sites are no longer connected
+					&cli.StatusTester{
+						RouterMode: "edge",
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					// skupper token create - assert that a new token has been created
+					&token.CreateTester{
+						FileName: tokenFile,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					// skupper link create - connect to public and verify connection created
+					&link.CreateTester{
+						TokenFile: tokenFile,
+					},
+					// skupper link status - to assert sites are connected using certificate emitted by new CA
+					&link.StatusTester{
+						Active: true,
+					},
+					// skupper link delete - to remove it
+					&link.DeleteTester{
+						Name: "conn1",
+					},
+					// skupper status - to assert sites are no longer connected
+					&cli.StatusTester{
+						RouterMode: "edge",
+					},
+				}},
+			},
 		},
 	}
 
