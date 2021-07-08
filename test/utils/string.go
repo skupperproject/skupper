@@ -18,3 +18,26 @@ func StrEmpty(value string) bool {
 	}
 	return false
 }
+
+// StrIn returns true if the given value exists in values
+func StrIn(value string, values ...string) bool {
+	for _, v := range values {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
+// AllStrIn returns true if all values provided exist in slice
+func AllStrIn(slice []string, values ...string) bool {
+	if len(values) == 0 {
+		return false
+	}
+	for _, v := range values {
+		if !StrIn(v, slice...) {
+			return false
+		}
+	}
+	return true
+}
