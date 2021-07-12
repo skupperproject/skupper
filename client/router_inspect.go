@@ -38,7 +38,11 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 				}
 				return "http://" + config.Spec.Controller.IngressHost + ":" + port, nil
 			} else {
-				return "", nil
+				routes, err := kube.GetIngressRoutes(types.ConsoleIngressName, cli.Namespace, cli.KubeClient)
+				if err != nil || len(routes) == 0 {
+					return "", err
+				}
+				return "http://" + routes[0].Host, nil
 			}
 		}
 	} else {

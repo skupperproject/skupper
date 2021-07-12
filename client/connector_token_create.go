@@ -125,7 +125,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 				getIngressHost(result, cli, namespace)
 				return true
 			} else {
-				ingressRoutes, err := kube.GetIngressRoutes("skupper-ingress", cli.Namespace, cli.KubeClient)
+				ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
 				if err != nil {
 					fmt.Printf("Could not check for ingress: %s", err)
 					fmt.Println()

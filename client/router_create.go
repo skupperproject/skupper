@@ -1084,6 +1084,11 @@ sasldb_path: /tmp/qdrouterd.sasldb
 					return err
 				}
 			}
+		} else if options.Spec.IsConsoleIngressNginxIngress() {
+			err = cli.createConsoleIngress(options)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 		for _, cred := range van.ControllerCredentials {
 			if options.Spec.IsIngressRoute() {
@@ -1118,7 +1123,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 }
 
 func (cli *VanClient) appendIngressHost(prefixes []string, namespace string, cred *types.Credential) error {
-	routes, err := kube.GetIngressRoutes("skupper-ingress", namespace, cli.KubeClient)
+	routes, err := kube.GetIngressRoutes(types.IngressName, namespace, cli.KubeClient)
 	if err != nil {
 		return err
 	}
@@ -1170,7 +1175,7 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 	if site.Spec.EnableController {
 		if site.Spec.GetControllerIngressHost() != "" {
 			routes = append(routes, kube.IngressRoute{
-				Host:        "claims." + site.Spec.GetControllerIngressHost(),
+				Host:        strings.Join([]string{"claims", namespace, site.Spec.GetControllerIngressHost()}, "."),
 				ServiceName: types.ControllerServiceName,
 				ServicePort: int(types.ClaimRedemptionPort),
 			})
@@ -1185,12 +1190,12 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 	}
 	if site.Spec.GetRouterIngressHost() != "" {
 		routes = append(routes, kube.IngressRoute{
-			Host:        "inter-router." + site.Spec.GetRouterIngressHost(),
+			Host:        strings.Join([]string{"inter-router", namespace, site.Spec.GetRouterIngressHost()}, "."),
 			ServiceName: types.TransportServiceName,
 			ServicePort: int(types.InterRouterListenerPort),
 		})
 		routes = append(routes, kube.IngressRoute{
-			Host:        "edge." + site.Spec.GetRouterIngressHost(),
+			Host:        strings.Join([]string{"edge", namespace, site.Spec.GetRouterIngressHost()}, "."),
 			ServiceName: types.TransportServiceName,
 			ServicePort: int(types.EdgeListenerPort),
 		})
@@ -1208,7 +1213,31 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 			Resolve:     true,
 		})
 	}
-	return kube.CreatePassthroughIngress("skupper-ingress", routes, asOwnerReference(site.Reference), cli.Namespace, cli.KubeClient)
+	return kube.CreateIngress(types.IngressName, routes, true, asOwnerReference(site.Reference), cli.Namespace, cli.KubeClient)
+}
+
+func (cli *VanClient) createConsoleIngress(site types.SiteConfig) error {
+	namespace := site.Spec.SkupperNamespace
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
+
+	var routes []kube.IngressRoute
+	if site.Spec.GetControllerIngressHost() != "" {
+		routes = append(routes, kube.IngressRoute{
+			Host:        strings.Join([]string{"console", namespace, site.Spec.GetControllerIngressHost()}, "."),
+			ServiceName: types.ControllerServiceName,
+			ServicePort: int(types.ConsoleDefaultServicePort),
+		})
+	} else {
+		routes = append(routes, kube.IngressRoute{
+			Host:        "console",
+			ServiceName: types.ControllerServiceName,
+			ServicePort: int(types.ConsoleDefaultServicePort),
+			Resolve:     true,
+		})
+	}
+	return kube.CreateIngress(types.ConsoleIngressName, routes, false, asOwnerReference(site.Reference), cli.Namespace, cli.KubeClient)
 }
 
 func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {

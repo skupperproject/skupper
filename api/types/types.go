@@ -190,6 +190,7 @@ const (
 	ConsoleOpenShiftOauthServicePort       int32  = 443
 	ConsoleOpenShiftOauthServiceTargetPort int32  = 8443
 	ConsoleRouteName                       string = "skupper"
+	ConsoleIngressName                     string = "skupper-console"
 	RouterConsoleRouteName                 string = "skupper-router-console"
 	RouterConsoleServiceName               string = "skupper-router-console"
 )
@@ -219,6 +220,7 @@ const (
 	InterRouterListenerPort int32  = 55671
 	InterRouterRouteName    string = "skupper-inter-router"
 	InterRouterProfile      string = "skupper-internal"
+	IngressName             string = "skupper"
 )
 
 // Service Sync constants
