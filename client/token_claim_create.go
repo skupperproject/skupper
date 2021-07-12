@@ -94,7 +94,7 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 		}
 		localOnly = false
 	} else {
-		ingressRoutes, err := kube.GetIngressRoutes("skupper-ingress", cli.Namespace, cli.KubeClient)
+		ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
 		if err != nil {
 			return err
 		}

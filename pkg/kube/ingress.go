@@ -16,6 +16,7 @@ package kube
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -70,19 +71,21 @@ func getStatus(ingress *networkingv1.Ingress) *corev1.LoadBalancerIngress {
 	return nil
 }
 
-func CreatePassthroughIngress(name string, routes []IngressRoute, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) error {
+func CreateIngress(name string, routes []IngressRoute, sslPassthrough bool, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) error {
 	ingress := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":                 "nginx",
-				"nginx.ingress.kubernetes.io/ssl-passthrough": "true",
-				"nginx.ingress.kubernetes.io/ssl-redirect":    "true",
+				"kubernetes.io/ingress.class": "nginx",
 			},
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{},
 		},
+	}
+	if sslPassthrough {
+		ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/ssl-passthrough"] = "true"
+		ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
 	}
 	if owner != nil {
 		ingress.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
@@ -119,11 +122,11 @@ func CreatePassthroughIngress(name string, routes []IngressRoute, owner *metav1.
 		updated.Spec.Rules = nil
 		for _, route := range routes {
 			if route.Resolve {
+				base := hostOrIp.Hostname
 				if hostOrIp.IP != "" {
-					route.Host = route.Host + "." + hostOrIp.IP + ".nip.io"
-				} else {
-					route.Host = route.Host + "." + hostOrIp.Hostname
+					base = hostOrIp.IP + ".nip.io"
 				}
+				route.Host = strings.Join([]string{route.Host, namespace, base}, ".")
 			}
 			updated.Spec.Rules = append(updated.Spec.Rules, route.toRule())
 		}
