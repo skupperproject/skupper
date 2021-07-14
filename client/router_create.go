@@ -926,7 +926,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		saslData := &map[string]string{
 			"qdrouterd.conf": config,
 		}
-		kube.NewConfigMap("skupper-sasl-config", saslData, siteOwnerRef, van.Namespace, cli.KubeClient)
+		kube.NewConfigMap("skupper-sasl-config", saslData, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, sa := range van.Transport.ServiceAccounts {
 		sa.ObjectMeta.OwnerReferences = ownerRefs
@@ -984,9 +984,9 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		return err
 	}
 
-	kube.NewConfigMap(types.ServiceInterfaceConfigMap, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap(types.ServiceInterfaceConfigMap, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
-	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
 		if options.Spec.IsIngressNginxIngress() {

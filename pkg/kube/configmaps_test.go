@@ -3,6 +3,9 @@ package kube
 import (
 	jsonencoding "encoding/json"
 	"fmt"
+	"reflect"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
@@ -10,8 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"reflect"
-	"testing"
 )
 
 func TestNewConfigMap(t *testing.T) {
@@ -30,6 +31,7 @@ func TestNewConfigMap(t *testing.T) {
 		name     string
 		cmName   string
 		data     *map[string]string
+		labels   *map[string]string
 		owner    *metav1.OwnerReference
 		expected result
 	}
@@ -69,6 +71,7 @@ func TestNewConfigMap(t *testing.T) {
 			name:   "existing-cm",
 			cmName: "existing-cm",
 			data:   &map[string]string{"entry": "value"},
+			labels: &map[string]string{"entry": "value"},
 			owner:  &metav1.OwnerReference{Name: "TestNewConfigMap"},
 			expected: result{
 				cm:  existingCm,
@@ -107,10 +110,16 @@ func TestNewConfigMap(t *testing.T) {
 			data: &map[string]string{
 				"entry1": "value1",
 			},
+			labels: &map[string]string{
+				"entry2": "value2",
+			},
 			expected: result{
 				cm: &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "new-cm-all-data",
+						Labels: map[string]string{
+							"entry2": "value2",
+						},
 						OwnerReferences: []metav1.OwnerReference{
 							{Name: "TestNewConfigMap"},
 						},
@@ -129,6 +138,7 @@ func TestNewConfigMap(t *testing.T) {
 			owner: &metav1.OwnerReference{
 				Name: "TestNewConfigMap",
 			},
+			labels: &map[string]string{},
 			data: &map[string]string{
 				"entry1": "value1",
 			},
@@ -143,7 +153,7 @@ func TestNewConfigMap(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			// call NewConfigMap
-			cm, err := NewConfigMap(test.cmName, test.data, test.owner, NS, kubeClient)
+			cm, err := NewConfigMap(test.cmName, test.data, test.labels, test.owner, NS, kubeClient)
 			assert.Equal(t, test.expected.err == nil, err == nil)
 			if err != nil {
 				assert.Equal(t, test.expected.err.Error(), err.Error())

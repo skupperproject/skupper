@@ -94,13 +94,17 @@ func (r *RouterConfig) IsEdge() bool {
 	return r.Metadata.Mode == ModeEdge
 }
 
-func (r *RouterConfig) AddSslProfile(s SslProfile) {
+func (r *RouterConfig) AddSslProfileWithPath(path string, s SslProfile) {
 	if s.CertFile == "" && s.CaCertFile == "" && s.PrivateKeyFile == "" {
-		s.CertFile = fmt.Sprintf("/etc/qpid-dispatch-certs/%s/tls.crt", s.Name)
-		s.PrivateKeyFile = fmt.Sprintf("/etc/qpid-dispatch-certs/%s/tls.key", s.Name)
-		s.CaCertFile = fmt.Sprintf("/etc/qpid-dispatch-certs/%s/ca.crt", s.Name)
+		s.CertFile = fmt.Sprintf(path+"/%s/tls.crt", s.Name)
+		s.PrivateKeyFile = fmt.Sprintf(path+"/%s/tls.key", s.Name)
+		s.CaCertFile = fmt.Sprintf(path+"/%s/ca.crt", s.Name)
 	}
 	r.SslProfiles[s.Name] = s
+}
+
+func (r *RouterConfig) AddSslProfile(s SslProfile) {
+	r.AddSslProfileWithPath("/etc/qpid-dispatch-certs", s)
 }
 
 func (r *RouterConfig) RemoveSslProfile(name string) bool {
@@ -121,8 +125,16 @@ func (r *RouterConfig) AddTcpConnector(e TcpEndpoint) {
 	r.Bridges.AddTcpConnector(e)
 }
 
+func (r *RouterConfig) RemoveTcpConnector(name string) (bool, TcpEndpoint) {
+	return r.Bridges.RemoveTcpConnector(name)
+}
+
 func (r *RouterConfig) AddTcpListener(e TcpEndpoint) {
 	r.Bridges.AddTcpListener(e)
+}
+
+func (r *RouterConfig) RemoveTcpListener(name string) (bool, TcpEndpoint) {
+	return r.Bridges.RemoveTcpListener(name)
 }
 
 func (r *RouterConfig) AddHttpConnector(e HttpEndpoint) {
@@ -154,8 +166,28 @@ func (bc *BridgeConfig) AddTcpConnector(e TcpEndpoint) {
 	bc.TcpConnectors[e.Name] = e
 }
 
+func (bc *BridgeConfig) RemoveTcpConnector(name string) (bool, TcpEndpoint) {
+	tc, ok := bc.TcpConnectors[name]
+	if ok {
+		delete(bc.TcpConnectors, name)
+		return true, tc
+	} else {
+		return false, TcpEndpoint{}
+	}
+}
+
 func (bc *BridgeConfig) AddTcpListener(e TcpEndpoint) {
 	bc.TcpListeners[e.Name] = e
+}
+
+func (bc *BridgeConfig) RemoveTcpListener(name string) (bool, TcpEndpoint) {
+	tc, ok := bc.TcpListeners[name]
+	if ok {
+		delete(bc.TcpListeners, name)
+		return true, tc
+	} else {
+		return false, TcpEndpoint{}
+	}
 }
 
 func (bc *BridgeConfig) AddHttpConnector(e HttpEndpoint) {
