@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"reflect"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -77,17 +79,22 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		// site is newer than client library, cannot update
 		return false, fmt.Errorf("Site (%s) is newer than library (%s); cannot update", site.Version, Version)
 	}
-	rename := false
+	renameFor050 := false
+	addClaimsSupport := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
 		return false, err
 	}
 	if inprogress {
-		rename = utils.LessRecentThanVersion(originalVersion, "0.5.0")
+		renameFor050 = utils.LessRecentThanVersion(originalVersion, "0.5.0")
+		addClaimsSupport = utils.LessRecentThanVersion(originalVersion, "0.7.0")
+	} else {
+		originalVersion = site.Version
 	}
 	if utils.MoreRecentThanVersion(Version, site.Version) || (utils.EquivalentVersion(Version, site.Version) && Version != site.Version) {
-		if !inprogress && utils.LessRecentThanVersion(site.Version, "0.5.0") {
-			rename = true
+		if !inprogress && utils.LessRecentThanVersion(originalVersion, "0.7.0") {
+			addClaimsSupport = true
+			renameFor050 = utils.LessRecentThanVersion(originalVersion, "0.5.0")
 			err = cli.updateStarted(site.Version, namespace, configmap.ObjectMeta.OwnerReferences)
 			if err != nil {
 				return false, err
@@ -113,7 +120,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	usingRoutes := false
 	consoleUsesLoadbalancer := false
 	routerExposedAsIp := false
-	if rename {
+	if renameFor050 {
 		//create new resources (as copies of old ones)
 		// services
 		_, err = kube.CopyService("skupper-messaging", types.LocalTransportServiceName, map[string]string{}, namespace, cli.KubeClient)
@@ -344,7 +351,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, err
 	}
 	updateRouter := false
-	if rename {
+	if renameFor050 {
 		//update deployment
 		// - serviceaccount
 		router.Spec.Template.Spec.ServiceAccountName = types.TransportServiceAccountName
@@ -382,7 +389,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, err
 	}
 	updateController := false
-	if rename {
+	if renameFor050 {
 		//update deployment
 		// - serviceaccount
 		controller.Spec.Template.Spec.ServiceAccountName = types.ControllerServiceAccountName
@@ -392,6 +399,34 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		// -oauth proxy sidecar
 		updateOauthProxyServiceAccount(&controller.Spec.Template.Spec, types.ControllerServiceAccountName)
 		updateController = true
+	}
+	if addClaimsSupport {
+		err = kube.UpdateRole(namespace, types.ControllerRoleName, types.ControllerPolicyRule, cli.KubeClient)
+		if err != nil {
+			return false, err
+		}
+		if !config.IsEdge() {
+			err = cli.addClaimsPortsToControllerService(ctx, namespace)
+			if err != nil {
+				return false, err
+			}
+			if usingRoutes {
+				err = cli.createClaimsRedemptionRoute(ctx, namespace)
+				if err != nil {
+					return false, err
+				}
+			}
+			var owner *metav1.OwnerReference
+			if len(controller.ObjectMeta.OwnerReferences) > 0 {
+				owner = &controller.ObjectMeta.OwnerReferences[0]
+			}
+			err = cli.createClaimsServerSecret(ctx, namespace, owner, usingRoutes)
+			if err != nil {
+				return false, err
+			}
+			kube.AppendSecretVolume(&controller.Spec.Template.Spec.Volumes, &controller.Spec.Template.Spec.Containers[0].VolumeMounts, types.ClaimsServerSecret, "/etc/service-controller/certs/")
+			updateController = true
+		}
 	}
 	desiredControllerImage := GetServiceControllerImageName()
 	if controller.Spec.Template.Spec.Containers[0].Image != desiredControllerImage {
@@ -426,7 +461,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 		}
 	}
-	if rename {
+	if renameFor050 {
 		//delete old resources
 		if cli.RouteClient != nil {
 			err = cli.RouteClient.Routes(namespace).Delete("skupper-controller", &metav1.DeleteOptions{})
@@ -506,6 +541,16 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	return updateRouter || updateController || updateSite, nil
 }
 
+func (cli *VanClient) restartRouter(namespace string) error {
+	router, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	touch(router)
+	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(router)
+	return err
+}
+
 func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.ConfigMap, hup bool) (bool, error) {
 	siteConfig, err := cli.SiteConfigInspect(ctx, settings)
 	if err != nil {
@@ -527,12 +572,7 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 			return false, err
 		}
 		if hup {
-			router, err := cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			touch(router)
-			_, err = cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Update(router)
+			err = cli.restartRouter(settings.ObjectMeta.Namespace)
 			if err != nil {
 				return false, err
 			}
@@ -685,4 +725,90 @@ func (cli *VanClient) getTransportHosts(namespace string) ([]string, error) {
 
 func qualifiedServiceName(name string, namespace string) string {
 	return name + "." + namespace + ".svc.cluster.local"
+}
+
+func (cli *VanClient) addClaimsPortsToControllerService(ctx context.Context, namespace string) error {
+	svc, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{
+		Name:     types.ClaimRedemptionPortName,
+		Protocol: "TCP",
+		Port:     types.ClaimRedemptionPort,
+	})
+	_, err = cli.KubeClient.CoreV1().Services(namespace).Update(svc)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cli *VanClient) createClaimsServerSecret(ctx context.Context, namespace string, owner *metav1.OwnerReference, usingRoutes bool) error {
+	cred := types.Credential{
+		CA:          types.SiteCaSecret,
+		Name:        types.ClaimsServerSecret,
+		Subject:     types.ControllerServiceName,
+		Hosts:       []string{types.ControllerServiceName + "." + namespace},
+		ConnectJson: false,
+	}
+	if usingRoutes {
+		rte, err := kube.GetRoute(types.ClaimRedemptionRouteName, namespace, cli.RouteClient)
+		if err == nil {
+			cred.Hosts = append(cred.Hosts, rte.Spec.Host)
+		} else {
+			log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
+		}
+	} else {
+		err := cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, namespace, &cred)
+		if err != nil {
+			return err
+		}
+	}
+	_, err := kube.NewSecret(cred, owner, namespace, cli.KubeClient)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
+}
+
+func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace string) error {
+	route := &routev1.Route{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Route",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: types.ClaimRedemptionRouteName,
+		},
+		Spec: routev1.RouteSpec{
+			Path: "",
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString(types.ClaimRedemptionPortName),
+			},
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: types.ControllerServiceName,
+			},
+			TLS: &routev1.TLSConfig{
+				Termination:                   routev1.TLSTerminationPassthrough,
+				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+			},
+		},
+	}
+	_, err := kube.CreateRoute(route, namespace, cli.RouteClient)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
+}
+
+func (cli *VanClient) restartController(namespace string) error {
+	controller, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	touch(controller)
+	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(controller)
+	return err
 }

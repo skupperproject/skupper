@@ -14,9 +14,10 @@ import (
 
 const (
 	//core options
-	SiteConfigNameKey       string = "name"
-	SiteConfigRouterModeKey string = "router-mode"
-	SiteConfigIngressKey    string = "ingress"
+	SiteConfigNameKey        string = "name"
+	SiteConfigRouterModeKey  string = "router-mode"
+	SiteConfigIngressKey     string = "ingress"
+	SiteConfigIngressHostKey string = "ingress-host"
 
 	//console options
 	SiteConfigConsoleKey               string = "console"
@@ -36,6 +37,7 @@ const (
 	SiteConfigRouterNodeSelectorKey     string = "router-node-selector"
 	SiteConfigRouterMaxFrameSizeKey     string = "xp-router-max-frame-size"
 	SiteConfigRouterMaxSessionFramesKey string = "xp-router-max-session-frames"
+	SiteConfigRouterIngressHostKey      string = "router-ingress-host"
 
 	//controller options
 	SiteConfigServiceControllerKey      string = "service-controller"
@@ -45,6 +47,7 @@ const (
 	SiteConfigControllerAffinityKey     string = "controller-pod-affinity"
 	SiteConfigControllerAntiAffinityKey string = "controller-pod-antiaffinity"
 	SiteConfigControllerNodeSelectorKey string = "controller-node-selector"
+	SiteConfigControllerIngressHostKey  string = "controller-ingress-host"
 )
 
 func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
@@ -105,6 +108,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.ConsoleIngress != "" {
 		siteConfig.Data[SiteConfigConsoleIngressKey] = spec.ConsoleIngress
 	}
+	if spec.IngressHost != "" {
+		siteConfig.Data[SiteConfigIngressHostKey] = spec.IngressHost
+	}
 	if spec.Router.Logging != nil {
 		siteConfig.Data[SiteConfigRouterLoggingKey] = RouterLogConfigToString(spec.Router.Logging)
 	}
@@ -132,6 +138,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.Router.NodeSelector != "" {
 		siteConfig.Data[SiteConfigRouterNodeSelectorKey] = spec.Router.NodeSelector
 	}
+	if spec.Router.IngressHost != "" {
+		siteConfig.Data[SiteConfigRouterIngressHostKey] = spec.Router.IngressHost
+	}
 	if spec.Router.MaxFrameSize != types.RouterMaxFrameSizeDefault {
 		siteConfig.Data[SiteConfigRouterMaxFrameSizeKey] = strconv.Itoa(spec.Router.MaxFrameSize)
 	}
@@ -158,6 +167,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.Controller.NodeSelector != "" {
 		siteConfig.Data[SiteConfigControllerNodeSelectorKey] = spec.Controller.NodeSelector
+	}
+	if spec.Controller.IngressHost != "" {
+		siteConfig.Data[SiteConfigControllerIngressHostKey] = spec.Controller.IngressHost
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {

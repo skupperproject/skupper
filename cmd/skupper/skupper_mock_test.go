@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
@@ -118,10 +119,10 @@ func (v *vanClientMock) ConnectorCreate(ctx context.Context, secret *corev1.Secr
 	return nil
 }
 
-func (v *vanClientMock) ConnectorInspect(ctx context.Context, name string) (*types.ConnectorInspectResponse, error) {
+func (v *vanClientMock) ConnectorInspect(ctx context.Context, name string) (*types.LinkStatus, error) {
 	return nil, nil
 }
-func (v *vanClientMock) ConnectorList(ctx context.Context) ([]*types.Connector, error) {
+func (v *vanClientMock) ConnectorList(ctx context.Context) ([]types.LinkStatus, error) {
 	return nil, nil
 }
 func (v *vanClientMock) ConnectorRemove(ctx context.Context, options types.ConnectorRemoveOptions) error {
@@ -131,6 +132,9 @@ func (v *vanClientMock) ConnectorTokenCreate(ctx context.Context, subject string
 	return nil, false, nil
 }
 func (v *vanClientMock) ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
+	return nil
+}
+func (v *vanClientMock) TokenClaimCreate(ctx context.Context, subject string, password []byte, expiry time.Duration, uses int, secretFile string) error {
 	return nil
 }
 func (v *vanClientMock) ServiceInterfaceCreate(ctx context.Context, service *types.ServiceInterface) error {
@@ -211,8 +215,8 @@ func (v *vanClientMock) SiteConfigRemove(ctx context.Context) error {
 	return nil
 }
 
-func (v *vanClientMock) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error {
-	return nil
+func (v *vanClientMock) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error) {
+	return "", nil
 }
 
 func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
@@ -264,6 +268,10 @@ func (cli *vanClientMock) GetNamespace() string {
 
 func (cli *vanClientMock) GetVersion(component string, name string) string {
 	return "not-found"
+}
+
+func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
+	return nil
 }
 
 func TestCmdUnexposeRun(t *testing.T) {

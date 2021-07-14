@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -19,10 +20,13 @@ type ConnectorRemoveOptions struct {
 	ForceCurrent     bool
 }
 
-type ConnectorInspectResponse struct {
-	SkupperNamespace string
-	Connector        *Connector
-	Connected        bool
+type LinkStatus struct {
+	Name        string
+	Url         string
+	Cost        int
+	Connected   bool
+	Configured  bool
+	Description string
 }
 
 type SiteConfig struct {
@@ -49,10 +53,12 @@ type RouterOptions struct {
 	DebugMode        string
 	MaxFrameSize     int
 	MaxSessionFrames int
+	IngressHost      string
 }
 
 type ControllerOptions struct {
 	Tuning
+	IngressHost string
 }
 
 type SiteConfigSpec struct {
@@ -68,6 +74,7 @@ type SiteConfigSpec struct {
 	Password            string
 	Ingress             string
 	ConsoleIngress      string
+	IngressHost         string
 	Replicas            int32
 	SiteControlled      bool
 	Annotations         map[string]string
@@ -79,6 +86,8 @@ type SiteConfigSpec struct {
 const (
 	IngressRouteString        string = "route"
 	IngressLoadBalancerString string = "loadbalancer"
+	IngressNodePortString     string = "nodeport"
+	IngressNginxIngressString string = "nginx-ingress-v1"
 	IngressNoneString         string = "none"
 )
 
@@ -87,6 +96,12 @@ func (s *SiteConfigSpec) IsIngressRoute() bool {
 }
 func (s *SiteConfigSpec) IsIngressLoadBalancer() bool {
 	return s.Ingress == IngressLoadBalancerString
+}
+func (s *SiteConfigSpec) IsIngressNodePort() bool {
+	return s.Ingress == IngressNodePortString
+}
+func (s *SiteConfigSpec) IsIngressNginxIngress() bool {
+	return s.Ingress == IngressNginxIngressString
 }
 func (s *SiteConfigSpec) IsIngressNone() bool {
 	return s.Ingress == IngressNoneString
@@ -97,6 +112,12 @@ func (s *SiteConfigSpec) IsConsoleIngressRoute() bool {
 }
 func (s *SiteConfigSpec) IsConsoleIngressLoadBalancer() bool {
 	return s.getConsoleIngress() == IngressLoadBalancerString
+}
+func (s *SiteConfigSpec) IsConsoleIngressNodePort() bool {
+	return s.getConsoleIngress() == IngressNodePortString
+}
+func (s *SiteConfigSpec) IsConsoleIngressNginxIngress() bool {
+	return s.getConsoleIngress() == IngressNginxIngressString
 }
 func (s *SiteConfigSpec) IsConsoleIngressNone() bool {
 	return s.getConsoleIngress() == IngressNoneString
@@ -109,7 +130,7 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 }
 
 func isValidIngress(ingress string) bool {
-	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNoneString
+	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNodePortString || ingress == IngressNginxIngressString || ingress == IngressNoneString
 }
 
 func (s *SiteConfigSpec) CheckIngress() error {
@@ -124,6 +145,20 @@ func (s *SiteConfigSpec) CheckConsoleIngress() error {
 		return fmt.Errorf("Invalid value for console-ingress: %s", s.ConsoleIngress)
 	}
 	return nil
+}
+
+func (s *SiteConfigSpec) GetRouterIngressHost() string {
+	if s.Router.IngressHost != "" {
+		return s.Router.IngressHost
+	}
+	return s.IngressHost
+}
+
+func (s *SiteConfigSpec) GetControllerIngressHost() string {
+	if s.Controller.IngressHost != "" {
+		return s.Controller.IngressHost
+	}
+	return s.IngressHost
 }
 
 type SiteConfigReference struct {
@@ -193,11 +228,12 @@ type VanClientInterface interface {
 	ConnectorCreateFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreate(ctx context.Context, secret *corev1.Secret, options ConnectorCreateOptions) error
-	ConnectorInspect(ctx context.Context, name string) (*ConnectorInspectResponse, error)
-	ConnectorList(ctx context.Context) ([]*Connector, error)
+	ConnectorInspect(ctx context.Context, name string) (*LinkStatus, error)
+	ConnectorList(ctx context.Context) ([]LinkStatus, error)
 	ConnectorRemove(ctx context.Context, options ConnectorRemoveOptions) error
 	ConnectorTokenCreate(ctx context.Context, subject string, namespace string) (*corev1.Secret, bool, error)
 	ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error
+	TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error
 	ServiceInterfaceCreate(ctx context.Context, service *ServiceInterface) error
 	ServiceInterfaceInspect(ctx context.Context, address string) (*ServiceInterface, error)
 	ServiceInterfaceList(ctx context.Context) ([]*ServiceInterface, error)
@@ -221,8 +257,9 @@ type VanClientInterface interface {
 	SiteConfigUpdate(ctx context.Context, spec SiteConfigSpec) ([]string, error)
 	SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*SiteConfig, error)
 	SiteConfigRemove(ctx context.Context) error
-	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) error
+	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error)
 	GetNamespace() string
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
+	RevokeAccess(ctx context.Context) error
 }

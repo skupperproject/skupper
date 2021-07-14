@@ -104,6 +104,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	if consoleIngress, ok := siteConfig.Data[SiteConfigConsoleIngressKey]; ok {
 		result.Spec.ConsoleIngress = consoleIngress
 	}
+	if ingressHost, ok := siteConfig.Data[SiteConfigIngressHostKey]; ok {
+		result.Spec.IngressHost = ingressHost
+	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if siteConfig.ObjectMeta.Labels == nil {
 		result.Spec.SiteControlled = true
@@ -142,6 +145,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	if routerAntiAffinity, ok := siteConfig.Data[SiteConfigRouterAntiAffinityKey]; ok && routerAntiAffinity != "" {
 		result.Spec.Router.AntiAffinity = routerAntiAffinity
 	}
+	if routerIngressHost, ok := siteConfig.Data[SiteConfigRouterIngressHostKey]; ok && routerIngressHost != "" {
+		result.Spec.Router.IngressHost = routerIngressHost
+	}
 
 	if routerMaxFrameSize, ok := siteConfig.Data[SiteConfigRouterMaxFrameSizeKey]; ok && routerMaxFrameSize != "" {
 		val, err := strconv.Atoi(routerMaxFrameSize)
@@ -176,6 +182,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	}
 	if controllerAntiAffinity, ok := siteConfig.Data[SiteConfigControllerAntiAffinityKey]; ok && controllerAntiAffinity != "" {
 		result.Spec.Controller.AntiAffinity = controllerAntiAffinity
+	}
+	if controllerIngressHost, ok := siteConfig.Data[SiteConfigControllerIngressHostKey]; ok && controllerIngressHost != "" {
+		result.Spec.Controller.IngressHost = controllerIngressHost
 	}
 
 	annotationExclusions := []string{}

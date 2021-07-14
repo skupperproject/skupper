@@ -6,6 +6,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -16,10 +17,18 @@ import (
 // StatusTester runs `skupper link status` based on given attributes
 // and waits till output matches expected content or until it times out
 type StatusTester struct {
-	Name   string
-	Wait   int
-	Active bool
+	Name    string
+	Wait    int
+	Active  bool
+	Failure ClaimFailure
 }
+
+type ClaimFailure string
+
+const (
+	ClaimInvalid ClaimFailure = "No such claim"
+	ClaimRefused ClaimFailure = "Claim refused"
+)
 
 func (l *StatusTester) Command(cluster *base.ClusterContext) []string {
 	args := cli.SkupperCommonOptions(cluster)
@@ -66,7 +75,7 @@ func (l *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 	// connection name
 	connName := l.Name
 	if connName == "" {
-		connName = ".*"
+		connName = "conn[0-9]+"
 	}
 
 	// prefix for expected connection outcome
@@ -74,7 +83,16 @@ func (l *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 	if !l.Active {
 		activePrefix = "not"
 	}
-	outRegex := regexp.MustCompile(fmt.Sprintf(`Connection for %s %s active`, connName, activePrefix))
+
+	// strip \n from stdout
+	stdout = strings.TrimSuffix(stdout, "\n")
+
+	// if a failure is expected
+	failureStr := ""
+	if string(l.Failure) != "" {
+		failureStr = fmt.Sprintf(` \(Failed to redeem claim: %s\)`, l.Failure)
+	}
+	outRegex := regexp.MustCompile(fmt.Sprintf(`Link %s %s active%s`, connName, activePrefix, failureStr))
 
 	// Ensure stdout matches expected regexp
 	if !outRegex.MatchString(stdout) {

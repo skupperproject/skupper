@@ -304,6 +304,9 @@ installation that can then be connected to other skupper installations`,
 			} else if !routerIngressFlag.Changed {
 				routerCreateOpts.Ingress = cli.GetIngressDefault()
 			}
+			if routerCreateOpts.Ingress == types.IngressNodePortString && routerCreateOpts.Router.IngressHost == "" {
+				return fmt.Errorf(`--router-ingress-host option is required when using "--ingress nodeport"`)
+			}
 			routerCreateOpts.Annotations = asMap(annotations)
 			routerCreateOpts.Labels = asMap(labels)
 			if err := routerCreateOpts.CheckIngress(); err != nil {
@@ -362,8 +365,9 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
-	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: [loadbalancer|route|none]. If not specified route is used when available, otherwise loadbalancer is used.")
-	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: [loadbalancer|route|none].")
+	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: [loadbalancer|route|nodeport|nginx-ingress-v1|none]. If not specified route is used when available, otherwise loadbalancer is used.")
+	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: [loadbalancer|route|nodeport|nginx-ingress-v1|none].")
+	cmd.Flags().StringVarP(&routerCreateOpts.IngressHost, "ingress-host", "", "", "Hostname by which the ingress proxy can be reached")
 	cmd.Flags().StringVarP(&routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
 
 	cmd.Flags().StringSliceVar(&annotations, "annotations", []string{}, "Annotations to add to skupper pods")
@@ -378,12 +382,14 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVar(&routerCreateOpts.Router.NodeSelector, "router-node-selector", "", "Node selector to control placement of router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Affinity, "router-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.AntiAffinity, "router-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Router.IngressHost, "router-ingress-host", "", "Host through which node is accessible when using nodeport as ingress.")
 
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Cpu, "controller-cpu", "", "CPU request for controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Memory, "controller-memory", "", "Memory request for controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.NodeSelector, "controller-node-selector", "", "Node selector to control placement of controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Affinity, "controller-pod-affinity", "", "Pod affinity label matches to control placement of controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.AntiAffinity, "controller-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of controller pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.IngressHost, "controller-ingress-host", "", "Host through which node is accessible when using nodeport as ingress.")
 
 	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept connections from within the local cluster.")
 	f := cmd.Flag("cluster-local")
@@ -505,7 +511,7 @@ func NewCmdListConnectors(newClient cobraFunc) *cobra.Command {
 				} else {
 					fmt.Println("Connectors:")
 					for _, c := range connectors {
-						fmt.Printf("    %s:%s (name=%s)", c.Host, c.Port, c.Name)
+						fmt.Printf("    %s (name=%s)", c.Url, c.Name)
 						fmt.Println()
 					}
 				}
@@ -1203,15 +1209,37 @@ func NewCmdDebug() *cobra.Command {
 
 func NewCmdDebugDump(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "dump <filename>",
-		Short:  "Collect and save skupper logs, config, etc.",
+		Use:    "dump <filename>.tar.gz",
+		Short:  "Collect and store skupper logs, config, etc. to compressed archive file",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			err := cli.SkupperDump(context.Background(), args[0], client.Version, kubeConfigPath, kubeContext)
+			file, err := cli.SkupperDump(context.Background(), args[0], client.Version, kubeConfigPath, kubeContext)
 			if err != nil {
-				return fmt.Errorf("Unable to save skupper details: %w", err)
+				return fmt.Errorf("Unable to save skupper dump details: %w", err)
+			} else {
+				fmt.Println("Skupper dump details written to compressed archive: ", file)
+			}
+			return nil
+		},
+	}
+	return cmd
+}
+
+func NewCmdRevokeaccess(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "revoke-access",
+		Short: "Revoke all previously granted access to the site.",
+		Long: `This will invalidate all previously issued tokens and require that all
+links to this site be re-established with new tokens.`,
+		Args:   cobra.ExactArgs(0),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			err := cli.RevokeAccess(context.Background())
+			if err != nil {
+				return fmt.Errorf("Unable to revoke access: %w", err)
 			}
 			return nil
 		},
@@ -1350,6 +1378,8 @@ func init() {
 
 	cmdCompletion := NewCmdCompletion()
 
+	cmdRevokeAll := NewCmdRevokeaccess(newClient)
+
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
@@ -1372,7 +1402,7 @@ func init() {
 		cmdDebug,
 		cmdCompletion,
 		cmdProxy,
-	)
+		cmdRevokeAll)
 
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")

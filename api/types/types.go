@@ -88,7 +88,7 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
 		APIGroups: []string{""},
-		Resources: []string{"services", "configmaps", "pods"},
+		Resources: []string{"services", "configmaps", "pods", "secrets"},
 	},
 	{
 		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
@@ -105,6 +105,11 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 		APIGroups: []string{"route.openshift.io"},
 		Resources: []string{"routes"},
 	},
+	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{"networking.k8s.io"},
+		Resources: []string{"ingresses"},
+	},
 }
 
 // Certifcates/Secrets constants
@@ -113,6 +118,7 @@ const (
 	LocalServerSecret        string = "skupper-local-server"
 	LocalCaSecret            string = "skupper-local-ca"
 	SiteServerSecret         string = "skupper-site-server"
+	ClaimsServerSecret       string = "skupper-claims-server"
 	SiteCaSecret             string = "skupper-site-ca"
 	OauthConsoleSecret       string = "skupper-console-certs"
 	OauthRouterConsoleSecret string = "skupper-router-console-certs"
@@ -136,6 +142,8 @@ const (
 	SkupperTypeQualifier        string = BaseQualifier + "/type"
 	TypeProxyQualifier          string = InternalTypeQualifier + "=proxy"
 	TypeToken                   string = "connection-token"
+	TypeClaimRecord             string = "token-claim-record"
+	TypeClaimRequest            string = "token-claim"
 	TypeTokenQualifier          string = BaseQualifier + "/type=connection-token"
 	TypeTokenRequestQualifier   string = BaseQualifier + "/type=connection-token-request"
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
@@ -146,6 +154,14 @@ const (
 	ComponentAnnotation         string = BaseQualifier + "/component"
 	SiteControllerIgnore        string = InternalQualifier + "/site-controller-ignore"
 	RouterComponent             string = "router"
+	ClaimExpiration             string = BaseQualifier + "/claim-expiration"
+	ClaimsRemaining             string = BaseQualifier + "/claims-remaining"
+	ClaimUrlAnnotationKey       string = BaseQualifier + "/url"
+	ClaimPasswordDataKey        string = "password"
+	ClaimCaCertDataKey          string = "ca.crt"
+	ClaimRequestSelector        string = SkupperTypeQualifier + "=" + TypeClaimRequest
+	LastFailedAnnotationKey     string = InternalQualifier + "/last-failed"
+	StatusAnnotationKey         string = InternalQualifier + "/status"
 )
 
 //standard labels
@@ -174,6 +190,7 @@ const (
 	ConsoleOpenShiftOauthServicePort       int32  = 443
 	ConsoleOpenShiftOauthServiceTargetPort int32  = 8443
 	ConsoleRouteName                       string = "skupper"
+	ConsoleIngressName                     string = "skupper-console"
 	RouterConsoleRouteName                 string = "skupper-router-console"
 	RouterConsoleServiceName               string = "skupper-router-console"
 )
@@ -184,6 +201,12 @@ const (
 	ConsoleAuthModeOpenshift ConsoleAuthMode = "openshift"
 	ConsoleAuthModeInternal                  = "internal"
 	ConsoleAuthModeUnsecured                 = "unsecured"
+)
+
+const (
+	ClaimRedemptionPort      int32  = 8081
+	ClaimRedemptionPortName  string = "claims"
+	ClaimRedemptionRouteName string = "claims"
 )
 
 // Assembly constants
@@ -197,6 +220,7 @@ const (
 	InterRouterListenerPort int32  = 55671
 	InterRouterRouteName    string = "skupper-inter-router"
 	InterRouterProfile      string = "skupper-internal"
+	IngressName             string = "skupper"
 )
 
 // Service Sync constants
@@ -206,15 +230,16 @@ const (
 
 // RouterSpec is the specification of VAN network with router, controller and assembly
 type RouterSpec struct {
-	Name           string          `json:"name,omitempty"`
-	Namespace      string          `json:"namespace,omitempty"`
-	AuthMode       ConsoleAuthMode `json:"authMode,omitempty"`
-	Transport      DeploymentSpec  `json:"transport,omitempty"`
-	Controller     DeploymentSpec  `json:"controller,omitempty"`
-	RouterConfig   string          `json:"routerConfig,omitempty"`
-	Users          []User          `json:"users,omitempty"`
-	CertAuthoritys []CertAuthority `json:"certAuthoritys,omitempty"`
-	Credentials    []Credential    `json:"credentials,omitempty"`
+	Name                  string          `json:"name,omitempty"`
+	Namespace             string          `json:"namespace,omitempty"`
+	AuthMode              ConsoleAuthMode `json:"authMode,omitempty"`
+	Transport             DeploymentSpec  `json:"transport,omitempty"`
+	Controller            DeploymentSpec  `json:"controller,omitempty"`
+	RouterConfig          string          `json:"routerConfig,omitempty"`
+	Users                 []User          `json:"users,omitempty"`
+	CertAuthoritys        []CertAuthority `json:"certAuthoritys,omitempty"`
+	TransportCredentials  []Credential    `json:"transportCredentials,omitempty"`
+	ControllerCredentials []Credential    `json:"controllerCredentials,omitempty"`
 }
 
 type ImageDetails struct {

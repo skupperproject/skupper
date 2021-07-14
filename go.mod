@@ -13,6 +13,7 @@ require (
 	github.com/google/go-cmp v0.5.2
 	github.com/google/uuid v1.1.2
 	github.com/gophercloud/gophercloud v0.8.0 // indirect
+	github.com/gorilla/mux v1.8.0
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/interconnectedcloud/go-amqp v0.12.6-0.20200506124159-f51e540008b5
 	github.com/openshift/api v0.0.0-20200109182645-c3cf38ec5571

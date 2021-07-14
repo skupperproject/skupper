@@ -61,6 +61,9 @@ type Controller struct {
 	consoleServer     *ConsoleServer
 	siteQueryServer   *SiteQueryServer
 	configSync        *ConfigSync
+	claimVerifier     *ClaimVerifier
+	tokenHandler      *SecretController
+	claimHandler      *SecretController
 }
 
 const (
@@ -188,6 +191,11 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 
 	controller.definitionMonitor = newDefinitionMonitor(controller.origin, controller.vanClient, controller.svcDefInformer, controller.svcInformer)
 	controller.configSync = newConfigSync(controller.bridgeDefInformer, tlsConfig)
+	if enableClaimVerifier() {
+		controller.claimVerifier = newClaimVerifier(controller.vanClient)
+	}
+	controller.tokenHandler = newTokenHandler(controller.vanClient, origin)
+	controller.claimHandler = newClaimHandler(controller.vanClient, origin)
 	return controller, nil
 }
 
@@ -305,12 +313,19 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	c.siteQueryServer.start(stopCh)
 	c.consoleServer.start(stopCh)
 	c.configSync.start(stopCh)
+	if c.claimVerifier != nil {
+		c.claimVerifier.start(stopCh)
+	}
+	c.tokenHandler.start(stopCh)
+	c.claimHandler.start(stopCh)
 
 	log.Println("Started workers")
 	<-stopCh
 	log.Println("Shutting down workers")
 	c.configSync.stop()
 	c.definitionMonitor.stop()
+	c.tokenHandler.stop()
+	c.claimHandler.stop()
 
 	return nil
 }

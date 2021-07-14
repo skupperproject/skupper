@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"gotest.tools/assert"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -374,7 +375,7 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 		{
 			doc:             "connection-token-test3",
 			args:            []string{"/tmp/foo.yaml"},
-			expectedCapture: "Connection token written to /tmp/foo.yaml",
+			expectedCapture: "Token written to /tmp/foo.yaml",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -423,7 +424,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 		{
 			doc:             "connect-test2",
 			args:            []string{"/tmp/foo.yaml", "--connection-name", "edge-conn1"},
-			expectedCapture: "Skupper configured to connect to",
+			expectedCapture: "Site configured to link to",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -471,7 +472,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 		{
 			doc:             "connect-test2",
 			args:            []string{"/tmp/foo.yaml", "--connection-name", "interior-conn1"},
-			expectedCapture: "Skupper configured to connect to",
+			expectedCapture: "Site configured to link to",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -519,10 +520,19 @@ func TestDisconnectWithCluster(t *testing.T) {
 		{
 			doc:             "disconnect-test2",
 			args:            []string{"conn1"},
+			expectedCapture: "",
+			expectedOutput:  "",
+			expectedError:   "No such link \"conn1\"",
+			realCluster:     true,
+		},
+		{
+			doc:             "disconnect-test3",
+			args:            []string{"conn1"},
 			expectedCapture: "Link 'conn1' has been removed",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
+			createConn:      true,
 		},
 	}
 
@@ -547,7 +557,20 @@ func TestDisconnectWithCluster(t *testing.T) {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
-
+		if tc.createConn {
+			if c, ok := cli.(*client.VanClient); ok {
+				token := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "conn1",
+						Labels: map[string]string{
+							types.SkupperTypeQualifier: types.TypeToken,
+						},
+					},
+				}
+				_, err := c.KubeClient.CoreV1().Secrets(namespace).Create(token)
+				assert.Check(t, err)
+			}
+		}
 		cmd := NewCmdDisconnect(testClient)
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
@@ -611,7 +634,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		if tc.createConn {
 			connectCmd := NewCmdConnect(testClient)
 			silenceCobra(connectCmd)
-			testCommand(t, connectCmd, tc.doc, "", "Skupper configured to connect to", "", []string{"/tmp/foo.yaml"}...)
+			testCommand(t, connectCmd, tc.doc, "", "Site configured to link to", "", []string{"/tmp/foo.yaml"}...)
 		}
 
 		cmd := NewCmdListConnectors(testClient)
@@ -633,7 +656,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		{
 			doc:             "check-connection-test2",
 			args:            []string{"all"},
-			expectedCapture: "There are no connectors configured or active",
+			expectedCapture: "There are no links configured or active",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -641,7 +664,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		{
 			doc:             "check-connection-test3",
 			args:            []string{"conn1"},
-			expectedCapture: "There are no connectors configured or active",
+			expectedCapture: "No such link",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -649,7 +672,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		{
 			doc:             "check-connection-test4",
 			args:            []string{"conn1"},
-			expectedCapture: "Connection for conn1 not active",
+			expectedCapture: "Link conn1 not active",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -658,7 +681,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		{
 			doc:             "check-connection-test5",
 			args:            []string{"all"},
-			expectedCapture: "Connection for conn1 not active",
+			expectedCapture: "Link conn1 not active",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -690,7 +713,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		if tc.createConn {
 			cmd := NewCmdConnect(testClient)
 			silenceCobra(cmd)
-			testCommand(t, cmd, tc.doc, "", "Skupper configured to connect to", "", []string{"/tmp/foo.yaml"}...)
+			testCommand(t, cmd, tc.doc, "", "Site configured to link to", "", []string{"/tmp/foo.yaml"}...)
 		}
 
 		cmd := NewCmdCheckConnection(testClient)
@@ -1411,14 +1434,22 @@ func TestDebugDumpWithCluster(t *testing.T) {
 			doc:             "debug-dump-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Collect and save skupper logs, config, etc.",
+			expectedOutput:  "Collect and store skupper logs, config, etc. to compressed archive file",
 			expectedError:   "",
 			realCluster:     false,
 		},
 		{
 			doc:             "debug-dump-test2",
 			args:            []string{"./tmp/dump.txt"},
-			expectedCapture: "",
+			expectedCapture: "Skupper dump details written to compressed archive:  ./tmp/dump.txt",
+			expectedOutput:  "",
+			expectedError:   "",
+			realCluster:     true,
+		},
+		{
+			doc:             "debug-dump-test3",
+			args:            []string{"./tmp/dump"},
+			expectedCapture: "Skupper dump details written to compressed archive:  ./tmp/dump.tar.gz",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,

@@ -167,6 +167,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					},
 					// skupper link status - testing all links
 					&link.StatusTester{
+						Name:   "public",
 						Active: true,
 					},
 					// skupper link status - now using link name and a 10 secs wait

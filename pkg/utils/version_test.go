@@ -144,3 +144,24 @@ func TestLessRecentThan(t *testing.T) {
 		}
 	}
 }
+
+func TestIsValidFor(t *testing.T) {
+	var tests = []struct {
+		actual   string
+		minimum  string
+		expected bool
+	}{
+		{"", "0.7.0", false},
+		{"0.5.3", "0.7.0", false},
+		{"34145a5-modified", "0.7.0", true},
+		{"0.7.0", "0.7.0", true},
+		{"0.7.1", "0.7.0", true},
+		{"0.8.6", "0.7.5", true},
+		{"1.0.0", "0.7.0", true},
+	}
+	for _, test := range tests {
+		if actual := IsValidFor(test.actual, test.minimum); actual != test.expected {
+			t.Errorf("Expected IsValidFor(%s, %s) to be %v, got %v", test.actual, test.minimum, test.expected, actual)
+		}
+	}
+}

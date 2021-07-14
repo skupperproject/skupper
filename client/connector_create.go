@@ -21,13 +21,14 @@ import (
 	certs "github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 func generateConnectorName(namespace string, cli kubernetes.Interface) string {
-	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
+	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
 	max := 1
 	if err == nil {
-		connector_name_pattern := regexp.MustCompile("conn([0-9])+")
+		connector_name_pattern := regexp.MustCompile("conn([0-9]+)+")
 		for _, s := range secrets.Items {
 			count := connector_name_pattern.FindStringSubmatch(s.ObjectMeta.Name)
 			if len(count) > 1 {
@@ -125,6 +126,39 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 	return secret, nil
 }
 
+func verify(secret *corev1.Secret) error {
+	if secret.ObjectMeta.Labels == nil {
+		secret.ObjectMeta.Labels = map[string]string{}
+	}
+	if _, ok := secret.ObjectMeta.Labels[types.SkupperTypeQualifier]; !ok {
+		//deduce type from structire of secret
+		if _, ok = secret.Data["tls.crt"]; ok {
+			secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
+		} else if secret.ObjectMeta.Annotations != nil && secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey] != "" {
+			secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeClaimRequest
+		}
+	}
+	switch secret.ObjectMeta.Labels[types.SkupperTypeQualifier] {
+	case types.TypeToken:
+		CertTokenDataFields := []string{"tls.key", "tls.crt", "ca.crt"}
+		for _, name := range CertTokenDataFields {
+			if _, ok := secret.Data[name]; !ok {
+				return fmt.Errorf("Expected %s field in secret data", name)
+			}
+		}
+	case types.TypeClaimRequest:
+		if _, ok := secret.Data["password"]; !ok {
+			return fmt.Errorf("Expected password field in secret data")
+		}
+		if secret.ObjectMeta.Annotations == nil || secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey] == "" {
+			return fmt.Errorf("Expected %s annotation", types.ClaimUrlAnnotationKey)
+		}
+	default:
+		return fmt.Errorf("Secret is not a valid skupper token")
+	}
+	return nil
+}
+
 func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	yaml, err := ioutil.ReadFile(secretFile)
 	if err != nil {
@@ -144,12 +178,26 @@ func (cli *VanClient) ConnectorCreateSecretFromFile(ctx context.Context, secretF
 				options.Name = generateConnectorName(options.SkupperNamespace, cli.KubeClient)
 			}
 			secret.ObjectMeta.Name = options.Name
-			secret.ObjectMeta.Labels = map[string]string{
-				"skupper.io/type": "connection-token",
+			err = verify(&secret)
+			if err != nil {
+				return nil, err
+			}
+			if secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeClaimRequest {
+				//can site handle claims?
+				err := cli.requireSiteVersion(ctx, options.SkupperNamespace, "0.7.0")
+				if err != nil {
+					return nil, fmt.Errorf("Claims not supported. %s", err)
+				}
 			}
 			secret.ObjectMeta.SetOwnerReferences([]metav1.OwnerReference{
 				kube.GetDeploymentOwnerReference(current),
 			})
+			if options.Cost != 0 {
+				if secret.ObjectMeta.Annotations == nil {
+					secret.ObjectMeta.Annotations = map[string]string{}
+				}
+				secret.ObjectMeta.Annotations[types.TokenCost] = strconv.Itoa(int(options.Cost))
+			}
 			_, err = cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Create(&secret)
 			if err == nil {
 				return &secret, nil
@@ -232,6 +280,22 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
+	}
+	return nil
+}
+
+func (cli *VanClient) requireSiteVersion(ctx context.Context, namespace string, minimumVersion string) error {
+	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	config, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return err
+	}
+	site := config.GetSiteMetadata()
+	if !utils.IsValidFor(site.Version, minimumVersion) {
+		return fmt.Errorf("Site version is %s, require %s", site.Version, minimumVersion)
 	}
 	return nil
 }

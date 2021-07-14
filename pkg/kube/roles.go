@@ -16,6 +16,19 @@ func CreateRole(namespace string, role *rbacv1.Role, kubeclient kubernetes.Inter
 	}
 }
 
+func UpdateRole(namespace string, name string, rules []rbacv1.PolicyRule, kubeclient kubernetes.Interface) error {
+	role, err := kubeclient.RbacV1().Roles(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	role.Rules = rules
+	_, err = kubeclient.RbacV1().Roles(namespace).Update(role)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func CopyRole(src string, dest string, namespace string, kubeclient kubernetes.Interface) error {
 	original, err := kubeclient.RbacV1().Roles(namespace).Get(src, metav1.GetOptions{})
 	if err != nil {

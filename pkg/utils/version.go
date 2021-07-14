@@ -88,3 +88,12 @@ func MoreRecentThanVersion(a string, b string) bool {
 	vb := ParseVersion(b)
 	return va.MoreRecentThan(vb)
 }
+
+func IsValidFor(actual string, minimum string) bool {
+	if actual == "" { //assume pre 0.5
+		return false
+	}
+	va := ParseVersion(actual)
+	vb := ParseVersion(minimum)
+	return va.IsUndefined() || !va.LessRecentThan(vb)
+}

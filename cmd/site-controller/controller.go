@@ -25,7 +25,6 @@ import (
 type SiteController struct {
 	vanClient            *client.VanClient
 	siteInformer         cache.SharedIndexInformer
-	tokenInformer        cache.SharedIndexInformer
 	tokenRequestInformer cache.SharedIndexInformer
 	workqueue            workqueue.RateLimitingInterface
 }
@@ -50,14 +49,6 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 			options.FieldSelector = "metadata.name=skupper-site"
 			options.LabelSelector = "!" + types.SiteControllerIgnore
 		}))
-	tokenInformer := corev1informer.NewFilteredSecretInformer(
-		cli.KubeClient,
-		watchNamespace,
-		time.Second*30,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
-			options.LabelSelector = types.TypeTokenQualifier
-		}))
 	tokenRequestInformer := corev1informer.NewFilteredSecretInformer(
 		cli.KubeClient,
 		watchNamespace,
@@ -71,13 +62,11 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 	controller := &SiteController{
 		vanClient:            cli,
 		siteInformer:         siteInformer,
-		tokenInformer:        tokenInformer,
 		tokenRequestInformer: tokenRequestInformer,
 		workqueue:            workqueue,
 	}
 
 	siteInformer.AddEventHandler(controller.getHandlerFuncs(SiteConfig, configmapResourceVersionTest))
-	tokenInformer.AddEventHandler(controller.getHandlerFuncs(Token, secretResourceVersionTest))
 	tokenRequestInformer.AddEventHandler(controller.getHandlerFuncs(TokenRequest, secretResourceVersionTest))
 	return controller, nil
 }
@@ -118,11 +107,10 @@ func (c *SiteController) Run(stopCh <-chan struct{}) error {
 
 	log.Println("Starting the Skupper site controller informers")
 	go c.siteInformer.Run(stopCh)
-	go c.tokenInformer.Run(stopCh)
 	go c.tokenRequestInformer.Run(stopCh)
 
 	log.Println("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.siteInformer.HasSynced, c.tokenInformer.HasSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.siteInformer.HasSynced); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
 	log.Printf("Checking if sites need updates (%s)", client.Version)
@@ -184,8 +172,6 @@ func (c *SiteController) dispatchTrigger(trigger trigger) error {
 	switch trigger.category {
 	case SiteConfig:
 		return c.checkSite(trigger.key)
-	case Token:
-		return c.checkToken(trigger.key)
 	case TokenRequest:
 		return c.checkTokenRequest(trigger.key)
 	default:
@@ -209,8 +195,6 @@ func (c *SiteController) enqueueTrigger(obj interface{}, category triggerType) {
 
 func (c *SiteController) checkAllForSite() {
 	// Now need to check whether there are any token requests already in place
-	log.Println("Checking tokens...")
-	c.checkAllTokens()
 	log.Println("Checking token requests...")
 	c.checkAllTokenRequests()
 	log.Println("Done.")
@@ -343,15 +327,6 @@ func (c *SiteController) generate(token *corev1.Secret) error {
 	}
 }
 
-func (c *SiteController) checkAllTokens() {
-	//can we rely on the cache here?
-	tokens := c.tokenInformer.GetStore().List()
-	for _, t := range tokens {
-		// service from the workqueue
-		c.enqueueTrigger(t, Token)
-	}
-}
-
 func (c *SiteController) checkAllTokenRequests() {
 	//can we rely on the cache here?
 	tokens := c.tokenRequestInformer.GetStore().List()
@@ -359,34 +334,6 @@ func (c *SiteController) checkAllTokenRequests() {
 		// service from workqueue
 		c.enqueueTrigger(t, TokenRequest)
 	}
-}
-
-func (c *SiteController) checkToken(key string) error {
-	obj, exists, err := c.tokenInformer.GetStore().GetByKey(key)
-	if err != nil {
-		log.Println("Error checking connection-token secret: ", err)
-		return err
-	} else if exists {
-		siteNamespace, _, err := cache.SplitMetaNamespaceKey(key)
-		if err == nil {
-			token := obj.(*corev1.Secret)
-			if c.isTokenValidInSite(token) {
-				return c.connect(token, siteNamespace)
-			} else {
-				return nil
-			}
-		} else {
-			log.Println("Error getting namespace for token secret: ", err)
-		}
-	} else {
-		siteNamespace, secret, err := cache.SplitMetaNamespaceKey(key)
-		if err == nil {
-			return c.disconnect(secret, siteNamespace)
-		} else {
-			log.Println("Error getting secret name and namespace for token: ", err)
-		}
-	}
-	return nil
 }
 
 func (c *SiteController) checkTokenRequest(key string) error {

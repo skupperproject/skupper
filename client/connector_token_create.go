@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -64,6 +65,35 @@ func configureHostPortsFromRoutes(result *RouterHostPorts, cli *VanClient, names
 	}
 }
 
+func getNodePorts(result *RouterHostPorts, service *corev1.Service) bool {
+	foundEdge, foundInterRouter := false, false
+	for _, p := range service.Spec.Ports {
+		if p.Name == "inter-router" {
+			result.InterRouter.Port = strconv.Itoa(int(p.NodePort))
+			foundInterRouter = true
+		} else if p.Name == "edge" {
+			result.Edge.Port = strconv.Itoa(int(p.NodePort))
+			foundEdge = true
+		}
+	}
+	return foundEdge && foundInterRouter
+}
+
+func getIngressHost(result *RouterHostPorts, cli *VanClient, namespace string) bool {
+	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
+	if err != nil {
+		fmt.Printf("Failed to look up ingress host for nodeport: %s, ", err)
+		fmt.Println()
+		return false
+	} else if len(configmap.Data) > 0 && configmap.Data[SiteConfigRouterIngressHostKey] != "" {
+		result.Hosts = configmap.Data[SiteConfigRouterIngressHostKey]
+		result.InterRouter.Host = result.Hosts
+		result.Edge.Host = result.Hosts
+		return true
+	}
+	return false
+}
+
 func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace string) bool {
 	if namespace == "" {
 		namespace = cli.Namespace
@@ -89,6 +119,34 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 					return true
 				} else {
 					fmt.Printf("LoadBalancer Host/IP not yet allocated for service %s, ", service.ObjectMeta.Name)
+					fmt.Println()
+				}
+			} else if service.Spec.Type == corev1.ServiceTypeNodePort && getNodePorts(result, service) {
+				getIngressHost(result, cli, namespace)
+				return true
+			} else {
+				ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
+				if err != nil {
+					fmt.Printf("Could not check for ingress: %s", err)
+					fmt.Println()
+				} else if len(ingressRoutes) > 0 {
+					var edgeHost string
+					var interRouterHost string
+					for _, route := range ingressRoutes {
+						if route.ServicePort == int(types.InterRouterListenerPort) {
+							interRouterHost = route.Host
+						} else if route.ServicePort == int(types.EdgeListenerPort) {
+							edgeHost = route.Host
+						}
+					}
+					if edgeHost != "" && interRouterHost != "" {
+						result.Edge.Host = edgeHost
+						result.Edge.Port = "443"
+						result.InterRouter.Host = interRouterHost
+						result.InterRouter.Port = "443"
+						result.Hosts = edgeHost + "," + interRouterHost
+						return true
+					}
 				}
 			}
 			result.LocalOnly = true

@@ -122,8 +122,8 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			// show up, but I am giving it a large timeout here. The result
 			// checker will cut out as soon as it sees a result list of the
 			// right size.
-			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName},
-			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, "vsic-5-addr"},
+			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
+			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-5-addr"},
 			timeout:          60.0,
 		},
 	}
