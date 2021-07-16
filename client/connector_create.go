@@ -228,6 +228,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			return err
 		}
 		updated := false
+		added := false
 		//read annotations to get the host and port to connect to
 		profileName := options.Name + "-profile"
 		if _, ok := current.SslProfiles[profileName]; !ok {
@@ -259,6 +260,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			}
 		} else {
 			current.AddConnector(connector)
+			added = true
 			updated = true
 		}
 		if updated {
@@ -269,7 +271,11 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			}
 			//need to mount the secret so router can access certs and key
 			deployment, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
-			kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, connector.Name, "/etc/qpid-dispatch-certs/"+profileName+"/")
+			if added {
+				kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, connector.Name, "/etc/qpid-dispatch-certs/"+profileName+"/")
+			} else {
+				touch(deployment)
+			}
 			_, err = cli.KubeClient.AppsV1().Deployments(options.SkupperNamespace).Update(deployment)
 			if err != nil {
 				return err

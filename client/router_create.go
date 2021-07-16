@@ -653,10 +653,14 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				controllerHosts = append(controllerHosts, controllerIngressHost)
 			}
 		}
+		siteServerSubject := types.TransportServiceName
+		if options.IsIngressNodePort() {
+			siteServerSubject = options.GetRouterIngressHost()
+		}
 		credentials = append(credentials, types.Credential{
 			CA:          types.SiteCaSecret,
 			Name:        types.SiteServerSecret,
-			Subject:     types.TransportServiceName,
+			Subject:     siteServerSubject,
 			Hosts:       routerHosts,
 			ConnectJson: false,
 			Post:        post,
