@@ -32,7 +32,7 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:    "create <input-token-file>",
-		Short:  "Links this skupper installation to that which issued the specified connectionToken",
+		Short:  "Links this skupper installation to that which issued the specified token",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,7 +45,7 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 			connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
 			secret, err := cli.ConnectorCreateSecretFromFile(context.Background(), args[0], connectorCreateOpts)
 			if err != nil {
-				return fmt.Errorf("Failed to create connection: %w", err)
+				return fmt.Errorf("Failed to create link: %w", err)
 			} else {
 				if secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeToken {
 					if siteConfig.Spec.RouterMode == string(types.TransportModeEdge) {
@@ -68,8 +68,8 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&connectorCreateOpts.Name, flag, "", "", "Provide a specific name for the connection (used when removing it with disconnect)")
-	cmd.Flags().Int32VarP(&connectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this connection.")
+	cmd.Flags().StringVarP(&connectorCreateOpts.Name, flag, "", "", "Provide a specific name for the link (used when deleting it)")
+	cmd.Flags().Int32VarP(&connectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this link.")
 
 	return cmd
 }
@@ -113,7 +113,7 @@ func allConnected(links []types.LinkStatus) bool {
 
 func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "status [<connection-name>]",
+		Use:    "status [<link-name>]",
 		Short:  "Check whether a link to another Skupper site is active",
 		Args:   cobra.MaximumNArgs(1),
 		PreRun: newClient,
@@ -180,7 +180,7 @@ func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for connections to become active")
+	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become active")
 
 	return cmd
 

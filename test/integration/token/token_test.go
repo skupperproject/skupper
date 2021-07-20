@@ -158,7 +158,7 @@ func TestToken(t *testing.T) {
 					},
 					// skupper link delete - to remove it
 					&link.DeleteTester{
-						Name: "conn1",
+						Name: "link1",
 					},
 					// skupper status - to assert sites are no longer connected
 					&cli.StatusTester{
@@ -174,7 +174,7 @@ func TestToken(t *testing.T) {
 						Failure: link.ClaimInvalid,
 					},
 					&link.DeleteTester{
-						Name: "conn1",
+						Name: "link1",
 					},
 					// skupper status - to assert sites are no longer connected
 					&cli.StatusTester{
@@ -208,7 +208,7 @@ func TestToken(t *testing.T) {
 					},
 					// skupper link delete - to remove it
 					&link.DeleteTester{
-						Name: "conn1",
+						Name: "link1",
 					},
 					// skupper status - to assert sites are no longer connected
 					&cli.StatusTester{
@@ -223,7 +223,7 @@ func TestToken(t *testing.T) {
 						Active: true,
 					},
 					&link.DeleteTester{
-						Name: "conn1",
+						Name: "link1",
 					},
 					// skupper status - to assert sites are no longer connected
 					&cli.StatusTester{
@@ -256,7 +256,7 @@ func TestToken(t *testing.T) {
 					},
 					// skupper link delete - to remove it
 					&link.DeleteTester{
-						Name: "conn1",
+						Name: "link1",
 					},
 					// skupper status - to assert sites are no longer connected
 					&cli.StatusTester{
@@ -296,7 +296,7 @@ func TestToken(t *testing.T) {
 					},
 					// skupper link delete - to remove it
 					&link.DeleteTester{
-						Name: "conn1",
+						Name: "link1",
 					},
 					// skupper status - to assert sites are no longer connected
 					&cli.StatusTester{
@@ -320,7 +320,7 @@ func TestToken(t *testing.T) {
 					},
 					// skupper link delete - to remove it
 					&link.DeleteTester{
-						Name: "conn1",
+						Name: "link1",
 					},
 					// skupper status - to assert sites are no longer connected
 					&cli.StatusTester{

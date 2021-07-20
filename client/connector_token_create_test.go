@@ -30,10 +30,10 @@ func TestConnectorCreateTokenInterior(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	err = cli.ConnectorTokenCreateFile(ctx, "conn1", "./conn1.yaml")
+	err = cli.ConnectorTokenCreateFile(ctx, "link1", "./link1.yaml")
 	assert.Check(t, err, "Unable to create connector token")
 
-	os.Remove("./conn1.yaml")
+	os.Remove("./link1.yaml")
 }
 
 func TestConnectorCreateTokenEdge(t *testing.T) {
@@ -57,7 +57,7 @@ func TestConnectorCreateTokenEdge(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	err = cli.ConnectorTokenCreateFile(ctx, "conn1", "/tmp/conn1.yaml")
+	err = cli.ConnectorTokenCreateFile(ctx, "link1", "/tmp/link1.yaml")
 	assert.Error(t, err, "Edge configuration cannot accept connections", "Expect error when edge")
 
 }

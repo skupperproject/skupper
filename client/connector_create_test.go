@@ -79,7 +79,7 @@ func TestSelfConnect(t *testing.T) {
 	defer os.RemoveAll(testPath)
 
 	// Create the connection token for Public ---------------------------------
-	connectionName := "conn1"
+	connectionName := "link1"
 	secretFileName := testPath + connectionName + ".yaml"
 	err = publicClient.ConnectorTokenCreateFile(ctx, connectionName, secretFileName)
 	assert.Assert(t, err, "Unable to create token")
@@ -126,7 +126,7 @@ func TestMultipleConnect(t *testing.T) {
 
 	// Use the token to make a connector.
 	_, err = userClient.ConnectorCreateFromFile(ctx, secretFileName, types.ConnectorCreateOptions{
-		Name:             "conn1",
+		Name:             "link1",
 		SkupperNamespace: tokenCreatorNamespace,
 		Cost:             1,
 	})

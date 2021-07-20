@@ -36,8 +36,8 @@ func TestRevokeAccess(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create router")
 
-	filename := "./conn1.yaml"
-	err = cli.TokenClaimCreate(ctx, "conn1", []byte("abcde"), 0, 5, filename)
+	filename := "./link1.yaml"
+	err = cli.TokenClaimCreate(ctx, "link1", []byte("abcde"), 0, 5, filename)
 	assert.Check(t, err, "Unable to create claim")
 	claim, err := readSecretFromFile(filename)
 	assert.Check(t, err, "Unable to read claim")
