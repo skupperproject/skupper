@@ -116,9 +116,8 @@ func generateSecret(name string, subject string, hosts string, ca *CertificateAu
 	for _, h := range hosts_list {
 		if ip := net.ParseIP(h); ip != nil {
 			template.IPAddresses = append(template.IPAddresses, ip)
-		} else {
-			template.DNSNames = append(template.DNSNames, h)
 		}
+		template.DNSNames = append(template.DNSNames, h)
 	}
 
 	var parent *x509.Certificate
