@@ -45,13 +45,14 @@ func getClaimsNodePort(service *corev1.Service) (int32, error) {
 }
 
 func (cli *VanClient) getControllerIngressHost() (string, error) {
-	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
+	config, err := cli.SiteConfigInspect(context.TODO(), nil)
 	if err != nil {
 		return "", err
-	} else if len(configmap.Data) > 0 && configmap.Data[SiteConfigControllerIngressHostKey] != "" {
-		return configmap.Data[SiteConfigControllerIngressHostKey], nil
 	}
-	return "", fmt.Errorf("Controller ingress host not defined, cannot use claims for nodeport without it.")
+	if host := config.Spec.GetControllerIngressHost(); host != "" {
+		return host, nil
+	}
+	return "", fmt.Errorf("Controller ingress host not defined, cannot use claims for nodeport without it. A certificate token can be generated directly with --token-type=cert.")
 }
 
 func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error {

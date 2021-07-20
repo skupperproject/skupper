@@ -254,12 +254,13 @@ func (s *InitTester) ValidateIngress(cluster *base.ClusterContext) error {
 }
 
 func (s *InitTester) ValidateConsoleIngress(cluster *base.ClusterContext) error {
+	if !s.EnableConsole {
+		return nil
+	}
 	ingress := s.ConsoleIngress
 	if ingress == "" {
 		if s.Ingress != "" {
 			ingress = s.Ingress
-		} else if !s.EnableConsole {
-			ingress = types.IngressNoneString
 		} else {
 			ingress = cluster.VanClient.GetIngressDefault()
 		}
