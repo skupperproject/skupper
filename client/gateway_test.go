@@ -17,14 +17,14 @@ import (
 	"gotest.tools/assert"
 )
 
-func TestProxyDownload(t *testing.T) {
+func TestGatewayDownload(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var cli *VanClient
 	var err error
 
-	namespace := "test-proxy-download-" + strings.ToLower(utils.RandomId(4))
+	namespace := "test-gateway-download-" + strings.ToLower(utils.RandomId(4))
 	kubeContext := ""
 	kubeConfigPath := ""
 
@@ -42,7 +42,7 @@ func TestProxyDownload(t *testing.T) {
 	// Create a router.
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-proxy-download-",
+			SkupperName:       "test-gateway-download-",
 			RouterMode:        string(types.TransportModeInterior),
 			EnableController:  true,
 			EnableServiceSync: true,
@@ -55,19 +55,19 @@ func TestProxyDownload(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	proxyName, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
-		Name:       "download",
-		StartProxy: false,
+	gatewayName, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
+		Name:         "download",
+		DownloadOnly: true,
 	})
 	assert.Assert(t, observedError)
-	assert.Equal(t, proxyName, "download")
+	assert.Equal(t, gatewayName, "download")
 
-	// Here's where we will put the proxy download file.
+	// Here's where we will put the gateway download file.
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)
 	defer os.RemoveAll(testPath)
 
-	observedError = cli.ProxyDownload(ctx, "download", testPath)
+	observedError = cli.GatewayDownload(ctx, "download", testPath)
 	assert.Assert(t, observedError)
 
 	file, observedError := os.Open(testPath + "download.tar.gz")
@@ -105,14 +105,14 @@ func TestProxyDownload(t *testing.T) {
 	assert.Equal(t, i, len(files))
 }
 
-func TestProxyForward(t *testing.T) {
+func TestGatewayForward(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var cli *VanClient
 	var err error
 
-	namespace := "test-proxy-forward-" + strings.ToLower(utils.RandomId(4))
+	namespace := "test-gateway-forward-" + strings.ToLower(utils.RandomId(4))
 	kubeContext := ""
 	kubeConfigPath := ""
 
@@ -122,15 +122,15 @@ func TestProxyForward(t *testing.T) {
 	} else {
 		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
 	}
-	assert.Check(t, err, "test-proxy-forward-")
+	assert.Check(t, err, "test-gateway-forward-")
 	_, err = kube.NewNamespace(namespace, cli.KubeClient)
-	assert.Check(t, err, "test-proxy-forward-")
+	assert.Check(t, err, "test-gateway-forward-")
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
 	// Create a router.
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-proxy-forward-",
+			SkupperName:       "test-gateway-forward-",
 			RouterMode:        string(types.TransportModeInterior),
 			EnableController:  true,
 			EnableServiceSync: true,
@@ -178,50 +178,62 @@ func TestProxyForward(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &mongoService)
 	assert.Assert(t, observedError)
 
-	proxyName, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
-		Name:       "",
-		StartProxy: false,
+	gatewayName, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
+		Name:         "",
+		DownloadOnly: true,
 	})
 	assert.Assert(t, observedError)
 
-	observedError = cli.ProxyForward(ctx, proxyName, false, &echoService)
+	observedError = cli.GatewayForward(ctx, types.GatewayForwardOptions{
+		GatewayName: gatewayName,
+		Loopback:    false,
+		Service:     echoService,
+	})
 	assert.Assert(t, observedError)
 
-	//	observedError = cli.proxyStart(ctx, proxyName)
+	//	observedError = cli.gatewayStart(ctx, gatewayName)
 	//	assert.Assert(t, observedError)
 
 	// Note: need delay for service to start up
 	//	time.Sleep(time.Second * 1)
 
-	observedError = cli.ProxyForward(ctx, proxyName, true, &mongoService)
+	observedError = cli.GatewayForward(ctx, types.GatewayForwardOptions{
+		GatewayName: gatewayName,
+		Loopback:    true,
+		Service:     mongoService,
+	})
 	assert.Assert(t, observedError)
 
-	observedError = cli.ProxyForward(ctx, proxyName, true, &echoService2)
+	observedError = cli.GatewayForward(ctx, types.GatewayForwardOptions{
+		GatewayName: gatewayName,
+		Loopback:    true,
+		Service:     echoService2,
+	})
 	assert.Assert(t, observedError)
 
-	proxyInspect, observedError := cli.ProxyInspect(ctx, proxyName)
+	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
-	assert.Equal(t, len(proxyInspect.TcpListeners), 3)
-	assert.Equal(t, len(proxyInspect.TcpConnectors), 0)
+	assert.Equal(t, len(gatewayInspect.TcpListeners), 3)
+	assert.Equal(t, len(gatewayInspect.TcpConnectors), 0)
 
 	// Now undo
-	observedError = cli.ProxyUnforward(ctx, proxyName, "tcp-go-echo")
+	observedError = cli.GatewayUnforward(ctx, gatewayName, "tcp-go-echo")
 	assert.Assert(t, observedError)
 
-	//	observedError = cli.proxyStop(ctx, proxyName)
+	//	observedError = cli.gatewayStop(ctx, gatewayName)
 	//	assert.Assert(t, observedError)
 
-	observedError = cli.ProxyRemove(ctx, proxyName)
+	observedError = cli.GatewayRemove(ctx, gatewayName)
 	assert.Assert(t, observedError)
 }
-func TestProxyBind(t *testing.T) {
+func TestGatewayBind(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var cli *VanClient
 	var err error
 
-	namespace := "test-proxy-bind-" + strings.ToLower(utils.RandomId(4))
+	namespace := "test-gateway-bind-" + strings.ToLower(utils.RandomId(4))
 	kubeContext := ""
 	kubeConfigPath := ""
 
@@ -231,15 +243,15 @@ func TestProxyBind(t *testing.T) {
 	} else {
 		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
 	}
-	assert.Check(t, err, "test-proxy-bind-")
+	assert.Check(t, err, "test-gateway-bind-")
 	_, err = kube.NewNamespace(namespace, cli.KubeClient)
-	assert.Check(t, err, "test-proxy-bind-")
+	assert.Check(t, err, "test-gateway-bind-")
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
 	// Create a router.
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-proxy-bind-",
+			SkupperName:       "test-gateway-bind-",
 			RouterMode:        string(types.TransportModeInterior),
 			EnableController:  true,
 			EnableServiceSync: true,
@@ -266,53 +278,50 @@ func TestProxyBind(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, observedError)
 
-	proxyName, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
-		Name:       "",
-		StartProxy: false,
+	gatewayName, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
+		Name:         "",
+		DownloadOnly: true,
 	})
 	assert.Assert(t, observedError)
 
-	egress := types.ProxyBindOptions{
-		Protocol: "tcp",
-		Host:     "localhost",
-		Port:     "9090",
-		Address:  "tcp-go-echo",
-	}
-
-	observedError = cli.ProxyBind(ctx, proxyName, egress)
+	observedError = cli.GatewayBind(ctx, types.GatewayBindOptions{
+		GatewayName: gatewayName,
+		Protocol:    "tcp",
+		Host:        "localhost",
+		Port:        "9090",
+		Address:     "tcp-go-echo",
+	})
 	assert.Assert(t, observedError)
 
-	// observedError = cli.proxyStart(ctx, proxyName)
-	// assert.Assert(t, observedError)
-
-	// Note: need delay for service to start up
-	//	time.Sleep(time.Second * 1)
-
-	egress.Address = "mongo-db"
-	egress.Port = "27017"
-	observedError = cli.ProxyBind(ctx, proxyName, egress)
+	observedError = cli.GatewayBind(ctx, types.GatewayBindOptions{
+		GatewayName: gatewayName,
+		Protocol:    "tcp",
+		Host:        "localhost",
+		Port:        "27017",
+		Address:     "mongo-db",
+	})
 	assert.Assert(t, observedError)
 
 	// Now undo
-	observedError = cli.ProxyUnbind(ctx, proxyName, "tcp-go-echo")
+	observedError = cli.GatewayUnbind(ctx, types.GatewayUnbindOptions{
+		GatewayName: gatewayName,
+		Address:     "tcp-go-echo",
+	})
 	assert.Assert(t, observedError)
 
-	//	observedError = cli.proxyStop(ctx, proxyName)
-	//	assert.Assert(t, observedError)
-
-	proxyInspect, observedError := cli.ProxyInspect(ctx, proxyName)
+	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
-	assert.Equal(t, len(proxyInspect.TcpListeners), 0)
-	assert.Equal(t, len(proxyInspect.TcpConnectors), 1)
+	assert.Equal(t, len(gatewayInspect.TcpListeners), 0)
+	assert.Equal(t, len(gatewayInspect.TcpConnectors), 1)
 
-	observedError = cli.ProxyRemove(ctx, proxyName)
+	observedError = cli.GatewayRemove(ctx, gatewayName)
 	assert.Assert(t, observedError)
 }
-func TestProxyInit(t *testing.T) {
+func TestGatewayInit(t *testing.T) {
 	testcases := []struct {
 		doc           string
 		init          bool
-		start         bool
+		downloadOnly  bool
 		initName      string
 		actualName    string
 		remove        bool
@@ -322,41 +331,31 @@ func TestProxyInit(t *testing.T) {
 	}{
 		{
 			init:          true,
-			start:         false,
+			downloadOnly:  true,
 			initName:      "",
-			actualName:    "proxy1",
+			actualName:    "",
 			remove:        true,
 			removeName:    "",
-			expectedError: "Unable to delete proxy definition, need proxy name",
+			expectedError: "",
 			url:           "not active",
 		},
 		{
 			init:          false,
-			start:         false,
-			initName:      "",
-			actualName:    "proxy1",
+			downloadOnly:  true,
+			initName:      "gateway1",
+			actualName:    "gateway1",
 			remove:        true,
-			removeName:    "proxy1",
+			removeName:    "gateway1",
 			expectedError: "",
 			url:           "not active",
 		},
 		{
 			init:          true,
-			start:         false,
-			initName:      "",
-			actualName:    "proxy2",
+			downloadOnly:  true,
+			initName:      "gateway2",
+			actualName:    "gateway2",
 			remove:        true,
-			removeName:    "proxy2",
-			expectedError: "",
-			url:           "not active",
-		},
-		{
-			init:          true,
-			start:         false,
-			initName:      "meow",
-			actualName:    "meow",
-			remove:        true,
-			removeName:    "meow",
+			removeName:    "gateway2",
 			expectedError: "",
 			url:           "not active",
 		},
@@ -368,7 +367,7 @@ func TestProxyInit(t *testing.T) {
 	var cli *VanClient
 	var err error
 
-	namespace := "test-proxy-init-remove-" + strings.ToLower(utils.RandomId(4))
+	namespace := "test-gateway-init-remove-" + strings.ToLower(utils.RandomId(4))
 	kubeContext := ""
 	kubeConfigPath := ""
 
@@ -377,21 +376,21 @@ func TestProxyInit(t *testing.T) {
 	} else {
 		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
 	}
-	assert.Check(t, err, "test-proxy-init-remove")
+	assert.Check(t, err, "test-gateway-init-remove")
 	_, err = kube.NewNamespace(namespace, cli.KubeClient)
-	assert.Check(t, err, "test-proxy-init-remove")
+	assert.Check(t, err, "test-gateway-init-remove")
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
-	_, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
-		Name:       "",
-		StartProxy: true,
+	_, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
+		Name:         "",
+		DownloadOnly: false,
 	})
 	assert.Check(t, strings.Contains(observedError.Error(), "Skupper not initialized"))
 
 	// Create a router.
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-proxy-init-remove",
+			SkupperName:       "test-gateway-init-remove",
 			RouterMode:        string(types.TransportModeInterior),
 			EnableController:  true,
 			EnableServiceSync: true,
@@ -407,27 +406,30 @@ func TestProxyInit(t *testing.T) {
 	// Init loop
 	for _, tc := range testcases {
 		if tc.init {
-			proxyName, observedError := cli.ProxyInit(ctx, types.ProxyInitOptions{
-				Name:       tc.initName,
-				StartProxy: tc.start,
+			if tc.actualName == "" {
+				tc.actualName, _ = getUserDefaultGatewayName()
+			}
+			gatewayName, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
+				Name:         tc.initName,
+				DownloadOnly: tc.downloadOnly,
 			})
 			assert.Assert(t, observedError)
-			assert.Equal(t, proxyName, tc.actualName)
+			assert.Equal(t, gatewayName, tc.actualName)
 
-			if tc.start {
+			if !tc.downloadOnly {
 				time.Sleep(time.Second * 1)
 			}
-			proxyInspect, observedError := cli.ProxyInspect(ctx, proxyName)
+			gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 			assert.Assert(t, observedError)
-			assert.Equal(t, proxyInspect.ProxyName, tc.actualName)
-			assert.Equal(t, proxyInspect.ProxyUrl, tc.url)
+			assert.Equal(t, gatewayInspect.GatewayName, tc.actualName)
+			assert.Equal(t, gatewayInspect.GatewayUrl, tc.url)
 		}
 	}
 
 	// Remove loop
 	for _, tc := range testcases {
 		if tc.remove {
-			observedError = cli.ProxyRemove(ctx, tc.removeName)
+			observedError = cli.GatewayRemove(ctx, tc.removeName)
 
 			switch tc.expectedError {
 			case "":

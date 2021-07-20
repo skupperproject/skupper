@@ -162,6 +162,7 @@ const (
 	ClaimRequestSelector        string = SkupperTypeQualifier + "=" + TypeClaimRequest
 	LastFailedAnnotationKey     string = InternalQualifier + "/last-failed"
 	StatusAnnotationKey         string = InternalQualifier + "/status"
+	GatewayQualifier            string = InternalQualifier + "/gateway"
 )
 
 //standard labels

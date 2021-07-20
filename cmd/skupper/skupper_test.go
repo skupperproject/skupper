@@ -107,30 +107,29 @@ func TestExposeParseArgs(t *testing.T) {
 
 var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
 
-func TestBindProxyArgs(t *testing.T) {
-	genericError := "Proxy name, service address, target host and port must all be specified"
+func TestBindGatewayArgs(t *testing.T) {
+	genericError := "Service address, target host and port must all be specified"
 	b := func(args []string) error {
-		return bindProxyArgs(nil, args)
+		return bindGatewayArgs(nil, args)
 	}
 
 	assert.Error(t, b([]string{}), genericError)
 	assert.Error(t, b([]string{"oneArg"}), genericError)
 	assert.Error(t, b([]string{"oneArg", "twoArg"}), genericError)
-	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg"}), genericError)
 
-	assert.Assert(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}))
-	assert.Assert(t, b([]string{"oneArg", "twoArg", "threeArg:fourArg"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "threeArg"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg:threeArg"}))
 
 	//note  illegal vs extra
-	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg:fourArg", "fiveArg"}), "extra argument: fiveArg")
-	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "illegal argument: fiveArg")
-	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg", "sixArg"}), "illegal argument: fiveArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg:threeArt", "fourArg"}), "extra argument: fourArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "illegal argument: fourArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "illegal argument: fourArg")
 }
 
-func TestExposeProxyArgs(t *testing.T) {
-	genericError := "Proxy service address, target host and port must all be specified"
+func TestExposeGatewayArgs(t *testing.T) {
+	genericError := "Gateway service address, target host and port must all be specified"
 	b := func(args []string) error {
-		return exposeProxyArgs(nil, args)
+		return exposeGatewayArgs(nil, args)
 	}
 
 	assert.Error(t, b([]string{}), genericError)
