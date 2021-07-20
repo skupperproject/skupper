@@ -44,7 +44,7 @@ func (l *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	log.Printf("Validating 'skupper link create'")
 
 	// Preparing regex to validate output
-	connectionNameRegex := "conn[0-9]+"
+	connectionNameRegex := "link[0-9]+"
 	if l.Name != "" {
 		connectionNameRegex = l.Name
 	}

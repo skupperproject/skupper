@@ -320,7 +320,7 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 			args:            []string{"/tmp/foo.yaml"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "Failed to create connection token: Edge configuration cannot accept connections",
+			expectedError:   "Failed to create token: Edge configuration cannot accept connections",
 			realCluster:     true,
 		},
 	}
@@ -519,16 +519,16 @@ func TestDisconnectWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "disconnect-test2",
-			args:            []string{"conn1"},
+			args:            []string{"link1"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "No such link \"conn1\"",
+			expectedError:   "No such link \"link1\"",
 			realCluster:     true,
 		},
 		{
 			doc:             "disconnect-test3",
-			args:            []string{"conn1"},
-			expectedCapture: "Link 'conn1' has been removed",
+			args:            []string{"link1"},
+			expectedCapture: "Link 'link1' has been removed",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -561,7 +561,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 			if c, ok := cli.(*client.VanClient); ok {
 				token := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "conn1",
+						Name: "link1",
 						Labels: map[string]string{
 							types.SkupperTypeQualifier: types.TypeToken,
 						},
@@ -663,7 +663,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test3",
-			args:            []string{"conn1"},
+			args:            []string{"link1"},
 			expectedCapture: "No such link",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -671,8 +671,8 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test4",
-			args:            []string{"conn1"},
-			expectedCapture: "Link conn1 not active",
+			args:            []string{"link1"},
+			expectedCapture: "Link link1 not active",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -681,7 +681,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		{
 			doc:             "check-connection-test5",
 			args:            []string{"all"},
-			expectedCapture: "Link conn1 not active",
+			expectedCapture: "Link link1 not active",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,

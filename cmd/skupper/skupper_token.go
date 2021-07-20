@@ -37,7 +37,7 @@ func NewCmdTokenCreate(newClient cobraFunc, flag string) *cobra.Command {
 	}
 	cmd := &cobra.Command{
 		Use:    "create <output-token-file>",
-		Short:  "Create a connection token.  The 'link create' command uses the token to establish a link from a remote Skupper site.",
+		Short:  "Create a token.  The 'link create' command uses the token to establish a link from a remote Skupper site.",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,7 +46,7 @@ func NewCmdTokenCreate(newClient cobraFunc, flag string) *cobra.Command {
 			case "cert":
 				err := cli.ConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
 				if err != nil {
-					return fmt.Errorf("Failed to create connection token: %w", err)
+					return fmt.Errorf("Failed to create token: %w", err)
 				}
 				return nil
 			case "claim":
@@ -55,7 +55,7 @@ func NewCmdTokenCreate(newClient cobraFunc, flag string) *cobra.Command {
 				}
 				err := cli.TokenClaimCreate(context.Background(), clientIdentity, []byte(password), expiry, uses, args[0])
 				if err != nil {
-					return fmt.Errorf("Failed to create connection token: %w", err)
+					return fmt.Errorf("Failed to create token: %w", err)
 				}
 				return nil
 			default:

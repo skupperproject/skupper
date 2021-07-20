@@ -75,7 +75,7 @@ func (l *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 	// connection name
 	connName := l.Name
 	if connName == "" {
-		connName = "conn[0-9]+"
+		connName = "link[0-9]+"
 	}
 
 	// prefix for expected connection outcome

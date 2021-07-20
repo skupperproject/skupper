@@ -28,7 +28,7 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
 	max := 1
 	if err == nil {
-		connector_name_pattern := regexp.MustCompile("conn([0-9]+)+")
+		connector_name_pattern := regexp.MustCompile("link([0-9]+)+")
 		for _, s := range secrets.Items {
 			count := connector_name_pattern.FindStringSubmatch(s.ObjectMeta.Name)
 			if len(count) > 1 {
@@ -40,9 +40,9 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 
 		}
 	} else {
-		log.Fatal("Could not retrieve connection-token secrets:", err)
+		log.Fatal("Could not retrieve token secrets:", err)
 	}
-	return "conn" + strconv.Itoa(max)
+	return "link" + strconv.Itoa(max)
 }
 
 func secretFileAuthor(ctx context.Context, secretFile string) (author string, err error) {

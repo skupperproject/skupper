@@ -16,7 +16,7 @@ func TestConnectorInspectError(t *testing.T) {
 	cli, err := newMockClient("skupper", "", "")
 	assert.Check(t, err, "Unabled to create client.")
 
-	_, err = cli.ConnectorInspect(ctx, "conn1")
+	_, err = cli.ConnectorInspect(ctx, "link1")
 	assert.Error(t, err, "Skupper is not installed in "+cli.Namespace, "Expect error when VAN is not deployed")
 }
 
@@ -27,9 +27,9 @@ func TestConnectorInspectNotFound(t *testing.T) {
 		connName      string
 	}{
 		{
-			expectedError: `secrets "conn1" not found`,
+			expectedError: `secrets "link1" not found`,
 			doc:           "test one",
-			connName:      "conn1",
+			connName:      "link1",
 		},
 		{
 			expectedError: `secrets "all" not found`,
