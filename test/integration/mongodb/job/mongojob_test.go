@@ -5,6 +5,7 @@ package job
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -25,7 +26,7 @@ var DB_NAME = "my_database"
 var COLLECTION_NAME = "posts"
 
 func TestMongoJob(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
 	getClient := func(uri string) *mongo.Client {
@@ -60,6 +61,7 @@ func InsertAllPosts(client *mongo.Client, ctx context.Context) error {
 	for i := 0; i < TOTAL_DB_DOCUMENTS; i++ {
 		_, err := collection.InsertOne(ctx, post)
 		if err != nil {
+			log.Printf("error inserting document %d/%d", i+1, TOTAL_DB_DOCUMENTS)
 			return err
 		}
 	}
@@ -98,6 +100,7 @@ func PopAllExpectedPosts(client *mongo.Client, ctx context.Context) error {
 		post = Post{}
 		err = collection.FindOneAndDelete(ctx, filter).Decode(&post)
 		if err != nil {
+			log.Printf("error deleting document %d/%d", i+1, count)
 			return err
 		}
 		if post != expected {
