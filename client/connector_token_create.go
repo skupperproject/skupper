@@ -80,13 +80,14 @@ func getNodePorts(result *RouterHostPorts, service *corev1.Service) bool {
 }
 
 func getIngressHost(result *RouterHostPorts, cli *VanClient, namespace string) bool {
-	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
+	config, err := cli.SiteConfigInspect(context.TODO(), nil)
 	if err != nil {
 		fmt.Printf("Failed to look up ingress host for nodeport: %s, ", err)
 		fmt.Println()
 		return false
-	} else if len(configmap.Data) > 0 && configmap.Data[SiteConfigRouterIngressHostKey] != "" {
-		result.Hosts = configmap.Data[SiteConfigRouterIngressHostKey]
+	}
+	if host := config.Spec.GetRouterIngressHost(); host != "" {
+		result.Hosts = host
 		result.InterRouter.Host = result.Hosts
 		result.Edge.Host = result.Hosts
 		return true

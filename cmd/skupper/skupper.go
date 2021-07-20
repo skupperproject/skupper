@@ -304,8 +304,8 @@ installation that can then be connected to other skupper installations`,
 			} else if !routerIngressFlag.Changed {
 				routerCreateOpts.Ingress = cli.GetIngressDefault()
 			}
-			if routerCreateOpts.Ingress == types.IngressNodePortString && routerCreateOpts.Router.IngressHost == "" {
-				return fmt.Errorf(`--router-ingress-host option is required when using "--ingress nodeport"`)
+			if routerCreateOpts.Ingress == types.IngressNodePortString && routerCreateOpts.IngressHost == "" && routerCreateOpts.Router.IngressHost == "" {
+				return fmt.Errorf(`One of --ingress-host or --router-ingress-host option is required when using "--ingress nodeport"`)
 			}
 			routerCreateOpts.Annotations = asMap(annotations)
 			routerCreateOpts.Labels = asMap(labels)

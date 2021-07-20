@@ -167,6 +167,11 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.RoleBindings = roleBindings
 
 	svctype := corev1.ServiceTypeClusterIP
+	if options.IsConsoleIngressLoadBalancer() {
+		svctype = corev1.ServiceTypeLoadBalancer
+	} else if options.IsConsoleIngressNodePort() {
+		svctype = corev1.ServiceTypeNodePort
+	}
 	annotations := map[string]string{}
 	controllerPorts := []corev1.ServicePort{}
 	routes := []*routev1.Route{}
@@ -190,12 +195,6 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				}
 				annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.OauthConsoleSecret}
 			}
-		} else if options.IsConsoleIngressLoadBalancer() {
-			svctype = corev1.ServiceTypeLoadBalancer
-		} else if options.IsConsoleIngressNodePort() {
-			svctype = corev1.ServiceTypeNodePort
-		}
-		if options.IsConsoleIngressRoute() {
 			routes = append(routes, &routev1.Route{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "v1",
