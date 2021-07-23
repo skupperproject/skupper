@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func getTestImage() string {
+func GetTestImage() string {
 	testImage := os.Getenv("TEST_IMAGE")
 	if testImage == "" {
 		testImage = "quay.io/skupper/skupper-tests"
@@ -28,7 +28,7 @@ func int32Ptr(i int32) *int32 { return &i }
 func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, command []string) (*batchv1.Job, error) {
 
 	namespace := ns
-	testImage := getTestImage()
+	testImage := GetTestImage()
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

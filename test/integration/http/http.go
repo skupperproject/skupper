@@ -343,7 +343,7 @@ func (r *HttpClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	err = base.SetupSimplePublicPrivateAndConnect(ctx, &r.ClusterTestRunnerBase, "http")
+	err = base.SetupSimplePublicPrivateAndConnect(ctx, &r.ClusterTestRunnerBase)
 	assert.Assert(t, err)
 
 	privateDeploymentsClient := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)

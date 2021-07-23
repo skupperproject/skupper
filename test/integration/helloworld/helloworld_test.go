@@ -62,7 +62,7 @@ func TestHelloWorldCLI(t *testing.T) {
 		_ = prv.DeleteNamespace()
 	}
 	defer tearDownFn()
-	base.HandleInterruptSignal(t, func(t *testing.T) {
+	base.HandleInterruptSignal(func() {
 		tearDownFn()
 	})
 
@@ -438,19 +438,7 @@ func TestHelloWorldCLI(t *testing.T) {
 	}
 
 	// Running the scenarios
-	for _, scenario := range scenarios {
-		var stdout, stderr string
-		passed := t.Run(scenario.Name, func(t *testing.T) {
-			stdout, stderr, err = cli.RunScenario(scenario)
-			assert.Assert(t, err)
-		})
-		if !passed {
-			log.Printf("%s has failed, exiting", scenario.Name)
-			log.Printf("STDOUT:\n%s", stdout)
-			log.Printf("STDERR:\n%s", stderr)
-			break
-		}
-	}
+	cli.RunScenarios(t, scenarios)
 
 }
 

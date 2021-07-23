@@ -6,9 +6,11 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/skupperproject/skupper/test/utils/base"
+	"gotest.tools/assert"
 )
 
 const (
@@ -58,6 +60,25 @@ func RunScenario(scenario TestScenario) (string, string, error) {
 		}
 	}
 	return stdout, stderr, nil
+}
+
+func RunScenarios(t *testing.T, scenarios []TestScenario) {
+	var stdout, stderr string
+	var err error
+
+	// Running the scenarios
+	for _, scenario := range scenarios {
+		passed := t.Run(scenario.Name, func(t *testing.T) {
+			stdout, stderr, err = RunScenario(scenario)
+			assert.Assert(t, err)
+		})
+		if !passed {
+			log.Printf("%s has failed, exiting", scenario.Name)
+			log.Printf("STDOUT:\n%s", stdout)
+			log.Printf("STDERR:\n%s", stderr)
+			break
+		}
+	}
 }
 
 // RunSkupperCli executes the skupper binary (assuming it is available

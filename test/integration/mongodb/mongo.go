@@ -48,7 +48,7 @@ func Setup(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
 	pub1Cluster, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
-	err = base.SetupSimplePublicPrivateAndConnect(ctx, r, "mongo")
+	err = base.SetupSimplePublicPrivateAndConnect(ctx, r)
 	assert.Assert(t, err)
 
 	_, err = prv1Cluster.KubectlExec("apply -f https://raw.githubusercontent.com/skupperproject/skupper-example-mongodb-replica-set/master/deployment-mongo-a.yaml")

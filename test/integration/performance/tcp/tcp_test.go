@@ -67,7 +67,7 @@ func TestIperf(t *testing.T) {
 			t.Run(scenario.getTestName(), func(t *testing.T) {
 				// Preparing teardown function
 				defer scenario.tearDown()
-				base.HandleInterruptSignal(t, func(t *testing.T) {
+				base.HandleInterruptSignal(func() {
 					scenario.tearDown()
 					t.FailNow()
 				})

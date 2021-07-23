@@ -31,7 +31,7 @@ func TestTcpEcho(t *testing.T) {
 	_, err := testRunner.Build(needs, nil)
 	assert.Assert(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	base.HandleInterruptSignal(t, func(t *testing.T) {
+	base.HandleInterruptSignal(func() {
 		base.TearDownSimplePublicAndPrivate(&testRunner.ClusterTestRunnerBase)
 		cancel()
 	})
