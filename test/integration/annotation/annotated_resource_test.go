@@ -112,7 +112,7 @@ func TestAnnotatedResources(t *testing.T) {
 	pub, _ := testRunner.GetPublicContext(1)
 	prv, _ := testRunner.GetPrivateContext(1)
 	defer TearDown(t, testRunner)
-	base.HandleInterruptSignal(t, func(t *testing.T) {
+	base.HandleInterruptSignal(func() {
 		cancelFn()
 		TearDown(t, testRunner)
 	})

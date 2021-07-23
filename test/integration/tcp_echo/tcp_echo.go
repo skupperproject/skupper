@@ -3,6 +3,8 @@ package tcp_echo
 import (
 	"context"
 	"fmt"
+	"log"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +28,7 @@ type TcpEchoClusterTestRunner struct {
 
 func int32Ptr(i int32) *int32 { return &i }
 
-var deployment *appsv1.Deployment = &appsv1.Deployment{
+var Deployment *appsv1.Deployment = &appsv1.Deployment{
 	TypeMeta: metav1.TypeMeta{
 		APIVersion: "apps/v1",
 		Kind:       "Deployment",
@@ -134,13 +136,13 @@ func (r *TcpEchoClusterTestRunner) Setup(ctx context.Context, t *testing.T) {
 	pub1Cluster, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
-	err = base.SetupSimplePublicPrivateAndConnect(ctx, &r.ClusterTestRunnerBase, "tcp_echo")
+	err = base.SetupSimplePublicPrivateAndConnect(ctx, &r.ClusterTestRunnerBase)
 	assert.Assert(t, err)
 
 	publicDeploymentsClient := pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace)
 
 	fmt.Println("Creating deployment...")
-	result, err := publicDeploymentsClient.Create(deployment)
+	result, err := publicDeploymentsClient.Create(Deployment)
 	assert.Assert(t, err)
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
@@ -169,4 +171,64 @@ func (r *TcpEchoClusterTestRunner) Run(ctx context.Context, t *testing.T) {
 	defer base.TearDownSimplePublicAndPrivate(&r.ClusterTestRunnerBase)
 	r.Setup(ctx, t)
 	r.RunTests(ctx, t)
+}
+
+func SendReceive(addr string) error {
+	doneCh := make(chan error)
+	go func(doneCh chan error) {
+
+		strEcho := "Halo"
+		log.Println("Resolving TCP Address")
+		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			doneCh <- fmt.Errorf("ResolveTCPAddr failed: %s\n", err.Error())
+			return
+		}
+
+		log.Println("Opening TCP connection")
+		conn, err := net.DialTCP("tcp", nil, tcpAddr)
+		if err != nil {
+			doneCh <- fmt.Errorf("Dial failed: %s\n", err.Error())
+			return
+		}
+		defer conn.Close()
+
+		log.Println("Sending data")
+		_, err = conn.Write([]byte(strEcho))
+		if err != nil {
+			doneCh <- fmt.Errorf("Write to server failed: %s\n", err.Error())
+			return
+		}
+
+		log.Println("Receiving reply")
+		reply := make([]byte, 1024)
+
+		_, err = conn.Read(reply)
+		if err != nil {
+			doneCh <- fmt.Errorf("Read from server failed: %s\n", err.Error())
+			return
+		}
+
+		log.Println("Sent to server = ", strEcho)
+		log.Println("Reply from server = ", string(reply))
+
+		if !strings.Contains(string(reply), strings.ToUpper(strEcho)) {
+			doneCh <- fmt.Errorf("Response from server different that expected: %s\n", string(reply))
+			return
+		}
+
+		doneCh <- nil
+	}(doneCh)
+	timeoutCh := time.After(time.Minute)
+
+	// TCP Echo Client job sometimes hangs waiting for response
+	// This will cause job to fail and a retry to occur
+	var err error
+	select {
+	case err = <-doneCh:
+	case <-timeoutCh:
+		err = fmt.Errorf("timed out waiting for tcp-echo job to finish")
+	}
+
+	return err
 }

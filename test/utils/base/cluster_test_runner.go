@@ -172,7 +172,7 @@ func (c *ClusterTestRunnerBase) createClusterContext(needs ClusterNeeds, private
 	return nil
 }
 
-func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunnerBase, prefix string) error {
+func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunnerBase) error {
 
 	var err error
 	pub1Cluster, err := r.GetPublicContext(1)
@@ -218,7 +218,7 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 		return err
 	}
 
-	secretFile := "/tmp/" + prefix + "_public_secret.yaml"
+	secretFile := "/tmp/" + r.Needs.NamespaceId + "_public_secret.yaml"
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
 	if err != nil {
 		return err

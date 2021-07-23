@@ -29,7 +29,7 @@ func TestDataEndpoint(t *testing.T) {
 	}
 	_, err := testRunner.Build(needs, nil)
 	assert.Assert(t, err)
-	base.HandleInterruptSignal(t, func(t *testing.T) {
+	base.HandleInterruptSignal(func() {
 		cancelFn()
 		testRunner.TearDown()
 	})

@@ -41,7 +41,7 @@ func TestHipsterShop(t *testing.T) {
 	assert.Assert(t, err)
 
 	// removes namespaces and cancels context
-	tearDownFn := func(t *testing.T) {
+	tearDownFn := func() {
 		t.Logf("entering teardown")
 		err := base.RemoveNamespacesForContexts(testRunner, []int{1, 2}, []int{1})
 		if err != nil {
@@ -56,8 +56,8 @@ func TestHipsterShop(t *testing.T) {
 	}
 
 	// defines an interrupt handler
-	base.HandleInterruptSignal(t, tearDownFn)
-	defer tearDownFn(t)
+	base.HandleInterruptSignal(tearDownFn)
+	defer tearDownFn()
 
 	// Prepare namespaces on provided clusters
 	Setup(t, testRunner)
