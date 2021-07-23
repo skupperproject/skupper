@@ -181,7 +181,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 	defer r.TearDown(ctx)
 
 	for _, c := range testcases {
-		if c.skipOnMultiCluster && base.MultipleClusters(t) {
+		if c.skipOnMultiCluster && base.MultipleClusters() {
 			t.Logf("Skipping: %s [this test only runs against a single cluster]\n", c.doc)
 			continue
 		}

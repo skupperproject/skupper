@@ -10,35 +10,40 @@ import (
 
 func TestBuild(t *testing.T) {
 	runner := &ClusterTestRunnerBase{}
-	// only set this to true when running unit test
-	runner.unitTestMock = true
 
 	tcs := []struct {
-		name             string
-		public           int
-		private          int
-		publicNeeded     int
-		privateNeeded    int
-		expectedContexts int
+		name                  string
+		public                int
+		private               int
+		publicNeeded          int
+		privateNeeded         int
+		expectedContexts      int
+		expectedValidateError bool
 	}{
-		{"multiple-cluster-needs-satisfied", 3, 2, 3, 2, 5},
-		{"multiple-cluster-needs-not-satisfied", 3, 2, 5, 2, 0},
-		{"single-cluster-needs-satisfied", 1, 0, 1, 1, 2},
+		{"multiple-cluster-needs-satisfied", 3, 2, 3, 2, 5, false},
+		{"multiple-cluster-needs-not-satisfied", 3, 2, 5, 2, 0, true},
+		{"single-cluster-needs-satisfied", 1, 0, 1, 1, 2, false},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			setUnitTestFlags(tc.public, tc.private)
-			contexts := runner.BuildOrSkip(t, ClusterNeeds{
+			needs := ClusterNeeds{
 				NamespaceId:     "unit-test",
 				PublicClusters:  tc.publicNeeded,
 				PrivateClusters: tc.privateNeeded,
-			}, func(namespace string, context string, kubeConfigPath string) (*client.VanClient, error) {
+			}
+			validationFailed := runner.Validate(needs) != nil
+			assert.Assert(t, validationFailed == tc.expectedValidateError, "validate returned %v [expected: %v]", validationFailed, tc.expectedValidateError)
+			contexts, err := runner.Build(needs, func(namespace string, context string, kubeConfigPath string) (*client.VanClient, error) {
 				return &client.VanClient{
 					Namespace:  namespace,
 					KubeClient: fake.NewSimpleClientset(),
 				}, nil
 			})
+			if !tc.expectedValidateError {
+				assert.Assert(t, err)
+			}
 			assert.Equal(t, len(contexts), tc.expectedContexts)
 		})
 	}

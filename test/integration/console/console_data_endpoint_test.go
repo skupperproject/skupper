@@ -4,6 +4,8 @@ package console
 
 import (
 	"github.com/skupperproject/skupper/test/utils/base"
+	"gotest.tools/assert"
+
 	"os"
 	"testing"
 )
@@ -22,7 +24,11 @@ func TestDataEndpoint(t *testing.T) {
 	}
 
 	testRunner := &BasicTestRunner{}
-	testRunner.BuildOrSkip(t, needs, nil)
+	if err := testRunner.Validate(needs); err != nil {
+		t.Skipf("%s", err)
+	}
+	_, err := testRunner.Build(needs, nil)
+	assert.Assert(t, err)
 	base.HandleInterruptSignal(t, func(t *testing.T) {
 		cancelFn()
 		testRunner.TearDown()

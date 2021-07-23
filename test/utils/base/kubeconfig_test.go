@@ -1,8 +1,9 @@
 package base
 
 import (
-	"gotest.tools/assert"
 	"testing"
+
+	"gotest.tools/assert"
 )
 
 func TestKubeConfigFiles(t *testing.T) {
@@ -21,9 +22,9 @@ func TestKubeConfigFiles(t *testing.T) {
 			// generates dummy flags
 			setUnitTestFlags(tc.public, tc.private)
 			// collect returned configs
-			publicConfigs := KubeConfigFiles(t, false, true)
-			privateConfigs := KubeConfigFiles(t, true, false)
-			allConfigs := KubeConfigFiles(t, true, true)
+			publicConfigs := KubeConfigFiles(false, true)
+			privateConfigs := KubeConfigFiles(true, false)
+			allConfigs := KubeConfigFiles(true, true)
 			// validating counts
 			assert.Equal(t, tc.public, len(publicConfigs))
 			assert.Equal(t, tc.private, len(privateConfigs))
@@ -49,7 +50,7 @@ func TestMultipleClusters(t *testing.T) {
 			// generating dummy flags
 			setUnitTestFlags(tc.public, tc.private)
 			// should match
-			assert.Assert(t, MultipleClusters(t) == tc.expected)
+			assert.Assert(t, MultipleClusters() == tc.expected)
 		})
 	}
 }

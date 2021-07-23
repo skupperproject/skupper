@@ -3,12 +3,10 @@ package base
 import (
 	"context"
 	"fmt"
-	"testing"
 
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	vanClient "github.com/skupperproject/skupper/client"
-	"gotest.tools/assert"
 )
 
 // ClusterNeeds enable customization of expected number of
@@ -29,8 +27,10 @@ type VanClientProvider func(namespace string, context string, kubeConfigPath str
 // ClusterTestRunner defines a common interface to initialize and prepare
 // tests for running against an external cluster
 type ClusterTestRunner interface {
-	// Initialize ClusterContexts
-	BuildOrSkip(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext
+	// Validate validates if given needs are based upon command line arguments
+	Validate(needs ClusterNeeds) error
+	// Build builds a slice of ClusterContexts to manage each participating cluster
+	Build(needs ClusterNeeds, vanClientProvider VanClientProvider) ([]*ClusterContext, error)
 	// Return a specific public context
 	GetPublicContext(id int) (*ClusterContext, error)
 	// Return a specific private context
@@ -44,12 +44,37 @@ type ClusterTestRunnerBase struct {
 	Needs             ClusterNeeds
 	ClusterContexts   []*ClusterContext
 	vanClientProvider VanClientProvider
-	unitTestMock      bool
 }
 
 var _ ClusterTestRunner = &ClusterTestRunnerBase{}
 
-func (c *ClusterTestRunnerBase) BuildOrSkip(t *testing.T, needs ClusterNeeds, vanClientProvider VanClientProvider) []*ClusterContext {
+//
+// Validate returns an error if cluster needs is not satisfied so that
+// the given test suite needs to be skipped.
+//
+func (c *ClusterTestRunnerBase) Validate(needs ClusterNeeds) error {
+	// If multiple clusters provided, see if it matches the needs
+	if MultipleClusters() {
+		publicAvailable := KubeConfigFilesCount(false, true)
+		edgeAvailable := KubeConfigFilesCount(true, true)
+		if publicAvailable < needs.PublicClusters || edgeAvailable < needs.PrivateClusters {
+			// Skip if number of clusters is not enough
+			return fmt.Errorf("multiple clusters provided, but this test needs %d public and %d private clusters",
+				needs.PublicClusters, needs.PrivateClusters)
+		}
+	} else if KubeConfigFilesCount(true, true) == 0 {
+		// No cluster available
+		return fmt.Errorf("no cluster available")
+	}
+
+	return nil
+}
+
+//
+// Build creates a ClusterContext slice prepared to communicate with all clusters
+// available to the test suite.
+//
+func (c *ClusterTestRunnerBase) Build(needs ClusterNeeds, vanClientProvider VanClientProvider) ([]*ClusterContext, error) {
 
 	// Initializing internal properties
 	c.vanClientProvider = vanClientProvider
@@ -60,31 +85,14 @@ func (c *ClusterTestRunnerBase) BuildOrSkip(t *testing.T, needs ClusterNeeds, va
 	//
 	c.Needs = needs
 
-	// If multiple clusters provided, see if it matches the needs
-	if MultipleClusters(t) {
-		publicAvailable := KubeConfigFilesCount(t, false, true)
-		edgeAvailable := KubeConfigFilesCount(t, true, true)
-		if publicAvailable < needs.PublicClusters || edgeAvailable < needs.PrivateClusters {
-			if c.unitTestMock {
-				return c.ClusterContexts
-			}
-			// Skip if number of clusters is not enough
-			t.Skipf("multiple clusters provided, but this test needs %d public and %d private clusters",
-				needs.PublicClusters, needs.PrivateClusters)
-		}
-	} else if KubeConfigFilesCount(t, true, true) == 0 {
-		if c.unitTestMock {
-			return c.ClusterContexts
-		}
-		// No cluster available
-		t.Skipf("no cluster available")
+	// Initializing the ClusterContexts
+	var err error
+	if err = c.Validate(needs); err == nil {
+		err = c.createClusterContexts(needs)
 	}
 
-	// Initializing the ClusterContexts
-	c.createClusterContexts(t, needs)
-
 	// Return the ClusterContext slice
-	return c.ClusterContexts
+	return c.ClusterContexts, err
 }
 
 func (c *ClusterTestRunnerBase) GetPublicContext(id int) (*ClusterContext, error) {
@@ -107,17 +115,22 @@ func (c *ClusterTestRunnerBase) GetContext(private bool, id int) (*ClusterContex
 	return nil, fmt.Errorf("ClusterContexts list is empty!")
 }
 
-func (c *ClusterTestRunnerBase) createClusterContexts(t *testing.T, needs ClusterNeeds) {
-	c.createClusterContext(t, needs, false)
-	c.createClusterContext(t, needs, true)
+func (c *ClusterTestRunnerBase) createClusterContexts(needs ClusterNeeds) error {
+	if err := c.createClusterContext(needs, false); err != nil {
+		return err
+	}
+	if err := c.createClusterContext(needs, true); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (c *ClusterTestRunnerBase) createClusterContext(t *testing.T, needs ClusterNeeds, private bool) {
-	kubeConfigs := KubeConfigs(t)
+func (c *ClusterTestRunnerBase) createClusterContext(needs ClusterNeeds, private bool) error {
+	kubeConfigs := KubeConfigs()
 	numClusters := needs.PublicClusters
 	prefix := "public"
 	if private {
-		kubeConfigs = EdgeKubeConfigs(t)
+		kubeConfigs = EdgeKubeConfigs()
 		numClusters = needs.PrivateClusters
 		prefix = "private"
 	}
@@ -130,14 +143,20 @@ func (c *ClusterTestRunnerBase) createClusterContext(t *testing.T, needs Cluster
 		}
 		// defining the namespace to be used
 		ns := fmt.Sprintf("%s-%s-%d", prefix, needs.NamespaceId, i)
-		vc, err := vanClient.NewClient(ns, "", kubeConfig)
+
+		var vc *vanClient.VanClient
+		var err error
+
 		if c.vanClientProvider != nil {
 			vc, err = c.vanClientProvider(ns, "", kubeConfig)
+		} else {
+			vc, err = vanClient.NewClient(ns, "", kubeConfig)
 		}
-		assert.Assert(t, err, "error initializing VanClient")
+		if err != nil {
+			return fmt.Errorf("error initializing VanClient - %s", err)
+		}
 
-		// craeting the ClusterContext
-		// aca!
+		// creating the ClusterContext
 		cc := &ClusterContext{
 			Namespace:  ns,
 			KubeConfig: kubeConfig,
@@ -150,6 +169,7 @@ func (c *ClusterTestRunnerBase) createClusterContext(t *testing.T, needs Cluster
 		c.ClusterContexts = append(c.ClusterContexts, cc)
 	}
 
+	return nil
 }
 
 func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunnerBase, prefix string) error {

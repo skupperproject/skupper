@@ -4,7 +4,10 @@ package http
 
 import (
 	"context"
+
 	"github.com/skupperproject/skupper/test/utils/base"
+	"gotest.tools/assert"
+
 	"os"
 	"testing"
 )
@@ -21,7 +24,11 @@ func TestHttp(t *testing.T) {
 		PrivateClusters: 1,
 	}
 	testRunner := &HttpClusterTestRunner{}
-	testRunner.BuildOrSkip(t, needs, nil)
+	if err := testRunner.Validate(needs); err != nil {
+		t.Skipf("%s", err)
+	}
+	_, err := testRunner.Build(needs, nil)
+	assert.Assert(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	base.HandleInterruptSignal(t, func(t *testing.T) {
 		base.TearDownSimplePublicAndPrivate(&testRunner.ClusterTestRunnerBase)
