@@ -34,7 +34,11 @@ func TestHipsterShop(t *testing.T) {
 		PrivateClusters: 1,
 	}
 	testRunner := &base.ClusterTestRunnerBase{}
-	testRunner.BuildOrSkip(t, needs, nil)
+	if err := testRunner.Validate(needs); err != nil {
+		t.Skipf("%s", err)
+	}
+	_, err := testRunner.Build(needs, nil)
+	assert.Assert(t, err)
 
 	// removes namespaces and cancels context
 	tearDownFn := func(t *testing.T) {

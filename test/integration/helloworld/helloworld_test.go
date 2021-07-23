@@ -39,7 +39,11 @@ func TestHelloWorldCLI(t *testing.T) {
 		PrivateClusters: 1,
 	}
 	runner := &base.ClusterTestRunnerBase{}
-	runner.BuildOrSkip(t, needs, nil)
+	if err := runner.Validate(needs); err != nil {
+		t.Skipf("%s", err)
+	}
+	_, err = runner.Build(needs, nil)
+	assert.Assert(t, err)
 
 	// getting public and private contexts
 	pub, err := runner.GetPublicContext(1)

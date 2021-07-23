@@ -9,6 +9,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
+	"gotest.tools/assert"
 )
 
 var verbose bool = true
@@ -231,7 +232,11 @@ func TestEdgeConnectivity(t *testing.T) {
 			PrivateClusters: int(testcase.createOptsPrivate.Replicas),
 		}
 		testRunner := &EdgeConnectivityTestRunner{}
-		testRunner.BuildOrSkip(t, needs, nil)
+		if err := testRunner.Validate(needs); err != nil {
+			t.Skipf("%s", err)
+		}
+		_, err := testRunner.Build(needs, nil)
+		assert.Assert(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		base.HandleInterruptSignal(t, func(t *testing.T) {
 			testRunner.TearDown(ctx, &testcase)

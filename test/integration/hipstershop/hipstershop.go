@@ -71,7 +71,7 @@ func CreateVAN(t *testing.T, testRunner base.ClusterTestRunner) {
 	}
 
 	// If using only 1 cluster, set ClusterLocal to True
-	if !base.MultipleClusters(t) {
+	if !base.MultipleClusters() {
 		siteConfigSpec.Ingress = "none"
 	}
 

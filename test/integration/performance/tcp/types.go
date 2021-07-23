@@ -106,7 +106,11 @@ func (s *IperfScenario) initializeClusters(t *testing.T) {
 		PublicClusters: s.clustersNeeded(),
 	}
 	s.testRunner = &base.ClusterTestRunnerBase{}
-	s.testRunner.BuildOrSkip(t, needs, nil)
+	if err := s.testRunner.Validate(needs); err != nil {
+		t.Skipf("%s", err)
+	}
+	_, err := s.testRunner.Build(needs, nil)
+	assert.Assert(t, err)
 
 	if s.SkupperSites > 0 {
 		var connectionToken string
@@ -142,7 +146,7 @@ func (s *IperfScenario) initializeClusters(t *testing.T) {
 				},
 			}
 			// If running against a single cluster only, use none
-			if !base.MultipleClusters(t) {
+			if !base.MultipleClusters() {
 				siteConfigSpec.Ingress = types.IngressNoneString
 			}
 			// Initializing skupper

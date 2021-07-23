@@ -101,7 +101,7 @@ func (r *EdgeConnectivityTestRunner) Setup(ctx context.Context, testCase *TestCa
 		assert.Assert(t, err)
 
 		// If running against multiple clusters, ingress should be determined dynamically
-		if base.MultipleClusters(t) {
+		if base.MultipleClusters() {
 			createOptsPublic.Ingress = pub1Cluster.VanClient.GetIngressDefault()
 		}
 

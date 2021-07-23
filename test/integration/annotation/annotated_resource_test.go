@@ -104,7 +104,11 @@ func TestAnnotatedResources(t *testing.T) {
 
 	// Test flow
 	testRunner := &base.ClusterTestRunnerBase{}
-	testRunner.BuildOrSkip(t, needs, nil)
+	if err := testRunner.Validate(needs); err != nil {
+		t.Skipf("%s", err)
+	}
+	_, err := testRunner.Build(needs, nil)
+	assert.Assert(t, err)
 	pub, _ := testRunner.GetPublicContext(1)
 	prv, _ := testRunner.GetPrivateContext(1)
 	defer TearDown(t, testRunner)
