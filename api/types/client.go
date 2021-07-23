@@ -186,7 +186,7 @@ type RouterInspectResponse struct {
 
 type ProxyInitOptions struct {
 	Name       string `json:"name,omitempty"`
-	StartProxy bool   `json:"startProxy,omitempty`
+	StartProxy bool   `json:"startProxy,omitempty"`
 }
 
 type ProxyBindOptions struct {
