@@ -694,7 +694,7 @@ func NewCmdListExposed(newClient cobraFunc) *cobra.Command {
 func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status",
-		Short:  "List services exposed over the Skupper network",
+		Short:  "List services exposed over the service network",
 		Args:   cobra.NoArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -880,7 +880,7 @@ var gatewayInitOptions types.GatewayInitOptions
 func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "init",
-		Short:  "Initialize a gateway to the skupper network",
+		Short:  "Initialize a gateway to the service network",
 		Args:   cobra.NoArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -927,21 +927,21 @@ var downloadGatewayName string
 func NewCmdDownloadGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "download <output-path>",
-		Short:  "Download a gateway definition",
+		Short:  "Download a gateway definition to a directory",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			err := cli.GatewayDownload(context.Background(), downloadGatewayName, args[0])
+			fileName, err := cli.GatewayDownload(context.Background(), downloadGatewayName, args[0])
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-
+			fmt.Println("Skupper gateway definition written to '" + fileName + "'")
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&downloadGatewayName, "name", "", "The name of gateway definition to downloa")
+	cmd.Flags().StringVar(&downloadGatewayName, "name", "", "The name of gateway definition to download")
 	return cmd
 }
 
@@ -950,7 +950,7 @@ var gatewayExposeOptions types.GatewayExposeOptions
 func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "expose <address> <host> <port>",
-		Short:  "Expose a process to the skupper network (ensure gateway and cluster service)",
+		Short:  "Expose a process to the service network (ensure gateway and cluster service)",
 		Args:   exposeGatewayArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -984,7 +984,7 @@ var gatewayUnexposeOptions types.GatewayUnexposeOptions
 func NewCmdUnexposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unexpose <address>",
-		Short:  "Unexpose a process previously exposed to the skupper network",
+		Short:  "Unexpose a process previously exposed to the service network",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1009,7 +1009,7 @@ var gatewayBindOptions types.GatewayBindOptions
 func NewCmdBindGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "bind <address> <host> <port>",
-		Short:  "Bind a process to the skupper network",
+		Short:  "Bind a process to the service network",
 		Args:   bindGatewayArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1043,7 +1043,7 @@ var gatewayUnbindOptions types.GatewayUnbindOptions
 func NewCmdUnbindGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unbind <address>",
-		Short:  "Unbind a process from the skupper network",
+		Short:  "Unbind a process from the service network",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1134,7 +1134,7 @@ var gatewayForwardOptions types.GatewayForwardOptions
 func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "forward <address> <port>",
-		Short:  "Forward an address to the skupper network",
+		Short:  "Forward an address to the service network",
 		Args:   cobra.ExactArgs(2),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1149,7 +1149,6 @@ func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 			gatewayForwardOptions.Service.Port = forwardPort
 
 			err = cli.GatewayForward(context.Background(), gatewayForwardOptions)
-			//			err = cli.GatewayForward(context.Background(), args[0], lPort, loopback, &gatewayForwardService)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1170,7 +1169,7 @@ var unforwardGatewayName string
 func NewCmdUnforwardGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unforward <address>",
-		Short:  "Stop forwarding an address to the skupper network",
+		Short:  "Stop forwarding an address to the service network",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {

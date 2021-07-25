@@ -268,7 +268,7 @@ type VanClientInterface interface {
 	GatewayForward(ctx context.Context, options GatewayForwardOptions) error
 	GatewayUnforward(ctx context.Context, gatewayName string, address string) error
 	GatewayInit(ctx context.Context, options GatewayInitOptions) (string, error)
-	GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) error
+	GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) (string, error)
 	GatewayInspect(ctx context.Context, gatewayName string) (*GatewayInspectResponse, error)
 	GatewayList(ctx context.Context) ([]*GatewayInspectResponse, error)
 	GatewayRemove(ctx context.Context, gatewayName string) error

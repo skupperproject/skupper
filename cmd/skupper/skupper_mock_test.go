@@ -181,8 +181,8 @@ func (v *vanClientMock) GatewayInit(ctx context.Context, options types.GatewayIn
 	return "", nil
 }
 
-func (v *vanClientMock) GatewayDownload(ctx context.Context, proxyName string, downloadPath string) error {
-	return nil
+func (v *vanClientMock) GatewayDownload(ctx context.Context, proxyName string, downloadPath string) (string, error) {
+	return "", nil
 }
 
 func (v *vanClientMock) GatewayInspect(ctx context.Context, proxyName string) (*types.GatewayInspectResponse, error) {

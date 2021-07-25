@@ -121,7 +121,7 @@ func TestBindGatewayArgs(t *testing.T) {
 	assert.Assert(t, b([]string{"oneArg", "twoArg:threeArg"}))
 
 	//note  illegal vs extra
-	assert.Error(t, b([]string{"oneArg", "twoArg:threeArt", "fourArg"}), "extra argument: fourArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg:threeArg", "fourArg"}), "extra argument: fourArg")
 	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "illegal argument: fourArg")
 	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "illegal argument: fourArg")
 }

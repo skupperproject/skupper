@@ -67,7 +67,7 @@ func TestGatewayDownload(t *testing.T) {
 	os.Mkdir(testPath, 0755)
 	defer os.RemoveAll(testPath)
 
-	observedError = cli.GatewayDownload(ctx, "download", testPath)
+	_, observedError = cli.GatewayDownload(ctx, "download", testPath)
 	assert.Assert(t, observedError)
 
 	file, observedError := os.Open(testPath + "download.tar.gz")

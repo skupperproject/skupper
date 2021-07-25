@@ -495,7 +495,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, options types.GatewayInit
 	return gatewayName, nil
 }
 
-func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) error {
+func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) (string, error) {
 	certs := []string{"tls.crt", "tls.key", "ca.crt"}
 
 	if gatewayName == "" {
@@ -504,7 +504,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 
 	tarFile, err := os.Create(downloadPath + "/" + gatewayName + ".tar.gz")
 	if err != nil {
-		return fmt.Errorf("Unable to create download file: %w", err)
+		return tarFile.Name(), fmt.Errorf("Unable to create download file: %w", err)
 	}
 
 	// compress tar
@@ -515,19 +515,19 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 
 	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayPrefix+gatewayName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
+		return tarFile.Name(), fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
 	}
 
 	for _, cert := range certs {
 		err = writeTar("qpid-dispatch-certs/conn1-profile/"+cert, secret.Data[cert], time.Now(), tw)
 		if err != nil {
-			return err
+			return tarFile.Name(), err
 		}
 	}
 
 	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
+		return tarFile.Name(), fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
@@ -543,12 +543,12 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	qdrConfig.Execute(&buf, instance)
 
 	if err != nil {
-		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
+		return tarFile.Name(), fmt.Errorf("Failed to parse gateway configmap: %w", err)
 	}
 
 	err = writeTar("config/qdrouterd.json", buf.Bytes(), time.Now(), tw)
 	if err != nil {
-		return err
+		return tarFile.Name(), err
 	}
 
 	gatewayInfo := UnitInfo{
@@ -561,24 +561,24 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	qdrUserUnit := serviceForQdr(gatewayInfo)
 	err = writeTar("service/"+gatewayName+".service", []byte(qdrUserUnit), time.Now(), tw)
 	if err != nil {
-		return err
+		return tarFile.Name(), err
 	}
 
 	launch := launchScript(gatewayInfo)
 	err = writeTar("launch.sh", []byte(launch), time.Now(), tw)
 	if err != nil {
-		return err
+		return tarFile.Name(), err
 	}
 
 	remove := removeScript(gatewayInfo)
 	err = writeTar("remove.sh", []byte(remove), time.Now(), tw)
 	if err != nil {
-		return err
+		return tarFile.Name(), err
 	}
 
 	expand := expandVars()
 	err = writeTar("expandvars.py", []byte(expand), time.Now(), tw)
-	return nil
+	return tarFile.Name(), nil
 }
 
 func (cli *VanClient) gatewayStart(ctx context.Context, gatewayName string) error {
