@@ -118,7 +118,7 @@ func TestConnectorRemove(t *testing.T) {
 
 		err = utils.Retry(10, 5, func() (bool, error) {
 			_, err = tokenUserClient.ConnectorInspect(ctx, c.connName)
-			return err!=nil && err.Error() == `secrets "`+c.connName+`" not found`, err
+			return err != nil && err.Error() == `secrets "`+c.connName+`" not found`, err
 		})
 
 		assert.Error(t, err, `secrets "`+c.connName+`" not found`, "Expect error when connector is removed")
