@@ -116,7 +116,7 @@ func TestConnectorRemove(t *testing.T) {
 			assert.Assert(t, k8serrors.IsNotFound(err), c.namespace)
 		}
 
-		err = utils.Retry(10, 5, func() (bool, error) {
+		err = utils.Retry(20*time.Second, 5, func() (bool, error) {
 			_, err = tokenUserClient.ConnectorInspect(ctx, c.connName)
 			return err != nil && err.Error() == `secrets "`+c.connName+`" not found`, err
 		})
