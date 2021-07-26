@@ -5,10 +5,13 @@ import (
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 type TokenHandler struct {
@@ -63,14 +66,48 @@ func (c *TokenHandler) connect(token *corev1.Secret) error {
 	return c.vanClient.ConnectorCreate(context.Background(), token, options)
 }
 
-func (c *TokenHandler) disconnect(name string) error {
+func (c *TokenHandler) disconnect(key string) error {
+	_, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
 	event.Recordf(c.name, "Disconnecting connector %s", name)
-	var options types.ConnectorRemoveOptions
-	options.Name = name
-	options.SkupperNamespace = c.vanClient.Namespace
-	// Secret has already been deleted so force update to current active secrets
-	options.ForceCurrent = true
-	return c.vanClient.ConnectorRemove(context.Background(), options)
+	return c.removeConnectorFromConfig(context.Background(), name)
+}
+
+func (c *TokenHandler) removeConnectorFromConfig(ctx context.Context, name string) error {
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.KubeClient)
+	if err != nil {
+		return err
+	}
+	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return err
+	}
+	updated, connector := current.RemoveConnector(name)
+	if connector.SslProfile != "" && current.RemoveSslProfile(connector.SslProfile) {
+		updated = true
+	}
+	if updated {
+		_, err := current.UpdateConfigMap(configmap)
+		if err != nil {
+			return err
+		}
+		_, err = c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Update(configmap)
+		if err != nil {
+			return err
+		}
+	}
+	deployment, err := kube.GetDeployment(types.TransportDeploymentName, c.vanClient.Namespace, c.vanClient.KubeClient)
+	if err != nil {
+		return err
+	}
+	kube.RemoveSecretVolumeForDeployment(name, deployment, 0)
+	_, err = c.vanClient.KubeClient.AppsV1().Deployments(c.vanClient.Namespace).Update(deployment)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *TokenHandler) isTokenValidInSite(token *corev1.Secret) bool {
