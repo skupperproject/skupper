@@ -1,7 +1,9 @@
 package kube
 
 import (
+	"context"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -10,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 func GetLabelsForRouter() map[string]string {
@@ -177,4 +180,21 @@ func CopyService(src string, dest string, annotations map[string]string, namespa
 		return nil, err
 	}
 	return copied, nil
+}
+
+func WaitServiceExists(name string, namespace string, cli kubernetes.Interface, timeout, interval time.Duration) (*corev1.Service, error) {
+	var svc *corev1.Service
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
+		svc, err = cli.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+
+	return svc, err
 }

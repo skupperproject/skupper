@@ -1051,7 +1051,7 @@ func TestListExposedWithCluster(t *testing.T) {
 			doc:             "list-exposed-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "List services exposed over the Skupper network",
+			expectedOutput:  "List services exposed over the service network",
 			expectedError:   "",
 			realCluster:     false,
 		},

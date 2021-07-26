@@ -153,47 +153,47 @@ func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType s
 	return v.injectedReturns.serviceInterfaceUnbind
 }
 
-func (v *vanClientMock) ProxyBind(ctx context.Context, proxyName string, egress types.ProxyBindOptions) error {
+func (v *vanClientMock) GatewayBind(ctx context.Context, options types.GatewayBindOptions) error {
 	return nil
 }
 
-func (v *vanClientMock) ProxyUnbind(ctx context.Context, proxyName string, address string) error {
+func (v *vanClientMock) GatewayUnbind(ctx context.Context, options types.GatewayUnbindOptions) error {
 	return nil
 }
 
-func (v *vanClientMock) ProxyExpose(ctx context.Context, options types.ProxyExposeOptions) (string, error) {
+func (v *vanClientMock) GatewayExpose(ctx context.Context, options types.GatewayExposeOptions) (string, error) {
 	return "", nil
 }
 
-func (v *vanClientMock) ProxyUnexpose(ctx context.Context, proxyName string, address string) error {
+func (v *vanClientMock) GatewayUnexpose(ctx context.Context, options types.GatewayUnexposeOptions) error {
 	return nil
 }
 
-func (v *vanClientMock) ProxyForward(ctx context.Context, proxyName string, loopback bool, service *types.ServiceInterface) error {
+func (v *vanClientMock) GatewayForward(ctx context.Context, options types.GatewayForwardOptions) error {
 	return nil
 }
 
-func (v *vanClientMock) ProxyUnforward(ctx context.Context, proxyName string, address string) error {
+func (v *vanClientMock) GatewayUnforward(ctx context.Context, proxyName string, address string) error {
 	return nil
 }
 
-func (v *vanClientMock) ProxyInit(ctx context.Context, options types.ProxyInitOptions) (string, error) {
+func (v *vanClientMock) GatewayInit(ctx context.Context, options types.GatewayInitOptions) (string, error) {
 	return "", nil
 }
 
-func (v *vanClientMock) ProxyDownload(ctx context.Context, proxyName string, downloadPath string) error {
-	return nil
+func (v *vanClientMock) GatewayDownload(ctx context.Context, proxyName string, downloadPath string) (string, error) {
+	return "", nil
 }
 
-func (v *vanClientMock) ProxyInspect(ctx context.Context, proxyName string) (*types.ProxyInspectResponse, error) {
-	return &types.ProxyInspectResponse{}, nil
+func (v *vanClientMock) GatewayInspect(ctx context.Context, proxyName string) (*types.GatewayInspectResponse, error) {
+	return &types.GatewayInspectResponse{}, nil
 }
 
-func (v *vanClientMock) ProxyList(ctx context.Context) ([]*types.ProxyInspectResponse, error) {
+func (v *vanClientMock) GatewayList(ctx context.Context) ([]*types.GatewayInspectResponse, error) {
 	return nil, nil
 }
 
-func (v *vanClientMock) ProxyRemove(ctx context.Context, proxyName string) error {
+func (v *vanClientMock) GatewayRemove(ctx context.Context, proxyName string) error {
 	return nil
 }
 

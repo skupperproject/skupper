@@ -184,25 +184,44 @@ type RouterInspectResponse struct {
 	ConsoleUrl        string
 }
 
-type ProxyInitOptions struct {
-	Name       string `json:"name,omitempty"`
-	StartProxy bool   `json:"startProxy,omitempty`
+type GatewayInitOptions struct {
+	Name         string `json:"name,omitempty"`
+	DownloadOnly bool   `json:"downloadOnly,omitempty"`
 }
 
-type ProxyBindOptions struct {
-	Protocol   string
-	Address    string
-	Host       string
-	Port       string
-	ErrIfNoSvc bool
+type GatewayBindOptions struct {
+	GatewayName string
+	Protocol    string
+	Address     string
+	Host        string
+	Port        string
+	ErrIfNoSvc  bool
 }
 
-type ProxyExposeOptions struct {
-	ProxyName string
-	Egress    ProxyBindOptions
+type GatewayUnbindOptions struct {
+	GatewayName string
+	Protocol    string
+	Address     string
 }
 
-type ProxyEndpoint struct {
+type GatewayExposeOptions struct {
+	GatewayName string
+	Egress      GatewayBindOptions
+}
+
+type GatewayUnexposeOptions struct {
+	GatewayName  string
+	Address      string
+	DeleteIfLast bool
+}
+
+type GatewayForwardOptions struct {
+	GatewayName string
+	Loopback    bool
+	Service     ServiceInterface
+}
+
+type GatewayEndpoint struct {
 	Name      string `json:"name,omitempty"`
 	Host      string `json:"host,omitempty"`
 	Port      string `json:"port,omitempty"`
@@ -210,12 +229,12 @@ type ProxyEndpoint struct {
 	LocalPort string `json:"active,omitempty"`
 }
 
-type ProxyInspectResponse struct {
-	ProxyName     string
-	ProxyUrl      string
-	ProxyVersion  string
-	TcpConnectors map[string]ProxyEndpoint
-	TcpListeners  map[string]ProxyEndpoint
+type GatewayInspectResponse struct {
+	GatewayName    string
+	GatewayUrl     string
+	GatewayVersion string
+	TcpConnectors  map[string]GatewayEndpoint
+	TcpListeners   map[string]GatewayEndpoint
 }
 
 type VanClientInterface interface {
@@ -242,17 +261,17 @@ type VanClientInterface interface {
 	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error
 	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*ServiceInterface, error)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
-	ProxyBind(ctx context.Context, proxyName string, egress ProxyBindOptions) error
-	ProxyUnbind(ctx context.Context, proxyName string, address string) error
-	ProxyExpose(ctx context.Context, options ProxyExposeOptions) (string, error)
-	ProxyUnexpose(ctx context.Context, proxyName string, address string) error
-	ProxyForward(ctx context.Context, proxyName string, loopback bool, service *ServiceInterface) error
-	ProxyUnforward(ctx context.Context, proxyName string, address string) error
-	ProxyInit(ctx context.Context, options ProxyInitOptions) (string, error)
-	ProxyDownload(ctx context.Context, proxyName string, downloadPath string) error
-	ProxyInspect(ctx context.Context, proxyName string) (*ProxyInspectResponse, error)
-	ProxyList(ctx context.Context) ([]*ProxyInspectResponse, error)
-	ProxyRemove(ctx context.Context, proxyName string) error
+	GatewayBind(ctx context.Context, options GatewayBindOptions) error
+	GatewayUnbind(ctx context.Context, options GatewayUnbindOptions) error
+	GatewayExpose(ctx context.Context, options GatewayExposeOptions) (string, error)
+	GatewayUnexpose(ctx context.Context, options GatewayUnexposeOptions) error
+	GatewayForward(ctx context.Context, options GatewayForwardOptions) error
+	GatewayUnforward(ctx context.Context, gatewayName string, address string) error
+	GatewayInit(ctx context.Context, options GatewayInitOptions) (string, error)
+	GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) (string, error)
+	GatewayInspect(ctx context.Context, gatewayName string) (*GatewayInspectResponse, error)
+	GatewayList(ctx context.Context) ([]*GatewayInspectResponse, error)
+	GatewayRemove(ctx context.Context, gatewayName string) error
 	SiteConfigCreate(ctx context.Context, spec SiteConfigSpec) (*SiteConfig, error)
 	SiteConfigUpdate(ctx context.Context, spec SiteConfigSpec) ([]string, error)
 	SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*SiteConfig, error)
