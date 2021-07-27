@@ -1,6 +1,6 @@
 module github.com/skupperproject/skupper
 
-go 1.13
+go 1.15
 
 require (
 	github.com/Azure/azure-sdk-for-go v46.0.0+incompatible // indirect
