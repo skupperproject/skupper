@@ -14,19 +14,19 @@ type Version struct {
 
 func ParseVersion(version string) Version {
 	var result Version
-	re := regexp.MustCompile(`^v?(\d+)(\.(\d+))?(\.(\d+))?\W?(.+)?`)
+	re := regexp.MustCompile(`^v?(\d+)[\.\+\-](\d+)?(\.(\d+))?\W?(.+)?`)
 	parts := re.FindStringSubmatch(version)
-	if len(parts) > 0 {
+	if len(parts) > 1 {
 		result.Major, _ = strconv.Atoi(parts[1])
 	}
-	if len(parts) > 6 {
-		result.Minor, _ = strconv.Atoi(parts[3])
+	if len(parts) > 2 {
+		result.Minor, _ = strconv.Atoi(parts[2])
+	}
+	if len(parts) > 4 {
+		result.Patch, _ = strconv.Atoi(parts[4])
 	}
 	if len(parts) > 5 {
-		result.Patch, _ = strconv.Atoi(parts[5])
-	}
-	if len(parts) > 6 {
-		result.Qualifier = parts[6]
+		result.Qualifier = parts[5]
 	}
 	return result
 }
