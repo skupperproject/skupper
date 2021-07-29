@@ -14,9 +14,14 @@ func TestParseVersion(t *testing.T) {
 		{"v1.2.3", Version{1, 2, 3, ""}},
 		{"v1.2.3-foo", Version{1, 2, 3, "foo"}},
 		{"0.22.9993@bar-xyz", Version{0, 22, 9993, "bar-xyz"}},
+		{"0e8beee", Version{}},
+		{"1231667", Version{}},
+		{"3littlepigs", Version{}},
 		{"x0.22.9993@bar-xyz", Version{}},
 		{"10.22+whatever", Version{10, 22, 0, "whatever"}},
 		{"10+whatever", Version{10, 0, 0, "whatever"}},
+		{"10+", Version{10, 0, 0, ""}},
+		{"10.", Version{10, 0, 0, ""}},
 		{"whatever-10-nonsense", Version{}},
 	}
 	for _, test := range tests {
@@ -67,8 +72,8 @@ func TestEquivalent(t *testing.T) {
 		{"10.22+whatever", "10.22", true},
 		{"10.22+whatever", "10.22_ignoreme", true},
 		{"10.22+whatever", "10.32_ignoreme", false},
-		{"10+whatever", "10", true},
-		{"10+whatever", "10%rrr", true},
+		{"10+whatever", "10+", true},
+		{"10+whatever", "10-rrr", true},
 		{"cat", "dog", true},
 	}
 	for _, test := range tests {
@@ -154,6 +159,7 @@ func TestIsValidFor(t *testing.T) {
 		{"", "0.7.0", false},
 		{"0.5.3", "0.7.0", false},
 		{"34145a5-modified", "0.7.0", true},
+		{"0e8beee", "0.7.0", true},
 		{"0.7.0", "0.7.0", true},
 		{"0.7.1", "0.7.0", true},
 		{"0.8.6", "0.7.5", true},
