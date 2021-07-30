@@ -167,7 +167,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 		namespace = cli.Namespace
 	}
 	// TODO: return error message for all the paths
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli.KubeClient)
 	if err != nil {
 		return nil, false, err
 	}
@@ -179,7 +179,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
 	//TODO: creat const for ca
-	caSecret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
+	caSecret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
