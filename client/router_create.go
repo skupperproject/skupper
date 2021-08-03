@@ -321,15 +321,15 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 
 	van := &types.RouterSpec{}
 	//todo: think through van name, router name, secret names, etc.
-	if options.SkupperName == "" {
-		van.Name = cli.Namespace
-	} else {
-		van.Name = options.SkupperName
-	}
 	if options.SkupperNamespace == "" {
 		van.Namespace = cli.Namespace
 	} else {
 		van.Namespace = options.SkupperNamespace
+	}
+	if options.SkupperName == "" {
+		van.Name = van.Namespace
+	} else {
+		van.Name = options.SkupperName
 	}
 
 	van.AuthMode = types.ConsoleAuthMode(options.AuthMode)

@@ -13,7 +13,13 @@ import (
 )
 
 func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*types.SiteConfig, error) {
-	return cli.SiteConfigInspectInNamespace(ctx, input, cli.Namespace)
+	var namespace string
+	if input == nil {
+		namespace = cli.Namespace
+	} else {
+		namespace = input.ObjectMeta.Namespace
+	}
+	return cli.SiteConfigInspectInNamespace(ctx, input, namespace)
 }
 
 func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *corev1.ConfigMap, namespace string) (*types.SiteConfig, error) {
