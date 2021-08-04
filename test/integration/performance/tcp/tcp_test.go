@@ -57,36 +57,39 @@ func TestIperf(t *testing.T) {
 	// Composing a test matrix based on number of sites to iterate and transmit sizes
 	for site := 0; site <= skupperSettings.Sites; site++ {
 		for _, size := range iperfSettings.TransmitSizes {
-			scenario := IperfScenario{
-				SkupperSites:    site,
-				TransmitSize:    size,
-				SkupperSettings: skupperSettings,
-				IperfSettings:   iperfSettings,
-				testCtx:         testCtx,
-			}
-			t.Run(scenario.getTestName(), func(t *testing.T) {
-				// Preparing teardown function
-				defer scenario.tearDown()
-				base.HandleInterruptSignal(func() {
-					scenario.tearDown()
-					t.FailNow()
+			for _, clients := range iperfSettings.ParallelClients {
+				scenario := IperfScenario{
+					SkupperSites:    site,
+					TransmitSize:    size,
+					ParallelClients: clients,
+					SkupperSettings: skupperSettings,
+					IperfSettings:   iperfSettings,
+					testCtx:         testCtx,
+				}
+				t.Run(scenario.getTestName(), func(t *testing.T) {
+					// Preparing teardown function
+					defer scenario.tearDown()
+					base.HandleInterruptSignal(func() {
+						scenario.tearDown()
+						t.FailNow()
+					})
+
+					// Logging scenario info
+					t.Logf("iPerf scenario info: %s", scenario.String())
+
+					// Initializing clusters and Skupper network (if site > 0)
+					scenario.initializeClusters(t)
+
+					// Deploying the iPerf3 server
+					scenario.deployIperf3Server(t)
+
+					// Expose iperf3-server service (through Skupper or straight through k8s if not using Skupper)
+					scenario.exposeIperf3Server(t)
+
+					// Running the iPerf3 client
+					scenario.runIperf3Client(t)
 				})
-
-				// Logging scenario info
-				t.Logf("iPerf scenario info: %s", scenario.String())
-
-				// Initializing clusters and Skupper network (if site > 0)
-				scenario.initializeClusters(t)
-
-				// Deploying the iPerf3 server
-				scenario.deployIperf3Server(t)
-
-				// Expose iperf3-server service (through Skupper or straight through k8s if not using Skupper)
-				scenario.exposeIperf3Server(t)
-
-				// Running the iPerf3 client
-				scenario.runIperf3Client(t)
-			})
+			}
 		}
 	}
 }
@@ -94,8 +97,12 @@ func TestIperf(t *testing.T) {
 // parseIperfSettings parses environment variables to customize iPerf3
 func parseIperfSettings(t *testing.T) IperfTuning {
 	// IPERF_PARALLEL_CLIENTS
-	iperfParallelClients, err := strconv.Atoi(utils.StrDefault("1", os.Getenv(ENV_IPERF_PARALLEL_CLIENTS)))
-	assert.Assert(t, err, "invalid value for IPERF_PARALLEL_CLIENTS (int expected)")
+	var iperfParallelClients []int
+	for _, parallelClientStr := range strings.Split(utils.StrDefault("1", os.Getenv(ENV_IPERF_PARALLEL_CLIENTS)), ",") {
+		parallelClients, err := strconv.Atoi(parallelClientStr)
+		assert.Assert(t, err, "invalid value for IPERF_PARALLEL_CLIENTS (int expected)")
+		iperfParallelClients = append(iperfParallelClients, parallelClients)
+	}
 	// IPERF_TRANSMIT_SIZES
 	iperfTransmitSizes := strings.Split(utils.StrDefault("100M,500M,1G", os.Getenv(ENV_IPERF_TRANSMIT_SIZES)), ",")
 	// IPERF_WINDOW_SIZE
