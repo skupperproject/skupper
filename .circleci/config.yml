@@ -224,7 +224,7 @@ jobs:
   build-all:
     executor:
       name: go/default
-      tag: "1.15"
+      tag: "1.14"
     steps:
       - checkout
       - go/mod-download-cached
