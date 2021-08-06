@@ -224,7 +224,7 @@ jobs:
   build-all:
     executor:
       name: go/default
-      tag: "1.14"
+      tag: "1.15"
     steps:
       - checkout
       - go/mod-download-cached
@@ -250,11 +250,6 @@ jobs:
           goarch: amd64
           platform: windows-amd64
           exesuffix: ".exe"
-
-      - compile_go_program:
-          goos: darwin
-          goarch: "386"
-          platform: mac-i386
 
       - compile_go_program:
           goos: darwin
