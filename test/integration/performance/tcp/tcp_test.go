@@ -13,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
-	"github.com/skupperproject/skupper/test/utils/constants"
 	"gotest.tools/assert"
 )
 
@@ -44,10 +43,6 @@ func TestIperf(t *testing.T) {
 	iperfSettings := parseIperfSettings(t)
 	skupperSettings := parseSkupperSettings(t)
 
-	// Test context
-	testCtx, cancelFn := context.WithTimeout(context.Background(), constants.TestSuiteTimeout)
-	defer cancelFn()
-
 	// Creating a local directory for storing the tokens and logs
 	err := os.Mkdir(TestPath, 0755)
 	if err != nil && !strings.Contains(err.Error(), "exists") {
@@ -58,6 +53,10 @@ func TestIperf(t *testing.T) {
 	for site := 0; site <= skupperSettings.Sites; site++ {
 		for _, size := range iperfSettings.TransmitSizes {
 			for _, clients := range iperfSettings.ParallelClients {
+				// Test context
+				testCtx, cancelFn := context.WithTimeout(context.Background(), iperfSettings.JobTimeout)
+				defer cancelFn()
+
 				scenario := IperfScenario{
 					SkupperSites:    site,
 					TransmitSize:    size,
