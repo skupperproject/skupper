@@ -34,11 +34,11 @@ func TestDataEndpoint(t *testing.T) {
 		testRunner.TearDown()
 	})
 
-	// Setup skupper Infra
-	testRunner.Setup(ctx, t)
-
 	// Remove test resources / Infra after test run
 	defer testRunner.TearDown()
+
+	// Setup skupper Infra
+	testRunner.Setup(ctx, t)
 
 	// Test set
 

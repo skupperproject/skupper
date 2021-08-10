@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"fmt"
+
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -15,7 +16,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//"os"
+	// "os"
 	"testing"
 )
 
@@ -123,6 +124,14 @@ func (r *BasicTestRunner) Setup(ctx context.Context, t *testing.T) {
 
 	log.Warn("Starting Setup procedure")
 
+	// Get context for public
+	publicCluster, err := r.GetPublicContext(1)
+	assert.Assert(t, err)
+
+	// Get context for private
+	privateCluster, err := r.GetPrivateContext(1)
+	assert.Assert(t, err)
+
 	var createOptsPublic = types.SiteConfigSpec{
 		EnableController:  true,
 		EnableServiceSync: true,
@@ -130,7 +139,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, t *testing.T) {
 		AuthMode:          types.ConsoleAuthModeUnsecured,
 		User:              "admin",
 		Password:          "admin",
-		Ingress:           types.IngressNoneString,
+		Ingress:           publicCluster.VanClient.GetIngressDefault(),
 		Replicas:          1,
 	}
 
@@ -144,14 +153,6 @@ func (r *BasicTestRunner) Setup(ctx context.Context, t *testing.T) {
 		Ingress:           types.IngressNoneString,
 		Replicas:          1,
 	}
-
-	// Get context for public
-	publicCluster, err := r.GetPublicContext(1)
-	assert.Assert(t, err)
-
-	// Get context for private
-	privateCluster, err := r.GetPrivateContext(1)
-	assert.Assert(t, err)
 
 	// Create public namespace
 	err = publicCluster.CreateNamespace()
