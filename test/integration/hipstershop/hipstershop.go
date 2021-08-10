@@ -244,27 +244,24 @@ func exposePublic1Resources(t *testing.T, pub1 *base.ClusterContext) {
 		Protocol: "http2",
 		Port:     9555,
 	}
+	redisSvc := &types.ServiceInterface{
+		Address:  "redis-cart",
+		Protocol: "tcp",
+		Port:     6379,
+	}
 	// Creating services
 	t.Logf("creating service interfaces in public1 cluster")
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, checkoutSvc))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, cartSvc))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, currencySvc))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, adSvc))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, redisSvc))
 	t.Logf("binding service interfaces in public1 cluster")
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, checkoutSvc, "deployment", checkoutSvc.Address, "http2", 5050))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, cartSvc, "deployment", cartSvc.Address, "http2", 7070))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, currencySvc, "deployment", currencySvc.Address, "http2", 7000))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, adSvc, "deployment", adSvc.Address, "http2", 9555))
-	t.Logf("annotating redis-cart service")
-	redisCartSvc, err := pub1.VanClient.KubeClient.CoreV1().Services(pub1.Namespace).Get("redis-cart", v1.GetOptions{})
-	assert.Assert(t, err)
-	if redisCartSvc.ObjectMeta.Annotations == nil {
-		redisCartSvc.ObjectMeta.Annotations = map[string]string{}
-	}
-	redisCartSvc.ObjectMeta.Annotations[types.ProxyQualifier] = "tcp"
-	redisCartSvc.ObjectMeta.Annotations[types.PortQualifier] = "6379"
-	_, err = pub1.VanClient.KubeClient.CoreV1().Services(pub1.Namespace).Update(redisCartSvc)
-	assert.Assert(t, err)
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, redisSvc, "deployment", redisSvc.Address, "tcp", 6379))
 }
 
 func exposePublic2Resources(t *testing.T, pub2 *base.ClusterContext) {
@@ -279,20 +276,18 @@ func exposePublic2Resources(t *testing.T, pub2 *base.ClusterContext) {
 		Protocol: "http2",
 		Port:     50051,
 	}
+	emailSvc := &types.ServiceInterface{
+		Address:  "emailservice",
+		Protocol: "http2",
+		Port:     5000,
+	}
 	// Creating services
 	t.Logf("creating service interfaces in public2 cluster")
 	assert.Assert(t, pub2.VanClient.ServiceInterfaceCreate(ctx, paymentSvc))
 	assert.Assert(t, pub2.VanClient.ServiceInterfaceCreate(ctx, shippingSvc))
+	assert.Assert(t, pub2.VanClient.ServiceInterfaceCreate(ctx, emailSvc))
 	t.Logf("binding service interfaces in public2 cluster")
 	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, paymentSvc, "deployment", paymentSvc.Address, "http2", 50051))
 	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, shippingSvc, "deployment", shippingSvc.Address, "http2", 50051))
-	t.Logf("annotating email service")
-	emailSvc, err := pub2.VanClient.KubeClient.CoreV1().Services(pub2.Namespace).Get("emailservice", v1.GetOptions{})
-	assert.Assert(t, err)
-	if emailSvc.ObjectMeta.Annotations == nil {
-		emailSvc.ObjectMeta.Annotations = map[string]string{}
-	}
-	emailSvc.ObjectMeta.Annotations[types.ProxyQualifier] = "http2"
-	_, err = pub2.VanClient.KubeClient.CoreV1().Services(pub2.Namespace).Update(emailSvc)
-	assert.Assert(t, err)
+	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, emailSvc, "deployment", emailSvc.Address, "http2", 8080))
 }
