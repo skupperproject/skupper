@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 func systemctlCommand(args ...string) (string, string, error) {
@@ -24,6 +25,9 @@ func SystemdUnitAvailable(gatewayName string) bool {
 	if err != nil {
 		log.Printf("systemd user unit not found: %s - %s", s, err)
 		log.Printf(stdout)
+	} else if strings.Contains(stdout, "0 unit") {
+		log.Printf(stdout)
+		return false
 	}
 	return err == nil
 }
