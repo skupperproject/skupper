@@ -89,7 +89,7 @@ func (s *IperfScenario) clustersNeeded() int {
 // tearDown removes created namespaces
 func (s *IperfScenario) tearDown() {
 	for _, ctx := range s.teardownClusters {
-		ctx.DeleteNamespace()
+		_ = ctx.DeleteNamespace()
 	}
 }
 
