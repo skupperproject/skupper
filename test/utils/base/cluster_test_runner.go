@@ -172,8 +172,7 @@ func (c *ClusterTestRunnerBase) createClusterContext(needs ClusterNeeds, private
 	return nil
 }
 
-func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunnerBase) error {
-
+func SetupSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) error {
 	var err error
 	pub1Cluster, err := r.GetPublicContext(1)
 	if err != nil {
@@ -195,20 +194,46 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 		return err
 	}
 
+	return nil
+}
+
+func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) error {
+	var err error
+	pub1Cluster, err := r.GetPublicContext(1)
+	if err != nil {
+		return err
+	}
+	prv1Cluster, err := r.GetPrivateContext(1)
+	if err != nil {
+		return err
+	}
+
 	// Configure public cluster.
-	routerCreateSpec := types.SiteConfigSpec{
+	routerCreateSpecPub := types.SiteConfigSpec{
 		SkupperName:       "",
 		RouterMode:        string(types.TransportModeInterior),
 		EnableController:  true,
 		EnableServiceSync: true,
-		EnableConsole:     false,
-		AuthMode:          types.ConsoleAuthModeUnsecured,
-		User:              "nicob?",
-		Password:          "nopasswordd",
+		EnableConsole:     true,
+		AuthMode:          types.ConsoleAuthModeInternal,
+		User:              "admin",
+		Password:          "admin",
 		Ingress:           pub1Cluster.VanClient.GetIngressDefault(),
 		Replicas:          1,
 	}
-	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+	routerCreateSpecPrv := types.SiteConfigSpec{
+		SkupperName:       "",
+		RouterMode:        string(types.TransportModeEdge),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     true,
+		AuthMode:          types.ConsoleAuthModeUnsecured,
+		User:              "admin",
+		Password:          "admin",
+		Ingress:           pub1Cluster.VanClient.GetIngressDefault(),
+		Replicas:          1,
+	}
+	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpecPub)
 	if err != nil {
 		return err
 	}
@@ -225,8 +250,8 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 	}
 
 	// Configure private cluster.
-	routerCreateSpec.SkupperNamespace = prv1Cluster.Namespace
-	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpec)
+	routerCreateSpecPrv.SkupperNamespace = prv1Cluster.Namespace
+	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpecPrv)
 
 	err = prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
 	if err != nil {
@@ -235,7 +260,7 @@ func SetupSimplePublicPrivateAndConnect(ctx context.Context, r *ClusterTestRunne
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
 		SkupperNamespace: prv1Cluster.Namespace,
-		Name:             "",
+		Name:             "public",
 		Cost:             0,
 	}
 	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)

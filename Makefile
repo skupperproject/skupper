@@ -10,11 +10,11 @@ all: build-cmd build-get build-controllers build-tests
 
 build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
-	go test -c -tags=job -v ./test/integration/tcp_echo/job -o ${TEST_BINARIES_FOLDER}/tcp_echo_test
-	go test -c -tags=job -v ./test/integration/http/job -o ${TEST_BINARIES_FOLDER}/http_test
-	go test -c -tags=job -v ./test/integration/bookinfo/job -o ${TEST_BINARIES_FOLDER}/bookinfo_test
-	go test -c -tags=job -v ./test/integration/mongodb/job -o ${TEST_BINARIES_FOLDER}/mongo_test
-	go test -c -tags=job -v ./test/integration/hipstershop/job -o ${TEST_BINARIES_FOLDER}/grpcclient_test
+	go test -c -tags=job -v ./test/integration/examples/tcp_echo/job -o ${TEST_BINARIES_FOLDER}/tcp_echo_test
+	go test -c -tags=job -v ./test/integration/examples/http/job -o ${TEST_BINARIES_FOLDER}/http_test
+	go test -c -tags=job -v ./test/integration/examples/bookinfo/job -o ${TEST_BINARIES_FOLDER}/bookinfo_test
+	go test -c -tags=job -v ./test/integration/examples/mongodb/job -o ${TEST_BINARIES_FOLDER}/mongo_test
+	go test -c -tags=job -v ./test/integration/examples/custom/hipstershop/job -o ${TEST_BINARIES_FOLDER}/grpcclient_test
 
 build-cmd:
 	go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper

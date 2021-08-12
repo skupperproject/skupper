@@ -103,7 +103,7 @@ func parseIperfSettings(t *testing.T) IperfTuning {
 		iperfParallelClients = append(iperfParallelClients, parallelClients)
 	}
 	// IPERF_TRANSMIT_SIZES
-	iperfTransmitSizes := strings.Split(utils.StrDefault("100M,500M,1G", os.Getenv(ENV_IPERF_TRANSMIT_SIZES)), ",")
+	iperfTransmitSizes := strings.Split(utils.StrDefault("1G", os.Getenv(ENV_IPERF_TRANSMIT_SIZES)), ",")
 	// IPERF_WINDOW_SIZE
 	iperfWindowSize, err := strconv.Atoi(utils.StrDefault("0", os.Getenv(ENV_IPERF_WINDOW_SIZE)))
 	assert.Assert(t, err, "invalid value for IPERF_WINDOW_SIZE (int expected)")
