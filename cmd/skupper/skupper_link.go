@@ -120,6 +120,14 @@ func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
+			connectionMap, err := cli.BreakDownConnectionsList()
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			printConnections(connectionMap["in"], "incoming")
+			printConnections(connectionMap["out"], "outgoing")
+
 			if len(args) == 1 && args[0] != "all" {
 				for i := 0; ; i++ {
 					if i > 0 {
@@ -184,4 +192,14 @@ func NewCmdLinkStatus(newClient cobraFunc) *cobra.Command {
 
 	return cmd
 
+}
+
+func printConnections(number int, direction string) {
+	if number == 0 {
+		fmt.Printf("There are no %v connections.\n", direction)
+	} else if number == 1 {
+		fmt.Printf("There is %v %v connection.\n", number, direction)
+	} else {
+		fmt.Printf("There are %v %v connections.\n", number, direction)
+	}
 }

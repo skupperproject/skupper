@@ -66,3 +66,35 @@ func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, er
 	}
 	return links, nil
 }
+
+func (cli *VanClient) BreakDownConnectionsList() (map[string]int, error) {
+	numIncConnections := 0
+	numOutConnections := 0
+
+	current, err := cli.getRouterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	connections, err := qdr.GetConnections(cli.Namespace, cli.KubeClient, cli.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	routerType := "inter-router"
+	if current.IsEdge() {
+		routerType = "edge"
+	}
+
+	for i := range connections {
+		if routerType == connections[i].Role && connections[i].Dir == "in" {
+			numIncConnections++
+		}
+		if routerType == connections[i].Role && connections[i].Dir == "out" {
+			numOutConnections++
+		}
+	}
+
+	connectionsMap := map[string]int{"in": numIncConnections, "out": numOutConnections}
+	return connectionsMap, err
+}

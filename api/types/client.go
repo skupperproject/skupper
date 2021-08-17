@@ -281,4 +281,5 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
+	BreakDownConnectionsList() (map[string]int, error)
 }
