@@ -121,4 +121,3 @@ func waitUntilConnectionsAreUpdated(cli *VanClient, createdConn bool) error {
 
 	return err
 }
-
