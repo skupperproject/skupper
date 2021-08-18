@@ -80,27 +80,27 @@ func (cli *VanClient) TokenClaimCreateFile(ctx context.Context, name string, pas
 	}
 }
 
-func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error) {
+func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string, password []byte, recordName string) (*corev1.Secret, *corev1.Service, bool, error) {
 	current, err := cli.getRouterConfig()
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	if current.IsEdge() {
-		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
+		return nil, nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
 	service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	port := getClaimsPort(service)
 	if port == 0 {
-		return nil, false, fmt.Errorf("Site cannot accept connections")
+		return nil, nil, false, fmt.Errorf("Site cannot accept connections")
 	}
 	host := fmt.Sprintf("%s.%s", types.ControllerServiceName, cli.Namespace)
 	localOnly := true
 	ok, err := configureClaimHostFromRoutes(&host, cli)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	} else if ok {
 		// host configured from route
 		port = 443
@@ -111,17 +111,17 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 	} else if service.Spec.Type == corev1.ServiceTypeNodePort {
 		host, err = cli.getControllerIngressHost()
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
 		port, err = getClaimsNodePort(service)
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
 		localOnly = false
 	} else {
 		ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
 		if len(ingressRoutes) > 0 {
 			for _, route := range ingressRoutes {
@@ -134,15 +134,11 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 			}
 		}
 	}
-	recordName, err := uuid.NewUUID()
-	if err != nil {
-		return nil, false, err
-	}
 	protocol := "https"
-	url := fmt.Sprintf("%s://%s:%d/%s", protocol, host, port, recordName.String())
+	url := fmt.Sprintf("%s://%s:%d/%s", protocol, host, port, recordName)
 	caSecret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	claim := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -162,6 +158,22 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 			types.ClaimPasswordDataKey: password,
 			types.ClaimCaCertDataKey:   caSecret.Data["tls.crt"],
 		},
+	}
+	siteId := getSiteId(service)
+	if siteId != "" {
+		claim.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteId
+	}
+	return &claim, service, localOnly, nil
+}
+
+func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error) {
+	recordName, err := uuid.NewUUID()
+	if err != nil {
+		return nil, false, err
+	}
+	claim, service, localOnly, err := cli.TokenClaimTemplateCreate(ctx, name, password, recordName.String())
+	if err != nil {
+		return nil, false, err
 	}
 	record := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -192,11 +204,7 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 		return nil, false, err
 	}
 
-	siteId := getSiteId(service)
-	if siteId != "" {
-		claim.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteId
-	}
-	return &claim, localOnly, nil
+	return claim, localOnly, nil
 }
 
 func configureClaimHostFromRoutes(host *string, cli *VanClient) (bool, error) {

@@ -27,7 +27,7 @@ type TokenState struct {
 	ClaimsMade      *int       `json:"claimsMade"`
 	ClaimsRemaining *int       `json:"claimsRemaining"`
 	ClaimExpiration *time.Time `json:"claimExpiration"`
-	Created         string     `json:"created"`
+	Created         string     `json:"created,omitempty"`
 }
 
 func getIntAnnotation(key string, s *corev1.Secret) *int {
@@ -146,6 +146,20 @@ func (m *TokenManager) generateToken(options *TokenOptions) (*corev1.Secret, err
 	return claim, nil
 }
 
+func (m *TokenManager) downloadClaim(name string) (*corev1.Secret, error) {
+	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	} else if !isTokenRecord(secret) {
+		return nil, nil
+	}
+	password := secret.Data[types.ClaimPasswordDataKey]
+	claim, _, _, err := m.cli.TokenClaimTemplateCreate(context.Background(), name, password, name)
+	return claim, err
+}
+
 func (o *TokenOptions) setExpiration(value string) error {
 	if value == "" {
 		o.Expiry = 15 * time.Minute
@@ -234,6 +248,29 @@ func serveTokens(m *TokenManager) http.Handler {
 				http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
 			}
 		} else if r.Method != http.MethodOptions {
+			http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func downloadClaim(m *TokenManager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		if r.Method == http.MethodGet {
+			if name, ok := vars["name"]; ok {
+				token, err := m.downloadClaim(name)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				} else if token == nil {
+					http.Error(w, "No such token", http.StatusNotFound)
+				} else {
+					writeJson(token, w)
+				}
+
+			} else {
+				http.Error(w, "Token must be specified in path", http.StatusNotFound)
+			}
+		} else {
 			http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
 		}
 	})

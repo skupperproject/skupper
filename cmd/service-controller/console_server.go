@@ -390,6 +390,7 @@ func (server *ConsoleServer) listen() {
 	r.Handle("/tokens", authenticated(serveTokens(server.tokens)))
 	r.Handle("/tokens/", authenticated(serveTokens(server.tokens)))
 	r.Handle("/tokens/{name}", authenticated(serveTokens(server.tokens)))
+	r.Handle("/downloadclaim/{name}", authenticated(downloadClaim(server.tokens)))
 	r.Handle("/links", authenticated(serveLinks(server.links)))
 	r.Handle("/links/", authenticated(serveLinks(server.links)))
 	r.Handle("/links/{name}", authenticated(serveLinks(server.links)))

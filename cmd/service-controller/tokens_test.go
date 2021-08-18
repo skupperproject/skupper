@@ -1,14 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"gotest.tools/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/gorilla/mux"
 
@@ -171,5 +176,97 @@ func TestServeTokens(t *testing.T) {
 
 		router.ServeHTTP(res, req)
 		assert.Equal(t, res.Code, test.expectedCode, name)
+	}
+}
+
+func TestDownloadClaim(t *testing.T) {
+	event.StartDefaultEventStore(nil)
+	var tests = []struct {
+		name         string
+		method       string
+		path         string
+		expectedCode int
+		password     []byte
+	}{
+		{
+			method:       http.MethodGet,
+			path:         "/downloadclaim/",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			method:       http.MethodGet,
+			path:         "/downloadclaim/foo",
+			expectedCode: http.StatusOK,
+			password:     []byte("abcedefg"),
+		},
+		{
+			method:       http.MethodGet,
+			path:         "/downloadclaim/bar",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			method:       http.MethodDelete,
+			path:         "/downloadclaim/",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			method:       http.MethodPut,
+			path:         "/downloadclaim/",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			method:       http.MethodPost,
+			path:         "/downloadclaim/",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			method:       http.MethodDelete,
+			path:         "/downloadclaim/foo",
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			method:       http.MethodPut,
+			path:         "/downloadclaim/bar",
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			method:       http.MethodPost,
+			path:         "/downloadclaim/baz",
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+	}
+	testname := "serve-tokens-test"
+	cli := &client.VanClient{
+		Namespace:  testname,
+		KubeClient: fake.NewSimpleClientset(),
+	}
+	err := skupperInitWithController(cli, testname)
+	assert.Check(t, err, testname)
+	err = createClaimRecord(cli, "foo", []byte("abcedefg"), nil, 1)
+	assert.Check(t, err, testname)
+	mgr := newTokenManager(cli)
+	router := mux.NewRouter()
+	handler := downloadClaim(mgr)
+	router.Handle("/downloadclaim/{name}", handler)
+	for _, test := range tests {
+		name := test.name
+		if name == "" {
+			name = test.method + " " + test.path
+		}
+		req := httptest.NewRequest(test.method, test.path, nil)
+		res := httptest.NewRecorder()
+
+		router.ServeHTTP(res, req)
+		assert.Equal(t, res.Code, test.expectedCode, name)
+		if res.Code == http.StatusOK {
+			body, err := ioutil.ReadAll(res.Body)
+			assert.Check(t, err, testname)
+			s := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme, json.SerializerOptions{})
+			var token corev1.Secret
+			_, _, err = s.Decode(body, nil, &token)
+			assert.Check(t, err, testname)
+			assert.Equal(t, token.ObjectMeta.Labels[types.SkupperTypeQualifier], types.TypeClaimRequest, name)
+			assert.Assert(t, bytes.Equal(token.Data[types.ClaimPasswordDataKey], test.password), name)
+		}
 	}
 }
