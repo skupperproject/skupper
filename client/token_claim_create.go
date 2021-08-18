@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -73,12 +74,11 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 	}
 	host := fmt.Sprintf("%s.%s", types.ControllerServiceName, cli.Namespace)
 	localOnly := true
-	if cli.RouteClient != nil {
-		route, err := cli.RouteClient.Routes(cli.Namespace).Get(types.ClaimRedemptionRouteName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		host = route.Spec.Host
+	ok, err := configureClaimHostFromRoutes(&host, cli)
+	if err != nil {
+		return err
+	} else if ok {
+		// host configured from route
 		port = 443
 		localOnly = false
 	} else if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
@@ -189,4 +189,19 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 		fmt.Println()
 		return nil
 	}
+}
+
+func configureClaimHostFromRoutes(host *string, cli *VanClient) (bool, error) {
+	if cli.RouteClient == nil {
+		return false, nil
+	}
+	route, err := cli.RouteClient.Routes(cli.Namespace).Get(types.ClaimRedemptionRouteName, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	*host = route.Spec.Host
+	return true, nil
 }
