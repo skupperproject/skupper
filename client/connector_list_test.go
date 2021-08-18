@@ -34,7 +34,7 @@ func TestBreakDownConnectionsList(t *testing.T) {
 	}{
 		{
 			namespace:     "van-link-status-1",
-			doc:           "Should return the incoming and outgoing connections.",
+			doc:           "Should return the incoming and outgoing links.",
 			createConn:    true,
 			connName:      "link1",
 			incomingSite1: 1,
@@ -44,7 +44,7 @@ func TestBreakDownConnectionsList(t *testing.T) {
 		},
 		{
 			namespace:     "van-link-status-2",
-			doc:           "Should not return the incoming nor outgoing connections because there is no link between them.",
+			doc:           "Should not return the incoming nor outgoing links if they don't exist.",
 			createConn:    false,
 			connName:      "",
 			incomingSite1: 0,
