@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -70,6 +71,18 @@ func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 }
 
 func main() {
+	// if -version used, report and exit
+	isVersion := flag.Bool("version", false, "Report the version of the Skupper Service Controller")
+	flag.Parse()
+	if *isVersion {
+		fmt.Println(client.Version)
+		os.Exit(0)
+	}
+
+	// Startup message
+	log.Printf("Skupper service controller")
+	log.Printf("Version: %s", client.Version)
+
 	origin := os.Getenv("SKUPPER_SITE_ID")
 	namespace := os.Getenv("SKUPPER_NAMESPACE")
 	disableServiceSync := os.Getenv("SKUPPER_DISABLE_SERVICE_SYNC")
