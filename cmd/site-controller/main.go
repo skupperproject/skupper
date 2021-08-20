@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -35,6 +36,14 @@ func SetupSignalHandler() (stopCh <-chan struct{}) {
 }
 
 func main() {
+	// if -version used, report and exit
+	isVersion := flag.Bool("version", false, "Report the version of the Skupper Site Controller")
+	flag.Parse()
+	if *isVersion {
+		fmt.Println(client.Version)
+		os.Exit(0)
+	}
+
 	namespace := os.Getenv("NAMESPACE")
 	kubeconfig := os.Getenv("KUBECONFIG")
 

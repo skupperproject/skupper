@@ -32,6 +32,7 @@ type SiteController struct {
 func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 	var watchNamespace string
 
+	// Startup message
 	if os.Getenv("WATCH_NAMESPACE") != "" {
 		watchNamespace = os.Getenv("WATCH_NAMESPACE")
 		log.Println("Skupper site controler watching current namespace ", watchNamespace)
@@ -39,6 +40,7 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 		watchNamespace = metav1.NamespaceAll
 		log.Println("Skupper site controller watching all namespaces")
 	}
+	log.Printf("Version: %s", client.Version)
 
 	siteInformer := corev1informer.NewFilteredConfigMapInformer(
 		cli.KubeClient,
