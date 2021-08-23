@@ -34,19 +34,25 @@ skupper expose
 To connect to this site from another site, you need to create an exchange tokens, for example:
 
 ```
-skupper connection-token /path/to/mysecret.yaml
+skupper token create /path/to/mysecret.yaml
 ```
 
 This command writes a token in the specified path, you can use that token from a second site by entering:
 
 ```
-skupper connect --secret /path/to/mysecret.yaml
+skupper link create /path/to/mysecret.yaml
 ```
 
 After waiting some time, check that the connection is working:
 
 ```
 skupper status
+```
+
+The status of the link can be checked as well:
+
+```
+skupper link status
 ```
 
 This is a simple example, many connection options are available.

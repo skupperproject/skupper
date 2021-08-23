@@ -65,6 +65,7 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 						secret.ObjectMeta.Name)
 				}
 			}
+			fmt.Println("Check the status of the link using 'skupper link status'.")
 			return nil
 		},
 	}
