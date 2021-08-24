@@ -118,7 +118,7 @@ func AssertJob(t *testing.T, job *batchv1.Job) {
 }
 
 func GetJobLogs(ns string, kubeClient kubernetes.Interface, name string) (string, error) {
-	pods, err := kube.GetDeploymentPods("", fmt.Sprintf("job=%s", name), ns, kubeClient)
+	pods, err := kube.GetPods(fmt.Sprintf("job=%s", name), ns, kubeClient)
 	if err != nil {
 		return "", err
 	}

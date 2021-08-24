@@ -25,80 +25,6 @@ func getRootObject(cli *VanClient) (*metav1.OwnerReference, error) {
 	}
 }
 
-func addTargetToServiceInterface(service *types.ServiceInterface, target *types.ServiceInterfaceTarget) {
-	modified := false
-	targets := []types.ServiceInterfaceTarget{}
-	for _, t := range service.Targets {
-		if t.Name == target.Name {
-			modified = true
-			targets = append(targets, *target)
-		} else {
-			targets = append(targets, t)
-		}
-	}
-	if !modified {
-		targets = append(targets, *target)
-	}
-	service.Targets = targets
-}
-
-func getServiceInterfaceTarget(targetType string, targetName string, deducePort bool, cli *VanClient) (*types.ServiceInterfaceTarget, error) {
-	if targetType == "deployment" {
-		deployment, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(targetName, metav1.GetOptions{})
-		if err == nil {
-			target := types.ServiceInterfaceTarget{
-				Name:     deployment.ObjectMeta.Name,
-				Selector: utils.StringifySelector(deployment.Spec.Selector.MatchLabels),
-			}
-			if deducePort {
-				//TODO: handle case where there is more than one container (need --container option?)
-				if deployment.Spec.Template.Spec.Containers[0].Ports != nil {
-					target.TargetPort = int(deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
-				}
-			}
-			return &target, nil
-		} else {
-			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
-		}
-	} else if targetType == "statefulset" {
-		statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(targetName, metav1.GetOptions{})
-		if err == nil {
-			target := types.ServiceInterfaceTarget{
-				Name:     statefulset.ObjectMeta.Name,
-				Selector: utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
-			}
-			if deducePort {
-				//TODO: handle case where there is more than one container (need --container option?)
-				if statefulset.Spec.Template.Spec.Containers[0].Ports != nil {
-					target.TargetPort = int(statefulset.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
-				}
-			}
-			return &target, nil
-		} else {
-			return nil, fmt.Errorf("Could not read statefulset %s: %s", targetName, err)
-		}
-	} else if targetType == "pods" {
-		return nil, fmt.Errorf("VAN service interfaces for pods not yet implemented")
-	} else if targetType == "service" {
-		target := types.ServiceInterfaceTarget{
-			Name:    targetName,
-			Service: targetName,
-		}
-		if deducePort {
-			port, err := kube.GetPortForServiceTarget(targetName, cli.Namespace, cli.KubeClient)
-			if err != nil {
-				return nil, err
-			}
-			if port != 0 {
-				target.TargetPort = port
-			}
-		}
-		return &target, nil
-	} else {
-		return nil, fmt.Errorf("VAN service interface unsupported target type")
-	}
-}
-
 func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists bool, owner *metav1.OwnerReference, cli *VanClient) error {
 	encoded, err := jsonencoding.Marshal(service)
 	if err != nil {
@@ -221,7 +147,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		if protocol != "" && service.Protocol != protocol {
 			return fmt.Errorf("Invalid protocol %s for service with mapping %s", protocol, service.Protocol)
 		}
-		target, err := getServiceInterfaceTarget(targetType, targetName, service.Port == 0 && targetPort == 0, cli)
+		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, service.Port == 0 && targetPort == 0, cli.Namespace, cli.KubeClient)
 		if err != nil {
 			return err
 		}
@@ -242,7 +168,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 				return fmt.Errorf("Service port required and cannot be deduced.")
 			}
 		}
-		addTargetToServiceInterface(service, target)
+		service.AddTarget(target)
 		return updateServiceInterface(service, true, owner, cli)
 	} else if errors.IsNotFound(err) {
 		return fmt.Errorf("Skupper not initialised in %s", cli.Namespace)

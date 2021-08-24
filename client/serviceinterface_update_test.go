@@ -281,7 +281,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	assert.Assert(t, err)
 
 	// wait for skupper router component to be running
-	pods, err := kube.GetDeploymentPods(types.TransportDeploymentName, "skupper.io/component=router", namespace, cli.KubeClient)
+	pods, err := kube.GetPods("skupper.io/component=router", namespace, cli.KubeClient)
 	assert.Assert(t, err)
 	for _, pod := range pods {
 		_, err := kube.WaitForPodStatus(namespace, cli.KubeClient, pod.Name, corev1.PodRunning, time.Second*180, time.Second*5)
