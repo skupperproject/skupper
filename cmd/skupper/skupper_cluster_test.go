@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -846,10 +847,10 @@ func TestExposeWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "expose-test10",
-			args:            []string{"deployment", "tcp-go-echo", "--port", "1234567890"},
-			expectedCapture: "deployment tcp-go-echo exposed as tcp-go-echo",
+			args:            []string{"deployment", "tcp-go-echo-invalid", "--port", "1234567890"},
+			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "",
+			expectedError:   "Unable to create skupper service: Port 1234567890 is outside valid range.",
 			realCluster:     true,
 		},
 		{
@@ -894,8 +895,8 @@ func TestExposeWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "expose-test16",
-			args:            []string{"service", "tcp-go-echo", "--port", "9090", "--address", "tcp-go-echo"},
-			expectedCapture: "service tcp-go-echo exposed as tcp-go-echo",
+			args:            []string{"service", "tcp-go-echo", "--port", "9090", "--address", "tcp-go-echo-dup"},
+			expectedCapture: "service tcp-go-echo exposed as tcp-go-echo-dup",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -931,12 +932,18 @@ func TestExposeWithCluster(t *testing.T) {
 	skupperInit(t, []string{"--edge"}...)
 
 	for _, tc := range testcases {
-		if tc.realCluster && !*clusterRun {
-			continue
-		}
-		cmd := NewCmdExpose(testClient)
-		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		t.Run(tc.doc, func(t *testing.T) {
+			if tc.realCluster && !*clusterRun {
+				return
+			}
+			if *clusterRun && len(tc.args) > 0 && tc.args[0] == "service" {
+				c := cli.(*client.VanClient)
+				_, _ = kube.WaitServiceExists(tc.args[1], cli.GetNamespace(), c.KubeClient, time.Second*60, time.Second*5)
+			}
+			cmd := NewCmdExpose(testClient)
+			silenceCobra(cmd)
+			testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		})
 	}
 }
 

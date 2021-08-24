@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -332,7 +333,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 
 func (c *Controller) createServiceFor(desired *ServiceBindings) error {
 	event.Recordf(ServiceControllerCreateEvent, "Creating new service for %s", desired.address)
-	_, err := kube.NewServiceForAddress(desired.address, desired.publicPort, desired.ingressPort, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err := kube.NewServiceForAddress(desired.address, desired.publicPort, desired.ingressPort, desired.labels, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
 	if err != nil {
 		event.Recordf(ServiceControllerError, "Error while creating service %s: %s", desired.address, err)
 	}
@@ -341,7 +342,7 @@ func (c *Controller) createServiceFor(desired *ServiceBindings) error {
 
 func (c *Controller) createHeadlessServiceFor(desired *ServiceBindings) error {
 	event.Recordf(ServiceControllerCreateEvent, "Creating new headless service for %s", desired.address)
-	_, err := kube.NewHeadlessServiceForAddress(desired.address, desired.publicPort, desired.ingressPort, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err := kube.NewHeadlessServiceForAddress(desired.address, desired.publicPort, desired.ingressPort, desired.labels, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
 	if err != nil {
 		event.Recordf(ServiceControllerError, "Error while creating headless service %s: %s", desired.address, err)
 	}
@@ -398,6 +399,15 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 			actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = originalSelector
 		}
 		actual.Spec.Selector = kube.GetLabelsForRouter()
+	}
+	if !reflect.DeepEqual(desired.labels, actual.Labels) {
+		update = true
+		if actual.Labels == nil {
+			actual.Labels = map[string]string{}
+		}
+		for k, v := range desired.labels {
+			actual.Labels[k] = v
+		}
 	}
 	if update {
 		_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(actual)

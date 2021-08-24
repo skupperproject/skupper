@@ -221,6 +221,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 				Selector: selector,
 			},
 		}
+		if labels, ok := deployment.ObjectMeta.Annotations[types.ServiceLabels]; ok {
+			svc.Labels = utils.LabelToMap(labels)
+		}
 		svc.Origin = "annotation"
 		return svc, true
 	} else {
@@ -290,6 +293,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset
 				Name:     daemonset.ObjectMeta.Name,
 				Selector: selector,
 			},
+		}
+		if labels, ok := daemonset.ObjectMeta.Annotations[types.ServiceLabels]; ok {
+			svc.Labels = utils.LabelToMap(labels)
 		}
 		svc.Origin = "annotation"
 		return svc, true
@@ -378,6 +384,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 		} else {
 			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated service %s; no selector defined", service.ObjectMeta.Name)
 			return svc, false
+		}
+		if labels, ok := service.ObjectMeta.Annotations[types.ServiceLabels]; ok {
+			svc.Labels = utils.LabelToMap(labels)
 		}
 		svc.Origin = "annotation"
 		return svc, true
