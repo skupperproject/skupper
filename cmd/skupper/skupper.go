@@ -10,7 +10,7 @@ import (
 	"text/tabwriter"
 
 	routev1 "github.com/openshift/api/route/v1"
-
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -38,8 +38,8 @@ func SkupperNotInstalledError(namespace string) error {
 }
 
 func parseTargetTypeAndName(args []string) (string, string) {
-	//this functions assumes it is called with the right arguments, wrong
-	//argument verification is done on the "Args:" functions
+	// this functions assumes it is called with the right arguments, wrong
+	// argument verification is done on the "Args:" functions
 	targetType := args[0]
 	var targetName string
 	if len(args) == 2 {
@@ -118,6 +118,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 
 	// service may exist from remote origin
 	service.Origin = ""
+
 	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
 	if errors.IsNotFound(err) {
 		return "", SkupperNotInstalledError(cli.GetNamespace())
@@ -268,7 +269,7 @@ installation that can then be connected to other skupper installations`,
 		Args:   cobra.NoArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			//TODO: should cli allow init to diff ns?
+			// TODO: should cli allow init to diff ns?
 			silenceCobra(cmd)
 			ns := cli.GetNamespace()
 
@@ -298,7 +299,7 @@ installation that can then be connected to other skupper installations`,
 			if routerIngressFlag.Changed && routerClusterLocalFlag.Changed {
 				return fmt.Errorf(`You can not use the deprecated --cluster-local, and --ingress together, use "--ingress none" as equivalent of --cluster-local`)
 			} else if routerClusterLocalFlag.Changed {
-				if ClusterLocal { //this is redundant, because "if changed" it must be true, but it is also correct
+				if ClusterLocal { // this is redundant, because "if changed" it must be true, but it is also correct
 					routerCreateOpts.Ingress = types.IngressNoneString
 				}
 			} else if !routerIngressFlag.Changed {
@@ -609,8 +610,8 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 
 			targetType, targetName := parseTargetTypeAndName(args)
 
-			//silence cobra may be moved below the "if" we want to print
-			//the usage message along with this error
+			// silence cobra may be moved below the "if" we want to print
+			// the usage message along with this error
 			if exposeOpts.Address == "" {
 				if targetType == "service" {
 					return fmt.Errorf("--address option is required for target type 'service'")
@@ -692,6 +693,7 @@ func NewCmdListExposed(newClient cobraFunc) *cobra.Command {
 }
 
 func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
+	showLabels := false
 	cmd := &cobra.Command{
 		Use:    "status",
 		Short:  "List services exposed over the service network",
@@ -704,30 +706,36 @@ func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 				if len(vsis) == 0 {
 					fmt.Println("No services defined")
 				} else {
-					fmt.Println("Services exposed through Skupper:")
+					l := formatter.NewList()
+					l.Item("Services exposed through Skupper:")
 					for _, si := range vsis {
-						if len(si.Targets) == 0 {
-							fmt.Printf("    %s (%s port %d)", si.Address, si.Protocol, si.Port)
-							fmt.Println()
-						} else {
-							fmt.Printf("    %s (%s port %d) with targets", si.Address, si.Protocol, si.Port)
-							fmt.Println()
+						svc := l.NewChild(fmt.Sprintf("%s (%s port %d)", si.Address, si.Protocol, si.Port))
+						if len(si.Targets) > 0 {
+							targets := svc.NewChild("Targets:")
 							for _, t := range si.Targets {
 								var name string
 								if t.Name != "" {
 									name = fmt.Sprintf("name=%s", t.Name)
 								}
+								targetInfo := ""
 								if t.Selector != "" {
-									fmt.Printf("      => %s %s", t.Selector, name)
+									targetInfo = fmt.Sprintf("%s %s", t.Selector, name)
 								} else if t.Service != "" {
-									fmt.Printf("      => %s %s", t.Service, name)
+									targetInfo = fmt.Sprintf("%s %s", t.Service, name)
 								} else {
-									fmt.Printf("      => %s (no selector)", name)
+									targetInfo = fmt.Sprintf("%s (no selector)", name)
 								}
-								fmt.Println()
+								targets.NewChild(targetInfo)
+							}
+						}
+						if showLabels && len(si.Labels) > 0 {
+							labels := svc.NewChild("Labels:")
+							for k, v := range si.Labels {
+								labels.NewChild(fmt.Sprintf("%s=%s", k, v))
 							}
 						}
 					}
+					l.Print()
 				}
 			} else {
 				return fmt.Errorf("Could not retrieve services: %w", err)
@@ -735,8 +743,99 @@ func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-
+	cmd.Flags().BoolVar(&showLabels, "show-labels", false, "show service labels")
 	return cmd
+}
+
+func NewCmdServiceLabel(newClient cobraFunc) *cobra.Command {
+
+	var addLabels, removeLabels []string
+	var showLabels bool
+	labels := &cobra.Command{
+		Use:   "label <service> [labels...]",
+		Short: "Manage service labels",
+		Example: `
+        # show labels for my-service
+        skupper service label my-service
+
+        # add label1=value1 and label2=value2 to my-service
+        skupper service label my-service label1=value1 label2=value2
+
+        # add label1=value1 and remove label2 to/from my-service 
+        skupper service label my-service label1=value1 label2-`,
+		PreRun: newClient,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("service name is required")
+			} else if len(args) == 1 {
+				showLabels = true
+			}
+			if len(args) > 1 {
+				for i := 1; i < len(args); i++ {
+					label := args[i]
+					labelFields := len(strings.Split(label, "="))
+					if labelFields == 2 {
+						addLabels = append(addLabels, label)
+					} else if labelFields == 1 {
+						if !strings.HasSuffix(label, "-") {
+							return fmt.Errorf("no value provided to label %s", label)
+						}
+						removeLabels = append(removeLabels, strings.TrimSuffix(label, "-"))
+					} else {
+						return fmt.Errorf("invalid label [%s], use key=value or key- (to remove)", label)
+					}
+				}
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+			si, err := cli.ServiceInterfaceInspect(context.Background(), name)
+			if si == nil {
+				return fmt.Errorf("invalid service name")
+			}
+			if err != nil {
+				return fmt.Errorf("error retrieving service: %v", err)
+			}
+			if showLabels {
+				if si.Labels != nil && len(si.Labels) > 0 {
+					l := formatter.NewList()
+					l.Item(name)
+					labels := l.NewChild("Labels:")
+					for k, v := range si.Labels {
+						labels.NewChild(fmt.Sprintf("%s=%s", k, v))
+					}
+					l.Print()
+				} else {
+					fmt.Printf("%s has no labels", name)
+					fmt.Println()
+				}
+				return nil
+			}
+			curLabels := si.Labels
+			if curLabels == nil {
+				curLabels = map[string]string{}
+			}
+			// removing labels
+			for _, rmlabel := range removeLabels {
+				delete(curLabels, rmlabel)
+			}
+			// adding labels
+			for _, addLabels := range addLabels {
+				for k, v := range utils.LabelToMap(addLabels) {
+					curLabels[k] = v
+				}
+			}
+			si.Labels = curLabels
+			err = cli.ServiceInterfaceUpdate(context.Background(), si)
+			if err != nil {
+				fmt.Errorf("error updating service labels: %v", err)
+			}
+			return nil
+		},
+	}
+
+	return labels
 }
 
 func NewCmdService() *cobra.Command {
@@ -769,12 +868,11 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 			servicePort, err := strconv.Atoi(sPort)
 			if err != nil {
 				return fmt.Errorf("%s is not a valid port", sPort)
-			} else {
-				serviceToCreate.Port = servicePort
-				err = cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
+			}
+			serviceToCreate.Port = servicePort
+			err = cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
 			return nil
 		},
@@ -826,11 +924,11 @@ func NewCmdBind(newClient cobraFunc) *cobra.Command {
 					return fmt.Errorf("%w", err)
 				} else if service == nil {
 					return fmt.Errorf("Service %s not found", args[0])
-				} else {
-					err = cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort)
-					if err != nil {
-						return fmt.Errorf("%w", err)
-					}
+				}
+
+				err = cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort)
+				if err != nil {
+					return fmt.Errorf("%w", err)
 				}
 			}
 			return nil
@@ -1308,6 +1406,7 @@ func init() {
 	cmdCreateService := NewCmdCreateService(newClient)
 	cmdDeleteService := NewCmdDeleteService(newClient)
 	cmdStatusService := NewCmdServiceStatus(newClient)
+	cmdLabelsService := NewCmdServiceLabel(newClient)
 	cmdBind := NewCmdBind(newClient)
 	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClientSansExit)
@@ -1324,14 +1423,14 @@ func init() {
 	cmdForwardGateway := NewCmdForwardGateway(newClient)
 	cmdUnforwardGateway := NewCmdUnforwardGateway(newClient)
 
-	//backwards compatibility commands hidden
+	// backwards compatibility commands hidden
 	deprecatedMessage := "please use 'skupper service [bind|unbind]' instead"
 	cmdBind.Hidden = true
 	cmdBind.Deprecated = deprecatedMessage
 	cmdUnbind.Deprecated = deprecatedMessage
 	cmdUnbind.Hidden = true
 
-	cmdListConnectors := NewCmdListConnectors(newClient) //listconnectors just keeped
+	cmdListConnectors := NewCmdListConnectors(newClient) // listconnectors just keeped
 	cmdListConnectors.Hidden = true
 	cmdListConnectors.Deprecated = "please use 'skupper link status'"
 
@@ -1363,6 +1462,7 @@ func init() {
 	cmdService.AddCommand(NewCmdBind(newClient))
 	cmdService.AddCommand(NewCmdUnbind(newClient))
 	cmdService.AddCommand(cmdStatusService)
+	cmdService.AddCommand(cmdLabelsService)
 
 	cmdGateway := NewCmdGateway()
 	cmdGateway.AddCommand(cmdInitGateway)

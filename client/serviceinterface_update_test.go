@@ -24,6 +24,9 @@ var tcpDeployment *appsv1.Deployment = &appsv1.Deployment{
 	},
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "tcp-go-echo",
+		Labels: map[string]string{
+			"app": "tcp-go-echo",
+		},
 	},
 	Spec: appsv1.DeploymentSpec{
 		Replicas: &depReplicas,
@@ -64,6 +67,9 @@ var tcpStatefulSet *appsv1.StatefulSet = &appsv1.StatefulSet{
 	},
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "tcp-go-echo-ss",
+		Labels: map[string]string{
+			"app": "tcp-go-echo-ss",
+		},
 	},
 	Spec: appsv1.StatefulSetSpec{
 		Replicas: &ssReplicas,
@@ -143,11 +149,12 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		port            int
 		eventChannel    bool
 		aggregate       string
+		newLabels       map[string]string
 		secretsExpected []string
 		opts            []cmp.Option
 	}{
 		{
-			doc:           "test one",
+			doc:           "tcp-go-echo - change port",
 			expectedError: "",
 			name:          "tcp-go-echo",
 			port:          9091,
@@ -158,18 +165,35 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			},
 		},
 		{
-			doc:           "test two",
+			doc:           "tcp-go-echo-ss - change port and add labels",
 			expectedError: "",
-			name:          "nginx",
-			port:          0,
-			eventChannel:  false,
-			aggregate:     "json",
+			name:          "tcp-go-echo-ss",
+			port:          9091,
+			newLabels: map[string]string{
+				"app": "tcp-go-echo-ss-modified",
+			},
+			eventChannel: false,
+			aggregate:    "",
 			opts: []cmp.Option{
 				trans,
 			},
 		},
 		{
-			doc:           "test three",
+			doc:           "nginx - json aggregation strategy",
+			expectedError: "",
+			name:          "nginx",
+			port:          0,
+			eventChannel:  false,
+			aggregate:     "json",
+			newLabels: map[string]string{
+				"app": "nginx",
+			},
+			opts: []cmp.Option{
+				trans,
+			},
+		},
+		{
+			doc:           "nginx - multipart aggregation strategy",
 			expectedError: "",
 			name:          "nginx",
 			port:          0,
@@ -180,7 +204,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			},
 		},
 		{
-			doc:           "test four",
+			doc:           "nginx - no aggregation strategy",
 			expectedError: "",
 			name:          "nginx",
 			port:          0,
@@ -191,7 +215,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			},
 		},
 		{
-			doc:           "test five",
+			doc:           "nginx - error eventChannel with aggregation",
 			expectedError: "Only one of aggregate and event-channel can be specified for a given service.",
 			name:          "nginx",
 			port:          0,
@@ -202,7 +226,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			},
 		},
 		{
-			doc:           "test five",
+			doc:           "nginx - invalid aggregation strategy",
 			expectedError: "invalidstrategy is not a valid aggregation strategy. Choose 'json' or 'multipart'.",
 			name:          "nginx",
 			port:          0,
@@ -313,6 +337,9 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		Port:         9090,
 		EventChannel: false,
 		Aggregate:    "",
+		Labels: map[string]string{
+			"service": "tcp-go-echo-ss",
+		},
 	})
 	assert.Assert(t, err)
 
@@ -364,6 +391,9 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		}
 		if c.aggregate != si.Aggregate {
 			si.Aggregate = c.aggregate
+		}
+		if len(c.newLabels) > 0 {
+			si.Labels = c.newLabels
 		}
 		err = cli.ServiceInterfaceUpdate(ctx, si)
 		if c.expectedError == "" {

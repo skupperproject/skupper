@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -57,18 +56,19 @@ func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 
 	// Iterating through provided service interfaces to validate stdout matches
 	for _, svc := range s.ServiceInterfaces {
-		serviceEntry := fmt.Sprintf("%s (%s port %d)", svc.Address, svc.Protocol, svc.Port)
+		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\)`, svc.Address, svc.Protocol, svc.Port)
 		if len(svc.Targets) > 0 {
-			serviceEntry += " with targets"
+			serviceEntry += `\n.*Targets:`
 		}
-		if !strings.Contains(stdout, serviceEntry) {
+		r := regexp.MustCompile(serviceEntry)
+		if !r.MatchString(stdout) {
 			err = fmt.Errorf("expected: %s - found: %s", serviceEntry, stdout)
 			return
 		}
 
 		// Validating if provided targets are showing up
 		for _, target := range svc.Targets {
-			targetRegex := regexp.MustCompile(fmt.Sprintf("=> %s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
+			targetRegex := regexp.MustCompile(fmt.Sprintf("%s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
 			if !targetRegex.MatchString(stdout) {
 				err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
 				return

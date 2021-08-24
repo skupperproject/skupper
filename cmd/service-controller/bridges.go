@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -44,6 +45,7 @@ type ServiceBindings struct {
 	aggregation  string
 	eventChannel bool
 	headless     *types.Headless
+	labels       map[string]string
 	targets      map[string]*EgressBindings
 }
 
@@ -55,6 +57,7 @@ func asServiceInterface(bindings *ServiceBindings) types.ServiceInterface {
 		Aggregate:    bindings.aggregation,
 		EventChannel: bindings.eventChannel,
 		Headless:     bindings.headless,
+		Labels:       bindings.labels,
 		Origin:       bindings.origin,
 	}
 }
@@ -100,15 +103,15 @@ func hasTargetForService(si types.ServiceInterface, service string) bool {
 func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string]int) error {
 	bindings := c.bindings[required.Address]
 	if bindings == nil {
-		//create it
+		// create it
 		var port int
-		//headless services use distinct proxy pods, so don't need to allocate a port
+		// headless services use distinct proxy pods, so don't need to allocate a port
 		if required.Headless != nil {
 			port = required.Port
 		} else {
 			if portAllocations != nil {
-				//existing bridge configuration is used on initiaising map to recover
-				//any previous port allocations
+				// existing bridge configuration is used on initiaising map to recover
+				// any previous port allocations
 				port = portAllocations[required.Address]
 			}
 			if port == 0 {
@@ -119,7 +122,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				}
 			}
 		}
-		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Port, required.Headless, port, required.Aggregate, required.EventChannel)
+		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Port, required.Headless, required.Labels, port, required.Aggregate, required.EventChannel)
 		for _, t := range required.Targets {
 			if t.Selector != "" {
 				sb.addSelectorTarget(t.Name, t.Selector, getTargetPort(required, t), c)
@@ -129,7 +132,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		}
 		c.bindings[required.Address] = sb
 	} else {
-		//check it is configured correctly
+		// check it is configured correctly
 		if bindings.protocol != required.Protocol {
 			bindings.protocol = required.Protocol
 		}
@@ -145,13 +148,18 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		if required.Headless != nil {
 			if bindings.headless == nil {
 				bindings.headless = required.Headless
-			} else if bindings.headless.Name != required.Headless.Name {
-				bindings.headless.Name = required.Headless.Name
-			} else if bindings.headless.Size != required.Headless.Size {
-				bindings.headless.Size = required.Headless.Size
-			} else if bindings.headless.TargetPort != required.Headless.TargetPort {
-				bindings.headless.TargetPort = required.Headless.TargetPort
+			} else {
+				if bindings.headless.Name != required.Headless.Name {
+					bindings.headless.Name = required.Headless.Name
+				}
+				if bindings.headless.Size != required.Headless.Size {
+					bindings.headless.Size = required.Headless.Size
+				}
+				if bindings.headless.TargetPort != required.Headless.TargetPort {
+					bindings.headless.TargetPort = required.Headless.TargetPort
+				}
 			}
+			bindings.ingressPort = required.Port
 		} else if bindings.headless != nil {
 			bindings.headless = nil
 		}
@@ -189,11 +197,21 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				}
 			}
 		}
+		if !reflect.DeepEqual(bindings.labels, required.Labels) {
+			if bindings.labels == nil {
+				bindings.labels = map[string]string{}
+			} else if len(required.Labels) == 0 {
+				bindings.labels = nil
+			}
+			for k, v := range required.Labels {
+				bindings.labels[k] = v
+			}
+		}
 	}
 	return nil
 }
 
-func newServiceBindings(origin string, protocol string, address string, publicPort int, headless *types.Headless, ingressPort int, aggregation string, eventChannel bool) *ServiceBindings {
+func newServiceBindings(origin string, protocol string, address string, publicPort int, headless *types.Headless, labels map[string]string, ingressPort int, aggregation string, eventChannel bool) *ServiceBindings {
 	return &ServiceBindings{
 		origin:       origin,
 		protocol:     protocol,
@@ -203,6 +221,7 @@ func newServiceBindings(origin string, protocol string, address string, publicPo
 		aggregation:  aggregation,
 		eventChannel: eventChannel,
 		headless:     headless,
+		labels:       labels,
 		targets:      map[string]*EgressBindings{},
 	}
 }
@@ -397,8 +416,8 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 }
 
 func requiredBridges(services map[string]*ServiceBindings, siteId string) *qdr.BridgeConfig {
-	//TODO: headless services not yet handled
-	//TODO: update for multicast when merged
+	// TODO: headless services not yet handled
+	// TODO: update for multicast when merged
 	bridges := newBridgeConfiguration()
 	for _, service := range services {
 		service.updateBridgeConfiguration(siteId, bridges)
