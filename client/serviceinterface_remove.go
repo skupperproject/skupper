@@ -15,7 +15,7 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 	if err == nil && current.Data != nil {
 		jsonDef := current.Data[address]
 		if jsonDef == "" {
-			return fmt.Errorf("Could not find service %s", address)
+			return fmt.Errorf("Service %s not defined", address)
 		} else {
 			delete(current.Data, address)
 			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)

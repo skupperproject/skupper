@@ -26,7 +26,7 @@ func GetDeploymentLabel(name string, key string, namespace string, cli kubernete
 	return ""
 }
 
-func GetDeploymentPods(name string, selector string, namespace string, cli kubernetes.Interface) ([]corev1.Pod, error) {
+func GetPods(selector string, namespace string, cli kubernetes.Interface) ([]corev1.Pod, error) {
 	options := metav1.ListOptions{LabelSelector: selector}
 	podList, err := cli.CoreV1().Pods(namespace).List(options)
 	if err != nil {

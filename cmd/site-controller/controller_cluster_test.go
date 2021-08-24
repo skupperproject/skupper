@@ -110,7 +110,7 @@ func waitForWorkqueueEmpty(c *SiteController) error {
 }
 
 func waitForTransportRunning(cli *client.VanClient, namespace string) error {
-	pods, err := kube.GetDeploymentPods(types.TransportDeploymentName, "skupper.io/component=router", namespace, cli.KubeClient)
+	pods, err := kube.GetPods("skupper.io/component=router", namespace, cli.KubeClient)
 	if err != nil {
 		return err
 	}

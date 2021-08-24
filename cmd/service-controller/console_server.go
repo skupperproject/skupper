@@ -33,6 +33,7 @@ type ConsoleServer struct {
 	agentPool *qdr.AgentPool
 	tokens    *TokenManager
 	links     *LinkManager
+	services  *ServiceManager
 }
 
 func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer {
@@ -41,6 +42,7 @@ func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer 
 		agentPool: pool,
 		tokens:    newTokenManager(cli),
 		links:     newLinkManager(cli, pool),
+		services:  newServiceManager(cli),
 	}
 }
 
@@ -394,6 +396,11 @@ func (server *ConsoleServer) listen() {
 	r.Handle("/links", authenticated(serveLinks(server.links)))
 	r.Handle("/links/", authenticated(serveLinks(server.links)))
 	r.Handle("/links/{name}", authenticated(serveLinks(server.links)))
+	r.Handle("/services", authenticated(serveServices(server.services)))
+	r.Handle("/services/", authenticated(serveServices(server.services)))
+	r.Handle("/services/{name}", authenticated(serveServices(server.services)))
+	r.Handle("/targets", authenticated(serveTargets(server.services)))
+	r.Handle("/targets/", authenticated(serveTargets(server.services)))
 	r.Handle("/version", authenticated(server.version()))
 	r.Handle("/site", authenticated(server.site()))
 	r.Handle("/events", authenticated(server.serveEvents()))

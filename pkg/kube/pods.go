@@ -147,3 +147,13 @@ func GetPodContainerLogsWithOpts(podName string, containerName string, namespace
 
 	return str, nil
 }
+
+func GetContainerPorts(spec *corev1.PodSpec) []corev1.ContainerPort {
+	ports := []corev1.ContainerPort{}
+	for _, container := range spec.Containers {
+		for _, port := range container.Ports {
+			ports = append(ports, port)
+		}
+	}
+	return ports
+}

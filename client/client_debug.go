@@ -136,7 +136,7 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 
 		component := kube.GetDeploymentLabel(deployments[i], "skupper.io/component", cli.Namespace, cli.KubeClient)
 
-		podList, err := kube.GetDeploymentPods(deployments[i], "skupper.io/component="+component, cli.Namespace, cli.KubeClient)
+		podList, err := kube.GetPods("skupper.io/component="+component, cli.Namespace, cli.KubeClient)
 		if errors.IsNotFound(err) {
 			continue
 		} else if err != nil {

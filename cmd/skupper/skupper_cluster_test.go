@@ -1191,7 +1191,7 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 			args:            []string{"tcp-go-echo-a"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "Could not find service tcp-go-echo-a",
+			expectedError:   "Service tcp-go-echo-a not defined",
 			realCluster:     true,
 		},
 		{

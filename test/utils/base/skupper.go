@@ -56,7 +56,7 @@ func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
 	timeout := constants.ImagePullingAndResourceCreationTimeout
 
 	// wait for skupper router component to be running
-	pods, err := kube.GetDeploymentPods("", "skupper.io/component="+component, c.Namespace, c.VanClient.KubeClient)
+	pods, err := kube.GetPods("skupper.io/component="+component, c.Namespace, c.VanClient.KubeClient)
 	if err != nil {
 		return err
 	}

@@ -474,7 +474,7 @@ func (s *InitTester) validateRouterCPUMemory(cluster *base.ClusterContext) error
 
 	// retrieving the router pods
 	routerSelector := fmt.Sprintf("%s=%s", types.ComponentAnnotation, types.TransportComponentName)
-	pods, err := kube.GetDeploymentPods("", routerSelector, cluster.Namespace, cluster.VanClient.KubeClient)
+	pods, err := kube.GetPods(routerSelector, cluster.Namespace, cluster.VanClient.KubeClient)
 	if err != nil {
 		return err
 	}
@@ -511,7 +511,7 @@ func (s *InitTester) validateControllerCPUMemory(cluster *base.ClusterContext) e
 
 	// retrieving the service controller pods
 	controllerSelector := fmt.Sprintf("%s=%s", types.ComponentAnnotation, types.ControllerComponentName)
-	pods, err := kube.GetDeploymentPods("", controllerSelector, cluster.Namespace, cluster.VanClient.KubeClient)
+	pods, err := kube.GetPods(controllerSelector, cluster.Namespace, cluster.VanClient.KubeClient)
 	if err != nil {
 		return err
 	}

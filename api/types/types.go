@@ -378,6 +378,23 @@ type ServiceInterfaceTarget struct {
 	Service    string `json:"service,omitempty"`
 }
 
+func (service *ServiceInterface) AddTarget(target *ServiceInterfaceTarget) {
+	modified := false
+	targets := []ServiceInterfaceTarget{}
+	for _, t := range service.Targets {
+		if t.Name == target.Name {
+			modified = true
+			targets = append(targets, *target)
+		} else {
+			targets = append(targets, t)
+		}
+	}
+	if !modified {
+		targets = append(targets, *target)
+	}
+	service.Targets = targets
+}
+
 type Headless struct {
 	Name          string             `json:"name"`
 	Size          int                `json:"size"`
