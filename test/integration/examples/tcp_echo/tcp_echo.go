@@ -106,7 +106,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = pub1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, err)
 
-	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
+	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0, false)
 	assert.Assert(t, err)
 }
 

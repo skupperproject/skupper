@@ -3,8 +3,9 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -112,6 +113,15 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 	ownerRef := GetDeploymentOwnerReference(transportDep)
 
 	replicas := int32(serviceInterface.Headless.Size)
+	labels := map[string]string{
+		"internal.skupper.io/type": "proxy",
+	}
+	if len(serviceInterface.Labels) > 0 {
+		for k, v := range serviceInterface.Labels {
+			labels[k] = v
+		}
+	}
+
 	proxyStatefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -124,9 +134,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 			Annotations: map[string]string{
 				types.ServiceQualifier: serviceInterface.Address,
 			},
-			Labels: map[string]string{
-				"internal.skupper.io/type": "proxy",
-			},
+			Labels: labels,
 		},
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName: serviceInterface.Address,

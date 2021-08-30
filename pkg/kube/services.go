@@ -46,22 +46,22 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 	return current, err
 }
 
-func NewServiceForAddress(address string, port int, targetPort int, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	labels := GetLabelsForRouter()
-	service := makeServiceObjectForAddress(address, port, targetPort, labels, owner)
+func NewServiceForAddress(address string, port int, targetPort int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+	selector := GetLabelsForRouter()
+	service := makeServiceObjectForAddress(address, port, targetPort, labels, selector, owner)
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 
-func NewHeadlessServiceForAddress(address string, port int, targetPort int, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	labels := map[string]string{
+func NewHeadlessServiceForAddress(address string, port int, targetPort int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+	selector := map[string]string{
 		"internal.skupper.io/service": address,
 	}
-	service := makeServiceObjectForAddress(address, port, targetPort, labels, owner)
+	service := makeServiceObjectForAddress(address, port, targetPort, labels, selector, owner)
 	service.Spec.ClusterIP = "None"
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 
-func makeServiceObjectForAddress(address string, port int, targetPort int, labels map[string]string, owner *metav1.OwnerReference) *corev1.Service {
+func makeServiceObjectForAddress(address string, port int, targetPort int, labels, selector map[string]string, owner *metav1.OwnerReference) *corev1.Service {
 	// TODO: make common service creation and deal with annotation, label differences
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -73,9 +73,10 @@ func makeServiceObjectForAddress(address string, port int, targetPort int, label
 			Annotations: map[string]string{
 				"internal.skupper.io/controlled": "true",
 			},
+			Labels: labels,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: labels,
+			Selector: selector,
 			Ports: []corev1.ServicePort{
 				corev1.ServicePort{
 					Name:       address,
@@ -134,7 +135,7 @@ func GetPortForServiceTarget(targetName string, defaultNamespace string, kubecli
 			return 0, nil
 		}
 	} else if errors.IsNotFound(err) {
-		//don't consider the service not yet existing as an error, just can't deduce port
+		// don't consider the service not yet existing as an error, just can't deduce port
 		return 0, nil
 	} else {
 		return 0, err

@@ -137,7 +137,7 @@ func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types
 	}
 }
 
-func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
+func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int, copyLabels bool) error {
 	owner, err := getRootObject(cli)
 	if err == nil {
 		err = validateServiceInterface(service)
@@ -147,7 +147,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		if protocol != "" && service.Protocol != protocol {
 			return fmt.Errorf("Invalid protocol %s for service with mapping %s", protocol, service.Protocol)
 		}
-		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, service.Port == 0 && targetPort == 0, cli.Namespace, cli.KubeClient)
+		target, labels, err := kube.GetServiceInterfaceTarget(targetType, targetName, service.Port == 0 && targetPort == 0, cli.Namespace, cli.KubeClient)
 		if err != nil {
 			return err
 		}
@@ -166,6 +166,14 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 				service.Port = 80
 			} else {
 				return fmt.Errorf("Service port required and cannot be deduced.")
+			}
+		}
+		if copyLabels && len(labels) > 0 {
+			if service.Labels == nil {
+				service.Labels = map[string]string{}
+			}
+			for k, v := range labels {
+				service.Labels[k] = v
 			}
 		}
 		service.AddTarget(target)

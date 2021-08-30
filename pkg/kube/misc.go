@@ -24,7 +24,8 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface) (*types.ServiceInterfaceTarget, error) {
+func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface) (*types.ServiceInterfaceTarget, map[string]string, error) {
+	var labels map[string]string
 	if targetType == "deployment" {
 		deployment, err := cli.AppsV1().Deployments(namespace).Get(targetName, metav1.GetOptions{})
 		if err == nil {
@@ -38,9 +39,10 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 					target.TargetPort = int(deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
 				}
 			}
-			return &target, nil
+			labels = deployment.GetLabels()
+			return &target, labels, nil
 		} else {
-			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
+			return nil, nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
 		}
 	} else if targetType == "statefulset" {
 		statefulset, err := cli.AppsV1().StatefulSets(namespace).Get(targetName, metav1.GetOptions{})
@@ -55,12 +57,13 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 					target.TargetPort = int(statefulset.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
 				}
 			}
-			return &target, nil
+			labels = statefulset.GetLabels()
+			return &target, labels, nil
 		} else {
-			return nil, fmt.Errorf("Could not read statefulset %s: %s", targetName, err)
+			return nil, nil, fmt.Errorf("Could not read statefulset %s: %s", targetName, err)
 		}
 	} else if targetType == "pods" {
-		return nil, fmt.Errorf("VAN service interfaces for pods not yet implemented")
+		return nil, nil, fmt.Errorf("VAN service interfaces for pods not yet implemented")
 	} else if targetType == "service" {
 		target := types.ServiceInterfaceTarget{
 			Name:    targetName,
@@ -69,14 +72,19 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		if deducePort {
 			port, err := GetPortForServiceTarget(targetName, namespace, cli)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			if port != 0 {
 				target.TargetPort = port
 			}
 		}
-		return &target, nil
+		targetSvc, err := GetService(targetName, namespace, cli)
+		if err != nil {
+			return nil, nil, err
+		}
+		labels = targetSvc.GetLabels()
+		return &target, labels, nil
 	} else {
-		return nil, fmt.Errorf("VAN service interface unsupported target type")
+		return nil, nil, fmt.Errorf("VAN service interface unsupported target type")
 	}
 }

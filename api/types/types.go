@@ -151,6 +151,7 @@ const (
 	UpdatedAnnotation           string = InternalQualifier + "/updated"
 	AnnotationExcludes          string = BaseQualifier + "/exclude-annotations"
 	LabelExcludes               string = BaseQualifier + "/exclude-labels"
+	ServiceLabels               string = BaseQualifier + "/service-labels"
 	ComponentAnnotation         string = BaseQualifier + "/component"
 	SiteControllerIgnore        string = InternalQualifier + "/site-controller-ignore"
 	RouterComponent             string = "router"
@@ -166,7 +167,7 @@ const (
 	GatewayQualifier            string = InternalQualifier + "/gateway"
 )
 
-//standard labels
+// standard labels
 const (
 	AppLabel    string = "app.kubernetes.io/name"
 	PartOfLabel string = "app.kubernetes.io/part-of"
@@ -367,6 +368,7 @@ type ServiceInterface struct {
 	EventChannel bool                     `json:"eventchannel,omitempty"`
 	Aggregate    string                   `json:"aggregate,omitempty"`
 	Headless     *Headless                `json:"headless,omitempty"`
+	Labels       map[string]string        `json:"labels,omitempty"`
 	Targets      []ServiceInterfaceTarget `json:"targets"`
 	Origin       string                   `json:"origin,omitempty"`
 }

@@ -386,13 +386,13 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "nginx1", "http", 0)
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "nginx1", "http", 0, false)
 	assert.Assert(t, err)
 
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http2service)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2service, "deployment", "nghttp2", "http2", 0)
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2service, "deployment", "nghttp2", "http2", 0, false)
 	assert.Assert(t, err)
 
 	http21service := types.ServiceInterface{
@@ -404,7 +404,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http21service)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http21service, "deployment", "nghttp2", "http", 0)
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http21service, "deployment", "nghttp2", "http", 0, false)
 	assert.Assert(t, err)
 
 }

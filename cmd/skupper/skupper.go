@@ -10,7 +10,6 @@ import (
 	"text/tabwriter"
 
 	routev1 "github.com/openshift/api/route/v1"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -29,6 +28,8 @@ type ExposeOptions struct {
 	Port        int
 	TargetPort  int
 	Headless    bool
+	Labels      string
+	CopyLabels  bool
 	ProxyTuning types.Tuning
 }
 
@@ -38,8 +39,8 @@ func SkupperNotInstalledError(namespace string) error {
 }
 
 func parseTargetTypeAndName(args []string) (string, string) {
-	//this functions assumes it is called with the right arguments, wrong
-	//argument verification is done on the "Args:" functions
+	// this functions assumes it is called with the right arguments, wrong
+	// argument verification is done on the "Args:" functions
 	targetType := args[0]
 	var targetName string
 	if len(args) == 2 {
@@ -118,7 +119,17 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 
 	// service may exist from remote origin
 	service.Origin = ""
-	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort)
+
+	if len(options.Labels) > 0 {
+		labels := utils.LabelToMap(options.Labels)
+		if service.Labels == nil {
+			service.Labels = map[string]string{}
+		}
+		for k, v := range labels {
+			service.Labels[k] = v
+		}
+	}
+	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, options.TargetPort, options.CopyLabels)
 	if errors.IsNotFound(err) {
 		return "", SkupperNotInstalledError(cli.GetNamespace())
 	} else if err != nil {
@@ -268,7 +279,7 @@ installation that can then be connected to other skupper installations`,
 		Args:   cobra.NoArgs,
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			//TODO: should cli allow init to diff ns?
+			// TODO: should cli allow init to diff ns?
 			silenceCobra(cmd)
 			ns := cli.GetNamespace()
 
@@ -298,7 +309,7 @@ installation that can then be connected to other skupper installations`,
 			if routerIngressFlag.Changed && routerClusterLocalFlag.Changed {
 				return fmt.Errorf(`You can not use the deprecated --cluster-local, and --ingress together, use "--ingress none" as equivalent of --cluster-local`)
 			} else if routerClusterLocalFlag.Changed {
-				if ClusterLocal { //this is redundant, because "if changed" it must be true, but it is also correct
+				if ClusterLocal { // this is redundant, because "if changed" it must be true, but it is also correct
 					routerCreateOpts.Ingress = types.IngressNoneString
 				}
 			} else if !routerIngressFlag.Changed {
@@ -609,8 +620,8 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 
 			targetType, targetName := parseTargetTypeAndName(args)
 
-			//silence cobra may be moved below the "if" we want to print
-			//the usage message along with this error
+			// silence cobra may be moved below the "if" we want to print
+			// the usage message along with this error
 			if exposeOpts.Address == "" {
 				if targetType == "service" {
 					return fmt.Errorf("--address option is required for target type 'service'")
@@ -649,6 +660,8 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().IntVar(&(exposeOpts.Port), "port", 0, "The port to expose on")
 	cmd.Flags().IntVar(&(exposeOpts.TargetPort), "target-port", 0, "The port to target on pods")
 	cmd.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
+	cmd.Flags().StringVar(&(exposeOpts.Labels), "labels", "", "Labels to include as part of the new service (e.g. key1=value1,key2=value2)")
+	cmd.Flags().BoolVar(&(exposeOpts.CopyLabels), "copy-labels", false, "Copy existing labels from target")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Cpu, "proxy-cpu", "", "CPU request for router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Memory, "proxy-memory", "", "Memory request for router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
@@ -750,6 +763,7 @@ func NewCmdService() *cobra.Command {
 var serviceToCreate types.ServiceInterface
 
 func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
+	var labels string
 	cmd := &cobra.Command{
 		Use:    "create <name> <port>",
 		Short:  "Create a skupper service",
@@ -769,12 +783,14 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 			servicePort, err := strconv.Atoi(sPort)
 			if err != nil {
 				return fmt.Errorf("%s is not a valid port", sPort)
-			} else {
-				serviceToCreate.Port = servicePort
-				err = cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
+			}
+			serviceToCreate.Port = servicePort
+			if len(labels) > 0 {
+				serviceToCreate.Labels = utils.LabelToMap(labels)
+			}
+			err = cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
 			return nil
 		},
@@ -782,6 +798,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+	cmd.Flags().StringVar(&labels, "labels", "", "Labels to include as part of the new service (e.g. key1=value1,key2=value2)")
 
 	return cmd
 }
@@ -808,6 +825,7 @@ var targetPort int
 var protocol string
 
 func NewCmdBind(newClient cobraFunc) *cobra.Command {
+	var copyLabels bool
 	cmd := &cobra.Command{
 		Use:    "bind <service-name> <target-type> <target-name>",
 		Short:  "Bind a target to a service",
@@ -826,11 +844,11 @@ func NewCmdBind(newClient cobraFunc) *cobra.Command {
 					return fmt.Errorf("%w", err)
 				} else if service == nil {
 					return fmt.Errorf("Service %s not found", args[0])
-				} else {
-					err = cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort)
-					if err != nil {
-						return fmt.Errorf("%w", err)
-					}
+				}
+
+				err = cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort, copyLabels)
+				if err != nil {
+					return fmt.Errorf("%w", err)
 				}
 			}
 			return nil
@@ -838,6 +856,7 @@ func NewCmdBind(newClient cobraFunc) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
 	cmd.Flags().IntVar(&targetPort, "target-port", 0, "The port the target is listening on.")
+	cmd.Flags().BoolVar(&copyLabels, "copy-labels", false, "Copy labels from target.")
 
 	return cmd
 }
@@ -1324,14 +1343,14 @@ func init() {
 	cmdForwardGateway := NewCmdForwardGateway(newClient)
 	cmdUnforwardGateway := NewCmdUnforwardGateway(newClient)
 
-	//backwards compatibility commands hidden
+	// backwards compatibility commands hidden
 	deprecatedMessage := "please use 'skupper service [bind|unbind]' instead"
 	cmdBind.Hidden = true
 	cmdBind.Deprecated = deprecatedMessage
 	cmdUnbind.Deprecated = deprecatedMessage
 	cmdUnbind.Hidden = true
 
-	cmdListConnectors := NewCmdListConnectors(newClient) //listconnectors just keeped
+	cmdListConnectors := NewCmdListConnectors(newClient) // listconnectors just keeped
 	cmdListConnectors.Hidden = true
 	cmdListConnectors.Deprecated = "please use 'skupper link status'"
 

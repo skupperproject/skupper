@@ -128,7 +128,7 @@ func (m *ServiceManager) createService(options *ServiceOptions) error {
 		Port:     options.GetPort(),
 	}
 	deducePort := options.DeducePort()
-	target, err := kube.GetServiceInterfaceTarget(options.GetTargetType(), options.GetTargetName(), deducePort, m.cli.Namespace, m.cli.KubeClient)
+	target, _, err := kube.GetServiceInterfaceTarget(options.GetTargetType(), options.GetTargetName(), deducePort, m.cli.Namespace, m.cli.KubeClient)
 	if err != nil {
 		return err
 	}
@@ -139,6 +139,7 @@ func (m *ServiceManager) createService(options *ServiceOptions) error {
 		target.TargetPort = options.GetTargetPort()
 	}
 	def.AddTarget(target)
+	def.Labels = options.Labels
 	return m.cli.ServiceInterfaceUpdate(context.Background(), def)
 }
 
@@ -189,11 +190,12 @@ func (m *ServiceManager) getServiceTargets() ([]ServiceTarget, error) {
 }
 
 type ServiceOptions struct {
-	Address    string        `json:"address"`
-	Protocol   string        `json:"protocol"`
-	Port       int           `json:"port"`
-	TargetPort int           `json:"targetPort,omitempty"`
-	Target     ServiceTarget `json:"target"`
+	Address    string            `json:"address"`
+	Protocol   string            `json:"protocol"`
+	Port       int               `json:"port"`
+	TargetPort int               `json:"targetPort,omitempty"`
+	Labels     map[string]string `json:"labels,omitempty"`
+	Target     ServiceTarget     `json:"target"`
 }
 
 func (o *ServiceOptions) GetTargetName() string {

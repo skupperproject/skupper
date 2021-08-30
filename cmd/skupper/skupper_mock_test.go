@@ -28,6 +28,7 @@ type serviceInterfaceBindCallArgs struct {
 	targetName string
 	protocol   string
 	targetPort int
+	copyLabels bool
 }
 
 type getHeadlessServiceConfigurationCallArgs struct {
@@ -222,13 +223,14 @@ func (v *vanClientMock) SkupperDump(ctx context.Context, tarName string, version
 	return "", nil
 }
 
-func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
+func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int, copyLabels bool) error {
 	var calledWith = serviceInterfaceBindCallArgs{
 		service:    service,
 		targetType: targetType,
 		targetName: targetName,
 		protocol:   protocol,
 		targetPort: targetPort,
+		copyLabels: copyLabels,
 	}
 	v.serviceInterfaceBindCalledWith = append(v.serviceInterfaceBindCalledWith, calledWith)
 

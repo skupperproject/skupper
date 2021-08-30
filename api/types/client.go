@@ -260,7 +260,7 @@ type VanClientInterface interface {
 	ServiceInterfaceList(ctx context.Context) ([]*ServiceInterface, error)
 	ServiceInterfaceRemove(ctx context.Context, address string) error
 	ServiceInterfaceUpdate(ctx context.Context, service *ServiceInterface) error
-	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error
+	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPort int, copyLabels bool) error
 	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*ServiceInterface, error)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
 	GatewayBind(ctx context.Context, options GatewayBindOptions) error

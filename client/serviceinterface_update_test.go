@@ -320,21 +320,21 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	// TODO: could range on list if target type was not needed for bind
 	si, err := cli.ServiceInterfaceInspect(ctx, "tcp-go-echo")
 	assert.Assert(t, err)
-	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", "tcp", 9090)
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", "tcp", 9090, false)
 	assert.Assert(t, err)
 
 	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-ss")
 	assert.Assert(t, err)
-	err = cli.ServiceInterfaceBind(ctx, si, "statefulset", "tcp-go-echo-ss", "tcp", 9090)
+	err = cli.ServiceInterfaceBind(ctx, si, "statefulset", "tcp-go-echo-ss", "tcp", 9090, false)
 	assert.Assert(t, err)
 
 	si, err = cli.ServiceInterfaceInspect(ctx, "nginx")
 	assert.Assert(t, err)
 	// bad bind
-	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx2", "http", 8080)
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx2", "http", 8080, false)
 	assert.Error(t, err, "Could not read deployment nginx2: deployments.apps \"nginx2\" not found")
 	// good bind
-	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx", "http", 8080)
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx", "http", 8080, false)
 	assert.Assert(t, err)
 
 	items, err := cli.ServiceInterfaceList(ctx)
