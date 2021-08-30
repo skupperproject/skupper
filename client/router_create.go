@@ -1118,6 +1118,12 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			return err
 		}
 	}
+	if options.Spec.CreateNetworkPolicy {
+		err = kube.CreateNetworkPolicy(ownerRefs, van.Namespace, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
 	return nil
 }
 

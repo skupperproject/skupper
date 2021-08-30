@@ -14,10 +14,11 @@ import (
 
 const (
 	//core options
-	SiteConfigNameKey        string = "name"
-	SiteConfigRouterModeKey  string = "router-mode"
-	SiteConfigIngressKey     string = "ingress"
-	SiteConfigIngressHostKey string = "ingress-host"
+	SiteConfigNameKey                string = "name"
+	SiteConfigRouterModeKey          string = "router-mode"
+	SiteConfigIngressKey             string = "ingress"
+	SiteConfigIngressHostKey         string = "ingress-host"
+	SiteConfigCreateNetworkPolicyKey string = "create-network-policy"
 
 	//console options
 	SiteConfigConsoleKey               string = "console"
@@ -110,6 +111,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.IngressHost != "" {
 		siteConfig.Data[SiteConfigIngressHostKey] = spec.IngressHost
+	}
+	if spec.CreateNetworkPolicy {
+		siteConfig.Data[SiteConfigCreateNetworkPolicyKey] = "true"
 	}
 	if spec.Router.Logging != nil {
 		siteConfig.Data[SiteConfigRouterLoggingKey] = RouterLogConfigToString(spec.Router.Logging)
