@@ -78,6 +78,11 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	} else {
 		result.Spec.EnableRouterConsole = false
 	}
+	if createNetworkPolicy, ok := siteConfig.Data[SiteConfigCreateNetworkPolicyKey]; ok {
+		result.Spec.CreateNetworkPolicy, _ = strconv.ParseBool(createNetworkPolicy)
+	} else {
+		result.Spec.CreateNetworkPolicy = false
+	}
 	if authMode, ok := siteConfig.Data[SiteConfigConsoleAuthenticationKey]; ok {
 		result.Spec.AuthMode = authMode
 	} else {

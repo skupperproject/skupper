@@ -78,6 +78,7 @@ type SiteConfigSpec struct {
 	IngressHost         string
 	Replicas            int32
 	SiteControlled      bool
+	CreateNetworkPolicy bool
 	Annotations         map[string]string
 	Labels              map[string]string
 	Router              RouterOptions
