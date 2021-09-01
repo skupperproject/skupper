@@ -148,13 +148,18 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		if required.Headless != nil {
 			if bindings.headless == nil {
 				bindings.headless = required.Headless
-			} else if bindings.headless.Name != required.Headless.Name {
-				bindings.headless.Name = required.Headless.Name
-			} else if bindings.headless.Size != required.Headless.Size {
-				bindings.headless.Size = required.Headless.Size
-			} else if bindings.headless.TargetPort != required.Headless.TargetPort {
-				bindings.headless.TargetPort = required.Headless.TargetPort
+			} else {
+				if bindings.headless.Name != required.Headless.Name {
+					bindings.headless.Name = required.Headless.Name
+				}
+				if bindings.headless.Size != required.Headless.Size {
+					bindings.headless.Size = required.Headless.Size
+				}
+				if bindings.headless.TargetPort != required.Headless.TargetPort {
+					bindings.headless.TargetPort = required.Headless.TargetPort
+				}
 			}
+			bindings.ingressPort = required.Port
 		} else if bindings.headless != nil {
 			bindings.headless = nil
 		}
@@ -195,6 +200,8 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		if !reflect.DeepEqual(bindings.labels, required.Labels) {
 			if bindings.labels == nil {
 				bindings.labels = map[string]string{}
+			} else if len(required.Labels) == 0 {
+				bindings.labels = nil
 			}
 			for k, v := range required.Labels {
 				bindings.labels[k] = v
