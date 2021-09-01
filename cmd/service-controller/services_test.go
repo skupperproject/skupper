@@ -246,6 +246,9 @@ func TestServeServices(t *testing.T) {
 					Name: "dep1",
 					Type: "deployment",
 				},
+				Labels: map[string]string{
+					"app": "foo",
+				},
 			}),
 			expectedCode: http.StatusOK,
 		},
