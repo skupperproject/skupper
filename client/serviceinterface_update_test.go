@@ -174,7 +174,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			name:          "tcp-go-echo-ss",
 			port:          9091,
 			existingLabels: map[string]string{
-				"app": "tcp-go-echo-ss",
+				"app":     "tcp-go-echo-ss",
 				"service": "tcp-go-echo-ss",
 			},
 			newLabels: map[string]string{
@@ -209,7 +209,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			existingLabels: map[string]string{
 				"app": "nginx",
 			},
-			aggregate:     "multipart",
+			aggregate: "multipart",
 			opts: []cmp.Option{
 				trans,
 			},
