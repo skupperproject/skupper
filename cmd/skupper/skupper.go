@@ -719,11 +719,15 @@ func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 				} else {
 					fmt.Println("Services exposed through Skupper:")
 					for _, si := range vsis {
+						labelStr := ""
+						if len(si.Labels) > 0 {
+							labelStr = fmt.Sprintf(" - labels %s", utils.StringifySelector(si.Labels))
+						}
 						if len(si.Targets) == 0 {
-							fmt.Printf("    %s (%s port %d)", si.Address, si.Protocol, si.Port)
+							fmt.Printf("    %s (%s port %d%s)", si.Address, si.Protocol, si.Port, labelStr)
 							fmt.Println()
 						} else {
-							fmt.Printf("    %s (%s port %d) with targets", si.Address, si.Protocol, si.Port)
+							fmt.Printf("    %s (%s port %d%s) with targets", si.Address, si.Protocol, si.Port, labelStr)
 							fmt.Println()
 							for _, t := range si.Targets {
 								var name string
@@ -750,6 +754,94 @@ func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 	}
 
 	return cmd
+}
+
+func NewCmdServiceLabels(newClient cobraFunc) *cobra.Command {
+
+	var addLabels, removeLabels []string
+	var showLabels bool
+	labels := &cobra.Command{
+		Use:   "labels <service> [labels...]",
+		Short: "Manage service labels",
+		Example: `
+        # show labels for my-service
+        skupper service labels my-service
+
+        # add label1=value1 and label2=value2 to my-service
+        skupper service labels my-service label1=value1 label2=value2
+
+        # add label1=value1 and remove label2 to/from my-service 
+        skupper service labels my-service label1=value1 label2-`,
+		PreRun: newClient,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("service name is required")
+			} else if len(args) == 1 {
+				showLabels = true
+			}
+			if len(args) > 1 {
+				for i := 1; i < len(args); i++ {
+					label := args[i]
+					labelFields := len(strings.Split(label, "="))
+					if labelFields == 2 {
+						addLabels = append(addLabels, label)
+					} else if labelFields == 1 {
+						if !strings.HasSuffix(label, "-") {
+							return fmt.Errorf("no value provided to label %s", label)
+						}
+						removeLabels = append(removeLabels, strings.TrimSuffix(label, "-"))
+					} else {
+						return fmt.Errorf("invalid label [%s], use key=value or key- (to remove)", label)
+					}
+				}
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+			si, err := cli.ServiceInterfaceInspect(context.Background(), name)
+			if si == nil {
+				return fmt.Errorf("invalid service name")
+			}
+			if err != nil {
+				return fmt.Errorf("error retrieving service: %v", err)
+			}
+			if showLabels {
+				fmt.Printf("%s", name)
+				if si.Labels != nil && len(si.Labels) > 0 {
+					fmt.Printf(" labels:\n")
+					for k, v := range si.Labels {
+						fmt.Printf("    %s=%s\n", k, v)
+					}
+				} else {
+					fmt.Printf(" has no labels\n")
+				}
+				return nil
+			}
+			curLabels := si.Labels
+			if curLabels == nil {
+				curLabels = map[string]string{}
+			}
+			// removing labels
+			for _, rmlabel := range removeLabels {
+				delete(curLabels, rmlabel)
+			}
+			// adding labels
+			for _, addLabels := range addLabels {
+				for k, v := range utils.LabelToMap(addLabels) {
+					curLabels[k] = v
+				}
+			}
+			si.Labels = curLabels
+			err = cli.ServiceInterfaceUpdate(context.Background(), si)
+			if err != nil {
+				fmt.Errorf("error updating service labels: %v", err)
+			}
+			return nil
+		},
+	}
+
+	return labels
 }
 
 func NewCmdService() *cobra.Command {
@@ -879,6 +971,43 @@ func NewCmdUnbind(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
+
+func NewCmdLabel(newClient cobraFunc) *cobra.Command {
+	var copyLabels bool
+	cmd := &cobra.Command{
+		Use:    "label <service-name> <target-type> <target-name>",
+		Short:  "Bind a target to a service",
+		Args:   bindArgs,
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
+				return fmt.Errorf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
+			} else {
+				targetType, targetName := parseTargetTypeAndName(args[1:])
+
+				service, err := cli.ServiceInterfaceInspect(context.Background(), args[0])
+
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				} else if service == nil {
+					return fmt.Errorf("Service %s not found", args[0])
+				}
+
+				err = cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, targetPort, copyLabels)
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
+	cmd.Flags().IntVar(&targetPort, "target-port", 0, "The port the target is listening on.")
+	cmd.Flags().BoolVar(&copyLabels, "copy-labels", false, "Copy labels from target.")
+
 	return cmd
 }
 
@@ -1327,6 +1456,7 @@ func init() {
 	cmdCreateService := NewCmdCreateService(newClient)
 	cmdDeleteService := NewCmdDeleteService(newClient)
 	cmdStatusService := NewCmdServiceStatus(newClient)
+	cmdLabelsService := NewCmdServiceLabels(newClient)
 	cmdBind := NewCmdBind(newClient)
 	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClientSansExit)
@@ -1382,6 +1512,7 @@ func init() {
 	cmdService.AddCommand(NewCmdBind(newClient))
 	cmdService.AddCommand(NewCmdUnbind(newClient))
 	cmdService.AddCommand(cmdStatusService)
+	cmdService.AddCommand(cmdLabelsService)
 
 	cmdGateway := NewCmdGateway()
 	cmdGateway.AddCommand(cmdInitGateway)
