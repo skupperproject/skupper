@@ -15,20 +15,20 @@ import (
 
 func TestCertAuthoritySiteCreateDefaults(t *testing.T) {
 	testcases := []struct {
-		doc                  string
-		namespace            string
-		expectedError        string
-		skupperName          string
-		siteUID				 string
-		opts                 []cmp.Option
-		secretsExpected      []string
+		doc             string
+		namespace       string
+		expectedError   string
+		skupperName     string
+		siteUID         string
+		opts            []cmp.Option
+		secretsExpected []string
 	}{
 		{
-			namespace:            "van-ca-site-create1",
-			expectedError:        "",
-			doc:                  "The certificate authority is created successfully.",
-			skupperName:          "skupper-ca-test-site",
-			siteUID: 			  "dc9076e9-2fda-4019-bd2c-900a8284b9c4",
+			namespace:     "van-ca-site-create1",
+			expectedError: "",
+			doc:           "The certificate authority is created successfully.",
+			skupperName:   "skupper-ca-test-site",
+			siteUID:       "dc9076e9-2fda-4019-bd2c-900a8284b9c4",
 			opts: []cmp.Option{
 				trans,
 				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "skupper") }),
@@ -44,7 +44,6 @@ func TestCertAuthoritySiteCreateDefaults(t *testing.T) {
 	for _, c := range testcases {
 		_, cancel := context.WithCancel(context.Background())
 		defer cancel()
-
 
 		// Create the client
 		var cli *VanClient
@@ -65,7 +64,6 @@ func TestCertAuthoritySiteCreateDefaults(t *testing.T) {
 			}
 		}(c.namespace, cli.KubeClient)
 
-
 		err = cli.CASiteCreate(types.SiteConfig{
 			Spec: types.SiteConfigSpec{
 				SkupperName: c.skupperName,
@@ -83,7 +81,3 @@ func TestCertAuthoritySiteCreateDefaults(t *testing.T) {
 
 	}
 }
-
-
-
-

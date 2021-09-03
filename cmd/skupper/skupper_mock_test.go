@@ -285,7 +285,7 @@ func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
 	return nil
 }
 
-func (v *vanClientMock) CASiteCreate(options types.SiteConfig) error{
+func (v *vanClientMock) CASiteCreate(options types.SiteConfig) error {
 	return nil
 }
 

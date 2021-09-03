@@ -8,7 +8,7 @@ import (
 
 func (cli *VanClient) CASiteCreate(options types.SiteConfig) error {
 
-	ca := types.CertAuthority{ Name: options.Reference.UID}
+	ca := types.CertAuthority{Name: options.Reference.UID}
 	siteOwnerRef := asOwnerReference(options.Reference)
 
 	_, err := kube.NewCertAuthority(ca, siteOwnerRef, cli.Namespace, cli.KubeClient)
