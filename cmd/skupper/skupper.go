@@ -388,6 +388,13 @@ installation that can then be connected to other skupper installations`,
 				return err
 			}
 			fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
+
+			// Create a CA associated with the site to create certificates for each service.
+			err = cli.CASiteCreate(*siteConfig)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		},
 	}
