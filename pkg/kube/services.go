@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"strings"
 	"time"
 
@@ -238,4 +239,21 @@ func GetOriginalAssignedPorts(service *corev1.Service) map[int]int {
 func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 	originalTargetPort := service.Annotations[types.OriginalTargetPortQualifier]
 	return PortLabelStrToMap(originalTargetPort)
+}
+
+func createCertificateForService(serviceName string, nameSpace string, siteId string, kubeclient kubernetes.Interface) (*corev1.Secret, error) {
+	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(siteId, metav1.GetOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	serviceCert := certs.GenerateSecret(serviceName, serviceName, "", caCert)
+	_, err = kubeclient.CoreV1().Secrets(nameSpace).Create(&serviceCert)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &serviceCert, nil
 }
