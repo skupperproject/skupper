@@ -141,8 +141,16 @@ func (r *RouterConfig) AddHttpConnector(e HttpEndpoint) {
 	r.Bridges.AddHttpConnector(e)
 }
 
+func (r *RouterConfig) RemoveHttpConnector(name string) (bool, HttpEndpoint) {
+	return r.Bridges.RemoveHttpConnector(name)
+}
+
 func (r *RouterConfig) AddHttpListener(e HttpEndpoint) {
 	r.Bridges.AddHttpListener(e)
+}
+
+func (r *RouterConfig) RemoveHttpListener(name string) (bool, HttpEndpoint) {
+	return r.Bridges.RemoveHttpListener(name)
 }
 
 func (r *RouterConfig) UpdateBridgeConfig(desired BridgeConfig) bool {
@@ -194,8 +202,28 @@ func (bc *BridgeConfig) AddHttpConnector(e HttpEndpoint) {
 	bc.HttpConnectors[e.Name] = e
 }
 
+func (bc *BridgeConfig) RemoveHttpConnector(name string) (bool, HttpEndpoint) {
+	tc, ok := bc.HttpConnectors[name]
+	if ok {
+		delete(bc.HttpConnectors, name)
+		return true, tc
+	} else {
+		return false, HttpEndpoint{}
+	}
+}
+
 func (bc *BridgeConfig) AddHttpListener(e HttpEndpoint) {
 	bc.HttpListeners[e.Name] = e
+}
+
+func (bc *BridgeConfig) RemoveHttpListener(name string) (bool, HttpEndpoint) {
+	tc, ok := bc.HttpListeners[name]
+	if ok {
+		delete(bc.HttpListeners, name)
+		return true, tc
+	} else {
+		return false, HttpEndpoint{}
+	}
 }
 
 func GetHttpConnectors(bridges []BridgeConfig) []HttpEndpoint {
@@ -314,23 +342,23 @@ type LogConfig struct {
 }
 
 type Listener struct {
-	Name             string `json:"name,omitempty"`
-	Role             Role   `json:"role,omitempty"`
-	Host             string `json:"host,omitempty"`
-	Port             int32  `json:"port"`
-	RouteContainer   bool   `json:"routeContainer,omitempty"`
-	Http             bool   `json:"http,omitempty"`
-	Cost             int32  `json:"cost,omitempty"`
-	SslProfile       string `json:"sslProfile,omitempty"`
-	SaslMechanisms   string `json:"saslMechanisms,omitempty"`
-	AuthenticatePeer bool   `json:"authenticatePeer,omitempty"`
-	LinkCapacity     int32  `json:"linkCapacity,omitempty"`
-	HttpRootDir      string `json:"httpRootDir,omitempty"`
-	Websockets       bool   `json:"websockets,omitempty"`
-	Healthz          bool   `json:"healthz,omitempty"`
-	Metrics          bool   `json:"metrics,omitempty"`
-	MaxFrameSize     int    `json:"maxFrameSize,omitempty"`
-	MaxSessionFrames int    `json:"maxSessionFrames,omitempty"`
+	Name             string `json:"name,omitempty" yaml:"name,omitempty"`
+	Role             Role   `json:"role,omitempty" yaml:"role,omitempty"`
+	Host             string `json:"host,omitempty" yaml:"host,omitempty"`
+	Port             int32  `json:"port" yaml:"port,omitempty"`
+	RouteContainer   bool   `json:"routeContainer,omitempty" yaml:"route-container,omitempty"`
+	Http             bool   `json:"http,omitempty" yaml:"http,omitempty"`
+	Cost             int32  `json:"cost,omitempty" yaml:"cost,omitempty"`
+	SslProfile       string `json:"sslProfile,omitempty" yaml:"ssl-profile,omitempty"`
+	SaslMechanisms   string `json:"saslMechanisms,omitempty" yaml:"sasl-mechanisms,omitempty"`
+	AuthenticatePeer bool   `json:"authenticatePeer,omitempty" yaml:"authenticate-peer,omitempty"`
+	LinkCapacity     int32  `json:"linkCapacity,omitempty" yaml:"link-capacity,omitempty"`
+	HttpRootDir      string `json:"httpRootDir,omitempty" yaml:"http-rootdir,omitempty"`
+	Websockets       bool   `json:"websockets,omitempty" yaml:"web-sockets,omitempty"`
+	Healthz          bool   `json:"healthz,omitempty" yaml:"healthz,omitempty"`
+	Metrics          bool   `json:"metrics,omitempty" yaml:"metrics,omitempty"`
+	MaxFrameSize     int    `json:"maxFrameSize,omitempty" yaml:"max-frame-size,omitempty"`
+	MaxSessionFrames int    `json:"maxSessionFrames,omitempty" yaml:"max-session-frames,omitempty"`
 }
 
 func (l *Listener) SetMaxFrameSize(value int) {

@@ -66,7 +66,7 @@ func (f *UnforwardTester) Run(cluster *base.ClusterContext) (stdout string, stde
 		}
 		// finding the correct listener
 		found := false
-		for k := range gw.TcpListeners {
+		for k := range gw.GatewayListeners {
 			if strings.HasSuffix(k, f.Address) {
 				found = true
 				break

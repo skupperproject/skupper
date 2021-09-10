@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -75,7 +76,7 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 		// finding the correct listener
 		var forward types.GatewayEndpoint
 		found := false
-		for k, v := range gw.TcpListeners {
+		for k, v := range gw.GatewayListeners {
 			if strings.HasSuffix(k, f.Address) {
 				forward = v
 				found = true
@@ -86,11 +87,11 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 			err = fmt.Errorf("service forward not bound")
 			return
 		}
-		if forward.Address != f.Address {
-			err = fmt.Errorf("service address is incorrect - expected: %s - found: %s", f.Address, forward.Address)
+		if forward.Service.Address != f.Address {
+			err = fmt.Errorf("service address is incorrect - expected: %s - found: %s", f.Address, forward.Service.Address)
 		}
-		if forward.Port != f.Port {
-			err = fmt.Errorf("service port is incorrect - expected: %s - found: %s", f.Port, forward.Port)
+		if strconv.Itoa(forward.Service.Port) != f.Port {
+			err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", f.Port, forward.Service.Port)
 		}
 		expectedHost := "0.0.0.0"
 		if f.Loopback {

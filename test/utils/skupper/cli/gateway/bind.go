@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -72,7 +73,7 @@ func (b *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 		// finding the correct connector
 		var bind types.GatewayEndpoint
 		found := false
-		for k, v := range gw.TcpConnectors {
+		for k, v := range gw.GatewayConnectors {
 			if strings.HasSuffix(k, b.Address) {
 				bind = v
 				found = true
@@ -83,11 +84,11 @@ func (b *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 			err = fmt.Errorf("service bind not bound")
 			return
 		}
-		if bind.Address != b.Address {
-			err = fmt.Errorf("service address is incorrect - expected: %s - found: %s", b.Address, bind.Address)
+		if bind.Service.Address != b.Address {
+			err = fmt.Errorf("service address is incorrect - expected: %s - found: %s", b.Address, bind.Service.Address)
 		}
-		if bind.Port != b.Port {
-			err = fmt.Errorf("service port is incorrect - expected: %s - found: %s", b.Port, bind.Port)
+		if strconv.Itoa(bind.Service.Port) != b.Port {
+			err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", b.Port, bind.Service.Port)
 		}
 		if bind.Host != b.Host {
 			err = fmt.Errorf("service host is incorrect - expected: %s - found: %s", b.Host, bind.Host)

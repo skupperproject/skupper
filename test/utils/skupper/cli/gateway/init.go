@@ -16,7 +16,7 @@ import (
 // the gateway is defined accordingly
 type InitTester struct {
 	Name          string
-	DownloadOnly  bool
+	ExportOnly    bool
 	GeneratedName *string
 }
 
@@ -27,8 +27,8 @@ func (i *InitTester) Command(cluster *base.ClusterContext) []string {
 	if i.Name != "" {
 		args = append(args, "--name", i.Name)
 	}
-	if i.DownloadOnly {
-		args = append(args, "--downloadonly")
+	if i.ExportOnly {
+		args = append(args, "--exportonly")
 	}
 
 	return args
@@ -129,7 +129,7 @@ func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	}
 
 	// Validating systemd user service created
-	expectAvailable := !i.DownloadOnly
+	expectAvailable := !i.ExportOnly
 	available := SystemdUnitAvailable(gatewayName)
 	if available != expectAvailable {
 		err = fmt.Errorf("systemd unit %s.service availability issue - available: %v - expected: %v", gatewayName, available, expectAvailable)

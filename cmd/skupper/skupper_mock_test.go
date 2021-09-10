@@ -156,39 +156,47 @@ func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType s
 	return v.injectedReturns.serviceInterfaceUnbind
 }
 
-func (v *vanClientMock) GatewayBind(ctx context.Context, options types.GatewayBindOptions) error {
+func (v *vanClientMock) GatewayBind(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) error {
 	return nil
 }
 
-func (v *vanClientMock) GatewayUnbind(ctx context.Context, options types.GatewayUnbindOptions) error {
+func (v *vanClientMock) GatewayUnbind(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) error {
 	return nil
 }
 
-func (v *vanClientMock) GatewayExpose(ctx context.Context, options types.GatewayExposeOptions) (string, error) {
+func (v *vanClientMock) GatewayExpose(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) (string, error) {
 	return "", nil
 }
 
-func (v *vanClientMock) GatewayUnexpose(ctx context.Context, options types.GatewayUnexposeOptions) error {
+func (v *vanClientMock) GatewayUnexpose(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint, deleteLast bool) error {
 	return nil
 }
 
-func (v *vanClientMock) GatewayForward(ctx context.Context, options types.GatewayForwardOptions) error {
+func (v *vanClientMock) GatewayForward(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint, loopback bool) error {
 	return nil
 }
 
-func (v *vanClientMock) GatewayUnforward(ctx context.Context, proxyName string, address string) error {
+func (v *vanClientMock) GatewayUnforward(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) error {
 	return nil
 }
 
-func (v *vanClientMock) GatewayInit(ctx context.Context, options types.GatewayInitOptions) (string, error) {
+func (v *vanClientMock) GatewayInit(ctx context.Context, gatewayName string, configFile string, downloadOnly bool) (string, error) {
 	return "", nil
 }
 
-func (v *vanClientMock) GatewayDownload(ctx context.Context, proxyName string, downloadPath string) (string, error) {
+func (v *vanClientMock) GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) (string, error) {
 	return "", nil
 }
 
-func (v *vanClientMock) GatewayInspect(ctx context.Context, proxyName string) (*types.GatewayInspectResponse, error) {
+func (v *vanClientMock) GatewayExportConfig(ctx context.Context, targetGatewayName string, exportGatewayName string, exportPath string) (string, error) {
+	return "", nil
+}
+
+func (cli *vanClientMock) GatewayGenerateBundle(ctx context.Context, configFile string, bundlePath string) (string, error) {
+	return "", nil
+}
+
+func (v *vanClientMock) GatewayInspect(ctx context.Context, gatewayName string) (*types.GatewayInspectResponse, error) {
 	return &types.GatewayInspectResponse{}, nil
 }
 
@@ -196,7 +204,7 @@ func (v *vanClientMock) GatewayList(ctx context.Context) ([]*types.GatewayInspec
 	return nil, nil
 }
 
-func (v *vanClientMock) GatewayRemove(ctx context.Context, proxyName string) error {
+func (v *vanClientMock) GatewayRemove(ctx context.Context, gatewayName string) error {
 	return nil
 }
 

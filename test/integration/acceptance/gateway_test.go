@@ -153,8 +153,8 @@ func testDownloadedGateway(t *testing.T) {
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
 					// skupper gateway init
 					&gatewaycli.InitTester{
-						Name:         gwName,
-						DownloadOnly: true,
+						Name:       gwName,
+						ExportOnly: true,
 					},
 					// skupper service create
 					&service.CreateTester{

@@ -426,7 +426,11 @@ func NewCmdDelete(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			err := cli.SiteConfigRemove(context.Background())
+			gateways, err := cli.GatewayList(context.Background())
+			for _, gateway := range gateways {
+				cli.GatewayRemove(context.Background(), gateway.GatewayName)
+			}
+			err = cli.SiteConfigRemove(context.Background())
 			if err != nil {
 				err = cli.RouterRemove(context.Background())
 			}
@@ -974,7 +978,10 @@ func NewCmdGateway() *cobra.Command {
 	return cmd
 }
 
-var gatewayInitOptions types.GatewayInitOptions
+var gatewayName string
+var gatewayConfigFile string
+var gatewayExportOnly bool
+var gatewayEndpoint types.GatewayEndpoint
 
 func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -985,7 +992,7 @@ func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			_, err := cli.GatewayInit(context.Background(), gatewayInitOptions)
+			_, err := cli.GatewayInit(context.Background(), gatewayName, gatewayConfigFile, gatewayExportOnly)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -993,12 +1000,11 @@ func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayInitOptions.Name, "name", "", "The name of the gateway definition")
-	cmd.Flags().BoolVarP(&gatewayInitOptions.DownloadOnly, "downloadonly", "", false, "Gateway definition to be downloaded only (e.g. will not be started)")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the gateway definition")
+	cmd.Flags().StringVar(&gatewayConfigFile, "config", "", "The gateway config file to use for initialization")
+	cmd.Flags().BoolVarP(&gatewayExportOnly, "exportonly", "", false, "Gateway definition for export-config only (e.g. will not be started)")
 	return cmd
 }
-
-var deleteGatewayName string
 
 func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1009,7 +1015,7 @@ func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			err := cli.GatewayRemove(context.Background(), deleteGatewayName)
+			err := cli.GatewayRemove(context.Background(), gatewayName)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1017,11 +1023,9 @@ func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&deleteGatewayName, "name", "", "The name of gateway definition to remove")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of gateway definition to remove")
 	return cmd
 }
-
-var downloadGatewayName string
 
 func NewCmdDownloadGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1032,7 +1036,7 @@ func NewCmdDownloadGateway(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			fileName, err := cli.GatewayDownload(context.Background(), downloadGatewayName, args[0])
+			fileName, err := cli.GatewayDownload(context.Background(), gatewayName, args[0])
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1040,11 +1044,52 @@ func NewCmdDownloadGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&downloadGatewayName, "name", "", "The name of gateway definition to download")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of gateway definition to download")
 	return cmd
 }
 
-var gatewayExposeOptions types.GatewayExposeOptions
+func NewCmdExportConfigGateway(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "export-config <export-gateway-name> <output-path>",
+		Short:  "Export the configuration for a gateway definition",
+		Args:   cobra.ExactArgs(2),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			//TODO: validate args must be non nil, etc.
+			fileName, err := cli.GatewayExportConfig(context.Background(), gatewayName, args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			fmt.Println("Skupper gateway definition configuration written to '" + fileName + "'")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of target gateway definition to export")
+	return cmd
+}
+
+func NewCmdGenerateBundleGateway(newClient cobraFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "generate-bundle <config-file> <output-path>",
+		Short:  "Generate an installation bundle using a gateway config file",
+		Args:   cobra.ExactArgs(2),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			fileName, err := cli.GatewayGenerateBundle(context.Background(), args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			fmt.Println("Skupper gateway bundle written to '" + fileName + "'")
+			return nil
+		},
+	}
+
+	return cmd
+}
 
 func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1056,16 +1101,17 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 			silenceCobra(cmd)
 			if len(args) == 2 {
 				parts := strings.Split(args[1], ":")
-				gatewayExposeOptions.Egress.Host = parts[0]
-				gatewayExposeOptions.Egress.Port = parts[1]
+				gatewayEndpoint.Host = parts[0]
+				port, _ := strconv.Atoi(parts[1])
+				gatewayEndpoint.Service.Port = port
 			} else {
-				gatewayExposeOptions.Egress.Host = args[1]
-				gatewayExposeOptions.Egress.Port = args[2]
+				port, _ := strconv.Atoi(args[2])
+				gatewayEndpoint.Host = args[1]
+				gatewayEndpoint.Service.Port = port
 			}
-			gatewayExposeOptions.Egress.Address = args[0]
-			gatewayExposeOptions.Egress.ErrIfNoSvc = false
+			gatewayEndpoint.Service.Address = args[0]
 
-			_, err := cli.GatewayExpose(context.Background(), gatewayExposeOptions)
+			_, err := cli.GatewayExpose(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1073,12 +1119,14 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayExposeOptions.Egress.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
-	cmd.Flags().StringVar(&gatewayExposeOptions.GatewayName, "name", "", "The name of external service to create. Defaults to service address value")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
+	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of external service to create. Defaults to service address value")
 	return cmd
 }
 
-var gatewayUnexposeOptions types.GatewayUnexposeOptions
+var deleteLast bool
 
 func NewCmdUnexposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1089,8 +1137,8 @@ func NewCmdUnexposeGateway(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			gatewayUnexposeOptions.Address = args[0]
-			err := cli.GatewayUnexpose(context.Background(), gatewayUnexposeOptions)
+			gatewayEndpoint.Service.Address = args[0]
+			err := cli.GatewayUnexpose(context.Background(), gatewayName, gatewayEndpoint, deleteLast)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1098,12 +1146,10 @@ func NewCmdUnexposeGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayUnexposeOptions.GatewayName, "name", "", "The name of the service process to unexpose")
-	cmd.Flags().BoolVarP(&gatewayUnexposeOptions.DeleteIfLast, "delete-if-last", "", true, "Delete the gateway if no services remain")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the service process to unexpose")
+	cmd.Flags().BoolVarP(&deleteLast, "delete-last", "", true, "Delete the gateway if no services remain")
 	return cmd
 }
-
-var gatewayBindOptions types.GatewayBindOptions
 
 func NewCmdBindGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1115,16 +1161,18 @@ func NewCmdBindGateway(newClient cobraFunc) *cobra.Command {
 			silenceCobra(cmd)
 			if len(args) == 2 {
 				parts := strings.Split(args[1], ":")
-				gatewayBindOptions.Host = parts[0]
-				gatewayBindOptions.Port = parts[1]
+				port, _ := strconv.Atoi(parts[1])
+				gatewayEndpoint.Host = parts[0]
+				gatewayEndpoint.Service.Port = port
 			} else {
-				gatewayBindOptions.Host = args[1]
-				gatewayBindOptions.Port = args[2]
+				port, _ := strconv.Atoi(args[2])
+				gatewayEndpoint.Host = args[1]
+				gatewayEndpoint.Service.Port = port
 			}
-			gatewayBindOptions.Address = args[0]
-			gatewayBindOptions.ErrIfNoSvc = true
+			gatewayEndpoint.Service.Address = args[0]
+			gatewayEndpoint.Name = args[0]
 
-			err := cli.GatewayBind(context.Background(), gatewayBindOptions)
+			err := cli.GatewayBind(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1132,12 +1180,12 @@ func NewCmdBindGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayBindOptions.GatewayName, "name", "", "The name of the gateway to bind service")
-	cmd.Flags().StringVar(&gatewayBindOptions.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the gateway to bind service")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The mapping in use for this service address (currently on of tcp, http or http2).")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
+	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	return cmd
 }
-
-var gatewayUnbindOptions types.GatewayUnbindOptions
 
 func NewCmdUnbindGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1148,8 +1196,8 @@ func NewCmdUnbindGateway(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			gatewayUnbindOptions.Address = args[0]
-			err := cli.GatewayUnbind(context.Background(), gatewayUnbindOptions)
+			gatewayEndpoint.Service.Address = args[0]
+			err := cli.GatewayUnbind(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1157,8 +1205,8 @@ func NewCmdUnbindGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayUnbindOptions.GatewayName, "name", "", "The name of the gateway to unbind service")
-	cmd.Flags().StringVar(&gatewayUnbindOptions.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the gateway to unbind service")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
 	return cmd
 }
 
@@ -1184,18 +1232,18 @@ func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
 
 				fmt.Println("")
 
-				if len(inspect.TcpConnectors) == 0 && len(inspect.TcpListeners) == 0 {
+				if len(inspect.GatewayConnectors) == 0 && len(inspect.GatewayListeners) == 0 {
 					fmt.Println("No Services Defined")
 				} else {
 					fmt.Println("Service Definitions:")
 					tw := new(tabwriter.Writer)
 					tw.Init(os.Stdout, 0, 4, 1, ' ', 0)
-					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "TYPE", "SERVICE", "ADDRESS", "HOST", "PORT", "FORWARD_PORT"))
-					for _, connector := range inspect.TcpConnectors {
-						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "bind", strings.TrimPrefix(connector.Name, gatewayName+"-egress-"), connector.Address, connector.Host, connector.Port, ""))
+					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t", "TYPE", "SERVICE", "PROTOCOL", "ADDRESS", "HOST", "PORT", "FORWARD_PORT"))
+					for _, connector := range inspect.GatewayConnectors {
+						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%s\t", "bind", strings.TrimPrefix(connector.Name, gatewayName+"-egress-"), connector.Service.Protocol, connector.Service.Address, connector.Host, connector.Service.Port, ""))
 					}
-					for _, listener := range inspect.TcpListeners {
-						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t", "forward", strings.TrimPrefix(listener.Name, gatewayName+"-ingress-"), listener.Address, listener.Host, listener.Port, listener.LocalPort))
+					for _, listener := range inspect.GatewayListeners {
+						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%s\t", "forward", strings.TrimPrefix(listener.Name, gatewayName+"-ingress-"), listener.Service.Protocol, listener.Service.Address, listener.Host, listener.Service.Port, listener.LocalPort))
 					}
 					tw.Flush()
 				}
@@ -1216,7 +1264,7 @@ func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
 				tw.Init(os.Stdout, 0, 4, 2, ' ', 0)
 				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t", "NAME", "BINDS", "FORWARDS", "URL"))
 				for _, gateway := range gateways {
-					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t", gateway.GatewayName, strconv.Itoa(len(gateway.TcpConnectors)), strconv.Itoa(len(gateway.TcpListeners)), gateway.GatewayUrl))
+					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t", gateway.GatewayName, strconv.Itoa(len(gateway.GatewayConnectors)), strconv.Itoa(len(gateway.GatewayListeners)), gateway.GatewayUrl))
 				}
 				tw.Flush()
 			}
@@ -1228,7 +1276,7 @@ func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
-var gatewayForwardOptions types.GatewayForwardOptions
+var forwardLoopback bool
 
 func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1244,10 +1292,10 @@ func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 				return fmt.Errorf("%s is not a valid forward port", args[1])
 			}
 
-			gatewayForwardOptions.Service.Address = args[0]
-			gatewayForwardOptions.Service.Port = forwardPort
+			gatewayEndpoint.Service.Address = args[0]
+			gatewayEndpoint.Service.Port = forwardPort
 
-			err = cli.GatewayForward(context.Background(), gatewayForwardOptions)
+			err = cli.GatewayForward(context.Background(), gatewayName, gatewayEndpoint, forwardLoopback)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1255,15 +1303,13 @@ func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayForwardOptions.GatewayName, "name", "", "The name of the gateway to service forward")
-	cmd.Flags().StringVar(&gatewayForwardOptions.Service.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
-	cmd.Flags().StringVar(&gatewayForwardOptions.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
-	cmd.Flags().BoolVar(&gatewayForwardOptions.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().BoolVarP(&gatewayForwardOptions.Loopback, "loopback", "", false, "Forward from loopback only")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the gateway to service forward")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The mapping in use for this service address (currently one of tcp, http or http2)")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
+	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+	cmd.Flags().BoolVarP(&forwardLoopback, "loopback", "", false, "Forward from loopback only")
 	return cmd
 }
-
-var unforwardGatewayName string
 
 func NewCmdUnforwardGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1274,7 +1320,8 @@ func NewCmdUnforwardGateway(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			err := cli.GatewayUnforward(context.Background(), unforwardGatewayName, args[0])
+			gatewayEndpoint.Service.Address = args[0]
+			err := cli.GatewayUnforward(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1282,8 +1329,8 @@ func NewCmdUnforwardGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&unforwardGatewayName, "name", "", "The name of the gateway to disable service forward")
-	cmd.Flags().StringVar(&protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
+	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the gateway to disable service forward")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
 	return cmd
 }
 
@@ -1415,6 +1462,8 @@ func init() {
 
 	cmdInitGateway := NewCmdInitGateway(newClient)
 	cmdDownloadGateway := NewCmdDownloadGateway(newClient)
+	cmdExportConfigGateway := NewCmdExportConfigGateway(newClient)
+	cmdGenerateBundleGateway := NewCmdGenerateBundleGateway(newClient)
 	cmdDeleteGateway := NewCmdDeleteGateway(newClient)
 	cmdExposeGateway := NewCmdExposeGateway(newClient)
 	cmdUnexposeGateway := NewCmdUnexposeGateway(newClient)
@@ -1456,6 +1505,9 @@ func init() {
 	cmdListExposed.Hidden = true
 	cmdListExposed.Deprecated = "please use 'skupper service status' instead."
 
+	cmdDownloadGateway.Hidden = true
+	cmdDownloadGateway.Deprecated = "please use 'skupper gateway export-config' instead."
+
 	// setup subcommands
 	cmdService := NewCmdService()
 	cmdService.AddCommand(cmdCreateService)
@@ -1468,6 +1520,8 @@ func init() {
 	cmdGateway := NewCmdGateway()
 	cmdGateway.AddCommand(cmdInitGateway)
 	cmdGateway.AddCommand(cmdDownloadGateway)
+	cmdGateway.AddCommand(cmdExportConfigGateway)
+	cmdGateway.AddCommand(cmdGenerateBundleGateway)
 	cmdGateway.AddCommand(cmdDeleteGateway)
 	cmdGateway.AddCommand(cmdExposeGateway)
 	cmdGateway.AddCommand(cmdUnexposeGateway)

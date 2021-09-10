@@ -66,7 +66,7 @@ func (b *UnbindTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		}
 		// finding the correct connector
 		found := false
-		for k, _ := range gw.TcpConnectors {
+		for k, _ := range gw.GatewayConnectors {
 			if strings.HasSuffix(k, b.Address) {
 				found = true
 				break

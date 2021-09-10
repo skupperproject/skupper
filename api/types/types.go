@@ -362,15 +362,15 @@ type TransportConnectedSites struct {
 }
 
 type ServiceInterface struct {
-	Address      string                   `json:"address"`
-	Protocol     string                   `json:"protocol"`
-	Port         int                      `json:"port"`
-	EventChannel bool                     `json:"eventchannel,omitempty"`
-	Aggregate    string                   `json:"aggregate,omitempty"`
-	Headless     *Headless                `json:"headless,omitempty"`
-	Labels       map[string]string        `json:"labels,omitempty"`
-	Targets      []ServiceInterfaceTarget `json:"targets"`
-	Origin       string                   `json:"origin,omitempty"`
+	Address      string                   `json:"address" yaml:"address"`
+	Protocol     string                   `json:"protocol" yaml:"protocol"`
+	Port         int                      `json:"port" yaml:"port"`
+	EventChannel bool                     `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
+	Aggregate    string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
+	Headless     *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`
+	Labels       map[string]string        `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Targets      []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
+	Origin       string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
 }
 
 type ServiceInterfaceTarget struct {
