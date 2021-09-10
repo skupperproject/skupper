@@ -19,29 +19,36 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-func getBridgeName(address string, host string) string {
+func getBridgeName(address string, host string, port ...int) string {
+	portSuffix := func(port ...int) string {
+		s := ""
+		for _, p := range port {
+			s += ":" + strconv.Itoa(p)
+		}
+		return s
+	}
 	if host == "" {
-		return address
+		return address + portSuffix(port...)
 	} else {
-		return address + "@" + host
+		return address + "@" + host + portSuffix(port...)
 	}
 }
 
 type EgressBindings struct {
-	name       string
-	selector   string
-	service    string
-	egressPort int
-	informer   cache.SharedIndexInformer
-	stopper    chan struct{}
+	name        string
+	selector    string
+	service     string
+	egressPorts map[int]int
+	informer    cache.SharedIndexInformer
+	stopper     chan struct{}
 }
 
 type ServiceBindings struct {
 	origin       string
 	protocol     string
 	address      string
-	publicPort   int
-	ingressPort  int
+	publicPorts  []int
+	ingressPorts []int
 	aggregation  string
 	eventChannel bool
 	headless     *types.Headless
@@ -49,11 +56,19 @@ type ServiceBindings struct {
 	targets      map[string]*EgressBindings
 }
 
+func (s *ServiceBindings) PortMap() map[int]int {
+	ports := map[int]int{}
+	for i := 0; i < len(s.publicPorts); i++ {
+		ports[s.publicPorts[i]] = s.ingressPorts[i]
+	}
+	return ports
+}
+
 func asServiceInterface(bindings *ServiceBindings) types.ServiceInterface {
 	return types.ServiceInterface{
 		Address:      bindings.address,
 		Protocol:     bindings.protocol,
-		Port:         bindings.publicPort,
+		Ports:        bindings.publicPorts,
 		Aggregate:    bindings.aggregation,
 		EventChannel: bindings.eventChannel,
 		Headless:     bindings.headless,
@@ -74,12 +89,15 @@ func newServiceController() *ServiceController {
 	}
 }
 
-func getTargetPort(service types.ServiceInterface, target types.ServiceInterfaceTarget) int {
-	targetPort := target.TargetPort
-	if targetPort == 0 {
-		targetPort = service.Port
+func getTargetPorts(service types.ServiceInterface, target types.ServiceInterfaceTarget) map[int]int {
+	targetPorts := target.TargetPorts
+	if len(targetPorts) == 0 {
+		targetPorts = map[int]int{}
+		for _, port := range service.Ports {
+			targetPorts[port] = port
+		}
 	}
-	return targetPort
+	return targetPorts
 }
 
 func hasTargetForSelector(si types.ServiceInterface, selector string) bool {
@@ -100,34 +118,36 @@ func hasTargetForService(si types.ServiceInterface, service string) bool {
 	return false
 }
 
-func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string]int) error {
+func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string][]int) error {
 	bindings := c.bindings[required.Address]
 	if bindings == nil {
 		// create it
-		var port int
+		var ports []int
 		// headless services use distinct proxy pods, so don't need to allocate a port
 		if required.Headless != nil {
-			port = required.Port
+			ports = required.Ports
 		} else {
 			if portAllocations != nil {
-				// existing bridge configuration is used on initiaising map to recover
+				// existing bridge configuration is used on initialising map to recover
 				// any previous port allocations
-				port = portAllocations[required.Address]
+				ports = portAllocations[required.Address]
 			}
-			if port == 0 {
-				var err error
-				port, err = c.ports.nextFreePort()
-				if err != nil {
-					return err
+			if len(ports) == 0 {
+				for i := 0; i < len(required.Ports); i++ {
+					port, err := c.ports.nextFreePort()
+					if err != nil {
+						return err
+					}
+					ports = append(ports, port)
 				}
 			}
 		}
-		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Port, required.Headless, required.Labels, port, required.Aggregate, required.EventChannel)
+		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Ports, required.Headless, required.Labels, ports, required.Aggregate, required.EventChannel)
 		for _, t := range required.Targets {
 			if t.Selector != "" {
-				sb.addSelectorTarget(t.Name, t.Selector, getTargetPort(required, t), c)
+				sb.addSelectorTarget(t.Name, t.Selector, getTargetPorts(required, t), c)
 			} else if t.Service != "" {
-				sb.addServiceTarget(t.Name, t.Service, getTargetPort(required, t), c)
+				sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), c)
 			}
 		}
 		c.bindings[required.Address] = sb
@@ -136,8 +156,8 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		if bindings.protocol != required.Protocol {
 			bindings.protocol = required.Protocol
 		}
-		if bindings.publicPort != required.Port {
-			bindings.publicPort = required.Port
+		if !reflect.DeepEqual(bindings.publicPorts, required.Ports) {
+			bindings.publicPorts = required.Ports
 		}
 		if bindings.aggregation != required.Aggregate {
 			bindings.aggregation = required.Aggregate
@@ -155,18 +175,18 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				if bindings.headless.Size != required.Headless.Size {
 					bindings.headless.Size = required.Headless.Size
 				}
-				if bindings.headless.TargetPort != required.Headless.TargetPort {
-					bindings.headless.TargetPort = required.Headless.TargetPort
+				if !reflect.DeepEqual(bindings.headless.TargetPorts, required.Headless.TargetPorts) {
+					bindings.headless.TargetPorts = required.Headless.TargetPorts
 				}
 			}
-			bindings.ingressPort = required.Port
+			bindings.ingressPorts = required.Ports
 		} else if bindings.headless != nil {
 			bindings.headless = nil
 		}
 
 		hasSkupperSelector := false
 		for _, t := range required.Targets {
-			targetPort := getTargetPort(required, t)
+			targetPort := getTargetPorts(required, t)
 			if strings.Contains(t.Selector, "skupper.io/component=router") {
 				hasSkupperSelector = true
 			}
@@ -174,15 +194,15 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				target := bindings.targets[t.Selector]
 				if target == nil {
 					bindings.addSelectorTarget(t.Name, t.Selector, targetPort, c)
-				} else if target.egressPort != targetPort {
-					target.egressPort = targetPort
+				} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
+					target.egressPorts = targetPort
 				}
 			} else if t.Service != "" {
 				target := bindings.targets[t.Service]
 				if target == nil {
 					bindings.addServiceTarget(t.Name, t.Service, targetPort, c)
-				} else if target.egressPort != targetPort {
-					target.egressPort = targetPort
+				} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
+					target.egressPorts = targetPort
 				}
 			}
 		}
@@ -211,13 +231,13 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 	return nil
 }
 
-func newServiceBindings(origin string, protocol string, address string, publicPort int, headless *types.Headless, labels map[string]string, ingressPort int, aggregation string, eventChannel bool) *ServiceBindings {
+func newServiceBindings(origin string, protocol string, address string, publicPorts []int, headless *types.Headless, labels map[string]string, ingressPorts []int, aggregation string, eventChannel bool) *ServiceBindings {
 	return &ServiceBindings{
 		origin:       origin,
 		protocol:     protocol,
 		address:      address,
-		publicPort:   publicPort,
-		ingressPort:  ingressPort,
+		publicPorts:  publicPorts,
+		ingressPorts: ingressPorts,
 		aggregation:  aggregation,
 		eventChannel: eventChannel,
 		headless:     headless,
@@ -226,11 +246,11 @@ func newServiceBindings(origin string, protocol string, address string, publicPo
 	}
 }
 
-func (sb *ServiceBindings) addSelectorTarget(name string, selector string, port int, controller *Controller) error {
+func (sb *ServiceBindings) addSelectorTarget(name string, selector string, port map[int]int, controller *Controller) error {
 	sb.targets[selector] = &EgressBindings{
-		name:       name,
-		selector:   selector,
-		egressPort: port,
+		name:        name,
+		selector:    selector,
+		egressPorts: port,
 		informer: corev1informer.NewFilteredPodInformer(
 			controller.vanClient.KubeClient,
 			controller.vanClient.Namespace,
@@ -250,12 +270,12 @@ func (sb *ServiceBindings) removeSelectorTarget(selector string) {
 	delete(sb.targets, selector)
 }
 
-func (sb *ServiceBindings) addServiceTarget(name string, service string, port int, controller *Controller) error {
+func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, controller *Controller) error {
 	sb.targets[service] = &EgressBindings{
-		name:       name,
-		service:    service,
-		egressPort: port,
-		stopper:    make(chan struct{}),
+		name:        name,
+		service:     service,
+		egressPorts: port,
+		stopper:     make(chan struct{}),
 	}
 	return nil
 }
@@ -304,13 +324,13 @@ func (eb *EgressBindings) updateBridgeConfiguration(sb *ServiceBindings, siteId 
 			pod := p.(*corev1.Pod)
 			if kube.IsPodRunning(pod) && kube.IsPodReady(pod) && pod.DeletionTimestamp == nil {
 				event.Recordf(BridgeTargetEvent, "Adding pod for %s: %s", sb.address, pod.ObjectMeta.Name)
-				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPort, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, bridges)
+				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPorts, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, bridges)
 			} else {
 				event.Recordf(BridgeTargetEvent, "Pod for %s not ready/running: %s", sb.address, pod.ObjectMeta.Name)
 			}
 		}
 	} else if eb.service != "" {
-		addEgressBridge(sb.protocol, eb.service, eb.egressPort, sb.address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, bridges)
+		addEgressBridge(sb.protocol, eb.service, eb.egressPorts, sb.address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, bridges)
 	}
 }
 
@@ -325,92 +345,102 @@ const (
 	ProtocolHTTP2 string = "http2"
 )
 
-func addEgressBridge(protocol string, host string, port int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, bridges *qdr.BridgeConfig) (bool, error) {
+func addEgressBridge(protocol string, host string, port map[int]int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, bridges *qdr.BridgeConfig) (bool, error) {
 	if host == "" {
 		return false, fmt.Errorf("Cannot add connector without host (%s %s)", address, protocol)
 	}
-	switch protocol {
-	case ProtocolHTTP:
-		b := qdr.HttpEndpoint{
-			Name:    getBridgeName(address+"."+target, host),
-			Host:    host,
-			Port:    strconv.Itoa(port),
-			Address: address,
-			SiteId:  siteId,
+	for sPort, tPort := range port {
+		endpointName := getBridgeName(address+"."+target, host, sPort, tPort)
+		endpointAddr := fmt.Sprintf("%s:%d", address, sPort)
+		switch protocol {
+		case ProtocolHTTP:
+			b := qdr.HttpEndpoint{
+				Name:    endpointName,
+				Host:    host,
+				Port:    strconv.Itoa(tPort),
+				Address: endpointAddr,
+				SiteId:  siteId,
+			}
+			if aggregation != "" {
+				b.Aggregation = aggregation
+				b.Address = "mc/" + endpointAddr
+			}
+			if eventchannel {
+				b.EventChannel = eventchannel
+				b.Address = "mc/" + endpointAddr
+			}
+			if hostOverride != "" {
+				b.HostOverride = hostOverride
+			}
+			bridges.AddHttpConnector(b)
+		case ProtocolHTTP2:
+			bridges.AddHttpConnector(qdr.HttpEndpoint{
+				Name:            endpointName,
+				Host:            host,
+				Port:            strconv.Itoa(tPort),
+				Address:         endpointAddr,
+				SiteId:          siteId,
+				ProtocolVersion: qdr.HttpVersion2,
+			})
+		case ProtocolTCP:
+			bridges.AddTcpConnector(qdr.TcpEndpoint{
+				Name:    endpointName,
+				Host:    host,
+				Port:    strconv.Itoa(tPort),
+				Address: endpointAddr,
+				SiteId:  siteId,
+			})
+		default:
+			return false, fmt.Errorf("Unrecognised protocol for service %s: %s", address, protocol)
 		}
-		if aggregation != "" {
-			b.Aggregation = aggregation
-			b.Address = "mc/" + b.Address
-		}
-		if eventchannel {
-			b.EventChannel = eventchannel
-			b.Address = "mc/" + b.Address
-		}
-		if hostOverride != "" {
-			b.HostOverride = hostOverride
-		}
-		bridges.AddHttpConnector(b)
-	case ProtocolHTTP2:
-		bridges.AddHttpConnector(qdr.HttpEndpoint{
-			Name:            getBridgeName(address+"."+target, host),
-			Host:            host,
-			Port:            strconv.Itoa(port),
-			Address:         address,
-			SiteId:          siteId,
-			ProtocolVersion: qdr.HttpVersion2,
-		})
-	case ProtocolTCP:
-		bridges.AddTcpConnector(qdr.TcpEndpoint{
-			Name:    getBridgeName(address+"."+target, host),
-			Host:    host,
-			Port:    strconv.Itoa(port),
-			Address: address,
-			SiteId:  siteId,
-		})
-	default:
-		return false, fmt.Errorf("Unrecognised protocol for service %s: %s", address, protocol)
 	}
 	return true, nil
 }
 
 func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeConfig) (bool, error) {
-	switch sb.protocol {
-	case ProtocolHTTP:
-		address := sb.address
-		if sb.aggregation != "" || sb.eventChannel {
-			address = "mc/" + address
-		}
-		bridges.AddHttpListener(qdr.HttpEndpoint{
-			Name:         getBridgeName(sb.address, ""),
-			Host:         "0.0.0.0",
-			Port:         strconv.Itoa(sb.ingressPort),
-			Address:      address,
-			SiteId:       siteId,
-			Aggregation:  sb.aggregation,
-			EventChannel: sb.eventChannel,
-		})
+	for i := 0; i < len(sb.publicPorts); i++ {
+		pPort := sb.publicPorts[i]
+		iPort := sb.ingressPorts[i]
+		endpointName := getBridgeName(sb.address, "", pPort)
+		endpointAddr := fmt.Sprintf("%s:%d", sb.address, pPort)
 
-	case ProtocolHTTP2:
-		bridges.AddHttpListener(qdr.HttpEndpoint{
-			Name:            getBridgeName(sb.address, ""),
-			Host:            "0.0.0.0",
-			Port:            strconv.Itoa(sb.ingressPort),
-			Address:         sb.address,
-			SiteId:          siteId,
-			Aggregation:     sb.aggregation,
-			EventChannel:    sb.eventChannel,
-			ProtocolVersion: qdr.HttpVersion2,
-		})
-	case ProtocolTCP:
-		bridges.AddTcpListener(qdr.TcpEndpoint{
-			Name:    getBridgeName(sb.address, ""),
-			Host:    "0.0.0.0",
-			Port:    strconv.Itoa(sb.ingressPort),
-			Address: sb.address,
-			SiteId:  siteId,
-		})
-	default:
-		return false, fmt.Errorf("Unrecognised protocol for service %s: %s", sb.address, sb.protocol)
+		switch sb.protocol {
+		case ProtocolHTTP:
+			if sb.aggregation != "" || sb.eventChannel {
+				endpointAddr = "mc/" + endpointAddr
+			}
+			bridges.AddHttpListener(qdr.HttpEndpoint{
+				Name:         endpointName,
+				Host:         "0.0.0.0",
+				Port:         strconv.Itoa(iPort),
+				Address:      endpointAddr,
+				SiteId:       siteId,
+				Aggregation:  sb.aggregation,
+				EventChannel: sb.eventChannel,
+			})
+
+		case ProtocolHTTP2:
+			bridges.AddHttpListener(qdr.HttpEndpoint{
+				Name:            endpointName,
+				Host:            "0.0.0.0",
+				Port:            strconv.Itoa(iPort),
+				Address:         endpointAddr,
+				SiteId:          siteId,
+				Aggregation:     sb.aggregation,
+				EventChannel:    sb.eventChannel,
+				ProtocolVersion: qdr.HttpVersion2,
+			})
+		case ProtocolTCP:
+			bridges.AddTcpListener(qdr.TcpEndpoint{
+				Name:    endpointName,
+				Host:    "0.0.0.0",
+				Port:    strconv.Itoa(iPort),
+				Address: endpointAddr,
+				SiteId:  siteId,
+			})
+		default:
+			return false, fmt.Errorf("Unrecognised protocol for service %s: %s", sb.address, sb.protocol)
+		}
 	}
 	return true, nil
 }

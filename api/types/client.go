@@ -187,10 +187,11 @@ type RouterInspectResponse struct {
 }
 
 type GatewayEndpoint struct {
-	Name      string           `json:"name,omitempty" yaml:"name,omitempty"`
-	Host      string           `json:"host,omitempty" yaml:"host,omitempty"`
-	LocalPort string           `json:"localPort,omitempty" yaml:"local_port,omitempty"`
-	Service   ServiceInterface `json:"service,omitempty" yaml:"service,omitempty"`
+	Name        string           `json:"name,omitempty" yaml:"name,omitempty"`
+	Host        string           `json:"host,omitempty" yaml:"host,omitempty"`
+	LocalPort   string           `json:"localPort,omitempty" yaml:"local_port,omitempty"`
+	Service     ServiceInterface `json:"service,omitempty" yaml:"service,omitempty"`
+	TargetPorts []int            `json:"targetPorts,omitempty" yaml:"targetPorts,omitempty"`
 }
 
 type GatewayInspectResponse struct {
@@ -223,8 +224,8 @@ type VanClientInterface interface {
 	ServiceInterfaceList(ctx context.Context) ([]*ServiceInterface, error)
 	ServiceInterfaceRemove(ctx context.Context, address string) error
 	ServiceInterfaceUpdate(ctx context.Context, service *ServiceInterface) error
-	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error
-	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*ServiceInterface, error)
+	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPorts map[int]int) error
+	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int) (*ServiceInterface, error)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
 	GatewayBind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
 	GatewayUnbind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error

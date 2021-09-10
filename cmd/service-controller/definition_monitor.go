@@ -3,6 +3,7 @@ package main
 import (
 	jsonencoding "encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -122,61 +123,42 @@ func (m *DefinitionMonitor) runDefinitionMonitor() {
 	}
 }
 
-func deducePort(deployment *appsv1.Deployment) int {
+func deducePort(deployment *appsv1.Deployment) map[int]int {
 	if port, ok := deployment.ObjectMeta.Annotations[types.PortQualifier]; ok {
-		if iport, err := strconv.Atoi(port); err == nil {
-			return iport
-		} else {
-			return 0
-		}
+		return kube.PortLabelStrToMap(port)
 	} else {
-		return int(kube.GetContainerPort(deployment))
+		return kube.GetContainerPort(deployment)
 	}
 }
 
-func deducePortFromStatefulSet(statefulSet *appsv1.StatefulSet) int {
+func deducePortFromStatefulSet(statefulSet *appsv1.StatefulSet) map[int]int {
 	if port, ok := statefulSet.ObjectMeta.Annotations[types.PortQualifier]; ok {
-		if iport, err := strconv.Atoi(port); err == nil {
-			return iport
-		} else {
-			return 0
-		}
+		return kube.PortLabelStrToMap(port)
 	} else {
-		return int(kube.GetContainerPortForStatefulSet(statefulSet))
+		return kube.GetContainerPortForStatefulSet(statefulSet)
 	}
 }
 
-func deducePortFromDaemonSet(daemonSet *appsv1.DaemonSet) int {
+func deducePortFromDaemonSet(daemonSet *appsv1.DaemonSet) map[int]int {
 	if port, ok := daemonSet.ObjectMeta.Annotations[types.PortQualifier]; ok {
-		if iport, err := strconv.Atoi(port); err == nil {
-			return iport
-		} else {
-			return 0
-		}
+		return kube.PortLabelStrToMap(port)
 	} else {
-		return int(kube.GetContainerPortForDaemonSet(daemonSet))
+		return kube.GetContainerPortForDaemonSet(daemonSet)
 	}
 }
 
-func deducePortFromService(service *corev1.Service) int {
+func deducePortFromService(service *corev1.Service) map[int]int {
 	if len(service.Spec.Ports) > 0 {
-		return int(service.Spec.Ports[0].Port)
+		return kube.GetServicePortMap(service)
 	}
-	return 0
-}
-
-func deduceTargetPortFromService(service *corev1.Service) int {
-	if len(service.Spec.Ports) > 0 {
-		return service.Spec.Ports[0].TargetPort.IntValue()
-	}
-	return 0
+	return map[int]int{}
 }
 
 func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *types.ServiceInterface) bool {
 	if actual.Origin != "annotation" {
 		return false
 	}
-	if actual.Protocol != desired.Protocol || actual.Port != desired.Port {
+	if actual.Protocol != desired.Protocol || !reflect.DeepEqual(actual.Ports, desired.Ports) {
 		return true
 	}
 	if len(actual.Targets) != len(desired.Targets) {
@@ -185,7 +167,7 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 	if len(desired.Targets) > 0 {
 		nameChanged := actual.Targets[0].Name != desired.Targets[0].Name
 		selectorChanged := actual.Targets[0].Selector != desired.Targets[0].Selector
-		targetPortChanged := actual.Targets[0].TargetPort != desired.Targets[0].TargetPort
+		targetPortChanged := !reflect.DeepEqual(actual.Targets[0].TargetPorts, desired.Targets[0].TargetPorts)
 		if nameChanged || selectorChanged || targetPortChanged {
 			return true
 		}
@@ -196,10 +178,14 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployment *appsv1.Deployment) (types.ServiceInterface, bool) {
 	var svc types.ServiceInterface
 	if protocol, ok := deployment.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
-		if port := deducePort(deployment); port != 0 {
-			svc.Port = int(port)
+		port := map[int]int{}
+		if port = deducePort(deployment); len(port) > 0 {
+			svc.Ports = []int{}
+			for p, _ := range port {
+				svc.Ports = append(svc.Ports, p)
+			}
 		} else if protocol == "http" {
-			svc.Port = 80
+			svc.Ports = []int{80}
 		} else {
 			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated deployment %s; cannot deduce port", deployment.ObjectMeta.Name)
 			return svc, false
@@ -221,6 +207,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 				Selector: selector,
 			},
 		}
+		if len(port) > 0 {
+			svc.Targets[0].TargetPorts = port
+		}
 		if labels, ok := deployment.ObjectMeta.Annotations[types.ServiceLabels]; ok {
 			svc.Labels = utils.LabelToMap(labels)
 		}
@@ -234,10 +223,14 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefulset *appsv1.StatefulSet) (types.ServiceInterface, bool) {
 	var svc types.ServiceInterface
 	if protocol, ok := statefulset.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
-		if port := deducePortFromStatefulSet(statefulset); port != 0 {
-			svc.Port = int(port)
+		port := map[int]int{}
+		if port = deducePortFromStatefulSet(statefulset); len(port) > 0 {
+			svc.Ports = []int{}
+			for p, _ := range port {
+				svc.Ports = append(svc.Ports, p)
+			}
 		} else if protocol == "http" {
-			svc.Port = 80
+			svc.Ports = []int{80}
 		} else {
 			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated statefulset %s; cannot deduce port", statefulset.ObjectMeta.Name)
 			return svc, false
@@ -259,6 +252,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 				Selector: selector,
 			},
 		}
+		if len(port) > 0 {
+			svc.Targets[0].TargetPorts = port
+		}
 		svc.Origin = "annotation"
 		return svc, true
 	} else {
@@ -269,10 +265,14 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset *appsv1.DaemonSet) (types.ServiceInterface, bool) {
 	var svc types.ServiceInterface
 	if protocol, ok := daemonset.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
-		if port := deducePortFromDaemonSet(daemonset); port != 0 {
-			svc.Port = int(port)
+		port := map[int]int{}
+		if port = deducePortFromDaemonSet(daemonset); len(port) > 0 {
+			svc.Ports = []int{}
+			for p, _ := range port {
+				svc.Ports = append(svc.Ports, p)
+			}
 		} else if protocol == "http" {
-			svc.Port = 80
+			svc.Ports = []int{80}
 		} else {
 			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated daemonset %s; cannot deduce port", daemonset.ObjectMeta.Name)
 			return svc, false
@@ -294,6 +294,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset
 				Selector: selector,
 			},
 		}
+		if len(port) > 0 {
+			svc.Targets[0].TargetPorts = port
+		}
 		if labels, ok := daemonset.ObjectMeta.Annotations[types.ServiceLabels]; ok {
 			svc.Labels = utils.LabelToMap(labels)
 		}
@@ -307,8 +310,11 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset
 func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *corev1.Service) (types.ServiceInterface, bool) {
 	var svc types.ServiceInterface
 	if protocol, ok := service.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
-		if port := deducePortFromService(service); port != 0 {
-			svc.Port = int(port)
+		svc.Ports = []int{}
+		if port := deducePortFromService(service); len(port) > 0 {
+			for p, _ := range port {
+				svc.Ports = append(svc.Ports, p)
+			}
 		}
 		svc.Protocol = protocol
 		if address, ok := service.ObjectMeta.Annotations[types.AddressQualifier]; ok {
@@ -317,15 +323,18 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 			svc.Address = service.ObjectMeta.Name
 		}
 		if target, ok := service.ObjectMeta.Annotations[types.TargetServiceQualifier]; ok {
-			port, err := kube.GetPortForServiceTarget(target, m.vanClient.Namespace, m.vanClient.KubeClient)
+			port, err := kube.GetPortsForServiceTarget(target, m.vanClient.Namespace, m.vanClient.KubeClient)
 			if err != nil {
 				event.Recordf(DefinitionMonitorError, "Could not deduce port for target service %s on annotated service %s: %s", target, service.ObjectMeta.Name, err)
 			}
-			if svc.Port == 0 {
-				if port != 0 {
-					svc.Port = port
+			if len(svc.Ports) == 0 {
+				if len(port) > 0 {
+					svc.Ports = []int{}
+					for p, _ := range port {
+						svc.Ports = append(svc.Ports, p)
+					}
 				} else if protocol == "http" {
-					svc.Port = 80
+					svc.Ports = []int{80}
 				} else {
 					event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
 					return svc, false
@@ -335,16 +344,29 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 				Name:    target,
 				Service: target,
 			}
-			if port != 0 && port != svc.Port {
-				svcTgt.TargetPort = port
+			svcPorts := map[int]int{}
+			for _, p := range svc.Ports {
+				svcPorts[p] = p
+			}
+			if len(port) == 1 && len(svc.Ports) == 1 && !reflect.DeepEqual(port, svcPorts) {
+				svcTgt.TargetPorts = map[int]int{}
+				for sPort, _ := range port {
+					svcTgt.TargetPorts[svc.Ports[0]] = sPort
+				}
+			} else if len(svc.Ports) >= 1 && reflect.DeepEqual(port, svcPorts) {
+				svcTgt.TargetPorts = port
+			} else if len(port) > 0 {
+				// if target service has multiple ports but ports do not match
+				event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated service %s; incompatible number of ports", service.ObjectMeta.Name)
+				return svc, false
 			}
 			svc.Targets = []types.ServiceInterfaceTarget{
 				svcTgt,
 			}
 		} else if service.Spec.Selector != nil {
-			if svc.Port == 0 {
+			if len(svc.Ports) == 0 {
 				if protocol == "http" {
-					svc.Port = 80
+					svc.Ports = []int{80}
 				} else {
 					event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated service %s; cannot deduce port", service.ObjectMeta.Name)
 					return svc, false
@@ -369,14 +391,14 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 			}
 			if !hasOriginalTargetPort(*service) {
 				// If getting target port from new annotated service, deduce target port from service
-				if targetPort := deduceTargetPortFromService(service); targetPort != 0 {
-					target.TargetPort = targetPort
+				if targetPort := deducePortFromService(service); len(targetPort) > 0 {
+					target.TargetPorts = targetPort
 				}
 			} else {
 				// If getting target port from previously annotated service, deduce target port from existing annotation
 				// as in this case the target port might have been already modified
-				originalTargetPort, _ := strconv.Atoi(service.Annotations[types.OriginalTargetPortQualifier])
-				target.TargetPort = originalTargetPort
+				originalTargetPort, _ := service.Annotations[types.OriginalTargetPortQualifier]
+				target.TargetPorts = kube.PortLabelStrToMap(originalTargetPort)
 			}
 			svc.Targets = []types.ServiceInterfaceTarget{
 				target,
@@ -484,7 +506,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 			switch category {
 			case "servicedefs":
 				event.Recordf(DefinitionMonitorEvent, "Service definitions have changed")
-				//get the configmap, parse the json, check against the current servicebindings map
+				// get the configmap, parse the json, check against the current servicebindings map
 				obj, exists, err := m.svcDefInformer.GetStore().GetByKey(name)
 				if err != nil {
 					return fmt.Errorf("Error reading skupper-services from cache: %s", err)
@@ -534,7 +556,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					if !ok {
 						return fmt.Errorf("Expected StatefulSet for %s but got %#v", name, obj)
 					}
-					//is this statefulset one that has been exposed with the headless option?
+					// is this statefulset one that has been exposed with the headless option?
 					svc, ok := m.headless[statefulset.ObjectMeta.Name]
 					if ok {
 						if svc.Headless.Size != int(*statefulset.Spec.Replicas) {
@@ -546,7 +568,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.Namespace, m.vanClient.KubeClient)
 						}
 					} else {
-						//does it have a skupper annotation?
+						// does it have a skupper annotation?
 						if desired, ok := m.getServiceDefinitionFromAnnotatedStatefulSet(statefulset); ok {
 							event.Recordf(DefinitionMonitorEvent, "Checking annotated statefulSet %s", name)
 							actual, ok := m.annotated[desired.Address]

@@ -17,7 +17,7 @@ import (
 type BindTester struct {
 	Address         string
 	Host            string
-	Port            string
+	EgressPort      string
 	Name            string
 	Protocol        string
 	IsGatewayActive bool
@@ -25,7 +25,7 @@ type BindTester struct {
 
 func (b *BindTester) Command(cluster *base.ClusterContext) []string {
 	args := cli.SkupperCommonOptions(cluster)
-	args = append(args, "gateway", "bind", b.Address, b.Host, b.Port)
+	args = append(args, "gateway", "bind", b.Address, b.Host, b.EgressPort)
 
 	if b.Name != "" {
 		args = append(args, "--name", b.Name)
@@ -44,17 +44,25 @@ func (b *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 		return
 	}
 
+	// Retrieving service info
+	ctx := context.Background()
+	var si *types.ServiceInterface
+	si, err = cluster.VanClient.ServiceInterfaceInspect(ctx, b.Address)
+	if err != nil {
+		return
+	}
+
 	// Basic validation of the stdout (only when gateway is active)
-	matched, _ := regexp.MatchString(fmt.Sprintf(`.* CREATE .*%s .*%s`, b.Address, b.Port), stderr)
-	if !b.IsGatewayActive && !matched {
+	expectedOut := fmt.Sprintf(`.* CREATE .*%s:%d .*%s`, b.Address, si.Ports[0], b.EgressPort)
+	matched, _ := regexp.MatchString(expectedOut, stderr)
+	if b.IsGatewayActive && !matched {
 		// Sample output
-		// 2021/07/28 14:10:49 CREATE org.apache.qpid.dispatch.tcpConnector localhost.localdomain-user-egress-tcp-go-host map[address:tcp-go-host host:0.0.0.0 name:localhost.localdomain-user-egress-tcp-go-host port:9090]
-		err = fmt.Errorf("output does not contain expected content - found: %s", stdout)
+		// 2021/09/24 12:14:07 CREATE org.apache.qpid.dispatch.tcpConnector gw1-egress-tcp-echo-host                     map[address:tcp-echo-host:9090 host:0.0.0.0 name:gw1-egress-tcp-echo-host port:9090]
+		err = fmt.Errorf("output does not contain expected content - found: %s", stderr)
 		return
 	}
 
 	// Validating service bind definition
-	ctx := context.Background()
 	gwList, err := cluster.VanClient.GatewayList(ctx)
 
 	gwName := b.Name
@@ -84,11 +92,11 @@ func (b *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 			err = fmt.Errorf("service bind not bound")
 			return
 		}
-		if bind.Service.Address != b.Address {
-			err = fmt.Errorf("service address is incorrect - expected: %s - found: %s", b.Address, bind.Service.Address)
+		if bind.Service.Address != fmt.Sprintf("%s:%d", b.Address, si.Ports[0]) {
+			err = fmt.Errorf("service address is incorrect - expected: %s:%d - found: %s", b.Address, si.Ports[0], bind.Service.Address)
 		}
-		if strconv.Itoa(bind.Service.Port) != b.Port {
-			err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", b.Port, bind.Service.Port)
+		if strconv.Itoa(bind.Service.Ports[0]) != b.EgressPort {
+			err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", b.EgressPort, bind.Service.Ports[0])
 		}
 		if bind.Host != b.Host {
 			err = fmt.Errorf("service host is incorrect - expected: %s - found: %s", b.Host, bind.Host)

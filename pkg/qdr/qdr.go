@@ -803,7 +803,7 @@ func (a *BridgeConfigDifference) Print() {
 
 func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, version string, namespace string) (string, error) {
 	config := InitialConfig("$HOSTNAME", siteId, version, true, 3)
-	//add edge-connector
+	// add edge-connector
 	config.AddSslProfile(SslProfile{
 		Name: types.InterRouterProfile,
 	})
@@ -819,73 +819,81 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 		Host: "localhost",
 		Port: 5672,
 	})
-	port := definition.Port
-	if len(definition.Targets) == 1 && definition.Targets[0].TargetPort != 0 {
-		port = definition.Targets[0].TargetPort
-	}
-	if definition.Origin == "" {
-		host := definition.Headless.Name + "-${POD_ID}." + definition.Address + "." + namespace
-		address := definition.Address + "-${POD_ID}"
-		//in the originating site, just have egress bindings
-		switch definition.Protocol {
-		case "tcp":
-			config.AddTcpConnector(TcpEndpoint{
-				Name:    "egress",
-				Host:    host,
-				Port:    strconv.Itoa(port),
-				Address: address,
-				SiteId:  siteId,
-			})
-		case "http":
-			config.AddHttpConnector(HttpEndpoint{
-				Name:    "egress",
-				Host:    host,
-				Port:    strconv.Itoa(port),
-				Address: address,
-				SiteId:  siteId,
-			})
-		case "http2":
-			config.AddHttpConnector(HttpEndpoint{
-				Name:            "egress",
-				Host:            host,
-				Port:            strconv.Itoa(port),
-				Address:         address,
-				ProtocolVersion: HttpVersion2,
-				SiteId:          siteId,
-			})
-		default:
-		}
+	svcPorts := definition.Ports
+	ports := map[int]int{}
+	if len(definition.Targets) > 0 {
+		ports = definition.Targets[0].TargetPorts
 	} else {
-		host := "0.0.0.0"
-		address := definition.Address + "-${POD_ID}"
-		//in all other sites, just have ingress bindings
-		switch definition.Protocol {
-		case "tcp":
-			config.AddTcpListener(TcpEndpoint{
-				Name:    "ingress",
-				Host:    host,
-				Port:    strconv.Itoa(port),
-				Address: address,
-				SiteId:  siteId,
-			})
-		case "http":
-			config.AddHttpListener(HttpEndpoint{
-				Name:    "ingress",
-				Host:    host,
-				Port:    strconv.Itoa(port),
-				Address: address,
-				SiteId:  siteId,
-			})
-		case "http2":
-			config.AddHttpListener(HttpEndpoint{
-				Name:            "ingress",
-				Host:            host,
-				Port:            strconv.Itoa(port),
-				Address:         address,
-				ProtocolVersion: HttpVersion2,
-				SiteId:          siteId,
-			})
-		default:
+		for _, sp := range svcPorts {
+			ports[sp] = sp
+		}
+	}
+	for iPort, ePort := range ports {
+		address := fmt.Sprintf("%s-%s:%d", definition.Address, "${POD_ID}", iPort)
+		if definition.Origin == "" {
+			name := fmt.Sprintf("egress:%d", ePort)
+			host := definition.Headless.Name + "-${POD_ID}." + definition.Address + "." + namespace
+			// in the originating site, just have egress bindings
+			switch definition.Protocol {
+			case "tcp":
+				config.AddTcpConnector(TcpEndpoint{
+					Name:    name,
+					Host:    host,
+					Port:    strconv.Itoa(ePort),
+					Address: address,
+					SiteId:  siteId,
+				})
+			case "http":
+				config.AddHttpConnector(HttpEndpoint{
+					Name:    name,
+					Host:    host,
+					Port:    strconv.Itoa(ePort),
+					Address: address,
+					SiteId:  siteId,
+				})
+			case "http2":
+				config.AddHttpConnector(HttpEndpoint{
+					Name:            name,
+					Host:            host,
+					Port:            strconv.Itoa(ePort),
+					Address:         address,
+					ProtocolVersion: HttpVersion2,
+					SiteId:          siteId,
+				})
+			default:
+			}
+		} else {
+			name := fmt.Sprintf("ingress:%d", ePort)
+			host := "0.0.0.0"
+			// in all other sites, just have ingress bindings
+			switch definition.Protocol {
+			case "tcp":
+				config.AddTcpListener(TcpEndpoint{
+					Name:    name,
+					Host:    host,
+					Port:    strconv.Itoa(iPort),
+					Address: address,
+					SiteId:  siteId,
+				})
+			case "http":
+				config.AddHttpListener(HttpEndpoint{
+					Name:    name,
+					Host:    host,
+					Port:    strconv.Itoa(iPort),
+					Address: address,
+					SiteId:  siteId,
+				})
+			case "http2":
+				config.AddHttpListener(HttpEndpoint{
+					Name:            name,
+					Host:            host,
+					Port:            strconv.Itoa(iPort),
+					Address:         address,
+					ProtocolVersion: HttpVersion2,
+					SiteId:          siteId,
+				})
+			default:
+			}
 		}
 	}
 	return MarshalRouterConfig(config)

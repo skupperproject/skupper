@@ -9,6 +9,7 @@ import (
 	"time"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
+	"github.com/skupperproject/skupper/pkg/utils"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -22,6 +23,8 @@ const (
 	ServiceSyncSiteEvent    string = "ServiceSyncSiteEvent"
 	ServiceSyncConnection   string = "ServiceSyncConnection"
 	ServiceSyncError        string = "ServiceSyncError"
+	serviceSyncSubjectV1    string = "service-sync-update"
+	serviceSyncSubjectV2    string = "service-sync-update-v2"
 )
 
 func (c *Controller) pareByOrigin(service string) {
@@ -52,7 +55,7 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 		service := types.ServiceInterface{
 			Address:      original.Address,
 			Protocol:     original.Protocol,
-			Port:         original.Port,
+			Ports:        original.Ports,
 			Origin:       original.Origin,
 			Headless:     original.Headless,
 			Labels:       original.Labels,
@@ -102,13 +105,13 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 }
 
 func equivalentServiceDefinition(a *types.ServiceInterface, b *types.ServiceInterface) bool {
-	if a.Protocol != b.Protocol || a.Port != b.Port || a.EventChannel != b.EventChannel || a.Aggregate != b.Aggregate || !reflect.DeepEqual(a.Labels, b.Labels) {
+	if a.Protocol != b.Protocol || !reflect.DeepEqual(a.Ports, b.Ports) || a.EventChannel != b.EventChannel || a.Aggregate != b.Aggregate || !reflect.DeepEqual(a.Labels, b.Labels) {
 		return false
 	}
 	if a.Headless == nil && b.Headless == nil {
 		return true
 	} else if a.Headless != nil && b.Headless != nil {
-		if a.Headless.Name != b.Headless.Name || a.Headless.Size != b.Headless.Size || a.Headless.TargetPort != b.Headless.TargetPort {
+		if a.Headless.Name != b.Headless.Name || a.Headless.Size != b.Headless.Size || !reflect.DeepEqual(a.Headless.TargetPorts, b.Headless.TargetPorts) {
 			return false
 		} else {
 			return true
@@ -166,7 +169,7 @@ func (c *Controller) syncSender(sendLocal chan bool) {
 	tickerSend := time.NewTicker(5 * time.Second)
 	tickerAge := time.NewTicker(30 * time.Second)
 
-	properties.Subject = "service-sync-update"
+	properties.Subject = serviceSyncSubjectV2
 	request.Properties = &properties
 	request.ApplicationProperties = make(map[string]interface{})
 	request.ApplicationProperties["origin"] = c.origin
@@ -258,6 +261,10 @@ func (c *Controller) runServiceSync() {
 	sendLocal := make(chan bool)
 	go c.syncSender(sendLocal)
 
+	allowedSubjects := []string{
+		serviceSyncSubjectV2,
+	}
+
 	for {
 		var ok bool
 		var origin string
@@ -271,15 +278,16 @@ func (c *Controller) runServiceSync() {
 		msg.Accept()
 		subject := msg.Properties.Subject
 
-		if subject == "service-sync-update" {
+		// Validate if message is supported
+		if utils.StringSliceContains(allowedSubjects, subject) {
 			if origin, ok = msg.ApplicationProperties["origin"].(string); ok {
 				if origin != c.origin {
 					if updates, ok := msg.Value.(string); ok {
-						defs := []types.ServiceInterface{}
-						err := jsonencoding.Unmarshal([]byte(updates), &defs)
+						defs := &types.ServiceInterfaceList{}
+						err := defs.ConvertFrom(updates)
 						if err == nil {
 							indexed := make(map[string]types.ServiceInterface)
-							for _, def := range defs {
+							for _, def := range *defs {
 								def.Origin = origin
 								indexed[def.Address] = def
 							}

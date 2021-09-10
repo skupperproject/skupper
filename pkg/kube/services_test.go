@@ -2,13 +2,15 @@ package kube
 
 import (
 	"fmt"
+	"reflect"
+	"testing"
+
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"testing"
 )
 
 func TestGetPortForServiceTarget(t *testing.T) {
@@ -20,7 +22,7 @@ func TestGetPortForServiceTarget(t *testing.T) {
 		name          string
 		targetService string
 		error         string
-		expected      int
+		expected      map[int]int
 	}
 
 	// Helper functions used to compose test table
@@ -67,18 +69,18 @@ func TestGetPortForServiceTarget(t *testing.T) {
 	kubeClient.CoreV1().Services(NS).Create(svcThreePorts)
 
 	testTable := []test{
-		{"svc-no-ports", svcNoPorts.Name, "", 0},
-		{"svc-one-port", svcOnePort.Name, "", 8080},
-		{"svc-dot-one-port", svcDotOnePort.Name, "", 8080},
-		{"svc-three-ports", svcThreePorts.Name, "", 8080},
-		{"invalid-svc", "invalid", "", 0},
-		{"error-svc", "error-svc", "fake error has occurred", 0},
+		{"svc-no-ports", svcNoPorts.Name, "", map[int]int{}},
+		{"svc-one-port", svcOnePort.Name, "", map[int]int{8080: 8080}},
+		{"svc-dot-one-port", svcDotOnePort.Name, "", map[int]int{8080: 8080}},
+		{"svc-three-ports", svcThreePorts.Name, "", map[int]int{8080: 8080, 8081: 8081, 8082: 8082}},
+		{"invalid-svc", "invalid", "", map[int]int{}},
+		{"error-svc", "error-svc", "fake error has occurred", map[int]int{}},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			port, err := GetPortForServiceTarget(test.targetService, NS, kubeClient)
-			assert.Equal(t, test.expected, port)
+			port, err := GetPortsForServiceTarget(test.targetService, NS, kubeClient)
+			assert.Assert(t, reflect.DeepEqual(test.expected, port))
 			if test.error != "" {
 				assert.Assert(t, err != nil)
 				assert.Equal(t, test.error, err.Error())

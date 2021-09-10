@@ -206,20 +206,20 @@ func exposePrivate1Resources(t *testing.T, prv1 *base.ClusterContext) {
 	productCatalogSvc := &types.ServiceInterface{
 		Address:  "productcatalogservice",
 		Protocol: "http2",
-		Port:     3550,
+		Ports:    []int{3550},
 	}
 	recommendationSvc := &types.ServiceInterface{
 		Address:  "recommendationservice",
 		Protocol: "http2",
-		Port:     8080,
+		Ports:    []int{8080},
 	}
 	// Creating services
 	t.Logf("Creating service interfaces in private1 cluster")
 	assert.Assert(t, prv1.VanClient.ServiceInterfaceCreate(ctx, productCatalogSvc))
 	assert.Assert(t, prv1.VanClient.ServiceInterfaceCreate(ctx, recommendationSvc))
 	t.Logf("Binding service interfaces in private1 cluster")
-	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, productCatalogSvc, "deployment", productCatalogSvc.Address, "http2", 3550))
-	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, recommendationSvc, "deployment", recommendationSvc.Address, "http2", 8080))
+	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, productCatalogSvc, "deployment", productCatalogSvc.Address, "http2", map[int]int{3550: 3550}))
+	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, recommendationSvc, "deployment", recommendationSvc.Address, "http2", map[int]int{8080: 8080}))
 }
 
 func exposePublic1Resources(t *testing.T, pub1 *base.ClusterContext) {
@@ -227,27 +227,27 @@ func exposePublic1Resources(t *testing.T, pub1 *base.ClusterContext) {
 	checkoutSvc := &types.ServiceInterface{
 		Address:  "checkoutservice",
 		Protocol: "http2",
-		Port:     5050,
+		Ports:    []int{5050},
 	}
 	cartSvc := &types.ServiceInterface{
 		Address:  "cartservice",
 		Protocol: "http2",
-		Port:     7070,
+		Ports:    []int{7070},
 	}
 	currencySvc := &types.ServiceInterface{
 		Address:  "currencyservice",
 		Protocol: "http2",
-		Port:     7000,
+		Ports:    []int{7000},
 	}
 	adSvc := &types.ServiceInterface{
 		Address:  "adservice",
 		Protocol: "http2",
-		Port:     9555,
+		Ports:    []int{9555},
 	}
 	redisSvc := &types.ServiceInterface{
 		Address:  "redis-cart",
 		Protocol: "tcp",
-		Port:     6379,
+		Ports:    []int{6379},
 	}
 	// Creating services
 	t.Logf("creating service interfaces in public1 cluster")
@@ -257,11 +257,11 @@ func exposePublic1Resources(t *testing.T, pub1 *base.ClusterContext) {
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, adSvc))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, redisSvc))
 	t.Logf("binding service interfaces in public1 cluster")
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, checkoutSvc, "deployment", checkoutSvc.Address, "http2", 5050))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, cartSvc, "deployment", cartSvc.Address, "http2", 7070))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, currencySvc, "deployment", currencySvc.Address, "http2", 7000))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, adSvc, "deployment", adSvc.Address, "http2", 9555))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, redisSvc, "deployment", redisSvc.Address, "tcp", 6379))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, checkoutSvc, "deployment", checkoutSvc.Address, "http2", map[int]int{5050: 5050}))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, cartSvc, "deployment", cartSvc.Address, "http2", map[int]int{7070: 7070}))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, currencySvc, "deployment", currencySvc.Address, "http2", map[int]int{7000: 7000}))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, adSvc, "deployment", adSvc.Address, "http2", map[int]int{9555: 9555}))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, redisSvc, "deployment", redisSvc.Address, "tcp", map[int]int{6379: 6379}))
 }
 
 func exposePublic2Resources(t *testing.T, pub2 *base.ClusterContext) {
@@ -269,17 +269,17 @@ func exposePublic2Resources(t *testing.T, pub2 *base.ClusterContext) {
 	paymentSvc := &types.ServiceInterface{
 		Address:  "paymentservice",
 		Protocol: "http2",
-		Port:     50051,
+		Ports:    []int{50051},
 	}
 	shippingSvc := &types.ServiceInterface{
 		Address:  "shippingservice",
 		Protocol: "http2",
-		Port:     50051,
+		Ports:    []int{50051},
 	}
 	emailSvc := &types.ServiceInterface{
 		Address:  "emailservice",
 		Protocol: "http2",
-		Port:     5000,
+		Ports:    []int{5000},
 	}
 	// Creating services
 	t.Logf("creating service interfaces in public2 cluster")
@@ -287,7 +287,7 @@ func exposePublic2Resources(t *testing.T, pub2 *base.ClusterContext) {
 	assert.Assert(t, pub2.VanClient.ServiceInterfaceCreate(ctx, shippingSvc))
 	assert.Assert(t, pub2.VanClient.ServiceInterfaceCreate(ctx, emailSvc))
 	t.Logf("binding service interfaces in public2 cluster")
-	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, paymentSvc, "deployment", paymentSvc.Address, "http2", 50051))
-	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, shippingSvc, "deployment", shippingSvc.Address, "http2", 50051))
-	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, emailSvc, "deployment", emailSvc.Address, "http2", 8080))
+	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, paymentSvc, "deployment", paymentSvc.Address, "http2", map[int]int{50051: 50051}))
+	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, shippingSvc, "deployment", shippingSvc.Address, "http2", map[int]int{50051: 50051}))
+	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, emailSvc, "deployment", emailSvc.Address, "http2", map[int]int{5000: 8080}))
 }

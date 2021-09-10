@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -116,7 +117,7 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "dep1",
 				Protocol: "http",
-				Port:     81,
+				Ports:    []int{81},
 				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: "label1=value1"}},
 				Labels:   map[string]string{"app": "app1"},
 				Origin:   "annotation",
@@ -127,7 +128,7 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "dep1",
 				Protocol: "http",
-				Port:     81,
+				Ports:    []int{81},
 				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: ""}},
 				Origin:   "annotation",
 			},
@@ -137,7 +138,7 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "dep1",
 				Protocol: "http",
-				Port:     8080,
+				Ports:    []int{8080},
 				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: "label1=value1"}},
 				Origin:   "annotation",
 			},
@@ -147,7 +148,7 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "dep1",
 				Protocol: "http",
-				Port:     80,
+				Ports:    []int{80},
 				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: "label1=value1"}},
 				Origin:   "annotation",
 			},
@@ -157,7 +158,7 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "address1",
 				Protocol: "http",
-				Port:     80,
+				Ports:    []int{80},
 				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: "label1=value1"}},
 				Labels:   map[string]string{"app": "app1"},
 				Origin:   "annotation",
@@ -175,7 +176,7 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			service, success := dm.getServiceDefinitionFromAnnotatedDeployment(test.deployment)
 			// Validating returned service
-			assert.Equal(t, test.expected.service.Port, service.Port)
+			assert.Assert(t, reflect.DeepEqual(test.expected.service.Ports, service.Ports))
 			assert.Equal(t, test.expected.service.Protocol, service.Protocol)
 			assert.Equal(t, test.expected.service.Address, service.Address)
 			assert.Equal(t, len(test.expected.service.Targets), len(service.Targets))
@@ -219,7 +220,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 	}
 
 	// Helper used to prepare test table
-	annotatedService := func(name string, proxyAnnotationProtocol string, addressAnnotation string, targetAnnotation string, labels string, selectorMap map[string]string, originalSelector string, originalTargetPort string, targetPort int, ports ...int) *corev1.Service {
+	annotatedService := func(name string, proxyAnnotationProtocol string, addressAnnotation string, targetAnnotation string, labels string, selectorMap map[string]string, originalSelector string, originalTargetPort string, targetPorts []int, ports ...int) *corev1.Service {
 
 		annotations := map[string]string{}
 		if proxyAnnotationProtocol != "" {
@@ -257,7 +258,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 				svcPorts = append(svcPorts, corev1.ServicePort{
 					Name:       fmt.Sprintf("port%d", i),
 					Port:       int32(port),
-					TargetPort: intstr.FromInt(targetPort),
+					TargetPort: intstr.FromInt(targetPorts[i]),
 				})
 			}
 		}
@@ -278,10 +279,10 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 	// Create fake target services
 	var err error
 	// good path with target service providing port
-	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(annotatedService("targetsvc", "", "", "", "app=app1", nil, "", "", 0, 8888))
+	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(annotatedService("targetsvc", "", "", "", "app=app1", nil, "", "", []int{0}, 8888))
 	assert.NilError(t, err)
 	// this is used to test case when protocol is http but target service does not provide a port, so it uses 80
-	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(annotatedService("targetsvcnoport", "", "", "", "app=app2", nil, "", "", 0))
+	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(annotatedService("targetsvcnoport", "", "", "", "app=app2", nil, "", "", []int{0}))
 	assert.NilError(t, err)
 
 	// Mock error when trying to get info for badtargetsvc
@@ -294,29 +295,29 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 	})
 
 	testTable := []test{
-		{"no-proxy", annotatedService("", "", "", "", "", nil, "", "", 0), result{
+		{"no-proxy", annotatedService("", "", "", "", "", nil, "", "", []int{0}), result{
 			service: types.ServiceInterface{},
 			success: false,
 		}},
-		{"no-target-no-selector", annotatedService("svc", "http", "", "", "", nil, "", "", 0), result{
+		{"no-target-no-selector", annotatedService("svc", "http", "", "", "", nil, "", "", []int{0}), result{
 			service: types.ServiceInterface{
 				Address:  "svc",
 				Protocol: "http",
-				Port:     0,
+				Ports:    []int{},
 			},
 			success: false,
 		}},
-		{"http-8080-targetsvc-8888", annotatedService("svc", "http", "address", "targetsvc", "app=app1", nil, "", "", 0, 8080), result{
+		{"http-8080-targetsvc-8888", annotatedService("svc", "http", "address", "targetsvc", "app=app1", nil, "", "", []int{8888}, 8080), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
-				Port:     8080,
+				Ports:    []int{8080},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:       "targetsvc",
-						Selector:   "",
-						TargetPort: 8888,
-						Service:    "targetsvc",
+						Name:        "targetsvc",
+						Selector:    "",
+						TargetPorts: map[int]int{8080: 8888},
+						Service:     "targetsvc",
 					},
 				},
 				Labels: map[string]string{
@@ -326,17 +327,16 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			},
 			success: true,
 		}},
-		{"http-80-targetsvcnoport", annotatedService("svc", "http", "address", "targetsvcnoport", "app=app1", nil, "", "", 0), result{
+		{"http-80-targetsvcnoport", annotatedService("svc", "http", "address", "targetsvcnoport", "app=app1", nil, "", "", []int{}), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
-				Port:     80,
+				Ports:    []int{80},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:       "targetsvcnoport",
-						Selector:   "",
-						TargetPort: 0,
-						Service:    "targetsvcnoport",
+						Name:     "targetsvcnoport",
+						Selector: "",
+						Service:  "targetsvcnoport",
 					},
 				},
 				Labels: map[string]string{
@@ -346,59 +346,58 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			},
 			success: true,
 		}},
-		{"tcp-noport-targetsvcnoport", annotatedService("svc", "tcp", "address", "targetsvcnoport", "", nil, "", "", 0), result{
+		{"tcp-noport-targetsvcnoport", annotatedService("svc", "tcp", "address", "targetsvcnoport", "", nil, "", "", []int{0}), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "tcp",
-				Port:     0,
+				Ports:    []int{},
 			},
 			success: false,
 		}},
-		{"tcp-noport-targetsvc-8888", annotatedService("svc", "tcp", "address", "targetsvc", "", nil, "", "", 0), result{
+		{"tcp-noport-targetsvc-8888", annotatedService("svc", "tcp", "address", "targetsvc", "", nil, "", "", []int{}), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "tcp",
-				Port:     8888,
+				Ports:    []int{8888},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:       "targetsvc",
-						Selector:   "",
-						TargetPort: 0,
-						Service:    "targetsvc",
+						Name:        "targetsvc",
+						Selector:    "",
+						TargetPorts: map[int]int{8888: 8888},
+						Service:     "targetsvc",
 					},
 				},
 				Origin: "annotation",
 			},
 			success: true,
 		}},
-		{"bad-target-service", annotatedService("svc", "http", "address", "badtargetsvc", "", nil, "", "", 0, 8080), result{
+		{"bad-target-service", annotatedService("svc", "http", "address", "badtargetsvc", "", nil, "", "", []int{0}, 8080), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
-				Port:     8080,
+				Ports:    []int{8080},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:       "badtargetsvc",
-						Selector:   "",
-						TargetPort: 0,
-						Service:    "badtargetsvc",
+						Name:     "badtargetsvc",
+						Selector: "",
+						Service:  "badtargetsvc",
 					},
 				},
 				Origin: "annotation",
 			},
 			success: true,
 		}},
-		{"tcp-noport-targetsvc-8888", annotatedService("svc", "tcp", "address", "targetsvc", "", nil, "", "", 0), result{
+		{"tcp-noport-targetsvc-8888", annotatedService("svc", "tcp", "address", "targetsvc", "", nil, "", "", []int{}), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "tcp",
-				Port:     8888,
+				Ports:    []int{8888},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:       "targetsvc",
-						Selector:   "",
-						TargetPort: 0,
-						Service:    "targetsvc",
+						Name:        "targetsvc",
+						Selector:    "",
+						TargetPorts: map[int]int{8888: 8888},
+						Service:     "targetsvc",
 					},
 				},
 				Origin: "annotation",
@@ -406,20 +405,20 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			success: true,
 		}},
 		{"tcp-noport-selector", annotatedService("svc", "tcp", "address", "",
-			"", map[string]string{"label1": "value1"}, "", "", 0), result{
+			"", map[string]string{"label1": "value1"}, "", "", []int{0}), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "tcp",
-				Port:     0,
+				Ports:    []int{},
 			},
 			success: false,
 		}},
 		{"http-noport-selector", annotatedService("svc", "http", "address", "",
-			"", map[string]string{"label1": "value1"}, "", "", 0), result{
+			"", map[string]string{"label1": "value1"}, "", "", []int{0}), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
-				Port:     80,
+				Ports:    []int{80},
 				Targets: []types.ServiceInterfaceTarget{
 					{
 						Name:     "svc",
@@ -431,16 +430,16 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 			success: true,
 		}},
 		{"http-8080-selector", annotatedService("svc", "http", "address", "",
-			"", map[string]string{"label1": "value1"}, "", "", 8888, 8080), result{
+			"", map[string]string{"label1": "value1"}, "", "", []int{8888}, 8080), result{
 			service: types.ServiceInterface{
 				Address:  "address",
 				Protocol: "http",
-				Port:     8080,
+				Ports:    []int{8080},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:       "svc",
-						Selector:   "label1=value1",
-						TargetPort: 8888,
+						Name:        "svc",
+						Selector:    "label1=value1",
+						TargetPorts: map[int]int{8080: 8888},
 					},
 				},
 				Origin: "annotation",
@@ -450,17 +449,17 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 		{"http-8080-original-selector",
 			annotatedService("svc", "http", "address", "",
 				"", map[string]string{types.ComponentAnnotation: types.RouterComponent, types.ProxyQualifier: "http"},
-				"label1=value1", "8080", 1024, 8080),
+				"label1=value1", "8080", []int{1024}, 8080),
 			result{
 				service: types.ServiceInterface{
 					Address:  "address",
 					Protocol: "http",
-					Port:     8080,
+					Ports:    []int{8080},
 					Targets: []types.ServiceInterfaceTarget{
 						{
-							Name:       "svc",
-							Selector:   "label1=value1",
-							TargetPort: 8080,
+							Name:        "svc",
+							Selector:    "label1=value1",
+							TargetPorts: map[int]int{8080: 8080},
 						},
 					},
 					Origin: "annotation",
@@ -470,11 +469,11 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 		},
 		{"http-8080-bad-original-selector", annotatedService("svc", "http", "", "", "", map[string]string{
 			types.ComponentAnnotation: types.RouterComponent,
-		}, "", "", 0, 8080), result{
+		}, "", "", []int{0}, 8080), result{
 			service: types.ServiceInterface{
 				Address:  "svc",
 				Protocol: "http",
-				Port:     8080,
+				Ports:    []int{8080},
 				Targets:  []types.ServiceInterfaceTarget{},
 			},
 			success: false,
@@ -485,13 +484,13 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			service, success := dm.getServiceDefinitionFromAnnotatedService(test.service)
 			assert.Equal(t, test.expected.success, success)
-			assert.Equal(t, test.expected.service.Port, service.Port)
+			assert.Assert(t, reflect.DeepEqual(test.expected.service.Ports, service.Ports))
 			assert.Equal(t, test.expected.service.Address, service.Address)
 			assert.Equal(t, len(test.expected.service.Targets), len(service.Targets))
 			if len(service.Targets) > 0 {
 				assert.Equal(t, test.expected.service.Targets[0].Name, service.Targets[0].Name)
 				assert.Equal(t, test.expected.service.Targets[0].Service, service.Targets[0].Service)
-				assert.Equal(t, test.expected.service.Targets[0].TargetPort, service.Targets[0].TargetPort)
+				assert.Assert(t, reflect.DeepEqual(test.expected.service.Targets[0].TargetPorts, service.Targets[0].TargetPorts))
 				assert.Equal(t, test.expected.service.Targets[0].Selector, service.Targets[0].Selector)
 			}
 			assert.DeepEqual(t, test.expected.service.Labels, service.Labels)
@@ -505,15 +504,20 @@ func TestDeducePort(t *testing.T) {
 
 	// Helps generating the test table
 	type test struct {
-		name         string
-		deployment   *v1.Deployment
-		expectedPort int
+		name          string
+		deployment    *v1.Deployment
+		expectedPorts map[int]int
 	}
 
-	newDeployment := func(portAnnotation string, portContainer int) *v1.Deployment {
+	newDeployment := func(portAnnotation string, portContainer ...int) *v1.Deployment {
 		annotationMap := map[string]string{}
 		if portAnnotation != "" {
 			annotationMap["skupper.io/port"] = portAnnotation
+		}
+
+		ports := []corev1.ContainerPort{}
+		for _, p := range portContainer {
+			ports = append(ports, corev1.ContainerPort{ContainerPort: int32(p)})
 		}
 
 		return &v1.Deployment{
@@ -526,9 +530,7 @@ func TestDeducePort(t *testing.T) {
 				Template: corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{{
-							Ports: []corev1.ContainerPort{{
-								ContainerPort: int32(portContainer),
-							}},
+							Ports: ports,
 						}},
 					},
 				},
@@ -537,14 +539,16 @@ func TestDeducePort(t *testing.T) {
 	}
 
 	testTable := []test{
-		{"no-annotation-container-port", newDeployment("", 8080), 8080},
-		{"valid-annotation-container-port", newDeployment("8888", 8080), 8888},
-		{"invalid-annotation-container-port", newDeployment("invalid", 8080), 0},
+		{"no-annotation-container-port", newDeployment("", 8080), map[int]int{8080: 8080}},
+		{"no-annotation-container-ports", newDeployment("", 8080, 9090), map[int]int{8080: 8080, 9090: 9090}},
+		{"valid-annotation-container-port", newDeployment("8888", 8080), map[int]int{8888: 8888}},
+		{"valid-annotation-container-diff-ports", newDeployment("8888:8080", 8080), map[int]int{8888: 8080}},
+		{"invalid-annotation-container-port", newDeployment("invalid", 8080), map[int]int{}},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Assert(t, test.expectedPort == deducePort(test.deployment))
+			assert.Assert(t, reflect.DeepEqual(test.expectedPorts, deducePort(test.deployment)))
 		})
 	}
 }
@@ -553,7 +557,7 @@ func TestDeducePortFromService(t *testing.T) {
 	type test struct {
 		name     string
 		service  *corev1.Service
-		expected int
+		expected map[int]int
 	}
 
 	// Helper used to prepare test table
@@ -576,34 +580,36 @@ func TestDeducePortFromService(t *testing.T) {
 	}
 
 	testTable := []test{
-		{"no-port", newService(), 0},
-		{"one-port", newService(8080), 8080},
-		{"two-ports", newService(8080, 8081), 8080},
+		{"no-port", newService(), map[int]int{}},
+		{"one-port", newService(8080), map[int]int{8080: 8080}},
+		{"two-ports", newService(8080, 8081), map[int]int{8080: 8080, 8081: 8081}},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, deducePortFromService(test.service), test.expected)
+			deducedPorts := deducePortFromService(test.service)
+			assert.Assert(t, reflect.DeepEqual(deducedPorts, test.expected), "got: %v - expected: %v", deducedPorts, test.expected)
 		})
 	}
 }
 
-func TestDeduceTargetPortFromService(t *testing.T) {
+func TestDeducePortFromServiceWithTargets(t *testing.T) {
 	type test struct {
 		name     string
 		service  *corev1.Service
-		expected int
+		expected map[int]int
 	}
 
 	// Helper used to prepare test table
-	newService := func(ports ...int) *corev1.Service {
+	newService := func(ports ...[]int) *corev1.Service {
 		// Only set ports, if at least one provided
 		var svcPorts []corev1.ServicePort
 		if len(ports) > 0 {
 			for i, port := range ports {
 				svcPorts = append(svcPorts, corev1.ServicePort{
 					Name:       fmt.Sprintf("port%d", i),
-					TargetPort: intstr.FromInt(port),
+					Port:       int32(port[0]),
+					TargetPort: intstr.FromInt(port[1]),
 				})
 			}
 		}
@@ -615,14 +621,15 @@ func TestDeduceTargetPortFromService(t *testing.T) {
 	}
 
 	testTable := []test{
-		{"no-port", newService(), 0},
-		{"one-port", newService(8080), 8080},
-		{"two-ports", newService(8080, 8081), 8080},
+		{"no-port", newService(), map[int]int{}},
+		{"one-port", newService([]int{80, 8080}), map[int]int{80: 8080}},
+		{"two-ports", newService([]int{80, 8080}, []int{81, 8081}), map[int]int{80: 8080, 81: 8081}},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, deduceTargetPortFromService(test.service), test.expected)
+			deducedPorts := deducePortFromService(test.service)
+			assert.Assert(t, reflect.DeepEqual(deducedPorts, test.expected))
 		})
 	}
 }

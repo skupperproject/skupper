@@ -51,7 +51,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		expectedErr      string
 		addr             string
 		proto            string
-		port             int
+		ports            []int
 		user             string
 		depsExpected     []string
 		cmsExpected      []string
@@ -71,7 +71,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			init:        false,
 			addr:        "",
 			proto:       "",
-			port:        0,
+			ports:       []int{0},
 			expectedErr: "Skupper not initialised",
 		},
 		{
@@ -80,7 +80,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			init:        true,
 			addr:        "vsic-2-addr",
 			proto:       "tcp",
-			port:        5672,
+			ports:       []int{5672},
 			expectedErr: "",
 		},
 		{
@@ -89,7 +89,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			init:        true,
 			addr:        "vsic-3-addr",
 			proto:       "BISYNC",
-			port:        64000,
+			ports:       []int{64000},
 			expectedErr: "BISYNC is not a valid mapping",
 		},
 		{
@@ -98,7 +98,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			init:        true,
 			addr:        "vsic-4-addr",
 			proto:       "tcp",
-			port:        314159,
+			ports:       []int{314159},
 			expectedErr: "outside valid range",
 		},
 
@@ -111,7 +111,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			init:          true,
 			addr:          "vsic-5-addr",
 			proto:         "tcp",
-			port:          1999,
+			ports:         []int{1999, 2000},
 			expectedErr:   "",
 			depsExpected:  []string{"skupper-router", "skupper-service-controller"},
 			cmsExpected:   []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
@@ -151,10 +151,10 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		assert.Check(t, err, testcase.namespace)
 		defer kube.DeleteNamespace(testcase.namespace, cli.KubeClient)
 
-		//------------------------------------------------------------
+		// ------------------------------------------------------------
 		// Create all informers that will let us check the expected
 		// side effects of starting the VAN Service Interface..
-		//------------------------------------------------------------
+		// ------------------------------------------------------------
 		var informerList []cache.SharedIndexInformer
 
 		// Deployment Informer -------------------------
@@ -174,7 +174,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		cmInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				cm := obj.(*corev1.ConfigMap)
-				if cm.Name != "kube-root-ca.crt" { //seems to be something added in more recent kubernetes?
+				if cm.Name != "kube-root-ca.crt" { // seems to be something added in more recent kubernetes?
 					cmsFound = append(cmsFound, cm.Name)
 				}
 			},
@@ -202,9 +202,9 @@ func TestServiceInterfaceCreate(t *testing.T) {
 
 		informerList = append(informerList, svcInformer)
 
-		//------------------------------------------------------------
+		// ------------------------------------------------------------
 		// Start all the informers and wait until each one is ready.
-		//------------------------------------------------------------
+		// ------------------------------------------------------------
 		informerFactory.Start(ctx.Done())
 		for _, i := range informerList {
 			result := cache.WaitForCacheSync(ctx.Done(), i.HasSynced)
@@ -233,7 +233,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		service := types.ServiceInterface{
 			Address:  testcase.addr,
 			Protocol: testcase.proto,
-			Port:     testcase.port,
+			Ports:    testcase.ports,
 		}
 		observedError := cli.ServiceInterfaceCreate(ctx, &service)
 

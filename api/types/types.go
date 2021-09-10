@@ -15,6 +15,8 @@ limitations under the License.
 package types
 
 import (
+	jsonencoding "encoding/json"
+
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -363,7 +365,7 @@ type TransportConnectedSites struct {
 type ServiceInterface struct {
 	Address      string                   `json:"address" yaml:"address"`
 	Protocol     string                   `json:"protocol" yaml:"protocol"`
-	Port         int                      `json:"port" yaml:"port"`
+	Ports        []int                    `json:"ports" yaml:"ports"`
 	EventChannel bool                     `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
 	Aggregate    string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
 	Headless     *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`
@@ -372,7 +374,71 @@ type ServiceInterface struct {
 	Origin       string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
 }
 
+type ServiceInterfaceList []ServiceInterface
+
+func (sl *ServiceInterfaceList) ConvertFrom(updates string) error {
+	err := jsonencoding.Unmarshal([]byte(updates), sl)
+	portsDefined := len(*sl) == 0 || len((*sl)[0].Ports) > 0
+	if err == nil && portsDefined {
+		return nil
+	}
+	// Try converting from V1 format
+	v1ServiceList := []ServiceInterfaceV1{}
+	err = jsonencoding.Unmarshal([]byte(updates), &v1ServiceList)
+	if err != nil {
+		return err
+	}
+	// Converting from V1
+	for i, v1Svc := range v1ServiceList {
+		svc := &(*sl)[i]
+		svc.Ports = []int{v1Svc.Port}
+		// Converting Headless
+		if v1Svc.Headless != nil {
+			v1hl := v1Svc.Headless
+			tPort := v1Svc.Port
+			if v1hl.TargetPort > 0 {
+				tPort = v1hl.TargetPort
+			}
+			svc.Headless.TargetPorts = map[int]int{
+				v1Svc.Port: tPort,
+			}
+		}
+		// Converting Targets
+		if len(v1Svc.Targets) > 0 {
+			for i, v1Target := range v1Svc.Targets {
+				tPort := v1Svc.Port
+				if v1Target.TargetPort > 0 {
+					tPort = v1Target.TargetPort
+				}
+				svc.Targets[i].TargetPorts = map[int]int{
+					v1Svc.Port: tPort,
+				}
+			}
+		}
+	}
+	return nil
+}
+
 type ServiceInterfaceTarget struct {
+	Name        string      `json:"name,omitempty"`
+	Selector    string      `json:"selector,omitempty"`
+	TargetPorts map[int]int `json:"targetPorts,omitempty"`
+	Service     string      `json:"service,omitempty"`
+}
+
+type ServiceInterfaceV1 struct {
+	Address      string                     `json:"address" yaml:"address"`
+	Protocol     string                     `json:"protocol" yaml:"protocol"`
+	Port         int                        `json:"port" yaml:"port"`
+	EventChannel bool                       `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
+	Aggregate    string                     `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
+	Headless     *HeadlessV1                `json:"headless,omitempty" yaml:"headless,omitempty"`
+	Labels       map[string]string          `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Targets      []ServiceInterfaceTargetV1 `json:"targets" yaml:"targets,omitempty"`
+	Origin       string                     `json:"origin,omitempty" yaml:"origin,omitempty"`
+}
+
+type ServiceInterfaceTargetV1 struct {
 	Name       string `json:"name,omitempty"`
 	Selector   string `json:"selector,omitempty"`
 	TargetPort int    `json:"targetPort,omitempty"`
@@ -397,6 +463,17 @@ func (service *ServiceInterface) AddTarget(target *ServiceInterfaceTarget) {
 }
 
 type Headless struct {
+	Name          string             `json:"name" yaml:"name"`
+	Size          int                `json:"size" yaml:"size"`
+	TargetPorts   map[int]int        `json:"targetPorts,omitempty" yaml:"targetPorts,omitempty"`
+	Affinity      map[string]string  `json:"affinity,omitempty" yaml:"affinity,omitempty"`
+	AntiAffinity  map[string]string  `json:"antiAffinity,omitempty" yaml:"antiAffinity,omitempty"`
+	NodeSelector  map[string]string  `json:"nodeSelector,omitempty" yaml:"nodeSelector,omitempty"`
+	CpuRequest    *resource.Quantity `json:"cpuRequest,omitempty" yaml:"cpuRequest,omitempty"`
+	MemoryRequest *resource.Quantity `json:"memoryRequest,omitempty" yaml:"memoryRequest,omitempty"`
+}
+
+type HeadlessV1 struct {
 	Name          string             `json:"name"`
 	Size          int                `json:"size"`
 	TargetPort    int                `json:"targetPort,omitempty"`

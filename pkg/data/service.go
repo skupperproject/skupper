@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -26,6 +27,10 @@ func (s *Service) AddTarget(name string, host string, siteId string, mapping Nam
 		SiteId: siteId,
 	}
 	s.Targets = append(s.Targets, target)
+}
+
+func (s *Service) AddressUnqualified() string {
+	return strings.Split(s.Address, ":")[0]
 }
 
 type IngressBinding struct {
@@ -85,8 +90,8 @@ func CheckService(details *ServiceCheck) {
 			if a.Protocol != b.Protocol {
 				details.AddObservation(fmt.Sprintf("Mismatched protocol between sites %s and %s (%s != %s)", aSiteId, bSiteId, a.Protocol, b.Protocol))
 			}
-			if a.Port != b.Port {
-				details.AddObservation(fmt.Sprintf("Different port used in sites %s (%d) and %s (%d)", aSiteId, a.Port, bSiteId, b.Port))
+			if !reflect.DeepEqual(a.Ports, b.Ports) {
+				details.AddObservation(fmt.Sprintf("Different ports used in sites %s (%v) and %s (%v)", aSiteId, a.Ports, bSiteId, b.Ports))
 			}
 		}
 	}

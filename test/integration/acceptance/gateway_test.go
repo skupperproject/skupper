@@ -36,7 +36,6 @@ func TestGateway(t *testing.T) {
 		t.Errorf("error deploying gateway resources before creating the skupper network")
 	}
 	defer gateway.TearDown(testRunner)
-
 	t.Run("local-gateway", testLocalGateway)
 	t.Run("downloaded-gateway", testDownloadedGateway)
 }
@@ -74,11 +73,12 @@ func testLocalGateway(t *testing.T) {
 					},
 					// skupper gateway bind
 					&gatewaycli.BindTester{
-						Address:  "tcp-echo-host",
-						Host:     "0.0.0.0",
-						Port:     strconv.Itoa(gateway.LocalTcpEchoPort),
-						Protocol: "tcp",
-						Name:     generatedGwName,
+						Address:         "tcp-echo-host",
+						Host:            "0.0.0.0",
+						EgressPort:      strconv.Itoa(gateway.LocalTcpEchoPort),
+						Protocol:        "tcp",
+						Name:            generatedGwName,
+						IsGatewayActive: true,
 					},
 					// skupper gateway forward
 					&gatewaycli.ForwardTester{
@@ -127,7 +127,6 @@ func testLocalGateway(t *testing.T) {
 
 	// Running the teardown scenarios
 	cli.RunScenarios(t, tearDownScenario)
-
 }
 
 //
@@ -164,12 +163,11 @@ func testDownloadedGateway(t *testing.T) {
 					},
 					// skupper gateway bind
 					&gatewaycli.BindTester{
-						Address:         "tcp-echo-host",
-						Host:            "0.0.0.0",
-						Port:            strconv.Itoa(gateway.LocalTcpEchoPort),
-						Protocol:        "tcp",
-						Name:            gwName,
-						IsGatewayActive: true,
+						Address:    "tcp-echo-host",
+						Host:       "0.0.0.0",
+						EgressPort: strconv.Itoa(gateway.LocalTcpEchoPort),
+						Protocol:   "tcp",
+						Name:       gwName,
 					},
 					// skupper gateway forward
 					&gatewaycli.ForwardTester{

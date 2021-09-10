@@ -227,14 +227,15 @@ func (index HttpServiceMap) AddTargets(connectors []qdr.HttpEndpoint, mapping Na
 
 func (index HttpServiceMap) AddServices(listeners []qdr.HttpEndpoint) {
 	for _, l := range listeners {
-		if _, ok := index[l.Address]; !ok {
+		address := l.Address
+		if _, ok := index[address]; !ok {
 			service := HttpService{
 				Service: Service{
-					Address:  l.Address,
+					Address:  address,
 					Protocol: getHttpProtocol(l.ProtocolVersion),
 				},
 			}
-			index[l.Address] = service
+			index[address] = service
 		}
 	}
 }

@@ -421,27 +421,27 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 	}
 }
 
-func GetContainerPort(deployment *appsv1.Deployment) int32 {
+func GetContainerPort(deployment *appsv1.Deployment) map[int]int {
 	if len(deployment.Spec.Template.Spec.Containers) > 0 && len(deployment.Spec.Template.Spec.Containers[0].Ports) > 0 {
-		return deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort
+		return GetAllContainerPorts(deployment.Spec.Template.Spec.Containers[0])
 	} else {
-		return 0
+		return map[int]int{}
 	}
 }
 
-func GetContainerPortForStatefulSet(statefulSet *appsv1.StatefulSet) int32 {
+func GetContainerPortForStatefulSet(statefulSet *appsv1.StatefulSet) map[int]int {
 	if len(statefulSet.Spec.Template.Spec.Containers) > 0 && len(statefulSet.Spec.Template.Spec.Containers[0].Ports) > 0 {
-		return statefulSet.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort
+		return GetAllContainerPorts(statefulSet.Spec.Template.Spec.Containers[0])
 	} else {
-		return 0
+		return map[int]int{}
 	}
 }
 
-func GetContainerPortForDaemonSet(daemonSet *appsv1.DaemonSet) int32 {
+func GetContainerPortForDaemonSet(daemonSet *appsv1.DaemonSet) map[int]int {
 	if len(daemonSet.Spec.Template.Spec.Containers) > 0 && len(daemonSet.Spec.Template.Spec.Containers[0].Ports) > 0 {
-		return daemonSet.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort
+		return GetAllContainerPorts(daemonSet.Spec.Template.Spec.Containers[0])
 	} else {
-		return 0
+		return map[int]int{}
 	}
 }
 

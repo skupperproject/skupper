@@ -72,11 +72,12 @@ func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
 // GetConsoleData returns the ConsoleData by querying localhost:8080/DATA
 // on Skupper's proxy controller pod
 func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.ConsoleData, error) {
-	const dataEndpoint = "http://127.0.0.1:8080/DATA"
+	const dataEndpoint = "https://127.0.0.1:8080/DATA"
 	var consoleData data.ConsoleData
 
 	curlOpts := tools.CurlOpts{
 		Silent:   true,
+		Insecure: true,
 		Username: consoleUser,
 		Password: consolePass,
 		Timeout:  10,

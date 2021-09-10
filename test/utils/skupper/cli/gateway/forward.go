@@ -47,17 +47,24 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 		return
 	}
 
-	// Basic validation of the stdout (only valid for active gateways)
-	matched, _ := regexp.MatchString(fmt.Sprintf(`.* CREATE .*%s .*%s`, f.Address, f.Port), stderr)
-	if !f.IsGatewayActive && !matched {
-		// Sample output
-		// 2021/07/28 18:24:44 CREATE org.apache.qpid.dispatch.tcpListener localhost.localdomain-user-ingress-tcp-echo-cluster map[address:tcp-echo-cluster host:0.0.0.0 name:localhost.localdomain-user-ingress-tcp-echo-cluster port:9090]
-		err = fmt.Errorf("output does not contain expected content - found: %s", stdout)
+	// Validating service bind definition
+	ctx := context.Background()
+	var si *types.ServiceInterface
+	si, err = cluster.VanClient.ServiceInterfaceInspect(ctx, f.Address)
+	if err != nil {
 		return
 	}
 
-	// Validating service bind definition
-	ctx := context.Background()
+	// Basic validation of the stdout (only valid for active gateways)
+	expectedOut := fmt.Sprintf(`.* CREATE .*%s:%d .*%s`, f.Address, si.Ports[0], f.Port)
+	matched, _ := regexp.MatchString(expectedOut, stderr)
+	if !f.IsGatewayActive && !matched {
+		// Sample output
+		// 2021/07/28 18:24:44 CREATE org.apache.qpid.dispatch.tcpListener localhost.localdomain-user-ingress-tcp-echo-cluster map[address:tcp-echo-cluster:9090 host:0.0.0.0 name:localhost.localdomain-user-ingress-tcp-echo-cluster port:9090]
+		err = fmt.Errorf("output does not contain expected content - found: %s", stderr)
+		return
+	}
+
 	gwList, err := cluster.VanClient.GatewayList(ctx)
 
 	gwName := f.Name
@@ -87,11 +94,11 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 			err = fmt.Errorf("service forward not bound")
 			return
 		}
-		if forward.Service.Address != f.Address {
-			err = fmt.Errorf("service address is incorrect - expected: %s - found: %s", f.Address, forward.Service.Address)
+		if forward.Service.Address != fmt.Sprintf("%s:%d", f.Address, si.Ports[0]) {
+			err = fmt.Errorf("service address is incorrect - expected: %s:%d - found: %s", f.Address, si.Ports[0], forward.Service.Address)
 		}
-		if strconv.Itoa(forward.Service.Port) != f.Port {
-			err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", f.Port, forward.Service.Port)
+		if strconv.Itoa(forward.Service.Ports[0]) != f.Port {
+			err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", f.Port, forward.Service.Ports[0])
 		}
 		expectedHost := "0.0.0.0"
 		if f.Loopback {

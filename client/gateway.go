@@ -537,70 +537,78 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, confi
 			return "", fmt.Errorf("Failed to unmarshal gateway config file: %w", err)
 		}
 
-		//TODO: how to deal with service dependencies (e.g. how to know that we should create them)
+		// TODO: how to deal with service dependencies (e.g. how to know that we should create them)
 		for _, binding := range gatewayConfig.Bindings {
-			switch binding.Service.Protocol {
-			case "tcp":
-				routerConfig.AddTcpConnector(qdr.TcpEndpoint{
-					Name:    gatewayName + gatewayEgress + binding.Service.Address,
-					Host:    binding.Host,
-					Port:    strconv.Itoa(binding.Service.Port),
-					Address: binding.Service.Address,
-				})
-			case "http":
-				routerConfig.AddHttpConnector(qdr.HttpEndpoint{
-					Name:            gatewayName + gatewayEgress + binding.Service.Address,
-					Host:            binding.Host,
-					Port:            strconv.Itoa(binding.Service.Port),
-					Address:         binding.Service.Address,
-					ProtocolVersion: qdr.HttpVersion1,
-					Aggregation:     binding.Service.Aggregate,
-					EventChannel:    binding.Service.EventChannel,
-				})
-			case "http2":
-				routerConfig.AddHttpConnector(qdr.HttpEndpoint{
-					Name:            gatewayName + gatewayEgress + binding.Service.Address,
-					Host:            binding.Host,
-					Port:            strconv.Itoa(binding.Service.Port),
-					Address:         binding.Service.Address,
-					ProtocolVersion: qdr.HttpVersion2,
-					Aggregation:     binding.Service.Aggregate,
-					EventChannel:    binding.Service.EventChannel,
-				})
-			default:
+			for i, _ := range binding.TargetPorts {
+				name := gatewayName + gatewayEgress + binding.Service.Address + ":" + strconv.Itoa(binding.Service.Ports[i])
+				addr := fmt.Sprintf("%s:%d", binding.Service.Address, binding.Service.Ports[i])
+				switch binding.Service.Protocol {
+				case "tcp":
+					routerConfig.AddTcpConnector(qdr.TcpEndpoint{
+						Name:    name,
+						Host:    binding.Host,
+						Port:    strconv.Itoa(binding.TargetPorts[i]),
+						Address: addr,
+					})
+				case "http":
+					routerConfig.AddHttpConnector(qdr.HttpEndpoint{
+						Name:            name,
+						Host:            binding.Host,
+						Port:            strconv.Itoa(binding.TargetPorts[i]),
+						Address:         addr,
+						ProtocolVersion: qdr.HttpVersion1,
+						Aggregation:     binding.Service.Aggregate,
+						EventChannel:    binding.Service.EventChannel,
+					})
+				case "http2":
+					routerConfig.AddHttpConnector(qdr.HttpEndpoint{
+						Name:            name,
+						Host:            binding.Host,
+						Port:            strconv.Itoa(binding.TargetPorts[i]),
+						Address:         addr,
+						ProtocolVersion: qdr.HttpVersion2,
+						Aggregation:     binding.Service.Aggregate,
+						EventChannel:    binding.Service.EventChannel,
+					})
+				default:
+				}
 			}
 		}
 
 		for _, forward := range gatewayConfig.Forwards {
-			switch forward.Service.Protocol {
-			case "tcp":
-				routerConfig.AddTcpListener(qdr.TcpEndpoint{
-					Name:    gatewayName + gatewayIngress + forward.Service.Address,
-					Host:    forward.Host,
-					Port:    strconv.Itoa(forward.Service.Port),
-					Address: forward.Service.Address,
-				})
-			case "http":
-				routerConfig.AddHttpListener(qdr.HttpEndpoint{
-					Name:            gatewayName + gatewayIngress + forward.Service.Address,
-					Host:            forward.Host,
-					Port:            strconv.Itoa(forward.Service.Port),
-					Address:         forward.Service.Address,
-					ProtocolVersion: qdr.HttpVersion1,
-					Aggregation:     forward.Service.Aggregate,
-					EventChannel:    forward.Service.EventChannel,
-				})
-			case "http2":
-				routerConfig.AddHttpListener(qdr.HttpEndpoint{
-					Name:            gatewayName + gatewayIngress + forward.Service.Address,
-					Host:            forward.Host,
-					Port:            strconv.Itoa(forward.Service.Port),
-					Address:         forward.Service.Address,
-					ProtocolVersion: qdr.HttpVersion2,
-					Aggregation:     forward.Service.Aggregate,
-					EventChannel:    forward.Service.EventChannel,
-				})
-			default:
+			for i, _ := range forward.TargetPorts {
+				name := gatewayName + gatewayIngress + forward.Service.Address + ":" + strconv.Itoa(forward.Service.Ports[i])
+				addr := fmt.Sprintf("%s:%d", forward.Service.Address, forward.Service.Ports[i])
+				switch forward.Service.Protocol {
+				case "tcp":
+					routerConfig.AddTcpListener(qdr.TcpEndpoint{
+						Name:    name,
+						Host:    forward.Host,
+						Port:    strconv.Itoa(forward.Service.Ports[i]),
+						Address: addr,
+					})
+				case "http":
+					routerConfig.AddHttpListener(qdr.HttpEndpoint{
+						Name:            name,
+						Host:            forward.Host,
+						Port:            strconv.Itoa(forward.Service.Ports[i]),
+						Address:         addr,
+						ProtocolVersion: qdr.HttpVersion1,
+						Aggregation:     forward.Service.Aggregate,
+						EventChannel:    forward.Service.EventChannel,
+					})
+				case "http2":
+					routerConfig.AddHttpListener(qdr.HttpEndpoint{
+						Name:            name,
+						Host:            forward.Host,
+						Port:            strconv.Itoa(forward.Service.Ports[i]),
+						Address:         addr,
+						ProtocolVersion: qdr.HttpVersion2,
+						Aggregation:     forward.Service.Aggregate,
+						EventChannel:    forward.Service.EventChannel,
+					})
+				default:
+				}
 			}
 		}
 	}
@@ -956,7 +964,7 @@ func gatewayAddHttpEndpoint(gatewayName string, endpointType string, httpEndpoin
 		}
 		defer agent.Close()
 
-		//for ingress, check if service port is free otherwise get a free port
+		// for ingress, check if service port is free otherwise get a free port
 		if endpointType == gatewayIngress && !checkPortFree("tcp", httpEndpoint.Port) {
 			freePort, err = GetFreePort()
 			if err != nil {
@@ -1005,35 +1013,41 @@ func (cli *VanClient) GatewayBind(ctx context.Context, gatewayName string, endpo
 	if si == nil {
 		return fmt.Errorf("Unable to gateway bind, service not found for %s", service.Address)
 	}
+	if len(si.Ports) != len(service.Ports) {
+		return fmt.Errorf("Unable to gateway bind, the given service provides %d ports, but only %d provided", len(si.Ports), len(service.Ports))
+	}
 
-	switch endpoint.Service.Protocol {
-	case "tcp":
-		err = gatewayAddTcpEndpoint(gatewayName,
-			gatewayEgress,
-			qdr.TcpEndpoint{
-				Name:    gatewayName + gatewayEgress + service.Address,
-				Host:    endpoint.Host,
-				Port:    strconv.Itoa(service.Port),
-				Address: service.Address,
-			},
-			gatewayConfig)
-	case "http", "http2":
-		pv := qdr.HttpVersion1
-		if endpoint.Service.Protocol == "http2" {
-			pv = qdr.HttpVersion2
+	for i, _ := range service.Ports {
+		name := fmt.Sprintf("%s:%d", gatewayName+gatewayEgress+service.Address, si.Ports[i])
+		switch endpoint.Service.Protocol {
+		case "tcp":
+			err = gatewayAddTcpEndpoint(gatewayName,
+				gatewayEgress,
+				qdr.TcpEndpoint{
+					Name:    name,
+					Host:    endpoint.Host,
+					Port:    strconv.Itoa(service.Ports[i]),
+					Address: fmt.Sprintf("%s:%d", service.Address, si.Ports[i]),
+				},
+				gatewayConfig)
+		case "http", "http2":
+			pv := qdr.HttpVersion1
+			if endpoint.Service.Protocol == "http2" {
+				pv = qdr.HttpVersion2
+			}
+			err = gatewayAddHttpEndpoint(gatewayName,
+				gatewayEgress,
+				qdr.HttpEndpoint{
+					Name:            name,
+					Host:            endpoint.Host,
+					Port:            strconv.Itoa(endpoint.Service.Ports[i]),
+					Address:         fmt.Sprintf("%s:%d", endpoint.Service.Address, si.Ports[i]),
+					ProtocolVersion: pv,
+				},
+				gatewayConfig)
+		default:
+			return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
 		}
-		err = gatewayAddHttpEndpoint(gatewayName,
-			gatewayEgress,
-			qdr.HttpEndpoint{
-				Name:            gatewayName + gatewayEgress + service.Address,
-				Host:            endpoint.Host,
-				Port:            strconv.Itoa(endpoint.Service.Port),
-				Address:         endpoint.Service.Address,
-				ProtocolVersion: pv,
-			},
-			gatewayConfig)
-	default:
-		return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
 	}
 	if err != nil {
 		return fmt.Errorf(err.Error())
@@ -1077,24 +1091,35 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, gatewayName string, end
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
+	si, err := cli.ServiceInterfaceInspect(ctx, endpoint.Service.Address)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve service: %w", err)
+	}
+
 	deleted := false
-	switch endpoint.Service.Protocol {
-	case "tcp":
-		if _, ok := gatewayConfig.Bridges.TcpConnectors[gatewayName+gatewayEgress+endpoint.Service.Address]; !ok {
-			return nil
+	for i, _ := range si.Ports {
+		name := fmt.Sprintf("%s:%d", gatewayName+gatewayEgress+endpoint.Service.Address, si.Ports[i])
+		switch endpoint.Service.Protocol {
+		case "tcp":
+			if _, ok := gatewayConfig.Bridges.TcpConnectors[name]; !ok {
+				return nil
+			}
+			deleted, _ = gatewayConfig.RemoveTcpConnector(name)
+		case "http", "http2":
+			if _, ok := gatewayConfig.Bridges.HttpConnectors[name]; !ok {
+				return nil
+			}
+			deleted, _ = gatewayConfig.RemoveHttpConnector(name)
+		default:
+			return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
 		}
-		deleted, _ = gatewayConfig.RemoveTcpConnector(gatewayName + gatewayEgress + endpoint.Service.Address)
-	case "http", "http2":
-		if _, ok := gatewayConfig.Bridges.HttpConnectors[gatewayName+gatewayEgress+endpoint.Service.Address]; !ok {
-			return nil
-		}
-		deleted, _ = gatewayConfig.RemoveHttpConnector(gatewayName + gatewayEgress + endpoint.Service.Address)
-	default:
-		return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
 	}
 
 	gatewayConfig.UpdateConfigMap(configmap)
-	_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to update gateway configmap: %w", err)
 	}
@@ -1118,8 +1143,11 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, gatewayName string, end
 			return fmt.Errorf("qdr agent error: %w", err)
 		}
 		defer agent.Close()
-		if err = agent.Delete(getEntity(endpoint.Service.Protocol, gatewayEgress), gatewayName+gatewayEgress+endpoint.Service.Address); err != nil {
-			return fmt.Errorf("Error removing entity connector : %w", err)
+		for i, _ := range si.Ports {
+			name := fmt.Sprintf("%s:%d", gatewayName+gatewayEgress+endpoint.Service.Address, si.Ports[i])
+			if err = agent.Delete(getEntity(endpoint.Service.Protocol, gatewayEgress), name); err != nil {
+				return fmt.Errorf("Error removing entity connector : %w", err)
+			}
 		}
 	}
 
@@ -1152,7 +1180,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, end
 		err = cli.ServiceInterfaceCreate(context.Background(), &types.ServiceInterface{
 			Address:  endpoint.Service.Address,
 			Protocol: endpoint.Service.Protocol,
-			Port:     endpoint.Service.Port,
+			Ports:    endpoint.Service.Ports,
 		})
 		if err != nil {
 			return "", fmt.Errorf("Unable to create service: %w", err)
@@ -1170,6 +1198,9 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, end
 
 	}
 
+	// endpoint.Service.Ports was initially defined with service ports
+	// now we need to update it to use the target ports before calling GatewayBind
+	endpoint.Service.Ports = endpoint.TargetPorts
 	err = cli.GatewayBind(ctx, gatewayName, endpoint)
 	if err != nil {
 		return gatewayName, err
@@ -1197,19 +1228,6 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, gatewayName string, e
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
-	// Note: unexpose implicitly removes the cluster service
-	si, err := cli.ServiceInterfaceInspect(ctx, endpoint.Service.Address)
-	if err != nil {
-		return fmt.Errorf("Failed to retrieve service: %w", err)
-	}
-
-	if si != nil && len(si.Targets) == 0 && si.Origin == "" {
-		err := cli.ServiceInterfaceRemove(ctx, endpoint.Service.Address)
-		if err != nil {
-			return fmt.Errorf("Failed to removes service: %w", err)
-		}
-	}
-
 	if deleteLast && len(gatewayConfig.Bridges.TcpConnectors) == 1 && len(gatewayConfig.Bridges.TcpListeners) == 0 {
 		err = cli.gatewayStop(ctx, gatewayName)
 		if err != nil {
@@ -1220,7 +1238,22 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, gatewayName string, e
 			return err
 		}
 	} else {
-		return cli.GatewayUnbind(ctx, gatewayName, endpoint)
+		err = cli.GatewayUnbind(ctx, gatewayName, endpoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Note: unexpose implicitly removes the cluster service
+	si, err := cli.ServiceInterfaceInspect(ctx, endpoint.Service.Address)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve service: %w", err)
+	}
+	if si != nil && len(si.Targets) == 0 && si.Origin == "" {
+		err := cli.ServiceInterfaceRemove(ctx, endpoint.Service.Address)
+		if err != nil {
+			return fmt.Errorf("Failed to removes service: %w", err)
+		}
 	}
 
 	return nil
@@ -1256,34 +1289,37 @@ func (cli *VanClient) GatewayForward(ctx context.Context, gatewayName string, en
 		ifc = "127.0.0.1"
 	}
 
-	switch endpoint.Service.Protocol {
-	case "tcp":
-		err = gatewayAddTcpEndpoint(gatewayName,
-			gatewayIngress,
-			qdr.TcpEndpoint{
-				Name:    gatewayName + gatewayIngress + endpoint.Service.Address,
-				Host:    ifc,
-				Port:    strconv.Itoa(endpoint.Service.Port),
-				Address: endpoint.Service.Address,
-			},
-			gatewayConfig)
-	case "http", "http2":
-		pv := qdr.HttpVersion1
-		if endpoint.Service.Protocol == "http2" {
-			pv = qdr.HttpVersion2
+	for i, _ := range endpoint.Service.Ports {
+		name := fmt.Sprintf("%s:%d", gatewayName+gatewayIngress+endpoint.Service.Address, si.Ports[i])
+		switch endpoint.Service.Protocol {
+		case "tcp":
+			err = gatewayAddTcpEndpoint(gatewayName,
+				gatewayIngress,
+				qdr.TcpEndpoint{
+					Name:    name,
+					Host:    ifc,
+					Port:    strconv.Itoa(endpoint.Service.Ports[i]),
+					Address: fmt.Sprintf("%s:%d", endpoint.Service.Address, si.Ports[i]),
+				},
+				gatewayConfig)
+		case "http", "http2":
+			pv := qdr.HttpVersion1
+			if endpoint.Service.Protocol == "http2" {
+				pv = qdr.HttpVersion2
+			}
+			err = gatewayAddHttpEndpoint(gatewayName,
+				gatewayIngress,
+				qdr.HttpEndpoint{
+					Name:            name,
+					Host:            ifc,
+					Port:            strconv.Itoa(endpoint.Service.Ports[i]),
+					Address:         fmt.Sprintf("%s:%d", endpoint.Service.Address, si.Ports[i]),
+					ProtocolVersion: pv,
+				},
+				gatewayConfig)
+		default:
+			return fmt.Errorf("Unsuppored gateway endpoint protocol: %s", endpoint.Service.Protocol)
 		}
-		err = gatewayAddHttpEndpoint(gatewayName,
-			gatewayIngress,
-			qdr.HttpEndpoint{
-				Name:            gatewayName + gatewayIngress + endpoint.Service.Address,
-				Host:            ifc,
-				Port:            strconv.Itoa(endpoint.Service.Port),
-				Address:         endpoint.Service.Address,
-				ProtocolVersion: pv,
-			},
-			gatewayConfig)
-	default:
-		return fmt.Errorf("Unsuppored gateway endpoint protocol: %s", endpoint.Service.Protocol)
 	}
 	if err != nil {
 		return fmt.Errorf(err.Error())
@@ -1327,20 +1363,30 @@ func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, 
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
+	si, err := cli.ServiceInterfaceInspect(ctx, endpoint.Service.Address)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve service: %w", err)
+	}
+
 	deleted := false
-	switch endpoint.Service.Protocol {
-	case "tcp":
-		if _, ok := gatewayConfig.Bridges.TcpListeners[gatewayName+gatewayIngress+endpoint.Service.Address]; !ok {
-			return nil
+	if si != nil {
+		for i, _ := range si.Ports {
+			name := fmt.Sprintf("%s:%d", gatewayName+gatewayIngress+endpoint.Service.Address, si.Ports[i])
+			switch endpoint.Service.Protocol {
+			case "tcp":
+				if _, ok := gatewayConfig.Bridges.TcpListeners[name]; !ok {
+					return nil
+				}
+				deleted, _ = gatewayConfig.RemoveTcpListener(name)
+			case "http", "http2":
+				if _, ok := gatewayConfig.Bridges.HttpListeners[name]; !ok {
+					return nil
+				}
+				deleted, _ = gatewayConfig.RemoveHttpListener(name)
+			default:
+				return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
+			}
 		}
-		deleted, _ = gatewayConfig.RemoveTcpListener(gatewayName + gatewayIngress + endpoint.Service.Address)
-	case "http", "http2":
-		if _, ok := gatewayConfig.Bridges.HttpListeners[gatewayName+gatewayIngress+endpoint.Service.Address]; !ok {
-			return nil
-		}
-		deleted, _ = gatewayConfig.RemoveHttpListener(gatewayName + gatewayIngress + endpoint.Service.Address)
-	default:
-		return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
 	}
 	gatewayConfig.WriteToConfigMap(configmap)
 
@@ -1365,8 +1411,11 @@ func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, 
 		}
 		defer agent.Close()
 
-		if err = agent.Delete(getEntity(endpoint.Service.Protocol, gatewayIngress), gatewayName+gatewayIngress+endpoint.Service.Address); err != nil {
-			return fmt.Errorf("Error removing endpoint listener : %w", err)
+		for i, _ := range si.Ports {
+			name := fmt.Sprintf("%s:%d", gatewayName+gatewayIngress+endpoint.Service.Address, si.Ports[i])
+			if err = agent.Delete(getEntity(endpoint.Service.Protocol, gatewayIngress), name); err != nil {
+				return fmt.Errorf("Error removing endpoint listener : %w", err)
+			}
 		}
 	}
 
@@ -1445,7 +1494,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 			Name: connector.Name,
 			Host: connector.Host,
 			Service: types.ServiceInterface{
-				Port:     port,
+				Ports:    []int{port},
 				Address:  connector.Address,
 				Protocol: "tcp",
 			},
@@ -1462,7 +1511,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 			Name: connector.Name,
 			Host: connector.Host,
 			Service: types.ServiceInterface{
-				Port:         port,
+				Ports:        []int{port},
 				Address:      connector.Address,
 				Protocol:     protocol,
 				Aggregate:    connector.Aggregation,
@@ -1482,7 +1531,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 			Host:      listener.Host,
 			LocalPort: localPort,
 			Service: types.ServiceInterface{
-				Port:     port,
+				Ports:    []int{port},
 				Address:  listener.Address,
 				Protocol: "tcp",
 			},
@@ -1504,7 +1553,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 			Host:      listener.Host,
 			LocalPort: localPort,
 			Service: types.ServiceInterface{
-				Port:         port,
+				Ports:        []int{port},
 				Address:      listener.Address,
 				Protocol:     protocol,
 				Aggregate:    listener.Aggregation,
@@ -1548,7 +1597,7 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 			Service: types.ServiceInterface{
 				Address:  connector.Address,
 				Protocol: "tcp",
-				Port:     port,
+				Ports:    []int{port},
 			},
 		})
 	}
@@ -1560,7 +1609,7 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 			Service: types.ServiceInterface{
 				Address:  listener.Address,
 				Protocol: "tcp",
-				Port:     port,
+				Ports:    []int{port},
 			},
 		})
 	}
@@ -1576,7 +1625,7 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 			Service: types.ServiceInterface{
 				Address:      connector.Address,
 				Protocol:     protocol,
-				Port:         port,
+				Ports:        []int{port},
 				Aggregate:    connector.Aggregation,
 				EventChannel: connector.EventChannel,
 			},
@@ -1594,7 +1643,7 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 			Service: types.ServiceInterface{
 				Address:      listener.Address,
 				Protocol:     protocol,
-				Port:         port,
+				Ports:        []int{port},
 				Aggregate:    listener.Aggregation,
 				EventChannel: listener.EventChannel,
 			},
@@ -1698,14 +1747,14 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 			routerConfig.AddTcpConnector(qdr.TcpEndpoint{
 				Name:    binding.Name,
 				Host:    binding.Host,
-				Port:    strconv.Itoa(binding.Service.Port),
+				Port:    strconv.Itoa(binding.Service.Ports[0]),
 				Address: binding.Service.Address,
 			})
 		case "http":
 			routerConfig.AddHttpConnector(qdr.HttpEndpoint{
 				Name:            binding.Name,
 				Host:            binding.Host,
-				Port:            strconv.Itoa(binding.Service.Port),
+				Port:            strconv.Itoa(binding.Service.Ports[0]),
 				Address:         binding.Service.Address,
 				ProtocolVersion: qdr.HttpVersion1,
 				Aggregation:     binding.Service.Aggregate,
@@ -1715,7 +1764,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 			routerConfig.AddHttpConnector(qdr.HttpEndpoint{
 				Name:            binding.Name,
 				Host:            binding.Host,
-				Port:            strconv.Itoa(binding.Service.Port),
+				Port:            strconv.Itoa(binding.Service.Ports[0]),
 				Address:         binding.Service.Address,
 				ProtocolVersion: qdr.HttpVersion2,
 				Aggregation:     binding.Service.Aggregate,
@@ -1731,14 +1780,14 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 			routerConfig.AddTcpListener(qdr.TcpEndpoint{
 				Name:    forward.Name,
 				Host:    forward.Host,
-				Port:    strconv.Itoa(forward.Service.Port),
+				Port:    strconv.Itoa(forward.Service.Ports[0]),
 				Address: forward.Service.Address,
 			})
 		case "http":
 			routerConfig.AddHttpListener(qdr.HttpEndpoint{
 				Name:            forward.Name,
 				Host:            forward.Host,
-				Port:            strconv.Itoa(forward.Service.Port),
+				Port:            strconv.Itoa(forward.Service.Ports[0]),
 				Address:         forward.Service.Address,
 				ProtocolVersion: qdr.HttpVersion1,
 				Aggregation:     forward.Service.Aggregate,
@@ -1748,7 +1797,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 			routerConfig.AddHttpListener(qdr.HttpEndpoint{
 				Name:            forward.Name,
 				Host:            forward.Host,
-				Port:            strconv.Itoa(forward.Service.Port),
+				Port:            strconv.Itoa(forward.Service.Ports[0]),
 				Address:         forward.Service.Address,
 				ProtocolVersion: qdr.HttpVersion2,
 				Aggregation:     forward.Service.Aggregate,
