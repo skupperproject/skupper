@@ -27,7 +27,7 @@ func int32Ptr(i int32) *int32 { return &i }
 var service = types.ServiceInterface{
 	Address:  "tcp-go-echo",
 	Protocol: "tcp",
-	Port:     9090,
+	Ports:    []int{9090},
 }
 
 var Deployment *appsv1.Deployment = &appsv1.Deployment{
@@ -106,13 +106,13 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = pub1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, err)
 
-	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", 0)
+	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", map[int]int{})
 	assert.Assert(t, err)
 }
 
 func runTests(t *testing.T, r base.ClusterTestRunner) {
 
-	//XXX
+	// XXX
 	endTime := time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
 
 	pub1Cluster, err := r.GetPublicContext(1)
@@ -130,10 +130,10 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	jobName := "tcp-echo"
 	jobCmd := []string{"/app/tcp_echo_test", "-test.run", "Job"}
 
-	//Note here we are executing the same test but, in two different
-	//namespaces (or clusters), the same service must exist in both clusters
-	//because of the skupper connections and the "skupper exposed"
-	//deployment.
+	// Note here we are executing the same test but, in two different
+	// namespaces (or clusters), the same service must exist in both clusters
+	// because of the skupper connections and the "skupper exposed"
+	// deployment.
 	_, err = k8s.CreateTestJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, jobCmd)
 	assert.Assert(t, err)
 

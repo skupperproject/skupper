@@ -59,19 +59,19 @@ func Setup(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
 		service := types.ServiceInterface{
 			Address:  name,
 			Protocol: "tcp",
-			Port:     27017,
+			Ports:    []int{27017},
 		}
 
 		err = cli.ServiceInterfaceCreate(ctx, &service)
 		assert.Assert(t, err)
 
-		err = cli.ServiceInterfaceBind(ctx, &service, "deployment", name, "tcp", 0)
+		err = cli.ServiceInterfaceBind(ctx, &service, "deployment", name, "tcp", map[int]int{})
 		assert.Assert(t, err)
 
 	}
 	expose("mongo-a", prv1Cluster.VanClient)
 	expose("mongo-b", pub1Cluster.VanClient)
-	//Just need to do load orr rs inittiate, the easiest one.
+	// Just need to do load orr rs inittiate, the easiest one.
 
 }
 

@@ -28,7 +28,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	kubeContext := ""
 	kubeConfigPath := ""
 
-	//isCluster := *clusterRun
+	// isCluster := *clusterRun
 	if *clusterRun {
 		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
@@ -68,7 +68,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	echoService := types.ServiceInterface{
 		Address:  "tcp-go-echo",
 		Protocol: "tcp",
-		Port:     9090,
+		Ports:    []int{9090},
 	}
 	observedError = cli.ServiceInterfaceCreate(ctx, &echoService)
 	assert.Assert(t, observedError)
@@ -76,7 +76,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	mongoService := types.ServiceInterface{
 		Address:  "mongo-db",
 		Protocol: "tcp",
-		Port:     27017,
+		Ports:    []int{27017},
 	}
 	observedError = cli.ServiceInterfaceCreate(ctx, &mongoService)
 	assert.Assert(t, observedError)
@@ -84,7 +84,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	http1Service := types.ServiceInterface{
 		Address:  "http1svc",
 		Protocol: "http",
-		Port:     10080,
+		Ports:    []int{10080},
 	}
 	observedError = cli.ServiceInterfaceCreate(ctx, &http1Service)
 	assert.Assert(t, observedError)
@@ -92,7 +92,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	http2Service := types.ServiceInterface{
 		Address:  "http2svc",
 		Protocol: "http2",
-		Port:     10081,
+		Ports:    []int{10081},
 	}
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
@@ -178,7 +178,7 @@ func TestGatewayDownload(t *testing.T) {
 	kubeContext := ""
 	kubeConfigPath := ""
 
-	//isCluster := *clusterRun
+	// isCluster := *clusterRun
 	if *clusterRun {
 		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
@@ -263,7 +263,7 @@ func TestGatewayForward(t *testing.T) {
 	kubeContext := ""
 	kubeConfigPath := ""
 
-	//isCluster := *clusterRun
+	// isCluster := *clusterRun
 	if *clusterRun {
 		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
@@ -303,7 +303,7 @@ func TestGatewayForward(t *testing.T) {
 	echoService := types.ServiceInterface{
 		Address:  "tcp-go-echo",
 		Protocol: "tcp",
-		Port:     9090,
+		Ports:    []int{9090},
 	}
 	observedError := cli.ServiceInterfaceCreate(ctx, &echoService)
 	assert.Assert(t, observedError)
@@ -311,7 +311,7 @@ func TestGatewayForward(t *testing.T) {
 	echoService2 := types.ServiceInterface{
 		Address:  "tcp-go-echo2",
 		Protocol: "tcp",
-		Port:     9091,
+		Ports:    []int{9091},
 	}
 	observedError = cli.ServiceInterfaceCreate(ctx, &echoService2)
 	assert.Assert(t, observedError)
@@ -319,7 +319,7 @@ func TestGatewayForward(t *testing.T) {
 	mongoService := types.ServiceInterface{
 		Address:  "mongo-db",
 		Protocol: "tcp",
-		Port:     27017,
+		Ports:    []int{27017},
 	}
 
 	observedError = cli.ServiceInterfaceCreate(ctx, &mongoService)
@@ -328,7 +328,7 @@ func TestGatewayForward(t *testing.T) {
 	http1Service := types.ServiceInterface{
 		Address:  "http1svc",
 		Protocol: "http",
-		Port:     10080,
+		Ports:    []int{10080},
 	}
 
 	observedError = cli.ServiceInterfaceCreate(ctx, &http1Service)
@@ -337,7 +337,7 @@ func TestGatewayForward(t *testing.T) {
 	http2Service := types.ServiceInterface{
 		Address:  "http2svc",
 		Protocol: "http2",
-		Port:     10081,
+		Ports:    []int{10081},
 	}
 
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
@@ -390,7 +390,7 @@ func TestGatewayBind(t *testing.T) {
 	kubeContext := ""
 	kubeConfigPath := ""
 
-	//isCluster := *clusterRun
+	// isCluster := *clusterRun
 	if *clusterRun {
 		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {
@@ -421,20 +421,20 @@ func TestGatewayBind(t *testing.T) {
 	service := types.ServiceInterface{
 		Address:  "tcp-go-echo",
 		Protocol: "tcp",
-		Port:     9090,
+		Ports:    []int{9090},
 	}
 	observedError := cli.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, observedError)
 
 	service.Address = "mongo-db"
-	service.Port = 27017
+	service.Ports = []int{27017}
 	observedError = cli.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, observedError)
 
 	http1Service := types.ServiceInterface{
 		Address:  "http1svc",
 		Protocol: "http",
-		Port:     10080,
+		Ports:    []int{10080},
 	}
 	observedError = cli.ServiceInterfaceCreate(ctx, &http1Service)
 	assert.Assert(t, observedError)
@@ -442,7 +442,7 @@ func TestGatewayBind(t *testing.T) {
 	http2Service := types.ServiceInterface{
 		Address:  "http2svc",
 		Protocol: "http2",
-		Port:     10081,
+		Ports:    []int{10081},
 	}
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
@@ -454,7 +454,7 @@ func TestGatewayBind(t *testing.T) {
 		Host: "localhost",
 		Service: types.ServiceInterface{
 			Protocol: "tcp",
-			Port:     9090,
+			Ports:    []int{9090},
 			Address:  "tcp-go-echo",
 		},
 	})
@@ -465,7 +465,7 @@ func TestGatewayBind(t *testing.T) {
 		Host: "localhost",
 		Service: types.ServiceInterface{
 			Protocol: "tcp",
-			Port:     27017,
+			Ports:    []int{27017},
 			Address:  "mongo-db",
 		},
 	})

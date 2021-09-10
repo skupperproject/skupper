@@ -244,11 +244,11 @@ func (s *IperfScenario) exposeIperf3Server(t *testing.T) {
 		iperf3Service := &types.ServiceInterface{
 			Address:  "iperf3-server",
 			Protocol: "tcp",
-			Port:     5201,
+			Ports:    []int{5201},
 		}
 		assert.Assert(t, iperfServerCluster.VanClient.ServiceInterfaceCreate(s.testCtx, iperf3Service))
 		// Binding the service to the deployment
-		assert.Assert(t, iperfServerCluster.VanClient.ServiceInterfaceBind(s.testCtx, iperf3Service, "deployment", iperf3Service.Address, "tcp", 5201))
+		assert.Assert(t, iperfServerCluster.VanClient.ServiceInterfaceBind(s.testCtx, iperf3Service, "deployment", iperf3Service.Address, "tcp", map[int]int{5201: 5201}))
 
 		// Waiting for service to be available across all namespaces/clusters
 		for i := 1; i <= s.clustersNeeded(); i++ {

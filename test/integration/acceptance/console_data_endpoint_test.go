@@ -15,8 +15,8 @@ import (
 	"gotest.tools/assert"
 )
 
-const consoleURL = "http://0.0.0.0:8080"
-const consoleDataURL = "http://0.0.0.0:8080/DATA"
+const consoleURL = "https://0.0.0.0:8080"
+const consoleDataURL = "https://0.0.0.0:8080/DATA"
 
 func TestDataEndpoint(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
@@ -95,9 +95,9 @@ func testConsoleAccess(t *testing.T, cluster *base.ClusterContext, consoleURL st
 
 	var CurlOptsForTest tools.CurlOpts
 	if userParam != "" {
-		CurlOptsForTest = tools.CurlOpts{Silent: true, Username: userParam, Password: pwdParam, Timeout: 10}
+		CurlOptsForTest = tools.CurlOpts{Silent: true, Insecure: true, Username: userParam, Password: pwdParam, Timeout: 10}
 	} else {
-		CurlOptsForTest = tools.CurlOpts{Silent: true, Timeout: 10}
+		CurlOptsForTest = tools.CurlOpts{Silent: true, Insecure: true, Timeout: 10}
 	}
 
 	res, err := tools.Curl(cluster.VanClient.KubeClient, cluster.VanClient.RestConfig, cluster.Namespace, "", consoleURL, CurlOptsForTest)
@@ -157,7 +157,7 @@ func getHttpRequestsNumbersFromConsole(cluster *base.ClusterContext, clientAddre
 		}
 
 		if clientAddressFilter != "" {
-			if httpSvc.Address != clientAddressFilter {
+			if httpSvc.AddressUnqualified() != clientAddressFilter {
 				continue
 			}
 		}

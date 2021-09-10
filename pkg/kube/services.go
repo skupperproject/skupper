@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -46,23 +47,33 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 	return current, err
 }
 
-func NewServiceForAddress(address string, port int, targetPort int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+func NewServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	selector := GetLabelsForRouter()
-	service := makeServiceObjectForAddress(address, port, targetPort, labels, selector, owner)
+	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 
-func NewHeadlessServiceForAddress(address string, port int, targetPort int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	selector := map[string]string{
 		"internal.skupper.io/service": address,
 	}
-	service := makeServiceObjectForAddress(address, port, targetPort, labels, selector, owner)
+	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 	service.Spec.ClusterIP = "None"
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 
-func makeServiceObjectForAddress(address string, port int, targetPort int, labels, selector map[string]string, owner *metav1.OwnerReference) *corev1.Service {
+func makeServiceObjectForAddress(address string, ports []int, targetPorts []int, labels, selector map[string]string, owner *metav1.OwnerReference) *corev1.Service {
 	// TODO: make common service creation and deal with annotation, label differences
+	servicePorts := []corev1.ServicePort{}
+	for i := 0; i < len(ports); i++ {
+		sPort := ports[i]
+		tPort := targetPorts[i]
+		servicePorts = append(servicePorts, corev1.ServicePort{
+			Name:       fmt.Sprintf("%s%d", address, sPort),
+			Port:       int32(sPort),
+			TargetPort: intstr.FromInt(tPort),
+		})
+	}
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -77,13 +88,7 @@ func makeServiceObjectForAddress(address string, port int, targetPort int, label
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: selector,
-			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
-					Name:       address,
-					Port:       int32(port),
-					TargetPort: intstr.FromInt(targetPort),
-				},
-			},
+			Ports:    servicePorts,
 		},
 	}
 	if owner != nil {
@@ -117,7 +122,8 @@ func GetLoadBalancerHostOrIp(service *corev1.Service) string {
 	return ""
 }
 
-func GetPortForServiceTarget(targetName string, defaultNamespace string, kubeclient kubernetes.Interface) (int, error) {
+func GetPortsForServiceTarget(targetName string, defaultNamespace string, kubeclient kubernetes.Interface) (map[int]int, error) {
+	ports := map[int]int{}
 	parts := strings.Split(targetName, ".")
 	var name, namespace string
 	if len(parts) > 1 {
@@ -130,15 +136,16 @@ func GetPortForServiceTarget(targetName string, defaultNamespace string, kubecli
 	targetSvc, err := GetService(name, namespace, kubeclient)
 	if err == nil {
 		if len(targetSvc.Spec.Ports) > 0 {
-			return int(targetSvc.Spec.Ports[0].Port), nil
-		} else {
-			return 0, nil
+			for _, p := range targetSvc.Spec.Ports {
+				ports[int(p.Port)] = int(p.Port)
+			}
 		}
+		return ports, nil
 	} else if errors.IsNotFound(err) {
 		// don't consider the service not yet existing as an error, just can't deduce port
-		return 0, nil
+		return ports, nil
 	} else {
-		return 0, err
+		return ports, err
 	}
 }
 
@@ -198,4 +205,37 @@ func WaitServiceExists(name string, namespace string, cli kubernetes.Interface, 
 	})
 
 	return svc, err
+}
+
+func GetServicePort(service *corev1.Service, port int) *corev1.ServicePort {
+	for _, p := range service.Spec.Ports {
+		if p.Port == int32(port) {
+			return &p
+		}
+	}
+	return nil
+}
+
+func GetServicePortMap(service *corev1.Service) map[int]int {
+	actualPorts := map[int]int{}
+	if len(service.Spec.Ports) > 0 {
+		for _, port := range service.Spec.Ports {
+			targetPort := port.TargetPort.IntValue()
+			if targetPort == 0 {
+				targetPort = int(port.Port)
+			}
+			actualPorts[int(port.Port)] = targetPort
+		}
+	}
+	return actualPorts
+}
+
+func GetOriginalAssignedPorts(service *corev1.Service) map[int]int {
+	originalAssignedPort := service.Annotations[types.OriginalAssignedQualifier]
+	return PortLabelStrToMap(originalAssignedPort)
+}
+
+func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
+	originalTargetPort := service.Annotations[types.OriginalTargetPortQualifier]
+	return PortLabelStrToMap(originalTargetPort)
 }

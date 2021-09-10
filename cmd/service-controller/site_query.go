@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -213,7 +214,7 @@ func (s *SiteQueryServer) getServiceDetail(context context.Context, address stri
 	} else if len(service.Spec.Ports) > 1 {
 		var name string
 		for _, ports := range service.Spec.Ports {
-			if int(ports.Port) == detail.Definition.Port {
+			if utils.IntSliceContains(detail.Definition.Ports, int(ports.Port)) {
 				name = ports.Name
 				detail.IngressBinding.ServicePort = int(ports.Port)
 				detail.IngressBinding.ServiceTargetPort = ports.TargetPort.IntValue()

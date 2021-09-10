@@ -2,9 +2,13 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
+	"os"
+	"os/exec"
 	"reflect"
 	"strings"
 	"time"
@@ -73,7 +77,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, err
 	}
 	site := config.GetSiteMetadata()
-	//compare to version of library running
+	// compare to version of library running
 	updateSite := false
 	if utils.LessRecentThanVersion(Version, site.Version) {
 		// site is newer than client library, cannot update
@@ -81,6 +85,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	renameFor050 := false
 	addClaimsSupport := false
+	addMultiportServices := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
 		return false, err
@@ -88,13 +93,20 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	if inprogress {
 		renameFor050 = utils.LessRecentThanVersion(originalVersion, "0.5.0")
 		addClaimsSupport = utils.LessRecentThanVersion(originalVersion, "0.7.0")
+		addMultiportServices = utils.LessRecentThanVersion(originalVersion, "0.8.0")
 	} else {
 		originalVersion = site.Version
 	}
 	if utils.MoreRecentThanVersion(Version, site.Version) || (utils.EquivalentVersion(Version, site.Version) && Version != site.Version) {
-		if !inprogress && utils.LessRecentThanVersion(originalVersion, "0.7.0") {
-			addClaimsSupport = true
-			renameFor050 = utils.LessRecentThanVersion(originalVersion, "0.5.0")
+		if !inprogress {
+			if utils.LessRecentThanVersion(originalVersion, "0.7.0") {
+				addClaimsSupport = true
+				renameFor050 = utils.LessRecentThanVersion(originalVersion, "0.5.0")
+			}
+			if utils.LessRecentThanVersion(originalVersion, "0.8.0") {
+				addMultiportServices = true
+			}
+
 			err = cli.updateStarted(site.Version, namespace, configmap.ObjectMeta.OwnerReferences)
 			if err != nil {
 				return false, err
@@ -121,7 +133,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	consoleUsesLoadbalancer := false
 	routerExposedAsIp := false
 	if renameFor050 {
-		//create new resources (as copies of old ones)
+		// create new resources (as copies of old ones)
 		// services
 		_, err = kube.CopyService("skupper-messaging", types.LocalTransportServiceName, map[string]string{}, namespace, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
@@ -141,7 +153,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		if controllerSvc != nil {
 			consoleUsesLoadbalancer = controllerSvc.Spec.Type == corev1.ServiceTypeLoadBalancer
 		}
-		//update annotation on skupper-router-console if it exists
+		// update annotation on skupper-router-console if it exists
 		routerConsoleService, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.RouterConsoleServiceName, metav1.GetOptions{})
 		if err == nil {
 			if routerConsoleService.ObjectMeta.Annotations == nil {
@@ -183,7 +195,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 
 		usingRoutes, err = cli.usingRoutes(namespace)
 		if usingRoutes {
-			//no need to regenerate certificate as route names have not changed
+			// no need to regenerate certificate as route names have not changed
 			err = kube.CopySecret("skupper-internal", types.SiteServerSecret, namespace, cli.KubeClient)
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return false, err
@@ -305,7 +317,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 
 		if cli.RouteClient != nil {
-			//routes: skupper-controller -> skupper
+			// routes: skupper-controller -> skupper
 			original, err := cli.RouteClient.Routes(namespace).Get("skupper-controller", metav1.GetOptions{})
 			if err == nil {
 				route := &routev1.Route{
@@ -334,7 +346,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			} else if !errors.IsNotFound(err) {
 				return false, err
 			}
-			//need to update edge and inter-router routes to point at different service:
+			// need to update edge and inter-router routes to point at different service:
 			err = kube.UpdateTargetServiceForRoute(types.EdgeRouteName, types.TransportServiceName, namespace, cli.RouteClient)
 			if err != nil {
 				return false, err
@@ -352,7 +364,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	updateRouter := false
 	if renameFor050 {
-		//update deployment
+		// update deployment
 		// - serviceaccount
 		router.Spec.Template.Spec.ServiceAccountName = types.TransportServiceAccountName
 		// - mounted secrets:
@@ -371,7 +383,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	if updateRouter || updateSite || hup {
 		if !updateRouter {
-			//need to trigger a router redployment to pick up the revised metadata field
+			// need to trigger a router redployment to pick up the revised metadata field
 			touch(router)
 			updateRouter = true
 		}
@@ -390,7 +402,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	updateController := false
 	if renameFor050 {
-		//update deployment
+		// update deployment
 		// - serviceaccount
 		controller.Spec.Template.Spec.ServiceAccountName = types.ControllerServiceAccountName
 		// - mounted secrets:
@@ -428,6 +440,20 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			updateController = true
 		}
 	}
+	if addMultiportServices {
+		// disabling the controller
+		controller, err = setAndWaitControllerReplicas(cli, 0)
+		if err != nil {
+			return false, err
+		}
+		if err = multiportConvertServices(ctx, cli); err != nil {
+			return false, err
+		}
+		if err = updateGatewayMultiport(ctx, cli); err != nil {
+			return false, err
+		}
+		updateController = true
+	}
 	desiredControllerImage := GetServiceControllerImageName()
 	if controller.Spec.Template.Spec.Containers[0].Image != desiredControllerImage {
 		controller.Spec.Template.Spec.Containers[0].Image = desiredControllerImage
@@ -435,10 +461,12 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	if updateController || hup {
 		if !updateController {
-			//trigger redeployment of service-controller to pick up latest image
+			// trigger redeployment of service-controller to pick up latest image
 			touch(controller)
 			updateController = true
 		}
+		replicas := int32(1)
+		controller.Spec.Replicas = &replicas
 		_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(controller)
 		if err != nil {
 			return false, err
@@ -462,7 +490,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 	if renameFor050 {
-		//delete old resources
+		// delete old resources
 		if cli.RouteClient != nil {
 			err = cli.RouteClient.Routes(namespace).Delete("skupper-controller", &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
@@ -475,9 +503,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			"skupper-controller",
 		}
 		if usingRoutes {
-			//only delete skupper-internal if using
-			//routes, as otherwise previously issued
-			//tokens will reference it
+			// only delete skupper-internal if using
+			// routes, as otherwise previously issued
+			// tokens will reference it
 			services = append(services, "skupper-internal")
 		}
 		for _, service := range services {
@@ -539,6 +567,195 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 	return updateRouter || updateController || updateSite, nil
+}
+func setAndWaitControllerReplicas(cli *VanClient, replicas int32) (*appsv1.Deployment, error) {
+	controller, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
+	if *controller.Spec.Replicas > 0 {
+		controller.Spec.Replicas = &replicas
+		_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(controller)
+		controller, err = kube.WaitDeploymentReadyReplicas(types.ControllerDeploymentName, cli.Namespace, int(replicas), cli.KubeClient, time.Minute, time.Second)
+		if err != nil {
+			return controller, err
+		}
+	}
+	return controller, err
+}
+
+func multiportConvertServices(ctx context.Context, cli *VanClient) error {
+	servicesCm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	v1Svcs := []types.ServiceInterfaceV1{}
+	for _, v := range servicesCm.Data {
+		v1Svc := types.ServiceInterfaceV1{}
+		err = json.Unmarshal([]byte(v), &v1Svc)
+		if err != nil {
+			return err
+		}
+		v1Svcs = append(v1Svcs, v1Svc)
+	}
+	outBytes, _ := json.Marshal(v1Svcs)
+	defs := &types.ServiceInterfaceList{}
+	err = defs.ConvertFrom(string(outBytes))
+	if err != nil {
+		return err
+	}
+	for _, svc := range *defs {
+		svcBytes, _ := json.Marshal(svc)
+		servicesCm.Data[svc.Address] = string(svcBytes)
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(servicesCm)
+		if err != nil {
+			return err
+		}
+		servicesCm, _ = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+	}
+
+	return err
+}
+
+func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
+	// retrieving all service definitions
+	svcList, _ := cli.ServiceInterfaceList(ctx)
+	svcMap := map[string]*types.ServiceInterface{}
+	for _, svc := range svcList {
+		svcMap[svc.Address] = svc
+	}
+	gwList, _ := cli.GatewayList(ctx)
+	for _, gw := range gwList {
+		// updating local gateways
+		gatewayDir := getDataHome() + "/skupper/" + gw.GatewayName
+		newGatewayDir := getDataHome() + gatewayClusterDir + gw.GatewayName
+		// create the new base dir for gateways (and ignore errors if it already exists)
+		_ = os.MkdirAll(getDataHome()+gatewayClusterDir, 0755)
+		gd, err := os.Stat(gatewayDir)
+		ngd, nerr := os.Stat(newGatewayDir)
+		moveFiles := err == nil && gd != nil && gd.IsDir() && nerr != nil && ngd == nil
+		if moveFiles {
+			// renaming to new place
+			err = os.Rename(gatewayDir, newGatewayDir)
+			if err != nil {
+				return err
+			}
+			// generate a router id and store it for subsequent template updates
+			routerId := newUUID()
+			err = ioutil.WriteFile(newGatewayDir+"/config/routerid.txt", []byte(routerId), 0644)
+			if err != nil {
+				return err
+			}
+			updateFileContent := func(fileName, oldPath, newPath string) error {
+				content, err := ioutil.ReadFile(fileName)
+				if err != nil {
+					return err
+				}
+				updatedContent := strings.ReplaceAll(string(content), oldPath, newPath)
+				err = ioutil.WriteFile(fileName, []byte(updatedContent), 0)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+			// Updating paths in service files
+			err = updateFileContent(fmt.Sprintf("%s/user/%s.service", newGatewayDir, gw.GatewayName), getDataHome()+"/skupper/", getDataHome()+gatewayClusterDir)
+			if err != nil {
+				return err
+			}
+			err = updateFileContent(getConfigHome()+"/systemd/user/"+gw.GatewayName+".service", getDataHome()+"/skupper/", getDataHome()+gatewayClusterDir)
+			if err != nil {
+				return err
+			}
+
+			cmd := exec.Command("systemctl", "--user", "daemon-reload")
+			err = cmd.Run()
+			if err != nil {
+				return fmt.Errorf("Unable to user service daemon-reload: %w", err)
+			}
+			cmd = exec.Command("systemctl", "--user", "restart", gw.GatewayName+".service")
+			err = cmd.Run()
+			if err != nil {
+				return fmt.Errorf("Unable to user service restart: %w", err)
+			}
+		}
+
+		// updating router config to fix bad template issues
+		configmap, err := kube.GetConfigMap(gatewayPrefix+gw.GatewayName, cli.GetNamespace(), cli.KubeClient)
+		if err != nil {
+			return err
+		}
+		gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+		if err != nil {
+			return err
+		}
+		// updating version
+		sm := qdr.SiteMetadata{}
+		err = json.Unmarshal([]byte(gatewayConfig.Metadata.Metadata), &sm)
+		if err != nil {
+			return err
+		}
+		sm.Version = Version
+		smStr, err := json.Marshal(sm)
+		if err != nil {
+			return err
+		}
+		gatewayConfig.Metadata.Metadata = string(smStr)
+		// updating tcp listeners
+		newTcpListeners := qdr.TcpEndpointMap{}
+		for k, v := range gatewayConfig.Bridges.TcpListeners {
+			name := fmt.Sprintf("%s:%d", k, svcMap[v.Address].Ports[0])
+			v.Name = name
+			v.Address = fmt.Sprintf("%s:%d", v.Address, svcMap[v.Address].Ports[0])
+			newTcpListeners[name] = v
+		}
+		gatewayConfig.Bridges.TcpListeners = newTcpListeners
+		// updating tcp connectors
+		newTcpConnectors := qdr.TcpEndpointMap{}
+		for k, v := range gatewayConfig.Bridges.TcpConnectors {
+			name := fmt.Sprintf("%s:%d", k, svcMap[v.Address].Ports[0])
+			v.Name = name
+			v.Address = fmt.Sprintf("%s:%d", v.Address, svcMap[v.Address].Ports[0])
+			newTcpConnectors[name] = v
+		}
+		gatewayConfig.Bridges.TcpConnectors = newTcpConnectors
+		// updating http listeners
+		newHttpListeners := qdr.HttpEndpointMap{}
+		for k, v := range gatewayConfig.Bridges.HttpListeners {
+			name := fmt.Sprintf("%s:%d", k, svcMap[v.Address].Ports[0])
+			v.Name = name
+			v.Address = fmt.Sprintf("%s:%d", v.Address, svcMap[v.Address].Ports[0])
+			newHttpListeners[name] = v
+		}
+		gatewayConfig.Bridges.HttpListeners = newHttpListeners
+		// updating tcp connectors
+		newHttpConnectors := qdr.HttpEndpointMap{}
+		for k, v := range gatewayConfig.Bridges.HttpConnectors {
+			name := fmt.Sprintf("%s:%d", k, svcMap[v.Address].Ports[0])
+			v.Name = name
+			v.Address = fmt.Sprintf("%s:%d", v.Address, svcMap[v.Address].Ports[0])
+			newHttpConnectors[name] = v
+		}
+		gatewayConfig.Bridges.HttpConnectors = newHttpConnectors
+
+		// updating configmap
+		_ = gatewayConfig.WriteToConfigMap(configmap)
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
+		if err != nil {
+			return fmt.Errorf("Failed to update gateway config map: %s", err)
+		}
+		if err != nil {
+			return err
+		}
+
+		// if it is a local gateway
+		_, err = os.Stat(newGatewayDir + "/config/qdrouterd.json")
+		if err == nil {
+			err = updateLocalGatewayConfig(newGatewayDir, *gatewayConfig)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (cli *VanClient) restartRouter(namespace string) error {

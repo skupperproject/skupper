@@ -36,6 +36,7 @@ var (
 //   annotations:
 //     skupper.io/proxy: tcp
 //     skupper.io/address: nginx-1-dep-web
+//     skupper.io/port: 8080:8080,9090:8080
 // statefulset/nginx  ## cluster1
 //   annotations:
 //     skupper.io/proxy: tcp
@@ -55,6 +56,7 @@ var (
 //   annotations:
 //     skupper.io/proxy: tcp
 //     skupper.io/address: nginx-2-dep-web
+//     skupper.io/port: 8080:8080,9090:8080
 // statefulset/nginx  ## cluster2
 //   annotations:
 //     skupper.io/proxy: tcp
@@ -177,6 +179,7 @@ func populateAnnotations(clusterIdx int, depAnnotations map[string]string, svcNo
 	// Define a static set of annotations to the deployment
 	depAnnotations[types.ProxyQualifier] = "tcp"
 	depAnnotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-dep-web", clusterIdx)
+	depAnnotations[types.PortQualifier] = fmt.Sprintf("8080:8080,9090:8080")
 
 	// Set annotations to the service with no target address
 	svcNoTargetAnnotations[types.ProxyQualifier] = "tcp"

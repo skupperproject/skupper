@@ -58,3 +58,21 @@ func LabelToMap(label string) map[string]string {
 	}
 	return m
 }
+
+func StringSliceContains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func IntSliceContains(s []int, e int) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}

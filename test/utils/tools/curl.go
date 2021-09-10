@@ -3,22 +3,24 @@ package tools
 import (
 	"bytes"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/skupperproject/skupper/test/utils/k8s"
 	"io"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	restclient "k8s.io/client-go/rest"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/skupperproject/skupper/test/utils/k8s"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 )
 
 // CurlOpts allows specifying arguments to run curl on a pod
 type CurlOpts struct {
 	Silent   bool
+	Insecure bool
 	Username string
 	Password string
 	Timeout  int
@@ -29,6 +31,9 @@ func (c *CurlOpts) ToParams() []string {
 	params := []string{}
 	if c.Silent {
 		params = append(params, "-s")
+	}
+	if c.Insecure {
+		params = append(params, "-k")
 	}
 	if c.Username != "" && c.Password != "" {
 		params = append(params, "-u", fmt.Sprintf("%s:%s", c.Username, c.Password))

@@ -99,11 +99,8 @@ func RunSkupperCli(args []string) (string, string, error) {
 
 	// Running the skupper command
 	log.Printf("Running: skupper %s\n", strings.Join(args, " "))
-	if err := cmd.Run(); err != nil {
-		return stdout.String(), stderr.String(), err
-	}
-
-	return stdout.String(), stderr.String(), nil
+	err := cmd.Run()
+	return stdout.String(), stderr.String(), err
 }
 
 // SkupperCommonOptions returns a list of all options that are common

@@ -51,17 +51,17 @@ func TestCreateServiceArgs(t *testing.T) {
 		return createServiceArgs(nil, args)
 	}
 
-	assert.Error(t, c([]string{}), "Name and port must be specified")
-	assert.Error(t, c([]string{"noport"}), "Name and port must be specified")
+	assert.Error(t, c([]string{}), "Name and port(s) must be specified")
+	assert.Error(t, c([]string{"noport"}), "Name and port(s) must be specified")
 
 	assert.Assert(t, c([]string{"service:port"}))
 
-	assert.Error(t, c([]string{"service:port", "other"}), "extra argument: other")
-	assert.Error(t, c([]string{"service:port", "other", "arg"}), "illegal argument: arg")
+	assert.Error(t, c([]string{"service:port", "other"}), "other is not a valid port")
+	assert.Error(t, c([]string{"service:port", "other", "arg"}), "other is not a valid port")
 
-	assert.Assert(t, c([]string{"service", "port"}))
-	assert.Error(t, c([]string{"service", "port", "other"}), "illegal argument: other")
-	assert.Error(t, c([]string{"service", "port", "other", "arg"}), "illegal argument: other")
+	assert.Error(t, c([]string{"service", "port"}), "port is not a valid port")
+	assert.Error(t, c([]string{"service", "port", "other"}), "port is not a valid port")
+	assert.Error(t, c([]string{"service", "port", "other", "arg"}), "port is not a valid port")
 }
 
 func TestExposeTargetArgs(t *testing.T) {
@@ -116,14 +116,16 @@ func TestBindGatewayArgs(t *testing.T) {
 	assert.Error(t, b([]string{}), genericError)
 	assert.Error(t, b([]string{"oneArg"}), genericError)
 	assert.Error(t, b([]string{"oneArg", "twoArg"}), genericError)
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg"}), "threeArg is not a valid port")
 
-	assert.Assert(t, b([]string{"oneArg", "twoArg", "threeArg"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080", "9090"}))
 	assert.Assert(t, b([]string{"oneArg", "twoArg:threeArg"}))
 
 	//note  illegal vs extra
 	assert.Error(t, b([]string{"oneArg", "twoArg:threeArg", "fourArg"}), "extra argument: fourArg")
-	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "illegal argument: fourArg")
-	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "illegal argument: fourArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "threeArg is not a valid port")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "threeArg is not a valid port")
 }
 
 func TestExposeGatewayArgs(t *testing.T) {
@@ -135,14 +137,21 @@ func TestExposeGatewayArgs(t *testing.T) {
 	assert.Error(t, b([]string{}), genericError)
 	assert.Error(t, b([]string{"oneArg"}), genericError)
 	assert.Error(t, b([]string{"oneArg", "twoArg"}), genericError)
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg"}), "threeArg is not a valid port")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "8080:threeArg"}), "8080:threeArg is not a valid port")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg:8080"}), "threeArg:8080 is not a valid port")
 
-	assert.Assert(t, b([]string{"oneArg", "twoArg", "threeArg"}))
 	assert.Assert(t, b([]string{"oneArg", "twoArg:threeArg"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080", "9090"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080:8081", "9090"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080", "9090:9191"}))
+	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080:8081", "9090:9191"}))
 
 	//note  illegal vs extra
 	assert.Error(t, b([]string{"oneArg", "twoArg:threeArg", "fourArg"}), "extra argument: fourArg")
-	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "illegal argument: fourArg")
-	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "illegal argument: fourArg")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "threeArg is not a valid port")
+	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "threeArg is not a valid port")
 }
 
 func TestMain(m *testing.M) {

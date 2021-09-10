@@ -42,15 +42,15 @@ type ServiceTarget struct {
 }
 
 type ServiceEndpoint struct {
-	Name   string `json:"name"`
-	Target string `json:"target"`
-	Port   int    `json:"port,omitempty"`
+	Name   string      `json:"name"`
+	Target string      `json:"target"`
+	Ports  map[int]int `json:"ports,omitempty"`
 }
 
 type ServiceDefinition struct {
 	Name      string            `json:"name"`
 	Protocol  string            `json:"protocol"`
-	Port      int               `json:"port"`
+	Ports     []int             `json:"ports"`
 	Endpoints []ServiceEndpoint `json:"endpoints"`
 }
 
@@ -64,14 +64,14 @@ func newServiceManager(cli *client.VanClient) *ServiceManager {
 	}
 }
 
-func (m *ServiceManager) resolveEndpoints(ctx context.Context, targetName string, selector string, targetPort int) ([]ServiceEndpoint, error) {
+func (m *ServiceManager) resolveEndpoints(ctx context.Context, targetName string, selector string, targetPort map[int]int) ([]ServiceEndpoint, error) {
 	endpoints := []ServiceEndpoint{}
 	pods, err := kube.GetPods(selector, m.cli.Namespace, m.cli.KubeClient)
 	if err != nil {
 		return endpoints, err
 	}
 	for _, pod := range pods {
-		endpoints = append(endpoints, ServiceEndpoint{Name: pod.ObjectMeta.Name, Target: targetName, Port: targetPort})
+		endpoints = append(endpoints, ServiceEndpoint{Name: pod.ObjectMeta.Name, Target: targetName, Ports: targetPort})
 	}
 	return endpoints, nil
 }
@@ -80,12 +80,12 @@ func (m *ServiceManager) asServiceDefinition(def *types.ServiceInterface) (*Serv
 	svc := &ServiceDefinition{
 		Name:     def.Address,
 		Protocol: def.Protocol,
-		Port:     def.Port,
+		Ports:    def.Ports,
 	}
 	ctx := context.Background()
 	for _, target := range def.Targets {
 		if target.Selector != "" {
-			endpoints, err := m.resolveEndpoints(ctx, target.Name, target.Selector, target.TargetPort)
+			endpoints, err := m.resolveEndpoints(ctx, target.Name, target.Selector, target.TargetPorts)
 			if err != nil {
 				return svc, err
 			}
@@ -126,7 +126,7 @@ func (m *ServiceManager) createService(options *ServiceOptions) error {
 	def := &types.ServiceInterface{
 		Address:  options.GetServiceName(),
 		Protocol: options.GetProtocol(),
-		Port:     options.GetPort(),
+		Ports:    options.GetPorts(),
 	}
 	deducePort := options.DeducePort()
 	target, err := kube.GetServiceInterfaceTarget(options.GetTargetType(), options.GetTargetName(), deducePort, m.cli.Namespace, m.cli.KubeClient)
@@ -134,10 +134,13 @@ func (m *ServiceManager) createService(options *ServiceOptions) error {
 		return err
 	}
 	if deducePort {
-		def.Port = target.TargetPort
-		target.TargetPort = 0
+		def.Ports = []int{}
+		for _, tPort := range target.TargetPorts {
+			def.Ports = append(def.Ports, tPort)
+		}
+		target.TargetPorts = map[int]int{}
 	} else {
-		target.TargetPort = options.GetTargetPort()
+		target.TargetPorts = options.GetTargetPorts()
 	}
 	def.AddTarget(target)
 	def.Labels = options.Labels
@@ -191,12 +194,12 @@ func (m *ServiceManager) getServiceTargets() ([]ServiceTarget, error) {
 }
 
 type ServiceOptions struct {
-	Address    string            `json:"address"`
-	Protocol   string            `json:"protocol"`
-	Port       int               `json:"port"`
-	TargetPort int               `json:"targetPort,omitempty"`
-	Labels     map[string]string `json:"labels,omitempty"`
-	Target     ServiceTarget     `json:"target"`
+	Address     string            `json:"address"`
+	Protocol    string            `json:"protocol"`
+	Ports       []int             `json:"ports"`
+	TargetPorts map[int]int       `json:"targetPorts,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Target      ServiceTarget     `json:"target"`
 }
 
 func (o *ServiceOptions) GetTargetName() string {
@@ -221,24 +224,28 @@ func (o *ServiceOptions) GetProtocol() string {
 	return "tcp"
 }
 
-func (o *ServiceOptions) GetPort() int {
-	if o.Port != 0 {
-		return o.Port
+func (o *ServiceOptions) GetPorts() []int {
+	if len(o.Ports) > 0 {
+		return o.Ports
 	}
-	return o.TargetPort
+	tPorts := []int{}
+	for _, tPort := range o.TargetPorts {
+		tPorts = append(tPorts, tPort)
+	}
+	return tPorts
 }
 
-func (o *ServiceOptions) GetTargetPort() int {
-	if o.Port == 0 {
+func (o *ServiceOptions) GetTargetPorts() map[int]int {
+	if len(o.Ports) == 0 {
 		// in this case the port will have been set to the
 		// target port, which does not then need overridden
-		return 0
+		return map[int]int{}
 	}
-	return o.TargetPort
+	return o.TargetPorts
 }
 
 func (o *ServiceOptions) DeducePort() bool {
-	return o.Port == 0 && o.TargetPort == 0
+	return len(o.Ports) == 0 && len(o.TargetPorts) == 0
 }
 
 func getServiceOptions(r *http.Request) (*ServiceOptions, error) {

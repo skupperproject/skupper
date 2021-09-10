@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"reflect"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -34,14 +35,29 @@ func TestUpdateServiceBindings(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "test",
 				Protocol: "tcp",
-				Port:     8080,
+				Ports:    []int{8080},
 			},
 			expected: &ServiceBindings{
-				protocol:    "tcp",
-				address:     "test",
-				publicPort:  8080,
-				ingressPort: MIN_PORT,
-				targets:     map[string]*EgressBindings{},
+				protocol:     "tcp",
+				address:      "test",
+				publicPorts:  []int{8080},
+				ingressPorts: []int{MIN_PORT},
+				targets:      map[string]*EgressBindings{},
+			},
+		},
+		{
+			name: "tcp-service-multi-port",
+			service: types.ServiceInterface{
+				Address:  "test-multi-port",
+				Protocol: "tcp",
+				Ports:    []int{8080, 9090},
+			},
+			expected: &ServiceBindings{
+				protocol:     "tcp",
+				address:      "test-multi-port",
+				publicPorts:  []int{8080, 9090},
+				ingressPorts: []int{MIN_PORT + 1, MIN_PORT + 2},
+				targets:      map[string]*EgressBindings{},
 			},
 		},
 		{
@@ -49,16 +65,16 @@ func TestUpdateServiceBindings(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "test",
 				Protocol: "tcp",
-				Port:     8080,
+				Ports:    []int{8080},
 				Labels: map[string]string{
 					"app": "test",
 				},
 			},
 			expected: &ServiceBindings{
-				protocol:    "tcp",
-				address:     "test",
-				publicPort:  8080,
-				ingressPort: MIN_PORT,
+				protocol:     "tcp",
+				address:      "test",
+				publicPorts:  []int{8080},
+				ingressPorts: []int{MIN_PORT},
 				labels: map[string]string{
 					"app": "test",
 				},
@@ -70,33 +86,33 @@ func TestUpdateServiceBindings(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "test",
 				Protocol: "tcp",
-				Port:     9090,
+				Ports:    []int{9090},
 				Labels: map[string]string{
 					"app": "test-updated",
 				},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:       "test-target",
-						Selector:   "app=test",
-						TargetPort: 9090,
-						Service:    "",
+						Name:        "test-target",
+						Selector:    "app=test",
+						TargetPorts: map[int]int{9090: 9090},
+						Service:     "",
 					},
 				},
 			},
 			expected: &ServiceBindings{
-				protocol:    "tcp",
-				address:     "test",
-				publicPort:  9090,
-				ingressPort: MIN_PORT,
+				protocol:     "tcp",
+				address:      "test",
+				publicPorts:  []int{9090},
+				ingressPorts: []int{MIN_PORT},
 				labels: map[string]string{
 					"app": "test-updated",
 				},
 				targets: map[string]*EgressBindings{
 					"app=test": {
-						name:       "test-target",
-						selector:   "app=test",
-						service:    "",
-						egressPort: 9090,
+						name:        "test-target",
+						selector:    "app=test",
+						service:     "",
+						egressPorts: map[int]int{9090: 9090},
 					},
 				},
 			},
@@ -106,43 +122,43 @@ func TestUpdateServiceBindings(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "test",
 				Protocol: "tcp",
-				Port:     9090,
+				Ports:    []int{9090},
 				Labels: map[string]string{
 					"app": "test-updated",
 				},
 				Headless: &types.Headless{
-					Name:       "test-headless",
-					Size:       2,
-					TargetPort: 9090,
+					Name:        "test-headless",
+					Size:        2,
+					TargetPorts: map[int]int{9090: 9090},
 				},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:       "test-target",
-						Selector:   "",
-						TargetPort: 9090,
-						Service:    "test-svc",
+						Name:        "test-target",
+						Selector:    "",
+						TargetPorts: map[int]int{9090: 9090},
+						Service:     "test-svc",
 					},
 				},
 			},
 			expected: &ServiceBindings{
-				protocol:    "tcp",
-				address:     "test",
-				publicPort:  9090,
-				ingressPort: 9090,
+				protocol:     "tcp",
+				address:      "test",
+				publicPorts:  []int{9090},
+				ingressPorts: []int{9090},
 				labels: map[string]string{
 					"app": "test-updated",
 				},
 				headless: &types.Headless{
-					Name:       "test-headless",
-					Size:       2,
-					TargetPort: 9090,
+					Name:        "test-headless",
+					Size:        2,
+					TargetPorts: map[int]int{9090: 9090},
 				},
 				targets: map[string]*EgressBindings{
 					"test-svc": {
-						name:       "test-target",
-						selector:   "",
-						service:    "test-svc",
-						egressPort: 9090,
+						name:        "test-target",
+						selector:    "",
+						service:     "test-svc",
+						egressPorts: map[int]int{9090: 9090},
 					},
 				},
 			},
@@ -152,45 +168,45 @@ func TestUpdateServiceBindings(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:  "tcp-headless",
 				Protocol: "tcp",
-				Port:     8080,
+				Ports:    []int{8080},
 				Headless: &types.Headless{
-					Name:       "headless",
-					Size:       1,
-					TargetPort: 8080,
+					Name:        "headless",
+					Size:        1,
+					TargetPorts: map[int]int{8080: 9090},
 				},
 				Labels: map[string]string{
 					"app": "no-head",
 				},
 				Targets: []types.ServiceInterfaceTarget{
-					{Name: "tcp-headless", Selector: "", TargetPort: 9090, Service: "test-headless"},
-					{Name: "tcp-headless", Selector: "app=headless", TargetPort: 9090, Service: ""},
+					{Name: "tcp-headless", Selector: "", TargetPorts: map[int]int{8080: 9090}, Service: "test-headless"},
+					{Name: "tcp-headless", Selector: "app=headless", TargetPorts: map[int]int{8080: 9090}, Service: ""},
 				},
 			},
 			expected: &ServiceBindings{
-				protocol:    "tcp",
-				address:     "tcp-headless",
-				publicPort:  8080,
-				ingressPort: 8080,
+				protocol:     "tcp",
+				address:      "tcp-headless",
+				publicPorts:  []int{8080},
+				ingressPorts: []int{8080},
 				headless: &types.Headless{
-					Name:       "headless",
-					Size:       1,
-					TargetPort: 8080,
+					Name:        "headless",
+					Size:        1,
+					TargetPorts: map[int]int{8080: 9090},
 				},
 				labels: map[string]string{
 					"app": "no-head",
 				},
 				targets: map[string]*EgressBindings{
 					"test-headless": {
-						name:       "tcp-headless",
-						selector:   "",
-						service:    "test-headless",
-						egressPort: 9090,
+						name:        "tcp-headless",
+						selector:    "",
+						service:     "test-headless",
+						egressPorts: map[int]int{8080: 9090},
 					},
 					"app=headless": {
-						name:       "tcp-headless",
-						selector:   "app=headless",
-						service:    "",
-						egressPort: 9090,
+						name:        "tcp-headless",
+						selector:    "app=headless",
+						service:     "",
+						egressPorts: map[int]int{8080: 9090},
 					},
 				},
 			},
@@ -200,49 +216,49 @@ func TestUpdateServiceBindings(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:      "tcp-headless",
 				Protocol:     "http",
-				Port:         8181,
+				Ports:        []int{8181},
 				Aggregate:    "json",
 				EventChannel: true,
 				Headless: &types.Headless{
-					Name:       "headless-upd",
-					Size:       2,
-					TargetPort: 8181,
+					Name:        "headless-upd",
+					Size:        2,
+					TargetPorts: map[int]int{8181: 8181},
 				},
 				Labels: map[string]string{
 					"app": "no-head",
 				},
 				Targets: []types.ServiceInterfaceTarget{
-					{Name: "tcp-headless", Selector: "", TargetPort: 9091, Service: "test-headless"},
-					{Name: "tcp-headless", Selector: "app=headless", TargetPort: 9091, Service: ""},
+					{Name: "tcp-headless", Selector: "", TargetPorts: map[int]int{8181: 9191}, Service: "test-headless"},
+					{Name: "tcp-headless", Selector: "app=headless", TargetPorts: map[int]int{8181: 9191}, Service: ""},
 				},
 			},
 			expected: &ServiceBindings{
 				protocol:     "http",
 				address:      "tcp-headless",
-				publicPort:   8181,
-				ingressPort:  8181,
+				publicPorts:  []int{8181},
+				ingressPorts: []int{8181},
 				aggregation:  "json",
 				eventChannel: true,
 				headless: &types.Headless{
-					Name:       "headless-upd",
-					Size:       2,
-					TargetPort: 8181,
+					Name:        "headless-upd",
+					Size:        2,
+					TargetPorts: map[int]int{8181: 8181},
 				},
 				labels: map[string]string{
 					"app": "no-head",
 				},
 				targets: map[string]*EgressBindings{
 					"test-headless": {
-						name:       "tcp-headless",
-						selector:   "",
-						service:    "test-headless",
-						egressPort: 9091,
+						name:        "tcp-headless",
+						selector:    "",
+						service:     "test-headless",
+						egressPorts: map[int]int{8181: 9191},
 					},
 					"app=headless": {
-						name:       "tcp-headless",
-						selector:   "app=headless",
-						service:    "",
-						egressPort: 9091,
+						name:        "tcp-headless",
+						selector:    "app=headless",
+						service:     "",
+						egressPorts: map[int]int{8181: 9191},
 					},
 				},
 			},
@@ -252,22 +268,22 @@ func TestUpdateServiceBindings(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:      "tcp-headless",
 				Protocol:     "http",
-				Port:         8181,
+				Ports:        []int{8181},
 				Aggregate:    "json",
 				EventChannel: true,
 				Labels: map[string]string{
 					"app": "no-head",
 				},
 				Targets: []types.ServiceInterfaceTarget{
-					{Name: "tcp-headless", Selector: "", TargetPort: 9090, Service: "test-headless"},
-					{Name: "tcp-headless", Selector: "app=headless", TargetPort: 9090, Service: ""},
+					{Name: "tcp-headless", Selector: "", TargetPorts: map[int]int{8181: 9090}, Service: "test-headless"},
+					{Name: "tcp-headless", Selector: "app=headless", TargetPorts: map[int]int{8181: 9090}, Service: ""},
 				},
 			},
 			expected: &ServiceBindings{
 				protocol:     "http",
 				address:      "tcp-headless",
-				publicPort:   8181,
-				ingressPort:  8181,
+				publicPorts:  []int{8181},
+				ingressPorts: []int{8181},
 				aggregation:  "json",
 				eventChannel: true,
 				labels: map[string]string{
@@ -275,16 +291,16 @@ func TestUpdateServiceBindings(t *testing.T) {
 				},
 				targets: map[string]*EgressBindings{
 					"test-headless": {
-						name:       "tcp-headless",
-						selector:   "",
-						service:    "test-headless",
-						egressPort: 9090,
+						name:        "tcp-headless",
+						selector:    "",
+						service:     "test-headless",
+						egressPorts: map[int]int{8181: 9090},
 					},
 					"app=headless": {
-						name:       "tcp-headless",
-						selector:   "app=headless",
-						service:    "",
-						egressPort: 9090,
+						name:        "tcp-headless",
+						selector:    "app=headless",
+						service:     "",
+						egressPorts: map[int]int{8181: 9090},
 					},
 				},
 			},
@@ -294,15 +310,15 @@ func TestUpdateServiceBindings(t *testing.T) {
 			service: types.ServiceInterface{
 				Address:      "tcp-headless",
 				Protocol:     "http",
-				Port:         8181,
+				Ports:        []int{8181},
 				Aggregate:    "multipart",
 				EventChannel: true,
 			},
 			expected: &ServiceBindings{
 				protocol:     "http",
 				address:      "tcp-headless",
-				publicPort:   8181,
-				ingressPort:  8181,
+				publicPorts:  []int{8181},
+				ingressPorts: []int{8181},
 				aggregation:  "multipart",
 				eventChannel: true,
 			},
@@ -311,20 +327,20 @@ func TestUpdateServiceBindings(t *testing.T) {
 
 	for _, s := range scenarios {
 		t.Run(s.name, func(t *testing.T) {
-			_ = c.updateServiceBindings(s.service, map[string]int{})
+			_ = c.updateServiceBindings(s.service, map[string][]int{})
 			b, ok := c.bindings[s.service.Address]
 			assert.Assert(t, ok)
 			assert.Equal(t, b.protocol, s.expected.protocol)
 			assert.Equal(t, b.address, s.expected.address)
-			assert.Equal(t, b.publicPort, s.expected.publicPort)
-			assert.Equal(t, b.ingressPort, s.expected.ingressPort)
+			assert.Assert(t, reflect.DeepEqual(b.publicPorts, s.expected.publicPorts))
+			assert.Assert(t, reflect.DeepEqual(b.ingressPorts, s.expected.ingressPorts), "got: %v - expected: %v", b.ingressPorts, s.expected.ingressPorts)
 			assert.Equal(t, b.aggregation, s.expected.aggregation)
 			assert.Equal(t, b.eventChannel, s.expected.eventChannel)
 			assert.Equal(t, b.headless == nil, s.expected.headless == nil)
 			if s.expected.headless != nil {
 				assert.Equal(t, b.headless.Name, s.expected.headless.Name)
 				assert.Equal(t, b.headless.Size, s.expected.headless.Size)
-				assert.Equal(t, b.headless.TargetPort, s.expected.headless.TargetPort)
+				assert.Assert(t, reflect.DeepEqual(b.headless.TargetPorts, s.expected.headless.TargetPorts))
 			}
 			assert.DeepEqual(t, b.labels, s.expected.labels)
 			assert.Equal(t, len(b.targets), len(s.expected.targets))
@@ -335,7 +351,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 					assert.Equal(t, bv.name, v.name)
 					assert.Assert(t, ok)
 					assert.Equal(t, bv.service, v.service)
-					assert.Equal(t, bv.egressPort, v.egressPort)
+					assert.Assert(t, reflect.DeepEqual(bv.egressPorts, v.egressPorts))
 					assert.Equal(t, bv.selector, v.selector)
 					assert.Equal(t, bv.service, v.service)
 				}

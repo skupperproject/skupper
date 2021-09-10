@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"gotest.tools/assert"
@@ -184,8 +185,8 @@ func CheckServiceDefinition(svc_e *ServiceDefinition, svc_a *ServiceDefinition) 
 	if svc_a.Protocol != svc_e.Protocol {
 		return fmt.Errorf("For %s, expected protocol %s, got %s", svc_e.Name, svc_e.Protocol, svc_a.Protocol)
 	}
-	if svc_a.Port != svc_e.Port {
-		return fmt.Errorf("For %s, expected port %d, got %d", svc_e.Name, svc_e.Port, svc_a.Port)
+	if !reflect.DeepEqual(svc_a.Ports, svc_e.Ports) {
+		return fmt.Errorf("For %s, expected port %v, got %v", svc_e.Name, svc_e.Ports, svc_a.Ports)
 	}
 	err := CheckServiceEndpoints(getServiceEndpointsAsMap(svc_a.Endpoints), getServiceEndpointsAsMap(svc_e.Endpoints))
 	if err != nil {
@@ -205,18 +206,16 @@ func getServiceEndpointsAsMap(in []ServiceEndpoint) map[string]ServiceEndpoint {
 func CheckServiceEndpoints(expected map[string]ServiceEndpoint, actual map[string]ServiceEndpoint) error {
 	for _, e := range expected {
 		if a, ok := actual[e.Name]; ok {
-			if a.Port != e.Port {
-				if a.Port != e.Port {
-					return fmt.Errorf("For service endpoint %s, expected port %d, got %d", e.Name, e.Port, a.Port)
-				}
+			if !reflect.DeepEqual(a.Ports, e.Ports) {
+				return fmt.Errorf("For service endpoint %s, expected port %v, got %v", e.Name, e.Ports, a.Ports)
 			}
 		} else {
-			return fmt.Errorf("Expected service endpoint %s %d", e.Name, e.Port)
+			return fmt.Errorf("Expected service endpoint %s %v", e.Name, e.Ports)
 		}
 	}
 	for _, a := range actual {
 		if _, ok := expected[a.Name]; !ok {
-			return fmt.Errorf("Unexpected service endpoint %s %d", a.Name, a.Port)
+			return fmt.Errorf("Unexpected service endpoint %s %v", a.Name, a.Ports)
 		}
 	}
 	return nil
@@ -257,9 +256,23 @@ func TestServeServices(t *testing.T) {
 			path:   "/services",
 			requestBody: encodeServiceOptions(&ServiceOptions{
 				Protocol: "http",
-				Port:     8888,
+				Ports:    []int{8888},
 				Target: ServiceTarget{
 					Name: "dep2",
+					Type: "deployment",
+				},
+			}),
+			expectedCode: http.StatusOK,
+		},
+		{
+			method: http.MethodPost,
+			path:   "/services",
+			requestBody: encodeServiceOptions(&ServiceOptions{
+				Address:  "dep3",
+				Protocol: "http",
+				Ports:    []int{8888, 9999},
+				Target: ServiceTarget{
+					Name: "dep3",
 					Type: "deployment",
 				},
 			}),
@@ -274,7 +287,7 @@ func TestServeServices(t *testing.T) {
 					{
 						Name:     "foo",
 						Protocol: "tcp",
-						Port:     8181,
+						Ports:    []int{8181},
 						Endpoints: []ServiceEndpoint{
 							{
 								Name: "pod1",
@@ -287,7 +300,12 @@ func TestServeServices(t *testing.T) {
 					{
 						Name:     "dep2",
 						Protocol: "http",
-						Port:     8888,
+						Ports:    []int{8888},
+					},
+					{
+						Name:     "dep3",
+						Protocol: "http",
+						Ports:    []int{8888, 9999},
 					},
 				},
 			},
@@ -300,7 +318,7 @@ func TestServeServices(t *testing.T) {
 				expected: ServiceDefinition{
 					Name:     "foo",
 					Protocol: "tcp",
-					Port:     8181,
+					Ports:    []int{8181},
 					Endpoints: []ServiceEndpoint{
 						{
 							Name: "pod1",
@@ -320,7 +338,7 @@ func TestServeServices(t *testing.T) {
 				expected: ServiceDefinition{
 					Name:     "dep2",
 					Protocol: "http",
-					Port:     8888,
+					Ports:    []int{8888},
 				},
 			},
 		},
@@ -353,7 +371,12 @@ func TestServeServices(t *testing.T) {
 					{
 						Name:     "dep2",
 						Protocol: "http",
-						Port:     8888,
+						Ports:    []int{8888},
+					},
+					{
+						Name:     "dep3",
+						Protocol: "http",
+						Ports:    []int{8888, 9999},
 					},
 				},
 			},
@@ -404,6 +427,8 @@ func TestServeServices(t *testing.T) {
 	_, err = createPod(cli.KubeClient, "pod2", namespace, dep1.Spec.Selector.MatchLabels, &dep1.Spec.Template.Spec)
 	assert.Check(t, err, namespace)
 	_, err = createDeployment(cli.KubeClient, "dep2", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})
+	assert.Check(t, err, namespace)
+	_, err = createDeployment(cli.KubeClient, "dep3", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}, {Name: "myport2", ContainerPort: 9191}})
 	assert.Check(t, err, namespace)
 	mgr := newServiceManager(cli)
 	router := mux.NewRouter()

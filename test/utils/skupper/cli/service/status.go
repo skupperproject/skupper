@@ -56,7 +56,7 @@ func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 
 	// Iterating through provided service interfaces to validate stdout matches
 	for _, svc := range s.ServiceInterfaces {
-		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\)`, svc.Address, svc.Protocol, svc.Port)
+		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\)`, svc.Address, svc.Protocol, svc.Ports[0])
 		if len(svc.Targets) > 0 {
 			serviceEntry += `\n.*Targets:`
 		}

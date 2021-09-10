@@ -192,8 +192,8 @@ func TestUpdateSkupperServices(t *testing.T) {
 
 	// Fake existing skupper-services' data
 	existingData := []types.ServiceInterface{
-		{Address: "existing-service-1", Protocol: "http", Port: 8080},
-		{Address: "existing-service-2", Protocol: "tcp", Port: 5672},
+		{Address: "existing-service-1", Protocol: "http", Ports: []int{8080}},
+		{Address: "existing-service-2", Protocol: "tcp", Ports: []int{5672}},
 	}
 	existingDataMap := map[string]types.ServiceInterface{}
 	for _, def := range existingData {
@@ -227,13 +227,13 @@ func TestUpdateSkupperServices(t *testing.T) {
 			hasSkupperServices: true,
 			currentData:        &existingDataMap,
 			changed: []types.ServiceInterface{
-				{Address: "new-service-1", Protocol: "http", Port: 8080},
-				{Address: "existing-service-2", Protocol: "http", Port: 443},
+				{Address: "new-service-1", Protocol: "http", Ports: []int{8080}},
+				{Address: "existing-service-2", Protocol: "http", Ports: []int{443}},
 			},
 			expectedData: map[string]types.ServiceInterface{
-				"existing-service-1": {Address: "existing-service-1", Protocol: "http", Port: 8080},
-				"existing-service-2": {Address: "existing-service-2", Protocol: "http", Port: 443},
-				"new-service-1":      {Address: "new-service-1", Protocol: "http", Port: 8080},
+				"existing-service-1": {Address: "existing-service-1", Protocol: "http", Ports: []int{8080}},
+				"existing-service-2": {Address: "existing-service-2", Protocol: "http", Ports: []int{443}},
+				"new-service-1":      {Address: "new-service-1", Protocol: "http", Ports: []int{8080}},
 			},
 		},
 		// data is populated and existing deleted
@@ -243,7 +243,7 @@ func TestUpdateSkupperServices(t *testing.T) {
 			currentData:        &existingDataMap,
 			deleted:            []string{"existing-service-2"},
 			expectedData: map[string]types.ServiceInterface{
-				"existing-service-1": {Address: "existing-service-1", Protocol: "http", Port: 8080},
+				"existing-service-1": {Address: "existing-service-1", Protocol: "http", Ports: []int{8080}},
 			},
 		},
 		// data is populated, new service added, existing updated and deleted
@@ -252,13 +252,13 @@ func TestUpdateSkupperServices(t *testing.T) {
 			hasSkupperServices: true,
 			currentData:        &existingDataMap,
 			changed: []types.ServiceInterface{
-				{Address: "new-service-1", Protocol: "http", Port: 8080},
-				{Address: "existing-service-2", Protocol: "http", Port: 443},
+				{Address: "new-service-1", Protocol: "http", Ports: []int{8080}},
+				{Address: "existing-service-2", Protocol: "http", Ports: []int{443}},
 			},
 			deleted: []string{"existing-service-1"},
 			expectedData: map[string]types.ServiceInterface{
-				"existing-service-2": {Address: "existing-service-2", Protocol: "http", Port: 443},
-				"new-service-1":      {Address: "new-service-1", Protocol: "http", Port: 8080},
+				"existing-service-2": {Address: "existing-service-2", Protocol: "http", Ports: []int{443}},
+				"new-service-1":      {Address: "new-service-1", Protocol: "http", Ports: []int{8080}},
 			},
 		},
 		// data is populated and update error

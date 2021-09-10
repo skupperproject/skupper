@@ -196,27 +196,34 @@ func portAsInt(port string) int {
 	return result
 }
 
-func (ports *FreePorts) getPortAllocations(bridges *qdr.BridgeConfig) map[string]int {
-	allocations := map[string]int{}
+func (ports *FreePorts) getPortAllocations(bridges *qdr.BridgeConfig) map[string][]int {
+	allocations := map[string][]int{}
+	addPort := func(address string, port int) {
+		if curPorts, found := allocations[address]; !found {
+			allocations[address] = []int{port}
+		} else {
+			curPorts = append(curPorts, port)
+		}
+	}
 	if bridges != nil {
 		for _, b := range bridges.HttpConnectors {
 			port := portAsInt(b.Port)
-			allocations[b.Address] = port
 			ports.inuse(port)
 		}
 		for _, b := range bridges.HttpListeners {
+			address := strings.Split(b.Address, ":")[0]
 			port := portAsInt(b.Port)
-			allocations[b.Address] = port
+			addPort(address, port)
 			ports.inuse(port)
 		}
 		for _, b := range bridges.TcpConnectors {
 			port := portAsInt(b.Port)
-			allocations[b.Address] = port
 			ports.inuse(port)
 		}
 		for _, b := range bridges.TcpListeners {
+			address := strings.Split(b.Address, ":")[0]
 			port := portAsInt(b.Port)
-			allocations[b.Address] = port
+			addPort(address, port)
 			ports.inuse(port)
 		}
 	}

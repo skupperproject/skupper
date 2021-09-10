@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -17,7 +18,7 @@ func TestServiceInterfaceInspect(t *testing.T) {
 		doc                   string
 		addr                  string
 		proto                 string
-		port                  int
+		ports                 []int
 		init                  bool
 		expectedCreationError string
 	}{
@@ -25,7 +26,7 @@ func TestServiceInterfaceInspect(t *testing.T) {
 			namespace:             "vsii-1",
 			addr:                  "vsii-1-addr",
 			proto:                 "tcp",
-			port:                  5672,
+			ports:                 []int{5672},
 			init:                  true,
 			expectedCreationError: "",
 		},
@@ -33,7 +34,7 @@ func TestServiceInterfaceInspect(t *testing.T) {
 			namespace:             "vsii-2",
 			addr:                  "vsii-2-addr",
 			proto:                 "tcp",
-			port:                  5672,
+			ports:                 []int{5672},
 			init:                  false,
 			expectedCreationError: "Skupper not initialised",
 		},
@@ -80,7 +81,7 @@ func TestServiceInterfaceInspect(t *testing.T) {
 		service := types.ServiceInterface{
 			Address:  testcase.addr,
 			Protocol: testcase.proto,
-			Port:     testcase.port,
+			Ports:    testcase.ports,
 		}
 		err = cli.ServiceInterfaceCreate(ctx, &service)
 
@@ -111,11 +112,11 @@ func TestServiceInterfaceInspect(t *testing.T) {
 				testcase.namespace,
 				serviceInterface.Protocol,
 				testcase.proto)
-			assert.Equal(t, testcase.port, serviceInterface.Port,
-				"\n\nTest %s failure: Port was %d but should be %d.\n",
+			assert.Assert(t, reflect.DeepEqual(testcase.ports, serviceInterface.Ports),
+				"\n\nTest %s failure: Ports had %v but should be %v.\n",
 				testcase.namespace,
-				serviceInterface.Port,
-				testcase.port)
+				serviceInterface.Ports,
+				testcase.ports)
 			assert.Assert(t, nil == serviceInterface.Headless,
 				"\n\nTest %s failure: Headless was |%#v| but should be nil.\n",
 				testcase.namespace,

@@ -35,13 +35,13 @@ func int32Ptr(i int32) *int32 { return &i }
 var service = types.ServiceInterface{
 	Address:  "nginx1",
 	Protocol: "http",
-	Port:     8080,
+	Ports:    []int{8080},
 }
 
 var http2service = types.ServiceInterface{
 	Address:  "nghttp2",
 	Protocol: "http2",
-	Port:     8443,
+	Ports:    []int{8443},
 }
 
 var nginxDep = &appsv1.Deployment{
@@ -386,25 +386,25 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "nginx1", "http", 0)
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "nginx1", "http", map[int]int{})
 	assert.Assert(t, err)
 
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http2service)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2service, "deployment", "nghttp2", "http2", 0)
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2service, "deployment", "nghttp2", "http2", map[int]int{})
 	assert.Assert(t, err)
 
 	http21service := types.ServiceInterface{
 		Address:  "nghttp1",
 		Protocol: "http",
-		Port:     8443,
+		Ports:    []int{8443},
 	}
 
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http21service)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http21service, "deployment", "nghttp2", "http", 0)
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http21service, "deployment", "nghttp2", "http", map[int]int{})
 	assert.Assert(t, err)
 
 }
