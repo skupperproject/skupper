@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"os"
 	"testing"
 )
 
@@ -16,11 +17,14 @@ func TestCreateCertificateForService(t *testing.T) {
 
 	// Mock VanClient
 	const NAMESPACE = "test"
+	const SITE_ID = "skupper-ca-site"
+
 	// Used to define the test table
 	type test struct {
 		name          string
 		targetService string
-		siteId        string
+		address       string
+		siteId		  string
 		error         string
 	}
 
@@ -51,12 +55,13 @@ func TestCreateCertificateForService(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	kubeClient.Fake.PrependReactor("get", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		name := action.(k8stesting.GetAction).GetName()
-		if name == "non-existent-ca" {
+		if name == "error-site-ca" {
 			return true, nil, fmt.Errorf("The CA for the site does not exists")
 		}
 
 		return false, nil, nil
 	})
+
 
 	kubeClient.Fake.PrependReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		name := action.(k8stesting.CreateAction).GetObject().(*corev1.Secret).Name
@@ -70,22 +75,22 @@ func TestCreateCertificateForService(t *testing.T) {
 	// Creating the fake services
 	svcNoPorts := newService("svc-no-ports")
 	svcOnePort := newService("svc-one-port", 8080)
-	siteId := "skupper-ca-site"
-	caCert := certs.GenerateCASecret(siteId, siteId)
+	caCert := certs.GenerateCASecret(SITE_ID, SITE_ID)
 	kubeClient.CoreV1().Services(NAMESPACE).Create(svcNoPorts)
 	kubeClient.CoreV1().Services(NAMESPACE).Create(svcOnePort)
 	kubeClient.CoreV1().Secrets(NAMESPACE).Create(&caCert)
 
 	testTable := []test{
-		{"svc-no-ports", svcNoPorts.Name, siteId, ""},
-		{"svc-one-port", svcOnePort.Name, siteId, ""},
-		{"existing-cert-error-svc", "existing-cert-error-svc", siteId, "A certificate for that service already exists"},
-		{"error-sit-ca", "error-sit-ca", "non-existent-ca", "The CA for the site does not exists"},
+		{"svc-no-ports", svcNoPorts.Name, "svc-no-ports",SITE_ID,  ""},
+		{"svc-one-port", svcOnePort.Name, "svc-one-port", SITE_ID,  ""},
+		{"existing-cert-error-svc", "existing-cert-error-svc", "existing-cert-error-svc", SITE_ID,  "A certificate for that service already exists"},
+		{"error-sit-ca", "error-sit-ca", "error-sit-ca","error-site-ca",  "The CA for the site does not exists"},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			cert, err := createCertificateForService(test.name, NAMESPACE, test.siteId, kubeClient)
+			os.Setenv("SKUPPER_SITE_ID", test.siteId)
+			cert, err := createCertificateForService(test.name, NAMESPACE, test.name, kubeClient)
 
 			if cert != nil {
 				assert.DeepEqual(t, test.name, cert.Name)
@@ -97,6 +102,8 @@ func TestCreateCertificateForService(t *testing.T) {
 			} else {
 				assert.Assert(t, err == nil)
 			}
+
+			os.Remove("SKUPPER_SITE_ID")
 		})
 	}
 

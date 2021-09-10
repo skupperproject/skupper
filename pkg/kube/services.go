@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/certs"
+	"os"
 	"strings"
 	"time"
 
@@ -51,6 +52,13 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 func NewServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	selector := GetLabelsForRouter()
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
+
+	_, err := createCertificateForService(service.Name, namespace, address, kubeclient)
+
+	if err!= nil {
+		return nil, err
+	}
+
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 
@@ -60,6 +68,13 @@ func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int
 	}
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 	service.Spec.ClusterIP = "None"
+
+	_, err := createCertificateForService(service.Name, namespace, address, kubeclient)
+
+	if err!= nil {
+		return nil, err
+	}
+
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 
@@ -241,14 +256,15 @@ func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 	return PortLabelStrToMap(originalTargetPort)
 }
 
-func createCertificateForService(serviceName string, nameSpace string, siteId string, kubeclient kubernetes.Interface) (*corev1.Secret, error) {
+func createCertificateForService(serviceName string, nameSpace string, hosts string, kubeclient kubernetes.Interface) (*corev1.Secret, error) {
+	siteId := os.Getenv("SKUPPER_SITE_ID")
 	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(siteId, metav1.GetOptions{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	serviceCert := certs.GenerateSecret(serviceName, serviceName, "", caCert)
+	serviceCert := certs.GenerateSecret(serviceName, serviceName, hosts, caCert)
 	_, err = kubeclient.CoreV1().Secrets(nameSpace).Create(&serviceCert)
 
 	if err != nil {
