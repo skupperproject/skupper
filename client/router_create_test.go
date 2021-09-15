@@ -98,6 +98,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalServerSecret,
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
+				types.ConsoleServerSecret,
 				types.SiteServerSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
@@ -131,6 +132,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
 				types.SiteServerSecret,
+				types.ConsoleServerSecret,
 				"skupper-console-users"},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
@@ -164,7 +166,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
 				types.SiteServerSecret,
-				types.OauthConsoleSecret,
+				types.ConsoleServerSecret,
 				types.OauthRouterConsoleSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
@@ -193,6 +195,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
 			roleBindingsExpected: []string{types.TransportRoleBindingName, types.ControllerRoleBindingName},
 			secretsExpected: []string{types.LocalCaSecret,
+				types.ConsoleServerSecret,
 				types.LocalServerSecret,
 				types.LocalClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName, "skupper-router-console"},
@@ -339,7 +342,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		//TODO: consider set up short specific opts
 		if !isCluster || (cli.RouteClient == nil && c.authMode == "openshift") {
 			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, types.OauthRouterConsoleSecret) }))
-			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, types.OauthConsoleSecret) }))
+			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, types.ConsoleServerSecret) }))
 		}
 		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)

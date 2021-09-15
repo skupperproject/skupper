@@ -285,7 +285,7 @@ func TestDeleteWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -342,7 +342,7 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -447,7 +447,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -552,7 +552,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -624,7 +624,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -704,7 +704,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -758,7 +758,7 @@ func TestStatusWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -929,7 +929,7 @@ func TestExposeWithCluster(t *testing.T) {
 		_, err = services.Create(statefulSetService)
 		assert.Assert(t, err)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		t.Run(tc.doc, func(t *testing.T) {
@@ -1038,7 +1038,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1093,7 +1093,7 @@ func TestListExposedWithCluster(t *testing.T) {
 		assert.Assert(t, err)
 	}
 
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	if *clusterRun {
 		exposeCmd := NewCmdExpose(testClient)
@@ -1171,7 +1171,7 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1226,7 +1226,7 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
@@ -1300,7 +1300,7 @@ func TestBindWithCluster(t *testing.T) {
 		_, err = deployments.Create(tcpDeployment)
 		assert.Assert(t, err)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
@@ -1366,7 +1366,7 @@ func TestUnbindWithCluster(t *testing.T) {
 		_, err = deployments.Create(tcpDeployment)
 		assert.Assert(t, err)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
@@ -1423,7 +1423,7 @@ func TestVersionWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1478,7 +1478,7 @@ func TestDebugDumpWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge"}...)
+	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
 
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)

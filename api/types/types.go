@@ -120,7 +120,7 @@ const (
 	SiteServerSecret         string = "skupper-site-server"
 	ClaimsServerSecret       string = "skupper-claims-server"
 	SiteCaSecret             string = "skupper-site-ca"
-	OauthConsoleSecret       string = "skupper-console-certs"
+	ConsoleServerSecret      string = "skupper-console-certs"
 	OauthRouterConsoleSecret string = "skupper-router-console-certs"
 )
 
@@ -193,7 +193,6 @@ const (
 	ConsoleOpenShiftOauthServicePort       int32  = 443
 	ConsoleOpenShiftOauthServiceTargetPort int32  = 8443
 	ConsoleRouteName                       string = "skupper"
-	ConsoleIngressName                     string = "skupper-console"
 	RouterConsoleRouteName                 string = "skupper-router-console"
 	RouterConsoleServiceName               string = "skupper-router-console"
 )

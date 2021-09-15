@@ -98,7 +98,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_PORT", Value: csp})
 			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_HOST", Value: "localhost"})
 			mounts = append(mounts, []corev1.VolumeMount{})
-			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.OauthConsoleSecret, "/etc/tls/proxy-certs/")
+			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.ConsoleServerSecret, "/etc/tls/proxy-certs/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
 			kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
@@ -106,6 +106,9 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	}
 	if options.RouterMode != string(types.TransportModeEdge) {
 		kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ClaimsServerSecret, "/etc/service-controller/certs/")
+	}
+	if options.EnableConsole && options.AuthMode != string(types.ConsoleAuthModeOpenshift) {
+		kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ConsoleServerSecret, "/etc/service-controller/console/")
 	}
 	//mount secret needed for communication with router
 	kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.LocalClientSecret, "/etc/messaging/")
@@ -176,7 +179,6 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	controllerPorts := []corev1.ServicePort{}
 	routes := []*routev1.Route{}
 	if options.EnableConsole {
-		termination := routev1.TLSTerminationEdge
 		metricsPort := corev1.ServicePort{
 			Name:       "metrics",
 			Protocol:   "TCP",
@@ -185,15 +187,14 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		}
 
 		if options.IsConsoleIngressRoute() {
+			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret}
 			if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-				termination = routev1.TLSTerminationReencrypt
 				metricsPort = corev1.ServicePort{
 					Name:       "metrics",
 					Protocol:   "TCP",
 					Port:       types.ConsoleOpenShiftOauthServicePort,
 					TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
 				}
-				annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.OauthConsoleSecret}
 			}
 			routes = append(routes, &routev1.Route{
 				TypeMeta: metav1.TypeMeta{
@@ -213,10 +214,40 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 						Name: types.ControllerServiceName,
 					},
 					TLS: &routev1.TLSConfig{
-						Termination:                   termination,
+						Termination:                   routev1.TLSTerminationReencrypt,
 						InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
 					},
 				},
+			})
+		} else if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret}
+		} else {
+			//if using openshift oauth or openshift routes, use openshift service annotation
+			//to create the console cert as it is then signed by the cluster ca
+			//otherwise we create it ourselves
+			controllerHosts := []string{types.ControllerServiceName + "." + van.Namespace}
+			controllerIngressHost := options.GetControllerIngressHost()
+			post := false // indicates whether credentials need to be revised after creating appropriate ingress resources
+			if options.IsIngressNginxIngress() {
+				if controllerIngressHost != "" {
+					controllerHosts = append(controllerHosts, "console."+controllerIngressHost)
+				} else {
+					post = true
+				}
+			} else if options.IsIngressLoadBalancer() {
+				post = true
+			} else {
+				if controllerIngressHost != "" {
+					controllerHosts = append(controllerHosts, controllerIngressHost)
+				}
+			}
+			van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
+				CA:          types.LocalCaSecret,
+				Name:        types.ConsoleServerSecret,
+				Subject:     types.ControllerServiceName,
+				Hosts:       controllerHosts,
+				ConnectJson: false,
+				Post:        post,
 			})
 		}
 		controllerPorts = append(controllerPorts, metricsPort)
@@ -1083,11 +1114,6 @@ sasldb_path: /tmp/qdrouterd.sasldb
 					return err
 				}
 			}
-		} else if options.Spec.IsConsoleIngressNginxIngress() {
-			err = cli.createConsoleIngress(options)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return err
-			}
 		}
 		for _, cred := range van.ControllerCredentials {
 			if options.Spec.IsIngressRoute() {
@@ -1103,7 +1129,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 					return err
 				}
 			} else if options.Spec.IsIngressNginxIngress() && cred.Post {
-				err = cli.appendIngressHost([]string{"claims"}, van.Namespace, &cred)
+				err = cli.appendIngressHost([]string{"claims", "console"}, van.Namespace, &cred)
 				if err != nil {
 					return err
 				}
@@ -1184,11 +1210,22 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 				ServiceName: types.ControllerServiceName,
 				ServicePort: int(types.ClaimRedemptionPort),
 			})
+			routes = append(routes, kube.IngressRoute{
+				Host:        strings.Join([]string{"console", namespace, site.Spec.GetControllerIngressHost()}, "."),
+				ServiceName: types.ControllerServiceName,
+				ServicePort: int(types.ConsoleDefaultServicePort),
+			})
 		} else {
 			routes = append(routes, kube.IngressRoute{
 				Host:        "claims",
 				ServiceName: types.ControllerServiceName,
 				ServicePort: int(types.ClaimRedemptionPort),
+				Resolve:     true,
+			})
+			routes = append(routes, kube.IngressRoute{
+				Host:        "console",
+				ServiceName: types.ControllerServiceName,
+				ServicePort: int(types.ConsoleDefaultServicePort),
 				Resolve:     true,
 			})
 		}
@@ -1219,30 +1256,6 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 		})
 	}
 	return kube.CreateIngress(types.IngressName, routes, true, asOwnerReference(site.Reference), cli.Namespace, cli.KubeClient)
-}
-
-func (cli *VanClient) createConsoleIngress(site types.SiteConfig) error {
-	namespace := site.Spec.SkupperNamespace
-	if namespace == "" {
-		namespace = cli.Namespace
-	}
-
-	var routes []kube.IngressRoute
-	if site.Spec.GetControllerIngressHost() != "" {
-		routes = append(routes, kube.IngressRoute{
-			Host:        strings.Join([]string{"console", namespace, site.Spec.GetControllerIngressHost()}, "."),
-			ServiceName: types.ControllerServiceName,
-			ServicePort: int(types.ConsoleDefaultServicePort),
-		})
-	} else {
-		routes = append(routes, kube.IngressRoute{
-			Host:        "console",
-			ServiceName: types.ControllerServiceName,
-			ServicePort: int(types.ConsoleDefaultServicePort),
-			Resolve:     true,
-		})
-	}
-	return kube.CreateIngress(types.ConsoleIngressName, routes, false, asOwnerReference(site.Reference), cli.Namespace, cli.KubeClient)
 }
 
 func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
