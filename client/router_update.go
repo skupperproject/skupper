@@ -132,7 +132,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			return false, err
 		}
 		servingCertsAnnotation := map[string]string{
-			"service.alpha.openshift.io/serving-cert-secret-name": types.OauthConsoleSecret,
+			"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret,
 		}
 		controllerSvc, err := kube.CopyService("skupper-controller", types.ControllerServiceName, servingCertsAnnotation, namespace, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
@@ -395,7 +395,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		controller.Spec.Template.Spec.ServiceAccountName = types.ControllerServiceAccountName
 		// - mounted secrets:
 		kube.UpdateSecretVolume(&controller.Spec.Template.Spec, "skupper", types.LocalClientSecret)
-		kube.UpdateSecretVolume(&controller.Spec.Template.Spec, "skupper-controller-certs", types.OauthConsoleSecret)
+		kube.UpdateSecretVolume(&controller.Spec.Template.Spec, "skupper-controller-certs", types.ConsoleServerSecret)
 		// -oauth proxy sidecar
 		updateOauthProxyServiceAccount(&controller.Spec.Template.Spec, types.ControllerServiceAccountName)
 		updateController = true

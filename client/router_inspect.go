@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -21,7 +22,7 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 		} else {
 			if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
 				host := kube.GetLoadBalancerHostOrIp(service)
-				return "http://" + host + ":8080", nil
+				return "https://" + host + ":8080", nil
 			} else if service.Spec.Type == corev1.ServiceTypeNodePort {
 				port := ""
 				for _, p := range service.Spec.Ports {
@@ -33,16 +34,22 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 				if err != nil {
 					return "", err
 				}
-				if config.Spec.Controller.IngressHost == "" || port == "" {
+				host := config.Spec.GetControllerIngressHost()
+				if host == "" || port == "" {
 					return "", nil
 				}
-				return "http://" + config.Spec.Controller.IngressHost + ":" + port, nil
+				return "https://" + host + ":" + port, nil
 			} else {
-				routes, err := kube.GetIngressRoutes(types.ConsoleIngressName, cli.Namespace, cli.KubeClient)
-				if err != nil || len(routes) == 0 {
+				routes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
+				if err != nil {
 					return "", err
 				}
-				return "http://" + routes[0].Host, nil
+				for _, route := range routes {
+					if strings.HasPrefix(route.Host, "console") {
+						return "https://" + route.Host, nil
+					}
+				}
+				return "", nil
 			}
 		}
 	} else {

@@ -409,7 +409,12 @@ func (server *ConsoleServer) listen() {
 	if os.Getenv("USE_CORS") != "" {
 		r.Use(cors)
 	}
-	log.Fatal(http.ListenAndServe(addr, r))
+	_, err := os.Stat("/etc/service-controller/console/tls.crt")
+	if err == nil {
+		log.Fatal(http.ListenAndServeTLS(addr, "/etc/service-controller/console/tls.crt", "/etc/service-controller/console/tls.key", r))
+	} else {
+		log.Fatal(http.ListenAndServe(addr, r))
+	}
 }
 
 func (server *ConsoleServer) listenLocal() {
