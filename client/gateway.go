@@ -341,6 +341,35 @@ type GatewayInstance struct {
 	RouterID string
 }
 
+func updateLocalGatewayConfig(gatewayDir string, gatewayConfig qdr.RouterConfig) error {
+	mc, err := qdr.MarshalRouterConfig(gatewayConfig)
+	if err != nil {
+		return fmt.Errorf("Failed to marshall router config: %w", err)
+	}
+
+	hostname, _ := os.Hostname()
+
+	routerId, err := ioutil.ReadFile(gatewayDir + "/config/routerid.txt")
+	if err != nil {
+		return fmt.Errorf("Failed to read instance url file: %w", err)
+	}
+
+	instance := GatewayInstance{
+		DataDir:  gatewayDir,
+		RouterID: string(routerId),
+		Hostname: hostname,
+	}
+	var buf bytes.Buffer
+	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
+	qdrConfig.Execute(&buf, instance)
+
+	err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", buf.Bytes(), 0644)
+	if err != nil {
+		return fmt.Errorf("Failed to write config file: %w", err)
+	}
+	return nil
+}
+
 func (cli *VanClient) setupGatewayDataDirs(ctx context.Context, gatewayName string) error {
 	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 
@@ -394,6 +423,13 @@ func (cli *VanClient) setupGatewayDataDirs(ctx context.Context, gatewayName stri
 		return fmt.Errorf("Failed to write instance url file: %w", err)
 	}
 
+	// generate a router id and store it for subsequent template updates
+	routerId := newUUID()
+	err = ioutil.WriteFile(gatewayDir+"/config/routerid.txt", []byte(routerId), 0644)
+	if err != nil {
+		return fmt.Errorf("Failed to write instance id file: %w", err)
+	}
+
 	// Iterate through the config and check free ports, get port if in use
 	for name, tcpListener := range gatewayConfig.Bridges.TcpListeners {
 		if !checkPortFree("tcp", tcpListener.Port) {
@@ -416,7 +452,7 @@ func (cli *VanClient) setupGatewayDataDirs(ctx context.Context, gatewayName stri
 
 	instance := GatewayInstance{
 		DataDir:  gatewayDir,
-		RouterID: newUUID(),
+		RouterID: routerId,
 		Hostname: hostname,
 	}
 	var buf bytes.Buffer
@@ -1014,14 +1050,9 @@ func (cli *VanClient) GatewayBind(ctx context.Context, gatewayName string, endpo
 
 	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
 	if err == nil {
-		mc, err := qdr.MarshalRouterConfig(*gatewayConfig)
+		err := updateLocalGatewayConfig(gatewayDir, *gatewayConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to marshall router config: %w", err)
-		}
-
-		err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", []byte(mc), 0644)
-		if err != nil {
-			return fmt.Errorf("Failed to write config file: %w", err)
+			return err
 		}
 	}
 
@@ -1070,14 +1101,9 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, gatewayName string, end
 
 	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
 	if err == nil {
-		mc, err := qdr.MarshalRouterConfig(*gatewayConfig)
+		err := updateLocalGatewayConfig(gatewayDir, *gatewayConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to marshall router config: %w", err)
-		}
-
-		err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", []byte(mc), 0644)
-		if err != nil {
-			return fmt.Errorf("Failed to write config file: %w", err)
+			return err
 		}
 	}
 
@@ -1274,14 +1300,9 @@ func (cli *VanClient) GatewayForward(ctx context.Context, gatewayName string, en
 
 	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
 	if err == nil {
-		mc, err := qdr.MarshalRouterConfig(*gatewayConfig)
+		err := updateLocalGatewayConfig(gatewayDir, *gatewayConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to marshall router config: %w", err)
-		}
-
-		err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", []byte(mc), 0644)
-		if err != nil {
-			return fmt.Errorf("Failed to write config file: %w", err)
+			return err
 		}
 	}
 
@@ -1330,14 +1351,9 @@ func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, 
 
 	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
 	if err == nil {
-		mc, err := qdr.MarshalRouterConfig(*gatewayConfig)
+		err := updateLocalGatewayConfig(gatewayDir, *gatewayConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to marshall router config: %w", err)
-		}
-
-		err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", []byte(mc), 0644)
-		if err != nil {
-			return fmt.Errorf("Failed to write config file: %w", err)
+			return err
 		}
 	}
 
