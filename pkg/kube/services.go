@@ -55,7 +55,7 @@ func NewServiceForAddress(address string, ports []int, targetPorts []int, labels
 
 	_, err := createCertificateForService(service.Name, namespace, address, kubeclient)
 
-	if err!= nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -68,12 +68,6 @@ func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int
 	}
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 	service.Spec.ClusterIP = "None"
-
-	_, err := createCertificateForService(service.Name, namespace, address, kubeclient)
-
-	if err!= nil {
-		return nil, err
-	}
 
 	return createServiceFromObject(service, namespace, kubeclient)
 }
@@ -258,7 +252,8 @@ func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 
 func createCertificateForService(serviceName string, nameSpace string, hosts string, kubeclient kubernetes.Interface) (*corev1.Secret, error) {
 	siteId := os.Getenv("SKUPPER_SITE_ID")
-	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(siteId, metav1.GetOptions{})
+	caName := "skupper-site-" + siteId
+	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(caName, metav1.GetOptions{})
 
 	if err != nil {
 		return nil, err

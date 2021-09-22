@@ -594,6 +594,10 @@ func (c *Controller) updateBridgeConfig(name string) error {
 				return fmt.Errorf("Failed to update %s: %v", name, err.Error())
 			}
 		}
+		err = mountServiceCertificates(desiredBridges, c.vanClient.Namespace, c)
+		if err != nil {
+			return fmt.Errorf("Failed to mount service certificates: %v", err.Error())
+		}
 	}
 	return nil
 }
@@ -856,4 +860,25 @@ func (c *Controller) processNextEvent() bool {
 	}
 
 	return true
+}
+
+func mountServiceCertificates(bridgeConfig *qdr.BridgeConfig, namespace string, controller *Controller) error {
+	for _, endpoint := range bridgeConfig.HttpConnectors {
+		err := mountServiceCertificatesByService(endpoint.Name, namespace, controller)
+
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func mountServiceCertificatesByService(serviceName string, namespace string, c *Controller) error {
+	deployment, err := kube.GetDeployment(types.TransportDeploymentName, namespace, c.vanClient.KubeClient)
+
+	if err != nil {
+		return err
+	}
+	kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, serviceName, "/etc/qpid-dispatch-certs/"+serviceName+"/")
+	return nil
 }

@@ -17,15 +17,16 @@ func TestCreateCertificateForService(t *testing.T) {
 
 	// Mock VanClient
 	const NAMESPACE = "test"
-	const SITE_ID = "skupper-ca-site"
+	const SITE_ID = "12345"
 
 	// Used to define the test table
 	type test struct {
 		name          string
 		targetService string
 		address       string
-		siteId		  string
+		siteId        string
 		error         string
+		secret        string
 	}
 
 	// Helper functions used to compose test table
@@ -55,13 +56,12 @@ func TestCreateCertificateForService(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset()
 	kubeClient.Fake.PrependReactor("get", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		name := action.(k8stesting.GetAction).GetName()
-		if name == "error-site-ca" {
+		if name == "skupper-site-error-site-ca" {
 			return true, nil, fmt.Errorf("The CA for the site does not exists")
 		}
 
 		return false, nil, nil
 	})
-
 
 	kubeClient.Fake.PrependReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		name := action.(k8stesting.CreateAction).GetObject().(*corev1.Secret).Name
@@ -75,16 +75,16 @@ func TestCreateCertificateForService(t *testing.T) {
 	// Creating the fake services
 	svcNoPorts := newService("svc-no-ports")
 	svcOnePort := newService("svc-one-port", 8080)
-	caCert := certs.GenerateCASecret(SITE_ID, SITE_ID)
+	caCert := certs.GenerateCASecret("skupper-site-"+SITE_ID, "skupper-site-"+SITE_ID)
 	kubeClient.CoreV1().Services(NAMESPACE).Create(svcNoPorts)
 	kubeClient.CoreV1().Services(NAMESPACE).Create(svcOnePort)
 	kubeClient.CoreV1().Secrets(NAMESPACE).Create(&caCert)
 
 	testTable := []test{
-		{"svc-no-ports", svcNoPorts.Name, "svc-no-ports",SITE_ID,  ""},
-		{"svc-one-port", svcOnePort.Name, "svc-one-port", SITE_ID,  ""},
-		{"existing-cert-error-svc", "existing-cert-error-svc", "existing-cert-error-svc", SITE_ID,  "A certificate for that service already exists"},
-		{"error-sit-ca", "error-sit-ca", "error-sit-ca","error-site-ca",  "The CA for the site does not exists"},
+		{"svc-no-ports", svcNoPorts.Name, "svc-no-ports", SITE_ID, "", "skupper-site-ca-services"},
+		{"svc-one-port", svcOnePort.Name, "svc-one-port", SITE_ID, "", "skupper-site-ca-services"},
+		{"existing-cert-error-svc", "existing-cert-error-svc", "existing-cert-error-svc", SITE_ID, "A certificate for that service already exists", "skupper-site-ca-services"},
+		{"error-site-ca", "error-site-ca", "error-site-ca", "error-site-ca", "The CA for the site does not exists", "skupper-site-error-site-ca"},
 	}
 
 	for _, test := range testTable {

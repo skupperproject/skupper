@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -271,5 +272,5 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
-	CASiteCreate(options SiteConfig) error
+	CASiteCreate(ownerRef *metav1.OwnerReference) error
 }

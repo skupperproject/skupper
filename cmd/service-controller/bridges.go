@@ -374,14 +374,18 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 			}
 			bridges.AddHttpConnector(b)
 		case ProtocolHTTP2:
-			bridges.AddHttpConnector(qdr.HttpEndpoint{
-				Name:            endpointName,
+			httpConnector := qdr.HttpEndpoint{
+				Name:            getBridgeName(address+"."+target, host),
 				Host:            host,
-				Port:            strconv.Itoa(tPort),
-				Address:         endpointAddr,
+				Port:            strconv.Itoa(port),
+				Address:         address,
 				SiteId:          siteId,
 				ProtocolVersion: qdr.HttpVersion2,
+			}
+			httpConnector.AddSslProfileWithPath("/etc/qpid-dispatch-certs", qdr.SslProfile{
+				Name: address,
 			})
+			bridges.AddHttpConnector(httpConnector)
 		case ProtocolTCP:
 			bridges.AddTcpConnector(qdr.TcpEndpoint{
 				Name:    endpointName,
