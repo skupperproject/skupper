@@ -27,6 +27,10 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
 					return err
 				} else {
+					err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(address, &metav1.DeleteOptions{})
+					if err != nil {
+						return fmt.Errorf("Failed to remove service certificate: %v", err.Error())
+					}
 					return nil
 				}
 			}

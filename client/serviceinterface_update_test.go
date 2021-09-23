@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"reflect"
 	"testing"
 	"time"
@@ -314,6 +315,9 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	}
 
 	// create three service definitions
+	siteCA, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaServicesSecret, metav1.GetOptions{})
+	assert.Assert(t, err)
+
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
 		Address:      "tcp-go-echo",
 		Protocol:     "tcp",
@@ -321,6 +325,9 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		EventChannel: false,
 		Aggregate:    "",
 	})
+	assert.Assert(t, err)
+	serviceCert := certs.GenerateSecret("tcp-go-echo", "tcp-go-echo", "tcp-go-echo", siteCA)
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
 	assert.Assert(t, err)
 
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
@@ -330,6 +337,9 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		EventChannel: false,
 		Aggregate:    "",
 	})
+	assert.Assert(t, err)
+	serviceCert = certs.GenerateSecret("nginx", "nginx", "nginx", siteCA)
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
 	assert.Assert(t, err)
 
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
@@ -342,6 +352,9 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			"service": "tcp-go-echo-ss",
 		},
 	})
+	assert.Assert(t, err)
+	serviceCert = certs.GenerateSecret("tcp-go-echo-ss", "tcp-go-echo-ss", "tcp-go-echo-ss", siteCA)
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
 	assert.Assert(t, err)
 
 	// bind services to targets

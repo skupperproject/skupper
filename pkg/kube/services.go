@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/certs"
-	"os"
 	"strings"
 	"time"
 
@@ -251,9 +250,7 @@ func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 }
 
 func createCertificateForService(serviceName string, nameSpace string, hosts string, kubeclient kubernetes.Interface) (*corev1.Secret, error) {
-	siteId := os.Getenv("SKUPPER_SITE_ID")
-	caName := "skupper-site-" + siteId
-	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(caName, metav1.GetOptions{})
+	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(types.SiteCaServicesSecret, metav1.GetOptions{})
 
 	if err != nil {
 		return nil, err

@@ -93,7 +93,7 @@ func TestCreateCertificateForService(t *testing.T) {
 			cert, err := createCertificateForService(test.name, NAMESPACE, test.name, kubeClient)
 
 			if cert != nil {
-				assert.DeepEqual(t, test.name, cert.Name)
+				assert.Equal(t, test.name, cert.Name)
 			}
 
 			if test.error != "" {
