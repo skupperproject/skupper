@@ -315,7 +315,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	}
 
 	// create three service definitions
-	siteCA, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaServicesSecret, metav1.GetOptions{})
+	siteCA, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.ServiceCaSecret, metav1.GetOptions{})
 	assert.Assert(t, err)
 
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
@@ -326,7 +326,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		Aggregate:    "",
 	})
 	assert.Assert(t, err)
-	serviceCert := certs.GenerateSecret("tcp-go-echo", "tcp-go-echo", "tcp-go-echo", siteCA)
+	serviceCert := certs.GenerateSecret("skupper-tcp-go-echo", "tcp-go-echo", "tcp-go-echo", siteCA)
 	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
 	assert.Assert(t, err)
 
@@ -338,7 +338,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		Aggregate:    "",
 	})
 	assert.Assert(t, err)
-	serviceCert = certs.GenerateSecret("nginx", "nginx", "nginx", siteCA)
+	serviceCert = certs.GenerateSecret("skupper-nginx", "nginx", "nginx", siteCA)
 	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
 	assert.Assert(t, err)
 
@@ -353,7 +353,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		},
 	})
 	assert.Assert(t, err)
-	serviceCert = certs.GenerateSecret("tcp-go-echo-ss", "tcp-go-echo-ss", "tcp-go-echo-ss", siteCA)
+	serviceCert = certs.GenerateSecret("skupper-tcp-go-echo-ss", "tcp-go-echo-ss", "tcp-go-echo-ss", siteCA)
 	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
 	assert.Assert(t, err)
 
@@ -450,5 +450,20 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	items, err = cli.ServiceInterfaceList(ctx)
 	assert.Assert(t, err)
 	assert.Equal(t, len(items), 0)
+
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-nginx", metav1.GetOptions{})
+	if err != nil {
+		assert.Equal(t, err.Error(), "secrets \"skupper-nginx\" not found")
+	}
+
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-tcp-go-echo", metav1.GetOptions{})
+	if err != nil {
+		assert.Equal(t, err.Error(), "secrets \"skupper-tcp-go-echo\" not found")
+	}
+
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-tcp-go-echo-ss", metav1.GetOptions{})
+	if err != nil {
+		assert.Equal(t, err.Error(), "secrets \"skupper-tcp-go-echo-ss\" not found")
+	}
 
 }

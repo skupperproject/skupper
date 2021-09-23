@@ -69,7 +69,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
 				types.SiteServerSecret,
-				types.SiteCaServicesSecret},
+				types.ServiceCaSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName, types.TransportServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -104,7 +104,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.ClaimsServerSecret,
 				types.ConsoleServerSecret,
 				types.SiteServerSecret,
-				types.SiteCaServicesSecret},
+				types.ServiceCaSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -140,7 +140,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.SiteServerSecret,
 				"skupper-console-users",
 				types.ConsoleServerSecret,
-				types.SiteCaServicesSecret},
+				types.ServiceCaSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -176,7 +176,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.SiteServerSecret,
 				types.OauthRouterConsoleSecret,
 				types.ConsoleServerSecret,
-				types.SiteCaServicesSecret},
+				types.ServiceCaSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -208,7 +208,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.ConsoleServerSecret,
 				types.LocalServerSecret,
 				types.LocalClientSecret,
-				types.SiteCaServicesSecret},
+				types.ServiceCaSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{

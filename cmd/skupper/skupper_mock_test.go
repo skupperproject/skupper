@@ -286,7 +286,7 @@ func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
 	return nil
 }
 
-func (v *vanClientMock) CASiteCreate(ownerRef *metav1.OwnerReference) error {
+func (v *vanClientMock) ServiceCACreate(ownerRef *metav1.OwnerReference) error {
 	return nil
 }
 

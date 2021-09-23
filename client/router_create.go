@@ -1199,7 +1199,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 
 	// Create a CA associated with the site to create certificates for each service.
-	err = cli.CASiteCreate(siteOwnerRef)
+	err = cli.ServiceCACreate(siteOwnerRef)
 	if err != nil {
 		return err
 	}

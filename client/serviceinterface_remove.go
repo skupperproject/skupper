@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,11 +29,8 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
 					return err
 				} else {
-					err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(address, &metav1.DeleteOptions{})
 
-					if err != nil {
-						log.Printf("Failed to remove service certificate: %v", err.Error())
-					}
+					removeServiceCertificate(cli.Namespace, address, cli.KubeClient)
 					return nil
 				}
 			}
@@ -51,4 +49,14 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 		return unretryable
 	}
 	return err
+}
+
+func removeServiceCertificate(namespace string, address string, kubeClient kubernetes.Interface) {
+	certName := "skupper-" + address
+
+	err := kubeClient.CoreV1().Secrets(namespace).Delete(certName, &metav1.DeleteOptions{})
+
+	if err != nil {
+		log.Printf("Failed to remove service certificate: %v", err.Error())
+	}
 }

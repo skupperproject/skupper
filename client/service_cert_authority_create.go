@@ -7,9 +7,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *VanClient) CASiteCreate(ownerRef *metav1.OwnerReference) error {
+func (cli *VanClient) ServiceCACreate(ownerRef *metav1.OwnerReference) error {
 
-	ca := types.CertAuthority{Name: types.SiteCaServicesSecret}
+	ca := types.CertAuthority{Name: types.ServiceCaSecret}
 
 	_, err := kube.NewCertAuthority(ca, ownerRef, cli.Namespace, cli.KubeClient)
 	if err != nil && !errors.IsAlreadyExists(err) {

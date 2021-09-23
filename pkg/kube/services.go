@@ -250,13 +250,15 @@ func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 }
 
 func createCertificateForService(serviceName string, nameSpace string, hosts string, kubeclient kubernetes.Interface) (*corev1.Secret, error) {
-	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(types.SiteCaServicesSecret, metav1.GetOptions{})
+	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(types.ServiceCaSecret, metav1.GetOptions{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	serviceCert := certs.GenerateSecret(serviceName, serviceName, hosts, caCert)
+	certName := "skupper-" + serviceName
+
+	serviceCert := certs.GenerateSecret(certName, serviceName, hosts, caCert)
 	_, err = kubeclient.CoreV1().Secrets(nameSpace).Create(&serviceCert)
 
 	if err != nil {

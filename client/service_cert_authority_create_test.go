@@ -2,10 +2,11 @@ package client
 
 import (
 	"context"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"testing"
 )
@@ -25,7 +26,7 @@ func TestCertAuthoritySiteCreate(t *testing.T) {
 			doc:           "The certificate authority is created successfully.",
 			skupperName:   "test-site",
 			siteUID:       "dc9076e9",
-			secret:        "skupper-site-ca-services",
+			secret:        types.ServiceCaSecret,
 		},
 	}
 
@@ -58,9 +59,9 @@ func TestCertAuthoritySiteCreate(t *testing.T) {
 			APIVersion: "core/v1",
 			Kind:       "ConfigMap",
 			Name:       c.skupperName,
-			UID:        types.UID(c.siteUID),
+			UID:        k8stypes.UID(c.siteUID),
 		}
-		err = cli.CASiteCreate(&ownerReference)
+		err = cli.ServiceCACreate(&ownerReference)
 
 		assert.Check(t, err, c.doc)
 
