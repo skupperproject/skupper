@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"strings"
 	"testing"
@@ -285,7 +286,7 @@ func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
 	return nil
 }
 
-func (v *vanClientMock) CASiteCreate(options types.SiteConfig) error {
+func (v *vanClientMock) CASiteCreate(ownerRef *metav1.OwnerReference) error {
 	return nil
 }
 
