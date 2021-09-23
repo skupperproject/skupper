@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,8 +29,9 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					return err
 				} else {
 					err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(address, &metav1.DeleteOptions{})
+
 					if err != nil {
-						return fmt.Errorf("Failed to remove service certificate: %v", err.Error())
+						log.Printf("Failed to remove service certificate: %v", err.Error())
 					}
 					return nil
 				}

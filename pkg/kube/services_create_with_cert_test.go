@@ -54,14 +54,6 @@ func TestCreateCertificateForService(t *testing.T) {
 
 	// Mocking reacting to get a service and generate an error
 	kubeClient := fake.NewSimpleClientset()
-	kubeClient.Fake.PrependReactor("get", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		name := action.(k8stesting.GetAction).GetName()
-		if name == "skupper-site-error-site-ca" {
-			return true, nil, fmt.Errorf("The CA for the site does not exists")
-		}
-
-		return false, nil, nil
-	})
 
 	kubeClient.Fake.PrependReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		name := action.(k8stesting.CreateAction).GetObject().(*corev1.Secret).Name
@@ -75,21 +67,22 @@ func TestCreateCertificateForService(t *testing.T) {
 	// Creating the fake services
 	svcNoPorts := newService("svc-no-ports")
 	svcOnePort := newService("svc-one-port", 8080)
-	caCert := certs.GenerateCASecret("skupper-site-"+SITE_ID, "skupper-site-"+SITE_ID)
 	kubeClient.CoreV1().Services(NAMESPACE).Create(svcNoPorts)
 	kubeClient.CoreV1().Services(NAMESPACE).Create(svcOnePort)
-	kubeClient.CoreV1().Secrets(NAMESPACE).Create(&caCert)
 
 	testTable := []test{
 		{"svc-no-ports", svcNoPorts.Name, "svc-no-ports", SITE_ID, "", "skupper-site-ca-services"},
 		{"svc-one-port", svcOnePort.Name, "svc-one-port", SITE_ID, "", "skupper-site-ca-services"},
 		{"existing-cert-error-svc", "existing-cert-error-svc", "existing-cert-error-svc", SITE_ID, "A certificate for that service already exists", "skupper-site-ca-services"},
-		{"error-site-ca", "error-site-ca", "error-site-ca", "error-site-ca", "The CA for the site does not exists", "skupper-site-error-site-ca"},
+		{"error-site-ca", "error-site-ca", "error-site-ca", "error-site-ca", "secrets \"skupper-site-ca-services\" not found", "skupper-site-error-site-ca"},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
+			caCert := certs.GenerateCASecret(test.secret, test.secret)
 			os.Setenv("SKUPPER_SITE_ID", test.siteId)
+			kubeClient.CoreV1().Secrets(NAMESPACE).Create(&caCert)
+
 			cert, err := createCertificateForService(test.name, NAMESPACE, test.name, kubeClient)
 
 			if cert != nil {
