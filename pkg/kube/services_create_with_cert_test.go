@@ -54,6 +54,14 @@ func TestCreateCertificateForService(t *testing.T) {
 
 	// Mocking reacting to get a service and generate an error
 	kubeClient := fake.NewSimpleClientset()
+	kubeClient.Fake.PrependReactor("get", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		name := action.(k8stesting.GetAction).GetName()
+		if name == "skupper-site-error-site-ca" {
+			return true, nil, fmt.Errorf("The CA for the site does not exists")
+		}
+
+		return false, nil, nil
+	})
 
 	kubeClient.Fake.PrependReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		name := action.(k8stesting.CreateAction).GetObject().(*corev1.Secret).Name
@@ -97,6 +105,7 @@ func TestCreateCertificateForService(t *testing.T) {
 			}
 
 			os.Remove("SKUPPER_SITE_ID")
+			kubeClient.CoreV1().Secrets(NAMESPACE).Delete(caCert.Name, &metav1.DeleteOptions{})
 		})
 	}
 
