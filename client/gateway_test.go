@@ -17,6 +17,156 @@ import (
 	"gotest.tools/assert"
 )
 
+func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var cli *VanClient
+	var err error
+
+	namespace := "test-gateway-export-config-" + strings.ToLower(utils.RandomId(4))
+	kubeContext := ""
+	kubeConfigPath := ""
+
+	//isCluster := *clusterRun
+	if *clusterRun {
+		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
+	} else {
+		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
+	}
+	assert.Check(t, err, namespace)
+	_, err = kube.NewNamespace(namespace, cli.KubeClient)
+	assert.Check(t, err, namespace)
+	defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+	// Create a router.
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
+			SkupperName:       "test-gateway-export-config-",
+			RouterMode:        string(types.TransportModeInterior),
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          "",
+			User:              "",
+			Password:          "",
+			Ingress:           types.IngressNoneString,
+		},
+	})
+	assert.Check(t, err, "Unable to create VAN router")
+
+	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", "", true)
+	assert.Assert(t, observedError)
+	assert.Equal(t, gatewayName, "exportconfig")
+
+	// Here's where we will put the gateway download file.
+	testPath := "./tmp/"
+	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
+
+	// Create a few VAN Service Interfaces.
+	echoService := types.ServiceInterface{
+		Address:  "tcp-go-echo",
+		Protocol: "tcp",
+		Port:     9090,
+	}
+	observedError = cli.ServiceInterfaceCreate(ctx, &echoService)
+	assert.Assert(t, observedError)
+
+	mongoService := types.ServiceInterface{
+		Address:  "mongo-db",
+		Protocol: "tcp",
+		Port:     27017,
+	}
+	observedError = cli.ServiceInterfaceCreate(ctx, &mongoService)
+	assert.Assert(t, observedError)
+
+	http1Service := types.ServiceInterface{
+		Address:  "http1svc",
+		Protocol: "http",
+		Port:     10080,
+	}
+	observedError = cli.ServiceInterfaceCreate(ctx, &http1Service)
+	assert.Assert(t, observedError)
+
+	http2Service := types.ServiceInterface{
+		Address:  "http2svc",
+		Protocol: "http2",
+		Port:     10081,
+	}
+	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
+	assert.Assert(t, observedError)
+
+	// A few binds and forwards
+	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
+		Host:    "localhost",
+		Service: echoService,
+	})
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
+		Host:    "localhost",
+		Service: http1Service,
+	})
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: mongoService}, true)
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http2Service}, true)
+	assert.Assert(t, observedError)
+
+	_, observedError = cli.GatewayExportConfig(ctx, "exportconfig", "myapp", testPath)
+	assert.Assert(t, observedError)
+
+	_, observedError = os.Stat(testPath + "myapp.yaml")
+	//	file, observedError := os.Open(testPath + "myapp.yaml")
+	//	defer file.Close()
+	assert.Assert(t, observedError)
+
+	_, observedError = cli.GatewayGenerateBundle(ctx, testPath+"myapp.yaml", testPath)
+	assert.Assert(t, observedError)
+
+	file, observedError := os.Open(testPath + "myapp.tar.gz")
+	defer file.Close()
+	assert.Assert(t, observedError)
+
+	gzf, observedError := gzip.NewReader(file)
+	assert.Assert(t, observedError)
+
+	tarReader := tar.NewReader(gzf)
+
+	files := []string{
+		"qpid-dispatch-certs/conn1-profile/tls.crt",
+		"qpid-dispatch-certs/conn1-profile/tls.key",
+		"qpid-dispatch-certs/conn1-profile/ca.crt",
+		"config/qdrouterd.json",
+		"service/myapp.service",
+		"launch.sh",
+		"remove.sh",
+		"expandvars.py",
+	}
+
+	i := 0
+	for {
+		header, observedError := tarReader.Next()
+
+		if observedError == io.EOF {
+			break
+		}
+		assert.Assert(t, observedError)
+		assert.Equal(t, header.Name, files[i])
+
+		i++
+	}
+	assert.Equal(t, i, len(files))
+
+	// fire up a gateway with config
+	gatewayName, observedError = cli.GatewayInit(ctx, "exportconfig2", testPath+"myapp.yaml", true)
+	assert.Assert(t, observedError)
+	assert.Equal(t, gatewayName, "exportconfig2")
+}
+
 func TestGatewayDownload(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -55,10 +205,7 @@ func TestGatewayDownload(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	gatewayName, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
-		Name:         "download",
-		DownloadOnly: true,
-	})
+	gatewayName, observedError := cli.GatewayInit(ctx, "download", "", true)
 	assert.Assert(t, observedError)
 	assert.Equal(t, gatewayName, "download")
 
@@ -178,50 +325,56 @@ func TestGatewayForward(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &mongoService)
 	assert.Assert(t, observedError)
 
-	gatewayName, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
-		Name:         "",
-		DownloadOnly: true,
-	})
+	http1Service := types.ServiceInterface{
+		Address:  "http1svc",
+		Protocol: "http",
+		Port:     10080,
+	}
+
+	observedError = cli.ServiceInterfaceCreate(ctx, &http1Service)
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, types.GatewayForwardOptions{
-		GatewayName: gatewayName,
-		Loopback:    false,
-		Service:     echoService,
-	})
+	http2Service := types.ServiceInterface{
+		Address:  "http2svc",
+		Protocol: "http2",
+		Port:     10081,
+	}
+
+	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
 
-	//	observedError = cli.gatewayStart(ctx, gatewayName)
-	//	assert.Assert(t, observedError)
-
-	// Note: need delay for service to start up
-	//	time.Sleep(time.Second * 1)
-
-	observedError = cli.GatewayForward(ctx, types.GatewayForwardOptions{
-		GatewayName: gatewayName,
-		Loopback:    true,
-		Service:     mongoService,
-	})
+	gatewayName, observedError := cli.GatewayInit(ctx, namespace, "", true)
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, types.GatewayForwardOptions{
-		GatewayName: gatewayName,
-		Loopback:    true,
-		Service:     echoService2,
-	})
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: echoService}, false)
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: mongoService}, true)
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: echoService2}, true)
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http1Service}, true)
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http2Service}, true)
 	assert.Assert(t, observedError)
 
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
-	assert.Equal(t, len(gatewayInspect.TcpListeners), 3)
-	assert.Equal(t, len(gatewayInspect.TcpConnectors), 0)
+	assert.Equal(t, len(gatewayInspect.GatewayListeners), 5)
+	assert.Equal(t, len(gatewayInspect.GatewayConnectors), 0)
 
 	// Now undo
-	observedError = cli.GatewayUnforward(ctx, gatewayName, "tcp-go-echo")
+	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "tcp-go-echo", Protocol: "tcp"}})
 	assert.Assert(t, observedError)
 
-	//	observedError = cli.gatewayStop(ctx, gatewayName)
-	//	assert.Assert(t, observedError)
+	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "http1Service", Protocol: "http"}})
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "http2Service", Protocol: "http"}})
+	assert.Assert(t, observedError)
 
 	observedError = cli.GatewayRemove(ctx, gatewayName)
 	assert.Assert(t, observedError)
@@ -278,41 +431,72 @@ func TestGatewayBind(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, observedError)
 
-	gatewayName, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
-		Name:         "",
-		DownloadOnly: true,
+	http1Service := types.ServiceInterface{
+		Address:  "http1svc",
+		Protocol: "http",
+		Port:     10080,
+	}
+	observedError = cli.ServiceInterfaceCreate(ctx, &http1Service)
+	assert.Assert(t, observedError)
+
+	http2Service := types.ServiceInterface{
+		Address:  "http2svc",
+		Protocol: "http2",
+		Port:     10081,
+	}
+	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
+	assert.Assert(t, observedError)
+
+	gatewayName, observedError := cli.GatewayInit(ctx, namespace, "", true)
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
+		Host: "localhost",
+		Service: types.ServiceInterface{
+			Protocol: "tcp",
+			Port:     9090,
+			Address:  "tcp-go-echo",
+		},
+	})
+
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
+		Host: "localhost",
+		Service: types.ServiceInterface{
+			Protocol: "tcp",
+			Port:     27017,
+			Address:  "mongo-db",
+		},
 	})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayBind(ctx, types.GatewayBindOptions{
-		GatewayName: gatewayName,
-		Protocol:    "tcp",
-		Host:        "localhost",
-		Port:        "9090",
-		Address:     "tcp-go-echo",
+	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
+		Host:    "localhost",
+		Service: http1Service,
 	})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayBind(ctx, types.GatewayBindOptions{
-		GatewayName: gatewayName,
-		Protocol:    "tcp",
-		Host:        "localhost",
-		Port:        "27017",
-		Address:     "mongo-db",
+	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
+		Host:    "localhost",
+		Service: http2Service,
 	})
 	assert.Assert(t, observedError)
 
 	// Now undo
-	observedError = cli.GatewayUnbind(ctx, types.GatewayUnbindOptions{
-		GatewayName: gatewayName,
-		Address:     "tcp-go-echo",
-	})
+	observedError = cli.GatewayUnbind(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "tcp-go-echo", Protocol: "tcp"}})
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayUnbind(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "http1svc", Protocol: "http"}})
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayUnbind(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "http2svc", Protocol: "http2"}})
 	assert.Assert(t, observedError)
 
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
-	assert.Equal(t, len(gatewayInspect.TcpListeners), 0)
-	assert.Equal(t, len(gatewayInspect.TcpConnectors), 1)
+	assert.Equal(t, len(gatewayInspect.GatewayListeners), 0)
+	assert.Equal(t, len(gatewayInspect.GatewayConnectors), 1)
 
 	observedError = cli.GatewayRemove(ctx, gatewayName)
 	assert.Assert(t, observedError)
@@ -321,7 +505,7 @@ func TestGatewayInit(t *testing.T) {
 	testcases := []struct {
 		doc           string
 		init          bool
-		downloadOnly  bool
+		exportOnly    bool
 		initName      string
 		actualName    string
 		remove        bool
@@ -331,7 +515,7 @@ func TestGatewayInit(t *testing.T) {
 	}{
 		{
 			init:          true,
-			downloadOnly:  true,
+			exportOnly:    true,
 			initName:      "",
 			actualName:    "",
 			remove:        true,
@@ -341,7 +525,7 @@ func TestGatewayInit(t *testing.T) {
 		},
 		{
 			init:          false,
-			downloadOnly:  true,
+			exportOnly:    true,
 			initName:      "gateway1",
 			actualName:    "gateway1",
 			remove:        true,
@@ -351,7 +535,7 @@ func TestGatewayInit(t *testing.T) {
 		},
 		{
 			init:          true,
-			downloadOnly:  true,
+			exportOnly:    true,
 			initName:      "gateway2",
 			actualName:    "gateway2",
 			remove:        true,
@@ -381,10 +565,7 @@ func TestGatewayInit(t *testing.T) {
 	assert.Check(t, err, "test-gateway-init-remove")
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
-	_, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
-		Name:         "",
-		DownloadOnly: false,
-	})
+	_, observedError := cli.GatewayInit(ctx, namespace, "", false)
 	assert.Check(t, strings.Contains(observedError.Error(), "Skupper not initialized"))
 
 	// Create a router.
@@ -409,14 +590,11 @@ func TestGatewayInit(t *testing.T) {
 			if tc.actualName == "" {
 				tc.actualName, _ = getUserDefaultGatewayName()
 			}
-			gatewayName, observedError := cli.GatewayInit(ctx, types.GatewayInitOptions{
-				Name:         tc.initName,
-				DownloadOnly: tc.downloadOnly,
-			})
+			gatewayName, observedError := cli.GatewayInit(ctx, tc.initName, "", tc.exportOnly)
 			assert.Assert(t, observedError)
 			assert.Equal(t, gatewayName, tc.actualName)
 
-			if !tc.downloadOnly {
+			if !tc.exportOnly {
 				time.Sleep(time.Second * 1)
 			}
 			gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)

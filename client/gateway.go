@@ -19,6 +19,8 @@ import (
 	"text/template"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -31,8 +33,19 @@ import (
 )
 
 const (
-	gatewayPrefix string = "skupper-gateway-"
+	gatewayPrefix     string = "skupper-gateway-"
+	gatewayIngress    string = "-ingress-"
+	gatewayEgress     string = "-egress-"
+	gatewayClusterDir string = "/skupper/cluster/"
+	gatewayBundleDir  string = "/skupper/bundle/"
 )
+
+type GatewayConfig struct {
+	GatewayName  string                  `yaml:"name,omitempty"`
+	QdrListeners []qdr.Listener          `yaml:"qdr-listeners,omitempty"`
+	Bindings     []types.GatewayEndpoint `yaml:"bindings,omitempty"`
+	Forwards     []types.GatewayEndpoint `yaml:"forwards,omitempty"`
+}
 
 type UnitInfo struct {
 	IsSystemService bool
@@ -120,11 +133,11 @@ gateway_name={{.GatewayName}}
 share_dir=${XDG_DATA_HOME:-~/.local/share}
 config_dir=${XDG_CONFIG_HOME:-~/.config}
 
-certs_dir=$share_dir/skupper/$gateway_name/qpid-dispatch-certs
-qdrcfg_dir=$share_dir/skupper/$gateway_name/config
+certs_dir=$share_dir/skupper/bundle/$gateway_name/qpid-dispatch-certs
+qdrcfg_dir=$share_dir/skupper/bundle/$gateway_name/config
 
 export ROUTER_ID=$(cat /proc/sys/kernel/random/uuid)
-export QDR_CONF_DIR=$share_dir/skupper/$gateway_name
+export QDR_CONF_DIR=$share_dir/skupper/bundle/$gateway_name
 export QDR_BIN_PATH=${QDROUTERD_HOME:-$qdr_bin}
 
 mkdir -p $config_dir/systemd/user
@@ -163,7 +176,7 @@ systemctl --user stop $gateway_name.service
 systemctl --user disable $gateway_name.service
 systemctl --user daemon-reload
 
-rm -rf $share_dir/skupper/$gateway_name
+rm -rf $share_dir/skupper/bundle/$gateway_name
 rm $config_dir/systemd/user/$gateway_name.service
 `
 	var buf bytes.Buffer
@@ -328,8 +341,37 @@ type GatewayInstance struct {
 	RouterID string
 }
 
+func updateLocalGatewayConfig(gatewayDir string, gatewayConfig qdr.RouterConfig) error {
+	mc, err := qdr.MarshalRouterConfig(gatewayConfig)
+	if err != nil {
+		return fmt.Errorf("Failed to marshall router config: %w", err)
+	}
+
+	hostname, _ := os.Hostname()
+
+	routerId, err := ioutil.ReadFile(gatewayDir + "/config/routerid.txt")
+	if err != nil {
+		return fmt.Errorf("Failed to read instance url file: %w", err)
+	}
+
+	instance := GatewayInstance{
+		DataDir:  gatewayDir,
+		RouterID: string(routerId),
+		Hostname: hostname,
+	}
+	var buf bytes.Buffer
+	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
+	qdrConfig.Execute(&buf, instance)
+
+	err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", buf.Bytes(), 0644)
+	if err != nil {
+		return fmt.Errorf("Failed to write config file: %w", err)
+	}
+	return nil
+}
+
 func (cli *VanClient) setupGatewayDataDirs(ctx context.Context, gatewayName string) error {
-	gatewayDir := getDataHome() + "/skupper/" + gatewayName
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 
 	certs := []string{"tls.crt", "tls.key", "ca.crt"}
 
@@ -381,6 +423,13 @@ func (cli *VanClient) setupGatewayDataDirs(ctx context.Context, gatewayName stri
 		return fmt.Errorf("Failed to write instance url file: %w", err)
 	}
 
+	// generate a router id and store it for subsequent template updates
+	routerId := newUUID()
+	err = ioutil.WriteFile(gatewayDir+"/config/routerid.txt", []byte(routerId), 0644)
+	if err != nil {
+		return fmt.Errorf("Failed to write instance id file: %w", err)
+	}
+
 	// Iterate through the config and check free ports, get port if in use
 	for name, tcpListener := range gatewayConfig.Bridges.TcpListeners {
 		if !checkPortFree("tcp", tcpListener.Port) {
@@ -403,7 +452,7 @@ func (cli *VanClient) setupGatewayDataDirs(ctx context.Context, gatewayName stri
 
 	instance := GatewayInstance{
 		DataDir:  gatewayDir,
-		RouterID: newUUID(),
+		RouterID: routerId,
 		Hostname: hostname,
 	}
 	var buf bytes.Buffer
@@ -422,9 +471,8 @@ func (cli *VanClient) setupGatewayDataDirs(ctx context.Context, gatewayName stri
 	return nil
 }
 
-func (cli *VanClient) GatewayInit(ctx context.Context, options types.GatewayInitOptions) (string, error) {
+func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, configFile string, exportOnly bool) (string, error) {
 	var err error
-	gatewayName := options.Name
 
 	if gatewayName != "" {
 		nameRegex := regexp.MustCompile(`^[a-z]([a-z0-9-]*[a-z0-9])*$`)
@@ -452,16 +500,16 @@ func (cli *VanClient) GatewayInit(ctx context.Context, options types.GatewayInit
 	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
 	_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(secret)
 
-	gatewayConfig := qdr.InitialConfig("gateway-"+gatewayName+"-{{.Hostname}}", "{{.RouterID}}", Version, true, 3)
+	routerConfig := qdr.InitialConfig("gateway-"+gatewayName+"-{{.Hostname}}", "{{.RouterID}}", Version, true, 3)
 
 	// NOTE: at instantiation time detect amqp port in use and allocate port if needed
-	gatewayConfig.AddListener(qdr.Listener{
+	routerConfig.AddListener(qdr.Listener{
 		Name: "amqp",
 		Host: "localhost",
 		Port: types.AmqpDefaultPort,
 	})
 
-	gatewayConfig.AddSslProfileWithPath("{{.DataDir}}/qpid-dispatch-certs", qdr.SslProfile{
+	routerConfig.AddSslProfileWithPath("{{.DataDir}}/qpid-dispatch-certs", qdr.SslProfile{
 		Name: "conn1-profile",
 	})
 	connector := qdr.Connector{
@@ -475,9 +523,89 @@ func (cli *VanClient) GatewayInit(ctx context.Context, options types.GatewayInit
 	connector.Port = secret.ObjectMeta.Annotations["edge-port"]
 	connector.Role = qdr.RoleEdge
 
-	gatewayConfig.AddConnector(connector)
+	routerConfig.AddConnector(connector)
 
-	mapData, err := gatewayConfig.AsConfigMapData()
+	if configFile != "" {
+		// grab the bindings and forwards from the config file
+		yamlFile, err := ioutil.ReadFile(configFile)
+		if err != nil {
+			return "", fmt.Errorf("Failed to read gateway config file: %w", err)
+		}
+		gatewayConfig := GatewayConfig{}
+		err = yaml.Unmarshal(yamlFile, &gatewayConfig)
+		if err != nil {
+			return "", fmt.Errorf("Failed to unmarshal gateway config file: %w", err)
+		}
+
+		//TODO: how to deal with service dependencies (e.g. how to know that we should create them)
+		for _, binding := range gatewayConfig.Bindings {
+			switch binding.Service.Protocol {
+			case "tcp":
+				routerConfig.AddTcpConnector(qdr.TcpEndpoint{
+					Name:    gatewayName + gatewayEgress + binding.Service.Address,
+					Host:    binding.Host,
+					Port:    strconv.Itoa(binding.Service.Port),
+					Address: binding.Service.Address,
+				})
+			case "http":
+				routerConfig.AddHttpConnector(qdr.HttpEndpoint{
+					Name:            gatewayName + gatewayEgress + binding.Service.Address,
+					Host:            binding.Host,
+					Port:            strconv.Itoa(binding.Service.Port),
+					Address:         binding.Service.Address,
+					ProtocolVersion: qdr.HttpVersion1,
+					Aggregation:     binding.Service.Aggregate,
+					EventChannel:    binding.Service.EventChannel,
+				})
+			case "http2":
+				routerConfig.AddHttpConnector(qdr.HttpEndpoint{
+					Name:            gatewayName + gatewayEgress + binding.Service.Address,
+					Host:            binding.Host,
+					Port:            strconv.Itoa(binding.Service.Port),
+					Address:         binding.Service.Address,
+					ProtocolVersion: qdr.HttpVersion2,
+					Aggregation:     binding.Service.Aggregate,
+					EventChannel:    binding.Service.EventChannel,
+				})
+			default:
+			}
+		}
+
+		for _, forward := range gatewayConfig.Forwards {
+			switch forward.Service.Protocol {
+			case "tcp":
+				routerConfig.AddTcpListener(qdr.TcpEndpoint{
+					Name:    gatewayName + gatewayIngress + forward.Service.Address,
+					Host:    forward.Host,
+					Port:    strconv.Itoa(forward.Service.Port),
+					Address: forward.Service.Address,
+				})
+			case "http":
+				routerConfig.AddHttpListener(qdr.HttpEndpoint{
+					Name:            gatewayName + gatewayIngress + forward.Service.Address,
+					Host:            forward.Host,
+					Port:            strconv.Itoa(forward.Service.Port),
+					Address:         forward.Service.Address,
+					ProtocolVersion: qdr.HttpVersion1,
+					Aggregation:     forward.Service.Aggregate,
+					EventChannel:    forward.Service.EventChannel,
+				})
+			case "http2":
+				routerConfig.AddHttpListener(qdr.HttpEndpoint{
+					Name:            gatewayName + gatewayIngress + forward.Service.Address,
+					Host:            forward.Host,
+					Port:            strconv.Itoa(forward.Service.Port),
+					Address:         forward.Service.Address,
+					ProtocolVersion: qdr.HttpVersion2,
+					Aggregation:     forward.Service.Aggregate,
+					EventChannel:    forward.Service.EventChannel,
+				})
+			default:
+			}
+		}
+	}
+
+	mapData, err := routerConfig.AsConfigMapData()
 	labels := map[string]string{
 		"skupper.io/type": "gateway-definition",
 	}
@@ -486,7 +614,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, options types.GatewayInit
 		return "", fmt.Errorf("Failed to create gateway config map: %w", err)
 	}
 
-	if !options.DownloadOnly {
+	if !exportOnly {
 		err = cli.gatewayStart(ctx, gatewayName)
 		if err != nil {
 			return gatewayName, err
@@ -582,7 +710,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 }
 
 func (cli *VanClient) gatewayStart(ctx context.Context, gatewayName string) error {
-	gatewayDir := getDataHome() + "/skupper/" + gatewayName
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 	svcDir := getConfigHome() + "/systemd/user"
 
 	qdrBinaryPath, err := exec.LookPath("qdrouterd")
@@ -620,7 +748,7 @@ func (cli *VanClient) gatewayStart(ctx context.Context, gatewayName string) erro
 }
 
 func (cli *VanClient) gatewayStop(ctx context.Context, gatewayName string) error {
-	gatewayDir := getDataHome() + "/skupper/" + gatewayName
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 	svcDir := getConfigHome() + "/systemd/user"
 
 	if gatewayName == "" {
@@ -645,7 +773,6 @@ func (cli *VanClient) gatewayStop(ctx context.Context, gatewayName string) error
 }
 
 func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) error {
-
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
@@ -699,46 +826,35 @@ func convert(from interface{}, to interface{}) error {
 	return nil
 }
 
-func (cli *VanClient) GatewayBind(ctx context.Context, options types.GatewayBindOptions) error {
-
-	gatewayName := options.GatewayName
-
-	if gatewayName == "" {
-		gatewayName, _ = getUserDefaultGatewayName()
+func getEntity(protocol string, endpointType string) string {
+	if protocol == "tcp" {
+		if endpointType == gatewayIngress {
+			return "org.apache.qpid.dispatch.tcpListener"
+		} else {
+			return "org.apache.qpid.dispatch.tcpConnector"
+		}
+	} else if protocol == "http" || protocol == "http2" {
+		if endpointType == gatewayIngress {
+			return "org.apache.qpid.dispatch.httpListener"
+		} else {
+			return "org.apache.qpid.dispatch.httpConnector"
+		}
 	}
+	return ""
+}
 
-	gatewayDir := getDataHome() + "/skupper/" + gatewayName
+func gatewayAddTcpEndpoint(gatewayName string, endpointType string, tcpEndpoint qdr.TcpEndpoint, gatewayConfig *qdr.RouterConfig) error {
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 
-	_, err := getRootObject(cli)
-	if err != nil {
-		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+	ok := false
+	current := qdr.TcpEndpoint{}
+	if endpointType == gatewayIngress {
+		current, ok = gatewayConfig.Bridges.TcpListeners[tcpEndpoint.Name]
+	} else {
+		current, ok = gatewayConfig.Bridges.TcpConnectors[tcpEndpoint.Name]
 	}
-
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
-	if err != nil {
-		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
-	}
-	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
-
-	si, err := cli.ServiceInterfaceInspect(ctx, options.Address)
-	if err != nil {
-		return fmt.Errorf("Failed to retrieve service: %w", err)
-	}
-	if si == nil {
-		return fmt.Errorf("Unable to gateway bind, service not found for %s", options.Address)
-	}
-
-	endpointName := gatewayName + "-egress-" + options.Address
-	endpoint := qdr.TcpEndpoint{
-		Name:    endpointName,
-		Host:    options.Host,
-		Port:    options.Port,
-		Address: options.Address,
-	}
-
-	current, ok := gatewayConfig.Bridges.TcpConnectors[endpointName]
 	if ok {
-		if reflect.DeepEqual(current, endpoint) {
+		if reflect.DeepEqual(current, tcpEndpoint) {
 			return nil
 		} else if isActive(gatewayName) {
 			url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
@@ -751,66 +867,125 @@ func (cli *VanClient) GatewayBind(ctx context.Context, options types.GatewayBind
 				return fmt.Errorf("qdr agent error: %w", err)
 			}
 			defer agent.Close()
-			if err = agent.Delete("org.apache.qpid.dispatch.tcpConnector", endpointName); err != nil {
-				return fmt.Errorf("Error removing tcp connector : %w", err)
+			if err = agent.Delete(getEntity("tcp", endpointType), tcpEndpoint.Name); err != nil {
+				return fmt.Errorf("Error removing tcp entity : %w", err)
 			}
 		}
 	}
-	gatewayConfig.AddTcpConnector(endpoint)
-
-	gatewayConfig.UpdateConfigMap(configmap)
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to update gateway configmap: %w", err)
-	}
-
-	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
-	if err == nil {
-		mc, err := qdr.MarshalRouterConfig(*gatewayConfig)
-		if err != nil {
-			return fmt.Errorf("Failed to marshall router config: %w", err)
-		}
-
-		err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", []byte(mc), 0644)
-		if err != nil {
-			return fmt.Errorf("Failed to write config file: %w", err)
-		}
+	if endpointType == gatewayIngress {
+		gatewayConfig.AddTcpListener(tcpEndpoint)
+	} else {
+		gatewayConfig.AddTcpConnector(tcpEndpoint)
 	}
 
 	if isActive(gatewayName) {
-		url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
-		if err != nil {
-			return fmt.Errorf("Failed to read instance url file: %w", err)
-		}
+		var freePort int
 
+		url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
 		agent, err := qdr.Connect(string(url), nil)
 		if err != nil {
 			return fmt.Errorf("qdr agent error: %w", err)
 		}
 		defer agent.Close()
+
+		// for ingress, check if service port is free otherwise get a free port
+		if endpointType == gatewayIngress && !checkPortFree("tcp", tcpEndpoint.Port) {
+			freePort, err = GetFreePort()
+			if err != nil {
+				return fmt.Errorf("Unable to get free port for listener: %w", err)
+			} else {
+				tcpEndpoint.Port = strconv.Itoa(freePort)
+			}
+		}
+
 		record := map[string]interface{}{}
-		if err = convert(endpoint, &record); err != nil {
+		if err = convert(tcpEndpoint, &record); err != nil {
 			return fmt.Errorf("Failed to convert record: %w", err)
 		}
-		if err = agent.Create("org.apache.qpid.dispatch.tcpConnector", endpointName, record); err != nil {
-			return fmt.Errorf("Error adding tcp connector : %w", err)
+		if err = agent.Create(getEntity("tcp", endpointType), tcpEndpoint.Name, record); err != nil {
+			return fmt.Errorf("Error adding tcp entity : %w", err)
 		}
 	}
+
 	return nil
 }
 
-func (cli *VanClient) GatewayUnbind(ctx context.Context, options types.GatewayUnbindOptions) error {
+func gatewayAddHttpEndpoint(gatewayName string, endpointType string, httpEndpoint qdr.HttpEndpoint, gatewayConfig *qdr.RouterConfig) error {
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 
-	gatewayName := options.GatewayName
+	ok := false
+	current := qdr.HttpEndpoint{}
+
+	if endpointType == gatewayIngress {
+		current, ok = gatewayConfig.Bridges.HttpListeners[httpEndpoint.Name]
+	} else {
+		current, ok = gatewayConfig.Bridges.HttpConnectors[httpEndpoint.Name]
+	}
+	if ok {
+		if reflect.DeepEqual(current, httpEndpoint) {
+			return nil
+		} else if isActive(gatewayName) {
+			url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
+			if err != nil {
+				return fmt.Errorf("Failed to read instance url file: %w", err)
+			}
+
+			agent, err := qdr.Connect(string(url), nil)
+			if err != nil {
+				return fmt.Errorf("qdr agent error: %w", err)
+			}
+			defer agent.Close()
+			if err = agent.Delete(getEntity("http", endpointType), httpEndpoint.Name); err != nil {
+				return fmt.Errorf("Error removing http entity : %w", err)
+			}
+		}
+	}
+	if endpointType == gatewayIngress {
+		gatewayConfig.AddHttpListener(httpEndpoint)
+	} else {
+		gatewayConfig.AddHttpConnector(httpEndpoint)
+	}
+
+	if isActive(gatewayName) {
+		var freePort int
+
+		url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
+		agent, err := qdr.Connect(string(url), nil)
+		if err != nil {
+			return fmt.Errorf("qdr agent error: %w", err)
+		}
+		defer agent.Close()
+
+		//for ingress, check if service port is free otherwise get a free port
+		if endpointType == gatewayIngress && !checkPortFree("tcp", httpEndpoint.Port) {
+			freePort, err = GetFreePort()
+			if err != nil {
+				return fmt.Errorf("Unable to get free port for listener: %w", err)
+			} else {
+				httpEndpoint.Port = strconv.Itoa(freePort)
+			}
+		}
+
+		record := map[string]interface{}{}
+		if err = convert(httpEndpoint, &record); err != nil {
+			return fmt.Errorf("Failed to convert record: %w", err)
+		}
+		if err = agent.Create(getEntity("http", endpointType), httpEndpoint.Name, record); err != nil {
+			return fmt.Errorf("Error adding http endpoint : %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (cli *VanClient) GatewayBind(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) error {
+	service := endpoint.Service
 
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
 
-	gatewayDir := getDataHome() + "/skupper/" + gatewayName
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 
 	_, err := getRootObject(cli)
 	if err != nil {
@@ -823,11 +998,100 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, options types.GatewayUn
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
-	if _, ok := gatewayConfig.Bridges.TcpConnectors[gatewayName+"-egress-"+options.Address]; !ok {
-		return nil
+	si, err := cli.ServiceInterfaceInspect(ctx, service.Address)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve service: %w", err)
+	}
+	if si == nil {
+		return fmt.Errorf("Unable to gateway bind, service not found for %s", service.Address)
 	}
 
-	deleted, _ := gatewayConfig.RemoveTcpConnector(gatewayName + "-egress-" + options.Address)
+	switch endpoint.Service.Protocol {
+	case "tcp":
+		err = gatewayAddTcpEndpoint(gatewayName,
+			gatewayEgress,
+			qdr.TcpEndpoint{
+				Name:    gatewayName + gatewayEgress + service.Address,
+				Host:    endpoint.Host,
+				Port:    strconv.Itoa(service.Port),
+				Address: service.Address,
+			},
+			gatewayConfig)
+	case "http", "http2":
+		pv := qdr.HttpVersion1
+		if endpoint.Service.Protocol == "http2" {
+			pv = qdr.HttpVersion2
+		}
+		err = gatewayAddHttpEndpoint(gatewayName,
+			gatewayEgress,
+			qdr.HttpEndpoint{
+				Name:            gatewayName + gatewayEgress + service.Address,
+				Host:            endpoint.Host,
+				Port:            strconv.Itoa(endpoint.Service.Port),
+				Address:         endpoint.Service.Address,
+				ProtocolVersion: pv,
+			},
+			gatewayConfig)
+	default:
+		return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
+	}
+	if err != nil {
+		return fmt.Errorf(err.Error())
+	}
+
+	gatewayConfig.UpdateConfigMap(configmap)
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to update gateway configmap: %w", err)
+	}
+
+	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
+	if err == nil {
+		err := updateLocalGatewayConfig(gatewayDir, *gatewayConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (cli *VanClient) GatewayUnbind(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) error {
+	if gatewayName == "" {
+		gatewayName, _ = getUserDefaultGatewayName()
+	}
+
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
+
+	_, err := getRootObject(cli)
+	if err != nil {
+		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+	}
+
+	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
+	}
+	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+
+	deleted := false
+	switch endpoint.Service.Protocol {
+	case "tcp":
+		if _, ok := gatewayConfig.Bridges.TcpConnectors[gatewayName+gatewayEgress+endpoint.Service.Address]; !ok {
+			return nil
+		}
+		deleted, _ = gatewayConfig.RemoveTcpConnector(gatewayName + gatewayEgress + endpoint.Service.Address)
+	case "http", "http2":
+		if _, ok := gatewayConfig.Bridges.HttpConnectors[gatewayName+gatewayEgress+endpoint.Service.Address]; !ok {
+			return nil
+		}
+		deleted, _ = gatewayConfig.RemoveHttpConnector(gatewayName + gatewayEgress + endpoint.Service.Address)
+	default:
+		return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
+	}
 
 	gatewayConfig.UpdateConfigMap(configmap)
 	_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
@@ -837,14 +1101,9 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, options types.GatewayUn
 
 	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
 	if err == nil {
-		mc, err := qdr.MarshalRouterConfig(*gatewayConfig)
+		err := updateLocalGatewayConfig(gatewayDir, *gatewayConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to marshall router config: %w", err)
-		}
-
-		err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", []byte(mc), 0644)
-		if err != nil {
-			return fmt.Errorf("Failed to write config file: %w", err)
+			return err
 		}
 	}
 
@@ -859,18 +1118,15 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, options types.GatewayUn
 			return fmt.Errorf("qdr agent error: %w", err)
 		}
 		defer agent.Close()
-		if err = agent.Delete("org.apache.qpid.dispatch.tcpConnector", gatewayName+"-egress-"+options.Address); err != nil {
-			return fmt.Errorf("Error removing tcp connector : %w", err)
+		if err = agent.Delete(getEntity(endpoint.Service.Protocol, gatewayEgress), gatewayName+gatewayEgress+endpoint.Service.Address); err != nil {
+			return fmt.Errorf("Error removing entity connector : %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (cli *VanClient) GatewayExpose(ctx context.Context, options types.GatewayExposeOptions) (string, error) {
-
-	gatewayName := options.GatewayName
-
+func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) (string, error) {
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
@@ -878,10 +1134,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, options types.GatewayEx
 	_, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			_, err := cli.GatewayInit(ctx, types.GatewayInitOptions{
-				Name:         options.GatewayName,
-				DownloadOnly: true,
-			})
+			_, err := cli.GatewayInit(ctx, gatewayName, "", true)
 			if err != nil {
 				return "", err
 			}
@@ -891,25 +1144,21 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, options types.GatewayEx
 	}
 
 	// Create the cluster service if it does not exist
-	si, err := cli.ServiceInterfaceInspect(ctx, options.Egress.Address)
+	si, err := cli.ServiceInterfaceInspect(ctx, endpoint.Service.Address)
 	if err != nil {
 		return "", fmt.Errorf("Failed to retrieve service definition: %w", err)
 	}
 	if si == nil {
-		servicePort, err := strconv.Atoi(options.Egress.Port)
-		if err != nil {
-			return "", fmt.Errorf("%s is not a valid port", options.Egress.Port)
-		}
 		err = cli.ServiceInterfaceCreate(context.Background(), &types.ServiceInterface{
-			Address:  options.Egress.Address,
-			Protocol: options.Egress.Protocol,
-			Port:     servicePort,
+			Address:  endpoint.Service.Address,
+			Protocol: endpoint.Service.Protocol,
+			Port:     endpoint.Service.Port,
 		})
 		if err != nil {
 			return "", fmt.Errorf("Unable to create service: %w", err)
 		}
 
-		svc, err := kube.WaitServiceExists(options.Egress.Address, cli.GetNamespace(), cli.KubeClient, time.Second*60, time.Second*5)
+		svc, err := kube.WaitServiceExists(endpoint.Service.Address, cli.GetNamespace(), cli.KubeClient, time.Second*60, time.Second*5)
 		if svc.ObjectMeta.Labels == nil {
 			svc.ObjectMeta.Labels = map[string]string{}
 		}
@@ -921,14 +1170,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, options types.GatewayEx
 
 	}
 
-	err = cli.GatewayBind(ctx, types.GatewayBindOptions{
-		GatewayName: gatewayName,
-		Protocol:    options.Egress.Protocol,
-		Address:     options.Egress.Address,
-		Host:        options.Egress.Host,
-		Port:        options.Egress.Port,
-		ErrIfNoSvc:  options.Egress.ErrIfNoSvc,
-	})
+	err = cli.GatewayBind(ctx, gatewayName, endpoint)
 	if err != nil {
 		return gatewayName, err
 	}
@@ -944,9 +1186,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, options types.GatewayEx
 	return gatewayName, nil
 }
 
-func (cli *VanClient) GatewayUnexpose(ctx context.Context, options types.GatewayUnexposeOptions) error {
-	gatewayName := options.GatewayName
-
+func (cli *VanClient) GatewayUnexpose(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint, deleteLast bool) error {
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
@@ -958,19 +1198,19 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, options types.Gateway
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
 	// Note: unexpose implicitly removes the cluster service
-	si, err := cli.ServiceInterfaceInspect(ctx, options.Address)
+	si, err := cli.ServiceInterfaceInspect(ctx, endpoint.Service.Address)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve service: %w", err)
 	}
 
 	if si != nil && len(si.Targets) == 0 && si.Origin == "" {
-		err := cli.ServiceInterfaceRemove(ctx, options.Address)
+		err := cli.ServiceInterfaceRemove(ctx, endpoint.Service.Address)
 		if err != nil {
 			return fmt.Errorf("Failed to removes service: %w", err)
 		}
 	}
 
-	if options.DeleteIfLast && len(gatewayConfig.Bridges.TcpConnectors) == 1 && len(gatewayConfig.Bridges.TcpListeners) == 0 {
+	if deleteLast && len(gatewayConfig.Bridges.TcpConnectors) == 1 && len(gatewayConfig.Bridges.TcpListeners) == 0 {
 		err = cli.gatewayStop(ctx, gatewayName)
 		if err != nil {
 			return err
@@ -980,36 +1220,29 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, options types.Gateway
 			return err
 		}
 	} else {
-		return cli.GatewayUnbind(ctx, types.GatewayUnbindOptions{
-			GatewayName: options.GatewayName,
-			Protocol:    "tcp",
-			Address:     options.Address,
-		})
+		return cli.GatewayUnbind(ctx, gatewayName, endpoint)
 	}
 
 	return nil
 }
 
-func (cli *VanClient) GatewayForward(ctx context.Context, options types.GatewayForwardOptions) error {
-
-	gatewayName := options.GatewayName
-
+func (cli *VanClient) GatewayForward(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint, loopback bool) error {
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
 
-	gatewayDir := getDataHome() + "/skupper/" + gatewayName
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 
 	_, err := getRootObject(cli)
 	if err != nil {
 		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
 	}
 
-	si, err := cli.ServiceInterfaceInspect(ctx, options.Service.Address)
+	si, err := cli.ServiceInterfaceInspect(ctx, endpoint.Service.Address)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve service: %w", err)
 	} else if si == nil {
-		return fmt.Errorf("Unable to gateway forward, service not found for %s", options.Service.Address)
+		return fmt.Errorf("Unable to gateway forward, service not found for %s", endpoint.Service.Address)
 	}
 
 	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
@@ -1019,39 +1252,42 @@ func (cli *VanClient) GatewayForward(ctx context.Context, options types.GatewayF
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
 	ifc := "0.0.0.0"
-	if options.Loopback {
+	if loopback {
 		ifc = "127.0.0.1"
 	}
 
-	endpointName := gatewayName + "-ingress-" + options.Service.Address
-	endpoint := qdr.TcpEndpoint{
-		Name:    endpointName,
-		Host:    ifc,
-		Port:    strconv.Itoa(options.Service.Port),
-		Address: options.Service.Address,
-	}
-
-	current, ok := gatewayConfig.Bridges.TcpListeners[endpointName]
-	if ok {
-		if reflect.DeepEqual(current, endpoint) {
-			return nil
-		} else if isActive(gatewayName) {
-			url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
-			if err != nil {
-				return fmt.Errorf("Failed to read instance url file: %w", err)
-			}
-
-			agent, err := qdr.Connect(string(url), nil)
-			if err != nil {
-				return fmt.Errorf("qdr agent error: %w", err)
-			}
-			defer agent.Close()
-			if err = agent.Delete("org.apache.qpid.dispatch.tcpListener", endpointName); err != nil {
-				return fmt.Errorf("Error removing tcp listener : %w", err)
-			}
+	switch endpoint.Service.Protocol {
+	case "tcp":
+		err = gatewayAddTcpEndpoint(gatewayName,
+			gatewayIngress,
+			qdr.TcpEndpoint{
+				Name:    gatewayName + gatewayIngress + endpoint.Service.Address,
+				Host:    ifc,
+				Port:    strconv.Itoa(endpoint.Service.Port),
+				Address: endpoint.Service.Address,
+			},
+			gatewayConfig)
+	case "http", "http2":
+		pv := qdr.HttpVersion1
+		if endpoint.Service.Protocol == "http2" {
+			pv = qdr.HttpVersion2
 		}
+		err = gatewayAddHttpEndpoint(gatewayName,
+			gatewayIngress,
+			qdr.HttpEndpoint{
+				Name:            gatewayName + gatewayIngress + endpoint.Service.Address,
+				Host:            ifc,
+				Port:            strconv.Itoa(endpoint.Service.Port),
+				Address:         endpoint.Service.Address,
+				ProtocolVersion: pv,
+			},
+			gatewayConfig)
+	default:
+		return fmt.Errorf("Unsuppored gateway endpoint protocol: %s", endpoint.Service.Protocol)
 	}
-	gatewayConfig.AddTcpListener(endpoint)
+	if err != nil {
+		return fmt.Errorf(err.Error())
+	}
 
 	gatewayConfig.UpdateConfigMap(configmap)
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -1064,57 +1300,21 @@ func (cli *VanClient) GatewayForward(ctx context.Context, options types.GatewayF
 
 	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
 	if err == nil {
-		mc, err := qdr.MarshalRouterConfig(*gatewayConfig)
+		err := updateLocalGatewayConfig(gatewayDir, *gatewayConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to marshall router config: %w", err)
-		}
-
-		err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", []byte(mc), 0644)
-		if err != nil {
-			return fmt.Errorf("Failed to write config file: %w", err)
+			return err
 		}
 	}
 
-	if isActive(gatewayName) {
-		var freePort int
-
-		url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
-		agent, err := qdr.Connect(string(url), nil)
-		if err != nil {
-			return fmt.Errorf("qdr agent error: %w", err)
-		}
-		defer agent.Close()
-
-		//check if service port is free otherwise get a free port
-		if checkPortFree("tcp", strconv.Itoa(options.Service.Port)) {
-			endpoint.Port = strconv.Itoa(options.Service.Port)
-		} else {
-			freePort, err = GetFreePort()
-			if err != nil {
-				return fmt.Errorf("Unable to get free port for listener: %w", err)
-			} else {
-				endpoint.Port = strconv.Itoa(freePort)
-			}
-		}
-
-		record := map[string]interface{}{}
-		if err = convert(endpoint, &record); err != nil {
-			return fmt.Errorf("Failed to convert record: %w", err)
-		}
-		if err = agent.Create("org.apache.qpid.dispatch.tcpListener", endpoint.Name, record); err != nil {
-			return fmt.Errorf("Error adding tcp listener : %w", err)
-		}
-	}
 	return nil
 }
 
-func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, address string) error {
-
+func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) error {
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
 
-	gatewayDir := getDataHome() + "/skupper/" + gatewayName
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 
 	_, err := getRootObject(cli)
 	if err != nil {
@@ -1127,8 +1327,21 @@ func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, 
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 
-	deleted, _ := gatewayConfig.RemoveTcpListener(gatewayName + "-ingress-" + address)
-
+	deleted := false
+	switch endpoint.Service.Protocol {
+	case "tcp":
+		if _, ok := gatewayConfig.Bridges.TcpListeners[gatewayName+gatewayIngress+endpoint.Service.Address]; !ok {
+			return nil
+		}
+		deleted, _ = gatewayConfig.RemoveTcpListener(gatewayName + gatewayIngress + endpoint.Service.Address)
+	case "http", "http2":
+		if _, ok := gatewayConfig.Bridges.HttpListeners[gatewayName+gatewayIngress+endpoint.Service.Address]; !ok {
+			return nil
+		}
+		deleted, _ = gatewayConfig.RemoveHttpListener(gatewayName + gatewayIngress + endpoint.Service.Address)
+	default:
+		return fmt.Errorf("Unsupported gateway endpoint protocol: %s", endpoint.Service.Protocol)
+	}
 	gatewayConfig.WriteToConfigMap(configmap)
 
 	_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
@@ -1138,14 +1351,9 @@ func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, 
 
 	_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
 	if err == nil {
-		mc, err := qdr.MarshalRouterConfig(*gatewayConfig)
+		err := updateLocalGatewayConfig(gatewayDir, *gatewayConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to marshall router config: %w", err)
-		}
-
-		err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", []byte(mc), 0644)
-		if err != nil {
-			return fmt.Errorf("Failed to write config file: %w", err)
+			return err
 		}
 	}
 
@@ -1156,8 +1364,9 @@ func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, 
 			return fmt.Errorf("qdr agent error: %w", err)
 		}
 		defer agent.Close()
-		if err = agent.Delete("org.apache.qpid.dispatch.tcpListener", gatewayName+"-ingress-"+address); err != nil {
-			return fmt.Errorf("Error removing tcp listener : %w", err)
+
+		if err = agent.Delete(getEntity(endpoint.Service.Protocol, gatewayIngress), gatewayName+gatewayIngress+endpoint.Service.Address); err != nil {
+			return fmt.Errorf("Error removing endpoint listener : %w", err)
 		}
 	}
 
@@ -1172,15 +1381,24 @@ func (cli *VanClient) GatewayList(ctx context.Context) ([]*types.GatewayInspectR
 	}
 
 	for _, gateway := range gateways.Items {
-		inspect, _ := cli.GatewayInspect(ctx, strings.TrimPrefix(gateway.ObjectMeta.Name, gatewayPrefix))
-		list = append(list, inspect)
+		backoff := retry.DefaultRetry
+		for i := 0; i < 20; i++ {
+			if i > 0 {
+				time.Sleep(backoff.Step())
+			}
+			inspect, inspectErr := cli.GatewayInspect(ctx, strings.TrimPrefix(gateway.ObjectMeta.Name, gatewayPrefix))
+			if inspectErr == nil {
+				list = append(list, inspect)
+				break
+			}
+		}
 	}
 
 	return list, nil
 }
 
 func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*types.GatewayInspectResponse, error) {
-	gatewayDir := getDataHome() + "/skupper/" + gatewayName
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 
 	_, err := getRootObject(cli)
 	if err != nil {
@@ -1214,35 +1432,379 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 	}
 
 	inspect := types.GatewayInspectResponse{
-		GatewayName:    gatewayName,
-		GatewayUrl:     string(url),
-		GatewayVersion: string(gatewayVersion),
-		TcpConnectors:  map[string]types.GatewayEndpoint{},
-		TcpListeners:   map[string]types.GatewayEndpoint{},
+		GatewayName:       gatewayName,
+		GatewayUrl:        string(url),
+		GatewayVersion:    string(gatewayVersion),
+		GatewayConnectors: map[string]types.GatewayEndpoint{},
+		GatewayListeners:  map[string]types.GatewayEndpoint{},
 	}
 
 	for name, connector := range gatewayConfig.Bridges.TcpConnectors {
-		inspect.TcpConnectors[name] = types.GatewayEndpoint{
-			Name:    connector.Name,
-			Host:    connector.Host,
-			Port:    connector.Port,
-			Address: connector.Address,
+		port, _ := strconv.Atoi(connector.Port)
+		inspect.GatewayConnectors[name] = types.GatewayEndpoint{
+			Name: connector.Name,
+			Host: connector.Host,
+			Service: types.ServiceInterface{
+				Port:     port,
+				Address:  connector.Address,
+				Protocol: "tcp",
+			},
+		}
+	}
+
+	for name, connector := range gatewayConfig.Bridges.HttpConnectors {
+		port, _ := strconv.Atoi(connector.Port)
+		protocol := "http"
+		if connector.ProtocolVersion == qdr.HttpVersion2 {
+			protocol = "http2"
+		}
+		inspect.GatewayConnectors[name] = types.GatewayEndpoint{
+			Name: connector.Name,
+			Host: connector.Host,
+			Service: types.ServiceInterface{
+				Port:         port,
+				Address:      connector.Address,
+				Protocol:     protocol,
+				Aggregate:    connector.Aggregation,
+				EventChannel: connector.EventChannel,
+			},
 		}
 	}
 
 	for name, listener := range gatewayConfig.Bridges.TcpListeners {
+		port, _ := strconv.Atoi(listener.Port)
 		localPort := ""
 		if isActive {
 			localPort = bc.TcpListeners[listener.Name].Port
 		}
-		inspect.TcpListeners[name] = types.GatewayEndpoint{
+		inspect.GatewayListeners[name] = types.GatewayEndpoint{
 			Name:      listener.Name,
 			Host:      listener.Host,
-			Port:      listener.Port,
-			Address:   listener.Address,
 			LocalPort: localPort,
+			Service: types.ServiceInterface{
+				Port:     port,
+				Address:  listener.Address,
+				Protocol: "tcp",
+			},
+		}
+	}
+
+	for name, listener := range gatewayConfig.Bridges.HttpListeners {
+		port, _ := strconv.Atoi(listener.Port)
+		localPort := ""
+		if isActive {
+			localPort = bc.HttpListeners[listener.Name].Port
+		}
+		protocol := "http"
+		if listener.ProtocolVersion == qdr.HttpVersion2 {
+			protocol = "http2"
+		}
+		inspect.GatewayListeners[name] = types.GatewayEndpoint{
+			Name:      listener.Name,
+			Host:      listener.Host,
+			LocalPort: localPort,
+			Service: types.ServiceInterface{
+				Port:         port,
+				Address:      listener.Address,
+				Protocol:     protocol,
+				Aggregate:    listener.Aggregation,
+				EventChannel: listener.EventChannel,
+			},
 		}
 	}
 
 	return &inspect, nil
+}
+
+func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName string, exportGatewayName string, exportPath string) (string, error) {
+	if targetGatewayName == "" {
+		targetGatewayName, _ = getUserDefaultGatewayName()
+	}
+
+	exportFile := exportPath + "/" + exportGatewayName + ".yaml"
+
+	configmap, err := kube.GetConfigMap(gatewayPrefix+targetGatewayName, cli.GetNamespace(), cli.KubeClient)
+	if err != nil {
+		return exportFile, fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
+	}
+	routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+
+	gatewayConfig := GatewayConfig{
+		GatewayName:  exportGatewayName,
+		QdrListeners: []qdr.Listener{},
+		Bindings:     []types.GatewayEndpoint{},
+		Forwards:     []types.GatewayEndpoint{},
+	}
+
+	for _, listener := range routerConfig.Listeners {
+		gatewayConfig.QdrListeners = append(gatewayConfig.QdrListeners, listener)
+	}
+
+	for _, connector := range routerConfig.Bridges.TcpConnectors {
+		port, _ := strconv.Atoi(connector.Port)
+		gatewayConfig.Bindings = append(gatewayConfig.Bindings, types.GatewayEndpoint{
+			Name: strings.TrimPrefix(connector.Name, targetGatewayName+"-"),
+			Host: connector.Host,
+			Service: types.ServiceInterface{
+				Address:  connector.Address,
+				Protocol: "tcp",
+				Port:     port,
+			},
+		})
+	}
+	for _, listener := range routerConfig.Bridges.TcpListeners {
+		port, _ := strconv.Atoi(listener.Port)
+		gatewayConfig.Forwards = append(gatewayConfig.Forwards, types.GatewayEndpoint{
+			Name: strings.TrimPrefix(listener.Name, targetGatewayName+"-"),
+			Host: listener.Host,
+			Service: types.ServiceInterface{
+				Address:  listener.Address,
+				Protocol: "tcp",
+				Port:     port,
+			},
+		})
+	}
+	for _, connector := range routerConfig.Bridges.HttpConnectors {
+		port, _ := strconv.Atoi(connector.Port)
+		protocol := "http"
+		if connector.ProtocolVersion == qdr.HttpVersion2 {
+			protocol = "http2"
+		}
+		gatewayConfig.Bindings = append(gatewayConfig.Bindings, types.GatewayEndpoint{
+			Name: strings.TrimPrefix(connector.Name, targetGatewayName+"-"),
+			Host: connector.Host,
+			Service: types.ServiceInterface{
+				Address:      connector.Address,
+				Protocol:     protocol,
+				Port:         port,
+				Aggregate:    connector.Aggregation,
+				EventChannel: connector.EventChannel,
+			},
+		})
+	}
+	for _, listener := range routerConfig.Bridges.HttpListeners {
+		port, _ := strconv.Atoi(listener.Port)
+		protocol := "http"
+		if listener.ProtocolVersion == qdr.HttpVersion2 {
+			protocol = "http2"
+		}
+		gatewayConfig.Forwards = append(gatewayConfig.Forwards, types.GatewayEndpoint{
+			Name: strings.TrimPrefix(listener.Name, targetGatewayName+"-"),
+			Host: listener.Host,
+			Service: types.ServiceInterface{
+				Address:      listener.Address,
+				Protocol:     protocol,
+				Port:         port,
+				Aggregate:    listener.Aggregation,
+				EventChannel: listener.EventChannel,
+			},
+		})
+	}
+	mcData, err := yaml.Marshal(&gatewayConfig)
+
+	if err != nil {
+		return exportFile, fmt.Errorf("Failed to marshale export config ")
+	}
+
+	err = ioutil.WriteFile(exportFile, mcData, 0644)
+
+	return exportFile, nil
+}
+
+func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile string, bundlePath string) (string, error) {
+	certs := []string{"tls.crt", "tls.key", "ca.crt"}
+
+	owner, err := getRootObject(cli)
+	if err != nil {
+		return "", fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+	}
+
+	yamlFile, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read gateway config file: %w", err)
+	}
+
+	gatewayConfig := GatewayConfig{}
+	err = yaml.Unmarshal(yamlFile, &gatewayConfig)
+	if err != nil {
+		return "", fmt.Errorf("Failed to unmarshal gateway config file: %w", err)
+	}
+
+	gatewayName := gatewayConfig.GatewayName
+	tarFile, err := os.Create(bundlePath + "/" + gatewayName + ".tar.gz")
+	if err != nil {
+		return "", fmt.Errorf("Unable to create download file: %w", err)
+	}
+
+	// compress tar
+	gz := gzip.NewWriter(tarFile)
+	defer gz.Close()
+	tw := tar.NewWriter(gz)
+	defer tw.Close()
+
+	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayPrefix+gatewayName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		secret, _, err = cli.ConnectorTokenCreate(context.Background(), gatewayPrefix+gatewayName, "")
+		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
+		_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(secret)
+	} else if err != nil {
+		return tarFile.Name(), fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
+	}
+
+	for _, cert := range certs {
+		err = writeTar("qpid-dispatch-certs/conn1-profile/"+cert, secret.Data[cert], time.Now(), tw)
+		if err != nil {
+			return tarFile.Name(), err
+		}
+	}
+
+	routerConfig := qdr.InitialConfig("gateway-{{.Hostname}}", "{{.RouterID}}", Version, true, 3)
+
+	if len(gatewayConfig.QdrListeners) == 0 {
+		routerConfig.AddListener(qdr.Listener{
+			Name: "amqp",
+			Host: "localhost",
+			Port: types.AmqpDefaultPort,
+		})
+	} else {
+		for _, listener := range gatewayConfig.QdrListeners {
+			routerConfig.AddListener(qdr.Listener{
+				Name: listener.Name,
+				Host: listener.Host,
+				Port: listener.Port,
+			})
+		}
+	}
+
+	routerConfig.AddSslProfileWithPath("{{.DataDir}}/qpid-dispatch-certs", qdr.SslProfile{
+		Name: "conn1-profile",
+	})
+	connector := qdr.Connector{
+		Name:             "conn1",
+		Cost:             1,
+		SslProfile:       "conn1-profile",
+		MaxFrameSize:     16384,
+		MaxSessionFrames: 640,
+	}
+	connector.Host = secret.ObjectMeta.Annotations["edge-host"]
+	connector.Port = secret.ObjectMeta.Annotations["edge-port"]
+	connector.Role = qdr.RoleEdge
+
+	routerConfig.AddConnector(connector)
+
+	for _, binding := range gatewayConfig.Bindings {
+		switch binding.Service.Protocol {
+		case "tcp":
+			routerConfig.AddTcpConnector(qdr.TcpEndpoint{
+				Name:    binding.Name,
+				Host:    binding.Host,
+				Port:    strconv.Itoa(binding.Service.Port),
+				Address: binding.Service.Address,
+			})
+		case "http":
+			routerConfig.AddHttpConnector(qdr.HttpEndpoint{
+				Name:            binding.Name,
+				Host:            binding.Host,
+				Port:            strconv.Itoa(binding.Service.Port),
+				Address:         binding.Service.Address,
+				ProtocolVersion: qdr.HttpVersion1,
+				Aggregation:     binding.Service.Aggregate,
+				EventChannel:    binding.Service.EventChannel,
+			})
+		case "http2":
+			routerConfig.AddHttpConnector(qdr.HttpEndpoint{
+				Name:            binding.Name,
+				Host:            binding.Host,
+				Port:            strconv.Itoa(binding.Service.Port),
+				Address:         binding.Service.Address,
+				ProtocolVersion: qdr.HttpVersion2,
+				Aggregation:     binding.Service.Aggregate,
+				EventChannel:    binding.Service.EventChannel,
+			})
+		default:
+		}
+	}
+
+	for _, forward := range gatewayConfig.Forwards {
+		switch forward.Service.Protocol {
+		case "tcp":
+			routerConfig.AddTcpListener(qdr.TcpEndpoint{
+				Name:    forward.Name,
+				Host:    forward.Host,
+				Port:    strconv.Itoa(forward.Service.Port),
+				Address: forward.Service.Address,
+			})
+		case "http":
+			routerConfig.AddHttpListener(qdr.HttpEndpoint{
+				Name:            forward.Name,
+				Host:            forward.Host,
+				Port:            strconv.Itoa(forward.Service.Port),
+				Address:         forward.Service.Address,
+				ProtocolVersion: qdr.HttpVersion1,
+				Aggregation:     forward.Service.Aggregate,
+				EventChannel:    forward.Service.EventChannel,
+			})
+		case "http2":
+			routerConfig.AddHttpListener(qdr.HttpEndpoint{
+				Name:            forward.Name,
+				Host:            forward.Host,
+				Port:            strconv.Itoa(forward.Service.Port),
+				Address:         forward.Service.Address,
+				ProtocolVersion: qdr.HttpVersion2,
+				Aggregation:     forward.Service.Aggregate,
+				EventChannel:    forward.Service.EventChannel,
+			})
+		default:
+		}
+	}
+
+	mc, _ := qdr.MarshalRouterConfig(routerConfig)
+
+	instance := GatewayInstance{
+		DataDir:  "${QDR_CONF_DIR}",
+		RouterID: "${ROUTER_ID}",
+		Hostname: "${HOSTNAME}",
+	}
+	var buf bytes.Buffer
+	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
+	qdrConfig.Execute(&buf, instance)
+
+	if err != nil {
+		return tarFile.Name(), fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
+
+	err = writeTar("config/qdrouterd.json", buf.Bytes(), time.Now(), tw)
+	if err != nil {
+		return tarFile.Name(), err
+	}
+
+	gatewayInfo := UnitInfo{
+		IsSystemService: false,
+		Binary:          "${QDR_BIN_PATH}",
+		ConfigPath:      "${QDR_CONF_DIR}",
+		GatewayName:     gatewayName,
+	}
+
+	qdrUserUnit := serviceForQdr(gatewayInfo)
+	err = writeTar("service/"+gatewayName+".service", []byte(qdrUserUnit), time.Now(), tw)
+	if err != nil {
+		return tarFile.Name(), err
+	}
+
+	launch := launchScript(gatewayInfo)
+	err = writeTar("launch.sh", []byte(launch), time.Now(), tw)
+	if err != nil {
+		return tarFile.Name(), err
+	}
+
+	remove := removeScript(gatewayInfo)
+	err = writeTar("remove.sh", []byte(remove), time.Now(), tw)
+	if err != nil {
+		return tarFile.Name(), err
+	}
+
+	expand := expandVars()
+	err = writeTar("expandvars.py", []byte(expand), time.Now(), tw)
+
+	return tarFile.Name(), nil
 }

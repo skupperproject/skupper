@@ -186,57 +186,19 @@ type RouterInspectResponse struct {
 	ConsoleUrl        string
 }
 
-type GatewayInitOptions struct {
-	Name         string `json:"name,omitempty"`
-	DownloadOnly bool   `json:"downloadOnly,omitempty"`
-}
-
-type GatewayBindOptions struct {
-	GatewayName string
-	Protocol    string
-	Address     string
-	Host        string
-	Port        string
-	ErrIfNoSvc  bool
-}
-
-type GatewayUnbindOptions struct {
-	GatewayName string
-	Protocol    string
-	Address     string
-}
-
-type GatewayExposeOptions struct {
-	GatewayName string
-	Egress      GatewayBindOptions
-}
-
-type GatewayUnexposeOptions struct {
-	GatewayName  string
-	Address      string
-	DeleteIfLast bool
-}
-
-type GatewayForwardOptions struct {
-	GatewayName string
-	Loopback    bool
-	Service     ServiceInterface
-}
-
 type GatewayEndpoint struct {
-	Name      string `json:"name,omitempty"`
-	Host      string `json:"host,omitempty"`
-	Port      string `json:"port,omitempty"`
-	Address   string `json:"address,omitempty"`
-	LocalPort string `json:"active,omitempty"`
+	Name      string           `json:"name,omitempty" yaml:"name,omitempty"`
+	Host      string           `json:"host,omitempty" yaml:"host,omitempty"`
+	LocalPort string           `json:"localPort,omitempty" yaml:"local_port,omitempty"`
+	Service   ServiceInterface `json:"service,omitempty" yaml:"service,omitempty"`
 }
 
 type GatewayInspectResponse struct {
-	GatewayName    string
-	GatewayUrl     string
-	GatewayVersion string
-	TcpConnectors  map[string]GatewayEndpoint
-	TcpListeners   map[string]GatewayEndpoint
+	GatewayName       string
+	GatewayUrl        string
+	GatewayVersion    string
+	GatewayConnectors map[string]GatewayEndpoint
+	GatewayListeners  map[string]GatewayEndpoint
 }
 
 type VanClientInterface interface {
@@ -264,14 +226,16 @@ type VanClientInterface interface {
 	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error
 	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, port int) (*ServiceInterface, error)
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
-	GatewayBind(ctx context.Context, options GatewayBindOptions) error
-	GatewayUnbind(ctx context.Context, options GatewayUnbindOptions) error
-	GatewayExpose(ctx context.Context, options GatewayExposeOptions) (string, error)
-	GatewayUnexpose(ctx context.Context, options GatewayUnexposeOptions) error
-	GatewayForward(ctx context.Context, options GatewayForwardOptions) error
-	GatewayUnforward(ctx context.Context, gatewayName string, address string) error
-	GatewayInit(ctx context.Context, options GatewayInitOptions) (string, error)
+	GatewayBind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
+	GatewayUnbind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
+	GatewayExpose(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) (string, error)
+	GatewayUnexpose(ctx context.Context, gatewayName string, endpoint GatewayEndpoint, deleteLast bool) error
+	GatewayForward(ctx context.Context, gatewayName string, endpoint GatewayEndpoint, loopback bool) error
+	GatewayUnforward(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
+	GatewayInit(ctx context.Context, gatewayName string, configFile string, downloadOnly bool) (string, error)
 	GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) (string, error)
+	GatewayExportConfig(ctx context.Context, targetGatewayName string, exportGatewayName string, exportPath string) (string, error)
+	GatewayGenerateBundle(ctx context.Context, configFile string, bundlePath string) (string, error)
 	GatewayInspect(ctx context.Context, gatewayName string) (*GatewayInspectResponse, error)
 	GatewayList(ctx context.Context) ([]*GatewayInspectResponse, error)
 	GatewayRemove(ctx context.Context, gatewayName string) error
