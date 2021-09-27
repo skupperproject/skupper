@@ -66,7 +66,7 @@ func TestCreateCertificateForService(t *testing.T) {
 	kubeClient.Fake.PrependReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		name := action.(k8stesting.CreateAction).GetObject().(*corev1.Secret).Name
 
-		if name == "existing-cert-error-svc" {
+		if name == "skupper-existing-cert-error-svc" {
 			return true, nil, fmt.Errorf("A certificate for that service already exists")
 		}
 		return false, nil, nil
@@ -79,10 +79,10 @@ func TestCreateCertificateForService(t *testing.T) {
 	kubeClient.CoreV1().Services(NAMESPACE).Create(svcOnePort)
 
 	testTable := []test{
-		{"svc-no-ports", svcNoPorts.Name, "svc-no-ports", SITE_ID, "", "skupper-site-ca-services"},
-		{"svc-one-port", svcOnePort.Name, "svc-one-port", SITE_ID, "", "skupper-site-ca-services"},
-		{"existing-cert-error-svc", "existing-cert-error-svc", "existing-cert-error-svc", SITE_ID, "A certificate for that service already exists", "skupper-site-ca-services"},
-		{"error-site-ca", "error-site-ca", "error-site-ca", "error-site-ca", "secrets \"skupper-site-ca-services\" not found", "skupper-site-error-site-ca"},
+		{"skupper-svc-no-ports", svcNoPorts.Name, "svc-no-ports", SITE_ID, "", "skupper-service-ca"},
+		{"skupper-svc-one-port", svcOnePort.Name, "svc-one-port", SITE_ID, "", "skupper-service-ca"},
+		{"skupper-existing-cert-error-svc", "existing-cert-error-svc", "existing-cert-error-svc", SITE_ID, "A certificate for that service already exists", "skupper-service-ca"},
+		{"skupper-error-site-ca", "error-site-ca", "error-site-ca", "error-site-ca", "secrets \"skupper-service-ca\" not found", "skupper-site-error-site-ca"},
 	}
 
 	for _, test := range testTable {
@@ -91,7 +91,7 @@ func TestCreateCertificateForService(t *testing.T) {
 			os.Setenv("SKUPPER_SITE_ID", test.siteId)
 			kubeClient.CoreV1().Secrets(NAMESPACE).Create(&caCert)
 
-			cert, err := createCertificateForService(test.name, NAMESPACE, test.name, kubeClient)
+			cert, err := createCertificateForService(test.targetService, NAMESPACE, test.targetService, kubeClient)
 
 			if cert != nil {
 				assert.Equal(t, test.name, cert.Name)
