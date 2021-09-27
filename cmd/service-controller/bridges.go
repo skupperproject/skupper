@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/prometheus/common/log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -41,6 +42,7 @@ type EgressBindings struct {
 	egressPorts map[int]int
 	informer    cache.SharedIndexInformer
 	stopper     chan struct{}
+	tlsCredentials string
 }
 
 type ServiceBindings struct {
@@ -54,6 +56,7 @@ type ServiceBindings struct {
 	headless     *types.Headless
 	labels       map[string]string
 	targets      map[string]*EgressBindings
+	tlsCredentials string
 }
 
 func (s *ServiceBindings) PortMap() map[int]int {
@@ -120,6 +123,7 @@ func hasTargetForService(si types.ServiceInterface, service string) bool {
 
 func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string][]int) error {
 	bindings := c.bindings[required.Address]
+	tlsCredentials := "skupper-" + required.Address
 	if bindings == nil {
 		// create it
 		var ports []int
@@ -142,15 +146,21 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				}
 			}
 		}
-		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Ports, required.Headless, required.Labels, ports, required.Aggregate, required.EventChannel)
+		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Ports, required.Headless, required.Labels, ports, required.Aggregate, required.EventChannel, tlsCredentials)
 		for _, t := range required.Targets {
 			if t.Selector != "" {
 				sb.addSelectorTarget(t.Name, t.Selector, getTargetPorts(required, t), c)
 			} else if t.Service != "" {
-				sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), c)
+				sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), tlsCredentials, c)
 			}
 		}
 		c.bindings[required.Address] = sb
+
+		err := mountServiceCertificateByName(tlsCredentials, c)
+		if err != nil {
+			log.Error("Error mounting service certificate", err.Error())
+		}
+
 	} else {
 		// check it is configured correctly
 		if bindings.protocol != required.Protocol {
@@ -200,7 +210,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			} else if t.Service != "" {
 				target := bindings.targets[t.Service]
 				if target == nil {
-					bindings.addServiceTarget(t.Name, t.Service, targetPort, c)
+					bindings.addServiceTarget(t.Name, t.Service, targetPort, tlsCredentials, c)
 				} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
 					target.egressPorts = targetPort
 				}
@@ -231,7 +241,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 	return nil
 }
 
-func newServiceBindings(origin string, protocol string, address string, publicPorts []int, headless *types.Headless, labels map[string]string, ingressPorts []int, aggregation string, eventChannel bool) *ServiceBindings {
+func newServiceBindings(origin string, protocol string, address string, publicPorts []int, headless *types.Headless, labels map[string]string, ingressPorts []int, aggregation string, eventChannel bool, tlsCredentials string) *ServiceBindings {
 	return &ServiceBindings{
 		origin:       origin,
 		protocol:     protocol,
@@ -243,6 +253,7 @@ func newServiceBindings(origin string, protocol string, address string, publicPo
 		headless:     headless,
 		labels:       labels,
 		targets:      map[string]*EgressBindings{},
+		tlsCredentials: tlsCredentials,
 	}
 }
 
@@ -270,12 +281,13 @@ func (sb *ServiceBindings) removeSelectorTarget(selector string) {
 	delete(sb.targets, selector)
 }
 
-func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, controller *Controller) error {
+func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, tlsCredentials string, controller *Controller) error {
 	sb.targets[service] = &EgressBindings{
 		name:        name,
 		service:     service,
 		egressPorts: port,
 		stopper:     make(chan struct{}),
+		tlsCredentials: tlsCredentials,
 	}
 	return nil
 }
@@ -324,13 +336,13 @@ func (eb *EgressBindings) updateBridgeConfiguration(sb *ServiceBindings, siteId 
 			pod := p.(*corev1.Pod)
 			if kube.IsPodRunning(pod) && kube.IsPodReady(pod) && pod.DeletionTimestamp == nil {
 				event.Recordf(BridgeTargetEvent, "Adding pod for %s: %s", sb.address, pod.ObjectMeta.Name)
-				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPorts, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, bridges)
+				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPorts, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, bridges, sb.tlsCredentials)
 			} else {
 				event.Recordf(BridgeTargetEvent, "Pod for %s not ready/running: %s", sb.address, pod.ObjectMeta.Name)
 			}
 		}
 	} else if eb.service != "" {
-		addEgressBridge(sb.protocol, eb.service, eb.egressPorts, sb.address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, bridges)
+		addEgressBridge(sb.protocol, eb.service, eb.egressPorts, sb.address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, sb.tlsCredentials, bridges)
 	}
 }
 
@@ -345,7 +357,7 @@ const (
 	ProtocolHTTP2 string = "http2"
 )
 
-func addEgressBridge(protocol string, host string, port map[int]int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, bridges *qdr.BridgeConfig) (bool, error) {
+func addEgressBridge(protocol string, host string, port map[int]int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, tlsCredentials string, bridges *qdr.BridgeConfig) (bool, error) {
 	if host == "" {
 		return false, fmt.Errorf("Cannot add connector without host (%s %s)", address, protocol)
 	}
@@ -383,7 +395,7 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 				ProtocolVersion: qdr.HttpVersion2,
 			}
 			httpConnector.AddSslProfileWithPath("/etc/qpid-dispatch-certs", qdr.SslProfile{
-				Name: address,
+				Name: tlsCredentials,
 			})
 			bridges.AddHttpConnector(httpConnector)
 		case ProtocolTCP:
@@ -457,4 +469,14 @@ func requiredBridges(services map[string]*ServiceBindings, siteId string) *qdr.B
 		service.updateBridgeConfiguration(siteId, bridges)
 	}
 	return bridges
+}
+
+func mountServiceCertificateByName(name string, c *Controller) error {
+	deployment, err := kube.GetDeployment(types.TransportDeploymentName, c.vanClient.Namespace, c.vanClient.KubeClient)
+
+	if err != nil {
+		return err
+	}
+	kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, name, "/etc/qpid-dispatch-certs/"+name+"/")
+	return nil
 }

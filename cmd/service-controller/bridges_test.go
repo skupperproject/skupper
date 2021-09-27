@@ -323,6 +323,36 @@ func TestUpdateServiceBindings(t *testing.T) {
 				eventChannel: true,
 			},
 		},
+		{
+			name: "http2-service-add-target",
+			service: types.ServiceInterface{
+				Address:  "test",
+				Protocol: "http2",
+				Port:     3000,
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:       "test-target",
+						TargetPort: 3000,
+						Service:    "test-target",
+					},
+				},
+			},
+			expected: &ServiceBindings{
+				protocol:    "http2",
+				address:     "test",
+				publicPort:  3000,
+				ingressPort: 9090,
+				tlsCredentials: "skupper-test",
+				targets: map[string]*EgressBindings{
+					"test-target": {
+						name:       "test-target",
+						service:    "test-target",
+						egressPort: 3000,
+						tlsCredentials: "skupper-test",
+					},
+				},
+			},
+		},
 	}
 
 	for _, s := range scenarios {
