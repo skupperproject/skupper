@@ -338,16 +338,16 @@ func TestUpdateServiceBindings(t *testing.T) {
 				},
 			},
 			expected: &ServiceBindings{
-				protocol:    "http2",
-				address:     "test",
-				publicPort:  3000,
-				ingressPort: 9090,
+				protocol:       "http2",
+				address:        "test",
+				publicPort:     3000,
+				ingressPort:    9090,
 				tlsCredentials: "skupper-test",
 				targets: map[string]*EgressBindings{
 					"test-target": {
-						name:       "test-target",
-						service:    "test-target",
-						egressPort: 3000,
+						name:           "test-target",
+						service:        "test-target",
+						egressPort:     3000,
 						tlsCredentials: "skupper-test",
 					},
 				},
