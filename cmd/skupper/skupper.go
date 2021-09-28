@@ -927,6 +927,11 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 				}
 				serviceToCreate.Ports = append(serviceToCreate.Ports, servicePort)
 			}
+
+			if serviceToCreate.TlsCredentials == "default" {
+				serviceToCreate.TlsCredentials = "skupper-" + serviceToCreate.Address
+			}
+
 			err := cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -937,6 +942,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tlsCredentials", "", "Enable TLS support for servers. If the specified name is 'default' it will use the skupper generated ones.")
 
 	return cmd
 }

@@ -439,6 +439,7 @@ type ServiceInterface struct {
 	Labels       map[string]string        `json:"labels,omitempty" yaml:"labels,omitempty"`
 	Targets      []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
 	Origin       string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
+	TlsCredentials string                 `json:"tlsCredentials,omitempty"`
 }
 
 type ServiceInterfaceList []ServiceInterface

@@ -336,19 +336,20 @@ func TestUpdateServiceBindings(t *testing.T) {
 						Service:    "test-target",
 					},
 				},
+				TlsCredentials: "tlsCredentials",
 			},
 			expected: &ServiceBindings{
 				protocol:       "http2",
 				address:        "test",
 				publicPort:     3000,
 				ingressPort:    9090,
-				tlsCredentials: "skupper-test",
+				tlsCredentials: "tlsCredentials",
 				targets: map[string]*EgressBindings{
 					"test-target": {
 						name:           "test-target",
 						service:        "test-target",
 						egressPort:     3000,
-						tlsCredentials: "skupper-test",
+						tlsCredentials: "tlsCredentials",
 					},
 				},
 			},
@@ -367,6 +368,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 			assert.Equal(t, b.aggregation, s.expected.aggregation)
 			assert.Equal(t, b.eventChannel, s.expected.eventChannel)
 			assert.Equal(t, b.headless == nil, s.expected.headless == nil)
+			assert.Equal(t, b.tlsCredentials, s.expected.tlsCredentials)
 			if s.expected.headless != nil {
 				assert.Equal(t, b.headless.Name, s.expected.headless.Name)
 				assert.Equal(t, b.headless.Size, s.expected.headless.Size)

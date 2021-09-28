@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/prometheus/common/log"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -123,7 +123,6 @@ func hasTargetForService(si types.ServiceInterface, service string) bool {
 
 func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string][]int) error {
 	bindings := c.bindings[required.Address]
-	tlsCredentials := "skupper-" + required.Address
 	if bindings == nil {
 		// create it
 		var ports []int
@@ -146,20 +145,25 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				}
 			}
 		}
-		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Ports, required.Headless, required.Labels, ports, required.Aggregate, required.EventChannel, tlsCredentials)
+		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Ports, required.Headless, required.Labels, ports, required.Aggregate, required.EventChannel, required.TlsCredentials)
 		for _, t := range required.Targets {
 			if t.Selector != "" {
 				sb.addSelectorTarget(t.Name, t.Selector, getTargetPorts(required, t), c)
 			} else if t.Service != "" {
-				sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), tlsCredentials, c)
+				sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), required.TlsCredentials, c)
 			}
 		}
-		c.bindings[required.Address] = sb
 
-		err := mountServiceCertificateByName(tlsCredentials, c)
-		if err != nil {
-			log.Error("Error mounting service certificate", err.Error())
+		if len(required.TlsCredentials) > 0 {
+			sb.tlsCredentials = required.TlsCredentials
+
+			err := mountServiceCertificateByName(required.TlsCredentials, c)
+			if err != nil {
+				log.Println("Error mounting service certificate", err.Error())
+			}
 		}
+
+		c.bindings[required.Address] = sb
 
 	} else {
 		// check it is configured correctly
@@ -194,6 +198,15 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			bindings.headless = nil
 		}
 
+		if bindings.tlsCredentials != required.TlsCredentials {
+			bindings.tlsCredentials = required.TlsCredentials
+
+			err := mountServiceCertificateByName(required.TlsCredentials, c)
+			if err != nil {
+				log.Println("Error mounting service certificate", err.Error())
+			}
+		}
+
 		hasSkupperSelector := false
 		for _, t := range required.Targets {
 			targetPort := getTargetPorts(required, t)
@@ -210,7 +223,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			} else if t.Service != "" {
 				target := bindings.targets[t.Service]
 				if target == nil {
-					bindings.addServiceTarget(t.Name, t.Service, targetPort, tlsCredentials, c)
+					bindings.addServiceTarget(t.Name, t.Service, targetPort, required.tlsCredentials, c)
 				} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
 					target.egressPorts = targetPort
 				}
@@ -394,9 +407,11 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 				SiteId:          siteId,
 				ProtocolVersion: qdr.HttpVersion2,
 			}
-			httpConnector.AddSslProfileWithPath("/etc/qpid-dispatch-certs", qdr.SslProfile{
-				Name: tlsCredentials,
-			})
+			if tlsCredentials != "" {
+				httpConnector.AddSslProfileWithPath("/etc/qpid-dispatch-certs", qdr.SslProfile{
+					Name: tlsCredentials,
+				})
+			}
 			bridges.AddHttpConnector(httpConnector)
 		case ProtocolTCP:
 			bridges.AddTcpConnector(qdr.TcpEndpoint{
