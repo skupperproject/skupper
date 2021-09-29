@@ -338,9 +338,6 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		Aggregate:    "",
 	})
 	assert.Assert(t, err)
-	serviceCert = certs.GenerateSecret("skupper-nginx", "nginx", "nginx", siteCA)
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
-	assert.Assert(t, err)
 
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
 		Address:      "tcp-go-echo-ss",
