@@ -257,17 +257,9 @@ func createSecretsForService(serviceName string, nameSpace string, hosts string,
 	}
 
 	serviceSecretName := "skupper-" + serviceName
-	clientSecretName := "skupper-" + serviceName + "-client"
 
 	serviceSecret := certs.GenerateSecret(serviceSecretName, serviceName, hosts, caCert)
 	_, err = kubeclient.CoreV1().Secrets(nameSpace).Create(&serviceSecret)
-
-	if err != nil {
-		return err
-	}
-
-	clientSecret := certs.GenerateSecret(clientSecretName, serviceName, hosts, caCert)
-	_, err = kubeclient.CoreV1().Secrets(nameSpace).Create(&clientSecret)
 
 	if err != nil {
 		return err

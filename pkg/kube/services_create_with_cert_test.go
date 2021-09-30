@@ -101,14 +101,6 @@ func TestCreateCertificateForService(t *testing.T) {
 				if serviceSecret != nil {
 					assert.Equal(t, test.name, serviceSecret.Name)
 				}
-
-				clientSecret, err := kubeClient.CoreV1().Secrets(NAMESPACE).Get(test.name+"-client", metav1.GetOptions{})
-
-				assert.Assert(t, err == nil)
-
-				if clientSecret != nil {
-					assert.Equal(t, test.name+"-client", clientSecret.Name)
-				}
 			}
 
 			if test.error != "" {

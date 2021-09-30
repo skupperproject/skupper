@@ -18,7 +18,6 @@ func TestCertAuthoritySiteCreate(t *testing.T) {
 		expectedError string
 		skupperName   string
 		siteUID       string
-		secret        string
 	}{
 		{
 			namespace:     "van-ca-site-create1",
@@ -26,7 +25,6 @@ func TestCertAuthoritySiteCreate(t *testing.T) {
 			doc:           "The certificate authority is created successfully.",
 			skupperName:   "test-site",
 			siteUID:       "dc9076e9",
-			secret:        types.ServiceCaSecret,
 		},
 	}
 
@@ -65,9 +63,12 @@ func TestCertAuthoritySiteCreate(t *testing.T) {
 
 		assert.Check(t, err, c.doc)
 
-		secret, _ := cli.KubeClient.CoreV1().Secrets(c.namespace).Get(c.secret, metav1.GetOptions{})
+		secret, err := cli.KubeClient.CoreV1().Secrets(c.namespace).Get(types.ServiceCaSecret, metav1.GetOptions{})
 
-		assert.Check(t, secret != nil, "Secret "+c.secret+" has not been created.")
+		assert.Check(t, secret != nil, "Secret "+types.ServiceCaSecret+" has not been created: %v", err)
 
+		secret, err = cli.KubeClient.CoreV1().Secrets(c.namespace).Get(types.ServiceCaSecret, metav1.GetOptions{})
+
+		assert.Check(t, secret != nil, "Secret "+types.ServiceClientSecret+" has not been created: %v", err)
 	}
 }

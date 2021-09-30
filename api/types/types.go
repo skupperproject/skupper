@@ -125,6 +125,7 @@ const (
 	ConsoleServerSecret      string = "skupper-console-certs"
 	OauthRouterConsoleSecret string = "skupper-router-console-certs"
 	ServiceCaSecret          string = "skupper-service-ca"
+	ServiceClientSecret      string = "skupper-service-client"
 )
 
 // Skupper qualifiers

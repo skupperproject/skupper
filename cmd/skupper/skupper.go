@@ -902,6 +902,7 @@ func NewCmdService() *cobra.Command {
 }
 
 var serviceToCreate types.ServiceInterface
+var enableTLS bool
 
 func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -928,7 +929,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 				serviceToCreate.Ports = append(serviceToCreate.Ports, servicePort)
 			}
 
-			if serviceToCreate.TlsCredentials == "default" {
+			if enableTLS {
 				serviceToCreate.TlsCredentials = "skupper-" + serviceToCreate.Address
 			}
 
@@ -942,8 +943,8 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tlsCredentials", "", "Enable TLS support for servers. If the specified name is 'default' it will use the skupper generated ones.")
-
+	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-credentials", "", "Enable TLS support for services by specifying the name of the secret to use.")
+	cmd.Flags().BoolVar(&enableTLS, "enable-tls", false, "If specified, this service will have TLS support with certificates created by Skupper.")
 	return cmd
 }
 
