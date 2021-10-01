@@ -236,6 +236,10 @@ const (
 	ServiceSyncAddress = "mc/$skupper-service-sync"
 )
 
+const (
+	SkupperServiceCertPrefix string = "skupper-"
+)
+
 // RouterSpec is the specification of VAN network with router, controller and assembly
 type RouterSpec struct {
 	Name                  string          `json:"name,omitempty"`
@@ -440,6 +444,7 @@ type ServiceInterface struct {
 	Labels       map[string]string        `json:"labels,omitempty" yaml:"labels,omitempty"`
 	Targets      []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
 	Origin       string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
+	EnableTls      bool                   `json:"enableTls,omitempty"`
 	TlsCredentials string                 `json:"tlsCredentials,omitempty"`
 }
 

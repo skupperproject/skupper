@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *VanClient) ServiceCACreate(ownerRef *metav1.OwnerReference) error {
+func (cli *VanClient) CreateServiceCA(ownerRef *metav1.OwnerReference) error {
 
 	ca := types.CertAuthority{Name: types.ServiceCaSecret}
 

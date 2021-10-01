@@ -59,7 +59,7 @@ func TestCertAuthoritySiteCreate(t *testing.T) {
 			Name:       c.skupperName,
 			UID:        k8stypes.UID(c.siteUID),
 		}
-		err = cli.ServiceCACreate(&ownerReference)
+		err = cli.CreateServiceCA(&ownerReference)
 
 		assert.Check(t, err, c.doc)
 

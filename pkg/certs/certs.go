@@ -176,6 +176,8 @@ func generateSimpleSecretWithCA(name string, ca *CertificateAuthority) corev1.Se
 	}
 
 	secret.Data["ca.crt"] = ca.CrtData
+	secret.Data["tls.crt"] = []byte{}
+	secret.Data["tls.key"] = []byte{}
 
 	return secret
 }

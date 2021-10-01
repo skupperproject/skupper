@@ -52,7 +52,7 @@ func NewServiceForAddress(address string, ports []int, targetPorts []int, labels
 	selector := GetLabelsForRouter()
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 
-	err := createSecretsForService(service.Name, namespace, address, kubeclient)
+	err := CreateSecretsForService(service.Name, namespace, address, kubeclient)
 
 	if err != nil {
 		return nil, err
@@ -249,14 +249,14 @@ func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 	return PortLabelStrToMap(originalTargetPort)
 }
 
-func createSecretsForService(serviceName string, nameSpace string, hosts string, kubeclient kubernetes.Interface) error {
+func CreateSecretsForService(serviceName string, nameSpace string, hosts string, kubeclient kubernetes.Interface) error {
 	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(types.ServiceCaSecret, metav1.GetOptions{})
 
 	if err != nil {
 		return err
 	}
 
-	serviceSecretName := "skupper-" + serviceName
+	serviceSecretName := types.SkupperServiceCertPrefix + serviceName
 
 	serviceSecret := certs.GenerateSecret(serviceSecretName, serviceName, hosts, caCert)
 	_, err = kubeclient.CoreV1().Secrets(nameSpace).Create(&serviceSecret)

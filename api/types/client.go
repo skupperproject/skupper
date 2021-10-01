@@ -272,5 +272,5 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
-	ServiceCACreate(ownerRef *metav1.OwnerReference) error
+	CreateServiceCA(ownerRef *metav1.OwnerReference) error
 }
