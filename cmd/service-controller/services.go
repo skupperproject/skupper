@@ -42,8 +42,9 @@ type ServiceTarget struct {
 }
 
 type ServiceEndpoint struct {
-	Name string `json:"name"`
-	Port int    `json:"port,omitempty"`
+	Name   string `json:"name"`
+	Target string `json:"target"`
+	Port   int    `json:"port,omitempty"`
 }
 
 type ServiceDefinition struct {
@@ -63,14 +64,14 @@ func newServiceManager(cli *client.VanClient) *ServiceManager {
 	}
 }
 
-func (m *ServiceManager) resolveEndpoints(ctx context.Context, selector string, targetPort int) ([]ServiceEndpoint, error) {
+func (m *ServiceManager) resolveEndpoints(ctx context.Context, targetName string, selector string, targetPort int) ([]ServiceEndpoint, error) {
 	endpoints := []ServiceEndpoint{}
 	pods, err := kube.GetPods(selector, m.cli.Namespace, m.cli.KubeClient)
 	if err != nil {
 		return endpoints, err
 	}
 	for _, pod := range pods {
-		endpoints = append(endpoints, ServiceEndpoint{Name: pod.ObjectMeta.Name, Port: targetPort})
+		endpoints = append(endpoints, ServiceEndpoint{Name: pod.ObjectMeta.Name, Target: targetName, Port: targetPort})
 	}
 	return endpoints, nil
 }
@@ -84,7 +85,7 @@ func (m *ServiceManager) asServiceDefinition(def *types.ServiceInterface) (*Serv
 	ctx := context.Background()
 	for _, target := range def.Targets {
 		if target.Selector != "" {
-			endpoints, err := m.resolveEndpoints(ctx, target.Selector, target.TargetPort)
+			endpoints, err := m.resolveEndpoints(ctx, target.Name, target.Selector, target.TargetPort)
 			if err != nil {
 				return svc, err
 			}

@@ -22,7 +22,7 @@ type ServiceTarget struct {
 func (s *Service) AddTarget(name string, host string, siteId string, mapping NameMapping) {
 	target := ServiceTarget{
 		Name:   mapping.Lookup(host),
-		Target: strings.Split(name, "@")[0],
+		Target: getTargetNameFromConnectorName(name),
 		SiteId: siteId,
 	}
 	s.Targets = append(s.Targets, target)
@@ -113,4 +113,8 @@ func CheckService(details *ServiceCheck) {
 	if egressCount == 0 {
 		details.AddObservation("There are no egress bindings")
 	}
+}
+
+func getTargetNameFromConnectorName(name string) string {
+	return strings.Split(strings.Split(name, "@")[0], ".")[0]
 }
