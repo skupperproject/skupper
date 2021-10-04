@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -52,35 +50,6 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 	}
 }
 
-func getExtraLabels() map[string]string {
-	var extraLabels = map[string]string{}
-
-	labels := DefaultSkupperExtraLabels
-	envLabels, envFound := os.LookupEnv("SKUPPER_EXTRA_LABELS")
-
-	if envFound {
-		if labels == "" {
-			labels = envLabels
-		} else {
-			labels = labels + "," + envLabels
-		}
-	}
-
-	if labels != "" {
-		// "key1:value1,key2:value2" where key and value are lowercase RFC 1123 compliant
-		labelRegex := regexp.MustCompile(`[a-z0-9]([-a-z0-9]*[a-z0-9]):[a-z0-9]([-a-z0-9]*[a-z0-9])+(,[a-z0-9]([-a-z0-9]*[a-z0-9]):[a-z0-9]([-a-z0-9]*[a-z0-9])+)*`)
-
-		if labelRegex.MatchString(labels) {
-			s := strings.Split(labels, ",")
-			for _, kv := range s {
-				parts := strings.Split(kv, ":")
-				extraLabels[parts[0]] = parts[1]
-			}
-		}
-	}
-	return extraLabels
-}
-
 func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *types.RouterSpec, transport *appsv1.Deployment, siteId string) {
 	// service-controller container index
 	const (
@@ -96,9 +65,6 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.Labels = map[string]string{
 		types.AppLabel:    types.ControllerDeploymentName,
 		types.PartOfLabel: types.AppName,
-	}
-	for key, value := range getExtraLabels() {
-		van.Controller.Labels[key] = value
 	}
 	for key, value := range van.Controller.LabelSelector {
 		van.Controller.Labels[key] = value
@@ -378,9 +344,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		types.PartOfLabel: types.AppName,
 		types.AppLabel:    types.TransportDeploymentName,
 		"application":     types.TransportDeploymentName, //needed by automeshing in image
-	}
-	for key, value := range getExtraLabels() {
-		van.Transport.Labels[key] = value
 	}
 	for key, value := range van.Transport.LabelSelector {
 		van.Transport.Labels[key] = value

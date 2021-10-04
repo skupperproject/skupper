@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -879,7 +878,6 @@ func TestLabelandAnnotationOptions(t *testing.T) {
 	testcases := []struct {
 		requestedLabels      map[string]string
 		requestedAnnotations map[string]string
-		envLabels            map[string]string
 		expectedLabels       map[string]string
 		expectedAnnotations  map[string]string
 	}{
@@ -903,7 +901,6 @@ func TestLabelandAnnotationOptions(t *testing.T) {
 			requestedLabels: map[string]string{
 				"a": "b",
 			},
-			envLabels: map[string]string{},
 			expectedLabels: map[string]string{
 				"a": "b",
 			},
@@ -912,16 +909,6 @@ func TestLabelandAnnotationOptions(t *testing.T) {
 			},
 			expectedAnnotations: map[string]string{
 				"c": "d",
-			},
-		},
-		{
-			envLabels: map[string]string{
-				"one":   "two",
-				"three": "four",
-			},
-			expectedLabels: map[string]string{
-				"one":   "two",
-				"three": "four",
 			},
 		},
 	}
@@ -955,21 +942,8 @@ func TestLabelandAnnotationOptions(t *testing.T) {
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
-		extraLabels := []string{}
-		for k, v := range c.envLabels {
-			extraLabels = append(extraLabels, fmt.Sprintf("%s:%s", k, v))
-		}
-		envLabels := strings.Join(extraLabels, ",")
-		if envLabels != "" {
-			os.Setenv("SKUPPER_EXTRA_LABELS", envLabels)
-		}
-
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
-
-		if envLabels != "" {
-			os.Unsetenv("SKUPPER_EXTRA_LABELS")
-		}
 
 		for _, name := range deployments {
 			deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
