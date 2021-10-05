@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -181,6 +183,18 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			siteConfig.ObjectMeta.Labels = map[string]string{}
 		}
 		siteConfig.ObjectMeta.Labels[types.SiteControllerIgnore] = "true"
+	}
+	if DefaultSkupperExtraLabels != "" {
+		labelRegex := regexp.MustCompile(ValidRfc1123Label + "=" + ValidRfc1123Label + "+(," + ValidRfc1123Label + "=" + ValidRfc1123Label + "+)*")
+		if labelRegex.MatchString(DefaultSkupperExtraLabels) {
+			s := strings.Split(DefaultSkupperExtraLabels, ",")
+			for _, kv := range s {
+				parts := strings.Split(kv, "=")
+				if len(parts) > 1 {
+					siteConfig.ObjectMeta.Labels[parts[0]] = parts[1]
+				}
+			}
+		}
 	}
 
 	if spec.IsIngressRoute() && cli.RouteClient == nil {
