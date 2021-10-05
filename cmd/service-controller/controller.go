@@ -332,7 +332,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 
 func (c *Controller) createServiceFor(desired *ServiceBindings) error {
 	event.Recordf(ServiceControllerCreateEvent, "Creating new service for %s", desired.address)
-	_, err := kube.NewServiceForAddress(desired.address, desired.publicPorts, desired.ingressPorts, desired.labels, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err := kube.NewServiceForAddress(desired.address, desired.publicPorts, desired.ingressPorts, desired.labels, desired.tlsCredentials, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
 	if err != nil {
 		event.Recordf(ServiceControllerError, "Error while creating service %s: %s", desired.address, err)
 	}

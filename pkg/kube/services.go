@@ -48,11 +48,11 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 	return current, err
 }
 
-func NewServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+func NewServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, secretName string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	selector := GetLabelsForRouter()
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 
-	err := CreateSecretsForService(service.Name, namespace, address, kubeclient)
+	_, err := CreateSecretsForService(service.Name, namespace, address, secretName, kubeclient)
 
 	if err != nil {
 		return nil, err
@@ -249,21 +249,19 @@ func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 	return PortLabelStrToMap(originalTargetPort)
 }
 
-func CreateSecretsForService(serviceName string, nameSpace string, hosts string, kubeclient kubernetes.Interface) error {
+func CreateSecretsForService(serviceName string, nameSpace string, hosts string, secretName string, kubeclient kubernetes.Interface) (*corev1.Secret, error) {
 	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(types.ServiceCaSecret, metav1.GetOptions{})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	serviceSecretName := types.SkupperServiceCertPrefix + serviceName
-
-	serviceSecret := certs.GenerateSecret(serviceSecretName, serviceName, hosts, caCert)
-	_, err = kubeclient.CoreV1().Secrets(nameSpace).Create(&serviceSecret)
+	serviceSecret := certs.GenerateSecret(secretName, serviceName, hosts, caCert)
+	createdSecret, err := kubeclient.CoreV1().Secrets(nameSpace).Create(&serviceSecret)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return createdSecret, nil
 }

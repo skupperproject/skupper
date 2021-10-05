@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -90,11 +91,12 @@ func TestCreateCertificateForService(t *testing.T) {
 			caCert := certs.GenerateCASecret(test.secret, test.secret)
 			os.Setenv("SKUPPER_SITE_ID", test.siteId)
 			kubeClient.CoreV1().Secrets(NAMESPACE).Create(&caCert)
+			secretName := types.SkupperServiceCertPrefix + test.targetService
 
-			err := createSecretsForService(test.targetService, NAMESPACE, test.targetService, kubeClient)
+			_, err := CreateSecretsForService(test.targetService, NAMESPACE, test.targetService, secretName, kubeClient)
 
 			if err == nil {
-				serviceSecret, err := kubeClient.CoreV1().Secrets(NAMESPACE).Get("skupper-"+test.targetService, metav1.GetOptions{})
+				serviceSecret, err := kubeClient.CoreV1().Secrets(NAMESPACE).Get(types.SkupperServiceCertPrefix+test.targetService, metav1.GetOptions{})
 
 				assert.Assert(t, err == nil)
 
