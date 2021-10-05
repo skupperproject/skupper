@@ -930,7 +930,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 			}
 
 			if enableTLS {
-				serviceToCreate.TlsCredentials = types.ServiceInterfaceConfigMap + serviceToCreate.Address
+				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
 			}
 
 			err := cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
