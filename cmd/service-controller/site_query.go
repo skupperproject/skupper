@@ -23,6 +23,8 @@ import (
 const (
 	SiteQueryError      string = "SiteQueryError"
 	SiteQueryRequest    string = "SiteQueryRequest"
+	GatewayQueryError   string = "GatewayQueryError"
+	GatewayQueryRequest string = "GatewayQueryRequest"
 	ServiceCheckError   string = "ServiceCheckError"
 	ServiceCheckRequest string = "ServiceCheckRequest"
 )
@@ -85,6 +87,38 @@ func (s *SiteQueryServer) getLocalSiteQueryData() (data.SiteQueryData, error) {
 	return data, nil
 }
 
+func (s *SiteQueryServer) getGatewayQueryData() ([]data.SiteQueryData, error) {
+	results := []data.SiteQueryData{}
+	agent, err := s.agentPool.Get()
+	if err != nil {
+		return results, fmt.Errorf("Could not get management agent: %s", err)
+	}
+	defer s.agentPool.Put(agent)
+
+	gateways, err := agent.GetLocalGateways()
+	if err != nil {
+		return results, fmt.Errorf("Error retrieving gateways: %s", err)
+	}
+	for _, gateway := range gateways {
+		data := data.SiteQueryData{
+			Site: data.Site{
+				SiteName:  qdr.GetSiteNameForGateway(&gateway),
+				SiteId:    gateway.Site.Id,
+				Version:   gateway.Site.Version,
+				Connected: []string{s.siteInfo.SiteId},
+				Edge:      true,
+				Gateway:   true,
+			},
+		}
+		err = getServiceInfoForRouters(agent, []qdr.Router{gateway}, &data, s.iplookup)
+		if err != nil {
+			return results, fmt.Errorf("Error getting local service info: %s", err)
+		}
+		results = append(results, data)
+	}
+	return results, nil
+}
+
 func getSiteUrl(vanClient *client.VanClient) (string, error) {
 	if vanClient.RouteClient == nil {
 		service, err := vanClient.KubeClient.CoreV1().Services(vanClient.Namespace).Get(types.TransportServiceName, metav1.GetOptions{})
@@ -114,11 +148,14 @@ func getSiteQueryAddress(siteId string) string {
 
 const (
 	ServiceCheck string = "service-check"
+	GatewayQuery string = "gateway-query"
 )
 
 func (s *SiteQueryServer) Request(request *qdr.Request) (*qdr.Response, error) {
 	if request.Type == ServiceCheck {
 		return s.HandleServiceCheck(request)
+	} else if request.Type == GatewayQuery {
+		return s.HandleGatewayQuery(request)
 	} else {
 		return s.HandleSiteQuery(request)
 	}
@@ -173,6 +210,23 @@ func (s *SiteQueryServer) HandleServiceCheck(request *qdr.Request) (*qdr.Respons
 		Type:    request.Type,
 		Body:    string(bytes),
 	}, nil
+}
+
+func (s *SiteQueryServer) HandleGatewayQuery(request *qdr.Request) (*qdr.Response, error) {
+	event.Record(GatewayQueryRequest, "gateway request")
+	data, err := s.getGatewayQueryData()
+	if err != nil {
+		return nil, fmt.Errorf("Could not get response: %s", err)
+	}
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("Could not encode response: %s", err)
+	}
+	return &qdr.Response{
+		Version: client.Version,
+		Body:    string(bytes),
+	}, nil
+
 }
 
 func (s *SiteQueryServer) run() {
@@ -359,8 +413,34 @@ func querySites(agent qdr.RequestResponse, sites []data.SiteQueryData) {
 	}
 }
 
+func queryGateways(agent qdr.RequestResponse, sites []data.SiteQueryData) []data.SiteQueryData {
+	gateways := []data.SiteQueryData{}
+	for _, s := range sites {
+		request := qdr.Request{
+			Address: getSiteQueryAddress(s.SiteId),
+			Version: client.Version,
+			Type:    GatewayQuery,
+		}
+		response, err := agent.Request(&request)
+		if err != nil {
+			event.Recordf(GatewayQueryError, "Request to %s failed: %s", s.SiteId, err)
+		} else {
+			sites := []data.SiteQueryData{}
+			err := json.Unmarshal([]byte(response.Body), &sites)
+			if err != nil {
+				event.Recordf(SiteQueryError, "Error parsing json for site query %q from %s: %s", response.Body, s.SiteId, err)
+			}
+			gateways = append(gateways, sites...)
+		}
+	}
+	return gateways
+}
+
 func getServiceInfo(agent *qdr.Agent, network []qdr.Router, site *data.SiteQueryData, lookup data.NameMapping) error {
-	routers := qdr.GetRoutersForSite(network, site.SiteId)
+	return getServiceInfoForRouters(agent, qdr.GetRoutersForSite(network, site.SiteId), site, lookup)
+}
+
+func getServiceInfoForRouters(agent *qdr.Agent, routers []qdr.Router, site *data.SiteQueryData, lookup data.NameMapping) error {
 	bridges, err := agent.GetBridges(routers)
 	if err != nil {
 		return fmt.Errorf("Error retrieving bridge configuration: %s", err)
@@ -373,7 +453,6 @@ func getServiceInfo(agent *qdr.Agent, network []qdr.Router, site *data.SiteQuery
 	if err != nil {
 		return fmt.Errorf("Error retrieving tcp connection info: %s", err)
 	}
-
 	site.HttpServices = data.GetHttpServices(site.SiteId, httpRequestInfo, qdr.GetHttpConnectors(bridges), qdr.GetHttpListeners(bridges), lookup)
 	site.TcpServices = data.GetTcpServices(site.SiteId, tcpConnections, qdr.GetTcpConnectors(bridges), lookup)
 	return nil

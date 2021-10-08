@@ -446,13 +446,16 @@ func getAllSites(routers []qdr.Router) []data.SiteQueryData {
 		routerToSite[r.Id] = r.Site.Id
 		site, exists := sites[r.Site.Id]
 		if !exists {
-			sites[r.Site.Id] = data.SiteQueryData{
-				Site: data.Site{
-					SiteId:    r.Site.Id,
-					Version:   r.Site.Version,
-					Edge:      r.Edge && strings.Contains(r.Id, "skupper-router"),
-					Connected: []string{},
-				},
+			if !r.IsGateway() {
+				sites[r.Site.Id] = data.SiteQueryData{
+					Site: data.Site{
+						SiteId:    r.Site.Id,
+						Version:   r.Site.Version,
+						Edge:      r.Edge && strings.Contains(r.Id, "skupper-router"),
+						Connected: []string{},
+						Gateway:   false,
+					},
+				}
 			}
 		} else if r.Site.Version != site.Version {
 			event.Recordf(SiteVersionConflict, "Conflicting site version for %s: %s != %s", site.SiteId, site.Version, r.Site.Version)
@@ -492,6 +495,8 @@ func getConsoleData(agent *qdr.Agent) (*data.ConsoleData, error) {
 			}
 		}
 	}
+	gateways := queryGateways(agent, sites)
+	sites = append(sites, gateways...)
 	consoleData := &data.ConsoleData{}
 	consoleData.Merge(sites)
 	return consoleData, nil

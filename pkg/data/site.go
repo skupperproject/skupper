@@ -8,4 +8,5 @@ type Site struct {
 	Namespace string   `json:"namespace"`
 	Url       string   `json:"url"`
 	Edge      bool     `json:"edge"`
+	Gateway   bool     `json:"gateway"`
 }

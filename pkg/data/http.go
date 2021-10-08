@@ -255,6 +255,7 @@ func GetHttpServices(siteId string, info [][]qdr.HttpRequestInfo, targets []qdr.
 	}
 	services := HttpServiceMap{}
 	services.AddServices(listeners)
+	services.AddServices(targets) // gateways may not have listeners
 	services.Update(siteId, flattened, lookup)
 	services.AddTargets(targets, lookup)
 	return services.AsList()

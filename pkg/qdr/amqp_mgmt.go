@@ -1056,6 +1056,26 @@ func (a *Agent) getEdgeRouters(agent string) ([]Router, error) {
 	return edges, nil
 }
 
+func (a *Agent) GetLocalGateways() ([]Router, error) {
+	gateways := []Router{}
+	connections, err := a.GetConnections()
+	if err != nil {
+		return gateways, err
+	}
+	for _, c := range connections {
+		if c.Role == "edge" && c.Dir == DirectionIn && isGateway(c.Container) {
+			router := Router{
+				Id:      c.Container,
+				Edge:    true,
+				Address: getRouterAddress(c.Container, true),
+			}
+			gateways = append(gateways, router)
+		}
+	}
+	err = a.getSiteIds(gateways)
+	return gateways, err
+}
+
 func (a *Agent) GetLocalRouter() (*Router, error) {
 	records, err := a.Query("org.apache.qpid.dispatch.router", []string{})
 	if err != nil {
@@ -1169,4 +1189,16 @@ func (a *Agent) Request(request *Request) (*Response, error) {
 		response.Body = body
 	}
 	return &response, nil
+}
+
+func (r *Router) IsGateway() bool {
+	return isGateway(r.Id)
+}
+
+func isGateway(routerId string) bool {
+	return strings.HasPrefix(routerId, "gateway-")
+}
+
+func GetSiteNameForGateway(gateway *Router) string {
+	return strings.TrimPrefix(gateway.Id, "gateway-")
 }
