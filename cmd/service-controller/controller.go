@@ -433,7 +433,9 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 		}
 	}
 	if update {
-		actual.Spec.Ports = ports
+		if len(ports) > 0 {
+			actual.Spec.Ports = ports
+		}
 		_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(actual)
 		return err
 	}
