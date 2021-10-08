@@ -2,7 +2,6 @@ package qdr
 
 import (
 	"flag"
-	"strings"
 	"testing"
 
 	"crypto/tls"
@@ -106,8 +105,7 @@ func TestQDR(t *testing.T) {
 
 	// Get ------------------------------------
 	agent, err := agentPool.Get()
-	assert.Assert(t, agent == nil && err != nil, "Hmmm, there is no error")
-	assert.Assert(t, agent == nil && strings.Contains(err.Error(), "refused"), "AgentPool.Get() should have failed but didn't")
+	assert.Assert(t, agent == nil && err != nil, "AgentPool.Get() should have failed but didn't")
 
 	// isOk ----------------------------------------
 	code := 199

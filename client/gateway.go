@@ -349,14 +349,14 @@ func updateLocalGatewayConfig(gatewayDir string, gatewayConfig qdr.RouterConfig)
 
 	hostname, _ := os.Hostname()
 
-	routerId, err := ioutil.ReadFile(gatewayDir + "/config/routerid.txt")
+	routerId, err := getRouterId(gatewayDir)
 	if err != nil {
-		return fmt.Errorf("Failed to read instance url file: %w", err)
+		return err
 	}
 
 	instance := GatewayInstance{
 		DataDir:  gatewayDir,
-		RouterID: string(routerId),
+		RouterID: routerId,
 		Hostname: hostname,
 	}
 	var buf bytes.Buffer
@@ -549,6 +549,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, confi
 						Host:    binding.Host,
 						Port:    strconv.Itoa(binding.TargetPorts[i]),
 						Address: addr,
+						SiteId:  "{{.RouterID}}",
 					})
 				case "http":
 					routerConfig.AddHttpConnector(qdr.HttpEndpoint{
@@ -559,6 +560,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, confi
 						ProtocolVersion: qdr.HttpVersion1,
 						Aggregation:     binding.Service.Aggregate,
 						EventChannel:    binding.Service.EventChannel,
+						SiteId:          "{{.RouterID}}",
 					})
 				case "http2":
 					routerConfig.AddHttpConnector(qdr.HttpEndpoint{
@@ -569,6 +571,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, confi
 						ProtocolVersion: qdr.HttpVersion2,
 						Aggregation:     binding.Service.Aggregate,
 						EventChannel:    binding.Service.EventChannel,
+						SiteId:          "{{.RouterID}}",
 					})
 				default:
 				}
@@ -586,6 +589,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, confi
 						Host:    forward.Host,
 						Port:    strconv.Itoa(forward.Service.Ports[i]),
 						Address: addr,
+						SiteId:  "{{.RouterID}}",
 					})
 				case "http":
 					routerConfig.AddHttpListener(qdr.HttpEndpoint{
@@ -596,6 +600,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, confi
 						ProtocolVersion: qdr.HttpVersion1,
 						Aggregation:     forward.Service.Aggregate,
 						EventChannel:    forward.Service.EventChannel,
+						SiteId:          "{{.RouterID}}",
 					})
 				case "http2":
 					routerConfig.AddHttpListener(qdr.HttpEndpoint{
@@ -606,6 +611,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, confi
 						ProtocolVersion: qdr.HttpVersion2,
 						Aggregation:     forward.Service.Aggregate,
 						EventChannel:    forward.Service.EventChannel,
+						SiteId:          "{{.RouterID}}",
 					})
 				default:
 				}
@@ -853,6 +859,13 @@ func getEntity(protocol string, endpointType string) string {
 
 func gatewayAddTcpEndpoint(gatewayName string, endpointType string, tcpEndpoint qdr.TcpEndpoint, gatewayConfig *qdr.RouterConfig) error {
 	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
+	if isActive(gatewayName) {
+		routerId, err := getRouterId(gatewayDir)
+		if err != nil {
+			return err
+		}
+		tcpEndpoint.SiteId = routerId
+	}
 
 	ok := false
 	current := qdr.TcpEndpoint{}
@@ -920,6 +933,13 @@ func gatewayAddTcpEndpoint(gatewayName string, endpointType string, tcpEndpoint 
 
 func gatewayAddHttpEndpoint(gatewayName string, endpointType string, httpEndpoint qdr.HttpEndpoint, gatewayConfig *qdr.RouterConfig) error {
 	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
+	if isActive(gatewayName) {
+		routerId, err := getRouterId(gatewayDir)
+		if err != nil {
+			return err
+		}
+		httpEndpoint.SiteId = routerId
+	}
 
 	ok := false
 	current := qdr.HttpEndpoint{}
@@ -1028,6 +1048,7 @@ func (cli *VanClient) GatewayBind(ctx context.Context, gatewayName string, endpo
 					Host:    endpoint.Host,
 					Port:    strconv.Itoa(service.Ports[i]),
 					Address: fmt.Sprintf("%s:%d", service.Address, si.Ports[i]),
+					SiteId:  "{{.RouterID}}",
 				},
 				gatewayConfig)
 		case "http", "http2":
@@ -1043,6 +1064,7 @@ func (cli *VanClient) GatewayBind(ctx context.Context, gatewayName string, endpo
 					Port:            strconv.Itoa(endpoint.Service.Ports[i]),
 					Address:         fmt.Sprintf("%s:%d", endpoint.Service.Address, si.Ports[i]),
 					ProtocolVersion: pv,
+					SiteId:          "{{.RouterID}}",
 				},
 				gatewayConfig)
 		default:
@@ -1300,6 +1322,7 @@ func (cli *VanClient) GatewayForward(ctx context.Context, gatewayName string, en
 					Host:    ifc,
 					Port:    strconv.Itoa(endpoint.Service.Ports[i]),
 					Address: fmt.Sprintf("%s:%d", endpoint.Service.Address, si.Ports[i]),
+					SiteId:  "{{.RouterID}}",
 				},
 				gatewayConfig)
 		case "http", "http2":
@@ -1315,6 +1338,7 @@ func (cli *VanClient) GatewayForward(ctx context.Context, gatewayName string, en
 					Port:            strconv.Itoa(endpoint.Service.Ports[i]),
 					Address:         fmt.Sprintf("%s:%d", endpoint.Service.Address, si.Ports[i]),
 					ProtocolVersion: pv,
+					SiteId:          "{{.RouterID}}",
 				},
 				gatewayConfig)
 		default:
@@ -1749,6 +1773,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 				Host:    binding.Host,
 				Port:    strconv.Itoa(binding.Service.Ports[0]),
 				Address: binding.Service.Address,
+				SiteId:  "{{.RouterID}}",
 			})
 		case "http":
 			routerConfig.AddHttpConnector(qdr.HttpEndpoint{
@@ -1759,6 +1784,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 				ProtocolVersion: qdr.HttpVersion1,
 				Aggregation:     binding.Service.Aggregate,
 				EventChannel:    binding.Service.EventChannel,
+				SiteId:          "{{.RouterID}}",
 			})
 		case "http2":
 			routerConfig.AddHttpConnector(qdr.HttpEndpoint{
@@ -1769,6 +1795,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 				ProtocolVersion: qdr.HttpVersion2,
 				Aggregation:     binding.Service.Aggregate,
 				EventChannel:    binding.Service.EventChannel,
+				SiteId:          "{{.RouterID}}",
 			})
 		default:
 		}
@@ -1782,6 +1809,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 				Host:    forward.Host,
 				Port:    strconv.Itoa(forward.Service.Ports[0]),
 				Address: forward.Service.Address,
+				SiteId:  "{{.RouterID}}",
 			})
 		case "http":
 			routerConfig.AddHttpListener(qdr.HttpEndpoint{
@@ -1792,6 +1820,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 				ProtocolVersion: qdr.HttpVersion1,
 				Aggregation:     forward.Service.Aggregate,
 				EventChannel:    forward.Service.EventChannel,
+				SiteId:          "{{.RouterID}}",
 			})
 		case "http2":
 			routerConfig.AddHttpListener(qdr.HttpEndpoint{
@@ -1802,6 +1831,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 				ProtocolVersion: qdr.HttpVersion2,
 				Aggregation:     forward.Service.Aggregate,
 				EventChannel:    forward.Service.EventChannel,
+				SiteId:          "{{.RouterID}}",
 			})
 		default:
 		}
@@ -1856,4 +1886,12 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	err = writeTar("expandvars.py", []byte(expand), time.Now(), tw)
 
 	return tarFile.Name(), nil
+}
+
+func getRouterId(gatewayDir string) (string, error) {
+	routerId, err := ioutil.ReadFile(gatewayDir + "/config/routerid.txt")
+	if err != nil {
+		return "", fmt.Errorf("Failed to read router id: %w", err)
+	}
+	return string(routerId), nil
 }
