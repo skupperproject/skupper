@@ -62,6 +62,7 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 			Aggregate:    original.Aggregate,
 			EventChannel: original.EventChannel,
 			Targets:      []types.ServiceInterfaceTarget{},
+			TlsCredentials: original.TlsCredentials,
 		}
 		if service.Origin != "" && service.Origin != "annotation" {
 			if _, ok := c.byOrigin[service.Origin]; !ok {

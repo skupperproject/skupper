@@ -56,11 +56,7 @@ func handleServiceCertificateRemoval(namespace string, address string, kubeClien
 
 	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(certName, metav1.GetOptions{})
 
-	if err != nil {
-		log.Printf(err.Error())
-	}
-
-	if secret != nil {
+	if err == nil && secret != nil {
 		err := kubeClient.CoreV1().Secrets(namespace).Delete(certName, &metav1.DeleteOptions{})
 
 		if err != nil {

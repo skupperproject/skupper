@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/client"
 	"log"
 	"reflect"
 	"strconv"
@@ -77,6 +78,7 @@ func asServiceInterface(bindings *ServiceBindings) types.ServiceInterface {
 		Headless:     bindings.headless,
 		Labels:       bindings.labels,
 		Origin:       bindings.origin,
+		TlsCredentials: bindings.tlsCredentials,
 	}
 }
 
@@ -200,10 +202,15 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		}
 
 		if bindings.tlsCredentials != required.TlsCredentials {
-			bindings.tlsCredentials = required.TlsCredentials
+
+			// Credentials will be overridden only if there are no value for them,
+			// and in that case a new secret has to be generated in that site.
+			if len(bindings.tlsCredentials) == 0 {
+				bindings.tlsCredentials = types.SkupperServiceCertPrefix + required.Address
+			}
 
 			mountGenericClientSecret(c)
-			err := mountServiceCertificateByName(required.Address, required.TlsCredentials, c)
+			err := mountServiceCertificateByName(required.Address, bindings.tlsCredentials, c)
 			if err != nil {
 				return err
 			}
@@ -410,7 +417,7 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 				SiteId:          siteId,
 				ProtocolVersion: qdr.HttpVersion2,
 			}
-			if tlsCredentials != "" {
+			if len(tlsCredentials) > 0 {
 				httpConnector.SslProfile = qdr.SslProfile{
 					Name:       types.ServiceClientSecret,
 					CaCertFile: "/etc/qpid-dispatch-certs/" + types.ServiceClientSecret + "/ca.crt",
@@ -465,7 +472,7 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 				EventChannel:    sb.eventChannel,
 				ProtocolVersion: qdr.HttpVersion2,
 			}
-			if sb.tlsCredentials != "" {
+			if len(sb.tlsCredentials) > 0 {
 				httpListener.AddSslProfileWithPath("/etc/qpid-dispatch-certs", qdr.SslProfile{
 					Name: sb.tlsCredentials,
 				})
@@ -516,13 +523,9 @@ func mountServiceCertificateByName(address string, name string, c *Controller) e
 		return err
 	}
 
-	deployment, err := kube.GetDeployment(types.TransportDeploymentName, c.vanClient.Namespace, c.vanClient.KubeClient)
-
+	err = appendSecret(name, c.vanClient)
 	if err != nil {
-		log.Println(err.Error())
 		return err
-	} else {
-		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, name, "/etc/qpid-dispatch-certs/"+name+"/")
 	}
 
 	return nil
@@ -533,7 +536,15 @@ func mountGenericClientSecret(c *Controller) {
 
 	if err != nil {
 		log.Println(err.Error())
+		return err
 	} else {
-		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, types.ServiceClientSecret, "/etc/qpid-dispatch-certs/"+types.ServiceClientSecret+"/")
+		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, secretName, "/etc/qpid-dispatch-certs/"+secretName+"/")
 	}
+
+	_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(deployment)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
