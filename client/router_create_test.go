@@ -445,6 +445,23 @@ func TestRouterResourcesOptions(t *testing.T) {
 			_, ok := container.Resources.Requests[corev1.ResourceCPU]
 			assert.Assert(t, !ok, namespace)
 		}
+
+		existClientSecret := false
+		for _, volume := range deployment.Spec.Template.Spec.Volumes {
+			if volume.Name == "skupper-service-client" {
+				assert.Equal(t, volume.Secret.SecretName, "skupper-service-client")
+				existClientSecret = true
+			}
+		}
+		assert.Check(t, existClientSecret == true)
+
+		existClientSecretPath := false
+		for _, path := range deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if path.MountPath == "/etc/qpid-dispatch-certs/skupper-service-client/" {
+				existClientSecretPath = true
+			}
+		}
+		assert.Check(t, existClientSecretPath == true)
 	}
 }
 

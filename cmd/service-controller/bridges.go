@@ -159,7 +159,6 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		if len(required.TlsCredentials) > 0 {
 			sb.tlsCredentials = required.TlsCredentials
 
-			mountGenericClientSecret(c)
 			err := mountServiceCertificateByName(sb.address, required.TlsCredentials, c)
 			if err != nil {
 				return err
@@ -209,7 +208,6 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				bindings.tlsCredentials = types.SkupperServiceCertPrefix + required.Address
 			}
 
-			mountGenericClientSecret(c)
 			err := mountServiceCertificateByName(required.Address, bindings.tlsCredentials, c)
 			if err != nil {
 				return err
@@ -529,14 +527,6 @@ func mountServiceCertificateByName(address string, name string, c *Controller) e
 	}
 
 	return nil
-}
-
-func mountGenericClientSecret(c *Controller) {
-	err := appendSecret(types.ServiceClientSecret, c.vanClient)
-
-	if err != nil {
-		log.Println(err.Error())
-	}
 }
 
 func appendSecret(secretName string, cli *client.VanClient) error {
