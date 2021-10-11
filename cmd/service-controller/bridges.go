@@ -410,10 +410,10 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 			bridges.AddHttpConnector(b)
 		case ProtocolHTTP2:
 			httpConnector := qdr.HttpEndpoint{
-				Name:            getBridgeName(address+"."+target, host),
+				Name:            endpointName,
 				Host:            host,
 				Port:            strconv.Itoa(tPort),
-				Address:         address,
+				Address:         endpointAddr,
 				SiteId:          siteId,
 				ProtocolVersion: qdr.HttpVersion2,
 			}
@@ -463,10 +463,10 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 
 		case ProtocolHTTP2:
 			httpListener := qdr.HttpEndpoint{
-				Name:            getBridgeName(sb.address, ""),
+				Name:            endpointName,
 				Host:            "0.0.0.0",
 				Port:            strconv.Itoa(iPort),
-				Address:         sb.address,
+				Address:         endpointAddr,
 				SiteId:          siteId,
 				Aggregation:     sb.aggregation,
 				EventChannel:    sb.eventChannel,
