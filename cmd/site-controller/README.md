@@ -8,11 +8,9 @@ The site controller provides declarative methods to manage a Skupper VAN site us
 
 ## Managing a Skupper Site using ConfigMaps
 
-ConfigMaps allow you to manage a Skupper site using the following parameters:
+ConfigMaps allow you to manage a Skupper site using a ConfigMap named 'skupper-site' which can contain the following parameters:
 
-`metadata:name` -  The site controller name in OpenShift. Required for the site controller to process the ConfigMap.
-
-`data:name` -  The VAN deployment or site name.
+`data:name` -  A name for the site.
 
 `data:cluster-local` -  (true/false) Set up skupper to only accept connections from within the local cluster.
 
