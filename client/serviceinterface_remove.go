@@ -52,7 +52,7 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 }
 
 func handleServiceCertificateRemoval(namespace string, address string, kubeClient kubernetes.Interface) {
-	certName := "skupper-" + address
+	certName := types.SkupperServiceCertPrefix + address
 
 	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(certName, metav1.GetOptions{})
 

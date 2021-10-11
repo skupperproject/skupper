@@ -233,7 +233,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			} else if t.Service != "" {
 				target := bindings.targets[t.Service]
 				if target == nil {
-					bindings.addServiceTarget(t.Name, t.Service, targetPort, required.tlsCredentials, c)
+					bindings.addServiceTarget(t.Name, t.Service, targetPort, required.TlsCredentials, c)
 				} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
 					target.egressPorts = targetPort
 				}
@@ -465,7 +465,7 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 			httpListener := qdr.HttpEndpoint{
 				Name:            getBridgeName(sb.address, ""),
 				Host:            "0.0.0.0",
-				Port:            strconv.Itoa(sb.ingressPort),
+				Port:            strconv.Itoa(iPort),
 				Address:         sb.address,
 				SiteId:          siteId,
 				Aggregation:     sb.aggregation,
@@ -531,8 +531,18 @@ func mountServiceCertificateByName(address string, name string, c *Controller) e
 	return nil
 }
 
+
 func mountGenericClientSecret(c *Controller) {
-	deployment, err := kube.GetDeployment(types.TransportDeploymentName, c.vanClient.Namespace, c.vanClient.KubeClient)
+	err := appendSecret(types.ServiceClientSecret, c.vanClient)
+
+	if err != nil {
+		log.Println(err.Error())
+	}
+}
+
+func appendSecret(secretName string, cli *client.VanClient) error {
+
+	deployment, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 
 	if err != nil {
 		log.Println(err.Error())
