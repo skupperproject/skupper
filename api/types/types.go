@@ -435,17 +435,17 @@ type TransportConnectedSites struct {
 }
 
 type ServiceInterface struct {
-	Address      string                   `json:"address" yaml:"address"`
-	Protocol     string                   `json:"protocol" yaml:"protocol"`
-	Ports        []int                    `json:"ports" yaml:"ports"`
-	EventChannel bool                     `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
-	Aggregate    string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
-	Headless     *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`
-	Labels       map[string]string        `json:"labels,omitempty" yaml:"labels,omitempty"`
-	Targets      []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
-	Origin       string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
-	EnableTls      bool                   `json:"enableTls,omitempty"`
-	TlsCredentials string                 `json:"tlsCredentials,omitempty"`
+	Address        string                   `json:"address" yaml:"address"`
+	Protocol       string                   `json:"protocol" yaml:"protocol"`
+	Ports          []int                    `json:"ports" yaml:"ports"`
+	EventChannel   bool                     `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
+	Aggregate      string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
+	Headless       *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`
+	Labels         map[string]string        `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Targets        []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
+	Origin         string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
+	EnableTls      bool                     `json:"enableTls,omitempty"`
+	TlsCredentials string                   `json:"tlsCredentials,omitempty"`
 }
 
 type ServiceInterfaceList []ServiceInterface

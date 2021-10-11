@@ -37,26 +37,26 @@ func getBridgeName(address string, host string, port ...int) string {
 }
 
 type EgressBindings struct {
-	name        string
-	selector    string
-	service     string
-	egressPorts map[int]int
-	informer    cache.SharedIndexInformer
-	stopper     chan struct{}
+	name           string
+	selector       string
+	service        string
+	egressPorts    map[int]int
+	informer       cache.SharedIndexInformer
+	stopper        chan struct{}
 	tlsCredentials string
 }
 
 type ServiceBindings struct {
-	origin       string
-	protocol     string
-	address      string
-	publicPorts  []int
-	ingressPorts []int
-	aggregation  string
-	eventChannel bool
-	headless     *types.Headless
-	labels       map[string]string
-	targets      map[string]*EgressBindings
+	origin         string
+	protocol       string
+	address        string
+	publicPorts    []int
+	ingressPorts   []int
+	aggregation    string
+	eventChannel   bool
+	headless       *types.Headless
+	labels         map[string]string
+	targets        map[string]*EgressBindings
 	tlsCredentials string
 }
 
@@ -70,14 +70,14 @@ func (s *ServiceBindings) PortMap() map[int]int {
 
 func asServiceInterface(bindings *ServiceBindings) types.ServiceInterface {
 	return types.ServiceInterface{
-		Address:      bindings.address,
-		Protocol:     bindings.protocol,
-		Ports:        bindings.publicPorts,
-		Aggregate:    bindings.aggregation,
-		EventChannel: bindings.eventChannel,
-		Headless:     bindings.headless,
-		Labels:       bindings.labels,
-		Origin:       bindings.origin,
+		Address:        bindings.address,
+		Protocol:       bindings.protocol,
+		Ports:          bindings.publicPorts,
+		Aggregate:      bindings.aggregation,
+		EventChannel:   bindings.eventChannel,
+		Headless:       bindings.headless,
+		Labels:         bindings.labels,
+		Origin:         bindings.origin,
 		TlsCredentials: bindings.tlsCredentials,
 	}
 }
@@ -266,16 +266,16 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 
 func newServiceBindings(origin string, protocol string, address string, publicPorts []int, headless *types.Headless, labels map[string]string, ingressPorts []int, aggregation string, eventChannel bool, tlsCredentials string) *ServiceBindings {
 	return &ServiceBindings{
-		origin:       origin,
-		protocol:     protocol,
-		address:      address,
-		publicPorts:  publicPorts,
-		ingressPorts: ingressPorts,
-		aggregation:  aggregation,
-		eventChannel: eventChannel,
-		headless:     headless,
-		labels:       labels,
-		targets:      map[string]*EgressBindings{},
+		origin:         origin,
+		protocol:       protocol,
+		address:        address,
+		publicPorts:    publicPorts,
+		ingressPorts:   ingressPorts,
+		aggregation:    aggregation,
+		eventChannel:   eventChannel,
+		headless:       headless,
+		labels:         labels,
+		targets:        map[string]*EgressBindings{},
 		tlsCredentials: tlsCredentials,
 	}
 }
@@ -306,10 +306,10 @@ func (sb *ServiceBindings) removeSelectorTarget(selector string) {
 
 func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, tlsCredentials string, controller *Controller) error {
 	sb.targets[service] = &EgressBindings{
-		name:        name,
-		service:     service,
-		egressPorts: port,
-		stopper:     make(chan struct{}),
+		name:           name,
+		service:        service,
+		egressPorts:    port,
+		stopper:        make(chan struct{}),
 		tlsCredentials: tlsCredentials,
 	}
 	return nil
@@ -359,7 +359,7 @@ func (eb *EgressBindings) updateBridgeConfiguration(sb *ServiceBindings, siteId 
 			pod := p.(*corev1.Pod)
 			if kube.IsPodRunning(pod) && kube.IsPodReady(pod) && pod.DeletionTimestamp == nil {
 				event.Recordf(BridgeTargetEvent, "Adding pod for %s: %s", sb.address, pod.ObjectMeta.Name)
-				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPorts, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, sb.tlsCredentials, bridges,)
+				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPorts, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, sb.tlsCredentials, bridges)
 			} else {
 				event.Recordf(BridgeTargetEvent, "Pod for %s not ready/running: %s", sb.address, pod.ObjectMeta.Name)
 			}
@@ -530,7 +530,6 @@ func mountServiceCertificateByName(address string, name string, c *Controller) e
 
 	return nil
 }
-
 
 func mountGenericClientSecret(c *Controller) {
 	err := appendSecret(types.ServiceClientSecret, c.vanClient)

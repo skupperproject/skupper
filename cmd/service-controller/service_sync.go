@@ -53,15 +53,15 @@ func (c *Controller) serviceSyncDefinitionsUpdated(definitions map[string]types.
 
 	for name, original := range definitions {
 		service := types.ServiceInterface{
-			Address:      original.Address,
-			Protocol:     original.Protocol,
-			Ports:        original.Ports,
-			Origin:       original.Origin,
-			Headless:     original.Headless,
-			Labels:       original.Labels,
-			Aggregate:    original.Aggregate,
-			EventChannel: original.EventChannel,
-			Targets:      []types.ServiceInterfaceTarget{},
+			Address:        original.Address,
+			Protocol:       original.Protocol,
+			Ports:          original.Ports,
+			Origin:         original.Origin,
+			Headless:       original.Headless,
+			Labels:         original.Labels,
+			Aggregate:      original.Aggregate,
+			EventChannel:   original.EventChannel,
+			Targets:        []types.ServiceInterfaceTarget{},
 			TlsCredentials: original.TlsCredentials,
 		}
 		if service.Origin != "" && service.Origin != "annotation" {
