@@ -51,4 +51,4 @@ metadata:
   name: skupper-site
 ```
 
-Note that `metadata:name` is required for the site controller to process the ConfigMap.
+Note that `metadata:name` is name of the ConfigMap, and must be set to `skupper-site`.
