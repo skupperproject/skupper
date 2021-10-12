@@ -8,7 +8,7 @@ The site controller provides declarative methods to manage a Skupper VAN site us
 
 ## Managing a Skupper Site using ConfigMaps
 
-ConfigMaps allow you to manage a Skupper site using a ConfigMap named 'skupper-site' which can contain the following parameters:
+ConfigMaps allow you to manage a Skupper site using a ConfigMap named `skupper-site` with the following parameters:
 
 `data:name` -  A name for the site.
 
