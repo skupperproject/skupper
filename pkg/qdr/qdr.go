@@ -413,16 +413,16 @@ type TcpEndpoint struct {
 }
 
 type HttpEndpoint struct {
-	Name            string     `json:"name,omitempty"`
-	Host            string     `json:"host,omitempty"`
-	Port            string     `json:"port,omitempty"`
-	Address         string     `json:"address,omitempty"`
-	SiteId          string     `json:"siteId,omitempty"`
-	ProtocolVersion string     `json:"protocolVersion,omitempty"`
-	Aggregation     string     `json:"aggregation,omitempty"`
-	EventChannel    bool       `json:"eventChannel,omitempty"`
-	HostOverride    string     `json:"hostOverride,omitempty"`
-	SslProfile      SslProfile `json:"sslProfile,omitempty"`
+	Name            string      `json:"name,omitempty"`
+	Host            string      `json:"host,omitempty"`
+	Port            string      `json:"port,omitempty"`
+	Address         string      `json:"address,omitempty"`
+	SiteId          string      `json:"siteId,omitempty"`
+	ProtocolVersion string      `json:"protocolVersion,omitempty"`
+	Aggregation     string      `json:"aggregation,omitempty"`
+	EventChannel    bool        `json:"eventChannel,omitempty"`
+	HostOverride    string      `json:"hostOverride,omitempty"`
+	SslProfile      *SslProfile `json:"sslProfile,omitempty"`
 }
 
 func convert(from interface{}, to interface{}) error {
@@ -753,13 +753,13 @@ func (a HttpEndpoint) Equivalent(b HttpEndpoint) bool {
 	return true
 }
 
-func GenerateSslProfileWithPath(path string, s SslProfile) SslProfile {
+func (a *HttpEndpoint) GenerateSslProfileWithPath(path string, s SslProfile) {
 	if s.CertFile == "" && s.CaCertFile == "" && s.PrivateKeyFile == "" {
 		s.CertFile = fmt.Sprintf(path+"/%s/tls.crt", s.Name)
 		s.PrivateKeyFile = fmt.Sprintf(path+"/%s/tls.key", s.Name)
 		s.CaCertFile = fmt.Sprintf(path+"/%s/ca.crt", s.Name)
 	}
-	return s
+	a.SslProfile = &s
 }
 
 func (a HttpEndpointMap) Difference(b HttpEndpointMap) HttpEndpointDifference {

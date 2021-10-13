@@ -407,22 +407,22 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 			}
 			bridges.AddHttpConnector(b)
 		case ProtocolHTTP2:
-			var tlsConfig qdr.SslProfile
-			if len(tlsCredentials) > 0 {
-				tlsConfig = qdr.SslProfile{
-					Name:       types.ServiceClientSecret,
-					CaCertFile: "/etc/qpid-dispatch-certs/" + types.ServiceClientSecret + "/ca.crt",
-				}
-			}
-			bridges.AddHttpConnector(qdr.HttpEndpoint{
+			httpConnector := qdr.HttpEndpoint{
 				Name:            endpointName,
 				Host:            host,
 				Port:            strconv.Itoa(tPort),
 				Address:         endpointAddr,
 				SiteId:          siteId,
 				ProtocolVersion: qdr.HttpVersion2,
-				SslProfile:      tlsConfig,
-			})
+			}
+
+			if len(tlsCredentials) > 0 {
+				httpConnector.SslProfile = &qdr.SslProfile{
+					Name:       types.ServiceClientSecret,
+					CaCertFile: "/etc/qpid-dispatch-certs/" + types.ServiceClientSecret + "/ca.crt",
+				}
+			}
+			bridges.AddHttpConnector(httpConnector)
 		case ProtocolTCP:
 			bridges.AddTcpConnector(qdr.TcpEndpoint{
 				Name:    endpointName,
@@ -461,14 +461,7 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 			})
 
 		case ProtocolHTTP2:
-			var tlsConfig qdr.SslProfile
-			if len(sb.tlsCredentials) > 0 {
-				fmt.Println("Service binding credentials" + sb.tlsCredentials)
-				tlsConfig = qdr.GenerateSslProfileWithPath("/etc/qpid-dispatch-certs", qdr.SslProfile{
-					Name: sb.tlsCredentials,
-				})
-			}
-			bridges.AddHttpListener(qdr.HttpEndpoint{
+			httpListener := qdr.HttpEndpoint{
 				Name:            endpointName,
 				Host:            "0.0.0.0",
 				Port:            strconv.Itoa(iPort),
@@ -477,8 +470,15 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 				Aggregation:     sb.aggregation,
 				EventChannel:    sb.eventChannel,
 				ProtocolVersion: qdr.HttpVersion2,
-				SslProfile:      tlsConfig,
-			})
+			}
+
+			if len(sb.tlsCredentials) > 0 {
+				httpListener.GenerateSslProfileWithPath("/etc/qpid-dispatch-certs", qdr.SslProfile{
+					Name: sb.tlsCredentials,
+				})
+			}
+
+			bridges.AddHttpListener(httpListener)
 		case ProtocolTCP:
 			bridges.AddTcpListener(qdr.TcpEndpoint{
 				Name:    endpointName,
