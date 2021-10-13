@@ -753,13 +753,13 @@ func (a HttpEndpoint) Equivalent(b HttpEndpoint) bool {
 	return true
 }
 
-func (a HttpEndpoint) AddSslProfileWithPath(path string, s SslProfile) {
+func GenerateSslProfileWithPath(path string, s SslProfile) SslProfile {
 	if s.CertFile == "" && s.CaCertFile == "" && s.PrivateKeyFile == "" {
 		s.CertFile = fmt.Sprintf(path+"/%s/tls.crt", s.Name)
 		s.PrivateKeyFile = fmt.Sprintf(path+"/%s/tls.key", s.Name)
 		s.CaCertFile = fmt.Sprintf(path+"/%s/ca.crt", s.Name)
 	}
-	a.SslProfile = s
+	return s
 }
 
 func (a HttpEndpointMap) Difference(b HttpEndpointMap) HttpEndpointDifference {
