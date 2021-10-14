@@ -96,7 +96,7 @@ func TestToken(t *testing.T) {
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
 					// skupper token create - verify token has been created
 					&token.CreateTester{
-						Name:     "public",
+						Name:     "public1",
 						FileName: tokenFile,
 						Type:     token.TokenCert,
 					},
@@ -193,7 +193,7 @@ func TestToken(t *testing.T) {
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
 					// skupper token create - verify token has been created
 					&token.CreateTester{
-						Name:     "public",
+						Name:     "public2",
 						FileName: tokenFile,
 						Expiry:   "10m",
 						Password: "password",
@@ -241,7 +241,7 @@ func TestToken(t *testing.T) {
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
 					// skupper token create - verify token has been created
 					&token.CreateTester{
-						Name:      "public",
+						Name:      "public3",
 						FileName:  tokenFile,
 						Expiry:    "10s",
 						Type:      token.TokenClaim,

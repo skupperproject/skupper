@@ -50,10 +50,14 @@ func NewCmdTokenCreate(newClient cobraFunc, flag string) *cobra.Command {
 				}
 				return nil
 			case "claim":
+				name := clientIdentity
+				if name == "skupper" {
+					name = ""
+				}
 				if password == "" {
 					password = utils.RandomId(24)
 				}
-				err := cli.TokenClaimCreateFile(context.Background(), clientIdentity, []byte(password), expiry, uses, args[0])
+				err := cli.TokenClaimCreateFile(context.Background(), name, []byte(password), expiry, uses, args[0])
 				if err != nil {
 					return fmt.Errorf("Failed to create token: %w", err)
 				}
