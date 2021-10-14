@@ -109,11 +109,12 @@ func (index TcpServiceMap) Update(siteId string, connections []qdr.TcpConnection
 				c.Name: asTcpConnectionStats(&c, mapping),
 			},
 		}
-		service, ok := index[c.Address]
+		address := unqualifiedAddress(c.Address)
+		service, ok := index[address]
 		if !ok {
 			service = TcpService{
 				Service: Service{
-					Address:  c.Address,
+					Address:  address,
 					Protocol: "tcp",
 				},
 			}
@@ -123,23 +124,24 @@ func (index TcpServiceMap) Update(siteId string, connections []qdr.TcpConnection
 		} else {
 			service.mergeEgress(&record)
 		}
-		index[c.Address] = service
+		index[address] = service
 	}
 }
 
 func (s TcpServiceMap) AddTargets(connectors []qdr.TcpEndpoint, mapping NameMapping) {
 	for _, c := range connectors {
-		service, ok := s[c.Address]
+		address := unqualifiedAddress(c.Address)
+		service, ok := s[address]
 		if !ok {
 			service = TcpService{
 				Service: Service{
-					Address:  c.Address,
+					Address:  address,
 					Protocol: "tcp",
 				},
 			}
 		}
 		service.AddTarget(c.Name, c.Host, c.SiteId, mapping)
-		s[c.Address] = service
+		s[address] = service
 	}
 }
 
