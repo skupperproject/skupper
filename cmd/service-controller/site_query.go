@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
+	"strings"
 
 	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -245,6 +245,22 @@ func (s *SiteQueryServer) start(stopCh <-chan struct{}) error {
 	return err
 }
 
+func getTcpAddressFilter(address string) qdr.TcpEndpointFilter {
+	return func(endpoint *qdr.TcpEndpoint) bool {
+		return matchQualifiedAddress(address, endpoint.Address)
+	}
+}
+
+func getHttpAddressFilter(address string) qdr.HttpEndpointFilter {
+	return func(endpoint *qdr.HttpEndpoint) bool {
+		return matchQualifiedAddress(address, endpoint.Address)
+	}
+}
+
+func matchQualifiedAddress(unqualified string, qualified string) bool {
+	return unqualified == strings.Split(qualified, ":")[0]
+}
+
 func (s *SiteQueryServer) getServiceDetail(context context.Context, address string) (data.ServiceDetail, error) {
 	detail := data.ServiceDetail{
 		SiteId: s.siteInfo.SiteId,
@@ -262,27 +278,16 @@ func (s *SiteQueryServer) getServiceDetail(context context.Context, address stri
 	if err != nil {
 		return detail, err
 	}
-	if len(service.Spec.Ports) == 1 {
-		detail.IngressBinding.ServicePort = int(service.Spec.Ports[0].Port)
-		detail.IngressBinding.ServiceTargetPort = service.Spec.Ports[0].TargetPort.IntValue()
-	} else if len(service.Spec.Ports) > 1 {
-		var name string
-		for _, ports := range service.Spec.Ports {
-			if utils.IntSliceContains(detail.Definition.Ports, int(ports.Port)) {
-				name = ports.Name
-				detail.IngressBinding.ServicePort = int(ports.Port)
-				detail.IngressBinding.ServiceTargetPort = ports.TargetPort.IntValue()
-				break
-			}
-		}
-		if name == "" {
-			detail.AddObservation("Service Spec has multiple ports defined, none of which match port in definition")
+
+	detail.IngressBinding.ServicePorts = map[int]int{}
+	for _, ports := range service.Spec.Ports {
+		if utils.IntSliceContains(detail.Definition.Ports, int(ports.Port)) {
+			detail.IngressBinding.ServicePorts[int(ports.Port)] = ports.TargetPort.IntValue()
 		} else {
-			detail.AddObservation("Service Spec has multiple ports defined; using " + name)
+			detail.AddObservation(fmt.Sprintf("Kubernetes service defines port %s %d:%d which is not in skupper service definition", ports.Name, ports.Port, ports.TargetPort.IntValue()))
 		}
-	} else {
-		detail.AddObservation("Service Spec has no ports defined")
 	}
+
 	detail.IngressBinding.ServiceSelector = service.Spec.Selector
 
 	agent, err := s.agentPool.Get()
@@ -292,81 +297,35 @@ func (s *SiteQueryServer) getServiceDetail(context context.Context, address stri
 	defer s.agentPool.Put(agent)
 
 	if detail.Definition.Protocol == "tcp" {
-		listener, err := agent.GetLocalTcpListener(detail.Definition.Address, detail.IngressBinding.ServiceTargetPort)
+		listeners, err := agent.GetLocalTcpListeners(getTcpAddressFilter(detail.Definition.Address))
 		if err != nil {
-			return detail, fmt.Errorf("Error retrieving tcp listener for %s: %s", detail.Definition.Address, err)
-		}
-		if listener == nil {
-			detail.AddObservation(fmt.Sprintf("No tcp listener defined for %s on %d", detail.Definition.Address, detail.IngressBinding.ServiceTargetPort))
+			detail.AddObservation(fmt.Sprintf("Error retrieving tcp listeners: %s", err))
 		} else {
-			if detail.Definition.Address != listener.Address {
-				detail.AddObservation(fmt.Sprintf("Wrong address for tcp listener on %d", detail.IngressBinding.ServiceTargetPort))
-			} else {
-				port, err := strconv.Atoi(listener.Port)
-				if err != nil {
-					detail.AddObservation(fmt.Sprintf("Bad port for listener %s: %s %s", listener.Name, listener.Port, err))
-				}
-				detail.IngressBinding.ListenerPort = port
-				if detail.IngressBinding.ListenerPort != detail.IngressBinding.ServiceTargetPort {
-					detail.AddObservation(fmt.Sprintf("listener port does not match service target port (%d != %d)",
-						detail.IngressBinding.ListenerPort, detail.IngressBinding.ServiceTargetPort))
-				}
-			}
+			detail.ExtractTcpListenerPorts(listeners)
 		}
 
-		connectors, err := agent.GetLocalTcpConnectors(detail.Definition.Address)
+		connectors, err := agent.GetLocalTcpConnectors(getTcpAddressFilter(detail.Definition.Address))
 		if err != nil {
-			return detail, fmt.Errorf("Error retrieving tcp connectors for %s: %s", detail.Definition.Address, err)
-		}
-		for _, connector := range connectors {
-			port, err := strconv.Atoi(connector.Port)
-			if err != nil {
-				detail.AddObservation(fmt.Sprintf("Bad port for connector %s: %s %s", connector.Name, connector.Port, err))
-			}
-			detail.EgressBindings = append(detail.EgressBindings, data.EgressBinding{
-				Port: port,
-				Host: connector.Host,
-			})
+			detail.AddObservation(fmt.Sprintf("Error retrieving tcp connectors for %s: %s", detail.Definition.Address, err))
+		} else {
+			detail.ExtractTcpConnectorPorts(connectors)
 		}
 	} else if detail.Definition.Protocol == "http" || detail.Definition.Protocol == "http2" {
-		listener, err := agent.GetLocalHttpListener(detail.Definition.Address, detail.IngressBinding.ServiceTargetPort)
+		listeners, err := agent.GetLocalHttpListeners(getHttpAddressFilter(detail.Definition.Address))
 		if err != nil {
-			return detail, fmt.Errorf("Error retrieving http listener for %s: %s", detail.Definition.Address, err)
-		}
-		if listener == nil {
-			detail.AddObservation(fmt.Sprintf("No http listener defined for %s on %d", detail.Definition.Address, detail.IngressBinding.ServiceTargetPort))
+			detail.AddObservation(fmt.Sprintf("Error retrieving http listeners: %s", err))
 		} else {
-			if detail.Definition.Address != listener.Address {
-				detail.AddObservation(fmt.Sprintf("Wrong address for http listener on %d", detail.IngressBinding.ServiceTargetPort))
-			} else {
-				port, err := strconv.Atoi(listener.Port)
-				if err != nil {
-					detail.AddObservation(fmt.Sprintf("Bad port for listener %s: %s %s", listener.Name, listener.Port, err))
-				}
-				detail.IngressBinding.ListenerPort = port
-				if detail.IngressBinding.ListenerPort != detail.IngressBinding.ServiceTargetPort {
-					detail.AddObservation(fmt.Sprintf("listener port does not match service target port (%d != %d)",
-						detail.IngressBinding.ListenerPort, detail.IngressBinding.ServiceTargetPort))
-				}
-			}
+			detail.ExtractHttpListenerPorts(listeners)
 		}
 
-		connectors, err := agent.GetLocalHttpConnectors(detail.Definition.Address)
+		connectors, err := agent.GetLocalHttpConnectors(getHttpAddressFilter(detail.Definition.Address))
 		if err != nil {
-			return detail, fmt.Errorf("Error retrieving http connectors for %s: %s", detail.Definition.Address, err)
-		}
-		for _, connector := range connectors {
-			port, err := strconv.Atoi(connector.Port)
-			if err != nil {
-				detail.AddObservation(fmt.Sprintf("Bad port for connector %s: %s %s", connector.Name, connector.Port, err))
-			}
-			detail.EgressBindings = append(detail.EgressBindings, data.EgressBinding{
-				Port: port,
-				Host: connector.Host,
-			})
+			detail.AddObservation(fmt.Sprintf("Error retrieving http connectors for %s: %s", detail.Definition.Address, err))
+		} else {
+			detail.ExtractHttpConnectorPorts(connectors)
 		}
 	} else {
-		return detail, fmt.Errorf("Unrecognised protocol: %s", detail.Definition.Protocol)
+		detail.AddObservation(fmt.Sprintf("Unrecognised protocol: %s", detail.Definition.Protocol))
 	}
 
 	if len(detail.Definition.Targets) > 0 && len(detail.EgressBindings) == 0 {
