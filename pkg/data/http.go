@@ -183,7 +183,8 @@ func (index HttpServiceMap) Update(siteId string, requests []qdr.HttpRequestInfo
 	for _, r := range requests {
 		host := mapping.Lookup(r.Host)
 		stats := asHttpRequestStats(&r)
-		if service, ok := index[r.Address]; ok {
+		address := unqualifiedAddress(r.Address)
+		if service, ok := index[address]; ok {
 			if r.Direction == qdr.DirectionIn {
 				received := HttpRequestsReceived{
 					SiteId: siteId,
@@ -204,30 +205,31 @@ func (index HttpServiceMap) Update(siteId string, requests []qdr.HttpRequestInfo
 				}
 				service.mergeHandled(&handled)
 			}
-			index[r.Address] = service
+			index[address] = service
 		}
 	}
 }
 
 func (index HttpServiceMap) AddTargets(connectors []qdr.HttpEndpoint, mapping NameMapping) {
 	for _, c := range connectors {
-		service, ok := index[c.Address]
+		address := unqualifiedAddress(c.Address)
+		service, ok := index[address]
 		if !ok {
 			service = HttpService{
 				Service: Service{
-					Address:  c.Address,
+					Address:  address,
 					Protocol: getHttpProtocol(c.ProtocolVersion),
 				},
 			}
 		}
 		service.AddTarget(c.Name, c.Host, c.SiteId, mapping)
-		index[c.Address] = service
+		index[address] = service
 	}
 }
 
 func (index HttpServiceMap) AddServices(listeners []qdr.HttpEndpoint) {
 	for _, l := range listeners {
-		address := l.Address
+		address := unqualifiedAddress(l.Address)
 		if _, ok := index[address]; !ok {
 			service := HttpService{
 				Service: Service{

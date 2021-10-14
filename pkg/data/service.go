@@ -30,7 +30,11 @@ func (s *Service) AddTarget(name string, host string, siteId string, mapping Nam
 }
 
 func (s *Service) AddressUnqualified() string {
-	return strings.Split(s.Address, ":")[0]
+	return unqualifiedAddress(s.Address)
+}
+
+func unqualifiedAddress(address string) string {
+	return strings.Split(address, ":")[0]
 }
 
 type IngressBinding struct {
