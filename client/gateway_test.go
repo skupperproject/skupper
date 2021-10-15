@@ -55,7 +55,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", "", true)
+	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", GatewayExportType, "")
 	assert.Assert(t, observedError)
 	assert.Equal(t, gatewayName, "exportconfig")
 
@@ -162,7 +162,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	assert.Equal(t, i, len(files))
 
 	// fire up a gateway with config
-	gatewayName, observedError = cli.GatewayInit(ctx, "exportconfig2", testPath+"myapp.yaml", true)
+	gatewayName, observedError = cli.GatewayInit(ctx, "exportconfig2", GatewayExportType, testPath+"myapp.yaml")
 	assert.Assert(t, observedError)
 	assert.Equal(t, gatewayName, "exportconfig2")
 }
@@ -205,7 +205,7 @@ func TestGatewayDownload(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	gatewayName, observedError := cli.GatewayInit(ctx, "download", "", true)
+	gatewayName, observedError := cli.GatewayInit(ctx, "download", GatewayExportType, "")
 	assert.Assert(t, observedError)
 	assert.Equal(t, gatewayName, "download")
 
@@ -343,7 +343,7 @@ func TestGatewayForward(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
 
-	gatewayName, observedError := cli.GatewayInit(ctx, namespace, "", true)
+	gatewayName, observedError := cli.GatewayInit(ctx, namespace, GatewayExportType, "")
 	assert.Assert(t, observedError)
 
 	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: echoService}, false)
@@ -370,10 +370,10 @@ func TestGatewayForward(t *testing.T) {
 	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "tcp-go-echo", Protocol: "tcp"}})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "http1Service", Protocol: "http"}})
+	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "http1svc", Protocol: "http"}})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "http2Service", Protocol: "http"}})
+	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "http2svc", Protocol: "http"}})
 	assert.Assert(t, observedError)
 
 	observedError = cli.GatewayRemove(ctx, gatewayName)
@@ -447,7 +447,7 @@ func TestGatewayBind(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
 
-	gatewayName, observedError := cli.GatewayInit(ctx, namespace, "", true)
+	gatewayName, observedError := cli.GatewayInit(ctx, namespace, GatewayExportType, "")
 	assert.Assert(t, observedError)
 
 	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
@@ -501,11 +501,77 @@ func TestGatewayBind(t *testing.T) {
 	observedError = cli.GatewayRemove(ctx, gatewayName)
 	assert.Assert(t, observedError)
 }
+
+func TestGatewayExpose(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var cli *VanClient
+	var err error
+
+	namespace := "test-gateway-expose-" + strings.ToLower(utils.RandomId(4))
+	kubeContext := ""
+	kubeConfigPath := ""
+
+	//isCluster := *clusterRun
+	if *clusterRun {
+		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
+	} else {
+		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
+	}
+	assert.Check(t, err, "test-gateway-expose-")
+	_, err = kube.NewNamespace(namespace, cli.KubeClient)
+	assert.Check(t, err, "test-gateway-expose-")
+	defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+	// Create a router.
+	err = cli.RouterCreate(ctx, types.SiteConfig{
+		Spec: types.SiteConfigSpec{
+			SkupperName:       "test-gateway-expose-",
+			RouterMode:        string(types.TransportModeInterior),
+			EnableController:  true,
+			EnableServiceSync: true,
+			EnableConsole:     false,
+			AuthMode:          "",
+			User:              "",
+			Password:          "",
+			Ingress:           types.IngressNoneString,
+		},
+	})
+	assert.Check(t, err, "Unable to create VAN router")
+
+	gatewayName, observedError := cli.GatewayExpose(ctx, namespace, GatewayExportType, types.GatewayEndpoint{
+		Host: "localhost",
+		Service: types.ServiceInterface{
+			Protocol: "tcp",
+			Ports:    []int{27017},
+			Address:  "mongo-db",
+		},
+	})
+	assert.Assert(t, observedError)
+
+	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
+	assert.Assert(t, observedError)
+	assert.Equal(t, len(gatewayInspect.GatewayListeners), 0)
+	assert.Equal(t, len(gatewayInspect.GatewayConnectors), 1)
+
+	// Now undo
+	observedError = cli.GatewayUnexpose(ctx, namespace, types.GatewayEndpoint{
+		Host: "localhost",
+		Service: types.ServiceInterface{
+			Protocol: "tcp",
+			Ports:    []int{27017},
+			Address:  "mongo-db",
+		},
+	}, true)
+	assert.Assert(t, observedError)
+}
+
 func TestGatewayInit(t *testing.T) {
 	testcases := []struct {
 		doc           string
 		init          bool
-		exportOnly    bool
+		gwType        string
 		initName      string
 		actualName    string
 		remove        bool
@@ -515,7 +581,7 @@ func TestGatewayInit(t *testing.T) {
 	}{
 		{
 			init:          true,
-			exportOnly:    true,
+			gwType:        GatewayExportType,
 			initName:      "",
 			actualName:    "",
 			remove:        true,
@@ -525,23 +591,33 @@ func TestGatewayInit(t *testing.T) {
 		},
 		{
 			init:          false,
-			exportOnly:    true,
+			gwType:        GatewayExportType,
 			initName:      "gateway1",
 			actualName:    "gateway1",
 			remove:        true,
 			removeName:    "gateway1",
-			expectedError: "",
+			expectedError: "onfigmaps \"skupper-gateway-gateway1\" not found",
 			url:           "not active",
 		},
 		{
 			init:          true,
-			exportOnly:    true,
+			gwType:        GatewayExportType,
 			initName:      "gateway2",
 			actualName:    "gateway2",
 			remove:        true,
 			removeName:    "gateway2",
 			expectedError: "",
 			url:           "not active",
+		},
+		{
+			init:          true,
+			gwType:        GatewayDockerType,
+			initName:      "gateway3",
+			actualName:    "gateway3",
+			remove:        true,
+			removeName:    "gateway3",
+			expectedError: "",
+			url:           "amqp://127.0.0.1:5672",
 		},
 	}
 
@@ -565,7 +641,7 @@ func TestGatewayInit(t *testing.T) {
 	assert.Check(t, err, "test-gateway-init-remove")
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
-	_, observedError := cli.GatewayInit(ctx, namespace, "", false)
+	_, observedError := cli.GatewayInit(ctx, namespace, GatewayExportType, "")
 	assert.Check(t, strings.Contains(observedError.Error(), "Skupper not initialized"))
 
 	// Create a router.
@@ -590,11 +666,11 @@ func TestGatewayInit(t *testing.T) {
 			if tc.actualName == "" {
 				tc.actualName, _ = getUserDefaultGatewayName()
 			}
-			gatewayName, observedError := cli.GatewayInit(ctx, tc.initName, "", tc.exportOnly)
+			gatewayName, observedError := cli.GatewayInit(ctx, tc.initName, tc.gwType, "")
 			assert.Assert(t, observedError)
 			assert.Equal(t, gatewayName, tc.actualName)
 
-			if !tc.exportOnly {
+			if tc.gwType != GatewayExportType {
 				time.Sleep(time.Second * 1)
 			}
 			gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)

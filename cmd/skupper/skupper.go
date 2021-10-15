@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
@@ -1048,6 +1047,7 @@ var gatewayName string
 var gatewayConfigFile string
 var gatewayExportOnly bool
 var gatewayEndpoint types.GatewayEndpoint
+var gatewayType string
 
 func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1058,17 +1058,25 @@ func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			_, err := cli.GatewayInit(context.Background(), gatewayName, gatewayConfigFile, gatewayExportOnly)
+			actual, err := cli.GatewayInit(context.Background(), gatewayName, gatewayType, gatewayConfigFile)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-
+			fmt.Println("Skupper gateway '" + actual + "' created. Use 'skupper gateway status' to get more informaiton.")
+			//			fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
+			return nil
 			return nil
 		},
 	}
+	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman', 'export'")
 	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the gateway definition")
 	cmd.Flags().StringVar(&gatewayConfigFile, "config", "", "The gateway config file to use for initialization")
 	cmd.Flags().BoolVarP(&gatewayExportOnly, "exportonly", "", false, "Gateway definition for export-config only (e.g. will not be started)")
+
+	f := cmd.Flag("exportonly")
+	f.Deprecated = "Use --type to have gateway definition only"
+	f.Hidden = true
+
 	return cmd
 }
 
@@ -1085,7 +1093,6 @@ func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-
 			return nil
 		},
 	}
@@ -1189,7 +1196,7 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 			}
 			gatewayEndpoint.Service.Address = args[0]
 
-			_, err := cli.GatewayExpose(context.Background(), gatewayName, gatewayEndpoint)
+			_, err := cli.GatewayExpose(context.Background(), gatewayName, gatewayType, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1200,6 +1207,7 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
 	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of external service to create. Defaults to service address value")
 	return cmd
 }
@@ -1266,6 +1274,11 @@ func NewCmdBindGateway(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The mapping in use for this service address (currently on of tcp, http or http2).")
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+
+	f := cmd.Flag("protocol")
+	f.Deprecated = "This flag is deprecated, protocol is defined by service definition"
+	f.Hidden = true
+
 	return cmd
 }
 
@@ -1289,67 +1302,57 @@ func NewCmdUnbindGateway(newClient cobraFunc) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the gateway to unbind service")
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
+
+	f := cmd.Flag("protocol")
+	f.Deprecated = "This flag is deprecated, protocol is defined by service definition"
+	f.Hidden = true
+
 	return cmd
 }
 
 func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status <gateway-name>",
-		Short:  "Report the status of a gateway to the current skupper site",
+		Short:  "Report the status of the gateway(s) for the current skupper site",
 		Args:   cobra.MaximumNArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			if len(args) == 1 && args[0] != "all" {
-				gatewayName := args[0]
-				inspect, err := cli.GatewayInspect(context.Background(), gatewayName)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
-
-				fmt.Printf("%-30s %s\n", "Name", inspect.GatewayName)
-				fmt.Printf("%-30s %s\n", "Version", strings.TrimSuffix(inspect.GatewayVersion, "\n"))
-				fmt.Printf("%-30s %s\n", "URL", inspect.GatewayUrl)
-
-				fmt.Println("")
-
-				if len(inspect.GatewayConnectors) == 0 && len(inspect.GatewayListeners) == 0 {
-					fmt.Println("No Services Defined")
-				} else {
-					fmt.Println("Service Definitions:")
-					tw := new(tabwriter.Writer)
-					tw.Init(os.Stdout, 0, 4, 1, ' ', 0)
-					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t", "TYPE", "SERVICE", "PROTOCOL", "ADDRESS", "HOST", "PORT", "FORWARD_PORT"))
-					for _, connector := range inspect.GatewayConnectors {
-						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%s\t", "bind", strings.TrimPrefix(connector.Name, gatewayName+"-egress-"), connector.Service.Protocol, connector.Service.Address, connector.Host, connector.Service.Ports[0], ""))
-					}
-					for _, listener := range inspect.GatewayListeners {
-						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%s\t", "forward", strings.TrimPrefix(listener.Name, gatewayName+"-ingress-"), listener.Service.Protocol, listener.Service.Address, listener.Host, listener.Service.Ports[0], listener.LocalPort))
-					}
-					tw.Flush()
-				}
-			} else {
-				gateways, err := cli.GatewayList(context.Background())
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
-
-				if len(gateways) == 0 {
-					fmt.Println("No gateway definitions found")
-					return nil
-				}
-
-				fmt.Println("Gateway Definitions Summary")
-				fmt.Println("")
-				tw := new(tabwriter.Writer)
-				tw.Init(os.Stdout, 0, 4, 2, ' ', 0)
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t", "NAME", "BINDS", "FORWARDS", "URL"))
-				for _, gateway := range gateways {
-					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t", gateway.GatewayName, strconv.Itoa(len(gateway.GatewayConnectors)), strconv.Itoa(len(gateway.GatewayListeners)), gateway.GatewayUrl))
-				}
-				tw.Flush()
+			gateways, err := cli.GatewayList(context.Background())
+			if err != nil {
+				return fmt.Errorf("%w", err)
 			}
+
+			if len(gateways) == 0 {
+				fmt.Println("No gateway definitions found")
+				return nil
+			}
+
+			l := formatter.NewList()
+			l.Item("Gateway Definitions:")
+			for _, gateway := range gateways {
+				item := ""
+				if gateway.GatewayType == client.GatewayExportType {
+					item = fmt.Sprintf("%s type: %s", gateway.GatewayName, gateway.GatewayType)
+				} else {
+					item = fmt.Sprintf("%s type: %s version: %s url: %s", gateway.GatewayName, gateway.GatewayType, strings.TrimSuffix(gateway.GatewayVersion, "\n"), gateway.GatewayUrl)
+				}
+				gw := l.NewChild(item)
+				if len(gateway.GatewayConnectors) > 0 {
+					listeners := gw.NewChild("Bindings:")
+					for _, connector := range gateway.GatewayConnectors {
+						listeners.NewChild(fmt.Sprintf("%s %s %s %s %d", strings.TrimPrefix(connector.Name, gateway.GatewayName+"-egress-"), connector.Service.Protocol, connector.Service.Address, connector.Host, connector.Service.Ports[0]))
+					}
+				}
+				if len(gateway.GatewayListeners) > 0 {
+					listeners := gw.NewChild("Forwards:")
+					for _, listener := range gateway.GatewayListeners {
+						listeners.NewChild(fmt.Sprintf("%s %s %s %s %d:%s", strings.TrimPrefix(listener.Name, gateway.GatewayName+"-ingress-"), listener.Service.Protocol, listener.Service.Address, listener.Host, listener.Service.Ports[0], listener.LocalPort))
+					}
+				}
+			}
+			l.Print()
 
 			return nil
 		},

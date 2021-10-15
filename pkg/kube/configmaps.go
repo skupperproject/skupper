@@ -21,7 +21,7 @@ func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference 
 	}
 }
 
-func NewConfigMap(name string, data *map[string]string, labels *map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {
+func NewConfigMap(name string, data *map[string]string, labels *map[string]string, annotations *map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {
 	configMaps := kubeclient.CoreV1().ConfigMaps(namespace)
 	existing, err := configMaps.Get(name, metav1.GetOptions{})
 	if err == nil {
@@ -43,6 +43,9 @@ func NewConfigMap(name string, data *map[string]string, labels *map[string]strin
 		}
 		if labels != nil {
 			cm.ObjectMeta.Labels = *labels
+		}
+		if annotations != nil {
+			cm.ObjectMeta.Annotations = *annotations
 		}
 		if owner != nil {
 			cm.ObjectMeta.OwnerReferences = []metav1.OwnerReference{

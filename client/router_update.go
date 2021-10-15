@@ -748,7 +748,8 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 		// if it is a local gateway
 		_, err = os.Stat(newGatewayDir + "/config/qdrouterd.json")
 		if err == nil {
-			err = updateLocalGatewayConfig(newGatewayDir, *gatewayConfig)
+			// for update gatewayType would be "service"
+			err = updateLocalGatewayConfig(newGatewayDir, "service", *gatewayConfig)
 			if err != nil {
 				return err
 			}

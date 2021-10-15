@@ -196,6 +196,7 @@ type GatewayEndpoint struct {
 
 type GatewayInspectResponse struct {
 	GatewayName       string
+	GatewayType       string
 	GatewayUrl        string
 	GatewayVersion    string
 	GatewayConnectors map[string]GatewayEndpoint
@@ -229,11 +230,11 @@ type VanClientInterface interface {
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
 	GatewayBind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
 	GatewayUnbind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
-	GatewayExpose(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) (string, error)
+	GatewayExpose(ctx context.Context, gatewayName string, gatewayType string, endpoint GatewayEndpoint) (string, error)
 	GatewayUnexpose(ctx context.Context, gatewayName string, endpoint GatewayEndpoint, deleteLast bool) error
 	GatewayForward(ctx context.Context, gatewayName string, endpoint GatewayEndpoint, loopback bool) error
 	GatewayUnforward(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
-	GatewayInit(ctx context.Context, gatewayName string, configFile string, downloadOnly bool) (string, error)
+	GatewayInit(ctx context.Context, gatewayName string, gatewayType string, configFile string) (string, error)
 	GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) (string, error)
 	GatewayExportConfig(ctx context.Context, targetGatewayName string, exportGatewayName string, exportPath string) (string, error)
 	GatewayGenerateBundle(ctx context.Context, configFile string, bundlePath string) (string, error)

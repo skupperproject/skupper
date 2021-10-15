@@ -164,7 +164,7 @@ func (v *vanClientMock) GatewayUnbind(ctx context.Context, gatewayName string, e
 	return nil
 }
 
-func (v *vanClientMock) GatewayExpose(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) (string, error) {
+func (v *vanClientMock) GatewayExpose(ctx context.Context, gatewayName string, gatewayType string, endpoint types.GatewayEndpoint) (string, error) {
 	return "", nil
 }
 
@@ -180,7 +180,7 @@ func (v *vanClientMock) GatewayUnforward(ctx context.Context, gatewayName string
 	return nil
 }
 
-func (v *vanClientMock) GatewayInit(ctx context.Context, gatewayName string, configFile string, downloadOnly bool) (string, error) {
+func (v *vanClientMock) GatewayInit(ctx context.Context, gatewayName string, gatewayType string, configFile string) (string, error) {
 	return "", nil
 }
 
