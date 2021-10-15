@@ -503,6 +503,7 @@ func TestGatewayBind(t *testing.T) {
 }
 
 func TestGatewayExpose(t *testing.T) {
+	t.Skip("Skipping gateway expose test")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -609,16 +610,16 @@ func TestGatewayInit(t *testing.T) {
 			expectedError: "",
 			url:           "not active",
 		},
-		{
-			init:          true,
-			gwType:        GatewayDockerType,
-			initName:      "gateway3",
-			actualName:    "gateway3",
-			remove:        true,
-			removeName:    "gateway3",
-			expectedError: "",
-			url:           "amqp://127.0.0.1:5672",
-		},
+		//		{
+		//			init:          true,
+		//			gwType:        GatewayDockerType,
+		//			initName:      "gateway3",
+		//			actualName:    "gateway3",
+		//			remove:        true,
+		//			removeName:    "gateway3",
+		//			expectedError: "",
+		//			url:           "amqp://127.0.0.1:5672",
+		//		},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
