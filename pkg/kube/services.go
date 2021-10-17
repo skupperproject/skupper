@@ -3,7 +3,6 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/certs"
 	"strings"
 	"time"
 
@@ -48,16 +47,9 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 	return current, err
 }
 
-func NewServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, secretName string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+func NewServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	selector := GetLabelsForRouter()
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
-
-	_, err := CreateSecretsForService(service.Name, namespace, address, secretName, kubeclient)
-
-	if err != nil {
-		return nil, err
-	}
-
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 
@@ -247,21 +239,4 @@ func GetOriginalAssignedPorts(service *corev1.Service) map[int]int {
 func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 	originalTargetPort := service.Annotations[types.OriginalTargetPortQualifier]
 	return PortLabelStrToMap(originalTargetPort)
-}
-
-func CreateSecretsForService(serviceName string, nameSpace string, hosts string, secretName string, kubeclient kubernetes.Interface) (*corev1.Secret, error) {
-	caCert, err := kubeclient.CoreV1().Secrets(nameSpace).Get(types.ServiceCaSecret, metav1.GetOptions{})
-
-	if err != nil {
-		return nil, err
-	}
-
-	serviceSecret := certs.GenerateSecret(secretName, serviceName, hosts, caCert)
-	createdSecret, err := kubeclient.CoreV1().Secrets(nameSpace).Create(&serviceSecret)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return createdSecret, nil
 }

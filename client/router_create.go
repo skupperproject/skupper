@@ -1205,8 +1205,6 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		return err
 	}
 
-	mountGenericClientSecret(cli)
-
 	return nil
 }
 
@@ -1378,20 +1376,4 @@ func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
 		owner.APIVersion = "v1"
 	}
 	return &owner
-}
-
-func mountGenericClientSecret(cli *VanClient) {
-	deployment, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
-
-	if err != nil {
-		log.Println(err.Error())
-	} else {
-		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, types.ServiceClientSecret, "/etc/qpid-dispatch-certs/"+types.ServiceClientSecret+"/")
-	}
-
-	_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(deployment)
-
-	if err != nil {
-		log.Println(err.Error())
-	}
 }

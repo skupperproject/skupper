@@ -290,6 +290,22 @@ func (v *vanClientMock) CreateServiceCA(ownerRef *metav1.OwnerReference) error {
 	return nil
 }
 
+func (v *vanClientMock) CreateSecretForService(serviceName string, hosts string, secretName string) (*corev1.Secret, error) {
+	return nil, nil
+}
+
+func (v *vanClientMock) DeleteSecretForService(secretName string) error {
+	return nil
+}
+
+func (v *vanClientMock) AppendSecretToRouter(secretname string) error {
+	return nil
+}
+
+func (v *vanClientMock) RemoveSecretFromRouter(secretname string) error {
+	return nil
+}
+
 func TestCmdUnexposeRun(t *testing.T) {
 	cmd := NewCmdUnexpose(nil)
 	test := func(targetType, targetName, address string) {

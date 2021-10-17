@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/kubernetes"
 	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +29,7 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					return err
 				} else {
 
-					handleServiceCertificateRemoval(cli.Namespace, address, cli.KubeClient)
+					handleServiceCertificateRemoval(address, cli)
 					return nil
 				}
 			}
@@ -51,16 +50,26 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 	return err
 }
 
-func handleServiceCertificateRemoval(namespace string, address string, kubeClient kubernetes.Interface) {
+func handleServiceCertificateRemoval(address string, cli *VanClient) {
 	certName := types.SkupperServiceCertPrefix + address
 
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(certName, metav1.GetOptions{})
+	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(certName, metav1.GetOptions{})
 
 	if err == nil && secret != nil {
-		err := kubeClient.CoreV1().Secrets(namespace).Delete(certName, &metav1.DeleteOptions{})
+		err := cli.RemoveSecretFromRouter(secret.Name)
 
 		if err != nil {
-			log.Printf("Failed to remove service certificate: %v", err.Error())
+			log.Printf("Failed to remove secret from the router: %v", err.Error())
+		}
+
+		err = cli.DeleteSecretForService(secret.Name)
+		if err != nil {
+			log.Printf("Failed to remove secret from the site: %v", err.Error())
+		}
+
+		err = cli.RouterRestart(context.Background(), cli.Namespace)
+		if err != nil {
+			log.Printf("Failed to restart the router: %v", err.Error())
 		}
 	}
 
