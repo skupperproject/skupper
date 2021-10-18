@@ -230,7 +230,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			post := false // indicates whether credentials need to be revised after creating appropriate ingress resources
 			if options.IsIngressNginxIngress() {
 				if controllerIngressHost != "" {
-					controllerHosts = append(controllerHosts, "console."+controllerIngressHost)
+					controllerHosts = append(controllerHosts, strings.Join([]string{"console", van.Namespace, controllerIngressHost}, "."))
 				} else {
 					post = true
 				}
@@ -663,13 +663,13 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		post := false // indicates whether credentials need to be revised after creating appropriate ingress resources
 		if options.IsIngressNginxIngress() {
 			if routerIngressHost != "" {
-				routerHosts = append(routerHosts, "inter-router."+routerIngressHost)
-				routerHosts = append(routerHosts, "edge."+routerIngressHost)
+				routerHosts = append(routerHosts, strings.Join([]string{"inter-router", van.Namespace, routerIngressHost}, "."))
+				routerHosts = append(routerHosts, strings.Join([]string{"edge", van.Namespace, routerIngressHost}, "."))
 			} else {
 				post = true
 			}
 			if controllerIngressHost != "" {
-				controllerHosts = append(controllerHosts, "claims."+controllerIngressHost)
+				controllerHosts = append(controllerHosts, strings.Join([]string{"claims", van.Namespace, controllerIngressHost}, "."))
 			} else {
 				post = true
 			}
