@@ -50,6 +50,20 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 	}
 }
 
+func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {
+	if cli.RouteClient == nil {
+		// remove rule for routes if routes not defined
+		rules := []rbacv1.PolicyRule{}
+		for _, rule := range types.ControllerPolicyRule {
+			if len(rule.APIGroups) > 0 && rule.APIGroups[0] != "route.openshift.io" {
+				rules = append(rules, rule)
+			}
+		}
+		return rules
+	}
+	return types.ControllerPolicyRule
+}
+
 func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *types.RouterSpec, transport *appsv1.Deployment, siteId string) {
 	// service-controller container index
 	const (
@@ -145,7 +159,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		ObjectMeta: metav1.ObjectMeta{
 			Name: types.ControllerRoleName,
 		},
-		Rules: types.ControllerPolicyRule,
+		Rules: cli.getControllerRules(),
 	})
 	van.Controller.Roles = roles
 
