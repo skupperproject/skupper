@@ -23,12 +23,14 @@ import (
 )
 
 type ExposeOptions struct {
-	Protocol    string
-	Address     string
-	Ports       []int
-	TargetPorts []string
-	Headless    bool
-	ProxyTuning types.Tuning
+	Protocol       string
+	Address        string
+	Ports          []int
+	TargetPorts    []string
+	Headless       bool
+	ProxyTuning    types.Tuning
+	EnableTls      bool
+	TlsCredentials string
 }
 
 func SkupperNotInstalledError(namespace string) error {
@@ -118,9 +120,11 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 			return service.Address, cli.ServiceInterfaceUpdate(ctx, service)
 		} else {
 			service = &types.ServiceInterface{
-				Address:  serviceName,
-				Ports:    options.Ports,
-				Protocol: options.Protocol,
+				Address:        serviceName,
+				Ports:          options.Ports,
+				Protocol:       options.Protocol,
+				EnableTls:      options.EnableTls,
+				TlsCredentials: options.TlsCredentials,
 			}
 		}
 	} else if service.Headless != nil {
@@ -684,6 +688,11 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 					return fmt.Errorf("--proxy-node-selector option is only valid for headless services")
 				}
 			}
+
+			if exposeOpts.EnableTls {
+				exposeOpts.TlsCredentials = types.SkupperServiceCertPrefix + exposeOpts.Address
+			}
+
 			addr, err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
 			if err == nil {
 				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, addr)
@@ -703,6 +712,8 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
+	cmd.Flags().StringVar(&exposeOpts.TlsCredentials, "tls-credentials", "", "Enable TLS support for services by specifying the name of the secret to use.")
+	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
 
 	return cmd
 }
@@ -902,7 +913,6 @@ func NewCmdService() *cobra.Command {
 }
 
 var serviceToCreate types.ServiceInterface
-var enableTLS bool
 
 func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -929,7 +939,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 				serviceToCreate.Ports = append(serviceToCreate.Ports, servicePort)
 			}
 
-			if enableTLS {
+			if serviceToCreate.EnableTls {
 				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
 			}
 
@@ -944,7 +954,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-credentials", "", "Enable TLS support for services by specifying the name of the secret to use.")
-	cmd.Flags().BoolVar(&enableTLS, "enable-tls", false, "If specified, this service will have TLS support for services.")
+	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
 	return cmd
 }
 
@@ -1243,6 +1253,10 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 			}
 			gatewayEndpoint.Service.Address = args[0]
 
+			if gatewayEndpoint.Service.EnableTls {
+				gatewayEndpoint.Service.TlsCredentials = types.SkupperServiceCertPrefix + gatewayEndpoint.Service.Address
+			}
+
 			_, err := cli.GatewayExpose(context.Background(), gatewayName, gatewayType, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -1256,6 +1270,8 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
 	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of external service to create. Defaults to service address value")
+	cmd.Flags().StringVar(&gatewayEndpoint.Service.TlsCredentials, "tls-credentials", "", "Enable TLS support for services by specifying the name of the secret to use.")
+	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
 	return cmd
 }
 

@@ -125,6 +125,10 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 		return fmt.Errorf("The aggregate option is currently only valid for http")
 	} else if service.EventChannel && service.Protocol != "http" {
 		return fmt.Errorf("The event-channel option is currently only valid for http")
+	} else if service.EnableTls && service.Protocol != "http2" {
+		return fmt.Errorf("The TLS support is only available for http2")
+	} else if service.TlsCredentials != "" && service.Protocol != "http2" {
+		return fmt.Errorf("The TLS support is only available for http2")
 	} else {
 		return nil
 	}
