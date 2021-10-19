@@ -46,6 +46,8 @@ type Tuning struct {
 	AntiAffinity string
 	Cpu          string
 	Memory       string
+	CpuLimit     string
+	MemoryLimit  string
 }
 
 type RouterOptions struct {

@@ -22,21 +22,25 @@ import (
 // InitTester runs `skupper init` and validates output, console,
 // as well as skupper resources that should be availble in the cluster.
 type InitTester struct {
-	ConsoleAuth         string
-	ConsoleUser         string
-	ConsolePassword     string
-	Ingress             string
-	ConsoleIngress      string
-	RouterDebugMode     string
-	RouterLogging       string
-	RouterMode          string
-	RouterCPU           string
-	RouterMemory        string
-	ControllerCPU       string
-	ControllerMemory    string
-	SiteName            string
-	EnableConsole       bool
-	EnableRouterConsole bool
+	ConsoleAuth           string
+	ConsoleUser           string
+	ConsolePassword       string
+	Ingress               string
+	ConsoleIngress        string
+	RouterDebugMode       string
+	RouterLogging         string
+	RouterMode            string
+	RouterCPU             string
+	RouterMemory          string
+	ControllerCPU         string
+	ControllerMemory      string
+	RouterCPULimit        string
+	RouterMemoryLimit     string
+	ControllerCPULimit    string
+	ControllerMemoryLimit string
+	SiteName              string
+	EnableConsole         bool
+	EnableRouterConsole   bool
 }
 
 func (s *InitTester) Command(cluster *base.ClusterContext) []string {
@@ -79,6 +83,18 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 	}
 	if s.ControllerMemory != "" {
 		args = append(args, "--controller-memory", s.ControllerMemory)
+	}
+	if s.RouterCPULimit != "" {
+		args = append(args, "--router-cpu-limit", s.RouterCPULimit)
+	}
+	if s.RouterMemoryLimit != "" {
+		args = append(args, "--router-memory-limit", s.RouterMemoryLimit)
+	}
+	if s.ControllerCPULimit != "" {
+		args = append(args, "--controller-cpu-limit", s.ControllerCPULimit)
+	}
+	if s.ControllerMemoryLimit != "" {
+		args = append(args, "--controller-memory-limit", s.ControllerMemoryLimit)
 	}
 	if s.SiteName != "" {
 		args = append(args, "--site-name", s.SiteName)

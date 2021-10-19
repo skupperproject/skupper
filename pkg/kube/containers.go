@@ -6,16 +6,25 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func setResourceRequests(container *corev1.Container, ds *types.DeploymentSpec) {
-	if ds.CpuRequest != nil || ds.MemoryRequest != nil {
+func setResourceRequests(container *corev1.Container, resources types.Resources) {
+	requests := corev1.ResourceList{}
+	if resources.HasCpuRequest() {
+		requests[corev1.ResourceCPU] = resources.GetCpuRequest()
+	}
+	if resources.HasMemoryRequest() {
+		requests[corev1.ResourceMemory] = resources.GetMemoryRequest()
+	}
+	limits := corev1.ResourceList{}
+	if resources.HasCpuLimit() {
+		limits[corev1.ResourceCPU] = resources.GetCpuLimit()
+	}
+	if resources.HasMemoryLimit() {
+		limits[corev1.ResourceMemory] = resources.GetMemoryLimit()
+	}
+	if len(requests) > 0 || len(limits) > 0 {
 		container.Resources = corev1.ResourceRequirements{
-			Requests: corev1.ResourceList{},
-		}
-		if ds.CpuRequest != nil {
-			container.Resources.Requests[corev1.ResourceCPU] = *ds.CpuRequest
-		}
-		if ds.MemoryRequest != nil {
-			container.Resources.Requests[corev1.ResourceMemory] = *ds.MemoryRequest
+			Requests: requests,
+			Limits:   limits,
 		}
 	}
 }

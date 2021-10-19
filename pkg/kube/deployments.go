@@ -236,18 +236,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 			}
 		}
 	}
-	if serviceInterface.Headless.CpuRequest != nil || serviceInterface.Headless.MemoryRequest != nil {
-		container := &podspec.Containers[0]
-		container.Resources = corev1.ResourceRequirements{
-			Requests: corev1.ResourceList{},
-		}
-		if serviceInterface.Headless.CpuRequest != nil {
-			container.Resources.Requests[corev1.ResourceCPU] = *serviceInterface.Headless.CpuRequest
-		}
-		if serviceInterface.Headless.MemoryRequest != nil {
-			container.Resources.Requests[corev1.ResourceMemory] = *serviceInterface.Headless.MemoryRequest
-		}
-	}
+	setResourceRequests(&podspec.Containers[0], serviceInterface.Headless)
 
 	created, err := statefulSets.Create(proxyStatefulSet)
 
