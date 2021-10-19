@@ -35,6 +35,8 @@ const (
 	SiteConfigRouterDebugModeKey        string = "router-debug-mode"
 	SiteConfigRouterCpuKey              string = "router-cpu"
 	SiteConfigRouterMemoryKey           string = "router-memory"
+	SiteConfigRouterCpuLimitKey         string = "router-cpu-limit"
+	SiteConfigRouterMemoryLimitKey      string = "router-memory-limit"
 	SiteConfigRouterAffinityKey         string = "router-pod-affinity"
 	SiteConfigRouterAntiAffinityKey     string = "router-pod-antiaffinity"
 	SiteConfigRouterNodeSelectorKey     string = "router-node-selector"
@@ -47,6 +49,8 @@ const (
 	SiteConfigServiceSyncKey            string = "service-sync"
 	SiteConfigControllerCpuKey          string = "controller-cpu"
 	SiteConfigControllerMemoryKey       string = "controller-memory"
+	SiteConfigControllerCpuLimitKey     string = "controller-cpu-limit"
+	SiteConfigControllerMemoryLimitKey  string = "controller-memory-limit"
 	SiteConfigControllerAffinityKey     string = "controller-pod-affinity"
 	SiteConfigControllerAntiAffinityKey string = "controller-pod-antiaffinity"
 	SiteConfigControllerNodeSelectorKey string = "controller-node-selector"
@@ -135,6 +139,18 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		}
 		siteConfig.Data[SiteConfigRouterMemoryKey] = spec.Router.Memory
 	}
+	if spec.Router.CpuLimit != "" {
+		if _, err := resource.ParseQuantity(spec.Router.CpuLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigRouterCpuLimitKey, spec.Router.CpuLimit, err)
+		}
+		siteConfig.Data[SiteConfigRouterCpuLimitKey] = spec.Router.CpuLimit
+	}
+	if spec.Router.MemoryLimit != "" {
+		if _, err := resource.ParseQuantity(spec.Router.MemoryLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigRouterMemoryLimitKey, spec.Router.MemoryLimit, err)
+		}
+		siteConfig.Data[SiteConfigRouterMemoryLimitKey] = spec.Router.MemoryLimit
+	}
 	if spec.Router.Affinity != "" {
 		siteConfig.Data[SiteConfigRouterAffinityKey] = spec.Router.Affinity
 	}
@@ -164,6 +180,18 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigControllerMemoryKey, spec.Controller.Memory, err)
 		}
 		siteConfig.Data[SiteConfigControllerMemoryKey] = spec.Controller.Memory
+	}
+	if spec.Controller.CpuLimit != "" {
+		if _, err := resource.ParseQuantity(spec.Controller.CpuLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigControllerCpuLimitKey, spec.Controller.CpuLimit, err)
+		}
+		siteConfig.Data[SiteConfigControllerCpuLimitKey] = spec.Controller.CpuLimit
+	}
+	if spec.Controller.MemoryLimit != "" {
+		if _, err := resource.ParseQuantity(spec.Controller.MemoryLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigControllerMemoryLimitKey, spec.Controller.MemoryLimit, err)
+		}
+		siteConfig.Data[SiteConfigControllerMemoryLimitKey] = spec.Controller.MemoryLimit
 	}
 	if spec.Controller.Affinity != "" {
 		siteConfig.Data[SiteConfigControllerAffinityKey] = spec.Controller.Affinity

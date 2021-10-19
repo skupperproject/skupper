@@ -335,6 +335,22 @@ func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) erro
 			errs = append(errs, fmt.Sprintf("Invalid value for memory: %s", err))
 		}
 	}
+	if options.CpuLimit != "" {
+		cpu, err := resource.ParseQuantity(options.CpuLimit)
+		if err == nil {
+			spec.CpuLimit = &cpu
+		} else {
+			errs = append(errs, fmt.Sprintf("Invalid value for cpu: %s", err))
+		}
+	}
+	if options.MemoryLimit != "" {
+		memory, err := resource.ParseQuantity(options.MemoryLimit)
+		if err == nil {
+			spec.MemoryLimit = &memory
+		} else {
+			errs = append(errs, fmt.Sprintf("Invalid value for memory: %s", err))
+		}
+	}
 	if len(errs) > 0 {
 		return fmt.Errorf(strings.Join(errs, ", "))
 	} else {

@@ -79,6 +79,22 @@ func configureHeadlessProxy(spec *types.Headless, options *types.Tuning) error {
 			err = fmt.Errorf("Invalid value for memory: %s", err)
 		}
 	}
+	if options.CpuLimit != "" {
+		cpuQuantity, err := resource.ParseQuantity(options.CpuLimit)
+		if err == nil {
+			spec.CpuLimit = &cpuQuantity
+		} else {
+			err = fmt.Errorf("Invalid value for cpu: %s", err)
+		}
+	}
+	if options.MemoryLimit != "" {
+		memoryQuantity, err := resource.ParseQuantity(options.MemoryLimit)
+		if err == nil {
+			spec.MemoryLimit = &memoryQuantity
+		} else {
+			err = fmt.Errorf("Invalid value for memory: %s", err)
+		}
+	}
 	return err
 }
 
@@ -394,6 +410,8 @@ installation that can then be connected to other skupper installations`,
 
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Cpu, "router-cpu", "", "CPU request for router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Memory, "router-memory", "", "Memory request for router pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Router.CpuLimit, "router-cpu-limit", "", "CPU limit for router pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Router.MemoryLimit, "router-memory-limit", "", "Memory limit for router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.NodeSelector, "router-node-selector", "", "Node selector to control placement of router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Affinity, "router-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.AntiAffinity, "router-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
@@ -401,6 +419,8 @@ installation that can then be connected to other skupper installations`,
 
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Cpu, "controller-cpu", "", "CPU request for controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Memory, "controller-memory", "", "Memory request for controller pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.CpuLimit, "controller-cpu-limit", "", "CPU limit for controller pods")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.MemoryLimit, "controller-memory-limit", "", "Memory limit for controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.NodeSelector, "controller-node-selector", "", "Node selector to control placement of controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Affinity, "controller-pod-affinity", "", "Pod affinity label matches to control placement of controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.AntiAffinity, "controller-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of controller pods")
@@ -645,6 +665,12 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 				if exposeOpts.ProxyTuning.Memory != "" {
 					return fmt.Errorf("--proxy-memory option is only valid for headless services")
 				}
+				if exposeOpts.ProxyTuning.CpuLimit != "" {
+					return fmt.Errorf("--proxy-cpu-limit option is only valid for headless services")
+				}
+				if exposeOpts.ProxyTuning.MemoryLimit != "" {
+					return fmt.Errorf("--proxy-memory-limit option is only valid for headless services")
+				}
 				if exposeOpts.ProxyTuning.Affinity != "" {
 					return fmt.Errorf("--proxy-pod-affinity option is only valid for headless services")
 				}
@@ -669,6 +695,8 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Cpu, "proxy-cpu", "", "CPU request for router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Memory, "proxy-memory", "", "Memory request for router pods")
+	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.CpuLimit, "proxy-cpu-limit", "", "CPU limit for router pods")
+	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.MemoryLimit, "proxy-memory-limit", "", "Memory limit for router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")

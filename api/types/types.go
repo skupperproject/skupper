@@ -274,6 +274,63 @@ type DeploymentSpec struct {
 	NodeSelector    map[string]string        `json:"nodeSelector,omitempty"`
 	CpuRequest      *resource.Quantity       `json:"cpuRequest,omitempty"`
 	MemoryRequest   *resource.Quantity       `json:"memoryRequest,omitempty"`
+	CpuLimit        *resource.Quantity       `json:"cpuLimit,omitempty"`
+	MemoryLimit     *resource.Quantity       `json:"memoryLimit,omitempty"`
+}
+
+func (s *DeploymentSpec) GetCpuRequest() resource.Quantity {
+	if s.CpuRequest == nil {
+		return resource.Quantity{}
+	}
+	return *s.CpuRequest
+}
+
+func (s *DeploymentSpec) GetMemoryRequest() resource.Quantity {
+	if s.MemoryRequest == nil {
+		return resource.Quantity{}
+	}
+	return *s.MemoryRequest
+}
+
+func (s *DeploymentSpec) GetCpuLimit() resource.Quantity {
+	if s.CpuLimit == nil {
+		return s.GetCpuRequest()
+	}
+	return *s.CpuLimit
+}
+
+func (s *DeploymentSpec) GetMemoryLimit() resource.Quantity {
+	if s.MemoryLimit == nil {
+		return s.GetMemoryRequest()
+	}
+	return *s.MemoryLimit
+}
+
+func (s *DeploymentSpec) HasCpuRequest() bool {
+	return s.CpuRequest != nil
+}
+
+func (s *DeploymentSpec) HasMemoryRequest() bool {
+	return s.MemoryRequest != nil
+}
+
+func (s *DeploymentSpec) HasCpuLimit() bool {
+	return s.CpuLimit != nil || s.HasCpuRequest()
+}
+
+func (s *DeploymentSpec) HasMemoryLimit() bool {
+	return s.MemoryLimit != nil || s.HasMemoryRequest()
+}
+
+type Resources interface {
+	GetCpuRequest() resource.Quantity
+	GetMemoryRequest() resource.Quantity
+	GetCpuLimit() resource.Quantity
+	GetMemoryLimit() resource.Quantity
+	HasCpuRequest() bool
+	HasMemoryRequest() bool
+	HasCpuLimit() bool
+	HasMemoryLimit() bool
 }
 
 // AssemblySpec for the links and connectors that form the VAN topology
@@ -471,6 +528,52 @@ type Headless struct {
 	NodeSelector  map[string]string  `json:"nodeSelector,omitempty" yaml:"nodeSelector,omitempty"`
 	CpuRequest    *resource.Quantity `json:"cpuRequest,omitempty" yaml:"cpuRequest,omitempty"`
 	MemoryRequest *resource.Quantity `json:"memoryRequest,omitempty" yaml:"memoryRequest,omitempty"`
+	CpuLimit      *resource.Quantity `json:"cpuLimit,omitempty" yaml:"cpuLimit,omitempty"`
+	MemoryLimit   *resource.Quantity `json:"memoryLimit,omitempty" yaml:"memoryLimit,omitempty"`
+}
+
+func (s *Headless) GetCpuRequest() resource.Quantity {
+	if s.CpuRequest == nil {
+		return resource.Quantity{}
+	}
+	return *s.CpuRequest
+}
+
+func (s *Headless) GetMemoryRequest() resource.Quantity {
+	if s.MemoryRequest == nil {
+		return resource.Quantity{}
+	}
+	return *s.MemoryRequest
+}
+
+func (s *Headless) GetCpuLimit() resource.Quantity {
+	if s.CpuLimit == nil {
+		return s.GetCpuRequest()
+	}
+	return *s.CpuLimit
+}
+
+func (s *Headless) GetMemoryLimit() resource.Quantity {
+	if s.MemoryLimit == nil {
+		return s.GetMemoryRequest()
+	}
+	return *s.MemoryLimit
+}
+
+func (s *Headless) HasCpuRequest() bool {
+	return s.CpuRequest != nil
+}
+
+func (s *Headless) HasMemoryRequest() bool {
+	return s.MemoryRequest != nil
+}
+
+func (s *Headless) HasCpuLimit() bool {
+	return s.CpuLimit != nil || s.HasCpuRequest()
+}
+
+func (s *Headless) HasMemoryLimit() bool {
+	return s.MemoryLimit != nil || s.HasMemoryRequest()
 }
 
 type HeadlessV1 struct {
