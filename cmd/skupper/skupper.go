@@ -1058,23 +1058,26 @@ func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
+			if gatewayType != "" && gatewayType != "service" && gatewayType != "docker" && gatewayType != "podman" {
+				return fmt.Errorf("%s is not a valid gateway type. Choose 'service', 'docker' or 'podman'.", gatewayType)
+			}
+
 			actual, err := cli.GatewayInit(context.Background(), gatewayName, gatewayType, gatewayConfigFile)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 			fmt.Println("Skupper gateway '" + actual + "' created. Use 'skupper gateway status' to get more informaiton.")
-			//			fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
-			return nil
+
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman', 'export'")
+	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
 	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of the gateway definition")
 	cmd.Flags().StringVar(&gatewayConfigFile, "config", "", "The gateway config file to use for initialization")
 	cmd.Flags().BoolVarP(&gatewayExportOnly, "exportonly", "", false, "Gateway definition for export-config only (e.g. will not be started)")
 
 	f := cmd.Flag("exportonly")
-	f.Deprecated = "Use --type to have gateway definition only"
+	f.Deprecated = "exportonly flag for gateway definition is deprecated, gateway will be started"
 	f.Hidden = true
 
 	return cmd
@@ -1172,6 +1175,11 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
+
+			if gatewayType != "" && gatewayType != "service" && gatewayType != "docker" && gatewayType != "podman" {
+				return fmt.Errorf("%s is not a valid gateway type. Choose 'service', 'docker' or 'podman'.", gatewayType)
+			}
+
 			if len(args) == 2 {
 				parts := strings.Split(args[1], ":")
 				gatewayEndpoint.Host = parts[0]

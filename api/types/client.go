@@ -191,7 +191,7 @@ type GatewayEndpoint struct {
 	Host        string           `json:"host,omitempty" yaml:"host,omitempty"`
 	LocalPort   string           `json:"localPort,omitempty" yaml:"local_port,omitempty"`
 	Service     ServiceInterface `json:"service,omitempty" yaml:"service,omitempty"`
-	TargetPorts []int            `json:"targetPorts,omitempty" yaml:"targetPorts,omitempty"`
+	TargetPorts []int            `json:"targetPorts,omitempty" yaml:"target_ports,omitempty"`
 }
 
 type GatewayInspectResponse struct {
