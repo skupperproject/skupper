@@ -191,11 +191,12 @@ type GatewayEndpoint struct {
 	Host        string           `json:"host,omitempty" yaml:"host,omitempty"`
 	LocalPort   string           `json:"localPort,omitempty" yaml:"local_port,omitempty"`
 	Service     ServiceInterface `json:"service,omitempty" yaml:"service,omitempty"`
-	TargetPorts []int            `json:"targetPorts,omitempty" yaml:"targetPorts,omitempty"`
+	TargetPorts []int            `json:"targetPorts,omitempty" yaml:"target_ports,omitempty"`
 }
 
 type GatewayInspectResponse struct {
 	GatewayName       string
+	GatewayType       string
 	GatewayUrl        string
 	GatewayVersion    string
 	GatewayConnectors map[string]GatewayEndpoint
@@ -229,11 +230,11 @@ type VanClientInterface interface {
 	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
 	GatewayBind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
 	GatewayUnbind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
-	GatewayExpose(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) (string, error)
+	GatewayExpose(ctx context.Context, gatewayName string, gatewayType string, endpoint GatewayEndpoint) (string, error)
 	GatewayUnexpose(ctx context.Context, gatewayName string, endpoint GatewayEndpoint, deleteLast bool) error
 	GatewayForward(ctx context.Context, gatewayName string, endpoint GatewayEndpoint, loopback bool) error
 	GatewayUnforward(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
-	GatewayInit(ctx context.Context, gatewayName string, configFile string, downloadOnly bool) (string, error)
+	GatewayInit(ctx context.Context, gatewayName string, gatewayType string, configFile string) (string, error)
 	GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) (string, error)
 	GatewayExportConfig(ctx context.Context, targetGatewayName string, exportGatewayName string, exportPath string) (string, error)
 	GatewayGenerateBundle(ctx context.Context, configFile string, bundlePath string) (string, error)

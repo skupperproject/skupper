@@ -28,12 +28,13 @@ func TestNewConfigMap(t *testing.T) {
 
 	// Test iteration for test table
 	type test struct {
-		name     string
-		cmName   string
-		data     *map[string]string
-		labels   *map[string]string
-		owner    *metav1.OwnerReference
-		expected result
+		name        string
+		cmName      string
+		data        *map[string]string
+		labels      *map[string]string
+		annotations *map[string]string
+		owner       *metav1.OwnerReference
+		expected    result
 	}
 
 	// Add a namespace
@@ -68,11 +69,12 @@ func TestNewConfigMap(t *testing.T) {
 	testTable := []test{
 		// already exists
 		{
-			name:   "existing-cm",
-			cmName: "existing-cm",
-			data:   &map[string]string{"entry": "value"},
-			labels: &map[string]string{"entry": "value"},
-			owner:  &metav1.OwnerReference{Name: "TestNewConfigMap"},
+			name:        "existing-cm",
+			cmName:      "existing-cm",
+			data:        &map[string]string{"entry": "value"},
+			labels:      &map[string]string{"entry": "value"},
+			annotations: &map[string]string{"entry": "value"},
+			owner:       &metav1.OwnerReference{Name: "TestNewConfigMap"},
 			expected: result{
 				cm:  existingCm,
 				err: nil,
@@ -113,12 +115,18 @@ func TestNewConfigMap(t *testing.T) {
 			labels: &map[string]string{
 				"entry2": "value2",
 			},
+			annotations: &map[string]string{
+				"entry3": "value3",
+			},
 			expected: result{
 				cm: &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "new-cm-all-data",
 						Labels: map[string]string{
 							"entry2": "value2",
+						},
+						Annotations: map[string]string{
+							"entry3": "value3",
 						},
 						OwnerReferences: []metav1.OwnerReference{
 							{Name: "TestNewConfigMap"},
@@ -138,7 +146,8 @@ func TestNewConfigMap(t *testing.T) {
 			owner: &metav1.OwnerReference{
 				Name: "TestNewConfigMap",
 			},
-			labels: &map[string]string{},
+			labels:      &map[string]string{},
+			annotations: &map[string]string{},
 			data: &map[string]string{
 				"entry1": "value1",
 			},
@@ -153,7 +162,7 @@ func TestNewConfigMap(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			// call NewConfigMap
-			cm, err := NewConfigMap(test.cmName, test.data, test.labels, test.owner, NS, kubeClient)
+			cm, err := NewConfigMap(test.cmName, test.data, test.labels, test.annotations, test.owner, NS, kubeClient)
 			assert.Equal(t, test.expected.err == nil, err == nil)
 			if err != nil {
 				assert.Equal(t, test.expected.err.Error(), err.Error())
