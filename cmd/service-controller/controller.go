@@ -479,7 +479,7 @@ func (c *Controller) updateActualServices() {
 		if c.bindings[svc.ObjectMeta.Name] == nil && isOwned(svc) {
 			event.Recordf(ServiceControllerDeleteEvent, "No service binding found for %s", svc.ObjectMeta.Name)
 			c.deleteService(svc)
-			c.handleRemovingTlsSupport(types.SkupperServiceCertPrefix+svc.ObjectMeta.Name)
+			c.handleRemovingTlsSupport(types.SkupperServiceCertPrefix + svc.ObjectMeta.Name)
 		}
 	}
 }

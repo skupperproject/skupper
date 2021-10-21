@@ -44,7 +44,6 @@ func check_result(t *testing.T, name string, timeoutSeconds float64, resultType 
 	}
 }
 
-
 func containsResult(t *testing.T, name string, timeoutSeconds float64, resultType string, expected []string, found *[]string) {
 	if len(expected) <= 0 {
 		return
@@ -153,19 +152,19 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			timeout:          60.0,
 		},
 		{
-			namespace:     "vsic-6",
-			doc:           "Check basic deployments with TLS support",
-			init:          true,
-			addr:          "vsic-6-addr",
-			proto:         "http2",
-			ports:         []int{3000},
-			expectedErr:   "",
-			depsExpected:  []string{"skupper-router", "skupper-service-controller"},
-			cmsExpected:   []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
-			rolesExpected: []string{types.ControllerRoleName, types.TransportRoleName},
+			namespace:        "vsic-6",
+			doc:              "Check basic deployments with TLS support",
+			init:             true,
+			addr:             "vsic-6-addr",
+			proto:            "http2",
+			ports:            []int{3000},
+			expectedErr:      "",
+			depsExpected:     []string{"skupper-router", "skupper-service-controller"},
+			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
+			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
 			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
 			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-6-addr"},
-			secretsExpected: []string{types.ServiceClientSecret, types.SiteCaSecret, "skupper-vsic-6-addr"},
+			secretsExpected:  []string{types.ServiceClientSecret, types.SiteCaSecret, "skupper-vsic-6-addr"},
 			timeout:          60.0,
 			tlsCredentials:   "skupper-vsic-6-addr",
 		},
