@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
+	"time"
 )
 
 func (cli *VanClient) CreateServiceCA(ownerRef *metav1.OwnerReference) error {
@@ -56,20 +57,19 @@ func (cli *VanClient) CreateSecretForService(serviceName string, hosts string, s
 func (cli *VanClient) DeleteSecretForService(secretName string) error {
 	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(secretName, metav1.GetOptions{})
 
-	if err != nil {
-		return err
-	}
+	if err == nil {
 
-	err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secretName, &metav1.DeleteOptions{})
+		err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secretName, &metav1.DeleteOptions{})
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (cli *VanClient) AppendSecretToRouter(secretname string) error {
+func (cli *VanClient) AppendSecretToRouter(secretName string) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
 		if err != nil {
@@ -80,30 +80,36 @@ func (cli *VanClient) AppendSecretToRouter(secretname string) error {
 			return err
 		}
 
-		if _, ok := current.SslProfiles[secretname]; !ok {
+		//need to mount the secret so router can access certs and key
+		deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+
+		if _, ok := current.SslProfiles[secretName]; !ok {
 			current.AddSslProfile(qdr.SslProfile{
-				Name: secretname,
+				Name: secretName,
 			})
 		}
-
 		_, err = current.UpdateConfigMap(configmap)
 		if err != nil {
 			return err
 		}
+
 		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(configmap)
 		if err != nil {
 			return err
 		}
-		//need to mount the secret so router can access certs and key
-		deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 
-		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, secretname, "/etc/qpid-dispatch-certs/"+secretname+"/")
+		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, secretName, "/etc/qpid-dispatch-certs/"+secretName+"/")
 
 		_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(deployment)
 		if err != nil {
 			return err
 		}
-		return err
+
+		_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, cli.Namespace, cli.KubeClient, time.Second*180, time.Second*5)
+		if err != nil {
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
@@ -111,7 +117,7 @@ func (cli *VanClient) AppendSecretToRouter(secretname string) error {
 	return nil
 }
 
-func (cli *VanClient) RemoveSecretFromRouter(secretname string) error {
+func (cli *VanClient) RemoveSecretFromRouter(secretName string) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
 		if err != nil {
@@ -122,22 +128,24 @@ func (cli *VanClient) RemoveSecretFromRouter(secretname string) error {
 			return err
 		}
 
-		if _, ok := current.SslProfiles[secretname]; ok {
-			current.RemoveSslProfile(secretname)
+		if _, ok := current.SslProfiles[secretName]; ok {
+			current.RemoveSslProfile(secretName)
 		}
 
 		_, err = current.UpdateConfigMap(configmap)
 		if err != nil {
 			return err
 		}
+
 		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(configmap)
 		if err != nil {
 			return err
 		}
+
 		//need to mount the secret so router can access certs and key
 		deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 
-		kube.RemoveSecretVolumeForDeployment(secretname, deployment, 0)
+		kube.RemoveSecretVolumeForDeployment(secretName, deployment, 0)
 
 		_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(deployment)
 		if err != nil {

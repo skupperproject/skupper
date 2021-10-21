@@ -56,6 +56,7 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(certName, metav1.GetOptions{})
 
 	if err == nil && secret != nil {
+
 		err := cli.RemoveSecretFromRouter(secret.Name)
 
 		if err != nil {
@@ -67,10 +68,6 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 			log.Printf("Failed to remove secret from the site: %v", err.Error())
 		}
 
-		err = cli.RouterRestart(context.Background(), cli.Namespace)
-		if err != nil {
-			log.Printf("Failed to restart the router: %v", err.Error())
-		}
 	}
 
 }

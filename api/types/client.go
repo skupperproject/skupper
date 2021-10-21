@@ -275,6 +275,6 @@ type VanClientInterface interface {
 	CreateServiceCA(ownerRef *metav1.OwnerReference) error
 	CreateSecretForService(serviceName string, hosts string, secretName string) (*corev1.Secret, error)
 	DeleteSecretForService(secretName string) error
-	AppendSecretToRouter(secretname string) error
-	RemoveSecretFromRouter(secretname string) error
+	AppendSecretToRouter(secretName string) error
+	RemoveSecretFromRouter(secretName string) error
 }

@@ -79,13 +79,6 @@ func TestCreateServiceParseArgs(t *testing.T) {
 	assert.Equal(t, serviceToCreate.Protocol, "http2")
 	assert.Equal(t, serviceToCreate.TlsCredentials, "")
 
-	cmdArgsWithCredentials := []string{"service:8080", "--mapping", "http2", "--tls-credentials", "example"}
-	cmd2 := NewCmdCreateService(nil)
-
-	assert.Assert(t, cmd2.ParseFlags(cmdArgsWithCredentials))
-	assert.Equal(t, serviceToCreate.EnableTls, false)
-	assert.Equal(t, serviceToCreate.Protocol, "http2")
-	assert.Equal(t, serviceToCreate.TlsCredentials, "example")
 }
 
 func TestExposeTargetArgs(t *testing.T) {
@@ -134,14 +127,6 @@ func TestExposeParseArgs(t *testing.T) {
 	assert.Equal(t, exposeOpts.EnableTls, true)
 	assert.Equal(t, exposeOpts.Protocol, "http2")
 	assert.Equal(t, exposeOpts.TlsCredentials, "")
-
-	cmdArgsWithCredentials := []string{"deployment/name", "--address", "theAddress", "--protocol", "http2", "--tls-credentials", "example"}
-	cmd2 := NewCmdExpose(nil)
-
-	assert.Assert(t, cmd2.ParseFlags(cmdArgsWithCredentials))
-	assert.Equal(t, exposeOpts.EnableTls, false)
-	assert.Equal(t, exposeOpts.Protocol, "http2")
-	assert.Equal(t, exposeOpts.TlsCredentials, "example")
 }
 
 var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
@@ -191,25 +176,6 @@ func TestExposeGatewayArgs(t *testing.T) {
 	assert.Error(t, b([]string{"oneArg", "twoArg:threeArg", "fourArg"}), "extra argument: fourArg")
 	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "threeArg is not a valid port")
 	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "threeArg is not a valid port")
-}
-
-func TestExposeGatewayParseArgs(t *testing.T) {
-	cmd := NewCmdExposeGateway(nil)
-
-	cmdArgs := []string{"service:8080", "--protocol", "http2", "--enable-tls"}
-
-	assert.Assert(t, cmd.ParseFlags(cmdArgs))
-	assert.Equal(t, gatewayEndpoint.Service.EnableTls, true)
-	assert.Equal(t, gatewayEndpoint.Service.Protocol, "http2")
-	assert.Equal(t, gatewayEndpoint.Service.TlsCredentials, "")
-
-	cmdArgsWithCredentials := []string{"service:8080", "--protocol", "http2", "--tls-credentials", "example"}
-	cmd2 := NewCmdExposeGateway(nil)
-
-	assert.Assert(t, cmd2.ParseFlags(cmdArgsWithCredentials))
-	assert.Equal(t, gatewayEndpoint.Service.EnableTls, false)
-	assert.Equal(t, gatewayEndpoint.Service.Protocol, "http2")
-	assert.Equal(t, gatewayEndpoint.Service.TlsCredentials, "example")
 }
 
 func TestMain(m *testing.M) {

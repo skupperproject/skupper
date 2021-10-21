@@ -712,7 +712,6 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
-	cmd.Flags().StringVar(&exposeOpts.TlsCredentials, "tls-credentials", "", "Enable TLS support for services by specifying the name of the secret to use.")
 	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
 
 	return cmd
@@ -953,7 +952,6 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-credentials", "", "Enable TLS support for services by specifying the name of the secret to use.")
 	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
 	return cmd
 }
@@ -1270,8 +1268,6 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
 	cmd.Flags().StringVar(&gatewayName, "name", "", "The name of external service to create. Defaults to service address value")
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.TlsCredentials, "tls-credentials", "", "Enable TLS support for services by specifying the name of the secret to use.")
-	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
 	return cmd
 }
 

@@ -298,11 +298,11 @@ func (v *vanClientMock) DeleteSecretForService(secretName string) error {
 	return nil
 }
 
-func (v *vanClientMock) AppendSecretToRouter(secretname string) error {
+func (v *vanClientMock) AppendSecretToRouter(secretName string) error {
 	return nil
 }
 
-func (v *vanClientMock) RemoveSecretFromRouter(secretname string) error {
+func (v *vanClientMock) RemoveSecretFromRouter(secretName string) error {
 	return nil
 }
 
