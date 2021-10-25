@@ -137,9 +137,8 @@ type TokenOptions struct {
 }
 
 func (m *TokenManager) generateToken(options *TokenOptions) (*corev1.Secret, error) {
-	name := utils.RandomId(24)
 	password := utils.RandomId(128)
-	claim, _, err := m.cli.TokenClaimCreate(context.Background(), name, []byte(password), options.Expiry, options.Uses)
+	claim, _, err := m.cli.TokenClaimCreate(context.Background(), "", []byte(password), options.Expiry, options.Uses)
 	if err != nil {
 		return nil, err
 	}
