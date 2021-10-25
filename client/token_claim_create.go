@@ -167,15 +167,14 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 }
 
 func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error) {
-	recordName := name
-	if recordName == "" {
+	if name == "" {
 		id, err := uuid.NewUUID()
 		if err != nil {
 			return nil, false, err
 		}
-		recordName = id.String()
+		name = id.String()
 	}
-	claim, service, localOnly, err := cli.TokenClaimTemplateCreate(ctx, name, password, recordName)
+	claim, service, localOnly, err := cli.TokenClaimTemplateCreate(ctx, name, password, name)
 	if err != nil {
 		return nil, false, err
 	}
@@ -185,7 +184,7 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: recordName,
+			Name: name,
 			Labels: map[string]string{
 				types.SkupperTypeQualifier: types.TypeClaimRecord,
 			},
