@@ -70,46 +70,51 @@ func (cli *VanClient) DeleteSecretForService(secretName string) error {
 }
 
 func (cli *VanClient) AppendSecretToRouter(secretName string, waitForRestart bool) error {
-
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
-	if err != nil {
-		return err
-	}
-	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
-	if err != nil {
-		return err
-	}
-
-	//need to mount the secret so router can access certs and key
-	deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
-
-	if _, ok := current.SslProfiles[secretName]; !ok {
-		current.AddSslProfile(qdr.SslProfile{
-			Name: secretName,
-		})
-	}
-	_, err = current.UpdateConfigMap(configmap)
-	if err != nil {
-		return err
-	}
-
-	_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(configmap)
-	if err != nil {
-		return err
-	}
-
-	kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, secretName, "/etc/qpid-dispatch-certs/"+secretName+"/")
-
-	_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(deployment)
-	if err != nil {
-		return err
-	}
-
-	if waitForRestart {
-		_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, cli.Namespace, cli.KubeClient, time.Second*180, time.Second*5)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
 		if err != nil {
 			return err
 		}
+		current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+		if err != nil {
+			return err
+		}
+
+		//need to mount the secret so router can access certs and key
+		deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+
+		if _, ok := current.SslProfiles[secretName]; !ok {
+			current.AddSslProfile(qdr.SslProfile{
+				Name: secretName,
+			})
+		}
+		_, err = current.UpdateConfigMap(configmap)
+		if err != nil {
+			return err
+		}
+
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(configmap)
+		if err != nil {
+			return err
+		}
+
+		kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, secretName, "/etc/qpid-dispatch-certs/"+secretName+"/")
+
+		_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(deployment)
+		if err != nil {
+			return err
+		}
+
+		if waitForRestart {
+			_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, cli.Namespace, cli.KubeClient, time.Second*180, time.Second*5)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
 	}
 	return nil
 }
