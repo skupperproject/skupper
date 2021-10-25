@@ -298,7 +298,7 @@ func (v *vanClientMock) DeleteSecretForService(secretName string) error {
 	return nil
 }
 
-func (v *vanClientMock) AppendSecretToRouter(secretName string) error {
+func (v *vanClientMock) AppendSecretToRouter(secretName string, waitForRestart bool) error {
 	return nil
 }
 

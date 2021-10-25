@@ -3,6 +3,10 @@ package client
 import (
 	"context"
 	"github.com/skupperproject/skupper/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"strings"
 	"testing"
 	"time"
@@ -281,6 +285,10 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			assert.Check(t, err, "Unable to create VAN router")
 		}
 
+		if !isCluster && testcase.tlsCredentials != "" {
+			setUpRouterDeploymentMock(cli)
+		}
+
 		// Create the VAN Service Interface.
 		service := types.ServiceInterface{
 			Address:        testcase.addr,
@@ -313,5 +321,48 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		} else {
 			check_result(t, testcase.namespace, testcase.timeout, "services", testcase.svcsExpected, &svcsFound, testcase.doc)
 		}
+	}
+}
+
+func setUpRouterDeploymentMock(cli *VanClient) {
+	var rep int32 = 1
+	var routerDeployment = &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "skupper-router",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &rep,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"application": "tcp-go-echo",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "router",
+						},
+					},
+				},
+			},
+		},
+		Status: appsv1.DeploymentStatus{
+			Replicas:      rep,
+			ReadyReplicas: rep,
+		},
+	}
+	if cli != nil {
+		cli.KubeClient.(*fake.Clientset).Fake.PrependReactor("get", "deployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			name := action.(k8stesting.GetAction).GetName()
+			if name == "skupper-router" {
+				return true, routerDeployment, nil
+			}
+			return false, nil, nil
+		})
 	}
 }

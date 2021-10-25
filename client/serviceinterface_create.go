@@ -21,7 +21,7 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 				return err
 			}
 
-			err = cli.AppendSecretToRouter(serviceSecret.Name)
+			err = cli.AppendSecretToRouter(serviceSecret.Name, true)
 			if err != nil {
 				return err
 			}

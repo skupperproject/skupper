@@ -876,7 +876,7 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 
 			log.Printf("Secret created for service: %v\n", tlsCredentials)
 
-			err = c.vanClient.AppendSecretToRouter(serviceSecret.Name)
+			err = c.vanClient.AppendSecretToRouter(serviceSecret.Name, true)
 			if err != nil {
 				return err
 			}
