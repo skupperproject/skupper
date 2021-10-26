@@ -28,6 +28,7 @@ import (
 )
 
 type IngressRoute struct {
+	Name        string
 	Host        string
 	ServiceName string
 	ServicePort int
