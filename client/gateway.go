@@ -2171,11 +2171,9 @@ func getRouterId(gatewayDir string) (string, error) {
 }
 
 func getRouterUrl(gatewayDir string) (string, error) {
-	fmt.Println("get url from gateway dir", gatewayDir)
 	url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
 	if err != nil {
 		return "", fmt.Errorf("Failed to read router url: %w", err)
 	}
-	fmt.Println("And url is ", string(url))
 	return string(url), nil
 }
