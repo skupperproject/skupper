@@ -213,7 +213,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		siteConfig.ObjectMeta.Labels[types.SiteControllerIgnore] = "true"
 	}
 	if DefaultSkupperExtraLabels != "" {
-		labelRegex := regexp.MustCompile(ValidRfc1123Label + "=" + ValidRfc1123Label + "+(," + ValidRfc1123Label + "=" + ValidRfc1123Label + "+)*")
+		labelRegex := regexp.MustCompile(ValidRfc1123Label)
 		if labelRegex.MatchString(DefaultSkupperExtraLabels) {
 			s := strings.Split(DefaultSkupperExtraLabels, ",")
 			for _, kv := range s {
