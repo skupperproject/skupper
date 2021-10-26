@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -79,6 +80,18 @@ func (cli *VanClient) TokenClaimCreateFile(ctx context.Context, name string, pas
 		return nil
 	}
 }
+func getContourProxyClaimsHostSuffix(cli *VanClient) string {
+	config, err := cli.SiteConfigInspect(context.TODO(), nil)
+	if err != nil {
+		fmt.Printf("Failed to look up site config: %s, ", err)
+		fmt.Println()
+		return ""
+	}
+	if config != nil && config.Spec.IsIngressContourHttpProxy() {
+		return config.Spec.GetControllerIngressHost()
+	}
+	return ""
+}
 
 func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string, password []byte, recordName string) (*corev1.Secret, *corev1.Service, bool, error) {
 	current, err := cli.getRouterConfig()
@@ -117,6 +130,10 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 		if err != nil {
 			return nil, nil, false, err
 		}
+		localOnly = false
+	} else if suffix := getContourProxyClaimsHostSuffix(cli); suffix != "" {
+		host = strings.Join([]string{types.ClaimsIngressPrefix, cli.Namespace, suffix}, ".")
+		port = 443
 		localOnly = false
 	} else {
 		ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
