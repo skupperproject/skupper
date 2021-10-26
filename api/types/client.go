@@ -88,11 +88,12 @@ type SiteConfigSpec struct {
 }
 
 const (
-	IngressRouteString        string = "route"
-	IngressLoadBalancerString string = "loadbalancer"
-	IngressNodePortString     string = "nodeport"
-	IngressNginxIngressString string = "nginx-ingress-v1"
-	IngressNoneString         string = "none"
+	IngressRouteString            string = "route"
+	IngressLoadBalancerString     string = "loadbalancer"
+	IngressNodePortString         string = "nodeport"
+	IngressNginxIngressString     string = "nginx-ingress-v1"
+	IngressContourHttpProxyString string = "contour-http-proxy"
+	IngressNoneString             string = "none"
 )
 
 func (s *SiteConfigSpec) IsIngressRoute() bool {
@@ -106,6 +107,9 @@ func (s *SiteConfigSpec) IsIngressNodePort() bool {
 }
 func (s *SiteConfigSpec) IsIngressNginxIngress() bool {
 	return s.Ingress == IngressNginxIngressString
+}
+func (s *SiteConfigSpec) IsIngressContourHttpProxy() bool {
+	return s.Ingress == IngressContourHttpProxyString
 }
 func (s *SiteConfigSpec) IsIngressNone() bool {
 	return s.Ingress == IngressNoneString
@@ -123,6 +127,9 @@ func (s *SiteConfigSpec) IsConsoleIngressNodePort() bool {
 func (s *SiteConfigSpec) IsConsoleIngressNginxIngress() bool {
 	return s.getConsoleIngress() == IngressNginxIngressString
 }
+func (s *SiteConfigSpec) IsConsoleIngressContourHttpProxy() bool {
+	return s.getConsoleIngress() == IngressContourHttpProxyString
+}
 func (s *SiteConfigSpec) IsConsoleIngressNone() bool {
 	return s.getConsoleIngress() == IngressNoneString
 }
@@ -134,7 +141,8 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 }
 
 func isValidIngress(ingress string) bool {
-	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNodePortString || ingress == IngressNginxIngressString || ingress == IngressNoneString
+	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNodePortString ||
+		ingress == IngressNginxIngressString || ingress == IngressContourHttpProxyString || ingress == IngressNoneString
 }
 
 func (s *SiteConfigSpec) CheckIngress() error {
