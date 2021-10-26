@@ -51,21 +51,13 @@ func WaitSkupperRunning(c *ClusterContext) error {
 }
 
 func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
-
 	tick := constants.DefaultTick
 	timeout := constants.ImagePullingAndResourceCreationTimeout
-
-	// wait for skupper router component to be running
-	pods, err := kube.GetPods("skupper.io/component="+component, c.Namespace, c.VanClient.KubeClient)
-	if err != nil {
+	// wait for skupper component to be running
+	selector := "skupper.io/component=" + component
+	if err := kube.WaitForPodsStatus(c.Namespace, c.VanClient.KubeClient, selector, corev1.PodRunning, timeout, tick); err != nil {
 		return err
 	}
-	for _, pod := range pods {
-		if _, err := kube.WaitForPodStatus(c.Namespace, c.VanClient.KubeClient, pod.Name, corev1.PodRunning, timeout, tick); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
