@@ -248,6 +248,10 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				} else {
 					post = true
 				}
+			} else if options.IsIngressContourHttpProxy() {
+				if controllerIngressHost != "" {
+					controllerHosts = append(controllerHosts, strings.Join([]string{"console", van.Namespace, controllerIngressHost}, "."))
+				}
 			} else if options.IsIngressLoadBalancer() {
 				post = true
 			} else {
@@ -703,6 +707,14 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			} else {
 				post = true
 			}
+		} else if options.IsIngressContourHttpProxy() {
+			if routerIngressHost != "" {
+				routerHosts = append(routerHosts, strings.Join([]string{types.InterRouterIngressPrefix, van.Namespace, routerIngressHost}, "."))
+				routerHosts = append(routerHosts, strings.Join([]string{types.EdgeIngressPrefix, van.Namespace, routerIngressHost}, "."))
+			}
+			if controllerIngressHost != "" {
+				controllerHosts = append(controllerHosts, strings.Join([]string{types.ClaimsIngressPrefix, van.Namespace, controllerIngressHost}, "."))
+			}
 		} else if options.IsIngressLoadBalancer() || options.IsIngressRoute() {
 			post = true
 		} else {
@@ -1054,6 +1066,11 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
+		} else if options.Spec.IsIngressContourHttpProxy() {
+			err = cli.createContourProxies(options)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 		for _, cred := range van.TransportCredentials {
 			if cred.Post {
@@ -1286,6 +1303,46 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 		})
 	}
 	return kube.CreateIngress(types.IngressName, routes, true, asOwnerReference(site.Reference), cli.Namespace, cli.KubeClient)
+}
+
+func (cli *VanClient) createContourProxies(site types.SiteConfig) error {
+	namespace := site.Spec.SkupperNamespace
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
+
+	var routes []kube.IngressRoute
+	if site.Spec.EnableController {
+		if site.Spec.GetControllerIngressHost() != "" {
+			routes = append(routes, kube.IngressRoute{
+				Name:        types.ClaimsIngressPrefix,
+				Host:        strings.Join([]string{types.ClaimsIngressPrefix, namespace, site.Spec.GetControllerIngressHost()}, "."),
+				ServiceName: types.ControllerServiceName,
+				ServicePort: int(types.ClaimRedemptionPort),
+			})
+			routes = append(routes, kube.IngressRoute{
+				Name:        types.ConsoleIngressPrefix,
+				Host:        strings.Join([]string{types.ConsoleIngressPrefix, namespace, site.Spec.GetControllerIngressHost()}, "."),
+				ServiceName: types.ControllerServiceName,
+				ServicePort: int(types.ConsoleDefaultServicePort),
+			})
+		}
+	}
+	if site.Spec.GetRouterIngressHost() != "" {
+		routes = append(routes, kube.IngressRoute{
+			Name:        types.InterRouterIngressPrefix,
+			Host:        strings.Join([]string{types.InterRouterIngressPrefix, namespace, site.Spec.GetRouterIngressHost()}, "."),
+			ServiceName: types.TransportServiceName,
+			ServicePort: int(types.InterRouterListenerPort),
+		})
+		routes = append(routes, kube.IngressRoute{
+			Name:        types.EdgeIngressPrefix,
+			Host:        strings.Join([]string{types.EdgeIngressPrefix, namespace, site.Spec.GetRouterIngressHost()}, "."),
+			ServiceName: types.TransportServiceName,
+			ServicePort: int(types.EdgeListenerPort),
+		})
+	}
+	return kube.CreateContourProxies(routes, asOwnerReference(site.Reference), cli.DynamicClient, cli.Namespace)
 }
 
 func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {

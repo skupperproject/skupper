@@ -381,6 +381,13 @@ const (
 	ConnectorRoleEdge                      = "edge"
 )
 
+const (
+	ConsoleIngressPrefix     = "skupper-console"
+	ClaimsIngressPrefix      = "skupper-claims"
+	InterRouterIngressPrefix = "skupper-inter-router"
+	EdgeIngressPrefix        = "skupper-edge"
+)
+
 type Connector struct {
 	Name           string `json:"name,omitempty"`
 	Role           string `json:"role,omitempty"`

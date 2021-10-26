@@ -40,6 +40,13 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 				}
 				return "https://" + host + ":" + port, nil
 			} else {
+				proxy, err := kube.GetContourProxy(cli.DynamicClient, cli.Namespace, "skupper-console")
+				if err != nil {
+					return "", err
+				}
+				if proxy != nil {
+					return "https://" + proxy.Host, nil
+				}
 				routes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
 				if err != nil {
 					return "", err
