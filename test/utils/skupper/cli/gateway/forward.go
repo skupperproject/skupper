@@ -16,7 +16,7 @@ import (
 // the a local port is now forwarding requests to the cluster
 type ForwardTester struct {
 	Address         string
-	Port            string
+	Port            []string
 	Loopback        bool
 	Mapping         string
 	Name            string
@@ -25,7 +25,8 @@ type ForwardTester struct {
 
 func (f *ForwardTester) Command(cluster *base.ClusterContext) []string {
 	args := cli.SkupperCommonOptions(cluster)
-	args = append(args, "gateway", "forward", f.Address, f.Port)
+	args = append(args, "gateway", "forward", f.Address)
+	args = append(args, f.Port...)
 
 	if f.Loopback {
 		args = append(args, "--loopback")
@@ -56,13 +57,15 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 	}
 
 	// Basic validation of the stdout (only valid for active gateways)
-	expectedOut := fmt.Sprintf(`.* CREATE .*%s:%d .*%s`, f.Address, si.Ports[0], f.Port)
-	matched, _ := regexp.MatchString(expectedOut, stderr)
-	if !f.IsGatewayActive && !matched {
-		// Sample output
-		// 2021/07/28 18:24:44 CREATE org.apache.qpid.dispatch.tcpListener localhost.localdomain-user-ingress-tcp-echo-cluster map[address:tcp-echo-cluster:9090 host:0.0.0.0 name:localhost.localdomain-user-ingress-tcp-echo-cluster port:9090]
-		err = fmt.Errorf("output does not contain expected content - found: %s", stderr)
-		return
+	for _, ingressPort := range si.Ports {
+		expectedOut := fmt.Sprintf(`.* CREATE .*%s:%d .*%s`, f.Address, ingressPort, f.Port)
+		matched, _ := regexp.MatchString(expectedOut, stderr)
+		if f.IsGatewayActive && !matched {
+			// Sample output
+			// 2021/10/26 17:22:51 CREATE org.apache.qpid.dispatch.tcpListener fgiorget-fgiorget-ingress-tcp-echo-cluster:9090 map[address:tcp-echo-cluster:9090 host:0.0.0.0 name:fgiorget-fgiorget-ingress-tcp-echo-cluster:9090 port:40373 siteId:dcd0eed1-5c44-4817-b409-6b0cdf18dae4]
+			err = fmt.Errorf("output does not contain expected content - found: %s", stderr)
+			return
+		}
 	}
 
 	gwList, err := cluster.VanClient.GatewayList(ctx)
@@ -80,32 +83,34 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 		if gwName != gw.GatewayName {
 			continue
 		}
-		// finding the correct listener
-		var forward types.GatewayEndpoint
-		found := false
-		for k, v := range gw.GatewayListeners {
-			if strings.HasSuffix(k, f.Address) {
-				forward = v
-				found = true
-				break
+		for i, ingressPort := range si.Ports {
+			// finding the correct listener
+			var forward types.GatewayEndpoint
+			found := false
+			for k, v := range gw.GatewayListeners {
+				if strings.HasSuffix(k, f.Address+":"+strconv.Itoa(ingressPort)) {
+					forward = v
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			err = fmt.Errorf("service forward not bound")
-			return
-		}
-		if forward.Service.Address != fmt.Sprintf("%s:%d", f.Address, si.Ports[0]) {
-			err = fmt.Errorf("service address is incorrect - expected: %s:%d - found: %s", f.Address, si.Ports[0], forward.Service.Address)
-		}
-		if strconv.Itoa(forward.Service.Ports[0]) != f.Port {
-			err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", f.Port, forward.Service.Ports[0])
-		}
-		expectedHost := "0.0.0.0"
-		if f.Loopback {
-			expectedHost = "127.0.0.1"
-		}
-		if forward.Host != expectedHost {
-			err = fmt.Errorf("service host is incorrect - expected: %s - found: %s", expectedHost, forward.Host)
+			if !found {
+				err = fmt.Errorf("service forward not found")
+				return
+			}
+			if forward.Service.Address != fmt.Sprintf("%s:%d", f.Address, ingressPort) {
+				err = fmt.Errorf("service address is incorrect - expected: %s:%d - found: %s", f.Address, ingressPort, forward.Service.Address)
+			}
+			if strconv.Itoa(forward.Service.Ports[i]) != f.Port[i] {
+				err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", f.Port[i], forward.Service.Ports[i])
+			}
+			expectedHost := "0.0.0.0"
+			if f.Loopback {
+				expectedHost = "127.0.0.1"
+			}
+			if forward.Host != expectedHost {
+				err = fmt.Errorf("service host is incorrect - expected: %s - found: %s", expectedHost, forward.Host)
+			}
 		}
 	}
 
