@@ -36,21 +36,38 @@ func TestGateway(t *testing.T) {
 		t.Errorf("error deploying gateway resources before creating the skupper network")
 	}
 	defer gateway.TearDown(testRunner)
-	t.Run("local-gateway", testLocalGateway)
-	t.Run("downloaded-gateway", testDownloadedGateway)
+	t.Run("local-gateway-service", testLocalGatewayService)
+	t.Run("local-gateway-docker", testLocalGatewayDocker)
+	t.Run("local-gateway-podman", testLocalGatewayPodman)
+	// exportonly flag has been removed
+	// t.Run("downloaded-gateway-service", testDownloadedGatewayService)
+	// t.Run("downloaded-gateway-docker", testDownloadedGatewayDocker)
+	// t.Run("downloaded-gateway-podman", testDownloadedGatewayPodman)
 }
 
 //
-// TestLocalGateway uses localhost to run a TCP Echo server
+// testLocalGateway uses localhost to run a TCP Echo server
 // bound to a dynamic port and expose it through a local
 // gateway into the skupper network, against two connected
 // clusters. It also forwards local requests to a cluster
 // port reaching out tcp-echo-cluster service using a
 // dynamic port
 //
-func testLocalGateway(t *testing.T) {
+func testLocalGatewayService(t *testing.T) {
+	testLocalGateway(t, "")
+}
+
+func testLocalGatewayDocker(t *testing.T) {
+	testLocalGateway(t, "docker")
+}
+
+func testLocalGatewayPodman(t *testing.T) {
+	testLocalGateway(t, "podman")
+}
+
+func testLocalGateway(t *testing.T, gatewayType string) {
 	// Check whether to Skip the gateway tests
-	gateway.ValidateSkip(t)
+	gateway.ValidateSkip(t, gatewayType)
 
 	pub, _ := testRunner.GetPublicContext(1)
 
@@ -64,6 +81,7 @@ func testLocalGateway(t *testing.T) {
 					// skupper gateway init
 					&gatewaycli.InitTester{
 						GeneratedName: &generatedGwName,
+						Type:          gatewayType,
 					},
 					// skupper service create
 					&service.CreateTester{
@@ -75,7 +93,7 @@ func testLocalGateway(t *testing.T) {
 					&gatewaycli.BindTester{
 						Address:         "tcp-echo-host",
 						Host:            "0.0.0.0",
-						EgressPort:      strconv.Itoa(gateway.LocalTcpEchoPort),
+						EgressPort:      []string{strconv.Itoa(gateway.LocalTcpEchoPort)},
 						Protocol:        "tcp",
 						Name:            generatedGwName,
 						IsGatewayActive: true,
@@ -83,7 +101,7 @@ func testLocalGateway(t *testing.T) {
 					// skupper gateway forward
 					&gatewaycli.ForwardTester{
 						Address: "tcp-echo-cluster",
-						Port:    strconv.Itoa(gateway.ForwardTcpEchoPort),
+						Port:    []string{strconv.Itoa(gateway.ForwardTcpEchoPort)},
 						Name:    generatedGwName,
 					},
 				}},
@@ -121,6 +139,11 @@ func testLocalGateway(t *testing.T) {
 
 	// Running the setup scenarios
 	cli.RunScenarios(t, setupScenario)
+	if t.Failed() {
+		t.Logf("skipping further tests due to previous failures...")
+		cli.RunScenario(tearDownScenario[0])
+		return
+	}
 
 	// Testing service communication across gateway and cluster services
 	testServices(t)
@@ -138,9 +161,18 @@ func testLocalGateway(t *testing.T) {
 // cluster port reaching out tcp-echo-cluster service using a
 // dynamic port
 //
-func testDownloadedGateway(t *testing.T) {
+func testDownloadedGatewayService(t *testing.T) {
+	testDownloadedGateway(t, "")
+}
+func testDownloadedGatewayDocker(t *testing.T) {
+	testDownloadedGateway(t, "docker")
+}
+func testDownloadedGatewayPodman(t *testing.T) {
+	testDownloadedGateway(t, "podman")
+}
+func testDownloadedGateway(t *testing.T, gatewayType string) {
 	// Check whether to Skip the gateway tests
-	gateway.ValidateSkip(t)
+	gateway.ValidateSkip(t, gatewayType)
 
 	pub, _ := testRunner.GetPublicContext(1)
 	gwName := "prepared-gateway"
@@ -154,6 +186,7 @@ func testDownloadedGateway(t *testing.T) {
 					&gatewaycli.InitTester{
 						Name:       gwName,
 						ExportOnly: true,
+						Type:       gatewayType,
 					},
 					// skupper service create
 					&service.CreateTester{
@@ -165,14 +198,14 @@ func testDownloadedGateway(t *testing.T) {
 					&gatewaycli.BindTester{
 						Address:    "tcp-echo-host",
 						Host:       "0.0.0.0",
-						EgressPort: strconv.Itoa(gateway.LocalTcpEchoPort),
+						EgressPort: []string{strconv.Itoa(gateway.LocalTcpEchoPort)},
 						Protocol:   "tcp",
 						Name:       gwName,
 					},
 					// skupper gateway forward
 					&gatewaycli.ForwardTester{
 						Address:         "tcp-echo-cluster",
-						Port:            strconv.Itoa(gateway.ForwardTcpEchoPort),
+						Port:            []string{strconv.Itoa(gateway.ForwardTcpEchoPort)},
 						Name:            gwName,
 						IsGatewayActive: true,
 					},
@@ -202,18 +235,20 @@ func testDownloadedGateway(t *testing.T) {
 
 	// Running the setup scenarios
 	cli.RunScenarios(t, setupScenario)
-	if !t.Failed() {
-		// Installing the gateway tarball
-		installed := t.Run("prepared-gateway-install", func(t *testing.T) {
-			assert.Assert(t, installGateway("/tmp/"+gwName+".tar.gz"))
-		})
-
-		// Testing service communication across gateway and cluster services
-		if installed {
-			testServices(t)
-		}
-	} else {
+	if t.Failed() {
 		t.Logf("skipping further tests due to previous failures...")
+		cli.RunScenario(tearDownScenario[0])
+		return
+	}
+
+	// Installing the gateway tarball
+	installed := t.Run("prepared-gateway-install", func(t *testing.T) {
+		assert.Assert(t, installGateway("/tmp/"+gwName+".tar.gz"))
+	})
+
+	// Testing service communication across gateway and cluster services
+	if installed {
+		testServices(t)
 	}
 
 	// Running the teardown scenarios
