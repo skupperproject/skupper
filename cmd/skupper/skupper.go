@@ -1251,10 +1251,6 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 			}
 			gatewayEndpoint.Service.Address = args[0]
 
-			if gatewayEndpoint.Service.EnableTls {
-				gatewayEndpoint.Service.TlsCredentials = types.SkupperServiceCertPrefix + gatewayEndpoint.Service.Address
-			}
-
 			_, err := cli.GatewayExpose(context.Background(), gatewayName, gatewayType, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
