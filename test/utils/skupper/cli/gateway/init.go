@@ -18,6 +18,11 @@ type InitTester struct {
 	Name          string
 	ExportOnly    bool
 	GeneratedName *string
+	Type          string
+}
+
+func (i *InitTester) isService() bool {
+	return i.Type == "" || i.Type == "service"
 }
 
 func (i *InitTester) Command(cluster *base.ClusterContext) []string {
@@ -29,6 +34,9 @@ func (i *InitTester) Command(cluster *base.ClusterContext) []string {
 	}
 	if i.ExportOnly {
 		args = append(args, "--exportonly")
+	}
+	if i.Type != "" {
+		args = append(args, "--type", i.Type)
 	}
 
 	return args
@@ -128,19 +136,31 @@ func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 		return
 	}
 
-	// Validating systemd user service created
 	expectAvailable := !i.ExportOnly
-	available := SystemdUnitAvailable(gatewayName)
-	if available != expectAvailable {
-		err = fmt.Errorf("systemd unit %s.service availability issue - available: %v - expected: %v", gatewayName, available, expectAvailable)
-		return
-	}
+	if i.isService() {
+		// Validating systemd user service created
+		available := SystemdUnitAvailable(gatewayName)
+		if available != expectAvailable {
+			err = fmt.Errorf("systemd unit %s.service availability issue - available: %v - expected: %v", gatewayName, available, expectAvailable)
+			return
+		}
 
-	// Validating systemd user service enabled
-	enabled := SystemdUnitEnabled(gatewayName)
-	if enabled != expectAvailable {
-		err = fmt.Errorf("systemd unit %s.service availability issue - enabled: %v - expected: %v", gatewayName, enabled, expectAvailable)
-		return
+		// Validating systemd user service enabled
+		enabled := SystemdUnitEnabled(gatewayName)
+		if enabled != expectAvailable {
+			err = fmt.Errorf("systemd unit %s.service availability issue - enabled: %v - expected: %v", gatewayName, enabled, expectAvailable)
+			return
+		}
+	} else if i.Type == "docker" {
+		available, _ := IsDockerContainerRunning(gatewayName)
+		if available != expectAvailable {
+			err = fmt.Errorf("docker container %s availability issue - enabled: %v - expected: %v", gatewayName, available, expectAvailable)
+		}
+	} else if i.Type == "podman" {
+		available, _ := IsPodmanContainerRunning(gatewayName)
+		if available != expectAvailable {
+			err = fmt.Errorf("podman container %s availability issue - enabled: %v - expected: %v", gatewayName, available, expectAvailable)
+		}
 	}
 
 	// Setting Generated Name

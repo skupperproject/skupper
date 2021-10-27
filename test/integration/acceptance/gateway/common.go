@@ -12,6 +12,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/integration/examples/tcp_echo"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -30,17 +31,29 @@ var (
 )
 
 // ValidateSkip validates whether gateway tests should be skipped
-func ValidateSkip(t *testing.T) {
-	// If skupper, systemctl or qdrouterd binaries are not available, skip
-	binaries := []string{"skupper", "systemctl", "qdrouterd"}
-	missingBinaries := []string{}
-	for _, binary := range binaries {
-		if err := exec.Command(binary, "--help").Run(); err != nil {
-			missingBinaries = append(missingBinaries, binary)
+func ValidateSkip(t *testing.T, gatewayType string) {
+	if utils.StringSliceContains([]string{"", "service"}, gatewayType) {
+		// If skupper, systemctl or qdrouterd binaries are not available, skip
+		binaries := []string{"skupper", "systemctl", "qdrouterd"}
+		missingBinaries := []string{}
+		for _, binary := range binaries {
+			if err := exec.Command(binary, "--help").Run(); err != nil {
+				missingBinaries = append(missingBinaries, binary)
+			}
 		}
-	}
-	if len(missingBinaries) > 0 {
-		t.Skipf("skipping - required binaries not available: %s", missingBinaries)
+		if len(missingBinaries) > 0 {
+			t.Skipf("skipping - required binaries not available: %s", missingBinaries)
+		}
+	} else if gatewayType == "docker" {
+		// If docker binary is not available, skip
+		if err := exec.Command("docker", "--help").Run(); err != nil {
+			t.Skipf("skipping - required binary not available: docker")
+		}
+	} else if gatewayType == "podman" {
+		// If podman binary is not available, skip
+		if err := exec.Command("podman", "--help").Run(); err != nil {
+			t.Skipf("skipping - required binary not available: podman")
+		}
 	}
 }
 
