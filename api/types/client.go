@@ -140,9 +140,20 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 	return s.ConsoleIngress
 }
 
+func ValidIngressOptions() []string {
+	return []string{IngressRouteString, IngressLoadBalancerString, IngressNodePortString, IngressNginxIngressString, IngressContourHttpProxyString, IngressNoneString}
+}
+
 func isValidIngress(ingress string) bool {
-	return ingress == "" || ingress == IngressRouteString || ingress == IngressLoadBalancerString || ingress == IngressNodePortString ||
-		ingress == IngressNginxIngressString || ingress == IngressContourHttpProxyString || ingress == IngressNoneString
+	if ingress == "" {
+		return true
+	}
+	for _, value := range ValidIngressOptions() {
+		if ingress == value {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SiteConfigSpec) CheckIngress() error {
