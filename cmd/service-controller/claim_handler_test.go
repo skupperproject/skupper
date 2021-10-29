@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,7 @@ import (
 type MockVerifier struct {
 	Current int
 	Results []MockVerificationResult
+	cli     *client.VanClient
 }
 
 type MockVerificationResult struct {
@@ -52,11 +54,18 @@ func (server *MockVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			remoteSiteVersion := r.URL.Query().Get("site-version")
 			if !bytes.Equal(body, server.Results[server.Current].Password) {
 				http.Error(w, "password does not match", http.StatusForbidden)
 			} else if server.Results[server.Current].Certificate == nil {
 				http.Error(w, server.Results[server.Current].StatusMessage, server.Results[server.Current].StatusCode)
 			} else {
+				if remoteSiteVersion != "" {
+					if err = server.cli.VerifySiteCompatibility(remoteSiteVersion); err != nil {
+						http.Error(w, err.Error(), http.StatusBadRequest)
+						return
+					}
+				}
 				s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 				err := s.Encode(server.Results[server.Current].Certificate, w)
 				if err != nil {
@@ -69,8 +78,8 @@ func (server *MockVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newTestClaim(name string, url string, password []byte) *corev1.Secret {
-	return &corev1.Secret{
+func newTestClaim(name string, url string, password []byte, siteVersion string) *corev1.Secret {
+	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Secret",
@@ -88,6 +97,34 @@ func newTestClaim(name string, url string, password []byte) *corev1.Secret {
 			types.ClaimPasswordDataKey: password,
 		},
 	}
+	if siteVersion != "" {
+		secret.ObjectMeta.Annotations[types.SiteVersion] = siteVersion
+	}
+	return secret
+}
+
+func initFakeClientSet(namespace, siteVersion string) *fake.Clientset {
+	return fake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      types.TransportConfigMapName,
+		},
+		Data: map[string]string{
+			"qdrouterd.json": `
+    [
+        [
+            "router",
+            {
+                "id": "skupper-fakens",
+                "mode": "interior",
+                "helloMaxAgeSeconds": "3",
+                "metadata": "{\"id\":\"my-fake-site-id\",\"version\":\"` + siteVersion + `\"}"
+            }
+        ]
+    ]
+`,
+		},
+	})
 }
 
 func TestClaimHandler(t *testing.T) {
@@ -95,7 +132,7 @@ func TestClaimHandler(t *testing.T) {
 	event.StartDefaultEventStore(nil)
 	cli := &client.VanClient{
 		Namespace:  "claim-handler-test",
-		KubeClient: fake.NewSimpleClientset(),
+		KubeClient: initFakeClientSet("claim-handler-test", client.Version),
 	}
 
 	handler := &ClaimHandler{
@@ -104,13 +141,18 @@ func TestClaimHandler(t *testing.T) {
 		siteId:    "site-a",
 	}
 
-	verifier := &MockVerifier{}
+	verifier := &MockVerifier{
+		cli: &client.VanClient{
+			Namespace:  "claim-handler-server-test",
+			KubeClient: initFakeClientSet("claim-handler-server-test", client.Version),
+		},
+	}
 	server := httptest.NewServer(verifier)
 	defer server.Close()
 
 	name := "foo"
 	password := []byte("abcdefg")
-	claim := newTestClaim(name, server.URL, password)
+	claim := newTestClaim(name, server.URL, password, "")
 	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(claim)
 	assert.Check(t, err, name)
 	cert := &corev1.Secret{
@@ -149,7 +191,7 @@ func TestInvalidClaims(t *testing.T) {
 	event.StartDefaultEventStore(nil)
 	cli := &client.VanClient{
 		Namespace:  "claim-handler-test",
-		KubeClient: fake.NewSimpleClientset(),
+		KubeClient: initFakeClientSet("claim-handler-test", client.Version),
 	}
 
 	handler := &ClaimHandler{
@@ -245,5 +287,126 @@ func TestInvalidClaims(t *testing.T) {
 		err := handler.redeemClaim(test.secret)
 		assert.Check(t, err, test.secret.ObjectMeta.Name)
 		assert.Equal(t, test.secret.ObjectMeta.Annotations[types.StatusAnnotationKey], test.err, test.secret.ObjectMeta.Name)
+	}
+}
+
+func TestIncompatibleClaims(t *testing.T) {
+	var tests = []struct {
+		serverSiteVersion string
+		clientSiteVersion string
+		err               string
+	}{
+		{
+			serverSiteVersion: "undefined",
+			clientSiteVersion: "",
+			err:               "",
+		},
+		{
+			serverSiteVersion: "nodeport-338-g6558216-modified",
+			clientSiteVersion: "",
+			err:               "",
+		},
+		{
+			serverSiteVersion: "nodeport-338-g6558216-modified",
+			clientSiteVersion: "0.8.0",
+			err:               "",
+		},
+		{
+			serverSiteVersion: "0.8.0",
+			clientSiteVersion: "0.8.0",
+			err:               "",
+		},
+		{
+			serverSiteVersion: "0.8.0",
+			clientSiteVersion: "0.9.0",
+			err:               "",
+		},
+		{
+			serverSiteVersion: "0.9.0",
+			clientSiteVersion: "0.8.0",
+			err:               "",
+		},
+		{
+			serverSiteVersion: "0.8.0",
+			clientSiteVersion: "undefined",
+			err:               "",
+		},
+		{
+			serverSiteVersion: "0.8.0",
+			clientSiteVersion: "0.7.0",
+			err:               "minimum version required 0.8.0",
+		},
+		{
+			serverSiteVersion: "0.8.0",
+			clientSiteVersion: "0.6.0",
+			err:               "minimum version required 0.8.0",
+		},
+	}
+
+	event.StartDefaultEventStore(nil)
+	verifier := &MockVerifier{
+		cli: &client.VanClient{
+			Namespace:  "claim-handler-server-test",
+			KubeClient: initFakeClientSet("claim-handler-server-test", client.Version),
+		},
+	}
+	server := httptest.NewServer(verifier)
+	defer server.Close()
+
+	// static claim info
+	password := []byte("abcdefg")
+	name := "claim1"
+	cert := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				types.SkupperTypeQualifier: types.TypeClaimRecord,
+			},
+			Annotations: map[string]string{
+				"foo": "bar",
+				"bar": "baz",
+			},
+		},
+		Data: map[string][]byte{
+			"a": []byte("1"),
+			"b": []byte("2"),
+		},
+	}
+	verifier.addSuccessfulResult(password, cert)
+
+	for _, test := range tests {
+		// defining test iteration name
+		expected := "allow"
+		if test.err != "" {
+			expected = "deny"
+		}
+		testName := fmt.Sprintf("server-%s-client-%s-expect-%s", test.serverSiteVersion, test.clientSiteVersion, expected)
+		t.Run(testName, func(t *testing.T) {
+			// initializing the client
+			cli := &client.VanClient{
+				Namespace:  "claim-handler-test",
+				KubeClient: initFakeClientSet("claim-handler-test", test.clientSiteVersion),
+			}
+			handler := &ClaimHandler{
+				name:      "ClaimHandler",
+				vanClient: cli,
+				siteId:    "site-a",
+			}
+
+			// defining the claim on the site that is going to redeem the claim
+			claim := newTestClaim(name, server.URL, password, test.clientSiteVersion)
+			_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(claim)
+			assert.Check(t, err, name)
+
+			// update the skupper-site version that the fake server is running
+			verifier.cli.KubeClient = initFakeClientSet("claim-handler-server-test", test.serverSiteVersion)
+
+			// validating redeemClaim
+			err = handler.redeemClaim(claim)
+			assert.Assert(t, (err == nil) == (test.err == ""))
+			if test.err != "" {
+				assert.ErrorContains(t, err, test.err)
+			}
+		})
 	}
 }

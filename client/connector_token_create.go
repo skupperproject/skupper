@@ -210,6 +210,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 	secret := certs.GenerateSecret(subject, subject, hostPorts.Hosts, caSecret)
 	annotateConnectionToken(&secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
 	annotateConnectionToken(&secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
+	secret.Annotations[types.SiteVersion] = current.GetSiteMetadata().Version
 	if secret.ObjectMeta.Labels == nil {
 		secret.ObjectMeta.Labels = map[string]string{}
 	}

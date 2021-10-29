@@ -1030,3 +1030,16 @@ func (cli *VanClient) restartController(namespace string) error {
 	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(controller)
 	return err
 }
+
+func (cli *VanClient) GetSiteMetadata() (*qdr.SiteMetadata, error) {
+	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	config, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return nil, err
+	}
+	metadata := config.GetSiteMetadata()
+	return &metadata, nil
+}
