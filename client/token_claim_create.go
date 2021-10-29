@@ -169,6 +169,7 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 			},
 			Annotations: map[string]string{
 				types.ClaimUrlAnnotationKey: url,
+				types.SiteVersion:           current.GetSiteMetadata().Version,
 			},
 		},
 		Data: map[string][]byte{
@@ -195,6 +196,10 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 	if err != nil {
 		return nil, false, err
 	}
+	siteMetadata, err := cli.GetSiteMetadata()
+	if err != nil {
+		return nil, false, err
+	}
 	record := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -205,7 +210,9 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 			Labels: map[string]string{
 				types.SkupperTypeQualifier: types.TypeClaimRecord,
 			},
-			Annotations: map[string]string{},
+			Annotations: map[string]string{
+				types.SiteVersion: siteMetadata.Version,
+			},
 		},
 		Data: map[string][]byte{
 			types.ClaimPasswordDataKey: password,

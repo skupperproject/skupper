@@ -93,8 +93,12 @@ func (h *ClaimHandler) redeemClaim(claim *corev1.Secret) error {
 	client := &http.Client{
 		Transport: transport,
 	}
+	siteMeta, err := h.vanClient.GetSiteMetadata()
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(password))
 	request.Header.Add("skupper-site-name", h.siteId)
+	query := request.URL.Query()
+	query.Add("site-version", siteMeta.Version)
+	request.URL.RawQuery = query.Encode()
 	response, err := client.Do(request)
 	if err != nil {
 		return h.handleError(claim, err.Error(), false)

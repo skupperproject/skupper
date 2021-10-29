@@ -182,6 +182,11 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 			if err != nil {
 				return nil, err
 			}
+			// Verify if site link can be created
+			err = cli.VerifySecretCompatibility(secret)
+			if err != nil {
+				return nil, err
+			}
 			if secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeClaimRequest {
 				//can site handle claims?
 				err := cli.requireSiteVersion(ctx, options.SkupperNamespace, "0.7.0")
@@ -210,6 +215,38 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 	} else {
 		return nil, fmt.Errorf("Failed to retrieve router deployment: %w", err)
 	}
+}
+
+// VerifySecretCompatibility returns nil if current site version is compatible
+// with the token or cert provided. If sites are not compatible an error is
+// returned with the appropriate information
+func (cli *VanClient) VerifySecretCompatibility(secret corev1.Secret) error {
+	var secretVersion string
+	if secret.Annotations != nil {
+		secretVersion = secret.Annotations[types.SiteVersion]
+	}
+	if err := cli.VerifySiteCompatibility(secretVersion); err != nil {
+		if secretVersion == "" {
+			secretVersion = "undefined"
+		}
+		return fmt.Errorf("%v - remote site version is %s", err, secretVersion)
+	}
+	return nil
+}
+
+// VerifySiteCompatibility returns nil if current site version is compatible
+// with the provided version, otherwise it returns a clear error.
+func (cli *VanClient) VerifySiteCompatibility(siteVersion string) error {
+	siteMeta, err := cli.GetSiteMetadata()
+	if err != nil {
+		return err
+	}
+	if utils.LessRecentThanVersion(siteVersion, siteMeta.Version) {
+		if !utils.IsValidFor(siteVersion, cli.GetMinimumCompatibleVersion()) {
+			return fmt.Errorf("minimum version required %s", cli.GetMinimumCompatibleVersion())
+		}
+	}
+	return nil
 }
 
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
