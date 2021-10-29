@@ -481,6 +481,9 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	// for qdr listener, check for 5672 in use, if it is get a free port
 	var amqpPort int
@@ -552,10 +555,6 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
 	qdrConfig.Execute(&buf, instance)
 
-	if err != nil {
-		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
-	}
-
 	err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write config file: %w", err)
@@ -617,8 +616,14 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 	}
 
 	secret, _, err := cli.ConnectorTokenCreate(context.Background(), gatewayPrefix+gatewayName, "")
+	if err != nil {
+		return "", fmt.Errorf("Failed to create gateway token: %w", err)
+	}
 	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
 	_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(secret)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create gateway secret: %w", err)
+	}
 
 	routerConfig := qdr.InitialConfig("gateway-"+gatewayName+"-{{.Hostname}}", "{{.RouterID}}", Version, true, 3)
 
@@ -796,6 +801,9 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 		return tarFile.Name(), fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return tarFile.Name(), fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	mc, _ := qdr.MarshalRouterConfig(*gatewayConfig)
 
@@ -807,10 +815,6 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	var buf bytes.Buffer
 	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
 	qdrConfig.Execute(&buf, instance)
-
-	if err != nil {
-		return tarFile.Name(), fmt.Errorf("Failed to parse gateway configmap: %w", err)
-	}
 
 	err = writeTar("config/qdrouterd.json", buf.Bytes(), time.Now(), tw)
 	if err != nil {
@@ -1001,22 +1005,24 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 	}
 
 	svcList, err := cli.KubeClient.CoreV1().Services(cli.GetNamespace()).List(metav1.ListOptions{LabelSelector: types.GatewayQualifier + "=" + gatewayName})
-	for _, service := range svcList.Items {
-		si, err := cli.ServiceInterfaceInspect(ctx, service.Name)
-		if err != nil {
-			return fmt.Errorf("Failed to retrieve service: %w", err)
-		}
-		if si != nil && len(si.Targets) == 0 && si.Origin == "" {
-			err := cli.ServiceInterfaceRemove(ctx, service.Name)
+	if err == nil {
+		for _, service := range svcList.Items {
+			si, err := cli.ServiceInterfaceInspect(ctx, service.Name)
 			if err != nil {
-				return fmt.Errorf("Failed to remove service: %w", err)
+				return fmt.Errorf("Failed to retrieve service: %w", err)
 			}
-		} else {
-			delete(service.ObjectMeta.Labels, types.GatewayQualifier)
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				_, err = cli.KubeClient.CoreV1().Services(cli.GetNamespace()).Update(&service)
-				return err
-			})
+			if si != nil && len(si.Targets) == 0 && si.Origin == "" {
+				err := cli.ServiceInterfaceRemove(ctx, service.Name)
+				if err != nil {
+					return fmt.Errorf("Failed to remove service: %w", err)
+				}
+			} else {
+				delete(service.ObjectMeta.Labels, types.GatewayQualifier)
+				err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					_, err = cli.KubeClient.CoreV1().Services(cli.GetNamespace()).Update(&service)
+					return err
+				})
+			}
 		}
 	}
 
@@ -1235,6 +1241,9 @@ func (cli *VanClient) GatewayBind(ctx context.Context, gatewayName string, endpo
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	si, err := cli.ServiceInterfaceInspect(ctx, service.Address)
 	if err != nil {
@@ -1332,6 +1341,9 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, gatewayName string, end
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	si, err := cli.ServiceInterfaceInspect(ctx, service.Address)
 	if err != nil {
@@ -1485,6 +1497,9 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, gatewayName string, e
 		return fmt.Errorf("Unable to retrieve gateay definition: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	if deleteLast && len(gatewayConfig.Bridges.TcpConnectors) == 1 && len(gatewayConfig.Bridges.TcpListeners) == 0 {
 		err = cli.GatewayRemove(ctx, gatewayName)
@@ -1538,6 +1553,9 @@ func (cli *VanClient) GatewayForward(ctx context.Context, gatewayName string, en
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	ifc := "0.0.0.0"
 	if loopback {
@@ -1631,6 +1649,9 @@ func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, 
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	si, err := cli.ServiceInterfaceInspect(ctx, service.Address)
 	if err != nil {
@@ -1739,6 +1760,9 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 		return nil, fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	gatewayType, err := cli.getGatewayType(gatewayName)
 	if err != nil {
@@ -1870,6 +1894,9 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 		return exportFile, fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
 	routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return exportFile, fmt.Errorf("Failed to parse gateway configmap: %w", err)
+	}
 
 	gatewayConfig := GatewayConfig{
 		GatewayName:  exportGatewayName,
@@ -1946,13 +1973,16 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 			TargetPorts: []int{port},
 		})
 	}
-	mcData, err := yaml.Marshal(&gatewayConfig)
 
+	mcData, err := yaml.Marshal(&gatewayConfig)
 	if err != nil {
-		return exportFile, fmt.Errorf("Failed to marshal export config ")
+		return exportFile, fmt.Errorf("Failed to marshal export config: %w", err)
 	}
 
 	err = ioutil.WriteFile(exportFile, mcData, 0644)
+	if err != nil {
+		return exportFile, fmt.Errorf("Failed to write export config file: %w", err)
+	}
 
 	return exportFile, nil
 }
@@ -1991,8 +2021,14 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayPrefix+gatewayName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		secret, _, err = cli.ConnectorTokenCreate(context.Background(), gatewayPrefix+gatewayName, "")
+		if err != nil {
+			return tarFile.Name(), fmt.Errorf("Failed to create gateway token: %w", err)
+		}
 		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
 		_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(secret)
+		if err != nil {
+			return tarFile.Name(), fmt.Errorf("Failed to create gateway secret: %w", err)
+		}
 	} else if err != nil {
 		return tarFile.Name(), fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
 	}
@@ -2158,6 +2194,9 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 
 	expand := expandVars()
 	err = writeTar("expandvars.py", []byte(expand), time.Now(), tw)
+	if err != nil {
+		return tarFile.Name(), err
+	}
 
 	return tarFile.Name(), nil
 }
