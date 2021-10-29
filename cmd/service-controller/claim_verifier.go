@@ -145,6 +145,15 @@ func (server *ClaimVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("No site name specified, using claim name")
 		subject = name
 	}
+	remoteSiteVersion := r.URL.Query().Get("site-version")
+	if err = server.vanClient.VerifySiteCompatibility(remoteSiteVersion); err != nil {
+		if remoteSiteVersion == "" {
+			remoteSiteVersion = "undefined"
+		}
+		event.Recordf(TokenClaimVerification, "%s - remote site version is %s", err.Error(), remoteSiteVersion)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	token, text, code := server.redeemClaim(name, subject, body, server.vanClient)
 	if token == nil {
 		event.Recordf(TokenClaimVerification, "Claim request for %s failed: %s", name, text)

@@ -10,6 +10,9 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 var lightRed string = "\033[1;31m"
@@ -185,4 +188,139 @@ func configureSiteAndCreateRouter(t *testing.T, ctx context.Context, cli *VanCli
 	assert.Assert(t, err, "Unable to configure %s site", name)
 	err = cli.RouterCreate(ctx, *siteConfig)
 	assert.Assert(t, err, "Unable to create %s VAN router", name)
+}
+
+func TestVerifySiteCompatibility(t *testing.T) {
+
+	testTable := []struct {
+		siteVersion       string
+		minimumCompatible string
+		clientSiteVersion string
+		accept            bool
+	}{
+		{
+			siteVersion:       "0.8.0",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "",
+			accept:            false,
+		},
+		{
+			siteVersion:       "0.8.0",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "0.7.0",
+			accept:            false,
+		},
+		{
+			siteVersion:       "nodeport-338-g6558216-modified",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "0.7.0",
+			accept:            true,
+		},
+		{
+			siteVersion:       "nodeport-338-g6558216",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "0.8.0",
+			accept:            true,
+		},
+		{
+			siteVersion:       "0.8.0",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "nodeport-338-g6558216",
+			accept:            true,
+		},
+		{
+			siteVersion:       "nodeport-338-g6558216",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "nodeport-338-g6558216",
+			accept:            true,
+		},
+		{
+			siteVersion:       "0.8.0",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "0.8.0",
+			accept:            true,
+		},
+		{
+			siteVersion:       "0.8.0",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "0.8.1",
+			accept:            true,
+		},
+		{
+			siteVersion:       "0.8.0",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "0.9.0",
+			accept:            true,
+		},
+		{
+			siteVersion:       "0.9.0",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "0.8.0",
+			accept:            true,
+		},
+		{
+			siteVersion:       "0.10.0",
+			minimumCompatible: "0.8.0",
+			clientSiteVersion: "0.8.0",
+			accept:            true,
+		},
+		{
+			siteVersion:       "0.10.0",
+			minimumCompatible: "0.9.1",
+			clientSiteVersion: "0.9.0",
+			accept:            false,
+		},
+		{
+			siteVersion:       "0.10.0",
+			minimumCompatible: "0.9.1",
+			clientSiteVersion: "0.9.1",
+			accept:            true,
+		},
+	}
+
+	var cli *VanClient
+	var err error
+
+	cli, err = newMockClient("fakens", "", "")
+	assert.Assert(t, err)
+
+	// Generates a fake client that simulates a skupper-internal using a specific version
+	initKubeClient := func(siteVersion string) {
+		cli.KubeClient = fake.NewSimpleClientset(&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "fakens",
+				Name:      types.TransportConfigMapName,
+			},
+			Data: map[string]string{
+				"qdrouterd.json": `
+    [
+        [
+            "router",
+            {
+                "id": "skupper-fakens",
+                "mode": "interior",
+                "helloMaxAgeSeconds": "3",
+                "metadata": "{\"id\":\"my-fake-site-id\",\"version\":\"` + siteVersion + `\"}"
+            }
+        ]
+    ]
+`,
+			},
+		})
+	}
+
+	originalMinimumCompatible := minimumCompatibleVersion
+	for _, test := range testTable {
+		name := fmt.Sprintf("site-%s-minimum-%s-provided-%s", test.siteVersion, minimumCompatibleVersion, test.clientSiteVersion)
+		t.Run(name, func(t *testing.T) {
+			minimumCompatibleVersion = test.minimumCompatible
+			initKubeClient(test.siteVersion)
+			compatErr := cli.VerifySiteCompatibility(test.clientSiteVersion)
+			assert.Assert(t, test.accept == (compatErr == nil))
+			if !test.accept {
+				assert.Assert(t, compatErr.Error() == fmt.Sprintf("minimum version required %s", test.minimumCompatible))
+			}
+		})
+	}
+	minimumCompatibleVersion = originalMinimumCompatible
 }
