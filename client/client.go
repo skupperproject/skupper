@@ -17,6 +17,7 @@ import (
 )
 
 var Version = "undefined"
+var minimumCompatibleVersion = "0.8.0"
 
 // A VAN Client manages orchestration and communications with the network components
 type VanClient struct {
@@ -37,6 +38,10 @@ func (cli *VanClient) GetKubeClient() kubernetes.Interface {
 
 func (cli *VanClient) GetVersion(component string, name string) string {
 	return kube.GetComponentVersion(cli.Namespace, cli.KubeClient, component, name)
+}
+
+func (cli *VanClient) GetMinimumCompatibleVersion() string {
+	return minimumCompatibleVersion
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {

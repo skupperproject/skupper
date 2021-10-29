@@ -149,6 +149,7 @@ const (
 	TypeTokenQualifier          string = BaseQualifier + "/type=connection-token"
 	TypeTokenRequestQualifier   string = BaseQualifier + "/type=connection-token-request"
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
+	SiteVersion                 string = BaseQualifier + "/site-version"
 	TokenCost                   string = BaseQualifier + "/cost"
 	UpdatedAnnotation           string = InternalQualifier + "/updated"
 	AnnotationExcludes          string = BaseQualifier + "/exclude-annotations"
