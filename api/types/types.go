@@ -146,6 +146,7 @@ const (
 	TypeToken                   string = "connection-token"
 	TypeClaimRecord             string = "token-claim-record"
 	TypeClaimRequest            string = "token-claim"
+	TypeGatewayToken            string = "gateway-connection-token"
 	TypeTokenQualifier          string = BaseQualifier + "/type=connection-token"
 	TypeTokenRequestQualifier   string = BaseQualifier + "/type=connection-token-request"
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"

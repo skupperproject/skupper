@@ -620,6 +620,10 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 		return "", fmt.Errorf("Failed to create gateway token: %w", err)
 	}
 	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
+	if secret.Labels == nil {
+		secret.Labels = map[string]string{}
+	}
+	secret.Labels[types.SkupperTypeQualifier] = types.TypeGatewayToken
 	_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(secret)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create gateway secret: %w", err)
