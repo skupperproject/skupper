@@ -15,6 +15,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
@@ -678,6 +679,12 @@ func TestGatewayInit(t *testing.T) {
 			assert.Assert(t, observedError)
 			assert.Equal(t, gatewayInspect.GatewayName, tc.actualName)
 			assert.Equal(t, gatewayInspect.GatewayUrl, tc.url)
+
+			secret, observedError := cli.KubeClient.CoreV1().Secrets(namespace).Get(gatewayPrefix+gatewayName, metav1.GetOptions{})
+			assert.Assert(t, observedError)
+			ct, ok := secret.Labels[types.SkupperTypeQualifier]
+			assert.Assert(t, ok)
+			assert.Equal(t, ct, types.TypeGatewayToken)
 		}
 	}
 
