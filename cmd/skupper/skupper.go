@@ -692,8 +692,8 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&(exposeOpts.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
 	cmd.Flags().StringVar(&(exposeOpts.Address), "address", "", "The Skupper address to expose")
-	cmd.Flags().IntSliceVar(&(exposeOpts.Ports), "port", []int{}, "The ports to expose on")
-	cmd.Flags().StringSliceVar(&(exposeOpts.TargetPorts), "target-port", []string{}, "The ports to target on pods")
+	cmd.Flags().IntSliceVar(&(exposeOpts.Ports), "port", []int{}, "The port to expose on (this argument can be provided multiple times)")
+	cmd.Flags().StringSliceVar(&(exposeOpts.TargetPorts), "target-port", []string{}, "The port to target on pods. If using multiple ports, you must provide target ports using positional index or map a source to a target port with a colon")
 	cmd.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Cpu, "proxy-cpu", "", "CPU request for router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Memory, "proxy-memory", "", "Memory request for router pods")
@@ -997,21 +997,34 @@ func NewCmdBind(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
-	cmd.Flags().StringSliceVar(&targetPorts, "target-port", []string{}, "The port the target is listening on (you can also use colon to map source-port to a target-port).")
+	cmd.Flags().StringSliceVar(&targetPorts, "target-port", []string{}, "The port the target is listening on. If using multiple ports, you must provide target ports using positional index or map a source to a target port with a colon.")
 
 	return cmd
 }
 
 func parsePortMapping(service *types.ServiceInterface, targetPorts []string) (map[int]int, error) {
-	if len(targetPorts) > 0 && len(service.Ports) != len(targetPorts) {
-		return nil, fmt.Errorf("service defines %d ports but only %d mapped (all ports must be mapped)",
-			len(service.Ports), len(targetPorts))
+	unMappedCount := 0
+	for _, port := range targetPorts {
+		if !strings.Contains(port, ":") {
+			unMappedCount++
+		}
+	}
+	if unMappedCount > 0 && unMappedCount != len(targetPorts) {
+		return nil, fmt.Errorf("you should not mix positional target ports with mapped target ports (using colon)")
+	}
+	if unMappedCount > 0 && unMappedCount > len(service.Ports) {
+		return nil, fmt.Errorf("service defines %d ports but %d target ports provided (you must provide no more than %d target ports when associating by index)",
+			len(service.Ports), len(targetPorts), len(service.Ports))
 	}
 	ports := map[int]int{}
 	for _, port := range service.Ports {
 		ports[port] = port
 	}
-	for i, port := range targetPorts {
+	i := 0
+	for _, port := range targetPorts {
+		if port == "-" {
+			continue
+		}
 		portSplit := strings.SplitN(port, ":", 2)
 		var sPort, tPort string
 		sPort = portSplit[0]
@@ -1035,6 +1048,7 @@ func parsePortMapping(service *types.ServiceInterface, targetPorts []string) (ma
 		// if target port not mapped, use positional index to determine it
 		if !mapping {
 			isp = service.Ports[i]
+			i++
 		}
 		ports[isp] = itp
 	}
