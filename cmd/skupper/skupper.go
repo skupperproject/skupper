@@ -1674,6 +1674,9 @@ func init() {
 
 	cmdRevokeAll := NewCmdRevokeaccess(newClient)
 
+	cmdNetwork := NewCmdNetwork()
+	cmdNetwork.AddCommand(NewCmdNetworkStatus(newClient))
+
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
@@ -1696,7 +1699,8 @@ func init() {
 		cmdDebug,
 		cmdCompletion,
 		cmdGateway,
-		cmdRevokeAll)
+		cmdRevokeAll,
+		cmdNetwork)
 
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
