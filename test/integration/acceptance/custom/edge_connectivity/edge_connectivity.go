@@ -21,10 +21,11 @@ type TestCase struct {
 	diagram            []string
 	createOptsPublic   types.SiteConfigSpec
 	createOptsPrivate  types.SiteConfigSpec
-	public_public_cnx  map[int]int
+	public_public_cnx  map[int][]int
 	private_public_cnx []int
 	direct_count       int
-	indirect_count     int
+	pub_indirect_count map[int]int
+	prv_indirect_count map[int]int
 }
 
 type EdgeConnectivityTestRunner struct {
@@ -33,15 +34,10 @@ type EdgeConnectivityTestRunner struct {
 
 func (r *EdgeConnectivityTestRunner) RunTests(testCase *TestCase, ctx context.Context, t *testing.T) (err error) {
 
-	pubCluster, err := r.GetPublicContext(1)
-	assert.Assert(t, err)
-
-	prvCluster, err := r.GetPrivateContext(1)
-	assert.Assert(t, err)
-
 	tick := time.Tick(constants.DefaultTick)
 	timeout := time.After(constants.TestSuiteTimeout)
-	wait_for_conn := func(cc *base.ClusterContext, countConnections bool) (err error) {
+	wait_for_conn := func(cc *base.ClusterContext) (err error) {
+		t.Logf("Waiting for expected connections on namespace: %s", cc.Namespace)
 		for {
 			select {
 			case <-ctx.Done():
@@ -57,36 +53,34 @@ func (r *EdgeConnectivityTestRunner) RunTests(testCase *TestCase, ctx context.Co
 						t.Log(err)
 						return err
 					}
-					if !countConnections {
-						return nil
+					expectedIndirectCount := testCase.pub_indirect_count[cc.Id]
+					if cc.Private {
+						expectedIndirectCount = testCase.prv_indirect_count[cc.Id]
 					}
-					if testCase.direct_count == vir.Status.ConnectedSites.Direct &&
-						testCase.indirect_count == vir.Status.ConnectedSites.Indirect {
+					expectedDirectCount := testCase.direct_count - expectedIndirectCount
+					if expectedDirectCount == vir.Status.ConnectedSites.Direct &&
+						expectedIndirectCount == vir.Status.ConnectedSites.Indirect {
 						t.Logf("Connected sites count match!")
 						return nil
 					} else {
 						t.Logf("Connected sites count do not match yet...")
-						t.Logf("Direct connections found   : %d [expected: %d]", vir.Status.ConnectedSites.Direct, testCase.direct_count)
-						t.Logf("Indirect connections found : %d [expected: %d]", vir.Status.ConnectedSites.Indirect, testCase.indirect_count)
+						t.Logf("Direct connections found   : %d [expected: %d]", vir.Status.ConnectedSites.Direct, expectedDirectCount)
+						t.Logf("Indirect connections found : %d [expected: %d]", vir.Status.ConnectedSites.Indirect, expectedIndirectCount)
 						t.Logf("Connected sites info       : %v", vir.Status.ConnectedSites)
 					}
 				} else {
 					fmt.Printf("Connection not ready yet, current pods state: \n")
-					pubCluster.KubectlExec("get pods -o wide")
+					cc.KubectlExec("get pods -o wide")
 				}
 			}
 		}
 	}
-	err = wait_for_conn(pubCluster, false)
-	if err != nil {
-		return err
+	for _, cluster := range r.ClusterContexts {
+		err = wait_for_conn(cluster)
+		if err != nil {
+			return err
+		}
 	}
-
-	err = wait_for_conn(prvCluster, true)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -144,16 +138,21 @@ func (r *EdgeConnectivityTestRunner) Setup(ctx context.Context, testCase *TestCa
 
 	// Make all public-to-public connections. --------------------------
 	for public_1, public_2 := range testCase.public_public_cnx {
-		secretFileName := publicSecrets[public_2-1]
-		public_1_cluster, err := r.GetPublicContext(public_1)
-		assert.Assert(t, err)
-		connectorCreateOpts := types.ConnectorCreateOptions{SkupperNamespace: public_1_cluster.Namespace,
-			Name: "",
-			Cost: 0,
+		for _, destPub := range public_2 {
+			secretFileName := publicSecrets[destPub-1]
+			public_1_cluster, err := r.GetPublicContext(public_1)
+			assert.Assert(t, err)
+			connectorCreateOpts := types.ConnectorCreateOptions{SkupperNamespace: public_1_cluster.Namespace,
+				Name: "",
+				Cost: 0,
+			}
+			_, err = public_1_cluster.VanClient.ConnectorCreateFromFile(ctx, secretFileName, connectorCreateOpts)
+			assert.Assert(t, err)
 		}
-		_, err = public_1_cluster.VanClient.ConnectorCreateFromFile(ctx, secretFileName, connectorCreateOpts)
-		assert.Assert(t, err)
 	}
+
+	// Wait on all public components to be running (as router will restart)
+	// before making the connection
 
 	// Make all private-to-public connections. -------------------------
 	for _, public := range testCase.private_public_cnx {

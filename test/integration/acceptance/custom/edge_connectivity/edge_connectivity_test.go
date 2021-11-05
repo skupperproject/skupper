@@ -58,18 +58,18 @@ func TestEdgeConnectivity(t *testing.T) {
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
 			},
-			public_public_cnx: map[int]int{},
+			public_public_cnx: map[int][]int{},
 			// The IDs on clusters are 1-based, not 0-based.
 			private_public_cnx: []int{1},
 			direct_count:       1,
-			indirect_count:     0,
 		},
 
 		// Test 2 -------------------------------------------------------
 		{
 			name: "two-direct-V",
-			diagram: []string{"edge  -->  interior-1",
-				"edge  -->  interior-2"},
+			diagram: []string{"interior-1  -->  interior-2",
+				"edge  -->  interior-1",
+				"interior-1  -->  interior-3"},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -80,7 +80,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				User:              "",
 				Password:          "",
 				Ingress:           types.IngressNoneString,
-				Replicas:          2,
+				Replicas:          3,
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -94,11 +94,12 @@ func TestEdgeConnectivity(t *testing.T) {
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
 			},
-			public_public_cnx: map[int]int{},
+			public_public_cnx: map[int][]int{1: {2, 3}},
 			// The IDs on clusters are 1-based, not 0-based.
-			private_public_cnx: []int{1, 2},
-			direct_count:       2,
-			indirect_count:     0,
+			private_public_cnx: []int{1},
+			pub_indirect_count: map[int]int{2: 2, 3: 2},
+			prv_indirect_count: map[int]int{1: 2},
+			direct_count:       3,
 		},
 
 		// Test 3 -------------------------------------------------------
@@ -131,11 +132,10 @@ func TestEdgeConnectivity(t *testing.T) {
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
 			},
-			public_public_cnx: map[int]int{1: 2},
+			public_public_cnx: map[int][]int{1: {2}},
 			// The IDs on clusters are 1-based, not 0-based.
 			private_public_cnx: []int{1, 2},
 			direct_count:       2,
-			indirect_count:     0,
 		},
 
 		// Test 4 -------------------------------------------------------
@@ -144,7 +144,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			diagram: []string{"interior-1  -->  interior-2",
 				"interior-2  -->  interior-3",
 				"edge  -->  interior-1",
-				"edge  -->  interior-2",
+				"edge  -->  interior-2", // Might fail
 				"edge  -->  interior-3"},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -170,11 +170,11 @@ func TestEdgeConnectivity(t *testing.T) {
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
 			},
-			public_public_cnx: map[int]int{1: 2, 2: 3},
+			public_public_cnx: map[int][]int{1: {2}, 2: {3}},
 			// The IDs on clusters are 1-based, not 0-based.
 			private_public_cnx: []int{1, 2, 3},
+			pub_indirect_count: map[int]int{1: 1, 3: 1},
 			direct_count:       3,
-			indirect_count:     0,
 		},
 
 		// Test 5 -------------------------------------------------------
@@ -206,11 +206,12 @@ func TestEdgeConnectivity(t *testing.T) {
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
 			},
-			public_public_cnx: map[int]int{1: 2},
+			public_public_cnx: map[int][]int{1: {2}},
 			// The IDs on clusters are 1-based, not 0-based.
 			private_public_cnx: []int{1},
-			direct_count:       1,
-			indirect_count:     1,
+			direct_count:       2,
+			pub_indirect_count: map[int]int{1: 0, 2: 1},
+			prv_indirect_count: map[int]int{1: 1},
 		},
 	}
 
@@ -222,7 +223,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			for _, s := range testcase.diagram {
 				fp(os.Stdout, "\t%s\n", s)
 			}
-			fp(os.Stdout, "\n\tdirect: %d   indirect: %d\n", testcase.direct_count, testcase.indirect_count)
+			fp(os.Stdout, "\n\tdirect: %d   indirect (pub): %v   indirect (prv): %v\n", testcase.direct_count, testcase.pub_indirect_count, testcase.prv_indirect_count)
 			fp(os.Stdout, "%s\n\n", resetColor)
 		}
 
