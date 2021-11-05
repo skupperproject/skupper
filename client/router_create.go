@@ -669,6 +669,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Name: types.SiteCaSecret,
 		})
 	}
+
+	cas = append(cas, types.CertAuthority{Name: types.ServiceCaSecret})
+
 	van.CertAuthoritys = cas
 
 	credentials := []types.Credential{}

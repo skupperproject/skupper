@@ -15,15 +15,9 @@ import (
 
 func (cli *VanClient) CreateServiceCA(ownerRef *metav1.OwnerReference) error {
 
-	ca := types.CertAuthority{Name: types.ServiceCaSecret}
+	caCert, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.ServiceCaSecret, metav1.GetOptions{})
 
-	caSecret, err := kube.NewCertAuthority(ca, ownerRef, cli.Namespace, cli.KubeClient)
-
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return err
-	}
-
-	_, err = kube.NewSimpleSecret(types.ServiceClientSecret, caSecret, ownerRef, cli.Namespace, cli.KubeClient)
+	_, err = kube.NewSimpleSecret(types.ServiceClientSecret, caCert, ownerRef, cli.Namespace, cli.KubeClient)
 
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
