@@ -3,6 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/qdr"
+	"k8s.io/client-go/util/retry"
 	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -57,17 +60,35 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 
 	if err == nil && secret != nil {
 
-		err := cli.RemoveSecretFromRouter(secret.Name)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+
+			err := qdr.RemoveSslProfile(secret.Name, cli.Namespace, cli.KubeClient)
+			if err != nil {
+				return err
+			}
+
+			err = kube.RemoveSecretAndUpdateDeployment(secret.Name, types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
 
 		if err != nil {
 			log.Printf("Failed to remove secret from the router: %v", err.Error())
 		}
 
-		err = cli.DeleteSecretForService(secret.Name)
-		if err != nil {
-			log.Printf("Failed to remove secret from the site: %v", err.Error())
-		}
+		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(secret.Name, metav1.GetOptions{})
 
+		if err == nil {
+
+			err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+
+			if err != nil {
+				log.Printf("Failed to remove secret from the site: %v", err.Error())
+			}
+		}
 	}
 
 }

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/retry"
 	"log"
 	"strconv"
 	"strings"
@@ -1201,9 +1202,8 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		}
 	}
 
-	// Create a CA associated with the site to create certificates for each service
-	// and a generic client secret with that CA.
-	err = cli.CreateServiceCA(siteOwnerRef)
+	// Create a generic client secret with the CA associated with the site.
+	err = cli.createGenericClientSecret(siteOwnerRef)
 	if err != nil {
 		return err
 	}
@@ -1379,4 +1379,38 @@ func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
 		owner.APIVersion = "v1"
 	}
 	return &owner
+}
+
+func (cli *VanClient) createGenericClientSecret(siteOwnerRef *metav1.OwnerReference) error {
+	caCert, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.ServiceCaSecret, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	_, err = kube.NewSimpleSecret(types.ServiceClientSecret, caCert, siteOwnerRef, cli.Namespace, cli.KubeClient)
+
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := qdr.AddSslProfile(types.ServiceClientSecret, cli.Namespace, cli.KubeClient)
+		if err != nil {
+			return err
+		}
+		err = kube.AppendSecretAndUpdateDeployment(
+			types.ServiceClientSecret,
+			"/etc/qpid-dispatch-certs/",
+			types.TransportDeploymentName,
+			cli.Namespace,
+			cli.KubeClient,
+			false)
+
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
+	}
+	return nil
 }

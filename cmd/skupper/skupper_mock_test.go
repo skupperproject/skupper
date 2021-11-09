@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"strings"
 	"testing"
@@ -283,26 +282,6 @@ func (cli *vanClientMock) GetVersion(component string, name string) string {
 }
 
 func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
-	return nil
-}
-
-func (v *vanClientMock) CreateServiceCA(ownerRef *metav1.OwnerReference) error {
-	return nil
-}
-
-func (v *vanClientMock) CreateSecretForService(serviceName string, hosts string, secretName string) (*corev1.Secret, error) {
-	return nil, nil
-}
-
-func (v *vanClientMock) DeleteSecretForService(secretName string) error {
-	return nil
-}
-
-func (v *vanClientMock) AppendSecretToRouter(secretName string, waitForRestart bool) error {
-	return nil
-}
-
-func (v *vanClientMock) RemoveSecretFromRouter(secretName string) error {
 	return nil
 }
 

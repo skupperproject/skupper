@@ -3,7 +3,6 @@ package types
 import (
 	"context"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -272,9 +271,4 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
-	CreateServiceCA(ownerRef *metav1.OwnerReference) error
-	CreateSecretForService(serviceName string, hosts string, secretName string) (*corev1.Secret, error)
-	DeleteSecretForService(secretName string) error
-	AppendSecretToRouter(secretName string, waitForRestart bool) error
-	RemoveSecretFromRouter(secretName string) error
 }
