@@ -150,6 +150,8 @@ func (d *RevokeAccessTester) initializeInformers(cluster *base.ClusterContext, s
 	// Starting informers
 	go d.secretInformer.Run(stop)
 	go d.podInformer.Run(stop)
+	cache.WaitForCacheSync(stop, d.secretInformer.HasSynced)
+	cache.WaitForCacheSync(stop, d.podInformer.HasSynced)
 
 	return done
 }
