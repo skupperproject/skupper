@@ -6,30 +6,43 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
 )
 
 func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string) error {
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
-	if err == nil && current.Data != nil {
-		jsonDef := current.Data[address]
-		if jsonDef == "" {
-			return fmt.Errorf("Service %s not defined", address)
-		} else {
-			delete(current.Data, address)
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
-			if err != nil {
-				return fmt.Errorf("Failed to update skupper-services config map: %v", err.Error())
-			} else {
+	var unretryable error = nil
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+		if err == nil && current.Data != nil {
+			jsonDef := current.Data[address]
+			if jsonDef == "" {
+				unretryable = fmt.Errorf("Service %s not defined", address)
 				return nil
+			} else {
+				delete(current.Data, address)
+				_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+				if err != nil {
+					// do not encapsulate this error, or it won't pass the errors.IsConflict test
+					return err
+				} else {
+					return nil
+				}
 			}
+		} else if errors.IsNotFound(err) {
+			unretryable = fmt.Errorf("No skupper services defined: %v", err.Error())
+			return nil
+		} else if current.Data == nil {
+			unretryable = fmt.Errorf("Service %s not defined", address)
+			return nil
+		} else {
+			unretryable = fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services': %s", err.Error())
+			return nil
 		}
-	} else if errors.IsNotFound(err) {
-		return fmt.Errorf("No skupper services defined: %v", err.Error())
-	} else if current.Data == nil {
-		return fmt.Errorf("Service %s not defined", address)
-	} else {
-		return fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services': %s", err.Error())
+	})
+	if unretryable != nil {
+		return unretryable
 	}
+	return err
 }
