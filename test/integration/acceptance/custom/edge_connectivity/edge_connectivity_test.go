@@ -32,8 +32,10 @@ func TestEdgeConnectivity(t *testing.T) {
 	testcases := []TestCase{
 		// Test 1 -------------------------------------------------------
 		{
-			name:    "one-direct",
-			diagram: []string{"edge  -->  interior"},
+			name: "one-direct",
+			diagram: []string{
+				"edge  -->  interior",
+			},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -67,9 +69,11 @@ func TestEdgeConnectivity(t *testing.T) {
 		// Test 2 -------------------------------------------------------
 		{
 			name: "two-direct-V",
-			diagram: []string{"interior-1  -->  interior-2",
+			diagram: []string{
 				"edge  -->  interior-1",
-				"interior-1  -->  interior-3"},
+				"interior-1  -->  interior-2",
+				"interior-1  -->  interior-3",
+			},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -104,10 +108,12 @@ func TestEdgeConnectivity(t *testing.T) {
 
 		// Test 3 -------------------------------------------------------
 		{
-			name: "two-direct-triangle",
+			name: "three-direct-triangle",
 			diagram: []string{"edge  -->  interior-1",
-				"edge  -->  interior-2",
-				"interior-1  --> interior-2"},
+				"interior-1  -->  interior-2",
+				"interior-2  --> interior-3",
+				"interior-3  --> interior-1",
+			},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -118,7 +124,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				User:              "",
 				Password:          "",
 				Ingress:           types.IngressNoneString,
-				Replicas:          2,
+				Replicas:          3,
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -132,20 +138,21 @@ func TestEdgeConnectivity(t *testing.T) {
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
 			},
-			public_public_cnx: map[int][]int{1: {2}},
+			public_public_cnx: map[int][]int{1: {2}, 2: {3}, 3: {1}},
 			// The IDs on clusters are 1-based, not 0-based.
-			private_public_cnx: []int{1, 2},
-			direct_count:       2,
+			private_public_cnx: []int{1},
+			pub_indirect_count: map[int]int{2: 1, 3: 1},
+			prv_indirect_count: map[int]int{1: 2},
+			direct_count:       3,
 		},
-
 		// Test 4 -------------------------------------------------------
 		{
 			name: "three-direct",
-			diagram: []string{"interior-1  -->  interior-2",
+			diagram: []string{
+				"interior-1  -->  interior-2",
 				"interior-2  -->  interior-3",
 				"edge  -->  interior-1",
-				"edge  -->  interior-2", // Might fail
-				"edge  -->  interior-3"},
+			},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -172,16 +179,19 @@ func TestEdgeConnectivity(t *testing.T) {
 			},
 			public_public_cnx: map[int][]int{1: {2}, 2: {3}},
 			// The IDs on clusters are 1-based, not 0-based.
-			private_public_cnx: []int{1, 2, 3},
-			pub_indirect_count: map[int]int{1: 1, 3: 1},
+			private_public_cnx: []int{1},
+			pub_indirect_count: map[int]int{1: 1, 2: 1, 3: 2},
+			prv_indirect_count: map[int]int{1: 2},
 			direct_count:       3,
 		},
 
 		// Test 5 -------------------------------------------------------
 		{
 			name: "one-direct-one-indirect",
-			diagram: []string{"edge  -->  interior-1",
-				"interior-1  -->  interior-2"},
+			diagram: []string{
+				"edge  -->  interior-1",
+				"interior-1  -->  interior-2",
+			},
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:       "",
 				RouterMode:        string(types.TransportModeInterior),
@@ -210,7 +220,7 @@ func TestEdgeConnectivity(t *testing.T) {
 			// The IDs on clusters are 1-based, not 0-based.
 			private_public_cnx: []int{1},
 			direct_count:       2,
-			pub_indirect_count: map[int]int{1: 0, 2: 1},
+			pub_indirect_count: map[int]int{2: 1},
 			prv_indirect_count: map[int]int{1: 1},
 		},
 	}
