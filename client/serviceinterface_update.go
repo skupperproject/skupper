@@ -44,7 +44,8 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 				}
 				_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
 				if err != nil {
-					return fmt.Errorf("Failed to update skupper-services config map: %s", err)
+					// do not encapsulate this error, or it won't pass the errors.IsConflict test
+					return err
 				} else {
 					return nil
 				}
