@@ -92,8 +92,8 @@ func (d *RevokeAccessTester) initializeInformers(cluster *base.ClusterContext, s
 	// Validate all expected changes are in place
 	validateDone := func() {
 		claimRecordsDeleted := !d.ExpectClaimRecordsDeleted || d.claimRecordsDeleted
-		secretsUpdated := utils.AllStrIn(expectUpdatedSecrets, updatedSecrets...)
-		componentsRecycled := utils.AllStrIn(expectUpdatedComponents, updatedComponents...)
+		secretsUpdated := utils.AllStrIn(updatedSecrets, expectUpdatedSecrets...)
+		componentsRecycled := utils.AllStrIn(updatedComponents, expectUpdatedComponents...)
 		log.Println("claim records deleted =", claimRecordsDeleted)
 		log.Println("updated secrets       =", secretsUpdated)
 		log.Println("updated components    =", componentsRecycled)
