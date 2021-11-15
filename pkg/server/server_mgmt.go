@@ -10,7 +10,8 @@ import (
 	restclient "k8s.io/client-go/rest"
 )
 
-func GetSiteInfo(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]types.SiteInfo, error) {
+func GetSiteInfo(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.SiteInfo, error) {
+
 	command := getQueryServiceController("sites")
 	buffer, err := serviceControllerExec(command, namespace, clientset, config)
 	if err != nil {
@@ -23,7 +24,25 @@ func GetSiteInfo(namespace string, clientset kubernetes.Interface, config *restc
 			fmt.Println("Failed to parse JSON:", err, buffer.String())
 			return nil, err
 		} else {
-			return results, nil
+			return &results, nil
+		}
+	}
+}
+
+func GetServiceInfo(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.ServiceInfo, error) {
+	command := getQueryServiceController("services")
+	buffer, err := serviceControllerExec(command, namespace, clientset, config)
+	if err != nil {
+		return nil, err
+	} else {
+		var results []types.ServiceInfo
+		err = json.Unmarshal(buffer.Bytes(), &results)
+
+		if err != nil {
+			fmt.Println("Failed to parse JSON:", err, buffer.String())
+			return nil, err
+		} else {
+			return &results, nil
 		}
 	}
 }

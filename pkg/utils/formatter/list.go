@@ -87,7 +87,7 @@ func printDetails(detailsMap map[string]string, level int, last map[int]bool) {
 	}
 	sort.Strings(keys)
 
-	for _, key := range keys {
+	for index, key := range keys {
 		for i := 1; i <= level; i++ {
 			if !last[i] {
 				fmt.Printf("│  ")
@@ -95,13 +95,12 @@ func printDetails(detailsMap map[string]string, level int, last map[int]bool) {
 				fmt.Printf("   ")
 			}
 		}
-		fmt.Println(key + " " + detailsMap[key])
+		detail := key + " " + detailsMap[key]
 
-	}
-
-	if !last[level] {
-		fmt.Printf("│  ")
-	} else {
-		fmt.Printf("   ")
+		if index < len(keys)-1 {
+			fmt.Println(detail)
+		} else {
+			fmt.Print(detail)
+		}
 	}
 }

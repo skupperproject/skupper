@@ -16,7 +16,6 @@ func NewCmdNetwork() *cobra.Command {
 
 var selectedSite string
 var selectedNamespace string
-var allNamespacesSelected bool
 
 func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -33,18 +32,58 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 				fmt.Println(err)
 			}
 
-			if sites != nil && len(*sites) > 0 {
+			siteConfig, err := cli.SiteConfigInspect(nil, nil)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			currentSite := siteConfig.Reference.UID
+
+			if sites != nil && len(sites) > 0 {
 				siteList := formatter.NewList()
 				siteList.Item("Sites:")
-				for _, site := range *sites {
-					newItem := fmt.Sprintf("%s - %s ", site.SiteId, site.Name)
+				for _, site := range sites {
+
+					if site.Name != selectedSite && selectedSite != "all" {
+						continue
+					}
+
+					if site.Namespace != selectedNamespace && selectedNamespace != "all" {
+						continue
+					}
+
+					location := "remote"
+
+					if site.SiteId == currentSite {
+						location = "local"
+					}
+
+					newItem := fmt.Sprintf("[%s] %s - %s ", location, site.SiteId, site.Name)
+
 					if len(site.Links) > 0 {
 						newItem = newItem + fmt.Sprintf("- linked to %s", site.Links)
 					}
 					newItem = newItem + fmt.Sprintln()
-					detailsMap := map[string]string { "name": site.Name, "namespace": site.Namespace, "URL": site.Url}
-					siteList.NewChildWithDetail(newItem, detailsMap)
+					detailsMap := map[string]string{"name": site.Name, "namespace": site.Namespace, "URL": site.Url}
+
+					services := siteList.NewChildWithDetail(newItem, detailsMap)
+					if len(site.Services) > 0 {
+						for _, svc := range site.Services {
+							svcItem := "service name " + svc.Name + fmt.Sprintln()
+							detailsSvc := map[string]string{"protocol": svc.Protocol, "address": svc.Address}
+							targets := services.NewChildWithDetail(svcItem, detailsSvc)
+
+							if len(svc.Targets) > 0 {
+								for _, target := range svc.Targets {
+									targets.NewChild("target " + target.Name)
+
+								}
+							}
+
+						}
+					}
 				}
+
 				siteList.Print()
 			} else {
 				fmt.Printf("Network has no reachable sites")
@@ -55,9 +94,9 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&selectedSite, "site", "s", "", "Site identifier")
-	cmd.Flags().StringVarP(&selectedNamespace, "namespace", "n", "", "Namespace to filter")
-	cmd.Flags().BoolVarP(&allNamespacesSelected, "all-namespaces", "", false, "To show the sites from all the namespaces the user has permission")
+	cmd.Flags().StringVarP(&selectedSite, "site", "s", "all", "Site identifier")
+	cmd.Flags().StringVarP(&selectedNamespace, "namespace", "n", "all", "Namespace to filter")
+
 	return cmd
 
 }

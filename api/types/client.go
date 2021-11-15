@@ -234,10 +234,16 @@ type SiteInfo struct {
 }
 
 type ServiceInfo struct {
-	name     string
-	protocol string
-	address  string
-	targets  []string
+	Name     string `json:"name,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+	Address  string `json:"address,omitempty"`
+	Targets  []TargetInfo
+}
+
+type TargetInfo struct {
+	Name   string `json:"name,omitempty"`
+	Target string `json:"target,omitempty"`
+	SiteId string `json:"site_id,omitempty"`
 }
 
 type VanClientInterface interface {
@@ -287,5 +293,5 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
-	NetworkStatus() (*[]SiteInfo, error)
+	NetworkStatus() ([]*SiteInfo, error)
 }

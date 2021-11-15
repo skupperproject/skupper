@@ -68,3 +68,24 @@ func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, er
 	}
 	return links, nil
 }
+
+func (cli *VanClient) getLinkStatusByNamespace(namespace string) (map[string]*types.LinkStatus, error) {
+	mapLinks := make(map[string]*types.LinkStatus)
+	secrets, err := cli.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	if err != nil {
+		return nil, err
+	}
+	current, err := cli.getRouterConfig()
+	if err != nil {
+		return nil, err
+	}
+	edge := current.IsEdge()
+	connections, _ := qdr.GetConnections(namespace, cli.KubeClient, cli.RestConfig)
+	for _, s := range secrets.Items {
+		var connectedTo string
+		connectedTo = s.ObjectMeta.Annotations[types.TokenGeneratedBy]
+		linkStatus := getLinkStatus(&s, edge, connections)
+		mapLinks[connectedTo] = &linkStatus
+	}
+	return mapLinks, nil
+}
