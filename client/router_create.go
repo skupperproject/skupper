@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/util/retry"
 	"log"
 	"strconv"
 	"strings"
@@ -461,6 +460,12 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		SaslMechanisms:   "EXTERNAL",
 		AuthenticatePeer: true,
 	})
+
+	routerConfig.AddSslProfileWithPath("/etc/qpid-dispatch-certs",
+		qdr.SslProfile{
+			Name: types.ServiceClientSecret,
+		})
+
 	if options.EnableRouterConsole {
 		if van.AuthMode == types.ConsoleAuthModeOpenshift {
 			routerConfig.AddListener(qdr.Listener{
@@ -595,6 +600,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	if !isEdge {
 		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.SiteServerSecret, "/etc/qpid-dispatch-certs/skupper-internal/")
 	}
+
+	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.ServiceClientSecret, "/etc/qpid-dispatch-certs/"+types.ServiceClientSecret+"/")
+
 	if options.EnableRouterConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			sidecars = append(sidecars, OauthProxyContainer(types.TransportServiceAccountName, strconv.Itoa(int(types.ConsoleOpenShiftServicePort))))
@@ -691,6 +699,15 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Hosts:       []string{},
 		ConnectJson: true,
 		Post:        false,
+	})
+
+	credentials = append(credentials, types.Credential{
+		CA:          types.ServiceCaSecret,
+		Name:        types.ServiceClientSecret,
+		Hosts:       []string{},
+		ConnectJson: false,
+		Post:        false,
+		Simple:      true,
 	})
 
 	if !isEdge {
@@ -1202,12 +1219,6 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		}
 	}
 
-	// Create a generic client secret with the CA associated with the site.
-	err = cli.createGenericClientSecret(siteOwnerRef)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -1379,38 +1390,4 @@ func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
 		owner.APIVersion = "v1"
 	}
 	return &owner
-}
-
-func (cli *VanClient) createGenericClientSecret(siteOwnerRef *metav1.OwnerReference) error {
-	caCert, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.ServiceCaSecret, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	_, err = kube.NewSimpleSecret(types.ServiceClientSecret, caCert, siteOwnerRef, cli.Namespace, cli.KubeClient)
-
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return err
-	}
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := qdr.AddSslProfile(types.ServiceClientSecret, cli.Namespace, cli.KubeClient)
-		if err != nil {
-			return err
-		}
-		err = kube.AppendSecretAndUpdateDeployment(
-			types.ServiceClientSecret,
-			"/etc/qpid-dispatch-certs/",
-			types.TransportDeploymentName,
-			cli.Namespace,
-			cli.KubeClient,
-			false)
-
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
-	}
-	return nil
 }

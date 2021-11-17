@@ -45,7 +45,12 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 		if err != nil {
 			return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
 		}
-		secret = certs.GenerateSecret(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), caSecret)
+
+		if cred.Simple {
+			secret = certs.GenerateSimpleSecret(cred.Name, caSecret)
+		} else {
+			secret = certs.GenerateSecret(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), caSecret)
+		}
 		if cred.ConnectJson {
 			secret.Data["connect.json"] = []byte(configs.ConnectJson())
 		}
@@ -140,7 +145,7 @@ func RegenerateCredentials(credential types.Credential, namespace string, ca *co
 	return cli.CoreV1().Secrets(namespace).Update(current)
 }
 
-func NewSimpleSecret(name string, caSecret *corev1.Secret, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
+func t(name string, caSecret *corev1.Secret, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
 
 	secret := certs.GenerateSimpleSecret(name, caSecret)
 

@@ -16,7 +16,6 @@ package types
 
 import (
 	jsonencoding "encoding/json"
-
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -416,6 +415,7 @@ type Credential struct {
 	ConnectJson bool
 	Post        bool
 	Data        map[string][]byte
+	Simple      bool `default:"false"`
 }
 
 type CertAuthority struct {
