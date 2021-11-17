@@ -144,27 +144,3 @@ func RegenerateCredentials(credential types.Credential, namespace string, ca *co
 	current.Data = regenerated.Data
 	return cli.CoreV1().Secrets(namespace).Update(current)
 }
-
-func t(name string, caSecret *corev1.Secret, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
-
-	secret := certs.GenerateSimpleSecret(name, caSecret)
-
-	if owner != nil {
-		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-			*owner,
-		}
-	}
-	_, err := cli.CoreV1().Secrets(namespace).Create(&secret)
-	if err != nil {
-		if errors.IsAlreadyExists(err) {
-			// TODO : come up with a policy for already-exists errors.
-			fmt.Println("Secret already exists: ", name)
-		} else {
-			fmt.Println("Could not create secret: ", err.Error())
-		}
-		return nil, err
-
-	}
-
-	return &secret, nil
-}
