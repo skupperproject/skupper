@@ -29,12 +29,14 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 			sites, err := cli.NetworkStatus()
 
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("Network has no reachable sites.")
+				fmt.Println()
 			}
 
 			siteConfig, err := cli.SiteConfigInspect(nil, nil)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("The site configuration is not available.")
+				fmt.Println()
 			}
 
 			currentSite := siteConfig.Reference.UID
@@ -85,9 +87,6 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 				}
 
 				siteList.Print()
-			} else {
-				fmt.Printf("Network has no reachable sites")
-				fmt.Println()
 			}
 
 			return nil

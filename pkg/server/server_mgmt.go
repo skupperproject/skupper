@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"k8s.io/client-go/kubernetes"
@@ -21,7 +20,6 @@ func GetSiteInfo(namespace string, clientset kubernetes.Interface, config *restc
 		err = json.Unmarshal(buffer.Bytes(), &results)
 
 		if err != nil {
-			fmt.Println("Failed to parse JSON:", err, buffer.String())
 			return nil, err
 		} else {
 			return &results, nil
@@ -39,7 +37,6 @@ func GetServiceInfo(namespace string, clientset kubernetes.Interface, config *re
 		err = json.Unmarshal(buffer.Bytes(), &results)
 
 		if err != nil {
-			fmt.Println("Failed to parse JSON:", err, buffer.String())
 			return nil, err
 		} else {
 			return &results, nil

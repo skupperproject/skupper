@@ -22,9 +22,13 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 
 	for _, site := range *sites {
 
-		listLinksWithStatus, err := cli.getSiteLinksStatus(&site.Links, site.Namespace)
-		if err != nil {
-			return nil, err
+		listLinks := site.Links
+
+		if site.Links != nil && len(site.Links) > 0 {
+			listLinks, err = cli.getSiteLinksStatus(&site.Links, site.Namespace)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		listServicesAndTargets, err := cli.getServicesAndTargetsBySiteId(services, site.SiteId)
@@ -32,7 +36,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 			return nil, err
 		}
 
-		newSite := types.SiteInfo{Name: site.Name, Namespace: site.Namespace, SiteId: site.SiteId, Url: site.Url, Links: listLinksWithStatus, Services: listServicesAndTargets}
+		newSite := types.SiteInfo{Name: site.Name, Namespace: site.Namespace, SiteId: site.SiteId, Url: site.Url, Links: listLinks, Services: listServicesAndTargets}
 		listSites = append(listSites, &newSite)
 
 	}
