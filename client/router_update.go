@@ -442,11 +442,11 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	if addMultiportServices {
 		// disabling the controller
-		controller, err = setAndWaitControllerReplicas(cli, 0)
+		controller, err = setAndWaitControllerReplicas(cli, 0, namespace)
 		if err != nil {
 			return false, err
 		}
-		if err = multiportConvertServices(ctx, cli); err != nil {
+		if err = multiportConvertServices(ctx, cli, namespace); err != nil {
 			return false, err
 		}
 		if err = updateGatewayMultiport(ctx, cli); err != nil {
@@ -568,12 +568,12 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	return updateRouter || updateController || updateSite, nil
 }
-func setAndWaitControllerReplicas(cli *VanClient, replicas int32) (*appsv1.Deployment, error) {
-	controller, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
+func setAndWaitControllerReplicas(cli *VanClient, replicas int32, namespace string) (*appsv1.Deployment, error) {
+	controller, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
 	if *controller.Spec.Replicas > 0 {
 		controller.Spec.Replicas = &replicas
-		_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Update(controller)
-		controller, err = kube.WaitDeploymentReadyReplicas(types.ControllerDeploymentName, cli.Namespace, int(replicas), cli.KubeClient, time.Minute, time.Second)
+		_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(controller)
+		controller, err = kube.WaitDeploymentReadyReplicas(types.ControllerDeploymentName, namespace, int(replicas), cli.KubeClient, time.Minute, time.Second)
 		if err != nil {
 			return controller, err
 		}
@@ -581,8 +581,8 @@ func setAndWaitControllerReplicas(cli *VanClient, replicas int32) (*appsv1.Deplo
 	return controller, err
 }
 
-func multiportConvertServices(ctx context.Context, cli *VanClient) error {
-	servicesCm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+func multiportConvertServices(ctx context.Context, cli *VanClient, namespace string) error {
+	servicesCm, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -604,11 +604,11 @@ func multiportConvertServices(ctx context.Context, cli *VanClient) error {
 	for _, svc := range *defs {
 		svcBytes, _ := json.Marshal(svc)
 		servicesCm.Data[svc.Address] = string(svcBytes)
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(servicesCm)
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(namespace).Update(servicesCm)
 		if err != nil {
 			return err
 		}
-		servicesCm, _ = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+		servicesCm, _ = cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	}
 
 	return err
