@@ -461,7 +461,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		AuthenticatePeer: true,
 	})
 
-	routerConfig.AddSslProfileWithPath("/etc/qpid-dispatch-certs",
+	routerConfig.AddSimpleSslProfileWithPath("/etc/qpid-dispatch-certs",
 		qdr.SslProfile{
 			Name: types.ServiceClientSecret,
 		})
