@@ -119,4 +119,4 @@ spec:
       serviceAccountName: skupper-site-controller
       containers:
       - name: site-controller
-        image: quay.io/skupper/site-controller:0.8.2
+        image: quay.io/skupper/site-controller:0.8.3
