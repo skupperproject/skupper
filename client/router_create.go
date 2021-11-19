@@ -1302,7 +1302,7 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 			Resolve:     true,
 		})
 	}
-	return kube.CreateIngress(types.IngressName, routes, true, asOwnerReference(site.Reference), cli.Namespace, cli.KubeClient)
+	return kube.CreateIngress(types.IngressName, routes, true, asOwnerReference(site.Reference), namespace, cli.KubeClient)
 }
 
 func (cli *VanClient) createContourProxies(site types.SiteConfig) error {
