@@ -1342,7 +1342,7 @@ func (cli *VanClient) createContourProxies(site types.SiteConfig) error {
 			ServicePort: int(types.EdgeListenerPort),
 		})
 	}
-	return kube.CreateContourProxies(routes, asOwnerReference(site.Reference), cli.DynamicClient, cli.Namespace)
+	return kube.CreateContourProxies(routes, asOwnerReference(site.Reference), cli.DynamicClient, namespace)
 }
 
 func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {

@@ -64,6 +64,16 @@ rules:
   - create
   - delete
 - apiGroups:
+  - projectcontour.io
+  resources:
+  - httpproxies
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings
