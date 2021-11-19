@@ -1257,11 +1257,13 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 				ServiceName: types.ControllerServiceName,
 				ServicePort: int(types.ClaimRedemptionPort),
 			})
-			routes = append(routes, kube.IngressRoute{
-				Host:        strings.Join([]string{"console", namespace, site.Spec.GetControllerIngressHost()}, "."),
-				ServiceName: types.ControllerServiceName,
-				ServicePort: int(types.ConsoleDefaultServicePort),
-			})
+			if site.Spec.EnableConsole {
+				routes = append(routes, kube.IngressRoute{
+					Host:        strings.Join([]string{"console", namespace, site.Spec.GetControllerIngressHost()}, "."),
+					ServiceName: types.ControllerServiceName,
+					ServicePort: int(types.ConsoleDefaultServicePort),
+				})
+			}
 		} else {
 			routes = append(routes, kube.IngressRoute{
 				Host:        "claims",
@@ -1269,12 +1271,14 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 				ServicePort: int(types.ClaimRedemptionPort),
 				Resolve:     true,
 			})
-			routes = append(routes, kube.IngressRoute{
-				Host:        "console",
-				ServiceName: types.ControllerServiceName,
-				ServicePort: int(types.ConsoleDefaultServicePort),
-				Resolve:     true,
-			})
+			if site.Spec.EnableConsole {
+				routes = append(routes, kube.IngressRoute{
+					Host:        "console",
+					ServiceName: types.ControllerServiceName,
+					ServicePort: int(types.ConsoleDefaultServicePort),
+					Resolve:     true,
+				})
+			}
 		}
 	}
 	if site.Spec.GetRouterIngressHost() != "" {
@@ -1320,12 +1324,14 @@ func (cli *VanClient) createContourProxies(site types.SiteConfig) error {
 				ServiceName: types.ControllerServiceName,
 				ServicePort: int(types.ClaimRedemptionPort),
 			})
-			routes = append(routes, kube.IngressRoute{
-				Name:        types.ConsoleIngressPrefix,
-				Host:        strings.Join([]string{types.ConsoleIngressPrefix, namespace, site.Spec.GetControllerIngressHost()}, "."),
-				ServiceName: types.ControllerServiceName,
-				ServicePort: int(types.ConsoleDefaultServicePort),
-			})
+			if site.Spec.EnableConsole {
+				routes = append(routes, kube.IngressRoute{
+					Name:        types.ConsoleIngressPrefix,
+					Host:        strings.Join([]string{types.ConsoleIngressPrefix, namespace, site.Spec.GetControllerIngressHost()}, "."),
+					ServiceName: types.ControllerServiceName,
+					ServicePort: int(types.ConsoleDefaultServicePort),
+				})
+			}
 		}
 	}
 	if site.Spec.GetRouterIngressHost() != "" {
