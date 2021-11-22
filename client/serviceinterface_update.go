@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -88,6 +89,10 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 }
 
 func validateServiceInterface(service *types.ServiceInterface) error {
+	errs := validation.IsDNS1035Label(service.Address)
+	if len(errs) > 0 {
+		return fmt.Errorf("Invalid service name: %q", errs)
+	}
 	if service.Headless != nil && len(service.Headless.TargetPorts) > 0 {
 		for _, targetPort := range service.Headless.TargetPorts {
 			if targetPort < 0 || 65535 < targetPort {
