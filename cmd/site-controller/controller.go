@@ -35,7 +35,7 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 	// Startup message
 	if os.Getenv("WATCH_NAMESPACE") != "" {
 		watchNamespace = os.Getenv("WATCH_NAMESPACE")
-		log.Println("Skupper site controler watching current namespace ", watchNamespace)
+		log.Println("Skupper site controller watching current namespace ", watchNamespace)
 	} else {
 		watchNamespace = metav1.NamespaceAll
 		log.Println("Skupper site controller watching all namespaces")
