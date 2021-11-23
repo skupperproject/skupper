@@ -126,6 +126,12 @@ yaml-templates:
       tags:
         only: /[0-9].*/
 
+  master_branch_filters: &run_for_master_branch
+    filters:
+      branches:
+        ignore: /.*/
+        only: /master/
+
   release_filters: &run_for_numeric_tags
     filters:
       branches:
@@ -164,6 +170,10 @@ workflows:
 
       - publish-github-release-images:
           <<: *run_for_numeric_tags
+          <<: *release_requires
+
+      - publish-github-master-images:
+          <<: *run_for_master_branch
           <<: *release_requires
 
       - remove_from_registry: # will not run for tags, by default
@@ -323,6 +333,24 @@ jobs:
             echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/nicob87/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=quay.io/nicob87/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/nicob87/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
+            source $BASH_ENV
+            make -e docker-build
+            make -e docker-push
+
+  publish-github-master-images:
+    executor:
+      name: go/default
+      tag: "1.13"
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
+      - run:
+          name: "Publishing master images"
+          command: |
+            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:master' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:master' >> $BASH_ENV
+            echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:master' >> $BASH_ENV
             source $BASH_ENV
             make -e docker-build
             make -e docker-push
