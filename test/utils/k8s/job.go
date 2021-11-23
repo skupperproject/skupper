@@ -18,7 +18,7 @@ import (
 func GetTestImage() string {
 	testImage := os.Getenv("TEST_IMAGE")
 	if testImage == "" {
-		testImage = "quay.io/skupper/skupper-tests"
+		testImage = "quay.io/skupper/skupper-tests:master"
 	}
 	return testImage
 }
