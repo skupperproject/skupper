@@ -217,7 +217,11 @@ func (server *ConsoleServer) serveSites() http.Handler {
 				tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
 				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s", "ID", "NAME", "EDGE", "VERSION", "NAMESPACE", "URL", "CONNECTED TO"))
 				for _, site := range d.Sites {
-					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%t\t%s\t%s\t%s\t%s", site.SiteId, site.SiteName, site.Edge, site.Version, site.Namespace, site.Url, strings.Join(site.Connected, " ")))
+					siteVersion := site.Version
+					if err := server.links.cli.VerifySiteCompatibility(site.Version); err != nil {
+						siteVersion += fmt.Sprintf(" (incompatible - %v)", err)
+					}
+					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%t\t%s\t%s\t%s\t%s", site.SiteId, site.SiteName, site.Edge, siteVersion, site.Namespace, site.Url, strings.Join(site.Connected, " ")))
 				}
 				tw.Flush()
 
