@@ -236,7 +236,7 @@ const (
 )
 
 const (
-	SkupperServiceCertPrefix string = "skupper-"
+	SkupperServiceCertPrefix string = "skupper-tls-"
 )
 
 // RouterSpec is the specification of VAN network with router, controller and assembly

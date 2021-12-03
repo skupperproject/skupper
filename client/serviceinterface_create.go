@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -22,15 +21,28 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 
 		if len(service.TlsCredentials) > 0 {
 
-			caCert, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.ServiceCaSecret, metav1.GetOptions{})
+			configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
 
 			if err != nil {
 				return err
 			}
 
-			serviceSecret := certs.GenerateSecret(service.TlsCredentials, service.Address, service.Address, caCert)
-			_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceSecret)
+			serviceCredential := types.Credential{
+				CA:          types.ServiceCaSecret,
+				Name:        service.TlsCredentials,
+				Subject:     service.Address,
+				Hosts:       []string{service.Address},
+				ConnectJson: false,
+				Post:        false,
+			}
 
+			ownerReference := metav1.OwnerReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       configmap.Name,
+				UID:        configmap.UID,
+			}
+			serviceSecret, err := kube.NewSecret(serviceCredential, &ownerReference, cli.Namespace, cli.KubeClient)
 			if err != nil {
 				return err
 			}
