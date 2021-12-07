@@ -1,6 +1,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/server"
@@ -12,8 +13,8 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	services, err := server.GetServiceInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
 
+	services, err := server.GetServiceInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -22,13 +23,13 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 
 	for _, site := range *sites {
 
-		listLinks := site.Links
+		if len(site.Namespace) == 0 {
+			return nil, errors.New("unable to provide site information")
+		}
 
-		if site.Links != nil && len(site.Links) > 0 {
-			listLinks, err = cli.getSiteLinksStatus(&site.Links, site.Namespace)
-			if err != nil {
-				return nil, err
-			}
+		listLinks, err := cli.getSiteLinksStatus(site.Namespace)
+		if err != nil {
+			return nil, err
 		}
 
 		listServicesAndTargets, err := cli.getServicesAndTargetsBySiteId(services, site.SiteId)
@@ -37,23 +38,33 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 		}
 
 		newSite := types.SiteInfo{Name: site.Name, Namespace: site.Namespace, SiteId: site.SiteId, Url: site.Url, Links: listLinks, Services: listServicesAndTargets}
+
 		listSites = append(listSites, &newSite)
 
 	}
 	return listSites, nil
 }
 
-func (cli *VanClient) getSiteLinksStatus(siteLinks *[]string, namespace string) ([]string, error) {
+func (cli *VanClient) getSiteLinksStatus(namespace string) ([]string, error) {
 	lightRed := "\033[1;31m"
 	resetColor := "\033[0m"
 	var listLinks []string
+
+	if len(namespace) == 0 {
+		return nil, errors.New("Unspecified namespace")
+	}
 
 	mapLinkStatus, err := cli.getLinkStatusByNamespace(namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, link := range *siteLinks {
+	links := make([]string, 0, len(mapLinkStatus))
+	for connection := range mapLinkStatus {
+		links = append(links, connection)
+	}
+
+	for _, link := range links {
 		var formattedLink string
 
 		if mapLinkStatus[link].Connected {
@@ -89,8 +100,10 @@ func (cli *VanClient) getServicesAndTargetsBySiteId(services *[]types.ServiceInf
 
 		serviceHost := service.Address + ":"
 
-		for _, port := range serviceDetail.Ports {
-			serviceHost += fmt.Sprintf(" %d", port)
+		if serviceDetail != nil {
+			for _, port := range serviceDetail.Ports {
+				serviceHost += fmt.Sprintf(" %d", port)
+			}
 		}
 
 		newService := types.ServiceInfo{Name: service.Address, Protocol: service.Protocol, Address: serviceHost, Targets: listTargets}

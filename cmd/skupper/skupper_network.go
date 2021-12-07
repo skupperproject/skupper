@@ -15,7 +15,6 @@ func NewCmdNetwork() *cobra.Command {
 }
 
 var selectedSite string
-var selectedNamespace string
 
 func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -29,14 +28,15 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 			sites, err := cli.NetworkStatus()
 
 			if err != nil {
-				fmt.Printf("Network has no reachable sites.")
-				fmt.Println()
+				fmt.Println("Unable to retrieve network information.")
+				return nil
 			}
 
 			siteConfig, err := cli.SiteConfigInspect(nil, nil)
-			if err != nil {
-				fmt.Printf("The site configuration is not available.")
+			if err != nil || siteConfig == nil {
+				fmt.Printf("The site configuration is not available: %s", err)
 				fmt.Println()
+				return nil
 			}
 
 			currentSite := siteConfig.Reference.UID
@@ -47,10 +47,6 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 				for _, site := range sites {
 
 					if site.Name != selectedSite && selectedSite != "all" {
-						continue
-					}
-
-					if site.Namespace != selectedNamespace && selectedNamespace != "all" {
 						continue
 					}
 
@@ -94,7 +90,6 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&selectedSite, "site", "s", "all", "Site identifier")
-	cmd.Flags().StringVarP(&selectedNamespace, "namespace", "n", "all", "Namespace to filter")
 
 	return cmd
 
