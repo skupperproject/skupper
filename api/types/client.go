@@ -68,6 +68,7 @@ type SiteConfigSpec struct {
 	SkupperName         string
 	SkupperNamespace    string
 	RouterMode          string
+	Routers             int
 	EnableController    bool
 	EnableServiceSync   bool
 	EnableRouterConsole bool

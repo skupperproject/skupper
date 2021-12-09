@@ -6,15 +6,19 @@ orbs:
 
 parameters:
   ci_service_controller_image:
-    default: quay.io/nicob87/service-controller:${CIRCLE_SHA1}
+    default: quay.io/skupper/service-controller:${CIRCLE_SHA1}
     type: string
 
   ci_site_controller_image:
-    default: quay.io/nicob87/site-controller:${CIRCLE_SHA1}
+    default: quay.io/skupper/site-controller:${CIRCLE_SHA1}
+    type: string
+
+  ci_config_sync_image:
+    default: quay.io/skupper/config-sync:${CIRCLE_SHA1}
     type: string
 
   ci_test_image:
-    default: quay.io/nicob87/skupper-tests:${CIRCLE_SHA1}
+    default: quay.io/skupper/skupper-tests:${CIRCLE_SHA1}
     type: string
 
 executors:
@@ -62,6 +66,7 @@ commands:
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
             echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
             echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
+            echo 'export SKUPPER_CONFIG_SYNC_IMAGE=<< pipeline.parameters.ci_config_sync_image >>' >> $BASH_ENV
             echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
             source $BASH_ENV
       - checkout
@@ -202,10 +207,11 @@ jobs:
           command: |
             echo 'export SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
+            echo 'export CONFIG_SYNC_IMAGE=<< pipeline.parameters.ci_config_sync_image >>' >> $BASH_ENV
             echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
             source $BASH_ENV
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
-      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
+      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run: make -e docker-build
       - run: make -e docker-push
 
@@ -215,7 +221,7 @@ jobs:
       tag: "1.13"
     steps:
       - setup_remote_docker
-      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
+      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run: go get github.com/genuinetools/reg
       - run: reg rm << pipeline.parameters.ci_service_controller_image >>
       - run: reg rm << pipeline.parameters.ci_site_controller_image >>
@@ -316,13 +322,14 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run: docker login quay.io -u ${DOCKER_LOGIN} -p ${DOCKER_PASSWORD}
+      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run:
           name:
           command: |
-            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/nicob87/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export SITE_CONTROLLER_IMAGE=quay.io/nicob87/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export TEST_IMAGE=quay.io/nicob87/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
             make -e docker-build
             make -e docker-push

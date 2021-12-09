@@ -58,6 +58,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 			result.Spec.RouterMode = string(types.TransportModeInterior)
 		}
 	}
+	if routers, ok := siteConfig.Data[SiteConfigRoutersKey]; ok {
+		result.Spec.Routers, _ = strconv.Atoi(routers)
+	}
 	if enableController, ok := siteConfig.Data[SiteConfigServiceControllerKey]; ok {
 		result.Spec.EnableController, _ = strconv.ParseBool(enableController)
 	} else {

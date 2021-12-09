@@ -391,11 +391,15 @@ func (s *InitTester) ValidateRouterDebugMode(cluster *base.ClusterContext) error
 		return nil
 	}
 	found := false
-	for _, envVar := range dep.Spec.Template.Spec.Containers[0].Env {
-		if envVar.Name == "QDROUTERD_DEBUG" {
-			found = true
-			if envVar.Value != s.RouterDebugMode {
-				return fmt.Errorf("incorrect debug mode defined - expected: %s - found: %s", s.RouterDebugMode, envVar.Value)
+	for _, container := range dep.Spec.Template.Spec.Containers {
+		if container.Name == "router" {
+			for _, envVar := range container.Env {
+				if envVar.Name == "QDROUTERD_DEBUG" {
+					found = true
+					if envVar.Value != s.RouterDebugMode {
+						return fmt.Errorf("incorrect debug mode defined - expected: %s - found: %s", s.RouterDebugMode, envVar.Value)
+					}
+				}
 			}
 		}
 	}
@@ -498,22 +502,24 @@ func (s *InitTester) validateRouterCPUMemory(cluster *base.ClusterContext) error
 	// looping through pods
 	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
-			if !expectResources {
-				// If not expecting requests, but something is defined throw an error
-				if len(container.Resources.Requests) > 0 {
-					return fmt.Errorf("resources not requested but defined in the router (pod: %s, container: %s) - requests: %v",
-						pod.Name, container.Name, container.Resources.Requests)
-				}
-			} else {
-				// If requests have been specified, assert the correct values have been defined
-				cpu := container.Resources.Requests.Cpu().String()
-				mem := container.Resources.Requests.Memory().String()
+			if container.Name == "router" {
+				if !expectResources {
+					// If not expecting requests, but something is defined throw an error
+					if len(container.Resources.Requests) > 0 {
+						return fmt.Errorf("resources not requested but defined in the router (pod: %s, container: %s) - requests: %v",
+							pod.Name, container.Name, container.Resources.Requests)
+					}
+				} else {
+					// If requests have been specified, assert the correct values have been defined
+					cpu := container.Resources.Requests.Cpu().String()
+					mem := container.Resources.Requests.Memory().String()
 
-				if s.RouterCPU != cpu {
-					return fmt.Errorf("--router-cpu defined as: [%s] but container has: [%s]", s.RouterCPU, cpu)
-				}
-				if s.RouterMemory != mem {
-					return fmt.Errorf("--router-memory defined as: [%s] but container has: [%s]", s.RouterMemory, mem)
+					if s.RouterCPU != cpu {
+						return fmt.Errorf("--router-cpu defined as: [%s] but container has: [%s]", s.RouterCPU, cpu)
+					}
+					if s.RouterMemory != mem {
+						return fmt.Errorf("--router-memory defined as: [%s] but container has: [%s]", s.RouterMemory, mem)
+					}
 				}
 			}
 		}
@@ -535,22 +541,24 @@ func (s *InitTester) validateControllerCPUMemory(cluster *base.ClusterContext) e
 	// looping through pods
 	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
-			if !expectResources {
-				// If not expecting requests, but something is defined throw an error
-				if len(container.Resources.Requests) > 0 {
-					return fmt.Errorf("resources not requested but defined in the controller (pod: %s, container: %s) - requests: %v",
-						pod.Name, container.Name, container.Resources.Requests)
-				}
-			} else {
-				// If requests have been specified, assert the correct values have been defined
-				cpu := container.Resources.Requests.Cpu().String()
-				mem := container.Resources.Requests.Memory().String()
+			if container.Name == "router" {
+				if !expectResources {
+					// If not expecting requests, but something is defined throw an error
+					if len(container.Resources.Requests) > 0 {
+						return fmt.Errorf("resources not requested but defined in the controller (pod: %s, container: %s) - requests: %v",
+							pod.Name, container.Name, container.Resources.Requests)
+					}
+				} else {
+					// If requests have been specified, assert the correct values have been defined
+					cpu := container.Resources.Requests.Cpu().String()
+					mem := container.Resources.Requests.Memory().String()
 
-				if s.ControllerCPU != cpu {
-					return fmt.Errorf("--controller-cpu defined as: [%s] but container has: [%s]", s.ControllerCPU, cpu)
-				}
-				if s.ControllerMemory != mem {
-					return fmt.Errorf("--controller-memory defined as: [%s] but container has: [%s]", s.ControllerMemory, mem)
+					if s.ControllerCPU != cpu {
+						return fmt.Errorf("--controller-cpu defined as: [%s] but container has: [%s]", s.ControllerCPU, cpu)
+					}
+					if s.ControllerMemory != mem {
+						return fmt.Errorf("--controller-memory defined as: [%s] but container has: [%s]", s.ControllerMemory, mem)
+					}
 				}
 			}
 		}
