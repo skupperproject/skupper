@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
-	"k8s.io/client-go/util/retry"
 	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
