@@ -50,6 +50,14 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 	}
 }
 
+func ConfigSyncContainer() *corev1.Container {
+	return &corev1.Container{
+		Image:           GetConfigSyncImageName(),
+		ImagePullPolicy: kube.GetPullPolicy(GetConfigSyncImagePullPolicy()),
+		Name:            "config-sync",
+	}
+}
+
 func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {
 	if cli.RouteClient == nil {
 		// remove rule for routes if routes not defined
@@ -381,6 +389,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	// TODO: update after dataplance changes
 	const (
 		qdrouterd = iota
+		configSync
 		oauthProxy
 	)
 
@@ -402,6 +411,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 
 	van.Transport.Image = GetRouterImageDetails()
 	van.Transport.Replicas = 1
+	if options.Routers != 0 {
+		van.Transport.Replicas = int32(options.Routers)
+	}
 	van.Transport.LabelSelector = map[string]string{
 		types.ComponentAnnotation: types.TransportComponentName,
 	}
@@ -586,9 +598,11 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.Transport.Ports = ports
 
-	sidecars := []*corev1.Container{}
+	sidecars := []*corev1.Container{
+		ConfigSyncContainer(),
+	}
 	volumes := []corev1.Volume{}
-	mounts := make([][]corev1.VolumeMount, 1)
+	mounts := make([][]corev1.VolumeMount, 2)
 	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.LocalServerSecret, "/etc/qpid-dispatch-certs/skupper-amqps/")
 	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", types.TransportConfigMapName, "/etc/qpid-dispatch/config/")
 	if !isEdge {

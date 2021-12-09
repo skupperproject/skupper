@@ -9,8 +9,10 @@ import (
 const (
 	RouterImageEnvKey                 string = "QDROUTERD_IMAGE"
 	ServiceControllerImageEnvKey      string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
+	ConfigSyncImageEnvKey             string = "SKUPPER_CONFIG_SYNC_IMAGE"
 	RouterPullPolicyEnvKey            string = "QDROUTERD_IMAGE_PULL_POLICY"
 	ServiceControllerPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
+	ConfigSyncPullPolicyEnvKey        string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
 )
 
 func getPullPolicy(key string) string {
@@ -72,4 +74,17 @@ func GetServiceControllerImageDetails() types.ImageDetails {
 		Name:       GetServiceControllerImageName(),
 		PullPolicy: GetServiceControllerImagePullPolicy(),
 	}
+}
+
+func GetConfigSyncImageName() string {
+	image := os.Getenv(ConfigSyncImageEnvKey)
+	if image == "" {
+		return DefaultConfigSyncImage
+	} else {
+		return image
+	}
+}
+
+func GetConfigSyncImagePullPolicy() string {
+	return getPullPolicy(ConfigSyncPullPolicyEnvKey)
 }
