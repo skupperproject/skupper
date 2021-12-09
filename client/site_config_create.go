@@ -21,6 +21,7 @@ const (
 	SiteConfigIngressKey             string = "ingress"
 	SiteConfigIngressHostKey         string = "ingress-host"
 	SiteConfigCreateNetworkPolicyKey string = "create-network-policy"
+	SiteConfigRoutersKey             string = "routers"
 
 	//console options
 	SiteConfigConsoleKey               string = "console"
@@ -87,6 +88,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.RouterMode != "" {
 		siteConfig.Data[SiteConfigRouterModeKey] = spec.RouterMode
+	}
+	if spec.Routers != 0 {
+		siteConfig.Data[SiteConfigRoutersKey] = strconv.Itoa(spec.Routers)
 	}
 	if !spec.EnableController {
 		siteConfig.Data[SiteConfigServiceControllerKey] = "false"

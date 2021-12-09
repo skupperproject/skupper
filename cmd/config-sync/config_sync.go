@@ -1,8 +1,8 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
@@ -12,8 +12,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
@@ -25,13 +23,37 @@ type ConfigSync struct {
 	agentPool *qdr.AgentPool
 }
 
-func newConfigSync(configInformer cache.SharedIndexInformer, config *tls.Config) *ConfigSync {
+func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err == nil {
+		events.Add(key)
+	} else {
+		log.Printf("Error getting key: %s", err)
+	}
+
+}
+
+func newEventHandler(events workqueue.RateLimitingInterface) *cache.ResourceEventHandlerFuncs {
+	return &cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			enqueue(events, obj)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			enqueue(events, new)
+		},
+		DeleteFunc: func(obj interface{}) {
+			enqueue(events, obj)
+		},
+	}
+}
+
+func newConfigSync(configInformer cache.SharedIndexInformer) *ConfigSync {
 	configSync := &ConfigSync{
 		informer:  configInformer,
-		agentPool: qdr.NewAgentPool("amqps://"+types.LocalTransportServiceName+":5671", config),
+		agentPool: qdr.NewAgentPool("amqp://localhost:5672", nil),
 	}
 	configSync.events = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-config-sync")
-	configSync.informer.AddEventHandler(newEventHandlerFor(configSync.events, "", SimpleKey, ConfigMapResourceVersionTest))
+	configSync.informer.AddEventHandler(newEventHandler(configSync.events))
 	return configSync
 }
 
@@ -56,8 +78,9 @@ const (
 )
 
 func (c *ConfigSync) processNextEvent() bool {
+	log.Println("getting sync event")
 	obj, shutdown := c.events.Get()
-	event.Record(ConfigSyncEvent, "sync triggered")
+	log.Println("sync triggered")
 
 	if shutdown {
 		return false
@@ -70,7 +93,7 @@ func (c *ConfigSync) processNextEvent() bool {
 		var key string
 		if key, ok = obj.(string); !ok {
 			// invalid item
-			event.Recordf(ConfigSyncError, "expected string in events but got %#v", obj)
+			log.Printf("expected string in events but got %#v", obj)
 			c.events.Forget(obj)
 			return fmt.Errorf("expected string in events but got %#v", obj)
 		} else {
@@ -89,22 +112,22 @@ func (c *ConfigSync) processNextEvent() bool {
 				}
 				err = c.syncConfig(bridges)
 				if err != nil {
-					event.Recordf(ConfigSyncError, "sync failed: %s", err)
+					log.Printf("sync failed: %s", err)
 					return err
 				}
 			}
 		}
-		event.Record(ConfigSyncEvent, "sync suceeded")
+		log.Println("sync succeeded")
 		c.events.Forget(obj)
 		return nil
 	}(obj)
 
 	if err != nil {
 		if c.events.NumRequeues(obj) < 5 {
-			event.Recordf(ConfigSyncError, "Requeuing %v after error: %v", obj, err)
+			log.Printf("Requeuing %v after error: %v", obj, err)
 			c.events.AddRateLimited(obj)
 		} else {
-			event.Recordf(ConfigSyncError, "Delayed requeue %v after error: %v", obj, err)
+			log.Printf("Delayed requeue %v after error: %v", obj, err)
 			c.events.AddAfter(obj, time.Duration(math.Min(float64(c.events.NumRequeues(obj)/5), 10))*time.Minute)
 		}
 		utilruntime.HandleError(err)
