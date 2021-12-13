@@ -504,7 +504,6 @@ func TestGatewayBind(t *testing.T) {
 }
 
 func TestGatewayExpose(t *testing.T) {
-	t.Skip("Skipping gateway expose test")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -549,6 +548,7 @@ func TestGatewayExpose(t *testing.T) {
 			Ports:    []int{27017},
 			Address:  "mongo-db",
 		},
+		TargetPorts: []int{27017},
 	})
 	assert.Assert(t, observedError)
 
@@ -598,7 +598,7 @@ func TestGatewayInit(t *testing.T) {
 			actualName:    "gateway1",
 			remove:        true,
 			removeName:    "gateway1",
-			expectedError: "onfigmaps \"skupper-gateway-gateway1\" not found",
+			expectedError: "configmaps \"skupper-gateway-gateway1\" not found",
 			url:           "not active",
 		},
 		{
@@ -611,16 +611,6 @@ func TestGatewayInit(t *testing.T) {
 			expectedError: "",
 			url:           "not active",
 		},
-		//		{
-		//			init:          true,
-		//			gwType:        GatewayDockerType,
-		//			initName:      "gateway3",
-		//			actualName:    "gateway3",
-		//			remove:        true,
-		//			removeName:    "gateway3",
-		//			expectedError: "",
-		//			url:           "amqp://127.0.0.1:5672",
-		//		},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -680,7 +670,7 @@ func TestGatewayInit(t *testing.T) {
 			assert.Equal(t, gatewayInspect.GatewayName, tc.actualName)
 			assert.Equal(t, gatewayInspect.GatewayUrl, tc.url)
 
-			secret, observedError := cli.KubeClient.CoreV1().Secrets(namespace).Get(gatewayPrefix+gatewayName, metav1.GetOptions{})
+			secret, observedError := cli.KubeClient.CoreV1().Secrets(namespace).Get(clusterGatewayName(gatewayName), metav1.GetOptions{})
 			assert.Assert(t, observedError)
 			ct, ok := secret.Labels[types.SkupperTypeQualifier]
 			assert.Assert(t, ok)
@@ -691,18 +681,8 @@ func TestGatewayInit(t *testing.T) {
 	// Remove loop
 	for _, tc := range testcases {
 		if tc.remove {
-			observedError = cli.GatewayRemove(ctx, tc.removeName)
-
-			switch tc.expectedError {
-			case "":
-				assert.Check(t, observedError == nil || strings.Contains(observedError.Error(), "already defined"), "Test failure: An error was reported where none was expected. The error was |%s|.\n", observedError)
-			default:
-				if observedError == nil {
-					assert.Check(t, observedError != nil, "Test failure: The expected error |%s| was not reported.\n", tc.expectedError)
-				} else {
-					assert.Check(t, strings.Contains(observedError.Error(), tc.expectedError), "Test failure: The reported error |%s| did not have the expected prefix |%s|.\n", observedError.Error(), tc.expectedError)
-				}
-			}
+			observedError = cli.GatewayRemove(ctx, clusterGatewayName(tc.removeName))
+			assert.Assert(t, observedError)
 		}
 	}
 

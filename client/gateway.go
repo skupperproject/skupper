@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -277,6 +280,48 @@ func getConfigHome() string {
 	}
 }
 
+func getGatewaySiteId(gatewayDir string) (string, error) {
+	siteId, err := ioutil.ReadFile(gatewayDir + "/config/siteid.txt")
+	if err != nil {
+		return "", fmt.Errorf("Failed to read site id: %w", err)
+	}
+	return string(siteId), nil
+}
+
+func getRouterId(gatewayDir string) (string, error) {
+	routerId, err := ioutil.ReadFile(gatewayDir + "/config/routerid.txt")
+	if err != nil {
+		return "", fmt.Errorf("Failed to read router id: %w", err)
+	}
+	return string(routerId), nil
+}
+
+func getRouterUrl(gatewayDir string) (string, error) {
+	url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
+	if err != nil {
+		return "", fmt.Errorf("Failed to read router url: %w", err)
+	}
+	return string(url), nil
+}
+
+func getMachineID() (string, error) {
+	id, err := ioutil.ReadFile("/var/lib/dbus/machine-id")
+	if err != nil {
+		id, err = ioutil.ReadFile("/etc/machine-id")
+	}
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(strings.Trim(string(id), "\n")), nil
+}
+
+func clusterGatewayName(gatewayName string) string {
+	machineId, _ := getMachineID()
+	mac := hmac.New(sha1.New, []byte(machineId))
+	mac.Write([]byte(gatewayName))
+	return gatewayPrefix + hex.EncodeToString(mac.Sum(nil))
+}
+
 func newUUID() string {
 	return uuid.New().String()
 }
@@ -317,19 +362,19 @@ func getUserDefaultGatewayName() (string, error) {
 func setupLocalDir(localDir string) error {
 	_ = os.RemoveAll(localDir)
 
-	if err := os.MkdirAll(localDir+"/config", 0744); err != nil {
+	if err := os.MkdirAll(localDir+"/config", 0755); err != nil {
 		return fmt.Errorf("Unable to create config directory: %w", err)
 	}
 
-	if err := os.MkdirAll(localDir+"/user", 0744); err != nil {
+	if err := os.MkdirAll(localDir+"/user", 0755); err != nil {
 		return fmt.Errorf("Unable to create user directory: %w", err)
 	}
 
-	if err := os.MkdirAll(localDir+"/system", 0744); err != nil {
+	if err := os.MkdirAll(localDir+"/system", 0755); err != nil {
 		return fmt.Errorf("Unable to create system directory: %w", err)
 	}
 
-	if err := os.MkdirAll(localDir+"/qpid-dispatch-certs/conn1-profile", 0744); err != nil {
+	if err := os.MkdirAll(localDir+"/qpid-dispatch-certs/conn1-profile", 0755); err != nil {
 		return fmt.Errorf("Unable to create certs directory: %w", err)
 	}
 
@@ -452,6 +497,7 @@ func updateLocalGatewayConfig(gatewayDir string, gatewayType string, gatewayConf
 }
 
 func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string, gatewayType string) error {
+	gatewayResourceName := clusterGatewayName(gatewayName)
 	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 	if gatewayType == "" {
 		gatewayType = "service"
@@ -464,7 +510,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 		return err
 	}
 
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayPrefix+gatewayName, metav1.GetOptions{})
+	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayResourceName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to retreive external gateway secret: %w", err)
 	}
@@ -476,7 +522,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 		}
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -485,24 +531,16 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 		return fmt.Errorf("Failed to parse gateway configmap: %w", err)
 	}
 
-	// for qdr listener, check for 5672 in use, if it is get a free port
-	var amqpPort int
-	listener, ok := gatewayConfig.Listeners["amqp"]
-	if !ok {
-		return fmt.Errorf("Unable to get amqp listener from gateway definition")
+	amqpPort, err := GetFreePort()
+	if err != nil {
+		return fmt.Errorf("Could not aquire free port: %w", err)
 	}
-	amqpPort = int(listener.Port)
-	if !checkPortFree("tcp", strconv.Itoa(amqpPort)) {
-		amqpPort, err = GetFreePort()
-		if err != nil {
-			return fmt.Errorf("Could not acquire free port: %w", err)
-		}
-		gatewayConfig.Listeners["amqp"] = qdr.Listener{
-			Name: "amqp",
-			Host: "localhost",
-			Port: int32(amqpPort),
-		}
+	gatewayConfig.Listeners["amqp"] = qdr.Listener{
+		Name: "amqp",
+		Host: "localhost",
+		Port: int32(amqpPort),
 	}
+
 	// store the url for instance queries
 	url := fmt.Sprintf("amqp://127.0.0.1:%s", strconv.Itoa(amqpPort))
 	err = ioutil.WriteFile(gatewayDir+"/config/url.txt", []byte(url), 0644)
@@ -515,6 +553,18 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 	err = ioutil.WriteFile(gatewayDir+"/config/routerid.txt", []byte(routerId), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write instance id file: %w", err)
+	}
+
+	// store the site id to prevent second gateway to different site
+	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve site id: %w", err)
+	}
+	if siteConfig != nil {
+		err = ioutil.WriteFile(gatewayDir+"/config/siteid.txt", []byte(siteConfig.Reference.UID), 0644)
+		if err != nil {
+			return fmt.Errorf("Failed to write site id file: %w", err)
+		}
 	}
 
 	// Iterate through the config and check free ports, get port if in use
@@ -564,7 +614,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 }
 
 func (cli *VanClient) getGatewayType(gatewayName string) (string, error) {
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return "", err
 	}
@@ -583,39 +633,93 @@ func isValidGatewayType(gatewayType string) bool {
 	}
 }
 
-func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatewayType string, configFile string) (string, error) {
+func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*qdr.BridgeConfig, error) {
+	bc := qdr.NewBridgeConfig()
+
+	for _, binding := range a.Bindings {
+		for i, _ := range binding.TargetPorts {
+			name := gatewayName + gatewayEgress + binding.Service.Address
+			switch binding.Service.Protocol {
+			case "tcp":
+				bc.AddTcpConnector(qdr.TcpEndpoint{
+					Name:    name,
+					Host:    binding.Host,
+					Port:    strconv.Itoa(binding.TargetPorts[i]),
+					Address: binding.Service.Address,
+					SiteId:  routerId,
+				})
+			case "http":
+				bc.AddHttpConnector(qdr.HttpEndpoint{
+					Name:            name,
+					Host:            binding.Host,
+					Port:            strconv.Itoa(binding.TargetPorts[i]),
+					Address:         binding.Service.Address,
+					ProtocolVersion: qdr.HttpVersion1,
+					Aggregation:     binding.Service.Aggregate,
+					EventChannel:    binding.Service.EventChannel,
+					SiteId:          routerId,
+				})
+			case "http2":
+				bc.AddHttpConnector(qdr.HttpEndpoint{
+					Name:            name,
+					Host:            binding.Host,
+					Port:            strconv.Itoa(binding.TargetPorts[i]),
+					Address:         binding.Service.Address,
+					ProtocolVersion: qdr.HttpVersion2,
+					Aggregation:     binding.Service.Aggregate,
+					EventChannel:    binding.Service.EventChannel,
+					SiteId:          routerId,
+				})
+			default:
+			}
+		}
+	}
+	for _, forward := range a.Forwards {
+		for i, _ := range forward.TargetPorts {
+			name := gatewayName + gatewayIngress + forward.Service.Address
+			switch forward.Service.Protocol {
+			case "tcp":
+				bc.AddTcpListener(qdr.TcpEndpoint{
+					Name:    name,
+					Host:    forward.Host,
+					Port:    strconv.Itoa(forward.Service.Ports[i]),
+					Address: forward.Service.Address,
+					SiteId:  routerId,
+				})
+			case "http":
+				bc.AddHttpListener(qdr.HttpEndpoint{
+					Name:            name,
+					Host:            forward.Host,
+					Port:            strconv.Itoa(forward.Service.Ports[i]),
+					Address:         forward.Service.Address,
+					ProtocolVersion: qdr.HttpVersion1,
+					Aggregation:     forward.Service.Aggregate,
+					EventChannel:    forward.Service.EventChannel,
+					SiteId:          routerId,
+				})
+			case "http2":
+				bc.AddHttpListener(qdr.HttpEndpoint{
+					Name:            name,
+					Host:            forward.Host,
+					Port:            strconv.Itoa(forward.Service.Ports[i]),
+					Address:         forward.Service.Address,
+					ProtocolVersion: qdr.HttpVersion2,
+					Aggregation:     forward.Service.Aggregate,
+					EventChannel:    forward.Service.EventChannel,
+					SiteId:          routerId,
+				})
+			default:
+			}
+		}
+	}
+	return &bc, nil
+}
+
+func (cli *VanClient) createNewGateway(ctx context.Context, gatewayName string, gatewayType string, configFile string, owner *metav1.OwnerReference) (string, error) {
 	var err error
+	gatewayResourceName := clusterGatewayName(gatewayName)
 
-	if gatewayType == "" {
-		gatewayType = GatewayServiceType
-	}
-	if !isValidGatewayType(gatewayType) {
-		return "", fmt.Errorf("Invalid gateway type %s must be one of 'service', 'docker', 'podman', or 'export'", gatewayType)
-	}
-
-	if gatewayName != "" {
-		nameRegex := regexp.MustCompile(`^[a-z]([a-z0-9-]*[a-z0-9])*$`)
-		if !nameRegex.MatchString(gatewayName) {
-			return "", fmt.Errorf("Gateway name must consist of lower case letters, numerals and '-'. Must start with a letter.")
-		}
-	} else {
-		gatewayName, err = getUserDefaultGatewayName()
-		if err != nil {
-			return "", fmt.Errorf("Unable to generate gateway name: %w", err)
-		}
-	}
-
-	owner, err := getRootObject(cli)
-	if err != nil {
-		return "", fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
-	}
-
-	_, err = kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
-	if err == nil {
-		return "", fmt.Errorf("Gateway name already exists: %s", gatewayName)
-	}
-
-	secret, _, err := cli.ConnectorTokenCreate(context.Background(), gatewayPrefix+gatewayName, "")
+	secret, _, err := cli.ConnectorTokenCreate(context.Background(), gatewayResourceName, "")
 	if err != nil {
 		return "", fmt.Errorf("Failed to create gateway token: %w", err)
 	}
@@ -752,8 +856,9 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 	}
 	annotations := map[string]string{
 		"skupper.io/gateway-type": gatewayType,
+		"skupper.io/gateway-name": gatewayName,
 	}
-	_, err = kube.NewConfigMap(gatewayPrefix+gatewayName, &mapData, &labels, &annotations, owner, cli.GetNamespace(), cli.KubeClient)
+	_, err = kube.NewConfigMap(gatewayResourceName, &mapData, &labels, &annotations, owner, cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create gateway config map: %w", err)
 	}
@@ -770,12 +875,181 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 	return gatewayName, nil
 }
 
+func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatewayType string, configFile string) (string, error) {
+	var err error
+
+	if gatewayType == "" {
+		gatewayType = GatewayServiceType
+	}
+	if !isValidGatewayType(gatewayType) {
+		return "", fmt.Errorf("Invalid gateway type %s must be one of 'service', 'docker', 'podman', or 'export'", gatewayType)
+	}
+
+	if gatewayName != "" {
+		nameRegex := regexp.MustCompile(`^[a-z]([a-z0-9-]*[a-z0-9])*$`)
+		if !nameRegex.MatchString(gatewayName) {
+			return "", fmt.Errorf("Gateway name must consist of lower case letters, numerals and '-'. Must start with a letter.")
+		}
+	} else {
+		gatewayName, err = getUserDefaultGatewayName()
+		if err != nil {
+			return "", fmt.Errorf("Unable to generate gateway name: %w", err)
+		}
+	}
+
+	owner, err := getRootObject(cli)
+	if err != nil {
+		return "", fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+	}
+
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
+
+	// check if gw to different sites exists on host, only single host/gw/site allowed
+	existing, err := getGatewaySiteId(gatewayDir)
+	if err == nil {
+		siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+		if err != nil {
+			return "", fmt.Errorf("Failed to retrieve site id: %w", err)
+		}
+		if siteConfig != nil {
+			if siteConfig.Reference.UID != existing {
+				return "", fmt.Errorf("gateway not created as existing gateway detected for site: %s", existing)
+			}
+		}
+	}
+
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
+	if err == nil {
+		gwType, ok := configmap.ObjectMeta.Annotations["skupper.io/gateway-type"]
+		if ok && gwType != gatewayType {
+			return "", fmt.Errorf("gateway previously created as %s type, delete current gateway to change to %s type", gwType, gatewayType)
+		}
+	} else {
+		return cli.createNewGateway(ctx, gatewayName, gatewayType, configFile, owner)
+	}
+
+	if configFile != "" {
+		yamlFile, err := ioutil.ReadFile(configFile)
+		if err != nil {
+			return "", fmt.Errorf("Failed to read gateway config file: %w", err)
+		}
+
+		gatewayConfigFromFile := GatewayConfig{}
+		err = yaml.Unmarshal(yamlFile, &gatewayConfigFromFile)
+		if err != nil {
+			return "", fmt.Errorf("Failed to unmarshal gateway config file: %w", err)
+		}
+
+		routerId, _ := getRouterId(gatewayDir)
+		bridgeConfigFromFile, _ := gatewayConfigFromFile.getBridgeConfig(gatewayName, routerId)
+
+		routerConfigCurrent, err := qdr.GetRouterConfigFromConfigMap(configmap)
+		bcDiff := routerConfigCurrent.Bridges.Difference(bridgeConfigFromFile)
+
+		if bcDiff != (&qdr.BridgeConfigDifference{}) {
+			url, err := getRouterUrl(gatewayDir)
+			if err != nil {
+				return gatewayName, err
+			}
+			agent, err := qdr.Connect(url, nil)
+			if err != nil {
+				return gatewayName, fmt.Errorf("qdr agent error: %w", err)
+			}
+			defer agent.Close()
+			for _, deleted := range bcDiff.TcpConnectors.Deleted {
+				if err = agent.Delete(getEntity("tcp", gatewayEgress), deleted); err != nil {
+					return gatewayName, fmt.Errorf("Error removing entity connector: %w", err)
+				}
+			}
+			for _, added := range bcDiff.TcpConnectors.Added {
+				record := map[string]interface{}{}
+				added.SiteId = routerId
+				if err = convert(added, &record); err != nil {
+					return gatewayName, fmt.Errorf("Failed to convert record: %w", err)
+				}
+				if err = agent.Create(getEntity("tcp", gatewayEgress), added.Name, record); err != nil {
+					return gatewayName, fmt.Errorf("Error adding tcp entity: %w", err)
+				}
+			}
+
+			for _, deleted := range bcDiff.TcpListeners.Deleted {
+				if err = agent.Delete(getEntity("tcp", gatewayIngress), deleted); err != nil {
+					return gatewayName, fmt.Errorf("Error removing entity listener: %w", err)
+				}
+			}
+			for _, added := range bcDiff.TcpListeners.Added {
+				record := map[string]interface{}{}
+				added.SiteId = routerId
+				if err = convert(added, &record); err != nil {
+					return gatewayName, fmt.Errorf("Failed to convert record: %w", err)
+				}
+				if err = agent.Create(getEntity("tcp", gatewayIngress), added.Name, record); err != nil {
+					return gatewayName, fmt.Errorf("Error adding tcp entity: %w", err)
+				}
+			}
+
+			for _, deleted := range bcDiff.HttpConnectors.Deleted {
+				if err = agent.Delete(getEntity("http", gatewayEgress), deleted); err != nil {
+					return gatewayName, fmt.Errorf("Error removing entity connector: %w", err)
+				}
+			}
+			for _, added := range bcDiff.HttpConnectors.Added {
+				record := map[string]interface{}{}
+				added.SiteId = routerId
+				if err = convert(added, &record); err != nil {
+					return gatewayName, fmt.Errorf("Failed to convert record: %w", err)
+				}
+				if err = agent.Create(getEntity("http", gatewayEgress), added.Name, record); err != nil {
+					return gatewayName, fmt.Errorf("Error adding tcp entity: %w", err)
+				}
+			}
+
+			for _, deleted := range bcDiff.HttpListeners.Deleted {
+				if err = agent.Delete(getEntity("http", gatewayIngress), deleted); err != nil {
+					return gatewayName, fmt.Errorf("Error removing entity listener: %w", err)
+				}
+			}
+			for _, added := range bcDiff.HttpListeners.Added {
+				record := map[string]interface{}{}
+				added.SiteId = routerId
+				if err = convert(added, &record); err != nil {
+					return gatewayName, fmt.Errorf("Failed to convert record: %w", err)
+				}
+				if err = agent.Create(getEntity("http", gatewayIngress), added.Name, record); err != nil {
+					return gatewayName, fmt.Errorf("Error adding http entity: %w", err)
+				}
+			}
+
+			routerConfigCurrent.Bridges = *bridgeConfigFromFile
+			routerConfigCurrent.UpdateConfigMap(configmap)
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
+				return err
+			})
+			if err != nil {
+				return gatewayName, fmt.Errorf("Failed to update gateway configmap: %w", err)
+			}
+
+			_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
+			if err == nil {
+				err := updateLocalGatewayConfig(gatewayDir, gatewayType, *routerConfigCurrent)
+				if err != nil {
+					return gatewayName, err
+				}
+			}
+		}
+	}
+
+	return gatewayName, nil
+}
+
 func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, downloadPath string) (string, error) {
 	certs := []string{"tls.crt", "tls.key", "ca.crt"}
 
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
+	gatewayResourceName := clusterGatewayName(gatewayName)
 
 	tarFile, err := os.Create(downloadPath + "/" + gatewayName + ".tar.gz")
 	if err != nil {
@@ -788,7 +1062,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
 
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayPrefix+gatewayName, metav1.GetOptions{})
+	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayResourceName, metav1.GetOptions{})
 	if err != nil {
 		return tarFile.Name(), fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
 	}
@@ -800,7 +1074,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 		}
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return tarFile.Name(), fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -990,13 +1264,20 @@ func (cli *VanClient) gatewayStopContainer(ctx context.Context, gatewayName stri
 }
 
 func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) error {
+	errs := []string{}
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
+	}
+	gatewayResourceName := clusterGatewayName(gatewayName)
+
+	_, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
+	if errors.IsNotFound(err) {
+		return nil
 	}
 
 	gatewayType, err := cli.getGatewayType(gatewayName)
 	if err != nil {
-		return err
+		errs = append(errs, fmt.Sprintf("Unable to retrieve gateway type: %s", err))
 	}
 
 	if gatewayType == GatewayServiceType {
@@ -1005,7 +1286,7 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 		err = cli.gatewayStopContainer(ctx, gatewayName, gatewayType)
 	}
 	if err != nil {
-		return fmt.Errorf("Unable to stop gateway service %w", err)
+		errs = append(errs, fmt.Sprintf("Unable to stop gateway %s", err))
 	}
 
 	svcList, err := cli.KubeClient.CoreV1().Services(cli.GetNamespace()).List(metav1.ListOptions{LabelSelector: types.GatewayQualifier + "=" + gatewayName})
@@ -1013,12 +1294,12 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 		for _, service := range svcList.Items {
 			si, err := cli.ServiceInterfaceInspect(ctx, service.Name)
 			if err != nil {
-				return fmt.Errorf("Failed to retrieve service: %w", err)
+				errs = append(errs, fmt.Sprintf("Failed to retrieve service %s: %s", service.Name, err))
 			}
 			if si != nil && len(si.Targets) == 0 && si.Origin == "" {
 				err := cli.ServiceInterfaceRemove(ctx, service.Name)
 				if err != nil {
-					return fmt.Errorf("Failed to remove service: %w", err)
+					errs = append(errs, fmt.Sprintf("Failed to remove %s service: %s", service.Name, err))
 				}
 			} else {
 				delete(service.ObjectMeta.Labels, types.GatewayQualifier)
@@ -1030,16 +1311,20 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 		}
 	}
 
-	err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Delete(gatewayPrefix+gatewayName, &metav1.DeleteOptions{})
+	err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Delete(gatewayResourceName, &metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("Unable to remove gateway secret: %w", err)
+		errs = append(errs, fmt.Sprintf("Unable to remove gateway secret: %s", err))
 	}
 
-	err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Delete(gatewayPrefix+gatewayName, &metav1.DeleteOptions{})
+	err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Delete(gatewayResourceName, &metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("Unable to remove gateway config map: %w", err)
+		errs = append(errs, fmt.Sprintf("Unable to remove gateway config map: %s", err))
 	}
-	return nil
+	if len(errs) > 0 {
+		return fmt.Errorf(strings.Join(errs, ", "))
+	} else {
+		return nil
+	}
 }
 
 func convert(from interface{}, to interface{}) error {
@@ -1141,7 +1426,7 @@ func gatewayAddTcpEndpoint(gatewayName string, isActive bool, endpointType strin
 			return fmt.Errorf("Failed to convert record: %w", err)
 		}
 		if err = agent.Create(getEntity("tcp", endpointType), tcpEndpoint.Name, record); err != nil {
-			return fmt.Errorf("Error adding tcp entity : %w", err)
+			return fmt.Errorf("Error adding tcp entity: %w", err)
 		}
 	}
 
@@ -1240,7 +1525,7 @@ func (cli *VanClient) GatewayBind(ctx context.Context, gatewayName string, endpo
 		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -1340,7 +1625,7 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, gatewayName string, end
 		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -1411,7 +1696,7 @@ func (cli *VanClient) GatewayUnbind(ctx context.Context, gatewayName string, end
 		for i, _ := range si.Ports {
 			name := fmt.Sprintf("%s:%d", gatewayName+gatewayEgress+endpoint.Service.Address, si.Ports[i])
 			if err = agent.Delete(getEntity(si.Protocol, gatewayEgress), name); err != nil {
-				return fmt.Errorf("Error removing entity connector : %w", err)
+				return fmt.Errorf("Error removing entity connector: %w", err)
 			}
 		}
 	}
@@ -1425,6 +1710,12 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 	}
 	if gatewayName == "" {
 		gatewayName, _ = getUserDefaultGatewayName()
+	}
+
+	// check if existing and type change
+	currentType, err := cli.getGatewayType(gatewayName)
+	if err == nil && currentType != gatewayType {
+		return "", fmt.Errorf("gateway previously created as %s type, delete current gateway to change to %s type", currentType, gatewayType)
 	}
 
 	// Create the cluster service if it does not exist
@@ -1456,7 +1747,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 
 	}
 
-	_, err = kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	_, err = kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			_, err := cli.GatewayInit(ctx, gatewayName, gatewayType, "")
@@ -1476,7 +1767,6 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 		return gatewayName, err
 	}
 
-	// Note: if gateway was init as download only, it will get started here
 	if !isActive(gatewayName, gatewayType) {
 		if gatewayType == "service" {
 			err = cli.gatewayStartService(ctx, gatewayName)
@@ -1496,7 +1786,7 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, gatewayName string, e
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return fmt.Errorf("Unable to retrieve gateay definition: %w", err)
 	}
@@ -1552,7 +1842,7 @@ func (cli *VanClient) GatewayForward(ctx context.Context, gatewayName string, en
 		return fmt.Errorf("Unable to gateway forward, service not found for %s", endpoint.Service.Address)
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -1648,7 +1938,7 @@ func (cli *VanClient) GatewayUnforward(ctx context.Context, gatewayName string, 
 		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -1740,10 +2030,13 @@ func (cli *VanClient) GatewayList(ctx context.Context) ([]*types.GatewayInspectR
 			if i > 0 {
 				time.Sleep(backoff.Step())
 			}
-			inspect, inspectErr := cli.GatewayInspect(ctx, strings.TrimPrefix(gateway.ObjectMeta.Name, gatewayPrefix))
-			if inspectErr == nil {
-				list = append(list, inspect)
-				break
+			gatewayName, ok := gateway.ObjectMeta.Annotations["skupper.io/gateway-name"]
+			if ok {
+				inspect, inspectErr := cli.GatewayInspect(ctx, gatewayName)
+				if inspectErr == nil {
+					list = append(list, inspect)
+					break
+				}
 			}
 		}
 	}
@@ -1759,10 +2052,11 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 		return nil, fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+gatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
+
 	gatewayConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse gateway configmap: %w", err)
@@ -1772,7 +2066,6 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 	if err != nil {
 		return nil, err
 	}
-
 	isActive := isActive(gatewayName, gatewayType)
 
 	gatewayVersion := []byte{}
@@ -1882,7 +2175,6 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 			},
 		}
 	}
-
 	return &inspect, nil
 }
 
@@ -1891,9 +2183,11 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 		targetGatewayName, _ = getUserDefaultGatewayName()
 	}
 
+	gatewayResourceName := clusterGatewayName(targetGatewayName)
+
 	exportFile := exportPath + "/" + exportGatewayName + ".yaml"
 
-	configmap, err := kube.GetConfigMap(gatewayPrefix+targetGatewayName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
 	if err != nil {
 		return exportFile, fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -2022,9 +2316,10 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
 
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayPrefix+gatewayName, metav1.GetOptions{})
+	gatewayResourceName := clusterGatewayName(gatewayName)
+	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayResourceName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		secret, _, err = cli.ConnectorTokenCreate(context.Background(), gatewayPrefix+gatewayName, "")
+		secret, _, err = cli.ConnectorTokenCreate(context.Background(), gatewayResourceName, "")
 		if err != nil {
 			return tarFile.Name(), fmt.Errorf("Failed to create gateway token: %w", err)
 		}
@@ -2203,20 +2498,4 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	}
 
 	return tarFile.Name(), nil
-}
-
-func getRouterId(gatewayDir string) (string, error) {
-	routerId, err := ioutil.ReadFile(gatewayDir + "/config/routerid.txt")
-	if err != nil {
-		return "", fmt.Errorf("Failed to read router id: %w", err)
-	}
-	return string(routerId), nil
-}
-
-func getRouterUrl(gatewayDir string) (string, error) {
-	url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
-	if err != nil {
-		return "", fmt.Errorf("Failed to read router url: %w", err)
-	}
-	return string(url), nil
 }
