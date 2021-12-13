@@ -655,6 +655,9 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 
 			targetType, targetName := parseTargetTypeAndName(args)
 
+			// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+			exposeOpts.EnableTls = false
+
 			// silence cobra may be moved below the "if" we want to print
 			// the usage message along with this error
 			if exposeOpts.Address == "" {
@@ -712,7 +715,8 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
-	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	//cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
 
 	return cmd
 }
@@ -922,6 +926,10 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 			var sPorts []string
+
+			// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+			serviceToCreate.EnableTls = false
+
 			if len(args) == 1 {
 				parts := strings.Split(args[0], ":")
 				serviceToCreate.Address = parts[0]
@@ -952,7 +960,8 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	//cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
 	return cmd
 }
 

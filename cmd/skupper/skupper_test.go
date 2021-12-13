@@ -72,10 +72,13 @@ func TestCreateServiceParseArgs(t *testing.T) {
 	assert.Equal(t, serviceToCreate.Protocol, "tcp")
 	assert.Equal(t, serviceToCreate.TlsCredentials, "")
 
-	cmdArgs := []string{"service:8080", "--mapping", "http2", "--enable-tls"}
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	//cmdArgs := []string{"service:8080", "--mapping", "http2", "--enable-tls"}
+	cmdArgs := []string{"service:8080", "--mapping", "http2"}
 
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
-	assert.Equal(t, serviceToCreate.EnableTls, true)
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	//assert.Equal(t, serviceToCreate.EnableTls, true)
 	assert.Equal(t, serviceToCreate.Protocol, "http2")
 	assert.Equal(t, serviceToCreate.TlsCredentials, "")
 
@@ -121,10 +124,13 @@ func TestExposeParseArgs(t *testing.T) {
 	assert.Assert(t, cmd.ParseFlags(cmd_args))
 	assert.Equal(t, exposeOpts.Address, "theAddress")
 
-	cmdArgs := []string{"deployment/name", "--address", "theAddress", "--protocol", "http2", "--enable-tls"}
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	//cmdArgs := []string{"deployment/name", "--address", "theAddress", "--protocol", "http2", "--enable-tls"}
+	cmdArgs := []string{"deployment/name", "--address", "theAddress", "--protocol", "http2"}
 
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
-	assert.Equal(t, exposeOpts.EnableTls, true)
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	//assert.Equal(t, exposeOpts.EnableTls, true)
 	assert.Equal(t, exposeOpts.Protocol, "http2")
 	assert.Equal(t, exposeOpts.TlsCredentials, "")
 }
