@@ -1,7 +1,9 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/data"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -93,10 +96,10 @@ func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace stri
 		}
 		vir.Status.Mode = string(routerConfig.Metadata.Mode)
 		vir.Status.TransportReadyReplicas = current.Status.ReadyReplicas
-		connected, err := qdr.GetConnectedSites(vir.Status.Mode == string(types.TransportModeEdge), namespace, cli.KubeClient, cli.RestConfig)
+		connected, err := cli.getSitesInNetwork(siteConfig.Reference.UID, namespace)
 		for i := 0; i < 5 && err != nil; i++ {
 			time.Sleep(500 * time.Millisecond)
-			connected, err = qdr.GetConnectedSites(vir.Status.Mode == string(types.TransportModeEdge), namespace, cli.KubeClient, cli.RestConfig)
+			connected, err = cli.getSitesInNetwork(siteConfig.Reference.UID, namespace)
 		}
 
 		if err == nil {
@@ -119,4 +122,47 @@ func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace stri
 
 	return vir, err
 
+}
+
+func (cli *VanClient) getSitesInNetwork(siteId string, namespace string) (types.TransportConnectedSites, error) {
+	result := types.TransportConnectedSites{}
+	output, err := cli.exec([]string{"get", "sites", "-o", "json"}, namespace)
+	if err != nil {
+		return result, err
+	}
+	sites := []data.Site{}
+	err = json.Unmarshal(output.Bytes(), &sites)
+	if err != nil {
+		return result, err
+	}
+	self := getSelf(sites, siteId)
+	for _, site := range sites {
+		if site.SiteId == siteId { //skip self
+			continue
+		}
+		if site.IsConnectedTo(siteId) || (self != nil && self.IsConnectedTo(site.SiteId)) {
+			result.Direct++
+		} else {
+			result.Indirect++
+		}
+		result.Total++
+	}
+	return result, nil
+}
+
+func getSelf(sites []data.Site, siteId string) *data.Site {
+	for _, site := range sites {
+		if site.SiteId == siteId {
+			return &site
+		}
+	}
+	return nil
+}
+
+func (cli *VanClient) exec(command []string, namespace string) (*bytes.Buffer, error) {
+	pod, err := kube.GetReadyPod(namespace, cli.KubeClient, "service-controller")
+	if err != nil {
+		return nil, err
+	}
+	return kube.ExecCommandInContainer(command, pod.Name, "service-controller", namespace, cli.KubeClient, cli.RestConfig)
 }

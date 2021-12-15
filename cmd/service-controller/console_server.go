@@ -474,7 +474,9 @@ func getAllSites(routers []qdr.Router) []data.SiteQueryData {
 	for _, s := range sites {
 		m := siteConnections[s.SiteId]
 		for key, _ := range m {
-			s.Connected = append(s.Connected, key)
+			if key != s.SiteId {
+				s.Connected = append(s.Connected, key)
+			}
 		}
 		list = append(list, s)
 	}
