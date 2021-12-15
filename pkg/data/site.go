@@ -10,3 +10,12 @@ type Site struct {
 	Edge      bool     `json:"edge"`
 	Gateway   bool     `json:"gateway"`
 }
+
+func (s *Site) IsConnectedTo(siteId string) bool {
+	for _, value := range s.Connected {
+		if value == siteId {
+			return true
+		}
+	}
+	return false
+}
