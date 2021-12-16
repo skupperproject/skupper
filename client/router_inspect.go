@@ -90,21 +90,21 @@ func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace stri
 	}
 	current, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
-		siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+		siteConfig, err := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
 		if err == nil && siteConfig != nil {
 			vir.Status.SiteName = siteConfig.Spec.SkupperName
+			connected, err := cli.getSitesInNetwork(siteConfig.Reference.UID, namespace)
+			for i := 0; i < 5 && err != nil; i++ {
+				time.Sleep(500 * time.Millisecond)
+				connected, err = cli.getSitesInNetwork(siteConfig.Reference.UID, namespace)
+			}
+
+			if err == nil {
+				vir.Status.ConnectedSites = connected
+			}
 		}
 		vir.Status.Mode = string(routerConfig.Metadata.Mode)
 		vir.Status.TransportReadyReplicas = current.Status.ReadyReplicas
-		connected, err := cli.getSitesInNetwork(siteConfig.Reference.UID, namespace)
-		for i := 0; i < 5 && err != nil; i++ {
-			time.Sleep(500 * time.Millisecond)
-			connected, err = cli.getSitesInNetwork(siteConfig.Reference.UID, namespace)
-		}
-
-		if err == nil {
-			vir.Status.ConnectedSites = connected
-		}
 
 		vir.TransportVersion = kube.GetComponentVersion(namespace, cli.KubeClient, types.TransportComponentName, types.TransportContainerName)
 		vir.ControllerVersion = kube.GetComponentVersion(namespace, cli.KubeClient, types.ControllerComponentName, types.ControllerContainerName)
