@@ -36,7 +36,7 @@ func TestServiceInterfaceInspect(t *testing.T) {
 			proto:                 "tcp",
 			ports:                 []int{5672},
 			init:                  false,
-			expectedCreationError: "Skupper not initialised",
+			expectedCreationError: "Skupper is not enabled in namespace 'vsii-2'",
 		},
 	}
 	for _, testcase := range testcases {

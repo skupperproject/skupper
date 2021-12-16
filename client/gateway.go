@@ -712,7 +712,7 @@ func (cli *VanClient) gatewayStopService(ctx context.Context, gatewayName string
 
 	_, err := getRootObject(cli)
 	if err != nil {
-		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+		return fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	}
 
 	if isActive(gatewayName, GatewayServiceType) {
@@ -773,7 +773,7 @@ func (cli *VanClient) gatewayStopContainer(ctx context.Context, gatewayName stri
 
 	_, err := getRootObject(cli)
 	if err != nil {
-		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+		return fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	}
 
 	containerCmd := gatewayType
@@ -1041,6 +1041,15 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatewayType string, configFile string) (string, error) {
 	var err error
 
+	policy := NewPolicyValidatorAPI(cli)
+	policyRes, err := policy.IncomingLink()
+	if err != nil {
+		return "", err
+	}
+	if !policyRes.Allowed {
+		return "", policyRes.Err()
+	}
+
 	if gatewayType == "" {
 		gatewayType = GatewayServiceType
 	}
@@ -1062,7 +1071,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 
 	owner, err := getRootObject(cli)
 	if err != nil {
-		return "", fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+		return "", fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	}
 
 	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
@@ -1421,7 +1430,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 
 	_, err := getRootObject(cli)
 	if err != nil {
-		return fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+		return fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	}
 
 	si, err := cli.ServiceInterfaceInspect(ctx, service.Address)
@@ -1775,7 +1784,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 
 	_, err := getRootObject(cli)
 	if err != nil {
-		return nil, fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+		return nil, fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	}
 
 	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
@@ -2002,7 +2011,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 
 	owner, err := getRootObject(cli)
 	if err != nil {
-		return "", fmt.Errorf("Skupper not initialized in %s", cli.Namespace)
+		return "", fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	}
 
 	yamlFile, err := ioutil.ReadFile(configFile)

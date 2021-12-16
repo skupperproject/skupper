@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/client"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1informer "k8s.io/client-go/informers/core/v1"
@@ -122,8 +123,14 @@ func hasTargetForService(si types.ServiceInterface, service string) bool {
 }
 
 func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string][]int) error {
+	policy := client.NewClusterPolicyValidator(c.vanClient)
+	res := policy.ValidateImportService(required.Address)
 	bindings := c.bindings[required.Address]
 	if bindings == nil {
+		if !res.Allowed() {
+			event.Recordf(BridgeTargetEvent, "Policy validation error: service %s cannot be created", required.Address)
+			return nil
+		}
 		// create it
 		var ports []int
 		// headless services use distinct proxy pods, so don't need to allocate a port
@@ -161,6 +168,11 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		c.bindings[required.Address] = sb
 
 	} else {
+		if !res.Allowed() {
+			event.Recordf(BridgeTargetEvent, "Policy validation error: service %s has been removed", required.Address)
+			delete(c.bindings, required.Address)
+			return nil
+		}
 		// check it is configured correctly
 		if bindings.protocol != required.Protocol {
 			bindings.protocol = required.Protocol

@@ -5,16 +5,32 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
 func get(path string, output string) error {
-	url := "http://localhost:8181/" + path
-	if output == "json" {
-		url += "?output=json"
-	}
-	resp, err := http.Get(url)
+	var resp *http.Response
+	var err error
+
+	err = utils.Retry(time.Second, 30, func() (bool, error) {
+		url := "http://localhost:8181/" + path
+		if output == "json" {
+			url += "?output=json"
+		}
+		resp, err = http.Get(url)
+		if err != nil {
+			if strings.Contains(err.Error(), "connect: connection refused") {
+				return false, nil
+			}
+			return true, err
+		}
+		return true, nil
+	})
+
 	if err != nil {
 		return err
 	}
@@ -45,6 +61,38 @@ func simplePathCommand(path string, description string) *cobra.Command {
 	}
 }
 
+func policyCmd() *cobra.Command {
+	policyCmd := &cobra.Command{
+		Use:   "policies",
+		Short: "Validates existing policies",
+	}
+	simplePathPolicyCommand := func(pathCmd string, args []string, description string) {
+		commands := []string{pathCmd}
+		cobraArgs := cobra.NoArgs
+		if len(args) > 0 {
+			commands = append(commands, args...)
+			cobraArgs = cobra.ExactArgs(len(args))
+		}
+		policyCmd.AddCommand(&cobra.Command{
+			Use:   strings.Join(commands, " "),
+			Short: description,
+			Args:  cobraArgs,
+			RunE: func(cmd *cobra.Command, args []string) error {
+				path := fmt.Sprintf("policy/%s", pathCmd)
+				for i, _ := range args {
+					path = path + "/" + args[i]
+				}
+				return get(path, output)
+			},
+		})
+	}
+	simplePathPolicyCommand("incominglink", nil, "Validates if incoming links can be creted")
+	simplePathPolicyCommand("outgoinglink", []string{"hostname"}, "Validates if an outgoing link to the given hostname is allowed")
+	simplePathPolicyCommand("expose", []string{"target-type", "target-name"}, "Validates if the given resource can be exposed")
+	simplePathPolicyCommand("service", []string{"name"}, "Validates if service can be created or imported")
+	return policyCmd
+}
+
 func main() {
 	var rootCmd = &cobra.Command{Use: "get"}
 
@@ -62,6 +110,8 @@ func main() {
 			return get(path, output)
 		},
 	})
+
+	rootCmd.AddCommand(policyCmd())
 
 	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "", "The output format to use (one of json or text)")
 

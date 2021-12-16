@@ -16,6 +16,7 @@ package utils
 
 import (
 	"crypto/rand"
+	"regexp"
 	"strings"
 )
 
@@ -62,6 +63,25 @@ func LabelToMap(label string) map[string]string {
 func StringSliceContains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func StringSliceEndsWith(s []string, e string) bool {
+	for _, a := range s {
+		if strings.HasSuffix(a, e) {
+			return true
+		}
+	}
+	return false
+}
+
+func RegexpStringSliceContains(s []string, e string) bool {
+	for _, re := range s {
+		match, err := regexp.Match(re, []byte(e))
+		if err == nil && match {
 			return true
 		}
 	}

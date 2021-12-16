@@ -1,0 +1,13 @@
+apiVersion: skupper.io/v1alpha1
+kind: SkupperClusterPolicy
+metadata:
+  name: cluster-policy-sample-03
+spec:
+  namespaces:
+    - "ns4"
+    - "ns5"
+    - "ns6"
+  allowIncomingLinks: true
+  allowedOutgoingLinksHostnames: ["*"]
+  allowedExposedResources: ["*"]
+  allowedServices: ["*"]

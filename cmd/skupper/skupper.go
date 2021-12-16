@@ -107,6 +107,18 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", err
 	}
 
+	vanClient, realClient := cli.(*client.VanClient)
+	var policy *client.PolicyAPIClient
+	if realClient {
+		policy = client.NewPolicyValidatorAPI(vanClient)
+		res, err := policy.Expose(targetType, targetName)
+		if err != nil {
+			return "", err
+		}
+		if !res.Allowed {
+			return "", res.Err()
+		}
+	}
 	if service == nil {
 		if options.Headless {
 			if targetType != "statefulset" {
@@ -119,6 +131,15 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 			err = configureHeadlessProxy(service.Headless, &options.ProxyTuning)
 			return service.Address, cli.ServiceInterfaceUpdate(ctx, service)
 		} else {
+			if realClient {
+				res, err := policy.Service(serviceName)
+				if err != nil {
+					return "", err
+				}
+				if !res.Allowed {
+					return "", res.Err()
+				}
+			}
 			service = &types.ServiceInterface{
 				Address:        serviceName,
 				Ports:          options.Ports,
@@ -603,7 +624,15 @@ func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 				if vir.Status.SiteName != "" && vir.Status.SiteName != ns {
 					sitename = fmt.Sprintf(" with site name %q", vir.Status.SiteName)
 				}
-				fmt.Printf("Skupper is enabled for namespace %q%s%s.", ns, sitename, modedesc)
+				policyStr := ""
+				if vanClient, ok := cli.(*client.VanClient); ok {
+					p := client.NewPolicyValidatorAPI(vanClient)
+					r, err := p.IncomingLink()
+					if err == nil && r.Enabled {
+						policyStr = " (with policies)"
+					}
+				}
+				fmt.Printf("Skupper is enabled for namespace %q%s%s%s.", ns, sitename, modedesc, policyStr)
 				if vir.Status.TransportReadyReplicas == 0 {
 					fmt.Printf(" Status pending...")
 				} else {
@@ -782,6 +811,22 @@ func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 				} else {
 					l := formatter.NewList()
 					l.Item("Services exposed through Skupper:")
+					addresses := []string{}
+					for _, si := range vsis {
+						addresses = append(addresses, si.Address)
+					}
+					svcAuth := map[string]bool{}
+					for _, addr := range addresses {
+						svcAuth[addr] = true
+					}
+					if vc, ok := cli.(*client.VanClient); ok {
+						policy := client.NewPolicyValidatorAPI(vc)
+						res, _ := policy.Services(addresses...)
+						for addr, auth := range res {
+							svcAuth[addr] = auth.Allowed
+						}
+					}
+
 					for _, si := range vsis {
 						portStr := "port"
 						if len(si.Ports) > 1 {
@@ -790,7 +835,11 @@ func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
 						for _, port := range si.Ports {
 							portStr += fmt.Sprintf(" %d", port)
 						}
-						svc := l.NewChild(fmt.Sprintf("%s (%s %s)", si.Address, si.Protocol, portStr))
+						authSuffix := ""
+						if !svcAuth[si.Address] {
+							authSuffix = " - not authorized"
+						}
+						svc := l.NewChild(fmt.Sprintf("%s (%s %s)%s", si.Address, si.Protocol, portStr, authSuffix))
 						if len(si.Targets) > 0 {
 							targets := svc.NewChild("Targets:")
 							for _, t := range si.Targets {

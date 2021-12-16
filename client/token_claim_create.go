@@ -58,6 +58,14 @@ func (cli *VanClient) getControllerIngressHost() (string, error) {
 }
 
 func (cli *VanClient) TokenClaimCreateFile(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error {
+	policy := NewPolicyValidatorAPI(cli)
+	res, err := policy.IncomingLink()
+	if err != nil {
+		return err
+	}
+	if !res.Allowed {
+		return res.Err()
+	}
 	claim, localOnly, err := cli.TokenClaimCreate(ctx, name, password, expiry, uses)
 	if err != nil {
 		return err
@@ -94,6 +102,11 @@ func getContourProxyClaimsHostSuffix(cli *VanClient) string {
 }
 
 func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string, password []byte, recordName string) (*corev1.Secret, *corev1.Service, bool, error) {
+	policy := NewClusterPolicyValidator(cli)
+	res := policy.ValidateIncomingLink()
+	if !res.Allowed() {
+		return nil, nil, false, fmt.Errorf("incoming links are not allowed")
+	}
 	current, err := cli.getRouterConfig()
 	if err != nil {
 		return nil, nil, false, err

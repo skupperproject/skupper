@@ -76,14 +76,16 @@ var TransportPrometheusAnnotations = map[string]string{
 
 // Controller constants
 const (
-	ControllerDeploymentName     string = "skupper-service-controller"
-	ControllerComponentName      string = "service-controller"
-	ControllerContainerName      string = "service-controller"
-	ControllerServiceAccountName string = "skupper-service-controller"
-	ControllerRoleBindingName    string = "skupper-service-controller"
-	ControllerRoleName           string = "skupper-service-controller"
-	ControllerConfigPath         string = "/etc/messaging/"
-	ControllerServiceName        string = "skupper"
+	ControllerDeploymentName             string = "skupper-service-controller"
+	ControllerComponentName              string = "service-controller"
+	ControllerContainerName              string = "service-controller"
+	ControllerServiceAccountName         string = "skupper-service-controller"
+	ControllerRoleBindingName            string = "skupper-service-controller"
+	ControllerClusterRoleBindingNsFormat string = "skupper-service-controller-%s"
+	ControllerRoleName                   string = "skupper-service-controller"
+	ControllerClusterRoleName            string = "skupper-service-controller"
+	ControllerConfigPath                 string = "/etc/messaging/"
+	ControllerServiceName                string = "skupper"
 )
 
 var ControllerPolicyRule = []rbacv1.PolicyRule{
@@ -145,6 +147,7 @@ const (
 	InternalTypeQualifier       string = InternalQualifier + "/type"
 	SkupperTypeQualifier        string = BaseQualifier + "/type"
 	TypeProxyQualifier          string = InternalTypeQualifier + "=proxy"
+	SkupperDisabledQualifier    string = InternalQualifier + "/disabled"
 	TypeToken                   string = "connection-token"
 	TypeClaimRecord             string = "token-claim-record"
 	TypeClaimRequest            string = "token-claim"
@@ -261,29 +264,31 @@ type ImageDetails struct {
 
 // DeploymentSpec for the VAN router or controller components to run within a cluster
 type DeploymentSpec struct {
-	Image           ImageDetails             `json:"image,omitempty"`
-	Replicas        int32                    `json:"replicas,omitempty"`
-	LivenessPort    int32                    `json:"livenessPort,omitempty"`
-	Labels          map[string]string        `json:"labels,omitempty"`
-	Annotations     map[string]string        `json:"annotations,omitempty"`
-	LabelSelector   map[string]string        `json:"labelSelector,omitempty"`
-	EnvVar          []corev1.EnvVar          `json:"envVar,omitempty"`
-	Ports           []corev1.ContainerPort   `json:"ports,omitempty"`
-	Volumes         []corev1.Volume          `json:"volumes,omitempty"`
-	VolumeMounts    [][]corev1.VolumeMount   `json:"volumeMounts,omitempty"`
-	Roles           []*rbacv1.Role           `json:"roles,omitempty"`
-	RoleBindings    []*rbacv1.RoleBinding    `json:"roleBinding,omitempty"`
-	Routes          []*routev1.Route         `json:"routes,omitempty"`
-	ServiceAccounts []*corev1.ServiceAccount `json:"serviceAccounts,omitempty"`
-	Services        []*corev1.Service        `json:"services,omitempty"`
-	Sidecars        []*corev1.Container      `json:"sidecars,omitempty"`
-	Affinity        map[string]string        `json:"affinity,omitempty"`
-	AntiAffinity    map[string]string        `json:"antiAffinity,omitempty"`
-	NodeSelector    map[string]string        `json:"nodeSelector,omitempty"`
-	CpuRequest      *resource.Quantity       `json:"cpuRequest,omitempty"`
-	MemoryRequest   *resource.Quantity       `json:"memoryRequest,omitempty"`
-	CpuLimit        *resource.Quantity       `json:"cpuLimit,omitempty"`
-	MemoryLimit     *resource.Quantity       `json:"memoryLimit,omitempty"`
+	Image               ImageDetails                 `json:"image,omitempty"`
+	Replicas            int32                        `json:"replicas,omitempty"`
+	LivenessPort        int32                        `json:"livenessPort,omitempty"`
+	Labels              map[string]string            `json:"labels,omitempty"`
+	Annotations         map[string]string            `json:"annotations,omitempty"`
+	LabelSelector       map[string]string            `json:"labelSelector,omitempty"`
+	EnvVar              []corev1.EnvVar              `json:"envVar,omitempty"`
+	Ports               []corev1.ContainerPort       `json:"ports,omitempty"`
+	Volumes             []corev1.Volume              `json:"volumes,omitempty"`
+	VolumeMounts        [][]corev1.VolumeMount       `json:"volumeMounts,omitempty"`
+	Roles               []*rbacv1.Role               `json:"roles,omitempty"`
+	RoleBindings        []*rbacv1.RoleBinding        `json:"roleBinding,omitempty"`
+	ClusterRoles        []*rbacv1.ClusterRole        `json:"clusterRoles,omitempty"`
+	ClusterRoleBindings []*rbacv1.ClusterRoleBinding `json:"clusterRoleBinding,omitempty"`
+	Routes              []*routev1.Route             `json:"routes,omitempty"`
+	ServiceAccounts     []*corev1.ServiceAccount     `json:"serviceAccounts,omitempty"`
+	Services            []*corev1.Service            `json:"services,omitempty"`
+	Sidecars            []*corev1.Container          `json:"sidecars,omitempty"`
+	Affinity            map[string]string            `json:"affinity,omitempty"`
+	AntiAffinity        map[string]string            `json:"antiAffinity,omitempty"`
+	NodeSelector        map[string]string            `json:"nodeSelector,omitempty"`
+	CpuRequest          *resource.Quantity           `json:"cpuRequest,omitempty"`
+	MemoryRequest       *resource.Quantity           `json:"memoryRequest,omitempty"`
+	CpuLimit            *resource.Quantity           `json:"cpuLimit,omitempty"`
+	MemoryLimit         *resource.Quantity           `json:"memoryLimit,omitempty"`
 }
 
 func (s *DeploymentSpec) GetCpuRequest() resource.Quantity {

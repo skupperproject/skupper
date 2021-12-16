@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -174,6 +175,31 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 		if err != nil {
 			return nil, fmt.Errorf("Could not parse connection token: %w", err)
 		} else {
+			// Validating destination host
+			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+			if err != nil {
+				return nil, err
+			}
+			hostname := ""
+			if secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeToken {
+				if siteConfig.Spec.RouterMode == string(types.TransportModeEdge) {
+					hostname = secret.ObjectMeta.Annotations["edge-host"]
+				} else {
+					hostname = secret.ObjectMeta.Annotations["inter-router-host"]
+				}
+			} else {
+				destUrl, err := url.Parse(secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey])
+				if err != nil {
+					return nil, fmt.Errorf("Invalid URL defined in token: %s", err)
+				}
+				hostname = destUrl.Hostname()
+			}
+			policy := NewClusterPolicyValidator(cli)
+			res := policy.ValidateOutgoingLink(hostname)
+			if !res.Allowed() {
+				return nil, fmt.Errorf("outgoing link to %s is not allowed", hostname)
+			}
+
 			if options.Name == "" {
 				options.Name = generateConnectorName(options.SkupperNamespace, cli.KubeClient)
 			}

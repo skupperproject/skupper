@@ -66,6 +66,7 @@ type Controller struct {
 	tokenHandler      *SecretController
 	claimHandler      *SecretController
 	serviceSync       *service_sync.ServiceSync
+	policyHandler     *PolicyController
 }
 
 const (
@@ -201,6 +202,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	}
 	controller.serviceSync = service_sync.NewServiceSync(origin, client.Version, qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", tlsConfig), handler)
 
+	controller.policyHandler = NewPolicyController(controller.vanClient)
 	return controller, nil
 }
 
@@ -322,6 +324,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	}
 	c.tokenHandler.start(stopCh)
 	c.claimHandler.start(stopCh)
+	c.policyHandler.start(stopCh)
 
 	log.Println("Started workers")
 	<-stopCh
@@ -329,6 +332,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	c.definitionMonitor.stop()
 	c.tokenHandler.stop()
 	c.claimHandler.stop()
+	c.policyHandler.stop()
 
 	return nil
 }
