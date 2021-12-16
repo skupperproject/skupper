@@ -33,5 +33,6 @@ require (
 	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.0
 	k8s.io/client-go v0.17.0
+	k8s.io/code-generator v0.17.0 // indirect
 	k8s.io/utils v0.0.0-20200229041039-0a110f9eb7ab // indirect
 )

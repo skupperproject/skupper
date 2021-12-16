@@ -199,15 +199,15 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 	if current.IsEdge() {
 		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
-	//TODO: creat const for ca
+	// TODO: creat const for ca
 	caSecret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
-	//get the host and port for inter-router and edge
+	// get the host and port for inter-router and edge
 	var hostPorts RouterHostPorts
 	if !configureHostPorts(&hostPorts, cli, namespace) {
-		//TODO: return the actual error
+		// TODO: return the actual error
 		return nil, false, fmt.Errorf("Could not determine host/ports for token")
 	}
 	secret := certs.GenerateSecret(subject, subject, hostPorts.Hosts, caSecret)
@@ -230,9 +230,17 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 }
 
 func (cli *VanClient) ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
+	policy := NewPolicyValidatorAPI(cli)
+	res, err := policy.IncomingLink()
+	if err != nil {
+		return err
+	}
+	if !res.Allowed {
+		return res.Err()
+	}
 	secret, localOnly, err := cli.ConnectorTokenCreate(ctx, subject, "")
 	if err == nil {
-		//generate yaml and save it to the specified path
+		// generate yaml and save it to the specified path
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 		out, err := os.Create(secretFile)
 		if err != nil {

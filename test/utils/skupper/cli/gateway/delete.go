@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,18 +106,20 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	}
 
 	//
-	// Validate ConfigMap and Secret removed
+	// Retrieve ConfigMap with skupper.io/type: gateway-definition (label)
 	//
-	resource := "skupper-gateway-" + gatewayName
-	_, err = cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(resource, v1.GetOptions{})
-	if err == nil {
-		err = fmt.Errorf("secret still exists: %s", resource)
+	cmList, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).List(v1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", types.SkupperTypeQualifier, "gateway-definition"),
+	})
+	if err != nil {
 		return
 	}
-	_, err = cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(resource, v1.GetOptions{})
-	if err == nil {
-		err = fmt.Errorf("configmap still exists: %s", resource)
-		return
+
+	for _, cm := range cmList.Items {
+		gwName, ok := cm.Annotations["skupper.io/gateway-name"]
+		if ok && gwName == gatewayName {
+			fmt.Errorf("gateway configmap still exists")
+		}
 	}
 
 	err = nil

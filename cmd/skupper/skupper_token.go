@@ -31,7 +31,7 @@ func NewCmdTokenCreate(newClient cobraFunc, flag string) *cobra.Command {
 	if flag == "client-identity" {
 		subflag = "i"
 	} else if flag == "" {
-		flag = "name" //default
+		flag = "name" // default
 	} else {
 		panic("flag argument must be \"client-identity\" or \"\"")
 	}

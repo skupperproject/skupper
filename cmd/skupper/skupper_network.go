@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
-	"strings"
-	"time"
 )
 
 func NewCmdNetwork() *cobra.Command {
@@ -88,8 +90,25 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 					serviceLevel := siteList.NewChildWithDetail(newItem, detailsMap)
 					if len(site.Services) > 0 {
 						services := serviceLevel.NewChild("Services:")
+						addresses := []string{}
+						svcAuth := map[string]bool{}
 						for _, svc := range site.Services {
-							svcItem := "name: " + svc.Name + fmt.Sprintln()
+							addresses = append(addresses, svc.Name)
+							svcAuth[svc.Name] = true
+						}
+						if vc, ok := cli.(*client.VanClient); ok && site.Namespace == cli.GetNamespace() {
+							policy := client.NewPolicyValidatorAPI(vc)
+							res, _ := policy.Services(addresses...)
+							for addr, auth := range res {
+								svcAuth[addr] = auth.Allowed
+							}
+						}
+						for _, svc := range site.Services {
+							authSuffix := ""
+							if !svcAuth[svc.Name] {
+								authSuffix = " - not authorized"
+							}
+							svcItem := "name: " + svc.Name + authSuffix + fmt.Sprintln()
 							detailsSvc := map[string]string{"protocol": svc.Protocol, "address": svc.Address}
 							targetLevel := services.NewChildWithDetail(svcItem, detailsSvc)
 

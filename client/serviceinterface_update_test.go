@@ -2,10 +2,11 @@ package client
 
 import (
 	"context"
-	"github.com/skupperproject/skupper/pkg/certs"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/certs"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
@@ -289,7 +290,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		EventChannel: false,
 		Aggregate:    "",
 	})
-	assert.Error(t, err, "Skupper not initialised in van-serviceinterface-update")
+	assert.ErrorContains(t, err, "Skupper is not enabled in namespace 'van-serviceinterface-update'")
 
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{

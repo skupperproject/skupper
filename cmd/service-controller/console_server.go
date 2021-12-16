@@ -34,6 +34,7 @@ type ConsoleServer struct {
 	tokens    *TokenManager
 	links     *LinkManager
 	services  *ServiceManager
+	policies  *PolicyManager
 }
 
 func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer {
@@ -43,6 +44,7 @@ func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer 
 		tokens:    newTokenManager(cli),
 		links:     newLinkManager(cli, pool),
 		services:  newServiceManager(cli),
+		policies:  newPolicyManager(cli),
 	}
 }
 
@@ -281,7 +283,7 @@ func (server *ConsoleServer) checkService() http.Handler {
 		if err != nil {
 			server.httpInternalError(w, fmt.Errorf("Could not get management agent : %s", err))
 		} else {
-			//what is the name of the service to check?
+			// what is the name of the service to check?
 			vars := mux.Vars(r)
 			if address, ok := vars["name"]; ok {
 				data, err := checkService(agent, address)
@@ -408,6 +410,10 @@ func (server *ConsoleServer) listen() {
 	r.Handle("/version", authenticated(server.version()))
 	r.Handle("/site", authenticated(server.site()))
 	r.Handle("/events", authenticated(server.serveEvents()))
+	r.Handle("/policy/expose/{resourceType}/{resourceName}", authenticated(server.policies.expose()))
+	r.Handle("/policy/service/{name}", authenticated(server.policies.service()))
+	r.Handle("/policy/incominglink", authenticated(server.policies.incomingLink()))
+	r.Handle("/policy/outgoinglink/{hostname}", authenticated(server.policies.outgoingLink()))
 	r.Handle("/servicecheck/{name}", server.checkService())
 	r.PathPrefix("/").Handler(authenticated(http.FileServer(http.Dir("/app/console/"))))
 	if os.Getenv("USE_CORS") != "" {
@@ -430,6 +436,10 @@ func (server *ConsoleServer) listenLocal() {
 	r.Handle("/sites", server.serveSites())
 	r.Handle("/services", server.serveServices())
 	r.Handle("/servicecheck/{name}", server.checkService())
+	r.Handle("/policy/expose/{resourceType}/{resourceName}", server.policies.expose())
+	r.Handle("/policy/service/{name}", server.policies.service())
+	r.Handle("/policy/incominglink", server.policies.incomingLink())
+	r.Handle("/policy/outgoinglink/{hostname}", server.policies.outgoingLink())
 	log.Fatal(http.ListenAndServe(addr, r))
 }
 
@@ -509,7 +519,7 @@ func getConsoleData(agent *qdr.Agent) (*data.ConsoleData, error) {
 }
 
 func checkService(agent *qdr.Agent, address string) (*data.ServiceCheck, error) {
-	//get all routers of version 0.5 and up
+	// get all routers of version 0.5 and up
 	routers, err := agent.GetAllRouters()
 	if err != nil {
 		return nil, fmt.Errorf("Error retrieving routers: %s", err)

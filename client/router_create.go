@@ -58,6 +58,34 @@ func ConfigSyncContainer() *corev1.Container {
 	}
 }
 
+func InteriorListener(options types.SiteConfigSpec) qdr.Listener {
+	return qdr.Listener{
+		Name:             "interior-listener",
+		Host:             "0.0.0.0",
+		Role:             qdr.RoleInterRouter,
+		Port:             types.InterRouterListenerPort,
+		SslProfile:       types.InterRouterProfile,
+		SaslMechanisms:   "EXTERNAL",
+		AuthenticatePeer: true,
+		MaxFrameSize:     options.Router.MaxFrameSize,
+		MaxSessionFrames: options.Router.MaxSessionFrames,
+	}
+}
+
+func EdgeListener(options types.SiteConfigSpec) qdr.Listener {
+	return qdr.Listener{
+		Name:             "edge-listener",
+		Host:             "0.0.0.0",
+		Role:             qdr.RoleEdge,
+		Port:             types.EdgeListenerPort,
+		SslProfile:       types.InterRouterProfile,
+		SaslMechanisms:   "EXTERNAL",
+		AuthenticatePeer: true,
+		MaxFrameSize:     options.Router.MaxFrameSize,
+		MaxSessionFrames: options.Router.MaxSessionFrames,
+	}
+}
+
 func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {
 	if cli.RouteClient == nil {
 		// remove rule for routes if routes not defined
@@ -190,6 +218,9 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		},
 	})
 	van.Controller.RoleBindings = roleBindings
+
+	van.Controller.ClusterRoles = ClusterRoles()
+	van.Controller.ClusterRoleBindings = ClusterRoleBindings(cli.Namespace)
 
 	svctype := corev1.ServiceTypeClusterIP
 	if options.IsConsoleIngressLoadBalancer() {
@@ -352,6 +383,53 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.Services = svcs
 
 	van.Controller.Routes = routes
+}
+
+func ClusterRoleBindings(namespace string) []*rbacv1.ClusterRoleBinding {
+	clusterRoleBindings := []*rbacv1.ClusterRoleBinding{}
+	clusterRoleBindings = append(clusterRoleBindings, &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf(types.ControllerClusterRoleBindingNsFormat, namespace),
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind:      "ServiceAccount",
+			Name:      types.ControllerServiceAccountName,
+			Namespace: namespace,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			Kind: "ClusterRole",
+			Name: types.ControllerClusterRoleName,
+		},
+	})
+	return clusterRoleBindings
+}
+
+func ClusterRoles() []*rbacv1.ClusterRole {
+	clusterRoles := []*rbacv1.ClusterRole{}
+	clusterRoles = append(clusterRoles, &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: types.ControllerClusterRoleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"skupper.io"},
+				Resources: []string{"skupperclusterpolicies"},
+				Verbs:     []string{"get", "list", "watch"}},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"namespaces"},
+				Verbs:     []string{"get"}},
+		},
+	})
+	return clusterRoles
 }
 
 func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) error {
@@ -527,29 +605,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		routerConfig.AddSslProfile(qdr.SslProfile{
 			Name: types.InterRouterProfile,
 		})
-		listeners := []qdr.Listener{
-			{
-				Name:             "interior-listener",
-				Host:             "0.0.0.0",
-				Role:             qdr.RoleInterRouter,
-				Port:             types.InterRouterListenerPort,
-				SslProfile:       types.InterRouterProfile,
-				SaslMechanisms:   "EXTERNAL",
-				AuthenticatePeer: true,
-			},
-			{
-				Name:             "edge-listener",
-				Host:             "0.0.0.0",
-				Role:             qdr.RoleEdge,
-				Port:             types.EdgeListenerPort,
-				SslProfile:       types.InterRouterProfile,
-				SaslMechanisms:   "EXTERNAL",
-				AuthenticatePeer: true,
-			},
-		}
+		listeners := []qdr.Listener{InteriorListener(options), EdgeListener(options)}
 		for _, listener := range listeners {
-			listener.SetMaxFrameSize(options.Router.MaxFrameSize)
-			listener.SetMaxSessionFrames(options.Router.MaxSessionFrames)
 			routerConfig.AddListener(listener)
 		}
 	}
@@ -1220,6 +1277,22 @@ sasldb_path: /tmp/skrouterd.sasldb
 			_, err = kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
+			}
+		}
+		policyValidator := NewClusterPolicyValidator(cli)
+		for _, clusterRole := range van.Controller.ClusterRoles {
+			clusterRole.ObjectMeta.OwnerReferences = ownerRefs
+			// optional (in case of failure, cluster admin can add necessary cluster roles manually)
+			kube.CreateClusterRole(clusterRole, cli.KubeClient)
+		}
+		for _, clusterRoleBinding := range van.Controller.ClusterRoleBindings {
+			clusterRoleBinding.ObjectMeta.OwnerReferences = ownerRefs
+			_, err = kube.CreateClusterRoleBinding(clusterRoleBinding, cli.KubeClient)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				if policyValidator.Enabled() {
+					log.Printf("unable to define cluster role binding (policy will be disabled for %s) - %v", cli.GetNamespace(), err)
+					break
+				}
 			}
 		}
 		for _, svc := range van.Controller.Services {

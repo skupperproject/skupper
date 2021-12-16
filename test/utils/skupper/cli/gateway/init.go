@@ -123,15 +123,29 @@ func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	//
 	// Retrieve ConfigMap with skupper.io/type: gateway-definition (label)
 	//
-	cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get("skupper-gateway-"+gatewayName, v1.GetOptions{})
+	cmList, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).List(v1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", types.SkupperTypeQualifier, "gateway-definition"),
+	})
 	if err != nil {
+		return
+	}
+
+	cmName := ""
+	for _, cm := range cmList.Items {
+		gwName, ok := cm.Annotations["skupper.io/gateway-name"]
+		if ok && gwName == gatewayName {
+			cmName = cm.Name
+		}
+	}
+	if cmName == "" {
+		err = fmt.Errorf("unable to find gateway configmap")
 		return
 	}
 
 	//
 	// Retrieve Secret (token) with same ConfigMap name
 	//
-	_, err = cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(cm.Name, v1.GetOptions{})
+	_, err = cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(cmName, v1.GetOptions{})
 	if err != nil {
 		return
 	}

@@ -13,6 +13,14 @@ import (
 )
 
 func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types.ServiceInterface) error {
+	policy := NewPolicyValidatorAPI(cli)
+	res, err := policy.Service(service.Address)
+	if err != nil {
+		return err
+	}
+	if !res.Allowed {
+		return res.Err()
+	}
 	owner, err := getRootObject(cli)
 	if err == nil {
 		err = validateServiceInterface(service)
@@ -75,7 +83,7 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 
 		return updateServiceInterface(service, false, owner, cli)
 	} else if errors.IsNotFound(err) {
-		return fmt.Errorf("Skupper not initialised in %s", cli.Namespace)
+		return fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	} else {
 		return err
 	}

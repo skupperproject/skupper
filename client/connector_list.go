@@ -33,6 +33,9 @@ func getLinkStatus(s *corev1.Secret, edge bool, connections []qdr.Connection) ty
 		if connection := qdr.GetInterRouterOrEdgeConnection(link.Url, connections); connection != nil && connection.Active {
 			link.Connected = true
 		}
+		if s.ObjectMeta.Labels[types.SkupperDisabledQualifier] == "true" {
+			link.Description = "Destination host is not allowed"
+		}
 	}
 	return link
 }

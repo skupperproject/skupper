@@ -2,14 +2,15 @@ package client
 
 import (
 	"context"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/skupperproject/skupper/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"strings"
-	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
@@ -101,7 +102,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			addr:        "",
 			proto:       "",
 			ports:       []int{0},
-			expectedErr: "Skupper not initialised",
+			expectedErr: "Skupper is not enabled",
 		},
 		{
 			namespace:   "vsic-2",

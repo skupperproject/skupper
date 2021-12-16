@@ -214,6 +214,17 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 			svc.Labels = utils.LabelToMap(labels)
 		}
 		svc.Origin = "annotation"
+
+		policy := client.NewClusterPolicyValidator(m.vanClient)
+		if policyRes := policy.ValidateExpose("deployment", deployment.Name); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deployment/%s cannot be exposed", deployment.ObjectMeta.Name)
+			return types.ServiceInterface{}, false
+		}
+		if policyRes := policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
+			return types.ServiceInterface{}, false
+		}
+
 		return svc, true
 	} else {
 		return svc, false
@@ -256,6 +267,17 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 			svc.Targets[0].TargetPorts = port
 		}
 		svc.Origin = "annotation"
+
+		policy := client.NewClusterPolicyValidator(m.vanClient)
+		if policyRes := policy.ValidateExpose("statefulset", statefulset.Name); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: statefulset/%s cannot be exposed", statefulset.ObjectMeta.Name)
+			return types.ServiceInterface{}, false
+		}
+		if policyRes := policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
+			return types.ServiceInterface{}, false
+		}
+
 		return svc, true
 	} else {
 		return svc, false
@@ -301,6 +323,17 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset
 			svc.Labels = utils.LabelToMap(labels)
 		}
 		svc.Origin = "annotation"
+
+		policy := client.NewClusterPolicyValidator(m.vanClient)
+		if policyRes := policy.ValidateExpose("daemonset", daemonset.Name); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: daemonset/%s cannot be exposed", daemonset.ObjectMeta.Name)
+			return types.ServiceInterface{}, false
+		}
+		if policyRes := policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
+			return types.ServiceInterface{}, false
+		}
+
 		return svc, true
 	} else {
 		return svc, false
@@ -411,6 +444,17 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 			svc.Labels = utils.LabelToMap(labels)
 		}
 		svc.Origin = "annotation"
+
+		policy := client.NewClusterPolicyValidator(m.vanClient)
+		if policyRes := policy.ValidateExpose("service", service.Name); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service/%s cannot be exposed", service.ObjectMeta.Name)
+			return types.ServiceInterface{}, false
+		}
+		if policyRes := policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
+			return types.ServiceInterface{}, false
+		}
+
 		return svc, true
 	} else {
 		return svc, false
