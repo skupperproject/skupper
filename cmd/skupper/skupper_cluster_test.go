@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +31,7 @@ type testCase struct {
 	expectedCapture string
 	expectedOutput  string
 	expectedError   string
+	outputRegExp    string
 	realCluster     bool
 	createConn      bool
 }
@@ -53,6 +56,12 @@ func checkStringContains(t *testing.T, got, expected string) {
 func checkStringOmits(t *testing.T, got, expected string) {
 	if strings.Contains(got, expected) {
 		t.Errorf("Expected to not contain: \n %v\nGot: %v", expected, got)
+	}
+}
+
+func checkRegularExpression(t *testing.T, got, expected string) {
+	if match, _ := regexp.MatchString(expected, got); !match {
+		t.Errorf("Expected to match: \n %v\nGot: %v", expected, got)
 	}
 }
 
@@ -86,7 +95,22 @@ func skupperInit(t *testing.T, args ...string) {
 	assert.Assert(t, err)
 }
 
-func testCommand(t *testing.T, cmd *cobra.Command, testName string, expectedError string, expectedCapture string, expectedOutput string, args ...string) {
+func skupperExpose(t *testing.T, args ...string) {
+	exposeCmd := NewCmdExpose(testClient)
+	silenceCobra(exposeCmd)
+
+	rescueStdout := os.Stdout
+	_, w, _ := os.Pipe()
+	os.Stdout = w
+
+	_, err := executeCommand(exposeCmd, args...)
+
+	w.Close()
+	os.Stdout = rescueStdout
+	assert.Assert(t, err)
+}
+
+func testCommand(t *testing.T, cmd *cobra.Command, testName string, expectedError string, expectedCapture string, expectedOutput string, outputRegExp string, args ...string) {
 	rescueStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -107,13 +131,17 @@ func testCommand(t *testing.T, cmd *cobra.Command, testName string, expectedErro
 	}
 	if expectedCapture != "" {
 		checkStringContains(t, lines[0], expectedCapture)
-	} else {
+	} else if outputRegExp == "" {
 		assert.Equal(t, string(stdOutput), "")
 	}
 	if expectedOutput != "" {
 		checkStringContains(t, cmdOutput, expectedOutput)
 	} else {
 		assert.Equal(t, cmdOutput, "")
+	}
+
+	if outputRegExp != "" {
+		checkRegularExpression(t, string(stdOutput), outputRegExp)
 	}
 }
 
@@ -246,7 +274,7 @@ func TestInitInteriorWithCluster(t *testing.T) {
 
 		cmd := NewCmdInit(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -294,7 +322,7 @@ func TestDeleteWithCluster(t *testing.T) {
 
 		cmd := NewCmdDelete(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -351,7 +379,7 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 
 		cmd := NewCmdConnectionToken(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -408,7 +436,7 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 
 		cmd := NewCmdConnectionToken(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -456,7 +484,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 
 		cmd := NewCmdConnect(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -504,7 +532,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 
 		cmd := NewCmdConnect(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -574,7 +602,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdDisconnect(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -635,12 +663,12 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		if tc.createConn {
 			connectCmd := NewCmdConnect(testClient)
 			silenceCobra(connectCmd)
-			testCommand(t, connectCmd, tc.doc, "", "Site configured to link to", "", []string{"/tmp/foo.yaml"}...)
+			testCommand(t, connectCmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
 		}
 
 		cmd := NewCmdListConnectors(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -714,12 +742,12 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		if tc.createConn {
 			cmd := NewCmdConnect(testClient)
 			silenceCobra(cmd)
-			testCommand(t, cmd, tc.doc, "", "Site configured to link to", "", []string{"/tmp/foo.yaml"}...)
+			testCommand(t, cmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
 		}
 
 		cmd := NewCmdCheckConnection(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -767,7 +795,7 @@ func TestStatusWithCluster(t *testing.T) {
 
 		cmd := NewCmdStatus(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -942,7 +970,7 @@ func TestExposeWithCluster(t *testing.T) {
 			}
 			cmd := NewCmdExpose(testClient)
 			silenceCobra(cmd)
-			testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+			testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 		})
 	}
 }
@@ -1047,7 +1075,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 
 		cmd := NewCmdUnexpose(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 
 }
@@ -1098,7 +1126,7 @@ func TestListExposedWithCluster(t *testing.T) {
 	if *clusterRun {
 		exposeCmd := NewCmdExpose(testClient)
 		silenceCobra(exposeCmd)
-		testCommand(t, exposeCmd, "cmd-list-exposed-cluster-test", "", "deployment tcp-go-echo exposed as tcp-go-echo", "", []string{"deployment", "tcp-go-echo", "--port", "9090"}...)
+		testCommand(t, exposeCmd, "cmd-list-exposed-cluster-test", "", "deployment tcp-go-echo exposed as tcp-go-echo", "", "", []string{"deployment", "tcp-go-echo", "--port", "9090"}...)
 	}
 
 	for _, tc := range testcases {
@@ -1107,7 +1135,7 @@ func TestListExposedWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdListExposed(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -1179,7 +1207,7 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdCreateService(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -1231,7 +1259,7 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
 		silenceCobra(createCmd)
-		testCommand(t, createCmd, "", "", "", "", []string{"tcp-go-echo-b:9090"}...)
+		testCommand(t, createCmd, "", "", "", "", "", []string{"tcp-go-echo-b:9090"}...)
 	}
 
 	for _, tc := range testcases {
@@ -1240,7 +1268,7 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdDeleteService(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -1305,7 +1333,7 @@ func TestBindWithCluster(t *testing.T) {
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
 		silenceCobra(createCmd)
-		testCommand(t, createCmd, "", "", "", "", []string{"tcp-go-echo:9090"}...)
+		testCommand(t, createCmd, "", "", "", "", "", []string{"tcp-go-echo:9090"}...)
 	}
 
 	for _, tc := range testcases {
@@ -1314,7 +1342,7 @@ func TestBindWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdBind(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -1371,11 +1399,11 @@ func TestUnbindWithCluster(t *testing.T) {
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
 		silenceCobra(createCmd)
-		testCommand(t, createCmd, "", "", "", "", []string{"tcp-go-echo:9090"}...)
+		testCommand(t, createCmd, "", "", "", "", "", []string{"tcp-go-echo:9090"}...)
 
 		bindCmd := NewCmdBind(testClient)
 		silenceCobra(bindCmd)
-		testCommand(t, bindCmd, "", "", "", "", []string{"tcp-go-echo", "deployment", "tcp-go-echo"}...)
+		testCommand(t, bindCmd, "", "", "", "", "", []string{"tcp-go-echo", "deployment", "tcp-go-echo"}...)
 	}
 
 	for _, tc := range testcases {
@@ -1384,7 +1412,7 @@ func TestUnbindWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdUnbind(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -1431,7 +1459,7 @@ func TestVersionWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdVersion(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
 
@@ -1490,6 +1518,64 @@ func TestDebugDumpWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdDebugDump(testClient)
 		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.args...)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
+	}
+}
+
+func TestNetworkStatusWithCluster(t *testing.T) {
+	testcases := []testCase{
+		{
+			doc:             "network-status-test1",
+			args:            []string{"--help"},
+			expectedCapture: "",
+			expectedOutput:  "Shows information about the current site, and connected sites.",
+			expectedError:   "",
+			realCluster:     true,
+		},
+		{
+			doc:             "network-status-test2",
+			args:            []string{"status"},
+			expectedCapture: "",
+			expectedOutput:  "",
+			expectedError:   "",
+			outputRegExp:    "^Sites\\:\\n╰─\\s\\[local\\]\\s[0-9a-f-]*\\s-\\s.*\\n\\s{3}URL\\s\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\n\\s{3}name\\s.*\\n\\s{3}namespace\\s.*\\n\\s{3}╰─\\sservice name .*\\n\\s{6}address\\s.*\\:\\s\\d{4}\\n\\s{6}protocol\\s.*\\n\\s{6}╰─\\starget\\s.*",
+			realCluster:     true,
+		},
+	}
+
+	namespace = "cmd-debug-network-status-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	kubeContext = ""
+	kubeConfigPath = ""
+
+	if !*clusterRun {
+		lightRed := "\033[1;31m"
+		resetColor := "\033[0m"
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
+	}
+
+	cli = NewClient(namespace, kubeContext, kubeConfigPath)
+
+	if c, ok := cli.(*client.VanClient); ok {
+		_, err := kube.NewNamespace(namespace, c.KubeClient)
+		assert.Check(t, err)
+		defer kube.DeleteNamespace(namespace, c.KubeClient)
+	}
+	skupperInit(t, []string{"--console-ingress=none"}...)
+	skupperExpose(t, []string{"service", "tcp-go-echo", "--port", "9090", "--address", "tcp-go-echo-dup"}...)
+
+	// wait for the service controller to be available
+	time.Sleep(12 * time.Second)
+
+	testPath := "./tmp/"
+	os.Mkdir(testPath, 0755)
+	defer os.RemoveAll(testPath)
+
+	for _, tc := range testcases {
+		if tc.realCluster && !*clusterRun {
+			continue
+		}
+		cmd := NewCmdNetworkStatus(testClient)
+		silenceCobra(cmd)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
