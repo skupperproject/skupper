@@ -67,7 +67,7 @@ func configureHostPortsFromRoutes(result *RouterHostPorts, cli *VanClient, names
 }
 
 func configureHostPortsForContourProxies(result *RouterHostPorts, cli *VanClient, namespace string) bool {
-	if getIngressHost(result, cli, namespace) {
+	if getIngressHost(result, cli, namespace, types.IngressContourHttpProxyString) {
 		result.InterRouter.Host = strings.Join([]string{types.InterRouterIngressPrefix, namespace, result.InterRouter.Host}, ".")
 		result.Edge.Host = strings.Join([]string{types.EdgeIngressPrefix, namespace, result.Edge.Host}, ".")
 		result.InterRouter.Port = "443"
@@ -92,7 +92,7 @@ func getNodePorts(result *RouterHostPorts, service *corev1.Service) bool {
 	return foundEdge && foundInterRouter
 }
 
-func getIngressHost(result *RouterHostPorts, cli *VanClient, namespace string) bool {
+func getIngressHost(result *RouterHostPorts, cli *VanClient, namespace string, ingressType string) bool {
 	config, err := cli.SiteConfigInspectInNamespace(context.TODO(), nil, namespace)
 	if err != nil {
 		fmt.Printf("Failed to look up ingress host: %s, ", err)
@@ -100,6 +100,9 @@ func getIngressHost(result *RouterHostPorts, cli *VanClient, namespace string) b
 		return false
 	}
 	if config == nil {
+		return false
+	}
+	if ingressType != "" && config.Spec.Ingress != ingressType {
 		return false
 	}
 	if host := config.Spec.GetRouterIngressHost(); host != "" {
@@ -139,7 +142,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 					fmt.Println()
 				}
 			} else if service.Spec.Type == corev1.ServiceTypeNodePort && getNodePorts(result, service) {
-				getIngressHost(result, cli, namespace)
+				getIngressHost(result, cli, namespace, "")
 				return true
 			} else if ok := configureHostPortsForContourProxies(result, cli, namespace); ok {
 				return true
