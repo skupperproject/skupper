@@ -5,23 +5,43 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/server"
+	"github.com/skupperproject/skupper/pkg/utils"
+	"time"
 )
 
 func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 
-	sites, err := server.GetSiteInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
+	var sites *[]types.SiteInfo
+	var err error
+	err = utils.Retry(5*time.Second, 5, func() (bool, error) {
+		sites, err = server.GetSiteInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	services, err := server.GetServiceInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
+	versionCheckedSites := cli.checkSiteVersion(sites)
+
+	var services *[]types.ServiceInfo
+	err = utils.Retry(5*time.Second, 5, func() (bool, error) {
+		services, err = server.GetServiceInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	var listSites []*types.SiteInfo
 
-	for _, site := range *sites {
+	for _, site := range versionCheckedSites {
 
 		if len(site.Namespace) == 0 {
 			return nil, errors.New("unable to provide site information")
@@ -37,7 +57,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 			return nil, err
 		}
 
-		newSite := types.SiteInfo{Name: site.Name, Namespace: site.Namespace, SiteId: site.SiteId, Url: site.Url, Links: listLinks, Services: listServicesAndTargets}
+		newSite := types.SiteInfo{Name: site.Name, Namespace: site.Namespace, SiteId: site.SiteId, Url: site.Url, Version: site.Version, MinimumVersion: site.MinimumVersion, Links: listLinks, Services: listServicesAndTargets}
 
 		listSites = append(listSites, &newSite)
 
@@ -70,7 +90,7 @@ func (cli *VanClient) getSiteLinksStatus(namespace string) ([]string, error) {
 		if mapLinkStatus[link].Connected {
 			formattedLink = link
 		} else {
-			formattedLink = fmt.Sprintf("%s%s%s", lightRed, link, resetColor)
+			formattedLink = fmt.Sprintf("%s%s(link not active)%s", lightRed, link, resetColor)
 		}
 
 		listLinks = append(listLinks, formattedLink)
@@ -111,4 +131,22 @@ func (cli *VanClient) getServicesAndTargetsBySiteId(services *[]types.ServiceInf
 	}
 
 	return listServices, nil
+}
+
+func (cli *VanClient) checkSiteVersion(sites *[]types.SiteInfo) []types.SiteInfo {
+
+	var listSites []types.SiteInfo
+
+	localSiteVersion := cli.GetVersion(types.SiteVersion, types.SiteVersion)
+
+	for _, site := range *sites {
+		if utils.LessRecentThanVersion(site.Version, localSiteVersion) {
+			if utils.IsValidFor(site.Version, cli.GetMinimumCompatibleVersion()) {
+				site.MinimumVersion = cli.GetMinimumCompatibleVersion()
+			}
+		}
+
+		listSites = append(listSites, site)
+	}
+	return listSites
 }

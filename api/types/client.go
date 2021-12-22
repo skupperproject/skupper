@@ -225,12 +225,14 @@ type GatewayInspectResponse struct {
 }
 
 type SiteInfo struct {
-	Name      string   `json:"site_name,omitempty"`
-	Namespace string   `json:"namespace,omitempty"`
-	SiteId    string   `json:"site_id,omitempty"`
-	Url       string   `json:"url,omitempty"`
-	Links     []string `json:"connected,omitempty"`
-	Services  []ServiceInfo
+	Name           string   `json:"site_name,omitempty"`
+	Namespace      string   `json:"namespace,omitempty"`
+	SiteId         string   `json:"site_id,omitempty"`
+	Url            string   `json:"url,omitempty"`
+	Version        string   `json:"version,omitempty"`
+	MinimumVersion string   `json:"minimum_version,omitempty"`
+	Links          []string `json:"connected,omitempty"`
+	Services       []ServiceInfo
 }
 
 type ServiceInfo struct {

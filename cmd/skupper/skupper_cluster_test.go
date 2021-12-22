@@ -1538,7 +1538,7 @@ func TestNetworkStatusWithCluster(t *testing.T) {
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "",
-			outputRegExp:    "^Sites\\:\\n╰─\\s\\[local\\]\\s[0-9a-f-]*\\s-\\s.*\\n\\s{3}URL\\s\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\n\\s{3}name\\s.*\\n\\s{3}namespace\\s.*\\n\\s{3}╰─\\sservice name .*\\n\\s{6}address\\s.*\\:\\s\\d{4}\\n\\s{6}protocol\\s.*\\n\\s{6}╰─\\starget\\s.*",
+			outputRegExp:    "^Sites\\:\\n╰─\\s\\[local\\]\\s[0-9a-f-]*\\s-\\s.*\\n\\s{3}URL:\\s\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\n\\s{3}name:\\s.*\\n\\s{3}namespace:\\s.*\\n\\s{3}version:\\s.*\\n\\s{3}╰─\\sServices\\:\\n\\s{6}╰─\\sname:\\s.*\\n\\s{9}address:\\s.*\\:\\s\\d{4}\\n\\s{9}protocol:\\s.*\\n\\s{9}╰─\\sTargets\\:\\n\\s{12}╰─\\sname:\\s.*",
 			realCluster:     true,
 		},
 	}
@@ -1564,7 +1564,7 @@ func TestNetworkStatusWithCluster(t *testing.T) {
 	skupperExpose(t, []string{"service", "tcp-go-echo", "--port", "9090", "--address", "tcp-go-echo-dup"}...)
 
 	// wait for the service controller to be available
-	time.Sleep(12 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)

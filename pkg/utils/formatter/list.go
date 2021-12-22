@@ -95,7 +95,7 @@ func printDetails(detailsMap map[string]string, level int, last map[int]bool) {
 				fmt.Printf("   ")
 			}
 		}
-		detail := key + " " + detailsMap[key]
+		detail := key + ": " + detailsMap[key]
 
 		if index < len(keys)-1 {
 			fmt.Println(detail)

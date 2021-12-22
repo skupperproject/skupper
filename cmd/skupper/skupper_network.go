@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 func NewCmdNetwork() *cobra.Command {
@@ -51,29 +52,37 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 					}
 
 					location := "remote"
+					siteVersion := site.Version
+
+					if len(site.MinimumVersion) > 0 {
+						siteVersion = fmt.Sprintf("%s (minimum version required %s)", site.Version, site.MinimumVersion)
+					}
 
 					if site.SiteId == currentSite {
 						location = "local"
 					}
 
-					newItem := fmt.Sprintf("[%s] %s - %s ", location, site.SiteId, site.Name)
+					newItem := fmt.Sprintf("[%s] %s - %s ", location, site.SiteId[:7], site.Name)
+
+					newItem = newItem + fmt.Sprintln()
+					detailsMap := map[string]string{"name": site.Name, "namespace": site.Namespace, "URL": site.Url, "version": siteVersion}
 
 					if len(site.Links) > 0 {
-						newItem = newItem + fmt.Sprintf("- linked to %s", site.Links)
+						detailsMap["sites linked to"] = fmt.Sprint(strings.Join(site.Links, ", "))
 					}
-					newItem = newItem + fmt.Sprintln()
-					detailsMap := map[string]string{"name": site.Name, "namespace": site.Namespace, "URL": site.Url}
 
-					services := siteList.NewChildWithDetail(newItem, detailsMap)
+					serviceLevel := siteList.NewChildWithDetail(newItem, detailsMap)
 					if len(site.Services) > 0 {
+						services := serviceLevel.NewChild("Services:")
 						for _, svc := range site.Services {
-							svcItem := "service name " + svc.Name + fmt.Sprintln()
+							svcItem := "name: " + svc.Name + fmt.Sprintln()
 							detailsSvc := map[string]string{"protocol": svc.Protocol, "address": svc.Address}
-							targets := services.NewChildWithDetail(svcItem, detailsSvc)
+							targetLevel := services.NewChildWithDetail(svcItem, detailsSvc)
 
 							if len(svc.Targets) > 0 {
+								targets := targetLevel.NewChild("Targets:")
 								for _, target := range svc.Targets {
-									targets.NewChild("target " + target.Name)
+									targets.NewChild("name: " + target.Name)
 
 								}
 							}

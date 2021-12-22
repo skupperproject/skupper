@@ -83,7 +83,7 @@ func (cli *VanClient) getLinkStatusByNamespace(namespace string) (map[string]*ty
 	connections, _ := qdr.GetConnections(namespace, cli.KubeClient, cli.RestConfig)
 	for _, s := range secrets.Items {
 		var connectedTo string
-		connectedTo = s.ObjectMeta.Annotations[types.TokenGeneratedBy]
+		connectedTo = s.ObjectMeta.Annotations[types.TokenGeneratedBy][:7]
 		linkStatus := getLinkStatus(&s, edge, connections)
 		mapLinks[connectedTo] = &linkStatus
 	}
