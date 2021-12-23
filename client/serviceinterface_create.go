@@ -47,12 +47,12 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 				return err
 			}
 
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err = qdr.AddSslProfile(serviceSecret.Name, cli.Namespace, cli.KubeClient)
+			if err != nil {
+				return err
+			}
 
-				err := qdr.AddSslProfile(serviceSecret.Name, cli.Namespace, cli.KubeClient)
-				if err != nil {
-					return err
-				}
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
 				err = kube.AppendSecretAndUpdateDeployment(
 					serviceSecret.Name,
@@ -66,6 +66,7 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 				}
 				return nil
 			})
+
 			if err != nil {
 				return err
 			}

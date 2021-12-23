@@ -59,12 +59,12 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 
 	if err == nil && secret != nil {
 
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err = qdr.RemoveSslProfile(secret.Name, cli.Namespace, cli.KubeClient)
+		if err != nil {
+			log.Printf("Failed to remove sslProfile from the router: %v", err.Error())
+		}
 
-			err := qdr.RemoveSslProfile(secret.Name, cli.Namespace, cli.KubeClient)
-			if err != nil {
-				return err
-			}
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
 			err = kube.RemoveSecretAndUpdateDeployment(secret.Name, types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 			if err != nil {
@@ -75,7 +75,7 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 		})
 
 		if err != nil {
-			log.Printf("Failed to remove secret from the router: %v", err.Error())
+			log.Printf("Failed to remove secret from the router deployment: %v", err.Error())
 		}
 
 		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(secret.Name, metav1.GetOptions{})

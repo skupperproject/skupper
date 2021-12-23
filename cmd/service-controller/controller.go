@@ -897,12 +897,12 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 				return err
 			}
 
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err = qdr.AddSslProfile(serviceSecret.Name, c.vanClient.Namespace, c.vanClient.KubeClient)
+			if err != nil {
+				return err
+			}
 
-				err := qdr.AddSslProfile(serviceSecret.Name, c.vanClient.Namespace, c.vanClient.KubeClient)
-				if err != nil {
-					return err
-				}
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
 				err = kube.AppendSecretAndUpdateDeployment(
 					serviceSecret.Name,
@@ -931,12 +931,12 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 func (c *Controller) handleRemovingTlsSupport(tlsCredentials string) error {
 
 	if len(tlsCredentials) > 0 {
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := qdr.RemoveSslProfile(tlsCredentials, c.vanClient.Namespace, c.vanClient.KubeClient)
+		if err != nil {
+			return err
+		}
 
-			err := qdr.RemoveSslProfile(tlsCredentials, c.vanClient.Namespace, c.vanClient.KubeClient)
-			if err != nil {
-				return err
-			}
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
 			err = kube.RemoveSecretAndUpdateDeployment(tlsCredentials, types.TransportDeploymentName, c.vanClient.Namespace, c.vanClient.KubeClient)
 			if err != nil {
