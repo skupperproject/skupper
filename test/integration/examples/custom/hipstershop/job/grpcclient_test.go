@@ -249,12 +249,18 @@ func TestPaymentService(t *testing.T) {
 	conn := connect(t, url)
 	defer conn.Close()
 
+	// Creating context
+	ctx, cn := context.WithTimeout(context.Background(), 4*timeout)
+	deadline := time.Now().Add(4 * timeout)
+	ctx, cn = context.WithDeadline(ctx, deadline)
+	defer cn()
+
 	// Creating the stub
 	client := hipstershop.NewPaymentServiceClient(conn)
 
 	// Charge
 	t.Run("Charge", func(t *testing.T) {
-		chargeRes, err := client.Charge(context.Background(), &hipstershop.ChargeRequest{
+		chargeRes, err := client.Charge(ctx, &hipstershop.ChargeRequest{
 			Amount: &hipstershop.Money{
 				CurrencyCode: "URL",
 				Units:        100,
