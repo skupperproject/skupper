@@ -250,7 +250,10 @@ func TestPaymentService(t *testing.T) {
 	defer conn.Close()
 
 	// Creating context
-	ctx, cn := context.WithTimeout(context.Background(), 2*timeout)
+	var deadline = 30 * time.Second
+	clientDeadline := time.Now().Add(deadline)
+	ctx, cn := context.WithTimeout(context.Background(), timeout)
+	ctx, cn = context.WithDeadline(ctx, clientDeadline)
 	defer cn()
 
 	// Creating the stub
