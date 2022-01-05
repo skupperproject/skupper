@@ -257,27 +257,30 @@ func TestPaymentService(t *testing.T) {
 	client := hipstershop.NewPaymentServiceClient(conn)
 
 	// Charge
-	t.Run("Charge", func(t *testing.T) {
-		chargeRes, err := client.Charge(ctx, &hipstershop.ChargeRequest{
-			Amount: &hipstershop.Money{
-				CurrencyCode: "URL",
-				Units:        100,
-				Nanos:        0,
-			},
-			CreditCard: &hipstershop.CreditCardInfo{
-				CreditCardNumber:          "5555555555554444",
-				CreditCardCvv:             111,
-				CreditCardExpirationYear:  2199,
-				CreditCardExpirationMonth: 1,
-			},
+	err = utils.RetryWithContext(ctx, time.Second*60, func() (bool, error) {
+		t.Run("Charge", func(t *testing.T) {
+			chargeRes, err := client.Charge(ctx, &hipstershop.ChargeRequest{
+				Amount: &hipstershop.Money{
+					CurrencyCode: "URL",
+					Units:        100,
+					Nanos:        0,
+				},
+				CreditCard: &hipstershop.CreditCardInfo{
+					CreditCardNumber:          "5555555555554444",
+					CreditCardCvv:             111,
+					CreditCardExpirationYear:  2199,
+					CreditCardExpirationMonth: 1,
+				},
+			})
+
+			if err != nil {
+				t.Fatalf("error charging credit card - %s", err)
+			}
+
+			t.Logf("Credit card has been charged. Transaction ID: %s", chargeRes.TransactionId)
 		})
-
-		if err != nil {
-			t.Fatalf("error charging credit card - %s", err)
-		}
-
-		t.Logf("Credit card has been charged. Transaction ID: %s", chargeRes.TransactionId)
 	})
+
 }
 
 func TestEmailService(t *testing.T) {
