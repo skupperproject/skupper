@@ -1410,7 +1410,7 @@ func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
 			l := formatter.NewList()
 			l.Item("Gateway Definition:")
 			for _, gateway := range gateways {
-				gw := l.NewChild(fmt.Sprintf("%s type: %s", gateway.GatewayName, gateway.GatewayType))
+				gw := l.NewChild(fmt.Sprintf("%s type:%s version:%s", gateway.GatewayName, gateway.GatewayType, gateway.GatewayVersion))
 				if len(gateway.GatewayConnectors) > 0 {
 					listeners := gw.NewChild("Bindings:")
 					for _, connector := range gateway.GatewayConnectors {
@@ -1433,8 +1433,6 @@ func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
-var forwardLoopback bool
-
 func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "forward <address> <port...>",
@@ -1456,7 +1454,7 @@ func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 			gatewayEndpoint.Service.Address = args[0]
 			gatewayEndpoint.Service.Ports = ports
 
-			err := cli.GatewayForward(context.Background(), gatewayName, gatewayEndpoint, forwardLoopback)
+			err := cli.GatewayForward(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1467,7 +1465,7 @@ func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The mapping in use for this service address (currently one of tcp, http or http2)")
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().BoolVarP(&forwardLoopback, "loopback", "", false, "Forward from loopback only")
+	cmd.Flags().BoolVarP(&gatewayEndpoint.Loopback, "loopback", "", false, "Forward from loopback only")
 	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
 
 	f := cmd.Flag("name")

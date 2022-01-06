@@ -56,9 +56,12 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", GatewayExportType, "")
+	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", GatewayDockerType, "")
 	assert.Assert(t, observedError)
 	assert.Equal(t, gatewayName, "exportconfig")
+
+	observedError = waitForGatewayActive(gatewayName, GatewayDockerType, time.Second*180, time.Second*2)
+	assert.Assert(t, observedError)
 
 	// Here's where we will put the gateway download file.
 	testPath := "./tmp/"
@@ -111,10 +114,10 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: mongoService}, true)
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: mongoService})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http2Service}, true)
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http2Service})
 	assert.Assert(t, observedError)
 
 	_, observedError = cli.GatewayExportConfig(ctx, "exportconfig", "myapp", testPath)
@@ -162,95 +165,19 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	}
 	assert.Equal(t, i, len(files))
 
+	observedError = cli.GatewayRemove(ctx, gatewayName)
+	assert.Assert(t, observedError)
+
 	// fire up a gateway with config
-	gatewayName, observedError = cli.GatewayInit(ctx, "exportconfig2", GatewayExportType, testPath+"myapp.yaml")
+	gatewayName, observedError = cli.GatewayInit(ctx, "exportconfig2", GatewayDockerType, testPath+"myapp.yaml")
 	assert.Assert(t, observedError)
 	assert.Equal(t, gatewayName, "exportconfig2")
-}
 
-func TestGatewayDownload(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var cli *VanClient
-	var err error
-
-	namespace := "test-gateway-download-" + strings.ToLower(utils.RandomId(4))
-	kubeContext := ""
-	kubeConfigPath := ""
-
-	// isCluster := *clusterRun
-	if *clusterRun {
-		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli, err = newMockClient(namespace, kubeContext, kubeConfigPath)
-	}
-	assert.Check(t, err, namespace)
-	_, err = kube.NewNamespace(namespace, cli.KubeClient)
-	assert.Check(t, err, namespace)
-	defer kube.DeleteNamespace(namespace, cli.KubeClient)
-
-	// Create a router.
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-gateway-download-",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
-	})
-	assert.Check(t, err, "Unable to create VAN router")
-
-	gatewayName, observedError := cli.GatewayInit(ctx, "download", GatewayExportType, "")
-	assert.Assert(t, observedError)
-	assert.Equal(t, gatewayName, "download")
-
-	// Here's where we will put the gateway download file.
-	testPath := "./tmp/"
-	os.Mkdir(testPath, 0755)
-	defer os.RemoveAll(testPath)
-
-	_, observedError = cli.GatewayDownload(ctx, "download", testPath)
+	observedError = waitForGatewayActive(gatewayName, GatewayDockerType, time.Second*180, time.Second*2)
 	assert.Assert(t, observedError)
 
-	file, observedError := os.Open(testPath + "download.tar.gz")
-	defer file.Close()
+	observedError = cli.GatewayRemove(ctx, gatewayName)
 	assert.Assert(t, observedError)
-
-	gzf, observedError := gzip.NewReader(file)
-	assert.Assert(t, observedError)
-
-	tarReader := tar.NewReader(gzf)
-
-	files := []string{
-		"qpid-dispatch-certs/conn1-profile/tls.crt",
-		"qpid-dispatch-certs/conn1-profile/tls.key",
-		"qpid-dispatch-certs/conn1-profile/ca.crt",
-		"config/qdrouterd.json",
-		"service/download.service",
-		"launch.sh",
-		"remove.sh",
-		"expandvars.py",
-	}
-
-	i := 0
-	for {
-		header, observedError := tarReader.Next()
-
-		if observedError == io.EOF {
-			break
-		}
-		assert.Assert(t, observedError)
-		assert.Equal(t, header.Name, files[i])
-
-		i++
-	}
-	assert.Equal(t, i, len(files))
 }
 
 func TestGatewayForward(t *testing.T) {
@@ -344,22 +271,25 @@ func TestGatewayForward(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
 
-	gatewayName, observedError := cli.GatewayInit(ctx, namespace, GatewayExportType, "")
+	gatewayName, observedError := cli.GatewayInit(ctx, namespace, GatewayDockerType, "")
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: echoService}, false)
+	observedError = waitForGatewayActive(gatewayName, GatewayDockerType, time.Second*180, time.Second*2)
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: mongoService}, true)
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: echoService})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: echoService2}, true)
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: mongoService})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http1Service}, true)
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: echoService2})
 	assert.Assert(t, observedError)
 
-	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http2Service}, true)
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http1Service})
+	assert.Assert(t, observedError)
+
+	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: http2Service})
 	assert.Assert(t, observedError)
 
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
@@ -448,7 +378,10 @@ func TestGatewayBind(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
 
-	gatewayName, observedError := cli.GatewayInit(ctx, namespace, GatewayExportType, "")
+	gatewayName, observedError := cli.GatewayInit(ctx, namespace, GatewayDockerType, "")
+	assert.Assert(t, observedError)
+
+	observedError = waitForGatewayActive(gatewayName, GatewayDockerType, time.Second*180, time.Second*2)
 	assert.Assert(t, observedError)
 
 	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
@@ -504,6 +437,10 @@ func TestGatewayBind(t *testing.T) {
 }
 
 func TestGatewayExpose(t *testing.T) {
+	if !*clusterRun {
+		t.Skip("Gateway expose requires cluster")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -541,7 +478,7 @@ func TestGatewayExpose(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	gatewayName, observedError := cli.GatewayExpose(ctx, namespace, GatewayExportType, types.GatewayEndpoint{
+	gatewayName, observedError := cli.GatewayExpose(ctx, namespace, GatewayDockerType, types.GatewayEndpoint{
 		Host: "localhost",
 		Service: types.ServiceInterface{
 			Protocol: "tcp",
@@ -572,44 +509,32 @@ func TestGatewayExpose(t *testing.T) {
 func TestGatewayInit(t *testing.T) {
 	testcases := []struct {
 		doc           string
-		init          bool
 		gwType        string
 		initName      string
 		actualName    string
-		remove        bool
-		removeName    string
 		expectedError string
-		url           string
+		initTwice     bool
 	}{
 		{
-			init:          true,
-			gwType:        GatewayExportType,
+			gwType:        GatewayDockerType,
 			initName:      "",
 			actualName:    "",
-			remove:        true,
-			removeName:    "",
 			expectedError: "",
-			url:           "not active",
+			initTwice:     false,
 		},
 		{
-			init:          false,
-			gwType:        GatewayExportType,
+			gwType:        GatewayDockerType,
 			initName:      "gateway1",
 			actualName:    "gateway1",
-			remove:        true,
-			removeName:    "gateway1",
-			expectedError: "configmaps \"skupper-gateway-gateway1\" not found",
-			url:           "not active",
+			expectedError: "",
+			initTwice:     false,
 		},
 		{
-			init:          true,
-			gwType:        GatewayExportType,
-			initName:      "gateway2",
-			actualName:    "gateway2",
-			remove:        true,
-			removeName:    "gateway2",
+			gwType:        GatewayDockerType,
+			initName:      "",
+			actualName:    "",
 			expectedError: "",
-			url:           "not active",
+			initTwice:     true,
 		},
 	}
 
@@ -633,7 +558,7 @@ func TestGatewayInit(t *testing.T) {
 	assert.Check(t, err, "test-gateway-init-remove")
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
-	_, observedError := cli.GatewayInit(ctx, namespace, GatewayExportType, "")
+	_, observedError := cli.GatewayInit(ctx, namespace, GatewayDockerType, "")
 	assert.Check(t, strings.Contains(observedError.Error(), "Skupper not initialized"))
 
 	// Create a router.
@@ -654,36 +579,37 @@ func TestGatewayInit(t *testing.T) {
 
 	// Init loop
 	for _, tc := range testcases {
-		if tc.init {
-			if tc.actualName == "" {
-				tc.actualName, _ = getUserDefaultGatewayName()
-			}
-			gatewayName, observedError := cli.GatewayInit(ctx, tc.initName, tc.gwType, "")
+
+		if tc.actualName == "" {
+			tc.actualName, _ = getUserDefaultGatewayName()
+		}
+		gatewayName, observedError := cli.GatewayInit(ctx, tc.initName, tc.gwType, "")
+		assert.Assert(t, observedError)
+		assert.Equal(t, gatewayName, tc.actualName)
+
+		observedError = waitForGatewayActive(gatewayName, tc.gwType, time.Second*180, time.Second*2)
+		assert.Assert(t, observedError)
+
+		gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
+		assert.Assert(t, observedError)
+		assert.Equal(t, gatewayInspect.GatewayName, tc.actualName)
+
+		secret, observedError := cli.KubeClient.CoreV1().Secrets(namespace).Get(clusterGatewayName(gatewayName), metav1.GetOptions{})
+		assert.Assert(t, observedError)
+		ct, ok := secret.Labels[types.SkupperTypeQualifier]
+		assert.Assert(t, ok)
+		assert.Equal(t, ct, types.TypeGatewayToken)
+
+		if tc.initTwice {
+			gatewayName, observedError = cli.GatewayInit(ctx, tc.initName, tc.gwType, "")
 			assert.Assert(t, observedError)
 			assert.Equal(t, gatewayName, tc.actualName)
 
-			if tc.gwType != GatewayExportType {
-				time.Sleep(time.Second * 1)
-			}
-			gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
-			assert.Assert(t, observedError)
-			assert.Equal(t, gatewayInspect.GatewayName, tc.actualName)
-			assert.Equal(t, gatewayInspect.GatewayUrl, tc.url)
-
-			secret, observedError := cli.KubeClient.CoreV1().Secrets(namespace).Get(clusterGatewayName(gatewayName), metav1.GetOptions{})
-			assert.Assert(t, observedError)
-			ct, ok := secret.Labels[types.SkupperTypeQualifier]
-			assert.Assert(t, ok)
-			assert.Equal(t, ct, types.TypeGatewayToken)
-		}
-	}
-
-	// Remove loop
-	for _, tc := range testcases {
-		if tc.remove {
-			observedError = cli.GatewayRemove(ctx, clusterGatewayName(tc.removeName))
+			observedError = waitForGatewayActive(gatewayName, tc.gwType, time.Second*180, time.Second*2)
 			assert.Assert(t, observedError)
 		}
-	}
 
+		observedError = cli.GatewayRemove(ctx, gatewayName)
+		assert.Assert(t, observedError)
+	}
 }
