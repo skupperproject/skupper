@@ -28,6 +28,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	namespace := "test-gateway-export-config-" + strings.ToLower(utils.RandomId(4))
 	kubeContext := ""
 	kubeConfigPath := ""
+	gatewayType := GatewayMockType
 
 	// isCluster := *clusterRun
 	if *clusterRun {
@@ -56,11 +57,11 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", GatewayDockerType, "")
+	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", gatewayType, "")
 	assert.Assert(t, observedError)
 	assert.Equal(t, gatewayName, "exportconfig")
 
-	observedError = waitForGatewayActive(gatewayName, GatewayDockerType, time.Second*180, time.Second*2)
+	observedError = waitForGatewayActive(gatewayName, gatewayType, time.Second*180, time.Second*2)
 	assert.Assert(t, observedError)
 
 	// Here's where we will put the gateway download file.
@@ -124,8 +125,6 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	assert.Assert(t, observedError)
 
 	_, observedError = os.Stat(testPath + "myapp.yaml")
-	//	file, observedError := os.Open(testPath + "myapp.yaml")
-	//	defer file.Close()
 	assert.Assert(t, observedError)
 
 	_, observedError = cli.GatewayGenerateBundle(ctx, testPath+"myapp.yaml", testPath)
@@ -169,11 +168,11 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	assert.Assert(t, observedError)
 
 	// fire up a gateway with config
-	gatewayName, observedError = cli.GatewayInit(ctx, "exportconfig2", GatewayDockerType, testPath+"myapp.yaml")
+	gatewayName, observedError = cli.GatewayInit(ctx, "exportconfig2", gatewayType, testPath+"myapp.yaml")
 	assert.Assert(t, observedError)
 	assert.Equal(t, gatewayName, "exportconfig2")
 
-	observedError = waitForGatewayActive(gatewayName, GatewayDockerType, time.Second*180, time.Second*2)
+	observedError = waitForGatewayActive(gatewayName, gatewayType, time.Second*180, time.Second*2)
 	assert.Assert(t, observedError)
 
 	observedError = cli.GatewayRemove(ctx, gatewayName)
@@ -190,6 +189,7 @@ func TestGatewayForward(t *testing.T) {
 	namespace := "test-gateway-forward-" + strings.ToLower(utils.RandomId(4))
 	kubeContext := ""
 	kubeConfigPath := ""
+	gatewayType := GatewayMockType
 
 	// isCluster := *clusterRun
 	if *clusterRun {
@@ -271,10 +271,10 @@ func TestGatewayForward(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
 
-	gatewayName, observedError := cli.GatewayInit(ctx, namespace, GatewayDockerType, "")
+	gatewayName, observedError := cli.GatewayInit(ctx, namespace, gatewayType, "")
 	assert.Assert(t, observedError)
 
-	observedError = waitForGatewayActive(gatewayName, GatewayDockerType, time.Second*180, time.Second*2)
+	observedError = waitForGatewayActive(gatewayName, gatewayType, time.Second*180, time.Second*2)
 	assert.Assert(t, observedError)
 
 	observedError = cli.GatewayForward(ctx, gatewayName, types.GatewayEndpoint{Service: echoService})
@@ -294,7 +294,9 @@ func TestGatewayForward(t *testing.T) {
 
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
-	assert.Equal(t, len(gatewayInspect.GatewayListeners), 5)
+	if gatewayType != GatewayMockType {
+		assert.Equal(t, len(gatewayInspect.GatewayListeners), 5)
+	}
 	assert.Equal(t, len(gatewayInspect.GatewayConnectors), 0)
 
 	// Now undo
@@ -320,6 +322,7 @@ func TestGatewayBind(t *testing.T) {
 	namespace := "test-gateway-bind-" + strings.ToLower(utils.RandomId(4))
 	kubeContext := ""
 	kubeConfigPath := ""
+	gatewayType := GatewayMockType
 
 	// isCluster := *clusterRun
 	if *clusterRun {
@@ -378,10 +381,10 @@ func TestGatewayBind(t *testing.T) {
 	observedError = cli.ServiceInterfaceCreate(ctx, &http2Service)
 	assert.Assert(t, observedError)
 
-	gatewayName, observedError := cli.GatewayInit(ctx, namespace, GatewayDockerType, "")
+	gatewayName, observedError := cli.GatewayInit(ctx, namespace, gatewayType, "")
 	assert.Assert(t, observedError)
 
-	observedError = waitForGatewayActive(gatewayName, GatewayDockerType, time.Second*180, time.Second*2)
+	observedError = waitForGatewayActive(gatewayName, gatewayType, time.Second*180, time.Second*2)
 	assert.Assert(t, observedError)
 
 	observedError = cli.GatewayBind(ctx, gatewayName, types.GatewayEndpoint{
@@ -430,7 +433,11 @@ func TestGatewayBind(t *testing.T) {
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
 	assert.Equal(t, len(gatewayInspect.GatewayListeners), 0)
-	assert.Equal(t, len(gatewayInspect.GatewayConnectors), 1)
+	if gatewayType != GatewayMockType {
+		assert.Equal(t, len(gatewayInspect.GatewayConnectors), 1)
+	} else {
+		assert.Equal(t, len(gatewayInspect.GatewayConnectors), 0)
+	}
 
 	observedError = cli.GatewayRemove(ctx, gatewayName)
 	assert.Assert(t, observedError)
@@ -450,6 +457,7 @@ func TestGatewayExpose(t *testing.T) {
 	namespace := "test-gateway-expose-" + strings.ToLower(utils.RandomId(4))
 	kubeContext := ""
 	kubeConfigPath := ""
+	gatewayType := GatewayMockType
 
 	//isCluster := *clusterRun
 	if *clusterRun {
@@ -478,7 +486,7 @@ func TestGatewayExpose(t *testing.T) {
 	})
 	assert.Check(t, err, "Unable to create VAN router")
 
-	gatewayName, observedError := cli.GatewayExpose(ctx, namespace, GatewayDockerType, types.GatewayEndpoint{
+	gatewayName, observedError := cli.GatewayExpose(ctx, namespace, gatewayType, types.GatewayEndpoint{
 		Host: "localhost",
 		Service: types.ServiceInterface{
 			Protocol: "tcp",
@@ -492,7 +500,9 @@ func TestGatewayExpose(t *testing.T) {
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
 	assert.Equal(t, len(gatewayInspect.GatewayListeners), 0)
-	assert.Equal(t, len(gatewayInspect.GatewayConnectors), 1)
+	if gatewayType != GatewayMockType {
+		assert.Equal(t, len(gatewayInspect.GatewayConnectors), 1)
+	}
 
 	// Now undo
 	observedError = cli.GatewayUnexpose(ctx, namespace, types.GatewayEndpoint{
@@ -516,21 +526,21 @@ func TestGatewayInit(t *testing.T) {
 		initTwice     bool
 	}{
 		{
-			gwType:        GatewayDockerType,
+			gwType:        GatewayMockType,
 			initName:      "",
 			actualName:    "",
 			expectedError: "",
 			initTwice:     false,
 		},
 		{
-			gwType:        GatewayDockerType,
+			gwType:        GatewayMockType,
 			initName:      "gateway1",
 			actualName:    "gateway1",
 			expectedError: "",
 			initTwice:     false,
 		},
 		{
-			gwType:        GatewayDockerType,
+			gwType:        GatewayMockType,
 			initName:      "",
 			actualName:    "",
 			expectedError: "",

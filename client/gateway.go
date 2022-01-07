@@ -39,7 +39,7 @@ const (
 	GatewayServiceType         string = "service"
 	GatewayDockerType          string = "docker"
 	GatewayPodmanType          string = "podman"
-	GatewayExportType          string = "export"
+	GatewayMockType            string = "mock"
 	gatewayPrefix              string = "skupper-gateway-"
 	gatewayIngress             string = "-ingress-"
 	gatewayEgress              string = "-egress-"
@@ -312,6 +312,8 @@ func getRouterVersion(gatewayName string, gatewayType string) (string, error) {
 		routerVersion, err = exec.Command("qdrouterd", "-v").Output()
 	} else if (gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType) && isActive(gatewayName, gatewayType) {
 		routerVersion, err = exec.Command(gatewayType, "exec", gatewayName, "qdrouterd", "-v").Output()
+	} else if gatewayType == GatewayMockType {
+		routerVersion = []byte("1.2.3")
 	}
 
 	if err != nil {
@@ -378,7 +380,7 @@ func (cli *VanClient) getGatewayType(gatewayName string) (string, error) {
 }
 
 func isValidGatewayType(gatewayType string) bool {
-	if gatewayType == GatewayServiceType || gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType || gatewayType == GatewayExportType {
+	if gatewayType == GatewayServiceType || gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType || gatewayType == GatewayMockType {
 		return true
 	} else {
 		return false
@@ -405,6 +407,8 @@ func isActive(gatewayName string, gatewayType string) bool {
 		} else {
 			return false
 		}
+	} else if gatewayType == GatewayMockType {
+		return true
 	} else {
 		return false
 	}
@@ -1087,7 +1091,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 		return cli.newGateway(ctx, gatewayName, gatewayType, configFile, owner)
 	}
 
-	if configFile != "" {
+	if configFile != "" && gatewayType != GatewayMockType {
 		yamlFile, err := ioutil.ReadFile(configFile)
 		if err != nil {
 			return "", fmt.Errorf("Failed to read gateway config file: %w", err)
@@ -1431,14 +1435,17 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 		return fmt.Errorf("Unable to update gateway endpoint, the given service provides %d ports, but only %d provided", len(si.Ports), len(service.Ports))
 	}
 
-	routerId, err := getRouterId(gatewayDir)
+	gatewayType, err := cli.getGatewayType(gatewayName)
 	if err != nil {
 		return err
 	}
 
-	gatewayType, err := cli.getGatewayType(gatewayName)
-	if err != nil {
-		return err
+	routerId := "314159"
+	if gatewayType != GatewayMockType {
+		routerId, err = getRouterId(gatewayDir)
+		if err != nil {
+			return err
+		}
 	}
 
 	ifc := "0.0.0.0"
@@ -1563,7 +1570,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 
 		bcDiff := currentGatewayConfig.Bridges.Difference(&newBridges)
 
-		if bcDiff != (&qdr.BridgeConfigDifference{}) {
+		if bcDiff != (&qdr.BridgeConfigDifference{}) && gatewayType != GatewayMockType {
 			currentGatewayConfig.Bridges = newBridges
 			currentGatewayConfig.UpdateConfigMap(configmap)
 
@@ -1784,22 +1791,25 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 		return nil, err
 	}
 
-	var bc *qdr.BridgeConfig
-	url, err := getRouterUrl(gatewayDir)
-	if err != nil {
-		return &types.GatewayInspectResponse{}, err
-	}
-	agent, err := qdr.Connect(url, nil)
-	if err != nil {
-		return &types.GatewayInspectResponse{}, err
-	}
-	defer agent.Close()
-	bc, err = agent.GetLocalBridgeConfig()
-	if err != nil {
-		return &types.GatewayInspectResponse{}, err
-	}
-
 	gatewayVersion, _ := getRouterVersion(gatewayName, gatewayType)
+
+	url := "amqp://127.0.0.1:5672"
+	bc := &qdr.BridgeConfig{}
+	if gatewayType != GatewayMockType {
+		url, err = getRouterUrl(gatewayDir)
+		if err != nil {
+			return &types.GatewayInspectResponse{}, err
+		}
+		agent, err := qdr.Connect(url, nil)
+		if err != nil {
+			return &types.GatewayInspectResponse{}, err
+		}
+		defer agent.Close()
+		bc, err = agent.GetLocalBridgeConfig()
+		if err != nil {
+			return &types.GatewayInspectResponse{}, err
+		}
+	}
 
 	inspect := types.GatewayInspectResponse{
 		GatewayName:       gatewayName,
