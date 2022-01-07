@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	hipstershop "github.com/skupperproject/skupper/test/integration/examples/custom/hipstershop/client"
 	"google.golang.org/grpc"
 )
@@ -250,9 +251,7 @@ func TestPaymentService(t *testing.T) {
 	defer conn.Close()
 
 	// Creating context
-	ctx, cn := context.WithTimeout(context.Background(), 4*timeout)
-	deadline := time.Now().Add(4 * timeout)
-	ctx, cn = context.WithDeadline(ctx, deadline)
+	ctx, cn := context.WithTimeout(context.Background(), 8*timeout)
 	defer cn()
 
 	// Creating the stub
@@ -260,25 +259,34 @@ func TestPaymentService(t *testing.T) {
 
 	// Charge
 	t.Run("Charge", func(t *testing.T) {
-		chargeRes, err := client.Charge(ctx, &hipstershop.ChargeRequest{
-			Amount: &hipstershop.Money{
-				CurrencyCode: "URL",
-				Units:        100,
-				Nanos:        0,
-			},
-			CreditCard: &hipstershop.CreditCardInfo{
-				CreditCardNumber:          "5555555555554444",
-				CreditCardCvv:             111,
-				CreditCardExpirationYear:  2199,
-				CreditCardExpirationMonth: 1,
-			},
+
+		err := utils.RetryWithContext(ctx, 30*time.Second, func() (bool, error) {
+			chargeRes, err := client.Charge(ctx, &hipstershop.ChargeRequest{
+				Amount: &hipstershop.Money{
+					CurrencyCode: "USD",
+					Units:        100,
+					Nanos:        0,
+				},
+				CreditCard: &hipstershop.CreditCardInfo{
+					CreditCardNumber:          "5555555555554444",
+					CreditCardCvv:             111,
+					CreditCardExpirationYear:  2199,
+					CreditCardExpirationMonth: 1,
+				},
+			})
+
+			if err != nil {
+				return false, err
+			}
+
+			t.Logf("Credit card has been charged. Transaction ID: %s", chargeRes.TransactionId)
+
+			return true, nil
 		})
 
 		if err != nil {
 			t.Fatalf("error charging credit card - %s", err)
 		}
-
-		t.Logf("Credit card has been charged. Transaction ID: %s", chargeRes.TransactionId)
 	})
 
 }
@@ -354,7 +362,7 @@ func TestCheckoutService(t *testing.T) {
 	defer conn.Close()
 
 	// Creating context
-	ctx, cn := context.WithTimeout(context.Background(), timeout)
+	ctx, cn := context.WithTimeout(context.Background(), 8*timeout)
 	defer cn()
 
 	// Creating the stub
@@ -362,26 +370,35 @@ func TestCheckoutService(t *testing.T) {
 
 	// PlaceOrder
 	t.Run("PlaceOrder", func(t *testing.T) {
-		orderRes, err := client.PlaceOrder(ctx, &hipstershop.PlaceOrderRequest{
-			UserId:       "user1",
-			UserCurrency: "USD",
-			Address: &hipstershop.Address{
-				ZipCode: 94203,
-			},
-			Email: "user1@skupper.io",
-			CreditCard: &hipstershop.CreditCardInfo{
-				CreditCardNumber:          "5555555555554444",
-				CreditCardCvv:             111,
-				CreditCardExpirationYear:  2199,
-				CreditCardExpirationMonth: 1,
-			},
+
+		err := utils.RetryWithContext(ctx, 30*time.Second, func() (bool, error) {
+			orderRes, err := client.PlaceOrder(ctx, &hipstershop.PlaceOrderRequest{
+				UserId:       "user1",
+				UserCurrency: "USD",
+				Address: &hipstershop.Address{
+					ZipCode: 94203,
+				},
+				Email: "user1@skupper.io",
+				CreditCard: &hipstershop.CreditCardInfo{
+					CreditCardNumber:          "5555555555554444",
+					CreditCardCvv:             111,
+					CreditCardExpirationYear:  2199,
+					CreditCardExpirationMonth: 1,
+				},
+			})
+
+			if err != nil {
+				return false, err
+			}
+
+			t.Logf("order has been placed - ID = %s", orderRes.Order.OrderId)
+
+			return true, nil
 		})
 
 		if err != nil {
 			t.Fatalf("error placing order - %s", err)
 		}
-
-		t.Logf("order has been placed - ID = %s", orderRes.Order.OrderId)
 	})
 }
 
