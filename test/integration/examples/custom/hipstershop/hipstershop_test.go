@@ -89,7 +89,7 @@ func TestHipsterShop(t *testing.T) {
 			for i := 1; i <= JOBS_PER_NS; i++ {
 				jobName := fmt.Sprintf("grpcclient-%d", i)
 				t.Logf("Waiting on gRPC client job %s to finish on %s", jobName, cluster.Namespace)
-				job, err := k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, jobName, constants.TestSuiteTimeout)
+				job, err := k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
 				jobSucceeded := job.Status.Succeeded == 1
 				if err != nil || !jobSucceeded {
 					// retrieving job logs
