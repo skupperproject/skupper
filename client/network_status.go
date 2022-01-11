@@ -1,7 +1,6 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/server"
@@ -44,7 +43,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	for _, site := range versionCheckedSites {
 
 		if len(site.Namespace) == 0 {
-			return nil, errors.New("unable to provide site information")
+			return nil, fmt.Errorf("unable to provide site information")
 		}
 
 		listLinks, err := cli.getSiteLinksStatus(site.Namespace)
@@ -71,7 +70,7 @@ func (cli *VanClient) getSiteLinksStatus(namespace string) ([]string, error) {
 	var listLinks []string
 
 	if len(namespace) == 0 {
-		return nil, errors.New("Unspecified namespace")
+		return nil, fmt.Errorf("unspecified namespace")
 	}
 
 	mapLinkStatus, err := cli.getLinkStatusByNamespace(namespace)
