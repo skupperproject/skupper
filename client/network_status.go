@@ -5,13 +5,19 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/server"
 	"github.com/skupperproject/skupper/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 )
 
 func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 
+	//Checking if the router has been deployed
+	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
 	var sites *[]types.SiteInfo
-	var err error
 	err = utils.Retry(5*time.Second, 5, func() (bool, error) {
 		sites, err = server.GetSiteInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
 		if err != nil {
