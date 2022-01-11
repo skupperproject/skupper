@@ -75,12 +75,18 @@ func (cli *VanClient) getLinkStatusByNamespace(namespace string) (map[string]*ty
 	if err != nil {
 		return nil, err
 	}
+
 	current, err := cli.getRouterConfig()
 	if err != nil {
 		return nil, err
 	}
+
 	edge := current.IsEdge()
-	connections, _ := qdr.GetConnections(namespace, cli.KubeClient, cli.RestConfig)
+	connections, err := qdr.GetConnections(namespace, cli.KubeClient, cli.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, s := range secrets.Items {
 		var connectedTo string
 		connectedTo = s.ObjectMeta.Annotations[types.TokenGeneratedBy][:7]
