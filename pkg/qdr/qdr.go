@@ -69,6 +69,23 @@ func NewBridgeConfig() BridgeConfig {
 	}
 }
 
+func NewBridgeConfigCopy(src BridgeConfig) BridgeConfig {
+	newBridges := NewBridgeConfig()
+	for k, v := range src.TcpListeners {
+		newBridges.TcpListeners[k] = v
+	}
+	for k, v := range src.TcpConnectors {
+		newBridges.TcpConnectors[k] = v
+	}
+	for k, v := range src.HttpListeners {
+		newBridges.HttpListeners[k] = v
+	}
+	for k, v := range src.HttpConnectors {
+		newBridges.HttpConnectors[k] = v
+	}
+	return newBridges
+}
+
 func (r *RouterConfig) AddListener(l Listener) {
 	if l.Name == "" {
 		l.Name = fmt.Sprintf("%s@%d", l.Host, l.Port)

@@ -172,7 +172,7 @@ func (v *vanClientMock) GatewayUnexpose(ctx context.Context, gatewayName string,
 	return nil
 }
 
-func (v *vanClientMock) GatewayForward(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint, loopback bool) error {
+func (v *vanClientMock) GatewayForward(ctx context.Context, gatewayName string, endpoint types.GatewayEndpoint) error {
 	return nil
 }
 
