@@ -6,7 +6,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/server"
 	"github.com/skupperproject/skupper/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
@@ -17,15 +16,8 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}
 
-	var sites *[]types.SiteInfo
-	err = utils.Retry(5*time.Second, 5, func() (bool, error) {
-		sites, err = server.GetSiteInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
-		if err != nil {
-			return false, err
-		}
+	sites, err := server.GetSiteInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
 
-		return true, nil
-	})
 	if err != nil {
 		return nil, err
 	}
@@ -33,14 +25,8 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	versionCheckedSites := cli.checkSiteVersion(sites)
 	siteNameMap := getSiteNameMap(sites)
 
-	var services *[]types.ServiceInfo
-	err = utils.Retry(5*time.Second, 5, func() (bool, error) {
-		services, err = server.GetServiceInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
-		if err != nil {
-			return false, err
-		}
-		return true, nil
-	})
+	services, err := server.GetServiceInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
+
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +36,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	for _, site := range versionCheckedSites {
 
 		if len(site.Namespace) == 0 {
-			return nil, fmt.Errorf("unable to provide site information")
+			return nil, fmt.Errorf("temporarily unable to provide site information")
 		}
 
 		listLinks, err := cli.getSiteLinksStatus(site.Namespace, siteNameMap)

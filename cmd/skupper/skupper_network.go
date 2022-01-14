@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
 	"strings"
+	"time"
 )
 
 func NewCmdNetwork() *cobra.Command {
@@ -26,10 +29,20 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			sites, err := cli.NetworkStatus()
+			var sites []*types.SiteInfo
+			var errStatus error
+			err := utils.Retry(time.Second, 30, func() (bool, error) {
+				sites, errStatus = cli.NetworkStatus()
+
+				if errStatus != nil {
+					return false, errStatus
+				}
+
+				return true, nil
+			})
 
 			if err != nil {
-				fmt.Printf("Temporarily unable to retrieve network information: %s", err)
+				fmt.Printf("Unable to retrieve network information: %s", err)
 				fmt.Println()
 				return nil
 			}

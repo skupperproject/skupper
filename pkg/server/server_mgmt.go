@@ -57,13 +57,13 @@ func getQueryServiceController(typename string) []string {
 func serviceControllerExec(command []string, namespace string, clientset kubernetes.Interface, config *restclient.Config) (*bytes.Buffer, error) {
 	pod, err := kube.GetReadyPod(namespace, clientset, "service-controller")
 	if err != nil {
-		return nil, fmt.Errorf("service controller pod is not ready yet")
+		return nil, fmt.Errorf("service controller is not ready yet")
 	}
 
 	results, err := kube.ExecCommandInContainer(command, pod.Name, "service-controller", namespace, clientset, config)
 
 	if err != nil {
-		return nil, fmt.Errorf("service controller not ready")
+		return nil, fmt.Errorf("service controller is not ready yet")
 	}
 
 	return results, nil
