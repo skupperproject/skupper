@@ -31,6 +31,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	}
 
 	versionCheckedSites := cli.checkSiteVersion(sites)
+	siteNameMap := getSiteNameMap(sites)
 
 	var services *[]types.ServiceInfo
 	err = utils.Retry(5*time.Second, 5, func() (bool, error) {
@@ -52,7 +53,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 			return nil, fmt.Errorf("unable to provide site information")
 		}
 
-		listLinks, err := cli.getSiteLinksStatus(site.Namespace)
+		listLinks, err := cli.getSiteLinksStatus(site.Namespace, siteNameMap)
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +71,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	return listSites, nil
 }
 
-func (cli *VanClient) getSiteLinksStatus(namespace string) ([]string, error) {
+func (cli *VanClient) getSiteLinksStatus(namespace string, siteNameMap map[string]string) ([]string, error) {
 	lightRed := "\033[1;31m"
 	resetColor := "\033[0m"
 	var listLinks []string
@@ -79,7 +80,7 @@ func (cli *VanClient) getSiteLinksStatus(namespace string) ([]string, error) {
 		return nil, fmt.Errorf("unspecified namespace")
 	}
 
-	mapLinkStatus, err := cli.getLinkStatusByNamespace(namespace)
+	mapLinkStatus, err := cli.getLinkStatusByNamespace(namespace, siteNameMap)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +96,7 @@ func (cli *VanClient) getSiteLinksStatus(namespace string) ([]string, error) {
 		if mapLinkStatus[link].Connected {
 			formattedLink = link
 		} else {
-			formattedLink = fmt.Sprintf("%s%s(link not active)%s", lightRed, link, resetColor)
+			formattedLink = fmt.Sprintf("%s%s (link not active)%s", lightRed, link, resetColor)
 		}
 
 		listLinks = append(listLinks, formattedLink)
@@ -154,4 +155,14 @@ func (cli *VanClient) checkSiteVersion(sites *[]types.SiteInfo) []types.SiteInfo
 		listSites = append(listSites, site)
 	}
 	return listSites
+}
+
+func getSiteNameMap(sites *[]types.SiteInfo) map[string]string {
+
+	siteNameMap := make(map[string]string)
+	for _, site := range *sites {
+		siteNameMap[site.SiteId] = site.Name
+	}
+
+	return siteNameMap
 }
