@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"k8s.io/client-go/kubernetes"
@@ -20,7 +21,7 @@ func GetSiteInfo(namespace string, clientset kubernetes.Interface, config *restc
 		err = json.Unmarshal(buffer.Bytes(), &results)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error when unmarshalling response from service controller: %s", string(buffer.Bytes()))
 		} else {
 			return &results, nil
 		}
@@ -37,7 +38,7 @@ func GetServiceInfo(namespace string, clientset kubernetes.Interface, config *re
 		err = json.Unmarshal(buffer.Bytes(), &results)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error when unmarshalling response from service controller: %s", string(buffer.Bytes()))
 		} else {
 			return &results, nil
 		}
@@ -56,8 +57,14 @@ func getQueryServiceController(typename string) []string {
 func serviceControllerExec(command []string, namespace string, clientset kubernetes.Interface, config *restclient.Config) (*bytes.Buffer, error) {
 	pod, err := kube.GetReadyPod(namespace, clientset, "service-controller")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("service controller pod is not ready yet")
 	}
 
-	return kube.ExecCommandInContainer(command, pod.Name, "service-controller", namespace, clientset, config)
+	results, err := kube.ExecCommandInContainer(command, pod.Name, "service-controller", namespace, clientset, config)
+
+	if err != nil {
+		return nil, fmt.Errorf("service controller not ready")
+	}
+
+	return results, nil
 }

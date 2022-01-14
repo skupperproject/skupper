@@ -14,7 +14,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	//Checking if the router has been deployed
 	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}
 
 	var sites *[]types.SiteInfo

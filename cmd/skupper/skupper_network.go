@@ -29,7 +29,8 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 			sites, err := cli.NetworkStatus()
 
 			if err != nil {
-				fmt.Println("Unable to retrieve network information.")
+				fmt.Printf("Temporarily unable to retrieve network information: %s", err)
+				fmt.Println()
 				return nil
 			}
 
