@@ -1049,7 +1049,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 	}
 
 	if gatewayName != "" {
-		nameRegex := regexp.MustCompile(`^[a-z]([a-z0-9-]*[a-z0-9])*$`)
+		nameRegex := regexp.MustCompile(`^[a-z]([a-z0-9\.-]*[a-z0-9])*$`)
 		if !nameRegex.MatchString(gatewayName) {
 			return "", fmt.Errorf("Gateway name must consist of lower case letters, numerals and '-'. Must start with a letter.")
 		}
