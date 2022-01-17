@@ -2,6 +2,11 @@ package client
 
 import (
 	"context"
+	"github.com/skupperproject/skupper/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +48,28 @@ func check_result(t *testing.T, name string, timeoutSeconds float64, resultType 
 	}
 }
 
+func containsResult(t *testing.T, name string, timeoutSeconds float64, resultType string, expected []string, found *[]string) {
+	if len(expected) <= 0 {
+		return
+	}
+
+	for {
+		if timeoutSeconds <= 0 {
+			break
+		}
+		if len(*found) >= len(expected) {
+			break
+		}
+		time.Sleep(time.Second)
+		timeoutSeconds -= 1.0
+	}
+	for _, element := range expected {
+		if !utils.StringSliceContains(*found, element) {
+			t.Errorf("TestServiceInterfaceCreate %s : expected %s not found:%s", name, resultType, element)
+		}
+	}
+}
+
 func TestServiceInterfaceCreate(t *testing.T) {
 	testcases := []struct {
 		namespace        string
@@ -58,7 +85,9 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		rolesExpected    []string
 		svcsExpected     []string
 		realSvcsExpected []string
+		secretsExpected  []string
 		timeout          float64 // seconds
+		tlsCredentials   string
 	}{
 		// The first four tests look at error returns (or the lack thereof)
 		// caused by bad (or not bad) arguments. An expected error of "" means
@@ -126,6 +155,23 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-5-addr"},
 			timeout:          60.0,
 		},
+		{
+			namespace:        "vsic-6",
+			doc:              "Check basic deployments with TLS support",
+			init:             true,
+			addr:             "vsic-6-addr",
+			proto:            "http2",
+			ports:            []int{3000},
+			expectedErr:      "",
+			depsExpected:     []string{"skupper-router", "skupper-service-controller"},
+			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
+			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
+			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
+			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-6-addr"},
+			secretsExpected:  []string{types.ServiceClientSecret, types.SiteCaSecret, "skupper-vsic-6-addr"},
+			timeout:          60.0,
+			tlsCredentials:   "skupper-vsic-6-addr",
+		},
 	}
 
 	for _, testcase := range testcases {
@@ -136,6 +182,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		cmsFound := []string{}
 		rolesFound := []string{}
 		svcsFound := []string{}
+		secretsFound := []string{}
 
 		var cli *VanClient
 		var err error
@@ -199,9 +246,18 @@ func TestServiceInterfaceCreate(t *testing.T) {
 				svcsFound = append(svcsFound, svc.Name)
 			},
 		})
-
 		informerList = append(informerList, svcInformer)
 
+		// Secret Informer -------------------------
+		secretInformer := informerFactory.Core().V1().Secrets().Informer()
+		secretInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				secret := obj.(*corev1.Secret)
+				secretsFound = append(secretsFound, secret.Name)
+			},
+		})
+
+		informerList = append(informerList, secretInformer)
 		// ------------------------------------------------------------
 		// Start all the informers and wait until each one is ready.
 		// ------------------------------------------------------------
@@ -229,11 +285,16 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			assert.Check(t, err, "Unable to create VAN router")
 		}
 
+		if !isCluster && testcase.tlsCredentials != "" {
+			setUpRouterDeploymentMock(cli)
+		}
+
 		// Create the VAN Service Interface.
 		service := types.ServiceInterface{
-			Address:  testcase.addr,
-			Protocol: testcase.proto,
-			Ports:    testcase.ports,
+			Address:        testcase.addr,
+			Protocol:       testcase.proto,
+			Ports:          testcase.ports,
+			TlsCredentials: testcase.tlsCredentials,
 		}
 		observedError := cli.ServiceInterfaceCreate(ctx, &service)
 
@@ -253,11 +314,55 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		check_result(t, testcase.namespace, testcase.timeout, "dependencies", testcase.depsExpected, &depsFound, testcase.doc)
 		check_result(t, testcase.namespace, testcase.timeout, "config maps", testcase.cmsExpected, &cmsFound, testcase.doc)
 		check_result(t, testcase.namespace, testcase.timeout, "roles", testcase.rolesExpected, &rolesFound, testcase.doc)
+		containsResult(t, testcase.namespace, testcase.timeout, "secret", testcase.secretsExpected, &secretsFound)
 
 		if isCluster {
 			check_result(t, testcase.namespace, testcase.timeout, "services", testcase.realSvcsExpected, &svcsFound, testcase.doc)
 		} else {
 			check_result(t, testcase.namespace, testcase.timeout, "services", testcase.svcsExpected, &svcsFound, testcase.doc)
 		}
+	}
+}
+
+func setUpRouterDeploymentMock(cli *VanClient) {
+	var rep int32 = 1
+	var routerDeployment = &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "skupper-router",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &rep,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"application": "tcp-go-echo",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "router",
+						},
+					},
+				},
+			},
+		},
+		Status: appsv1.DeploymentStatus{
+			Replicas:      rep,
+			ReadyReplicas: rep,
+		},
+	}
+	if cli != nil {
+		cli.KubeClient.(*fake.Clientset).Fake.PrependReactor("get", "deployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			name := action.(k8stesting.GetAction).GetName()
+			if name == "skupper-router" {
+				return true, routerDeployment, nil
+			}
+			return false, nil, nil
+		})
 	}
 }

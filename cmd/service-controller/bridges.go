@@ -35,25 +35,27 @@ func getBridgeName(address string, host string, port ...int) string {
 }
 
 type EgressBindings struct {
-	name        string
-	selector    string
-	service     string
-	egressPorts map[int]int
-	informer    cache.SharedIndexInformer
-	stopper     chan struct{}
+	name           string
+	selector       string
+	service        string
+	egressPorts    map[int]int
+	informer       cache.SharedIndexInformer
+	stopper        chan struct{}
+	tlsCredentials string
 }
 
 type ServiceBindings struct {
-	origin       string
-	protocol     string
-	address      string
-	publicPorts  []int
-	ingressPorts []int
-	aggregation  string
-	eventChannel bool
-	headless     *types.Headless
-	labels       map[string]string
-	targets      map[string]*EgressBindings
+	origin         string
+	protocol       string
+	address        string
+	publicPorts    []int
+	ingressPorts   []int
+	aggregation    string
+	eventChannel   bool
+	headless       *types.Headless
+	labels         map[string]string
+	targets        map[string]*EgressBindings
+	tlsCredentials string
 }
 
 func (s *ServiceBindings) PortMap() map[int]int {
@@ -66,14 +68,15 @@ func (s *ServiceBindings) PortMap() map[int]int {
 
 func asServiceInterface(bindings *ServiceBindings) types.ServiceInterface {
 	return types.ServiceInterface{
-		Address:      bindings.address,
-		Protocol:     bindings.protocol,
-		Ports:        bindings.publicPorts,
-		Aggregate:    bindings.aggregation,
-		EventChannel: bindings.eventChannel,
-		Headless:     bindings.headless,
-		Labels:       bindings.labels,
-		Origin:       bindings.origin,
+		Address:        bindings.address,
+		Protocol:       bindings.protocol,
+		Ports:          bindings.publicPorts,
+		Aggregate:      bindings.aggregation,
+		EventChannel:   bindings.eventChannel,
+		Headless:       bindings.headless,
+		Labels:         bindings.labels,
+		Origin:         bindings.origin,
+		TlsCredentials: bindings.tlsCredentials,
 	}
 }
 
@@ -142,15 +145,21 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 				}
 			}
 		}
-		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Ports, required.Headless, required.Labels, ports, required.Aggregate, required.EventChannel)
+		sb := newServiceBindings(required.Origin, required.Protocol, required.Address, required.Ports, required.Headless, required.Labels, ports, required.Aggregate, required.EventChannel, required.TlsCredentials)
 		for _, t := range required.Targets {
 			if t.Selector != "" {
 				sb.addSelectorTarget(t.Name, t.Selector, getTargetPorts(required, t), c)
 			} else if t.Service != "" {
-				sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), c)
+				sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), required.TlsCredentials, c)
 			}
 		}
+
+		if len(required.TlsCredentials) > 0 {
+			sb.tlsCredentials = required.TlsCredentials
+		}
+
 		c.bindings[required.Address] = sb
+
 	} else {
 		// check it is configured correctly
 		if bindings.protocol != required.Protocol {
@@ -184,6 +193,15 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			bindings.headless = nil
 		}
 
+		if bindings.tlsCredentials != required.TlsCredentials {
+
+			// Credentials will be overridden only if there are no value for them,
+			// and in that case a new secret has to be generated in that site.
+			if len(bindings.tlsCredentials) == 0 {
+				bindings.tlsCredentials = types.SkupperServiceCertPrefix + required.Address
+			}
+		}
+
 		hasSkupperSelector := false
 		for _, t := range required.Targets {
 			targetPort := getTargetPorts(required, t)
@@ -200,7 +218,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			} else if t.Service != "" {
 				target := bindings.targets[t.Service]
 				if target == nil {
-					bindings.addServiceTarget(t.Name, t.Service, targetPort, c)
+					bindings.addServiceTarget(t.Name, t.Service, targetPort, required.TlsCredentials, c)
 				} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
 					target.egressPorts = targetPort
 				}
@@ -231,18 +249,19 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 	return nil
 }
 
-func newServiceBindings(origin string, protocol string, address string, publicPorts []int, headless *types.Headless, labels map[string]string, ingressPorts []int, aggregation string, eventChannel bool) *ServiceBindings {
+func newServiceBindings(origin string, protocol string, address string, publicPorts []int, headless *types.Headless, labels map[string]string, ingressPorts []int, aggregation string, eventChannel bool, tlsCredentials string) *ServiceBindings {
 	return &ServiceBindings{
-		origin:       origin,
-		protocol:     protocol,
-		address:      address,
-		publicPorts:  publicPorts,
-		ingressPorts: ingressPorts,
-		aggregation:  aggregation,
-		eventChannel: eventChannel,
-		headless:     headless,
-		labels:       labels,
-		targets:      map[string]*EgressBindings{},
+		origin:         origin,
+		protocol:       protocol,
+		address:        address,
+		publicPorts:    publicPorts,
+		ingressPorts:   ingressPorts,
+		aggregation:    aggregation,
+		eventChannel:   eventChannel,
+		headless:       headless,
+		labels:         labels,
+		targets:        map[string]*EgressBindings{},
+		tlsCredentials: tlsCredentials,
 	}
 }
 
@@ -270,12 +289,13 @@ func (sb *ServiceBindings) removeSelectorTarget(selector string) {
 	delete(sb.targets, selector)
 }
 
-func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, controller *Controller) error {
+func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, tlsCredentials string, controller *Controller) error {
 	sb.targets[service] = &EgressBindings{
-		name:        name,
-		service:     service,
-		egressPorts: port,
-		stopper:     make(chan struct{}),
+		name:           name,
+		service:        service,
+		egressPorts:    port,
+		stopper:        make(chan struct{}),
+		tlsCredentials: tlsCredentials,
 	}
 	return nil
 }
@@ -324,13 +344,13 @@ func (eb *EgressBindings) updateBridgeConfiguration(sb *ServiceBindings, siteId 
 			pod := p.(*corev1.Pod)
 			if kube.IsPodRunning(pod) && kube.IsPodReady(pod) && pod.DeletionTimestamp == nil {
 				event.Recordf(BridgeTargetEvent, "Adding pod for %s: %s", sb.address, pod.ObjectMeta.Name)
-				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPorts, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, bridges)
+				addEgressBridge(sb.protocol, pod.Status.PodIP, eb.egressPorts, sb.address, eb.name, siteId, "", sb.aggregation, sb.eventChannel, sb.tlsCredentials, bridges)
 			} else {
 				event.Recordf(BridgeTargetEvent, "Pod for %s not ready/running: %s", sb.address, pod.ObjectMeta.Name)
 			}
 		}
 	} else if eb.service != "" {
-		addEgressBridge(sb.protocol, eb.service, eb.egressPorts, sb.address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, bridges)
+		addEgressBridge(sb.protocol, eb.service, eb.egressPorts, sb.address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, sb.tlsCredentials, bridges)
 	}
 }
 
@@ -345,7 +365,7 @@ const (
 	ProtocolHTTP2 string = "http2"
 )
 
-func addEgressBridge(protocol string, host string, port map[int]int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, bridges *qdr.BridgeConfig) (bool, error) {
+func addEgressBridge(protocol string, host string, port map[int]int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, tlsCredentials string, bridges *qdr.BridgeConfig) (bool, error) {
 	if host == "" {
 		return false, fmt.Errorf("Cannot add connector without host (%s %s)", address, protocol)
 	}
@@ -374,14 +394,19 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 			}
 			bridges.AddHttpConnector(b)
 		case ProtocolHTTP2:
-			bridges.AddHttpConnector(qdr.HttpEndpoint{
+			httpConnector := qdr.HttpEndpoint{
 				Name:            endpointName,
 				Host:            host,
 				Port:            strconv.Itoa(tPort),
 				Address:         endpointAddr,
 				SiteId:          siteId,
 				ProtocolVersion: qdr.HttpVersion2,
-			})
+			}
+
+			if len(tlsCredentials) > 0 {
+				httpConnector.SslProfile = types.ServiceClientSecret
+			}
+			bridges.AddHttpConnector(httpConnector)
 		case ProtocolTCP:
 			bridges.AddTcpConnector(qdr.TcpEndpoint{
 				Name:    endpointName,
@@ -420,7 +445,7 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 			})
 
 		case ProtocolHTTP2:
-			bridges.AddHttpListener(qdr.HttpEndpoint{
+			httpListener := qdr.HttpEndpoint{
 				Name:            endpointName,
 				Host:            "0.0.0.0",
 				Port:            strconv.Itoa(iPort),
@@ -429,7 +454,13 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 				Aggregation:     sb.aggregation,
 				EventChannel:    sb.eventChannel,
 				ProtocolVersion: qdr.HttpVersion2,
-			})
+			}
+
+			if len(sb.tlsCredentials) > 0 {
+				httpListener.SslProfile = sb.tlsCredentials
+			}
+
+			bridges.AddHttpListener(httpListener)
 		case ProtocolTCP:
 			bridges.AddTcpListener(qdr.TcpEndpoint{
 				Name:    endpointName,

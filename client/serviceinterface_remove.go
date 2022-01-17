@@ -3,6 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/qdr"
+	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +30,8 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
 					return err
 				} else {
+
+					handleServiceCertificateRemoval(address, cli)
 					return nil
 				}
 			}
@@ -45,4 +50,44 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 		return unretryable
 	}
 	return err
+}
+
+func handleServiceCertificateRemoval(address string, cli *VanClient) {
+	certName := types.SkupperServiceCertPrefix + address
+
+	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(certName, metav1.GetOptions{})
+
+	if err == nil && secret != nil {
+
+		err = qdr.RemoveSslProfile(secret.Name, cli.Namespace, cli.KubeClient)
+		if err != nil {
+			log.Printf("Failed to remove sslProfile from the router: %v", err.Error())
+		}
+
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+
+			err = kube.RemoveSecretAndUpdateDeployment(secret.Name, types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			log.Printf("Failed to remove secret from the router deployment: %v", err.Error())
+		}
+
+		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(secret.Name, metav1.GetOptions{})
+
+		if err == nil {
+
+			err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+
+			if err != nil {
+				log.Printf("Failed to remove secret from the site: %v", err.Error())
+			}
+		}
+	}
+
 }

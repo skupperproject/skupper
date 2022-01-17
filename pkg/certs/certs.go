@@ -162,6 +162,26 @@ func generateSecret(name string, subject string, hosts string, ca *CertificateAu
 	return secret
 }
 
+func generateSimpleSecretWithCA(name string, ca *CertificateAuthority) corev1.Secret {
+	secret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Type: "kubernetes.io/tls",
+		Data: map[string][]byte{},
+	}
+
+	secret.Data["ca.crt"] = ca.CrtData
+	secret.Data["tls.crt"] = []byte{}
+	secret.Data["tls.key"] = []byte{}
+
+	return secret
+}
+
 func SecretToCertData(secret corev1.Secret) CertificateData {
 	certData := CertificateData{}
 	for k, v := range secret.Data {
@@ -248,4 +268,9 @@ func GetSecretContent(secretFile string) (map[string][]byte, error) {
 		content[k] = []byte(v)
 	}
 	return content, nil
+}
+
+func GenerateSimpleSecret(name string, ca *corev1.Secret) corev1.Secret {
+	caCert := getCAFromSecret(ca)
+	return generateSimpleSecretWithCA(name, &caCert)
 }

@@ -59,6 +59,7 @@ func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int
 	}
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 	service.Spec.ClusterIP = "None"
+
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 

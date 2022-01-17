@@ -472,6 +472,12 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		SaslMechanisms:   "EXTERNAL",
 		AuthenticatePeer: true,
 	})
+
+	routerConfig.AddSimpleSslProfileWithPath("/etc/qpid-dispatch-certs",
+		qdr.SslProfile{
+			Name: types.ServiceClientSecret,
+		})
+
 	if options.EnableRouterConsole {
 		if van.AuthMode == types.ConsoleAuthModeOpenshift {
 			routerConfig.AddListener(qdr.Listener{
@@ -608,6 +614,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	if !isEdge {
 		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.SiteServerSecret, "/etc/qpid-dispatch-certs/skupper-internal/")
 	}
+
+	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.ServiceClientSecret, "/etc/qpid-dispatch-certs/"+types.ServiceClientSecret+"/")
+
 	if options.EnableRouterConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			sidecars = append(sidecars, OauthProxyContainer(types.TransportServiceAccountName, strconv.Itoa(int(types.ConsoleOpenShiftServicePort))))
@@ -683,6 +692,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Name: types.SiteCaSecret,
 		})
 	}
+
+	cas = append(cas, types.CertAuthority{Name: types.ServiceCaSecret})
+
 	van.CertAuthoritys = cas
 
 	credentials := []types.Credential{}
@@ -701,6 +713,15 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Hosts:       []string{},
 		ConnectJson: true,
 		Post:        false,
+	})
+
+	credentials = append(credentials, types.Credential{
+		CA:          types.ServiceCaSecret,
+		Name:        types.ServiceClientSecret,
+		Hosts:       []string{},
+		ConnectJson: false,
+		Post:        false,
+		Simple:      true,
 	})
 
 	if !isEdge {
@@ -1211,6 +1232,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 			return err
 		}
 	}
+
 	return nil
 }
 

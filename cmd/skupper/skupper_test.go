@@ -64,6 +64,23 @@ func TestCreateServiceArgs(t *testing.T) {
 	assert.Error(t, c([]string{"service", "port", "other", "arg"}), "port is not a valid port")
 }
 
+func TestCreateServiceParseArgs(t *testing.T) {
+	cmd := NewCmdCreateService(nil)
+
+	assert.Assert(t, cmd.ParseFlags([]string{}))
+	assert.Equal(t, serviceToCreate.EnableTls, false)
+	assert.Equal(t, serviceToCreate.Protocol, "tcp")
+	assert.Equal(t, serviceToCreate.TlsCredentials, "")
+
+	cmdArgs := []string{"service:8080", "--mapping", "http2", "--enable-tls"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, serviceToCreate.EnableTls, true)
+	assert.Equal(t, serviceToCreate.Protocol, "http2")
+	assert.Equal(t, serviceToCreate.TlsCredentials, "")
+
+}
+
 func TestExposeTargetArgs(t *testing.T) {
 	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>'"
 	targetError := "target type must be one of: [deployment, statefulset, pods, service]"
@@ -103,6 +120,13 @@ func TestExposeParseArgs(t *testing.T) {
 
 	assert.Assert(t, cmd.ParseFlags(cmd_args))
 	assert.Equal(t, exposeOpts.Address, "theAddress")
+
+	cmdArgs := []string{"deployment/name", "--address", "theAddress", "--protocol", "http2", "--enable-tls"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, exposeOpts.EnableTls, true)
+	assert.Equal(t, exposeOpts.Protocol, "http2")
+	assert.Equal(t, exposeOpts.TlsCredentials, "")
 }
 
 var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")

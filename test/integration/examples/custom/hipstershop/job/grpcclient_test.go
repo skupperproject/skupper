@@ -260,7 +260,7 @@ func TestPaymentService(t *testing.T) {
 	t.Run("Charge", func(t *testing.T) {
 		chargeRes, err := client.Charge(ctx, &hipstershop.ChargeRequest{
 			Amount: &hipstershop.Money{
-				CurrencyCode: "URL",
+				CurrencyCode: "USD",
 				Units:        100,
 				Nanos:        0,
 			},

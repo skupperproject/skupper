@@ -23,12 +23,14 @@ import (
 )
 
 type ExposeOptions struct {
-	Protocol    string
-	Address     string
-	Ports       []int
-	TargetPorts []string
-	Headless    bool
-	ProxyTuning types.Tuning
+	Protocol       string
+	Address        string
+	Ports          []int
+	TargetPorts    []string
+	Headless       bool
+	ProxyTuning    types.Tuning
+	EnableTls      bool
+	TlsCredentials string
 }
 
 func SkupperNotInstalledError(namespace string) error {
@@ -118,9 +120,11 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 			return service.Address, cli.ServiceInterfaceUpdate(ctx, service)
 		} else {
 			service = &types.ServiceInterface{
-				Address:  serviceName,
-				Ports:    options.Ports,
-				Protocol: options.Protocol,
+				Address:        serviceName,
+				Ports:          options.Ports,
+				Protocol:       options.Protocol,
+				EnableTls:      options.EnableTls,
+				TlsCredentials: options.TlsCredentials,
 			}
 		}
 	} else if service.Headless != nil {
@@ -388,6 +392,7 @@ installation that can then be connected to other skupper installations`,
 				return err
 			}
 			fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
+
 			return nil
 		},
 	}
@@ -684,6 +689,11 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 					return fmt.Errorf("--proxy-node-selector option is only valid for headless services")
 				}
 			}
+
+			if exposeOpts.EnableTls {
+				exposeOpts.TlsCredentials = types.SkupperServiceCertPrefix + exposeOpts.Address
+			}
+
 			addr, err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
 			if err == nil {
 				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, addr)
@@ -703,6 +713,11 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
+	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
+
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	f := cmd.Flag("enable-tls")
+	f.Hidden = true
 
 	return cmd
 }
@@ -912,6 +927,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 			var sPorts []string
+
 			if len(args) == 1 {
 				parts := strings.Split(args[0], ":")
 				serviceToCreate.Address = parts[0]
@@ -927,6 +943,11 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 				}
 				serviceToCreate.Ports = append(serviceToCreate.Ports, servicePort)
 			}
+
+			if serviceToCreate.EnableTls {
+				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
+			}
+
 			err := cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -937,6 +958,11 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
+
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	f := cmd.Flag("enable-tls")
+	f.Hidden = true
 
 	return cmd
 }

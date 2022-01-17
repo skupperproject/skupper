@@ -16,7 +16,6 @@ package types
 
 import (
 	jsonencoding "encoding/json"
-
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -124,6 +123,8 @@ const (
 	SiteCaSecret             string = "skupper-site-ca"
 	ConsoleServerSecret      string = "skupper-console-certs"
 	OauthRouterConsoleSecret string = "skupper-router-console-certs"
+	ServiceCaSecret          string = "skupper-service-ca"
+	ServiceClientSecret      string = "skupper-service-client"
 )
 
 // Skupper qualifiers
@@ -232,6 +233,10 @@ const (
 // Service Sync constants
 const (
 	ServiceSyncAddress = "mc/$skupper-service-sync"
+)
+
+const (
+	SkupperServiceCertPrefix string = "skupper-tls-"
 )
 
 // RouterSpec is the specification of VAN network with router, controller and assembly
@@ -410,6 +415,7 @@ type Credential struct {
 	ConnectJson bool
 	Post        bool
 	Data        map[string][]byte
+	Simple      bool `default:"false"`
 }
 
 type CertAuthority struct {
@@ -429,15 +435,17 @@ type TransportConnectedSites struct {
 }
 
 type ServiceInterface struct {
-	Address      string                   `json:"address" yaml:"address"`
-	Protocol     string                   `json:"protocol" yaml:"protocol"`
-	Ports        []int                    `json:"ports" yaml:"ports"`
-	EventChannel bool                     `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
-	Aggregate    string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
-	Headless     *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`
-	Labels       map[string]string        `json:"labels,omitempty" yaml:"labels,omitempty"`
-	Targets      []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
-	Origin       string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
+	Address        string                   `json:"address" yaml:"address"`
+	Protocol       string                   `json:"protocol" yaml:"protocol"`
+	Ports          []int                    `json:"ports" yaml:"ports"`
+	EventChannel   bool                     `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
+	Aggregate      string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
+	Headless       *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`
+	Labels         map[string]string        `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Targets        []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
+	Origin         string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
+	EnableTls      bool                     `json:"enableTls,omitempty"`
+	TlsCredentials string                   `json:"tlsCredentials,omitempty"`
 }
 
 type ServiceInterfaceList []ServiceInterface

@@ -120,6 +120,13 @@ func (r *RouterConfig) AddSslProfileWithPath(path string, s SslProfile) {
 	r.SslProfiles[s.Name] = s
 }
 
+func (r *RouterConfig) AddSimpleSslProfileWithPath(path string, s SslProfile) {
+	if s.CaCertFile == "" {
+		s.CaCertFile = fmt.Sprintf(path+"/%s/ca.crt", s.Name)
+	}
+	r.SslProfiles[s.Name] = s
+}
+
 func (r *RouterConfig) AddSslProfile(s SslProfile) {
 	r.AddSslProfileWithPath("/etc/qpid-dispatch-certs", s)
 }
@@ -439,6 +446,7 @@ type HttpEndpoint struct {
 	Aggregation     string `json:"aggregation,omitempty"`
 	EventChannel    bool   `json:"eventChannel,omitempty"`
 	HostOverride    string `json:"hostOverride,omitempty"`
+	SslProfile      string `json:"sslProfile,omitempty"`
 }
 
 func convert(from interface{}, to interface{}) error {

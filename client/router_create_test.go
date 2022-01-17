@@ -24,6 +24,7 @@ import (
 func TestRouterCreateDefaults(t *testing.T) {
 	testcases := []struct {
 		doc                  string
+		siteId               string
 		namespace            string
 		expectedError        string
 		skupperName          string
@@ -46,6 +47,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 	}{
 		{
 			namespace:            "van-router-create1",
+			siteId:               "11111",
 			expectedError:        "",
 			doc:                  "test one",
 			skupperName:          "skupper1",
@@ -66,7 +68,9 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalServerSecret,
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
-				types.SiteServerSecret},
+				types.SiteServerSecret,
+				types.ServiceCaSecret,
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName, types.TransportServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -78,6 +82,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		},
 		{
 			namespace:            "van-router-create2",
+			siteId:               "22222",
 			expectedError:        "",
 			doc:                  "test two",
 			skupperName:          "skupper2",
@@ -99,7 +104,9 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
 				types.ConsoleServerSecret,
-				types.SiteServerSecret},
+				types.SiteServerSecret,
+				types.ServiceCaSecret,
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -111,6 +118,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		},
 		{
 			namespace:            "van-router-create3",
+			siteId:               "33333",
 			expectedError:        "",
 			doc:                  "test three",
 			skupperName:          "skupper3",
@@ -132,8 +140,10 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
 				types.SiteServerSecret,
+				"skupper-console-users",
 				types.ConsoleServerSecret,
-				"skupper-console-users"},
+				types.ServiceCaSecret,
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -145,6 +155,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		},
 		{
 			namespace:            "van-router-create4",
+			siteId:               "44444",
 			expectedError:        "",
 			doc:                  "test four",
 			skupperName:          "skupper4",
@@ -166,8 +177,10 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
 				types.SiteServerSecret,
+				types.OauthRouterConsoleSecret,
 				types.ConsoleServerSecret,
-				types.OauthRouterConsoleSecret},
+				types.ServiceCaSecret,
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -179,6 +192,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		},
 		{
 			namespace:            "van-router-create5",
+			siteId:               "55555",
 			expectedError:        "",
 			doc:                  "test five",
 			skupperName:          "skupper5",
@@ -197,7 +211,9 @@ func TestRouterCreateDefaults(t *testing.T) {
 			secretsExpected: []string{types.LocalCaSecret,
 				types.ConsoleServerSecret,
 				types.LocalServerSecret,
-				types.LocalClientSecret},
+				types.LocalClientSecret,
+				types.ServiceCaSecret,
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName, "skupper-router-console"},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
@@ -316,6 +332,9 @@ func TestRouterCreateDefaults(t *testing.T) {
 				Password:            c.password,
 				Ingress:             getIngress(),
 			},
+			Reference: types.SiteConfigReference{
+				UID: c.siteId,
+			},
 		})
 
 		// TODO: make more deterministic
@@ -426,6 +445,23 @@ func TestRouterResourcesOptions(t *testing.T) {
 			_, ok := container.Resources.Requests[corev1.ResourceCPU]
 			assert.Assert(t, !ok, namespace)
 		}
+
+		existClientSecret := false
+		for _, volume := range deployment.Spec.Template.Spec.Volumes {
+			if volume.Name == "skupper-service-client" {
+				assert.Equal(t, volume.Secret.SecretName, "skupper-service-client")
+				existClientSecret = true
+			}
+		}
+		assert.Check(t, existClientSecret == true)
+
+		existClientSecretPath := false
+		for _, path := range deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if path.MountPath == "/etc/qpid-dispatch-certs/skupper-service-client/" {
+				existClientSecretPath = true
+			}
+		}
+		assert.Check(t, existClientSecretPath == true)
 	}
 }
 

@@ -20,15 +20,15 @@ func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, name
 	if err == nil {
 		return existing, nil
 	} else if errors.IsNotFound(err) {
-		newca := certs.GenerateCASecret(ca.Name, ca.Name)
+		newCA := certs.GenerateCASecret(ca.Name, ca.Name)
 		if owner != nil {
-			newca.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+			newCA.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
 				*owner,
 			}
 		}
-		_, err := cli.CoreV1().Secrets(namespace).Create(&newca)
+		_, err := cli.CoreV1().Secrets(namespace).Create(&newCA)
 		if err == nil {
-			return &newca, nil
+			return &newCA, nil
 		} else {
 			return nil, fmt.Errorf("Failed to create CA %s : %w", ca.Name, err)
 		}
@@ -45,7 +45,12 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 		if err != nil {
 			return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
 		}
-		secret = certs.GenerateSecret(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), caSecret)
+
+		if cred.Simple {
+			secret = certs.GenerateSimpleSecret(cred.Name, caSecret)
+		} else {
+			secret = certs.GenerateSecret(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), caSecret)
+		}
 		if cred.ConnectJson {
 			secret.Data["connect.json"] = []byte(configs.ConnectJson())
 		}
