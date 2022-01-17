@@ -1100,7 +1100,7 @@ func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			fmt.Println("Skupper gateway: '" + actual + "'. Use 'skupper gateway status' to get more informaiton.")
+			fmt.Println("Skupper gateway: '" + actual + "'. Use 'skupper gateway status' to get more information.")
 
 			return nil
 		},
