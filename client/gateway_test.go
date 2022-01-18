@@ -541,6 +541,13 @@ func TestGatewayInit(t *testing.T) {
 		},
 		{
 			gwType:        GatewayMockType,
+			initName:      "test-gateway1.fqdn",
+			actualName:    "test-gateway1.fqdn",
+			expectedError: "",
+			initTwice:     false,
+		},
+		{
+			gwType:        GatewayMockType,
 			initName:      "",
 			actualName:    "",
 			expectedError: "",
