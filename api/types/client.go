@@ -230,6 +230,7 @@ type SiteInfo struct {
 	SiteId         string   `json:"site_id,omitempty"`
 	Url            string   `json:"url,omitempty"`
 	Version        string   `json:"version,omitempty"`
+	Gateway        bool     `json:"gateway,omitempty"`
 	MinimumVersion string   `json:"minimum_version,omitempty"`
 	Links          []string `json:"connected,omitempty"`
 	Services       []ServiceInfo

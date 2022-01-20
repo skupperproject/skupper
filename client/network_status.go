@@ -35,6 +35,11 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 
 	for _, site := range versionCheckedSites {
 
+		if site.Gateway {
+			//TODO: Define how gateways have to be shown
+			continue
+		}
+
 		if len(site.Namespace) == 0 {
 			return nil, fmt.Errorf("temporarily unable to provide site information")
 		}
