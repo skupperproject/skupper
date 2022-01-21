@@ -44,7 +44,14 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 			return nil, fmt.Errorf("temporarily unable to provide site information")
 		}
 
-		listLinks, err := cli.getSiteLinksStatus(site.Namespace, siteNameMap)
+		siteConfig, err := cli.SiteConfigInspect(nil, nil)
+		if err != nil || siteConfig == nil {
+			return nil, fmt.Errorf("site configuration not available")
+		}
+
+		currentSite := siteConfig.Reference.UID
+
+		listLinks, err := cli.getFormattedLinks(site, siteNameMap, site.SiteId == currentSite)
 		if err != nil {
 			return nil, err
 		}
@@ -62,35 +69,32 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	return listSites, nil
 }
 
-func (cli *VanClient) getSiteLinksStatus(namespace string, siteNameMap map[string]string) ([]string, error) {
+func (cli *VanClient) getFormattedLinks(site types.SiteInfo, siteNameMap map[string]string, isLocalSite bool) ([]string, error) {
 	lightRed := "\033[1;31m"
 	resetColor := "\033[0m"
 	var listLinks []string
 
-	if len(namespace) == 0 {
+	if len(site.Namespace) == 0 {
 		return nil, fmt.Errorf("unspecified namespace")
 	}
 
-	mapLinkStatus, err := cli.getLinkStatusByNamespace(namespace, siteNameMap)
-	if err != nil {
-		return nil, err
-	}
+	for _, link := range site.Links {
+		if len(link) > 0 {
+			formattedLink := link[:7] + "-" + siteNameMap[link]
 
-	links := make([]string, 0, len(mapLinkStatus))
-	for connection := range mapLinkStatus {
-		links = append(links, connection)
-	}
+			if isLocalSite {
+				mapLinkStatus, err := cli.getLocalLinkStatus(site.Namespace, siteNameMap)
+				if err != nil {
+					return nil, err
+				}
 
-	for _, link := range links {
-		var formattedLink string
+				if !mapLinkStatus[formattedLink].Connected {
+					formattedLink = fmt.Sprintf("%s%s (link not active)%s", lightRed, formattedLink, resetColor)
+				}
+			}
 
-		if mapLinkStatus[link].Connected {
-			formattedLink = link
-		} else {
-			formattedLink = fmt.Sprintf("%s%s (link not active)%s", lightRed, link, resetColor)
+			listLinks = append(listLinks, formattedLink)
 		}
-
-		listLinks = append(listLinks, formattedLink)
 	}
 
 	return listLinks, nil
