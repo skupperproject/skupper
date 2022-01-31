@@ -1,16 +1,29 @@
 package formatter
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // list Formats a nested list of elements
 type list struct {
 	item     string
+	details  *detailedInformation
 	children []*list
+}
+
+type detailedInformation struct {
+	details map[string]string
 }
 
 func (l *list) Item(item string) {
 	l.item = item
 }
+
+func (l *list) AppendDetails(details *detailedInformation) {
+	l.details = details
+}
+
 func (l *list) Children() []*list {
 	return l.children
 }
@@ -19,6 +32,13 @@ func (l *list) NewChild(item string) *list {
 	l.children = append(l.children, c)
 	return c
 }
+
+func (l *list) NewChildWithDetail(item string, details map[string]string) *list {
+	c := &list{item: item, details: &detailedInformation{details: details}, children: []*list{}}
+	l.children = append(l.children, c)
+	return c
+}
+
 func (l *list) Print() {
 	printList(l, 0, map[int]bool{})
 }
@@ -43,6 +63,9 @@ func printList(l *list, level int, last map[int]bool) {
 		}
 	}
 	fmt.Printf(l.item)
+	if l.details != nil && len(l.details.details) > 0 {
+		printDetails(l.details.details, level, last)
+	}
 	fmt.Println()
 	if len(l.children) > 0 {
 		nextLevel := level + 1
@@ -52,6 +75,32 @@ func printList(l *list, level int, last map[int]bool) {
 				last[nextLevel] = true
 			}
 			printList(lc, nextLevel, last)
+		}
+	}
+}
+
+func printDetails(detailsMap map[string]string, level int, last map[int]bool) {
+
+	keys := make([]string, 0)
+	for k := range detailsMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for index, key := range keys {
+		for i := 1; i <= level; i++ {
+			if !last[i] {
+				fmt.Printf("│  ")
+			} else {
+				fmt.Printf("   ")
+			}
+		}
+		detail := key + ": " + detailsMap[key]
+
+		if index < len(keys)-1 {
+			fmt.Println(detail)
+		} else {
+			fmt.Print(detail)
 		}
 	}
 }

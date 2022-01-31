@@ -20,19 +20,6 @@ import (
 	"time"
 )
 
-type RetryError struct {
-	n int
-}
-
-func (e *RetryError) Error() string {
-	return fmt.Sprintf("still failing after %d retries", e.n)
-}
-
-func IsRetryFailure(err error) bool {
-	_, ok := err.(*RetryError)
-	return ok
-}
-
 type ConditionFunc func() (bool, error)
 
 // Retry retries f every interval until after maxRetries.
@@ -48,18 +35,14 @@ func Retry(interval time.Duration, maxRetries int, f ConditionFunc) error {
 
 	for i := 0; ; i++ {
 		ok, err := f()
-		if err != nil {
+		if err != nil && i == maxRetries {
 			return err
 		}
 		if ok {
 			return nil
 		}
-		if i == maxRetries {
-			break
-		}
 		<-tick.C
 	}
-	return &RetryError{maxRetries}
 }
 
 // RetryWithContext retries f every interval until the specified context times out.

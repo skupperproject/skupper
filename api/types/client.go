@@ -226,6 +226,31 @@ type GatewayInspectResponse struct {
 	GatewayListeners  map[string]GatewayEndpoint
 }
 
+type SiteInfo struct {
+	Name           string   `json:"site_name,omitempty"`
+	Namespace      string   `json:"namespace,omitempty"`
+	SiteId         string   `json:"site_id,omitempty"`
+	Url            string   `json:"url,omitempty"`
+	Version        string   `json:"version,omitempty"`
+	Gateway        bool     `json:"gateway,omitempty"`
+	MinimumVersion string   `json:"minimum_version,omitempty"`
+	Links          []string `json:"connected,omitempty"`
+	Services       []ServiceInfo
+}
+
+type ServiceInfo struct {
+	Name     string `json:"name,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+	Address  string `json:"address,omitempty"`
+	Targets  []TargetInfo
+}
+
+type TargetInfo struct {
+	Name   string `json:"name,omitempty"`
+	Target string `json:"target,omitempty"`
+	SiteId string `json:"site_id,omitempty"`
+}
+
 type VanClientInterface interface {
 	RouterCreate(ctx context.Context, options SiteConfig) error
 	RouterInspect(ctx context.Context) (*RouterInspectResponse, error)
@@ -273,4 +298,5 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
+	NetworkStatus() ([]*SiteInfo, error)
 }

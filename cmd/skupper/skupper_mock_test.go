@@ -285,6 +285,10 @@ func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
 	return nil
 }
 
+func (v *vanClientMock) NetworkStatus() ([]*types.SiteInfo, error) {
+	return nil, nil
+}
+
 func TestCmdUnexposeRun(t *testing.T) {
 	cmd := NewCmdUnexpose(nil)
 	test := func(targetType, targetName, address string) {
