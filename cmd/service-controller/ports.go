@@ -203,6 +203,7 @@ func (ports *FreePorts) getPortAllocations(bridges *qdr.BridgeConfig) map[string
 			allocations[address] = []int{port}
 		} else {
 			curPorts = append(curPorts, port)
+			allocations[address] = curPorts
 		}
 	}
 	if bridges != nil {
