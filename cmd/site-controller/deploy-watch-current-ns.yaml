@@ -116,7 +116,7 @@ spec:
       serviceAccountName: skupper-site-controller
       containers:
       - name: site-controller
-        image: quay.io/skupper/site-controller:0.8.5
+        image: quay.io/skupper/site-controller:0.8.6
         env:
         - name: WATCH_NAMESPACE
           valueFrom:
