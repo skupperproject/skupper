@@ -1,3 +1,4 @@
+//go:build integration || acceptance || console
 // +build integration acceptance console
 
 package acceptance

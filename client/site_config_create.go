@@ -19,6 +19,7 @@ const (
 	SiteConfigNameKey                string = "name"
 	SiteConfigRouterModeKey          string = "router-mode"
 	SiteConfigIngressKey             string = "ingress"
+	SiteConfigIngressAnnotationsKey  string = "ingress-annotations"
 	SiteConfigIngressHostKey         string = "ingress-host"
 	SiteConfigCreateNetworkPolicyKey string = "create-network-policy"
 	SiteConfigRoutersKey             string = "routers"
@@ -31,31 +32,33 @@ const (
 	SiteConfigConsoleIngressKey        string = "console-ingress"
 
 	//router options
-	SiteConfigRouterConsoleKey          string = "router-console"
-	SiteConfigRouterLoggingKey          string = "router-logging"
-	SiteConfigRouterDebugModeKey        string = "router-debug-mode"
-	SiteConfigRouterCpuKey              string = "router-cpu"
-	SiteConfigRouterMemoryKey           string = "router-memory"
-	SiteConfigRouterCpuLimitKey         string = "router-cpu-limit"
-	SiteConfigRouterMemoryLimitKey      string = "router-memory-limit"
-	SiteConfigRouterAffinityKey         string = "router-pod-affinity"
-	SiteConfigRouterAntiAffinityKey     string = "router-pod-antiaffinity"
-	SiteConfigRouterNodeSelectorKey     string = "router-node-selector"
-	SiteConfigRouterMaxFrameSizeKey     string = "xp-router-max-frame-size"
-	SiteConfigRouterMaxSessionFramesKey string = "xp-router-max-session-frames"
-	SiteConfigRouterIngressHostKey      string = "router-ingress-host"
+	SiteConfigRouterConsoleKey            string = "router-console"
+	SiteConfigRouterLoggingKey            string = "router-logging"
+	SiteConfigRouterDebugModeKey          string = "router-debug-mode"
+	SiteConfigRouterCpuKey                string = "router-cpu"
+	SiteConfigRouterMemoryKey             string = "router-memory"
+	SiteConfigRouterCpuLimitKey           string = "router-cpu-limit"
+	SiteConfigRouterMemoryLimitKey        string = "router-memory-limit"
+	SiteConfigRouterAffinityKey           string = "router-pod-affinity"
+	SiteConfigRouterAntiAffinityKey       string = "router-pod-antiaffinity"
+	SiteConfigRouterNodeSelectorKey       string = "router-node-selector"
+	SiteConfigRouterMaxFrameSizeKey       string = "xp-router-max-frame-size"
+	SiteConfigRouterMaxSessionFramesKey   string = "xp-router-max-session-frames"
+	SiteConfigRouterIngressHostKey        string = "router-ingress-host"
+	SiteConfigRouterServiceAnnotationsKey string = "router-service-annotations"
 
 	//controller options
-	SiteConfigServiceControllerKey      string = "service-controller"
-	SiteConfigServiceSyncKey            string = "service-sync"
-	SiteConfigControllerCpuKey          string = "controller-cpu"
-	SiteConfigControllerMemoryKey       string = "controller-memory"
-	SiteConfigControllerCpuLimitKey     string = "controller-cpu-limit"
-	SiteConfigControllerMemoryLimitKey  string = "controller-memory-limit"
-	SiteConfigControllerAffinityKey     string = "controller-pod-affinity"
-	SiteConfigControllerAntiAffinityKey string = "controller-pod-antiaffinity"
-	SiteConfigControllerNodeSelectorKey string = "controller-node-selector"
-	SiteConfigControllerIngressHostKey  string = "controller-ingress-host"
+	SiteConfigServiceControllerKey            string = "service-controller"
+	SiteConfigServiceSyncKey                  string = "service-sync"
+	SiteConfigControllerCpuKey                string = "controller-cpu"
+	SiteConfigControllerMemoryKey             string = "controller-memory"
+	SiteConfigControllerCpuLimitKey           string = "controller-cpu-limit"
+	SiteConfigControllerMemoryLimitKey        string = "controller-memory-limit"
+	SiteConfigControllerAffinityKey           string = "controller-pod-affinity"
+	SiteConfigControllerAntiAffinityKey       string = "controller-pod-antiaffinity"
+	SiteConfigControllerNodeSelectorKey       string = "controller-node-selector"
+	SiteConfigControllerIngressHostKey        string = "controller-ingress-host"
+	SiteConfigControllerServiceAnnotationsKey string = "controller-service-annotations"
 )
 
 func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
@@ -116,6 +119,13 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.Ingress != "" {
 		siteConfig.Data[SiteConfigIngressKey] = spec.Ingress
 	}
+	if len(spec.IngressAnnotations) > 0 {
+		var annotations []string
+		for key, value := range spec.IngressAnnotations {
+			annotations = append(annotations, key+"="+value)
+		}
+		siteConfig.Data[SiteConfigIngressAnnotationsKey] = strings.Join(annotations, ",")
+	}
 	if spec.ConsoleIngress != "" {
 		siteConfig.Data[SiteConfigConsoleIngressKey] = spec.ConsoleIngress
 	}
@@ -173,6 +183,13 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.Router.MaxSessionFrames != types.RouterMaxSessionFramesDefault {
 		siteConfig.Data[SiteConfigRouterMaxSessionFramesKey] = strconv.Itoa(spec.Router.MaxSessionFrames)
 	}
+	if len(spec.Router.ServiceAnnotations) > 0 {
+		var annotations []string
+		for key, value := range spec.Router.ServiceAnnotations {
+			annotations = append(annotations, key+"="+value)
+		}
+		siteConfig.Data[SiteConfigRouterServiceAnnotationsKey] = strings.Join(annotations, ",")
+	}
 	if spec.Controller.Cpu != "" {
 		if _, err := resource.ParseQuantity(spec.Controller.Cpu); err != nil {
 			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigControllerCpuKey, spec.Controller.Cpu, err)
@@ -208,6 +225,13 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.Controller.IngressHost != "" {
 		siteConfig.Data[SiteConfigControllerIngressHostKey] = spec.Controller.IngressHost
+	}
+	if len(spec.Controller.ServiceAnnotations) > 0 {
+		var annotations []string
+		for key, value := range spec.Controller.ServiceAnnotations {
+			annotations = append(annotations, key+"="+value)
+		}
+		siteConfig.Data[SiteConfigControllerServiceAnnotationsKey] = strings.Join(annotations, ",")
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {

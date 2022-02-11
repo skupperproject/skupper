@@ -1,3 +1,4 @@
+//go:build integration || acceptance
 // +build integration acceptance
 
 package edgecon

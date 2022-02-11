@@ -311,6 +311,10 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		}
 	}
 
+	for key, value := range options.Controller.ServiceAnnotations {
+		annotations[key] = value
+	}
+
 	svcs := []*corev1.Service{}
 	if len(controllerPorts) > 0 {
 		svcs = append(svcs, &corev1.Service{
@@ -730,7 +734,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		routerIngressHost := options.GetRouterIngressHost()
 		controllerIngressHost := options.GetControllerIngressHost()
 		post := false // indicates whether credentials need to be revised after creating appropriate ingress resources
-		if options.IsIngressNginxIngress() {
+		if options.IsIngressNginxIngress() || options.IsIngressKubernetes() {
 			if routerIngressHost != "" {
 				routerHosts = append(routerHosts, strings.Join([]string{"inter-router", van.Namespace, routerIngressHost}, "."))
 				routerHosts = append(routerHosts, strings.Join([]string{"edge", van.Namespace, routerIngressHost}, "."))
@@ -880,7 +884,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        types.TransportServiceName,
-				Annotations: map[string]string{},
+				Annotations: options.Router.ServiceAnnotations,
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: van.Transport.Labels,
@@ -1096,7 +1100,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
-		if options.Spec.IsIngressNginxIngress() {
+		if options.Spec.IsIngressNginxIngress() || options.Spec.IsIngressKubernetes() {
 			err = cli.createIngress(options)
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
@@ -1143,7 +1147,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 							}
 						}
 					}
-				} else if options.Spec.IsIngressNginxIngress() {
+				} else if options.Spec.IsIngressNginxIngress() || options.Spec.IsIngressKubernetes() {
 					err = cli.appendIngressHost([]string{"inter-router", "edge"}, van.Namespace, &cred)
 					if err != nil {
 						return err
@@ -1342,7 +1346,8 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 			Resolve:     true,
 		})
 	}
-	return kube.CreateIngress(types.IngressName, routes, true, asOwnerReference(site.Reference), namespace, cli.KubeClient)
+
+	return kube.CreateIngress(types.IngressName, routes, site.Spec.IsIngressNginxIngress(), true, asOwnerReference(site.Reference), namespace, site.Spec.IngressAnnotations, cli.KubeClient)
 }
 
 func (cli *VanClient) createContourProxies(site types.SiteConfig) error {

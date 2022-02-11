@@ -1,3 +1,4 @@
+//go:build integration || smoke || acceptance
 // +build integration smoke acceptance
 
 package basic

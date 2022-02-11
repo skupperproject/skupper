@@ -1,3 +1,4 @@
+//go:build integration || smoke || examples
 // +build integration smoke examples
 
 package examples

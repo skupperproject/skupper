@@ -1,3 +1,4 @@
+//go:build integration || cli || gateway || acceptance
 // +build integration cli gateway acceptance
 
 package acceptance

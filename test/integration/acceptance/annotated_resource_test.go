@@ -1,3 +1,4 @@
+//go:build integration || acceptance || annotation
 // +build integration acceptance annotation
 
 package acceptance

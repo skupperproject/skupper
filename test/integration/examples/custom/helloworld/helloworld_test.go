@@ -1,3 +1,4 @@
+//go:build integration || cli || examples
 // +build integration cli examples
 
 package helloworld

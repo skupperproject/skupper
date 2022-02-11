@@ -72,25 +72,31 @@ func getStatus(ingress *networkingv1.Ingress) *corev1.LoadBalancerIngress {
 	return nil
 }
 
-func CreateIngress(name string, routes []IngressRoute, sslPassthrough bool, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) error {
+func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthrough bool, owner *metav1.OwnerReference, namespace string, annotations map[string]string, cli kubernetes.Interface) error {
 	ingress := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class": "nginx",
-			},
+			Name:        name,
+			Annotations: map[string]string{},
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{},
 		},
 	}
-	if sslPassthrough {
-		ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/ssl-passthrough"] = "true"
-		ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
+	if isNginx {
+		ingress.ObjectMeta.Annotations["kubernetes.io/ingress.class"] = "nginx"
+
+		if sslPassthrough {
+			ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/ssl-passthrough"] = "true"
+			ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
+		}
 	}
+
+	for key, value := range annotations {
+		ingress.ObjectMeta.Annotations[key] = value
+	}
+
 	if owner != nil {
 		ingress.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
-
 	}
 	resolve := false
 	for _, route := range routes {
