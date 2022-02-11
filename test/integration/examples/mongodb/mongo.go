@@ -26,7 +26,7 @@ func RunTests(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prvCluster1.Namespace, prvCluster1.VanClient.KubeClient, "mongo-b")
 	assert.Assert(t, err)
 
-	_, err = prvCluster1.KubectlExec("exec deploy/mongo-a -- mongo --host 127.0.0.1:27017 --eval \"rs.initiate( {   _id : \\\"rs0\\\", members: [ { _id: 0, host: \\\"mongo-a:27017      \\\" },{ _id: 1, host: \\\"mongo-b:27017\\\" }]})\"")
+	_, err = prvCluster1.KubectlExec(`exec deploy/mongo-a -- mongo --host 127.0.0.1:27017 --eval 'rs.initiate({ _id : "rs0", members: [ { _id: 0, host: "mongo-a:27017" }, { _id: 1, host: "mongo-b:27017" }]})'`)
 	assert.Assert(t, err)
 
 	jobName := "mongo"
@@ -35,8 +35,10 @@ func RunTests(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 	_, err = k8s.CreateTestJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, jobCmd)
 	assert.Assert(t, err)
 	job, err := k8s.WaitForJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
+	jobLogs, _ := k8s.GetJobLogs(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName)
+	t.Logf("%s logs:", jobName)
+	t.Logf(jobLogs)
 	assert.Assert(t, err)
-	pubCluster1.KubectlExec("logs job/" + jobName)
 
 	k8s.AssertJob(t, job)
 }

@@ -1,4 +1,4 @@
-//+build job
+// +build job
 
 package job
 
@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -41,7 +42,11 @@ func TestMongoJob(t *testing.T) {
 	defer client_a.Disconnect(ctx)
 	defer client_b.Disconnect(ctx)
 
-	err := InsertAllPosts(client_a, ctx)
+	// needed in case of a retry
+	err := DropAllPosts(client_a, ctx)
+	assert.Assert(t, err)
+
+	err = InsertAllPosts(client_a, ctx)
 	assert.Assert(t, err)
 
 	err = CountDocuments(client_b, TOTAL_DB_DOCUMENTS, ctx)
@@ -69,8 +74,20 @@ func InsertAllPosts(client *mongo.Client, ctx context.Context) error {
 }
 
 func CountDocuments(client *mongo.Client, expected_count int, ctx context.Context) error {
-	collection := client.Database(DB_NAME).Collection(COLLECTION_NAME)
-	count, err := collection.CountDocuments(ctx, bson.D{})
+	var count int64
+	// Need to retry in case data is not yet fully replicated
+	err := utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
+		var err error
+		collection := client.Database(DB_NAME).Collection(COLLECTION_NAME)
+		count, err = collection.CountDocuments(ctx, bson.D{})
+		if err != nil {
+			return true, err
+		}
+		if int(count) == expected_count {
+			return true, nil
+		}
+		return false, nil
+	})
 	if err != nil {
 		return err
 	}
@@ -108,5 +125,16 @@ func PopAllExpectedPosts(client *mongo.Client, ctx context.Context) error {
 		}
 
 	}
+	return nil
+}
+
+func DropAllPosts(client *mongo.Client, ctx context.Context) error {
+	collection := client.Database(DB_NAME).Collection(COLLECTION_NAME)
+	err := collection.Drop(ctx)
+	if err != nil {
+		fmt.Println("error dropping collection:", err)
+		return err
+	}
+
 	return nil
 }
