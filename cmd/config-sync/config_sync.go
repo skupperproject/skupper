@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/client"
+	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"math"
+	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +25,7 @@ type ConfigSync struct {
 	informer  cache.SharedIndexInformer
 	events    workqueue.RateLimitingInterface
 	agentPool *qdr.AgentPool
+	vanClient *client.VanClient
 }
 
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
@@ -47,10 +52,11 @@ func newEventHandler(events workqueue.RateLimitingInterface) *cache.ResourceEven
 	}
 }
 
-func newConfigSync(configInformer cache.SharedIndexInformer) *ConfigSync {
+func newConfigSync(configInformer cache.SharedIndexInformer, cli *client.VanClient) *ConfigSync {
 	configSync := &ConfigSync{
 		informer:  configInformer,
 		agentPool: qdr.NewAgentPool("amqp://localhost:5672", nil),
+		vanClient: cli,
 	}
 	configSync.events = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-config-sync")
 	configSync.informer.AddEventHandler(newEventHandler(configSync.events))
@@ -136,7 +142,7 @@ func (c *ConfigSync) processNextEvent() bool {
 	return true
 }
 
-func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig) (bool, error) {
+func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (bool, error) {
 	actual, err := agent.GetLocalBridgeConfig()
 	if err != nil {
 		return false, fmt.Errorf("Error retrieving bridges: %s", err)
@@ -146,6 +152,12 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig) (bool, error) {
 		return true, nil
 	} else {
 		differences.Print()
+
+		err := c.syncSecrets(differences)
+		if err != nil {
+			return false, fmt.Errorf("error syncing secrets: %s", err)
+		}
+
 		if err = agent.UpdateLocalBridgeConfig(differences); err != nil {
 			return false, fmt.Errorf("Error syncing bridges: %s", err)
 		}
@@ -160,7 +172,7 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 	}
 	var synced bool
 	for i := 0; i < 3 && err == nil && !synced; i++ {
-		synced, err = syncConfig(agent, desired)
+		synced, err = syncConfig(agent, desired, c)
 	}
 	c.agentPool.Put(agent)
 	if err != nil {
@@ -169,5 +181,89 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 	if !synced {
 		return fmt.Errorf("Failed to sync bridge config")
 	}
+	return nil
+}
+
+func (c *ConfigSync) syncSecrets(changes *qdr.BridgeConfigDifference) error {
+	sharedTlsFilesDir := "/etc/skupper-router/tls"
+	for _, added := range changes.HttpListeners.Added {
+		if len(added.SslProfile) > 0 {
+			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
+			err := c.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile)
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+
+	for _, added := range changes.HttpConnectors.Added {
+		if len(added.SslProfile) > 0 {
+			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
+			err := c.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile)
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+
+	for _, deleted := range changes.HttpListeners.Deleted {
+		if len(deleted.SslProfile) > 0 {
+			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted.SslProfile)
+			err := os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
+			if err != nil {
+				return err
+			}
+
+		}
+
+	}
+
+	for _, deleted := range changes.HttpConnectors.Deleted {
+		if len(deleted.SslProfile) > 0 {
+			log.Printf("Deleting cert files related to HTTP Connector sslProfile %s", deleted.SslProfile)
+			err := os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) copyCertsFilesToPath(path string, secretname string) error {
+	secret, err := c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Get(secretname, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	err = os.Mkdir(path+"/"+secretname, 0777)
+	if err != nil {
+		return err
+	}
+
+	if secret.Data["tls.crt"] != nil {
+		err = ioutil.WriteFile(path+"/"+secretname+"/tls.crt", secret.Data["tls.crt"], 0777)
+		if err != nil {
+			return err
+		}
+	}
+
+	if secret.Data["tls.key"] != nil {
+		err = ioutil.WriteFile(path+"/"+secretname+"/tls.key", secret.Data["tls.key"], 0777)
+		if err != nil {
+			return err
+		}
+	}
+
+	if secret.Data["ca.crt"] != nil {
+		err = ioutil.WriteFile(path+"/"+secretname+"/ca.crt", secret.Data["ca.crt"], 0777)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

@@ -734,7 +734,7 @@ type TcpEndpointDifference struct {
 }
 
 type HttpEndpointDifference struct {
-	Deleted []string
+	Deleted []HttpEndpoint
 	Added   []HttpEndpoint
 }
 
@@ -784,14 +784,14 @@ func (a HttpEndpointMap) Difference(b HttpEndpointMap) HttpEndpointDifference {
 		if !ok {
 			result.Added = append(result.Added, v1)
 		} else if !v1.Equivalent(v2) {
-			result.Deleted = append(result.Deleted, v1.Name)
+			result.Deleted = append(result.Deleted, v1)
 			result.Added = append(result.Added, v1)
 		}
 	}
 	for key, v1 := range a {
 		_, ok := b[key]
 		if !ok {
-			result.Deleted = append(result.Deleted, v1.Name)
+			result.Deleted = append(result.Deleted, v1)
 		}
 	}
 	return result

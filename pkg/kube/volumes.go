@@ -15,11 +15,8 @@ limitations under the License.
 package kube
 
 import (
-	"github.com/skupperproject/skupper/api/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
-	"time"
 )
 
 func AppendConfigVolume(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, volName string, refName string, path string) {
@@ -51,6 +48,28 @@ func AppendSecretVolume(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, 
 	*mounts = append(*mounts, corev1.VolumeMount{
 		Name:      name,
 		MountPath: path,
+	})
+}
+
+func AppendSharedVolume(volumes *[]corev1.Volume, mountsRouter *[]corev1.VolumeMount, mountsSidecar *[]corev1.VolumeMount, volumename string, path string) {
+
+	*volumes = append(*volumes, corev1.Volume{
+		Name: volumename,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	})
+
+	*mountsRouter = append(*mountsRouter, corev1.VolumeMount{
+		Name:      volumename,
+		MountPath: path,
+		ReadOnly:  false,
+	})
+
+	*mountsSidecar = append(*mountsSidecar, corev1.VolumeMount{
+		Name:      volumename,
+		MountPath: path,
+		ReadOnly:  false,
 	})
 }
 
@@ -97,37 +116,4 @@ func UpdateSecretVolume(spec *corev1.PodSpec, oldname string, name string) {
 			}
 		}
 	}
-}
-
-func AppendSecretAndUpdateDeployment(secretName string, path string, deploymentName string, namespace string, cli kubernetes.Interface, waitForRestart bool) error {
-
-	deployment, err := GetDeployment(deploymentName, namespace, cli)
-
-	AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, secretName, path+secretName+"/")
-
-	_, err = cli.AppsV1().Deployments(namespace).Update(deployment)
-	if err != nil {
-		return err
-	}
-
-	if waitForRestart {
-		_, err = WaitDeploymentReady(types.TransportDeploymentName, namespace, cli, time.Second*180, time.Second*5)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func RemoveSecretAndUpdateDeployment(secretName string, deploymentName string, namespace string, cli kubernetes.Interface) error {
-
-	deployment, err := GetDeployment(deploymentName, namespace, cli)
-
-	RemoveSecretVolumeForDeployment(secretName, deployment, 0)
-
-	_, err = cli.AppsV1().Deployments(namespace).Update(deployment)
-	if err != nil {
-		return err
-	}
-	return err
 }

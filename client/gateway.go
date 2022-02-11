@@ -1386,7 +1386,7 @@ func applyBridgeDifferences(bcDiff *qdr.BridgeConfigDifference, gatewayDir strin
 	}
 
 	for _, deleted := range bcDiff.HttpConnectors.Deleted {
-		if err = agent.Delete(getEntity("http", gatewayEgress), deleted); err != nil {
+		if err = agent.Delete(getEntity("http", gatewayEgress), deleted.Name); err != nil {
 			return fmt.Errorf("Error removing entity connector: %w", err)
 		}
 	}
@@ -1402,7 +1402,7 @@ func applyBridgeDifferences(bcDiff *qdr.BridgeConfigDifference, gatewayDir strin
 	}
 
 	for _, deleted := range bcDiff.HttpListeners.Deleted {
-		if err = agent.Delete(getEntity("http", gatewayIngress), deleted); err != nil {
+		if err = agent.Delete(getEntity("http", gatewayIngress), deleted.Name); err != nil {
 			return fmt.Errorf("Error removing entity listener: %w", err)
 		}
 	}

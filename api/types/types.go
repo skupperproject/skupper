@@ -65,7 +65,7 @@ var TransportPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{""},
-		Resources: []string{"pods", "configmaps"},
+		Resources: []string{"secrets", "pods", "configmaps"},
 	},
 }
 

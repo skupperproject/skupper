@@ -112,6 +112,7 @@ func asHttpEndpoint(record Record) HttpEndpoint {
 		Aggregation:     record.AsString("aggregation"),
 		EventChannel:    record.AsBool("eventChannel"),
 		HostOverride:    record.AsString("hostOverride"),
+		SslProfile:      record.AsString("sslProfile"),
 	}
 }
 
@@ -824,7 +825,7 @@ func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 		}
 	}
 	for _, deleted := range changes.HttpConnectors.Deleted {
-		if err := a.Delete("io.skupper.router.httpConnector", deleted); err != nil {
+		if err := a.Delete("io.skupper.router.httpConnector", deleted.Name); err != nil {
 			return fmt.Errorf("Error deleting http connectors: %s", err)
 		}
 	}
@@ -834,7 +835,7 @@ func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 		}
 	}
 	for _, deleted := range changes.HttpListeners.Deleted {
-		if err := a.Delete("io.skupper.router.httpListener", deleted); err != nil {
+		if err := a.Delete("io.skupper.router.httpListener", deleted.Name); err != nil {
 			return fmt.Errorf("Error deleting http listeners: %s", err)
 		}
 	}

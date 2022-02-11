@@ -18,7 +18,7 @@ func AddSslProfile(secretName string, namespace string, cli kubernetes.Interface
 	}
 
 	if _, ok := current.SslProfiles[secretName]; !ok {
-		current.AddSslProfile(SslProfile{
+		current.AddSslProfileWithPath("/etc/skupper-router/tls", SslProfile{
 			Name: secretName,
 		})
 	}

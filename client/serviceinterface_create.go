@@ -9,7 +9,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types.ServiceInterface) error {
@@ -61,24 +60,6 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 				return err
 			}
 
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
-				err = kube.AppendSecretAndUpdateDeployment(
-					serviceSecret.Name,
-					"/etc/skupper-router-certs/",
-					types.TransportDeploymentName,
-					cli.Namespace,
-					cli.KubeClient,
-					true)
-				if err != nil {
-					return err
-				}
-				return nil
-			})
-
-			if err != nil {
-				return err
-			}
 		}
 
 		return updateServiceInterface(service, false, owner, cli)

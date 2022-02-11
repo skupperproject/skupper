@@ -462,6 +462,31 @@ func TestRouterResourcesOptions(t *testing.T) {
 			}
 		}
 		assert.Check(t, existClientSecretPath == true)
+
+		existSharedVolume := false
+		for _, volume := range deployment.Spec.Template.Spec.Volumes {
+			if volume.Name == "skupper-router-certs" {
+				//TODO Include tls certs related to service client.
+				existSharedVolume = true
+			}
+		}
+		assert.Check(t, existSharedVolume == true)
+
+		existSharedVolumePathInRouterContainer := false
+		for _, path := range deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if path.MountPath == "/etc/skupper-router/tls" {
+				existSharedVolumePathInRouterContainer = true
+			}
+		}
+		assert.Check(t, existSharedVolumePathInRouterContainer == true)
+
+		existSharedVolumePathInSidecar := false
+		for _, path := range deployment.Spec.Template.Spec.Containers[1].VolumeMounts {
+			if path.MountPath == "/etc/skupper-router/tls" {
+				existSharedVolumePathInSidecar = true
+			}
+		}
+		assert.Check(t, existSharedVolumePathInSidecar == true)
 	}
 }
 

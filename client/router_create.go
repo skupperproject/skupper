@@ -704,6 +704,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "skupper-sasl-config", "skupper-sasl-config", "/etc/sasl2/")
 		}
 	}
+
+	kube.AppendSharedVolume(&volumes, &mounts[qdrouterd], &mounts[configSync], "skupper-router-certs", "/etc/skupper-router/tls")
+
 	van.Transport.Volumes = volumes
 	van.Transport.VolumeMounts = mounts
 	van.Transport.Sidecars = sidecars
