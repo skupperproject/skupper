@@ -8,6 +8,7 @@
 /site-controller
 /skupper
 /get
+/config-sync
 
 # Test binary, built with `go test -c`
 *.test

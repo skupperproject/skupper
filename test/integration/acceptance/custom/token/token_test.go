@@ -1,3 +1,4 @@
+//go:build integration || cli || acceptance
 // +build integration cli acceptance
 
 package token

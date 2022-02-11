@@ -52,16 +52,18 @@ type Tuning struct {
 
 type RouterOptions struct {
 	Tuning
-	Logging          []RouterLogConfig
-	DebugMode        string
-	MaxFrameSize     int
-	MaxSessionFrames int
-	IngressHost      string
+	Logging            []RouterLogConfig
+	DebugMode          string
+	MaxFrameSize       int
+	MaxSessionFrames   int
+	IngressHost        string
+	ServiceAnnotations map[string]string
 }
 
 type ControllerOptions struct {
 	Tuning
-	IngressHost string
+	IngressHost        string
+	ServiceAnnotations map[string]string
 }
 
 type SiteConfigSpec struct {
@@ -77,6 +79,7 @@ type SiteConfigSpec struct {
 	User                string
 	Password            string
 	Ingress             string
+	IngressAnnotations  map[string]string
 	ConsoleIngress      string
 	IngressHost         string
 	Replicas            int32
@@ -94,6 +97,7 @@ const (
 	IngressNodePortString         string = "nodeport"
 	IngressNginxIngressString     string = "nginx-ingress-v1"
 	IngressContourHttpProxyString string = "contour-http-proxy"
+	IngressKubernetes             string = "ingress"
 	IngressNoneString             string = "none"
 )
 
@@ -111,6 +115,9 @@ func (s *SiteConfigSpec) IsIngressNginxIngress() bool {
 }
 func (s *SiteConfigSpec) IsIngressContourHttpProxy() bool {
 	return s.Ingress == IngressContourHttpProxyString
+}
+func (s *SiteConfigSpec) IsIngressKubernetes() bool {
+	return s.Ingress == IngressKubernetes
 }
 func (s *SiteConfigSpec) IsIngressNone() bool {
 	return s.Ingress == IngressNoneString
@@ -131,6 +138,9 @@ func (s *SiteConfigSpec) IsConsoleIngressNginxIngress() bool {
 func (s *SiteConfigSpec) IsConsoleIngressContourHttpProxy() bool {
 	return s.getConsoleIngress() == IngressContourHttpProxyString
 }
+func (s *SiteConfigSpec) IsConsoleIngressKubernetes() bool {
+	return s.getConsoleIngress() == IngressKubernetes
+}
 func (s *SiteConfigSpec) IsConsoleIngressNone() bool {
 	return s.getConsoleIngress() == IngressNoneString
 }
@@ -142,7 +152,7 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 }
 
 func ValidIngressOptions() []string {
-	return []string{IngressRouteString, IngressLoadBalancerString, IngressNodePortString, IngressNginxIngressString, IngressContourHttpProxyString, IngressNoneString}
+	return []string{IngressRouteString, IngressLoadBalancerString, IngressNodePortString, IngressNginxIngressString, IngressContourHttpProxyString, IngressKubernetes, IngressNoneString}
 }
 
 func isValidIngress(ingress string) bool {

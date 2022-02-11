@@ -291,6 +291,9 @@ var ClusterLocal bool
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
 	var routerMode string
 	annotations := []string{}
+	ingressAnnotations := []string{}
+	routerServiceAnnotations := []string{}
+	controllerServiceAnnotations := []string{}
 	labels := []string{}
 	var isEdge bool
 	cmd := &cobra.Command{
@@ -345,6 +348,9 @@ installation that can then be connected to other skupper installations`,
 			}
 			routerCreateOpts.Annotations = asMap(annotations)
 			routerCreateOpts.Labels = asMap(labels)
+			routerCreateOpts.IngressAnnotations = asMap(ingressAnnotations)
+			routerCreateOpts.Router.ServiceAnnotations = asMap(routerServiceAnnotations)
+			routerCreateOpts.Controller.ServiceAnnotations = asMap(controllerServiceAnnotations)
 			if err := routerCreateOpts.CheckIngress(); err != nil {
 				return err
 			}
@@ -404,6 +410,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: ["+strings.Join(types.ValidIngressOptions(), "|")+"]. If not specified route is used when available, otherwise loadbalancer is used.")
+	cmd.Flags().StringSliceVar(&ingressAnnotations, "ingress-annotations", []string{}, "Annotations to add to skupper ingress")
 	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: ["+strings.Join(types.ValidIngressOptions(), "|")+"].")
 	cmd.Flags().StringVarP(&routerCreateOpts.IngressHost, "ingress-host", "", "", "Hostname by which the ingress proxy can be reached")
 	cmd.Flags().StringVarP(&routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
@@ -424,6 +431,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Affinity, "router-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.AntiAffinity, "router-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.IngressHost, "router-ingress-host", "", "Host through which node is accessible when using nodeport as ingress.")
+	cmd.Flags().StringSliceVar(&routerServiceAnnotations, "router-service-annotations", []string{}, "Annotations to add to skupper router service")
 
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Cpu, "controller-cpu", "", "CPU request for controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Memory, "controller-memory", "", "Memory request for controller pods")
@@ -433,6 +441,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Affinity, "controller-pod-affinity", "", "Pod affinity label matches to control placement of controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.AntiAffinity, "controller-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.IngressHost, "controller-ingress-host", "", "Host through which node is accessible when using nodeport as ingress.")
+	cmd.Flags().StringSliceVar(&controllerServiceAnnotations, "controller-service-annotation", []string{}, "Annotations to add to skupper controller service")
 
 	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept links from within the local cluster.")
 	f := cmd.Flag("cluster-local")

@@ -1,3 +1,4 @@
+//go:build integration || performance || tcp
 // +build integration performance tcp
 
 package tcp

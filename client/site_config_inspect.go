@@ -115,6 +115,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 			result.Spec.Ingress = cli.GetIngressDefault()
 		}
 	}
+	if ingressAnnotations, ok := siteConfig.Data[SiteConfigIngressAnnotationsKey]; ok {
+		result.Spec.IngressAnnotations = asMap(splitWithEscaping(ingressAnnotations, ',', '\\'))
+	}
 	if consoleIngress, ok := siteConfig.Data[SiteConfigConsoleIngressKey]; ok {
 		result.Spec.ConsoleIngress = consoleIngress
 	}
@@ -188,6 +191,10 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		result.Spec.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
 	}
 
+	if routerServiceAnnotations, ok := siteConfig.Data[SiteConfigRouterServiceAnnotationsKey]; ok {
+		result.Spec.Router.ServiceAnnotations = asMap(splitWithEscaping(routerServiceAnnotations, ',', '\\'))
+	}
+
 	if controllerCpu, ok := siteConfig.Data[SiteConfigControllerCpuKey]; ok && controllerCpu != "" {
 		result.Spec.Controller.Cpu = controllerCpu
 	}
@@ -211,6 +218,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	}
 	if controllerIngressHost, ok := siteConfig.Data[SiteConfigControllerIngressHostKey]; ok && controllerIngressHost != "" {
 		result.Spec.Controller.IngressHost = controllerIngressHost
+	}
+	if controllerServiceAnnotations, ok := siteConfig.Data[SiteConfigControllerServiceAnnotationsKey]; ok {
+		result.Spec.Controller.ServiceAnnotations = asMap(splitWithEscaping(controllerServiceAnnotations, ',', '\\'))
 	}
 
 	annotationExclusions := []string{}
