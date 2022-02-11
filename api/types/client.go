@@ -58,12 +58,14 @@ type RouterOptions struct {
 	MaxSessionFrames   int
 	IngressHost        string
 	ServiceAnnotations map[string]string
+	LoadBalancerIp     string
 }
 
 type ControllerOptions struct {
 	Tuning
 	IngressHost        string
 	ServiceAnnotations map[string]string
+	LoadBalancerIp     string
 }
 
 type SiteConfigSpec struct {
