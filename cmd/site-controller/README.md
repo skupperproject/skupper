@@ -65,6 +65,8 @@ ConfigMaps allow you to manage a Skupper site using a ConfigMap named `skupper-s
 
 `data:router-service-annotations` - Annotations to add to skupper router service
 
+`data:router-load-balancer-ip` - Load balancer ip that will be used for router service, if supported by cloud provider
+
 `data:service-controller` - (true/false) Run the service controller.
 
 `data:service-sync` - (**true**/false) Only relevant if the service controller is running. Determine if the service  controller participates in service synchronization.
@@ -86,6 +88,8 @@ ConfigMaps allow you to manage a Skupper site using a ConfigMap named `skupper-s
 `data:controller-ingress-host` - Host through which node is accessible when using nodeport as ingress.
 
 `data:controller-service-annotations` - Annotations to add to skupper controller service
+
+`data:controller-load-balancer-ip` - Load balancer ip that will be used for controller service, if supported by cloud provider
 
 For example:
 

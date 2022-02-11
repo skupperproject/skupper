@@ -46,6 +46,7 @@ const (
 	SiteConfigRouterMaxSessionFramesKey   string = "xp-router-max-session-frames"
 	SiteConfigRouterIngressHostKey        string = "router-ingress-host"
 	SiteConfigRouterServiceAnnotationsKey string = "router-service-annotations"
+	SiteConfigRouterLoadBalancerIp        string = "router-load-balancer-ip"
 
 	//controller options
 	SiteConfigServiceControllerKey            string = "service-controller"
@@ -59,6 +60,7 @@ const (
 	SiteConfigControllerNodeSelectorKey       string = "controller-node-selector"
 	SiteConfigControllerIngressHostKey        string = "controller-ingress-host"
 	SiteConfigControllerServiceAnnotationsKey string = "controller-service-annotations"
+	SiteConfigControllerLoadBalancerIp        string = "controller-load-balancer-ip"
 )
 
 func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
@@ -190,6 +192,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		}
 		siteConfig.Data[SiteConfigRouterServiceAnnotationsKey] = strings.Join(annotations, ",")
 	}
+	if spec.Router.LoadBalancerIp != "" {
+		siteConfig.Data[SiteConfigRouterLoadBalancerIp] = spec.Router.LoadBalancerIp
+	}
 	if spec.Controller.Cpu != "" {
 		if _, err := resource.ParseQuantity(spec.Controller.Cpu); err != nil {
 			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigControllerCpuKey, spec.Controller.Cpu, err)
@@ -232,6 +237,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			annotations = append(annotations, key+"="+value)
 		}
 		siteConfig.Data[SiteConfigControllerServiceAnnotationsKey] = strings.Join(annotations, ",")
+	}
+	if spec.Controller.LoadBalancerIp != "" {
+		siteConfig.Data[SiteConfigControllerLoadBalancerIp] = spec.Controller.LoadBalancerIp
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {

@@ -194,6 +194,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	if routerServiceAnnotations, ok := siteConfig.Data[SiteConfigRouterServiceAnnotationsKey]; ok {
 		result.Spec.Router.ServiceAnnotations = asMap(splitWithEscaping(routerServiceAnnotations, ',', '\\'))
 	}
+	if routerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigRouterLoadBalancerIp]; ok {
+		result.Spec.Router.LoadBalancerIp = routerServiceLoadBalancerIp
+	}
 
 	if controllerCpu, ok := siteConfig.Data[SiteConfigControllerCpuKey]; ok && controllerCpu != "" {
 		result.Spec.Controller.Cpu = controllerCpu
@@ -221,6 +224,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	}
 	if controllerServiceAnnotations, ok := siteConfig.Data[SiteConfigControllerServiceAnnotationsKey]; ok {
 		result.Spec.Controller.ServiceAnnotations = asMap(splitWithEscaping(controllerServiceAnnotations, ',', '\\'))
+	}
+	if controllerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigControllerLoadBalancerIp]; ok {
+		result.Spec.Controller.LoadBalancerIp = controllerServiceLoadBalancerIp
 	}
 
 	annotationExclusions := []string{}

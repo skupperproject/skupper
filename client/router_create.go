@@ -317,7 +317,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 
 	svcs := []*corev1.Service{}
 	if len(controllerPorts) > 0 {
-		svcs = append(svcs, &corev1.Service{
+		svc := &corev1.Service{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
 				Kind:       "Service",
@@ -331,7 +331,13 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				Ports:    controllerPorts,
 				Type:     svctype,
 			},
-		})
+		}
+
+		if options.Controller.LoadBalancerIp != "" {
+			svc.Spec.LoadBalancerIP = options.Controller.LoadBalancerIp
+		}
+
+		svcs = append(svcs, svc)
 	}
 	van.Controller.Services = svcs
 
@@ -877,7 +883,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		} else if options.IsIngressNodePort() {
 			svcType = corev1.ServiceTypeNodePort
 		}
-		svcs = append(svcs, &corev1.Service{
+
+		svc := &corev1.Service{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
 				Kind:       "Service",
@@ -904,7 +911,13 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				},
 				Type: svcType,
 			},
-		})
+		}
+
+		if options.Router.LoadBalancerIp != "" {
+			svc.Spec.LoadBalancerIP = options.Router.LoadBalancerIp
+		}
+
+		svcs = append(svcs, svc)
 	}
 	van.Transport.Services = svcs
 
