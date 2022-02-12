@@ -236,6 +236,7 @@ jobs:
       - run: reg rm << pipeline.parameters.ci_service_controller_image >>
       - run: reg rm << pipeline.parameters.ci_site_controller_image >>
       - run: reg rm << pipeline.parameters.ci_test_image >>
+      - run: reg rm << pipeline.parameters.ci_config_sync_image >>
 
   build-all:
     executor:
