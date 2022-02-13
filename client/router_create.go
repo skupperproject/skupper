@@ -333,7 +333,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			},
 		}
 
-		if options.Controller.LoadBalancerIp != "" {
+		if options.Controller.LoadBalancerIp != "" && svctype == corev1.ServiceTypeLoadBalancer {
 			svc.Spec.LoadBalancerIP = options.Controller.LoadBalancerIp
 		}
 
@@ -913,7 +913,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			},
 		}
 
-		if options.Router.LoadBalancerIp != "" {
+		if options.Router.LoadBalancerIp != "" && svcType == corev1.ServiceTypeLoadBalancer {
 			svc.Spec.LoadBalancerIP = options.Router.LoadBalancerIp
 		}
 
