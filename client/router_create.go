@@ -777,7 +777,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Post:        post,
 		})
 	}
-	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+	if options.AuthMode == string(types.ConsoleAuthModeInternal) && (options.EnableConsole || options.EnableRouterConsole) {
 		userData := map[string][]byte{}
 		if options.User != "" {
 			userData[options.User] = []byte(options.Password)
