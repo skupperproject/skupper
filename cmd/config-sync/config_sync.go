@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
@@ -149,6 +150,10 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	}
 	differences := actual.Difference(desired)
 	if differences.Empty() {
+		err = c.checkSecrets(desired)
+		if err != nil {
+			return false, err
+		}
 		return true, nil
 	} else {
 		differences.Print()
@@ -227,6 +232,55 @@ func (c *ConfigSync) syncSecrets(changes *qdr.BridgeConfigDifference) error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) checkSecrets(desired *qdr.BridgeConfig) error {
+
+	for _, listener := range desired.HttpListeners {
+		if len(listener.SslProfile) > 0 {
+			err := c.ensureSslProfile(listener.SslProfile)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, connector := range desired.HttpConnectors {
+		if len(connector.SslProfile) > 0 {
+			err := c.ensureSslProfile(connector.SslProfile)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) ensureSslProfile(sslProfile string) error {
+	sharedTlsFilesDir := "/etc/skupper-router/tls"
+
+	_, err := os.Stat(sharedTlsFilesDir + "/" + sslProfile)
+	missingDir := os.IsNotExist(err)
+
+	isDirEmpty := false
+
+	if !missingDir {
+		isDirEmpty, err = utils.IsDirEmpty(sharedTlsFilesDir + "/" + sslProfile)
+		if err != nil {
+			return err
+		}
+	}
+
+	if missingDir || isDirEmpty {
+		log.Printf("Copying cert files related to HTTP Connector sslProfile %s", sslProfile)
+		err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile)
+		if err != nil {
+			return err
 		}
 	}
 
