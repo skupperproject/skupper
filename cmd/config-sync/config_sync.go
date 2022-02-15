@@ -29,6 +29,8 @@ type ConfigSync struct {
 	vanClient *client.VanClient
 }
 
+const SHARED_TLS_DIRECTORY = "/etc/skupper-router/tls"
+
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err == nil {
@@ -150,7 +152,7 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	}
 	differences := actual.Difference(desired)
 	if differences.Empty() {
-		err = c.checkSecrets(desired)
+		err = c.checkSecrets(desired, SHARED_TLS_DIRECTORY)
 		if err != nil {
 			return false, err
 		}
@@ -158,7 +160,7 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	} else {
 		differences.Print()
 
-		err := c.syncSecrets(differences)
+		err := c.syncSecrets(differences, SHARED_TLS_DIRECTORY)
 		if err != nil {
 			return false, fmt.Errorf("error syncing secrets: %s", err)
 		}
@@ -189,8 +191,7 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 	return nil
 }
 
-func (c *ConfigSync) syncSecrets(changes *qdr.BridgeConfigDifference) error {
-	sharedTlsFilesDir := "/etc/skupper-router/tls"
+func (c *ConfigSync) syncSecrets(changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
 	for _, added := range changes.HttpListeners.Added {
 		if len(added.SslProfile) > 0 {
 			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
@@ -238,11 +239,11 @@ func (c *ConfigSync) syncSecrets(changes *qdr.BridgeConfigDifference) error {
 	return nil
 }
 
-func (c *ConfigSync) checkSecrets(desired *qdr.BridgeConfig) error {
+func (c *ConfigSync) checkSecrets(desired *qdr.BridgeConfig, sharedTlsFilesDir string) error {
 
 	for _, listener := range desired.HttpListeners {
 		if len(listener.SslProfile) > 0 {
-			err := c.ensureSslProfile(listener.SslProfile)
+			err := c.ensureSslProfile(listener.SslProfile, sharedTlsFilesDir)
 			if err != nil {
 				return err
 			}
@@ -251,7 +252,7 @@ func (c *ConfigSync) checkSecrets(desired *qdr.BridgeConfig) error {
 
 	for _, connector := range desired.HttpConnectors {
 		if len(connector.SslProfile) > 0 {
-			err := c.ensureSslProfile(connector.SslProfile)
+			err := c.ensureSslProfile(connector.SslProfile, sharedTlsFilesDir)
 			if err != nil {
 				return err
 			}
@@ -261,8 +262,7 @@ func (c *ConfigSync) checkSecrets(desired *qdr.BridgeConfig) error {
 	return nil
 }
 
-func (c *ConfigSync) ensureSslProfile(sslProfile string) error {
-	sharedTlsFilesDir := "/etc/skupper-router/tls"
+func (c *ConfigSync) ensureSslProfile(sslProfile string, sharedTlsFilesDir string) error {
 
 	_, err := os.Stat(sharedTlsFilesDir + "/" + sslProfile)
 	missingDir := os.IsNotExist(err)
