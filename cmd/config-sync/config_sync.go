@@ -217,7 +217,17 @@ func (c *ConfigSync) syncSecrets(changes *qdr.BridgeConfigDifference, sharedTlsF
 	for _, deleted := range changes.HttpListeners.Deleted {
 		if len(deleted.SslProfile) > 0 {
 			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted.SslProfile)
-			err := os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
+
+			agent, err := c.agentPool.Get()
+			if err != nil {
+				return err
+			}
+
+			if err = agent.Delete("org.apache.qpid.dispatch.sslProfile", deleted.SslProfile); err != nil {
+				return fmt.Errorf("Error deleting ssl profile: #{err}")
+			}
+
+			err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
 			if err != nil {
 				return err
 			}
