@@ -676,7 +676,7 @@ func (r *RouterConfig) UpdateConfigMap(configmap *corev1.ConfigMap) (bool, error
 		if err != nil {
 			return false, err
 		}
-		if reflect.DeepEqual(existing, r) {
+		if reflect.DeepEqual(existing, *r) {
 			return false, nil
 		}
 	}
@@ -693,7 +693,7 @@ func (b *BridgeConfig) UpdateConfigMap(configmap *corev1.ConfigMap) (bool, error
 		if err != nil {
 			return false, err
 		}
-		if reflect.DeepEqual(existing.Bridges, b) {
+		if reflect.DeepEqual(existing.Bridges, *b) {
 			return false, nil
 		} else {
 			existing.Bridges = *b
