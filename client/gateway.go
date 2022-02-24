@@ -2036,6 +2036,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 			return tarFile.Name(), fmt.Errorf("Failed to create gateway token: %w", err)
 		}
 		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
+		secret.Labels[types.SkupperTypeQualifier] = types.TypeGatewayToken
 		_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(secret)
 		if err != nil {
 			return tarFile.Name(), fmt.Errorf("Failed to create gateway secret: %w", err)
