@@ -755,6 +755,24 @@ func asHttpEndpoints(records []Record, filter HttpEndpointFilter) []HttpEndpoint
 	return endpoints
 }
 
+func (a *Agent) GetConnectorByName(name string) (*Connector, error) {
+
+	results, err := a.Query("org.apache.qpid.dispatch.connector", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+
+		result := asConnector(record)
+
+		if result.Name == name {
+			return &result, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (a *Agent) getLocalHttpEndpoints(typename string, filter HttpEndpointFilter) ([]HttpEndpoint, error) {
 	results, err := a.Query(typename, []string{})
 	if err != nil {
@@ -1127,6 +1145,38 @@ func asConnectorStatus(record Record) ConnectorStatus {
 	}
 }
 
+func asConnector(record Record) Connector {
+	return Connector{
+		Name:           record.AsString("name"),
+		Host:           record.AsString("host"),
+		Port:           record.AsString("port"),
+		RouteContainer: record.AsBool("routeContainer"),
+		VerifyHostname: record.AsBool("verifyHostname"),
+		SslProfile:     record.AsString("sslProfile"),
+	}
+}
+
+func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
+	for _, deleted := range changes.Deleted {
+		if err := a.Delete("org.apache.qpid.dispatch.connector", deleted); err != nil {
+			return fmt.Errorf("Error deleting connectors: %s", err)
+		}
+	}
+
+	for _, added := range changes.Added {
+		record := map[string]interface{}{}
+		if err := convert(added, &record); err != nil {
+			return fmt.Errorf("Failed to convert record: %s", err)
+		}
+		if err := a.Create("org.apache.qpid.dispatch.connector", added.Name, record); err != nil {
+			return fmt.Errorf("Error adding connectors: %s", err)
+		}
+
+	}
+
+	return nil
+}
+
 func (a *Agent) GetLocalConnectorStatus() (map[string]ConnectorStatus, error) {
 	results, err := a.Query("io.skupper.router.connector", []string{})
 	if err != nil {
@@ -1201,4 +1251,16 @@ func isGateway(routerId string) bool {
 
 func GetSiteNameForGateway(gateway *Router) string {
 	return strings.TrimPrefix(gateway.Id, "skupper-gateway-")
+}
+
+func (a *Agent) CreateSslProfile(profile SslProfile) error {
+	record := map[string]interface{}{}
+	if err := convert(profile, &record); err != nil {
+		return fmt.Errorf("Failed to convert record: %s", err)
+	}
+	if err := a.Create("org.apache.qpid.dispatch.sslProfile", profile.Name, record); err != nil {
+		return fmt.Errorf("Error adding SSL Profile: %s", err)
+	}
+
+	return nil
 }
