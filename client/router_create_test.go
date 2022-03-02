@@ -474,7 +474,7 @@ func TestRouterResourcesOptions(t *testing.T) {
 
 		existSharedVolumePathInRouterContainer := false
 		for _, path := range deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
-			if path.MountPath == "/etc/skupper-router/tls" {
+			if path.MountPath == "/etc/qpid-dispatch-certs" {
 				existSharedVolumePathInRouterContainer = true
 			}
 		}
@@ -482,7 +482,7 @@ func TestRouterResourcesOptions(t *testing.T) {
 
 		existSharedVolumePathInSidecar := false
 		for _, path := range deployment.Spec.Template.Spec.Containers[1].VolumeMounts {
-			if path.MountPath == "/etc/skupper-router/tls" {
+			if path.MountPath == "/etc/qpid-dispatch-certs" {
 				existSharedVolumePathInSidecar = true
 			}
 		}

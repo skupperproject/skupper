@@ -183,9 +183,7 @@ func TestTokenHandler(t *testing.T) {
 			assert.Equal(t, connector.Port, test.expectedConnector.Port, test.name)
 			assert.Equal(t, connector.Cost, test.expectedConnector.Cost, test.name)
 			assert.Equal(t, connector.SslProfile, test.expectedConnector.SslProfile, test.name)
-			deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
-			assert.Check(t, err, test.name)
-			assert.Assert(t, checkVolumeMount(&deployment.Spec.Template.Spec, test.name), test.name)
+
 			//now disconnect:
 			err = handler.handler.Handle(test.name, nil)
 			assert.Check(t, err, test.name)
@@ -193,9 +191,7 @@ func TestTokenHandler(t *testing.T) {
 			assert.Check(t, err, test.name)
 			connector, ok = config.Connectors[test.name]
 			assert.Assert(t, !ok, test.name)
-			deployment, err = kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
-			assert.Check(t, err, test.name)
-			assert.Assert(t, !checkVolumeMount(&deployment.Spec.Template.Spec, test.name), test.name)
+
 		}
 	}
 }
