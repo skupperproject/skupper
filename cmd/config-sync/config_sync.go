@@ -396,7 +396,7 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 				return fmt.Errorf("Error deleting ssl profile: #{err}")
 			}
 
-			err = os.RemoveAll(sharedTlsFilesDir + "/" + deletedConnector.Name)
+			err = os.RemoveAll(sharedTlsFilesDir + "/" + deletedConnector.SslProfile)
 			if err != nil {
 				return err
 			}
