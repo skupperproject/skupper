@@ -196,22 +196,20 @@ func (p *AgentPool) Put(a *Agent) {
 }
 
 func Connect(url string, config *tls.Config) (*Agent, error) {
-	var connection *amqp.Client
-	var err error
-	if config == nil {
-		connection, err = amqp.Dial(url, amqp.ConnMaxFrameSize(4294967295))
-	} else {
-		connection, err = amqp.Dial(url, amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(config))
+	factory := ConnectionFactory{
+		url:    url,
+		config: config,
 	}
+	return newAgent(&factory)
+}
+
+func newAgent(factory *ConnectionFactory) (*Agent, error) {
+	client, err := factory.Connect()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create connection: %s", err)
 	}
-	session, err := connection.NewSession()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create session: %s", err)
-	}
-
-	receiver, err := session.NewReceiver(
+	connection := client.(*AmqpConnection)
+	receiver, err := connection.session.NewReceiver(
 		amqp.LinkSourceAddress(""),
 		amqp.LinkAddressDynamic(),
 		amqp.LinkCredit(10),
@@ -219,19 +217,19 @@ func Connect(url string, config *tls.Config) (*Agent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create receiver: %s", err)
 	}
-	sender, err := session.NewSender(
+	sender, err := connection.session.NewSender(
 		amqp.LinkTargetAddress("$management"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create sender: %s", err)
 	}
-	anonymous, err := session.NewSender()
+	anonymous, err := connection.session.NewSender()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create anonymous sender: %s", err)
 	}
 	a := &Agent{
-		connection: connection,
-		session:    session,
+		connection: connection.client,
+		session:    connection.session,
 		sender:     sender,
 		anonymous:  anonymous,
 		receiver:   receiver,

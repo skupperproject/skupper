@@ -32,6 +32,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/service_sync"
 )
 
 type Controller struct {
@@ -55,7 +56,6 @@ type Controller struct {
 	byOrigin           map[string]map[string]types.ServiceInterface
 	localServices      map[string]types.ServiceInterface
 	byName             map[string]types.ServiceInterface
-	desiredServices    map[string]types.ServiceInterface
 	heardFrom          map[string]time.Time
 
 	definitionMonitor *DefinitionMonitor
@@ -64,6 +64,7 @@ type Controller struct {
 	claimVerifier     *ClaimVerifier
 	tokenHandler      *SecretController
 	claimHandler      *SecretController
+	serviceSync       *service_sync.ServiceSync
 }
 
 const (
@@ -178,7 +179,6 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	controller.byOrigin = make(map[string]map[string]types.ServiceInterface)
 	controller.localServices = make(map[string]types.ServiceInterface)
 	controller.byName = make(map[string]types.ServiceInterface)
-	controller.desiredServices = make(map[string]types.ServiceInterface)
 	controller.heardFrom = make(map[string]time.Time)
 
 	log.Println("Setting up event handlers")
@@ -195,6 +195,11 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	}
 	controller.tokenHandler = newTokenHandler(controller.vanClient, origin)
 	controller.claimHandler = newClaimHandler(controller.vanClient, origin)
+	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
+		return kube.UpdateSkupperServices(changed, deleted, origin, cli.Namespace, cli.KubeClient)
+	}
+	controller.serviceSync = service_sync.NewServiceSync(origin, client.Version, qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", tlsConfig), handler)
+
 	return controller, nil
 }
 
@@ -305,7 +310,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 
 	log.Println("Starting workers")
 	if !c.disableServiceSync {
-		go wait.Until(c.runServiceSync, time.Second, stopCh)
+		c.serviceSync.Start(stopCh)
 	}
 	go wait.Until(c.runServiceCtrl, time.Second, stopCh)
 	c.definitionMonitor.start(stopCh)
@@ -534,7 +539,7 @@ func (c *Controller) namespaced(name string) string {
 	return c.vanClient.Namespace + "/" + name
 }
 
-func (c *Controller) parseServiceDefinitions(cm *corev1.ConfigMap) map[string]types.ServiceInterface {
+func parseServiceDefinitions(cm *corev1.ConfigMap) map[string]types.ServiceInterface {
 	definitions := make(map[string]types.ServiceInterface)
 	if len(cm.Data) > 0 {
 		for _, v := range cm.Data {
@@ -544,7 +549,6 @@ func (c *Controller) parseServiceDefinitions(cm *corev1.ConfigMap) map[string]ty
 				definitions[si.Address] = si
 			}
 		}
-		c.desiredServices = definitions
 	}
 	return definitions
 }
@@ -626,7 +630,8 @@ func (c *Controller) deleteServiceBindings(k string, v *ServiceBindings) {
 }
 
 func (c *Controller) updateServiceSync(defs *corev1.ConfigMap) {
-	c.serviceSyncDefinitionsUpdated(c.parseServiceDefinitions(defs))
+	definitions := parseServiceDefinitions(defs)
+	c.serviceSync.LocalDefinitionsUpdated(definitions)
 }
 
 func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error {
