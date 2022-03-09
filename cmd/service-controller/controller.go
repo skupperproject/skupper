@@ -572,7 +572,7 @@ func (c *Controller) updateBridgeConfig(name string) error {
 	if err != nil {
 		return fmt.Errorf("Error reading skupper-internal from cache: %s", err)
 	} else if !exists {
-		return fmt.Errorf("skupper-internal does not exist: %v", err.Error())
+		return fmt.Errorf("skupper-internal does not exist")
 	} else {
 		cm, ok := obj.(*corev1.ConfigMap)
 		if !ok {
