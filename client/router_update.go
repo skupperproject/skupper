@@ -381,6 +381,15 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		router.Spec.Template.Spec.Containers[0].Image = desiredRouterImage
 		updateRouter = true
 	}
+	configSync := ConfigSyncContainer()
+	if !hasContainer(configSync.Name, router.Spec.Template.Spec.Containers) {
+		err = kube.UpdateRole(namespace, types.TransportRoleName, types.TransportPolicyRule, cli.KubeClient)
+		if err != nil {
+			return false, err
+		}
+		router.Spec.Template.Spec.Containers = append(router.Spec.Template.Spec.Containers, *configSync)
+		updateRouter = true
+	}
 	if updateRouter || updateSite || hup {
 		if !updateRouter {
 			// need to trigger a router redployment to pick up the revised metadata field
@@ -1042,4 +1051,13 @@ func (cli *VanClient) GetSiteMetadata() (*qdr.SiteMetadata, error) {
 	}
 	metadata := config.GetSiteMetadata()
 	return &metadata, nil
+}
+
+func hasContainer(name string, containers []corev1.Container) bool {
+	for _, c := range containers {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
 }
