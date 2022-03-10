@@ -4,12 +4,13 @@ import (
 	"crypto/tls"
 	jsonencoding "encoding/json"
 	"fmt"
-	"k8s.io/client-go/util/retry"
 	"log"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -396,11 +397,13 @@ func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Se
 		if actual.ObjectMeta.Annotations == nil {
 			actual.ObjectMeta.Annotations = map[string]string{}
 		}
-		// If target port has been modified by user
-		if !reflect.DeepEqual(actualPorts, originalAssignedPorts) {
-			actual.ObjectMeta.Annotations[types.OriginalTargetPortQualifier] = kube.PortMapToLabelStr(actualPorts)
+		if !isOwned(actual) {
+			// If target port has been modified by user
+			if !reflect.DeepEqual(actualPorts, originalAssignedPorts) {
+				actual.ObjectMeta.Annotations[types.OriginalTargetPortQualifier] = kube.PortMapToLabelStr(actualPorts)
+			}
+			actual.ObjectMeta.Annotations[types.OriginalAssignedQualifier] = kube.PortMapToLabelStr(desiredPorts)
 		}
-		actual.ObjectMeta.Annotations[types.OriginalAssignedQualifier] = kube.PortMapToLabelStr(desiredPorts)
 	}
 
 	// removing ports
