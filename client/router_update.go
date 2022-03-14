@@ -325,6 +325,11 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			// routes: skupper-controller -> skupper
 			original, err := cli.RouteClient.Routes(namespace).Get("skupper-controller", metav1.GetOptions{})
 			if err == nil {
+				siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+				host := siteConfig.Spec.GetRouterIngressHost()
+				if host != "" {
+					host = types.ConsoleRouteName + "-" + namespace + "." + host
+				}
 				route := &routev1.Route{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "v1",
@@ -336,6 +341,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 					},
 					Spec: routev1.RouteSpec{
 						Path: original.Spec.Path,
+						Host: host,
 						Port: original.Spec.Port,
 						TLS:  original.Spec.TLS,
 						To: routev1.RouteTargetReference{
@@ -344,7 +350,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 						},
 					},
 				}
-				_, err := cli.RouteClient.Routes(namespace).Create(route)
+				_, err = cli.RouteClient.Routes(namespace).Create(route)
 				if err != nil && !errors.IsAlreadyExists(err) {
 					return false, err
 				}
@@ -1046,6 +1052,14 @@ func (cli *VanClient) createClaimsServerSecret(ctx context.Context, namespace st
 }
 
 func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace string) error {
+	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+	if err != nil {
+		return err
+	}
+	host := siteConfig.Spec.GetRouterIngressHost()
+	if host != "" {
+		host = types.ClaimRedemptionRouteName + "-" + namespace + "." + host
+	}
 	route := &routev1.Route{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1056,6 +1070,7 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 		},
 		Spec: routev1.RouteSpec{
 			Path: "",
+			Host: host,
 			Port: &routev1.RoutePort{
 				TargetPort: intstr.FromString(types.ClaimRedemptionPortName),
 			},
@@ -1069,7 +1084,7 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 			},
 		},
 	}
-	_, err := kube.CreateRoute(route, namespace, cli.RouteClient)
+	_, err = kube.CreateRoute(route, namespace, cli.RouteClient)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}

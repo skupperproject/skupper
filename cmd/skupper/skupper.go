@@ -412,7 +412,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: ["+strings.Join(types.ValidIngressOptions(), "|")+"]. If not specified route is used when available, otherwise loadbalancer is used.")
 	cmd.Flags().StringSliceVar(&ingressAnnotations, "ingress-annotations", []string{}, "Annotations to add to skupper ingress")
 	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: ["+strings.Join(types.ValidIngressOptions(), "|")+"].")
-	cmd.Flags().StringVarP(&routerCreateOpts.IngressHost, "ingress-host", "", "", "Hostname by which the ingress proxy can be reached")
+	cmd.Flags().StringVarP(&routerCreateOpts.IngressHost, "ingress-host", "", "", "Hostname or alias by which the ingress route or proxy can be reached")
 	cmd.Flags().StringVarP(&routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
 
 	cmd.Flags().StringSliceVar(&annotations, "annotations", []string{}, "Annotations to add to skupper pods")
