@@ -1573,7 +1573,7 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 
 func NewCmdDebug() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "debug dump <file> or debug action <tbd>",
+		Use:   "debug dump <file>, debug events or debug service <service-name>",
 		Short: "Debug skupper installation",
 	}
 	return cmd
@@ -1596,6 +1596,48 @@ func NewCmdDebugDump(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
+
+func NewCmdDebugEvents(newClient cobraFunc) *cobra.Command {
+	verbose := false
+	cmd := &cobra.Command{
+		Use:    "events",
+		Short:  "Show events",
+		Args:   cobra.NoArgs,
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			output, err := cli.SkupperEvents(verbose)
+			if err != nil {
+				return err
+			}
+			os.Stdout.Write(output.Bytes())
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More detailed output (in json)")
+	return cmd
+}
+
+func NewCmdDebugService(newClient cobraFunc) *cobra.Command {
+	verbose := false
+	cmd := &cobra.Command{
+		Use:    "service <service-name>",
+		Short:  "Check the internal state of a skupper exposed service",
+		Args:   cobra.ExactArgs(1),
+		PreRun: newClient,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			output, err := cli.SkupperCheckService(args[0], verbose)
+			if err != nil {
+				return err
+			}
+			os.Stdout.Write(output.Bytes())
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More detailed output (in json)")
 	return cmd
 }
 
@@ -1674,6 +1716,8 @@ func init() {
 	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClientSansExit)
 	cmdDebugDump := NewCmdDebugDump(newClient)
+	cmdDebugEvents := NewCmdDebugEvents(newClient)
+	cmdDebugService := NewCmdDebugService(newClient)
 
 	cmdInitGateway := NewCmdInitGateway(newClient)
 	cmdDownloadGateway := NewCmdDownloadGateway(newClient)
@@ -1748,6 +1792,8 @@ func init() {
 
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
+	cmdDebug.AddCommand(cmdDebugEvents)
+	cmdDebug.AddCommand(cmdDebugService)
 
 	cmdLink := NewCmdLink()
 	cmdLink.AddCommand(NewCmdLinkCreate(newClient, ""))
