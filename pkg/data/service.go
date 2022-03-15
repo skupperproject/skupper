@@ -173,8 +173,8 @@ func (detail *ServiceDetail) ExtractHttpListenerPorts(listeners []qdr.HttpEndpoi
 
 type EgressPortMap map[string]map[int]int
 
-func (hosts EgressPortMap) handle(name string, address string, port string) error {
-	unqualified, logicalPort, err := stripPort(address)
+func (hosts EgressPortMap) handle(host string, name string, address string, port string) error {
+	_, logicalPort, err := stripPort(address)
 	if err != nil {
 		return fmt.Errorf("Invalid address %q for connector %s: %s", address, name, err)
 	}
@@ -182,10 +182,10 @@ func (hosts EgressPortMap) handle(name string, address string, port string) erro
 	if err != nil {
 		return fmt.Errorf("Bad port for connector %s: %s %s", name, port, err)
 	}
-	if hosts[unqualified] == nil {
-		hosts[unqualified] = map[int]int{}
+	if hosts[host] == nil {
+		hosts[host] = map[int]int{}
 	}
-	hosts[unqualified][logicalPort] = targetPort
+	hosts[host][logicalPort] = targetPort
 	return nil
 }
 
@@ -203,7 +203,7 @@ func (hosts EgressPortMap) asEgressBindings() []EgressBinding {
 func (detail *ServiceDetail) ExtractTcpConnectorPorts(connectors []qdr.TcpEndpoint) {
 	hosts := EgressPortMap{}
 	for _, connector := range connectors {
-		if err := hosts.handle(connector.Name, connector.Address, connector.Port); err != nil {
+		if err := hosts.handle(connector.Host, connector.Name, connector.Address, connector.Port); err != nil {
 			detail.AddObservation(err.Error())
 		}
 	}
@@ -213,7 +213,7 @@ func (detail *ServiceDetail) ExtractTcpConnectorPorts(connectors []qdr.TcpEndpoi
 func (detail *ServiceDetail) ExtractHttpConnectorPorts(connectors []qdr.HttpEndpoint) {
 	hosts := EgressPortMap{}
 	for _, connector := range connectors {
-		if err := hosts.handle(connector.Name, connector.Address, connector.Port); err != nil {
+		if err := hosts.handle(connector.Host, connector.Name, connector.Address, connector.Port); err != nil {
 			detail.AddObservation(err.Error())
 		}
 	}

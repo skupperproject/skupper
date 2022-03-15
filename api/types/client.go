@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
@@ -306,6 +307,8 @@ type VanClientInterface interface {
 	SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*SiteConfig, error)
 	SiteConfigRemove(ctx context.Context) error
 	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error)
+	SkupperEvents(verbose bool) (*bytes.Buffer, error)
+	SkupperCheckService(service string, verbose bool) (*bytes.Buffer, error)
 	GetNamespace() string
 	GetVersion(component string, name string) string
 	GetIngressDefault() string

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"reflect"
@@ -228,6 +229,14 @@ func (v *vanClientMock) SiteConfigRemove(ctx context.Context) error {
 
 func (v *vanClientMock) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error) {
 	return "", nil
+}
+
+func (v *vanClientMock) SkupperEvents(verbose bool) (*bytes.Buffer, error) {
+	return nil, nil
+}
+
+func (v *vanClientMock) SkupperCheckService(service string, verbose bool) (*bytes.Buffer, error) {
+	return nil, nil
 }
 
 func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPorts map[int]int) error {

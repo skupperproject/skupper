@@ -178,3 +178,29 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 	}
 	return dumpFile, nil
 }
+
+func (cli *VanClient) execInServiceControllerPod(command []string) (*bytes.Buffer, error) {
+	pods, err := kube.GetPods("skupper.io/component=service-controller", cli.Namespace, cli.KubeClient)
+	if err != nil {
+		return nil, err
+	}
+	if len(pods) < 1 {
+		return nil, fmt.Errorf("No service-controller pod found")
+	}
+	return kube.ExecCommandInContainer(command, pods[0].Name, "service-controller", cli.Namespace, cli.KubeClient, cli.RestConfig)
+}
+
+func addOutputFlag(command []string, verbose bool) []string {
+	if verbose {
+		return append(command, "-o=json")
+	}
+	return command
+}
+
+func (cli *VanClient) SkupperEvents(verbose bool) (*bytes.Buffer, error) {
+	return cli.execInServiceControllerPod(addOutputFlag([]string{"get", "events"}, verbose))
+}
+
+func (cli *VanClient) SkupperCheckService(service string, verbose bool) (*bytes.Buffer, error) {
+	return cli.execInServiceControllerPod(addOutputFlag([]string{"get", "servicecheck", service}, verbose))
+}
