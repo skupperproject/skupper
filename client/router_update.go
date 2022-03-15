@@ -325,11 +325,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			// routes: skupper-controller -> skupper
 			original, err := cli.RouteClient.Routes(namespace).Get("skupper-controller", metav1.GetOptions{})
 			if err == nil {
-				siteConfig, err := cli.SiteConfigInspect(ctx, nil)
-				host := siteConfig.Spec.GetRouterIngressHost()
-				if host != "" {
-					host = types.ConsoleRouteName + "-" + namespace + "." + host
-				}
 				route := &routev1.Route{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "v1",
@@ -341,7 +336,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 					},
 					Spec: routev1.RouteSpec{
 						Path: original.Spec.Path,
-						Host: host,
 						Port: original.Spec.Port,
 						TLS:  original.Spec.TLS,
 						To: routev1.RouteTargetReference{
@@ -350,7 +344,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 						},
 					},
 				}
-				_, err = cli.RouteClient.Routes(namespace).Create(route)
+				_, err := cli.RouteClient.Routes(namespace).Create(route)
 				if err != nil && !errors.IsAlreadyExists(err) {
 					return false, err
 				}
