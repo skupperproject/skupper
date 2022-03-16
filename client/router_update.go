@@ -1046,14 +1046,6 @@ func (cli *VanClient) createClaimsServerSecret(ctx context.Context, namespace st
 }
 
 func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace string) error {
-	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
-	if err != nil {
-		return err
-	}
-	host := siteConfig.Spec.GetRouterIngressHost()
-	if host != "" {
-		host = types.ClaimRedemptionRouteName + "-" + namespace + "." + host
-	}
 	route := &routev1.Route{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1064,7 +1056,6 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 		},
 		Spec: routev1.RouteSpec{
 			Path: "",
-			Host: host,
 			Port: &routev1.RoutePort{
 				TargetPort: intstr.FromString(types.ClaimRedemptionPortName),
 			},
@@ -1078,7 +1069,7 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 			},
 		},
 	}
-	_, err = kube.CreateRoute(route, namespace, cli.RouteClient)
+	_, err := kube.CreateRoute(route, namespace, cli.RouteClient)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}

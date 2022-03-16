@@ -218,7 +218,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 					TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
 				}
 			}
-			host := options.GetRouterIngressHost()
+			host := options.GetControllerIngressHost()
 			if host != "" {
 				host = types.ConsoleRouteName + "-" + van.Namespace + "." + host
 			}
@@ -290,7 +290,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Port:     types.ClaimRedemptionPort,
 		})
 		if options.IsIngressRoute() {
-			host := options.GetRouterIngressHost()
+			host := options.GetControllerIngressHost()
 			if host != "" {
 				host = types.ClaimRedemptionRouteName + "-" + van.Namespace + "." + host
 			}
