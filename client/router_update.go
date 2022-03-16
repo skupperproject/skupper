@@ -524,7 +524,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			// optional (in case of failure, cluster admin can add necessary cluster roles manually)
 			kube.CreateClusterRole(clusterRole, cli.KubeClient)
 		}
-		for _, clusterRoleBinding := range ClusterRoleBindings(cli.Namespace) {
+		for _, clusterRoleBinding := range ClusterRoleBindings(namespace) {
 			clusterRoleBinding.ObjectMeta.OwnerReferences = ownerRefs
 			_, err = kube.CreateClusterRoleBinding(clusterRoleBinding, cli.KubeClient)
 			if err != nil && !errors.IsAlreadyExists(err) {
