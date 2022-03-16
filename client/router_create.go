@@ -218,7 +218,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.RoleBindings = roleBindings
 
 	van.Controller.ClusterRoles = ClusterRoles()
-	van.Controller.ClusterRoleBindings = ClusterRoleBindings(cli.Namespace)
+	van.Controller.ClusterRoleBindings = ClusterRoleBindings(van.Namespace)
 
 	svctype := corev1.ServiceTypeClusterIP
 	if options.IsConsoleIngressLoadBalancer() {

@@ -86,6 +86,20 @@ rules:
   - create
   - delete
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  verbs:
+  - create
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  verbs:
+  - bind
+  resourceNames:
+  - skupper-service-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
