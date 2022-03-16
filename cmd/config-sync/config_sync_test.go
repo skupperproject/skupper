@@ -31,15 +31,20 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 		Namespace:  NS,
 	}
 
+	c.agentPool = qdr.NewAgentPool("amqp://localhost:5672", nil)
+	c.agentPool.Put(&qdr.Agent{})
+
 	scenarios := []struct {
 		doc              string
-		actual           *qdr.BridgeConfigDifference
+		before           *qdr.BridgeConfigDifference
+		after            *qdr.BridgeConfigDifference
 		sslProfileToSync string
 		expected         string
 	}{
 		{
-			doc: "adding-http-connector-with-tls",
-			actual: &qdr.BridgeConfigDifference{
+			doc:    "adding-http-connector-with-tls",
+			before: &qdr.BridgeConfigDifference{},
+			after: &qdr.BridgeConfigDifference{
 				HttpConnectors: qdr.HttpEndpointDifference{
 					Added: []qdr.HttpEndpoint{
 						{
@@ -53,8 +58,9 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 			expected:         "~/.test/skupper-router/tls/skupper-service-client",
 		},
 		{
-			doc: "adding-http-listener-with-tls",
-			actual: &qdr.BridgeConfigDifference{
+			doc:    "adding-http-listener-with-tls",
+			before: &qdr.BridgeConfigDifference{},
+			after: &qdr.BridgeConfigDifference{
 				HttpListeners: qdr.HttpEndpointDifference{
 					Added: []qdr.HttpEndpoint{
 						{
@@ -68,8 +74,8 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 			expected:         "~/.test/skupper-router/tls/skupper-tls-adservice",
 		},
 		{
-			doc: "removing-http-listener-with-tls",
-			actual: &qdr.BridgeConfigDifference{
+			doc: "removing-http-connector-with-tls",
+			before: &qdr.BridgeConfigDifference{
 				HttpConnectors: qdr.HttpEndpointDifference{
 					Added: []qdr.HttpEndpoint{
 						{
@@ -87,25 +93,12 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 					},
 				},
 			},
-			sslProfileToSync: "skupper-service-client",
-			expected:         "~/.test/skupper-router/tls/skupper-service-client",
-		},
-		{
-			doc: "removing-http-connector-with-tls",
-			actual: &qdr.BridgeConfigDifference{
+			after: &qdr.BridgeConfigDifference{
 				HttpConnectors: qdr.HttpEndpointDifference{
-					Added: []qdr.HttpEndpoint{
+					Deleted: []qdr.HttpEndpoint{
 						{
 							Name:       "paymentservice",
 							SslProfile: "skupper-service-client",
-						},
-					},
-				},
-				HttpListeners: qdr.HttpEndpointDifference{
-					Added: []qdr.HttpEndpoint{
-						{
-							Name:       "adservice",
-							SslProfile: "skupper-tls-adservice",
 						},
 					},
 				},
@@ -122,7 +115,10 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 			err = setUpTestingPath()
 			assert.Assert(t, err)
 
-			err = c.syncSecrets(s.actual, TEST_TLS_DIRECTORY)
+			err = syncSecrets(c, s.before, TEST_TLS_DIRECTORY)
+			assert.Assert(t, err)
+
+			err = syncSecrets(c, s.after, TEST_TLS_DIRECTORY)
 			assert.Assert(t, err)
 
 			_, err := os.Stat(s.expected)
@@ -203,7 +199,7 @@ func TestSyncSecretsWithoutTlsSupport(t *testing.T) {
 			err = setUpTestingPath()
 			assert.Assert(t, err)
 
-			err = c.syncSecrets(s.actual, TEST_TLS_DIRECTORY)
+			err = syncSecrets(c, s.actual, TEST_TLS_DIRECTORY)
 			assert.Assert(t, err)
 
 			isDirEmpty, _ := utils.IsDirEmpty(TEST_TLS_DIRECTORY)
@@ -220,13 +216,19 @@ func TestCheckingSecretsWithTlsEnabled(t *testing.T) {
 
 	stopCh := make(chan struct{})
 	event.StartDefaultEventStore(stopCh)
-	c := &ConfigSync{}
+
 	kubeClient := fake.NewSimpleClientset()
 	const NS = "fake"
 
-	c.vanClient = &client.VanClient{
-		KubeClient: kubeClient,
-		Namespace:  NS,
+	pool := qdr.NewAgentPool("amqp://localhost:5672", nil)
+	pool.Put(&qdr.Agent{})
+
+	c := &ConfigSync{
+		vanClient: &client.VanClient{
+			KubeClient: kubeClient,
+			Namespace:  NS,
+		},
+		agentPool: pool,
 	}
 
 	scenarios := []struct {
@@ -329,6 +331,7 @@ func setUpKubernetesMock(cli *client.VanClient) {
 				return true, &secret, nil
 			}
 		})
+
 	}
 }
 

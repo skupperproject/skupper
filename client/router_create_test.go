@@ -446,23 +446,6 @@ func TestRouterResourcesOptions(t *testing.T) {
 			assert.Assert(t, !ok, namespace)
 		}
 
-		existClientSecret := false
-		for _, volume := range deployment.Spec.Template.Spec.Volumes {
-			if volume.Name == "skupper-service-client" {
-				assert.Equal(t, volume.Secret.SecretName, "skupper-service-client")
-				existClientSecret = true
-			}
-		}
-		assert.Check(t, existClientSecret == true)
-
-		existClientSecretPath := false
-		for _, path := range deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
-			if path.MountPath == "/etc/skupper-router-certs/skupper-service-client/" {
-				existClientSecretPath = true
-			}
-		}
-		assert.Check(t, existClientSecretPath == true)
-
 		existSharedVolume := false
 		for _, volume := range deployment.Spec.Template.Spec.Volumes {
 			if volume.Name == "skupper-router-certs" {

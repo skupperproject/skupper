@@ -172,7 +172,7 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	} else {
 		differences.Print()
 
-		err := c.syncSecrets(differences, SHARED_TLS_DIRECTORY)
+		err := syncSecrets(c, differences, SHARED_TLS_DIRECTORY)
 		if err != nil {
 			return false, fmt.Errorf("error syncing secrets: %s", err)
 		}
@@ -249,26 +249,18 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 	}
 }
 
-func (c *ConfigSync) syncSecrets(changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
+func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
 	for _, added := range changes.HttpListeners.Added {
 		if len(added.SslProfile) > 0 {
 			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
-			err := c.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
-			if err != nil {
-				return err
-			}
-
+			return configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
 		}
 	}
 
 	for _, added := range changes.HttpConnectors.Added {
 		if len(added.SslProfile) > 0 {
 			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
-			err := c.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
-			if err != nil {
-				return err
-			}
-
+			return configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
 		}
 	}
 
@@ -276,7 +268,7 @@ func (c *ConfigSync) syncSecrets(changes *qdr.BridgeConfigDifference, sharedTlsF
 		if len(deleted.SslProfile) > 0 {
 			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted.SslProfile)
 
-			agent, err := c.agentPool.Get()
+			agent, err := configSync.agentPool.Get()
 			if err != nil {
 				return err
 			}
@@ -373,11 +365,8 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 			log.Printf("Copying cert files related to Connector sslProfile %s", added.SslProfile)
 			secretName := strings.TrimSuffix(added.SslProfile, "-profile")
-			err = c.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, secretName)
-			if err != nil {
-				return err
-			}
 
+			return c.ensureSslProfile(added.SslProfile, secretName, sharedTlsFilesDir)
 		}
 	}
 
@@ -413,16 +402,16 @@ func (c *ConfigSync) ensureSslProfile(sslProfile string, secretname string, shar
 	_, err := os.Stat(sharedTlsFilesDir + "/" + sslProfile)
 	missingDir := os.IsNotExist(err)
 
-	isDirEmpty := false
+	dirIsEmpty := false
 
 	if !missingDir {
-		isDirEmpty, err = utils.IsDirEmpty(sharedTlsFilesDir + "/" + sslProfile)
+		dirIsEmpty, err = utils.IsDirEmpty(sharedTlsFilesDir + "/" + sslProfile)
 		if err != nil {
 			return err
 		}
 	}
 
-	if missingDir || isDirEmpty {
+	if missingDir || dirIsEmpty {
 		log.Printf("Copying cert files related to HTTP Connector sslProfile %s", sslProfile)
 		err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile, secretname)
 		if err != nil {
