@@ -128,7 +128,7 @@ func (r *RouterConfig) AddSimpleSslProfileWithPath(path string, s SslProfile) {
 }
 
 func (r *RouterConfig) AddSslProfile(s SslProfile) {
-	r.AddSslProfileWithPath("/etc/qpid-dispatch-certs", s)
+	r.AddSslProfileWithPath("/etc/skupper-router-certs", s)
 }
 
 func (r *RouterConfig) RemoveSslProfile(name string) bool {

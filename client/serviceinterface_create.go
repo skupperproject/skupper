@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
@@ -56,7 +57,7 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 
 				err = kube.AppendSecretAndUpdateDeployment(
 					serviceSecret.Name,
-					"/etc/qpid-dispatch-certs/",
+					"/etc/skupper-router-certs/",
 					types.TransportDeploymentName,
 					cli.Namespace,
 					cli.KubeClient,

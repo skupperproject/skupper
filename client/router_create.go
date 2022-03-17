@@ -483,7 +483,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		AuthenticatePeer: true,
 	})
 
-	routerConfig.AddSimpleSslProfileWithPath("/etc/qpid-dispatch-certs",
+	routerConfig.AddSimpleSslProfileWithPath("/etc/skupper-router-certs",
 		qdr.SslProfile{
 			Name: types.ServiceClientSecret,
 		})
@@ -563,10 +563,10 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_MESH_DISCOVERY", Value: "QUERY"})
 	}
 	if options.EnableRouterConsole && options.AuthMode == string(types.ConsoleAuthModeInternal) {
-		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_SOURCE", Value: "/etc/qpid-dispatch/sasl-users/"})
+		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_SOURCE", Value: "/etc/skupper-router/sasl-users/"})
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_PATH", Value: "/tmp/skrouterd.sasldb"})
 	}
-	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: "/etc/qpid-dispatch/config/" + types.TransportConfigFile})
+	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: "/etc/skupper-router/config/" + types.TransportConfigFile})
 	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF_TYPE", Value: "json"})
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  "SKUPPER_SITE_ID",
@@ -619,13 +619,13 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	volumes := []corev1.Volume{}
 	mounts := make([][]corev1.VolumeMount, 2)
-	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.LocalServerSecret, "/etc/qpid-dispatch-certs/skupper-amqps/")
-	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", types.TransportConfigMapName, "/etc/qpid-dispatch/config/")
+	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.LocalServerSecret, "/etc/skupper-router-certs/skupper-amqps/")
+	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", types.TransportConfigMapName, "/etc/skupper-router/config/")
 	if !isEdge {
-		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.SiteServerSecret, "/etc/qpid-dispatch-certs/skupper-internal/")
+		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.SiteServerSecret, "/etc/skupper-router-certs/skupper-internal/")
 	}
 
-	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.ServiceClientSecret, "/etc/qpid-dispatch-certs/"+types.ServiceClientSecret+"/")
+	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.ServiceClientSecret, "/etc/skupper-router-certs/"+types.ServiceClientSecret+"/")
 
 	if options.EnableRouterConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
@@ -633,7 +633,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			mounts = append(mounts, []corev1.VolumeMount{})
 			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.OauthRouterConsoleSecret, "/etc/tls/proxy-certs/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-			kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-console-users", "/etc/qpid-dispatch/sasl-users/")
+			kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-console-users", "/etc/skupper-router/sasl-users/")
 			kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "skupper-sasl-config", "skupper-sasl-config", "/etc/sasl2/")
 		}
 	}

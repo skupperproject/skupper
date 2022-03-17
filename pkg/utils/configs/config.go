@@ -29,9 +29,9 @@ func ConnectorConfig(connector *types.Connector) string {
 
 sslProfile {
     name: {{.Name}}-profile
-    certFile: /etc/qpid-dispatch-certs/{{.Name}}/tls.crt
-    privateKeyFile: /etc/qpid-dispatch-certs/{{.Name}}/tls.key
-    caCertFile: /etc/qpid-dispatch-certs/{{.Name}}/ca.crt
+    certFile: /etc/skupper-router-certs/{{.Name}}/tls.crt
+    privateKeyFile: /etc/skupper-router-certs/{{.Name}}/tls.key
+    caCertFile: /etc/skupper-router-certs/{{.Name}}/ca.crt
 }
 
 connector {
@@ -162,9 +162,9 @@ listener {
 
 sslProfile {
    name: {{.Name}}
-   certFile: /etc/qpid-dispatch-certs/{{.Name}}/tls.crt
-   privateKeyFile: /etc/qpid-dispatch-certs/{{.Name}}/tls.key
-   caCertFile: /etc/qpid-dispatch-certs/{{.Name}}/ca.crt
+   certFile: /etc/skupper-router-certs/{{.Name}}/tls.crt
+   privateKeyFile: /etc/skupper-router-certs/{{.Name}}/tls.key
+   caCertFile: /etc/skupper-router-certs/{{.Name}}/ca.crt
 }
 {{- end}}
 

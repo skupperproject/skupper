@@ -910,7 +910,7 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 
 				err = kube.AppendSecretAndUpdateDeployment(
 					serviceSecret.Name,
-					"/etc/qpid-dispatch-certs/",
+					"/etc/skupper-router-certs/",
 					types.TransportDeploymentName,
 					c.vanClient.Namespace,
 					c.vanClient.KubeClient,

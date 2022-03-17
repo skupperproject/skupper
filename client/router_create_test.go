@@ -358,7 +358,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		if diff := cmp.Diff(c.svcAccountsExpected, svcAccountsFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" service accounts mismatch (-want +got):\n%s", diff)
 		}
-		//TODO: consider set up short specific opts
+		// TODO: consider set up short specific opts
 		if !isCluster || (cli.RouteClient == nil && c.authMode == "openshift") {
 			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, types.OauthRouterConsoleSecret) }))
 			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, types.ConsoleServerSecret) }))
@@ -457,7 +457,7 @@ func TestRouterResourcesOptions(t *testing.T) {
 
 		existClientSecretPath := false
 		for _, path := range deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
-			if path.MountPath == "/etc/qpid-dispatch-certs/skupper-service-client/" {
+			if path.MountPath == "/etc/skupper-router-certs/skupper-service-client/" {
 				existClientSecretPath = true
 			}
 		}
