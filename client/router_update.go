@@ -68,6 +68,11 @@ func (cli *VanClient) isUpdating(namespace string) (bool, string, error) {
 }
 
 func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error) {
+	// Validate if router config file needs to be renamed
+	err := cli.renameRouterConfigFile()
+	if err != nil {
+		return false, err
+	}
 	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return false, err
@@ -577,6 +582,26 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	return updateRouter || updateController || updateSite, nil
 }
+
+func (cli *VanClient) renameRouterConfigFile() error {
+	cm, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
+	if err != nil {
+		return err
+	}
+	configFile, okOld := cm.Data["qdrouterd.json"]
+	_, okNew := cm.Data[types.TransportConfigFile]
+	// renaming
+	if okOld && !okNew {
+		cm.Data[types.TransportConfigFile] = configFile
+		delete(cm.Data, "qdrouterd.json")
+		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(cm)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func setAndWaitControllerReplicas(cli *VanClient, replicas int32, namespace string) (*appsv1.Deployment, error) {
 	controller, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
 	if *controller.Spec.Replicas > 0 {
@@ -755,7 +780,7 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 		}
 
 		// if it is a local gateway
-		_, err = os.Stat(newGatewayDir + "/config/qdrouterd.json")
+		_, err = os.Stat(newGatewayDir + "/config/skrouterd.json")
 		if err == nil {
 			// for update gatewayType would be "service"
 			err = updateLocalGatewayConfig(newGatewayDir, "service", *gatewayConfig)

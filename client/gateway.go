@@ -80,7 +80,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={{.Binary}} -c {{.ConfigPath}}/config/qdrouterd.json
+ExecStart={{.Binary}} -c {{.ConfigPath}}/config/skrouterd.json
 
 [Install]
 {{- if .IsSystemService }}
@@ -108,7 +108,7 @@ try:
 	if not is_file:
 		raise Exception()
 except Exception as e:
-	print ("Usage: python3 expandvars.py <absolute_file_path>. Example - python3 expandvars.py /tmp/qdrouterd.conf")
+	print ("Usage: python3 expandvars.py <absolute_file_path>. Example - python3 expandvars.py /tmp/skrouterd.conf")
 	## Unix programs generally use 2 for command line syntax errors
 	sys.exit(2)
 
@@ -163,10 +163,10 @@ if [[ -z "$(command -v python3 2>&1)" ]]; then
 fi
 
 if [ "$type" == "service" ]; then
-    if result=$(command -v qdrouterd 2>&1); then
+    if result=$(command -v skrouterd 2>&1); then
         qdr_bin=$result
     else
-        echo "qdrouterd could not be found. Please 'install qdrouterd'"
+        echo "skrouterd could not be found. Please 'install skrouterd'"
         exit
     fi    
     export QDR_CONF_DIR=$share_dir/skupper/bundle/$gateway_name
@@ -196,9 +196,9 @@ mkdir -p $qdrcfg_dir
 mkdir -p $certs_dir
 
 cp -R ./qpid-dispatch-certs/* $certs_dir
-cp ./config/qdrouterd.json $qdrcfg_dir
+cp ./config/skrouterd.json $qdrcfg_dir
     
-python3 ./expandvars.py $qdrcfg_dir/qdrouterd.json
+python3 ./expandvars.py $qdrcfg_dir/skrouterd.json
 
 if [ "$type" == "service" ]; then
     mkdir -p $config_dir/systemd/user
@@ -213,7 +213,7 @@ if [ "$type" == "service" ]; then
 elif [ "$type" == "docker" ] || [ "$type" == "podman" ]; then
     ${type} run --restart always -d --name ${gateway_name} --network host \
 	   -e QDROUTERD_CONF_TYPE=json \
-	   -e QDROUTERD_CONF=/opt/skupper/config/qdrouterd.json \
+	   -e QDROUTERD_CONF=/opt/skupper/config/skrouterd.json \
 	   -v ${local_dir}:${QDR_CONF_DIR}:Z \
 	   ${gateway_image} 
     exit    
@@ -309,9 +309,9 @@ func getRouterVersion(gatewayName string, gatewayType string) (string, error) {
 	routerVersion := []byte{}
 
 	if gatewayType == GatewayServiceType {
-		routerVersion, err = exec.Command("qdrouterd", "-v").Output()
+		routerVersion, err = exec.Command("skrouterd", "-v").Output()
 	} else if (gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType) && isActive(gatewayName, gatewayType) {
-		routerVersion, err = exec.Command(gatewayType, "exec", gatewayName, "qdrouterd", "-v").Output()
+		routerVersion, err = exec.Command(gatewayType, "exec", gatewayName, "skrouterd", "-v").Output()
 	} else if gatewayType == GatewayMockType {
 		routerVersion = []byte("1.2.3")
 	}
@@ -539,7 +539,7 @@ func updateLocalGatewayConfig(gatewayDir string, gatewayType string, gatewayConf
 	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
 	qdrConfig.Execute(&buf, instance)
 
-	err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", buf.Bytes(), 0644)
+	err = ioutil.WriteFile(gatewayDir+"/config/skrouterd.json", buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write config file: %w", err)
 	}
@@ -655,7 +655,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
 	qdrConfig.Execute(&buf, instance)
 
-	err = ioutil.WriteFile(gatewayDir+"/config/qdrouterd.json", buf.Bytes(), 0644)
+	err = ioutil.WriteFile(gatewayDir+"/config/skrouterd.json", buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write config file: %w", err)
 	}
@@ -667,9 +667,9 @@ func (cli *VanClient) gatewayStartService(ctx context.Context, gatewayName strin
 	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 	svcDir := getConfigHome() + "/systemd/user"
 
-	qdrBinaryPath, err := exec.LookPath("qdrouterd")
+	qdrBinaryPath, err := exec.LookPath("skrouterd")
 	if err != nil {
-		return fmt.Errorf("qdrouterd not available, please 'dnf install qpid-dispatch-router' first")
+		return fmt.Errorf("skrouterd not available, please 'dnf install qpid-dispatch-router' first")
 	}
 
 	err = cli.setupGatewayConfig(context.Background(), gatewayName, GatewayServiceType)
@@ -749,7 +749,7 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 		"-e",
 		"QDROUTERD_CONF_TYPE=json",
 		"-e",
-		"QDROUTERD_CONF=" + containerDir + "/config/qdrouterd.json",
+		"QDROUTERD_CONF=" + containerDir + "/config/skrouterd.json",
 		"-v",
 		gatewayDir + ":" + containerDir + ":Z",
 		GetRouterImageName(),
@@ -1128,7 +1128,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 					return nil
 				}
 
-				_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
+				_, err = os.Stat(gatewayDir + "/config/skrouterd.json")
 				if err == nil {
 					err = updateLocalGatewayConfig(gatewayDir, gatewayType, *routerConfigCurrent)
 					if err != nil {
@@ -1197,7 +1197,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
 	qdrConfig.Execute(&buf, instance)
 
-	err = writeTar("config/qdrouterd.json", buf.Bytes(), time.Now(), tw)
+	err = writeTar("config/skrouterd.json", buf.Bytes(), time.Now(), tw)
 	if err != nil {
 		return tarFile.Name(), err
 	}
@@ -1314,15 +1314,15 @@ func convert(from interface{}, to interface{}) error {
 func getEntity(protocol string, endpointType string) string {
 	if protocol == "tcp" {
 		if endpointType == gatewayIngress {
-			return "org.apache.qpid.dispatch.tcpListener"
+			return "io.skupper.router.tcpListener"
 		} else {
-			return "org.apache.qpid.dispatch.tcpConnector"
+			return "io.skupper.router.tcpConnector"
 		}
 	} else if protocol == "http" || protocol == "http2" {
 		if endpointType == gatewayIngress {
-			return "org.apache.qpid.dispatch.httpListener"
+			return "io.skupper.router.httpListener"
 		} else {
-			return "org.apache.qpid.dispatch.httpConnector"
+			return "io.skupper.router.httpConnector"
 		}
 	}
 	return ""
@@ -1585,7 +1585,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 				return nil
 			}
 
-			_, err = os.Stat(gatewayDir + "/config/qdrouterd.json")
+			_, err = os.Stat(gatewayDir + "/config/skrouterd.json")
 			if err == nil {
 				err = updateLocalGatewayConfig(gatewayDir, gatewayType, *currentGatewayConfig)
 				if err != nil {
@@ -2173,7 +2173,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 		return tarFile.Name(), fmt.Errorf("Failed to parse gateway configmap: %w", err)
 	}
 
-	err = writeTar("config/qdrouterd.json", buf.Bytes(), time.Now(), tw)
+	err = writeTar("config/skrouterd.json", buf.Bytes(), time.Now(), tw)
 	if err != nil {
 		return tarFile.Name(), err
 	}

@@ -586,7 +586,7 @@ func (a *Agent) GetInteriorNodes() ([]RouterNode, error) {
 			return nil, fmt.Errorf("Could not determine interior agent address for edge router: %s", err)
 		}
 	}
-	records, err := a.QueryByAgentAddress("org.apache.qpid.dispatch.router.node", []string{}, address)
+	records, err := a.QueryByAgentAddress("io.skupper.router.router.node", []string{}, address)
 	if err != nil {
 		return nil, err
 	}
@@ -603,7 +603,7 @@ func (a *Agent) GetConnections() ([]Connection, error) {
 }
 
 func (a *Agent) GetConnectionsFor(agent string) ([]Connection, error) {
-	records, err := a.Query("org.apache.qpid.dispatch.connection", []string{})
+	records, err := a.Query("io.skupper.router.connection", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +667,7 @@ func (a *Agent) GetAllRouters() ([]Router, error) {
 
 func (a *Agent) getConnectionsForAll(agents []string) ([]Connection, error) {
 	connections := []Connection{}
-	results, err := a.BatchQuery(queryAllAgents("org.apache.qpid.dispatch.connection", agents))
+	results, err := a.BatchQuery(queryAllAgents("io.skupper.router.connection", agents))
 	if err != nil {
 		return nil, err
 	}
@@ -680,7 +680,7 @@ func (a *Agent) getConnectionsForAll(agents []string) ([]Connection, error) {
 }
 
 func (a *Agent) getSiteIds(routers []Router) error {
-	results, err := a.BatchQuery(queryAllAgents("org.apache.qpid.dispatch.router", getAddressesFor(routers)))
+	results, err := a.BatchQuery(queryAllAgents("io.skupper.router.router", getAddressesFor(routers)))
 	if err != nil {
 		return err
 	}
@@ -695,7 +695,7 @@ func (a *Agent) getSiteIds(routers []Router) error {
 }
 
 func (a *Agent) getConnectedTo(routers []Router) error {
-	results, err := a.BatchQuery(queryAllAgents("org.apache.qpid.dispatch.connection", getAddressesFor(routers)))
+	results, err := a.BatchQuery(queryAllAgents("io.skupper.router.connection", getAddressesFor(routers)))
 	if err != nil {
 		return err
 	}
@@ -713,10 +713,10 @@ func (a *Agent) getConnectedTo(routers []Router) error {
 
 func getBridgeTypes() []string {
 	return []string{
-		"org.apache.qpid.dispatch.tcpConnector",
-		"org.apache.qpid.dispatch.tcpListener",
-		"org.apache.qpid.dispatch.httpConnector",
-		"org.apache.qpid.dispatch.httpListener",
+		"io.skupper.router.tcpConnector",
+		"io.skupper.router.tcpListener",
+		"io.skupper.router.httpConnector",
+		"io.skupper.router.httpListener",
 	}
 }
 
@@ -765,25 +765,25 @@ func (a *Agent) getLocalHttpEndpoints(typename string, filter HttpEndpointFilter
 }
 
 func (a *Agent) GetLocalTcpListeners(filter TcpEndpointFilter) ([]TcpEndpoint, error) {
-	return a.getLocalTcpEndpoints("org.apache.qpid.dispatch.tcpListener", filter)
+	return a.getLocalTcpEndpoints("io.skupper.router.tcpListener", filter)
 }
 
 func (a *Agent) GetLocalHttpListeners(filter HttpEndpointFilter) ([]HttpEndpoint, error) {
-	return a.getLocalHttpEndpoints("org.apache.qpid.dispatch.httpListener", filter)
+	return a.getLocalHttpEndpoints("io.skupper.router.httpListener", filter)
 }
 
 func (a *Agent) GetLocalTcpConnectors(filter TcpEndpointFilter) ([]TcpEndpoint, error) {
-	return a.getLocalTcpEndpoints("org.apache.qpid.dispatch.tcpConnector", filter)
+	return a.getLocalTcpEndpoints("io.skupper.router.tcpConnector", filter)
 }
 
 func (a *Agent) GetLocalHttpConnectors(filter HttpEndpointFilter) ([]HttpEndpoint, error) {
-	return a.getLocalHttpEndpoints("org.apache.qpid.dispatch.httpConnector", filter)
+	return a.getLocalHttpEndpoints("io.skupper.router.httpConnector", filter)
 }
 
 func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
 	config := NewBridgeConfig()
 
-	results, err := a.Query("org.apache.qpid.dispatch.tcpConnector", []string{})
+	results, err := a.Query("io.skupper.router.tcpConnector", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -791,7 +791,7 @@ func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
 		config.AddTcpConnector(asTcpEndpoint(record))
 	}
 
-	results, err = a.Query("org.apache.qpid.dispatch.tcpListener", []string{})
+	results, err = a.Query("io.skupper.router.tcpListener", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -799,7 +799,7 @@ func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
 		config.AddTcpListener(asTcpEndpoint(record))
 	}
 
-	results, err = a.Query("org.apache.qpid.dispatch.httpConnector", []string{})
+	results, err = a.Query("io.skupper.router.httpConnector", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -807,7 +807,7 @@ func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
 		config.AddHttpConnector(asHttpEndpoint(record))
 	}
 
-	results, err = a.Query("org.apache.qpid.dispatch.httpListener", []string{})
+	results, err = a.Query("io.skupper.router.httpListener", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -820,22 +820,22 @@ func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
 
 func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 	for _, deleted := range changes.TcpConnectors.Deleted {
-		if err := a.Delete("org.apache.qpid.dispatch.tcpConnector", deleted); err != nil {
+		if err := a.Delete("io.skupper.router.tcpConnector", deleted); err != nil {
 			return fmt.Errorf("Error deleting tcp connectors: %s", err)
 		}
 	}
 	for _, deleted := range changes.HttpConnectors.Deleted {
-		if err := a.Delete("org.apache.qpid.dispatch.httpConnector", deleted); err != nil {
+		if err := a.Delete("io.skupper.router.httpConnector", deleted); err != nil {
 			return fmt.Errorf("Error deleting http connectors: %s", err)
 		}
 	}
 	for _, deleted := range changes.TcpListeners.Deleted {
-		if err := a.Delete("org.apache.qpid.dispatch.tcpListener", deleted); err != nil {
+		if err := a.Delete("io.skupper.router.tcpListener", deleted); err != nil {
 			return fmt.Errorf("Error deleting tcp listeners: %s", err)
 		}
 	}
 	for _, deleted := range changes.HttpListeners.Deleted {
-		if err := a.Delete("org.apache.qpid.dispatch.httpListener", deleted); err != nil {
+		if err := a.Delete("io.skupper.router.httpListener", deleted); err != nil {
 			return fmt.Errorf("Error deleting http listeners: %s", err)
 		}
 	}
@@ -844,28 +844,28 @@ func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 		if err := convert(added, &record); err != nil {
 			return fmt.Errorf("Failed to convert record: %s", err)
 		}
-		if err := a.Create("org.apache.qpid.dispatch.tcpConnector", added.Name, record); err != nil {
+		if err := a.Create("io.skupper.router.tcpConnector", added.Name, record); err != nil {
 			return fmt.Errorf("Error adding tcp connectors: %s", err)
 		}
 	}
 	for _, added := range changes.HttpConnectors.Added {
 		record := map[string]interface{}{}
 		convert(added, &record)
-		if err := a.Create("org.apache.qpid.dispatch.httpConnector", added.Name, record); err != nil {
+		if err := a.Create("io.skupper.router.httpConnector", added.Name, record); err != nil {
 			return fmt.Errorf("Error adding http connectors: %s", err)
 		}
 	}
 	for _, added := range changes.TcpListeners.Added {
 		record := map[string]interface{}{}
 		convert(added, &record)
-		if err := a.Create("org.apache.qpid.dispatch.tcpListener", added.Name, record); err != nil {
+		if err := a.Create("io.skupper.router.tcpListener", added.Name, record); err != nil {
 			return fmt.Errorf("Error adding tcp listeners: %s", err)
 		}
 	}
 	for _, added := range changes.HttpListeners.Added {
 		record := map[string]interface{}{}
 		convert(added, &record)
-		if err := a.Create("org.apache.qpid.dispatch.httpListener", added.Name, record); err != nil {
+		if err := a.Create("io.skupper.router.httpListener", added.Name, record); err != nil {
 			return fmt.Errorf("Error adding http listeners: %s", err)
 		}
 	}
@@ -878,21 +878,21 @@ func (a *Agent) GetBridges(routers []Router) ([]BridgeConfig, error) {
 	for _, agent := range agents {
 		config := NewBridgeConfig()
 
-		results, err := a.QueryByAgentAddress("org.apache.qpid.dispatch.tcpConnector", []string{}, agent)
+		results, err := a.QueryByAgentAddress("io.skupper.router.tcpConnector", []string{}, agent)
 		if err != nil {
 			return nil, err
 		}
 		for _, record := range results {
 			config.AddTcpConnector(asTcpEndpoint(record))
 		}
-		results, err = a.QueryByAgentAddress("org.apache.qpid.dispatch.tcpListener", []string{}, agent)
+		results, err = a.QueryByAgentAddress("io.skupper.router.tcpListener", []string{}, agent)
 		if err != nil {
 			return nil, err
 		}
 		for _, record := range results {
 			config.AddTcpListener(asTcpEndpoint(record))
 		}
-		results, err = a.QueryByAgentAddress("org.apache.qpid.dispatch.httpConnector", []string{}, agent)
+		results, err = a.QueryByAgentAddress("io.skupper.router.httpConnector", []string{}, agent)
 		if err != nil {
 			return nil, err
 		}
@@ -900,7 +900,7 @@ func (a *Agent) GetBridges(routers []Router) ([]BridgeConfig, error) {
 			config.AddHttpConnector(asHttpEndpoint(record))
 		}
 
-		results, err = a.QueryByAgentAddress("org.apache.qpid.dispatch.httpListener", []string{}, agent)
+		results, err = a.QueryByAgentAddress("io.skupper.router.httpListener", []string{}, agent)
 		if err != nil {
 			return nil, err
 		}
@@ -943,7 +943,7 @@ func getTcpConnectionsFromRecords(records []Record) ([]TcpConnection, error) {
 }
 
 func (a *Agent) GetTcpConnections(routers []Router) ([][]TcpConnection, error) {
-	queries := queryAllAgents("org.apache.qpid.dispatch.tcpConnection", getAddressesFor(routers))
+	queries := queryAllAgents("io.skupper.router.tcpConnection", getAddressesFor(routers))
 	results, err := a.BatchQuery(queries)
 	if err != nil {
 		return nil, err
@@ -960,7 +960,7 @@ func (a *Agent) GetTcpConnections(routers []Router) ([][]TcpConnection, error) {
 }
 
 func (a *Agent) GetLocalTcpConnections() ([]TcpConnection, error) {
-	records, err := a.Query("org.apache.qpid.dispatch.tcpConnection", []string{})
+	records, err := a.Query("io.skupper.router.tcpConnection", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -993,7 +993,7 @@ func getHttpRequestInfoFromRecords(records []Record) ([]HttpRequestInfo, error) 
 }
 
 func (a *Agent) GetHttpRequestInfo(routers []Router) ([][]HttpRequestInfo, error) {
-	queries := queryAllAgents("org.apache.qpid.dispatch.httpRequestInfo", getAddressesFor(routers))
+	queries := queryAllAgents("io.skupper.router.httpRequestInfo", getAddressesFor(routers))
 	results, err := a.BatchQuery(queries)
 	if err != nil {
 		return nil, err
@@ -1010,7 +1010,7 @@ func (a *Agent) GetHttpRequestInfo(routers []Router) ([][]HttpRequestInfo, error
 }
 
 func (a *Agent) GetLocalHttpRequestInfo() ([]HttpRequestInfo, error) {
-	records, err := a.Query("org.apache.qpid.dispatch.httpRequestInfo", []string{})
+	records, err := a.Query("io.skupper.router.httpRequestInfo", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -1077,7 +1077,7 @@ func (a *Agent) GetLocalGateways() ([]Router, error) {
 }
 
 func (a *Agent) GetLocalRouter() (*Router, error) {
-	records, err := a.Query("org.apache.qpid.dispatch.router", []string{})
+	records, err := a.Query("io.skupper.router.router", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -1128,7 +1128,7 @@ func asConnectorStatus(record Record) ConnectorStatus {
 }
 
 func (a *Agent) GetLocalConnectorStatus() (map[string]ConnectorStatus, error) {
-	results, err := a.Query("org.apache.qpid.dispatch.connector", []string{})
+	results, err := a.Query("io.skupper.router.connector", []string{})
 	if err != nil {
 		return nil, err
 	}

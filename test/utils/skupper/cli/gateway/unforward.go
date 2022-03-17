@@ -42,7 +42,7 @@ func (f *UnforwardTester) Run(cluster *base.ClusterContext) (stdout string, stde
 	// Basic validation of the stdout
 	if matched, _ := regexp.MatchString(fmt.Sprintf(`.* DELETE .*%s`, f.Address), stderr); !matched {
 		// Sample output
-		// 2021/07/28 20:16:14 DELETE org.apache.qpid.dispatch.tcpListener localhost.localdomain-user-ingress-tcp-echo-cluster
+		// 2021/07/28 20:16:14 DELETE io.skupper.router.tcpListener localhost.localdomain-user-ingress-tcp-echo-cluster
 		err = fmt.Errorf("output does not contain expected content - found: %s", stdout)
 		return
 	}

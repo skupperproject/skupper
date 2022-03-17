@@ -42,7 +42,7 @@ func (b *UnbindTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	// Basic validation of the stdout
 	if matched, _ := regexp.MatchString(fmt.Sprintf(`.* DELETE .*%s`, b.Address), stderr); !matched {
 		// Sample output
-		// 2021/07/28 23:28:04 DELETE org.apache.qpid.dispatch.tcpConnector localhost.localdomain-user-egress-mongo-host
+		// 2021/07/28 23:28:04 DELETE io.skupper.router.tcpConnector localhost.localdomain-user-egress-mongo-host
 		err = fmt.Errorf("output does not contain expected content - found: %s", stdout)
 		return
 	}

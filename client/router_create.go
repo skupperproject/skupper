@@ -132,7 +132,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	if options.EnableConsole && options.AuthMode != string(types.ConsoleAuthModeOpenshift) {
 		kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ConsoleServerSecret, "/etc/service-controller/console/")
 	}
-	//mount secret needed for communication with router
+	// mount secret needed for communication with router
 	kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.LocalClientSecret, "/etc/messaging/")
 	van.Controller.EnvVar = envVars
 	van.Controller.Volumes = volumes
@@ -244,9 +244,9 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		} else if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret}
 		} else {
-			//if using openshift oauth or openshift routes, use openshift service annotation
-			//to create the console cert as it is then signed by the cluster ca
-			//otherwise we create it ourselves
+			// if using openshift oauth or openshift routes, use openshift service annotation
+			// to create the console cert as it is then signed by the cluster ca
+			// otherwise we create it ourselves
 			controllerHosts := []string{types.ControllerServiceName + "." + van.Namespace}
 			controllerIngressHost := options.GetControllerIngressHost()
 			post := false // indicates whether credentials need to be revised after creating appropriate ingress resources
@@ -404,7 +404,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	)
 
 	van := &types.RouterSpec{}
-	//todo: think through van name, router name, secret names, etc.
+	// todo: think through van name, router name, secret names, etc.
 	if options.SkupperNamespace == "" {
 		van.Namespace = cli.Namespace
 	} else {
@@ -430,7 +430,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Transport.Labels = map[string]string{
 		types.PartOfLabel: types.AppName,
 		types.AppLabel:    types.TransportDeploymentName,
-		"application":     types.TransportDeploymentName, //needed by automeshing in image
+		"application":     types.TransportDeploymentName, // needed by automeshing in image
 	}
 	for key, value := range van.Transport.LabelSelector {
 		van.Transport.Labels[key] = value
@@ -564,7 +564,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	if options.EnableRouterConsole && options.AuthMode == string(types.ConsoleAuthModeInternal) {
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_SOURCE", Value: "/etc/qpid-dispatch/sasl-users/"})
-		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_PATH", Value: "/tmp/qdrouterd.sasldb"})
+		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_PATH", Value: "/tmp/skrouterd.sasldb"})
 	}
 	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: "/etc/qpid-dispatch/config/" + types.TransportConfigFile})
 	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF_TYPE", Value: "json"})
@@ -1045,10 +1045,10 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 		config := `
 pwcheck_method: auxprop
 auxprop_plugin: sasldb
-sasldb_path: /tmp/qdrouterd.sasldb
+sasldb_path: /tmp/skrouterd.sasldb
 `
 		saslData := &map[string]string{
-			"qdrouterd.conf": config,
+			"skrouterd.conf": config,
 		}
 		kube.NewConfigMap("skupper-sasl-config", saslData, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 	}

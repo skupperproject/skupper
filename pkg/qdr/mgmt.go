@@ -188,7 +188,7 @@ func GetEdgeSitesForRouter(routerid string, namespace string, clientset kubernet
 
 func get_query(typename string) []string {
 	return []string{
-		"qdmanage",
+		"skmanage",
 		"query",
 		"--type",
 		typename,
