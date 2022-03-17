@@ -16,6 +16,7 @@ package types
 
 import (
 	jsonencoding "encoding/json"
+
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -52,7 +53,7 @@ const (
 	TransportRoleBindingName      string = "skupper-router"
 	TransportEnvConfig            string = "QDROUTERD_CONF"
 	TransportSaslConfig           string = "skupper-sasl-config"
-	TransportConfigFile           string = "qdrouterd.json"
+	TransportConfigFile           string = "skrouterd.json"
 	TransportConfigMapName        string = "skupper-internal"
 	TransportServiceName          string = "skupper-router"
 	LocalTransportServiceName     string = "skupper-router-local"

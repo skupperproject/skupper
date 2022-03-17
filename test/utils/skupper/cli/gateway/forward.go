@@ -62,7 +62,7 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 		matched, _ := regexp.MatchString(expectedOut, stderr)
 		if f.IsGatewayActive && !matched {
 			// Sample output
-			// 2021/10/26 17:22:51 CREATE org.apache.qpid.dispatch.tcpListener fgiorget-fgiorget-ingress-tcp-echo-cluster:9090 map[address:tcp-echo-cluster:9090 host:0.0.0.0 name:fgiorget-fgiorget-ingress-tcp-echo-cluster:9090 port:40373 siteId:dcd0eed1-5c44-4817-b409-6b0cdf18dae4]
+			// 2021/10/26 17:22:51 CREATE io.skupper.router.tcpListener fgiorget-fgiorget-ingress-tcp-echo-cluster:9090 map[address:tcp-echo-cluster:9090 host:0.0.0.0 name:fgiorget-fgiorget-ingress-tcp-echo-cluster:9090 port:40373 siteId:dcd0eed1-5c44-4817-b409-6b0cdf18dae4]
 			err = fmt.Errorf("output does not contain expected content - found: %s", stderr)
 			return
 		}

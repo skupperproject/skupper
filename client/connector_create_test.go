@@ -292,7 +292,7 @@ func TestVerifySiteCompatibility(t *testing.T) {
 				Name:      types.TransportConfigMapName,
 			},
 			Data: map[string]string{
-				"qdrouterd.json": `
+				"skrouterd.json": `
     [
         [
             "router",

@@ -110,7 +110,7 @@ func initFakeClientSet(namespace, siteVersion string) *fake.Clientset {
 			Name:      types.TransportConfigMapName,
 		},
 		Data: map[string]string{
-			"qdrouterd.json": `
+			"skrouterd.json": `
     [
         [
             "router",

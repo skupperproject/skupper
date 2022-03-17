@@ -33,8 +33,8 @@ var (
 // ValidateSkip validates whether gateway tests should be skipped
 func ValidateSkip(t *testing.T, gatewayType string) {
 	if utils.StringSliceContains([]string{"", "service"}, gatewayType) {
-		// If skupper, systemctl or qdrouterd binaries are not available, skip
-		binaries := []string{"skupper", "systemctl", "qdrouterd"}
+		// If skupper, systemctl or skrouterd binaries are not available, skip
+		binaries := []string{"skupper", "systemctl", "skrouterd"}
 		missingBinaries := []string{}
 		for _, binary := range binaries {
 			if err := exec.Command(binary, "--help").Run(); err != nil {

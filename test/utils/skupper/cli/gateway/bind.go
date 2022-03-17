@@ -59,7 +59,7 @@ func (b *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 		matched, _ := regexp.MatchString(expectedOut, stderr)
 		if b.IsGatewayActive && !matched {
 			// Sample output
-			// 2021/10/26 17:10:25 CREATE org.apache.qpid.dispatch.tcpConnector fgiorget-fgiorget-egress-tcp-echo-host:9090 map[address:tcp-echo-host:9090 host:0.0.0.0 name:fgiorget-fgiorget-egress-tcp-echo-host:9090 port:46173 siteId:ee953910-681a-4bc5-b139-78bbbe45f6b3]
+			// 2021/10/26 17:10:25 CREATE io.skupper.router.tcpConnector fgiorget-fgiorget-egress-tcp-echo-host:9090 map[address:tcp-echo-host:9090 host:0.0.0.0 name:fgiorget-fgiorget-egress-tcp-echo-host:9090 port:46173 siteId:ee953910-681a-4bc5-b139-78bbbe45f6b3]
 			err = fmt.Errorf("output does not contain expected content - found: %s", stderr)
 			return
 		}

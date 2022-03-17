@@ -143,7 +143,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 		"qpid-dispatch-certs/conn1-profile/tls.crt",
 		"qpid-dispatch-certs/conn1-profile/tls.key",
 		"qpid-dispatch-certs/conn1-profile/ca.crt",
-		"config/qdrouterd.json",
+		"config/skrouterd.json",
 		"service/myapp.service",
 		"launch.sh",
 		"remove.sh",
@@ -459,7 +459,7 @@ func TestGatewayExpose(t *testing.T) {
 	kubeConfigPath := ""
 	gatewayType := GatewayMockType
 
-	//isCluster := *clusterRun
+	// isCluster := *clusterRun
 	if *clusterRun {
 		cli, err = NewClient(namespace, kubeContext, kubeConfigPath)
 	} else {

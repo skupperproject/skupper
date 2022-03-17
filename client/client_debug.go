@@ -147,9 +147,9 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 				if pod.Spec.Containers[container].Name == "router" {
 					// while we are here collect qdstats, logs will show these operations
 					for x := range qdstatFlags {
-						qdr, err := kube.ExecCommandInContainer([]string{"qdstat", qdstatFlags[x]}, pod.Name, "router", cli.Namespace, cli.KubeClient, cli.RestConfig)
+						qdr, err := kube.ExecCommandInContainer([]string{"skstat", qdstatFlags[x]}, pod.Name, "router", cli.Namespace, cli.KubeClient, cli.RestConfig)
 						if err == nil {
-							writeTar(pod.Name+"-qdstat"+qdstatFlags[x]+".txt", qdr.Bytes(), time.Now(), tw)
+							writeTar(pod.Name+"-skstat"+qdstatFlags[x]+".txt", qdr.Bytes(), time.Now(), tw)
 						} else {
 							continue
 
