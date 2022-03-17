@@ -154,7 +154,7 @@ share_dir=${XDG_DATA_HOME:-~/.local/share}
 config_dir=${XDG_CONFIG_HOME:-~/.config}
 
 local_dir=$share_dir/skupper/bundle/$gateway_name
-certs_dir=$share_dir/skupper/bundle/$gateway_name/qpid-dispatch-certs
+certs_dir=$share_dir/skupper/bundle/$gateway_name/skupper-router-certs
 qdrcfg_dir=$share_dir/skupper/bundle/$gateway_name/config
 
 if [[ -z "$(command -v python3 2>&1)" ]]; then
@@ -195,7 +195,7 @@ fi
 mkdir -p $qdrcfg_dir
 mkdir -p $certs_dir
 
-cp -R ./qpid-dispatch-certs/* $certs_dir
+cp -R ./skupper-router-certs/* $certs_dir
 cp ./config/skrouterd.json $qdrcfg_dir
     
 python3 ./expandvars.py $qdrcfg_dir/skrouterd.json
@@ -453,7 +453,7 @@ func setupLocalDir(localDir string) error {
 		return fmt.Errorf("Unable to create system directory: %w", err)
 	}
 
-	if err := os.MkdirAll(localDir+"/qpid-dispatch-certs/conn1-profile", 0755); err != nil {
+	if err := os.MkdirAll(localDir+"/skupper-router-certs/conn1-profile", 0755); err != nil {
 		return fmt.Errorf("Unable to create certs directory: %w", err)
 	}
 
@@ -566,7 +566,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 	}
 
 	for _, cert := range certs {
-		err = ioutil.WriteFile(gatewayDir+"/qpid-dispatch-certs/conn1-profile/"+cert, secret.Data[cert], 0644)
+		err = ioutil.WriteFile(gatewayDir+"/skupper-router-certs/conn1-profile/"+cert, secret.Data[cert], 0644)
 		if err != nil {
 			return fmt.Errorf("Failed to write cert file: %w", err)
 		}
@@ -669,7 +669,7 @@ func (cli *VanClient) gatewayStartService(ctx context.Context, gatewayName strin
 
 	qdrBinaryPath, err := exec.LookPath("skrouterd")
 	if err != nil {
-		return fmt.Errorf("skrouterd not available, please 'dnf install qpid-dispatch-router' first")
+		return fmt.Errorf("skrouterd not available, please 'dnf install skupper-router' first")
 	}
 
 	err = cli.setupGatewayConfig(context.Background(), gatewayName, GatewayServiceType)
@@ -905,7 +905,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 		Port: types.AmqpDefaultPort,
 	})
 
-	routerConfig.AddSslProfileWithPath("{{.WorkingDir}}/qpid-dispatch-certs", qdr.SslProfile{
+	routerConfig.AddSslProfileWithPath("{{.WorkingDir}}/skupper-router-certs", qdr.SslProfile{
 		Name: "conn1-profile",
 	})
 	connector := qdr.Connector{
@@ -1171,7 +1171,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	}
 
 	for _, cert := range certs {
-		err = writeTar("qpid-dispatch-certs/conn1-profile/"+cert, secret.Data[cert], time.Now(), tw)
+		err = writeTar("skupper-router-certs/conn1-profile/"+cert, secret.Data[cert], time.Now(), tw)
 		if err != nil {
 			return tarFile.Name(), err
 		}
@@ -2046,7 +2046,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	}
 
 	for _, cert := range certs {
-		err = writeTar("qpid-dispatch-certs/conn1-profile/"+cert, secret.Data[cert], time.Now(), tw)
+		err = writeTar("skupper-router-certs/conn1-profile/"+cert, secret.Data[cert], time.Now(), tw)
 		if err != nil {
 			return tarFile.Name(), err
 		}
@@ -2070,7 +2070,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 		}
 	}
 
-	routerConfig.AddSslProfileWithPath("{{.WorkingDir}}/qpid-dispatch-certs", qdr.SslProfile{
+	routerConfig.AddSslProfileWithPath("{{.WorkingDir}}/skupper-router-certs", qdr.SslProfile{
 		Name: "conn1-profile",
 	})
 	connector := qdr.Connector{

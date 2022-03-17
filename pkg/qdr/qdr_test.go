@@ -73,14 +73,14 @@ func TestAddSslProfile(t *testing.T) {
 	config.AddSslProfile(SslProfile{
 		Name: "another",
 	})
-	if config.SslProfiles["another"].CertFile != "/etc/qpid-dispatch-certs/another/tls.crt" {
-		t.Errorf("Expected cert file '/etc/qpid-dispatch-certs/another/tls.crt' but got %q", config.SslProfiles["another"].CertFile)
+	if config.SslProfiles["another"].CertFile != "/etc/skupper-router-certs/another/tls.crt" {
+		t.Errorf("Expected cert file '/etc/skupper-router-certs/another/tls.crt' but got %q", config.SslProfiles["another"].CertFile)
 	}
-	if config.SslProfiles["another"].CaCertFile != "/etc/qpid-dispatch-certs/another/ca.crt" {
-		t.Errorf("Expected cert file '/etc/qpid-dispatch-certs/another/ca.crt' but got %q", config.SslProfiles["another"].CaCertFile)
+	if config.SslProfiles["another"].CaCertFile != "/etc/skupper-router-certs/another/ca.crt" {
+		t.Errorf("Expected cert file '/etc/skupper-router-certs/another/ca.crt' but got %q", config.SslProfiles["another"].CaCertFile)
 	}
-	if config.SslProfiles["another"].PrivateKeyFile != "/etc/qpid-dispatch-certs/another/tls.key" {
-		t.Errorf("Expected cert file '/etc/qpid-dispatch-certs/another/tls.key' but got %q", config.SslProfiles["another"].PrivateKeyFile)
+	if config.SslProfiles["another"].PrivateKeyFile != "/etc/skupper-router-certs/another/tls.key" {
+		t.Errorf("Expected cert file '/etc/skupper-router-certs/another/tls.key' but got %q", config.SslProfiles["another"].PrivateKeyFile)
 	}
 }
 

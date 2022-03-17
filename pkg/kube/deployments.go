@@ -65,12 +65,12 @@ func GetDeployment(name string, namespace string, cli kubernetes.Interface) (*ap
 
 func getProxyStatefulSetName(definition types.ServiceInterface) string {
 	if definition.Origin == "" {
-		//in the originating site, the name cannot clash with
-		//the statefulset being exposed
+		// in the originating site, the name cannot clash with
+		// the statefulset being exposed
 		return definition.Address + "-proxy"
 	} else {
-		//in all other sites, the name must match the
-		//statefulset that was exposed in the originating site
+		// in all other sites, the name must match the
+		// statefulset that was exposed in the originating site
 		return definition.Headless.Name
 	}
 }
@@ -178,7 +178,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "uplink",
-									MountPath: "/etc/qpid-dispatch-certs/skupper-internal/",
+									MountPath: "/etc/skupper-router-certs/skupper-internal/",
 								},
 							},
 						},

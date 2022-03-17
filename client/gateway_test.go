@@ -140,9 +140,9 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	tarReader := tar.NewReader(gzf)
 
 	files := []string{
-		"qpid-dispatch-certs/conn1-profile/tls.crt",
-		"qpid-dispatch-certs/conn1-profile/tls.key",
-		"qpid-dispatch-certs/conn1-profile/ca.crt",
+		"skupper-router-certs/conn1-profile/tls.crt",
+		"skupper-router-certs/conn1-profile/tls.key",
+		"skupper-router-certs/conn1-profile/ca.crt",
 		"config/skrouterd.json",
 		"service/myapp.service",
 		"launch.sh",

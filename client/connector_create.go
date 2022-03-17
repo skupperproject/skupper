@@ -136,7 +136,7 @@ func verify(secret *corev1.Secret) error {
 		secret.ObjectMeta.Labels = map[string]string{}
 	}
 	if _, ok := secret.ObjectMeta.Labels[types.SkupperTypeQualifier]; !ok {
-		//deduce type from structire of secret
+		// deduce type from structire of secret
 		if _, ok = secret.Data["tls.crt"]; ok {
 			secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
 		} else if secret.ObjectMeta.Annotations != nil && secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey] != "" {
@@ -188,7 +188,7 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 				return nil, err
 			}
 			if secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeClaimRequest {
-				//can site handle claims?
+				// can site handle claims?
 				err := cli.requireSiteVersion(ctx, options.SkupperNamespace, "0.7.0")
 				if err != nil {
 					return nil, fmt.Errorf("Claims not supported. %s", err)
@@ -266,7 +266,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		}
 		updated := false
 		added := false
-		//read annotations to get the host and port to connect to
+		// read annotations to get the host and port to connect to
 		profileName := options.Name + "-profile"
 		if _, ok := current.SslProfiles[profileName]; !ok {
 			current.AddSslProfile(qdr.SslProfile{
@@ -306,10 +306,10 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			if err != nil {
 				return err
 			}
-			//need to mount the secret so router can access certs and key
+			// need to mount the secret so router can access certs and key
 			deployment, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
 			if added {
-				kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, connector.Name, "/etc/qpid-dispatch-certs/"+profileName+"/")
+				kube.AppendSecretVolume(&deployment.Spec.Template.Spec.Volumes, &deployment.Spec.Template.Spec.Containers[0].VolumeMounts, connector.Name, "/etc/skupper-router-certs/"+profileName+"/")
 			} else {
 				touch(deployment)
 			}
