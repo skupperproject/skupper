@@ -218,6 +218,10 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 					TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
 				}
 			}
+			host := options.GetControllerIngressHost()
+			if host != "" {
+				host = types.ConsoleRouteName + "-" + van.Namespace + "." + host
+			}
 			routes = append(routes, &routev1.Route{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "v1",
@@ -228,6 +232,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				},
 				Spec: routev1.RouteSpec{
 					Path: "",
+					Host: host,
 					Port: &routev1.RoutePort{
 						TargetPort: intstr.FromString("metrics"),
 					},
@@ -285,6 +290,10 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Port:     types.ClaimRedemptionPort,
 		})
 		if options.IsIngressRoute() {
+			host := options.GetControllerIngressHost()
+			if host != "" {
+				host = types.ClaimRedemptionRouteName + "-" + van.Namespace + "." + host
+			}
 			routes = append(routes, &routev1.Route{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "v1",
@@ -295,6 +304,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				},
 				Spec: routev1.RouteSpec{
 					Path: "",
+					Host: host,
 					Port: &routev1.RoutePort{
 						TargetPort: intstr.FromString(types.ClaimRedemptionPortName),
 					},
@@ -923,6 +933,13 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 
 	routes := []*routev1.Route{}
 	if !isEdge && options.IsIngressRoute() {
+		hostInterRouter := ""
+		hostEdge := ""
+		host := options.GetRouterIngressHost()
+		if host != "" {
+			hostInterRouter = types.InterRouterRouteName + "-" + van.Namespace + "." + host
+			hostEdge = types.EdgeRouteName + "-" + van.Namespace + "." + host
+		}
 		routes = append(routes, &routev1.Route{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -933,6 +950,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
+				Host: hostInterRouter,
 				Port: &routev1.RoutePort{
 					TargetPort: intstr.FromString(types.InterRouterRole),
 				},
@@ -956,6 +974,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
+				Host: hostEdge,
 				Port: &routev1.RoutePort{
 					TargetPort: intstr.FromString(types.EdgeRole),
 				},
@@ -975,6 +994,10 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			termination = routev1.TLSTerminationReencrypt
 		}
+		host := options.GetRouterIngressHost()
+		if host != "" {
+			host = types.RouterConsoleRouteName + "-" + van.Namespace + "." + host
+		}
 		routes = append(routes, &routev1.Route{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -985,6 +1008,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
+				Host: host,
 				Port: &routev1.RoutePort{
 					TargetPort: intstr.FromString(types.ConsolePortName),
 				},
