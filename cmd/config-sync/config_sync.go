@@ -21,8 +21,8 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-// Syncs the live router config with the configmap (currently only
-// bridge configuration needs to be synced in this way)
+// Syncs the live router config with the configmap (bridge configuration,
+//secrets for services with TLS enabled, and secrets and connectors for links)
 type ConfigSync struct {
 	informer  cache.SharedIndexInformer
 	events    workqueue.RateLimitingInterface
