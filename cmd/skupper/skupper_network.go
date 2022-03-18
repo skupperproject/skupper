@@ -31,14 +31,14 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 
 			var sites []*types.SiteInfo
 			var errStatus error
-			err := utils.Retry(time.Second, 30, func() (bool, error) {
+			err := utils.RetryError(time.Second, 30, func() error {
 				sites, errStatus = cli.NetworkStatus()
 
 				if errStatus != nil {
-					return false, errStatus
+					return errStatus
 				}
 
-				return true, nil
+				return nil
 			})
 
 			if err != nil {
