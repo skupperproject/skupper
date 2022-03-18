@@ -69,7 +69,7 @@ func (cli *VanClient) isUpdating(namespace string) (bool, string, error) {
 
 func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error) {
 	// Validate if router config file needs to be renamed
-	err := cli.renameRouterConfigFile()
+	renamedSkRouter, err := cli.renameRouterConfigFile()
 	if err != nil {
 		return false, err
 	}
@@ -395,6 +395,24 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		router.Spec.Template.Spec.Containers = append(router.Spec.Template.Spec.Containers, *configSync)
 		updateRouter = true
 	}
+	if router.Spec.Template.Spec.Containers[1].Image != configSync.Image {
+		router.Spec.Template.Spec.Containers[1].Image = configSync.Image
+		updateRouter = true
+	}
+	if renamedSkRouter {
+		// Updating QDROUTERD_CONF env var
+		envQdrouterdConf := kube.GetEnvVarForDeployment(router, "QDROUTERD_CONF")
+		envQdrouterdConf = strings.ReplaceAll(envQdrouterdConf, "qpid-dispatch", "skupper-router")
+		envQdrouterdConf = strings.ReplaceAll(envQdrouterdConf, "qdrouterd", "skrouterd")
+		kube.SetEnvVarForDeployment(router, "QDROUTERD_CONF", envQdrouterdConf)
+
+		// Updating volume mount paths
+		for i, volume := range router.Spec.Template.Spec.Containers[0].VolumeMounts {
+			volume.MountPath = strings.ReplaceAll(volume.MountPath, "qpid-dispatch", "skupper-router")
+			router.Spec.Template.Spec.Containers[0].VolumeMounts[i] = volume
+		}
+		updateRouter = true
+	}
 	if updateRouter || updateSite || hup {
 		if !updateRouter {
 			// need to trigger a router redployment to pick up the revised metadata field
@@ -583,23 +601,26 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	return updateRouter || updateController || updateSite, nil
 }
 
-func (cli *VanClient) renameRouterConfigFile() error {
+func (cli *VanClient) renameRouterConfigFile() (bool, error) {
 	cm, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
 	if err != nil {
-		return err
+		return false, err
 	}
 	configFile, okOld := cm.Data["qdrouterd.json"]
 	_, okNew := cm.Data[types.TransportConfigFile]
 	// renaming
 	if okOld && !okNew {
-		cm.Data[types.TransportConfigFile] = configFile
+		updConfigFile := strings.ReplaceAll(configFile, "qpid-dispatch", "skupper-router")
+		cm.Data[types.TransportConfigFile] = updConfigFile
 		delete(cm.Data, "qdrouterd.json")
 		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(cm)
 		if err != nil {
-			return err
+			return false, err
 		}
+		return true, nil
+	} else {
+		return false, nil
 	}
-	return nil
 }
 
 func setAndWaitControllerReplicas(cli *VanClient, replicas int32, namespace string) (*appsv1.Deployment, error) {
@@ -780,7 +801,7 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 		}
 
 		// if it is a local gateway
-		_, err = os.Stat(newGatewayDir + "/config/skrouterd.json")
+		_, err = os.Stat(newGatewayDir + "/config/qdrouterd.json")
 		if err == nil {
 			// for update gatewayType would be "service"
 			err = updateLocalGatewayConfig(newGatewayDir, "service", *gatewayConfig)
