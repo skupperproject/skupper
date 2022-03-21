@@ -50,12 +50,47 @@ func WaitSkupperRunning(c *ClusterContext) error {
 	return nil
 }
 
+func podFailureDebug(pod corev1.Pod, ctx *ClusterContext, containerStatus *corev1.ContainerStatus) error {
+
+	if containerStatus != nil {
+		ctx.KubectlExec(fmt.Sprintf("logs %v -c %v", pod.Name, containerStatus.Name))
+	}
+	ctx.KubectlExec("get pods")
+	return fmt.Errorf("At least on Skupper component failed to start: %v", pod.Name)
+
+}
+
 func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
 	tick := constants.DefaultTick
 	timeout := constants.ImagePullingAndResourceCreationTimeout
 	// wait for skupper component to be running
 	selector := "skupper.io/component=" + component
 	if err := kube.WaitForPodsStatus(c.Namespace, c.VanClient.KubeClient, selector, corev1.PodRunning, timeout, tick); err != nil {
+		return err
+	}
+
+	// We recheck, and after a tick, because sometimes the pods come up and
+	// then immediatelly down.  If it restarted right after deployment,
+	// it's most probably not coming up anyway
+
+	time.Sleep(tick)
+	podList, err := kube.GetPods(selector, c.Namespace, c.VanClient.KubeClient)
+
+	if err != nil {
+		return err
+	}
+	for _, pod := range podList {
+		if pod.Status.Phase != corev1.PodRunning {
+			return podFailureDebug(pod, c, nil)
+		}
+		for _, container := range pod.Status.ContainerStatuses {
+			if container.RestartCount > 0 {
+				return podFailureDebug(pod, c, &container)
+			}
+		}
+		fmt.Println(pod.Status)
+	}
+	if err := kube.WaitForPodsStatus(c.Namespace, c.VanClient.KubeClient, selector, corev1.PodRunning, 30*time.Second, tick); err != nil {
 		return err
 	}
 	return nil

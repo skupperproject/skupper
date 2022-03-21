@@ -5,12 +5,50 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type OutputChecker struct {
+	FixedStdOut []string
+	FixedStdErr []string
+	//For the future?
+	//RegexStdOut  []string
+	//RegexStdErr  []string
+	//AbsentFixedStdOut []string
+	//AbsentFixedStdErr []string
+}
+
+// Checks for any expected text on standard out and standard error
+func (oc OutputChecker) CheckOutput(stdout, stderr string) (err error) {
+	var reason string
+	checkedOk := true
+
+	for _, item := range oc.FixedStdOut {
+		if !strings.Contains(stdout, item) {
+			reason += " Missing expected stdout:\n  " + item + "\n"
+			checkedOk = false
+		}
+	}
+
+	for _, item := range oc.FixedStdErr {
+		if !strings.Contains(stderr, item) {
+			reason += " Missing expected stderr:\n  " + item + "\n"
+			checkedOk = false
+		}
+	}
+
+	if !checkedOk {
+		reason = "OutputChecker failed:\n" + reason + "\nStdout:\n " + stdout + "\nStderr:\n " + stderr
+		err = fmt.Errorf(reason)
+	}
+
+	return
+}
 
 // BindTester runs `skupper service bind` and validate skupper resources
 // to assert that service has the corresponding target
@@ -20,6 +58,8 @@ type BindTester struct {
 	TargetName  string
 	Protocol    string
 	TargetPort  int
+
+	ExpectAuthError bool
 }
 
 func (s *BindTester) Command(cluster *base.ClusterContext) []string {
@@ -41,6 +81,20 @@ func (s *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	// Execute service bind command
 	stdout, stderr, err = cli.RunSkupperCli(s.Command(cluster))
 	if err != nil {
+		if s.ExpectAuthError {
+			outputCheckErr := OutputChecker{
+				FixedStdErr: []string{"Error: Service", "not found"},
+			}.CheckOutput(stdout, stderr)
+
+			if outputCheckErr == nil {
+				err = nil
+				// I'm expecting the command to fail, so I'm telling it is all ok,
+				// after validating the output
+			} else {
+				err = outputCheckErr
+			}
+			return
+		}
 		return
 	}
 

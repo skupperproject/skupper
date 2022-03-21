@@ -23,6 +23,7 @@ type StatusTester struct {
 	ConsoleEnabled         bool
 	ConsoleAuthInternal    bool
 	NotEnabled             bool
+	PolicyEnabled          bool
 }
 
 func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
@@ -99,12 +100,20 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 		mainContent = append(mainContent, fmt.Sprintf("with site name \"%s\"", s.SiteName))
 	}
 
+	// Policy
+	var policyNote string
+	if s.PolicyEnabled {
+		policyNote = " (with policies)"
+	} else {
+		policyNote = ""
+	}
+
 	// Router mode
 	routerMode := "interior"
 	if s.RouterMode != "" {
 		routerMode = s.RouterMode
 	}
-	mainContent = append(mainContent, fmt.Sprintf("in %s mode.", routerMode))
+	mainContent = append(mainContent, fmt.Sprintf("in %s mode%s.", routerMode, policyNote))
 
 	// Connected sites variant
 	connectedSites := "It is not connected to any other sites."
@@ -128,7 +137,7 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 
 	expectedMainContent := strings.Join(mainContent, " ")
 	if !strings.Contains(stdout, expectedMainContent) {
-		return fmt.Errorf("main content not found - expected: %s - stdout: %s", expectedMainContent, stdout)
+		return fmt.Errorf("main content not found - \nexpected: \n%s\nstdout: \n%s", expectedMainContent, stdout)
 	}
 
 	return nil

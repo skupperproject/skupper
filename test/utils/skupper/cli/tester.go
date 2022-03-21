@@ -3,7 +3,9 @@ package cli
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -16,6 +18,10 @@ import (
 const (
 	SkupperBinary  = "skupper"
 	commandTimeout = 2 * time.Minute
+)
+
+const (
+	ENV_SKUPPER_TEST_VERBOSE_COMMANDS = "SKUPPER_TEST_VERBOSE_COMMANDS"
 )
 
 // SkupperCommandTester defines an interface for all skupper (binary)
@@ -66,6 +72,11 @@ func RunScenarios(t *testing.T, scenarios []TestScenario) {
 	var stdout, stderr string
 	var err error
 
+	t.Log("Scenario set outline:")
+	for i, scenario := range scenarios {
+		t.Logf("%2d - %v", i, scenario.Name)
+	}
+
 	// Running the scenarios
 	for _, scenario := range scenarios {
 		passed := t.Run(scenario.Name, func(t *testing.T) {
@@ -73,6 +84,7 @@ func RunScenarios(t *testing.T, scenarios []TestScenario) {
 			assert.Assert(t, err)
 		})
 		if !passed {
+			t.Fail()
 			log.Printf("%s has failed, exiting", scenario.Name)
 			log.Printf("STDOUT:\n%s", stdout)
 			log.Printf("STDERR:\n%s", stderr)
@@ -92,6 +104,10 @@ func RunSkupperCli(args []string) (string, string, error) {
 	ctx, fn := context.WithTimeout(context.TODO(), commandTimeout)
 	defer fn()
 
+	// TODO:
+	// - Dry run: SKUPPER_TEST_CLI_DRY_RUN: only print the commands
+	// - call main(): (instead of exec) allow for checking coverage
+
 	// Preparing the command to run
 	cmd := exec.CommandContext(ctx, SkupperBinary, args...)
 	cmd.Stdout = stdout
@@ -100,6 +116,11 @@ func RunSkupperCli(args []string) (string, string, error) {
 	// Running the skupper command
 	log.Printf("Running: skupper %s\n", strings.Join(args, " "))
 	err := cmd.Run()
+	if _, showVerbose := os.LookupEnv(ENV_SKUPPER_TEST_VERBOSE_COMMANDS); showVerbose {
+		fmt.Printf("STDOUT:\n%v\n", stdout.String())
+		fmt.Printf("STDERR:\n%v\n", stderr.String())
+		fmt.Printf("Error: %v\n", err)
+	}
 	return stdout.String(), stderr.String(), err
 }
 

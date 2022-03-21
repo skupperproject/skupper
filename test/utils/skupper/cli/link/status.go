@@ -96,7 +96,7 @@ func (l *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 
 	// Ensure stdout matches expected regexp
 	if !outRegex.MatchString(stdout) {
-		err = fmt.Errorf("expected output does not match - found: %s - regexp: %s", stdout, outRegex.String())
+		err = fmt.Errorf("expected output does not match - \nfound: \n%s\nregexp: \n%s", stdout, outRegex.String())
 		return
 	}
 

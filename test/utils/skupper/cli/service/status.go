@@ -19,6 +19,7 @@ import (
 // times out).
 type StatusTester struct {
 	ServiceInterfaces []types.ServiceInterface
+	Absent            bool
 }
 
 func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
@@ -35,10 +36,10 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	attempt := 0
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
 		attempt++
-		stdout, stderr, err = s.run(cluster)
 		log.Printf("Validating 'skupper service status' - attempt %d", attempt)
+		stdout, stderr, err = s.run(cluster)
 		if err != nil {
-			log.Printf("error executing service status command: %v", err)
+			log.Printf("error executing service status command: %v\nstdout:\n %s\nstderr:\n %s", err, stdout, stderr)
 			return false, nil
 		}
 		return true, nil
@@ -57,21 +58,23 @@ func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 	// Iterating through provided service interfaces to validate stdout matches
 	for _, svc := range s.ServiceInterfaces {
 		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\)`, svc.Address, svc.Protocol, svc.Ports[0])
-		if len(svc.Targets) > 0 {
+		if len(svc.Targets) > 0 && !s.Absent {
 			serviceEntry += `\n.*Targets:`
 		}
 		r := regexp.MustCompile(serviceEntry)
-		if !r.MatchString(stdout) {
-			err = fmt.Errorf("expected: %s - found: %s", serviceEntry, stdout)
+		if r.MatchString(stdout) == s.Absent {
+			err = fmt.Errorf("expected:\n%s\nAbsent: %t\nfound:\n%s\n", serviceEntry, s.Absent, stdout)
 			return
 		}
 
-		// Validating if provided targets are showing up
-		for _, target := range svc.Targets {
-			targetRegex := regexp.MustCompile(fmt.Sprintf("%s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
-			if !targetRegex.MatchString(stdout) {
-				err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
-				return
+		if !s.Absent {
+			// Validating if provided targets are showing up
+			for _, target := range svc.Targets {
+				targetRegex := regexp.MustCompile(fmt.Sprintf("%s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
+				if !targetRegex.MatchString(stdout) {
+					err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
+					return
+				}
 			}
 		}
 	}
