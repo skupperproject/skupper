@@ -703,7 +703,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		}
 	}
 
-	kube.AppendSharedVolume(&volumes, &mounts[qdrouterd], &mounts[configSync], "skupper-router-certs", "/etc/qpid-dispatch-certs")
+	kube.AppendSharedVolume(&volumes, &mounts[qdrouterd], &mounts[configSync], "skupper-router-certs", "/etc/skupper-router-certs")
 
 	van.Transport.Volumes = volumes
 	van.Transport.VolumeMounts = mounts

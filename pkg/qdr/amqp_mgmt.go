@@ -757,7 +757,7 @@ func asHttpEndpoints(records []Record, filter HttpEndpointFilter) []HttpEndpoint
 
 func (a *Agent) GetConnectorByName(name string) (*Connector, error) {
 
-	results, err := a.Query("org.apache.qpid.dispatch.connector", []string{})
+	results, err := a.Query("io.skupper.router.connector", []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -1158,7 +1158,7 @@ func asConnector(record Record) Connector {
 
 func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 	for _, deleted := range changes.Deleted {
-		if err := a.Delete("org.apache.qpid.dispatch.connector", deleted); err != nil {
+		if err := a.Delete("io.skupper.router.connector", deleted); err != nil {
 			return fmt.Errorf("Error deleting connectors: %s", err)
 		}
 	}
@@ -1168,7 +1168,7 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 		if err := convert(added, &record); err != nil {
 			return fmt.Errorf("Failed to convert record: %s", err)
 		}
-		if err := a.Create("org.apache.qpid.dispatch.connector", added.Name, record); err != nil {
+		if err := a.Create("io.skupper.router.connector", added.Name, record); err != nil {
 			return fmt.Errorf("Error adding connectors: %s", err)
 		}
 
@@ -1258,7 +1258,7 @@ func (a *Agent) CreateSslProfile(profile SslProfile) error {
 	if err := convert(profile, &record); err != nil {
 		return fmt.Errorf("Failed to convert record: %s", err)
 	}
-	if err := a.Create("org.apache.qpid.dispatch.sslProfile", profile.Name, record); err != nil {
+	if err := a.Create("io.skupper.router.sslProfile", profile.Name, record); err != nil {
 		return fmt.Errorf("Error adding SSL Profile: %s", err)
 	}
 

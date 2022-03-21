@@ -30,7 +30,7 @@ type ConfigSync struct {
 	vanClient *client.VanClient
 }
 
-const SHARED_TLS_DIRECTORY = "/etc/qpid-dispatch-certs"
+const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
 
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
@@ -273,7 +273,7 @@ func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sh
 				return err
 			}
 
-			if err = agent.Delete("org.apache.qpid.dispatch.sslProfile", deleted.SslProfile); err != nil {
+			if err = agent.Delete("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
 				return fmt.Errorf("Error deleting ssl profile: #{err}")
 			}
 
@@ -381,7 +381,7 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 			log.Printf("Deleting cert files related to connector sslProfile %s", deletedConnector.SslProfile)
 
-			if err = agent.Delete("org.apache.qpid.dispatch.sslProfile", deletedConnector.SslProfile); err != nil {
+			if err = agent.Delete("io.skupper.router.sslProfile", deletedConnector.SslProfile); err != nil {
 				return fmt.Errorf("Error deleting ssl profile: #{err}")
 			}
 
