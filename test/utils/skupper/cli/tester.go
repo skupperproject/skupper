@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -18,10 +17,6 @@ import (
 const (
 	SkupperBinary  = "skupper"
 	commandTimeout = 2 * time.Minute
-)
-
-const (
-	ENV_SKUPPER_TEST_VERBOSE_COMMANDS = "SKUPPER_TEST_VERBOSE_COMMANDS"
 )
 
 // SkupperCommandTester defines an interface for all skupper (binary)
@@ -116,7 +111,7 @@ func RunSkupperCli(args []string) (string, string, error) {
 	// Running the skupper command
 	log.Printf("Running: skupper %s\n", strings.Join(args, " "))
 	err := cmd.Run()
-	if _, showVerbose := os.LookupEnv(ENV_SKUPPER_TEST_VERBOSE_COMMANDS); showVerbose {
+	if base.IsVerboseCommandOutput() {
 		fmt.Printf("STDOUT:\n%v\n", stdout.String())
 		fmt.Printf("STDERR:\n%v\n", stderr.String())
 		fmt.Printf("Error: %v\n", err)

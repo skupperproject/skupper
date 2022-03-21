@@ -14,6 +14,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 )
@@ -65,6 +66,25 @@ func (cc *ClusterContext) DeleteNamespace() error {
 
 	cc.nsCreated = false
 	return nil
+}
+
+func (cc *ClusterContext) LabelNamespace(label string, value string) (err error) {
+
+	payload := fmt.Sprintf(`{"metadata": {"labels": {"%v": "%v"}}}`, label, value)
+
+	_, err = cc.VanClient.KubeClient.CoreV1().Namespaces().Patch(cc.Namespace, types.MergePatchType, []byte(payload))
+
+	return
+}
+
+func (cc *ClusterContext) GetNamespace() (ns *apiv1.Namespace, err error) {
+	if !cc.nsCreated {
+		log.Printf("namespace [%s] was not created by ClusterContext, getting reference anyway", cc.Namespace)
+	}
+	ns, err = cc.VanClient.KubeClient.CoreV1().Namespaces().Get(cc.Namespace, metav1.GetOptions{})
+
+	return
+
 }
 
 func (cc *ClusterContext) waitForSkupperServiceToBeCreated(name string, retryFn func() (*apiv1.Service, error), backoff wait.Backoff) (*apiv1.Service, error) {

@@ -89,18 +89,31 @@ func testNamespace(t *testing.T) {
 		// creating namespaces
 		assert.Assert(t, pub1.CreateNamespace())
 		assert.Assert(t, pub2.CreateNamespace())
+
+		// labelling the namespaces
+		pub1.LabelNamespace("test.skupper.io/test-namespace", "policy")
+		pub2.LabelNamespace("test.skupper.io/test-namespace", "policy")
 	})
 
 	// teardown once test completes
 	tearDownFn := func() {
 		t.Log("entering teardown")
-		removeCrd(t, pub1)
-		t.Log("Removing pub1 namespace")
-		_ = pub1.DeleteNamespace()
-		t.Log("Removing pub2 namespace")
-		_ = pub2.DeleteNamespace()
-		t.Log("Removing cluster role skupper-service-controller from the CRD definition")
-		pub1.VanClient.KubeClient.RbacV1().ClusterRoles().Delete("skupper-service-controller", nil)
+		if base.ShouldSkipPolicyTeardown() {
+			t.Log("Skipping policy tear down, per env variables")
+		} else {
+			t.Log("Removing Policy CRD")
+			removeCrd(t, pub1)
+			t.Log("Removing cluster role skupper-service-controller from the CRD definition")
+			pub1.VanClient.KubeClient.RbacV1().ClusterRoles().Delete("skupper-service-controller", nil)
+		}
+		if base.ShouldSkipNamespaceTeardown() {
+			t.Log("Skipping namespace tear down, per env variables")
+		} else {
+			t.Log("Removing pub1 namespace")
+			_ = pub1.DeleteNamespace()
+			t.Log("Removing pub2 namespace")
+			_ = pub2.DeleteNamespace()
+		}
 		t.Log("tearDown completed")
 	}
 	defer tearDownFn()
@@ -196,6 +209,16 @@ func testNamespace(t *testing.T) {
 			worksOnTarget:  true,
 			worksElsewhere: true,
 		},
+		{
+			namespaces:     []string{`test.skupper.io/test-namespace=policy`},
+			worksOnTarget:  true,
+			worksElsewhere: true,
+		},
+		{
+			namespaces:     []string{"non-existing-label=true"},
+			worksOnTarget:  false,
+			worksElsewhere: false,
+		},
 	}
 
 	cli.RunScenarios(t, initSteps)
@@ -231,7 +254,6 @@ func testNamespace(t *testing.T) {
 		AllowedOutgoingLinksHostnames: []string{},
 		AllowedExposedResources:       []string{},
 		AllowedServices:               []string{},
-		AllowGateway:                  false,
 	}
 
 	applyPolicy(t, "generated-policy", policySpec, pub2)
