@@ -69,30 +69,35 @@ func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
 		return err
 	}
 
-	// We recheck, and after a tick, because sometimes the pods come up and
-	// then immediatelly down.  If it restarted right after deployment,
-	// it's most probably not coming up anyway
+	/*
+		 * Suspend this for now; right after coming up, even for a good run, the router
+		 * will be restarted
+		 *
+			// We recheck, and after a tick, because sometimes the pods come up and
+			// then immediatelly down.  If it restarted right after deployment,
+			// it's most probably not coming up anyway
 
-	time.Sleep(tick)
-	podList, err := kube.GetPods(selector, c.Namespace, c.VanClient.KubeClient)
+			time.Sleep(tick)
+			podList, err := kube.GetPods(selector, c.Namespace, c.VanClient.KubeClient)
 
-	if err != nil {
-		return err
-	}
-	for _, pod := range podList {
-		if pod.Status.Phase != corev1.PodRunning {
-			return podFailureDebug(pod, c, nil)
-		}
-		for _, container := range pod.Status.ContainerStatuses {
-			if container.RestartCount > 0 {
-				return podFailureDebug(pod, c, &container)
+			if err != nil {
+				return err
 			}
-		}
-		fmt.Println(pod.Status)
-	}
-	if err := kube.WaitForPodsStatus(c.Namespace, c.VanClient.KubeClient, selector, corev1.PodRunning, 30*time.Second, tick); err != nil {
-		return err
-	}
+			for _, pod := range podList {
+				if pod.Status.Phase != corev1.PodRunning {
+					return podFailureDebug(pod, c, nil)
+				}
+				for _, container := range pod.Status.ContainerStatuses {
+					if container.RestartCount > 0 {
+						return podFailureDebug(pod, c, &container)
+					}
+				}
+				fmt.Println(pod.Status)
+			}
+			if err := kube.WaitForPodsStatus(c.Namespace, c.VanClient.KubeClient, selector, corev1.PodRunning, 30*time.Second, tick); err != nil {
+				return err
+			}
+	*/
 	return nil
 }
 

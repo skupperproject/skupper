@@ -219,6 +219,16 @@ func testNamespace(t *testing.T) {
 			worksOnTarget:  false,
 			worksElsewhere: false,
 		},
+		{ // AND-behavior for labels in a single entry
+			namespaces:     []string{`test.skupper.io/test-namespace=policy,non-existing-label=true`},
+			worksOnTarget:  false,
+			worksElsewhere: false,
+		},
+		{
+			namespaces:     []string{`test.skupper.io/test-namespace=something_else`},
+			worksOnTarget:  false,
+			worksElsewhere: false,
+		},
 	}
 
 	cli.RunScenarios(t, initSteps)

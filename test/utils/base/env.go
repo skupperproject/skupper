@@ -8,7 +8,7 @@ import "os"
 // Note that individual tests may or may not implement each of the options.
 //
 // The constant names start with ENV_ and continue with a description of their
-// use.  The actual variables substitute ENV_ for SKUPPER_TEST_.
+// use.  The actual variable names substitute ENV_ for SKUPPER_TEST_.
 //
 // For most variables, simply being set already activates their behavior, with
 // any value.  If a variable works differently, that should be described on its
