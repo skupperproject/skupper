@@ -12,6 +12,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -86,8 +87,9 @@ func (p *ClusterPolicyValidator) LoadNamespacePolicies() ([]v1alpha12.SkupperClu
 	if err != nil {
 		return policies, err
 	}
+	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(p.cli.Namespace, v1.GetOptions{})
 	for _, pol := range policyList.Items {
-		if p.appliesToNS(&pol) {
+		if p.appliesToNS(&pol, namespace) {
 			policies = append(policies, pol)
 		}
 	}
@@ -100,26 +102,26 @@ func (p *ClusterPolicyValidator) AppliesToNS(policyName string) bool {
 	if err != nil {
 		return true
 	}
-	return p.appliesToNS(pol)
+	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(p.cli.Namespace, v1.GetOptions{})
+	return p.appliesToNS(pol, namespace)
 }
 
-func (p *ClusterPolicyValidator) appliesToNS(pol *v1alpha12.SkupperClusterPolicy) bool {
-	var namespaces []string
+func (p *ClusterPolicyValidator) appliesToNS(pol *v1alpha12.SkupperClusterPolicy, namespace *corev1.Namespace) bool {
+	if utils.StringSliceContains(pol.Spec.Namespaces, "*") {
+		return true
+	}
+	hasNsLabels := namespace != nil && len(namespace.Name) > 0 && len(namespace.Labels) > 0
 	for _, ns := range pol.Spec.Namespaces {
-		if p.labelRegex.MatchString(ns) {
-			namespace, err := p.cli.KubeClient.CoreV1().Namespaces().Get(p.cli.Namespace, v1.GetOptions{})
-			if err == nil {
-				selector, _ := labels.Parse(ns)
-				if selector.Matches(labels.Set(namespace.Labels)) {
-					namespaces = append(namespaces, namespace.Name)
-				}
+		if match, err := regexp.Match(ns, []byte(p.cli.Namespace)); err == nil && match {
+			return true
+		}
+		if selector, err := labels.Parse(ns); err == nil && hasNsLabels {
+			if selector.Matches(labels.Set(namespace.Labels)) {
+				return true
 			}
-		} else {
-			namespaces = append(namespaces, ns)
 		}
 	}
-	return utils.StringSliceContains(namespaces, "*") ||
-		utils.RegexpStringSliceContains(namespaces, p.cli.Namespace)
+	return false
 }
 
 func (p *ClusterPolicyValidator) Enabled() bool {
