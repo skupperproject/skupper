@@ -1457,7 +1457,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 		}
 	}
 
-	ifc := "0.0.0.0"
+	ifc := ""
 	if endpoint.Loopback {
 		ifc = "127.0.0.1"
 	}

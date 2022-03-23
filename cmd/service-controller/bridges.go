@@ -448,7 +448,6 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 			}
 			bridges.AddHttpListener(qdr.HttpEndpoint{
 				Name:         endpointName,
-				Host:         "0.0.0.0",
 				Port:         strconv.Itoa(iPort),
 				Address:      endpointAddr,
 				SiteId:       siteId,
@@ -459,7 +458,6 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 		case ProtocolHTTP2:
 			httpListener := qdr.HttpEndpoint{
 				Name:            endpointName,
-				Host:            "0.0.0.0",
 				Port:            strconv.Itoa(iPort),
 				Address:         endpointAddr,
 				SiteId:          siteId,
@@ -476,7 +474,6 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 		case ProtocolTCP:
 			bridges.AddTcpListener(qdr.TcpEndpoint{
 				Name:    endpointName,
-				Host:    "0.0.0.0",
 				Port:    strconv.Itoa(iPort),
 				Address: endpointAddr,
 				SiteId:  siteId,

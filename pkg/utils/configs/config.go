@@ -65,8 +65,6 @@ listener {
     {{- end}}
     {{- if .Host}}
     host: {{.Host}}
-    {{- else}}
-    host: 0.0.0.0
     {{- end}}
     {{- if .Port}}
     port: {{.Port}}
@@ -93,7 +91,6 @@ listener {
 {{- end}}
 
 listener {
-    host: 0.0.0.0
     port: 9090
     role: normal
     http: true
@@ -110,8 +107,6 @@ listener {
     role: inter-router
     {{- if .Host}}
     host: {{.Host}}
-    {{- else}}
-    host: 0.0.0.0
     {{- end}}
     {{- if .Port}}
     port: {{.Port}}
@@ -138,8 +133,6 @@ listener {
     role: edge
     {{- if .Host}}
     host: {{.Host}}
-    {{- else}}
-    host: 0.0.0.0
     {{- end}}
     {{- if .Port}}
     port: {{.Port}}
