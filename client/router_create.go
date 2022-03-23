@@ -61,7 +61,6 @@ func ConfigSyncContainer() *corev1.Container {
 func InteriorListener(options types.SiteConfigSpec) qdr.Listener {
 	return qdr.Listener{
 		Name:             "interior-listener",
-		Host:             "0.0.0.0",
 		Role:             qdr.RoleInterRouter,
 		Port:             types.InterRouterListenerPort,
 		SslProfile:       types.InterRouterProfile,
@@ -75,7 +74,6 @@ func InteriorListener(options types.SiteConfigSpec) qdr.Listener {
 func EdgeListener(options types.SiteConfigSpec) qdr.Listener {
 	return qdr.Listener{
 		Name:             "edge-listener",
-		Host:             "0.0.0.0",
 		Role:             qdr.RoleEdge,
 		Port:             types.EdgeListenerPort,
 		SslProfile:       types.InterRouterProfile,
@@ -545,7 +543,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Distribution: "multicast",
 	})
 	routerConfig.AddListener(qdr.Listener{
-		Host:        "0.0.0.0",
 		Port:        9090,
 		Role:        "normal",
 		Http:        true,
@@ -564,7 +561,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	})
 	routerConfig.AddListener(qdr.Listener{
 		Name:             "amqps",
-		Host:             "0.0.0.0",
 		Port:             types.AmqpsDefaultPort,
 		SslProfile:       "skupper-amqps",
 		SaslMechanisms:   "EXTERNAL",
@@ -587,7 +583,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		} else if van.AuthMode == types.ConsoleAuthModeInternal {
 			routerConfig.AddListener(qdr.Listener{
 				Name:             types.ConsolePortName,
-				Host:             "0.0.0.0",
 				Port:             types.ConsoleDefaultServicePort,
 				Http:             true,
 				AuthenticatePeer: true,
@@ -595,7 +590,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		} else if van.AuthMode == types.ConsoleAuthModeUnsecured {
 			routerConfig.AddListener(qdr.Listener{
 				Name: types.ConsolePortName,
-				Host: "0.0.0.0",
 				Port: types.ConsoleDefaultServicePort,
 				Http: true,
 			})

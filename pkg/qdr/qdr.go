@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -745,13 +746,38 @@ type BridgeConfigDifference struct {
 	HttpConnectors HttpEndpointDifference
 }
 
+func isAddrAny(host string) bool {
+	ip := net.ParseIP(host)
+	return ip.Equal(net.IPv4zero) || ip.Equal(net.IPv6zero)
+}
+
+func equivalentHost(a string, b string) bool {
+	if a == b {
+		return true
+	} else if a == "" {
+		return isAddrAny(b)
+	} else if b == "" {
+		return isAddrAny(a)
+	} else {
+		return false
+	}
+}
+
+func (a TcpEndpoint) Equivalent(b TcpEndpoint) bool {
+	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
+		a.SiteId != b.SiteId {
+		return false
+	}
+	return true
+}
+
 func (a TcpEndpointMap) Difference(b TcpEndpointMap) TcpEndpointDifference {
 	result := TcpEndpointDifference{}
 	for key, v1 := range b {
 		v2, ok := a[key]
 		if !ok {
 			result.Added = append(result.Added, v1)
-		} else if !reflect.DeepEqual(v1, v2) {
+		} else if !v1.Equivalent(v2) {
 			result.Deleted = append(result.Deleted, v1.Name)
 			result.Added = append(result.Added, v1)
 		}
@@ -766,7 +792,7 @@ func (a TcpEndpointMap) Difference(b TcpEndpointMap) TcpEndpointDifference {
 }
 
 func (a HttpEndpoint) Equivalent(b HttpEndpoint) bool {
-	if a.Host != b.Host || a.Port != b.Port || a.Address != b.Address ||
+	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
 		a.SiteId != b.SiteId || a.Aggregation != b.Aggregation ||
 		a.EventChannel != b.EventChannel || a.HostOverride != b.HostOverride {
 		return false
@@ -889,13 +915,11 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 			}
 		} else {
 			name := fmt.Sprintf("ingress:%d", ePort)
-			host := "0.0.0.0"
 			// in all other sites, just have ingress bindings
 			switch definition.Protocol {
 			case "tcp":
 				config.AddTcpListener(TcpEndpoint{
 					Name:    name,
-					Host:    host,
 					Port:    strconv.Itoa(iPort),
 					Address: address,
 					SiteId:  siteId,
@@ -903,7 +927,6 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 			case "http":
 				config.AddHttpListener(HttpEndpoint{
 					Name:    name,
-					Host:    host,
 					Port:    strconv.Itoa(iPort),
 					Address: address,
 					SiteId:  siteId,
@@ -911,7 +934,6 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 			case "http2":
 				config.AddHttpListener(HttpEndpoint{
 					Name:            name,
-					Host:            host,
 					Port:            strconv.Itoa(iPort),
 					Address:         address,
 					ProtocolVersion: HttpVersion2,
