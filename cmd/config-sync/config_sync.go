@@ -208,44 +208,40 @@ func (c *ConfigSync) syncRouterConfig(desired *qdr.RouterConfig) error {
 	if err != nil {
 		return fmt.Errorf("Could not get management agent : %s", err)
 	}
-	var synced bool
-	for i := 0; i < 3 && err == nil && !synced; i++ {
-		synced, err = syncRouterConfig(agent, desired, c)
-	}
+
+	err = syncRouterConfig(agent, desired, c)
+
 	c.agentPool.Put(agent)
 	if err != nil {
 		return fmt.Errorf("Error while syncing router config : %s", err)
 	}
-	if !synced {
-		return fmt.Errorf("Failed to sync router config")
-	}
 	return nil
 }
 
-func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) (bool, error) {
+func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
 	actual, err := agent.GetLocalConnectorStatus()
 	if err != nil {
-		return false, fmt.Errorf("Error retrieving local connector status: %s", err)
+		return fmt.Errorf("Error retrieving local connector status: %s", err)
 	}
 
 	differences := qdr.ConnectorsDifference(actual, desired)
 	if differences.Empty() {
 		err = c.checkConnectorSecrets(actual, SHARED_TLS_DIRECTORY)
 		if err != nil {
-			return false, err
+			return err
 		}
-		return true, nil
+		return nil
 	} else {
 
 		err := c.syncConnectorSecrets(differences, SHARED_TLS_DIRECTORY)
 		if err != nil {
-			return false, fmt.Errorf("error syncing secrets: %s", err)
+			return fmt.Errorf("error syncing secrets: %s", err)
 		}
 
 		if err = agent.UpdateConnectorConfig(differences); err != nil {
-			return false, fmt.Errorf("Error syncing connectors: %s", err)
+			return fmt.Errorf("Error syncing connectors: %s", err)
 		}
-		return false, nil
+		return nil
 	}
 }
 
@@ -253,14 +249,22 @@ func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sh
 	for _, added := range changes.HttpListeners.Added {
 		if len(added.SslProfile) > 0 {
 			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
-			return configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
+			err := configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	for _, added := range changes.HttpConnectors.Added {
 		if len(added.SslProfile) > 0 {
 			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
-			return configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
+			err := configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -366,7 +370,10 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 			log.Printf("Copying cert files related to Connector sslProfile %s", added.SslProfile)
 			secretName := strings.TrimSuffix(added.SslProfile, "-profile")
 
-			return c.ensureSslProfile(added.SslProfile, secretName, sharedTlsFilesDir)
+			err = c.ensureSslProfile(added.SslProfile, secretName, sharedTlsFilesDir)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

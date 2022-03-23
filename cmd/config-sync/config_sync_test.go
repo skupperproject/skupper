@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-const TEST_TLS_DIRECTORY = "~/.test/skupper-router/tls"
+const TEST_TLS_DIRECTORY = "./tmp/skupper-router/tls"
 
 func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 	var err error
@@ -55,7 +55,7 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 				},
 			},
 			sslProfileToSync: "skupper-service-client",
-			expected:         "~/.test/skupper-router/tls/skupper-service-client",
+			expected:         "./tmp/skupper-router/tls/skupper-service-client",
 		},
 		{
 			doc:    "adding-http-listener-with-tls",
@@ -71,7 +71,7 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 				},
 			},
 			sslProfileToSync: "skupper-tls-adservice",
-			expected:         "~/.test/skupper-router/tls/skupper-tls-adservice",
+			expected:         "./tmp/skupper-router/tls/skupper-tls-adservice",
 		},
 		{
 			doc: "removing-http-connector-with-tls",
@@ -104,7 +104,7 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 				},
 			},
 			sslProfileToSync: "skupper-tls-adservice",
-			expected:         "~/.test/skupper-router/tls/skupper-tls-adservice",
+			expected:         "./tmp/skupper-router/tls/skupper-tls-adservice",
 		},
 	}
 
@@ -248,7 +248,7 @@ func TestCheckingSecretsWithTlsEnabled(t *testing.T) {
 				},
 			},
 			sslProfileToCheck: "skupper-service-client",
-			expected:          "~/.test/skupper-router/tls/skupper-service-client",
+			expected:          "./tmp/skupper-router/tls/skupper-service-client",
 		},
 		{
 			doc: "http-listener-with-tls",
@@ -261,7 +261,7 @@ func TestCheckingSecretsWithTlsEnabled(t *testing.T) {
 				},
 			},
 			sslProfileToCheck: "skupper-tls-adservice",
-			expected:          "~/.test/skupper-router/tls/skupper-tls-adservice",
+			expected:          "./tmp/skupper-router/tls/skupper-tls-adservice",
 		},
 	}
 
