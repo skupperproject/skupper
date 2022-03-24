@@ -48,6 +48,18 @@ func (cc *ClusterContext) KubectlExec(command string) ([]byte, error) {
 }
 
 func (cc *ClusterContext) CreateNamespace() error {
+	if ShouldSkipNamespaceSetup() {
+		log.Info("Skipping namespace creation for %v", cc.Namespace)
+		ns, err := cc.VanClient.KubeClient.CoreV1().Namespaces().Get(cc.Namespace, metav1.GetOptions{})
+		if err == nil && ns != nil {
+			// As we're skipping the creation of namespaces, we're adopting whatever
+			// we find; we will destroy these when DeleteNamespace is called, unless
+			// ShouldSkipNamespaceTeardown returns false.
+			log.Info("Reusing existing namespace %v", cc.Namespace)
+			cc.nsCreated = true
+		}
+		return nil
+	}
 	_, err := kube.NewNamespace(cc.Namespace, cc.VanClient.KubeClient)
 	if err == nil {
 		cc.nsCreated = true

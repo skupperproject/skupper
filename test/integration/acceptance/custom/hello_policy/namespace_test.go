@@ -135,6 +135,10 @@ func testNamespace(t *testing.T) {
 	// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 	t.Run("apply-crd", func(t *testing.T) {
+		if base.ShouldSkipPolicySetup() {
+			t.Log("Skipping policy setup, per environment")
+			return
+		}
 		// We first remove the CRD to make sure we have a clean slate for
 		// policies before we start, then we re-add it
 		// TODO: make a removeAllPolicies(), instead; it should be faster
@@ -258,14 +262,23 @@ func testNamespace(t *testing.T) {
 
 	}
 
-	var policySpec = skupperv1.SkupperClusterPolicySpec{
-		Namespaces:                    []string{"*"},
-		AllowIncomingLinks:            false,
-		AllowedOutgoingLinksHostnames: []string{},
-		AllowedExposedResources:       []string{},
-		AllowedServices:               []string{},
-	}
+	t.Run("skupper-delete", func(t *testing.T) {
 
-	applyPolicy(t, "generated-policy", policySpec, pub2)
+		cli.RunScenarios(
+			t,
+			[]cli.TestScenario{
+				{
+					Name: "skupper-delete",
+					Tasks: []cli.SkupperTask{
+						{
+							Ctx: pub1, Commands: []cli.SkupperCommandTester{
+								&cli.DeleteTester{},
+							},
+						},
+					},
+				},
+			},
+		)
+	})
 
 }
