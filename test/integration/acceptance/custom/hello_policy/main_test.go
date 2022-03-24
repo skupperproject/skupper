@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/skupperproject/skupper/api/types"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	clientv1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -27,32 +28,103 @@ func applyCrd(t *testing.T, cluster *base.ClusterContext) (err error) {
 	return
 }
 
+func isCrdInstalled(cluster *base.ClusterContext) (installed bool, err error) {
+	var out []byte
+	installed = true
+
+	// TODO: replace this by some kube API
+	out, err = cluster.KubectlExec("get crd skupperclusterpolicies.skupper.io")
+	if err != nil {
+		if strings.Contains(
+			string(out),
+			`Error from server (NotFound): customresourcedefinitions.apiextensions.k8s.io "`) {
+			installed = false
+			err = nil
+		}
+	}
+	return
+}
+
 // Remove the CRD from the cluster
 func removeCrd(t *testing.T, cluster *base.ClusterContext) (changed bool, err error) {
 	changed = true
-	var out []byte
 
 	t.Logf("Removing CRD from the cluster %v", cluster.KubeConfig)
 
-	// TODO: replace this by some kube API
-	if out, err = cluster.KubectlExec("get crd skupperclusterpolicies.skupper.io"); err != nil {
-		if strings.Contains(
-			string(out),
-			`Error from server (NotFound): customresourcedefinitions.apiextensions.k8s.io "skupperclusterpolicies.skupper.io" not found`) {
-			changed = false
-			err = nil
-			t.Log("CRD was not present, so not changing anything")
-			return
-		} else {
-			t.Logf("Output:\n%v", out)
-			t.Fatalf("Failed checking CRD: %v", err)
-			return
-		}
+	installed, err := isCrdInstalled(cluster)
+	if err != nil {
+		t.Fatalf("Failed checking for CRD")
+		return
+	}
+
+	if !installed {
+		changed = false
+		t.Log("CRD was not present, so not changing anything")
+		return
 	}
 
 	if _, err := cluster.KubectlExec("delete crd skupperclusterpolicies.skupper.io"); err != nil {
 		t.Fatalf("Removal of CRD failed: %v", err)
 	}
+	return
+}
+
+// Remove the cluster role, but do not fail if it is not there
+func removeClusterRole(t *testing.T, cluster *base.ClusterContext) (changed bool, err error) {
+	changed = true
+	t.Logf("Removing cluster role %v from the CRD definition", types.ControllerServiceAccountName)
+
+	// Is it there?
+	role, err := cluster.VanClient.KubeClient.RbacV1().ClusterRoles().Get(types.ControllerServiceAccountName, metav1.GetOptions{})
+	if role == nil && err != nil {
+		t.Log("The role did not exist on the cluster; skipping removal")
+		changed = false
+		err = nil
+		return
+	}
+	cluster.VanClient.KubeClient.RbacV1().ClusterRoles().Delete(types.ControllerServiceAccountName, nil)
+	return
+}
+
+// Removes all policies from the cluster.
+//
+// In the future, change the signature so the last item is ..policies, so specific
+// policies can be given
+func removePolicies(t *testing.T, cluster *base.ClusterContext) (err error) {
+
+	t.Log("Removing policies")
+
+	installed, err := isCrdInstalled(cluster)
+	if err != nil {
+		t.Fatalf("Failed to check for CRD on the cluster")
+		return
+	}
+
+	if !installed {
+		t.Log("The CRD is not installed, so skipping the policy removal step")
+		return
+	}
+
+	skupperCli, err := clientv1.NewForConfig(cluster.VanClient.RestConfig)
+	if err != nil {
+		return
+	}
+
+	list, err := skupperCli.SkupperClusterPolicies().List(metav1.ListOptions{})
+	if err != nil {
+		t.Log("Failed listing policies")
+		return
+	}
+
+	for _, item := range list.Items {
+		t.Logf("- %v", item.Name)
+		item_err := skupperCli.SkupperClusterPolicies().Delete(item.Name, &metav1.DeleteOptions{})
+		if item_err != nil {
+			t.Logf("  removal failed: %v", item_err)
+			err = item_err // We'll return the last error from the list
+		}
+	}
+
 	return
 }
 
@@ -155,9 +227,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// This should be the only test on the package; it sets the environment up and
+// calls the actual tests.  Some items are listed as tests (t.Run), but are not
+// really tests; instead they're setup and teardown functions.  They're set
+// this way so that their times are reported on the end, and the full length of
+// the test can be better understood.
+//
+// Because the policy changes are cluster-wise, we need to run all tests in
+// serial.
 func TestPolicies(t *testing.T) {
-	// Because the policy changes are cluster-wise, we need to run
-	// all tests in serial
 
 	pub1, pub2, _, _ := setup(t)
 	//	pub1, pub2, pub3, prv1 := setup(t)
@@ -171,8 +249,7 @@ func TestPolicies(t *testing.T) {
 			} else {
 				t.Log("Removing Policy CRD")
 				removeCrd(t, pub1)
-				t.Log("Removing cluster role skupper-service-controller from the CRD definition")
-				pub1.VanClient.KubeClient.RbacV1().ClusterRoles().Delete("skupper-service-controller", nil)
+				removeClusterRole(t, pub1)
 			}
 			if base.ShouldSkipNamespaceTeardown() {
 				t.Log("Skipping namespace tear down, per env variables")
@@ -194,17 +271,31 @@ func TestPolicies(t *testing.T) {
 		t.Fatalf("Setup failed")
 	}
 
+	t.Run("application-deployment", func(t *testing.T) {
+		// deploying frontend and backend services
+		assert.Assert(t, deployResources(pub1, pub2))
+	})
+
+	if t.Failed() {
+		t.Fatalf("Application deployment failed")
+	}
+
 	t.Run("testNamespace", func(t *testing.T) {
 		testNamespace(t, pub1, pub2)
 	})
 
 }
 
+// This will return up to four namespaces/contexts
+//
+// pub1 and pub2 represent the frontend and backend to be tied together by
+// skupper, on the same cluster.
+//
+// pub3 and prv1 are the same, but they only exist for multi-cluster testing,
+// where each is on a different cluster
 func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 
 	t.Run("Setup", func(t *testing.T) {
-		// vvvvvvvvvvvv  Move this preamble to some shared file? vvvvvvvvvvvv
-		//
 		// First, validate if skupper binary is in the PATH, or fail the test
 		log.Printf("Running 'skupper --help' to determine if skupper binary is available")
 		_, _, err := cli.RunSkupperCli([]string{"--help"})
@@ -212,13 +303,9 @@ func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 			t.Fatalf("skupper binary is not available")
 		}
 
-		// For this test, I'm not checking effects on communicating clusters,
-		// so there is no multiCluster testing, and two namespaces on pub are
-		// enough
-		// TODO: However, having a 'private-' namespace would make the regexes
-		// a bit more rich
 		log.Printf("Creating namespaces")
 		needs := base.ClusterNeeds{
+			// TODO: Change this to just 'policy', as it will be reused
 			NamespaceId:    "policy-namespaces",
 			PublicClusters: 2,
 		}
@@ -235,6 +322,8 @@ func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 		// This is the 'other' domain
 		pub2, err = runner.GetPublicContext(2)
 		assert.Assert(t, err)
+
+		// TODO.  From here down, put it on a loop, as there may be four
 
 		// creating namespaces
 		assert.Assert(t, pub1.CreateNamespace())

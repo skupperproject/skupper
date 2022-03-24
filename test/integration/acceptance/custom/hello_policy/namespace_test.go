@@ -9,7 +9,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/token"
-	"gotest.tools/assert"
 )
 
 type namespaceTest struct {
@@ -54,28 +53,15 @@ func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	testPath := "./tmp/"
 	_ = os.Mkdir(testPath, 0755)
 
-	t.Run("application-deployment", func(t *testing.T) {
-		// deploying frontend and backend services
-		assert.Assert(t, deployResources(pub1, pub2))
-	})
-
-	if t.Failed() {
-		t.Fatalf("Application deployment failed")
-	}
-
-	// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 	t.Run("apply-crd", func(t *testing.T) {
 		if base.ShouldSkipPolicySetup() {
 			t.Log("Skipping policy setup, per environment")
 			return
 		}
-		// We first remove the CRD to make sure we have a clean slate for
-		// policies before we start, then we re-add it
-		// TODO: make a removeAllPolicies(), instead; it should be faster
-		if _, err = removeCrd(t, pub1); err != nil {
-			t.Fatalf("Failed to remove the CRD at the start: %v", err)
-			return
+		// Should this be affected by base.ShouldSkipPolicySetup?
+		// Should that method be renamed to include only CRD setup?
+		if err = removePolicies(t, pub1); err != nil {
+			t.Fatalf("Failed to remove policies")
 		}
 		if err = applyCrd(t, pub1); err != nil {
 			t.Fatalf("Failed to add the CRD at the start: %v", err)
