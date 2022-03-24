@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -12,11 +13,14 @@ import (
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils"
+	apiv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/fake"
+	authv1 "k8s.io/client-go/kubernetes/typed/authorization/v1"
 )
 
 type PolicyValidationResult struct {
@@ -27,8 +31,7 @@ type PolicyValidationResult struct {
 func (p *PolicyValidationResult) Enabled() bool {
 	restCfgAvail := p.err == nil || !strings.Contains(p.err.Error(), "RestConfig not defined")
 	crdAvailable := p.err == nil || !strings.Contains(p.err.Error(), "the server could not find the requested resource")
-	permissionGranted := p.err == nil || !strings.Contains(p.err.Error(), "is forbidden")
-	return restCfgAvail && crdAvailable && permissionGranted
+	return restCfgAvail && crdAvailable
 }
 
 func (p *PolicyValidationResult) Allowed() bool {
@@ -56,6 +59,7 @@ func (p *PolicyValidationResult) Error() error {
 // must use the PolicyAPIClient (rest client).
 type ClusterPolicyValidator struct {
 	cli           *VanClient
+	dc            *discovery.DiscoveryClient
 	skupperPolicy v1alpha1.SkupperClusterPolicyInterface
 	labelRegex    *regexp.Regexp
 }
@@ -71,20 +75,35 @@ func (p *PolicyValidationResult) addMatchingPolicy(policy v1alpha12.SkupperClust
 	p.matchingAllowed = append(p.matchingAllowed, policy)
 }
 
-func (p *ClusterPolicyValidator) LoadNamespacePolicies() ([]v1alpha12.SkupperClusterPolicy, error) {
-	policies := []v1alpha12.SkupperClusterPolicy{}
+func (p *ClusterPolicyValidator) getSkupperPolicy() (v1alpha1.SkupperClusterPolicyInterface, error) {
 	if p.skupperPolicy == nil {
 		if p.cli.RestConfig == nil {
-			return policies, fmt.Errorf("RestConfig not defined")
+			return nil, fmt.Errorf("RestConfig not defined")
 		}
 		skupperCli, err := v1alpha1.NewForConfig(p.cli.RestConfig)
 		if err != nil {
-			return policies, err
+			return nil, err
 		}
 		p.skupperPolicy = skupperCli.SkupperClusterPolicies()
 	}
-	policyList, err := p.skupperPolicy.List(v1.ListOptions{})
+	return p.skupperPolicy, nil
+}
+
+func (p *ClusterPolicyValidator) LoadNamespacePolicies() ([]v1alpha12.SkupperClusterPolicy, error) {
+	policies := []v1alpha12.SkupperClusterPolicy{}
+	skupperPolicy, err := p.getSkupperPolicy()
 	if err != nil {
+		if _, mock := p.cli.KubeClient.(*fake.Clientset); mock {
+			return policies, err
+		}
+		return policies, nil
+	}
+
+	policyList, err := skupperPolicy.List(v1.ListOptions{})
+	if err != nil {
+		if errors.IsForbidden(err) {
+			return policies, nil
+		}
 		return policies, err
 	}
 	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(p.cli.Namespace, v1.GetOptions{})
@@ -97,7 +116,12 @@ func (p *ClusterPolicyValidator) LoadNamespacePolicies() ([]v1alpha12.SkupperClu
 }
 
 func (p *ClusterPolicyValidator) AppliesToNS(policyName string) bool {
-	pol, err := p.skupperPolicy.Get(policyName, v1.GetOptions{})
+	skupperPolicy, err := p.getSkupperPolicy()
+	// If unable to determine, revalidate
+	if err != nil {
+		return true
+	}
+	pol, err := skupperPolicy.Get(policyName, v1.GetOptions{})
 	// If policy not found, revalidate
 	if err != nil {
 		return true
@@ -128,33 +152,47 @@ func (p *ClusterPolicyValidator) Enabled() bool {
 	if p.cli.RestConfig == nil {
 		return false
 	}
-	_, err := p.LoadNamespacePolicies()
-	if err != nil && (!p.CrdDefined(err) || !p.HasPermission(err)) {
-		return false
-	}
-	return true
+	return p.CrdDefined()
 }
 
-func (p *ClusterPolicyValidator) HasPermission(err error) bool {
-	if err == nil {
-		return true
-	}
-	sErr, ok := err.(*errors.StatusError)
-	if ok && sErr.Status().Reason == v1.StatusReasonForbidden {
-		return false
-	}
-	return true
+func (p *ClusterPolicyValidator) HasPermission() bool {
+	authCli, err := authv1.NewForConfig(p.cli.RestConfig)
+	sar, err := authCli.SelfSubjectAccessReviews().Create(&apiv1.SelfSubjectAccessReview{
+		Spec: apiv1.SelfSubjectAccessReviewSpec{
+			ResourceAttributes: &apiv1.ResourceAttributes{
+				Verb:     "list",
+				Group:    "skupper.io",
+				Version:  "v1alpha1",
+				Resource: "skupperclusterpolicies",
+			},
+		},
+	})
+	return err == nil && sar.Status.Allowed
 }
 
-func (p *ClusterPolicyValidator) CrdDefined(err error) bool {
-	if err == nil {
-		return true
+func (p *ClusterPolicyValidator) CrdDefined() bool {
+	if p.dc == nil {
+		dc, err := discovery.NewDiscoveryClientForConfig(p.cli.RestConfig)
+		if err != nil {
+			log.Printf("Cannot determine if policy is enabled: %v", err)
+			return false
+		}
+		p.dc = dc
 	}
-	sErr, ok := err.(*errors.StatusError)
-	if ok && sErr.Status().Reason == v1.StatusReasonNotFound {
+	resources, err := p.dc.ServerResourcesForGroupVersion("skupper.io/v1alpha1")
+	if errors.IsNotFound(err) {
 		return false
+	} else if err != nil {
+		log.Printf("Cannot determine if policy is enabled: %v", err)
+		return false
+	} else {
+		for _, resource := range resources.APIResources {
+			if resource.Kind == "SkupperClusterPolicy" {
+				return true
+			}
+		}
 	}
-	return true
+	return false
 }
 
 func (p *ClusterPolicyValidator) ValidateIncomingLink() *PolicyValidationResult {

@@ -61,43 +61,59 @@ func (c *PolicyController) start(stopCh <-chan struct{}) error {
 	go func() {
 		period := time.NewTicker(time.Second)
 		var crdCh chan struct{}
-		running := false
+		enabled := false
 		disabledReported := false
+		informerRunning := false
+		startInformer := func() bool {
+			crdCh = make(chan struct{})
+			c.createInformer()
+			go c.informer.Run(crdCh)
+			if ok := cache.WaitForCacheSync(crdCh, c.informer.HasSynced); !ok {
+				event.Recordf(c.name, "Error waiting for cache to sync")
+				close(crdCh)
+				return false
+			}
+			go wait.Until(c.run, time.Second, crdCh)
+			return true
+		}
 		for {
-			if !running && c.validator.Enabled() {
+			if !enabled && c.validator.Enabled() {
 				log.Println("Skupper policy is enabled")
-				crdCh = make(chan struct{})
-				c.createInformer()
-				go c.informer.Run(crdCh)
-				if ok := cache.WaitForCacheSync(crdCh, c.informer.HasSynced); !ok {
-					event.Recordf(c.name, "Error waiting for cache to sync")
-					continue
+				if !c.validator.HasPermission() {
+					log.Printf("-> No permission to read SkupperClusterPolicies")
+				} else {
+					if informerRunning = startInformer(); !informerRunning {
+						continue
+					}
 				}
-				go wait.Until(c.run, time.Second, crdCh)
 				c.validateStateChanged()
-				running = true
+				enabled = true
 			} else if !c.validator.Enabled() && !disabledReported {
 				disabledReported = true
-				_, err := c.validator.LoadNamespacePolicies()
 				log.Printf("Skupper policy is disabled")
-				if !c.validator.CrdDefined(err) {
-					log.Printf("-> CRD is NOT defined")
-				} else if !c.validator.HasPermission(err) {
-					log.Printf("-> No permission to read SkupperClusterPolicies")
-				}
 			}
 
 			select {
 			case <-period.C:
-				if running && !c.validator.Enabled() {
+				if enabled && !c.validator.Enabled() {
 					close(crdCh)
 					log.Println("Skupper policy has been disabled")
 					// reverts what has been denied by policies
 					c.validateStateChanged()
-					running = false
+					enabled = false
+				} else if enabled && !informerRunning && c.validator.HasPermission() {
+					// permission has been granted, running informer
+					informerRunning = startInformer()
+					log.Println("Permission to read SkupperClusterPolicies has been granted")
+				} else if enabled && informerRunning && !c.validator.HasPermission() {
+					// permission revoked, stopping informer
+					close(crdCh)
+					informerRunning = false
+					c.validateStateChanged()
+					log.Println("Permission to read SkupperClusterPolicies has been revoked")
 				}
 			case <-stopCh:
-				if running {
+				if enabled {
 					close(crdCh)
 				}
 				return
