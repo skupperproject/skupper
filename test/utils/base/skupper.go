@@ -27,8 +27,6 @@ func WaitForSkupperConnectedSites(ctx context.Context, cc *ClusterContext, sites
 		case <-ctx.Done():
 			return fmt.Errorf("context has been canceled")
 		case <-timeout:
-			log.Println("Dump Service Controller log:")
-			cc.KubectlExec("logs deployment/skupper-service-controller")
 			log.Println("Dump Skupper Router log:")
 			cc.KubectlExec("logs deployment/skupper-router -c router")
 			log.Println("Dump Skupper Config-Sync log:")
