@@ -56,7 +56,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 
 	const secretFile = "/tmp/public_basic_1_secret.yaml"
 	if tokenType == "claim" {
-		err = pub1Cluster.VanClient.TokenClaimCreateFile(ctx, types.DefaultVanName, []byte(createOptsPublic.Password), 15*time.Minute, 1, secretFile)
+		err = pub1Cluster.VanClient.TokenClaimCreateFile(ctx, types.DefaultVanName, []byte(createOptsPublic.Password), 20*time.Minute, 1, secretFile)
 	} else {
 		err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
 	}
