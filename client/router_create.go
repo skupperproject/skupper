@@ -1284,7 +1284,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 			_, err = kube.CreateClusterRoleBinding(clusterRoleBinding, cli.KubeClient)
 			if err != nil && !errors.IsAlreadyExists(err) {
 				if policyValidator.Enabled() {
-					log.Printf("unable to define cluster role binding (policy will be disabled for %s) - %v", cli.GetNamespace(), err)
+					log.Printf("unable to define cluster role binding - %v", err)
 					break
 				}
 			}
