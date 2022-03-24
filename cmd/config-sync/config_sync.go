@@ -248,7 +248,7 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
 	for _, added := range changes.HttpListeners.Added {
 		if len(added.SslProfile) > 0 {
-			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
+			log.Printf("Copying cert files related to HTTP Listener sslProfile %s", added.SslProfile)
 			err := configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
 
 			if err != nil {
@@ -360,17 +360,16 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 	for _, added := range changes.Added {
 		if len(added.SslProfile) > 0 {
-			sslProfile := changes.AddedSslProfiles[added.SslProfile]
-			log.Printf("Creating ssl profile %s", sslProfile.Name)
-			err := agent.CreateSslProfile(sslProfile)
+			log.Printf("Copying cert files related to Connector sslProfile %s", added.SslProfile)
+			secretName := strings.TrimSuffix(added.SslProfile, "-profile")
+			err = c.ensureSslProfile(added.SslProfile, secretName, sharedTlsFilesDir)
 			if err != nil {
 				return err
 			}
 
-			log.Printf("Copying cert files related to Connector sslProfile %s", added.SslProfile)
-			secretName := strings.TrimSuffix(added.SslProfile, "-profile")
-
-			err = c.ensureSslProfile(added.SslProfile, secretName, sharedTlsFilesDir)
+			sslProfile := changes.AddedSslProfiles[added.SslProfile]
+			log.Printf("Creating ssl profile %s", sslProfile.Name)
+			err := agent.CreateSslProfile(sslProfile)
 			if err != nil {
 				return err
 			}
@@ -419,7 +418,7 @@ func (c *ConfigSync) ensureSslProfile(sslProfile string, secretname string, shar
 	}
 
 	if missingDir || dirIsEmpty {
-		log.Printf("Copying cert files related to HTTP Connector sslProfile %s", sslProfile)
+		log.Printf("Copying cert files related to sslProfile %s", sslProfile)
 		err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile, secretname)
 		if err != nil {
 			return err
