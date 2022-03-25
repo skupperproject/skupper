@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,6 +80,11 @@ func (c *ConfigSync) stop() {
 }
 
 func (c *ConfigSync) runConfigSync() {
+	err := c.checkCertFiles(SHARED_TLS_DIRECTORY)
+	if err != nil {
+		log.Printf("An error has ocurred when checking certification files for the router: %s", err)
+	}
+
 	for c.processNextEvent() {
 	}
 }
@@ -164,7 +171,7 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	}
 	differences := actual.Difference(desired)
 	if differences.Empty() {
-		err = c.checkSecrets(desired, SHARED_TLS_DIRECTORY)
+		err = c.checkCertFiles(SHARED_TLS_DIRECTORY)
 		if err != nil {
 			return false, err
 		}
@@ -226,7 +233,7 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 
 	differences := qdr.ConnectorsDifference(actual, desired)
 	if differences.Empty() {
-		err = c.checkConnectorSecrets(actual, SHARED_TLS_DIRECTORY)
+		err = c.checkCertFiles(SHARED_TLS_DIRECTORY)
 		if err != nil {
 			return err
 		}
@@ -294,54 +301,6 @@ func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sh
 		if len(deleted.SslProfile) > 0 {
 			log.Printf("Deleting cert files related to HTTP Connector sslProfile %s", deleted.SslProfile)
 			err := os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (c *ConfigSync) checkSecrets(desired *qdr.BridgeConfig, sharedTlsFilesDir string) error {
-
-	for _, listener := range desired.HttpListeners {
-		if len(listener.SslProfile) > 0 {
-			err := c.ensureSslProfile(listener.SslProfile, listener.SslProfile, sharedTlsFilesDir)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	for _, connector := range desired.HttpConnectors {
-		if len(connector.SslProfile) > 0 {
-			err := c.ensureSslProfile(connector.SslProfile, connector.SslProfile, sharedTlsFilesDir)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (c *ConfigSync) checkConnectorSecrets(desired map[string]qdr.ConnectorStatus, sharedTlsFilesDir string) error {
-
-	agent, err := c.agentPool.Get()
-	if err != nil {
-		return err
-	}
-
-	for _, connectorStatus := range desired {
-		connector, err := agent.GetConnectorByName(connectorStatus.Name)
-		if err != nil {
-			return err
-		}
-
-		if len(connector.SslProfile) > 0 {
-			secretName := strings.TrimSuffix(connector.SslProfile, "-profile")
-			err := c.ensureSslProfile(connector.SslProfile, secretName, sharedTlsFilesDir)
 			if err != nil {
 				return err
 			}
@@ -420,6 +379,35 @@ func (c *ConfigSync) ensureSslProfile(sslProfile string, secretname string, shar
 	if missingDir || dirIsEmpty {
 		log.Printf("Copying cert files related to sslProfile %s", sslProfile)
 		err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile, secretname)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) checkCertFiles(path string) error {
+
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+	if err != nil {
+		return err
+	}
+	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+
+	for _, profile := range current.SslProfiles {
+		secretName := profile.Name
+
+		if strings.HasSuffix(profile.Name, "-profile") {
+			secretName = strings.TrimSuffix(profile.Name, "-profile")
+		}
+
+		_, err = c.vanClient.GetKubeClient().CoreV1().Secrets(c.vanClient.Namespace).Get(secretName, metav1.GetOptions{})
+		if err != nil {
+			continue
+		}
+
+		err = c.ensureSslProfile(profile.Name, secretName, path)
 		if err != nil {
 			return err
 		}

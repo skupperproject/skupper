@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/qdr"
@@ -233,35 +234,23 @@ func TestCheckingSecretsWithTlsEnabled(t *testing.T) {
 
 	scenarios := []struct {
 		doc               string
-		actual            *qdr.BridgeConfig
 		sslProfileToCheck string
 		expected          string
 	}{
 		{
-			doc: "http-connector-with-tls",
-			actual: &qdr.BridgeConfig{
-				HttpConnectors: qdr.HttpEndpointMap{
-					"adservice": qdr.HttpEndpoint{
-						Name:       "adservice",
-						SslProfile: "skupper-service-client",
-					},
-				},
-			},
+			doc:               "http-connector-with-tls",
 			sslProfileToCheck: "skupper-service-client",
 			expected:          "./tmp/skupper-router/tls/skupper-service-client",
 		},
 		{
-			doc: "http-listener-with-tls",
-			actual: &qdr.BridgeConfig{
-				HttpListeners: qdr.HttpEndpointMap{
-					"adservice": qdr.HttpEndpoint{
-						Name:       "adservice",
-						SslProfile: "skupper-tls-adservice",
-					},
-				},
-			},
+			doc:               "http-listener-with-tls",
 			sslProfileToCheck: "skupper-tls-adservice",
 			expected:          "./tmp/skupper-router/tls/skupper-tls-adservice",
+		},
+		{
+			doc:               "connector",
+			sslProfileToCheck: "link1-profile",
+			expected:          "./tmp/skupper-router/tls/link1-profile",
 		},
 	}
 
@@ -272,7 +261,7 @@ func TestCheckingSecretsWithTlsEnabled(t *testing.T) {
 			err = setUpTestingPath()
 			assert.Assert(t, err)
 
-			err = c.checkSecrets(s.actual, TEST_TLS_DIRECTORY)
+			err = c.checkCertFiles(TEST_TLS_DIRECTORY)
 			assert.Assert(t, err)
 
 			_, err := os.Stat(s.expected)
@@ -329,6 +318,74 @@ func setUpKubernetesMock(cli *client.VanClient) {
 					},
 				}
 				return true, &secret, nil
+			}
+		})
+
+		cli.KubeClient.(*fake.Clientset).Fake.PrependReactor("get", "configmaps", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			configMapName := action.(k8stesting.GetAction).GetName()
+
+			if configMapName == "skupper-internal" {
+				configMap := v1.ConfigMap{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "ConfigMap",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: types.ServiceInterfaceConfigMap,
+					},
+					Data: map[string]string{
+						"skrouterd.json": `
+    [
+        [
+            "router",
+            {
+                "id": "skupper-fakens",
+                "mode": "interior",
+                "helloMaxAgeSeconds": "3",
+                "metadata": "{\"id\":\"my-fake-site-id\",\"version\":\"siteversion\"}"
+            }
+        ],
+		[
+        	"sslProfile",
+        	{
+            	"name": "skupper-tls-adservice",
+            	"certFile": "/etc/skupper-router-certs/skupper-tls-adservice/tls.crt",
+            	"privateKeyFile": "/etc/skupper-router-certs/skupper-tls-adservice/tls.key",
+            	"caCertFile": "/etc/skupper-router-certs/skupper-tls-adservice/ca.crt"
+       		 }
+   		],
+		[
+        	"sslProfile",
+        	{
+            	"name": "link1-profile",
+            	"certFile": "/etc/skupper-router-certs/link1-profile/tls.crt",
+            	"privateKeyFile": "/etc/skupper-router-certs/link1-profile/tls.key",
+            	"caCertFile": "/etc/skupper-router-certs/link1-profile/ca.crt"
+       		 }
+   		],
+    	[
+        	"sslProfile",
+            {
+            	"name": "skupper-service-client",
+            	"caCertFile": "/etc/skupper-router-certs/skupper-service-client/ca.crt"
+        	}
+    	],
+    	[
+        	"sslProfile",
+        	{
+            	"name": "skupper-internal",
+            	"certFile": "/etc/skupper-router-certs/skupper-internal/tls.crt",
+            	"privateKeyFile": "/etc/skupper-router-certs/skupper-internal/tls.key",
+            	"caCertFile": "/etc/skupper-router-certs/skupper-internal/ca.crt"
+       		}
+    	]
+    ]
+`,
+					},
+				}
+				return true, &configMap, nil
+			} else {
+				return false, nil, nil
 			}
 		})
 

@@ -773,6 +773,24 @@ func (a *Agent) GetConnectorByName(name string) (*Connector, error) {
 	return nil, nil
 }
 
+func (a *Agent) GetSslProfileByName(name string) (*SslProfile, error) {
+
+	results, err := a.Query("io.skupper.router.sslProfile", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+
+		result := asSslProfile(record)
+
+		if result.Name == name {
+			return &result, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (a *Agent) getLocalHttpEndpoints(typename string, filter HttpEndpointFilter) ([]HttpEndpoint, error) {
 	results, err := a.Query(typename, []string{})
 	if err != nil {
@@ -1156,6 +1174,15 @@ func asConnector(record Record) Connector {
 	}
 }
 
+func asSslProfile(record Record) SslProfile {
+	return SslProfile{
+		Name:           record.AsString("name"),
+		CertFile:       record.AsString("certFile"),
+		PrivateKeyFile: record.AsString("privateKeyFile"),
+		CaCertFile:     record.AsString("caCertFile"),
+	}
+}
+
 func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 	for _, deleted := range changes.Deleted {
 		if err := a.Delete("io.skupper.router.connector", deleted); err != nil {
@@ -1164,6 +1191,15 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 	}
 
 	for _, added := range changes.Added {
+
+		if len(added.Host) == 0 {
+			return fmt.Errorf("No host specified while creating a connector")
+		}
+
+		if len(added.Port) == 0 {
+			return fmt.Errorf("No port specified while creating a connector")
+		}
+
 		record := map[string]interface{}{}
 		if err := convert(added, &record); err != nil {
 			return fmt.Errorf("Failed to convert record: %s", err)
@@ -1254,6 +1290,17 @@ func GetSiteNameForGateway(gateway *Router) string {
 }
 
 func (a *Agent) CreateSslProfile(profile SslProfile) error {
+
+	result, err := a.GetSslProfileByName(profile.Name)
+	if err != nil {
+		return err
+	}
+
+	// Trying to create a ssl profile that already exists will generate an error in the router.
+	if result != nil {
+		return nil
+	}
+
 	record := map[string]interface{}{}
 	if err := convert(profile, &record); err != nil {
 		return fmt.Errorf("Failed to convert record: %s", err)
