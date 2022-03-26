@@ -5,7 +5,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
@@ -119,6 +118,11 @@ func (c *ConfigSync) processNextEvent() bool {
 				return fmt.Errorf("Error reading pod from cache: %s", err)
 			}
 			if exists {
+				err = c.checkCertFiles(SHARED_TLS_DIRECTORY)
+				if err != nil {
+					return fmt.Errorf("Error checking certificate files: %s", err)
+				}
+
 				configmap, ok := obj.(*corev1.ConfigMap)
 				if !ok {
 					return fmt.Errorf("Expected ConfigMap for %s but got %#v", key, obj)
@@ -171,10 +175,6 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	}
 	differences := actual.Difference(desired)
 	if differences.Empty() {
-		err = c.checkCertFiles(SHARED_TLS_DIRECTORY)
-		if err != nil {
-			return false, err
-		}
 		return true, nil
 	} else {
 		differences.Print()
@@ -233,10 +233,6 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 
 	differences := qdr.ConnectorsDifference(actual, desired)
 	if differences.Empty() {
-		err = c.checkCertFiles(SHARED_TLS_DIRECTORY)
-		if err != nil {
-			return err
-		}
 		return nil
 	} else {
 
@@ -256,7 +252,7 @@ func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sh
 	for _, added := range changes.HttpListeners.Added {
 		if len(added.SslProfile) > 0 {
 			log.Printf("Copying cert files related to HTTP Listener sslProfile %s", added.SslProfile)
-			err := configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
+			err := configSync.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
 
 			if err != nil {
 				return err
@@ -267,7 +263,7 @@ func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sh
 	for _, added := range changes.HttpConnectors.Added {
 		if len(added.SslProfile) > 0 {
 			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
-			err := configSync.ensureSslProfile(added.SslProfile, added.SslProfile, sharedTlsFilesDir)
+			err := configSync.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
 
 			if err != nil {
 				return err
@@ -319,9 +315,9 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 	for _, added := range changes.Added {
 		if len(added.SslProfile) > 0 {
-			log.Printf("Copying cert files related to Connector sslProfile %s", added.SslProfile)
+			log.Printf("Synchronising secrets related to Connector %s", added.Name)
 			secretName := strings.TrimSuffix(added.SslProfile, "-profile")
-			err = c.ensureSslProfile(added.SslProfile, secretName, sharedTlsFilesDir)
+			err = c.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, secretName)
 			if err != nil {
 				return err
 			}
@@ -363,25 +359,10 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 }
 
 func (c *ConfigSync) ensureSslProfile(sslProfile string, secretname string, sharedTlsFilesDir string) error {
-
-	_, err := os.Stat(sharedTlsFilesDir + "/" + sslProfile)
-	missingDir := os.IsNotExist(err)
-
-	dirIsEmpty := false
-
-	if !missingDir {
-		dirIsEmpty, err = utils.IsDirEmpty(sharedTlsFilesDir + "/" + sslProfile)
-		if err != nil {
-			return err
-		}
-	}
-
-	if missingDir || dirIsEmpty {
-		log.Printf("Copying cert files related to sslProfile %s", sslProfile)
-		err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile, secretname)
-		if err != nil {
-			return err
-		}
+	log.Printf("Copying cert files related to sslProfile %s", sslProfile)
+	err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile, secretname)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -407,7 +388,7 @@ func (c *ConfigSync) checkCertFiles(path string) error {
 			continue
 		}
 
-		err = c.ensureSslProfile(profile.Name, secretName, path)
+		err = c.copyCertsFilesToPath(path, profile.Name, secretName)
 		if err != nil {
 			return err
 		}
@@ -422,27 +403,38 @@ func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secre
 		return err
 	}
 
-	err = os.Mkdir(path+"/"+profilename, 0777)
-	if err != nil {
-		return err
-	}
+	_, err = os.Stat(path + "/" + profilename)
 
-	if secret.Data["tls.crt"] != nil {
-		err = ioutil.WriteFile(path+"/"+profilename+"/tls.crt", secret.Data["tls.crt"], 0777)
+	if os.IsNotExist(err) {
+		err = os.Mkdir(path+"/"+profilename, 0777)
 		if err != nil {
 			return err
 		}
 	}
 
-	if secret.Data["tls.key"] != nil {
-		err = ioutil.WriteFile(path+"/"+profilename+"/tls.key", secret.Data["tls.key"], 0777)
+	certFile := path + "/" + profilename + "/tls.crt"
+	keyFile := path + "/" + profilename + "/tls.key"
+	caCertFile := path + "/" + profilename + "/ca.crt"
+
+	_, err = os.Stat(certFile)
+	if secret.Data["tls.crt"] != nil && os.IsNotExist(err) {
+		err = ioutil.WriteFile(certFile, secret.Data["tls.crt"], 0777)
 		if err != nil {
 			return err
 		}
 	}
 
-	if secret.Data["ca.crt"] != nil {
-		err = ioutil.WriteFile(path+"/"+profilename+"/ca.crt", secret.Data["ca.crt"], 0777)
+	_, err = os.Stat(keyFile)
+	if secret.Data["tls.key"] != nil && os.IsNotExist(err) {
+		err = ioutil.WriteFile(keyFile, secret.Data["tls.key"], 0777)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = os.Stat(caCertFile)
+	if secret.Data["ca.crt"] != nil && os.IsNotExist(err) {
+		err = ioutil.WriteFile(caCertFile, secret.Data["ca.crt"], 0777)
 		if err != nil {
 			return err
 		}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	amqp "github.com/interconnectedcloud/go-amqp"
 	"log"
+	"os"
 	"strings"
 	"time"
 )
@@ -1198,6 +1199,28 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 
 		if len(added.Port) == 0 {
 			return fmt.Errorf("No port specified while creating a connector")
+		}
+
+		if len(added.SslProfile) > 0 {
+			sslProfile, err := a.GetSslProfileByName(added.SslProfile)
+			if err != nil {
+				return err
+			}
+
+			_, err = os.Stat(sslProfile.CaCertFile)
+			if err != nil {
+				return err
+			}
+
+			_, err = os.Stat(sslProfile.CertFile)
+			if err != nil {
+				return err
+			}
+
+			_, err = os.Stat(sslProfile.PrivateKeyFile)
+			if err != nil {
+				return err
+			}
 		}
 
 		record := map[string]interface{}{}
