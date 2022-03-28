@@ -1,10 +1,11 @@
 
 Feature: enabling and disabling policy
 
-  There are two ways to enable and disable the whole of the policies:
+  There are three ways to enable and disable the whole of the policies:
 
-  1 - install or remove the CRD
+  1 - install or remove the CRD and namespace permission to read policies
   2 - with a CRD installed, remove all policies or add an all-allowing policy (or a set thereof)
+  3 - Remove the permission to read policies
 
   Do these two actions cause the same side effects?
 
