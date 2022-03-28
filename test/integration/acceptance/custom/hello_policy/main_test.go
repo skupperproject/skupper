@@ -418,6 +418,7 @@ func TestPolicies(t *testing.T) {
 		t.Run("testLinkPolicy", func(t *testing.T) {
 			applyCrd(t, pub1)
 			removePolicies(t, pub1)
+			removePolicies(t, pub2)
 			testLinkPolicy(t, pub1, pub2)
 		})
 	})
