@@ -13,7 +13,7 @@
 package hello_policy
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"testing"
 
@@ -23,7 +23,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/link"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/service"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/token"
-	"gotest.tools/assert"
 )
 
 // TestHelloPolicy is a test that runs the hello-world-example
@@ -31,61 +30,14 @@ import (
 // in the PATH.
 // It is a copy of the test at test/integration/examples/custom/helloworld/,
 // adapted for Policy testing
-func TestHelloPolicy(t *testing.T) {
+func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 
-	// First, validate if skupper binary is in the PATH, or fail the test
-	log.Printf("Running 'skupper --help' to determine if skupper binary is available")
-	_, _, err := cli.RunSkupperCli([]string{"--help"})
-	if err != nil {
-		t.Fatalf("skupper binary is not available")
-	}
-
-	needs := base.ClusterNeeds{
-		NamespaceId:     "hello-policy",
-		PublicClusters:  1,
-		PrivateClusters: 1,
-	}
-	runner := &base.ClusterTestRunnerBase{}
-	if err := runner.Validate(needs); err != nil {
-		t.Skipf("%s", err)
-	}
-	_, err = runner.Build(needs, nil)
-	assert.Assert(t, err)
-
-	// getting public and private contexts
-	pub, err := runner.GetPublicContext(1)
-	assert.Assert(t, err)
-	prv, err := runner.GetPrivateContext(1)
-	assert.Assert(t, err)
-
-	// creating namespaces
-	assert.Assert(t, pub.CreateNamespace())
-	assert.Assert(t, prv.CreateNamespace())
-
-	// teardown once test completes
-	tearDownFn := func() {
-		t.Log("entering teardown")
-		t.Log("Removing pub namespace")
-		_ = pub.DeleteNamespace()
-		t.Log("Removing prv namespace")
-		_ = prv.DeleteNamespace()
-		t.Log("Removing cluster role skupper-service-controller from the CRD definition")
-		pub.VanClient.KubeClient.RbacV1().ClusterRoles().Delete("skupper-service-controller", nil)
-		t.Log("Removing CRD")
-		pub.KubectlExec("delete crd skupperclusterpolicies.skupper.io")
-		t.Log("tearDown completed")
-	}
-	defer tearDownFn()
-	base.HandleInterruptSignal(func() {
-		tearDownFn()
-	})
+	fmt.Println("pub1", pub1)
+	fmt.Println("pub2", pub2)
 
 	// Creating a local directory for storing the token
 	testPath := "./tmp/"
 	_ = os.Mkdir(testPath, 0755)
-
-	// deploying frontend and backend services
-	assert.Assert(t, deployResources(pub, prv))
 
 	// These test scenarios allow defining a set of skupper cli
 	// commands to be executed as a workflow, against specific
@@ -102,7 +54,7 @@ func TestHelloPolicy(t *testing.T) {
 		{
 			Name: "initialize",
 			Tasks: []cli.SkupperTask{
-				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 					// skupper init - interior mode, enabling console and internal authentication
 					&cli.InitTester{
 						ConsoleAuth:         "internal",
@@ -119,7 +71,7 @@ func TestHelloPolicy(t *testing.T) {
 						ConsoleAuthInternal: true,
 					},
 				}},
-				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 					// skupper init - edge mode, no console and unsecured
 					&cli.InitTester{
 						ConsoleAuth:           "unsecured",
@@ -155,14 +107,14 @@ func TestHelloPolicy(t *testing.T) {
 	connectSteps := cli.TestScenario{
 		Name: "connect-sites",
 		Tasks: []cli.SkupperTask{
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper token create - verify token has been created
 				&token.CreateTester{
 					Name:     "public",
 					FileName: testPath + "public-hello-world-1.token.yaml",
 				},
 			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper link create - connect to public and verify connection created
 				&link.CreateTester{
 					TokenFile: testPath + "public-hello-world-1.token.yaml",
@@ -177,7 +129,7 @@ func TestHelloPolicy(t *testing.T) {
 	validateConnSteps := cli.TestScenario{
 		Name: "validate-sites-connected",
 		Tasks: []cli.SkupperTask{
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper status - verify sites are connected
 				&cli.StatusTester{
 					RouterMode:          "interior",
@@ -186,7 +138,7 @@ func TestHelloPolicy(t *testing.T) {
 					ConsoleAuthInternal: true,
 				},
 			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper status - verify sites are connected
 				&cli.StatusTester{
 					RouterMode:     "edge",
@@ -211,7 +163,7 @@ func TestHelloPolicy(t *testing.T) {
 	serviceCreateBindSteps := cli.TestScenario{
 		Name: "service-create-bind",
 		Tasks: []cli.SkupperTask{
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper service create - creates the frontend service and verify
 				&service.CreateTester{
 					Name:    "hello-world-frontend",
@@ -233,7 +185,7 @@ func TestHelloPolicy(t *testing.T) {
 					ConsoleAuthInternal: true,
 				},
 			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper service create - creates the backend service and verify
 				&service.CreateTester{
 					Name:    "hello-world-backend",
@@ -256,7 +208,7 @@ func TestHelloPolicy(t *testing.T) {
 				},
 			}},
 			// Binding the services
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper service bind - bind service to deployment and validate target has been defined
 				&service.BindTester{
 					ServiceName: "hello-world-frontend",
@@ -275,7 +227,7 @@ func TestHelloPolicy(t *testing.T) {
 					},
 				},
 			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper service bind - bind service to deployment and validate target has been defined
 				&service.BindTester{
 					ServiceName: "hello-world-backend",
@@ -301,7 +253,7 @@ func TestHelloPolicy(t *testing.T) {
 		Name: "service-unbind-delete",
 		Tasks: []cli.SkupperTask{
 			// unbinding frontend and validating service status for public cluster
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper service unbind - unbind and verify service no longer has a target
 				&service.UnbindTester{
 					ServiceName: "hello-world-frontend",
@@ -316,7 +268,7 @@ func TestHelloPolicy(t *testing.T) {
 					},
 				},
 			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper service unbind - unbind and verify service no longer has a target
 				&service.UnbindTester{
 					ServiceName: "hello-world-backend",
@@ -331,7 +283,7 @@ func TestHelloPolicy(t *testing.T) {
 					},
 				},
 			}},
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper service delete - removes exposed service and certify it is removed
 				&service.DeleteTester{
 					Name: "hello-world-frontend",
@@ -343,7 +295,7 @@ func TestHelloPolicy(t *testing.T) {
 					},
 				},
 			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper service delete - removes exposed service and certify it is removed
 				&service.DeleteTester{
 					Name: "hello-world-backend",
@@ -362,7 +314,7 @@ func TestHelloPolicy(t *testing.T) {
 	exposeSteps := cli.TestScenario{
 		Name: "expose",
 		Tasks: []cli.SkupperTask{
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper expose - expose and ensure service is available
 				&cli.ExposeTester{
 					TargetType: "deployment",
@@ -381,7 +333,7 @@ func TestHelloPolicy(t *testing.T) {
 					ConsoleAuthInternal: true,
 				},
 			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper expose - exposes backend and certify it is available
 				&cli.ExposeTester{
 					TargetType: "deployment",
@@ -405,7 +357,7 @@ func TestHelloPolicy(t *testing.T) {
 	unexposeSteps := cli.TestScenario{
 		Name: "unexpose",
 		Tasks: []cli.SkupperTask{
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper unexpose - unexpose and verify it has been removed
 				&cli.UnexposeTester{
 					TargetType: "deployment",
@@ -421,7 +373,7 @@ func TestHelloPolicy(t *testing.T) {
 					ConsoleAuthInternal: true,
 				},
 			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper unexpose - unexpose and verify it has been removed
 				&cli.UnexposeTester{
 					TargetType: "deployment",
@@ -443,11 +395,11 @@ func TestHelloPolicy(t *testing.T) {
 		Name: "version",
 		Tasks: []cli.SkupperTask{
 			// skupper version - verify version is being reported accordingly
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				&cli.VersionTester{},
 			}},
 			// skupper version - verify version is being reported accordingly
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				&cli.VersionTester{},
 			}},
 		},
@@ -471,7 +423,7 @@ func TestHelloPolicy(t *testing.T) {
 		{
 			Name: "validate-sites-disconnected",
 			Tasks: []cli.SkupperTask{
-				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 					// skupper status - verify sites are connected
 					&cli.StatusTester{
 						RouterMode:          "interior",
@@ -481,7 +433,7 @@ func TestHelloPolicy(t *testing.T) {
 						PolicyEnabled:       true,
 					},
 				}},
-				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 					// skupper status - verify sites are connected
 					&cli.StatusTester{
 						RouterMode:     "edge",
@@ -505,7 +457,7 @@ func TestHelloPolicy(t *testing.T) {
 		}, {
 			Name: "services-destroyed",
 			Tasks: []cli.SkupperTask{
-				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 					// skupper service status - verify frontend service is exposed
 					&service.StatusTester{
 						ServiceInterfaces: []types.ServiceInterface{
@@ -523,7 +475,7 @@ func TestHelloPolicy(t *testing.T) {
 						PolicyEnabled:       true,
 					},
 				}},
-				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 					// skupper service status - validate status of the two created services without targets
 					&service.StatusTester{
 						ServiceInterfaces: []types.ServiceInterface{
@@ -542,7 +494,7 @@ func TestHelloPolicy(t *testing.T) {
 					},
 				}},
 				// Binding the services
-				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 					// skupper service bind - bind service to deployment and validate target has been defined
 					&service.BindTester{
 						ServiceName:     "hello-world-frontend",
@@ -563,7 +515,7 @@ func TestHelloPolicy(t *testing.T) {
 						Absent: true,
 					},
 				}},
-				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 					// skupper service bind - bind service to deployment and validate target has been defined
 					&service.BindTester{
 						ServiceName:     "hello-world-backend",
@@ -593,14 +545,14 @@ func TestHelloPolicy(t *testing.T) {
 			Name: "skupper delete",
 			Tasks: []cli.SkupperTask{
 				// skupper delete - delete and verify resources have been removed
-				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 					&cli.DeleteTester{},
 					&cli.StatusTester{
 						NotEnabled: true,
 					},
 				}},
 				// skupper delete - delete and verify resources have been removed
-				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 					&cli.DeleteTester{},
 					&cli.StatusTester{
 						NotEnabled: true,
@@ -617,10 +569,10 @@ func TestHelloPolicy(t *testing.T) {
 	//	mainSteps = mainSteps
 	t.Run("No CRD, all works", func(t *testing.T) { cli.RunScenarios(t, mainSteps) })
 	t.Run("Re-expose service, for next test", func(t *testing.T) { cli.RunScenarios(t, []cli.TestScenario{exposeSteps}) })
-	applyCrd(t, pub)
+	applyCrd(t, pub1)
 	t.Run("CRD added and no policy, all comes down", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameDown) })
 	t.Log("Removing CRD again, some resources should come back up")
-	removeCrd(t, pub)
+	removeCrd(t, pub1)
 	t.Run("CRD removed, link should come back up", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameBackUp) })
 	t.Run("closing", func(t *testing.T) { cli.RunScenarios(t, deleteSteps) })
 

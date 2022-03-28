@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -21,9 +22,13 @@ import (
 
 // Adds the CRD to the cluster
 func applyCrd(t *testing.T, cluster *base.ClusterContext) (err error) {
+	var out []byte
 	t.Logf("Adding CRD into the %v cluster", cluster.KubeConfig)
-	if err = k8s.CreateResourcesFromYAML(cluster.VanClient, "../../../../../api/types/crds/skupper_cluster_policy_crd.yaml"); err != nil {
-		t.Fatalf("Adding CRD failed: %v", err)
+	out, err = cluster.KubectlExec("apply -f ../../../../../api/types/crds/skupper_cluster_policy_crd.yaml")
+	if err != nil {
+		t.Logf("CRD applying failed: %v", err)
+		t.Log("Output:\n", out)
+		return
 	}
 	return
 }
@@ -235,30 +240,50 @@ func TestMain(m *testing.M) {
 //
 // Because the policy changes are cluster-wise, we need to run all tests in
 // serial.
+//
+// Individual tests should expect the environment they receive to have the CRD
+// installed and no policies at test start.  Tests are responsible for running
+// skupper init and skupper delete (?)
 func TestPolicies(t *testing.T) {
 
 	pub1, pub2, _, _ := setup(t)
 	//	pub1, pub2, pub3, prv1 := setup(t)
 
+	allContexts := []*base.ClusterContext{pub1, pub2}
+
 	// teardown once test completes
 	tearDownFn := func() {
 		t.Run("teardown", func(t *testing.T) {
+			var wg sync.WaitGroup
 			t.Log("entering teardown")
 			if base.ShouldSkipPolicyTeardown() {
 				t.Log("Skipping policy tear down, per env variables")
 			} else {
-				t.Log("Removing Policy CRD")
-				removeCrd(t, pub1)
-				removeClusterRole(t, pub1)
+				for _, context := range allContexts {
+					wg.Add(1)
+					context := context
+					go func() {
+						defer wg.Done()
+						t.Logf("Removing Policy CRD from context %v", context.Namespace)
+						removeCrd(t, context)
+						removeClusterRole(t, context)
+					}()
+				}
 			}
 			if base.ShouldSkipNamespaceTeardown() {
 				t.Log("Skipping namespace tear down, per env variables")
 			} else {
-				t.Log("Removing pub1 namespace")
-				_ = pub1.DeleteNamespace()
-				t.Log("Removing pub2 namespace")
-				_ = pub2.DeleteNamespace()
+				for _, context := range allContexts {
+					wg.Add(1)
+					context := context
+					go func() {
+						defer wg.Done()
+						t.Logf("Removing namespace %v", context.Namespace)
+						_ = context.DeleteNamespace()
+					}()
+				}
 			}
+			wg.Wait()
 			t.Log("tearDown completed")
 		})
 	}
@@ -280,8 +305,24 @@ func TestPolicies(t *testing.T) {
 		t.Fatalf("Application deployment failed")
 	}
 
+	// Change all below for a loop with function references
+	// and some introspection?
+	t.Run("testHelloPolicy", func(t *testing.T) {
+		testHelloPolicy(t, pub1, pub2)
+	})
+
+	applyCrd(t, pub1)
+	removePolicies(t, pub1)
+
 	t.Run("testNamespace", func(t *testing.T) {
 		testNamespace(t, pub1, pub2)
+	})
+
+	applyCrd(t, pub1)
+	removePolicies(t, pub1)
+
+	t.Run("testLinkPolicy", func(t *testing.T) {
+		testLinkPolicy(t, pub1, pub2)
 	})
 
 }
