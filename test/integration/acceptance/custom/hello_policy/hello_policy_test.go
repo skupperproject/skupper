@@ -50,59 +50,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	// SkupperCommandTester implementation validates necessary
 	// output or resources in the cluster to certify the command
 	// was executed correctly.
-	initSteps := []cli.TestScenario{
-		{
-			Name: "initialize",
-			Tasks: []cli.SkupperTask{
-				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
-					// skupper init - interior mode, enabling console and internal authentication
-					&cli.InitTester{
-						ConsoleAuth:         "internal",
-						ConsoleUser:         "internal",
-						ConsolePassword:     "internal",
-						RouterMode:          "interior",
-						EnableConsole:       true,
-						EnableRouterConsole: true,
-					},
-					// skupper status - verify initialized as interior
-					&cli.StatusTester{
-						RouterMode:          "interior",
-						ConsoleEnabled:      true,
-						ConsoleAuthInternal: true,
-					},
-				}},
-				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
-					// skupper init - edge mode, no console and unsecured
-					&cli.InitTester{
-						ConsoleAuth:           "unsecured",
-						ConsoleUser:           "admin",
-						ConsolePassword:       "admin",
-						Ingress:               "none",
-						RouterDebugMode:       "gdb",
-						RouterLogging:         "trace",
-						RouterMode:            "edge",
-						SiteName:              "private",
-						EnableConsole:         false,
-						EnableRouterConsole:   false,
-						RouterCPU:             "100m",
-						RouterMemory:          "32Mi",
-						ControllerCPU:         "50m",
-						ControllerMemory:      "16Mi",
-						RouterCPULimit:        "600m",
-						RouterMemoryLimit:     "500Mi",
-						ControllerCPULimit:    "600m",
-						ControllerMemoryLimit: "500Mi",
-						//ConsoleIngress:      "none",
-					},
-					// skupper status - verify initialized as edge
-					&cli.StatusTester{
-						RouterMode: "edge",
-						SiteName:   "private",
-					},
-				}},
-			},
-		},
-	}
+	initSteps := append(skupperInitInterior(pub1), skupperInitEdge(pub2)...)
 
 	connectSteps := cli.TestScenario{
 		Name: "connect-sites",
@@ -540,27 +488,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 		},
 	}
 
-	deleteSteps := []cli.TestScenario{
-		{
-			Name: "skupper delete",
-			Tasks: []cli.SkupperTask{
-				// skupper delete - delete and verify resources have been removed
-				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
-					&cli.DeleteTester{},
-					&cli.StatusTester{
-						NotEnabled: true,
-					},
-				}},
-				// skupper delete - delete and verify resources have been removed
-				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
-					&cli.DeleteTester{},
-					&cli.StatusTester{
-						NotEnabled: true,
-					},
-				}},
-			},
-		},
-	}
+	deleteSteps := append(deleteSkupper(pub1), deleteSkupper(pub2)...)
 
 	//	scenarios := append(append(initSteps, mainSteps...), deleteSteps...)
 

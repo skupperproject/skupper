@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
 // Each policy piece has its own file.  On it, we define both the
@@ -20,5 +21,11 @@ import (
 // in a cluster because the policy was removed on the other cluster)
 
 func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
+
+	initSteps := append(skupperInitInterior(pub), skupperInitEdge(prv)...)
+	t.Run("init", func(t *testing.T) { cli.RunScenariosParallel(t, initSteps) })
+
+	deleteSteps := append(deleteSkupper(pub), deleteSkupper(prv)...)
+	t.Run("cleanup", func(t *testing.T) { cli.RunScenariosParallel(t, deleteSteps) })
 
 }

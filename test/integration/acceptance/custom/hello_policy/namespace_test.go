@@ -73,31 +73,7 @@ func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 		t.Fatalf("CRD setup failed")
 	}
 
-	initSteps := []cli.TestScenario{
-		{
-			Name: "init-skupper",
-			Tasks: []cli.SkupperTask{
-				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
-					// skupper init - interior mode, enabling console and internal authentication
-					&cli.InitTester{
-						ConsoleAuth:         "internal",
-						ConsoleUser:         "internal",
-						ConsolePassword:     "internal",
-						RouterMode:          "interior",
-						EnableConsole:       false,
-						EnableRouterConsole: true,
-					},
-					// skupper status - verify initialized as interior
-					&cli.StatusTester{
-						RouterMode:          "interior",
-						ConsoleEnabled:      false,
-						ConsoleAuthInternal: true,
-						PolicyEnabled:       true,
-					},
-				}},
-			},
-		},
-	}
+	initSteps := skupperInitInterior(pub1)
 
 	testTable := []namespaceTest{
 		{
@@ -184,18 +160,7 @@ func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 
 		cli.RunScenarios(
 			t,
-			[]cli.TestScenario{
-				{
-					Name: "skupper-delete",
-					Tasks: []cli.SkupperTask{
-						{
-							Ctx: pub1, Commands: []cli.SkupperCommandTester{
-								&cli.DeleteTester{},
-							},
-						},
-					},
-				},
-			},
+			deleteSkupper(pub1),
 		)
 	})
 

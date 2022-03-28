@@ -88,6 +88,32 @@ func RunScenarios(t *testing.T, scenarios []TestScenario) {
 	}
 }
 
+func RunScenariosParallel(t *testing.T, scenarios []TestScenario) {
+	var stdout, stderr string
+	var err error
+
+	t.Log("Parallel scenario set outline:")
+	for i, scenario := range scenarios {
+		t.Logf("%2d - %v", i, scenario.Name)
+	}
+
+	// Running the scenarios
+	for _, scenario := range scenarios {
+		passed := t.Run(scenario.Name, func(t *testing.T) {
+			t.Parallel()
+			stdout, stderr, err = RunScenario(scenario)
+			assert.Assert(t, err)
+		})
+		if !passed {
+			t.Fail()
+			log.Printf("%s has failed, exiting", scenario.Name)
+			log.Printf("STDOUT:\n%s", stdout)
+			log.Printf("STDERR:\n%s", stderr)
+			break
+		}
+	}
+}
+
 // RunSkupperCli executes the skupper binary (assuming it is available
 // in the PATH), returning stdout, stderr and error.
 func RunSkupperCli(args []string) (string, string, error) {
