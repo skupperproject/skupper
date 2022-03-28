@@ -226,7 +226,7 @@ func deployResources(pub *base.ClusterContext, prv *base.ClusterContext) error {
 	return nil
 }
 
-func skupperInitInterior(ctx *base.ClusterContext) (initSteps []cli.TestScenario) {
+func skupperInitInterior(ctx *base.ClusterContext, withPolicy bool) (initSteps []cli.TestScenario) {
 	initSteps = []cli.TestScenario{
 		{
 			Name: "init-skupper-interior",
@@ -238,15 +238,15 @@ func skupperInitInterior(ctx *base.ClusterContext) (initSteps []cli.TestScenario
 						ConsoleUser:         "internal",
 						ConsolePassword:     "internal",
 						RouterMode:          "interior",
-						EnableConsole:       false,
+						EnableConsole:       true,
 						EnableRouterConsole: true,
 					},
 					// skupper status - verify initialized as interior
 					&cli.StatusTester{
 						RouterMode:          "interior",
-						ConsoleEnabled:      false,
+						ConsoleEnabled:      true,
 						ConsoleAuthInternal: true,
-						PolicyEnabled:       true,
+						PolicyEnabled:       withPolicy,
 					},
 				}},
 			},
@@ -255,7 +255,7 @@ func skupperInitInterior(ctx *base.ClusterContext) (initSteps []cli.TestScenario
 	return
 }
 
-func skupperInitEdge(ctx *base.ClusterContext) (initSteps []cli.TestScenario) {
+func skupperInitEdge(ctx *base.ClusterContext, withPolicy bool) (initSteps []cli.TestScenario) {
 	initSteps = []cli.TestScenario{
 		{
 			Name: "init-skupper-edge",
@@ -287,7 +287,7 @@ func skupperInitEdge(ctx *base.ClusterContext) (initSteps []cli.TestScenario) {
 					&cli.StatusTester{
 						RouterMode:    "edge",
 						SiteName:      "private",
-						PolicyEnabled: true,
+						PolicyEnabled: withPolicy,
 					},
 				}},
 			},

@@ -73,7 +73,7 @@ func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 		t.Fatalf("CRD setup failed")
 	}
 
-	initSteps := skupperInitInterior(pub1)
+	initSteps := skupperInitInterior(pub1, true)
 
 	testTable := []namespaceTest{
 		{

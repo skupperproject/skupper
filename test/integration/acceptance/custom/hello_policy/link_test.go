@@ -53,7 +53,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	policyClient := client.NewPolicyValidatorAPI(pub.VanClient)
 
-	initSteps := append(skupperInitInterior(pub), skupperInitEdge(prv)...)
+	initSteps := append(skupperInitInterior(pub, true), skupperInitEdge(prv, true)...)
 	t.Run("init", func(t *testing.T) { cli.RunScenariosParallel(t, initSteps) })
 
 	t.Run("empty-policy-fails-token-creation", func(t *testing.T) {

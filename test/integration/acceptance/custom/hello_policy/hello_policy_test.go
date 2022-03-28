@@ -50,7 +50,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	// SkupperCommandTester implementation validates necessary
 	// output or resources in the cluster to certify the command
 	// was executed correctly.
-	initSteps := append(skupperInitInterior(pub1), skupperInitEdge(pub2)...)
+	initSteps := append(skupperInitInterior(pub1, false), skupperInitEdge(pub2, false)...)
 
 	connectSteps := cli.TestScenario{
 		Name: "connect-sites",
