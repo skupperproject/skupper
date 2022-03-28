@@ -238,6 +238,13 @@ func TestMain(m *testing.M) {
 // this way so that their times are reported on the end, and the full length of
 // the test can be better understood.
 //
+// To run a single test, refer to it as '//testName'.  For example,
+//   go test -run "//testNamespace"
+// This will ensure that not only the tests, but also the setup and tear down
+// are run.
+//
+// TBD control setup/teardown with environment variables.
+//
 // Because the policy changes are cluster-wise, we need to run all tests in
 // serial.
 //
@@ -305,24 +312,26 @@ func TestPolicies(t *testing.T) {
 		t.Fatalf("Application deployment failed")
 	}
 
-	// Change all below for a loop with function references
-	// and some introspection?
-	t.Run("testHelloPolicy", func(t *testing.T) {
-		testHelloPolicy(t, pub1, pub2)
-	})
+	// This allows to select a specific testing with
+	// "go test -run //testname"
+	t.Run("tests", func(t *testing.T) {
+		// Change all below for a loop with function references
+		// and some introspection?
+		t.Run("testHelloPolicy", func(t *testing.T) {
+			testHelloPolicy(t, pub1, pub2)
+		})
 
-	applyCrd(t, pub1)
-	removePolicies(t, pub1)
+		t.Run("testNamespace", func(t *testing.T) {
+			applyCrd(t, pub1)
+			removePolicies(t, pub1)
+			testNamespace(t, pub1, pub2)
+		})
 
-	t.Run("testNamespace", func(t *testing.T) {
-		testNamespace(t, pub1, pub2)
-	})
-
-	applyCrd(t, pub1)
-	removePolicies(t, pub1)
-
-	t.Run("testLinkPolicy", func(t *testing.T) {
-		testLinkPolicy(t, pub1, pub2)
+		t.Run("testLinkPolicy", func(t *testing.T) {
+			applyCrd(t, pub1)
+			removePolicies(t, pub1)
+			testLinkPolicy(t, pub1, pub2)
+		})
 	})
 
 }
