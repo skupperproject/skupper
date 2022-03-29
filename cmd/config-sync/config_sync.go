@@ -197,9 +197,9 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 		return fmt.Errorf("Could not get management agent : %s", err)
 	}
 	var synced bool
-	for i := 0; i < 3 && err == nil && !synced; i++ {
-		synced, err = syncConfig(agent, desired, c)
-	}
+
+	synced, err = syncConfig(agent, desired, c)
+
 	c.agentPool.Put(agent)
 	if err != nil {
 		return fmt.Errorf("Error while syncing bridge config : %s", err)

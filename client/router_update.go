@@ -432,6 +432,12 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 		updateRouter = true
 	}
+
+	if addCertsSharedVolume {
+		kube.AppendSharedVolume(&router.Spec.Template.Spec.Volumes, &router.Spec.Template.Spec.Containers[0].VolumeMounts, &router.Spec.Template.Spec.Containers[1].VolumeMounts, "skupper-router-certs", "/etc/skupper-router-certs")
+		updateRouter = true
+	}
+
 	if updateRouter || updateSite || hup {
 		if !updateRouter {
 			// need to trigger a router redployment to pick up the revised metadata field
@@ -535,11 +541,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		if err != nil {
 			return false, err
 		}
-	}
-
-	if addCertsSharedVolume {
-		kube.AppendSharedVolume(&router.Spec.Template.Spec.Volumes, &router.Spec.Template.Spec.Containers[0].VolumeMounts, &router.Spec.Template.Spec.Containers[1].VolumeMounts, "skupper-router-certs", "/etc/skupper-router-certs")
-		updateRouter = true
 	}
 
 	desiredControllerImage := GetServiceControllerImageName()

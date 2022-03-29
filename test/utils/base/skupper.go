@@ -27,10 +27,6 @@ func WaitForSkupperConnectedSites(ctx context.Context, cc *ClusterContext, sites
 		case <-ctx.Done():
 			return fmt.Errorf("context has been canceled")
 		case <-timeout:
-			log.Println("Dump Skupper Router log:")
-			cc.KubectlExec("logs deployment/skupper-router -c router")
-			log.Println("Dump Skupper Config-Sync log:")
-			cc.KubectlExec("logs deployment/skupper-router -c config-sync")
 			return fmt.Errorf("timed out waiting for sites to be connected")
 		case <-tick:
 			vir, err := cc.VanClient.RouterInspect(ctx)

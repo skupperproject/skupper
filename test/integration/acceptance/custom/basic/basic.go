@@ -30,8 +30,8 @@ func (r *BasicTestRunner) RunTests(ctx context.Context, t *testing.T) {
 	prvCluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, prvCluster, 1))
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, pubCluster, 1))
+	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, prvCluster, 1))
 }
 
 func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.SiteConfigSpec, createOptsPrivate types.SiteConfigSpec, tokenType string, t *testing.T) {
