@@ -1,4 +1,10 @@
 
+**Attention**: These tests apply and remove the Policy CRD and associated 
+Policies as CRs.  Those have cluster-wise effect.  For that reason, they cannot
+be run in parallel with any other tests, lest they'll fail.
+
+# Note on files
+
 Under the `features` directory there are files are written in Gherkin, but not
 read by any actual Gherkin system (behave or cucumber).
 
@@ -7,19 +13,14 @@ code can be written.
 
 # General questions
 
-"*It will also provide a Rest API for policy validation. This API can be used by the
-CLI, through the get command, or by the Console in the future.*".  Is there
-an API to be tested?  So far, work was centered on cli.  Or is that just the `get`
-command on the service controller?
-
-Allowed services: only local, or remote, too?  Soo, if service 'foo' is not allowed,
-it means that a service 'foo' cannot be exported locally, nor can it be consumed
-from elsewhere?
-
 # Priorities
 
 * A cluster without the CRD or with an all-allowing policy  should behave like 0.8
-* Policy has teeth: anything that is disallowed should not be accessible
+* Policy has teeth: anything that is not allowed should not be accessible
+* Annotation testing is lower priority
+
+For later
+
 * An upgrade from 0.8 without CRD should also continue behaving like 0.8
 * An upgrade from 0.8 with CRD pre-installed and an all-allowing policy
   should also continue behaving like 0.8
@@ -36,6 +37,10 @@ from elsewhere?
 
 * Update testing is not on scope for now (it may be added to update-specific testing
   or added here in the future)
+
+* API testing is not part of this test package as of now.
+
+* Same for console testing
 
 # Test factors
 
@@ -54,16 +59,21 @@ that behaves as if they were false or empty.
 * AllowedOutgoingLinksHostnames (check FQDN and IPV4/6)
   * Outgoing link creation
   * if a link was previously brought down by policy, it should come back up
+  * Note that testing FQDNs may be challenging on non-OCP clusters.  Start with
+    IP, come back to FQDN and different Ingress options later.
 * AllowedExposedResources (strict type/name; no regex)
   * Resource exposing
   * Resource exposing using annotations
   * Resources unbound by policy are not re-bound when allowed again to
 * AllowedServices
+  * Make external services available
   * Skupper service creation
   * Annotation of services cause service exposing
-  * Make external services available
   * Services removed by policy are not re-created when allowed again to
-  * But remote services that were filtered out show up again (?)
+    * Even for skupper services created by annotation.  For those to be recreated, their 
+      Kubernetes definitions need to be updated (so there is a trigger for Skupper to notice 
+      the annotation), or the service-controller restarted
+  * But remote services that were filtered out show up again
 
 ### Negative: when the last allowing policy is removed
 
@@ -75,19 +85,22 @@ that behaves as if they were false or empty.
     * link creation (moot, as no token) (including via console)
       * actually: create token, remove allow, try to create link
     * gateway creation (moot, as no link)
-  * removals
-    * existing tokens?
+  * Disconnect and disable
     * existing links
     * existing gateways
+  * Existing tokens are not touched
 * AllowedOutgoingLinksHostnames
   * outgoing link creation fails
-  * removal of existing links
+  * existing links are disconnected and disabled
 * AllowedExposedResources
   * binding of new resources fail
   * unbinding of resources (anything different about annotated?)
 * AllowedServices
   * removal of local services (including exoposed by annotation)
-  * Make external services unavailable
+    * note that it is the Skupper service that is removed.  The original
+      Kubernetes service is left intact, annotation and all
+  * Make external services unavailable (on service status, they are listed but show
+    as not authorized)
   
 
 ### Alternating
@@ -98,10 +111,9 @@ disallowing the policy items a few times.
 
 ## The assynchronous nature of the policy engine
 
-The policy engine works in a declarative manner: when policies are added or 
-removed, it recalculates the policies and apply any changes to the individual
-namespaces.   (or, actually: the service controllers in each namespace monitor
-for policy changes and recalculate the local policy when they change?)
+The policy engine works in a declarative manner: the service controllers in
+each namespace monitor for policy changes and recalculate the local policy when
+they change.
 
 The testing needs to take that into account, and confirm that any pending
 changes have been done to the tested namespace, lest it will report many
@@ -134,9 +146,6 @@ to that namespace.
 The `Namespaces` selection works on an `OR` list, so besides single items,
 it will be important to check that any lists work as expected.
 
-Question: what would `Namespaces: []` stand for?  Invalid policy that applies
-to no namespaces at all?
-
 Of course, one needs to make sure that policies that apply only to other 
 namespaces make no changes on a given namespace, and that changes specific
 to a namespace do not affect others.
@@ -148,6 +157,9 @@ to ensure, but we test anyway
 
 * test multiple labels in a single item
 * test single labels in multiple items
+
+Please also note that an empty namespace selection turns the policy into a
+no-op, as it will apply to no namespaces.
 
 ## the additive nature of policies
 
@@ -185,10 +197,11 @@ removed.  That's Kubernetes' work, but we need to check side effects, if any.
 
 A cluster without the CRD should behave like 0.8 (ie, policies play no role).
 
-Question: should we test specifically for cluster without CRD?  Or leave the
-main tests to do that?
+We don't need to test specifically for clusters without CRDs (the main tests
+running without it will already cover that case).  However, we do need to 
+check for the side-effects of CRD removal.
 
-Addition of the CRD, however, has several side-effects.  More specifically,
+Addition of the CRD, also, has several side-effects.  More specifically,
 links are dropped and services removed.
 
 ## Addition and removal of policies
@@ -232,12 +245,16 @@ It is simply a no-op background.  The tester can prepare the environment
 actual background is whatever the tester prepared manually, but the test still
 runs from the code.
 
-Question: what cluster-wide changes does skupper do?  How to make sure they're
-fully removed?  Service account; anything else?
-
 Idea: for cluster wide modifications, run the preparation for a set of tests,
 then a single modification, then the verification for all of them.  This might
 save some time on the test.
+
+When working with preparing the environment with backgrounds, keep in mind the
+following cluster-wide resources;
+
+* Policy CRD
+* Policy CRs
+* The skupper-service-controller ClusterRole
 
 ### Verification
 
@@ -281,9 +298,11 @@ Describe features of the product that may help writing test cases.
 
 ## service sync
 
-It happens every 30 (?) seconds.  
+It happens every 5 seconds.  
 
-TODO: Check that and how to confirm it's been run
+It should not be a concern for the testing, as the CLI testing infra, in
+special the `status` methods, works by retrying the command until it prints
+the expected message.
 
 
 # TODO
@@ -301,6 +320,16 @@ from private to pub will drop, but not reconnect on removal (check whether this
 is expected behavior — it is current behavior), but in any case things can be
 assymetrical.
 
+# Trying to circumvent controls
+
+* Make changes directly on the configuration maps
+* Other changes that can be done by a namespace admin that is not a cluster admin
+
+# Pod restarts
+
+To make sure that any changes were persisted.  Idea is to have it by environment
+variable, or a new TestRunner.  In-between each task, restart the pods
+
 # Other checks
 
 * Running a non-policy skupper binary against a policy-enabled service 
@@ -310,12 +339,6 @@ assymetrical.
 * bypass the skupper binary: make direct API calls.
 
 # Suggestions
-
-* On the CRD that will be made available to clients, add a comment with
-  capital letters WARNING that installing the CRD enables the Policy
-  immediatelly, that can remove services and etc.
- 
-* `get policies status`: on or off and list of policies
 
 
 

@@ -1,5 +1,5 @@
-//go:build integration || cli || examples || policy
-// +build integration cli examples policy
+//go:build policy
+// +build policy
 
 // TODO:
 // - link and policy
