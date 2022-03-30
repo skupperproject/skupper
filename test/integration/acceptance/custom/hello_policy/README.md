@@ -1,7 +1,7 @@
 
 **Attention**: These tests apply and remove the Policy CRD and associated 
 Policies as CRs.  Those have cluster-wise effect.  For that reason, they cannot
-be run in parallel with any other tests, lest they'll fail.
+be run in parallel with any other tests, lest those other tests will fail.
 
 # Note on files
 
@@ -124,10 +124,8 @@ false positives and false negatives.
 ## namespace selection
 
 Namespace selection is on a list of actual namespaces, regexes thereof, or 
-label selectors (any tokens with a '=' in the middle).
-
-TODO:  Confirm this.  "\*" is not a valid regex, still.  Also, does it test it
-twice?  One with regex, one with normal?  If not, how does it treat the dots?
+label selectors (any tokens with a '=' in the middle), plus the special "\*"
+notation, representing any namespace.
 
 *Question*: Where are regexes anchored?  If everything is a regex and they're
 not anchored, then an item of '.' would also match everything
@@ -138,7 +136,7 @@ not anchored, then an item of '.' would also match everything
 If any of the items on a list applies to a namespace, then the policy applies
 to that namespace.
 
-* "\*"
+* `\*`
 * specific namespace
 * regex
 * label
@@ -186,7 +184,7 @@ policies that apply to that namespace, with the following behavior:
 
 Note that policy items of type list also need to be 'activated': a resulting
 policy with an empty `AllowedOutgoingLinksHostnames`, for example, will not
-allow any outgoing connections (until specific hostnames or "\*" are listed 
+allow any outgoing connections (until specific hostnames or `\*` are listed 
 on it.
 
 
@@ -320,12 +318,12 @@ from private to pub will drop, but not reconnect on removal (check whether this
 is expected behavior — it is current behavior), but in any case things can be
 assymetrical.
 
-# Trying to circumvent controls
+## Trying to circumvent controls
 
 * Make changes directly on the configuration maps
 * Other changes that can be done by a namespace admin that is not a cluster admin
 
-# Pod restarts
+## Pod restarts
 
 To make sure that any changes were persisted.  Idea is to have it by environment
 variable, or a new TestRunner.  In-between each task, restart the pods
