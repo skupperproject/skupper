@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
-	certs "github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -46,72 +45,7 @@ func generateConnectorName(namespace string, cli kubernetes.Interface) string {
 	return "link" + strconv.Itoa(max)
 }
 
-func secretFileAuthor(ctx context.Context, secretFile string) (author string, err error) {
-	content, err := certs.GetSecretContent(secretFile)
-	if err != nil {
-		return "", err
-	}
-	generatedBy, ok := content["skupper.io/generated-by"]
-	if !ok {
-		return "", fmt.Errorf("Can't find secret origin.")
-	}
-	return string(generatedBy), nil
-}
-
-func (cli *VanClient) isOwnToken(ctx context.Context, secretFile string) (bool, error) {
-	generatedBy, err := secretFileAuthor(ctx, secretFile)
-	if err != nil {
-		return false, err
-	}
-	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
-	if err != nil {
-		return false, err
-	}
-	if siteConfig == nil {
-		return false, fmt.Errorf("No site config")
-	}
-	return siteConfig.Reference.UID == string(generatedBy), nil
-}
-
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
-	// Before doing any checks, make sure that Skupper is running.
-	if _, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient); err != nil {
-		return nil, err
-	}
-
-	// Disallow self-connection: make sure this token does not belong to this Skupper router.
-	ownToken, err := cli.isOwnToken(ctx, secretFile)
-	if err != nil {
-		return nil, fmt.Errorf("Can't check secret ownership: '%s'", err.Error())
-	}
-	if ownToken {
-		return nil, fmt.Errorf("Can't create connection to self with token '%s'", secretFile)
-	}
-
-	// Also disallow multiple use of same token.
-	// Find its author, then compare against authors of already-existing
-	// secrets that we have used to make connections.
-	newConnectionAuthor, err := secretFileAuthor(ctx, secretFile)
-	if err != nil {
-
-		return nil, err
-	}
-
-	secrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
-	if err != nil {
-		return nil, fmt.Errorf("Can't retrieve secrets.")
-	}
-
-	for _, oldSecret := range secrets.Items {
-		oldConnectionAuthor, ok := oldSecret.Annotations["skupper.io/generated-by"]
-		if !ok {
-			return nil, fmt.Errorf("A secret has no author.")
-		}
-		if newConnectionAuthor == oldConnectionAuthor {
-			return nil, fmt.Errorf("Already connected to \"%s\".", newConnectionAuthor)
-		}
-	}
-
 	yaml, err := ioutil.ReadFile(secretFile)
 	if err != nil {
 		fmt.Println("Could not read connection token", err.Error())
@@ -209,6 +143,10 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 				return nil, err
 			}
 			// Verify if site link can be created
+			err = cli.verifyNotSelfOrDuplicate(secret, siteConfig.Reference.UID)
+			if err != nil {
+				return nil, err
+			}
 			err = cli.VerifySecretCompatibility(secret)
 			if err != nil {
 				return nil, err
@@ -270,6 +208,33 @@ func (cli *VanClient) VerifySiteCompatibility(siteVersion string) error {
 	if utils.LessRecentThanVersion(siteVersion, siteMeta.Version) {
 		if !utils.IsValidFor(siteVersion, cli.GetMinimumCompatibleVersion()) {
 			return fmt.Errorf("minimum version required %s", cli.GetMinimumCompatibleVersion())
+		}
+	}
+	return nil
+}
+
+func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string) error {
+	if secret.ObjectMeta.Annotations == nil {
+		return fmt.Errorf("The secret has not annotations")
+	}
+	generatedBy, ok := secret.ObjectMeta.Annotations[types.TokenGeneratedBy]
+	if !ok {
+		return fmt.Errorf("Can't find secret origin.")
+	}
+	if self == string(generatedBy) {
+		return fmt.Errorf("Can't create connection to self with token")
+	}
+	currentSecrets, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
+	if err != nil {
+		return fmt.Errorf("Could not retrieve secrets: %w", err)
+	}
+	for _, currentSecret := range currentSecrets.Items {
+		currentAuthor, ok := currentSecret.Annotations[types.TokenGeneratedBy]
+		if !ok {
+			return fmt.Errorf("A secret has no author.")
+		}
+		if generatedBy == currentAuthor {
+			return fmt.Errorf("Already connected to \"%s\".", currentAuthor)
 		}
 	}
 	return nil
