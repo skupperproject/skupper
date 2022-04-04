@@ -143,7 +143,7 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 				return nil, err
 			}
 			// Verify if site link can be created
-			err = cli.verifyNotSelfOrDuplicate(secret, siteConfig.Reference.UID)
+			err = cli.verifyNotSelfOrDuplicate(secret, siteConfig.Reference.UID, options)
 			if err != nil {
 				return nil, err
 			}
@@ -213,7 +213,7 @@ func (cli *VanClient) VerifySiteCompatibility(siteVersion string) error {
 	return nil
 }
 
-func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string) error {
+func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string, options types.ConnectorCreateOptions) error {
 	if secret.ObjectMeta.Annotations == nil {
 		return fmt.Errorf("The secret has not annotations")
 	}
@@ -224,7 +224,7 @@ func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string
 	if self == string(generatedBy) {
 		return fmt.Errorf("Can't create connection to self with token")
 	}
-	currentSecrets, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
+	currentSecrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 	if err != nil {
 		return fmt.Errorf("Could not retrieve secrets: %w", err)
 	}
