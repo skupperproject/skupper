@@ -57,7 +57,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	t.Run("init", func(t *testing.T) { cli.RunScenariosParallel(t, initSteps) })
 
 	t.Run("empty-policy-fails-token-creation", func(t *testing.T) {
-		createToken := createToken("fail", pub, "./tmp", false)
+		createToken := createTokenPolicyScenario("fail", pub, "./tmp", false)
 		cli.RunScenarios(t, []cli.TestScenario{createToken})
 		res, err := policyClient.IncomingLink()
 		if err != nil {
@@ -69,7 +69,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	})
 
 	t.Run("allowing-policy-allows-creation", func(t *testing.T) {
-		createToken := createToken("works", pub, "./tmp/", true)
+		createToken := createTokenPolicyScenario("works", pub, "./tmp/", true)
 		createLink := createLink(t, pub, prv)
 
 		policySpec := skupperv1.SkupperClusterPolicySpec{

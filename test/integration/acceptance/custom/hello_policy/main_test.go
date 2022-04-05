@@ -374,7 +374,10 @@ func TestPolicies(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						t.Logf("Removing namespace %v", context.Namespace)
-						_ = context.DeleteNamespace()
+						err := context.DeleteNamespace()
+						if err != nil {
+							t.Logf("Removal of namespace %v failed: %v", context.Namespace, err)
+						}
 					}()
 				}
 			}
