@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -49,11 +50,12 @@ func getTestToken(name string, tokentype string, annotations map[string]string) 
 	}
 	if annotations != nil {
 		token.ObjectMeta.Annotations = annotations
-	} else if tokentype == types.TypeClaimRequest {
-		token.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey] = "http://myserver:1234/foo"
-		token.Data[types.ClaimPasswordDataKey] = []byte("abcdefgh")
-	} else if tokentype == types.TypeToken {
-
+	} else {
+		token.ObjectMeta.Annotations[types.TokenGeneratedBy] = uuid.New().String()
+		if tokentype == types.TypeClaimRequest {
+			token.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey] = "http://myserver:1234/foo"
+			token.Data[types.ClaimPasswordDataKey] = []byte("abcdefgh")
+		}
 	}
 	return &token
 }
