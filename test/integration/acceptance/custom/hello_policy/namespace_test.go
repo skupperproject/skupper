@@ -54,7 +54,7 @@ func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 		t.Fatalf("CRD setup failed")
 	}
 
-	initSteps := skupperInitInterior(pub1, true)
+	initSteps := []cli.TestScenario{skupperInitInteriorTestScenario(pub1, "", true)}
 
 	testTable := []namespaceTest{
 		{
@@ -129,7 +129,7 @@ func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 			cli.RunScenarios(
 				t,
 				[]cli.TestScenario{
-					createTokenPolicyScenario(fmt.Sprintf("%d", index), pub1, testPath, item.worksOnTarget),
+					createTokenPolicyScenario(pub1, "", testPath, fmt.Sprintf("%d", index), item.worksOnTarget),
 				},
 			)
 		})
@@ -141,7 +141,9 @@ func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 
 		cli.RunScenarios(
 			t,
-			deleteSkupper(pub1),
+			[]cli.TestScenario{
+				deleteSkupperTestScenario(pub1, ""),
+			},
 		)
 	})
 

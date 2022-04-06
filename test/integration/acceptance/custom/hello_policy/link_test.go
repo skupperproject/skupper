@@ -23,21 +23,21 @@ import (
 // clarify that what's being checked is a 'side-effect' (eg when a link drops
 // in a cluster because the policy was removed on the other cluster)
 
-func createLink(t *testing.T, pub, prv *base.ClusterContext) (scenarios []cli.TestScenario) {
+// Uses the named token to create a link from ctx1 to ctx2
+//
+// Returns a scenario with a single link.CreateTester
+func createLinkTestScenario(ctx1, ctx2 *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
 
-	scenarios = []cli.TestScenario{
-		{
-			Name: "connect-sites",
-			Tasks: []cli.SkupperTask{
-				{Ctx: pub, Commands: []cli.SkupperCommandTester{
-					// skupper link create - connect to public and verify connection created
-					&link.CreateTester{
-						TokenFile: "./tmp/" + "works.token.yaml",
-						Name:      "public",
-						Cost:      1,
-					},
+	scenario = cli.TestScenario{
+		Name: prefixName(prefix, "connect-sites"),
+		Tasks: []cli.SkupperTask{
+			{Ctx: ctx1, Commands: []cli.SkupperCommandTester{
+				&link.CreateTester{
+					TokenFile: "./tmp/" + name + ".token.yaml",
+					Name:      "public",
+					Cost:      1,
 				},
-				},
+			},
 			},
 		},
 	}
@@ -45,20 +45,67 @@ func createLink(t *testing.T, pub, prv *base.ClusterContext) (scenarios []cli.Te
 	return
 }
 
+// The idea:
+//
+// - set policyStart
+// - run prep steps
+// - set policyChange
+// - run scenario
+// - deleteLink(s), if extant
+//
+// prep steps and policyChange may be empty, if unnecessary
+//
+// Uses:
+//   - policyStart: allowed
+//     prep: create token
+//     policyChange: disallow
+//     run: try to create link with pre-created token
+//   - policyStart: allowed
+//     pre: create token, link
+//     policyChange: disallow
+//     run: stuff came down
+//   - policyStart: disallow
+//     prep: try to create link, fail
+//     policyChange: allow
+//     run: creations now work
+
+// This is one option
 type testLinkPolicyCase struct {
-	policy skupperv1.SkupperClusterPolicySpec
+	pubPolicyStart  skupperv1.SkupperClusterPolicySpec
+	prvPolicyStart  skupperv1.SkupperClusterPolicySpec
+	prep            []cli.TestScenario
+	pubPolicyChange skupperv1.SkupperClusterPolicySpec
+	prvPolicyChange skupperv1.SkupperClusterPolicySpec
+	scenario        []cli.TestScenario
+}
+
+// This is another
+type testLinkPolicyCase2 struct {
+	tokenWorks bool
+	policy     skupperv1.SkupperClusterPolicySpec
+	linkWorks  bool
+	linkFalls  bool
+	scenario   []cli.TestScenario
 }
 
 func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	policyClient := client.NewPolicyValidatorAPI(pub.VanClient)
 
-	initSteps := append(skupperInitInterior(pub, true), skupperInitEdge(prv, true)...)
+	initSteps := []cli.TestScenario{
+		skupperInitInteriorTestScenario(pub, "", true),
+		skupperInitEdgeTestScenario(prv, "", true),
+	}
+
 	t.Run("init", func(t *testing.T) { cli.RunScenariosParallel(t, initSteps) })
 
 	t.Run("empty-policy-fails-token-creation", func(t *testing.T) {
-		createToken := createTokenPolicyScenario("fail", pub, "./tmp", false)
-		cli.RunScenarios(t, []cli.TestScenario{createToken})
+		cli.RunScenarios(
+			t,
+			[]cli.TestScenario{
+				createTokenPolicyScenario(pub, "", "./tmp", "fail", false),
+			})
+
 		res, err := policyClient.IncomingLink()
 		if err != nil {
 			t.Errorf("API check failed: %v", err)
@@ -69,21 +116,26 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	})
 
 	t.Run("allowing-policy-allows-creation", func(t *testing.T) {
-		createToken := createTokenPolicyScenario("works", pub, "./tmp/", true)
-		createLink := createLink(t, pub, prv)
 
 		policySpec := skupperv1.SkupperClusterPolicySpec{
 			Namespaces:                    []string{pub.Namespace},
 			AllowIncomingLinks:            true,
 			AllowedOutgoingLinksHostnames: []string{"*"},
 		}
+
 		err := applyPolicy(t, "generated-policy", policySpec, pub)
 		if err != nil {
 			t.Fatalf("Failed to apply policy: %v", err)
 			return
 		}
 
-		cli.RunScenarios(t, append([]cli.TestScenario{createToken}, createLink...))
+		cli.RunScenarios(
+			t,
+			[]cli.TestScenario{
+				createTokenPolicyScenario(pub, "", "./tmp", "works", true),
+				createLinkTestScenario(pub, prv, "", "works"),
+			})
+
 		res, err := policyClient.IncomingLink()
 		if err != nil {
 			t.Errorf("API check failed: %v", err)
@@ -93,7 +145,10 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		}
 	})
 
-	deleteSteps := append(deleteSkupper(pub), deleteSkupper(prv)...)
+	deleteSteps := []cli.TestScenario{
+		deleteSkupperTestScenario(pub, "pub"),
+		deleteSkupperTestScenario(prv, "prv"),
+	}
 	t.Run("cleanup", func(t *testing.T) { cli.RunScenariosParallel(t, deleteSteps) })
 
 }

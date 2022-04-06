@@ -50,7 +50,10 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	// SkupperCommandTester implementation validates necessary
 	// output or resources in the cluster to certify the command
 	// was executed correctly.
-	initSteps := append(skupperInitInterior(pub1, false), skupperInitEdge(pub2, false)...)
+	initSteps := []cli.TestScenario{
+		skupperInitInteriorTestScenario(pub1, "", false),
+		skupperInitEdgeTestScenario(pub2, "", false),
+	}
 
 	connectSteps := cli.TestScenario{
 		Name: "connect-sites",
@@ -488,7 +491,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 		},
 	}
 
-	deleteSteps := append(deleteSkupper(pub1), deleteSkupper(pub2)...)
+	deleteSteps := append([]cli.TestScenario{}, deleteSkupperTestScenario(pub1, ""), deleteSkupperTestScenario(pub2, ""))
 
 	//	scenarios := append(append(initSteps, mainSteps...), deleteSteps...)
 

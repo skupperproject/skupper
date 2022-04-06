@@ -226,91 +226,16 @@ func deployResources(pub *base.ClusterContext, prv *base.ClusterContext) error {
 	return nil
 }
 
-func skupperInitInterior(ctx *base.ClusterContext, withPolicy bool) (initSteps []cli.TestScenario) {
-	initSteps = []cli.TestScenario{
-		{
-			Name: "init-skupper-interior",
-			Tasks: []cli.SkupperTask{
-				{Ctx: ctx, Commands: []cli.SkupperCommandTester{
-					// skupper init - interior mode, enabling console and internal authentication
-					&cli.InitTester{
-						ConsoleAuth:         "internal",
-						ConsoleUser:         "internal",
-						ConsolePassword:     "internal",
-						RouterMode:          "interior",
-						EnableConsole:       true,
-						EnableRouterConsole: true,
-					},
-					// skupper status - verify initialized as interior
-					&cli.StatusTester{
-						RouterMode:          "interior",
-						ConsoleEnabled:      true,
-						ConsoleAuthInternal: true,
-						PolicyEnabled:       withPolicy,
-					},
-				}},
-			},
-		},
-	}
-	return
-}
+func prefixName(prefix, name string) (newName string) {
 
-func skupperInitEdge(ctx *base.ClusterContext, withPolicy bool) (initSteps []cli.TestScenario) {
-	initSteps = []cli.TestScenario{
-		{
-			Name: "init-skupper-edge",
-			Tasks: []cli.SkupperTask{
-				{Ctx: ctx, Commands: []cli.SkupperCommandTester{
-					// skupper init - edge mode, no console and unsecured
-					&cli.InitTester{
-						ConsoleAuth:           "unsecured",
-						ConsoleUser:           "admin",
-						ConsolePassword:       "admin",
-						Ingress:               "none",
-						RouterDebugMode:       "gdb",
-						RouterLogging:         "trace",
-						RouterMode:            "edge",
-						SiteName:              "private",
-						EnableConsole:         false,
-						EnableRouterConsole:   false,
-						RouterCPU:             "100m",
-						RouterMemory:          "32Mi",
-						ControllerCPU:         "50m",
-						ControllerMemory:      "16Mi",
-						RouterCPULimit:        "600m",
-						RouterMemoryLimit:     "500Mi",
-						ControllerCPULimit:    "600m",
-						ControllerMemoryLimit: "500Mi",
-						//ConsoleIngress:      "none",
-					},
-					// skupper status - verify initialized as edge
-					&cli.StatusTester{
-						RouterMode:    "edge",
-						SiteName:      "private",
-						PolicyEnabled: withPolicy,
-					},
-				}},
-			},
-		},
-	}
-	return
-}
+	newName = name
 
-func deleteSkupper(ctx *base.ClusterContext) (deleteSteps []cli.TestScenario) {
-	deleteSteps = []cli.TestScenario{
-		{
-			Name: "skupper delete",
-			Tasks: []cli.SkupperTask{
-				// skupper delete - delete and verify resources have been removed
-				{Ctx: ctx, Commands: []cli.SkupperCommandTester{
-					&cli.DeleteTester{},
-					&cli.StatusTester{
-						NotEnabled: true,
-					},
-				}},
-			},
-		},
+	if prefix == "" {
+		return
 	}
+
+	newName = prefix + "-" + name
+
 	return
 }
 

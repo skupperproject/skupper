@@ -11,16 +11,16 @@ import (
 // - path
 // - cluster
 // And check whether it works or is disallowed by policy
-func createTokenPolicyScenario(name string, cluster *base.ClusterContext, testPath string, works bool) (createToken cli.TestScenario) {
+func createTokenPolicyScenario(cluster *base.ClusterContext, prefix, testPath, name string, works bool) (createToken cli.TestScenario) {
 
 	createToken = cli.TestScenario{
-		Name: "create-token",
+		Name: prefixName(prefix, "create-token"),
 		Tasks: []cli.SkupperTask{
 			{Ctx: cluster, Commands: []cli.SkupperCommandTester{
 				// skupper token create - verify token has been created
 				&token.CreateTester{
 					Name:             name,
-					FileName:         testPath + name + ".token.yaml",
+					FileName:         testPath + "/" + name + ".token.yaml",
 					ExpectDisallowed: !works,
 				},
 			}},
