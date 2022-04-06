@@ -92,21 +92,13 @@ type policyTestStep struct {
 	name      string
 	pubPolicy []skupperv1.SkupperClusterPolicySpec
 	prvPolicy []skupperv1.SkupperClusterPolicySpec
+	commands  []cli.TestScenario
+	// Add GetCheck here
 }
 
 type policyTestCase struct {
 	name  string
 	steps []policyTestStep
-}
-
-type testLinkPolicyCase struct {
-	name            string
-	pubPolicyStart  []skupperv1.SkupperClusterPolicySpec
-	prvPolicyStart  []skupperv1.SkupperClusterPolicySpec
-	prep            []cli.TestScenario
-	pubPolicyChange []skupperv1.SkupperClusterPolicySpec
-	prvPolicyChange []skupperv1.SkupperClusterPolicySpec
-	scenario        []cli.TestScenario
 }
 
 func applyPolicies(
@@ -139,23 +131,33 @@ func applyPolicies(
 
 func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
-	testTable := []testLinkPolicyCase{
+	testTable := []policyTestCase{
 		{
 			name: "empty-policy-fails-token-creation",
-			scenario: []cli.TestScenario{
-				createTokenPolicyScenario(pub, "", "./tmp", "fail", false),
+			steps: []policyTestStep{
+				{
+					name: "execute",
+					commands: []cli.TestScenario{
+						createTokenPolicyScenario(pub, "", "./tmp", "fail", false),
+					},
+				},
 			},
 		}, {
 			name: "allowing-policy-allows-creation",
-			pubPolicyStart: []skupperv1.SkupperClusterPolicySpec{
-				allowIncomingLinkPolicy(pub.Namespace),
-			},
-			prvPolicyStart: []skupperv1.SkupperClusterPolicySpec{
-				allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
-			},
-			scenario: []cli.TestScenario{
-				createTokenPolicyScenario(pub, "", "./tmp", "works", true),
-				createLinkTestScenario(prv, "", "works"),
+			steps: []policyTestStep{
+				{
+					name: "execute",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy(pub.Namespace),
+					},
+					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
+					},
+					commands: []cli.TestScenario{
+						createTokenPolicyScenario(pub, "", "./tmp", "works", true),
+						createLinkTestScenario(prv, "", "works"),
+					},
+				},
 			},
 		},
 	}
@@ -172,17 +174,15 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	})
 
 	for _, scenario := range testTable {
+		removePolicies(t, pub)
+		removePolicies(t, prv)
 		t.Run(
 			scenario.name,
 			func(t *testing.T) {
-				removePolicies(t, pub)
-				removePolicies(t, prv)
-				applyPolicies(t, "policy-setup", pub, scenario.pubPolicyStart, prv, scenario.prvPolicyStart)
-				if scenario.prep != nil {
-					cli.RunScenarios(t, scenario.prep)
+				for _, step := range scenario.steps {
+					applyPolicies(t, "policy-setup", pub, step.pubPolicy, prv, step.prvPolicy)
+					cli.RunScenarios(t, step.commands)
 				}
-				applyPolicies(t, "policy-setup", pub, scenario.pubPolicyChange, prv, scenario.prvPolicyChange)
-				cli.RunScenarios(t, scenario.scenario)
 			})
 	}
 
