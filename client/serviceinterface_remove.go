@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"log"
 
@@ -64,29 +63,10 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 			log.Printf("Failed to remove sslProfile from the router: %v", err.Error())
 		}
 
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
-			err = kube.RemoveSecretAndUpdateDeployment(secret.Name, types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
+		err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 
 		if err != nil {
-			log.Printf("Failed to remove secret from the router deployment: %v", err.Error())
-		}
-
-		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(secret.Name, metav1.GetOptions{})
-
-		if err == nil {
-
-			err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
-
-			if err != nil {
-				log.Printf("Failed to remove secret from the site: %v", err.Error())
-			}
+			log.Printf("Failed to remove secret from the site: %v", err.Error())
 		}
 	}
 

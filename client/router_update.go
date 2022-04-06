@@ -92,6 +92,8 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	addClaimsSupport := false
 	addMultiportServices := false
 	addClusterPolicy := false
+	updateRouterPolicyRule := false
+	addCertsSharedVolume := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
 		return false, err
@@ -101,6 +103,8 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		addClaimsSupport = utils.LessRecentThanVersion(originalVersion, "0.7.0")
 		addMultiportServices = utils.LessRecentThanVersion(originalVersion, "0.8.0")
 		addClusterPolicy = utils.LessRecentThanVersion(originalVersion, "0.9.0")
+		updateRouterPolicyRule = utils.LessRecentThanVersion(originalVersion, "0.9.0")
+		addCertsSharedVolume = utils.LessRecentThanVersion(originalVersion, "0.9.0")
 	} else {
 		originalVersion = site.Version
 	}
@@ -115,6 +119,8 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 			if utils.LessRecentThanVersion(originalVersion, "0.9.0") {
 				addClusterPolicy = true
+				updateRouterPolicyRule = true
+				addCertsSharedVolume = true
 			}
 
 			err = cli.updateStarted(site.Version, namespace, configmap.ObjectMeta.OwnerReferences)
@@ -201,6 +207,14 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			Subject:     types.LocalTransportServiceName,
 			Hosts:       []string{},
 			ConnectJson: true,
+		})
+		credentials = append(credentials, types.Credential{
+			CA:          types.ServiceCaSecret,
+			Name:        types.ServiceClientSecret,
+			Hosts:       []string{},
+			ConnectJson: false,
+			Post:        false,
+			Simple:      true,
 		})
 
 		usingRoutes, err = cli.usingRoutes(namespace)
@@ -418,6 +432,12 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 		updateRouter = true
 	}
+
+	if addCertsSharedVolume {
+		kube.AppendSharedVolume(&router.Spec.Template.Spec.Volumes, &router.Spec.Template.Spec.Containers[0].VolumeMounts, &router.Spec.Template.Spec.Containers[1].VolumeMounts, "skupper-router-certs", "/etc/skupper-router-certs")
+		updateRouter = true
+	}
+
 	if updateRouter || updateSite || hup {
 		if !updateRouter {
 			// need to trigger a router redployment to pick up the revised metadata field
@@ -515,6 +535,14 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 		}
 	}
+
+	if updateRouterPolicyRule {
+		err = kube.UpdateRole(namespace, types.TransportRoleName, types.TransportPolicyRule, cli.KubeClient)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	desiredControllerImage := GetServiceControllerImageName()
 	if controller.Spec.Template.Spec.Containers[0].Image != desiredControllerImage {
 		controller.Spec.Template.Spec.Containers[0].Image = desiredControllerImage

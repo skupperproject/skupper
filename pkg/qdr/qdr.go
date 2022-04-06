@@ -729,13 +729,19 @@ func GetBridgeConfigFromConfigMap(configmap *corev1.ConfigMap) (*BridgeConfig, e
 	return &routerConfig.Bridges, nil
 }
 
+type ConnectorDifference struct {
+	Deleted          []string
+	Added            []Connector
+	AddedSslProfiles map[string]SslProfile
+}
+
 type TcpEndpointDifference struct {
 	Deleted []string
 	Added   []TcpEndpoint
 }
 
 type HttpEndpointDifference struct {
-	Deleted []string
+	Deleted []HttpEndpoint
 	Added   []HttpEndpoint
 }
 
@@ -810,14 +816,14 @@ func (a HttpEndpointMap) Difference(b HttpEndpointMap) HttpEndpointDifference {
 		if !ok {
 			result.Added = append(result.Added, v1)
 		} else if !v1.Equivalent(v2) {
-			result.Deleted = append(result.Deleted, v1.Name)
+			result.Deleted = append(result.Deleted, v1)
 			result.Added = append(result.Added, v1)
 		}
 	}
 	for key, v1 := range a {
 		_, ok := b[key]
 		if !ok {
-			result.Deleted = append(result.Deleted, v1.Name)
+			result.Deleted = append(result.Deleted, v1)
 		}
 	}
 	return result
@@ -850,6 +856,29 @@ func (a *BridgeConfigDifference) Print() {
 	log.Printf("TcpListeners added=%v, deleted=%v", a.TcpListeners.Added, a.TcpListeners.Deleted)
 	log.Printf("HttpConnectors added=%v, deleted=%v", a.HttpConnectors.Added, a.HttpConnectors.Deleted)
 	log.Printf("HttpListeners added=%v, deleted=%v", a.HttpListeners.Added, a.HttpListeners.Deleted)
+}
+
+func ConnectorsDifference(actual map[string]ConnectorStatus, desired *RouterConfig) *ConnectorDifference {
+	result := ConnectorDifference{}
+	result.AddedSslProfiles = make(map[string]SslProfile)
+	for key, v1 := range desired.Connectors {
+		_, ok := actual[key]
+		if !ok {
+			result.Added = append(result.Added, v1)
+			result.AddedSslProfiles[v1.SslProfile] = desired.SslProfiles[v1.SslProfile]
+		}
+	}
+	for key, v1 := range actual {
+		_, ok := desired.Connectors[key]
+		if !ok {
+			result.Deleted = append(result.Deleted, v1.Name)
+		}
+	}
+	return &result
+}
+
+func (a *ConnectorDifference) Empty() bool {
+	return len(a.Deleted) == 0 && len(a.Added) == 0
 }
 
 func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, version string, namespace string) (string, error) {

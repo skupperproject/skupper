@@ -16,6 +16,8 @@ package utils
 
 import (
 	"crypto/rand"
+	"io"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -95,4 +97,21 @@ func IntSliceContains(s []int, e int) bool {
 		}
 	}
 	return false
+}
+
+func IsDirEmpty(name string) (bool, error) {
+	file, err := os.Open(name)
+
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	_, err = file.Readdir(1)
+
+	if err == io.EOF {
+		return true, nil
+	}
+
+	return false, err
 }

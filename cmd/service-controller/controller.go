@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/util/retry"
-
 	"github.com/skupperproject/skupper/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -910,25 +908,6 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 				return err
 			}
 
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
-				err = kube.AppendSecretAndUpdateDeployment(
-					serviceSecret.Name,
-					"/etc/skupper-router-certs/",
-					types.TransportDeploymentName,
-					c.vanClient.Namespace,
-					c.vanClient.KubeClient,
-					true)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			})
-			if err != nil {
-				return fmt.Errorf("Failed to update skupper-router deployment: %w", err)
-			}
-
 			return nil
 		}
 	}
@@ -940,20 +919,6 @@ func (c *Controller) handleRemovingTlsSupport(tlsCredentials string) error {
 
 	if len(tlsCredentials) > 0 {
 		err := qdr.RemoveSslProfile(tlsCredentials, c.vanClient.Namespace, c.vanClient.KubeClient)
-		if err != nil {
-			return err
-		}
-
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
-			err = kube.RemoveSecretAndUpdateDeployment(tlsCredentials, types.TransportDeploymentName, c.vanClient.Namespace, c.vanClient.KubeClient)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-
 		if err != nil {
 			return err
 		}

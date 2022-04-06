@@ -77,7 +77,7 @@ func main() {
 	if ok := cache.WaitForCacheSync(stopCh, informer.HasSynced); !ok {
 		log.Fatal("Failed to wait for caches to sync")
 	}
-	configSync := newConfigSync(informer)
+	configSync := newConfigSync(informer, cli)
 	log.Println("Starting sync loop...")
 	configSync.start(stopCh)
 	<-stopCh

@@ -2,8 +2,15 @@ package main
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"math"
+	"os"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,13 +22,16 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-// Syncs the live router config with the configmap (currently only
-// bridge configuration needs to be synced in this way)
+// Syncs the live router config with the configmap (bridge configuration,
+//secrets for services with TLS enabled, and secrets and connectors for links)
 type ConfigSync struct {
 	informer  cache.SharedIndexInformer
 	events    workqueue.RateLimitingInterface
 	agentPool *qdr.AgentPool
+	vanClient *client.VanClient
 }
+
+const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
 
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
@@ -47,10 +57,11 @@ func newEventHandler(events workqueue.RateLimitingInterface) *cache.ResourceEven
 	}
 }
 
-func newConfigSync(configInformer cache.SharedIndexInformer) *ConfigSync {
+func newConfigSync(configInformer cache.SharedIndexInformer, cli *client.VanClient) *ConfigSync {
 	configSync := &ConfigSync{
 		informer:  configInformer,
 		agentPool: qdr.NewAgentPool("amqp://localhost:5672", nil),
+		vanClient: cli,
 	}
 	configSync.events = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-config-sync")
 	configSync.informer.AddEventHandler(newEventHandler(configSync.events))
@@ -68,6 +79,11 @@ func (c *ConfigSync) stop() {
 }
 
 func (c *ConfigSync) runConfigSync() {
+	err := c.checkCertFiles(SHARED_TLS_DIRECTORY)
+	if err != nil {
+		log.Printf("An error has ocurred when checking certification files for the router: %s", err)
+	}
+
 	for c.processNextEvent() {
 	}
 }
@@ -102,6 +118,11 @@ func (c *ConfigSync) processNextEvent() bool {
 				return fmt.Errorf("Error reading pod from cache: %s", err)
 			}
 			if exists {
+				err = c.checkCertFiles(SHARED_TLS_DIRECTORY)
+				if err != nil {
+					return fmt.Errorf("Error checking certificate files: %s", err)
+				}
+
 				configmap, ok := obj.(*corev1.ConfigMap)
 				if !ok {
 					return fmt.Errorf("Expected ConfigMap for %s but got %#v", key, obj)
@@ -111,6 +132,17 @@ func (c *ConfigSync) processNextEvent() bool {
 					return fmt.Errorf("Error parsing bridge configuration from %s: %s", key, err)
 				}
 				err = c.syncConfig(bridges)
+				if err != nil {
+					log.Printf("sync failed: %s", err)
+					return err
+				}
+
+				routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+				if err != nil {
+					return err
+				}
+
+				err = c.syncRouterConfig(routerConfig)
 				if err != nil {
 					log.Printf("sync failed: %s", err)
 					return err
@@ -136,7 +168,7 @@ func (c *ConfigSync) processNextEvent() bool {
 	return true
 }
 
-func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig) (bool, error) {
+func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (bool, error) {
 	actual, err := agent.GetLocalBridgeConfig()
 	if err != nil {
 		return false, fmt.Errorf("Error retrieving bridges: %s", err)
@@ -146,6 +178,12 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig) (bool, error) {
 		return true, nil
 	} else {
 		differences.Print()
+
+		err := syncSecrets(c, differences, SHARED_TLS_DIRECTORY)
+		if err != nil {
+			return false, fmt.Errorf("error syncing secrets: %s", err)
+		}
+
 		if err = agent.UpdateLocalBridgeConfig(differences); err != nil {
 			return false, fmt.Errorf("Error syncing bridges: %s", err)
 		}
@@ -159,9 +197,9 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 		return fmt.Errorf("Could not get management agent : %s", err)
 	}
 	var synced bool
-	for i := 0; i < 3 && err == nil && !synced; i++ {
-		synced, err = syncConfig(agent, desired)
-	}
+
+	synced, err = syncConfig(agent, desired, c)
+
 	c.agentPool.Put(agent)
 	if err != nil {
 		return fmt.Errorf("Error while syncing bridge config : %s", err)
@@ -169,5 +207,238 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 	if !synced {
 		return fmt.Errorf("Failed to sync bridge config")
 	}
+	return nil
+}
+
+func (c *ConfigSync) syncRouterConfig(desired *qdr.RouterConfig) error {
+	agent, err := c.agentPool.Get()
+	if err != nil {
+		return fmt.Errorf("Could not get management agent : %s", err)
+	}
+
+	err = syncRouterConfig(agent, desired, c)
+
+	c.agentPool.Put(agent)
+	if err != nil {
+		return fmt.Errorf("Error while syncing router config : %s", err)
+	}
+	return nil
+}
+
+func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
+	actual, err := agent.GetLocalConnectorStatus()
+	if err != nil {
+		return fmt.Errorf("Error retrieving local connector status: %s", err)
+	}
+
+	differences := qdr.ConnectorsDifference(actual, desired)
+	if differences.Empty() {
+		return nil
+	} else {
+
+		err := c.syncConnectorSecrets(differences, SHARED_TLS_DIRECTORY)
+		if err != nil {
+			return fmt.Errorf("error syncing secrets: %s", err)
+		}
+
+		if err = agent.UpdateConnectorConfig(differences); err != nil {
+			return fmt.Errorf("Error syncing connectors: %s", err)
+		}
+		return nil
+	}
+}
+
+func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
+	for _, added := range changes.HttpListeners.Added {
+		if len(added.SslProfile) > 0 {
+			log.Printf("Copying cert files related to HTTP Listener sslProfile %s", added.SslProfile)
+			err := configSync.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, added := range changes.HttpConnectors.Added {
+		if len(added.SslProfile) > 0 {
+			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
+			err := configSync.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, deleted := range changes.HttpListeners.Deleted {
+		if len(deleted.SslProfile) > 0 {
+			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted.SslProfile)
+
+			agent, err := configSync.agentPool.Get()
+			if err != nil {
+				return err
+			}
+
+			if err = agent.Delete("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
+				return fmt.Errorf("Error deleting ssl profile: #{err}")
+			}
+
+			err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
+			if err != nil {
+				return err
+			}
+
+		}
+
+	}
+
+	for _, deleted := range changes.HttpConnectors.Deleted {
+		if len(deleted.SslProfile) > 0 {
+			log.Printf("Deleting cert files related to HTTP Connector sslProfile %s", deleted.SslProfile)
+			err := os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, sharedTlsFilesDir string) error {
+
+	agent, err := c.agentPool.Get()
+	if err != nil {
+		return err
+	}
+
+	for _, added := range changes.Added {
+		if len(added.SslProfile) > 0 {
+			log.Printf("Synchronising secrets related to Connector %s", added.Name)
+			secretName := strings.TrimSuffix(added.SslProfile, "-profile")
+			err = c.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, secretName)
+			if err != nil {
+				return err
+			}
+
+			sslProfile := changes.AddedSslProfiles[added.SslProfile]
+			log.Printf("Creating ssl profile %s", sslProfile.Name)
+			err := agent.CreateSslProfile(sslProfile)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, deleted := range changes.Deleted {
+
+		deletedConnector, err := agent.GetConnectorByName(deleted)
+		if err != nil {
+			return err
+		}
+
+		if len(deletedConnector.SslProfile) > 0 {
+
+			log.Printf("Deleting cert files related to connector sslProfile %s", deletedConnector.SslProfile)
+
+			if err = agent.Delete("io.skupper.router.sslProfile", deletedConnector.SslProfile); err != nil {
+				return fmt.Errorf("Error deleting ssl profile: #{err}")
+			}
+
+			err = os.RemoveAll(sharedTlsFilesDir + "/" + deletedConnector.SslProfile)
+			if err != nil {
+				return err
+			}
+
+		}
+
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) ensureSslProfile(sslProfile string, secretname string, sharedTlsFilesDir string) error {
+	log.Printf("Copying cert files related to sslProfile %s", sslProfile)
+	err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile, secretname)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) checkCertFiles(path string) error {
+
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+	if err != nil {
+		return err
+	}
+	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+
+	for _, profile := range current.SslProfiles {
+		secretName := profile.Name
+
+		if strings.HasSuffix(profile.Name, "-profile") {
+			secretName = strings.TrimSuffix(profile.Name, "-profile")
+		}
+
+		_, err = c.vanClient.GetKubeClient().CoreV1().Secrets(c.vanClient.Namespace).Get(secretName, metav1.GetOptions{})
+		if err != nil {
+			continue
+		}
+
+		err = c.copyCertsFilesToPath(path, profile.Name, secretName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secretname string) error {
+	secret, err := c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Get(secretname, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	_, err = os.Stat(path + "/" + profilename)
+
+	if os.IsNotExist(err) {
+		err = os.Mkdir(path+"/"+profilename, 0777)
+		if err != nil {
+			return err
+		}
+	}
+
+	certFile := path + "/" + profilename + "/tls.crt"
+	keyFile := path + "/" + profilename + "/tls.key"
+	caCertFile := path + "/" + profilename + "/ca.crt"
+
+	_, err = os.Stat(certFile)
+	if secret.Data["tls.crt"] != nil && os.IsNotExist(err) {
+		err = ioutil.WriteFile(certFile, secret.Data["tls.crt"], 0777)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = os.Stat(keyFile)
+	if secret.Data["tls.key"] != nil && os.IsNotExist(err) {
+		err = ioutil.WriteFile(keyFile, secret.Data["tls.key"], 0777)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = os.Stat(caCertFile)
+	if secret.Data["ca.crt"] != nil && os.IsNotExist(err) {
+		err = ioutil.WriteFile(caCertFile, secret.Data["ca.crt"], 0777)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

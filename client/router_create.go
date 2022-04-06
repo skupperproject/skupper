@@ -686,8 +686,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.SiteServerSecret, "/etc/skupper-router-certs/skupper-internal/")
 	}
 
-	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.ServiceClientSecret, "/etc/skupper-router-certs/"+types.ServiceClientSecret+"/")
-
 	if options.EnableRouterConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			sidecars = append(sidecars, OauthProxyContainer(types.TransportServiceAccountName, strconv.Itoa(int(types.ConsoleOpenShiftServicePort))))
@@ -698,6 +696,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "skupper-sasl-config", "skupper-sasl-config", "/etc/sasl2/")
 		}
 	}
+
+	kube.AppendSharedVolume(&volumes, &mounts[qdrouterd], &mounts[configSync], "skupper-router-certs", "/etc/skupper-router-certs")
+
 	van.Transport.Volumes = volumes
 	van.Transport.VolumeMounts = mounts
 	van.Transport.Sidecars = sidecars

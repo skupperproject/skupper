@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/qdr"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -24,5 +25,33 @@ func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.Connect
 	} else if err != nil {
 		return err
 	}
+
+	err = cli.removeConnectorRouterConfig(options)
+	if err != nil {
+		return err
+	}
+
 	return kube.DeleteSecret(options.Name, options.SkupperNamespace, cli.KubeClient)
+
+}
+
+func (cli *VanClient) removeConnectorRouterConfig(options types.ConnectorRemoveOptions) error {
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, options.SkupperNamespace, cli.KubeClient)
+	if err != nil {
+		return err
+	}
+	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return err
+	}
+	current.RemoveConnector(options.Name)
+	current.RemoveSslProfile(options.Name + "-profile")
+
+	_, err = current.UpdateConfigMap(configmap)
+	if err != nil {
+		return err
+	}
+
+	_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(configmap)
+	return err
 }
