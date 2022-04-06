@@ -104,7 +104,7 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 			if strconv.Itoa(forward.Service.Ports[i]) != f.Port[i] {
 				err = fmt.Errorf("service port is incorrect - expected: %s - found: %d", f.Port[i], forward.Service.Ports[i])
 			}
-			expectedHost := "0.0.0.0"
+			expectedHost := ""
 			if f.Loopback {
 				expectedHost = "127.0.0.1"
 			}
