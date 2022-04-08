@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"strings"
 	"time"
 
 	v1alpha12 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -25,13 +24,12 @@ import (
 
 type PolicyValidationResult struct {
 	err             error
+	enabled         bool
 	matchingAllowed []v1alpha12.SkupperClusterPolicy
 }
 
 func (p *PolicyValidationResult) Enabled() bool {
-	restCfgAvail := p.err == nil || !strings.Contains(p.err.Error(), "RestConfig not defined")
-	crdAvailable := p.err == nil || !strings.Contains(p.err.Error(), "the server could not find the requested resource")
-	return restCfgAvail && crdAvailable
+	return p.enabled
 }
 
 func (p *PolicyValidationResult) Allowed() bool {
@@ -58,16 +56,15 @@ func (p *PolicyValidationResult) Error() error {
 // used internally by the service-controller only. Client applications
 // must use the PolicyAPIClient (rest client).
 type ClusterPolicyValidator struct {
-	cli           *VanClient
-	dc            *discovery.DiscoveryClient
-	skupperPolicy v1alpha1.SkupperClusterPolicyInterface
-	labelRegex    *regexp.Regexp
+	cli                    *VanClient
+	dc                     *discovery.DiscoveryClient
+	skupperPolicy          v1alpha1.SkupperClusterPolicyInterface
+	disablePolicyDiscovery bool
 }
 
 func NewClusterPolicyValidator(cli *VanClient) *ClusterPolicyValidator {
 	return &ClusterPolicyValidator{
-		cli:        cli,
-		labelRegex: regexp.MustCompile(ValidRfc1123Label),
+		cli: cli,
 	}
 }
 
@@ -108,7 +105,7 @@ func (p *ClusterPolicyValidator) LoadNamespacePolicies() ([]v1alpha12.SkupperClu
 	}
 	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(p.cli.Namespace, v1.GetOptions{})
 	for _, pol := range policyList.Items {
-		if p.appliesToNS(&pol, namespace) {
+		if len(pol.Name) > 0 && p.appliesToNS(&pol, namespace) {
 			policies = append(policies, pol)
 		}
 	}
@@ -171,7 +168,13 @@ func (p *ClusterPolicyValidator) HasPermission() bool {
 }
 
 func (p *ClusterPolicyValidator) CrdDefined() bool {
+	if p.disablePolicyDiscovery {
+		return true
+	}
 	if p.dc == nil {
+		if p.cli.RestConfig == nil {
+			return false
+		}
 		dc, err := discovery.NewDiscoveryClientForConfig(p.cli.RestConfig)
 		if err != nil {
 			log.Printf("Cannot determine if policy is enabled: %v", err)
@@ -195,11 +198,16 @@ func (p *ClusterPolicyValidator) CrdDefined() bool {
 	return false
 }
 
+func (p *ClusterPolicyValidator) policyValidationResult(err error) *PolicyValidationResult {
+	return &PolicyValidationResult{
+		err:     err,
+		enabled: p.CrdDefined(),
+	}
+}
+
 func (p *ClusterPolicyValidator) ValidateIncomingLink() *PolicyValidationResult {
 	policies, err := p.LoadNamespacePolicies()
-	res := &PolicyValidationResult{
-		err: err,
-	}
+	res := p.policyValidationResult(err)
 	if err != nil || len(policies) == 0 {
 		return res
 	}
@@ -215,9 +223,7 @@ func (p *ClusterPolicyValidator) ValidateIncomingLink() *PolicyValidationResult 
 
 func (p *ClusterPolicyValidator) ValidateOutgoingLink(hostname string) *PolicyValidationResult {
 	policies, err := p.LoadNamespacePolicies()
-	res := &PolicyValidationResult{
-		err: err,
-	}
+	res := p.policyValidationResult(err)
 	if err != nil || len(policies) == 0 {
 		return res
 	}
@@ -235,9 +241,7 @@ func (p *ClusterPolicyValidator) ValidateOutgoingLink(hostname string) *PolicyVa
 
 func (p *ClusterPolicyValidator) ValidateExpose(resourceType, resourceName string) *PolicyValidationResult {
 	policies, err := p.LoadNamespacePolicies()
-	res := &PolicyValidationResult{
-		err: err,
-	}
+	res := p.policyValidationResult(err)
 	if err != nil || len(policies) == 0 {
 		return res
 	}
@@ -258,9 +262,7 @@ func (p *ClusterPolicyValidator) ValidateExpose(resourceType, resourceName strin
 
 func (p *ClusterPolicyValidator) ValidateImportService(serviceName string) *PolicyValidationResult {
 	policies, err := p.LoadNamespacePolicies()
-	res := &PolicyValidationResult{
-		err: err,
-	}
+	res := p.policyValidationResult(err)
 	if err != nil || len(policies) == 0 {
 		return res
 	}
