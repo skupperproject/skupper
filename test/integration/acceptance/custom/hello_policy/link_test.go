@@ -89,10 +89,12 @@ func allowedOutgoingLinksHostnamesPolicy(namespace string, hostnames []string) (
 //     run: creations now work
 
 type policyTestStep struct {
-	name      string
-	pubPolicy []skupperv1.SkupperClusterPolicySpec
-	prvPolicy []skupperv1.SkupperClusterPolicySpec
-	commands  []cli.TestScenario
+	name        string
+	pubPolicy   []skupperv1.SkupperClusterPolicySpec
+	prvPolicy   []skupperv1.SkupperClusterPolicySpec
+	commands    []cli.TestScenario
+	pubGetCheck policyGetCheck
+	prvGetCheck policyGetCheck
 	// Add GetCheck here
 }
 
@@ -129,7 +131,24 @@ func applyPolicies(
 	}
 }
 
+func getChecks(t *testing.T, getCheck policyGetCheck, c *client.PolicyAPIClient) {
+	ok, err := getCheck.check(c)
+	if err != nil {
+		t.Errorf("GET check failed with error: %v", err)
+		return
+	}
+
+	if !ok {
+		t.Errorf("GET check failed")
+	}
+}
+
 func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
+
+	// these are final, do not change them.  They're used with
+	// a boolean pointer to allow true/false/undefined
+	_true := true
+	_false := false
 
 	testTable := []policyTestCase{
 		{
@@ -139,6 +158,9 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					name: "execute",
 					commands: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "fail", false),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming: &_false,
 					},
 				},
 			},
@@ -156,13 +178,88 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					commands: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "works", true),
 						createLinkTestScenario(prv, "", "works"),
+						cli.TestScenario{
+							Name: "check",
+							Tasks: []cli.SkupperTask{
+								{
+									Ctx: prv,
+									Commands: []cli.SkupperCommandTester{
+										&link.StatusTester{
+											Name: "public",
+										},
+									},
+								},
+							},
+						},
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming: &_true,
+					},
+					prvGetCheck: policyGetCheck{
+						allowIncoming: &_false,
+					},
+				}, {
+					name: "delete",
+					commands: []cli.TestScenario{
+						{
+							Name: "remove-link",
+							Tasks: []cli.SkupperTask{
+								{
+									Ctx: prv,
+									Commands: []cli.SkupperCommandTester{
+										&link.DeleteTester{
+											Name: "public",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "previously-created-token",
+			steps: []policyTestStep{
+				{
+					name: "prepare",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy(pub.Namespace),
+					},
+					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
+					},
+					commands: []cli.TestScenario{
+						createTokenPolicyScenario(pub, "", "./tmp", "prev", true),
+					},
+				}, {
+					name: "disallow-and-create-link",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy("non-existing"),
+					},
+					commands: []cli.TestScenario{
+						createLinkTestScenario(prv, "", "works"),
+						cli.TestScenario{
+							Name: "link-is-down",
+							Tasks: []cli.SkupperTask{
+								{
+									Ctx: prv,
+									Commands: []cli.SkupperCommandTester{
+										&link.StatusTester{
+											Name: "public"}},
+								},
+							},
+						},
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming: &_false,
 					},
 				},
 			},
 		},
 	}
 
-	policyClient := client.NewPolicyValidatorAPI(pub.VanClient)
+	pubPolicyClient := client.NewPolicyValidatorAPI(pub.VanClient)
+	prvPolicyClient := client.NewPolicyValidatorAPI(prv.VanClient)
 
 	t.Run("init", func(t *testing.T) {
 		cli.RunScenariosParallel(
@@ -176,66 +273,29 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	for _, scenario := range testTable {
 		removePolicies(t, pub)
 		removePolicies(t, prv)
+		base.StopIfInterrupted(t)
 		t.Run(
 			scenario.name,
 			func(t *testing.T) {
 				for _, step := range scenario.steps {
 					applyPolicies(t, "policy-setup", pub, step.pubPolicy, prv, step.prvPolicy)
 					cli.RunScenarios(t, step.commands)
+					getChecks(t, step.pubGetCheck, pubPolicyClient)
+					getChecks(t, step.prvGetCheck, prvPolicyClient)
 				}
 			})
 	}
 
-	t.Run("empty-policy-fails-token-creation", func(t *testing.T) {
-		cli.RunScenarios(
-			t,
-			[]cli.TestScenario{
-				createTokenPolicyScenario(pub, "", "./tmp", "fail", false),
-			})
-
-		res, err := policyClient.IncomingLink()
-		if err != nil {
-			t.Errorf("API check failed: %v", err)
-		}
-		if res.Allowed {
-			t.Error("API reports incoming link creation as allowed")
-		}
-	})
-
-	t.Run("allowing-policy-allows-creation", func(t *testing.T) {
-
-		policySpec := skupperv1.SkupperClusterPolicySpec{
-			Namespaces:                    []string{pub.Namespace},
-			AllowIncomingLinks:            true,
-			AllowedOutgoingLinksHostnames: []string{"*"},
-		}
-
-		err := applyPolicy(t, "generated-policy", policySpec, pub)
-		if err != nil {
-			t.Fatalf("Failed to apply policy: %v", err)
-			return
-		}
-
-		cli.RunScenarios(
-			t,
-			[]cli.TestScenario{
-				createTokenPolicyScenario(pub, "", "./tmp", "works", true),
-				createLinkTestScenario(prv, "", "works"),
-			})
-
-		res, err := policyClient.IncomingLink()
-		if err != nil {
-			t.Errorf("API check failed: %v", err)
-		}
-		if !res.Allowed {
-			t.Error("API reports incoming link creation as not allowed")
-		}
-	})
-
-	deleteSteps := []cli.TestScenario{
-		deleteSkupperTestScenario(pub, "pub"),
-		deleteSkupperTestScenario(prv, "prv"),
-	}
-	t.Run("cleanup", func(t *testing.T) { cli.RunScenariosParallel(t, deleteSteps) })
+	t.Run(
+		"cleanup",
+		func(t *testing.T) {
+			cli.RunScenariosParallel(
+				t,
+				[]cli.TestScenario{
+					deleteSkupperTestScenario(pub, "pub"),
+					deleteSkupperTestScenario(prv, "prv"),
+				},
+			)
+		})
 
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	clientv1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -19,6 +20,26 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type policyGetCheck struct {
+	allowIncoming *bool
+}
+
+func (p policyGetCheck) check(c *client.PolicyAPIClient) (ok bool, err error) {
+	ok = true
+	var res *client.PolicyAPIResult
+
+	if p.allowIncoming != nil {
+		res, err = c.IncomingLink()
+		if err != nil {
+			return
+		}
+		if res.Allowed != *p.allowIncoming {
+			ok = false
+		}
+	}
+	return
+}
 
 // Adds the CRD to the cluster
 func applyCrd(t *testing.T, cluster *base.ClusterContext) (err error) {
@@ -337,11 +358,15 @@ func TestPolicies(t *testing.T) {
 			testHelloPolicy(t, pub1, pub2)
 		})
 
+		base.StopIfInterrupted(t)
+
 		t.Run("testNamespace", func(t *testing.T) {
 			applyCrd(t, pub1)
 			removePolicies(t, pub1)
 			testNamespace(t, pub1, pub2)
 		})
+
+		base.StopIfInterrupted(t)
 
 		t.Run("testLinkPolicy", func(t *testing.T) {
 			applyCrd(t, pub1)
@@ -349,6 +374,8 @@ func TestPolicies(t *testing.T) {
 			removePolicies(t, pub2)
 			testLinkPolicy(t, pub1, pub2)
 		})
+
+		base.StopIfInterrupted(t)
 	})
 
 }

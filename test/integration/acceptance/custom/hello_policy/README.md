@@ -3,6 +3,14 @@
 Policies as CRs.  Those have cluster-wise effect.  For that reason, they cannot
 be run in parallel with any other tests, lest those other tests will fail.
 
+# Specifications
+
+* [Issue #655 - Policies for network and services](https://github.com/skupperproject/skupper/issues/655)
+* [PR #668 - Policies for network, services and gateway](https://github.com/skupperproject/skupper/pull/668)
+* [PR #701 - Site controller fixes permissions issues when policy is enabled](https://github.com/skupperproject/skupper/pull/701)
+* [PR #703 - Fixes namespace label expression for policies](https://github.com/skupperproject/skupper/pull/703)
+* [PR #705 - Policy to be considered enabled only by the presence of the CRD](https://github.com/skupperproject/skupper/pull/705)
+
 # Note on files
 
 Under the `features` directory there are files are written in Gherkin, but not
