@@ -5,6 +5,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
@@ -31,7 +32,7 @@ type ConfigSync struct {
 	vanClient *client.VanClient
 }
 
-const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
+const SHARED_TLS_DIRECTORY = "/etc/skupper-config-router-certs"
 
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
@@ -232,6 +233,8 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 	}
 
 	differences := qdr.ConnectorsDifference(actual, desired)
+	differences = filterRouterInternalRouterConnectors(differences, agent)
+
 	if differences.Empty() {
 		return nil
 	} else {
@@ -246,6 +249,24 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 		}
 		return nil
 	}
+}
+
+func filterRouterInternalRouterConnectors(changes *qdr.ConnectorDifference, agent *qdr.Agent) *qdr.ConnectorDifference {
+	result := qdr.ConnectorDifference{}
+	result.AddedSslProfiles = make(map[string]qdr.SslProfile)
+	for _, v1 := range changes.Added {
+		result.Added = append(result.Added, v1)
+		result.AddedSslProfiles[v1.SslProfile] = changes.AddedSslProfiles[v1.SslProfile]
+	}
+
+	for _, v1 := range changes.Deleted {
+		connector, _ := agent.GetConnectorByName(v1)
+
+		if !utils.StringSliceContains([]string{"skupper-internal", "skupper-amqps"}, connector.SslProfile) {
+			result.Deleted = append(result.Deleted, v1)
+		}
+	}
+	return &result
 }
 
 func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {

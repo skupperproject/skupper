@@ -259,7 +259,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		//read annotations to get the host and port to connect to
 		profileName := options.Name + "-profile"
 		if _, ok := current.SslProfiles[profileName]; !ok {
-			current.AddSslProfile(qdr.SslProfile{
+			current.AddSslProfileWithPath("/etc/skupper-config-router-certs", qdr.SslProfile{
 				Name: profileName,
 			})
 			updated = true
