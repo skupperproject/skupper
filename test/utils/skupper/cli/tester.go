@@ -67,9 +67,11 @@ func RunScenarios(t *testing.T, scenarios []TestScenario) {
 	var stdout, stderr string
 	var err error
 
-	t.Log("Scenario set outline:")
-	for i, scenario := range scenarios {
-		t.Logf("%2d - %v", i, scenario.Name)
+	if len(scenarios) > 1 {
+		t.Log("Scenario set outline:")
+		for i, scenario := range scenarios {
+			t.Logf("%2d - %v", i, scenario.Name)
+		}
 	}
 
 	// Running the scenarios

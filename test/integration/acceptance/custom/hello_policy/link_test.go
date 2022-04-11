@@ -35,7 +35,7 @@ func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string) (scen
 			{Ctx: ctx, Commands: []cli.SkupperCommandTester{
 				&link.CreateTester{
 					TokenFile: "./tmp/" + name + ".token.yaml",
-					Name:      "public",
+					Name:      name,
 					Cost:      1,
 				},
 			},
@@ -43,6 +43,50 @@ func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string) (scen
 		},
 	}
 
+	return
+}
+
+func linkStatusTestScenario(ctx *base.ClusterContext, prefix, name string, up bool) (scenario cli.TestScenario) {
+	var statusStr string
+
+	if up {
+		statusStr = "up"
+	} else {
+		statusStr = "down"
+	}
+
+	scenario = cli.TestScenario{
+		Name: prefixName(prefix, "link-is-"+statusStr),
+		Tasks: []cli.SkupperTask{
+			{
+				Ctx: ctx,
+				Commands: []cli.SkupperCommandTester{
+					&link.StatusTester{
+						Name:   name,
+						Active: up,
+					},
+				},
+			},
+		},
+	}
+
+	return
+}
+
+func linkDeleteTestScenario(ctx *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
+	scenario = cli.TestScenario{
+		Name: prefixName(prefix, "remove-link"),
+		Tasks: []cli.SkupperTask{
+			{
+				Ctx: ctx,
+				Commands: []cli.SkupperCommandTester{
+					&link.DeleteTester{
+						Name: name,
+					},
+				},
+			},
+		},
+	}
 	return
 }
 
@@ -160,7 +204,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						createTokenPolicyScenario(pub, "", "./tmp", "fail", false),
 					},
 					pubGetCheck: policyGetCheck{
-						allowIncoming: &_false,
+						checkUndefinedAs: &_false,
 					},
 				},
 			},
@@ -178,42 +222,15 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					commands: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "works", true),
 						createLinkTestScenario(prv, "", "works"),
-						cli.TestScenario{
-							Name: "check",
-							Tasks: []cli.SkupperTask{
-								{
-									Ctx: prv,
-									Commands: []cli.SkupperCommandTester{
-										&link.StatusTester{
-											Name: "public",
-										},
-									},
-								},
-							},
-						},
+						linkStatusTestScenario(prv, "", "works", true),
+						linkDeleteTestScenario(prv, "", "works"),
 					},
 					pubGetCheck: policyGetCheck{
-						allowIncoming: &_true,
+						allowIncoming:    &_true,
+						checkUndefinedAs: &_false,
 					},
 					prvGetCheck: policyGetCheck{
 						allowIncoming: &_false,
-					},
-				}, {
-					name: "delete",
-					commands: []cli.TestScenario{
-						{
-							Name: "remove-link",
-							Tasks: []cli.SkupperTask{
-								{
-									Ctx: prv,
-									Commands: []cli.SkupperCommandTester{
-										&link.DeleteTester{
-											Name: "public",
-										},
-									},
-								},
-							},
-						},
 					},
 				},
 			},
@@ -229,7 +246,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
 					},
 					commands: []cli.TestScenario{
-						createTokenPolicyScenario(pub, "", "./tmp", "prev", true),
+						createTokenPolicyScenario(pub, "", "./tmp", "previous", true),
 					},
 				}, {
 					name: "disallow-and-create-link",
@@ -237,21 +254,23 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						allowIncomingLinkPolicy("non-existing"),
 					},
 					commands: []cli.TestScenario{
-						createLinkTestScenario(prv, "", "works"),
-						cli.TestScenario{
-							Name: "link-is-down",
-							Tasks: []cli.SkupperTask{
-								{
-									Ctx: prv,
-									Commands: []cli.SkupperCommandTester{
-										&link.StatusTester{
-											Name: "public"}},
-								},
-							},
-						},
+						createLinkTestScenario(prv, "", "previous"),
+						linkStatusTestScenario(pub, "", "previous", false),
 					},
 					pubGetCheck: policyGetCheck{
 						allowIncoming: &_false,
+					},
+				}, {
+					name: "reallow-and-check-link",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy(pub.Namespace),
+					},
+					commands: []cli.TestScenario{
+						linkStatusTestScenario(pub, "now", "previous", true),
+						linkDeleteTestScenario(prv, "", "previous"),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming: &_true,
 					},
 				},
 			},
@@ -273,7 +292,9 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	for _, scenario := range testTable {
 		removePolicies(t, pub)
 		removePolicies(t, prv)
-		base.StopIfInterrupted(t)
+		if base.IsTestInterrupted() {
+			break
+		}
 		t.Run(
 			scenario.name,
 			func(t *testing.T) {
@@ -297,5 +318,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				},
 			)
 		})
+
+	base.StopIfInterrupted(t)
 
 }

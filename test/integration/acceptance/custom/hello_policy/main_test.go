@@ -1,6 +1,7 @@
 package hello_policy
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -22,21 +23,61 @@ import (
 )
 
 type policyGetCheck struct {
-	allowIncoming *bool
+	allowIncoming    *bool
+	checkUndefinedAs *bool
+}
+
+type checkItem func() (result *client.PolicyAPIResult, err error)
+
+// This is a helper to check for either a defined policy item or a
+// default, allowing for nil values representing a no check.
+// The arguments cannot be both nil.
+func checkValue(policyItem *bool, checkUndefinedAs *bool, checkFunc checkItem) (result bool, err error) {
+
+	var effectiveValue *client.PolicyAPIResult
+	var expectedValue bool
+
+	switch {
+
+	case policyItem != nil:
+		expectedValue = *policyItem
+
+	case checkUndefinedAs != nil:
+		expectedValue = *checkUndefinedAs
+
+	default:
+		err = fmt.Errorf("checkValue() should not be called with two nils")
+		return
+	}
+
+	effectiveValue, err = checkFunc()
+	if err != nil {
+		return
+	}
+
+	result = effectiveValue.Allowed == expectedValue
+
+	return
 }
 
 func (p policyGetCheck) check(c *client.PolicyAPIClient) (ok bool, err error) {
 	ok = true
-	var res *client.PolicyAPIResult
 
-	if p.allowIncoming != nil {
-		res, err = c.IncomingLink()
+	if p.allowIncoming != nil || p.checkUndefinedAs != nil {
+
+		var item bool
+
+		item, err = checkValue(
+			p.allowIncoming,
+			p.checkUndefinedAs,
+			func() (*client.PolicyAPIResult, error) {
+				return c.IncomingLink()
+			})
 		if err != nil {
 			return
 		}
-		if res.Allowed != *p.allowIncoming {
-			ok = false
-		}
+
+		ok = ok && item
 	}
 	return
 }
