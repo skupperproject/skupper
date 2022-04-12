@@ -183,7 +183,7 @@ func getChecks(t *testing.T, getCheck policyGetCheck, c *client.PolicyAPIClient)
 	}
 
 	if !ok {
-		t.Errorf("GET check failed")
+		t.Errorf("GET check failed (check: %v)", getCheck)
 	}
 }
 
@@ -234,7 +234,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				}, {
 					name: "remove",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
-						allowIncomingLinkPolicy("non-existing", true),
+						allowIncomingLinkPolicy(pub.Namespace, false),
 					},
 					commands: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "works", false),
@@ -251,11 +251,11 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
 					commands: []cli.TestScenario{
-						linkStatusTestScenario(prv, "", "works", true),
+						linkStatusTestScenario(prv, "again", "works", true),
 						linkDeleteTestScenario(prv, "", "works"),
 					},
 					pubGetCheck: policyGetCheck{
-						allowIncoming:    &_false,
+						allowIncoming:    &_true,
 						checkUndefinedAs: &_false,
 					},
 					prvGetCheck: policyGetCheck{
@@ -280,7 +280,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				}, {
 					name: "disallow-and-create-link",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
-						allowIncomingLinkPolicy("non-existing", true),
+						allowIncomingLinkPolicy(pub.Namespace, false),
 					},
 					commands: []cli.TestScenario{
 						createLinkTestScenario(prv, "", "previous"),
@@ -290,7 +290,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						allowIncoming: &_false,
 					},
 				}, {
-					name: "reallow-and-check-link",
+					name: "re-allow-and-check-link",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
