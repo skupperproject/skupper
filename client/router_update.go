@@ -434,7 +434,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 
 	if addCertsSharedVolume {
-		kube.AppendSharedVolume(&router.Spec.Template.Spec.Volumes, &router.Spec.Template.Spec.Containers[0].VolumeMounts, &router.Spec.Template.Spec.Containers[1].VolumeMounts, "skupper-router-certs", "/etc/skupper-config-router-certs")
+		kube.AppendSharedVolume(&router.Spec.Template.Spec.Volumes, &router.Spec.Template.Spec.Containers[0].VolumeMounts, &router.Spec.Template.Spec.Containers[1].VolumeMounts, "skupper-router-certs", "/etc/skupper-shared-certs")
 		updateRouter = true
 	}
 

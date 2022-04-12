@@ -5,7 +5,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
@@ -32,7 +31,7 @@ type ConfigSync struct {
 	vanClient *client.VanClient
 }
 
-const SHARED_TLS_DIRECTORY = "/etc/skupper-config-router-certs"
+const SHARED_TLS_DIRECTORY = "/etc/skupper-shared-certs"
 
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)
@@ -233,7 +232,7 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 	}
 
 	differences := qdr.ConnectorsDifference(actual, desired)
-	differences = filterRouterInternalRouterConnectors(differences, agent)
+	differences = filterInternalRouterConnectors(differences, agent, SHARED_TLS_DIRECTORY)
 
 	if differences.Empty() {
 		return nil
@@ -251,22 +250,32 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 	}
 }
 
-func filterRouterInternalRouterConnectors(changes *qdr.ConnectorDifference, agent *qdr.Agent) *qdr.ConnectorDifference {
-	result := qdr.ConnectorDifference{}
-	result.AddedSslProfiles = make(map[string]qdr.SslProfile)
-	for _, v1 := range changes.Added {
-		result.Added = append(result.Added, v1)
-		result.AddedSslProfiles[v1.SslProfile] = changes.AddedSslProfiles[v1.SslProfile]
-	}
+func filterInternalRouterConnectors(changes *qdr.ConnectorDifference, agent *qdr.Agent, allowedPath string) *qdr.ConnectorDifference {
+
+	var filteredResults []string
+
+	actualSslProfiles, _ := agent.GetSslProfiles()
 
 	for _, v1 := range changes.Deleted {
 		connector, _ := agent.GetConnectorByName(v1)
 
-		if !utils.StringSliceContains([]string{"skupper-internal", "skupper-amqps"}, connector.SslProfile) {
-			result.Deleted = append(result.Deleted, v1)
+		sslProfile := actualSslProfiles[connector.SslProfile]
+
+		allowedToDelete := true
+
+		if !strings.HasPrefix(sslProfile.CaCertFile, allowedPath) ||
+			!strings.HasPrefix(sslProfile.CertFile, allowedPath) ||
+			!strings.HasPrefix(sslProfile.PrivateKeyFile, allowedPath) {
+			allowedToDelete = false
+		}
+
+		if allowedToDelete {
+			filteredResults = append(filteredResults, v1)
 		}
 	}
-	return &result
+
+	changes.Deleted = filteredResults
+	return changes
 }
 
 func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
@@ -374,16 +383,6 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 		}
 
-	}
-
-	return nil
-}
-
-func (c *ConfigSync) ensureSslProfile(sslProfile string, secretname string, sharedTlsFilesDir string) error {
-	log.Printf("Copying cert files related to sslProfile %s", sslProfile)
-	err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile, secretname)
-	if err != nil {
-		return err
 	}
 
 	return nil
