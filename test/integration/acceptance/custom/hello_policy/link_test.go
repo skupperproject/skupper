@@ -90,10 +90,10 @@ func linkDeleteTestScenario(ctx *base.ClusterContext, prefix, name string) (scen
 	return
 }
 
-func allowIncomingLinkPolicy(namespace string) (policySpec skupperv1.SkupperClusterPolicySpec) {
+func allowIncomingLinkPolicy(namespace string, allow bool) (policySpec skupperv1.SkupperClusterPolicySpec) {
 	policySpec = skupperv1.SkupperClusterPolicySpec{
 		Namespaces:         []string{namespace},
-		AllowIncomingLinks: true,
+		AllowIncomingLinks: allow,
 	}
 
 	return
@@ -214,7 +214,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name: "execute",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
-						allowIncomingLinkPolicy(pub.Namespace),
+						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
 					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
@@ -223,10 +223,39 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						createTokenPolicyScenario(pub, "", "./tmp", "works", true),
 						createLinkTestScenario(prv, "", "works"),
 						linkStatusTestScenario(prv, "", "works", true),
-						linkDeleteTestScenario(prv, "", "works"),
 					},
 					pubGetCheck: policyGetCheck{
 						allowIncoming:    &_true,
+						checkUndefinedAs: &_false,
+					},
+					prvGetCheck: policyGetCheck{
+						allowIncoming: &_false,
+					},
+				}, {
+					name: "remove",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy("non-existing", true),
+					},
+					commands: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "works", false),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming: &_false,
+					},
+					prvGetCheck: policyGetCheck{
+						allowIncoming: &_false,
+					},
+				}, {
+					name: "re-allow",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy(pub.Namespace, true),
+					},
+					commands: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "works", true),
+						linkDeleteTestScenario(prv, "", "works"),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming:    &_false,
 						checkUndefinedAs: &_false,
 					},
 					prvGetCheck: policyGetCheck{
@@ -240,7 +269,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name: "prepare",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
-						allowIncomingLinkPolicy(pub.Namespace),
+						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
 					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
@@ -251,7 +280,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				}, {
 					name: "disallow-and-create-link",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
-						allowIncomingLinkPolicy("non-existing"),
+						allowIncomingLinkPolicy("non-existing", true),
 					},
 					commands: []cli.TestScenario{
 						createLinkTestScenario(prv, "", "previous"),
@@ -263,7 +292,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				}, {
 					name: "reallow-and-check-link",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
-						allowIncomingLinkPolicy(pub.Namespace),
+						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
 					commands: []cli.TestScenario{
 						linkStatusTestScenario(pub, "now", "previous", true),
@@ -299,7 +328,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			scenario.name,
 			func(t *testing.T) {
 				for _, step := range scenario.steps {
-					applyPolicies(t, "policy-setup", pub, step.pubPolicy, prv, step.prvPolicy)
+					applyPolicies(t, "policy-setup-"+step.name, pub, step.pubPolicy, prv, step.prvPolicy)
 					cli.RunScenarios(t, step.commands)
 					getChecks(t, step.pubGetCheck, pubPolicyClient)
 					getChecks(t, step.prvGetCheck, prvPolicyClient)
