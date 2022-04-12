@@ -30,6 +30,16 @@ type PolicyController struct {
 	validator *client.ClusterPolicyValidator
 	informer  cache.SharedIndexInformer
 	queue     workqueue.RateLimitingInterface
+	activeMap map[string]time.Time
+}
+
+func (c *PolicyController) loadActiveMap() {
+	c.activeMap = map[string]time.Time{}
+	policies, _ := c.validator.LoadNamespacePolicies()
+	now := time.Now()
+	for _, p := range policies {
+		c.activeMap[p.Name] = now
+	}
 }
 
 func (c *PolicyController) enqueue(obj interface{}) {
@@ -86,6 +96,7 @@ func (c *PolicyController) start(stopCh <-chan struct{}) error {
 						continue
 					}
 				}
+				c.loadActiveMap()
 				c.validateStateChanged()
 				enabled = true
 			} else if !c.validator.Enabled() && !disabledReported {
@@ -145,7 +156,14 @@ func (c *PolicyController) process() bool {
 
 	defer c.queue.Done(obj)
 	if key, ok := obj.(string); ok {
-		if c.validator.AppliesToNS(key) {
+		_, active := c.activeMap[key]
+		appliesToNs := c.validator.AppliesToNS(key)
+		if appliesToNs || active {
+			if !appliesToNs {
+				delete(c.activeMap, key)
+			} else {
+				c.activeMap[key] = time.Now()
+			}
 			event.Recordf(c.name, "Skupper policy has changed: %s", key)
 			c.validateStateChanged()
 		}
@@ -382,6 +400,7 @@ func NewPolicyController(cli *client.VanClient) *PolicyController {
 		cli:       cli,
 		validator: client.NewClusterPolicyValidator(cli),
 		queue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "PolicyHandler"),
+		activeMap: map[string]time.Time{},
 	}
 	return controller
 }

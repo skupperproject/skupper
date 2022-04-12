@@ -98,7 +98,7 @@ func (p *ClusterPolicyValidator) LoadNamespacePolicies() ([]v1alpha12.SkupperClu
 
 	policyList, err := skupperPolicy.List(v1.ListOptions{})
 	if err != nil {
-		if errors.IsForbidden(err) {
+		if errors.IsForbidden(err) || !p.CrdDefined() {
 			return policies, nil
 		}
 		return policies, err
