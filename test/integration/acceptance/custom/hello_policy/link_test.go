@@ -90,6 +90,46 @@ func linkDeleteTestScenario(ctx *base.ClusterContext, prefix, name string) (scen
 	return
 }
 
+func sitesConnectedTestScenario(pub *base.ClusterContext, prv *base.ClusterContext, prefix, linkName string) (scenario cli.TestScenario) {
+
+	scenario = cli.TestScenario{
+		Name: prefixName(prefix, "validate-sites-connected"),
+		Tasks: []cli.SkupperTask{
+			{Ctx: pub, Commands: []cli.SkupperCommandTester{
+				// skupper status - verify sites are connected
+				&cli.StatusTester{
+					RouterMode:          "interior",
+					ConnectedSites:      1,
+					ConsoleEnabled:      true,
+					ConsoleAuthInternal: true,
+					PolicyEnabled:       true,
+				},
+			}},
+			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+				// skupper status - verify sites are connected
+				&cli.StatusTester{
+					RouterMode:     "edge",
+					SiteName:       "private",
+					ConnectedSites: 1,
+					PolicyEnabled:  true,
+				},
+				// skupper link status - testing all links
+				&link.StatusTester{
+					Name:   linkName,
+					Active: true,
+				},
+				// skupper link status - now using link name and a 10 secs wait
+				&link.StatusTester{
+					Name:   linkName,
+					Active: true,
+					Wait:   10,
+				},
+			}},
+		},
+	}
+	return
+}
+
 func allowIncomingLinkPolicy(namespace string, allow bool) (policySpec skupperv1.SkupperClusterPolicySpec) {
 	policySpec = skupperv1.SkupperClusterPolicySpec{
 		Namespaces:         []string{namespace},
@@ -223,6 +263,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						createTokenPolicyScenario(pub, "", "./tmp", "works", true),
 						createLinkTestScenario(prv, "", "works"),
 						linkStatusTestScenario(prv, "", "works", true),
+						sitesConnectedTestScenario(pub, prv, "", "works"),
 					},
 					pubGetCheck: policyGetCheck{
 						allowIncoming:    &_true,
@@ -252,6 +293,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					commands: []cli.TestScenario{
 						linkStatusTestScenario(prv, "again", "works", true),
+						sitesConnectedTestScenario(pub, prv, "", "works"),
 						linkDeleteTestScenario(prv, "", "works"),
 					},
 					pubGetCheck: policyGetCheck{
@@ -284,7 +326,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					commands: []cli.TestScenario{
 						createLinkTestScenario(prv, "", "previous"),
-						linkStatusTestScenario(pub, "", "previous", false),
+						linkStatusTestScenario(prv, "", "previous", false),
 					},
 					pubGetCheck: policyGetCheck{
 						allowIncoming: &_false,
@@ -295,7 +337,8 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
 					commands: []cli.TestScenario{
-						linkStatusTestScenario(pub, "now", "previous", true),
+						linkStatusTestScenario(prv, "now", "previous", true),
+						sitesConnectedTestScenario(pub, prv, "", "previous"),
 						linkDeleteTestScenario(prv, "", "previous"),
 					},
 					pubGetCheck: policyGetCheck{
