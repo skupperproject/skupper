@@ -63,7 +63,7 @@ func InteriorListener(options types.SiteConfigSpec) qdr.Listener {
 		Name:             "interior-listener",
 		Role:             qdr.RoleInterRouter,
 		Port:             types.InterRouterListenerPort,
-		SslProfile:       types.InterRouterProfile,
+		SslProfile:       types.InterRouterProfile, //The skupper-internal profile needs to be filtered by the config-sync sidecar, in order to avoid deleting automesh connectors
 		SaslMechanisms:   "EXTERNAL",
 		AuthenticatePeer: true,
 		MaxFrameSize:     options.Router.MaxFrameSize,

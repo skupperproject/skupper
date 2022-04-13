@@ -1186,7 +1186,7 @@ func asSslProfile(record Record) SslProfile {
 
 func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 	for _, deleted := range changes.Deleted {
-		if err := a.Delete("io.skupper.router.connector", deleted); err != nil {
+		if err := a.Delete("io.skupper.router.connector", deleted.Name); err != nil {
 			return fmt.Errorf("Error deleting connectors: %s", err)
 		}
 	}
@@ -1244,6 +1244,19 @@ func (a *Agent) GetLocalConnectorStatus() (map[string]ConnectorStatus, error) {
 	connectors := map[string]ConnectorStatus{}
 	for _, record := range results {
 		c := asConnectorStatus(record)
+		connectors[c.Name] = c
+	}
+	return connectors, nil
+}
+
+func (a *Agent) GetLocalConnectors() (map[string]Connector, error) {
+	results, err := a.Query("io.skupper.router.connector", []string{})
+	if err != nil {
+		return nil, err
+	}
+	connectors := map[string]Connector{}
+	for _, record := range results {
+		c := asConnector(record)
 		connectors[c.Name] = c
 	}
 	return connectors, nil

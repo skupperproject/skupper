@@ -226,12 +226,13 @@ func (c *ConfigSync) syncRouterConfig(desired *qdr.RouterConfig) error {
 }
 
 func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
-	actual, err := agent.GetLocalConnectorStatus()
+	actual, err := agent.GetLocalConnectors()
 	if err != nil {
-		return fmt.Errorf("Error retrieving local connector status: %s", err)
+		return fmt.Errorf("Error retrieving local connectors: %s", err)
 	}
 
 	differences := qdr.ConnectorsDifference(actual, desired)
+
 	if differences.Empty() {
 		return nil
 	} else {
@@ -333,36 +334,21 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 	for _, deleted := range changes.Deleted {
 
-		deletedConnector, err := agent.GetConnectorByName(deleted)
-		if err != nil {
-			return err
-		}
+		if len(deleted.SslProfile) > 0 {
 
-		if len(deletedConnector.SslProfile) > 0 {
+			log.Printf("Deleting cert files related to connector sslProfile %s", deleted.SslProfile)
 
-			log.Printf("Deleting cert files related to connector sslProfile %s", deletedConnector.SslProfile)
-
-			if err = agent.Delete("io.skupper.router.sslProfile", deletedConnector.SslProfile); err != nil {
+			if err = agent.Delete("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
 				return fmt.Errorf("Error deleting ssl profile: #{err}")
 			}
 
-			err = os.RemoveAll(sharedTlsFilesDir + "/" + deletedConnector.SslProfile)
+			err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
 			if err != nil {
 				return err
 			}
 
 		}
 
-	}
-
-	return nil
-}
-
-func (c *ConfigSync) ensureSslProfile(sslProfile string, secretname string, sharedTlsFilesDir string) error {
-	log.Printf("Copying cert files related to sslProfile %s", sslProfile)
-	err := c.copyCertsFilesToPath(sharedTlsFilesDir, sslProfile, secretname)
-	if err != nil {
-		return err
 	}
 
 	return nil
