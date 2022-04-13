@@ -90,9 +90,9 @@ func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterf
 		change = true
 		*actual.Spec.Replicas = int32(desired.Headless.Size)
 	}
-	actualConfig := FindEnvVar(actual.Spec.Template.Spec.Containers[0].Env, "QDROUTERD_CONF")
+	actualConfig := FindEnvVar(actual.Spec.Template.Spec.Containers[0].Env, "SKROUTERD_CONF")
 	if actualConfig == nil || actualConfig.Value != desiredConfig {
-		SetEnvVarForStatefulSet(actual, "QDROUTERD_CONF", desiredConfig)
+		SetEnvVarForStatefulSet(actual, "SKROUTERD_CONF", desiredConfig)
 		change = true
 	}
 	if change {
@@ -159,11 +159,11 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 							Name:            "proxy",
 							Env: []corev1.EnvVar{
 								{
-									Name:  "QDROUTERD_CONF",
+									Name:  "SKROUTERD_CONF",
 									Value: config,
 								},
 								{
-									Name:  "QDROUTERD_CONF_TYPE",
+									Name:  "SKROUTERD_CONF_TYPE",
 									Value: "json",
 								},
 								{

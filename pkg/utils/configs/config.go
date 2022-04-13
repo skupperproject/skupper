@@ -50,7 +50,7 @@ connector {
 	return buff.String()
 }
 
-func QdrouterdConfig(assembly *types.AssemblySpec) string {
+func SkrouterdConfig(assembly *types.AssemblySpec) string {
 	config := `
 router {
     mode: {{.Mode}}
@@ -169,7 +169,7 @@ address {
 ## Connectors: ##
 `
 	var buff bytes.Buffer
-	qdrconfig := template.Must(template.New("qdrconfig").Parse(config))
-	qdrconfig.Execute(&buff, assembly)
+	skrconfig := template.Must(template.New("skrconfig").Parse(config))
+	skrconfig.Execute(&buff, assembly)
 	return buff.String()
 }

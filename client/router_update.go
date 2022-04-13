@@ -419,11 +419,11 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		updateRouter = true
 	}
 	if renamedSkRouter {
-		// Updating QDROUTERD_CONF env var
-		envQdrouterdConf := kube.GetEnvVarForDeployment(router, "QDROUTERD_CONF")
-		envQdrouterdConf = strings.ReplaceAll(envQdrouterdConf, "qpid-dispatch", "skupper-router")
-		envQdrouterdConf = strings.ReplaceAll(envQdrouterdConf, "qdrouterd", "skrouterd")
-		kube.SetEnvVarForDeployment(router, "QDROUTERD_CONF", envQdrouterdConf)
+		// Updating SKROUTERD_CONF env var
+		envSkrouterdConf := kube.GetEnvVarForDeployment(router, "SKROUTERD_CONF")
+		envSkrouterdConf = strings.ReplaceAll(envSkrouterdConf, "qpid-dispatch", "skupper-router")
+		envSkrouterdConf = strings.ReplaceAll(envSkrouterdConf, "qdrouterd", "skrouterd")
+		kube.SetEnvVarForDeployment(router, "SKROUTERD_CONF", envSkrouterdConf)
 
 		// Updating volume mount paths
 		for i, volume := range router.Spec.Template.Spec.Containers[0].VolumeMounts {
@@ -921,14 +921,14 @@ func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev
 	if err != nil {
 		return false, err
 	}
-	current := kube.GetEnvVarForDeployment(router, "QDROUTERD_DEBUG")
+	current := kube.GetEnvVarForDeployment(router, "SKROUTERD_DEBUG")
 	if current == siteConfig.Spec.Router.DebugMode {
 		return false, nil
 	}
 	if siteConfig.Spec.Router.DebugMode == "" {
-		kube.DeleteEnvVarForDeployment(router, "QDROUTERD_DEBUG")
+		kube.DeleteEnvVarForDeployment(router, "SKROUTERD_DEBUG")
 	} else {
-		kube.SetEnvVarForDeployment(router, "QDROUTERD_DEBUG", siteConfig.Spec.Router.DebugMode)
+		kube.SetEnvVarForDeployment(router, "SKROUTERD_DEBUG", siteConfig.Spec.Router.DebugMode)
 	}
 	_, err = cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Update(router)
 	if err != nil {

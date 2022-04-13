@@ -394,7 +394,7 @@ func (s *InitTester) ValidateRouterDebugMode(cluster *base.ClusterContext) error
 	for _, container := range dep.Spec.Template.Spec.Containers {
 		if container.Name == "router" {
 			for _, envVar := range container.Env {
-				if envVar.Name == "QDROUTERD_DEBUG" {
+				if envVar.Name == "SKROUTERD_DEBUG" {
 					found = true
 					if envVar.Value != s.RouterDebugMode {
 						return fmt.Errorf("incorrect debug mode defined - expected: %s - found: %s", s.RouterDebugMode, envVar.Value)
@@ -404,7 +404,7 @@ func (s *InitTester) ValidateRouterDebugMode(cluster *base.ClusterContext) error
 		}
 	}
 	if !found {
-		return fmt.Errorf("%s deployment is missing the QDROUTERD_DEBUG environment variable", types.TransportDeploymentName)
+		return fmt.Errorf("%s deployment is missing the SKROUTERD_DEBUG environment variable", types.TransportDeploymentName)
 	}
 	return nil
 }

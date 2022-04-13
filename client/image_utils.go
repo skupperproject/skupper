@@ -1,16 +1,17 @@
 package client
 
 import (
+	"os"
+
 	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
-	"os"
 )
 
 const (
-	RouterImageEnvKey                 string = "QDROUTERD_IMAGE"
+	RouterImageEnvKey                 string = "SKROUTERD_IMAGE"
 	ServiceControllerImageEnvKey      string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
 	ConfigSyncImageEnvKey             string = "SKUPPER_CONFIG_SYNC_IMAGE"
-	RouterPullPolicyEnvKey            string = "QDROUTERD_IMAGE_PULL_POLICY"
+	RouterPullPolicyEnvKey            string = "SKROUTERD_IMAGE_PULL_POLICY"
 	ServiceControllerPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
 	ConfigSyncPullPolicyEnvKey        string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
 )

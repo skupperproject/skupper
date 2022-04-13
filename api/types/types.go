@@ -51,7 +51,7 @@ const (
 	TransportServiceAccountName   string = "skupper-router"
 	TransportRoleName             string = "skupper-router"
 	TransportRoleBindingName      string = "skupper-router"
-	TransportEnvConfig            string = "QDROUTERD_CONF"
+	TransportEnvConfig            string = "SKROUTERD_CONF"
 	TransportSaslConfig           string = "skupper-sasl-config"
 	TransportConfigFile           string = "skrouterd.json"
 	TransportConfigMapName        string = "skupper-internal"
