@@ -5,6 +5,8 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
+// Returns a test scenario that removes skupper from the given context
+// (skupper delete) and then runs skupper status to confirm it's gone
 func deleteSkupperTestScenario(ctx *base.ClusterContext, prefix string) (deleteSteps cli.TestScenario) {
 
 	deleteSteps = cli.TestScenario{

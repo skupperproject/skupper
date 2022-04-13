@@ -27,18 +27,21 @@ import (
 // Uses the named token to create a link from ctx
 //
 // Returns a scenario with a single link.CreateTester
+//
+// It runs no test task, as the link may have been created but as inactive
 func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
 		Name: prefixName(prefix, "connect-sites"),
 		Tasks: []cli.SkupperTask{
-			{Ctx: ctx, Commands: []cli.SkupperCommandTester{
-				&link.CreateTester{
-					TokenFile: "./tmp/" + name + ".token.yaml",
-					Name:      name,
-					Cost:      1,
+			{
+				Ctx: ctx, Commands: []cli.SkupperCommandTester{
+					&link.CreateTester{
+						TokenFile: "./tmp/" + name + ".token.yaml",
+						Name:      name,
+						Cost:      1,
+					},
 				},
-			},
 			},
 		},
 	}
@@ -46,6 +49,7 @@ func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string) (scen
 	return
 }
 
+// Produces a TestScenario named link-is-up/down, and checks accordingly
 func linkStatusTestScenario(ctx *base.ClusterContext, prefix, name string, up bool) (scenario cli.TestScenario) {
 	var statusStr string
 
@@ -73,6 +77,9 @@ func linkStatusTestScenario(ctx *base.ClusterContext, prefix, name string, up bo
 	return
 }
 
+// Returns a TestScenario that calls skupper link delete on the named link.
+//
+// The scenario will be called remove-link
 func linkDeleteTestScenario(ctx *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
 	scenario = cli.TestScenario{
 		Name: prefixName(prefix, "remove-link"),
@@ -90,6 +97,11 @@ func linkDeleteTestScenario(ctx *base.ClusterContext, prefix, name string) (scen
 	return
 }
 
+// Returns a TestScenario that confirms two sites are connected.  The check is
+// done on both sides.
+//
+// The scenario name is validate-sites-connected, and the configuration should
+// match the main hello_world test
 func sitesConnectedTestScenario(pub *base.ClusterContext, prv *base.ClusterContext, prefix, linkName string) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
@@ -130,6 +142,8 @@ func sitesConnectedTestScenario(pub *base.ClusterContext, prv *base.ClusterConte
 	return
 }
 
+// Return a SkupperClusterPolicySpec that (dis)allows incomingLinks on the
+// given namespace.
 func allowIncomingLinkPolicy(namespace string, allow bool) (policySpec skupperv1.SkupperClusterPolicySpec) {
 	policySpec = skupperv1.SkupperClusterPolicySpec{
 		Namespaces:         []string{namespace},
@@ -139,6 +153,9 @@ func allowIncomingLinkPolicy(namespace string, allow bool) (policySpec skupperv1
 	return
 }
 
+// Return a SkupperClusterPolicySpec that allows outgoing links to the given
+// hostnames (a string list, following the policy's specs) on the given
+// namespace.
 func allowedOutgoingLinksHostnamesPolicy(namespace string, hostnames []string) (policySpec skupperv1.SkupperClusterPolicySpec) {
 	policySpec = skupperv1.SkupperClusterPolicySpec{
 		Namespaces:                    []string{namespace},
@@ -148,53 +165,14 @@ func allowedOutgoingLinksHostnamesPolicy(namespace string, hostnames []string) (
 	return
 }
 
-// The idea:
-//
-// - set policyStart
-// - run prep steps
-// - set policyChange
-// - run scenario
-// - deleteLink(s), if extant
-//
-// prep steps and policyChange may be empty, if unnecessary
-//
-// Uses:
-//   - policyStart: allowed
-//     prep: create token
-//     policyChange: disallow
-//     run: try to create link with pre-created token
-//   - policyStart: allowed
-//     pre: create token, link
-//     policyChange: disallow
-//     run: stuff came down
-//   - policyStart: disallow
-//     prep: try to create link, fail
-//     policyChange: allow
-//     run: creations now work
-
-type policyTestStep struct {
-	name        string
-	pubPolicy   []skupperv1.SkupperClusterPolicySpec
-	prvPolicy   []skupperv1.SkupperClusterPolicySpec
-	commands    []cli.TestScenario
-	pubGetCheck policyGetCheck
-	prvGetCheck policyGetCheck
-	// Add GetCheck here
-}
-
-type policyTestCase struct {
-	name  string
-	steps []policyTestStep
-}
-
+// TODO: Refactor this into a method?  Also, move this along with the rest to runner?
 func applyPolicies(
 	t *testing.T,
-	name string,
 	pub *base.ClusterContext, pubPolicies []skupperv1.SkupperClusterPolicySpec,
 	prv *base.ClusterContext, prvPolicies []skupperv1.SkupperClusterPolicySpec) {
 	if len(pubPolicies)+len(prvPolicies) > 0 {
 		t.Run(
-			name,
+			"policy-setup",
 			func(t *testing.T) {
 				for i, policy := range pubPolicies {
 					i := strconv.Itoa(i)
@@ -215,6 +193,8 @@ func applyPolicies(
 	}
 }
 
+// Runs a policy check using `get`.  It receives a *testing.T, so it does not return;
+// it marks the test as failed if the check fails.
 func getChecks(t *testing.T, getCheck policyGetCheck, c *client.PolicyAPIClient) {
 	ok, err := getCheck.check(c)
 	if err != nil {
@@ -371,10 +351,12 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			scenario.name,
 			func(t *testing.T) {
 				for _, step := range scenario.steps {
-					applyPolicies(t, "policy-setup-"+step.name, pub, step.pubPolicy, prv, step.prvPolicy)
-					cli.RunScenarios(t, step.commands)
-					getChecks(t, step.pubGetCheck, pubPolicyClient)
-					getChecks(t, step.prvGetCheck, prvPolicyClient)
+					t.Run(step.name, func(t *testing.T) {
+						applyPolicies(t, pub, step.pubPolicy, prv, step.prvPolicy)
+						cli.RunScenarios(t, step.commands)
+						getChecks(t, step.pubGetCheck, pubPolicyClient)
+						getChecks(t, step.prvGetCheck, prvPolicyClient)
+					})
 				}
 			})
 	}
