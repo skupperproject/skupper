@@ -188,7 +188,10 @@ func removePolicies(t *testing.T, cluster *base.ClusterContext) (err error) {
 		item_err := skupperCli.SkupperClusterPolicies().Delete(item.Name, &metav1.DeleteOptions{})
 		if item_err != nil {
 			t.Logf("  removal failed: %v", item_err)
-			err = item_err // We'll return the last error from the list
+			if err == nil {
+				// We'll return the first error from the list, but keep trying the others
+				err = item_err
+			}
 		}
 	}
 
