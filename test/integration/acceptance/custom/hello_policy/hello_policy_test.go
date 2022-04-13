@@ -13,7 +13,6 @@
 package hello_policy
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -31,9 +30,6 @@ import (
 // It is a copy of the test at test/integration/examples/custom/helloworld/,
 // adapted for Policy testing
 func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
-
-	fmt.Println("pub1", pub1)
-	fmt.Println("pub2", pub2)
 
 	// Creating a local directory for storing the token
 	testPath := "./tmp/"
@@ -496,15 +492,17 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	//	scenarios := append(append(initSteps, mainSteps...), deleteSteps...)
 
 	// Running the scenarios
-	t.Run("init", func(t *testing.T) { cli.RunScenarios(t, initSteps) })
+	t.Run("init", func(t *testing.T) { cli.RunScenariosParallel(t, initSteps) })
 	//	mainSteps = mainSteps
 	t.Run("No CRD, all works", func(t *testing.T) { cli.RunScenarios(t, mainSteps) })
 	t.Run("Re-expose service, for next test", func(t *testing.T) { cli.RunScenarios(t, []cli.TestScenario{exposeSteps}) })
 	applyCrd(t, pub1)
+	// TODO: can this run in parallel?
 	t.Run("CRD added and no policy, all comes down", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameDown) })
 	t.Log("Removing CRD again, some resources should come back up")
 	removeCrd(t, pub1)
+	// TODO: can this run in parallel?
 	t.Run("CRD removed, link should come back up", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameBackUp) })
-	t.Run("closing", func(t *testing.T) { cli.RunScenarios(t, deleteSteps) })
+	t.Run("closing", func(t *testing.T) { cli.RunScenariosParallel(t, deleteSteps) })
 
 }
