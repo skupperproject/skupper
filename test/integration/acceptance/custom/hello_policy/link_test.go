@@ -1,22 +1,12 @@
 package hello_policy
 
 import (
-	"strconv"
 	"testing"
 
-	"github.com/skupperproject/skupper/client"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/link"
-)
-
-var (
-	// these are final, do not change them.  They're used with
-	// a boolean pointer to allow true/false/undefined
-	_true  = true
-	_false = false
-	// TODO: is there a better way to do this?
 )
 
 // Uses the named token to create a link from ctx
@@ -160,48 +150,6 @@ func allowedOutgoingLinksHostnamesPolicy(namespace string, hostnames []string) (
 	return
 }
 
-// TODO: Refactor this into a method?  Also, move this along with the rest to runner?
-func applyPolicies(
-	t *testing.T,
-	pub *base.ClusterContext, pubPolicies []skupperv1.SkupperClusterPolicySpec,
-	prv *base.ClusterContext, prvPolicies []skupperv1.SkupperClusterPolicySpec) {
-	if len(pubPolicies)+len(prvPolicies) > 0 {
-		t.Run(
-			"policy-setup",
-			func(t *testing.T) {
-				for i, policy := range pubPolicies {
-					i := strconv.Itoa(i)
-					err := applyPolicy(t, "pub-policy-"+i, policy, pub)
-					if err != nil {
-						t.Fatalf("Failed to apply policy: %v", err)
-					}
-				}
-				for i, policy := range prvPolicies {
-					i := strconv.Itoa(i)
-					err := applyPolicy(t, "prv-policy-"+i, policy, prv)
-					if err != nil {
-						t.Fatalf("Failed to apply policy: %v", err)
-					}
-				}
-
-			})
-	}
-}
-
-// Runs a policy check using `get`.  It receives a *testing.T, so it does not return;
-// it marks the test as failed if the check fails.
-func getChecks(t *testing.T, getCheck policyGetCheck, c *client.PolicyAPIClient) {
-	ok, err := getCheck.check(c)
-	if err != nil {
-		t.Errorf("GET check failed with error: %v", err)
-		return
-	}
-
-	if !ok {
-		t.Errorf("GET check failed (check: %v)", getCheck)
-	}
-}
-
 func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	testTable := []policyTestCase{
@@ -339,33 +287,8 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		},
 	}
 
-	pubPolicyClient := client.NewPolicyValidatorAPI(pub.VanClient)
-	prvPolicyClient := client.NewPolicyValidatorAPI(prv.VanClient)
-
-	for _, scenario := range testTable {
-		removePolicies(t, pub)
-		removePolicies(t, prv)
-		if base.IsTestInterrupted() {
-			break
-		}
-		t.Run(
-			scenario.name,
-			func(t *testing.T) {
-				for _, step := range scenario.steps {
-					t.Run(step.name, func(t *testing.T) {
-						applyPolicies(t, pub, step.pubPolicy, prv, step.prvPolicy)
-						if step.parallel {
-							cli.RunScenariosParallel(t, step.commands)
-						} else {
-							cli.RunScenarios(t, step.commands)
-						}
-						getChecks(t, step.pubGetCheck, pubPolicyClient)
-						getChecks(t, step.prvGetCheck, prvPolicyClient)
-					})
-				}
-			})
-	}
-
-	base.StopIfInterrupted(t)
+	policyTestRunner{
+		scenarios: testTable,
+	}.run(t, pub, prv)
 
 }
