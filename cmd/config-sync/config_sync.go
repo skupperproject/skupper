@@ -254,18 +254,14 @@ func filterInternalRouterConnectors(changes *qdr.ConnectorDifference, agent *qdr
 
 	var filteredResults []string
 
-	actualSslProfiles, _ := agent.GetSslProfiles()
-
 	for _, v1 := range changes.Deleted {
 		connector, _ := agent.GetConnectorByName(v1)
 
-		sslProfile := actualSslProfiles[connector.SslProfile]
-
 		allowedToDelete := true
 
-		if !strings.HasPrefix(sslProfile.CaCertFile, allowedPath) ||
-			!strings.HasPrefix(sslProfile.CertFile, allowedPath) ||
-			!strings.HasPrefix(sslProfile.PrivateKeyFile, allowedPath) {
+		_, err := os.Stat(allowedPath + "/" + connector.SslProfile)
+
+		if os.IsNotExist(err) {
 			allowedToDelete = false
 		}
 
