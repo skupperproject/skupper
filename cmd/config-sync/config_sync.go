@@ -31,7 +31,7 @@ type ConfigSync struct {
 	vanClient *client.VanClient
 }
 
-const SHARED_TLS_DIRECTORY = "/etc/skupper-shared-certs"
+const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
 
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
 	key, err := cache.MetaNamespaceKeyFunc(obj)

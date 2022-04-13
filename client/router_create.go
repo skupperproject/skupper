@@ -567,7 +567,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		AuthenticatePeer: true,
 	})
 
-	routerConfig.AddSimpleSslProfileWithPath("/etc/skupper-shared-certs",
+	routerConfig.AddSimpleSslProfileWithPath("/etc/skupper-router-certs",
 		qdr.SslProfile{
 			Name: types.ServiceClientSecret,
 		})
@@ -697,7 +697,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		}
 	}
 
-	kube.AppendSharedVolume(&volumes, &mounts[qdrouterd], &mounts[configSync], "skupper-router-certs", "/etc/skupper-shared-certs")
+	kube.AppendSharedVolume(&volumes, &mounts[qdrouterd], &mounts[configSync], "skupper-router-certs", "/etc/skupper-router-certs")
 
 	van.Transport.Volumes = volumes
 	van.Transport.VolumeMounts = mounts
