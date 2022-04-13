@@ -730,7 +730,7 @@ func GetBridgeConfigFromConfigMap(configmap *corev1.ConfigMap) (*BridgeConfig, e
 }
 
 type ConnectorDifference struct {
-	Deleted          []string
+	Deleted          []Connector
 	Added            []Connector
 	AddedSslProfiles map[string]SslProfile
 }
@@ -858,7 +858,7 @@ func (a *BridgeConfigDifference) Print() {
 	log.Printf("HttpListeners added=%v, deleted=%v", a.HttpListeners.Added, a.HttpListeners.Deleted)
 }
 
-func ConnectorsDifference(actual map[string]ConnectorStatus, desired *RouterConfig) *ConnectorDifference {
+func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig) *ConnectorDifference {
 	result := ConnectorDifference{}
 	result.AddedSslProfiles = make(map[string]SslProfile)
 	for key, v1 := range desired.Connectors {
@@ -870,8 +870,11 @@ func ConnectorsDifference(actual map[string]ConnectorStatus, desired *RouterConf
 	}
 	for key, v1 := range actual {
 		_, ok := desired.Connectors[key]
-		if !ok {
-			result.Deleted = append(result.Deleted, v1.Name)
+
+		allowedToDelete := types.InterRouterProfile != v1.SslProfile
+
+		if !ok && allowedToDelete {
+			result.Deleted = append(result.Deleted, v1)
 		}
 	}
 	return &result

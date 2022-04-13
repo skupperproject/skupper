@@ -226,13 +226,12 @@ func (c *ConfigSync) syncRouterConfig(desired *qdr.RouterConfig) error {
 }
 
 func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
-	actual, err := agent.GetLocalConnectorStatus()
+	actual, err := agent.GetLocalConnectors()
 	if err != nil {
-		return fmt.Errorf("Error retrieving local connector status: %s", err)
+		return fmt.Errorf("Error retrieving local connectors: %s", err)
 	}
 
 	differences := qdr.ConnectorsDifference(actual, desired)
-	differences = filterInternalRouterConnectors(differences, agent, SHARED_TLS_DIRECTORY)
 
 	if differences.Empty() {
 		return nil
@@ -248,30 +247,6 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 		}
 		return nil
 	}
-}
-
-func filterInternalRouterConnectors(changes *qdr.ConnectorDifference, agent *qdr.Agent, allowedPath string) *qdr.ConnectorDifference {
-
-	var filteredResults []string
-
-	for _, v1 := range changes.Deleted {
-		connector, _ := agent.GetConnectorByName(v1)
-
-		allowedToDelete := true
-
-		_, err := os.Stat(allowedPath + "/" + connector.SslProfile)
-
-		if os.IsNotExist(err) {
-			allowedToDelete = false
-		}
-
-		if allowedToDelete {
-			filteredResults = append(filteredResults, v1)
-		}
-	}
-
-	changes.Deleted = filteredResults
-	return changes
 }
 
 func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
@@ -359,20 +334,15 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 	for _, deleted := range changes.Deleted {
 
-		deletedConnector, err := agent.GetConnectorByName(deleted)
-		if err != nil {
-			return err
-		}
+		if len(deleted.SslProfile) > 0 {
 
-		if len(deletedConnector.SslProfile) > 0 {
+			log.Printf("Deleting cert files related to connector sslProfile %s", deleted.SslProfile)
 
-			log.Printf("Deleting cert files related to connector sslProfile %s", deletedConnector.SslProfile)
-
-			if err = agent.Delete("io.skupper.router.sslProfile", deletedConnector.SslProfile); err != nil {
+			if err = agent.Delete("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
 				return fmt.Errorf("Error deleting ssl profile: #{err}")
 			}
 
-			err = os.RemoveAll(sharedTlsFilesDir + "/" + deletedConnector.SslProfile)
+			err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
 			if err != nil {
 				return err
 			}
