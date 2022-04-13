@@ -51,5 +51,17 @@ Feature: AllowIncomingLink
       and GET allowIncomingLinks == true
       and link removal works fine
 
+  Scenario: TODO-delete downed
+
+    Given a policy that allows only IncomingLinks on the public namespace
+      and a policy that allows all outgoing hosts for links on the private namespace
+      and a link has been established between prv and pub
+     When removing the incomingLinks policy
+     Then the link goes down
+     When removing the link
+     Then the removal is successful
+     When reinstating the allow IncomingLinks policy
+     Then the link is still gone
+
   Scenario: TODO-gateway
 

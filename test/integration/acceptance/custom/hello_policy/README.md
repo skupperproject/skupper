@@ -13,7 +13,7 @@ be run in parallel with any other tests, lest those other tests will fail.
 
 # Note on files
 
-Under the `features` directory there are files are written in Gherkin, but not
+Under the `features` directory there are files written in Gherkin, but not
 read by any actual Gherkin system (behave or cucumber).
 
 Instead, they're just a standardized way to write test cases before the actual
@@ -23,9 +23,14 @@ code can be written.
 
 # Priorities
 
-* A cluster without the CRD or with an all-allowing policy  should behave like 0.8
+* A cluster without the CRD or with an all-allowing policy should behave like 0.8 
+
+  (this will be not be the focus of these tests.  Instead, the main tests will
+  be run in such clusters, providing for this coverage)
+
 * Policy has teeth: anything that is not allowed should not be accessible
-* Annotation testing is lower priority
+
+* Gateway, annotation testing are lower priority
 
 For later
 
@@ -90,8 +95,9 @@ that behaves as if they were false or empty.
 * allowIncomingLinks
   * stop working
     * token creation (including via console)
-    * link creation (moot, as no token) (including via console)
-      * actually: create token, remove allow, try to create link
+    * link establishment (including via console)
+      * create token, remove allow, try to create link
+      * links will be created, but in inactive state
     * gateway creation (moot, as no link)
   * Disconnect and disable
     * existing links
@@ -131,8 +137,8 @@ false positives and false negatives.
 
 ## namespace selection
 
-Namespace selection is on a list of actual namespaces, regexes thereof, or 
-label selectors (any tokens with a '=' in the middle), plus the special "\*"
+Namespace selection is on a list of regular expressions that match namespaces,
+or label selectors (any tokens with a '=' in the middle), plus the special `\*`
 notation, representing any namespace.
 
 *Question*: Where are regexes anchored?  If everything is a regex and they're
@@ -145,7 +151,6 @@ If any of the items on a list applies to a namespace, then the policy applies
 to that namespace.
 
 * `\*`
-* specific namespace
 * regex
 * label
 
@@ -156,10 +161,10 @@ Of course, one needs to make sure that policies that apply only to other
 namespaces make no changes on a given namespace, and that changes specific
 to a namespace do not affect others.
 
-Note that label selection is the only place on the policy system that behaves
-with an `AND` nature:  all given labels (in an item in the list) must apply to
-a namespace for that label selection to apply.  This should be Kubernetes work
-to ensure, but we test anyway
+Note that label selection items are the only place on the policy system that
+behaves with an `AND` nature:  all given labels (in an item in the list) must
+apply to a namespace for that label selection to apply.  This should be
+Kubernetes work to ensure, but we test anyway
 
 * test multiple labels in a single item
 * test single labels in multiple items
