@@ -1610,6 +1610,7 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 			if !IsZero(reflect.ValueOf(cli)) {
 				fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
 				fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
+				fmt.Printf("%-30s %s\n", "config-sync version", cli.GetVersion(types.TransportComponentName, types.ConfigSyncContainerName))
 			} else {
 				fmt.Printf("%-30s %s\n", "transport version", "not-found (no configuration has been provided)")
 				fmt.Printf("%-30s %s\n", "controller version", "not-found (no configuration has been provided)")

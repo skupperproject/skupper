@@ -47,6 +47,7 @@ const (
 	TransportDeploymentName       string = "skupper-router"
 	TransportComponentName        string = "router"
 	TransportContainerName        string = "router"
+	ConfigSyncContainerName       string = "config-sync"
 	TransportLivenessPort         int32  = 9090
 	TransportServiceAccountName   string = "skupper-router"
 	TransportRoleName             string = "skupper-router"
