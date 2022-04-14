@@ -108,6 +108,14 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
 // start of the list, and never-changing at the end, so your updates will simply
 // have the first one or two policies listed.  However, be careful, it is easy
 // to overlook this behavior causing weird test errors.
+//
+// When you have more than one policy and you're not updating all, it may be
+// good to document it on the struct.  Something like this:
+//
+//   pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+//     allowIncomingLinkPolicy(pub.Namespace, true),
+//     // second policy is not being changed on this test
+//  },
 type policyTestStep struct {
 	name        string
 	pubPolicy   []skupperv1.SkupperClusterPolicySpec // ATTENTION to usage; see doc
@@ -173,10 +181,14 @@ func getChecks(t *testing.T, getCheck policyGetCheck, c *client.PolicyAPIClient)
 
 // Runs the configured GET checks
 func (s policyTestStep) runChecks(t *testing.T, pub, prv *base.ClusterContext) {
+
+	// TODO: move these two into getChecks
 	pubPolicyClient := client.NewPolicyValidatorAPI(pub.VanClient)
 	prvPolicyClient := client.NewPolicyValidatorAPI(prv.VanClient)
 
+	t.Logf("Runninng GET checks on %v", pub.Namespace)
 	getChecks(t, s.pubGetCheck, pubPolicyClient)
+	t.Logf("Runninng GET checks on %v", prv.Namespace)
 	getChecks(t, s.prvGetCheck, prvPolicyClient)
 }
 

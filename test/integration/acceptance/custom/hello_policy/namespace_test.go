@@ -107,6 +107,9 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 				},
 			},
 		}, {
+			// This whole test was created because of this specific test case.
+			// More specifically the bug described on
+			// https://github.com/skupperproject/skupper/issues/718
 			name: "keep-policy--remove-namespace--disconnects",
 			steps: []policyTestStep{
 				{
@@ -132,7 +135,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
 					commands: []cli.TestScenario{
-						linkStatusTestScenario(prv, "", "transition", false),
+						linkStatusTestScenario(prv, "", "transition", true),
 					},
 					pubGetCheck: policyGetCheck{
 						allowIncoming:    &_true,
