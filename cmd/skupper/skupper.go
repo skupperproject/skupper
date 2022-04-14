@@ -1014,7 +1014,11 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
+	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, this service will have TLS support for services.")
+
+	// TODO: Disabled flag to enable when the router image version that support TLS is ready for skupper
+	f := cmd.Flag("enable-tls")
+	f.Hidden = true
 
 	return cmd
 }
@@ -1602,7 +1606,6 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 			if !IsZero(reflect.ValueOf(cli)) {
 				fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
 				fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
-				fmt.Printf("%-30s %s\n", "config-sync version", cli.GetVersion(types.TransportComponentName, types.ConfigSyncContainerName))
 			} else {
 				fmt.Printf("%-30s %s\n", "transport version", "not-found (no configuration has been provided)")
 				fmt.Printf("%-30s %s\n", "controller version", "not-found (no configuration has been provided)")
