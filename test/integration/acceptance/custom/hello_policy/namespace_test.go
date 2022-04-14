@@ -27,6 +27,144 @@ type namespaceTest struct {
 }
 
 func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
+	testNamespaceLinkTransitions(t, pub1, pub2)
+	testNamespaceIncomingLinks(t, pub1, pub2)
+}
+
+func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
+
+	testTable := []policyTestCase{
+		{
+			name: "init",
+			steps: []policyTestStep{
+				{
+					name:     "init",
+					parallel: true,
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy(pub.Namespace, true),
+					},
+					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
+					},
+					commands: []cli.TestScenario{
+						skupperInitInteriorTestScenario(pub, "", true),
+						skupperInitEdgeTestScenario(prv, "", true),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming:    &_true,
+						checkUndefinedAs: &_false,
+					},
+					prvGetCheck: policyGetCheck{
+						allowIncoming: &_false,
+					},
+				}, {
+					name: "connect",
+					commands: []cli.TestScenario{
+						createTokenPolicyScenario(pub, "", "./tmp", "transition", true),
+						createLinkTestScenario(prv, "", "transition"),
+						sitesConnectedTestScenario(pub, prv, "", "transition"),
+					},
+				},
+			},
+		}, {
+			name: "keep-policy--change-value--disconnects",
+			steps: []policyTestStep{
+				{
+					name: "execute",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy(pub.Namespace, false),
+					},
+					commands: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "transition", false),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming:    &_false,
+						checkUndefinedAs: &_false,
+					},
+					prvGetCheck: policyGetCheck{
+						allowIncoming: &_false,
+					},
+				},
+			},
+		}, {
+			name: "keep-policy--change-value--reconnects",
+			steps: []policyTestStep{
+				{
+					name: "execute",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy(pub.Namespace, true),
+					},
+					commands: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "transition", true),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming:    &_true,
+						checkUndefinedAs: &_false,
+					},
+					prvGetCheck: policyGetCheck{
+						allowIncoming: &_false,
+					},
+				},
+			},
+		}, {
+			name: "keep-policy--remove-namespace--disconnects",
+			steps: []policyTestStep{
+				{
+					name: "execute",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy("non-existent", true),
+					},
+					commands: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "transition", false),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming:    &_false,
+						checkUndefinedAs: &_false,
+					},
+				},
+			},
+		}, {
+			name: "keep-policy--add-namespace--reconnects",
+			steps: []policyTestStep{
+				{
+					name: "execute",
+					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+						allowIncomingLinkPolicy(pub.Namespace, true),
+					},
+					commands: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "transition", false),
+					},
+					pubGetCheck: policyGetCheck{
+						allowIncoming:    &_true,
+						checkUndefinedAs: &_false,
+					},
+					prvGetCheck: policyGetCheck{
+						allowIncoming: &_false,
+					},
+				},
+			},
+		}, {
+			name: "cleanup",
+			steps: []policyTestStep{
+				{
+					name:     "execute",
+					parallel: true,
+					commands: []cli.TestScenario{
+						deleteSkupperTestScenario(pub, "pub"),
+						deleteSkupperTestScenario(prv, "prv"),
+					},
+				},
+			},
+		},
+	}
+
+	policyTestRunner{
+		scenarios:    testTable,
+		keepPolicies: true,
+	}.run(t, pub, prv)
+
+}
+func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 
 	var err error
 

@@ -40,6 +40,9 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	attempt := 0
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
 		attempt++
+		if base.IsTestInterrupted() {
+			return false, fmt.Errorf("Test interrupted")
+		}
 		stdout, stderr, err = s.run(cluster)
 		log.Printf("Validating 'skupper status' - attempt %d", attempt)
 		if err != nil {

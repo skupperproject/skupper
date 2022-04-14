@@ -275,8 +275,13 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					pubGetCheck: policyGetCheck{
 						allowIncoming: &_true,
 					},
-				}, {
-					name:     "cleanup",
+				},
+			},
+		}, {
+			name: "cleanup",
+			steps: []policyTestStep{
+				{
+					name:     "delete",
 					parallel: true,
 					commands: []cli.TestScenario{
 						deleteSkupperTestScenario(pub, "pub"),
