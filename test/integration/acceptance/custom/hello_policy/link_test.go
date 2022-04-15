@@ -127,6 +127,19 @@ func sitesConnectedTestScenario(pub *base.ClusterContext, prv *base.ClusterConte
 	return
 }
 
+// Uses other functions to create a token, link the two clusters and check all is good
+func connectSites(pub, prv *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
+
+	scenario = createTokenPolicyScenario(pub, prefix, "./tmp", name, true)
+	scenario.Name = prefixName(prefix, "connect-sites")
+
+	scenario.Tasks = append(scenario.Tasks, createLinkTestScenario(prv, prefix, name).Tasks...)
+	scenario.Tasks = append(scenario.Tasks, linkStatusTestScenario(prv, prefix, name, true).Tasks...)
+
+	return scenario
+
+}
+
 // Return a SkupperClusterPolicySpec that (dis)allows incomingLinks on the
 // given namespace.
 func allowIncomingLinkPolicy(namespace string, allow bool) (policySpec skupperv1.SkupperClusterPolicySpec) {

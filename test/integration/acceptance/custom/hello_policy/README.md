@@ -110,7 +110,7 @@ that behaves as if they were false or empty.
   * binding of new resources fail
   * unbinding of resources (anything different about annotated?)
 * AllowedServices
-  * removal of local services (including exoposed by annotation)
+  * removal of local services (including exposed by annotation)
     * note that it is the Skupper service that is removed.  The original
       Kubernetes service is left intact, annotation and all
   * Make external services unavailable (on service status, they are listed but show

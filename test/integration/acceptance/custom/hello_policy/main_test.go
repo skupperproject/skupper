@@ -420,6 +420,15 @@ func TestPolicies(t *testing.T) {
 		})
 
 		base.StopIfInterrupted(t)
+
+		t.Run("testServicePolicy", func(t *testing.T) {
+			applyCrd(t, pub1)
+			removePolicies(t, pub1)
+			removePolicies(t, pub2)
+			testServicePolicy(t, pub1, pub2)
+		})
+
+		base.StopIfInterrupted(t)
 	})
 
 }
@@ -435,8 +444,8 @@ func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 
 	t.Run("Setup", func(t *testing.T) {
 		// First, validate if skupper binary is in the PATH, or fail the test
-		log.Printf("Running 'skupper --help' to determine if skupper binary is available")
-		_, _, err := cli.RunSkupperCli([]string{"--help"})
+		log.Printf("Running 'skupper version' to determine whether the skupper binary is available and record its version")
+		_, _, err := cli.RunSkupperCli([]string{"version"})
 		if err != nil {
 			t.Fatalf("skupper binary is not available")
 		}
