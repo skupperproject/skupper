@@ -120,7 +120,9 @@ func RunScenariosParallel(t *testing.T, scenarios []TestScenario) {
 			// Make those local, so each run of the closure uses its own version
 			scenario, stdout, stderr, err := scenario, stdout, stderr, err
 			passed := t.Run(scenario.Name, func(t *testing.T) {
-				t.Parallel()
+				if base.ShouldRunScenariosInParallel() {
+					t.Parallel()
+				}
 				stdout, stderr, err = RunScenario(scenario)
 				assert.Assert(t, err)
 			})

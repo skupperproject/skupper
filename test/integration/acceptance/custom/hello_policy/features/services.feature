@@ -17,26 +17,35 @@ Feature: Skupper service creation and binding
 
   Scenario: No policy, no services
 
+   # no-policy-service-creation-fails
    Given a cluster without any policies
     When trying to create a service
     Then it fails
 
   Scenario:
 
+   # all-hello-world-works
    Given a policy that allows services 'hello-world-.*' on all namespaces
     When trying to create a service named hello-world-backend, and one called hello-world-fronted
     Then both work
+    # add-specific-policies--remove-general--no-changes
     When adding a policy that allows services 'hello-world-backend' and one that allows 'hello-world-frontend' on all namespaces
      and removing the policy that allowed 'hello-world-.*'
     Then the services are unaffected
+    # make-policies-specific-to-namespace
     When changing these policies to apply only to the namespaces where the services are respectivelly deployed
     Then the services are unaffected, but they disappear from the list on the other namespace
-    When adding both specific services (hello-world-{backend,fronted}) to the list on both namespace-specific policies, they reappear
+    # policies-list-both-services
+    When adding both specific services (hello-world-{backend,fronted}) to the list on both namespace-specific policies
+    Then they reappear
+    # policy-removals
     When Removing one of the policies and changing the other policy to point to a non-existent namespace
     Then both services are removed
      and trying to create new services fail
+    # reinstating-and-gone
     When reinstating the policy that allows 'hello-world-.*' on all namespaces
     Then the services are not recreated
+     and trying to create services with the same names works
 
   Scenario: inversed
    Given a policy that allows service 'hello-world-frontend' on prv

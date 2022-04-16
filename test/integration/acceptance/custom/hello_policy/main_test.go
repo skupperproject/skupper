@@ -184,8 +184,6 @@ func removePolicies(t *testing.T, cluster *base.ClusterContext, policies ...stri
 		}
 	}
 
-	fmt.Printf("*************** Policies: %v", policies)
-
 	for _, item := range policies {
 		t.Logf("- %v", item)
 		item_err := skupperCli.SkupperClusterPolicies().Delete(item, &metav1.DeleteOptions{})

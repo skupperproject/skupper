@@ -38,6 +38,11 @@ const (
 	// If defined, both stdout and stderr of all issued skupper commands
 	// will be shown on the test output, even if they did not fail
 	ENV_VERBOSE_COMMANDS = "SKUPPER_TEST_VERBOSE_COMMANDS"
+
+	// If defined, calls to cli.RunScenariosParallel will actually be run
+	// in serial.  Use this, for example, when the output of the tests is
+	// too difficult to read because of the parallelism
+	ENV_CLI_NO_PARALLEL = "SKUPPER_TEST_CLI_NO_PARALLEL"
 )
 
 func ShouldSkipNamespaceSetup() bool {
@@ -63,4 +68,9 @@ func ShouldSkipPolicySetup() bool {
 func IsVerboseCommandOutput() bool {
 	_, showVerbose := os.LookupEnv(ENV_VERBOSE_COMMANDS)
 	return showVerbose
+}
+
+func ShouldRunScenariosInParallel() bool {
+	_, found := os.LookupEnv(ENV_CLI_NO_PARALLEL)
+	return !found
 }

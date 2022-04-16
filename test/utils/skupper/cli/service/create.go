@@ -63,6 +63,9 @@ func (s *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
 		attempt++
 		log.Printf("validating created service - attempt: %d", attempt)
+		if base.IsTestInterrupted() {
+			return false, fmt.Errorf("Test interrupted")
+		}
 		svc, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(s.Name, v1.GetOptions{})
 		if err != nil {
 			log.Printf("service %s not available yet", s.Name)

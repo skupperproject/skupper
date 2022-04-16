@@ -172,18 +172,41 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 		t.Run(
 			"policy-setup",
 			func(t *testing.T) {
-				for i, policy := range s.pubPolicy {
-					i := strconv.Itoa(i)
-					err := applyPolicy(t, "pub-policy-"+i, policy, pub)
-					if err != nil {
-						t.Fatalf("Failed to apply policy: %v", err)
-					}
+				apply := []struct {
+					policyList []skupperv1.SkupperClusterPolicySpec
+					cluster    *base.ClusterContext
+					prefix     string
+				}{
+					{
+						policyList: s.pubPolicy,
+						cluster:    pub,
+						prefix:     "pub",
+					}, {
+						policyList: s.prvPolicy,
+						cluster:    prv,
+						prefix:     "prv",
+					},
 				}
-				for i, policy := range s.prvPolicy {
-					i := strconv.Itoa(i)
-					err := applyPolicy(t, "prv-policy-"+i, policy, prv)
-					if err != nil {
-						t.Fatalf("Failed to apply policy: %v", err)
+
+				for _, item := range apply {
+					for i, policy := range item.policyList {
+						i := strconv.Itoa(i)
+						policyName := prefixName(item.prefix, "policy-"+i)
+
+						var err error
+
+						// TODO: decide whether to keep this or not
+						// if len(policy.Namespaces) == 1 && policy.Namespaces[0] == "REMOVE" {
+						// err = removePolicies(t, item.cluster, policyName)
+						// if err != nil {
+						// t.Fatalf("Failed to remove policy: %v", err)
+						// }
+						// } else {
+						err = applyPolicy(t, policyName, policy, item.cluster)
+						if err != nil {
+							t.Fatalf("Failed to apply policy: %v", err)
+						}
+						// }
 					}
 				}
 
