@@ -1,9 +1,13 @@
+//go:build policy
+// +build policy
+
 package hello_policy
 
 import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -157,9 +161,47 @@ func removeClusterRole(t *testing.T, cluster *base.ClusterContext) (changed bool
 //
 // In the future, change the signature so the last item is ..policies, so specific
 // policies can be given
-func removePolicies(t *testing.T, cluster *base.ClusterContext) (err error) {
+func removePolicies(t *testing.T, cluster *base.ClusterContext, policies ...string) (err error) {
 
 	t.Log("Removing policies")
+
+	var list *skupperv1.SkupperClusterPolicyList
+
+	skupperCli, err := clientv1.NewForConfig(cluster.VanClient.RestConfig)
+	if err != nil {
+		return
+	}
+
+	if len(policies) == 0 {
+		policies = []string{}
+		// We're listing and removing everything
+		list, err = listPolicies(t, cluster)
+		if err != nil {
+			return
+		}
+		for _, item := range list.Items {
+			policies = append(policies, item.Name)
+		}
+	}
+
+	fmt.Printf("*************** Policies: %v", policies)
+
+	for _, item := range policies {
+		t.Logf("- %v", item)
+		item_err := skupperCli.SkupperClusterPolicies().Delete(item, &metav1.DeleteOptions{})
+		if item_err != nil {
+			t.Logf("  removal failed: %v", item_err)
+			if err == nil {
+				// We'll return the first error from the list, but keep trying the others
+				err = item_err
+			}
+		}
+	}
+
+	return
+}
+
+func listPolicies(t *testing.T, cluster *base.ClusterContext) (list *skupperv1.SkupperClusterPolicyList, err error) {
 
 	installed, err := isCrdInstalled(cluster)
 	if err != nil {
@@ -177,25 +219,45 @@ func removePolicies(t *testing.T, cluster *base.ClusterContext) (err error) {
 		return
 	}
 
-	list, err := skupperCli.SkupperClusterPolicies().List(metav1.ListOptions{})
+	list, err = skupperCli.SkupperClusterPolicies().List(metav1.ListOptions{})
 	if err != nil {
 		t.Log("Failed listing policies")
 		return
 	}
 
+	return
+}
+
+func keepPolicies(t *testing.T, cluster *base.ClusterContext, patterns []regexp.Regexp) (err error) {
+
+	policyList := []string{}
+
+	list, err := listPolicies(t, cluster)
+	if err != nil {
+		return
+	}
+
 	for _, item := range list.Items {
-		t.Logf("- %v", item.Name)
-		item_err := skupperCli.SkupperClusterPolicies().Delete(item.Name, &metav1.DeleteOptions{})
-		if item_err != nil {
-			t.Logf("  removal failed: %v", item_err)
-			if err == nil {
-				// We'll return the first error from the list, but keep trying the others
-				err = item_err
+		var matched bool
+		for _, re := range patterns {
+			if re.MatchString(item.Name) {
+				matched = true
+				break
 			}
+		}
+		if !matched {
+			policyList = append(policyList, item.Name)
 		}
 	}
 
+	if len(policyList) == 0 {
+		return
+	}
+
+	err = removePolicies(t, cluster, policyList...)
+
 	return
+
 }
 
 // Apply a SkupperClusterPolicySpec with the given name on the
@@ -357,6 +419,26 @@ func TestPolicies(t *testing.T) {
 			}
 			if base.ShouldSkipNamespaceTeardown() {
 				t.Log("Skipping namespace tear down, per env variables")
+				t.Log("Removing skupper from namespaces, instead")
+				cli.RunScenariosParallel(t, []cli.TestScenario{
+					{
+						Name: "skupper-delete",
+						Tasks: []cli.SkupperTask{
+							{
+								Ctx: pub1,
+								Commands: []cli.SkupperCommandTester{
+									&cli.DeleteTester{},
+								},
+							}, {
+								Ctx: pub2,
+								Commands: []cli.SkupperCommandTester{
+									&cli.DeleteTester{},
+								},
+							},
+						},
+					},
+				})
+
 			} else {
 				for _, context := range allContexts {
 					wg.Add(1)

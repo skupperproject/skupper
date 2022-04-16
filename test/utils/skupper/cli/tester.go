@@ -39,6 +39,14 @@ type TestScenario struct {
 	Tasks []SkupperTask
 }
 
+// Appends the tasks from other TestScenarios to this one.  Use this for
+// composing complex scenarios from simpler ones.
+func (ts *TestScenario) AppendTasks(others ...TestScenario) {
+	for _, scenario := range others {
+		ts.Tasks = append(ts.Tasks, scenario.Tasks...)
+	}
+}
+
 // SkupperTask defines a set of skupper commands (init, status, expose, ...) that will be
 // executed in the given ClusterContext
 type SkupperTask struct {
@@ -167,4 +175,129 @@ func SkupperCommonOptions(cluster *base.ClusterContext) []string {
 	args = append(args, "--kubeconfig", cluster.KubeConfig)
 
 	return args
+}
+
+// A way to verify cli commands output
+//
+// StdOut and StdErr take a slice of plain strings.  It will expect that
+// each string comes after the previous one.  In other words, the search
+// for the second string from StdOut starts where the match for the first
+// one finished.
+//
+// If you want to search for one static string instead, where there is
+// nothing in between each segment, just use a single item with one big
+// string
+//
+// StdOutRe and StdErrRe take a slice of regular expressions.  Those do
+// not have the same restriction on one coming after the other.  If you
+// want that behavior with regexes, create a single regex with the two
+// expressions you're looking for.
+//
+// StdOutReNot and StdErrReNot behave like the previous ones, but ensure
+// that the patters are not there in the checked string
+type Expect struct {
+	StdOut []string
+	StdErr []string
+	// StdOutRe    []string
+	// StdErrRe    []string
+	// StdOutReNot []string
+	// StdErrReNot []string
+}
+
+// Looks for each bit (a substring), inside the string s, in order
+//
+// The 'name' is used for the error message.
+func checkPlain(s string, bits []string, name string) (err error) {
+	var startPos int
+	missingPieces := []string{}
+
+	for _, item := range bits {
+		partial := s[startPos:]
+
+		index := strings.Index(partial, item)
+		if index >= 0 {
+			// We found something, so the next check will start
+			// where that match finished
+			startPos += index + len(item)
+		} else {
+			missingPieces = append(missingPieces, item)
+			// we continue even if an error, to report all missing pieces
+		}
+	}
+
+	if len(missingPieces) > 0 {
+		if len(bits) == 1 {
+			err = fmt.Errorf(
+				"Expected %v: \n%s\n",
+				name,
+				bits[0],
+			)
+		} else {
+			msg := fmt.Sprintf(
+				"Expected %v:\n%s\nmissing bits:\n",
+				name,
+				strings.Join(bits, "(...)"),
+			)
+			for _, mp := range missingPieces {
+				msg = fmt.Sprintf("%v- %v\n", msg, mp)
+			}
+			err = fmt.Errorf(msg)
+		}
+	}
+	return
+}
+
+// Groups and reports on a set of errors for the same input
+func groupErrors(name, actual string, errors []error) (err error) {
+
+	var hasErrors bool
+	for _, e := range errors {
+		if e != nil {
+			hasErrors = true
+			break
+		}
+	}
+	if !hasErrors {
+		return
+	}
+	message := "Incorrect output:\n"
+	for _, e := range errors {
+		if e != nil {
+			message += fmt.Sprintf("%v\n", e)
+		}
+	}
+	message += fmt.Sprintf("Actual %v:\n%v", name, actual)
+
+	return fmt.Errorf(message)
+}
+
+// Checks all items from the specification.
+func (e Expect) Check(stdout, stderr string) (err error) {
+
+	stdOutErrors := groupErrors(
+		"stdout",
+		stdout,
+		[]error{
+			checkPlain(stdout, e.StdOut, "stdout"),
+		})
+	stdErrErrors := groupErrors(
+		"stderr",
+		stderr,
+		[]error{
+			checkPlain(stderr, e.StdErr, "stderr"),
+		})
+
+	var message string
+	if stdOutErrors != nil {
+		message += fmt.Sprint(stdOutErrors)
+	}
+	if stdErrErrors != nil {
+		message += fmt.Sprint(stdErrErrors)
+	}
+
+	if message != "" {
+		err = fmt.Errorf(message)
+	}
+	return
+
 }

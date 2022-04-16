@@ -1,10 +1,12 @@
 package hello_policy
 
 import (
+	"regexp"
 	"strconv"
 	"testing"
 
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
@@ -45,15 +47,39 @@ var (
 type policyTestRunner struct {
 	scenarios    []policyTestCase
 	keepPolicies bool
+	pubPolicies  []v1alpha1.SkupperClusterPolicySpec
+	prvPolicies  []v1alpha1.SkupperClusterPolicySpec
 }
 
 // Runs each test case in turn
 func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 
+	if len(r.pubPolicies)+len(r.prvPolicies) > 0 {
+		t.Run(
+			"background-policy-setup",
+			func(t *testing.T) {
+				for i, policy := range r.pubPolicies {
+					i := strconv.Itoa(i)
+					err := applyPolicy(t, "background-pub-policy-"+i, policy, pub)
+					if err != nil {
+						t.Fatalf("Failed to apply policy: %v", err)
+					}
+				}
+				for i, policy := range r.prvPolicies {
+					i := strconv.Itoa(i)
+					err := applyPolicy(t, "background-prv-policy-"+i, policy, prv)
+					if err != nil {
+						t.Fatalf("Failed to apply policy: %v", err)
+					}
+				}
+
+			})
+	}
+
 	for _, testCase := range r.scenarios {
 		if !r.keepPolicies {
-			removePolicies(t, pub)
-			removePolicies(t, prv)
+			keepPolicies(t, pub, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
+			keepPolicies(t, prv, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
 		}
 		if base.IsTestInterrupted() {
 			break

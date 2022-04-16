@@ -128,13 +128,17 @@ func sitesConnectedTestScenario(pub *base.ClusterContext, prv *base.ClusterConte
 }
 
 // Uses other functions to create a token, link the two clusters and check all is good
-func connectSites(pub, prv *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
+//
+// The commands cannot be run in parallel
+func connectSitesTestScenario(pub, prv *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
 
 	scenario = createTokenPolicyScenario(pub, prefix, "./tmp", name, true)
 	scenario.Name = prefixName(prefix, "connect-sites")
 
-	scenario.Tasks = append(scenario.Tasks, createLinkTestScenario(prv, prefix, name).Tasks...)
-	scenario.Tasks = append(scenario.Tasks, linkStatusTestScenario(prv, prefix, name, true).Tasks...)
+	scenario.AppendTasks(
+		createLinkTestScenario(prv, prefix, name),
+		linkStatusTestScenario(prv, prefix, name, true),
+	)
 
 	return scenario
 
