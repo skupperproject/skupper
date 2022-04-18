@@ -2,6 +2,7 @@ package hello_policy
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"testing"
 
@@ -177,7 +178,7 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 
 	t.Run("apply-crd", func(t *testing.T) {
 		if base.ShouldSkipPolicySetup() {
-			t.Log("Skipping policy setup, per environment")
+			log.Print("Skipping policy setup, per environment")
 			return
 		}
 		// Should this be affected by base.ShouldSkipPolicySetup?

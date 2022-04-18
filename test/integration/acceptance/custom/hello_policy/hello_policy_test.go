@@ -13,6 +13,7 @@
 package hello_policy
 
 import (
+	"log"
 	"os"
 	"testing"
 
@@ -499,7 +500,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	applyCrd(t, pub1)
 	// TODO: can this run in parallel?
 	t.Run("CRD added and no policy, all comes down", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameDown) })
-	t.Log("Removing CRD again, some resources should come back up")
+	log.Print("Removing CRD again, some resources should come back up")
 	removeCrd(t, pub1)
 	// TODO: can this run in parallel?
 	t.Run("CRD removed, link should come back up", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameBackUp) })

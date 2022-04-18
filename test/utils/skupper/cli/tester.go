@@ -76,9 +76,9 @@ func RunScenarios(t *testing.T, scenarios []TestScenario) {
 	var err error
 
 	if len(scenarios) > 1 {
-		t.Log("Scenario set outline:")
+		log.Print("Scenario set outline:")
 		for i, scenario := range scenarios {
-			t.Logf("%2d - %v", i, scenario.Name)
+			log.Printf("%2d - %v", i, scenario.Name)
 		}
 	}
 
@@ -110,9 +110,9 @@ func RunScenariosParallel(t *testing.T, scenarios []TestScenario) {
 	var err error
 
 	t.Run("parallel", func(t *testing.T) {
-		t.Log("Parallel scenario set outline:")
+		log.Print("Parallel scenario set outline:")
 		for i, scenario := range scenarios {
-			t.Logf("%2d - %v", i, scenario.Name)
+			log.Printf("%2d - %v", i, scenario.Name)
 		}
 
 		// Running the scenarios

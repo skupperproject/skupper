@@ -1,6 +1,7 @@
 package hello_policy
 
 import (
+	"log"
 	"regexp"
 	"strconv"
 	"testing"
@@ -239,9 +240,9 @@ func (s policyTestStep) runChecks(t *testing.T, pub, prv *base.ClusterContext) {
 	pubPolicyClient := client.NewPolicyValidatorAPI(pub.VanClient)
 	prvPolicyClient := client.NewPolicyValidatorAPI(prv.VanClient)
 
-	t.Logf("Runninng GET checks on %v", pub.Namespace)
+	log.Printf("Runninng GET checks on %v", pub.Namespace)
 	getChecks(t, s.pubGetCheck, pubPolicyClient)
-	t.Logf("Runninng GET checks on %v", prv.Namespace)
+	log.Printf("Runninng GET checks on %v", prv.Namespace)
 	getChecks(t, s.prvGetCheck, prvPolicyClient)
 }
 

@@ -89,11 +89,11 @@ func (p policyGetCheck) check(c *client.PolicyAPIClient) (ok bool, err error) {
 // Adds the CRD to the cluster
 func applyCrd(t *testing.T, cluster *base.ClusterContext) (err error) {
 	var out []byte
-	t.Logf("Adding CRD into the %v cluster", cluster.KubeConfig)
+	log.Printf("Adding CRD into the %v cluster", cluster.KubeConfig)
 	out, err = cluster.KubectlExec("apply -f ../../../../../api/types/crds/skupper_cluster_policy_crd.yaml")
 	if err != nil {
-		t.Logf("CRD applying failed: %v", err)
-		t.Log("Output:\n", out)
+		log.Printf("CRD applying failed: %v", err)
+		log.Print("Output:\n", out)
 		return
 	}
 	return
@@ -120,7 +120,7 @@ func isCrdInstalled(cluster *base.ClusterContext) (installed bool, err error) {
 func removeCrd(t *testing.T, cluster *base.ClusterContext) (changed bool, err error) {
 	changed = true
 
-	t.Logf("Removing CRD from the cluster %v", cluster.KubeConfig)
+	log.Printf("Removing CRD from the cluster %v", cluster.KubeConfig)
 
 	installed, err := isCrdInstalled(cluster)
 	if err != nil {
@@ -130,7 +130,7 @@ func removeCrd(t *testing.T, cluster *base.ClusterContext) (changed bool, err er
 
 	if !installed {
 		changed = false
-		t.Log("CRD was not present, so not changing anything")
+		log.Print("CRD was not present, so not changing anything")
 		return
 	}
 
@@ -143,12 +143,12 @@ func removeCrd(t *testing.T, cluster *base.ClusterContext) (changed bool, err er
 // Remove the cluster role, but do not fail if it is not there
 func removeClusterRole(t *testing.T, cluster *base.ClusterContext) (changed bool, err error) {
 	changed = true
-	t.Logf("Removing cluster role %v from the CRD definition", types.ControllerServiceAccountName)
+	log.Printf("Removing cluster role %v from the CRD definition", types.ControllerServiceAccountName)
 
 	// Is it there?
 	role, err := cluster.VanClient.KubeClient.RbacV1().ClusterRoles().Get(types.ControllerServiceAccountName, metav1.GetOptions{})
 	if role == nil && err != nil {
-		t.Log("The role did not exist on the cluster; skipping removal")
+		log.Print("The role did not exist on the cluster; skipping removal")
 		changed = false
 		err = nil
 		return
@@ -163,7 +163,7 @@ func removeClusterRole(t *testing.T, cluster *base.ClusterContext) (changed bool
 // policies can be given
 func removePolicies(t *testing.T, cluster *base.ClusterContext, policies ...string) (err error) {
 
-	t.Log("Removing policies")
+	log.Print("Removing policies")
 
 	var list *skupperv1.SkupperClusterPolicyList
 
@@ -185,10 +185,10 @@ func removePolicies(t *testing.T, cluster *base.ClusterContext, policies ...stri
 	}
 
 	for _, item := range policies {
-		t.Logf("- %v", item)
+		log.Printf("- %v", item)
 		item_err := skupperCli.SkupperClusterPolicies().Delete(item, &metav1.DeleteOptions{})
 		if item_err != nil {
-			t.Logf("  removal failed: %v", item_err)
+			log.Printf("  removal failed: %v", item_err)
 			if err == nil {
 				// We'll return the first error from the list, but keep trying the others
 				err = item_err
@@ -208,7 +208,7 @@ func listPolicies(t *testing.T, cluster *base.ClusterContext) (list *skupperv1.S
 	}
 
 	if !installed {
-		t.Log("The CRD is not installed, so skipping the policy removal step")
+		log.Print("The CRD is not installed, so skipping the policy removal step")
 		return
 	}
 
@@ -219,7 +219,7 @@ func listPolicies(t *testing.T, cluster *base.ClusterContext) (list *skupperv1.S
 
 	list, err = skupperCli.SkupperClusterPolicies().List(metav1.ListOptions{})
 	if err != nil {
-		t.Log("Failed listing policies")
+		log.Print("Failed listing policies")
 		return
 	}
 
@@ -262,7 +262,7 @@ func keepPolicies(t *testing.T, cluster *base.ClusterContext, patterns []regexp.
 // requested cluster
 func applyPolicy(t *testing.T, name string, spec skupperv1.SkupperClusterPolicySpec, cluster *base.ClusterContext) (err error) {
 
-	t.Logf("Applying policy %v", spec)
+	log.Printf("Applying policy %v (%v)...", name, spec)
 	skupperCli, err := clientv1.NewForConfig(cluster.VanClient.RestConfig)
 	if err != nil {
 		return
@@ -280,11 +280,13 @@ func applyPolicy(t *testing.T, name string, spec skupperv1.SkupperClusterPolicyS
 
 	existing, err := skupperCli.SkupperClusterPolicies().Get(name, metav1.GetOptions{})
 	if err != nil {
+		log.Printf("... as a new policy")
 		_, err = skupperCli.SkupperClusterPolicies().Create(&policy)
 		if err != nil {
 			return err
 		}
 	} else {
+		log.Printf("... as an update to an existing policy")
 		policy.ObjectMeta.ResourceVersion = existing.ObjectMeta.ResourceVersion
 		_, err := skupperCli.SkupperClusterPolicies().Update(&policy)
 		if err != nil {
@@ -400,24 +402,24 @@ func TestPolicies(t *testing.T) {
 	tearDownFn := func() {
 		t.Run("teardown", func(t *testing.T) {
 			var wg sync.WaitGroup
-			t.Log("entering teardown")
+			log.Print("entering teardown")
 			if base.ShouldSkipPolicyTeardown() {
-				t.Log("Skipping policy tear down, per env variables")
+				log.Print("Skipping policy tear down, per env variables")
 			} else {
 				for _, context := range allContexts {
 					wg.Add(1)
 					context := context
 					go func() {
 						defer wg.Done()
-						t.Logf("Removing Policy CRD from context %v", context.Namespace)
+						log.Printf("Removing Policy CRD from context %v", context.Namespace)
 						removeCrd(t, context)
 						removeClusterRole(t, context)
 					}()
 				}
 			}
 			if base.ShouldSkipNamespaceTeardown() {
-				t.Log("Skipping namespace tear down, per env variables")
-				t.Log("Removing skupper from namespaces, instead")
+				log.Print("Skipping namespace tear down, per env variables")
+				log.Print("Removing skupper from namespaces, instead")
 				cli.RunScenariosParallel(t, []cli.TestScenario{
 					{
 						Name: "skupper-delete",
@@ -443,16 +445,16 @@ func TestPolicies(t *testing.T) {
 					context := context
 					go func() {
 						defer wg.Done()
-						t.Logf("Removing namespace %v", context.Namespace)
+						log.Printf("Removing namespace %v", context.Namespace)
 						err := context.DeleteNamespace()
 						if err != nil {
-							t.Logf("Removal of namespace %v failed: %v", context.Namespace, err)
+							log.Printf("Removal of namespace %v failed: %v", context.Namespace, err)
 						}
 					}()
 				}
 			}
 			wg.Wait()
-			t.Log("tearDown completed")
+			log.Print("tearDown completed")
 		})
 	}
 	defer tearDownFn()
