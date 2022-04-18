@@ -211,13 +211,13 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name:     "skupper-init",
 					parallel: true,
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						skupperInitInteriorTestScenario(pub, "", true),
 						skupperInitEdgeTestScenario(prv, "", true),
 					},
 				}, {
 					name: "connect",
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						connectSitesTestScenario(pub, prv, "", "service"),
 					},
 				},
@@ -228,7 +228,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name:     "create-services",
 					parallel: true,
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCreateFrontTestScenario(pub, "", false),
 						serviceCreateBackTestScenario(prv, "", false),
 					},
@@ -248,14 +248,14 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world.*"},
 						},
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCreateFrontTestScenario(pub, "", true),
 						serviceCreateBackTestScenario(prv, "", true),
 					},
 				}, {
 					name:     "check-services",
 					parallel: true,
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
 						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
 					},
@@ -280,7 +280,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							Namespaces: []string{},
 						},
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
 						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
 					},
@@ -302,7 +302,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world-frontend"},
 						},
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend"}, []string{"hello-world-backend"}),
 						serviceCheckBackTestScenario(prv, "", []string{"hello-world-backend"}, []string{"hello-world-frontend"}),
 					},
@@ -324,7 +324,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world-backend", "^hello-world-frontend"},
 						},
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
 						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
 					},
@@ -345,14 +345,14 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							Namespaces: []string{"REMOVE"},
 						},
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCheckAbsentTestScenario(pub, "frontend", []string{"hello-world-frontend", "hello-world-backend"}),
 						serviceCheckAbsentTestScenario(prv, "backend", []string{"hello-world-frontend", "hello-world-backend"}),
 					},
 				}, {
 					name:     "create-services-fail",
 					parallel: true,
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCreateFrontTestScenario(pub, "", false),
 						serviceCreateBackTestScenario(prv, "", false),
 					},
@@ -370,14 +370,14 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world-.*"},
 						},
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCheckAbsentTestScenario(pub, "frontend", []string{"hello-world-frontend", "hello-world-backend"}),
 						serviceCheckAbsentTestScenario(prv, "backend", []string{"hello-world-frontend", "hello-world-backend"}),
 					},
 				}, {
 					name:     "create-services-work",
 					parallel: true,
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCreateFrontTestScenario(pub, "", true),
 						serviceCreateBackTestScenario(prv, "", true),
 					},
@@ -385,7 +385,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name:     "check-services",
 					parallel: true,
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
 						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
 					},
@@ -397,7 +397,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name:     "delete",
 					parallel: true,
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						deleteSkupperTestScenario(pub, "pub"),
 						deleteSkupperTestScenario(prv, "prv"),
 					},
@@ -407,7 +407,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	}
 
 	policyTestRunner{
-		scenarios:    testTable,
+		testCases:    testTable,
 		keepPolicies: true,
 		pubPolicies: []v1alpha1.SkupperClusterPolicySpec{
 			{

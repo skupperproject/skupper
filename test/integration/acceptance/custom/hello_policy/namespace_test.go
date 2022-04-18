@@ -46,7 +46,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						skupperInitInteriorTestScenario(pub, "", true),
 						skupperInitEdgeTestScenario(prv, "", true),
 					},
@@ -59,7 +59,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 				}, {
 					name: "connect",
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "transition", true),
 						createLinkTestScenario(prv, "", "transition"),
 						sitesConnectedTestScenario(pub, prv, "", "transition"),
@@ -74,7 +74,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, false),
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "transition", false),
 					},
 					pubGetCheck: policyGetCheck{
@@ -94,7 +94,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "transition", true),
 					},
 					pubGetCheck: policyGetCheck{
@@ -117,7 +117,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy("non-existent", true),
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "transition", false),
 					},
 					pubGetCheck: policyGetCheck{
@@ -134,7 +134,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "transition", true),
 					},
 					pubGetCheck: policyGetCheck{
@@ -152,7 +152,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name:     "execute",
 					parallel: true,
-					commands: []cli.TestScenario{
+					cliScenarios: []cli.TestScenario{
 						deleteSkupperTestScenario(pub, "pub"),
 						deleteSkupperTestScenario(prv, "prv"),
 					},
@@ -162,7 +162,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 	}
 
 	policyTestRunner{
-		scenarios:    testTable,
+		testCases:    testTable,
 		keepPolicies: true,
 	}.run(t, pub, prv)
 

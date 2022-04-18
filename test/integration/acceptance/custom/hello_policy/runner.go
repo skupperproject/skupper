@@ -20,15 +20,19 @@ var (
 	// TODO: is there a better way to do this?
 )
 
+// TODO:
+// - If a scenario fails, show events and logs?
+// - on cli.RunScenarios, environment option to bounce pods between each command
+
 // Each policy piece has its own file.  On it, we define both the
 // piece-specific tests _and_ the piece-specific infra.
 //
 // For example, the checking for link being (un)able to create or being
 // destroyed is defined on functions on link_test.go
 //
-// These functions will take a cluster context and an optional name prefix.  It
-// will return a slice of cli.TestScenario with the intended objective on the
-// requested cluster, and the names of the individual scenarios will receive
+// These functions will take a cluster context and an optional name prefix.  They
+// will return a cli.TestScenario with the intended objective on the
+// requested cluster, and the name of the scenario will receive
 // the prefix, if any given.  A use of that prefix would be, for example, to
 // clarify that what's being checked is a 'side-effect' (eg when a link drops
 // in a cluster because the policy was removed on the other cluster)
@@ -45,7 +49,7 @@ var (
 // By default, all policies are removed between the tests cases, but that can be
 // controlled with keepPolicies
 type policyTestRunner struct {
-	scenarios    []policyTestCase
+	testCases    []policyTestCase
 	keepPolicies bool
 	pubPolicies  []v1alpha1.SkupperClusterPolicySpec
 	prvPolicies  []v1alpha1.SkupperClusterPolicySpec
@@ -76,7 +80,7 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 			})
 	}
 
-	for _, testCase := range r.scenarios {
+	for _, testCase := range r.testCases {
 		if !r.keepPolicies {
 			keepPolicies(t, pub, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
 			keepPolicies(t, prv, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
@@ -143,13 +147,13 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
 //     // second policy is not being changed on this test
 //  },
 type policyTestStep struct {
-	name        string
-	pubPolicy   []skupperv1.SkupperClusterPolicySpec // ATTENTION to usage; see doc
-	prvPolicy   []skupperv1.SkupperClusterPolicySpec
-	commands    []cli.TestScenario
-	pubGetCheck policyGetCheck
-	prvGetCheck policyGetCheck
-	parallel    bool // This will run the cli commands in parallel
+	name         string
+	pubPolicy    []skupperv1.SkupperClusterPolicySpec // ATTENTION to usage; see doc
+	prvPolicy    []skupperv1.SkupperClusterPolicySpec
+	cliScenarios []cli.TestScenario
+	pubGetCheck  policyGetCheck
+	prvGetCheck  policyGetCheck
+	parallel     bool // This will run the cli commands in parallel
 }
 
 // Runs the TestStep as an individual Go Test
@@ -244,8 +248,8 @@ func (s policyTestStep) runChecks(t *testing.T, pub, prv *base.ClusterContext) {
 // Run the commands part of the policyTestStep
 func (s policyTestStep) runCommands(t *testing.T, pub, prv *base.ClusterContext) {
 	if s.parallel {
-		cli.RunScenariosParallel(t, s.commands)
+		cli.RunScenariosParallel(t, s.cliScenarios)
 	} else {
-		cli.RunScenarios(t, s.commands)
+		cli.RunScenarios(t, s.cliScenarios)
 	}
 }
