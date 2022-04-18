@@ -200,18 +200,17 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 
 						var err error
 
-						// TODO: decide whether to keep this or not
-						// if len(policy.Namespaces) == 1 && policy.Namespaces[0] == "REMOVE" {
-						// err = removePolicies(t, item.cluster, policyName)
-						// if err != nil {
-						// t.Fatalf("Failed to remove policy: %v", err)
-						// }
-						// } else {
-						err = applyPolicy(t, policyName, policy, item.cluster)
-						if err != nil {
-							t.Fatalf("Failed to apply policy: %v", err)
+						if len(policy.Namespaces) == 1 && policy.Namespaces[0] == "REMOVE" {
+							err = removePolicies(t, item.cluster, policyName)
+							if err != nil {
+								t.Fatalf("Failed to remove policy: %v", err)
+							}
+						} else {
+							err = applyPolicy(t, policyName, policy, item.cluster)
+							if err != nil {
+								t.Fatalf("Failed to apply policy: %v", err)
+							}
 						}
-						// }
 					}
 				}
 

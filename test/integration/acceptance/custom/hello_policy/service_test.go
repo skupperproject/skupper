@@ -271,12 +271,10 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						{
 							Namespaces:      []string{"*"},
 							AllowedServices: []string{"^hello-world-backend"},
-						},
-						{
+						}, {
 							Namespaces:      []string{"*"},
 							AllowedServices: []string{"^hello-world-frontend"},
-						},
-						{
+						}, {
 							Namespaces: []string{},
 						},
 					},
@@ -409,6 +407,206 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	policyTestRunner{
 		testCases:    testTable,
 		keepPolicies: true,
+		pubPolicies: []v1alpha1.SkupperClusterPolicySpec{
+			{
+				Namespaces:                    []string{"*"},
+				AllowIncomingLinks:            true,
+				AllowedOutgoingLinksHostnames: []string{"*"},
+			},
+		},
+		// Add background policies; policies that are not removed across
+		// runs
+	}.run(t, pub, prv)
+
+}
+
+// If a service is up and running, then we remove all policies and immediatelly reallow them: will
+// the services be removed?
+//
+// The result may depend on cluster load and other factors, so we run it multiple times (runs+1)
+//
+// The test removes the policy in two different ways: one is actual removal, the other is reusing the
+// policy, but removing only the target namespace from its list
+//
+// TODO: test with changing the setting on AllowedServices, instead?
+//
+// This test expects the service to be removed.  See removeReallowKeep for the alternative.  Only
+// one of them should be part of the test set, but which is unclear.
+func removeReallowRemove(pub, prv *base.ClusterContext, runs int) (allTestSteps []policyTestStep) {
+
+	baseTestSteps := []policyTestStep{
+		{
+			name:     "add-policy--check-services-absent",
+			parallel: true,
+			pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+				{
+					Namespaces:      []string{pub.Namespace},
+					AllowedServices: []string{"*"},
+				}, {
+					Namespaces:      []string{prv.Namespace},
+					AllowedServices: []string{"*"},
+				},
+			},
+			cliScenarios: []cli.TestScenario{
+				serviceCheckAbsentTestScenario(pub, "frontend", []string{"hello-world-frontend", "hello-world-backend"}),
+				serviceCheckAbsentTestScenario(prv, "backend", []string{"hello-world-frontend", "hello-world-backend"}),
+			},
+		}, {
+			name:     "create-service",
+			parallel: true,
+			cliScenarios: []cli.TestScenario{
+				serviceCreateFrontTestScenario(pub, "", true),
+				serviceCreateBackTestScenario(prv, "", true),
+			},
+		}, {
+			name:     "check-services-created",
+			parallel: true,
+			cliScenarios: []cli.TestScenario{
+				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+			},
+		}, {
+			name: "remove-policy",
+			pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+				{
+					Namespaces:      []string{"non-existing-namespace"},
+					AllowedServices: []string{"*"},
+				}, {
+					Namespaces: []string{"REMOVE"},
+				},
+			},
+			// We do not run anything on this policy, as we want to the next step (recreating the
+			// policy) to be executed right away
+		},
+	}
+
+	// The first execution is just preparation; we need to run at the very least two full cycles
+	for i := 0; i < runs+1; i++ {
+		allTestSteps = append(allTestSteps, baseTestSteps...)
+	}
+
+	return
+}
+
+// If a service is up and running, then we remove all policies and immediatelly reallow them: will
+// the services be removed?
+//
+// The result may depend on cluster load and other factors, so we run it multiple times (runs+1)
+//
+// The test removes the policy in two different ways: one is actual removal, the other is reusing the
+// policy, but removing only the target namespace from its list
+//
+// TODO:
+// - test with changing the setting on AllowedServices, instead
+// - test with switching the policy: remove existing policy but add another that allows
+//
+// This test expects the service to be kept.  See removeReallowKeep for the alternative.  Only
+// one of them should be part of the test set, but which is unclear.
+func removeReallowKeep(pub, prv *base.ClusterContext, runs int) (allTestSteps []policyTestStep) {
+
+	// TODO: IDEA: add an ever increasing sleep between removal and recreation; check
+	// at what point it changes
+
+	allTestSteps = append(allTestSteps, policyTestStep{
+		name:     "initial-service-creation",
+		parallel: true,
+		pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+			{
+				Namespaces:      []string{pub.Namespace},
+				AllowedServices: []string{"*"},
+			}, {
+				Namespaces:      []string{prv.Namespace},
+				AllowedServices: []string{"*"},
+			},
+		},
+		cliScenarios: []cli.TestScenario{
+			serviceCreateFrontTestScenario(pub, "", true),
+			serviceCreateBackTestScenario(prv, "", true),
+		},
+	})
+
+	baseTestSteps := []policyTestStep{
+		{
+			name:     "add-policy--check-services-present",
+			parallel: true,
+			pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+				{
+					Namespaces:      []string{pub.Namespace},
+					AllowedServices: []string{"*"},
+				}, {
+					Namespaces:      []string{prv.Namespace},
+					AllowedServices: []string{"*"},
+				},
+			},
+			cliScenarios: []cli.TestScenario{
+				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+			},
+		}, {
+			name: "remove-policy",
+			pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+				{
+					Namespaces:      []string{"non-existing-namespace"},
+					AllowedServices: []string{"*"},
+				}, {
+					Namespaces: []string{"REMOVE"},
+				},
+			},
+			// We do not run anything on this policy, as we want to the next step (recreating the
+			// policy) to be executed right away
+		},
+	}
+
+	// The first execution is just preparation; we need to run at the very least two full cycles
+	for i := 0; i < runs+1; i++ {
+		allTestSteps = append(allTestSteps, baseTestSteps...)
+	}
+
+	return
+}
+
+// This is a good candidate to remove on t.Short(), or to skip by default
+func testServicePolicyTransitions(t *testing.T, pub, prv *base.ClusterContext) {
+
+	testTable := []policyTestCase{
+		{
+			name: "initialize",
+			steps: []policyTestStep{
+				{
+					name:     "skupper-init",
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						skupperInitInteriorTestScenario(pub, "", true),
+						skupperInitEdgeTestScenario(prv, "", true),
+					},
+				}, {
+					name: "connect",
+					cliScenarios: []cli.TestScenario{
+						connectSitesTestScenario(pub, prv, "", "service"),
+					},
+				},
+			},
+		}, {
+			// This is testing for https://github.com/skupperproject/skupper/issues/727
+			name:  "remove-policy-reallow--check-service-removed",
+			steps: removeReallowKeep(pub, prv, 100),
+		}, {
+			name: "cleanup",
+			steps: []policyTestStep{
+				{
+					name:     "delete",
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						deleteSkupperTestScenario(pub, "pub"),
+						deleteSkupperTestScenario(prv, "prv"),
+					},
+				},
+			},
+		},
+	}
+
+	policyTestRunner{
+		testCases: testTable,
 		pubPolicies: []v1alpha1.SkupperClusterPolicySpec{
 			{
 				Namespaces:                    []string{"*"},
