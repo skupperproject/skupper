@@ -208,7 +208,8 @@ func listPolicies(t *testing.T, cluster *base.ClusterContext) (list *skupperv1.S
 	}
 
 	if !installed {
-		log.Print("The CRD is not installed, so skipping the policy removal step")
+		log.Print("The CRD is not installed, so considering the policy list as empty")
+		list = &skupperv1.SkupperClusterPolicyList{}
 		return
 	}
 

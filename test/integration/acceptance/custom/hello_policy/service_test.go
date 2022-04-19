@@ -2,6 +2,7 @@ package hello_policy
 
 import (
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -559,10 +560,87 @@ func removeReallowKeep(pub, prv *base.ClusterContext, runs int) (allTestSteps []
 
 	// The first execution is just preparation; we need to run at the very least two full cycles
 	for i := 0; i < runs+1; i++ {
-		allTestSteps = append(allTestSteps, baseTestSteps...)
+		s := baseTestSteps
+		s[1].sleep = time.Duration(5000/runs*i) * time.Millisecond
+		allTestSteps = append(allTestSteps, s...)
 	}
 
 	return
+}
+
+// Can a service be created immediatelly after a policy allowing it?  If not, do we get a
+// proper error message for that?
+func allowAndCreate(pub, prv *base.ClusterContext, runs int) (allTestSteps []policyTestStep) {
+
+	allTestSteps = append(allTestSteps, policyTestStep{
+		// These policies are created just so the first cycle of the
+		// baseTestSteps has something to remove
+		name: "initial-dummy-policies",
+		pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+			{
+				Namespaces:      []string{pub.Namespace},
+				AllowedServices: []string{"*"},
+			}, {
+				Namespaces:      []string{prv.Namespace},
+				AllowedServices: []string{"*"},
+			},
+		},
+	})
+
+	baseTestSteps := []policyTestStep{
+		{
+			name:     "remove-policy--check-services-absent",
+			parallel: true,
+			pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+				{
+					Namespaces:      []string{"non-existing"},
+					AllowedServices: []string{"*"},
+				}, {
+					Namespaces: []string{"REMOVE"},
+				},
+			},
+			cliScenarios: []cli.TestScenario{
+				serviceCheckAbsentTestScenario(pub, "frontend", []string{"hello-world-frontend", "hello-world-backend"}),
+				serviceCheckAbsentTestScenario(prv, "backend", []string{"hello-world-frontend", "hello-world-backend"}),
+			},
+		}, {
+			name: "add-policy--create-service",
+			pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+				{
+					Namespaces:      []string{pub.Namespace},
+					AllowedServices: []string{"*"},
+				}, {
+					Namespaces:      []string{prv.Namespace},
+					AllowedServices: []string{"*"},
+				},
+			},
+			// We try to add services right after giving policy permission.  Should that work, should that fail?
+			// If it fails, it should give a failure response.
+			parallel: true,
+			cliScenarios: []cli.TestScenario{
+				serviceCreateFrontTestScenario(pub, "", true),
+				serviceCreateBackTestScenario(prv, "", true),
+			},
+		}, {
+			// This is the crux of this testing.  If we got to this point, the service should have been created
+			name:     "check-services-created",
+			parallel: true,
+			cliScenarios: []cli.TestScenario{
+				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+			},
+		},
+	}
+
+	// The first execution is just preparation; we need to run at the very least two full cycles
+	for i := 0; i < runs+1; i++ {
+		s := baseTestSteps
+		// s[1].sleep = time.Duration(5000/runs*i) * time.Millisecond
+		allTestSteps = append(allTestSteps, s...)
+	}
+
+	return
+
 }
 
 // This is a good candidate to remove on t.Short(), or to skip by default
@@ -586,10 +664,13 @@ func testServicePolicyTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 				},
 			},
+			//		}, {
+			//			// This is testing for https://github.com/skupperproject/skupper/issues/727
+			//			name:  "remove-policy-reallow--check-service-removed",
+			//			steps: removeReallowKeep(pub, prv, 500),
 		}, {
-			// This is testing for https://github.com/skupperproject/skupper/issues/727
-			name:  "remove-policy-reallow--check-service-removed",
-			steps: removeReallowKeep(pub, prv, 100),
+			name:  "allow-policy--and--immediatelly-create-service",
+			steps: allowAndCreate(pub, prv, 100),
 		}, {
 			name: "cleanup",
 			steps: []policyTestStep{

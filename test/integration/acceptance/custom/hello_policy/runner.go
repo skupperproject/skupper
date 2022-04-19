@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -44,6 +45,7 @@ var (
 //         policies
 //         cli commands
 //         GET checks
+//         post-step sleep
 
 // Runs each policyTestCase in turn
 //
@@ -98,6 +100,8 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 type policyTestCase struct {
 	name  string
 	steps []policyTestStep
+	// TODO: Add a context, so that tests that are known to run for very
+	// 	 long time when they fail can have their runtimes capped
 }
 
 // Runs the individual steps in a test case.  The test case is an individual
@@ -147,14 +151,22 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
 //     allowIncomingLinkPolicy(pub.Namespace, true),
 //     // second policy is not being changed on this test
 //  },
+//
+// To remove a policy, set it as having a sole namespace named REMOVE
+//
+// After all work for the step is done, it can optionally sleep for a configured
+// duration of time, using time.Sleep().  Do not use the sleep for normal testing,
+// as it may hide errors.  Use it only for specialized testing where the time
+// between steps is paramount to the test itself.
 type policyTestStep struct {
 	name         string
 	pubPolicy    []skupperv1.SkupperClusterPolicySpec // ATTENTION to usage; see doc
 	prvPolicy    []skupperv1.SkupperClusterPolicySpec
 	cliScenarios []cli.TestScenario
+	parallel     bool // This will run the cli commands in parallel
 	pubGetCheck  policyGetCheck
 	prvGetCheck  policyGetCheck
-	parallel     bool // This will run the cli commands in parallel
+	sleep        time.Duration
 }
 
 // Runs the TestStep as an individual Go Test
@@ -165,6 +177,11 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext) {
 			s.applyPolicies(t, pub, prv)
 			s.runCommands(t, pub, prv)
 			s.runChecks(t, pub, prv)
+
+			if s.sleep.Nanoseconds() > 0 {
+				log.Printf("Sleeping for %v", s.sleep)
+				time.Sleep(s.sleep)
+			}
 		})
 }
 
@@ -239,9 +256,9 @@ func (s policyTestStep) runChecks(t *testing.T, pub, prv *base.ClusterContext) {
 	pubPolicyClient := client.NewPolicyValidatorAPI(pub.VanClient)
 	prvPolicyClient := client.NewPolicyValidatorAPI(prv.VanClient)
 
-	log.Printf("Runninng GET checks on %v", pub.Namespace)
+	log.Printf("Running GET checks on %v", pub.Namespace)
 	getChecks(t, s.pubGetCheck, pubPolicyClient)
-	log.Printf("Runninng GET checks on %v", prv.Namespace)
+	log.Printf("Running GET checks on %v", prv.Namespace)
 	getChecks(t, s.prvGetCheck, prvPolicyClient)
 }
 
