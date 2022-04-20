@@ -1,3 +1,6 @@
+//go:build policy
+// +build policy
+
 package acceptance
 
 import (
