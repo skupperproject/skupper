@@ -58,10 +58,14 @@ func testLocalGatewayService(t *testing.T) {
 }
 
 func testLocalGatewayDocker(t *testing.T) {
+	// these two lines should exist only on the 0.8 branch
+	t.Skip("Skipping container test due to known issue #713")
 	testLocalGateway(t, "docker")
 }
 
 func testLocalGatewayPodman(t *testing.T) {
+	// these two lines should exist only on the 0.8 branch
+	t.Skip("Skipping container test due to known issue #713")
 	testLocalGateway(t, "podman")
 }
 
