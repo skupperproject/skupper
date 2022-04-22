@@ -138,6 +138,7 @@ func (s *IperfScenario) initializeClusters(t *testing.T) {
 					},
 					MaxFrameSize:     s.SkupperSettings.MaxFrameSize,
 					MaxSessionFrames: s.SkupperSettings.MaxSessionFrames,
+					DebugMode:        "gdb",
 				},
 				Controller: types.ControllerOptions{
 					Tuning: types.Tuning{
@@ -330,5 +331,8 @@ func (s *IperfScenario) runIperf3Client(t *testing.T) {
 	assert.Assert(t, err)
 
 	// Assert job has completed
+	if jobErr != nil {
+		s.testRunner.DumpTestInfo(s.getTestName())
+	}
 	assert.Assert(t, jobErr)
 }
