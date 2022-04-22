@@ -741,8 +741,9 @@ type TcpEndpointDifference struct {
 }
 
 type HttpEndpointDifference struct {
-	Deleted []HttpEndpoint
-	Added   []HttpEndpoint
+	Deleted          []HttpEndpoint
+	Added            []HttpEndpoint
+	AddedSslProfiles []string
 }
 
 type BridgeConfigDifference struct {
@@ -815,6 +816,7 @@ func (a HttpEndpointMap) Difference(b HttpEndpointMap) HttpEndpointDifference {
 		v2, ok := a[key]
 		if !ok {
 			result.Added = append(result.Added, v1)
+			result.AddedSslProfiles = append(result.AddedSslProfiles, v1.SslProfile)
 		} else if !v1.Equivalent(v2) {
 			result.Deleted = append(result.Deleted, v1)
 			result.Added = append(result.Added, v1)
