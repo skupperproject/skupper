@@ -8,7 +8,10 @@ import (
 
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/env"
 	"gotest.tools/assert"
 )
@@ -42,12 +45,6 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	err = pub1Cluster.CreateNamespace()
-	assert.Assert(t, err)
-
-	err = prv1Cluster.CreateNamespace()
-	assert.Assert(t, err)
-
 	createOptsPublic.SkupperNamespace = pub1Cluster.Namespace
 	siteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), createOptsPublic)
 	assert.Assert(t, err)
@@ -75,6 +72,22 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	}
 	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
 	assert.Assert(t, err)
+}
+
+func (r *BasicTestRunner) Delete(ctx context.Context, t *testing.T) {
+	ctx, cn := context.WithTimeout(ctx, constants.NamespaceDeleteTimeout)
+	defer cn()
+	pub1Cluster, _ := r.GetPublicContext(1)
+	prv1Cluster, _ := r.GetPrivateContext(1)
+	assert.Assert(t, pub1Cluster.VanClient.SiteConfigRemove(ctx))
+	assert.Assert(t, pub1Cluster.VanClient.RouterRemove(ctx))
+	assert.Assert(t, prv1Cluster.VanClient.SiteConfigRemove(ctx))
+	assert.Assert(t, prv1Cluster.VanClient.RouterRemove(ctx))
+	assert.Assert(t, utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
+		pubPods, _ := kube.GetPods("skupper.io/component=service-controller", pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient)
+		prvPods, _ := kube.GetPods("skupper.io/component=service-controller", prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient)
+		return len(pubPods) == 0 && len(prvPods) == 0, nil
+	}))
 }
 
 func (r *BasicTestRunner) TearDown(ctx context.Context) {
@@ -235,6 +248,14 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 	}
 
 	defer r.TearDown(ctx)
+	pub1Cluster, err := r.GetPublicContext(1)
+	assert.Assert(t, err)
+	prv1Cluster, err := r.GetPrivateContext(1)
+	assert.Assert(t, err)
+	err = pub1Cluster.CreateNamespace()
+	assert.Assert(t, err)
+	err = prv1Cluster.CreateNamespace()
+	assert.Assert(t, err)
 
 	for _, c := range testcases {
 		t.Run(c.id, func(t *testing.T) {
@@ -242,9 +263,9 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				t.Skipf("Skipping: %s [%s]\n", c.doc, c.skipReason)
 			}
 			t.Logf("Testing: %s\n", c.doc)
+			defer r.Delete(ctx, t)
 			r.Setup(ctx, c.createOptsPublic, c.createOptsPrivate, c.tokenType, t)
 			r.RunTests(ctx, t)
-			r.TearDown(ctx)
 		})
 	}
 }
