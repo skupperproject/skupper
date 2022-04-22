@@ -86,6 +86,9 @@ commands:
         type: string
     steps:
       - run:
+          name: Creating artifacts directory
+          command: mkdir /tmp/artifacts
+      - run:
           name: Run Integration Tests
           no_output_timeout: 60m
           command: |
@@ -101,6 +104,13 @@ commands:
       - run:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
+      - run:
+          name: Archiving test artifacts
+          command: |
+            find ./ -name "*.tar.gz" -o -name "*.log" | tar -c -T - | tar -C /tmp/artifacts -xv
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: test-artifacts
 
   compile_go_program:
     description: Compile specified platform.

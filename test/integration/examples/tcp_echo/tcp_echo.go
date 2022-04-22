@@ -142,12 +142,19 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 
 	endTime = time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
 
+	rb := r.(*base.ClusterTestRunnerBase)
 	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
+	if err != nil {
+		rb.DumpTestInfo(jobName)
+	}
 	assert.Assert(t, err)
 	pub1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
 	job, err = k8s.WaitForJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
+	if err != nil {
+		rb.DumpTestInfo(jobName)
+	}
 	assert.Assert(t, err)
 	prv1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)

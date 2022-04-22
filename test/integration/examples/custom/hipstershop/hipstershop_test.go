@@ -99,6 +99,9 @@ func TestHipsterShop(t *testing.T) {
 					t.Logf("Job %s has failed. Job log:", job.Name)
 					t.Logf(log)
 				}
+				if err != nil {
+					testRunner.DumpTestInfo(cluster.Namespace)
+				}
 				assert.Assert(t, err)
 				assert.Assert(t, jobSucceeded)
 			}
