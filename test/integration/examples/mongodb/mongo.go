@@ -38,6 +38,9 @@ func RunTests(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 	jobLogs, _ := k8s.GetJobLogs(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName)
 	t.Logf("%s logs:", jobName)
 	t.Logf(jobLogs)
+	if err != nil {
+		r.DumpTestInfo(jobName)
+	}
 	assert.Assert(t, err)
 
 	k8s.AssertJob(t, job)
