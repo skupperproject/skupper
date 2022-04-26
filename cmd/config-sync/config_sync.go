@@ -179,7 +179,13 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	} else {
 		differences.Print()
 
-		err := syncSecrets(c, differences, SHARED_TLS_DIRECTORY)
+		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+		if err != nil {
+			return false, err
+		}
+		routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+
+		err = syncSecrets(routerConfig, differences, SHARED_TLS_DIRECTORY, c.copyCertsFilesToPath, agent.CreateSslProfile, agent.Delete)
 		if err != nil {
 			return false, fmt.Errorf("error syncing secrets: %s", err)
 		}
@@ -205,7 +211,7 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 		return fmt.Errorf("Error while syncing bridge config : %s", err)
 	}
 	if !synced {
-		return fmt.Errorf("Failed to sync bridge config")
+		return fmt.Errorf("Bridge config is not synchronised yet")
 	}
 	return nil
 }
@@ -249,23 +255,36 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 	}
 }
 
-func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
-	for _, added := range changes.HttpListeners.Added {
-		if len(added.SslProfile) > 0 {
-			log.Printf("Copying cert files related to HTTP Listener sslProfile %s", added.SslProfile)
-			err := configSync.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
+func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDifference, sharedPath string, copyCerts func(string, string, string) error, newSSlProfile func(profile qdr.SslProfile) error, delSslProfile func(string, string) error) error {
 
+	for _, addedProfile := range changes.HttpListeners.AddedSslProfiles {
+		if len(addedProfile) > 0 {
+			log.Printf("Copying cert files related to HTTP Listener sslProfile %s", addedProfile)
+			err := copyCerts(sharedPath, addedProfile, addedProfile)
+
+			if err != nil {
+				return err
+			}
+
+			log.Printf("Creating ssl profile %s", addedProfile)
+			err = newSSlProfile(routerConfig.SslProfiles[addedProfile])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	for _, added := range changes.HttpConnectors.Added {
-		if len(added.SslProfile) > 0 {
-			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
-			err := configSync.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
+	for _, addedProfile := range changes.HttpConnectors.AddedSslProfiles {
+		if len(addedProfile) > 0 {
+			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", addedProfile)
+			err := copyCerts(sharedPath, addedProfile, addedProfile)
 
+			if err != nil {
+				return err
+			}
+
+			log.Printf("Creating ssl profile %s", addedProfile)
+			err = newSSlProfile(routerConfig.SslProfiles[addedProfile])
 			if err != nil {
 				return err
 			}
@@ -276,16 +295,11 @@ func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sh
 		if len(deleted.SslProfile) > 0 {
 			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted.SslProfile)
 
-			agent, err := configSync.agentPool.Get()
-			if err != nil {
-				return err
-			}
-
-			if err = agent.Delete("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
+			if err := delSslProfile("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
 				return fmt.Errorf("Error deleting ssl profile: #{err}")
 			}
 
-			err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
+			err := os.RemoveAll(sharedPath + "/" + deleted.SslProfile)
 			if err != nil {
 				return err
 			}
@@ -294,15 +308,8 @@ func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sh
 
 	}
 
-	for _, deleted := range changes.HttpConnectors.Deleted {
-		if len(deleted.SslProfile) > 0 {
-			log.Printf("Deleting cert files related to HTTP Connector sslProfile %s", deleted.SslProfile)
-			err := os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
-			if err != nil {
-				return err
-			}
-		}
-	}
+	//All http2Connectors will use the common sslProfile skupper-service-client, there is no need to delete it.
+	//If deleted, existent connectors that use it will fail.
 
 	return nil
 }
