@@ -24,7 +24,7 @@ parameters:
 executors:
   local_cluster_test_executor:
     machine:
-      image: circleci/classic:latest
+      image: ubuntu-2004:current
 
 commands:
   minikube-install:
