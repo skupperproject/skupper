@@ -643,6 +643,74 @@ func allowAndCreate(pub, prv *base.ClusterContext, runs int) (allTestSteps []pol
 
 }
 
+// As the name says: if the last policy that allows a service to exist is removed, the
+// service needs to be removed by the system
+func removePolicyRemoveServices(pub, prv *base.ClusterContext, runs int) (allTestSteps []policyTestStep) {
+
+	baseTestSteps := []policyTestStep{
+		{
+			// We're just adding the policy, so there should be no services
+			// around.  Neither at start of test, nor at start of cycle
+			// (that's what we're testing, that policy removal got rid of
+			// running services)
+			name: "add-policy--check-services-absent",
+			pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+				{
+					Namespaces:      []string{pub.Namespace},
+					AllowedServices: []string{"*"},
+				}, {
+					Namespaces:      []string{prv.Namespace},
+					AllowedServices: []string{"*"},
+				},
+			},
+			// We wait a few seconds to ensure we do not fall on
+			// https://github.com/skupperproject/skupper/issues/728
+			sleep: time.Duration(10) * time.Second,
+		}, {
+			name:     "create-services",
+			parallel: true,
+			cliScenarios: []cli.TestScenario{
+				serviceCreateFrontTestScenario(pub, "", true),
+				serviceCreateBackTestScenario(prv, "", true),
+			},
+		}, {
+			name:     "check-services",
+			parallel: true,
+			cliScenarios: []cli.TestScenario{
+				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+			},
+		}, {
+			// This is the crux of this testing.  If we remove policies, the services
+			// must be removed
+			name:     "remove-policy--check-services-removed",
+			parallel: true,
+			pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+				{
+					Namespaces:      []string{"non-existing"},
+					AllowedServices: []string{"*"},
+				}, {
+					Namespaces: []string{"REMOVE"},
+				},
+			},
+			cliScenarios: []cli.TestScenario{
+				serviceCheckAbsentTestScenario(pub, "frontend", []string{"hello-world-frontend", "hello-world-backend"}),
+				serviceCheckAbsentTestScenario(prv, "backend", []string{"hello-world-frontend", "hello-world-backend"}),
+			},
+		},
+	}
+
+	// The first execution is just preparation; we need to run at the very least two full cycles
+	for i := 0; i < runs+1; i++ {
+		s := baseTestSteps
+		// s[1].sleep = time.Duration(5000/runs*i) * time.Millisecond
+		allTestSteps = append(allTestSteps, s...)
+	}
+
+	return
+
+}
+
 // This is a good candidate to remove on t.Short(), or to skip by default
 func testServicePolicyTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 
@@ -668,9 +736,14 @@ func testServicePolicyTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 			//			// This is testing for https://github.com/skupperproject/skupper/issues/727
 			//			name:  "remove-policy-reallow--check-service-removed",
 			//			steps: removeReallowKeep(pub, prv, 500),
+			//		}, {
+			//			// This is testing for https://github.com/skupperproject/skupper/issues/728
+			//			name:  "allow-policy--and--immediatelly-create-service",
+			//			steps: allowAndCreate(pub, prv, 100),
 		}, {
-			name:  "allow-policy--and--immediatelly-create-service",
-			steps: allowAndCreate(pub, prv, 100),
+			// This is testing for ???
+			name:  "remove-policy--remove-service",
+			steps: removePolicyRemoveServices(pub, prv, 400),
 		}, {
 			name: "cleanup",
 			steps: []policyTestStep{

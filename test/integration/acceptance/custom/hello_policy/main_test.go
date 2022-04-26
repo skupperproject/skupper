@@ -407,7 +407,11 @@ func TestPolicies(t *testing.T) {
 			if base.ShouldSkipPolicyTeardown() {
 				log.Print("Skipping policy tear down, per env variables")
 			} else {
-				for _, context := range allContexts {
+				for i, context := range allContexts {
+					if context == nil {
+						log.Printf("Context #%v is nil; skipping", i)
+						break
+					}
 					wg.Add(1)
 					context := context
 					go func() {
@@ -421,27 +425,35 @@ func TestPolicies(t *testing.T) {
 			if base.ShouldSkipNamespaceTeardown() {
 				log.Print("Skipping namespace tear down, per env variables")
 				log.Print("Removing skupper from namespaces, instead")
-				cli.RunScenariosParallel(t, []cli.TestScenario{
-					{
-						Name: "skupper-delete",
-						Tasks: []cli.SkupperTask{
-							{
-								Ctx: pub1,
-								Commands: []cli.SkupperCommandTester{
-									&cli.DeleteTester{},
-								},
-							}, {
-								Ctx: pub2,
-								Commands: []cli.SkupperCommandTester{
-									&cli.DeleteTester{},
+				if pub1 == nil || pub2 == nil {
+					log.Print("At least one of the namespaces was not initialized, which was not expected.  Skipping this step")
+				} else {
+					cli.RunScenariosParallel(t, []cli.TestScenario{
+						{
+							Name: "skupper-delete",
+							Tasks: []cli.SkupperTask{
+								{
+									Ctx: pub1,
+									Commands: []cli.SkupperCommandTester{
+										&cli.DeleteTester{},
+									},
+								}, {
+									Ctx: pub2,
+									Commands: []cli.SkupperCommandTester{
+										&cli.DeleteTester{},
+									},
 								},
 							},
 						},
-					},
-				})
+					})
+				}
 
 			} else {
-				for _, context := range allContexts {
+				for i, context := range allContexts {
+					if context == nil {
+						log.Printf("Context #%v is nil; skipping", i)
+						break
+					}
 					wg.Add(1)
 					context := context
 					go func() {
