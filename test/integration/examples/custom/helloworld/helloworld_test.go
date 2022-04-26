@@ -199,7 +199,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					},
 					// skupper service status - verify frontend service is exposed
 					&service.StatusTester{
-						[]types.ServiceInterface{
+						ServiceInterfaces: []types.ServiceInterface{
 							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
 						},
 					},
@@ -221,7 +221,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					},
 					// skupper service status - validate status of the two created services without targets
 					&service.StatusTester{
-						[]types.ServiceInterface{
+						ServiceInterfaces: []types.ServiceInterface{
 							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
 							{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
 						},
@@ -246,7 +246,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					},
 					// skupper service status - validate status expecting frontend now has a target
 					&service.StatusTester{
-						[]types.ServiceInterface{
+						ServiceInterfaces: []types.ServiceInterface{
 							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
 								{Name: "hello-world-frontend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-frontend"},
 							}},
@@ -265,7 +265,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					},
 					// skupper service status - validate backend service now has a target
 					&service.StatusTester{
-						[]types.ServiceInterface{
+						ServiceInterfaces: []types.ServiceInterface{
 							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
 							{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
 								{Name: "hello-world-backend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-backend"},
@@ -287,7 +287,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					},
 					// skupper service status - validates no more target for frontend service
 					&service.StatusTester{
-						[]types.ServiceInterface{
+						ServiceInterfaces: []types.ServiceInterface{
 							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
 							{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
 						},
@@ -302,7 +302,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					},
 					// skupper service status - validates no more target for frontend service
 					&service.StatusTester{
-						[]types.ServiceInterface{
+						ServiceInterfaces: []types.ServiceInterface{
 							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
 							{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
 						},
@@ -315,7 +315,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					},
 					// skupper service status - verify only backend is available
 					&service.StatusTester{
-						[]types.ServiceInterface{
+						ServiceInterfaces: []types.ServiceInterface{
 							{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
 						},
 					},

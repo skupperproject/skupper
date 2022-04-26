@@ -1,6 +1,9 @@
 package base
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 // This file contains the different environment variables that affect the
 // running of tests.
@@ -43,6 +46,10 @@ const (
 	// in serial.  Use this, for example, when the output of the tests is
 	// too difficult to read because of the parallelism
 	ENV_CLI_NO_PARALLEL = "SKUPPER_TEST_CLI_NO_PARALLEL"
+
+	// If defined, the status commands will try at most this number of
+	// attempts (an int).  Otherwise, they'll fail only on the timeout.
+	ENV_MAX_STATUS_ATTEMPTS = "SKUPPER_TEST_MAX_STATUS_ATTEMPTS"
 )
 
 func ShouldSkipNamespaceSetup() bool {
@@ -73,4 +80,26 @@ func IsVerboseCommandOutput() bool {
 func ShouldRunScenariosInParallel() bool {
 	_, found := os.LookupEnv(ENV_CLI_NO_PARALLEL)
 	return !found
+}
+
+// This checks whether the current attempt sent as an argument
+// is greather than the environment variable ENV_MAX_STATUS_ATTEMPTS
+//
+// If the variable is not set or is malformed, this will always
+// return false (meaning that the status commands will only fail once
+// they reach their timeout)
+func IsMaxStatusAttemptsReached(currentAttempt int) bool {
+
+	envMax := os.Getenv(ENV_MAX_STATUS_ATTEMPTS)
+
+	max, err := strconv.Atoi(envMax)
+
+	if err != nil {
+		// We do not error if someone put an invalid value on the
+		// env variable
+		return false
+	}
+
+	return max < currentAttempt
+
 }

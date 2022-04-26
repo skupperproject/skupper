@@ -40,6 +40,9 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		if base.IsTestInterrupted() {
 			return false, fmt.Errorf("Test interrupted")
 		}
+		if base.IsMaxStatusAttemptsReached(attempt) {
+			return false, fmt.Errorf("Maximum attempts reached")
+		}
 		stdout, stderr, err = s.run(cluster)
 		if err != nil {
 			log.Printf("error executing service status command: %v\nstdout:\n %s\nstderr:\n %s", err, stdout, stderr)

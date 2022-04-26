@@ -56,6 +56,9 @@ func (l *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 			err = fmt.Errorf("Test was interrupted")
 			return false, err
 		}
+		if base.IsMaxStatusAttemptsReached(attempt) {
+			return false, fmt.Errorf("Maximum attempts reached")
+		}
 
 		attempt++
 		stdout, stderr, err = l.run(cluster)

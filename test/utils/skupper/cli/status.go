@@ -43,6 +43,9 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		if base.IsTestInterrupted() {
 			return false, fmt.Errorf("Test interrupted")
 		}
+		if base.IsMaxStatusAttemptsReached(attempt) {
+			return false, fmt.Errorf("Maximum attempts reached")
+		}
 		stdout, stderr, err = s.run(cluster)
 		log.Printf("Validating 'skupper status' - attempt %d", attempt)
 		if err != nil {
