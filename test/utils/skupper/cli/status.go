@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -23,7 +24,7 @@ type StatusTester struct {
 	ConsoleEnabled         bool
 	ConsoleAuthInternal    bool
 	NotEnabled             bool
-	PolicyEnabled          bool
+	PolicyEnabled          *bool
 }
 
 func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
@@ -89,6 +90,7 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 
 	// Composing how output should be validated (based on provided attributes)
 	mainContent := []string{}
+	notExpected := []*regexp.Regexp{}
 
 	// Main info
 	mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for namespace \"%s\"", cluster.Namespace))
@@ -108,10 +110,12 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 
 	// Policy
 	var policyNote string
-	if s.PolicyEnabled {
-		policyNote = " (with policies)"
-	} else {
-		policyNote = ""
+	if s.PolicyEnabled != nil {
+		if *s.PolicyEnabled {
+			policyNote = " (with policies)"
+		} else {
+			notExpected = append(notExpected, regexp.MustCompile(" (with policies)"))
+		}
 	}
 
 	// Router mode
@@ -141,12 +145,12 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 	}
 	mainContent = append(mainContent, exposedServices)
 
-	expectedMainContent := strings.Join(mainContent, " ")
-	if !strings.Contains(stdout, expectedMainContent) {
-		return fmt.Errorf("main content not found - \nexpected: \n%s\nstdout: \n%s", expectedMainContent, stdout)
+	expect := Expect{
+		StdOut:      mainContent,
+		StdOutReNot: []regexp.Regexp{},
 	}
 
-	return nil
+	return expect.Check(stdout, "")
 }
 
 func (s *StatusTester) validateConsoleEnabled(cluster *base.ClusterContext, stdout string) error {

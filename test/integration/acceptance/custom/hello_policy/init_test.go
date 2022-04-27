@@ -27,7 +27,7 @@ func skupperInitInteriorTestScenario(ctx *base.ClusterContext, prefix string, wi
 					RouterMode:          "interior",
 					ConsoleEnabled:      true,
 					ConsoleAuthInternal: true,
-					PolicyEnabled:       withPolicy,
+					PolicyEnabled:       cli.Boolp(withPolicy),
 				},
 			}},
 		},
@@ -69,7 +69,7 @@ func skupperInitEdgeTestScenario(ctx *base.ClusterContext, prefix string, withPo
 				&cli.StatusTester{
 					RouterMode:    "edge",
 					SiteName:      "private",
-					PolicyEnabled: withPolicy,
+					PolicyEnabled: cli.Boolp(withPolicy),
 				},
 			}},
 		},

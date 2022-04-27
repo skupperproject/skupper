@@ -17,14 +17,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
-var (
-	// these are final, do not change them.  They're used with
-	// a boolean pointer to allow true/false/undefined
-	_true  = true
-	_false = false
-	// TODO: is there a better way to do this?
-)
-
 // TODO:
 // - If a scenario fails, show events and logs?
 // - on cli.RunScenarios, environment option to bounce pods between each command

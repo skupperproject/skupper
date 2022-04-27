@@ -378,7 +378,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 						ConnectedSites:      0,
 						ConsoleEnabled:      true,
 						ConsoleAuthInternal: true,
-						PolicyEnabled:       true,
+						PolicyEnabled:       cli.Boolp(true),
 					},
 				}},
 				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
@@ -387,7 +387,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 						RouterMode:     "edge",
 						SiteName:       "private",
 						ConnectedSites: 0,
-						PolicyEnabled:  true,
+						PolicyEnabled:  cli.Boolp(true),
 					},
 					// skupper link status - testing all links
 					&link.StatusTester{
@@ -420,7 +420,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 						ExposedServices:     0,
 						ConsoleEnabled:      true,
 						ConsoleAuthInternal: true,
-						PolicyEnabled:       true,
+						PolicyEnabled:       cli.Boolp(true),
 					},
 				}},
 				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
@@ -438,7 +438,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 						SiteName:        "private",
 						ConnectedSites:  0,
 						ExposedServices: 0,
-						PolicyEnabled:   true,
+						PolicyEnabled:   cli.Boolp(true),
 					},
 				}},
 				// Binding the services

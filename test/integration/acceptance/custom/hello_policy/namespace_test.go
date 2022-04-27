@@ -52,11 +52,11 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						skupperInitEdgeTestScenario(prv, "", true),
 					},
 					pubGetCheck: policyGetCheck{
-						allowIncoming:    &_true,
-						checkUndefinedAs: &_false,
+						allowIncoming:    cli.Boolp(true),
+						checkUndefinedAs: cli.Boolp(false),
 					},
 					prvGetCheck: policyGetCheck{
-						allowIncoming: &_false,
+						allowIncoming: cli.Boolp(false),
 					},
 				}, {
 					name: "connect",
@@ -79,11 +79,11 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						linkStatusTestScenario(prv, "", "transition", false),
 					},
 					pubGetCheck: policyGetCheck{
-						allowIncoming:    &_false,
-						checkUndefinedAs: &_false,
+						allowIncoming:    cli.Boolp(false),
+						checkUndefinedAs: cli.Boolp(false),
 					},
 					prvGetCheck: policyGetCheck{
-						allowIncoming: &_false,
+						allowIncoming: cli.Boolp(false),
 					},
 				},
 			},
@@ -99,11 +99,11 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						linkStatusTestScenario(prv, "", "transition", true),
 					},
 					pubGetCheck: policyGetCheck{
-						allowIncoming:    &_true,
-						checkUndefinedAs: &_false,
+						allowIncoming:    cli.Boolp(true),
+						checkUndefinedAs: cli.Boolp(false),
 					},
 					prvGetCheck: policyGetCheck{
-						allowIncoming: &_false,
+						allowIncoming: cli.Boolp(false),
 					},
 				},
 			},
@@ -122,8 +122,8 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						linkStatusTestScenario(prv, "", "transition", false),
 					},
 					pubGetCheck: policyGetCheck{
-						allowIncoming:    &_false,
-						checkUndefinedAs: &_false,
+						allowIncoming:    cli.Boolp(false),
+						checkUndefinedAs: cli.Boolp(false),
 					},
 				},
 			},
@@ -139,11 +139,11 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						linkStatusTestScenario(prv, "", "transition", true),
 					},
 					pubGetCheck: policyGetCheck{
-						allowIncoming:    &_true,
-						checkUndefinedAs: &_false,
+						allowIncoming:    cli.Boolp(true),
+						checkUndefinedAs: cli.Boolp(false),
 					},
 					prvGetCheck: policyGetCheck{
-						allowIncoming: &_false,
+						allowIncoming: cli.Boolp(false),
 					},
 				},
 			},
