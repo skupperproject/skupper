@@ -26,9 +26,11 @@ func RunTests(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 	assert.Assert(t, err)
 
 	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
+	if err != nil {
+		pub1Cluster.KubectlExec("logs job/" + jobName)
+		r.DumpTestInfo(jobName)
+	}
 	assert.Assert(t, err)
-	pub1Cluster.KubectlExec("logs job/" + jobName)
-
 	k8s.AssertJob(t, job)
 }
 

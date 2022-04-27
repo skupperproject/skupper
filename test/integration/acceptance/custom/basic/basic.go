@@ -123,11 +123,16 @@ func (r *BasicTestRunner) Delete(ctx context.Context, t *testing.T) {
 	assert.Assert(t, pub1Cluster.VanClient.RouterRemove(ctx))
 	assert.Assert(t, prv1Cluster.VanClient.SiteConfigRemove(ctx))
 	assert.Assert(t, prv1Cluster.VanClient.RouterRemove(ctx))
-	assert.Assert(t, utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
-		pubPods, _ := kube.GetPods("skupper.io/component=service-controller", pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient)
-		prvPods, _ := kube.GetPods("skupper.io/component=service-controller", prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient)
-		return len(pubPods) == 0 && len(prvPods) == 0, nil
-	}))
+	waitNoPods := func(componentSelector string, cluster *base.ClusterContext) error {
+		return utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
+			pods, _ := kube.GetPods(componentSelector, cluster.Namespace, cluster.VanClient.KubeClient)
+			return len(pods) == 0, nil
+		})
+	}
+	assert.Assert(t, waitNoPods("skupper.io/component=service-controller", pub1Cluster))
+	assert.Assert(t, waitNoPods("skupper.io/component=router", pub1Cluster))
+	assert.Assert(t, waitNoPods("skupper.io/component=service-controller", prv1Cluster))
+	assert.Assert(t, waitNoPods("skupper.io/component=router", prv1Cluster))
 }
 
 func (r *BasicTestRunner) TearDown(ctx context.Context) {

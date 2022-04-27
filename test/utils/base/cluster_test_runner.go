@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
 	"github.com/skupperproject/skupper/api/types"
 	vanClient "github.com/skupperproject/skupper/client"
@@ -298,18 +296,8 @@ func RemoveNamespacesForContexts(r *ClusterTestRunnerBase, public []int, priv []
 }
 
 func (c *ClusterTestRunnerBase) DumpTestInfo(dirname string) {
-	tmpDirName := fmt.Sprintf("tmp/%s", dirname)
-	_ = os.MkdirAll(tmpDirName, 0755)
-
 	// Dumping info by cluster/namespace
 	for _, cc := range c.ClusterContexts {
-		log.Printf("===> Dumping test information for: %s", cc.Namespace)
-		tarBall, err := cc.VanClient.SkupperDump(context.Background(), fmt.Sprintf("%s/%s.tar.gz", tmpDirName, cc.Namespace), cc.VanClient.GetVersion("service-controller", "service-controller"), "", "")
-		if err == nil {
-			absPath, _ := filepath.Abs(tarBall)
-			log.Printf("Saved: %s", absPath)
-		} else {
-			log.Printf("Error dumping test info: %v", err)
-		}
+		cc.DumpTestInfo(dirname)
 	}
 }

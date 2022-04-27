@@ -316,6 +316,9 @@ func (s *IperfScenario) runIperf3Client(t *testing.T) {
 	assert.Assert(t, err)
 	// Waiting for the job to complete successfully
 	_, jobErr := k8s.WaitForJob(clientCluster.Namespace, clientCluster.VanClient.KubeClient, clientJob.Name, s.IperfSettings.JobTimeout)
+	if jobErr != nil {
+		s.testRunner.DumpTestInfo(s.getTestName())
+	}
 	// Saving job logs
 	logs, err := k8s.GetJobLogs(clientCluster.Namespace, clientCluster.VanClient.KubeClient, clientJob.Name)
 	assert.Assert(t, err)
@@ -331,8 +334,5 @@ func (s *IperfScenario) runIperf3Client(t *testing.T) {
 	assert.Assert(t, err)
 
 	// Assert job has completed
-	if jobErr != nil {
-		s.testRunner.DumpTestInfo(s.getTestName())
-	}
 	assert.Assert(t, jobErr)
 }
