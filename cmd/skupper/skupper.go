@@ -392,8 +392,8 @@ installation that can then be connected to other skupper installations`,
 				routerCreateOpts.Router.Logging = logConfig
 			}
 			if routerCreateOpts.Router.DebugMode != "" {
-				if routerCreateOpts.Router.DebugMode != "valgrind" && routerCreateOpts.Router.DebugMode != "gdb" {
-					return fmt.Errorf("Bad value for --router-debug-mode: %s (use 'valgrind' or 'gdb')", routerCreateOpts.Router.DebugMode)
+				if routerCreateOpts.Router.DebugMode != "asan" && routerCreateOpts.Router.DebugMode != "gdb" {
+					return fmt.Errorf("Bad value for --router-debug-mode: %s (use 'asan' or 'gdb')", routerCreateOpts.Router.DebugMode)
 				}
 			}
 
@@ -441,7 +441,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableRouterConsole, "enable-router-console", "", false, "Enable router console")
 	cmd.Flags().StringVarP(&routerLogging, "router-logging", "", "", "Logging settings for router. 'trace', 'debug', 'info' (default), 'notice', 'warning', and 'error' are valid values.")
-	cmd.Flags().StringVarP(&routerCreateOpts.Router.DebugMode, "router-debug-mode", "", "", "Enable debug mode for router ('valgrind' or 'gdb' are valid values)")
+	cmd.Flags().StringVarP(&routerCreateOpts.Router.DebugMode, "router-debug-mode", "", "", "Enable debug mode for router ('asan' or 'gdb' are valid values)")
 
 	cmd.Flags().IntVar(&routerCreateOpts.Routers, "routers", 0, "Number of router replicas to start")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Cpu, "router-cpu", "", "CPU request for router pods")
