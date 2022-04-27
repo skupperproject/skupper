@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"time"
 
@@ -310,7 +311,7 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 			if err.Error() == "Not ready" {
 				return false, nil
 			} else if err.Error() == "Not found" {
-				return false, fmt.Errorf("Skupper is not enabled in namespace '%s'", p.cli.Namespace)
+				return false, nil
 			}
 			return true, err
 		}
@@ -324,7 +325,11 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 				Enabled: false,
 			}, nil
 		}
-		err := fmt.Errorf("Unable to communicate with the API: %v", err)
+		if os.IsTimeout(err) {
+			err = fmt.Errorf("Skupper is not enabled in namespace '%s'", p.cli.Namespace)
+		} else {
+			err = fmt.Errorf("Unable to communicate with the API: %v", err)
+		}
 		if event.DefaultStore != nil {
 			event.Recordf("PolicyAPIError", err.Error())
 		}
