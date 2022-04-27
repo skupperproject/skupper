@@ -108,22 +108,21 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 		mainContent = append(mainContent, fmt.Sprintf("with site name \"%s\"", s.SiteName))
 	}
 
-	// Policy
-	var policyNote string
-	if s.PolicyEnabled != nil {
-		if *s.PolicyEnabled {
-			policyNote = " (with policies)"
-		} else {
-			notExpected = append(notExpected, regexp.MustCompile(" (with policies)"))
-		}
-	}
-
 	// Router mode
 	routerMode := "interior"
 	if s.RouterMode != "" {
 		routerMode = s.RouterMode
 	}
-	mainContent = append(mainContent, fmt.Sprintf("in %s mode%s.", routerMode, policyNote))
+	mainContent = append(mainContent, fmt.Sprintf("in %s mode", routerMode))
+
+	// Policy checking, if defined
+	if s.PolicyEnabled != nil {
+		if *s.PolicyEnabled {
+			mainContent = append(mainContent, "(with policies)")
+		} else {
+			notExpected = append(notExpected, regexp.MustCompile("(with policies)"))
+		}
+	}
 
 	// Connected sites variant
 	connectedSites := "It is not connected to any other sites."
