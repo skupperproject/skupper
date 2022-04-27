@@ -741,9 +741,8 @@ type TcpEndpointDifference struct {
 }
 
 type HttpEndpointDifference struct {
-	Deleted          []HttpEndpoint
-	Added            []HttpEndpoint
-	AddedSslProfiles []string
+	Deleted []HttpEndpoint
+	Added   []HttpEndpoint
 }
 
 type BridgeConfigDifference struct {
@@ -751,6 +750,7 @@ type BridgeConfigDifference struct {
 	TcpConnectors  TcpEndpointDifference
 	HttpListeners  HttpEndpointDifference
 	HttpConnectors HttpEndpointDifference
+	SslProfiles    []string
 }
 
 func isAddrAny(host string) bool {
@@ -816,7 +816,6 @@ func (a HttpEndpointMap) Difference(b HttpEndpointMap) HttpEndpointDifference {
 		v2, ok := a[key]
 		if !ok {
 			result.Added = append(result.Added, v1)
-			result.AddedSslProfiles = append(result.AddedSslProfiles, v1.SslProfile)
 		} else if !v1.Equivalent(v2) {
 			result.Deleted = append(result.Deleted, v1)
 			result.Added = append(result.Added, v1)
@@ -838,6 +837,19 @@ func (a *BridgeConfig) Difference(b *BridgeConfig) *BridgeConfigDifference {
 		HttpConnectors: a.HttpConnectors.Difference(b.HttpConnectors),
 		HttpListeners:  a.HttpListeners.Difference(b.HttpListeners),
 	}
+
+	for _, httpConnector := range result.HttpConnectors.Added {
+		if len(httpConnector.SslProfile) > 0 {
+			result.SslProfiles = append(result.SslProfiles, httpConnector.SslProfile)
+		}
+	}
+
+	for _, httpListener := range result.HttpListeners.Added {
+		if len(httpListener.SslProfile) > 0 {
+			result.SslProfiles = append(result.SslProfiles, httpListener.SslProfile)
+		}
+	}
+
 	return &result
 }
 

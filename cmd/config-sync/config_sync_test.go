@@ -54,9 +54,9 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 							SslProfile: "skupper-service-client",
 						},
 					},
-					AddedSslProfiles: []string{
-						"skupper-service-client",
-					},
+				},
+				SslProfiles: []string{
+					"skupper-service-client",
 				},
 			},
 			sslProfileToSync: "skupper-service-client",
@@ -73,9 +73,9 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 							SslProfile: "skupper-tls-adservice",
 						},
 					},
-					AddedSslProfiles: []string{
-						"skupper-tls-adservice",
-					},
+				},
+				SslProfiles: []string{
+					"skupper-tls-adservice",
 				},
 			},
 			sslProfileToSync: "skupper-tls-adservice",
@@ -91,9 +91,6 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 							SslProfile: "skupper-service-client",
 						},
 					},
-					AddedSslProfiles: []string{
-						"skupper-service-client",
-					},
 				},
 				HttpListeners: qdr.HttpEndpointDifference{
 					Added: []qdr.HttpEndpoint{
@@ -102,9 +99,10 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 							SslProfile: "skupper-tls-adservice",
 						},
 					},
-					AddedSslProfiles: []string{
-						"skupper-tls-adservice",
-					},
+				},
+				SslProfiles: []string{
+					"skupper-service-client",
+					"skupper-tls-adservice",
 				},
 			},
 			after: &qdr.BridgeConfigDifference{

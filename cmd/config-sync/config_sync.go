@@ -31,6 +31,10 @@ type ConfigSync struct {
 	vanClient *client.VanClient
 }
 
+type CopyCerts func(string, string, string) error
+type CreateSSlProfile func(profile qdr.SslProfile) error
+type DeleteSslProfile func(string, string) error
+
 const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
 
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
@@ -255,28 +259,11 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 	}
 }
 
-func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDifference, sharedPath string, copyCerts func(string, string, string) error, newSSlProfile func(profile qdr.SslProfile) error, delSslProfile func(string, string) error) error {
+func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDifference, sharedPath string, copyCerts CopyCerts, newSSlProfile CreateSSlProfile, delSslProfile DeleteSslProfile) error {
 
-	for _, addedProfile := range changes.HttpListeners.AddedSslProfiles {
+	for _, addedProfile := range changes.SslProfiles {
 		if len(addedProfile) > 0 {
-			log.Printf("Copying cert files related to HTTP Listener sslProfile %s", addedProfile)
-			err := copyCerts(sharedPath, addedProfile, addedProfile)
-
-			if err != nil {
-				return err
-			}
-
-			log.Printf("Creating ssl profile %s", addedProfile)
-			err = newSSlProfile(routerConfig.SslProfiles[addedProfile])
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	for _, addedProfile := range changes.HttpConnectors.AddedSslProfiles {
-		if len(addedProfile) > 0 {
-			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", addedProfile)
+			log.Printf("Copying cert files related to sslProfile %s", addedProfile)
 			err := copyCerts(sharedPath, addedProfile, addedProfile)
 
 			if err != nil {
