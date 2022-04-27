@@ -279,7 +279,7 @@ func NewClientHandleError(namespace string, context string, kubeConfigPath strin
 	if err != nil {
 		if exitOnError {
 			if strings.Contains(err.Error(), "invalid configuration: no configuration has been provided") {
-				fmt.Printf("%s. Please point to an existing, complete kubeconfig file.\n", err.Error())
+				fmt.Printf("%s. Please point to an existing, valid kubeconfig file.\n", err.Error())
 			} else {
 				fmt.Println(err.Error())
 			}
