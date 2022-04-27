@@ -86,7 +86,7 @@ func RetryWithContext(ctx context.Context, interval time.Duration, f ConditionFu
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("the context timeout has been reached")
+			return context.DeadlineExceeded
 		case <-tick.C:
 			r, err := f()
 			if err != nil {
