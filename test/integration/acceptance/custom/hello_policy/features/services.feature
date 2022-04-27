@@ -46,6 +46,48 @@ Feature: Skupper service creation and binding
     When reinstating the policy that allows 'hello-world-.*' on all namespaces
     Then the services are not recreated
      and trying to create services with the same names works
+    # allow-but-not-this
+    When changing that single policy to allow 'non-existent-service'
+    Then the services are removed
+
+  Scenario: Service binding
+
+    For Policy, service binding is controlled by AllowedExposedResources, and
+    tested on the resources test file.
+
+    Here, we just run the basic create/bind/unbind/delete hello world cycle,
+    making changes to the policies in between each step, just to make sure the
+    bindings are not improperly removed (or improperly preserved, in the case
+    a service was removed by policy)
+
+   # init-for-binding
+   Given a policy that allows .*-frontend on pub
+     and one that allows .*-backend on prv
+    When creating both services
+    Then both are created, but show only on their respective namespaces
+    # first-binding
+    When binding the skupper services to their respective k8s services
+    Then the binding works
+    When changing both policies for namespace "*"
+    Then both services are listed on both namespaces
+    When changing the first policy to allow services '.*-.*'
+     and removing the second policy
+    Then the services and their listings are not affected
+    When unbinding the services
+    Then it works
+    When Adding a policy that allows .*-backend on prv
+     and rebinding the services
+    Then it works
+    When removing the first policy
+    Then the front-end skupper service is removed
+     and the backend skupper service shows as not-allowed on pub
+    When re-adding a policy that allows all services on all namespaces
+     and recreating the front-end service
+    Then both services appear on both namespaces
+     But the front-end service is not bound
+     
+    Continue
+    
 
   Scenario: inversed
    Given a policy that allows service 'hello-world-frontend' on prv
@@ -55,27 +97,5 @@ Feature: Skupper service creation and binding
      and successfully creating the service hello-world-frontend on pub
      and changing that policy to allow hello-world-front-end on prv
     Then the service is removed
-
-  Scenario: Service binding
-
-    There is nothing specific to service binding on the policies feature.  So, we just run the
-    basic create/bind/unbind/delete hello world cycle, making changes to the policies in between
-    each step, just to make sure the policies are not improperly removed
-
-   Given a policy that allows .*-frontend on pub
-     and one that allows .*-backend on prv
-    When creating both services
-    Then both are created, but show only on their respective namespaces
-    When changing both policies for namespace "*"
-     and binding the skupper services to their respective k8s services
-    Then the binding works
-     and both services are listed on both namespaces
-    When changing the first policy to allow services '.*-.*'
-     and removing the second policy
-    Then the services and their listings are not affected
-    When unbinding the services
-    Then it works
-    Continue
-    
 
   Scenario: Annotation.  TODO

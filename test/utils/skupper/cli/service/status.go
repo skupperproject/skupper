@@ -18,8 +18,9 @@ import (
 // output contains the provided service interfaces (or until it
 // times out).
 type StatusTester struct {
-	ServiceInterfaces []types.ServiceInterface
-	Absent            bool
+	ServiceInterfaces             []types.ServiceInterface
+	UnauthorizedServiceInterfaces []types.ServiceInterface
+	Absent                        bool
 }
 
 func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
@@ -82,6 +83,15 @@ func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 					return
 				}
 			}
+		}
+	}
+
+	for _, svc := range s.UnauthorizedServiceInterfaces {
+		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\) - not authorized`, svc.Address, svc.Protocol, svc.Ports[0])
+		r := regexp.MustCompile(serviceEntry)
+		if !r.MatchString(stdout) {
+			err = fmt.Errorf("expected unauthorized service not found:\n%s\nstdout:\n%s\n", serviceEntry, stdout)
+			return
 		}
 	}
 

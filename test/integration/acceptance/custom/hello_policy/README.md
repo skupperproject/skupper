@@ -77,6 +77,7 @@ that behaves as if they were false or empty.
 * AllowedExposedResources (strict type/name; no regex)
   * Resource exposing
   * Resource exposing using annotations
+  * Service binding
   * Resources unbound by policy are not re-bound when allowed again to
 * AllowedServices
   * Make external services available

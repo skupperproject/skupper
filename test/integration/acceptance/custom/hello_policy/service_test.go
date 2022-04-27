@@ -72,7 +72,7 @@ func genInterfaceList(services []string) (interfaces []types.ServiceInterface) {
 func serviceCheckFrontTestScenario(pub *base.ClusterContext, prefix string, services []string, unauthServices []string) (scenario cli.TestScenario) {
 
 	serviceInterfaces := genInterfaceList(services)
-	//unauthInterfaces := getInterfaceList(unauthServices)
+	unauthInterfaces := genInterfaceList(unauthServices)
 
 	scenario = cli.TestScenario{
 
@@ -82,7 +82,8 @@ func serviceCheckFrontTestScenario(pub *base.ClusterContext, prefix string, serv
 				Ctx: pub, Commands: []cli.SkupperCommandTester{
 					// skupper service status - verify frontend service is exposed
 					&service.StatusTester{
-						ServiceInterfaces: serviceInterfaces,
+						ServiceInterfaces:             serviceInterfaces,
+						UnauthorizedServiceInterfaces: unauthInterfaces,
 					},
 					// skupper status - verify frontend service is exposed
 					&cli.StatusTester{
@@ -157,7 +158,7 @@ func serviceBindTestScenario(pub, prv *base.ClusterContext, prefix string) (scen
 
 	scenario = cli.TestScenario{
 
-		Name: "service-check-back",
+		Name: "bind-services",
 		Tasks: []cli.SkupperTask{
 			// Binding the services
 			{Ctx: pub, Commands: []cli.SkupperCommandTester{
@@ -203,6 +204,10 @@ func serviceBindTestScenario(pub, prv *base.ClusterContext, prefix string) (scen
 	return
 }
 
+// This is the main test in this file
+//
+// Note that the testing on what happens for bindings that are being denied
+// due to AllowedExposedResources configuration, go on the resources tests, not here
 func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	testTable := []policyTestCase{
@@ -239,8 +244,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			name: "all-hello-world-works",
 			steps: []policyTestStep{
 				{
-					name:     "create-services",
-					parallel: true,
+					name: "allow-and-wait",
 					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						{}, // The first two policies are created empty
 						{},
@@ -249,6 +253,10 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world.*"},
 						},
 					},
+					sleep: 10 * time.Second,
+				}, {
+					name:     "create-services",
+					parallel: true,
 					cliScenarios: []cli.TestScenario{
 						serviceCreateFrontTestScenario(pub, "", true),
 						serviceCreateBackTestScenario(prv, "", true),
@@ -361,7 +369,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			name: "reinstating-and-gone",
 			steps: []policyTestStep{
 				{
-					name:     "check-services",
+					name:     "check-services-gone",
 					parallel: true,
 					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						{
@@ -391,6 +399,66 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				},
 			},
 		}, {
+			name: "allow-but-not-this",
+			steps: []policyTestStep{
+				{
+					name:     "disallow-by-allowing-only-others",
+					parallel: true,
+					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						{
+							Namespaces:      []string{"*"},
+							AllowedServices: []string{"non-existing-service"},
+						},
+					},
+					cliScenarios: []cli.TestScenario{
+						serviceCheckAbsentTestScenario(pub, "frontend", []string{"hello-world-frontend", "hello-world-backend"}),
+						serviceCheckAbsentTestScenario(prv, "backend", []string{"hello-world-frontend", "hello-world-backend"}),
+					},
+				},
+			},
+		}, {
+			name: "init-for-binding",
+			steps: []policyTestStep{
+				{
+					name: "allow-specific-and-wait",
+					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						{
+							Namespaces:      []string{pub.Namespace},
+							AllowedServices: []string{".*-frontend"},
+						}, {
+							Namespaces:      []string{prv.Namespace},
+							AllowedServices: []string{".*-backend"},
+						},
+					},
+					sleep: 10 * time.Second,
+				}, {
+					name:     "create-services",
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						serviceCreateFrontTestScenario(pub, "", true),
+						serviceCreateBackTestScenario(prv, "", true),
+					},
+				}, {
+					name:     "check-services",
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend"}, []string{"hello-world-backend"}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-backend"}, []string{"hello-world-frontend"}),
+					},
+				},
+			},
+		}, {
+			name: "first-binding",
+			steps: []policyTestStep{
+				{
+					name:     "bind-both-services",
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						serviceBindTestScenario(pub, prv, ""),
+					},
+				},
+			},
+		}, {
 			name: "cleanup",
 			steps: []policyTestStep{
 				{
@@ -413,6 +481,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				Namespaces:                    []string{"*"},
 				AllowIncomingLinks:            true,
 				AllowedOutgoingLinksHostnames: []string{"*"},
+				AllowedExposedResources:       []string{"*"},
 			},
 		},
 		// Add background policies; policies that are not removed across
