@@ -54,59 +54,9 @@ func serviceCreateBackTestScenario(prv *base.ClusterContext, prefix string, allo
 	return scenario
 }
 
-// A helper to transform a list of interface names into []types.ServiceInterface
-// with the name, protocol http and port 8080
-func genInterfaceList(services []string) (interfaces []types.ServiceInterface) {
-	for _, service := range services {
-		interfaces = append(
-			interfaces,
-			types.ServiceInterface{
-				Address:  service,
-				Protocol: "http",
-				Ports:    []int{8080},
-			})
-	}
-	return interfaces
-}
-
-func serviceCheckFrontTestScenario(pub *base.ClusterContext, prefix string, services []string, unauthServices []string) (scenario cli.TestScenario) {
-
-	serviceInterfaces := genInterfaceList(services)
-	unauthInterfaces := genInterfaceList(unauthServices)
-
-	scenario = cli.TestScenario{
-
-		Name: "service-check-front",
-		Tasks: []cli.SkupperTask{
-			{
-				Ctx: pub, Commands: []cli.SkupperCommandTester{
-					// skupper service status - verify frontend service is exposed
-					&service.StatusTester{
-						ServiceInterfaces:             serviceInterfaces,
-						UnauthorizedServiceInterfaces: unauthInterfaces,
-					},
-					// skupper status - verify frontend service is exposed
-					&cli.StatusTester{
-						RouterMode:          "interior",
-						ConnectedSites:      1,
-						ExposedServices:     len(serviceInterfaces) + len(unauthServices),
-						ConsoleEnabled:      true,
-						ConsoleAuthInternal: true,
-						PolicyEnabled:       cli.Boolp(true),
-					},
-				},
-			},
-		},
-	}
-	return scenario
-}
-
-// Checks that a list of services is absent.  Different from serviceCheck{Front,Back}TestScenario, this one does not
-// run cli.StatusTester, because we just want to ensure some services are not there, so we do not make any claims as
-// for what _is_ there.  Therefore, we cannot populate cli.StatusTester.ExposedServices
 func serviceCheckAbsentTestScenario(cluster *base.ClusterContext, prefix string, services []string) (scenario cli.TestScenario) {
 
-	serviceInterfaces := genInterfaceList(services)
+	serviceInterfaces := genInterfaceList(services, false)
 	//unauthInterfaces := getInterfaceList(unauthServices)
 
 	scenario = cli.TestScenario{
@@ -127,8 +77,78 @@ func serviceCheckAbsentTestScenario(cluster *base.ClusterContext, prefix string,
 	return
 }
 
-func serviceCheckBackTestScenario(prv *base.ClusterContext, prefix string, services []string, unauthServices []string) (scenario cli.TestScenario) {
-	serviceInterfaces := genInterfaceList(services)
+//
+// A helper to transform a list of interface names into []types.ServiceInterface
+// with the name, protocol http and port 8080
+func genInterfaceList(services []string, bound bool) (interfaces []types.ServiceInterface) {
+	for _, service := range services {
+		var target = []types.ServiceInterfaceTarget{}
+
+		// For this testing, addresses, names and services are always the same string
+		if bound {
+			target = []types.ServiceInterfaceTarget{
+				{
+					Name:        service,
+					TargetPorts: map[int]int{8080: 8080},
+					Service:     service,
+				},
+			}
+		}
+
+		interfaces = append(
+			interfaces,
+			types.ServiceInterface{
+				Address:  service,
+				Protocol: "http",
+				Ports:    []int{8080},
+				Targets:  target,
+			})
+	}
+	return interfaces
+}
+
+func serviceCheckFrontTestScenario(pub *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
+
+	serviceInterfaces := genInterfaceList(unboundServices, false)
+	serviceInterfaces = append(serviceInterfaces, genInterfaceList(boundServices, true)...)
+	unauthInterfaces := genInterfaceList(unauthServices, false)
+
+	scenario = cli.TestScenario{
+
+		Name: "service-check-front",
+		Tasks: []cli.SkupperTask{
+			{
+				Ctx: pub, Commands: []cli.SkupperCommandTester{
+					// skupper service status - verify frontend service is exposed
+					&service.StatusTester{
+						ServiceInterfaces:             serviceInterfaces,
+						UnauthorizedServiceInterfaces: unauthInterfaces,
+						CheckAuthorization:            true,
+					},
+					// skupper status - verify frontend service is exposed
+					&cli.StatusTester{
+						RouterMode:          "interior",
+						ConnectedSites:      1,
+						ExposedServices:     len(serviceInterfaces) + len(unauthInterfaces),
+						ConsoleEnabled:      true,
+						ConsoleAuthInternal: true,
+						PolicyEnabled:       cli.Boolp(true),
+					},
+				},
+			},
+		},
+	}
+	return scenario
+}
+
+// Checks that a list of services is absent.  Different from serviceCheck{Front,Back}TestScenario, this one does not
+// run cli.StatusTester, because we just want to ensure some services are not there, so we do not make any claims as
+// for what _is_ there.  Therefore, we cannot populate cli.StatusTester.ExposedServices
+
+func serviceCheckBackTestScenario(prv *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
+	serviceInterfaces := genInterfaceList(unboundServices, false)
+	serviceInterfaces = append(serviceInterfaces, genInterfaceList(boundServices, true)...)
+	unauthInterfaces := genInterfaceList(unauthServices, false)
 
 	scenario = cli.TestScenario{
 
@@ -138,14 +158,16 @@ func serviceCheckBackTestScenario(prv *base.ClusterContext, prefix string, servi
 				Ctx: prv, Commands: []cli.SkupperCommandTester{
 					// skupper service status - validate status of the two created services without targets
 					&service.StatusTester{
-						ServiceInterfaces: serviceInterfaces,
+						ServiceInterfaces:             serviceInterfaces,
+						UnauthorizedServiceInterfaces: unauthInterfaces,
+						CheckAuthorization:            true,
 					},
 					// skupper status - verify two services are now exposed
 					&cli.StatusTester{
 						RouterMode:      "edge",
 						SiteName:        "private",
 						ConnectedSites:  1,
-						ExposedServices: len(serviceInterfaces) + len(unauthServices),
+						ExposedServices: len(serviceInterfaces) + len(unauthInterfaces),
 						PolicyEnabled:   cli.Boolp(true),
 					},
 				}},
@@ -154,51 +176,87 @@ func serviceCheckBackTestScenario(prv *base.ClusterContext, prefix string, servi
 	return scenario
 }
 
-func serviceBindTestScenario(pub, prv *base.ClusterContext, prefix string) (scenario cli.TestScenario) {
+func frontendServiceBindTestScenario(pub *base.ClusterContext, prefix string) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
 
-		Name: "bind-services",
+		Name: "bind-frontend-service",
 		Tasks: []cli.SkupperTask{
-			// Binding the services
-			{Ctx: pub, Commands: []cli.SkupperCommandTester{
-				// skupper service bind - bind service to deployment and validate target has been defined
-				&service.BindTester{
-					ServiceName: "hello-world-frontend",
-					TargetType:  "deployment",
-					TargetName:  "hello-world-frontend",
-					Protocol:    "http",
-					TargetPort:  8080,
-				},
-				// skupper service status - validate status expecting frontend now has a target
-				&service.StatusTester{
-					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
-							{Name: "hello-world-frontend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-frontend"},
-						}},
-						{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
+			{
+				Ctx: pub, Commands: []cli.SkupperCommandTester{
+					// skupper service bind - bind service to deployment and validate target has been defined
+					&service.BindTester{
+						ServiceName: "hello-world-frontend",
+						TargetType:  "deployment",
+						TargetName:  "hello-world-frontend",
+						Protocol:    "http",
+						TargetPort:  8080,
+					},
+					// skupper service status - validate status expecting frontend now has a target
+					&service.StatusTester{
+						ServiceInterfaces: []types.ServiceInterface{
+							{
+								Address:  "hello-world-frontend",
+								Protocol: "http", Ports: []int{8080},
+								Targets: []types.ServiceInterfaceTarget{
+									{
+										Name:        "hello-world-frontend",
+										TargetPorts: map[int]int{8080: 8080},
+										Service:     "hello-world-frontend",
+									},
+								},
+							}, {
+								Address:  "hello-world-backend",
+								Protocol: "http",
+								Ports:    []int{8080},
+							},
+						},
 					},
 				},
-			}},
-			{Ctx: prv, Commands: []cli.SkupperCommandTester{
-				// skupper service bind - bind service to deployment and validate target has been defined
-				&service.BindTester{
-					ServiceName: "hello-world-backend",
-					TargetType:  "deployment",
-					TargetName:  "hello-world-backend",
-					Protocol:    "http",
-					TargetPort:  8080,
-				},
-				// skupper service status - validate backend service now has a target
-				&service.StatusTester{
-					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
-						{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
-							{Name: "hello-world-backend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-backend"},
-						}},
+			},
+		},
+	}
+	return
+}
+
+func backendServiceBindTestScenario(prv *base.ClusterContext, prefix string) (scenario cli.TestScenario) {
+
+	scenario = cli.TestScenario{
+
+		Name: "bind-backend-service",
+		Tasks: []cli.SkupperTask{
+			{
+				Ctx: prv, Commands: []cli.SkupperCommandTester{
+					// skupper service bind - bind service to deployment and validate target has been defined
+					&service.BindTester{
+						ServiceName: "hello-world-backend",
+						TargetType:  "deployment",
+						TargetName:  "hello-world-backend",
+						Protocol:    "http",
+						TargetPort:  8080,
+					},
+					// skupper service status - validate backend service now has a target
+					&service.StatusTester{
+						ServiceInterfaces: []types.ServiceInterface{
+							{
+								Address:  "hello-world-frontend",
+								Protocol: "http",
+								Ports:    []int{8080},
+							}, {
+								Address:  "hello-world-backend",
+								Protocol: "http", Ports: []int{8080},
+								Targets: []types.ServiceInterfaceTarget{
+									{
+										Name:        "hello-world-backend",
+										TargetPorts: map[int]int{8080: 8080},
+										Service:     "hello-world-backend",
+									},
+								},
+							},
+						},
 					},
 				},
-			}},
+			},
 		},
 	}
 	return
@@ -253,7 +311,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world.*"},
 						},
 					},
-					sleep: 10 * time.Second,
+					//sleep: 10 * time.Second,
 				}, {
 					name:     "create-services",
 					parallel: true,
@@ -265,8 +323,8 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					name:     "check-services",
 					parallel: true,
 					cliScenarios: []cli.TestScenario{
-						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
-						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 					},
 				},
 			},
@@ -288,8 +346,8 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						},
 					},
 					cliScenarios: []cli.TestScenario{
-						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
-						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 					},
 				},
 			},
@@ -310,8 +368,8 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						},
 					},
 					cliScenarios: []cli.TestScenario{
-						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend"}, []string{"hello-world-backend"}),
-						serviceCheckBackTestScenario(prv, "", []string{"hello-world-backend"}, []string{"hello-world-frontend"}),
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend"}, []string{"hello-world-backend"}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-backend"}, []string{"hello-world-frontend"}, []string{}),
 					},
 				},
 			},
@@ -332,8 +390,8 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						},
 					},
 					cliScenarios: []cli.TestScenario{
-						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
-						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 					},
 				},
 			},
@@ -393,8 +451,8 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					name:     "check-services",
 					parallel: true,
 					cliScenarios: []cli.TestScenario{
-						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
-						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 					},
 				},
 			},
@@ -430,7 +488,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{".*-backend"},
 						},
 					},
-					sleep: 10 * time.Second,
+					//sleep: 10 * time.Second,
 				}, {
 					name:     "create-services",
 					parallel: true,
@@ -442,8 +500,8 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					name:     "check-services",
 					parallel: true,
 					cliScenarios: []cli.TestScenario{
-						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend"}, []string{"hello-world-backend"}),
-						serviceCheckBackTestScenario(prv, "", []string{"hello-world-backend"}, []string{"hello-world-frontend"}),
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend"}, []string{"hello-world-backend"}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-backend"}, []string{"hello-world-frontend"}, []string{}),
 					},
 				},
 			},
@@ -454,7 +512,29 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					name:     "bind-both-services",
 					parallel: true,
 					cliScenarios: []cli.TestScenario{
-						serviceBindTestScenario(pub, prv, ""),
+						frontendServiceBindTestScenario(pub, ""),
+						backendServiceBindTestScenario(prv, ""),
+					},
+				},
+			},
+		}, {
+			name: "show-on-both",
+			steps: []policyTestStep{
+				{
+					name: "bind-both-services",
+					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						{
+							Namespaces:      []string{"*"},
+							AllowedServices: []string{".*-frontend"},
+						}, {
+							Namespaces:      []string{"*"},
+							AllowedServices: []string{".*-backend"},
+						},
+					},
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-backend"}, []string{}, []string{"hello-world-frontend"}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend"}, []string{}, []string{"hello-world-backend"}),
 					},
 				},
 			},
@@ -532,8 +612,8 @@ func removeReallowRemove(pub, prv *base.ClusterContext, runs int) (allTestSteps 
 			name:     "check-services-created",
 			parallel: true,
 			cliScenarios: []cli.TestScenario{
-				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
-				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 			},
 		}, {
 			name: "remove-policy",
@@ -609,8 +689,8 @@ func removeReallowKeep(pub, prv *base.ClusterContext, runs int) (allTestSteps []
 				},
 			},
 			cliScenarios: []cli.TestScenario{
-				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
-				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 			},
 		}, {
 			name: "remove-policy",
@@ -695,8 +775,8 @@ func allowAndCreate(pub, prv *base.ClusterContext, runs int) (allTestSteps []pol
 			name:     "check-services-created",
 			parallel: true,
 			cliScenarios: []cli.TestScenario{
-				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
-				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 			},
 		},
 	}
@@ -746,8 +826,8 @@ func removePolicyRemoveServices(pub, prv *base.ClusterContext, runs int) (allTes
 			name:     "check-services",
 			parallel: true,
 			cliScenarios: []cli.TestScenario{
-				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
-				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}),
+				serviceCheckFrontTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+				serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 			},
 		}, {
 			// This is the crux of this testing.  If we remove policies, the services
@@ -801,18 +881,18 @@ func testServicePolicyTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 				},
 			},
-		}, {
-			// This is testing for https://github.com/skupperproject/skupper/issues/728
-			name:  "allow-policy--and--immediatelly-create-service",
-			steps: allowAndCreate(pub, prv, 100),
-		}, {
-			// This is testing for https://github.com/skupperproject/skupper/issues/727
-			name:  "remove-policy-reallow--check-service-removed",
-			steps: removeReallowKeep(pub, prv, 500),
-		}, {
-			// This is testing for ???
-			name:  "remove-policy--remove-service",
-			steps: removePolicyRemoveServices(pub, prv, 400),
+			//		}, {
+			//			// This is testing for https://github.com/skupperproject/skupper/issues/728
+			//			name:  "allow-policy--and--immediatelly-create-service",
+			//			steps: allowAndCreate(pub, prv, 100),
+			//		}, {
+			//			// This is testing for https://github.com/skupperproject/skupper/issues/727
+			//			name:  "remove-policy-reallow--check-service-removed",
+			////			steps: removeReallowKeep(pub, prv, 500),
+			//		}, {
+			//			// This is testing for ???
+			//			name:  "remove-policy--remove-service",
+			//			steps: removePolicyRemoveServices(pub, prv, 400),
 		}, {
 			name: "cleanup",
 			steps: []policyTestStep{

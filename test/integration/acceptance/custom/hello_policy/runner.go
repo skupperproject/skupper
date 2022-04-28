@@ -118,7 +118,7 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
 }
 
 // Configures a step on the policy test runner, which allows for setting
-// policies on the two clusters, run a set of cli commands and then perform
+// policies on the two clusters, run a set of cli command scenarios and then perform
 // some checks using the `get` command.
 //
 // ATTENTION to how the policy lists (pubPolicy, prvPolicy) work:
@@ -158,7 +158,7 @@ type policyTestStep struct {
 	pubPolicy    []skupperv1.SkupperClusterPolicySpec // ATTENTION to usage; see doc
 	prvPolicy    []skupperv1.SkupperClusterPolicySpec
 	cliScenarios []cli.TestScenario
-	parallel     bool // This will run the cli commands in parallel
+	parallel     bool // This will run the cliScenarios parallel
 	pubGetCheck  policyGetCheck
 	prvGetCheck  policyGetCheck
 	sleep        time.Duration

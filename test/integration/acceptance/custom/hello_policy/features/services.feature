@@ -68,8 +68,10 @@ Feature: Skupper service creation and binding
     # first-binding
     When binding the skupper services to their respective k8s services
     Then the binding works
+    # show-on-both
     When changing both policies for namespace "*"
     Then both services are listed on both namespaces
+    #
     When changing the first policy to allow services '.*-.*'
      and removing the second policy
     Then the services and their listings are not affected

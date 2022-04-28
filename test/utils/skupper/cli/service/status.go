@@ -21,6 +21,11 @@ type StatusTester struct {
 	ServiceInterfaces             []types.ServiceInterface
 	UnauthorizedServiceInterfaces []types.ServiceInterface
 	Absent                        bool
+
+	// By default, unauthorized interfaces count as good on ServiceInterfaces;
+	// if this is set to true, then a service listed in ServiceInterfaces that
+	// is reported as unauthorized will be reported as an error
+	CheckAuthorization bool
 }
 
 func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
@@ -80,6 +85,15 @@ func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 				targetRegex := regexp.MustCompile(fmt.Sprintf("%s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
 				if !targetRegex.MatchString(stdout) {
 					err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
+					return
+				}
+			}
+			// Confirming that it is not unauthorized
+			if s.CheckAuthorization {
+				authCheck := serviceEntry + " - not authorized"
+				rAuthCheck := regexp.MustCompile(authCheck)
+				if rAuthCheck.MatchString(stdout) {
+					err = fmt.Errorf("service was expected to be authorized, but it is not.\nregexp: %s\nstdout: %s", rAuthCheck.String(), stdout)
 					return
 				}
 			}
