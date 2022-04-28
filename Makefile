@@ -76,7 +76,7 @@ test:
 	go test -v -count=1 ./pkg/... ./cmd/... ./client/...
 
 clean:
-	rm -rf skupper service-controller site-controller release ${TEST_BINARIES_FOLDER}
+	rm -rf skupper service-controller site-controller release get config-sync ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz
 
