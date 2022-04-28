@@ -801,18 +801,18 @@ func testServicePolicyTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 				},
 			},
-			//		}, {
-			//			// This is testing for https://github.com/skupperproject/skupper/issues/727
-			//			name:  "remove-policy-reallow--check-service-removed",
-			//			steps: removeReallowKeep(pub, prv, 500),
-			//		}, {
-			//			// This is testing for https://github.com/skupperproject/skupper/issues/728
-			//			name:  "allow-policy--and--immediatelly-create-service",
-			//			steps: allowAndCreate(pub, prv, 100),
-			// }, {
-			// // This is testing for ???
-			// name:  "remove-policy--remove-service",
-			// steps: removePolicyRemoveServices(pub, prv, 400),
+		}, {
+			// This is testing for https://github.com/skupperproject/skupper/issues/728
+			name:  "allow-policy--and--immediatelly-create-service",
+			steps: allowAndCreate(pub, prv, 100),
+		}, {
+			// This is testing for https://github.com/skupperproject/skupper/issues/727
+			name:  "remove-policy-reallow--check-service-removed",
+			steps: removeReallowKeep(pub, prv, 500),
+		}, {
+			// This is testing for ???
+			name:  "remove-policy--remove-service",
+			steps: removePolicyRemoveServices(pub, prv, 400),
 		}, {
 			name: "cleanup",
 			steps: []policyTestStep{

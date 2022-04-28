@@ -227,6 +227,7 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 				}
 
 			})
+		base.PostPolicyChangeSleep()
 	}
 }
 

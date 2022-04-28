@@ -525,14 +525,14 @@ func TestPolicies(t *testing.T) {
 
 		base.StopIfInterrupted(t)
 
-		//		t.Run("testServicePolicyTransitions", func(t *testing.T) {
-		//			applyCrd(t, pub1)
-		//			removePolicies(t, pub1)
-		//			removePolicies(t, pub2)
-		//			testServicePolicyTransitions(t, pub1, pub2)
-		//		})
-		//
-		//		base.StopIfInterrupted(t)
+		t.Run("testServicePolicyTransitions", func(t *testing.T) {
+			applyCrd(t, pub1)
+			removePolicies(t, pub1)
+			removePolicies(t, pub2)
+			testServicePolicyTransitions(t, pub1, pub2)
+		})
+
+		base.StopIfInterrupted(t)
 	})
 
 }
