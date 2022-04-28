@@ -305,15 +305,14 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 	}
 	ctx, cn := context.WithTimeout(context.Background(), time.Second*30)
 	defer cn()
+	notEnabledErr := fmt.Errorf("Skupper is not enabled in namespace '%s'", p.cli.Namespace)
 	err := utils.RetryWithContext(ctx, time.Millisecond*100, func() (bool, error) {
 		_, err := p.cli.exec([]string{"get", "policies", "-h"}, p.cli.GetNamespace())
 		if err != nil {
-			if err.Error() == "Not ready" {
-				return false, nil
-			} else if err.Error() == "Not found" {
-				return false, nil
+			if _, err := getRootObject(p.cli); err != nil && errors.IsNotFound(err) {
+				return true, notEnabledErr
 			}
-			return true, err
+			return false, nil
 		}
 		return true, nil
 	})
@@ -326,8 +325,8 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 			}, nil
 		}
 		if os.IsTimeout(err) {
-			err = fmt.Errorf("Skupper is not enabled in namespace '%s'", p.cli.Namespace)
-		} else {
+			err = notEnabledErr
+		} else if err != notEnabledErr {
 			err = fmt.Errorf("Unable to communicate with the API: %v", err)
 		}
 		if event.DefaultStore != nil {
