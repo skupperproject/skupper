@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -24,13 +25,30 @@ import (
 	"github.com/skupperproject/skupper/pkg/event"
 )
 
+var (
+	staticPolicyWatchers []*client.ClusterPolicyValidator
+	policyWatcherLock    sync.Mutex
+)
+
+// AddStaticPolicyWatcher all watchers must be defined before
+// the PolicyController is started
+func AddStaticPolicyWatcher(pv *client.ClusterPolicyValidator) {
+	policyWatcherLock.Lock()
+	defer policyWatcherLock.Unlock()
+	if staticPolicyWatchers == nil {
+		staticPolicyWatchers = []*client.ClusterPolicyValidator{}
+	}
+	staticPolicyWatchers = append(staticPolicyWatchers, pv)
+}
+
 type PolicyController struct {
-	name      string
-	cli       *client.VanClient
-	validator *client.ClusterPolicyValidator
-	informer  cache.SharedIndexInformer
-	queue     workqueue.RateLimitingInterface
-	activeMap map[string]time.Time
+	name             string
+	cli              *client.VanClient
+	validator        *client.ClusterPolicyValidator
+	informer         cache.SharedIndexInformer
+	queue            workqueue.RateLimitingInterface
+	activeMap        map[string]time.Time
+	staticPolicyLock sync.Mutex
 }
 
 func (c *PolicyController) loadActiveMap() {
@@ -107,7 +125,9 @@ func (c *PolicyController) start(stopCh <-chan struct{}) error {
 			select {
 			case <-period.C:
 				if enabled && !c.validator.Enabled() {
-					close(crdCh)
+					if informerRunning {
+						close(crdCh)
+					}
 					log.Println("Skupper policy has been disabled")
 					// reverts what has been denied by policies
 					c.validateStateChanged()
@@ -176,11 +196,16 @@ func (c *PolicyController) process() bool {
 }
 
 func (c *PolicyController) validateIncomingLinkStateChanged() {
-	c.adjustListenerState("validateIncomingLinkStateChanged", "interior-listener", c.validator.ValidateIncomingLink, client.InteriorListener)
-	c.adjustListenerState("validateIncomingLinkStateChanged", "edge-listener", c.validator.ValidateIncomingLink, client.EdgeListener)
+	res := c.validator.ValidateIncomingLink()
+	if res.Error() != nil {
+		event.Recordf(c.name, "[validateIncomingLinkStateChanged] error validating policy: %v", res.Error())
+		return
+	}
+	c.adjustListenerState("validateIncomingLinkStateChanged", "interior-listener", res.Allowed(), client.InteriorListener)
+	c.adjustListenerState("validateIncomingLinkStateChanged", "edge-listener", res.Allowed(), client.EdgeListener)
 }
 
-func (c *PolicyController) adjustListenerState(source string, listenerName string, validationFunc func() *client.PolicyValidationResult, listenerFn func(options types.SiteConfigSpec) qdr.Listener) {
+func (c *PolicyController) adjustListenerState(source string, listenerName string, allowed bool, listenerFn func(options types.SiteConfigSpec) qdr.Listener) {
 	// Retrieving listener info
 	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.cli.GetNamespace(), c.cli.KubeClient)
 	if err != nil {
@@ -197,20 +222,13 @@ func (c *PolicyController) adjustListenerState(source string, listenerName strin
 	// Retrieving listener info
 	_, listenerFound := current.Listeners[listenerName]
 
-	// Validating if given policy is allowed
-	res := validationFunc()
-	if res.Error() != nil {
-		event.Recordf(c.name, "[%s] error validating policy: %v", source, err)
-		return
-	}
-
 	// If nothing changed, just return
-	if listenerFound == res.Allowed() {
+	if listenerFound == allowed {
 		return
 	}
 
 	// Changed to allowed
-	if res.Allowed() {
+	if allowed {
 		event.Recordf(c.name, "[%s] allowing links", source)
 		siteConfig, err := c.cli.SiteConfigInspect(context.Background(), nil)
 		if err != nil {
@@ -419,6 +437,12 @@ func (c *PolicyController) createInformer() {
 }
 
 func (c *PolicyController) validateStateChanged() {
+	c.staticPolicyLock.Lock()
+	defer c.staticPolicyLock.Unlock()
+
+	// Loading namespace policies
+	c.LoadStaticPolicyList()
+
 	// Validate incomingLink stage changed
 	c.validateIncomingLinkStateChanged()
 
@@ -430,4 +454,18 @@ func (c *PolicyController) validateStateChanged() {
 
 	// Validate service state changed
 	c.validateServiceStateChanged()
+}
+
+func (c *PolicyController) LoadStaticPolicyList() {
+	pv := client.NewClusterPolicyValidator(c.cli)
+	policies, err := pv.LoadNamespacePolicies()
+	if err != nil {
+		event.Recordf(c.name, "[LoadStaticPolicyList] error retrieving policies: %v", err)
+		return
+	}
+	c.validator.SetStaticPolicyList(policies)
+	// Notify policies used by controller
+	for _, pv := range staticPolicyWatchers {
+		pv.SetStaticPolicyList(policies)
+	}
 }
