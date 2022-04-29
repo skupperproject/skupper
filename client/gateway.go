@@ -663,16 +663,11 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 	return nil
 }
 
-func (cli *VanClient) gatewayStartService(ctx context.Context, gatewayName string) error {
+func (cli *VanClient) gatewayStartService(ctx context.Context, gatewayName string, routerPath string) error {
 	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 	svcDir := getConfigHome() + "/systemd/user"
 
-	qdrBinaryPath, err := exec.LookPath("skrouterd")
-	if err != nil {
-		return fmt.Errorf("skrouterd not available, please 'dnf install skupper-router' first")
-	}
-
-	err = cli.setupGatewayConfig(context.Background(), gatewayName, GatewayServiceType)
+	err := cli.setupGatewayConfig(context.Background(), gatewayName, GatewayServiceType)
 	if err != nil {
 		return fmt.Errorf("Failed to setup gateway local directories: %w", err)
 	}
@@ -684,7 +679,7 @@ func (cli *VanClient) gatewayStartService(ctx context.Context, gatewayName strin
 
 	qdrUserUnit := serviceForQdr(UnitInfo{
 		IsSystemService: false,
-		Binary:          qdrBinaryPath,
+		Binary:          routerPath,
 		Image:           "",
 		ConfigPath:      gatewayDir,
 		GatewayName:     gatewayName,
@@ -880,7 +875,15 @@ func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*q
 
 func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewayType string, configFile string, owner *metav1.OwnerReference) (string, error) {
 	var err error
+	var routerPath string = ""
 	gatewayResourceName := clusterGatewayName(gatewayName)
+
+	if gatewayType == GatewayServiceType {
+		routerPath, err = exec.LookPath("skrouterd")
+		if err != nil {
+			return "", fmt.Errorf("skrouterd not found, please 'dnf install skupper-router' first or use --type [docker|podman]")
+		}
+	}
 
 	secret, _, err := cli.ConnectorTokenCreate(context.Background(), gatewayResourceName, "")
 	if err != nil {
@@ -1027,7 +1030,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 	}
 
 	if gatewayType == GatewayServiceType {
-		err = cli.gatewayStartService(ctx, gatewayName)
+		err = cli.gatewayStartService(ctx, gatewayName, routerPath)
 	} else if gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType {
 		err = cli.gatewayStartContainer(ctx, gatewayName, gatewayType)
 	}
