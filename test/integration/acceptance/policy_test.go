@@ -357,6 +357,9 @@ var IndividualTests = []TestProfile{DenyLink, DenyService, AllowService, Restric
 
 // This will test individual testProfiles in an AllowAll basic profile
 func TestIndividualPolicyFields(t *testing.T) {
+
+	t.Skip("Retired test.  Review and remove code")
+	return
 	t.Log("Environment variables:")
 	for _, envVar := range ALL_ENV_VARS {
 		t.Logf(" - %v: %v\n", envVar, os.Getenv(envVar))
