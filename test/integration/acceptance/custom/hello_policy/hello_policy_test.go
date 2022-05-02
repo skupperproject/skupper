@@ -495,6 +495,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	// Running the scenarios
 	t.Run("init", func(t *testing.T) { cli.RunScenariosParallel(t, initSteps) })
 	//	mainSteps = mainSteps
+	removeCrd(t, pub1)
 	t.Run("No CRD, all works", func(t *testing.T) { cli.RunScenarios(t, mainSteps) })
 	t.Run("Re-expose service, for next test", func(t *testing.T) { cli.RunScenarios(t, []cli.TestScenario{exposeSteps}) })
 	applyCrd(t, pub1)
