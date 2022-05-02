@@ -55,7 +55,7 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 						},
 					},
 				},
-				SslProfiles: []string{
+				AddedSslProfiles: []string{
 					"skupper-service-client",
 				},
 			},
@@ -74,7 +74,7 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 						},
 					},
 				},
-				SslProfiles: []string{
+				AddedSslProfiles: []string{
 					"skupper-tls-adservice",
 				},
 			},
@@ -100,7 +100,7 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 						},
 					},
 				},
-				SslProfiles: []string{
+				AddedSslProfiles: []string{
 					"skupper-service-client",
 					"skupper-tls-adservice",
 				},

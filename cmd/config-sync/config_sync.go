@@ -261,7 +261,7 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 
 func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDifference, sharedPath string, copyCerts CopyCerts, newSSlProfile CreateSSlProfile, delSslProfile DeleteSslProfile) error {
 
-	for _, addedProfile := range changes.SslProfiles {
+	for _, addedProfile := range changes.AddedSslProfiles {
 		if len(addedProfile) > 0 {
 			log.Printf("Copying cert files related to sslProfile %s", addedProfile)
 			err := copyCerts(sharedPath, addedProfile, addedProfile)
@@ -278,15 +278,16 @@ func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDiffer
 		}
 	}
 
-	for _, deleted := range changes.HttpListeners.Deleted {
-		if len(deleted.SslProfile) > 0 {
-			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted.SslProfile)
+	for _, deleted := range changes.DeletedSSlProfiles {
+		if len(deleted) > 0 {
 
-			if err := delSslProfile("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
+			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted)
+
+			if err := delSslProfile("io.skupper.router.sslProfile", deleted); err != nil {
 				return fmt.Errorf("Error deleting ssl profile: #{err}")
 			}
 
-			err := os.RemoveAll(sharedPath + "/" + deleted.SslProfile)
+			err := os.RemoveAll(sharedPath + "/" + deleted)
 			if err != nil {
 				return err
 			}
@@ -294,9 +295,6 @@ func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDiffer
 		}
 
 	}
-
-	//All http2Connectors will use the common sslProfile skupper-service-client, there is no need to delete it.
-	//If deleted, existent connectors that use it will fail.
 
 	return nil
 }

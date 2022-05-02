@@ -746,11 +746,12 @@ type HttpEndpointDifference struct {
 }
 
 type BridgeConfigDifference struct {
-	TcpListeners   TcpEndpointDifference
-	TcpConnectors  TcpEndpointDifference
-	HttpListeners  HttpEndpointDifference
-	HttpConnectors HttpEndpointDifference
-	SslProfiles    []string
+	TcpListeners       TcpEndpointDifference
+	TcpConnectors      TcpEndpointDifference
+	HttpListeners      HttpEndpointDifference
+	HttpConnectors     HttpEndpointDifference
+	AddedSslProfiles   []string
+	DeletedSSlProfiles []string
 }
 
 func isAddrAny(host string) bool {
@@ -838,19 +839,65 @@ func (a *BridgeConfig) Difference(b *BridgeConfig) *BridgeConfigDifference {
 		HttpListeners:  a.HttpListeners.Difference(b.HttpListeners),
 	}
 
-	for _, httpConnector := range result.HttpConnectors.Added {
-		if len(httpConnector.SslProfile) > 0 {
-			result.SslProfiles = append(result.SslProfiles, httpConnector.SslProfile)
-		}
-	}
-
-	for _, httpListener := range result.HttpListeners.Added {
-		if len(httpListener.SslProfile) > 0 {
-			result.SslProfiles = append(result.SslProfiles, httpListener.SslProfile)
-		}
-	}
+	result.AddedSslProfiles = checkAddedSslProfiles(result)
+	result.DeletedSSlProfiles = checkDeletedSslProfiles(result, a, b)
 
 	return &result
+}
+
+func checkAddedSslProfiles(difference BridgeConfigDifference) []string {
+
+	var addedSslProfiles []string
+
+	for _, httpConnector := range difference.HttpConnectors.Added {
+		if len(httpConnector.SslProfile) > 0 {
+			addedSslProfiles = append(addedSslProfiles, httpConnector.SslProfile)
+		}
+	}
+
+	for _, httpListener := range difference.HttpListeners.Added {
+		if len(httpListener.SslProfile) > 0 {
+			addedSslProfiles = append(addedSslProfiles, httpListener.SslProfile)
+		}
+	}
+
+	return addedSslProfiles
+}
+
+func checkDeletedSslProfiles(difference BridgeConfigDifference, before *BridgeConfig, after *BridgeConfig) []string {
+
+	var deletedSslProfiles []string
+
+	for _, httpListener := range difference.HttpListeners.Deleted {
+		if len(httpListener.SslProfile) > 0 {
+
+			singleUse := true
+
+			//check if the sslProfile it is used by a new listener
+			for _, v2 := range after.HttpListeners {
+
+				if v2.Name != httpListener.Name && v2.SslProfile == httpListener.SslProfile {
+					singleUse = false
+				}
+			}
+
+			//check if the sslProfile it is used by other listener
+			for key, v1 := range before.HttpListeners {
+
+				_, ok := after.HttpListeners[key]
+
+				if ok && v1.Name != httpListener.Name && v1.SslProfile == httpListener.SslProfile {
+					singleUse = false
+				}
+			}
+
+			if singleUse {
+				deletedSslProfiles = append(deletedSslProfiles, httpListener.SslProfile)
+			}
+		}
+	}
+
+	return deletedSslProfiles
 }
 
 func (a *TcpEndpointDifference) Empty() bool {
