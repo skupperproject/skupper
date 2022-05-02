@@ -131,15 +131,14 @@ func (s *IperfScenario) initializeClusters(t *testing.T) {
 				User:              "admin",
 				Password:          "admin",
 				Ingress:           ctx.VanClient.GetIngressDefault(),
-				Router: types.RouterOptions{
+				Router: constants.DefaultRouterOptions(&types.RouterOptions{
 					Tuning: types.Tuning{
 						Cpu:    s.SkupperSettings.Cpu,
 						Memory: s.SkupperSettings.Memory,
 					},
 					MaxFrameSize:     s.SkupperSettings.MaxFrameSize,
 					MaxSessionFrames: s.SkupperSettings.MaxSessionFrames,
-					DebugMode:        "gdb",
-				},
+				}),
 				Controller: types.ControllerOptions{
 					Tuning: types.Tuning{
 						Cpu:    s.SkupperSettings.Cpu,

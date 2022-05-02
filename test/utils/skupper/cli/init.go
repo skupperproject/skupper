@@ -63,12 +63,14 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 	if s.ConsoleIngress != "" {
 		args = append(args, "--console-ingress", s.ConsoleIngress)
 	}
-	if s.RouterDebugMode != "" {
-		args = append(args, "--router-debug-mode", s.RouterDebugMode)
+	if s.RouterDebugMode == "" {
+		s.RouterDebugMode = "gdb"
 	}
-	if s.RouterLogging != "" {
-		args = append(args, "--router-logging", s.RouterLogging)
+	args = append(args, "--router-debug-mode", s.RouterDebugMode)
+	if s.RouterLogging == "" {
+		s.RouterLogging = "trace"
 	}
+	args = append(args, "--router-logging", s.RouterLogging)
 	if s.RouterMode != "" {
 		args = append(args, "--router-mode", s.RouterMode)
 	}

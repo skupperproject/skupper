@@ -2,6 +2,10 @@ package basic
 
 import (
 	"context"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -11,9 +15,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils/env"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"testing"
-	"time"
 )
 
 const (
@@ -183,6 +184,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           types.IngressNoneString,
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -195,6 +197,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           types.IngressNoneString,
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 		},
 		{
@@ -214,6 +217,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           types.IngressNoneString,
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -226,6 +230,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           types.IngressNoneString,
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 		},
 		{
@@ -243,6 +248,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           pubCluster.VanClient.GetIngressDefault(),
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -255,6 +261,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           pubCluster.VanClient.GetIngressDefault(),
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 		},
 		{
@@ -274,6 +281,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           types.IngressNoneString,
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -286,6 +294,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           types.IngressNoneString,
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 		},
 		{
@@ -305,9 +314,9 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				User:              "nicob?",
 				Password:          "nopasswordd",
 				Ingress:           types.IngressNodePortString,
-				Router: types.RouterOptions{
+				Router: constants.DefaultRouterOptions(&types.RouterOptions{
 					IngressHost: os.Getenv(env.Public1IngressHost),
-				},
+				}),
 				Controller: types.ControllerOptions{
 					IngressHost: os.Getenv(env.Public1IngressHost),
 				},
@@ -324,6 +333,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 				Password:          "nopasswordd",
 				Ingress:           pubCluster.VanClient.GetIngressDefault(),
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 		},
 	}

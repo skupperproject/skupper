@@ -7,6 +7,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	vanClient "github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/test/utils/constants"
 )
 
 // ClusterNeeds enable customization of expected number of
@@ -220,6 +221,7 @@ func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) e
 		Password:          "admin",
 		Ingress:           pub1Cluster.VanClient.GetIngressDefault(),
 		Replicas:          1,
+		Router:            constants.DefaultRouterOptions(nil),
 	}
 	routerCreateSpecPrv := types.SiteConfigSpec{
 		SkupperName:       "",
@@ -232,6 +234,7 @@ func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) e
 		Password:          "admin",
 		Ingress:           pub1Cluster.VanClient.GetIngressDefault(),
 		Replicas:          1,
+		Router:            constants.DefaultRouterOptions(nil),
 	}
 	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpecPub)
 	if err != nil {

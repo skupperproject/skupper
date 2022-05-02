@@ -68,6 +68,7 @@ func CreateVAN(t *testing.T, testRunner base.ClusterTestRunner) {
 		EnableServiceSync: true,
 		User:              "admin",
 		Password:          "admin",
+		Router:            constants.DefaultRouterOptions(nil),
 	}
 
 	// If using only 1 cluster, set ClusterLocal to True
