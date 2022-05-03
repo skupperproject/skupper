@@ -29,7 +29,7 @@ func DefaultRouterOptions(spec *types.RouterOptions) types.RouterOptions {
 		spec = &types.RouterOptions{}
 	}
 
-	spec.DebugMode = "gdb"
+	spec.DebugMode = "asan"
 	if spec.Logging == nil {
 		spec.Logging = []types.RouterLogConfig{}
 	}
