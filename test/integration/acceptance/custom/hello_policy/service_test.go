@@ -265,6 +265,26 @@ func backendServiceBindTestScenario(prv *base.ClusterContext, prefix string) (sc
 	return
 }
 
+func unbindServiceTestScenario(ctx *base.ClusterContext, prefix, svc string) (scenario cli.TestScenario) {
+
+	scenario = cli.TestScenario{
+		Name: prefixName(prefix, "service-unbind-"+svc),
+		Tasks: []cli.SkupperTask{
+			{
+				Ctx: ctx,
+				Commands: []cli.SkupperCommandTester{
+					&service.UnbindTester{
+						ServiceName: svc,
+						TargetType:  "deployment",
+						TargetName:  svc,
+					},
+				},
+			},
+		},
+	}
+	return scenario
+}
+
 // This is the main test in this file
 //
 // Note that the testing on what happens for bindings that are being denied
@@ -538,6 +558,85 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					cliScenarios: []cli.TestScenario{
 						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-backend"}, []string{}, []string{"hello-world-frontend"}),
 						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend"}, []string{}, []string{"hello-world-backend"}),
+					},
+				},
+			},
+		}, {
+			name: "reorganize--no-effect",
+			steps: []policyTestStep{
+				{
+					name: "reorganize-policies",
+					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						{
+							Namespaces:      []string{"*"},
+							AllowedServices: []string{".*-.*"},
+						}, {
+							Namespaces: []string{"REMOVE"},
+						},
+					},
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-backend"}, []string{}, []string{"hello-world-frontend"}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend"}, []string{}, []string{"hello-world-backend"}),
+					},
+				},
+			},
+		}, {
+			name: "unbind",
+			steps: []policyTestStep{
+				{
+					name:     "unbind",
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						unbindServiceTestScenario(pub, "", "hello-world-frontend"),
+						unbindServiceTestScenario(prv, "", "hello-world-backend"),
+					},
+				}, {
+					name:     "check-unbound",
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-backend", "hello-world-frontend"}, []string{}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
+					},
+				},
+			},
+		}, {
+			name: "re-bind",
+			steps: []policyTestStep{
+				{
+					name: "bind-both-services",
+					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						{
+							Namespaces: []string{"KEEP"},
+						}, {
+
+							Namespaces:      []string{prv.Namespace},
+							AllowedServices: []string{".*-backend"},
+						},
+					},
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						frontendServiceBindTestScenario(pub, ""),
+						backendServiceBindTestScenario(prv, ""),
+					},
+				},
+			},
+		}, {
+			name: "partial-allow",
+			steps: []policyTestStep{
+				{
+					name: "remove-policy--check-services",
+					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						{
+							Namespaces: []string{"REMOVE"},
+						},
+						// Keep the second one
+					},
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						serviceCheckFrontTestScenario(pub, "", []string{}, []string{"hello-world-backend"}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{}, []string{}, []string{"hello-world-backend"}),
+						serviceCheckAbsentTestScenario(pub, "frontend", []string{"hello-world-frontend"}),
 					},
 				},
 			},

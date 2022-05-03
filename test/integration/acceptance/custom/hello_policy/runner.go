@@ -147,7 +147,9 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
 //     // second policy is not being changed on this test
 //  },
 //
-// To remove a policy, set it as having a sole namespace named REMOVE
+// To remove a policy, set it as having a sole namespace named REMOVE.  To keep
+// a policy while updating or removing another one that follows it, set it with
+// a sole namespace named KEEP.
 //
 // After all work for the step is done, it can optionally sleep for a configured
 // duration of time, using time.Sleep().  Do not use the sleep for normal testing,
@@ -212,16 +214,24 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 
 						var err error
 
-						if len(policy.Namespaces) == 1 && policy.Namespaces[0] == "REMOVE" {
-							err = removePolicies(t, item.cluster, policyName)
-							if err != nil {
-								t.Fatalf("Failed to remove policy: %v", err)
+						if len(policy.Namespaces) == 1 {
+							// Check if the namespace is actually a sentinel
+							switch policy.Namespaces[0] {
+							case "REMOVE":
+								err = removePolicies(t, item.cluster, policyName)
+								if err != nil {
+									t.Fatalf("Failed to remove policy: %v", err)
+								}
+								continue
+							case "KEEP":
+								// We're just not doing anything with this one
+								continue
 							}
-						} else {
-							err = applyPolicy(t, policyName, policy, item.cluster)
-							if err != nil {
-								t.Fatalf("Failed to apply policy: %v", err)
-							}
+						}
+
+						err = applyPolicy(t, policyName, policy, item.cluster)
+						if err != nil {
+							t.Fatalf("Failed to apply policy: %v", err)
 						}
 					}
 				}

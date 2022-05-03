@@ -71,15 +71,18 @@ Feature: Skupper service creation and binding
     # show-on-both
     When changing both policies for namespace "*"
     Then both services are listed on both namespaces
-    #
+    # reorganize--no-effect
     When changing the first policy to allow services '.*-.*'
      and removing the second policy
     Then the services and their listings are not affected
+    # unbind
     When unbinding the services
     Then it works
+    # re-bind
     When Adding a policy that allows .*-backend on prv
      and rebinding the services
     Then it works
+    # partial-allow
     When removing the first policy
     Then the front-end skupper service is removed
      and the backend skupper service shows as not-allowed on pub
