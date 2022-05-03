@@ -33,7 +33,7 @@ func DefaultRouterOptions(spec *types.RouterOptions) types.RouterOptions {
 	if spec.Logging == nil {
 		spec.Logging = []types.RouterLogConfig{}
 	}
-	spec.Logging = append(spec.Logging, types.RouterLogConfig{Module: "DEFAULT", Level: "trace+"})
+	spec.Logging = append(spec.Logging, types.RouterLogConfig{Module: "DEFAULT", Level: "warning+"})
 
 	return *spec
 }
