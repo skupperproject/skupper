@@ -66,9 +66,9 @@ func TestIperf(t *testing.T) {
 					IperfSettings:   iperfSettings,
 					testCtx:         testCtx,
 				}
+
 				t.Run(scenario.getTestName(), func(t *testing.T) {
-					// Preparing teardown function
-					defer scenario.tearDown()
+					// Handling test interruptions and tearDown
 					base.HandleInterruptSignal(func() {
 						scenario.tearDown()
 						t.FailNow()
@@ -80,6 +80,12 @@ func TestIperf(t *testing.T) {
 					// Initializing clusters and Skupper network (if site > 0)
 					scenario.initializeClusters(t)
 
+					// Tailing router logs (to get the full log)
+					saveRouterLogs := true
+					wg := scenario.tailRouterLogs(t, testCtx, &saveRouterLogs)
+					defer wg.Wait()
+					defer scenario.tearDown()
+
 					// Deploying the iPerf3 server
 					scenario.deployIperf3Server(t)
 
@@ -88,6 +94,9 @@ func TestIperf(t *testing.T) {
 
 					// Running the iPerf3 client
 					scenario.runIperf3Client(t)
+
+					// If reached this point, test has passed (full router logs will be discarded)
+					saveRouterLogs = false
 				})
 			}
 		}
