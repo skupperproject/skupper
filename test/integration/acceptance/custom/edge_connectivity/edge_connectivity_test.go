@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/constants"
 	"gotest.tools/assert"
 )
 
@@ -48,6 +49,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -60,6 +62,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			public_public_cnx: map[int][]int{},
 			// The IDs on clusters are 1-based, not 0-based.
@@ -86,6 +89,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          3,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -98,6 +102,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			public_public_cnx: map[int][]int{1: {2, 3}},
 			// The IDs on clusters are 1-based, not 0-based.
@@ -126,6 +131,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          3,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -138,6 +144,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			public_public_cnx: map[int][]int{1: {2}, 2: {3}, 3: {1}},
 			// The IDs on clusters are 1-based, not 0-based.
@@ -165,6 +172,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          3,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -177,6 +185,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			public_public_cnx: map[int][]int{1: {2}, 2: {3}},
 			// The IDs on clusters are 1-based, not 0-based.
@@ -204,6 +213,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          2,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			createOptsPrivate: types.SiteConfigSpec{
 				SkupperName:       "",
@@ -216,6 +226,7 @@ func TestEdgeConnectivity(t *testing.T) {
 				Password:          "",
 				Ingress:           types.IngressNoneString,
 				Replicas:          there_can_be_only_1,
+				Router:            constants.DefaultRouterOptions(nil),
 			},
 			public_public_cnx: map[int][]int{1: {2}},
 			// The IDs on clusters are 1-based, not 0-based.
