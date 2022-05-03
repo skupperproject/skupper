@@ -173,10 +173,14 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 		_, err := cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Create(ncJob)
 		assert.Assert(t, err)
 		// Asserting job completed
-		_, err = k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, ncJob.Name, time.Minute)
-		assert.Assert(t, err)
+		_, jobErr := k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, ncJob.Name, time.Minute)
 		// Asserting job output
 		logs, err := k8s.GetJobLogs(cluster.Namespace, cluster.VanClient.KubeClient, ncJob.Name)
+		if jobErr != nil || err != nil {
+			rb.DumpTestInfo(ncJob.Name)
+			log.Printf("%s job output: %s", ncJob.Name, logs)
+		}
+		assert.Assert(t, jobErr)
 		assert.Assert(t, err)
 		assert.Assert(t, strings.Contains(logs, "HALO"), "invalid response - %s", logs)
 	}
