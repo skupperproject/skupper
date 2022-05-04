@@ -97,6 +97,8 @@ func ShouldRunScenariosInParallel() bool {
 	return !found
 }
 
+// Checks for the environment variable configuration and
+// executes the sleep
 func PostPolicyChangeSleep() {
 	envSleep := os.Getenv(ENV_POST_POLICY_CHANGE_SLEEP)
 

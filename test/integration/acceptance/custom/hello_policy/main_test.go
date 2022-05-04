@@ -159,8 +159,7 @@ func removeClusterRole(t *testing.T, cluster *base.ClusterContext) (changed bool
 
 // Removes all policies from the cluster.
 //
-// In the future, change the signature so the last item is ..policies, so specific
-// policies can be given
+// If policies are provided, only those will be removed, instead
 func removePolicies(t *testing.T, cluster *base.ClusterContext, policies ...string) (err error) {
 
 	log.Print("Removing policies")
@@ -430,17 +429,26 @@ func TestPolicies(t *testing.T) {
 				} else {
 					cli.RunScenariosParallel(t, []cli.TestScenario{
 						{
-							Name: "skupper-delete",
+							Name: "skupper-delete-pub1",
 							Tasks: []cli.SkupperTask{
 								{
 									Ctx: pub1,
 									Commands: []cli.SkupperCommandTester{
-										&cli.DeleteTester{},
+										&cli.DeleteTester{
+											IgnoreNotInstalled: true,
+										},
 									},
-								}, {
+								},
+							},
+						}, {
+							Name: "skupper-delete-pub2",
+							Tasks: []cli.SkupperTask{
+								{
 									Ctx: pub2,
 									Commands: []cli.SkupperCommandTester{
-										&cli.DeleteTester{},
+										&cli.DeleteTester{
+											IgnoreNotInstalled: true,
+										},
 									},
 								},
 							},

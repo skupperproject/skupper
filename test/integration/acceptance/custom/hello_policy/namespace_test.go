@@ -180,14 +180,12 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	_ = os.Mkdir(testPath, 0755)
 
 	t.Run("apply-crd", func(t *testing.T) {
+		if err = removePolicies(t, pub1); err != nil {
+			t.Fatalf("Failed to remove policies")
+		}
 		if base.ShouldSkipPolicySetup() {
 			log.Print("Skipping policy setup, per environment")
 			return
-		}
-		// Should this be affected by base.ShouldSkipPolicySetup?
-		// Should that method be renamed to include only CRD setup?
-		if err = removePolicies(t, pub1); err != nil {
-			t.Fatalf("Failed to remove policies")
 		}
 		if err = applyCrd(t, pub1); err != nil {
 			t.Fatalf("Failed to add the CRD at the start: %v", err)
@@ -271,6 +269,7 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				t.Fatalf("Failed to apply policy: %v", err)
 				return
 			}
+			base.PostPolicyChangeSleep()
 			cli.RunScenarios(
 				t,
 				[]cli.TestScenario{

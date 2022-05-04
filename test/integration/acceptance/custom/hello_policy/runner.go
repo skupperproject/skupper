@@ -4,6 +4,7 @@
 package hello_policy
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -20,6 +21,19 @@ import (
 // TODO:
 // - If a scenario fails, show events and logs?
 // - on cli.RunScenarios, environment option to bounce pods between each command
+
+func wipePolicies(t *testing.T, ctx ...*base.ClusterContext) error {
+
+	for _, c := range ctx {
+		err := removePolicies(t, c)
+		if err != nil {
+			return fmt.Errorf("failed removing policies from %v: %w", c.Namespace, err)
+		}
+	}
+
+	return nil
+
+}
 
 // Each policy piece has its own file.  On it, we define both the
 // piece-specific tests _and_ the piece-specific infra.
@@ -56,6 +70,10 @@ type policyTestRunner struct {
 // Runs each test case in turn
 func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 
+	err := wipePolicies(t, pub, prv)
+	if err != nil {
+		t.Fatalf("Unable to remove policies: %w", err)
+	}
 	if len(r.pubPolicies)+len(r.prvPolicies) > 0 {
 		t.Run(
 			"background-policy-setup",
@@ -88,7 +106,10 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 		}
 		testCase.run(t, pub, prv)
 	}
-	base.StopIfInterrupted(t)
+	err = wipePolicies(t, pub, prv)
+	if err != nil {
+		t.Fatalf("Unable to remove policies: %v", err)
+	}
 }
 
 // A named slice, with methods to run each step
