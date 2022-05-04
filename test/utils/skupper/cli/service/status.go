@@ -41,7 +41,6 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	defer cancelFn()
 	attempt := 0
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
-		attempt++
 		log.Printf("Validating 'skupper service status' - attempt %d", attempt)
 		if base.IsTestInterrupted() {
 			return false, fmt.Errorf("Test interrupted")
@@ -49,6 +48,8 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		if base.IsMaxStatusAttemptsReached(attempt) {
 			return false, fmt.Errorf("Maximum attempts reached")
 		}
+		attempt++
+
 		stdout, stderr, err = s.run(cluster)
 		if err != nil {
 			log.Printf("error executing service status command: %v\nstdout:\n %s\nstderr:\n %s", err, stdout, stderr)

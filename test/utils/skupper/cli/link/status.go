@@ -59,8 +59,8 @@ func (l *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		if base.IsMaxStatusAttemptsReached(attempt) {
 			return false, fmt.Errorf("Maximum attempts reached")
 		}
-
 		attempt++
+
 		stdout, stderr, err = l.run(cluster)
 		log.Printf("Validating 'skupper link status' - attempt %d", attempt)
 		if err != nil {

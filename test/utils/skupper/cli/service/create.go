@@ -61,11 +61,17 @@ func (s *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	defer cancelFn()
 	attempt := 0
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
-		attempt++
-		log.Printf("validating created service - attempt: %d", attempt)
 		if base.IsTestInterrupted() {
 			return false, fmt.Errorf("Test interrupted")
 		}
+		if base.IsMaxStatusAttemptsReached(attempt) {
+			// Even though this is a createTester, we're running a
+			// status step, so we check for maximum attempts configuration
+			return false, fmt.Errorf("Maximum attempts reached")
+		}
+		attempt++
+
+		log.Printf("validating created service - attempt: %d", attempt)
 		svc, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(s.Name, v1.GetOptions{})
 		if err != nil {
 			log.Printf("service %s not available yet", s.Name)
