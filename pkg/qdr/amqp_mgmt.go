@@ -1184,6 +1184,21 @@ func asSslProfile(record Record) SslProfile {
 	}
 }
 
+func asRecord(connector Connector) Record {
+
+	record := map[string]interface{}{}
+	record["name"] = connector.Name
+	record["role"] = string(connector.Role)
+	record["host"] = connector.Host
+	record["port"] = connector.Port
+	record["cost"] = connector.Cost
+	record["sslProfile"] = connector.SslProfile
+	record["maxFrameSize"] = connector.MaxFrameSize
+	record["maxSessionFrames"] = connector.MaxSessionFrames
+
+	return record
+}
+
 func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 	for _, deleted := range changes.Deleted {
 		if err := a.Delete("io.skupper.router.connector", deleted.Name); err != nil {
@@ -1223,11 +1238,7 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 			}
 		}
 
-		record := map[string]interface{}{}
-		if err := convert(added, &record); err != nil {
-			return fmt.Errorf("Failed to convert record: %s", err)
-		}
-		if err := a.Create("io.skupper.router.connector", added.Name, record); err != nil {
+		if err := a.Create("io.skupper.router.connector", added.Name, asRecord(added)); err != nil {
 			return fmt.Errorf("Error adding connectors: %s", err)
 		}
 
