@@ -448,6 +448,7 @@ type HttpEndpoint struct {
 	EventChannel    bool   `json:"eventChannel,omitempty"`
 	HostOverride    string `json:"hostOverride,omitempty"`
 	SslProfile      string `json:"sslProfile,omitempty"`
+	VerifyHostname  *bool  `json:"verifyHostname,omitempty"`
 }
 
 func convert(from interface{}, to interface{}) error {
@@ -839,65 +840,52 @@ func (a *BridgeConfig) Difference(b *BridgeConfig) *BridgeConfigDifference {
 		HttpListeners:  a.HttpListeners.Difference(b.HttpListeners),
 	}
 
-	result.AddedSslProfiles = checkAddedSslProfiles(result)
-	result.DeletedSSlProfiles = checkDeletedSslProfiles(result, a, b)
+	result.AddedSslProfiles, result.DeletedSSlProfiles = getSslProfilesDifference(a, b)
 
 	return &result
 }
 
-func checkAddedSslProfiles(difference BridgeConfigDifference) []string {
+type AddedSslProfiles []string
+type DeletedSslProfiles []string
 
-	var addedSslProfiles []string
+func getSslProfilesDifference(before *BridgeConfig, desired *BridgeConfig) (AddedSslProfiles, DeletedSslProfiles) {
+	var addedProfiles AddedSslProfiles
+	var deletedProfiles DeletedSslProfiles
 
-	for _, httpConnector := range difference.HttpConnectors.Added {
-		if len(httpConnector.SslProfile) > 0 {
-			addedSslProfiles = append(addedSslProfiles, httpConnector.SslProfile)
+	originalSslConfig := make(map[string]string)
+	newSslConfig := make(map[string]string)
+
+	for _, httpConnector := range before.HttpConnectors {
+		originalSslConfig[httpConnector.SslProfile] = httpConnector.SslProfile
+	}
+	for _, httpListener := range before.HttpListeners {
+		originalSslConfig[httpListener.SslProfile] = httpListener.SslProfile
+	}
+
+	for _, httpConnector := range desired.HttpConnectors {
+		newSslConfig[httpConnector.SslProfile] = httpConnector.SslProfile
+	}
+	for _, httpListener := range desired.HttpListeners {
+		newSslConfig[httpListener.SslProfile] = httpListener.SslProfile
+	}
+
+	for key, name := range originalSslConfig {
+		_, ok := newSslConfig[key]
+
+		if !ok && name != types.ServiceClientSecret {
+			deletedProfiles = append(deletedProfiles, name)
 		}
 	}
 
-	for _, httpListener := range difference.HttpListeners.Added {
-		if len(httpListener.SslProfile) > 0 {
-			addedSslProfiles = append(addedSslProfiles, httpListener.SslProfile)
+	for key, name := range newSslConfig {
+		_, ok := originalSslConfig[key]
+
+		if !ok && name != types.ServiceClientSecret {
+			addedProfiles = append(addedProfiles, name)
 		}
 	}
 
-	return addedSslProfiles
-}
-
-func checkDeletedSslProfiles(difference BridgeConfigDifference, before *BridgeConfig, after *BridgeConfig) []string {
-
-	var deletedSslProfiles []string
-
-	for _, httpListener := range difference.HttpListeners.Deleted {
-		if len(httpListener.SslProfile) > 0 {
-
-			singleUse := true
-
-			//check if the sslProfile it is used by a new listener
-			for _, v2 := range after.HttpListeners {
-
-				if v2.Name != httpListener.Name && v2.SslProfile == httpListener.SslProfile {
-					singleUse = false
-				}
-			}
-
-			//check if the sslProfile it is used by other listener
-			for key, v1 := range before.HttpListeners {
-
-				_, ok := after.HttpListeners[key]
-
-				if ok && v1.Name != httpListener.Name && v1.SslProfile == httpListener.SslProfile {
-					singleUse = false
-				}
-			}
-
-			if singleUse {
-				deletedSslProfiles = append(deletedSslProfiles, httpListener.SslProfile)
-			}
-		}
-	}
-
-	return deletedSslProfiles
+	return addedProfiles, deletedProfiles
 }
 
 func (a *TcpEndpointDifference) Empty() bool {
@@ -917,6 +905,7 @@ func (a *BridgeConfigDifference) Print() {
 	log.Printf("TcpListeners added=%v, deleted=%v", a.TcpListeners.Added, a.TcpListeners.Deleted)
 	log.Printf("HttpConnectors added=%v, deleted=%v", a.HttpConnectors.Added, a.HttpConnectors.Deleted)
 	log.Printf("HttpListeners added=%v, deleted=%v", a.HttpListeners.Added, a.HttpListeners.Deleted)
+	log.Printf("SslProfiles added=%v, deleted=%v", a.AddedSslProfiles, a.DeletedSSlProfiles)
 }
 
 func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig) *ConnectorDifference {

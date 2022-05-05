@@ -261,6 +261,8 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 
 func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDifference, sharedPath string, copyCerts CopyCerts, newSSlProfile CreateSSlProfile, delSslProfile DeleteSslProfile) error {
 
+	log.Printf("Sync profiles: Added %v  Deleted %v", changes.AddedSslProfiles, changes.DeletedSSlProfiles)
+
 	for _, addedProfile := range changes.AddedSslProfiles {
 		if len(addedProfile) > 0 {
 			log.Printf("Copying cert files related to sslProfile %s", addedProfile)
