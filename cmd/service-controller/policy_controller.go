@@ -5,7 +5,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -27,28 +26,21 @@ import (
 
 var (
 	staticPolicyWatchers []*client.ClusterPolicyValidator
-	policyWatcherLock    sync.Mutex
 )
 
 // AddStaticPolicyWatcher all watchers must be defined before
 // the PolicyController is started
 func AddStaticPolicyWatcher(pv *client.ClusterPolicyValidator) {
-	policyWatcherLock.Lock()
-	defer policyWatcherLock.Unlock()
-	if staticPolicyWatchers == nil {
-		staticPolicyWatchers = []*client.ClusterPolicyValidator{}
-	}
 	staticPolicyWatchers = append(staticPolicyWatchers, pv)
 }
 
 type PolicyController struct {
-	name             string
-	cli              *client.VanClient
-	validator        *client.ClusterPolicyValidator
-	informer         cache.SharedIndexInformer
-	queue            workqueue.RateLimitingInterface
-	activeMap        map[string]time.Time
-	staticPolicyLock sync.Mutex
+	name      string
+	cli       *client.VanClient
+	validator *client.ClusterPolicyValidator
+	informer  cache.SharedIndexInformer
+	queue     workqueue.RateLimitingInterface
+	activeMap map[string]time.Time
 }
 
 func (c *PolicyController) loadActiveMap() {
@@ -382,7 +374,7 @@ func (c *PolicyController) validateServiceStateChanged() {
 			// Validating if allowed service exists
 			_, err := kube.GetService(service.Address, c.cli.Namespace, c.cli.KubeClient)
 			// If service is now allowed, but does not exist, remove its definition to let service sync recreate it
-			if err != nil && errors.IsNotFound(err) {
+			if len(service.Origin) > 0 && err != nil && errors.IsNotFound(err) {
 				event.Recordf(c.name, "[validateServiceStateChanged] service is now allowed %s", service.Address)
 				c.cli.ServiceInterfaceRemove(context.Background(), service.Address)
 			}
@@ -437,9 +429,6 @@ func (c *PolicyController) createInformer() {
 }
 
 func (c *PolicyController) validateStateChanged() {
-	c.staticPolicyLock.Lock()
-	defer c.staticPolicyLock.Unlock()
-
 	// Loading namespace policies
 	c.LoadStaticPolicyList()
 

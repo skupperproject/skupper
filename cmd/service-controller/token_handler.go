@@ -18,6 +18,7 @@ type TokenHandler struct {
 	name      string
 	vanClient *client.VanClient
 	siteId    string
+	policy    *client.ClusterPolicyValidator
 }
 
 func (h *TokenHandler) Handle(name string, token *corev1.Secret) error {
@@ -40,7 +41,9 @@ func newTokenHandler(cli *client.VanClient, siteId string) *SecretController {
 		name:      "TokenHandler",
 		vanClient: cli,
 		siteId:    siteId,
+		policy:    client.NewClusterPolicyValidator(cli),
 	}
+	AddStaticPolicyWatcher(handler.policy)
 	return NewSecretController(handler.name, types.TypeTokenQualifier, cli.KubeClient, cli.Namespace, handler)
 }
 
@@ -126,7 +129,6 @@ func (c *TokenHandler) isTokenValidInSite(token *corev1.Secret) bool {
 func (c *TokenHandler) isTokenDisabled(token *corev1.Secret) bool {
 	// validate if host is still allowed
 	hostname := token.ObjectMeta.Annotations["inter-router-host"]
-	policy := client.NewClusterPolicyValidator(c.vanClient)
-	res := policy.ValidateOutgoingLink(hostname)
+	res := c.policy.ValidateOutgoingLink(hostname)
 	return !res.Allowed()
 }
