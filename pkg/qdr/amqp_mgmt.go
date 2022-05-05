@@ -1191,10 +1191,18 @@ func asRecord(connector Connector) Record {
 	record["role"] = string(connector.Role)
 	record["host"] = connector.Host
 	record["port"] = connector.Port
-	record["cost"] = connector.Cost
-	record["sslProfile"] = connector.SslProfile
-	record["maxFrameSize"] = connector.MaxFrameSize
-	record["maxSessionFrames"] = connector.MaxSessionFrames
+	if connector.Cost > 0 {
+		record["cost"] = connector.Cost
+	}
+	if len(connector.SslProfile) > 0 {
+		record["sslProfile"] = connector.SslProfile
+	}
+	if connector.MaxFrameSize > 0 {
+		record["maxFrameSize"] = connector.MaxFrameSize
+	}
+	if connector.MaxSessionFrames > 0 {
+		record["maxSessionFrames"] = connector.MaxSessionFrames
+	}
 
 	return record
 }
