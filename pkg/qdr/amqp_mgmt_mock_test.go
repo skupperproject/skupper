@@ -2,9 +2,11 @@ package qdr
 
 import (
 	"flag"
+	"reflect"
 	"testing"
 
 	"crypto/tls"
+	"encoding/json"
 	"gotest.tools/assert"
 )
 
@@ -30,8 +32,8 @@ func TestQDR(t *testing.T) {
 	}
 
 	badAsInt := Record{}
-	badAsInt["float32"] = float32(0)
-	badAsInt["float64"] = float64(0)
+	badAsInt["float32"] = float32(1.0)
+	badAsInt["float64"] = float64(1.0)
 	badAsInt["string"] = "0"
 
 	for key, value := range badAsInt {
@@ -174,4 +176,34 @@ func TestSiteMetadata(t *testing.T) {
 	if c.Id != id {
 		t.Errorf("Invalid metadata, expected id to be %q got %q", id, c.Id)
 	}
+}
+
+func TestMarshalUnmarshalRecordsWithIntegers(t *testing.T) {
+
+	//Marshaling and un-marshaling a map[string]interface{} with int values changes the format of the numbers to float64
+	//https://go.dev/blog/json
+
+	record := Record{}
+	record["int"] = 65
+	record["number"] = json.Number("66")
+
+	_, ok := AsInt(record["int"])
+	assert.Assert(t, ok)
+
+	recordResult := Record{}
+
+	data, err := json.Marshal(record)
+	assert.Assert(t, err)
+
+	err = json.Unmarshal(data, &recordResult)
+	assert.Assert(t, err)
+
+	assert.Assert(t, reflect.TypeOf(recordResult["int"]).String() == "float64")
+	assert.Assert(t, reflect.TypeOf(recordResult["number"]).String() == "float64")
+
+	_, ok = AsInt(recordResult["int"])
+	assert.Assert(t, !ok)
+
+	_, ok = AsInt(recordResult["number"])
+	assert.Assert(t, !ok)
 }
