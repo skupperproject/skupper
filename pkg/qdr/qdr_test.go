@@ -1,6 +1,9 @@
 package qdr
 
 import (
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils"
+	"gotest.tools/assert"
 	"reflect"
 	"testing"
 )
@@ -96,6 +99,9 @@ func TestAddAddress(t *testing.T) {
 }
 
 func TestMarshalUnmarshalRouterConfig(t *testing.T) {
+	verifyHostName := new(bool)
+	*verifyHostName = false
+
 	input := RouterConfig{
 		Metadata: RouterMetadata{
 			Id:                 "${HOSTNAME}",
@@ -189,11 +195,12 @@ func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 					SiteId:  "abc",
 				},
 				"c4": HttpEndpoint{
-					Name:    "c4",
-					Address: "bar",
-					Host:    "here.com",
-					Port:    "8765",
-					SiteId:  "def",
+					Name:           "c4",
+					Address:        "bar",
+					Host:           "here.com",
+					Port:           "8765",
+					SiteId:         "def",
+					VerifyHostname: verifyHostName,
 				},
 			},
 			HttpListeners: map[string]HttpEndpoint{
@@ -423,4 +430,111 @@ func TestFailedConvert(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error for invalid conversion")
 	}
+}
+
+func TestGetSslProfilesDifference(t *testing.T) {
+	before := BridgeConfig{
+
+		HttpConnectors: map[string]HttpEndpoint{
+			"c3": {
+				Name:            "c3",
+				Address:         "foo",
+				Host:            "nowhere.com",
+				Port:            "4321",
+				SiteId:          "abc",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.ServiceClientSecret,
+			},
+			"c4": {
+				Name:            "c4",
+				Address:         "bar",
+				Host:            "here.com",
+				Port:            "8765",
+				SiteId:          "def",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.ServiceClientSecret,
+			},
+		},
+		HttpListeners: map[string]HttpEndpoint{
+			"l3": {
+				Name:            "l3",
+				Address:         "green",
+				Host:            "0.0.0.0",
+				Port:            "4321",
+				SiteId:          "abc",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.SkupperServiceCertPrefix + "green",
+			},
+			"l4": {
+				Name:            "l4",
+				Address:         "blue",
+				Host:            "localhost",
+				Port:            "8765",
+				SiteId:          "def",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.SkupperServiceCertPrefix + "blue",
+			},
+		},
+	}
+
+	after := BridgeConfig{
+
+		HttpConnectors: map[string]HttpEndpoint{
+			"newConnector": {
+				Name:            "newConnector",
+				Address:         "new-connector",
+				Host:            "nowhere.com",
+				Port:            "4321",
+				SiteId:          "abc",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.ServiceClientSecret,
+			},
+			"c4": {
+				Name:            "c4",
+				Address:         "bar",
+				Host:            "here.com",
+				Port:            "8765",
+				SiteId:          "def",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.ServiceClientSecret,
+			},
+		},
+		HttpListeners: map[string]HttpEndpoint{
+			"l3": {
+				Name:            "l3",
+				Address:         "green",
+				Host:            "0.0.0.0",
+				Port:            "4321",
+				SiteId:          "abc",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.SkupperServiceCertPrefix + "green",
+			},
+			"newListener": {
+				Name:            "newListener",
+				Address:         "new-listener",
+				Host:            "localhost",
+				Port:            "8765",
+				SiteId:          "def",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.SkupperServiceCertPrefix + "new-listener",
+			},
+			"anotherNewListener": {
+				Name:            "anotherNewListener",
+				Address:         "another-new-listener",
+				Host:            "localhost",
+				Port:            "8765",
+				SiteId:          "def",
+				ProtocolVersion: HttpVersion2,
+				SslProfile:      types.SkupperServiceCertPrefix + "another-new-listener",
+			},
+		},
+	}
+
+	addedSslProfiles, deletedSslProfiles := getSslProfilesDifference(&before, &after)
+
+	expectedAddedSslProfiles := []string{types.SkupperServiceCertPrefix + "new-listener", types.SkupperServiceCertPrefix + "another-new-listener"}
+	expectedDeletedSslProfiles := []string{types.SkupperServiceCertPrefix + "blue"}
+	assert.Assert(t, utils.StringSlicesEqual(addedSslProfiles, expectedAddedSslProfiles), "Expected %v but got %v", expectedAddedSslProfiles, addedSslProfiles)
+	assert.Assert(t, utils.StringSlicesEqual(deletedSslProfiles, expectedDeletedSslProfiles), "Expected %v but got %v", expectedDeletedSslProfiles, deletedSslProfiles)
+
 }

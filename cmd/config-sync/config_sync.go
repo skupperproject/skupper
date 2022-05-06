@@ -31,6 +31,10 @@ type ConfigSync struct {
 	vanClient *client.VanClient
 }
 
+type CopyCerts func(string, string, string) error
+type CreateSSlProfile func(profile qdr.SslProfile) error
+type DeleteSslProfile func(string, string) error
+
 const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
 
 func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
@@ -179,7 +183,13 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	} else {
 		differences.Print()
 
-		err := syncSecrets(c, differences, SHARED_TLS_DIRECTORY)
+		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+		if err != nil {
+			return false, err
+		}
+		routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+
+		err = syncSecrets(routerConfig, differences, SHARED_TLS_DIRECTORY, c.copyCertsFilesToPath, agent.CreateSslProfile, agent.Delete)
 		if err != nil {
 			return false, fmt.Errorf("error syncing secrets: %s", err)
 		}
@@ -205,7 +215,7 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 		return fmt.Errorf("Error while syncing bridge config : %s", err)
 	}
 	if !synced {
-		return fmt.Errorf("Failed to sync bridge config")
+		return fmt.Errorf("Bridge config is not synchronised yet")
 	}
 	return nil
 }
@@ -249,59 +259,43 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 	}
 }
 
-func syncSecrets(configSync *ConfigSync, changes *qdr.BridgeConfigDifference, sharedTlsFilesDir string) error {
-	for _, added := range changes.HttpListeners.Added {
-		if len(added.SslProfile) > 0 {
-			log.Printf("Copying cert files related to HTTP Listener sslProfile %s", added.SslProfile)
-			err := configSync.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
+func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDifference, sharedPath string, copyCerts CopyCerts, newSSlProfile CreateSSlProfile, delSslProfile DeleteSslProfile) error {
 
+	log.Printf("Sync profiles: Added %v  Deleted %v", changes.AddedSslProfiles, changes.DeletedSSlProfiles)
+
+	for _, addedProfile := range changes.AddedSslProfiles {
+		if len(addedProfile) > 0 {
+			log.Printf("Copying cert files related to sslProfile %s", addedProfile)
+			err := copyCerts(sharedPath, addedProfile, addedProfile)
+
+			if err != nil {
+				return err
+			}
+
+			log.Printf("Creating ssl profile %s", addedProfile)
+			err = newSSlProfile(routerConfig.SslProfiles[addedProfile])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	for _, added := range changes.HttpConnectors.Added {
-		if len(added.SslProfile) > 0 {
-			log.Printf("Copying cert files related to HTTP Connector sslProfile %s", added.SslProfile)
-			err := configSync.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, added.SslProfile)
+	for _, deleted := range changes.DeletedSSlProfiles {
+		if len(deleted) > 0 {
 
-			if err != nil {
-				return err
-			}
-		}
-	}
+			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted)
 
-	for _, deleted := range changes.HttpListeners.Deleted {
-		if len(deleted.SslProfile) > 0 {
-			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted.SslProfile)
-
-			agent, err := configSync.agentPool.Get()
-			if err != nil {
-				return err
-			}
-
-			if err = agent.Delete("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
+			if err := delSslProfile("io.skupper.router.sslProfile", deleted); err != nil {
 				return fmt.Errorf("Error deleting ssl profile: #{err}")
 			}
 
-			err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
+			err := os.RemoveAll(sharedPath + "/" + deleted)
 			if err != nil {
 				return err
 			}
 
 		}
 
-	}
-
-	for _, deleted := range changes.HttpConnectors.Deleted {
-		if len(deleted.SslProfile) > 0 {
-			log.Printf("Deleting cert files related to HTTP Connector sslProfile %s", deleted.SslProfile)
-			err := os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil

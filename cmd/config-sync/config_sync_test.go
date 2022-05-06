@@ -4,6 +4,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
@@ -54,6 +55,9 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 						},
 					},
 				},
+				AddedSslProfiles: []string{
+					"skupper-service-client",
+				},
 			},
 			sslProfileToSync: "skupper-service-client",
 			expected:         "./tmp/skupper-router/tls/skupper-service-client",
@@ -69,6 +73,9 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 							SslProfile: "skupper-tls-adservice",
 						},
 					},
+				},
+				AddedSslProfiles: []string{
+					"skupper-tls-adservice",
 				},
 			},
 			sslProfileToSync: "skupper-tls-adservice",
@@ -93,6 +100,10 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 						},
 					},
 				},
+				AddedSslProfiles: []string{
+					"skupper-service-client",
+					"skupper-tls-adservice",
+				},
 			},
 			after: &qdr.BridgeConfigDifference{
 				HttpConnectors: qdr.HttpEndpointDifference{
@@ -116,13 +127,19 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 			err = setUpTestingPath()
 			assert.Assert(t, err)
 
-			err = syncSecrets(c, s.before, TEST_TLS_DIRECTORY)
+			configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
 			assert.Assert(t, err)
 
-			err = syncSecrets(c, s.after, TEST_TLS_DIRECTORY)
+			routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
 			assert.Assert(t, err)
 
-			_, err := os.Stat(s.expected)
+			err = syncSecrets(routerConfig, s.before, TEST_TLS_DIRECTORY, c.copyCertsFilesToPath, mockNewSslProfile, mockDelSslProfile)
+			assert.Assert(t, err)
+
+			err = syncSecrets(routerConfig, s.after, TEST_TLS_DIRECTORY, c.copyCertsFilesToPath, mockNewSslProfile, mockDelSslProfile)
+			assert.Assert(t, err)
+
+			_, err = os.Stat(s.expected)
 			missingDirectory := os.IsNotExist(err)
 			assert.Assert(t, !missingDirectory, "missing directory: %v", s.expected)
 
@@ -197,10 +214,17 @@ func TestSyncSecretsWithoutTlsSupport(t *testing.T) {
 	for _, s := range scenarios {
 		t.Run(s.doc, func(t *testing.T) {
 
+			setUpKubernetesMock(c.vanClient)
 			err = setUpTestingPath()
 			assert.Assert(t, err)
 
-			err = syncSecrets(c, s.actual, TEST_TLS_DIRECTORY)
+			configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+			assert.Assert(t, err)
+
+			routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
+			assert.Assert(t, err)
+
+			err = syncSecrets(routerConfig, s.actual, TEST_TLS_DIRECTORY, c.copyCertsFilesToPath, mockNewSslProfile, mockDelSslProfile)
 			assert.Assert(t, err)
 
 			isDirEmpty, _ := utils.IsDirEmpty(TEST_TLS_DIRECTORY)
@@ -289,6 +313,14 @@ func TestCheckingSecretsWithTlsEnabled(t *testing.T) {
 
 		})
 	}
+}
+
+func mockNewSslProfile(sslProfile qdr.SslProfile) error {
+	return nil
+}
+
+func mockDelSslProfile(string, string) error {
+	return nil
 }
 
 func setUpKubernetesMock(cli *client.VanClient) {
