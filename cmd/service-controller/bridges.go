@@ -416,7 +416,10 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 			}
 
 			if len(tlsCredentials) > 0 {
+				verifyHostName := new(bool)
+				*verifyHostName = false
 				httpConnector.SslProfile = types.ServiceClientSecret
+				httpConnector.VerifyHostname = verifyHostName
 			}
 			bridges.AddHttpConnector(httpConnector)
 		case ProtocolTCP:
