@@ -28,3 +28,28 @@ func TestStringifySelector(t *testing.T) {
 		})
 	}
 }
+
+func TestSliceEquals(t *testing.T) {
+	type test struct {
+		name   string
+		sliceA []string
+		sliceB []string
+		result bool
+	}
+
+	testTable := []test{
+		{name: "not equals", sliceA: []string{"one", "two"}, sliceB: []string{"two", "three"}, result: false},
+		{name: "not equals, one is empty", sliceA: []string{}, sliceB: []string{"two", "three"}, result: false},
+		{name: "equals", sliceA: []string{"one", "two"}, sliceB: []string{"one", "two"}, result: true},
+		{name: "equals but different order", sliceA: []string{"one", "two"}, sliceB: []string{"two", "one"}, result: true},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			expectedResult := test.result
+			actualResult := StringSlicesEqual(test.sliceA, test.sliceB)
+			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+		})
+	}
+}
