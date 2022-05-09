@@ -138,6 +138,8 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
 		})
 }
 
+type skipFunction func() string
+
 // Configures a step on the policy test runner, which allows for setting
 // policies on the two clusters, run a set of cli command scenarios and then perform
 // some checks using the `get` command.
@@ -185,6 +187,12 @@ type policyTestStep struct {
 	pubGetCheck  policyGetCheck
 	prvGetCheck  policyGetCheck
 	sleep        time.Duration
+
+	// if provided, skipFunction will be run and its result checked.  If not empty,
+	// the test will be skipped with the return string as the input to t.Skip().
+	// This allows to programatically skip some of the steps, based on environmental
+	// information.
+	skip skipFunction
 }
 
 // Runs the TestStep as an individual Go Test
@@ -192,6 +200,12 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext) {
 	t.Run(
 		s.name,
 		func(t *testing.T) {
+			if s.skip != nil {
+				var skipResult = s.skip()
+				if skipResult != "" {
+					t.Skip(skipResult)
+				}
+			}
 			s.applyPolicies(t, pub, prv)
 			s.runCommands(t, pub, prv)
 			s.runChecks(t, pub, prv)

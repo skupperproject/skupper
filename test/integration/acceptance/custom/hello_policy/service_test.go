@@ -641,6 +641,36 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				},
 			},
 		}, {
+			name: "re-add--re-create--not-bound",
+			steps: []policyTestStep{
+				{
+					name: "readd-allow-all-services-policy",
+					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						{
+							Namespaces:      []string{"*"},
+							AllowedServices: []string{"*"},
+						},
+					},
+					cliScenarios: []cli.TestScenario{
+						serviceCreateFrontTestScenario(pub, "", true),
+					},
+				}, {
+					name:     "services-there--but-not-bound",
+					parallel: true,
+					cliScenarios: []cli.TestScenario{
+						serviceCheckFrontTestScenario(pub, "", []string{"hello-world-backend", "hello-world-backend"}, []string{}, []string{}),
+						serviceCheckBackTestScenario(prv, "", []string{"hello-world-backend"}, []string{}, []string{"hello-world-backend"}),
+					},
+				}, {
+					name: "todo-skip",
+					skip: func() string {
+						// Note that it is services-there--but-not-bound that needs fixing; this one is here just to document, and
+						// should be removed once that one is fixed.  TODO
+						return "TODO: services.StatusTester needs refactored for proper non-bound check"
+					},
+				},
+			},
+		}, {
 			name: "cleanup",
 			steps: []policyTestStep{
 				{

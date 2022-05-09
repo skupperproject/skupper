@@ -86,6 +86,7 @@ Feature: Skupper service creation and binding
     When removing the first policy
     Then the front-end skupper service is removed
      and the backend skupper service shows as not-allowed on pub
+    # re-add--re-create--not-bound
     When re-adding a policy that allows all services on all namespaces
      and recreating the front-end service
     Then both services appear on both namespaces
