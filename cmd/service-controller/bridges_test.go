@@ -20,6 +20,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 	}
 	c := &Controller{
 		vanClient: vanClient,
+		policy:    client.NewClusterPolicyValidator(vanClient),
 	}
 	c.bindings = map[string]*ServiceBindings{}
 	c.ports = newFreePorts()

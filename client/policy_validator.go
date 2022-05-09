@@ -61,6 +61,7 @@ type ClusterPolicyValidator struct {
 	dc                     *discovery.DiscoveryClient
 	skupperPolicy          v1alpha1.SkupperClusterPolicyInterface
 	disablePolicyDiscovery bool
+	staticPolicyList       []v1alpha12.SkupperClusterPolicy
 }
 
 func NewClusterPolicyValidator(cli *VanClient) *ClusterPolicyValidator {
@@ -87,7 +88,14 @@ func (p *ClusterPolicyValidator) getSkupperPolicy() (v1alpha1.SkupperClusterPoli
 	return p.skupperPolicy, nil
 }
 
+func (p *ClusterPolicyValidator) SetStaticPolicyList(policies []v1alpha12.SkupperClusterPolicy) {
+	p.staticPolicyList = policies
+}
+
 func (p *ClusterPolicyValidator) LoadNamespacePolicies() ([]v1alpha12.SkupperClusterPolicy, error) {
+	if p.staticPolicyList != nil {
+		return p.staticPolicyList, nil
+	}
 	policies := []v1alpha12.SkupperClusterPolicy{}
 	skupperPolicy, err := p.getSkupperPolicy()
 	if err != nil {

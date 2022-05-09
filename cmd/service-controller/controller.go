@@ -37,6 +37,7 @@ import (
 type Controller struct {
 	origin            string
 	vanClient         *client.VanClient
+	policy            *client.ClusterPolicyValidator
 	bridgeDefInformer cache.SharedIndexInformer
 	svcDefInformer    cache.SharedIndexInformer
 	svcInformer       cache.SharedIndexInformer
@@ -164,6 +165,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 
 	controller := &Controller{
 		vanClient:          cli,
+		policy:             client.NewClusterPolicyValidator(cli),
 		origin:             origin,
 		tlsConfig:          tlsConfig,
 		bridgeDefInformer:  bridgeDefInformer,
@@ -174,6 +176,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 		ports:              newFreePorts(),
 		disableServiceSync: disableServiceSync,
 	}
+	AddStaticPolicyWatcher(controller.policy)
 
 	// Organize service definitions
 	controller.byOrigin = make(map[string]map[string]types.ServiceInterface)

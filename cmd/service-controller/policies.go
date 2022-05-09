@@ -16,6 +16,7 @@ type PolicyManager struct {
 func newPolicyManager(cli *client.VanClient) *PolicyManager {
 	p := &PolicyManager{}
 	p.validator = client.NewClusterPolicyValidator(cli)
+	AddStaticPolicyWatcher(p.validator)
 	return p
 }
 

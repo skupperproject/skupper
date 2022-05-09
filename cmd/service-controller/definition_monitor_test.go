@@ -43,6 +43,7 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 
 	dm := &DefinitionMonitor{
 		vanClient: vanClient,
+		policy:    client.NewClusterPolicyValidator(vanClient),
 	}
 
 	// Help preparing sample deployments to compose test table
@@ -217,6 +218,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 
 	dm := &DefinitionMonitor{
 		vanClient: vanClient,
+		policy:    client.NewClusterPolicyValidator(vanClient),
 	}
 
 	// Helper used to prepare test table
