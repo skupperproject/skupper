@@ -29,6 +29,7 @@ import (
 type DefinitionMonitor struct {
 	origin                string
 	vanClient             *client.VanClient
+	policy                *client.ClusterPolicyValidator
 	statefulSetInformer   cache.SharedIndexInformer
 	daemonSetInformer     cache.SharedIndexInformer
 	deploymentInformer    cache.SharedIndexInformer
@@ -51,10 +52,11 @@ const (
 	DefinitionMonitorUpdateEvent   string = "DefinitionMonitorUpdateEvent"
 )
 
-func newDefinitionMonitor(origin string, client *client.VanClient, svcDefInformer cache.SharedIndexInformer, svcInformer cache.SharedIndexInformer) *DefinitionMonitor {
+func newDefinitionMonitor(origin string, cli *client.VanClient, svcDefInformer cache.SharedIndexInformer, svcInformer cache.SharedIndexInformer) *DefinitionMonitor {
 	monitor := &DefinitionMonitor{
 		origin:                origin,
-		vanClient:             client,
+		vanClient:             cli,
+		policy:                client.NewClusterPolicyValidator(cli),
 		svcDefInformer:        svcDefInformer,
 		svcInformer:           svcInformer,
 		headless:              make(map[string]types.ServiceInterface),
@@ -64,19 +66,20 @@ func newDefinitionMonitor(origin string, client *client.VanClient, svcDefInforme
 		annotatedDaemonSets:   make(map[string]string),
 		annotatedServices:     make(map[string]string),
 	}
+	AddStaticPolicyWatcher(monitor.policy)
 	monitor.statefulSetInformer = appsv1informer.NewStatefulSetInformer(
-		client.KubeClient,
-		client.Namespace,
+		cli.KubeClient,
+		cli.Namespace,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	monitor.daemonSetInformer = appsv1informer.NewDaemonSetInformer(
-		client.KubeClient,
-		client.Namespace,
+		cli.KubeClient,
+		cli.Namespace,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	monitor.deploymentInformer = appsv1informer.NewDeploymentInformer(
-		client.KubeClient,
-		client.Namespace,
+		cli.KubeClient,
+		cli.Namespace,
 		time.Second*30,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	monitor.events = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-service-monitor")
@@ -215,12 +218,11 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 		}
 		svc.Origin = "annotation"
 
-		policy := client.NewClusterPolicyValidator(m.vanClient)
-		if policyRes := policy.ValidateExpose("deployment", deployment.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose("deployment", deployment.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deployment/%s cannot be exposed", deployment.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
-		if policyRes := policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
 			return types.ServiceInterface{}, false
 		}
@@ -268,12 +270,11 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 		}
 		svc.Origin = "annotation"
 
-		policy := client.NewClusterPolicyValidator(m.vanClient)
-		if policyRes := policy.ValidateExpose("statefulset", statefulset.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose("statefulset", statefulset.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: statefulset/%s cannot be exposed", statefulset.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
-		if policyRes := policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
 			return types.ServiceInterface{}, false
 		}
@@ -324,12 +325,11 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset
 		}
 		svc.Origin = "annotation"
 
-		policy := client.NewClusterPolicyValidator(m.vanClient)
-		if policyRes := policy.ValidateExpose("daemonset", daemonset.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose("daemonset", daemonset.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: daemonset/%s cannot be exposed", daemonset.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
-		if policyRes := policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
 			return types.ServiceInterface{}, false
 		}
@@ -445,12 +445,11 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 		}
 		svc.Origin = "annotation"
 
-		policy := client.NewClusterPolicyValidator(m.vanClient)
-		if policyRes := policy.ValidateExpose("service", service.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose("service", service.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service/%s cannot be exposed", service.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
-		if policyRes := policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
 			return types.ServiceInterface{}, false
 		}
