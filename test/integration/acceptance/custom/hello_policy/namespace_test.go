@@ -31,8 +31,13 @@ type namespaceTest struct {
 }
 
 func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
-	testNamespaceLinkTransitions(t, pub1, pub2)
-	testNamespaceIncomingLinks(t, pub1, pub2)
+	t.Run("testNamespaceLinkTransitions", func(t *testing.T) {
+		testNamespaceLinkTransitions(t, pub1, pub2)
+	})
+
+	t.Run("testNamespaceIncomingLinks", func(t *testing.T) {
+		testNamespaceIncomingLinks(t, pub1, pub2)
+	})
 }
 
 func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
@@ -197,7 +202,10 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 		t.Fatalf("CRD setup failed")
 	}
 
-	initSteps := []cli.TestScenario{skupperInitInteriorTestScenario(pub1, "", true)}
+	initSteps := []cli.TestScenario{
+		skupperInitInteriorTestScenario(pub1, "pub", true),
+		skupperInitInteriorTestScenario(pub2, "prv", true),
+	}
 
 	testTable := []namespaceTest{
 		{
@@ -252,7 +260,7 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 		},
 	}
 
-	cli.RunScenarios(t, initSteps)
+	cli.RunScenariosParallel(t, initSteps)
 
 	if t.Failed() {
 		t.Fatalf("Initialization failed")
@@ -270,10 +278,20 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				return
 			}
 			base.PostPolicyChangeSleep()
+			waitAllGetChecks([]policyGetCheck{
+				{
+					allowIncoming: &item.worksOnTarget,
+					cluster:       pub1,
+				}, {
+					allowIncoming: &item.worksElsewhere,
+					cluster:       pub2,
+				},
+			})
 			cli.RunScenarios(
 				t,
 				[]cli.TestScenario{
-					createTokenPolicyScenario(pub1, "", testPath, fmt.Sprintf("%d", index), item.worksOnTarget),
+					createTokenPolicyScenario(pub1, "target", testPath, fmt.Sprintf("%d", index), item.worksOnTarget),
+					createTokenPolicyScenario(pub2, "elsewhere", testPath, fmt.Sprintf("%d-elsewhere", index), item.worksElsewhere),
 				},
 			)
 		})
@@ -283,10 +301,11 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	// TODO move this to tearDown?
 	t.Run("skupper-delete", func(t *testing.T) {
 
-		cli.RunScenarios(
+		cli.RunScenariosParallel(
 			t,
 			[]cli.TestScenario{
-				deleteSkupperTestScenario(pub1, ""),
+				deleteSkupperTestScenario(pub1, "pub"),
+				deleteSkupperTestScenario(pub2, "prv"),
 			},
 		)
 	})

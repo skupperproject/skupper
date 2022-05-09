@@ -183,9 +183,10 @@ type policyTestStep struct {
 	pubPolicy    []skupperv1.SkupperClusterPolicySpec // ATTENTION to usage; see doc
 	prvPolicy    []skupperv1.SkupperClusterPolicySpec
 	cliScenarios []cli.TestScenario
-	parallel     bool // This will run the cliScenarios parallel
-	pubGetCheck  policyGetCheck
-	prvGetCheck  policyGetCheck
+	parallel     bool           // This will run the cliScenarios parallel
+	pubGetCheck  policyGetCheck // TODO remove this, refactor
+	prvGetCheck  policyGetCheck // TODO remove this, refactor
+	getChecks    []policyGetCheck
 	sleep        time.Duration
 
 	// if provided, skipFunction will be run and its result checked.  If not empty,
@@ -207,6 +208,7 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext) {
 				}
 			}
 			s.applyPolicies(t, pub, prv)
+			s.waitChecks(t, pub, prv)
 			s.runCommands(t, pub, prv)
 			s.runChecks(t, pub, prv)
 
@@ -301,6 +303,13 @@ func (s policyTestStep) runChecks(t *testing.T, pub, prv *base.ClusterContext) {
 	getChecks(t, s.pubGetCheck, pubPolicyClient)
 	log.Printf("Running GET checks on %v", prv.Namespace)
 	getChecks(t, s.prvGetCheck, prvPolicyClient)
+}
+
+func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext) {
+	err := waitAllGetChecks(s.getChecks)
+	if err != nil {
+		t.Errorf("GET check wait failed: %v", err)
+	}
 }
 
 // Run the commands part of the policyTestStep

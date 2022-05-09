@@ -4,6 +4,7 @@
 package hello_policy
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -11,12 +12,14 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	clientv1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -29,6 +32,7 @@ import (
 type policyGetCheck struct {
 	allowIncoming    *bool
 	checkUndefinedAs *bool
+	cluster          *base.ClusterContext
 }
 
 type checkItem func() (result *client.PolicyAPIResult, err error)
@@ -84,6 +88,43 @@ func (p policyGetCheck) check(c *client.PolicyAPIClient) (ok bool, err error) {
 		ok = ok && item
 	}
 	return
+}
+
+// This will keep running all GetChecks in the slice, until all
+// of them return true in the same cycle
+func waitAllGetChecks(checks []policyGetCheck) error {
+	if len(checks) == 0 {
+		// nothing to check
+		return nil
+	}
+	var attempts int
+	ctx, cancelFn := context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
+	defer cancelFn()
+	err := utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
+		attempts++
+		log.Printf("Running GET checks -- attempt %v", attempts)
+		var allGood = true
+		for _, check := range checks {
+			// TODO Change this to have no argument
+			ok, err := check.check(client.NewPolicyValidatorAPI(check.cluster.VanClient))
+			if err != nil {
+				log.Printf("Error on GET check: %v", err)
+				return false, err
+			}
+			if !ok {
+				log.Printf("Check %v failed validation", check)
+				allGood = false
+			}
+		}
+		if allGood {
+			log.Printf("All checks pass")
+			return true, nil
+		}
+		return false, nil
+	})
+
+	return err
+
 }
 
 // Adds the CRD to the cluster
