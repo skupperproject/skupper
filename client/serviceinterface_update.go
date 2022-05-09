@@ -32,7 +32,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 		return fmt.Errorf("Failed to encode service interface as json: %s", err)
 	}
 	var unretryable error = nil
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	err = retry.RetryOnConflict(defaultRetry, func() error {
 		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 		if err == nil {
 			if overwriteIfExists || current.Data == nil || current.Data[service.Address] == "" {
