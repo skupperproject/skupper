@@ -35,6 +35,24 @@ type policyGetCheck struct {
 	cluster          *base.ClusterContext
 }
 
+func (c policyGetCheck) String() string {
+	var ret []string
+
+	if c.allowIncoming != nil {
+		ret = append(ret, fmt.Sprintf("allowIncoming:%v", *c.allowIncoming))
+	}
+
+	if c.checkUndefinedAs != nil {
+		ret = append(ret, fmt.Sprintf("checkUndefinedAs:%v", *c.checkUndefinedAs))
+	}
+
+	if c.cluster != nil {
+		ret = append(ret, fmt.Sprintf("cluster:%v", c.cluster.Namespace))
+	}
+
+	return strings.Join(ret, " ")
+}
+
 type checkItem func() (result *client.PolicyAPIResult, err error)
 
 // This is a helper to check for either a defined policy item or a
@@ -68,8 +86,9 @@ func checkValue(policyItem *bool, checkUndefinedAs *bool, checkFunc checkItem) (
 	return
 }
 
-func (p policyGetCheck) check(c *client.PolicyAPIClient) (ok bool, err error) {
+func (p policyGetCheck) check() (ok bool, err error) {
 	ok = true
+	var c = client.NewPolicyValidatorAPI(p.cluster.VanClient)
 
 	if p.allowIncoming != nil || p.checkUndefinedAs != nil {
 
@@ -103,16 +122,19 @@ func waitAllGetChecks(checks []policyGetCheck) error {
 	err := utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
 		attempts++
 		log.Printf("Running GET checks -- attempt %v", attempts)
+		if base.IsTestInterrupted() {
+			return false, fmt.Errorf("Test interrupted by user")
+		}
 		var allGood = true
 		for _, check := range checks {
 			// TODO Change this to have no argument
-			ok, err := check.check(client.NewPolicyValidatorAPI(check.cluster.VanClient))
+			ok, err := check.check()
 			if err != nil {
 				log.Printf("Error on GET check: %v", err)
-				return false, err
+				allGood = false
 			}
 			if !ok {
-				log.Printf("Check %v failed validation", check)
+				log.Printf("Check %+v failed validation", check)
 				allGood = false
 			}
 		}

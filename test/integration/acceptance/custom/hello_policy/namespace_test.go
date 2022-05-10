@@ -59,15 +59,18 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						skupperInitInteriorTestScenario(pub, "", true),
 						skupperInitEdgeTestScenario(prv, "", true),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming:    cli.Boolp(true),
-						checkUndefinedAs: cli.Boolp(false),
-					},
-					prvGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
-					},
 				}, {
 					name: "connect",
+					getChecks: []policyGetCheck{
+						{
+							cluster:          pub,
+							allowIncoming:    cli.Boolp(true),
+							checkUndefinedAs: cli.Boolp(false),
+						}, {
+							cluster:       prv,
+							allowIncoming: cli.Boolp(false),
+						},
+					},
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "transition", true),
 						createLinkTestScenario(prv, "", "transition"),
@@ -86,12 +89,15 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "transition", false),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming:    cli.Boolp(false),
-						checkUndefinedAs: cli.Boolp(false),
-					},
-					prvGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:          pub,
+							allowIncoming:    cli.Boolp(false),
+							checkUndefinedAs: cli.Boolp(false),
+						}, {
+							cluster:       prv,
+							allowIncoming: cli.Boolp(false),
+						},
 					},
 				},
 			},
@@ -106,12 +112,15 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "transition", true),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming:    cli.Boolp(true),
-						checkUndefinedAs: cli.Boolp(false),
-					},
-					prvGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:          pub,
+							allowIncoming:    cli.Boolp(true),
+							checkUndefinedAs: cli.Boolp(false),
+						}, {
+							cluster:       prv,
+							allowIncoming: cli.Boolp(false),
+						},
 					},
 				},
 			},
@@ -129,9 +138,12 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "transition", false),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming:    cli.Boolp(false),
-						checkUndefinedAs: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:          pub,
+							allowIncoming:    cli.Boolp(false),
+							checkUndefinedAs: cli.Boolp(false),
+						},
 					},
 				},
 			},
@@ -146,12 +158,15 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "transition", true),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming:    cli.Boolp(true),
-						checkUndefinedAs: cli.Boolp(false),
-					},
-					prvGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:          pub,
+							allowIncoming:    cli.Boolp(true),
+							checkUndefinedAs: cli.Boolp(false),
+						}, {
+							cluster:       prv,
+							allowIncoming: cli.Boolp(false),
+						},
 					},
 				},
 			},

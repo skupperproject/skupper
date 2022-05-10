@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -141,8 +140,8 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
 type skipFunction func() string
 
 // Configures a step on the policy test runner, which allows for setting
-// policies on the two clusters, run a set of cli command scenarios and then perform
-// some checks using the `get` command.
+// policies on the two clusters, check the policy status with `get` commands
+// and run a set of cli command scenarios
 //
 // ATTENTION to how the policy lists (pubPolicy, prvPolicy) work:
 // - Each item on the list will generate a policy named pub/prv-policy-i,
@@ -174,6 +173,11 @@ type skipFunction func() string
 // a policy while updating or removing another one that follows it, set it with
 // a sole namespace named KEEP.
 //
+// Right after the policy is set up, the getChecks verifications will run: those
+// are run on the service-controller container, against the `get` command.  These
+// checks work in a retry loop with a timeout, so they can be used to wait for the
+// policy changes to stabilize before running the CLI commands.
+//
 // After all work for the step is done, it can optionally sleep for a configured
 // duration of time, using time.Sleep().  Do not use the sleep for normal testing,
 // as it may hide errors.  Use it only for specialized testing where the time
@@ -182,11 +186,9 @@ type policyTestStep struct {
 	name         string
 	pubPolicy    []skupperv1.SkupperClusterPolicySpec // ATTENTION to usage; see doc
 	prvPolicy    []skupperv1.SkupperClusterPolicySpec
-	cliScenarios []cli.TestScenario
-	parallel     bool           // This will run the cliScenarios parallel
-	pubGetCheck  policyGetCheck // TODO remove this, refactor
-	prvGetCheck  policyGetCheck // TODO remove this, refactor
 	getChecks    []policyGetCheck
+	cliScenarios []cli.TestScenario
+	parallel     bool // This will run the cliScenarios parallel
 	sleep        time.Duration
 
 	// if provided, skipFunction will be run and its result checked.  If not empty,
@@ -210,7 +212,6 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext) {
 			s.applyPolicies(t, pub, prv)
 			s.waitChecks(t, pub, prv)
 			s.runCommands(t, pub, prv)
-			s.runChecks(t, pub, prv)
 
 			if s.sleep.Nanoseconds() > 0 {
 				log.Printf("Sleeping for %v", s.sleep)
@@ -276,33 +277,6 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 			})
 		base.PostPolicyChangeSleep()
 	}
-}
-
-// Runs a policy check using `get`.  It receives a *testing.T, so it does not return;
-// it marks the test as failed if the check fails.
-func getChecks(t *testing.T, getCheck policyGetCheck, c *client.PolicyAPIClient) {
-	ok, err := getCheck.check(c)
-	if err != nil {
-		t.Errorf("GET check failed with error: %v", err)
-		return
-	}
-
-	if !ok {
-		t.Errorf("GET check failed (check: %v)", getCheck)
-	}
-}
-
-// Runs the configured GET checks
-func (s policyTestStep) runChecks(t *testing.T, pub, prv *base.ClusterContext) {
-
-	// TODO: move these two into getChecks
-	pubPolicyClient := client.NewPolicyValidatorAPI(pub.VanClient)
-	prvPolicyClient := client.NewPolicyValidatorAPI(prv.VanClient)
-
-	log.Printf("Running GET checks on %v", pub.Namespace)
-	getChecks(t, s.pubGetCheck, pubPolicyClient)
-	log.Printf("Running GET checks on %v", prv.Namespace)
-	getChecks(t, s.prvGetCheck, prvPolicyClient)
 }
 
 func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext) {

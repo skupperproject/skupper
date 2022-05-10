@@ -194,8 +194,11 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "fail", false),
 					},
-					pubGetCheck: policyGetCheck{
-						checkUndefinedAs: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:          pub,
+							checkUndefinedAs: cli.Boolp(false),
+						},
 					},
 				},
 			},
@@ -216,12 +219,15 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						linkStatusTestScenario(prv, "", "works", true),
 						sitesConnectedTestScenario(pub, prv, "", "works"),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming:    cli.Boolp(true),
-						checkUndefinedAs: cli.Boolp(false),
-					},
-					prvGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:          pub,
+							allowIncoming:    cli.Boolp(true),
+							checkUndefinedAs: cli.Boolp(false),
+						}, {
+							cluster:       prv,
+							allowIncoming: cli.Boolp(false),
+						},
 					},
 				}, {
 					name: "remove",
@@ -231,11 +237,14 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "works", false),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
-					},
-					prvGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:       pub,
+							allowIncoming: cli.Boolp(false),
+						}, {
+							cluster:       prv,
+							allowIncoming: cli.Boolp(false),
+						},
 					},
 				}, {
 					name: "re-allow",
@@ -247,12 +256,15 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						sitesConnectedTestScenario(pub, prv, "", "works"),
 						linkDeleteTestScenario(prv, "", "works"),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming:    cli.Boolp(true),
-						checkUndefinedAs: cli.Boolp(false),
-					},
-					prvGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:          pub,
+							allowIncoming:    cli.Boolp(true),
+							checkUndefinedAs: cli.Boolp(false),
+						}, {
+							cluster:       prv,
+							allowIncoming: cli.Boolp(false),
+						},
 					},
 				},
 			},
@@ -267,6 +279,12 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
 					},
+					getChecks: []policyGetCheck{
+						{
+							allowIncoming: cli.Boolp(true),
+							cluster:       pub,
+						},
+					},
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "previous", true),
 					},
@@ -279,8 +297,11 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						createLinkTestScenario(prv, "", "previous"),
 						linkStatusTestScenario(prv, "", "previous", false),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(false),
+					getChecks: []policyGetCheck{
+						{
+							cluster:       pub,
+							allowIncoming: cli.Boolp(false),
+						},
 					},
 				}, {
 					name: "re-allow-and-check-link",
@@ -292,8 +313,11 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						sitesConnectedTestScenario(pub, prv, "", "previous"),
 						linkDeleteTestScenario(prv, "", "previous"),
 					},
-					pubGetCheck: policyGetCheck{
-						allowIncoming: cli.Boolp(true),
+					getChecks: []policyGetCheck{
+						{
+							cluster:       pub,
+							allowIncoming: cli.Boolp(true),
+						},
 					},
 				},
 			},
