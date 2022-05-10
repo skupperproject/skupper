@@ -4,7 +4,9 @@
 package hello_policy
 
 import (
+	"bytes"
 	"fmt"
+	"html/template"
 	"log"
 	"regexp"
 	"strconv"
@@ -64,6 +66,7 @@ type policyTestRunner struct {
 	keepPolicies bool
 	pubPolicies  []v1alpha1.SkupperClusterPolicySpec
 	prvPolicies  []v1alpha1.SkupperClusterPolicySpec
+	contextMap   *map[string]string
 }
 
 // Runs each test case in turn
@@ -71,7 +74,7 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 
 	err := wipePolicies(t, pub, prv)
 	if err != nil {
-		t.Fatalf("Unable to remove policies: %w", err)
+		t.Fatalf("Unable to remove policies: %v", err)
 	}
 	if len(r.pubPolicies)+len(r.prvPolicies) > 0 {
 		t.Run(
@@ -103,7 +106,7 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 		if base.IsTestInterrupted() {
 			break
 		}
-		testCase.run(t, pub, prv)
+		testCase.run(t, pub, prv, r.contextMap)
 	}
 	err = wipePolicies(t, pub, prv)
 	if err != nil {
@@ -121,14 +124,14 @@ type policyTestCase struct {
 
 // Runs the individual steps in a test case.  The test case is an individual
 // Go test
-func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
+func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext, contextMap *map[string]string) {
 
 	t.Run(
 		c.name,
 		func(t *testing.T) {
 			for _, step := range c.steps {
 
-				step.run(t, pub, prv)
+				step.run(t, pub, prv, contextMap)
 				if base.IsTestInterrupted() {
 					break
 				}
@@ -138,6 +141,7 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext) {
 }
 
 type skipFunction func() string
+type mapEntryFunction func() (string, string, error)
 
 // Configures a step on the policy test runner, which allows for setting
 // policies on the two clusters, check the policy status with `get` commands
@@ -196,10 +200,12 @@ type policyTestStep struct {
 	// This allows to programatically skip some of the steps, based on environmental
 	// information.
 	skip skipFunction
+
+	register mapEntryFunction
 }
 
 // Runs the TestStep as an individual Go Test
-func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext) {
+func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext, contextMap *map[string]string) {
 	t.Run(
 		s.name,
 		func(t *testing.T) {
@@ -209,7 +215,11 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext) {
 					t.Skip(skipResult)
 				}
 			}
-			s.applyPolicies(t, pub, prv)
+			s.runRegister(t, pub, prv, contextMap)
+			if contextMap != nil {
+				log.Printf("context: %v", *contextMap)
+			}
+			s.applyPolicies(t, pub, prv, contextMap)
 			s.waitChecks(t, pub, prv)
 			s.runCommands(t, pub, prv)
 
@@ -220,10 +230,23 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext) {
 		})
 }
 
+func (s policyTestStep) runRegister(t *testing.T, pub, prv *base.ClusterContext, contextMap *map[string]string) {
+	if s.register == nil {
+		return
+	}
+	key, value, err := s.register()
+	if err != nil {
+		t.Fatalf("Register step failed: %v", err)
+	}
+	(*contextMap)[key] = value
+	log.Printf("Registered %v=%v", key, value)
+
+}
+
 // Apply all policies, on pub and prv
 //
 // See policyTestStep documentation for behavior
-func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContext) {
+func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContext, contextMap *map[string]string) {
 
 	if len(s.pubPolicy)+len(s.prvPolicy) > 0 {
 		t.Run(
@@ -267,7 +290,12 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 							}
 						}
 
-						err = applyPolicy(t, policyName, policy, item.cluster)
+						templatedPolicySpec, err := templatePolicySpec(policy, contextMap)
+						if err != nil {
+							t.Fatalf("Failed to template policy %v: %v", policy, err)
+						}
+
+						err = applyPolicy(t, policyName, templatedPolicySpec, item.cluster)
 						if err != nil {
 							t.Fatalf("Failed to apply policy: %v", err)
 						}
@@ -277,6 +305,64 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 			})
 		base.PostPolicyChangeSleep()
 	}
+}
+
+// Templates each of the strings using the map c, and return the result
+func templateStringList(l []string, c *map[string]string) ([]string, error) {
+	if c == nil || len(l) == 0 {
+		return l, nil
+	}
+
+	var ret = make([]string, 0, len(l))
+
+	for _, item := range l {
+		buf := &bytes.Buffer{}
+		tmpl, err := template.New("").Parse(item)
+		if err != nil {
+			return ret, err
+		}
+		err = tmpl.Execute(buf, *c)
+		if err != nil {
+			return ret, err
+		}
+		ret = append(ret, buf.String())
+	}
+	return ret, nil
+}
+
+// Runs a template over each string item in a skupperv1.SkupperClusterPolicy spec
+// TODO change this to use reflection?
+func templatePolicySpec(p skupperv1.SkupperClusterPolicySpec, c *map[string]string) (skupperv1.SkupperClusterPolicySpec, error) {
+	if c == nil || len(*c) == 0 {
+		return p, nil
+	}
+
+	namespaces, err := templateStringList(p.Namespaces, c)
+	if err != nil {
+		return p, err
+	}
+	allowedOutgoingLinksHostnames, err := templateStringList(p.AllowedOutgoingLinksHostnames, c)
+	if err != nil {
+		return p, err
+	}
+	allowedExposedResources, err := templateStringList(p.AllowedExposedResources, c)
+	if err != nil {
+		return p, err
+	}
+	allowedServices, err := templateStringList(p.AllowedServices, c)
+	if err != nil {
+		return p, err
+	}
+
+	newPolicySpec := skupperv1.SkupperClusterPolicySpec{
+		Namespaces:                    namespaces,
+		AllowIncomingLinks:            p.AllowIncomingLinks,
+		AllowedOutgoingLinksHostnames: allowedOutgoingLinksHostnames,
+		AllowedExposedResources:       allowedExposedResources,
+		AllowedServices:               allowedServices,
+	}
+
+	return newPolicySpec, err
 }
 
 func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext) {

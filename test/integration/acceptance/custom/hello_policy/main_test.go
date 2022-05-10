@@ -47,10 +47,10 @@ func (c policyGetCheck) String() string {
 	}
 
 	if c.cluster != nil {
-		ret = append(ret, fmt.Sprintf("cluster:%v", c.cluster.Namespace))
+		ret = append(ret, fmt.Sprintf("namespace:%v", c.cluster.Namespace))
 	}
 
-	return strings.Join(ret, " ")
+	return fmt.Sprintf("policyGetCheck{%v}", strings.Join(ret, " "))
 }
 
 type checkItem func() (result *client.PolicyAPIResult, err error)
@@ -601,6 +601,15 @@ func TestPolicies(t *testing.T) {
 			removePolicies(t, pub1)
 			removePolicies(t, pub2)
 			testServicePolicyTransitions(t, pub1, pub2)
+		})
+
+		base.StopIfInterrupted(t)
+
+		t.Run("testHostnames", func(t *testing.T) {
+			applyCrd(t, pub1)
+			removePolicies(t, pub1)
+			removePolicies(t, pub2)
+			testHostnamesPolicy(t, pub1, pub2)
 		})
 
 		base.StopIfInterrupted(t)

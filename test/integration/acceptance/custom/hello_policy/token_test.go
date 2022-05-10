@@ -25,6 +25,11 @@ func createTokenPolicyScenario(cluster *base.ClusterContext, prefix, testPath, n
 					Name:             name,
 					FileName:         testPath + "/" + name + ".token.yaml",
 					ExpectDisallowed: !works,
+					// Here, we deviate from Hello World, as we're not testing expiry or uses.
+					// This allows the token to be used repeatedly on some tests, saving
+					// some time.
+					Expiry: "600m",
+					Uses:   "1000",
 				},
 			}},
 		},

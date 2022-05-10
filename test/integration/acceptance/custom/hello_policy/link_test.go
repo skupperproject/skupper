@@ -185,8 +185,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 				},
 			},
-		},
-		{
+		}, {
 			name: "empty-policy-fails-token-creation",
 			steps: []policyTestStep{
 				{
