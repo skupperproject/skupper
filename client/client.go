@@ -1,10 +1,13 @@
 package client
 
 import (
+	"time"
+
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/skupperproject/skupper/api/types"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -18,6 +21,12 @@ import (
 
 var Version = "undefined"
 var minimumCompatibleVersion = "0.8.0"
+var defaultRetry = wait.Backoff{
+	Steps:    100,
+	Duration: 10 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
+}
 
 // A VAN Client manages orchestration and communications with the network components
 type VanClient struct {
