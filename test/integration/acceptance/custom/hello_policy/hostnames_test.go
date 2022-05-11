@@ -158,7 +158,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	policyTestRunner{
 		testCases:  testTable,
-		contextMap: &context,
+		contextMap: context,
 		pubPolicies: []v1alpha1.SkupperClusterPolicySpec{
 			{
 				Namespaces:              []string{"*"},
