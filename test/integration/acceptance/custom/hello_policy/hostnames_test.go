@@ -4,6 +4,7 @@
 package hello_policy
 
 import (
+	"fmt"
 	"net"
 	"net/url"
 	"testing"
@@ -14,17 +15,14 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type transformTarget func()
-
 type hostnamesPolicyInstructions struct {
 	name           string
-	transformation mapEntryFunction
-	allowed        bool
+	transformation hookFunction
+	createAllowed  bool // Link creation works, based on policy to claim host
+	connectAllowed bool // Link gets connected, based on policy to router host
 }
 
 func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
-
-	var context = map[string]string{}
 
 	init := []policyTestCase{
 		{
@@ -42,44 +40,41 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					name:      "create-token-link",
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "prefix", "./tmp", "hostnames", true),
+						// This link is temporary; we only need it to get the hostnames for later steps
 						createLinkTestScenario(prv, "", "hostnames"),
 						linkStatusTestScenario(prv, "", "hostnames", true),
 					},
 				}, {
-					name: "register-claim-hostname",
-					register: func() (string, string, error) {
+					// We need to know the actual hosts we'll be connecting to, so we get them from the secret
+					name: "register-hostnames",
+					preHook: func(context map[string]string) error {
 						secret, err := prv.VanClient.KubeClient.CoreV1().Secrets(prv.Namespace).Get("hostnames", v1.GetOptions{})
 						if err != nil {
-							return "", "", err
+							return err
 						}
-
 						url, err := url.Parse(secret.ObjectMeta.Annotations["skupper.io/url"])
 						if err != nil {
-							return "", "", err
+							return err
 						}
 						host, _, err := net.SplitHostPort(url.Host)
 						if err != nil {
-							return "", "", err
+							return err
 						}
+						context["target"] = host
 
-						return "target", host, nil
-
-					},
-				}, {
-					name: "register-router-hostname",
-					register: func() (string, string, error) {
-						secret, err := prv.VanClient.KubeClient.CoreV1().Secrets(prv.Namespace).Get("hostnames", v1.GetOptions{})
-						if err != nil {
-							return "", "", err
+						interRouterHost, ok := secret.ObjectMeta.Annotations["inter-router-host"]
+						if !ok {
+							return fmt.Errorf("inter-router-host not available from secret")
 						}
+						context["router"] = interRouterHost
 
-						host := secret.ObjectMeta.Annotations["inter-router-host"]
-						return "router", host, nil
+						return nil
 					},
 				}, {
 					name:      "remove-tmp-policy-and-link",
 					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy("REMOVE", []string{})},
 					cliScenarios: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "hostnames", false),
 						linkDeleteTestScenario(prv, "", "hostnames"),
 					},
 				},
@@ -106,8 +101,8 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	tests := []hostnamesPolicyInstructions{
 		{
 			name:           "same",
-			transformation: func() (string, string, error) { return "actual", context["target"], nil },
-			allowed:        true,
+			transformation: func(context map[string]string) error { context["actual"] = context["target"]; return nil },
+			createAllowed:  true,
 		},
 	}
 
@@ -129,7 +124,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		var name string
 		var scenarios []cli.TestScenario
 
-		if t.allowed {
+		if t.createAllowed {
 			name = "succeed"
 			scenarios = createTester
 		} else {
@@ -144,21 +139,24 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					name:         name,
 					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.actual}}", "{{.router}}"})},
 					cliScenarios: scenarios,
-					register:     t.transformation,
+					preHook:      t.transformation,
 				},
 			},
 		}
 		createTestTable = append(createTestTable, createTestCase)
 	}
 
-	testTable := init
-	for _, t := range [][]policyTestCase{createTestTable, cleanup} {
+	testTable := []policyTestCase{}
+	for _, t := range [][]policyTestCase{init, createTestTable, cleanup} {
 		testTable = append(testTable, t...)
 	}
+
+	var context = map[string]string{}
 
 	policyTestRunner{
 		testCases:  testTable,
 		contextMap: context,
+		// We allow everything on both clusters, except for hostnames
 		pubPolicies: []v1alpha1.SkupperClusterPolicySpec{
 			{
 				Namespaces:              []string{"*"},

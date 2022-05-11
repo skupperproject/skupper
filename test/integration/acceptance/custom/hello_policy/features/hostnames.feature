@@ -23,11 +23,14 @@ Feature: Skupper link limiting with AllowedOutgoingLinksHostnames
 
   Scenario: 
    Given a cluster with an all-allowing policy
+    # create-token-link
     When trying to create a link
     Then it works
      and we can register metadata.annotations.edge-host of its secret as $target
+    # remove-tmp-policy-and-link
     When we remove all permissions on AllowedOutgoingLinksHostnames
     Then the link drops
+     and we can also remove the link
     When we add a single AllowedOutgoingLinksHostnames containing ^$target$
     Then it comes up again
     When we set AllowedOutgoingLinksHostnames as $target, but only till the first dot, anchored on both sides

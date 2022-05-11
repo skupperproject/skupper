@@ -66,7 +66,7 @@ type policyTestRunner struct {
 	keepPolicies bool
 	pubPolicies  []v1alpha1.SkupperClusterPolicySpec
 	prvPolicies  []v1alpha1.SkupperClusterPolicySpec
-	contextMap   map[string]string
+	contextMap   map[string]string // user needs to initialize if using
 }
 
 // Runs each test case in turn
@@ -141,11 +141,11 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext, context
 }
 
 type skipFunction func() string
-type mapEntryFunction func() (string, string, error)
+type hookFunction func(map[string]string) error
 
 // Configures a step on the policy test runner, which allows for setting
 // policies on the two clusters, check the policy status with `get` commands
-// and run a set of cli command scenarios
+// and run a set of cli command scenarios, along with some other helper steps.
 //
 // ATTENTION to how the policy lists (pubPolicy, prvPolicy) work:
 // - Each item on the list will generate a policy named pub/prv-policy-i,
@@ -186,8 +186,18 @@ type mapEntryFunction func() (string, string, error)
 // duration of time, using time.Sleep().  Do not use the sleep for normal testing,
 // as it may hide errors.  Use it only for specialized testing where the time
 // between steps is paramount to the test itself.
+//
+// The very first step executed when a policyTestStep is run is the preHook, if
+// configured.  That's a call to a function in the form func(map[string]string)error,
+// that receives a context map.  One can use the preHook function to operate on
+// the context map, or to do any other operations that cannot be done at the time
+// the test table is defined (for example, if it depends on previous steps).
+//
+// The context map is also used when applying policies, so the key/values pairs
+// there can be accessed as Go Templates on the policies' items.
 type policyTestStep struct {
 	name         string
+	preHook      hookFunction
 	pubPolicy    []skupperv1.SkupperClusterPolicySpec // ATTENTION to usage; see doc
 	prvPolicy    []skupperv1.SkupperClusterPolicySpec
 	getChecks    []policyGetCheck
@@ -200,8 +210,6 @@ type policyTestStep struct {
 	// This allows to programatically skip some of the steps, based on environmental
 	// information.
 	skip skipFunction
-
-	register mapEntryFunction
 }
 
 // Runs the TestStep as an individual Go Test
@@ -215,10 +223,7 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext, context
 					t.Skip(skipResult)
 				}
 			}
-			s.runRegister(t, pub, prv, contextMap)
-			if contextMap != nil {
-				log.Printf("context: %v", contextMap)
-			}
+			s.runPreHook(t, pub, prv, contextMap)
 			s.applyPolicies(t, pub, prv, contextMap)
 			s.waitChecks(t, pub, prv)
 			s.runCommands(t, pub, prv)
@@ -230,17 +235,14 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext, context
 		})
 }
 
-func (s policyTestStep) runRegister(t *testing.T, pub, prv *base.ClusterContext, contextMap map[string]string) {
-	if s.register == nil {
+func (s policyTestStep) runPreHook(t *testing.T, pub, prv *base.ClusterContext, contextMap map[string]string) {
+	if s.preHook == nil {
 		return
 	}
-	key, value, err := s.register()
+	err := s.preHook(contextMap)
 	if err != nil {
-		t.Fatalf("Register step failed: %v", err)
+		t.Fatalf("preHook step failed: %v", err)
 	}
-	contextMap[key] = value
-	log.Printf("Registered %v=%v", key, value)
-
 }
 
 // Apply all policies, on pub and prv
