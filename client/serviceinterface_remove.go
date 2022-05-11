@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/qdr"
 	"log"
 
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -15,7 +15,7 @@ import (
 
 func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string) error {
 	var unretryable error = nil
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	err := retry.RetryOnConflict(defaultRetry, func() error {
 		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 		if err == nil && current.Data != nil {
 			jsonDef := current.Data[address]
