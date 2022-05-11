@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -51,7 +52,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "prefix", "./tmp", "hostnames", true),
 						// This link is temporary; we only need it to get the hostnames for later steps
-						createLinkTestScenario(prv, "", "hostnames"),
+						createLinkTestScenario(prv, "", "hostnames", false),
 						linkStatusTestScenario(prv, "", "hostnames", true),
 					},
 				}, {
@@ -116,23 +117,102 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			transformation: func(input string) string { return input },
 			allowed:        true,
 		}, {
-			name: "first-dot",
+			name: "first-dot-anchored",
 			transformation: func(input string) string {
 				return fmt.Sprintf("^%v$", strings.Split(input, ".")[0])
 			},
 			allowed: false,
+		}, {
+			name: "first-dot-left-anchor",
+			transformation: func(input string) string {
+				return fmt.Sprintf("^%v.*", strings.Split(input, ".")[0])
+			},
+			allowed: true,
+		}, {
+			name: "last-dot-anchored",
+			transformation: func(input string) string {
+				split := strings.Split(input, ".")
+				return fmt.Sprintf("^%v$", split[len(split)-1])
+			},
+			allowed: false,
+		}, {
+			name: "last-dot-right-anchor",
+			transformation: func(input string) string {
+				split := strings.Split(input, ".")
+				return fmt.Sprintf("%v$", split[len(split)-1])
+			},
+			allowed: true,
+		}, {
+			name: "replaced-by-hard-dots",
+			transformation: func(input string) string {
+				if len(input) > 3 {
+					return fmt.Sprintf("\\.%v\\.", input[1:len(input)-2])
+				} else {
+					return "\\.\\."
+				}
+			},
+			allowed: false,
+		}, {
+			name: "replaced-by-soft-dots",
+			transformation: func(input string) string {
+				if len(input) > 3 {
+					return fmt.Sprintf(".%v.", input[1:len(input)-2])
+				} else {
+					return "."
+				}
+			},
+			allowed: true,
+		}, {
+			name: "lots-of-dashes",
+			transformation: func(input string) string {
+				re := regexp.MustCompile(".(.)")
+				return re.ReplaceAllString(input, "-$1")
+			},
+			allowed: false,
+		}, {
+			name: "lots-of-dots",
+			transformation: func(input string) string {
+				re := regexp.MustCompile(".(.)")
+				return re.ReplaceAllString(input, ".$1")
+			},
+			allowed: true,
+		}, {
+			name: "something-else",
+			transformation: func(input string) string {
+				return "^something-else-you-are-not-naming-your-host-like-this-right$"
+			},
+			allowed: false,
+		}, {
+			name: "anchored",
+			transformation: func(input string) string {
+				return fmt.Sprintf("^%v$", input)
+			},
+			allowed: true,
+		}, {
+			name: "unanchored-but-shorter-than-expected",
+			transformation: func(input string) string {
+				return fmt.Sprintf(".%v.", input)
+			},
+			allowed: false,
+		}, {
+			name: "hardify-dots",
+			transformation: func(input string) string {
+				// we're replacing any "." by "\."
+				re := regexp.MustCompile("\\.")
+				return fmt.Sprintf("^%v$", re.ReplaceAllString(input, "\\."))
+			},
+			allowed: true,
 		},
 	}
 
 	createTester := []cli.TestScenario{
-		createLinkTestScenario(prv, "", "hostnames"),
+		createLinkTestScenario(prv, "", "hostnames", false),
 		linkStatusTestScenario(prv, "", "hostnames", true),
 		linkDeleteTestScenario(prv, "", "hostnames"),
 	}
 
 	failCreateTester := []cli.TestScenario{
-		createLinkTestScenario(prv, "", "hostnames"),
-		linkStatusTestScenario(prv, "", "hostnames", false),
+		createLinkTestScenario(prv, "", "hostnames", true),
 	}
 
 	createTestTable := []policyTestCase{}
@@ -160,10 +240,8 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.claim}}", "{{.router}}"})},
 					cliScenarios: scenarios,
 					preHook: func(c map[string]string) error {
-						log.Printf("before: %v", c)
 						c[claim] = transformation(c[originalClaim])
 						c[router] = transformation(c[originalRouter])
-						log.Printf("after: %v", c)
 						return nil
 					},
 				},

@@ -17,7 +17,7 @@ import (
 // Returns a scenario with a single link.CreateTester
 //
 // It runs no test task, as the link may have been created but as inactive
-func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
+func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string, disallowed bool) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
 		Name: prefixName(prefix, "connect-sites"),
@@ -25,9 +25,10 @@ func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string) (scen
 			{
 				Ctx: ctx, Commands: []cli.SkupperCommandTester{
 					&link.CreateTester{
-						TokenFile: "./tmp/" + name + ".token.yaml",
-						Name:      name,
-						Cost:      1,
+						TokenFile:       "./tmp/" + name + ".token.yaml",
+						Name:            name,
+						Cost:            1,
+						PolicyProhibits: disallowed,
 					},
 				},
 			},
@@ -139,7 +140,7 @@ func connectSitesTestScenario(pub, prv *base.ClusterContext, prefix, name string
 	scenario.Name = prefixName(prefix, "connect-sites")
 
 	scenario.AppendTasks(
-		createLinkTestScenario(prv, prefix, name),
+		createLinkTestScenario(prv, prefix, name, false),
 		linkStatusTestScenario(prv, prefix, name, true),
 	)
 
@@ -214,7 +215,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "works", true),
-						createLinkTestScenario(prv, "", "works"),
+						createLinkTestScenario(prv, "", "works", false),
 						linkStatusTestScenario(prv, "", "works", true),
 						sitesConnectedTestScenario(pub, prv, "", "works"),
 					},
@@ -293,7 +294,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						allowIncomingLinkPolicy(pub.Namespace, false),
 					},
 					cliScenarios: []cli.TestScenario{
-						createLinkTestScenario(prv, "", "previous"),
+						createLinkTestScenario(prv, "", "previous", false),
 						linkStatusTestScenario(prv, "", "previous", false),
 					},
 					getChecks: []policyGetCheck{

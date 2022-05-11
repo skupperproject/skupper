@@ -47,7 +47,7 @@ Feature: Skupper link limiting with AllowedOutgoingLinksHostnames
     Then it comes up
     When we change every other character of $target to be a dash (-)
     Then it goes down
-    When we change every other character of $target to be a dot (-)
+    When we change every other character of $target to be a dot (.)
     Then it comes up
 
 

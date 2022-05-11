@@ -13,9 +13,10 @@ import (
 // CreateTester runs `skupper link create` and asserts output
 // contains what is expected by the user.
 type CreateTester struct {
-	TokenFile string
-	Name      string
-	Cost      int
+	TokenFile       string
+	Name            string
+	Cost            int
+	PolicyProhibits bool
 }
 
 func (l *CreateTester) Command(cluster *base.ClusterContext) []string {
@@ -37,7 +38,21 @@ func (l *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	// Execute link create command
 	stdout, stderr, err = cli.RunSkupperCli(l.Command(cluster))
 	if err != nil {
+		if l.PolicyProhibits {
+			err = cli.Expect{
+				StdErr: []string{
+					"Error: Failed to create link:",
+					"is not allowed",
+				},
+			}.Check(stdout, stderr)
+			return
+		}
 		return
+	} else {
+		if l.PolicyProhibits {
+			err = fmt.Errorf("Policy error was expected, but not encountered")
+			return
+		}
 	}
 
 	// Validating output

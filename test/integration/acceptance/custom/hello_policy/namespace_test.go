@@ -73,7 +73,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "", "./tmp", "transition", true),
-						createLinkTestScenario(prv, "", "transition"),
+						createLinkTestScenario(prv, "", "transition", false),
 						sitesConnectedTestScenario(pub, prv, "", "transition"),
 					},
 				},
