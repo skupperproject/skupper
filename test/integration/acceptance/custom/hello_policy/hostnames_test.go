@@ -205,6 +205,9 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		},
 	}
 
+	// Creation testing, tied to claim hostname
+	createTestTable := []policyTestCase{}
+
 	createTester := []cli.TestScenario{
 		createLinkTestScenario(prv, "", "hostnames", false),
 		linkStatusTestScenario(prv, "", "hostnames", true),
@@ -214,8 +217,6 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	failCreateTester := []cli.TestScenario{
 		createLinkTestScenario(prv, "", "hostnames", true),
 	}
-
-	createTestTable := []policyTestCase{}
 
 	for _, t := range tests {
 		var createTestCase policyTestCase
@@ -250,16 +251,90 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		createTestTable = append(createTestTable, createTestCase)
 	}
 
+	// status testing, tied to router hostname (link being establised)
+	statusTestTable := []policyTestCase{}
+
+	statusTester := []cli.TestScenario{
+		linkStatusTestScenario(prv, "", "hostnames", true),
+	}
+
+	failStatusTester := []cli.TestScenario{
+		linkStatusTestScenario(prv, "", "hostnames", false),
+	}
+
+	for _, t := range tests {
+		var statusTestCase policyTestCase
+		var name string
+		var scenarios []cli.TestScenario
+
+		if t.allowed {
+			name = "succeed"
+			scenarios = statusTester
+		} else {
+			name = "fail"
+			scenarios = failStatusTester
+		}
+
+		transformation := t.transformation
+
+		statusTestCase = policyTestCase{
+			name: t.name,
+			steps: []policyTestStep{
+				{
+					name: name,
+					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						allowedOutgoingLinksHostnamesPolicy(
+							prv.Namespace,
+							[]string{"{{.claim}}", "{{.router}}"},
+						),
+					},
+					cliScenarios: scenarios,
+					preHook: func(c map[string]string) error {
+						c[claim] = transformation(c[originalClaim])
+						c[router] = transformation(c[originalRouter])
+						return nil
+					},
+				},
+			},
+		}
+		statusTestTable = append(statusTestTable, statusTestCase)
+	}
+
+	linkForStatus := []policyTestCase{
+		{
+			name: "create-link-for-status-testing",
+			steps: []policyTestStep{
+				{
+					name: "create",
+					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
+					},
+					cliScenarios: []cli.TestScenario{
+						createLinkTestScenario(prv, "", "hostnames", false),
+						linkStatusTestScenario(prv, "", "hostnames", true),
+					},
+				},
+			},
+		},
+	}
+
 	testTable := []policyTestCase{}
-	for _, t := range [][]policyTestCase{init, createTestTable, cleanup} {
+	for _, t := range [][]policyTestCase{
+		init,
+		createTestTable,
+		linkForStatus,
+		//statusTestTable,
+		cleanup,
+	} {
 		testTable = append(testTable, t...)
 	}
 
 	var context = map[string]string{}
 
 	policyTestRunner{
-		testCases:  testTable,
-		contextMap: context,
+		testCases:    testTable,
+		contextMap:   context,
+		keepPolicies: true,
 		// We allow everything on both clusters, except for hostnames
 		pubPolicies: []v1alpha1.SkupperClusterPolicySpec{
 			{
