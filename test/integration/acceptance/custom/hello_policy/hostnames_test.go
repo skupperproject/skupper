@@ -15,6 +15,13 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	originalRouter = "originalRouter"
+	originalClaim  = "originalClaim"
+	router         = "router"
+	claim          = "claim"
+)
+
 type hostnamesPolicyInstructions struct {
 	name           string
 	transformation hookFunction
@@ -60,13 +67,13 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						if err != nil {
 							return err
 						}
-						context["target"] = host
+						context[originalClaim] = host
 
 						interRouterHost, ok := secret.ObjectMeta.Annotations["inter-router-host"]
 						if !ok {
 							return fmt.Errorf("inter-router-host not available from secret")
 						}
-						context["router"] = interRouterHost
+						context[originalRouter] = interRouterHost
 
 						return nil
 					},
@@ -101,7 +108,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	tests := []hostnamesPolicyInstructions{
 		{
 			name:           "same",
-			transformation: func(context map[string]string) error { context["actual"] = context["target"]; return nil },
+			transformation: func(context map[string]string) error { context[claim] = context[originalClaim]; return nil },
 			createAllowed:  true,
 		},
 	}
@@ -137,7 +144,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			steps: []policyTestStep{
 				{
 					name:         name,
-					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.actual}}", "{{.router}}"})},
+					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.claim}}", "{{.router}}"})},
 					cliScenarios: scenarios,
 					preHook:      t.transformation,
 				},
