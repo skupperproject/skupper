@@ -108,7 +108,7 @@ func (s *IperfScenario) String() string {
 
 // initializeClusters creates the namespaces, initializes Skupper,
 // if using a skupper site, and get sites connected.
-func (s *IperfScenario) initializeClusters(t *testing.T) {
+func (s *IperfScenario) initializeClusters(t *testing.T, debugMode bool) {
 	needs := base.ClusterNeeds{
 		NamespaceId:    "iperf",
 		PublicClusters: s.clustersNeeded(),
@@ -119,6 +119,19 @@ func (s *IperfScenario) initializeClusters(t *testing.T) {
 	}
 	_, err := s.testRunner.Build(needs, nil)
 	assert.Assert(t, err)
+
+	routerOptions := types.RouterOptions{
+		Tuning: types.Tuning{
+			Cpu:    s.SkupperSettings.Cpu,
+			Memory: s.SkupperSettings.Memory,
+		},
+		MaxFrameSize:     s.SkupperSettings.MaxFrameSize,
+		MaxSessionFrames: s.SkupperSettings.MaxSessionFrames,
+	}
+	if debugMode {
+		t.Logf("setting router debug options")
+		routerOptions = constants.DefaultRouterOptions(&routerOptions)
+	}
 
 	if s.SkupperSites > 0 {
 		var connectionToken string
@@ -138,14 +151,7 @@ func (s *IperfScenario) initializeClusters(t *testing.T) {
 				User:              "admin",
 				Password:          "admin",
 				Ingress:           ctx.VanClient.GetIngressDefault(),
-				Router: constants.DefaultRouterOptions(&types.RouterOptions{
-					Tuning: types.Tuning{
-						Cpu:    s.SkupperSettings.Cpu,
-						Memory: s.SkupperSettings.Memory,
-					},
-					MaxFrameSize:     s.SkupperSettings.MaxFrameSize,
-					MaxSessionFrames: s.SkupperSettings.MaxSessionFrames,
-				}),
+				Router:            routerOptions,
 				Controller: types.ControllerOptions{
 					Tuning: types.Tuning{
 						Cpu:    s.SkupperSettings.Cpu,
@@ -272,6 +278,9 @@ func (s *IperfScenario) tailRouterLogs(t *testing.T, ctx context.Context, saveLo
 			tgzPath, _ := filepath.Abs(tgzFileName)
 			t.Logf("Tarball has been saved: %s", tgzPath)
 		}
+	}
+	if s.SkupperSites == 0 {
+		return wg
 	}
 	for _, cluster := range s.testRunner.ClusterContexts {
 		wg.Add(1)
