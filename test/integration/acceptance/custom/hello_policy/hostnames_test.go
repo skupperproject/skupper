@@ -5,8 +5,10 @@ package hello_policy
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -22,11 +24,12 @@ const (
 	claim          = "claim"
 )
 
+type transformFunction func(string) string
+
 type hostnamesPolicyInstructions struct {
 	name           string
-	transformation hookFunction
-	createAllowed  bool // Link creation works, based on policy to claim host
-	connectAllowed bool // Link gets connected, based on policy to router host
+	transformation transformFunction
+	allowed        bool
 }
 
 func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
@@ -67,12 +70,14 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						if err != nil {
 							return err
 						}
+						log.Printf("registering claim host = %v", host)
 						context[originalClaim] = host
 
 						interRouterHost, ok := secret.ObjectMeta.Annotations["inter-router-host"]
 						if !ok {
 							return fmt.Errorf("inter-router-host not available from secret")
 						}
+						log.Printf("registering router host = %v", interRouterHost)
 						context[originalRouter] = interRouterHost
 
 						return nil
@@ -108,8 +113,14 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	tests := []hostnamesPolicyInstructions{
 		{
 			name:           "same",
-			transformation: func(context map[string]string) error { context[claim] = context[originalClaim]; return nil },
-			createAllowed:  true,
+			transformation: func(input string) string { return input },
+			allowed:        true,
+		}, {
+			name: "first-dot",
+			transformation: func(input string) string {
+				return fmt.Sprintf("^%v$", strings.Split(input, ".")[0])
+			},
+			allowed: false,
 		},
 	}
 
@@ -131,13 +142,15 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		var name string
 		var scenarios []cli.TestScenario
 
-		if t.createAllowed {
+		if t.allowed {
 			name = "succeed"
 			scenarios = createTester
 		} else {
 			name = "fail"
 			scenarios = failCreateTester
 		}
+
+		transformation := t.transformation
 
 		createTestCase = policyTestCase{
 			name: t.name,
@@ -146,7 +159,13 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					name:         name,
 					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.claim}}", "{{.router}}"})},
 					cliScenarios: scenarios,
-					preHook:      t.transformation,
+					preHook: func(c map[string]string) error {
+						log.Printf("before: %v", c)
+						c[claim] = transformation(c[originalClaim])
+						c[router] = transformation(c[originalRouter])
+						log.Printf("after: %v", c)
+						return nil
+					},
 				},
 			},
 		}
