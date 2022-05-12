@@ -65,36 +65,7 @@ func (c policyGetCheck) String() string {
 	return fmt.Sprintf("policyGetCheck{%v}", strings.Join(ret, " "))
 }
 
-type checkBool func() (*client.PolicyAPIResult, error)
 type checkString func(string) (*client.PolicyAPIResult, error)
-
-// This is a helper to check for either a defined policy item or a
-// default, allowing for nil values representing a no check.
-// The arguments cannot be both nil.
-func checkValue(policyItem *bool, checkFunc checkBool) (result bool, err error) {
-
-	var effectiveValue *client.PolicyAPIResult
-	var expectedValue bool
-
-	switch {
-
-	case policyItem != nil:
-		expectedValue = *policyItem
-
-	default:
-		err = fmt.Errorf("checkValue() should not be called with two nils")
-		return
-	}
-
-	effectiveValue, err = checkFunc()
-	if err != nil {
-		return
-	}
-
-	result = effectiveValue.Allowed == expectedValue
-
-	return
-}
 
 // Run all configured checks.  Runs all checks, even if they do not correspond
 // to the expectation, unless an error is returned in any steps.
@@ -104,19 +75,18 @@ func (p policyGetCheck) check() (ok bool, err error) {
 
 	if p.allowIncoming != nil {
 
-		var item bool
+		var res *client.PolicyAPIResult
 
-		item, err = checkValue(
-			p.allowIncoming,
-			func() (*client.PolicyAPIResult, error) {
-				return c.IncomingLink()
-			})
+		res, err = c.IncomingLink()
+
 		if err != nil {
 			ok = false
 			return
 		}
 
-		ok = ok && item
+		if res.Allowed != *p.allowIncoming {
+			ok = false
+		}
 	}
 
 	lists := []struct {

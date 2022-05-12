@@ -375,15 +375,22 @@ func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext) 
 			t.Errorf("GET check wait failed: %v", err)
 		}
 	} else {
-		log.Printf("Running single GET checks, as configured on the environment")
-		for _, check := range s.getChecks {
-			ok, err := check.check()
-			if err != nil {
-				t.Errorf("GET check %v failed: %v", check, err)
+		if len(s.getChecks) > 0 {
+			log.Printf("Running single GET checks, as configured on the environment")
+			for _, check := range s.getChecks {
+				ok, err := check.check()
+				if err != nil {
+					errMsg := fmt.Sprintf("GET check %v failed: %v", check, err)
+					log.Printf(errMsg)
+					t.Errorf(errMsg)
+				}
+				if !ok {
+					errMsg := fmt.Sprintf("GET check %v returned incorrect response", check)
+					log.Printf(errMsg)
+					t.Errorf(errMsg)
+				}
 			}
-			if !ok {
-				t.Errorf("GET check %v returned incorrect response", check)
-			}
+			log.Printf("All tests pass")
 		}
 	}
 }

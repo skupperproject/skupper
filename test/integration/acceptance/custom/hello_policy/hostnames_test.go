@@ -220,24 +220,21 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	for _, t := range tests {
 		var createTestCase policyTestCase
-		var name string
 		var scenarios []cli.TestScenario
 
 		if t.allowed {
-			name = "succeed"
 			scenarios = createTester
 		} else {
-			name = "fail"
 			scenarios = failCreateTester
 		}
 
 		transformation := t.transformation
 
 		createTestCase = policyTestCase{
-			name: t.name,
+			name: "create",
 			steps: []policyTestStep{
 				{
-					name:         name,
+					name:         t.name,
 					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.claim}}", "{{.router}}"})},
 					cliScenarios: scenarios,
 					preHook: func(c map[string]string) error {
@@ -264,24 +261,21 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	for _, t := range tests {
 		var statusTestCase policyTestCase
-		var name string
 		var scenarios []cli.TestScenario
 
 		if t.allowed {
-			name = "succeed"
 			scenarios = statusTester
 		} else {
-			name = "fail"
 			scenarios = failStatusTester
 		}
 
 		transformation := t.transformation
 
 		statusTestCase = policyTestCase{
-			name: t.name,
+			name: "status",
 			steps: []policyTestStep{
 				{
-					name: name,
+					name: t.name,
 					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(
 							prv.Namespace,
