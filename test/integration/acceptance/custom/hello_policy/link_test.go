@@ -196,8 +196,8 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					getChecks: []policyGetCheck{
 						{
-							cluster:          pub,
-							checkUndefinedAs: cli.Boolp(false),
+							cluster:       pub,
+							allowIncoming: cli.Boolp(false),
 						},
 					},
 				},
@@ -221,9 +221,8 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					getChecks: []policyGetCheck{
 						{
-							cluster:          pub,
-							allowIncoming:    cli.Boolp(true),
-							checkUndefinedAs: cli.Boolp(false),
+							cluster:       pub,
+							allowIncoming: cli.Boolp(true),
 						}, {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
@@ -258,9 +257,8 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					getChecks: []policyGetCheck{
 						{
-							cluster:          pub,
-							allowIncoming:    cli.Boolp(true),
-							checkUndefinedAs: cli.Boolp(false),
+							cluster:       pub,
+							allowIncoming: cli.Boolp(true),
 						}, {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),

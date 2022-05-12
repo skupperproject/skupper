@@ -30,9 +30,12 @@ import (
 )
 
 type policyGetCheck struct {
-	allowIncoming    *bool
-	checkUndefinedAs *bool
-	cluster          *base.ClusterContext
+	allowIncoming      *bool
+	allowedHosts       []string
+	disallowedHosts    []string
+	allowedServices    []string
+	disallowedServices []string
+	cluster            *base.ClusterContext
 }
 
 func (c policyGetCheck) String() string {
@@ -42,23 +45,33 @@ func (c policyGetCheck) String() string {
 		ret = append(ret, fmt.Sprintf("allowIncoming:%v", *c.allowIncoming))
 	}
 
-	if c.checkUndefinedAs != nil {
-		ret = append(ret, fmt.Sprintf("checkUndefinedAs:%v", *c.checkUndefinedAs))
-	}
-
 	if c.cluster != nil {
 		ret = append(ret, fmt.Sprintf("namespace:%v", c.cluster.Namespace))
+	}
+
+	lists := map[string][]string{
+		"allowedHosts":       c.allowedHosts,
+		"disallowedHosts":    c.disallowedHosts,
+		"allowedServices":    c.allowedServices,
+		"disallowedServices": c.disallowedServices,
+	}
+
+	for k, v := range lists {
+		if len(v) > 0 {
+			ret = append(ret, fmt.Sprintf("%v:%v", k, v))
+		}
 	}
 
 	return fmt.Sprintf("policyGetCheck{%v}", strings.Join(ret, " "))
 }
 
-type checkItem func() (result *client.PolicyAPIResult, err error)
+type checkBool func() (*client.PolicyAPIResult, error)
+type checkString func(string) (*client.PolicyAPIResult, error)
 
 // This is a helper to check for either a defined policy item or a
 // default, allowing for nil values representing a no check.
 // The arguments cannot be both nil.
-func checkValue(policyItem *bool, checkUndefinedAs *bool, checkFunc checkItem) (result bool, err error) {
+func checkValue(policyItem *bool, checkFunc checkBool) (result bool, err error) {
 
 	var effectiveValue *client.PolicyAPIResult
 	var expectedValue bool
@@ -67,9 +80,6 @@ func checkValue(policyItem *bool, checkUndefinedAs *bool, checkFunc checkItem) (
 
 	case policyItem != nil:
 		expectedValue = *policyItem
-
-	case checkUndefinedAs != nil:
-		expectedValue = *checkUndefinedAs
 
 	default:
 		err = fmt.Errorf("checkValue() should not be called with two nils")
@@ -86,25 +96,73 @@ func checkValue(policyItem *bool, checkUndefinedAs *bool, checkFunc checkItem) (
 	return
 }
 
+// Run all configured checks.  Runs all checks, even if they do not correspond
+// to the expectation, unless an error is returned in any steps.
 func (p policyGetCheck) check() (ok bool, err error) {
 	ok = true
 	var c = client.NewPolicyValidatorAPI(p.cluster.VanClient)
 
-	if p.allowIncoming != nil || p.checkUndefinedAs != nil {
+	if p.allowIncoming != nil {
 
 		var item bool
 
 		item, err = checkValue(
 			p.allowIncoming,
-			p.checkUndefinedAs,
 			func() (*client.PolicyAPIResult, error) {
 				return c.IncomingLink()
 			})
 		if err != nil {
+			ok = false
 			return
 		}
 
 		ok = ok && item
+	}
+
+	lists := []struct {
+		name     string
+		list     []string
+		function checkString
+		expect   bool
+	}{
+		{
+			name:     "allowedHosts",
+			list:     p.allowedHosts,
+			function: c.OutgoingLink,
+			expect:   true,
+		}, {
+			name:     "disallowedHosts",
+			list:     p.disallowedHosts,
+			function: c.OutgoingLink,
+			expect:   false,
+		}, {
+			name:     "allowedServices",
+			list:     p.allowedServices,
+			function: c.Service,
+			expect:   true,
+		}, {
+			name:     "disallowedServices",
+			list:     p.disallowedServices,
+			function: c.Service,
+			expect:   false,
+		},
+	}
+
+	for _, list := range lists {
+		if len(list.list) > 0 {
+			continue
+		}
+		for _, element := range list.list {
+			var res *client.PolicyAPIResult
+			res, err = list.function(element)
+			if err != nil {
+				return false, err
+			}
+			if res.Allowed != list.expect {
+				ok = false
+			}
+		}
+
 	}
 	return
 }

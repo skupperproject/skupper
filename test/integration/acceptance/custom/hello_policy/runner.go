@@ -367,10 +367,24 @@ func templatePolicySpec(p skupperv1.SkupperClusterPolicySpec, c map[string]strin
 	return newPolicySpec, err
 }
 
+// Wait for all checks to succeed, unless configured otherwise
 func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext) {
-	err := waitAllGetChecks(s.getChecks)
-	if err != nil {
-		t.Errorf("GET check wait failed: %v", err)
+	if base.ShouldPolicyWaitOnGet() {
+		err := waitAllGetChecks(s.getChecks)
+		if err != nil {
+			t.Errorf("GET check wait failed: %v", err)
+		}
+	} else {
+		log.Printf("Running single GET checks, as configured on the environment")
+		for _, check := range s.getChecks {
+			ok, err := check.check()
+			if err != nil {
+				t.Errorf("GET check %v failed: %v", check, err)
+			}
+			if !ok {
+				t.Errorf("GET check %v returned incorrect response", check)
+			}
+		}
 	}
 }
 

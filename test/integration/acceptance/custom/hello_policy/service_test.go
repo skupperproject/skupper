@@ -501,7 +501,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			name: "init-for-binding",
 			steps: []policyTestStep{
 				{
-					name: "allow-specific-and-wait",
+					name: "allow-specific-and-create-services",
 					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						{
 							Namespaces:      []string{pub.Namespace},
@@ -511,9 +511,13 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{".*-backend"},
 						},
 					},
-					//sleep: 10 * time.Second,
-				}, {
-					name:     "create-services",
+					getChecks: []policyGetCheck{
+						{
+							allowedServices:    []string{"asdf-frontend", "asdf-backend"},
+							disallowedServices: []string{"asdf"},
+							cluster:            pub,
+						},
+					},
 					parallel: true,
 					cliScenarios: []cli.TestScenario{
 						serviceCreateFrontTestScenario(pub, "", true),

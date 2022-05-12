@@ -19,9 +19,8 @@ import (
 // any value.  If a variable works differently, that should be described on its
 // comments.
 
+// ** CLI **
 const (
-
-	// ** CLI **
 
 	// If defined, calls to cli.RunScenariosParallel will actually be run
 	// in serial.  Use this, for example, when the output of the tests is
@@ -35,8 +34,10 @@ const (
 	// If defined, both stdout and stderr of all issued skupper commands
 	// will be shown on the test output, even if they did not fail
 	ENV_VERBOSE_COMMANDS = "SKUPPER_TEST_VERBOSE_COMMANDS"
+)
 
-	// ** TODO **
+// ** TODO **
+const (
 
 	// Skips the creation of namespaces.  Used during testing development,
 	// to speed up test runs, by reusing a previously-set environment
@@ -46,8 +47,10 @@ const (
 	// to leave a test setup behind for semi-automated testing, or for
 	// speeding up test runs
 	ENV_SKIP_NAMESPACE_TEARDONW = "SKUPPER_TEST_SKIP_NAMESPACE_TEARDOWN"
+)
 
-	// ** POLICY **
+// ** POLICY **
+const (
 
 	// Skips the initial setup of policies, for those tests where policies
 	// are used.  Used for speeding up test execution and for semi-automated
@@ -65,6 +68,14 @@ const (
 	// defined several policy changes, they'll all run one after the other, then the sleep will
 	// kick in.  If no policy changes, no sleep.
 	ENV_POST_POLICY_CHANGE_SLEEP = "SKUPPER_TEST_POST_POLICY_CHANGE_SLEEP"
+
+	// By default, after each policy change, the policy runner will wait for all of the
+	// configured checks (if any) to return success before moving on.  If this variable is
+	// set, the checks will run only once and the test step will fail on unexpected response.
+	// The GET checks are used to wait for the policy changes to stabilize before moving to
+	// the CLI tasks.  This variable removes that wait, so it can be used to see how the
+	// system behaves when tests are run before the changes are finished.
+	ENV_POLICY_NO_GET_WAIT = "SKUPPER_TEST_POLICY_NO_GET_WAIT"
 )
 
 func ShouldSkipNamespaceSetup() bool {
@@ -130,4 +141,9 @@ func IsMaxStatusAttemptsReached(currentAttempt int) bool {
 
 	return max < currentAttempt
 
+}
+
+func ShouldPolicyWaitOnGet() bool {
+	_, setting := os.LookupEnv(ENV_POLICY_NO_GET_WAIT)
+	return !setting
 }

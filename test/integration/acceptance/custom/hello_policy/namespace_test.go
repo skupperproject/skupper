@@ -63,9 +63,8 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					name: "connect",
 					getChecks: []policyGetCheck{
 						{
-							cluster:          pub,
-							allowIncoming:    cli.Boolp(true),
-							checkUndefinedAs: cli.Boolp(false),
+							cluster:       pub,
+							allowIncoming: cli.Boolp(true),
 						}, {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
@@ -91,9 +90,8 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					getChecks: []policyGetCheck{
 						{
-							cluster:          pub,
-							allowIncoming:    cli.Boolp(false),
-							checkUndefinedAs: cli.Boolp(false),
+							cluster:       pub,
+							allowIncoming: cli.Boolp(false),
 						}, {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
@@ -114,9 +112,8 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					getChecks: []policyGetCheck{
 						{
-							cluster:          pub,
-							allowIncoming:    cli.Boolp(true),
-							checkUndefinedAs: cli.Boolp(false),
+							cluster:       pub,
+							allowIncoming: cli.Boolp(true),
 						}, {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
@@ -140,9 +137,8 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					getChecks: []policyGetCheck{
 						{
-							cluster:          pub,
-							allowIncoming:    cli.Boolp(false),
-							checkUndefinedAs: cli.Boolp(false),
+							cluster:       pub,
+							allowIncoming: cli.Boolp(false),
 						},
 					},
 				},
@@ -160,9 +156,8 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					getChecks: []policyGetCheck{
 						{
-							cluster:          pub,
-							allowIncoming:    cli.Boolp(true),
-							checkUndefinedAs: cli.Boolp(false),
+							cluster:       pub,
+							allowIncoming: cli.Boolp(true),
 						}, {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
