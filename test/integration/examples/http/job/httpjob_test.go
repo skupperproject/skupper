@@ -6,12 +6,14 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"crypto/x509"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/tsenart/vegeta/v12/lib"
 	"golang.org/x/net/http2"
@@ -52,6 +54,48 @@ func TestHttp2Job(t *testing.T) {
 	body := string(_body)
 	assert.Assert(t, strings.Contains(body, "A simple HTTP Request &amp; Response Service."), body)
 	assert.Assert(t, resp.Status == "200 OK", resp.Status)
+}
+
+func TestHttp2TlsJob(t *testing.T) {
+
+	//Load CA cert
+	caCert, err := ioutil.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	// Setup HTTPS client
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: false,
+		RootCAs:            caCertPool,
+	}
+
+	transport := &http2.Transport{
+		TLSClientConfig:    tlsConfig,
+		DisableCompression: true,
+		AllowHTTP:          false,
+	}
+
+	client := http.Client{
+		Transport: transport,
+	}
+
+	resp, err := client.Get("https://nghttp2tls:443/")
+
+	assert.Assert(t, err)
+	fmt.Printf("Client Proto: %d\n", resp.ProtoMajor)
+	fmt.Println("Client Header:", resp.Header)
+
+	defer resp.Body.Close()
+	_body, err := ioutil.ReadAll(resp.Body)
+	assert.Assert(t, err)
+
+	body := string(_body)
+	assert.Assert(t, strings.Contains(body, "A simple HTTP Request &amp; Response Service."), body)
+	assert.Assert(t, resp.Status == "200 OK", resp.Status)
+
 }
 
 func testHttpJob(t *testing.T, url string) {
