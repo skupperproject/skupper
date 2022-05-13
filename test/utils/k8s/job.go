@@ -75,6 +75,63 @@ func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 	return job, nil
 }
 
+func CreateTestJobWithSecret(ns string, kubeClient kubernetes.Interface, name string, command []string, secretname string) (*batchv1.Job, error) {
+
+	namespace := ns
+	testImage := GetTestImage()
+
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(secretname, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"job": name,
+			},
+		},
+		Spec: batchv1.JobSpec{
+			BackoffLimit: int32Ptr(3),
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+					Labels: map[string]string{
+						"job": name,
+					},
+				},
+				Spec: apiv1.PodSpec{
+					Containers: []apiv1.Container{
+						{
+							Name:    name,
+							Image:   testImage,
+							Command: command,
+							Env: []apiv1.EnvVar{
+								{Name: "JOB", Value: name},
+							},
+							ImagePullPolicy: apiv1.PullAlways,
+						},
+					},
+					RestartPolicy: apiv1.RestartPolicyNever,
+				},
+			},
+		},
+	}
+
+	AppendSecretVolume(&job.Spec.Template.Spec.Volumes, &job.Spec.Template.Spec.Containers[0].VolumeMounts, secret.Name, "/tmp/certs/"+secretname+"/")
+
+	jobsClient := kubeClient.BatchV1().Jobs(namespace)
+
+	job, err = jobsClient.Create(job)
+
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
+}
+
 func WaitForJob(ns string, kubeClient kubernetes.Interface, jobName string, timeout time.Duration) (*batchv1.Job, error) {
 
 	if timeout < constants.DefaultTick {
@@ -186,4 +243,19 @@ func NewJob(name, namespace string, opts JobOpts) *batchv1.Job {
 	}
 
 	return job
+}
+
+func AppendSecretVolume(volumes *[]apiv1.Volume, mounts *[]apiv1.VolumeMount, name string, path string) {
+	*volumes = append(*volumes, apiv1.Volume{
+		Name: name,
+		VolumeSource: apiv1.VolumeSource{
+			Secret: &apiv1.SecretVolumeSource{
+				SecretName: name,
+			},
+		},
+	})
+	*mounts = append(*mounts, apiv1.VolumeMount{
+		Name:      name,
+		MountPath: path,
+	})
 }
