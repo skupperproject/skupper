@@ -21,8 +21,10 @@ import (
 const (
 	originalRouter = "originalRouter"
 	originalClaim  = "originalClaim"
+	originalEdge   = "originalEdge"
 	router         = "router"
 	claim          = "claim"
+	edge           = "edge"
 )
 
 type transformFunction func(string) string
@@ -80,6 +82,13 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						}
 						log.Printf("registering router host = %v", interRouterHost)
 						context[originalRouter] = interRouterHost
+
+						edgeHost, ok := secret.ObjectMeta.Annotations["edge-host"]
+						if !ok {
+							return fmt.Errorf("edge-host not available from secret")
+						}
+						log.Printf("registering edge host = %v", edgeHost)
+						context[originalEdge] = edgeHost
 
 						return nil
 					},
@@ -235,11 +244,12 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			steps: []policyTestStep{
 				{
 					name:         t.name,
-					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.claim}}", "{{.router}}"})},
+					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.claim}}", "{{.router}}", "{{.edge}}"})},
 					cliScenarios: scenarios,
 					preHook: func(c map[string]string) error {
 						c[claim] = transformation(c[originalClaim])
 						c[router] = transformation(c[originalRouter])
+						c[edge] = transformation(c[originalEdge])
 						return nil
 					},
 				},
@@ -279,13 +289,14 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(
 							prv.Namespace,
-							[]string{"{{.claim}}", "{{.router}}"},
+							[]string{"{{.claim}}", "{{.router}}", "{{.edge}}"},
 						),
 					},
 					cliScenarios: scenarios,
 					preHook: func(c map[string]string) error {
 						c[claim] = transformation(c[originalClaim])
 						c[router] = transformation(c[originalRouter])
+						c[edge] = transformation(c[originalEdge])
 						return nil
 					},
 				},
@@ -315,7 +326,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	testTable := []policyTestCase{}
 	for _, t := range [][]policyTestCase{
 		init,
-		//createTestTable,
+		createTestTable,
 		linkForStatus,
 		statusTestTable,
 		cleanup,
