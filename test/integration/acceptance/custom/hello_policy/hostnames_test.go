@@ -319,6 +319,12 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
 					},
+					getChecks: []policyGetCheck{
+						{
+							cluster:      prv,
+							allowedHosts: []string{"any-should-be-allowed"},
+						},
+					},
 					cliScenarios: []cli.TestScenario{
 						createLinkTestScenario(prv, "", "hostnames", false),
 						linkStatusTestScenario(prv, "", "hostnames", true),
