@@ -243,8 +243,13 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			name: "create",
 			steps: []policyTestStep{
 				{
-					name:         t.name,
-					prvPolicy:    []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"{{.claim}}", "{{.router}}", "{{.edge}}"})},
+					name: t.name,
+					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						allowedOutgoingLinksHostnamesPolicy(
+							prv.Namespace,
+							[]string{"{{.claim}}", "{{.router}}", "{{.edge}}"},
+						),
+					},
 					cliScenarios: scenarios,
 					preHook: func(c map[string]string) error {
 						c[claim] = transformation(c[originalClaim])
@@ -326,7 +331,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	testTable := []policyTestCase{}
 	for _, t := range [][]policyTestCase{
 		init,
-		createTestTable,
+		// createTestTable,
 		linkForStatus,
 		statusTestTable,
 		cleanup,
