@@ -30,12 +30,14 @@ import (
 )
 
 type policyGetCheck struct {
-	allowIncoming      *bool
-	allowedHosts       []string
-	disallowedHosts    []string
-	allowedServices    []string
-	disallowedServices []string
-	cluster            *base.ClusterContext
+	allowIncoming       *bool
+	allowedHosts        []string
+	disallowedHosts     []string
+	allowedServices     []string
+	disallowedServices  []string
+	allowedResources    []string
+	disallowedResources []string
+	cluster             *base.ClusterContext
 }
 
 func (c policyGetCheck) String() string {
@@ -638,6 +640,15 @@ func TestPolicies(t *testing.T) {
 			removePolicies(t, pub1)
 			removePolicies(t, pub2)
 			testHostnamesPolicy(t, pub1, pub2)
+		})
+
+		base.StopIfInterrupted(t)
+
+		t.Run("testResourcesPolicy", func(t *testing.T) {
+			applyCrd(t, pub1)
+			removePolicies(t, pub1)
+			removePolicies(t, pub2)
+			testResourcesPolicy(t, pub1, pub2)
 		})
 
 		base.StopIfInterrupted(t)
