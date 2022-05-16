@@ -21,10 +21,15 @@ func allowResourcesPolicy(namespaces, resources []string, cluster *base.ClusterC
 	if len(namespaces) == 0 {
 		namespaces = []string{cluster.Namespace}
 	}
+	if len(resources) == 0 {
+		// No policy if no resources
+		return
+	}
 	policySpec = skupperv1.SkupperClusterPolicySpec{
 		Namespaces:              namespaces,
 		AllowedExposedResources: resources,
 	}
+	ok = true
 
 	return
 }
@@ -95,11 +100,9 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						skupperInitEdgeTestScenario(prv, "", true),
 					},
 				}, {
-					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy("*", []string{"*"})},
-					name:      "create-token-link",
+					name: "create-token-link",
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "prefix", "./tmp", "resources", true),
-						// This link is temporary; we only need it to get the hostnames for later steps
 						createLinkTestScenario(prv, "", "resources", false),
 						linkStatusTestScenario(prv, "", "resources", true),
 					},
@@ -163,10 +166,11 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		// Here, we generate the GET checks.  We know that testAllowed, testDisallowed and survivors
 		// must match.  We know nothing of zombies, though: allowed or not, we need to check for them
 		// with status only, instead.
-		allowedResources := []string{}
-		disallowedResources := []string{}
 		getChecks := []policyGetCheck{}
+		log.Println(t)
 		for _, policyItem := range clusterItems {
+			allowedResources := []string{}
+			disallowedResources := []string{}
 			allowedResources = append(allowedResources, policyItem.details.survivors...)
 			allowedResources = append(allowedResources, policyItem.details.testAllowed...)
 			disallowedResources = append(disallowedResources, policyItem.details.testDisallowed...)
@@ -176,6 +180,7 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				cluster:             policyItem.cluster,
 			})
 		}
+		log.Println(getChecks)
 		policyTestStep.getChecks = getChecks
 
 		testSteps = append(testSteps, policyTestStep)
@@ -184,7 +189,6 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			name:  t.name,
 			steps: testSteps,
 		}
-		log.Println(t)
 		log.Println(testCase)
 		testCases = append(testCases, testCase)
 	}

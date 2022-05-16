@@ -52,10 +52,12 @@ func (c policyGetCheck) String() string {
 	}
 
 	lists := map[string][]string{
-		"allowedHosts":       c.allowedHosts,
-		"disallowedHosts":    c.disallowedHosts,
-		"allowedServices":    c.allowedServices,
-		"disallowedServices": c.disallowedServices,
+		"allowedHosts":        c.allowedHosts,
+		"disallowedHosts":     c.disallowedHosts,
+		"allowedServices":     c.allowedServices,
+		"disallowedServices":  c.disallowedServices,
+		"allowedResources":    c.allowedResources,
+		"disallowedResources": c.disallowedResources,
 	}
 
 	for k, v := range lists {
@@ -75,6 +77,7 @@ func (p policyGetCheck) check() (ok bool, err error) {
 	ok = true
 	var c = client.NewPolicyValidatorAPI(p.cluster.VanClient)
 
+	// allowIncoming
 	if p.allowIncoming != nil {
 
 		var res *client.PolicyAPIResult
@@ -83,14 +86,17 @@ func (p policyGetCheck) check() (ok bool, err error) {
 
 		if err != nil {
 			ok = false
+			log.Printf("IncomingLink check failed with error %v", err)
 			return
 		}
 
 		if res.Allowed != *p.allowIncoming {
+			log.Printf("Unexpected IncomingLink result (%v)", res.Allowed)
 			ok = false
 		}
 	}
 
+	// allowedHosts and allowedServices
 	lists := []struct {
 		name     string
 		list     []string
@@ -119,7 +125,6 @@ func (p policyGetCheck) check() (ok bool, err error) {
 			expect:   false,
 		},
 	}
-
 	for _, list := range lists {
 		if len(list.list) > 0 {
 			continue
@@ -128,14 +133,51 @@ func (p policyGetCheck) check() (ok bool, err error) {
 			var res *client.PolicyAPIResult
 			res, err = list.function(element)
 			if err != nil {
+				log.Printf("%v check failed with error %v", list.name, err)
 				return false, err
 			}
 			if res.Allowed != list.expect {
+				log.Printf("Unexpected %v result for %v (%v)", list.name, element, res.Allowed)
 				ok = false
 			}
 		}
 
 	}
+
+	// allowedResources
+	resourceItems := []struct {
+		allow bool
+		list  []string
+	}{
+		{
+			allow: true,
+			list:  p.allowedResources,
+		}, {
+			allow: false,
+			list:  p.disallowedResources,
+		},
+	}
+	for _, resourceItem := range resourceItems {
+		for _, element := range resourceItem.list {
+			var res *client.PolicyAPIResult
+			splitted := strings.SplitN(element, "/", 2)
+			if len(splitted) != 2 {
+				// TODO: should we try to do something else, instead?
+				log.Printf("Ignoring GET check for resource without '/': %v", element)
+				continue
+			}
+			res, err = c.Expose(splitted[0], splitted[1])
+			if err != nil {
+				log.Printf("Resource check failed with error %v", err)
+				return false, err
+			}
+			if res.Allowed != resourceItem.allow {
+				log.Printf("Unexpected resource result: %v(%v)", element, res.Allowed)
+				ok = false
+			}
+		}
+	}
+
 	return
 }
 
