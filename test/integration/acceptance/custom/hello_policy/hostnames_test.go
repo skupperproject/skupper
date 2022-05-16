@@ -337,7 +337,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	testTable := []policyTestCase{}
 	for _, t := range [][]policyTestCase{
 		init,
-		// createTestTable,
+		createTestTable,
 		linkForStatus,
 		statusTestTable,
 		cleanup,
