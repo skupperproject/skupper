@@ -4,7 +4,6 @@
 package hello_policy
 
 import (
-	"log"
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -163,11 +162,10 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			policyTestStep.prvPolicy = []skupperv1.SkupperClusterPolicySpec{policy}
 		}
 
-		// Here, we generate the GET checks.  We know that testAllowed, testDisallowed and survivors
+		// Here, we generate the GET checks.  We know what testAllowed, testDisallowed and survivors
 		// must match.  We know nothing of zombies, though: allowed or not, we need to check for them
 		// with status only, instead.
 		getChecks := []policyGetCheck{}
-		log.Println(t)
 		for _, policyItem := range clusterItems {
 			allowedResources := []string{}
 			disallowedResources := []string{}
@@ -180,7 +178,6 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				cluster:             policyItem.cluster,
 			})
 		}
-		log.Println(getChecks)
 		policyTestStep.getChecks = getChecks
 
 		testSteps = append(testSteps, policyTestStep)
@@ -189,7 +186,6 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			name:  t.name,
 			steps: testSteps,
 		}
-		log.Println(testCase)
 		testCases = append(testCases, testCase)
 	}
 
