@@ -4,6 +4,8 @@
 package hello_policy
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -46,6 +48,143 @@ type resourceTest struct {
 	name string
 	pub  resourceDetails
 	prv  resourceDetails
+}
+
+type clusterItem struct {
+	cluster *base.ClusterContext
+	details resourceDetails
+}
+
+func splitResource(s string) (kind, name string, err error) {
+	split := strings.SplitN(s, "/", 2)
+	if len(split) != 2 {
+		err = fmt.Errorf("resource '%v' could not be parsed", s)
+		return
+	}
+	kind = split[0]
+	name = split[1]
+	return
+}
+
+func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterItems []clusterItem) policyTestStep {
+
+	// Populate the policies...
+	step := policyTestStep{
+		name: "install-policy-and-check-with-get",
+	}
+	if policy, ok := allowResourcesPolicy(r.pub.namespaces, r.pub.allowedExposedResources, pub); ok {
+		step.pubPolicy = []skupperv1.SkupperClusterPolicySpec{policy}
+	}
+	if policy, ok := allowResourcesPolicy(r.prv.namespaces, r.prv.allowedExposedResources, prv); ok {
+		step.prvPolicy = []skupperv1.SkupperClusterPolicySpec{policy}
+	}
+
+	// Here, we generate the GET checks.  We know what testAllowed, testDisallowed and survivors
+	// must match.  We know nothing of zombies, though: allowed or not, we need to check for them
+	// with status only, instead.
+	getChecks := []policyGetCheck{}
+	for _, policyItem := range clusterItems {
+		allowedResources := []string{}
+		disallowedResources := []string{}
+		allowedResources = append(allowedResources, policyItem.details.survivors...)
+		allowedResources = append(allowedResources, policyItem.details.testAllowed...)
+		disallowedResources = append(disallowedResources, policyItem.details.testDisallowed...)
+		getChecks = append(getChecks, policyGetCheck{
+			allowedResources:    allowedResources,
+			disallowedResources: disallowedResources,
+			cluster:             policyItem.cluster,
+		})
+	}
+	step.getChecks = getChecks
+
+	return step
+
+}
+
+func exposeTestScenario(ctx *base.ClusterContext, kind, target string, works bool) cli.TestScenario {
+
+	scenario := cli.TestScenario{
+		Name: "expose",
+		Tasks: []cli.SkupperTask{
+			{
+				Ctx: ctx,
+				Commands: []cli.SkupperCommandTester{
+					// skupper expose - expose and ensure service is available
+					&cli.ExposeTester{
+						TargetType:      kind,
+						TargetName:      target,
+						Address:         target,
+						Port:            8080,
+						Protocol:        "http",
+						TargetPort:      8080,
+						PolicyProhibits: !works,
+					},
+				},
+			},
+		},
+	}
+	//				// skupper status - asserts that 1 service is exposed
+	//				&cli.StatusTester{
+	//					RouterMode:          "interior",
+	//					ConnectedSites:      1,
+	//					ExposedServices:     1,
+	//					ConsoleEnabled:      true,
+	////					ConsoleAuthInternal: true,
+	//				},
+	//			}},
+	//			{Ctx: prv, Commands: []cli.SkupperCommandTester{
+	//				// skupper expose - exposes backend and certify it is available
+	//				&cli.ExposeTester{
+	//					TargetType: "deployment",
+	//					TargetName: "hello-world-backend",
+	//					Address:    "hello-world-backend",
+	//					Port:       8080,
+	//					Protocol:   "http",
+	//					TargetPort: 8080,
+	//				},
+	//				// skupper status - asserts that there are 2 exposed services
+	//				&cli.StatusTester{
+	//					RouterMode:      "edge",
+	//					SiteName:        "private",
+	//					ConnectedSites:  1,
+	//					ExposedServices: 2,
+	//				},
+	//			}},
+	//		},
+	return scenario
+}
+
+func resourceExposeStep(clusterItems []clusterItem) ([]policyTestStep, error) {
+	steps := []policyTestStep{}
+
+	for _, ci := range clusterItems {
+		for _, item := range ci.details.testAllowed {
+			kind, name, err := splitResource(item)
+			if err != nil {
+				return nil, err
+			}
+			steps = append(steps, policyTestStep{
+				name: prefixName("expose", kind),
+				cliScenarios: []cli.TestScenario{
+					exposeTestScenario(ci.cluster, kind, name, true),
+				},
+			})
+		}
+		for _, item := range ci.details.testDisallowed {
+			kind, name, err := splitResource(item)
+			if err != nil {
+				return nil, err
+			}
+			steps = append(steps, policyTestStep{
+				name: prefixName("expose-fail", kind),
+				cliScenarios: []cli.TestScenario{
+					exposeTestScenario(ci.cluster, kind, name, false),
+				},
+			})
+		}
+	}
+
+	return steps, nil
 }
 
 func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
@@ -129,64 +268,50 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	testTable := []policyTestCase{}
 	testCases := []policyTestCase{}
 
-	type clusterItem struct {
-		cluster *base.ClusterContext
-		details resourceDetails
+	profiles := []struct {
+		name string
+		fn   func([]clusterItem) ([]policyTestStep, error)
+	}{
+		{
+			name: "expose",
+			fn:   resourceExposeStep,
+		},
 	}
 
-	for _, t := range resourceTests {
-		// First, check that any resources that are expected to be down are so
-		// Next, confirm that zombies did not come back to life
-		// Then, check that the survivors are still around
-		// Finally, try to create stuff
-		clusterItems := []clusterItem{
-			{
-				cluster: pub,
-				details: t.pub,
-			}, {
-				cluster: prv,
-				details: t.prv,
-			},
-		}
+	for _, p := range profiles {
+		for _, rt := range resourceTests {
+			// First, check that any resources that are expected to be down are so
+			// Next, confirm that zombies did not come back to life
+			// Then, check that the survivors are still around
+			// Finally, try to create stuff
 
-		testSteps := []policyTestStep{}
+			clusterItems := []clusterItem{
+				{
+					cluster: pub,
+					details: rt.pub,
+				}, {
+					cluster: prv,
+					details: rt.prv,
+				},
+			}
 
-		// Populate the policies...
-		policyTestStep := policyTestStep{
-			name: "install-policy-and-check-with-get",
-		}
-		if policy, ok := allowResourcesPolicy(t.pub.namespaces, t.pub.allowedExposedResources, pub); ok {
-			policyTestStep.pubPolicy = []skupperv1.SkupperClusterPolicySpec{policy}
-		}
-		if policy, ok := allowResourcesPolicy(t.prv.namespaces, t.prv.allowedExposedResources, prv); ok {
-			policyTestStep.prvPolicy = []skupperv1.SkupperClusterPolicySpec{policy}
-		}
+			testSteps := []policyTestStep{}
 
-		// Here, we generate the GET checks.  We know what testAllowed, testDisallowed and survivors
-		// must match.  We know nothing of zombies, though: allowed or not, we need to check for them
-		// with status only, instead.
-		getChecks := []policyGetCheck{}
-		for _, policyItem := range clusterItems {
-			allowedResources := []string{}
-			disallowedResources := []string{}
-			allowedResources = append(allowedResources, policyItem.details.survivors...)
-			allowedResources = append(allowedResources, policyItem.details.testAllowed...)
-			disallowedResources = append(disallowedResources, policyItem.details.testDisallowed...)
-			getChecks = append(getChecks, policyGetCheck{
-				allowedResources:    allowedResources,
-				disallowedResources: disallowedResources,
-				cluster:             policyItem.cluster,
-			})
-		}
-		policyTestStep.getChecks = getChecks
+			policyTestStep := resourcePolicyStep(rt, pub, prv, clusterItems)
+			resourceCreateStep, err := p.fn(clusterItems)
+			if err != nil {
+				t.Fatalf("resource creation step failed: %v", err)
+			}
 
-		testSteps = append(testSteps, policyTestStep)
+			testSteps = append(testSteps, policyTestStep)
+			testSteps = append(testSteps, resourceCreateStep...)
 
-		testCase := policyTestCase{
-			name:  t.name,
-			steps: testSteps,
+			testCase := policyTestCase{
+				name:  prefixName(p.name, rt.name),
+				steps: testSteps,
+			}
+			testCases = append(testCases, testCase)
 		}
-		testCases = append(testCases, testCase)
 	}
 
 	for _, item := range [][]policyTestCase{init, testCases, cleanup} {

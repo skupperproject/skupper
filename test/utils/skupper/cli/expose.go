@@ -19,13 +19,14 @@ import (
 // ExposeTester runs `skupper expose` and validates service has
 // been exposed accordingly.
 type ExposeTester struct {
-	TargetType string
-	TargetName string
-	Address    string
-	Headless   bool
-	Port       int
-	Protocol   string
-	TargetPort int
+	TargetType      string
+	TargetName      string
+	Address         string
+	Headless        bool
+	Port            int
+	Protocol        string
+	TargetPort      int
+	PolicyProhibits bool
 }
 
 func (e *ExposeTester) Command(cluster *base.ClusterContext) []string {
@@ -55,6 +56,17 @@ func (e *ExposeTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	// Execute expose command
 	stdout, stderr, err = RunSkupperCli(e.Command(cluster))
 	if err != nil {
+		if e.PolicyProhibits {
+			expect := Expect{
+				StdErr: []string{
+					"Error: Policy validation error:",
+					fmt.Sprintf("%v/%v", e.TargetType, e.TargetName),
+					"cannot be exposed",
+				},
+			}
+			err = expect.Check(stdout, stderr)
+			return
+		}
 		return
 	}
 
