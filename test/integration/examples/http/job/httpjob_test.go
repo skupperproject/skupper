@@ -82,7 +82,7 @@ func TestHttp2TlsJob(t *testing.T) {
 		Transport: transport,
 	}
 
-	resp, err := client.Get("https://nghttp2tls:443/")
+	resp, err := client.Get("https://nghttp2tls:8443/")
 
 	assert.Assert(t, err)
 	fmt.Printf("Client Proto: %d\n", resp.ProtoMajor)

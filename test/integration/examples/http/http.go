@@ -47,7 +47,7 @@ var http2service = types.ServiceInterface{
 var http2TlsService = types.ServiceInterface{
 	Address:        "nghttp2tls",
 	Protocol:       "http2",
-	Ports:          []int{443},
+	Ports:          []int{8443},
 	EnableTls:      true,
 	TlsCredentials: "skupper-tls-nghttp2tls",
 }
@@ -194,14 +194,14 @@ var nghttp2TlsDep = &appsv1.Deployment{
 							{
 								Name:          "nghttp2tls",
 								Protocol:      apiv1.ProtocolTCP,
-								ContainerPort: 443,
+								ContainerPort: 8443,
 							},
 						},
 						Command: []string{
 							"nghttpd",
 							"--no-tls",
 							"-v",
-							"443",
+							"8443",
 							"-d",
 							"/webroot/",
 						},
@@ -264,7 +264,7 @@ var nghttp2TlsDepWithCertFiles = &appsv1.Deployment{
 							{
 								Name:          "nghttp2tls",
 								Protocol:      apiv1.ProtocolTCP,
-								ContainerPort: 443,
+								ContainerPort: 8443,
 							},
 						},
 						Command: []string{
@@ -272,7 +272,7 @@ var nghttp2TlsDepWithCertFiles = &appsv1.Deployment{
 							"-v",
 							"-d",
 							"/webroot/",
-							"443",
+							"8443",
 							"/certs/tls.key",
 							"/certs/tls.crt",
 						},
