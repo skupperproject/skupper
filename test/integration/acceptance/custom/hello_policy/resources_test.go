@@ -53,6 +53,7 @@ type resourceTest struct {
 type clusterItem struct {
 	cluster *base.ClusterContext
 	details resourceDetails
+	front   bool
 }
 
 func splitResource(s string) (kind, name string, err error) {
@@ -152,6 +153,77 @@ func exposeTestScenario(ctx *base.ClusterContext, kind, target string, works boo
 	//			}},
 	//		},
 	return scenario
+}
+
+func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
+	steps := []policyTestStep{}
+
+	for _, ci := range clusterItems {
+		for _, item := range ci.details.testAllowed {
+			kind, name, err := splitResource(item)
+			if err != nil {
+				return nil, err
+			}
+			var scenario cli.TestScenario
+			if ci.front {
+				scenario = serviceCheckFrontTestScenario(
+					ci.cluster,
+					"",
+					[]string{},
+					[]string{},
+					[]string{name},
+				)
+			} else {
+				scenario = serviceCheckBackTestScenario(
+					ci.cluster,
+					"",
+					[]string{},
+					[]string{},
+					[]string{name},
+				)
+			}
+
+			steps = append(steps, policyTestStep{
+				name: prefixName("check-exposed", kind),
+				cliScenarios: []cli.TestScenario{
+					scenario,
+				},
+			})
+		}
+		for _, item := range ci.details.testDisallowed {
+			kind, name, err := splitResource(item)
+			if err != nil {
+				return nil, err
+			}
+			var scenario cli.TestScenario
+			if ci.front {
+				scenario = serviceCheckFrontTestScenario(
+					ci.cluster,
+					"",
+					[]string{name},
+					[]string{},
+					[]string{},
+				)
+			} else {
+				scenario = serviceCheckBackTestScenario(
+					ci.cluster,
+					"",
+					[]string{name},
+					[]string{},
+					[]string{},
+				)
+			}
+
+			steps = append(steps, policyTestStep{
+				name: prefixName("check-exposed", kind),
+				cliScenarios: []cli.TestScenario{
+					scenario,
+				},
+			})
+		}
+	}
+
+	return steps, nil
 }
 
 func resourceExposeStep(clusterItems []clusterItem) ([]policyTestStep, error) {
@@ -268,6 +340,8 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	testTable := []policyTestCase{}
 	testCases := []policyTestCase{}
 
+	// We run the same tests twice: once for service create + bind, the
+	// other for expose directly.  We call these two steps 'profiles'
 	profiles := []struct {
 		name string
 		fn   func([]clusterItem) ([]policyTestStep, error)
@@ -284,14 +358,17 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			// Next, confirm that zombies did not come back to life
 			// Then, check that the survivors are still around
 			// Finally, try to create stuff
+			// And test it
 
 			clusterItems := []clusterItem{
 				{
 					cluster: pub,
 					details: rt.pub,
+					front:   true,
 				}, {
 					cluster: prv,
 					details: rt.prv,
+					front:   false,
 				},
 			}
 
@@ -300,11 +377,16 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			policyTestStep := resourcePolicyStep(rt, pub, prv, clusterItems)
 			resourceCreateStep, err := p.fn(clusterItems)
 			if err != nil {
-				t.Fatalf("resource creation step failed: %v", err)
+				t.Fatalf("resource creation step definition failed: %v", err)
+			}
+			checkSteps, err := resourceCheckSteps(clusterItems)
+			if err != nil {
+				t.Fatalf("resource check step definition failed: %v", err)
 			}
 
 			testSteps = append(testSteps, policyTestStep)
 			testSteps = append(testSteps, resourceCreateStep...)
+			testSteps = append(testSteps, checkSteps...)
 
 			testCase := policyTestCase{
 				name:  prefixName(p.name, rt.name),
