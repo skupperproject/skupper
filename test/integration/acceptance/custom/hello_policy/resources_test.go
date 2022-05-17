@@ -5,6 +5,7 @@ package hello_policy
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
@@ -155,72 +156,86 @@ func exposeTestScenario(ctx *base.ClusterContext, kind, target string, works boo
 	return scenario
 }
 
+// Return a sorted list of keys from the map, where the corresponding value
+// is true.
+func sortedMapKeys(m map[string]bool) []string {
+	ret := make([]string, 0, len(m))
+	for k, ok := range m {
+		// False on the map means the key should not be considered
+		if ok {
+			ret = append(ret, k)
+		}
+	}
+
+	// We sort so that individual tests are listed in a stable order
+	sort.Strings(ret)
+
+	return ret
+
+}
+
 func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	steps := []policyTestStep{}
 
+	absent := true
+
 	for _, ci := range clusterItems {
-		for _, item := range ci.details.testAllowed {
-			kind, name, err := splitResource(item)
-			if err != nil {
-				return nil, err
-			}
-			var scenario cli.TestScenario
-			if ci.front {
-				scenario = serviceCheckFrontTestScenario(
-					ci.cluster,
-					"",
-					[]string{},
-					[]string{},
-					[]string{name},
-				)
-			} else {
-				scenario = serviceCheckBackTestScenario(
-					ci.cluster,
-					"",
-					[]string{},
-					[]string{},
-					[]string{name},
-				)
-			}
-
-			steps = append(steps, policyTestStep{
-				name: prefixName("check-exposed", kind),
-				cliScenarios: []cli.TestScenario{
-					scenario,
-				},
-			})
-		}
+		bound := map[string]bool{}
+		disallowed := map[string]bool{}
 		for _, item := range ci.details.testDisallowed {
-			kind, name, err := splitResource(item)
+			_, name, err := splitResource(item)
 			if err != nil {
 				return nil, err
 			}
-			var scenario cli.TestScenario
-			if ci.front {
-				scenario = serviceCheckFrontTestScenario(
-					ci.cluster,
-					"",
-					[]string{name},
-					[]string{},
-					[]string{},
-				)
-			} else {
-				scenario = serviceCheckBackTestScenario(
-					ci.cluster,
-					"",
-					[]string{name},
-					[]string{},
-					[]string{},
-				)
-			}
-
-			steps = append(steps, policyTestStep{
-				name: prefixName("check-exposed", kind),
-				cliScenarios: []cli.TestScenario{
-					scenario,
-				},
-			})
+			disallowed[name] = true
 		}
+		for _, item := range ci.details.testAllowed {
+			_, name, err := splitResource(item)
+			if err != nil {
+				return nil, err
+			}
+			bound[name] = true
+			// service.statusTester does not care for resource type.  So, if someone
+			// allowed services but not pods — since we're looking at skupper service
+			// names only —, the end result for the name would be that it was allowed
+			delete(disallowed, name)
+		}
+		var scenario cli.TestScenario
+		unbound := []string{}
+		if !absent {
+			unbound = sortedMapKeys(disallowed)
+		}
+		if ci.front {
+			scenario = serviceCheckFrontTestScenario(
+				ci.cluster,
+				"",
+				unbound,
+				[]string{},
+				sortedMapKeys(bound),
+			)
+		} else {
+			scenario = serviceCheckBackTestScenario(
+				ci.cluster,
+				"",
+				unbound,
+				[]string{},
+				sortedMapKeys(bound),
+			)
+		}
+
+		cliScenarios := []cli.TestScenario{
+			scenario,
+		}
+
+		if absent {
+			absentScenario := serviceCheckAbsentTestScenario(ci.cluster, "", sortedMapKeys(disallowed))
+			cliScenarios = append(cliScenarios, absentScenario)
+		}
+
+		steps = append(steps, policyTestStep{
+			name:         "check-exposed",
+			cliScenarios: cliScenarios,
+		})
 	}
 
 	return steps, nil
@@ -379,14 +394,15 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			if err != nil {
 				t.Fatalf("resource creation step definition failed: %v", err)
 			}
-			checkSteps, err := resourceCheckSteps(clusterItems)
-			if err != nil {
-				t.Fatalf("resource check step definition failed: %v", err)
-			}
+			//			TODO CONTINUE
+			//			checkSteps, err := resourceCheckSteps(clusterItems)
+			//			if err != nil {
+			//				t.Fatalf("resource check step definition failed: %v", err)
+			//			}
 
 			testSteps = append(testSteps, policyTestStep)
 			testSteps = append(testSteps, resourceCreateStep...)
-			testSteps = append(testSteps, checkSteps...)
+			//			testSteps = append(testSteps, checkSteps...)
 
 			testCase := policyTestCase{
 				name:  prefixName(p.name, rt.name),
