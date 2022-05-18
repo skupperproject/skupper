@@ -177,7 +177,7 @@ func sortedMapKeys(m map[string]bool) []string {
 func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	steps := []policyTestStep{}
 
-	absent := true
+	absent := false
 
 	for _, ci := range clusterItems {
 		bound := map[string]bool{}
@@ -284,31 +284,42 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				testAllowed:             []string{"deployment/hello-world-frontend"},
 			},
 			prv: resourceDetails{
-				testDisallowed: []string{"deployment/hello-world-backend"},
+				allowedExposedResources: []string{"*"},
+				testAllowed:             []string{"deployment/hello-world-backend"},
 			},
 		}, {
-			name: "not-a-regex",
+			name: "frontend-not-a-regex--backend-survives",
 			pub: resourceDetails{
+				zombies:                 []string{"deployment/hello-world-frontend"},
 				allowedExposedResources: []string{".*"},
 				testDisallowed:          []string{"deployment/hello-world-frontend"},
 			},
+			prv: resourceDetails{
+				allowedExposedResources: []string{"*"},
+				survivors:               []string{"deployment/hello-world-backend"},
+			},
 		}, {
-			name: "really--not-a-regex",
+			name: "front-end-really-not-a-regex--backend-survives",
 			pub: resourceDetails{
+				zombies:                 []string{"deployment/hello-world-frontend"},
 				allowedExposedResources: []string{".*/.*"},
 				testDisallowed:          []string{"deployment/hello-world-frontend"},
+			},
+			prv: resourceDetails{
+				allowedExposedResources: []string{"deployment/hello-world-backend"},
+				survivors:               []string{"deployment/hello-world-backend"},
 			},
 		}, {
 			name: "specifically",
 			pub: resourceDetails{
 				allowedExposedResources: []string{"deployment/hello-world-frontend"},
-				testAllowed:             []string{"deployment/hello-world-frontend"},
 				zombies:                 []string{"deployment/hello-world-frontend"},
+				testAllowed:             []string{"deployment/hello-world-frontend"},
 			},
 			prv: resourceDetails{
-				allowedExposedResources: []string{"deployment/hello-world-backend"},
-				testAllowed:             []string{"deployment/hello-world-backend"},
-				testDisallowed:          []string{"service/hello-world-backend"},
+				allowedExposedResources: []string{"service/hello-world-backend"},
+				testAllowed:             []string{"service/hello-world-backend"},
+				testDisallowed:          []string{"deployment/hello-world-backend"},
 			},
 		},
 	}
@@ -394,15 +405,14 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			if err != nil {
 				t.Fatalf("resource creation step definition failed: %v", err)
 			}
-			//			TODO CONTINUE
-			//			checkSteps, err := resourceCheckSteps(clusterItems)
-			//			if err != nil {
-			//				t.Fatalf("resource check step definition failed: %v", err)
-			//			}
+			checkSteps, err := resourceCheckSteps(clusterItems)
+			if err != nil {
+				t.Fatalf("resource check step definition failed: %v", err)
+			}
 
 			testSteps = append(testSteps, policyTestStep)
 			testSteps = append(testSteps, resourceCreateStep...)
-			//			testSteps = append(testSteps, checkSteps...)
+			testSteps = append(testSteps, checkSteps...)
 
 			testCase := policyTestCase{
 				name:  prefixName(p.name, rt.name),
