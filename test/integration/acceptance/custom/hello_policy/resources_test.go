@@ -177,17 +177,15 @@ func sortedMapKeys(m map[string]bool) []string {
 func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	steps := []policyTestStep{}
 
-	absent := false
-
 	for _, ci := range clusterItems {
 		bound := map[string]bool{}
-		disallowed := map[string]bool{}
+		unbound := map[string]bool{}
 		for _, item := range ci.details.testDisallowed {
 			_, name, err := splitResource(item)
 			if err != nil {
 				return nil, err
 			}
-			disallowed[name] = true
+			unbound[name] = true
 		}
 		for _, item := range ci.details.testAllowed {
 			_, name, err := splitResource(item)
@@ -198,18 +196,14 @@ func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 			// service.statusTester does not care for resource type.  So, if someone
 			// allowed services but not pods — since we're looking at skupper service
 			// names only —, the end result for the name would be that it was allowed
-			delete(disallowed, name)
+			delete(unbound, name)
 		}
 		var scenario cli.TestScenario
-		unbound := []string{}
-		if !absent {
-			unbound = sortedMapKeys(disallowed)
-		}
 		if ci.front {
 			scenario = serviceCheckFrontTestScenario(
 				ci.cluster,
 				"",
-				unbound,
+				sortedMapKeys(unbound),
 				[]string{},
 				sortedMapKeys(bound),
 			)
@@ -217,7 +211,7 @@ func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 			scenario = serviceCheckBackTestScenario(
 				ci.cluster,
 				"",
-				unbound,
+				sortedMapKeys(unbound),
 				[]string{},
 				sortedMapKeys(bound),
 			)
@@ -225,11 +219,6 @@ func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 
 		cliScenarios := []cli.TestScenario{
 			scenario,
-		}
-
-		if absent {
-			absentScenario := serviceCheckAbsentTestScenario(ci.cluster, "", sortedMapKeys(disallowed))
-			cliScenarios = append(cliScenarios, absentScenario)
 		}
 
 		steps = append(steps, policyTestStep{
