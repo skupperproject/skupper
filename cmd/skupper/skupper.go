@@ -501,7 +501,7 @@ func NewCmdDelete(newClient cobraFunc) *cobra.Command {
 			silenceCobra(cmd)
 			gateways, err := cli.GatewayList(context.Background())
 			for _, gateway := range gateways {
-				cli.GatewayRemove(context.Background(), gateway.GatewayName)
+				cli.GatewayRemove(context.Background(), gateway.Name)
 			}
 			err = cli.SiteConfigRemove(context.Background())
 			if err != nil {
@@ -1200,6 +1200,7 @@ func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 }
 
 func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
+	verbose := false
 	cmd := &cobra.Command{
 		Use:    "delete",
 		Short:  "Stop the gateway instance and remove the definition",
@@ -1209,12 +1210,19 @@ func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
 			silenceCobra(cmd)
 
 			err := cli.GatewayRemove(context.Background(), gatewayName)
-			if err != nil {
-				return fmt.Errorf("%w", err)
+			if err != nil && verbose {
+				l := formatter.NewList()
+				l.Item("Exception while removing gateway definition:")
+				parts := strings.Split(err.Error(), ",")
+				for _, part := range parts {
+					l.NewChild(fmt.Sprintf("%s", part))
+				}
+				l.Print()
 			}
 			return nil
 		},
 	}
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More details on any exceptions during gateway removal")
 	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
 
 	f := cmd.Flag("name")
@@ -1482,24 +1490,32 @@ func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
 			}
 
 			if len(gateways) == 0 {
-				fmt.Println("No gateway definitions found")
+				l := formatter.NewList()
+				l.Item("No gateway definition found on cluster")
+				gatewayType, err := client.GatewayDetectTypeIfPresent()
+				if err == nil {
+					if gatewayType != "" {
+						l.NewChild(fmt.Sprintf(" A gateway of type %s detected on local host. Run 'skupper gateway delete' to remove.", gatewayType))
+					}
+				}
+				l.Print()
 				return nil
 			}
 
 			l := formatter.NewList()
 			l.Item("Gateway Definition:")
 			for _, gateway := range gateways {
-				gw := l.NewChild(fmt.Sprintf("%s type:%s version:%s", gateway.GatewayName, gateway.GatewayType, gateway.GatewayVersion))
-				if len(gateway.GatewayConnectors) > 0 {
+				gw := l.NewChild(fmt.Sprintf("%s type:%s version:%s", gateway.Name, gateway.Type, gateway.Version))
+				if len(gateway.Connectors) > 0 {
 					listeners := gw.NewChild("Bindings:")
-					for _, connector := range gateway.GatewayConnectors {
-						listeners.NewChild(fmt.Sprintf("%s %s %s %s %d", strings.TrimPrefix(connector.Name, gateway.GatewayName+"-egress-"), connector.Service.Protocol, connector.Service.Address, connector.Host, connector.Service.Ports[0]))
+					for _, connector := range gateway.Connectors {
+						listeners.NewChild(fmt.Sprintf("%s %s %s %s %d", strings.TrimPrefix(connector.Name, gateway.Name+"-egress-"), connector.Service.Protocol, connector.Service.Address, connector.Host, connector.Service.Ports[0]))
 					}
 				}
-				if len(gateway.GatewayListeners) > 0 {
+				if len(gateway.Listeners) > 0 {
 					listeners := gw.NewChild("Forwards:")
-					for _, listener := range gateway.GatewayListeners {
-						listeners.NewChild(fmt.Sprintf("%s %s %s %s %d:%s", strings.TrimPrefix(listener.Name, gateway.GatewayName+"-ingress-"), listener.Service.Protocol, listener.Service.Address, listener.Host, listener.Service.Ports[0], listener.LocalPort))
+					for _, listener := range gateway.Listeners {
+						listeners.NewChild(fmt.Sprintf("%s %s %s %s %d:%s", strings.TrimPrefix(listener.Name, gateway.Name+"-ingress-"), listener.Service.Protocol, listener.Service.Address, listener.Host, listener.Service.Ports[0], listener.LocalPort))
 					}
 				}
 			}

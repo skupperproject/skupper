@@ -310,8 +310,12 @@ func getRouterVersion(gatewayName string, gatewayType string) (string, error) {
 
 	if gatewayType == GatewayServiceType {
 		routerVersion, err = exec.Command("skrouterd", "-v").Output()
-	} else if (gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType) && isActive(gatewayName, gatewayType) {
-		routerVersion, err = exec.Command(gatewayType, "exec", gatewayName, "skrouterd", "-v").Output()
+	} else if gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType {
+		if isActive(gatewayName, gatewayType) {
+			routerVersion, err = exec.Command(gatewayType, "exec", gatewayName, "skrouterd", "-v").Output()
+		} else {
+			routerVersion = []byte("Unknown (container not running)")
+		}
 	} else if gatewayType == GatewayMockType {
 		routerVersion = []byte("1.2.3")
 	}
@@ -400,10 +404,10 @@ func isActive(gatewayName string, gatewayType string) bool {
 			return false
 		}
 	} else if gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType {
-		cmd := exec.Command(gatewayType, "inspect", "--format", "'{{json .State.Running}}'", gatewayName)
-		err := cmd.Run()
+		running, err := exec.Command(gatewayType, "inspect", "--format", "'{{json .State.Running}}'", gatewayName).Output()
 		if err == nil {
-			return true
+			bv, _ := strconv.ParseBool(strings.Trim(string(running), "'\n"))
+			return bv
 		} else {
 			return false
 		}
@@ -698,7 +702,6 @@ func (cli *VanClient) gatewayStartService(ctx context.Context, gatewayName strin
 }
 
 func (cli *VanClient) gatewayStopService(ctx context.Context, gatewayName string) error {
-	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
 	svcDir := getConfigHome() + "/systemd/user"
 
 	if gatewayName == "" {
@@ -712,11 +715,6 @@ func (cli *VanClient) gatewayStopService(ctx context.Context, gatewayName string
 
 	if isActive(gatewayName, GatewayServiceType) {
 		stopGatewayUserService(svcDir, gatewayName)
-	}
-
-	err = os.RemoveAll(gatewayDir)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Unable to remove gateway local directory: %w", err)
 	}
 
 	return nil
@@ -751,24 +749,25 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 	}
 
 	cmd := exec.Command(containerCmd, containerCmdArgs...)
-	err = cmd.Run()
+	result, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("Failed to start gateway as container: %w", err)
+		return fmt.Errorf("Failed to start gateway as container: %s", result)
 	}
 
 	return nil
 }
 
-func (cli *VanClient) gatewayStopContainer(ctx context.Context, gatewayName string, gatewayType string) error {
-	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
+func (cli *VanClient) gatewayStopContainer(ctx context.Context, gatewayName string, gatewayType string) []string {
+	errs := []string{}
 
 	if gatewayName == "" {
-		return fmt.Errorf("Unable to delete gateway definition, need gateway name")
+		errs = append(errs, fmt.Sprintf("Unable to delete gateway definition, need gateway name"))
+		return errs
 	}
 
 	_, err := getRootObject(cli)
 	if err != nil {
-		return fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
+		errs = append(errs, fmt.Sprintf("Skupper is not enabled in namespace '%s'", cli.Namespace))
 	}
 
 	containerCmd := gatewayType
@@ -778,17 +777,12 @@ func (cli *VanClient) gatewayStopContainer(ctx context.Context, gatewayName stri
 		gatewayName,
 	}
 	cmd := exec.Command(containerCmd, containerCmdArgs...)
-	err = cmd.Run()
+	result, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("Unable to remove gateway container: %w", err)
+		errs = append(errs, fmt.Sprintf("Unable to remove gateway container: %s", result))
 	}
 
-	err = os.RemoveAll(gatewayDir)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Unable to remove gateway local directory: %w", err)
-	}
-
-	return nil
+	return errs
 }
 
 func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*qdr.BridgeConfig, error) {
@@ -1041,6 +1035,42 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 	return gatewayName, nil
 }
 
+func GatewayDetectTypeIfPresent() (string, error) {
+	gatewayName, err := getUserDefaultGatewayName()
+	if err != nil {
+		return "", fmt.Errorf("Unable to generate gateway name: %w", err)
+	}
+
+	gatewayType := ""
+	out, err := exec.Command("systemctl", "--user", "check", gatewayName).Output()
+	if err == nil {
+		if strings.Trim(string(out), "\n") == "active" {
+			gatewayType = GatewayServiceType
+		}
+	}
+	if gatewayType == "" {
+		// check for podman container
+		_, err := exec.LookPath("podman")
+		if err == nil {
+			_, err := exec.Command("podman", "inspect", "--format", "'{{json .State}}'", gatewayName).Output()
+			if err == nil {
+				gatewayType = GatewayPodmanType
+			}
+		}
+	}
+	if gatewayType == "" {
+		// check for docker container
+		_, err := exec.LookPath("docker")
+		if err == nil {
+			_, err := exec.Command("docker", "inspect", "--format", "'{{json .State}}'", gatewayName).Output()
+			if err == nil {
+				gatewayType = GatewayDockerType
+			}
+		}
+	}
+	return gatewayType, nil
+}
+
 func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatewayType string, configFile string) (string, error) {
 	var err error
 
@@ -1254,21 +1284,28 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 
 	_, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
 	if errors.IsNotFound(err) {
-		return nil
+		errs = append(errs, fmt.Sprintf("Config map for gateway %s not found", gatewayResourceName))
 	}
 
 	gatewayType, err := cli.getGatewayType(gatewayName)
 	if err != nil {
-		errs = append(errs, fmt.Sprintf("Unable to retrieve gateway type: %s", err))
+		// this is exceptional so inspect host to detect gatewayType
+		gatewayType, err = GatewayDetectTypeIfPresent()
+		if err == nil && gatewayType != "" {
+			errs = append(errs, fmt.Sprintf("Unable to retrieve gateway type from config map: detected type %s", gatewayType))
+		}
 	}
 
 	if gatewayType == GatewayServiceType {
 		err = cli.gatewayStopService(ctx, gatewayName)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Unable to stop gateway %s", err))
+		}
 	} else if gatewayType == GatewayDockerType || gatewayType == GatewayPodmanType {
-		err = cli.gatewayStopContainer(ctx, gatewayName, gatewayType)
-	}
-	if err != nil {
-		errs = append(errs, fmt.Sprintf("Unable to stop gateway %s", err))
+		containerErrs := cli.gatewayStopContainer(ctx, gatewayName, gatewayType)
+		if len(containerErrs) > 0 {
+			errs = append(errs, containerErrs...)
+		}
 	}
 
 	svcList, err := cli.KubeClient.CoreV1().Services(cli.GetNamespace()).List(metav1.ListOptions{LabelSelector: types.GatewayQualifier + "=" + gatewayName})
@@ -1304,8 +1341,16 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 	if err != nil && !errors.IsNotFound(err) {
 		errs = append(errs, fmt.Sprintf("Unable to remove gateway config map: %s", err))
 	}
+
+	// finally, remove local files
+	gatewayDir := getDataHome() + gatewayClusterDir + gatewayName
+	err = os.RemoveAll(gatewayDir)
+	if err != nil && !os.IsNotExist(err) {
+		errs = append(errs, fmt.Sprintf("Unable to remove gateway local directory %s: %s", gatewayDir, err.Error()))
+	}
+
 	if len(errs) > 0 {
-		return fmt.Errorf(strings.Join(errs, ", "))
+		return fmt.Errorf(strings.Join(errs, ","))
 	} else {
 		return nil
 	}
@@ -1809,34 +1854,39 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 
 	url := "amqp://127.0.0.1:5672"
 	bc := &qdr.BridgeConfig{}
-	if gatewayType != GatewayMockType {
-		url, err = getRouterUrl(gatewayDir)
-		if err != nil {
-			return &types.GatewayInspectResponse{}, err
-		}
-		agent, err := qdr.Connect(url, nil)
-		if err != nil {
-			return &types.GatewayInspectResponse{}, err
-		}
-		defer agent.Close()
-		bc, err = agent.GetLocalBridgeConfig()
-		if err != nil {
-			return &types.GatewayInspectResponse{}, err
-		}
-	}
 
 	inspect := types.GatewayInspectResponse{
-		GatewayName:       gatewayName,
-		GatewayType:       gatewayType,
-		GatewayUrl:        url,
-		GatewayVersion:    gatewayVersion,
-		GatewayConnectors: map[string]types.GatewayEndpoint{},
-		GatewayListeners:  map[string]types.GatewayEndpoint{},
+		Name:       gatewayName,
+		Type:       gatewayType,
+		Url:        url,
+		Version:    gatewayVersion,
+		Connectors: map[string]types.GatewayEndpoint{},
+		Listeners:  map[string]types.GatewayEndpoint{},
+	}
+
+	if gatewayType != GatewayMockType {
+		inspect.Url, err = getRouterUrl(gatewayDir)
+		if err != nil {
+			return &inspect, err
+		}
+		if isActive(gatewayName, gatewayType) {
+			agent, err := qdr.Connect(inspect.Url, nil)
+			if err != nil {
+				return &inspect, err
+			}
+			defer agent.Close()
+			bc, err = agent.GetLocalBridgeConfig()
+			if err != nil {
+				return &inspect, err
+			}
+		} else {
+			return &inspect, nil
+		}
 	}
 
 	for name, connector := range gatewayConfig.Bridges.TcpConnectors {
 		port, _ := strconv.Atoi(connector.Port)
-		inspect.GatewayConnectors[name] = types.GatewayEndpoint{
+		inspect.Connectors[name] = types.GatewayEndpoint{
 			Name: connector.Name,
 			Host: connector.Host,
 			Service: types.ServiceInterface{
@@ -1853,7 +1903,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 		if connector.ProtocolVersion == qdr.HttpVersion2 {
 			protocol = "http2"
 		}
-		inspect.GatewayConnectors[name] = types.GatewayEndpoint{
+		inspect.Connectors[name] = types.GatewayEndpoint{
 			Name: connector.Name,
 			Host: connector.Host,
 			Service: types.ServiceInterface{
@@ -1868,7 +1918,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 
 	for name, listener := range gatewayConfig.Bridges.TcpListeners {
 		port, _ := strconv.Atoi(listener.Port)
-		inspect.GatewayListeners[name] = types.GatewayEndpoint{
+		inspect.Listeners[name] = types.GatewayEndpoint{
 			Name:      listener.Name,
 			Host:      listener.Host,
 			LocalPort: bc.TcpListeners[listener.Name].Port,
@@ -1886,7 +1936,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 		if listener.ProtocolVersion == qdr.HttpVersion2 {
 			protocol = "http2"
 		}
-		inspect.GatewayListeners[name] = types.GatewayEndpoint{
+		inspect.Listeners[name] = types.GatewayEndpoint{
 			Name:      listener.Name,
 			Host:      listener.Host,
 			LocalPort: bc.HttpListeners[listener.Name].Port,
