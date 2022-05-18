@@ -76,18 +76,18 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 		if len(gwList) > 1 {
 			return
 		}
-		gwName = gwList[0].GatewayName
+		gwName = gwList[0].Name
 	}
 
 	for _, gw := range gwList {
-		if gwName != gw.GatewayName {
+		if gwName != gw.Name {
 			continue
 		}
 		for i, ingressPort := range si.Ports {
 			// finding the correct listener
 			var forward types.GatewayEndpoint
 			found := false
-			for k, v := range gw.GatewayListeners {
+			for k, v := range gw.Listeners {
 				if strings.HasSuffix(k, f.Address+":"+strconv.Itoa(ingressPort)) {
 					forward = v
 					found = true
