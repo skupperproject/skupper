@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -92,10 +93,16 @@ func parseSettings() (*SkupperSettings, error) {
 }
 
 func tearDown(r *base.ClusterTestRunnerBase) {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(r.ClusterContexts))
 	for _, c := range r.ClusterContexts {
-		log.Printf("Deleting namespace: %s", c.Namespace)
-		_ = c.DeleteNamespace()
+		go func(c *base.ClusterContext) {
+			defer wg.Done()
+			log.Printf("Deleting namespace: %s", c.Namespace)
+			_ = c.DeleteNamespace()
+		}(c)
 	}
+	wg.Wait()
 }
 
 func run(m *testing.M, debugMode bool) (int, error) {
