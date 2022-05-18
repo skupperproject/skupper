@@ -24,10 +24,6 @@ func NewDeployment(name, namespace string, opts DeploymentOpts) (*v1.Deployment,
 	var err error
 
 	// Validating mandatory fields
-	if utils.StrEmpty(namespace) {
-		err := fmt.Errorf("namespace is required")
-		return nil, err
-	}
 	if utils.StrEmpty(name) {
 		err := fmt.Errorf("deployment name is required")
 		return nil, err
