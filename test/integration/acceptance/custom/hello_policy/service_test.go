@@ -541,9 +541,13 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 					getChecks: []policyGetCheck{
 						{
-							allowedServices:    []string{"asdf-frontend", "asdf-backend"},
-							disallowedServices: []string{"asdf"},
+							allowedServices:    []string{"asdf-frontend"},
+							disallowedServices: []string{"asdf-backend"},
 							cluster:            pub,
+						}, {
+							allowedServices:    []string{"asdf-backend"},
+							disallowedServices: []string{"asdf-frontend"},
+							cluster:            prv,
 						},
 					},
 					parallel: true,
