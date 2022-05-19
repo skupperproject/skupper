@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -81,6 +82,8 @@ func RunPerformanceTests(m *testing.M, debugMode bool) {
 	if err != nil {
 		log.Fatalf("error parsing skupper settings: %v", err)
 	}
+	settingsJson, _ := json.MarshalIndent(skupperSettings, "", "    ")
+	log.Printf("Skupper settings: %s", string(settingsJson))
 
 	// Running the tests
 	rc, err = run(m, debugMode)

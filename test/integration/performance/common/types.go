@@ -103,7 +103,7 @@ type SkupperSettings struct {
 type RouterSettings struct {
 	MaxFrameSize     int              `json:"maxFrameSize,omitempty"`
 	MaxSessionFrames int              `json:"maxSessionFrames,omitempty"`
-	Resources        ResourceSettings `json:"resources"`
+	Resources        ResourceSettings `json:"resources,omitempty"`
 }
 
 type ResourceSettings struct {
