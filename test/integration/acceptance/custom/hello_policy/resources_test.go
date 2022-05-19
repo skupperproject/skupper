@@ -15,7 +15,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
-//
 // Return a SkupperClusterPolicySpec that allows resources to be exposed
 // on given namespace.  If the list of namespaces is empty, it will default
 // to the cluster's namespace
@@ -36,6 +35,7 @@ func allowResourcesPolicy(namespaces, resources []string, cluster *base.ClusterC
 	return
 }
 
+// All the tests that will be executed in a single cluster
 type resourceDetails struct {
 	allowedExposedResources []string
 	testAllowed             []string
@@ -45,6 +45,8 @@ type resourceDetails struct {
 	namespaces              []string // if empty,  uses the context's namespace
 }
 
+// A single test case for resource exposing, with tests to
+// be run on two clusters/namespaces
 type resourceTest struct {
 	name string
 	pub  resourceDetails
@@ -57,6 +59,8 @@ type clusterItem struct {
 	front   bool
 }
 
+// "deployment/hello-world-front" becomes "deployment" and "hello-world-front"
+// If no slash on the resource, it will be an error.
 func splitResource(s string) (kind, name string, err error) {
 	split := strings.SplitN(s, "/", 2)
 	if len(split) != 2 {
@@ -68,11 +72,37 @@ func splitResource(s string) (kind, name string, err error) {
 	return
 }
 
+func resourcePolicyStepScenarios(ctx *base.ClusterContext, d resourceDetails) (cli.TestScenario, bool) {
+	// First, we check for testDisallowed: if they were there in the past cycle, we should
+	// wait for them to go away.  If they were not there, they should not be around anyway.
+	// Doing this first also gives time for any zombies to appear, or survivors to die unexpectedly
+	// and be properly reported
+
+	// Next, we check for survivors.  Removing something should be faster than creating it,
+	// that's why it comes before zombies.
+
+	// Finally, we check for zombies
+
+	// TODO: Change the function to return cli.SkupperTask, instead, and move the TestScenario
+	// back to the calling function
+	ret := cli.TestScenario{
+		//		Name: "check-pre",
+		//		Tasks: []cli.SkupperTask{
+		//			Ctx: ctx,
+		//		},
+	}
+
+	return ret, false
+}
+
+// Installs the policies on the clusters, and runs the GET checks to confirm they've
+// been applied as expected
 func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterItems []clusterItem) policyTestStep {
 
 	// Populate the policies...
 	step := policyTestStep{
-		name: "install-policy-and-check-with-get",
+		name:     "install-policy-and-check-with-get",
+		parallel: true,
 	}
 	if policy, ok := allowResourcesPolicy(r.pub.namespaces, r.pub.allowedExposedResources, pub); ok {
 		step.pubPolicy = []skupperv1.SkupperClusterPolicySpec{policy}
@@ -98,6 +128,17 @@ func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterIt
 		})
 	}
 	step.getChecks = getChecks
+
+	cliScenarios := []cli.TestScenario{}
+	if pubCli, ok := resourcePolicyStepScenarios(pub, r.pub); ok {
+		cliScenarios = append(cliScenarios, pubCli)
+	}
+	if prvCli, ok := resourcePolicyStepScenarios(prv, r.prv); ok {
+		cliScenarios = append(cliScenarios, prvCli)
+	}
+	if len(cliScenarios) > 0 {
+		step.cliScenarios = cliScenarios
+	}
 
 	return step
 
@@ -125,34 +166,6 @@ func exposeTestScenario(ctx *base.ClusterContext, kind, target string, works boo
 			},
 		},
 	}
-	//				// skupper status - asserts that 1 service is exposed
-	//				&cli.StatusTester{
-	//					RouterMode:          "interior",
-	//					ConnectedSites:      1,
-	//					ExposedServices:     1,
-	//					ConsoleEnabled:      true,
-	////					ConsoleAuthInternal: true,
-	//				},
-	//			}},
-	//			{Ctx: prv, Commands: []cli.SkupperCommandTester{
-	//				// skupper expose - exposes backend and certify it is available
-	//				&cli.ExposeTester{
-	//					TargetType: "deployment",
-	//					TargetName: "hello-world-backend",
-	//					Address:    "hello-world-backend",
-	//					Port:       8080,
-	//					Protocol:   "http",
-	//					TargetPort: 8080,
-	//				},
-	//				// skupper status - asserts that there are 2 exposed services
-	//				&cli.StatusTester{
-	//					RouterMode:      "edge",
-	//					SiteName:        "private",
-	//					ConnectedSites:  1,
-	//					ExposedServices: 2,
-	//				},
-	//			}},
-	//		},
 	return scenario
 }
 
@@ -174,10 +187,14 @@ func sortedMapKeys(m map[string]bool) []string {
 
 }
 
-func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
+// This is the last step in the test: GET, zombies and survivors are good, so
+// we tried to bind/expose something, and now we're confirming its state
+func resourcePostCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	steps := []policyTestStep{}
 
 	for _, ci := range clusterItems {
+		// These maps are sets.  They have the calculated list of bound or
+		// unbound services, from the the different lists in the test
 		bound := map[string]bool{}
 		unbound := map[string]bool{}
 		for _, item := range ci.details.testDisallowed {
@@ -198,24 +215,20 @@ func resourceCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 			// names only —, the end result for the name would be that it was allowed
 			delete(unbound, name)
 		}
-		var scenario cli.TestScenario
+
+		var prefix string
 		if ci.front {
-			scenario = serviceCheckFrontTestScenario(
-				ci.cluster,
-				"",
-				sortedMapKeys(unbound),
-				[]string{},
-				sortedMapKeys(bound),
-			)
+			prefix = "front"
 		} else {
-			scenario = serviceCheckBackTestScenario(
-				ci.cluster,
-				"",
-				sortedMapKeys(unbound),
-				[]string{},
-				sortedMapKeys(bound),
-			)
+			prefix = "back"
 		}
+		scenario := serviceCheckTestScenario(
+			ci.cluster,
+			prefix,
+			sortedMapKeys(unbound),
+			[]string{},
+			sortedMapKeys(bound),
+		)
 
 		cliScenarios := []cli.TestScenario{
 			scenario,
@@ -394,7 +407,7 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			if err != nil {
 				t.Fatalf("resource creation step definition failed: %v", err)
 			}
-			checkSteps, err := resourceCheckSteps(clusterItems)
+			checkSteps, err := resourcePostCheckSteps(clusterItems)
 			if err != nil {
 				t.Fatalf("resource check step definition failed: %v", err)
 			}

@@ -111,7 +111,7 @@ func genInterfaceList(services []string, bound bool) (interfaces []types.Service
 	return interfaces
 }
 
-func serviceCheckFrontTestScenario(pub *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
+func serviceCheckTestScenario(pub *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
 
 	serviceInterfaces := genInterfaceList(unboundServices, false)
 	serviceInterfaces = append(serviceInterfaces, genInterfaceList(boundServices, true)...)
@@ -119,7 +119,7 @@ func serviceCheckFrontTestScenario(pub *base.ClusterContext, prefix string, unbo
 
 	scenario = cli.TestScenario{
 
-		Name: "service-status-front",
+		Name: prefixName(prefix, "service-status"),
 		Tasks: []cli.SkupperTask{
 			{
 				Ctx: pub, Commands: []cli.SkupperCommandTester{
@@ -162,7 +162,7 @@ func serviceCheckFrontStatusTestScenario(pub *base.ClusterContext, prefix string
 	}
 
 	tasks = append(
-		serviceCheckFrontTestScenario(pub, prefix, unboundServices, unauthServices, boundServices).Tasks,
+		serviceCheckTestScenario(pub, prefixName("front", prefix), unboundServices, unauthServices, boundServices).Tasks,
 		tasks...,
 	)
 
@@ -171,29 +171,6 @@ func serviceCheckFrontStatusTestScenario(pub *base.ClusterContext, prefix string
 		Tasks: tasks,
 	}
 
-	return scenario
-}
-
-func serviceCheckBackTestScenario(prv *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
-	serviceInterfaces := genInterfaceList(unboundServices, false)
-	serviceInterfaces = append(serviceInterfaces, genInterfaceList(boundServices, true)...)
-	unauthInterfaces := genInterfaceList(unauthServices, false)
-
-	scenario = cli.TestScenario{
-
-		Name: "service-status-back",
-		Tasks: []cli.SkupperTask{
-			{
-				Ctx: prv, Commands: []cli.SkupperCommandTester{
-					// skupper service status - validate status of the two created services without targets
-					&service.StatusTester{
-						ServiceInterfaces:             serviceInterfaces,
-						UnauthorizedServiceInterfaces: unauthInterfaces,
-						CheckAuthorization:            true,
-					},
-				}},
-		},
-	}
 	return scenario
 }
 
@@ -217,7 +194,7 @@ func serviceCheckBackStatusTestScenario(prv *base.ClusterContext, prefix string,
 	}
 
 	tasks = append(
-		serviceCheckBackTestScenario(prv, prefix, unboundServices, unauthServices, boundServices).Tasks,
+		serviceCheckTestScenario(prv, prefixName("back", prefix), unboundServices, unauthServices, boundServices).Tasks,
 		tasks...,
 	)
 
