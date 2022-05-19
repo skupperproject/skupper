@@ -5,6 +5,7 @@ package hello_policy
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"testing"
@@ -72,7 +73,7 @@ func splitResource(s string) (kind, name string, err error) {
 	return
 }
 
-func resourcePolicyStepScenarios(ctx *base.ClusterContext, d resourceDetails) (cli.TestScenario, bool) {
+func resourcePolicyStepPreCheckTask(ctx *base.ClusterContext, d resourceDetails) (cli.SkupperTask, bool) {
 	// First, we check for testDisallowed: if they were there in the past cycle, we should
 	// wait for them to go away.  If they were not there, they should not be around anyway.
 	// Doing this first also gives time for any zombies to appear, or survivors to die unexpectedly
@@ -83,16 +84,32 @@ func resourcePolicyStepScenarios(ctx *base.ClusterContext, d resourceDetails) (c
 
 	// Finally, we check for zombies
 
-	// TODO: Change the function to return cli.SkupperTask, instead, and move the TestScenario
-	// back to the calling function
-	ret := cli.TestScenario{
-		//		Name: "check-pre",
-		//		Tasks: []cli.SkupperTask{
-		//			Ctx: ctx,
-		//		},
+	disallowedNames := []string{}
+
+	for _, r := range d.testDisallowed {
+		_, name, err := splitResource(r)
+		if err != nil {
+			log.Printf("Failed parsing resource %v", r)
+		}
+		disallowedNames = append(disallowedNames, name)
 	}
 
-	return ret, false
+	commands := []cli.SkupperCommandTester{}
+	commands = append(commands, serviceCheckTestCommand(disallowedNames, []string{}, []string{}))
+	commands = append(commands, serviceCheckTestCommand([]string{}, []string{}, d.survivors))
+	commands = append(commands, serviceCheckTestCommand(d.zombies, []string{}, []string{}))
+
+	ret := cli.SkupperTask{
+		Ctx:      ctx,
+		Commands: commands,
+	}
+
+	var result bool
+	if len(commands) > 0 {
+		result = true
+	}
+
+	return ret, result
 }
 
 // Installs the policies on the clusters, and runs the GET checks to confirm they've
@@ -130,12 +147,46 @@ func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterIt
 	step.getChecks = getChecks
 
 	cliScenarios := []cli.TestScenario{}
-	if pubCli, ok := resourcePolicyStepScenarios(pub, r.pub); ok {
-		cliScenarios = append(cliScenarios, pubCli)
+
+	// TODO REFACTOR
+	// Instead of two tasks with one command for each disallowed, zombie, survivor
+	// Do disallowed in parallel on both clusters, then zombies and survivors in the same
+	// manner.  This would better identify on the logs what's being done
+	for _, item := range []struct {
+		name    string
+		ctx     *base.ClusterContext
+		details resourceDetails
+	}{
+		{
+			"pub",
+			pub,
+			r.pub,
+		}, {
+			"prv",
+			prv,
+			r.prv,
+		},
+	} {
+		if cliTask, ok := resourcePolicyStepPreCheckTask(item.ctx, item.details); ok {
+			scenario := cli.TestScenario{
+				Name:  prefixName(item.name, "check-pre"),
+				Tasks: []cli.SkupperTask{cliTask},
+			}
+			cliScenarios = append(cliScenarios, scenario)
+		}
 	}
-	if prvCli, ok := resourcePolicyStepScenarios(prv, r.prv); ok {
-		cliScenarios = append(cliScenarios, prvCli)
-	}
+
+	//	cliScenario := cli.TestScenario{
+	//		Name:  "check-pre",
+	//		Tasks: []cli.SkupperTask{},
+	//	}
+	//	tasks := []cli.SkupperTask{}
+	//	if pubCli, ok := resourcePolicyStepPreCheckTask(pub, r.pub); ok {
+	//		tasks = append(tasks, pubCli)
+	//	}
+	//	if prvCli, ok := resourcePolicyStepPreCheckTask(prv, r.prv); ok {
+	//		tasks = append(tasks, prvCli)
+	//	}
 	if len(cliScenarios) > 0 {
 		step.cliScenarios = cliScenarios
 	}
@@ -292,30 +343,30 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		}, {
 			name: "frontend-not-a-regex--backend-survives",
 			pub: resourceDetails{
-				zombies:                 []string{"deployment/hello-world-frontend"},
+				zombies:                 []string{"hello-world-frontend"},
 				allowedExposedResources: []string{".*"},
 				testDisallowed:          []string{"deployment/hello-world-frontend"},
 			},
 			prv: resourceDetails{
 				allowedExposedResources: []string{"*"},
-				survivors:               []string{"deployment/hello-world-backend"},
+				survivors:               []string{"hello-world-backend"},
 			},
 		}, {
 			name: "front-end-really-not-a-regex--backend-survives",
 			pub: resourceDetails{
-				zombies:                 []string{"deployment/hello-world-frontend"},
+				zombies:                 []string{"hello-world-frontend"},
 				allowedExposedResources: []string{".*/.*"},
 				testDisallowed:          []string{"deployment/hello-world-frontend"},
 			},
 			prv: resourceDetails{
 				allowedExposedResources: []string{"deployment/hello-world-backend"},
-				survivors:               []string{"deployment/hello-world-backend"},
+				survivors:               []string{"hello-world-backend"},
 			},
 		}, {
 			name: "specifically",
 			pub: resourceDetails{
 				allowedExposedResources: []string{"deployment/hello-world-frontend"},
-				zombies:                 []string{"deployment/hello-world-frontend"},
+				zombies:                 []string{"hello-world-frontend"},
 				testAllowed:             []string{"deployment/hello-world-frontend"},
 			},
 			prv: resourceDetails{
@@ -377,14 +428,14 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		{
 			name: "expose",
 			fn:   resourceExposeStep,
-		},
+		}, // TOODO resourceBindStep
 	}
 
 	for _, p := range profiles {
 		for _, rt := range resourceTests {
 			// First, check that any resources that are expected to be down are so
-			// Next, confirm that zombies did not come back to life
 			// Then, check that the survivors are still around
+			// Next, confirm that zombies did not come back to life
 			// Finally, try to create stuff
 			// And test it
 

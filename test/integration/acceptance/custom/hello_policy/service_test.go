@@ -111,25 +111,27 @@ func genInterfaceList(services []string, bound bool) (interfaces []types.Service
 	return interfaces
 }
 
-func serviceCheckTestScenario(pub *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
-
+func serviceCheckTestCommand(unboundServices, unauthServices, boundServices []string) (scenario *service.StatusTester) {
 	serviceInterfaces := genInterfaceList(unboundServices, false)
 	serviceInterfaces = append(serviceInterfaces, genInterfaceList(boundServices, true)...)
 	unauthInterfaces := genInterfaceList(unauthServices, false)
+
+	command := &service.StatusTester{
+		ServiceInterfaces:             serviceInterfaces,
+		UnauthorizedServiceInterfaces: unauthInterfaces,
+		CheckAuthorization:            true,
+	}
+	return command
+}
+func serviceCheckTestScenario(pub *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
 
 		Name: prefixName(prefix, "service-status"),
 		Tasks: []cli.SkupperTask{
 			{
-				Ctx: pub, Commands: []cli.SkupperCommandTester{
-					// skupper service status - verify frontend service is exposed
-					&service.StatusTester{
-						ServiceInterfaces:             serviceInterfaces,
-						UnauthorizedServiceInterfaces: unauthInterfaces,
-						CheckAuthorization:            true,
-					},
-				},
+				Ctx:      pub,
+				Commands: []cli.SkupperCommandTester{serviceCheckTestCommand(unboundServices, unauthServices, boundServices)},
 			},
 		},
 	}
