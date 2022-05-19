@@ -10,7 +10,6 @@ package hello_policy
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 	"testing"
@@ -78,45 +77,6 @@ func splitResource(s string) (kind, name string, err error) {
 	return
 }
 
-func resourcePolicyStepPreCheckTask(ctx *base.ClusterContext, d resourceDetails) (cli.SkupperTask, bool) {
-	// First, we check for testDisallowed: if they were there in the past cycle, we should
-	// wait for them to go away.  If they were not there, they should not be around anyway.
-	// Doing this first also gives time for any zombies to appear, or survivors to die unexpectedly
-	// and be properly reported
-
-	// Next, we check for survivors.  Removing something should be faster than creating it,
-	// that's why it comes before zombies.
-
-	// Finally, we check for zombies
-
-	disallowedNames := []string{}
-
-	for _, r := range d.testDisallowed {
-		_, name, err := splitResource(r)
-		if err != nil {
-			log.Printf("Failed parsing resource %v", r)
-		}
-		disallowedNames = append(disallowedNames, name)
-	}
-
-	commands := []cli.SkupperCommandTester{}
-	commands = append(commands, serviceCheckTestCommand(disallowedNames, []string{}, []string{}))
-	commands = append(commands, serviceCheckTestCommand([]string{}, []string{}, d.survivors))
-	commands = append(commands, serviceCheckTestCommand(d.zombies, []string{}, []string{}))
-
-	ret := cli.SkupperTask{
-		Ctx:      ctx,
-		Commands: commands,
-	}
-
-	var result bool
-	if len(commands) > 0 {
-		result = true
-	}
-
-	return ret, result
-}
-
 // Installs the policies on the clusters, and runs the GET checks to confirm they've
 // been applied as expected
 func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterItems []clusterItem) policyTestStep {
@@ -150,51 +110,6 @@ func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterIt
 	}
 	step.getChecks = getChecks
 
-	//	cliScenarios := []cli.TestScenario{}
-
-	// TODO REFACTOR
-	// Instead of two tasks with one command for each disallowed, zombie, survivor
-	// Do disallowed in parallel on both clusters, then zombies and survivors in the same
-	// manner.  This would better identify on the logs what's being done
-	//	for _, item := range []struct {
-	//		name    string
-	//		ctx     *base.ClusterContext
-	//		details resourceDetails
-	//	}{
-	//		{
-	//			"pub",
-	//			pub,
-	//			r.pub,
-	//		}, {
-	//			"prv",
-	//			prv,
-	//			r.prv,
-	//		},
-	//	} {
-	//		if cliTask, ok := resourcePolicyStepPreCheckTask(item.ctx, item.details); ok {
-	//			scenario := cli.TestScenario{
-	//				Name:  prefixName(item.name, "check-pre"),
-	//				Tasks: []cli.SkupperTask{cliTask},
-	//			}
-	//			cliScenarios = append(cliScenarios, scenario)
-	//		}
-	//	}
-	//
-	//	//	cliScenario := cli.TestScenario{
-	//	//		Name:  "check-pre",
-	//	//		Tasks: []cli.SkupperTask{},
-	//	//	}
-	//	//	tasks := []cli.SkupperTask{}
-	//	//	if pubCli, ok := resourcePolicyStepPreCheckTask(pub, r.pub); ok {
-	//	//		tasks = append(tasks, pubCli)
-	//	//	}
-	//	//	if prvCli, ok := resourcePolicyStepPreCheckTask(prv, r.prv); ok {
-	//	//		tasks = append(tasks, prvCli)
-	//	//	}
-	//	if len(cliScenarios) > 0 {
-	//		step.cliScenarios = cliScenarios
-	//	}
-
 	return step
 
 }
@@ -210,6 +125,16 @@ func prefixSide(front bool) string {
 // This is the first step that runs commands in the test: check for disallowed services,
 // zombies and survivors
 func resourcePreCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
+	// First, we check for testDisallowed: if they were there in the past cycle, we should
+	// wait for them to go away.  If they were not there, they should not be around anyway.
+	// Doing this first also gives time for any zombies to appear, or survivors to die unexpectedly
+	// and be properly reported
+
+	// Next, we check for survivors.  Removing something should be faster than creating it,
+	// that's why it comes before zombies.
+
+	// Finally, we check for zombies
+
 	steps := []policyTestStep{}
 
 	// Disallowed
@@ -220,7 +145,7 @@ func resourcePreCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error)
 			for _, r := range item.details.testDisallowed {
 				_, name, err := splitResource(r)
 				if err != nil {
-					log.Printf("Failed parsing resource %v", r)
+					return steps, fmt.Errorf("Failed parsing resource %w", err)
 				}
 				disallowedNames = append(disallowedNames, name)
 			}
