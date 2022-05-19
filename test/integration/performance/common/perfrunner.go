@@ -19,11 +19,11 @@ import (
 )
 
 var (
-	stepLog = log.New(os.Stdout, "  ", log.LstdFlags)
+	stepLog = log.New(os.Stdout, "  ", log.LstdFlags|log.Lmsgprefix)
 )
 
 func subStepLog(parent *log.Logger) *log.Logger {
-	return log.New(parent.Writer(), parent.Prefix()+"  ", parent.Flags())
+	return log.New(parent.Writer(), parent.Prefix()+"  ", parent.Flags()|log.Lmsgprefix)
 }
 
 func RunPerformanceTest(perfTest PerformanceTest) error {
@@ -62,10 +62,11 @@ func runClientJobs(perfTest PerformanceTest) error {
 	}
 
 	for _, job := range app.Client.Jobs {
+		resultInfo := resultInfo{job: job}
 		stepLog.Printf("- Running client job %s at %s", job.Name, clientCluster.Namespace)
 
 		// Running job
-		_, err := clientCluster.VanClient.KubeClient.BatchV1().Jobs(clientCluster.Namespace).Create(job)
+		_, err := clientCluster.VanClient.KubeClient.BatchV1().Jobs(clientCluster.Namespace).Create(job.Job)
 		if err != nil {
 			return fmt.Errorf("error creating client job %s - %v", job.Name, err)
 		}
@@ -92,6 +93,7 @@ func runClientJobs(perfTest PerformanceTest) error {
 				defer logFile.Close()
 				_, err = logFile.WriteString(logs)
 			}
+			resultInfo.logFile = fullLogFileName
 		}
 
 		// Assert job has completed
@@ -101,10 +103,11 @@ func runClientJobs(perfTest PerformanceTest) error {
 
 		// Parsing results
 		stepLog.Printf("- Validating results")
-		result := perfTest.Validate(serverCluster, clientCluster, job.Name)
+		result := perfTest.Validate(serverCluster, clientCluster, job)
 		result.App = app
 		result.Sites = skupperSites
 		result.Skupper = *skupperSettings
+		result.Job = job
 
 		if result.Error != nil {
 			return fmt.Errorf("error detected during validation: %v", err)
@@ -128,8 +131,13 @@ func runClientJobs(perfTest PerformanceTest) error {
 		if err != nil {
 			return fmt.Errorf("error writing JSON results: %v", err)
 		}
-		logger.Printf("- %d bytes written into: %s", jsonBytes, fullJsonFileName)
+		logger.Printf("- %d bytes written into JSON file", jsonBytes)
+
+		resultInfo.result = result
+		resultInfo.jsonFile = fullJsonFileName
+		summary.addResult(app, resultInfo)
 	}
+
 	return nil
 }
 

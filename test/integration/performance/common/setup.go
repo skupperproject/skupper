@@ -1,10 +1,15 @@
 package common
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,16 +17,54 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
+	pkgutils "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
+	v1 "k8s.io/api/core/v1"
 )
 
 var (
-	skupperSettings *SkupperSettings
-	skupperSites    int
-	testRunner      *base.ClusterTestRunnerBase
+	skupperSettings        *SkupperSettings
+	skupperSites           int
+	testRunner             *base.ClusterTestRunnerBase
+	summary                = &resultSummary{}
+	throughputHeaderFormat = "%-48s %-12s %-12s %-22s %-14s %-14s %-14s"
+	throughputFormat       = "%-48s %-12d %-12d %-22.2f %-14.2f %-14.2f %-14.2f"
 )
+
+type resultInfo struct {
+	job      JobInfo
+	result   Result
+	logFile  string
+	jsonFile string
+}
+
+type resultSummary struct {
+	apps map[string]PerformanceApp
+	// results indexed by skupper site and resulting map by jobname
+	results map[int]map[string]resultInfo
+}
+
+func (r *resultSummary) addResult(app PerformanceApp, result resultInfo) {
+	if r.apps == nil {
+		r.apps = map[string]PerformanceApp{}
+		r.results = map[int]map[string]resultInfo{}
+	}
+	if _, ok := r.apps[app.Name]; !ok {
+		r.apps[app.Name] = app
+	}
+	if _, ok := r.results[result.result.Sites]; !ok {
+		r.results[result.result.Sites] = map[string]resultInfo{}
+	}
+	siteResMap := r.results[result.result.Sites]
+	siteResMap[result.job.Name] = result
+}
+
+func (r *resultSummary) jobNames(app string) []string {
+	return r.apps[app].Client.JobNames()
+}
 
 func RunPerformanceTests(m *testing.M, debugMode bool) {
 	var err error
@@ -44,6 +87,45 @@ func RunPerformanceTests(m *testing.M, debugMode bool) {
 	if err != nil {
 		log.Fatalf("error running performance tests: %v", err)
 	}
+
+	// Displaying summary
+	displaySummary()
+}
+
+func displaySummary() {
+
+	// Displaying log and json files generated for each app/job
+	log.Println("Performance test execution summary")
+	stepLog.Println("Generated log and json files")
+	sublog := subStepLog(stepLog)
+	logFormat := "%-16s %-8s %-32s %s"
+	sublog.Printf(logFormat, "APP", "SITES", "JOB", "OUTPUT FILE")
+	for appName, app := range summary.apps {
+		for _, sites := range skupperSettings.Sites {
+			for _, jobName := range app.Client.JobNames() {
+				res := summary.results[sites][jobName]
+				sublog.Printf(logFormat, appName, strconv.Itoa(sites), jobName, res.logFile)
+				sublog.Printf(logFormat, "", "", "", res.jsonFile)
+			}
+		}
+	}
+
+	// Displaying throughput for each app/job
+	stepLog.Println("Throughput summary")
+	for _, app := range summary.apps {
+		sublog.Printf(throughputHeaderFormat, "JOB", "SITES", "CLIENTS",
+			fmt.Sprintf("THROUGHPUT (%s)", strings.ToUpper(app.ThroughputUnit)),
+			"LATENCY AVG", "LATENCY 50%", "LATENCY 99%")
+		for _, sites := range skupperSettings.Sites {
+			for _, jobName := range app.Client.JobNames() {
+				res := summary.results[sites][jobName]
+				jobRes := res.result
+				sublog.Printf(throughputFormat, jobName, jobRes.Sites, res.job.Clients, jobRes.Throughput,
+					jobRes.LatencyAvg, jobRes.Latency50, jobRes.Latency99)
+			}
+		}
+	}
+
 }
 
 func parseSettings() (*SkupperSettings, error) {
@@ -145,16 +227,30 @@ func run(m *testing.M, debugMode bool) (int, error) {
 			tearDown(testRunner)
 			return 1, fmt.Errorf("error initializing skupper: %v", err)
 		}
+		skupperSitesStr := "without skupper"
+		if skupperSites > 0 {
+			skupperSitesStr = fmt.Sprintf("with %d linked skupper sites", skupperSites)
+		}
+
+		// Tailing router logs (to get the full log)
+		saveRouterLogs := true
+		wg := &sync.WaitGroup{}
+		if debugMode {
+			wg = tailRouterLogs(testCtx, &saveRouterLogs)
+		}
+		defer wg.Wait()
+
+		log.Printf("Running performance tests %s", skupperSitesStr)
 		rc := m.Run()
 
 		if rc != 0 {
 			tearDown(testRunner)
 			return rc, nil
 		}
+
+		saveRouterLogs = false
 		tearDown(testRunner)
 	}
-
-	// TODO Results summary (parse all JSON files and print to output)
 
 	return 0, nil
 }
@@ -212,8 +308,6 @@ func initializeSkupper(testCtx context.Context, testRunner *base.ClusterTestRunn
 				return fmt.Errorf("error creating router: %v", err)
 			}
 
-			// TODO ADD LOGIC TO TAIL ROUTER LOGS (on debug mode)
-
 			// If i > 1 (site2 connects to site1, site3 connects to site 2 and so on)
 			if connectionToken != "" {
 				prevCtx, _ := testRunner.GetPublicContext(i - 1)
@@ -267,4 +361,82 @@ func initializeSkupper(testCtx context.Context, testRunner *base.ClusterTestRunn
 	}
 
 	return nil
+}
+
+func tailRouterLogs(ctx context.Context, saveLogs *bool) *sync.WaitGroup {
+	wg := &sync.WaitGroup{}
+	tailRouterLogs := func(cluster *base.ClusterContext) {
+		defer wg.Done()
+		cli := cluster.VanClient
+		fileName := fmt.Sprintf("%s/%s-skupper-router.log", OutputPath, cli.Namespace)
+		tgzFileName := fmt.Sprintf("%s.tar.gz", fileName)
+		var pod *v1.Pod
+		var err error
+		log.Printf("Waiting for router pod to be running")
+		err = pkgutils.RetryWithContext(ctx, time.Second*5, func() (bool, error) {
+			pod, err = kube.GetReadyPod(cli.Namespace, cli.KubeClient, "router")
+			if pod != nil && err == nil {
+				return true, nil
+			}
+			return false, nil
+		})
+		if err != nil {
+			log.Printf("Error waiting for skupper-router pod to be running: %v", err)
+			return
+		}
+		log.Printf("Buffering router logs for namespace '%s'", cli.Namespace)
+		req := cli.KubeClient.CoreV1().Pods(cli.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{
+			Follow:    true,
+			Container: "router",
+		})
+		logsStream, err := req.Stream()
+		if err != nil {
+			log.Printf("Error getting router logs on namespace '%s': %v", cli.Namespace, err)
+			return
+		}
+		buf := &bytes.Buffer{}
+		wr, err := io.Copy(buf, logsStream)
+		if err != nil {
+			log.Printf("Error streaming router logs on namespace '%s': %v", cli.Namespace, err)
+			return
+		}
+		if *saveLogs {
+			log.Printf("Router logs buffer has been collected for namespace '%s': %d bytes", cli.Namespace, wr)
+			tgz, err := os.Create(tgzFileName)
+			if err != nil {
+				log.Printf("Error creating tarball '%s': %v", tgzFileName, err)
+				return
+			}
+			gz := gzip.NewWriter(tgz)
+			defer gz.Close()
+			tw := tar.NewWriter(gz)
+			defer tw.Close()
+
+			hdr := &tar.Header{
+				Name: fileName,
+				Mode: 0644,
+				Size: wr,
+			}
+			err = tw.WriteHeader(hdr)
+			if err != nil {
+				log.Printf("Failed to write tar file header for '%s': %v", tgzFileName, err)
+				return
+			}
+			_, err = tw.Write(buf.Bytes())
+			if err != nil {
+				log.Printf("Failed to write to tar archive '%s': %v", tgzFileName, err)
+				return
+			}
+			tgzPath, _ := filepath.Abs(tgzFileName)
+			log.Printf("Tarball has been saved: %s", tgzPath)
+		}
+	}
+	if skupperSites == 0 {
+		return wg
+	}
+	for _, cluster := range testRunner.ClusterContexts {
+		wg.Add(1)
+		go tailRouterLogs(cluster)
+	}
+	return wg
 }

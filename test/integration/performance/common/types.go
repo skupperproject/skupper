@@ -1,7 +1,9 @@
 package common
 
 import (
+	"bytes"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -21,11 +23,13 @@ func (a AppSettings) AddEnvVar(name string) {
 }
 
 type PerformanceApp struct {
-	Name        string      `json:"name"`
-	Description string      `json:"description,omitempty"`
-	Service     ServiceInfo `json:"service"`
-	Server      ServerInfo  `json:"server"`
-	Client      ClientInfo  `json:"client"`
+	Name           string        `json:"name"`
+	Description    string        `json:"description,omitempty"`
+	Service        ServiceInfo   `json:"service"`
+	Server         *ServerInfo   `json:"server"`
+	Client         *ClientInfo   `json:"client"`
+	ThroughputUnit string        `json:"throughputUnit,omitempty"`
+	LatencyUnit    time.Duration `json:"latencyUnit,omitempty"`
 }
 
 type ServerInfo struct {
@@ -40,7 +44,22 @@ type ClientInfo struct {
 	Resources ResourceSettings `json:"resources,omitempty"`
 	Settings  AppSettings      `json:"settings,omitempty"`
 	Timeout   time.Duration    `json:"timeout,omitempty"`
-	Jobs      []*batchv1.Job   `json:"jobs"`
+	Jobs      []JobInfo        `json:"jobs"`
+}
+
+func (c *ClientInfo) JobNames() []string {
+	jobNames := []string{}
+	for _, job := range c.Jobs {
+		jobNames = append(jobNames, job.Name)
+	}
+	sort.Strings(jobNames)
+	return jobNames
+}
+
+type JobInfo struct {
+	Name    string       `json:"name"`
+	Clients int          `json:"clients"`
+	Job     *batchv1.Job `json:"job"`
 }
 
 type ServiceInfo struct {
@@ -52,21 +71,20 @@ type ServiceInfo struct {
 
 type PerformanceTest interface {
 	App() PerformanceApp
-	Validate(serverCluster, clientCluster *base.ClusterContext, jobName string) Result
+	Validate(serverCluster, clientCluster *base.ClusterContext, job JobInfo) Result
 }
 
 type Result struct {
-	App            PerformanceApp  `json:"app"`
-	Sites          int             `json:"sites"`
-	Skupper        SkupperSettings `json:"skupper"`
-	Failed         bool            `json:"failed,omitempty"`
-	Error          error           `json:"error,omitempty"`
-	ThroughputUnit string          `json:"throughputUnit,omitempty"`
-	Throughput     float64         `json:"throughput,omitempty"`
-	LatencyUnit    time.Duration   `json:"latencyUnit,omitempty"`
-	LatencyAvg     float64         `json:"latencyAvg,omitempty"`
-	Latency50      float64         `json:"latency50,omitempty"`
-	Latency99      float64         `json:"latency99,omitempty"`
+	App        PerformanceApp  `json:"app"`
+	Sites      int             `json:"sites"`
+	Skupper    SkupperSettings `json:"skupper"`
+	Failed     bool            `json:"failed,omitempty"`
+	Error      error           `json:"error,omitempty"`
+	Job        JobInfo         `json:"job"`
+	Throughput float64         `json:"throughput,omitempty"`
+	LatencyAvg float64         `json:"latencyAvg,omitempty"`
+	Latency50  float64         `json:"latency50,omitempty"`
+	Latency99  float64         `json:"latency99,omitempty"`
 }
 
 func (r *Result) SetError(err error) {
@@ -83,12 +101,25 @@ type SkupperSettings struct {
 }
 
 type RouterSettings struct {
-	MaxFrameSize     int
-	MaxSessionFrames int
-	Resources        ResourceSettings
+	MaxFrameSize     int              `json:"maxFrameSize,omitempty"`
+	MaxSessionFrames int              `json:"maxSessionFrames,omitempty"`
+	Resources        ResourceSettings `json:"resources"`
 }
 
 type ResourceSettings struct {
 	Memory string `json:"memory,omitempty"`
 	CPU    string `json:"CPU,omitempty"`
+}
+
+// FlushWriter Buffers content till flushed
+type FlushWriter struct {
+	buf bytes.Buffer
+}
+
+func (f *FlushWriter) Write(p []byte) (n int, err error) {
+	return f.buf.Write(p)
+}
+
+func (f *FlushWriter) Flush() (n int, err error) {
+	return os.Stdout.WriteString(f.buf.String())
 }

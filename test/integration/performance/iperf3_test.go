@@ -18,15 +18,13 @@ import (
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 )
 
 type IperfTest common.PerformanceApp
 
 var (
-	iperfSettings  IperfTuning
-	jobNameClients = map[string]int{}
+	iperfSettings IperfTuning
 )
 
 const (
@@ -68,22 +66,21 @@ func (i *IperfTest) App() common.PerformanceApp {
 	return common.PerformanceApp(*i)
 }
 
-func (i *IperfTest) Validate(serverCluster, clientCluster *base.ClusterContext, jobName string) common.Result {
+func (i *IperfTest) Validate(serverCluster, clientCluster *base.ClusterContext, job common.JobInfo) common.Result {
 	res := common.Result{}
 
 	log.Println("validating client result")
 	// Saving job logs
-	logs, err := k8s.GetJobLogs(clientCluster.Namespace, clientCluster.VanClient.KubeClient, jobName)
+	logs, err := k8s.GetJobLogs(clientCluster.Namespace, clientCluster.VanClient.KubeClient, job.Name)
 	if err != nil {
 		res.SetError(err)
 		return res
 	}
 
 	// Parsing throughput
-	clients := jobNameClients[jobName]
 	// group 2 is the throughput and 3 is the unit
 	exp, _ := regexp.Compile(`^\[\s*[0-9]+](\s+\S+){4}\s+(\S+)\s+(\S+)\s+\S*\s+(sender|receiver)`)
-	if clients > 1 {
+	if job.Clients > 1 {
 		exp, _ = regexp.Compile(`^\[SUM](\s+\S+){4}\s+(\S+)\s+(\S+)\s+\S*\s+(sender|receiver)`)
 	}
 
@@ -118,9 +115,8 @@ func (i *IperfTest) Validate(serverCluster, clientCluster *base.ClusterContext, 
 		avg = avg / float64(matches)
 	}
 
-	res.ThroughputUnit = "Gbits/sec"
 	res.Throughput = avg
-	log.Printf("throughput: %.2f %s", res.Throughput, res.ThroughputUnit)
+	log.Printf("throughput: %.2f %s", res.Throughput, i.App().ThroughputUnit)
 
 	return res
 }
@@ -130,17 +126,18 @@ func TestIperf3(t *testing.T) {
 	parseIperfSettings(t)
 
 	i := &IperfTest{
-		Name:        "iperf3",
-		Description: "iPerf3 TCP performance",
-		Server:      getServerInfo(),
-		Service:     getServiceDef(),
-		Client:      getClientInfo(),
+		Name:           "iperf3",
+		Description:    "iPerf3 TCP performance",
+		Server:         getServerInfo(),
+		Service:        getServiceDef(),
+		Client:         getClientInfo(),
+		ThroughputUnit: "Gbits/s",
 	}
 	assert.Assert(t, common.RunPerformanceTest(i))
 }
 
-func getServerInfo() common.ServerInfo {
-	return common.ServerInfo{
+func getServerInfo() *common.ServerInfo {
+	return &common.ServerInfo{
 		Name:       "iperf3-server",
 		Resources:  getResources(),
 		Settings:   getServerSettings(),
@@ -179,8 +176,8 @@ func getServiceDef() common.ServiceInfo {
 	}
 }
 
-func getClientInfo() common.ClientInfo {
-	return common.ClientInfo{
+func getClientInfo() *common.ClientInfo {
+	return &common.ClientInfo{
 		Name:      "iperf3-client",
 		Resources: getResources(),
 		Settings:  getClientSettings(),
@@ -189,8 +186,8 @@ func getClientInfo() common.ClientInfo {
 	}
 }
 
-func getJobs() []*batchv1.Job {
-	var jobs []*batchv1.Job
+func getJobs() []common.JobInfo {
+	var jobs []common.JobInfo
 	clients := iperfSettings.ParallelClients
 	sizes := iperfSettings.TransmitSizes
 	for _, client := range clients {
@@ -203,8 +200,11 @@ func getJobs() []*batchv1.Job {
 				Labels:       map[string]string{"job": jobName},
 				Args:         iperfSettings.ToArgs("iperf3-server", size, client),
 			})
-			jobs = append(jobs, clientJob)
-			jobNameClients[jobName] = client
+			jobs = append(jobs, common.JobInfo{
+				Name:    jobName,
+				Clients: client,
+				Job:     clientJob,
+			})
 		}
 	}
 	return jobs
