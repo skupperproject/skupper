@@ -123,8 +123,7 @@ func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterIt
 
 	// Populate the policies...
 	step := policyTestStep{
-		name:     "install-policy-and-check-with-get",
-		parallel: true,
+		name: "install-policy-and-check-with-get",
 	}
 	if policy, ok := allowResourcesPolicy(r.pub.namespaces, r.pub.allowedExposedResources, pub); ok {
 		step.pubPolicy = []skupperv1.SkupperClusterPolicySpec{policy}
@@ -151,53 +150,149 @@ func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterIt
 	}
 	step.getChecks = getChecks
 
-	cliScenarios := []cli.TestScenario{}
+	//	cliScenarios := []cli.TestScenario{}
 
 	// TODO REFACTOR
 	// Instead of two tasks with one command for each disallowed, zombie, survivor
 	// Do disallowed in parallel on both clusters, then zombies and survivors in the same
 	// manner.  This would better identify on the logs what's being done
-	for _, item := range []struct {
-		name    string
-		ctx     *base.ClusterContext
-		details resourceDetails
-	}{
-		{
-			"pub",
-			pub,
-			r.pub,
-		}, {
-			"prv",
-			prv,
-			r.prv,
-		},
-	} {
-		if cliTask, ok := resourcePolicyStepPreCheckTask(item.ctx, item.details); ok {
-			scenario := cli.TestScenario{
-				Name:  prefixName(item.name, "check-pre"),
-				Tasks: []cli.SkupperTask{cliTask},
-			}
-			cliScenarios = append(cliScenarios, scenario)
-		}
-	}
-
-	//	cliScenario := cli.TestScenario{
-	//		Name:  "check-pre",
-	//		Tasks: []cli.SkupperTask{},
+	//	for _, item := range []struct {
+	//		name    string
+	//		ctx     *base.ClusterContext
+	//		details resourceDetails
+	//	}{
+	//		{
+	//			"pub",
+	//			pub,
+	//			r.pub,
+	//		}, {
+	//			"prv",
+	//			prv,
+	//			r.prv,
+	//		},
+	//	} {
+	//		if cliTask, ok := resourcePolicyStepPreCheckTask(item.ctx, item.details); ok {
+	//			scenario := cli.TestScenario{
+	//				Name:  prefixName(item.name, "check-pre"),
+	//				Tasks: []cli.SkupperTask{cliTask},
+	//			}
+	//			cliScenarios = append(cliScenarios, scenario)
+	//		}
 	//	}
-	//	tasks := []cli.SkupperTask{}
-	//	if pubCli, ok := resourcePolicyStepPreCheckTask(pub, r.pub); ok {
-	//		tasks = append(tasks, pubCli)
+	//
+	//	//	cliScenario := cli.TestScenario{
+	//	//		Name:  "check-pre",
+	//	//		Tasks: []cli.SkupperTask{},
+	//	//	}
+	//	//	tasks := []cli.SkupperTask{}
+	//	//	if pubCli, ok := resourcePolicyStepPreCheckTask(pub, r.pub); ok {
+	//	//		tasks = append(tasks, pubCli)
+	//	//	}
+	//	//	if prvCli, ok := resourcePolicyStepPreCheckTask(prv, r.prv); ok {
+	//	//		tasks = append(tasks, prvCli)
+	//	//	}
+	//	if len(cliScenarios) > 0 {
+	//		step.cliScenarios = cliScenarios
 	//	}
-	//	if prvCli, ok := resourcePolicyStepPreCheckTask(prv, r.prv); ok {
-	//		tasks = append(tasks, prvCli)
-	//	}
-	if len(cliScenarios) > 0 {
-		step.cliScenarios = cliScenarios
-	}
 
 	return step
 
+}
+
+func prefixSide(front bool) string {
+	if front {
+		return "front"
+	} else {
+		return "back"
+	}
+}
+
+// This is the first step that runs commands in the test: check for disallowed services,
+// zombies and survivors
+func resourcePreCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
+	steps := []policyTestStep{}
+
+	// Disallowed
+	disallowedScenarios := []cli.TestScenario{}
+	for _, item := range clusterItems {
+		if len(item.details.testDisallowed) > 0 {
+			disallowedNames := []string{}
+			for _, r := range item.details.testDisallowed {
+				_, name, err := splitResource(r)
+				if err != nil {
+					log.Printf("Failed parsing resource %v", r)
+				}
+				disallowedNames = append(disallowedNames, name)
+			}
+			disallowedScenarios = append(disallowedScenarios, cli.TestScenario{
+				Name: prefixName(prefixSide(item.front), "check"),
+				Tasks: []cli.SkupperTask{
+					{
+						Ctx:      item.cluster,
+						Commands: []cli.SkupperCommandTester{serviceCheckTestCommand(disallowedNames, []string{}, []string{})},
+					},
+				},
+			})
+		}
+	}
+	if len(disallowedScenarios) > 0 {
+		disallowedStep := policyTestStep{
+			name:         "check-disallowed",
+			parallel:     true,
+			cliScenarios: disallowedScenarios,
+		}
+		steps = append(steps, disallowedStep)
+	}
+
+	// Survivors
+	survivorScenarios := []cli.TestScenario{}
+	for _, item := range clusterItems {
+		if len(item.details.survivors) > 0 {
+			survivorScenarios = append(survivorScenarios, cli.TestScenario{
+				Name: prefixName(prefixSide(item.front), "check"),
+				Tasks: []cli.SkupperTask{
+					{
+						Ctx:      item.cluster,
+						Commands: []cli.SkupperCommandTester{serviceCheckTestCommand([]string{}, []string{}, item.details.survivors)},
+					},
+				},
+			})
+		}
+	}
+	if len(survivorScenarios) > 0 {
+		survivorStep := policyTestStep{
+			name:         "survivor",
+			parallel:     true,
+			cliScenarios: survivorScenarios,
+		}
+		steps = append(steps, survivorStep)
+	}
+
+	// Zombies
+	zombieScenarios := []cli.TestScenario{}
+	for _, item := range clusterItems {
+		if len(item.details.zombies) > 0 {
+			zombieScenarios = append(zombieScenarios, cli.TestScenario{
+				Name: prefixName(prefixSide(item.front), "check"),
+				Tasks: []cli.SkupperTask{
+					{
+						Ctx:      item.cluster,
+						Commands: []cli.SkupperCommandTester{serviceCheckTestCommand(item.details.zombies, []string{}, []string{})},
+					},
+				},
+			})
+		}
+	}
+	if len(zombieScenarios) > 0 {
+		zombieStep := policyTestStep{
+			name:         "zombie",
+			parallel:     true,
+			cliScenarios: zombieScenarios,
+		}
+		steps = append(steps, zombieStep)
+	}
+
+	return steps, nil
 }
 
 func exposeTestScenario(ctx *base.ClusterContext, kind, target string, works bool) cli.TestScenario {
@@ -458,19 +553,24 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 			testSteps := []policyTestStep{}
 
-			policyTestStep := resourcePolicyStep(rt, pub, prv, clusterItems)
+			policySetupStep := resourcePolicyStep(rt, pub, prv, clusterItems)
+			preCheckSteps, err := resourcePreCheckSteps(clusterItems)
+			if err != nil {
+				t.Fatalf("resource pre-check step definition failed: %v", err)
+			}
 			resourceCreateStep, err := p.fn(clusterItems)
 			if err != nil {
 				t.Fatalf("resource creation step definition failed: %v", err)
 			}
-			checkSteps, err := resourcePostCheckSteps(clusterItems)
+			postCheckSteps, err := resourcePostCheckSteps(clusterItems)
 			if err != nil {
-				t.Fatalf("resource check step definition failed: %v", err)
+				t.Fatalf("resource post-check step definition failed: %v", err)
 			}
 
-			testSteps = append(testSteps, policyTestStep)
+			testSteps = append(testSteps, policySetupStep)
+			testSteps = append(testSteps, preCheckSteps...)
 			testSteps = append(testSteps, resourceCreateStep...)
-			testSteps = append(testSteps, checkSteps...)
+			testSteps = append(testSteps, postCheckSteps...)
 
 			testCase := policyTestCase{
 				name:  prefixName(p.name, rt.name),
