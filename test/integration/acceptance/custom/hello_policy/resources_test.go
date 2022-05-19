@@ -3,6 +3,11 @@
 
 package hello_policy
 
+// TODO
+// - implement service bind
+// - refactor zombie/survivor/disallowed
+// - complete the test cases
+
 import (
 	"fmt"
 	"log"
@@ -36,7 +41,7 @@ func allowResourcesPolicy(namespaces, resources []string, cluster *base.ClusterC
 	return
 }
 
-// All the tests that will be executed in a single cluster
+// All the tests that will be executed in a single cluster/namespace
 type resourceDetails struct {
 	allowedExposedResources []string
 	testAllowed             []string

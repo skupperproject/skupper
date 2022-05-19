@@ -36,27 +36,6 @@ func wipePolicies(t *testing.T, ctx ...*base.ClusterContext) error {
 
 }
 
-// Each policy piece has its own file.  On it, we define both the
-// piece-specific tests _and_ the piece-specific infra.
-//
-// For example, the checking for link being (un)able to create or being
-// destroyed is defined on functions on link_test.go
-//
-// These functions will take a cluster context and an optional name prefix.  They
-// will return a cli.TestScenario with the intended objective on the
-// requested cluster, and the name of the scenario will receive
-// the prefix, if any given.  A use of that prefix would be, for example, to
-// clarify that what's being checked is a 'side-effect' (eg when a link drops
-// in a cluster because the policy was removed on the other cluster)
-//
-// policyTestRunner
-//   []policyTestCase
-//     []policyTestStep
-//         policies
-//         cli commands
-//         GET checks
-//         post-step sleep
-
 // Runs each policyTestCase in turn
 //
 // By default, all policies are removed between the tests cases, but that can be
