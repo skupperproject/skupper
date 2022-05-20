@@ -16,6 +16,15 @@ type AdaptorType string
 const AdaptorTCP AdaptorType = "tcp"
 const AdaptorHTTP AdaptorType = "http"
 
+type ThroughputUnitType string
+
+const ThroughputUnitGbps ThroughputUnitType = "Gbits/s"
+const ThroughputUnitTps ThroughputUnitType = "tps"
+
+type LatencyUnitType string
+
+const LatencyUnitMs LatencyUnitType = "ms"
+
 type AppSettings map[string]string
 
 func (a AppSettings) AddEnvVar(name string) {
@@ -23,13 +32,13 @@ func (a AppSettings) AddEnvVar(name string) {
 }
 
 type PerformanceApp struct {
-	Name           string        `json:"name"`
-	Description    string        `json:"description,omitempty"`
-	Service        ServiceInfo   `json:"service"`
-	Server         *ServerInfo   `json:"server"`
-	Client         *ClientInfo   `json:"client"`
-	ThroughputUnit string        `json:"throughputUnit,omitempty"`
-	LatencyUnit    time.Duration `json:"latencyUnit,omitempty"`
+	Name           string             `json:"name"`
+	Description    string             `json:"description,omitempty"`
+	Service        ServiceInfo        `json:"service"`
+	Server         *ServerInfo        `json:"server"`
+	Client         *ClientInfo        `json:"client"`
+	ThroughputUnit ThroughputUnitType `json:"throughputUnit,omitempty"`
+	LatencyUnit    LatencyUnitType    `json:"latencyUnit,omitempty"`
 }
 
 type ServerInfo struct {

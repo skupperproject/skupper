@@ -19,11 +19,12 @@ import (
 )
 
 var (
-	stepLog = log.New(os.Stdout, "  ", log.LstdFlags|log.Lmsgprefix)
+	stepLog = log.New(os.Stdout, "  ", log.LstdFlags)
+	// stepLog = log.New(os.Stdout, "  ", log.LstdFlags|log.Lmsgprefix)
 )
 
 func subStepLog(parent *log.Logger) *log.Logger {
-	return log.New(parent.Writer(), parent.Prefix()+"  ", parent.Flags()|log.Lmsgprefix)
+	return log.New(parent.Writer(), parent.Prefix()+"  ", parent.Flags())
 }
 
 func RunPerformanceTest(perfTest PerformanceTest) error {

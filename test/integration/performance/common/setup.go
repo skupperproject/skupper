@@ -31,8 +31,8 @@ var (
 	skupperSites           int
 	testRunner             *base.ClusterTestRunnerBase
 	summary                = &resultSummary{}
-	throughputHeaderFormat = "%-48s %-12s %-12s %-22s %-14s %-14s %-14s"
-	throughputFormat       = "%-48s %-12d %-12d %-22.2f %-14.2f %-14.2f %-14.2f"
+	throughputHeaderFormat = "%-48s %-12s %-12s %-22s %-19s %-14s %-14s"
+	throughputFormat       = "%-48s %-12d %-12d %-22.2f %-19.2f %-14.2f %-14.2f"
 )
 
 type resultInfo struct {
@@ -117,8 +117,8 @@ func displaySummary() {
 	stepLog.Println("Throughput summary")
 	for _, app := range summary.apps {
 		sublog.Printf(throughputHeaderFormat, "JOB", "SITES", "CLIENTS",
-			fmt.Sprintf("THROUGHPUT (%s)", strings.ToUpper(app.ThroughputUnit)),
-			"LATENCY AVG", "LATENCY 50%", "LATENCY 99%")
+			fmt.Sprintf("THROUGHPUT (%s)", strings.ToUpper(string(app.ThroughputUnit))),
+			fmt.Sprintf("LATENCY AVG (%s)", strings.ToUpper(string(app.LatencyUnit))), "LATENCY 50%", "LATENCY 99%")
 		for _, sites := range skupperSettings.Sites {
 			for _, jobName := range app.Client.JobNames() {
 				res := summary.results[sites][jobName]

@@ -1,3 +1,6 @@
+//go:build integration || performance
+// +build integration performance
+
 package performance
 
 import (
@@ -128,24 +131,24 @@ func TestIperf3(t *testing.T) {
 	i := &IperfTest{
 		Name:           "iperf3",
 		Description:    "iPerf3 TCP performance",
-		Server:         getServerInfo(),
-		Service:        getServiceDef(),
-		Client:         getClientInfo(),
-		ThroughputUnit: "Gbits/s",
+		Server:         getIperfServerInfo(),
+		Service:        getIperfServiceDef(),
+		Client:         getIperfClientInfo(),
+		ThroughputUnit: common.ThroughputUnitGbps,
 	}
 	assert.Assert(t, common.RunPerformanceTest(i))
 }
 
-func getServerInfo() *common.ServerInfo {
+func getIperfServerInfo() *common.ServerInfo {
 	return &common.ServerInfo{
 		Name:       "iperf3-server",
-		Resources:  getResources(),
-		Settings:   getServerSettings(),
-		Deployment: getDeployment(),
+		Resources:  getIperfResources(),
+		Settings:   getIperfServerSettings(),
+		Deployment: getIperfDeployment(),
 	}
 }
 
-func getDeployment() *appsv1.Deployment {
+func getIperfDeployment() *appsv1.Deployment {
 	// Deploy iPerf3 server
 	iperfServerDep, _ := k8s.NewDeployment("iperf3-server", "", k8s.DeploymentOpts{
 		Image:         IPERF_IMAGE,
@@ -156,18 +159,18 @@ func getDeployment() *appsv1.Deployment {
 	return iperfServerDep
 }
 
-func getServerSettings() common.AppSettings {
+func getIperfServerSettings() common.AppSettings {
 	return iperfSettings.Env
 }
 
-func getResources() common.ResourceSettings {
+func getIperfResources() common.ResourceSettings {
 	return common.ResourceSettings{
 		Memory: iperfSettings.Memory,
 		CPU:    iperfSettings.Cpu,
 	}
 }
 
-func getServiceDef() common.ServiceInfo {
+func getIperfServiceDef() common.ServiceInfo {
 	return common.ServiceInfo{
 		Address:  "iperf3-server",
 		Protocol: "tcp",
@@ -176,17 +179,17 @@ func getServiceDef() common.ServiceInfo {
 	}
 }
 
-func getClientInfo() *common.ClientInfo {
+func getIperfClientInfo() *common.ClientInfo {
 	return &common.ClientInfo{
 		Name:      "iperf3-client",
-		Resources: getResources(),
-		Settings:  getClientSettings(),
-		Jobs:      getJobs(),
+		Resources: getIperfResources(),
+		Settings:  getIperfClientSettings(),
+		Jobs:      getIperfJobs(),
 		Timeout:   iperfSettings.JobTimeout,
 	}
 }
 
-func getJobs() []common.JobInfo {
+func getIperfJobs() []common.JobInfo {
 	var jobs []common.JobInfo
 	clients := iperfSettings.ParallelClients
 	sizes := iperfSettings.TransmitSizes
@@ -210,7 +213,7 @@ func getJobs() []common.JobInfo {
 	return jobs
 }
 
-func getClientSettings() common.AppSettings {
+func getIperfClientSettings() common.AppSettings {
 	return iperfSettings.Env
 }
 
