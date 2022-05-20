@@ -1,3 +1,6 @@
+//go:build integration || performance
+// +build integration performance
+
 package performance
 
 import (
