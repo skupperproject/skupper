@@ -5,8 +5,8 @@ package hello_policy
 
 // TODO
 // - implement service bind
-// - refactor zombie/survivor/disallowed
 // - complete the test cases
+// - confirm non-bound check
 
 import (
 	"fmt"
