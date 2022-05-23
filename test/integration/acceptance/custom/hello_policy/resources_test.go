@@ -18,6 +18,7 @@ import (
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
+	"github.com/skupperproject/skupper/test/utils/skupper/cli/service"
 )
 
 // Return a SkupperClusterPolicySpec that allows resources to be exposed
@@ -220,6 +221,29 @@ func resourcePreCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error)
 	return steps, nil
 }
 
+func bindTestScenario(ctx *base.ClusterContext, kind, target string, works bool) cli.TestScenario {
+
+	scenario := cli.TestScenario{
+		Name: "bind",
+		Tasks: []cli.SkupperTask{
+			{
+				Ctx: ctx,
+				Commands: []cli.SkupperCommandTester{
+					&service.BindTester{
+						ServiceName:     target,
+						TargetType:      kind,
+						TargetName:      target,
+						Protocol:        "http",
+						TargetPort:      8080,
+						PolicyProhibits: !works,
+					},
+				},
+			},
+		},
+	}
+	return scenario
+}
+
 func exposeTestScenario(ctx *base.ClusterContext, kind, target string, works bool) cli.TestScenario {
 
 	scenario := cli.TestScenario{
@@ -319,7 +343,39 @@ func resourcePostCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error
 	return steps, nil
 }
 
-func resourceExposeStep(clusterItems []clusterItem) ([]policyTestStep, error) {
+func resourceBindSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
+	steps := []policyTestStep{}
+
+	for _, ci := range clusterItems {
+		for _, item := range ci.details.testAllowed {
+			kind, name, err := splitResource(item)
+			if err != nil {
+				return nil, err
+			}
+			steps = append(steps, policyTestStep{
+				name: prefixName("bind", kind),
+				cliScenarios: []cli.TestScenario{
+					bindTestScenario(ci.cluster, kind, name, true),
+				},
+			})
+		}
+		for _, item := range ci.details.testDisallowed {
+			kind, name, err := splitResource(item)
+			if err != nil {
+				return nil, err
+			}
+			steps = append(steps, policyTestStep{
+				name: prefixName("bind-fail", kind),
+				cliScenarios: []cli.TestScenario{
+					bindTestScenario(ci.cluster, kind, name, false),
+				},
+			})
+		}
+	}
+	return steps, nil
+}
+
+func resourceExposeSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	steps := []policyTestStep{}
 
 	for _, ci := range clusterItems {
@@ -452,8 +508,11 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 	}{
 		{
 			name: "expose",
-			fn:   resourceExposeStep,
-		}, // TOODO resourceBindStep
+			fn:   resourceExposeSteps,
+		}, {
+			name: "bind",
+			fn:   resourceBindSteps,
+		},
 	}
 
 	for _, p := range profiles {

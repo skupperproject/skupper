@@ -21,7 +21,9 @@ type BindTester struct {
 	Protocol    string
 	TargetPort  int
 
+	// TODO document this; compare to PolicyProhibits
 	ExpectAuthError bool
+	PolicyProhibits bool
 }
 
 func (s *BindTester) Command(cluster *base.ClusterContext) []string {
@@ -44,17 +46,21 @@ func (s *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	stdout, stderr, err = cli.RunSkupperCli(s.Command(cluster))
 	if err != nil {
 		if s.ExpectAuthError {
-			outputCheckErr := cli.Expect{
+			err = cli.Expect{
 				StdErr: []string{"Error: Service", "not found"},
 			}.Check(stdout, stderr)
 
-			if outputCheckErr == nil {
-				err = nil
-				// I'm expecting the command to fail, so I'm telling it is all ok,
-				// after validating the output
-			} else {
-				err = outputCheckErr
-			}
+			return
+		}
+		if s.PolicyProhibits {
+			err = cli.Expect{
+				StdErr: []string{
+					"Policy validation error:",
+					fmt.Sprintf("%v/%v", s.TargetType, s.TargetName),
+					"cannot be exposed",
+				},
+			}.Check(stdout, stderr)
+
 			return
 		}
 		return
