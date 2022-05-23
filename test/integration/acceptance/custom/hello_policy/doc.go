@@ -31,3 +31,40 @@
 //       []cli.SkupperTask (which cluster to run, and a list of commands)
 //         []cli.SkupperCommandTester (an interface; each item represent an individual call to the skupper binary)
 package hello_policy
+
+// TODO
+//
+// Pre-merge (priority on top)
+// - Document
+//   - The whole (how do things fit together)
+//   - The items
+//   - Rationale for individual test cases/steps
+// - Stop at start if CRD already present (avoid changing pre-existing policies); update CI
+// - Review Fernando's PR
+//   - Better CRD removal at the end; check that two contexts point to the same cluster
+// - Review old code and remove it (first attempt at hello_world)
+// - Check TODO across the code
+// - Check 'ExpectAuthError': change name to 'Expect no service'?
+// - Add GETs, make test overal less flaky
+// - Reorganize test calling from main_test
+// - Ensure it works with upstream CI (especially host checking)
+// - Check on status for multicluster checking
+// - Re-implement hello_world using runner, composing functions
+// - Dump, capture debug info on errors
+// - List points where I could get help for better solutions (../../../../.../crd)
+//
+// Post-merge (priority on top)
+// - Confirm 'not-bound' checks are really checking services for not being bound
+// - Check for tests that need better finish
+//   - AllowedOutgoingLinksHostnames
+//     - Cross testing (claim on router and vice versa)
+//     - full setup checking (create service and expose; check they appear/disappear; perhaps even curl the service)
+//     - different removals and reinstates of policy (actual removal, changed namespace list)
+// - Define how specific-issue (reproducer) tests are going to be handled
+// - Non-admin skupper init
+// - Non-admin user (or: use admin only for CRD/CR, init)
+// - Review test structure.  In special repeated items (test_name#01)
+// - Check test coverage (specific image and all)
+// - Additional tests: gateway, annotation, upgrade, console
+// - Operator + config map
+//
