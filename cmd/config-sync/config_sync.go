@@ -241,7 +241,7 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 		return fmt.Errorf("Error retrieving local connectors: %s", err)
 	}
 
-	ignorePrefix := "config-sync-ignore"
+	ignorePrefix := "auto-mesh"
 	differences := qdr.ConnectorsDifference(actual, desired, &ignorePrefix)
 
 	if differences.Empty() {
