@@ -28,10 +28,6 @@ func allowResourcesPolicy(namespaces, resources []string, cluster *base.ClusterC
 	if len(namespaces) == 0 {
 		namespaces = []string{cluster.Namespace}
 	}
-	if len(resources) == 0 {
-		// No policy if no resources
-		return
-	}
 	policySpec = skupperv1.SkupperClusterPolicySpec{
 		Namespaces:              namespaces,
 		AllowedExposedResources: resources,
@@ -178,8 +174,10 @@ func resourcePreCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error)
 				Name: prefixName(prefixSide(item.front), "check"),
 				Tasks: []cli.SkupperTask{
 					{
-						Ctx:      item.cluster,
-						Commands: []cli.SkupperCommandTester{serviceCheckTestCommand([]string{}, []string{}, item.details.survivors)},
+						Ctx: item.cluster,
+						Commands: []cli.SkupperCommandTester{
+							serviceCheckTestCommand([]string{}, []string{}, item.details.survivors),
+						},
 					},
 				},
 			})
@@ -202,8 +200,10 @@ func resourcePreCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error)
 				Name: prefixName(prefixSide(item.front), "check"),
 				Tasks: []cli.SkupperTask{
 					{
-						Ctx:      item.cluster,
-						Commands: []cli.SkupperCommandTester{serviceCheckTestCommand(item.details.zombies, []string{}, []string{})},
+						Ctx: item.cluster,
+						Commands: []cli.SkupperCommandTester{
+							serviceCheckTestCommand(item.details.zombies, []string{}, []string{}),
+						},
 					},
 				},
 			})
@@ -433,15 +433,15 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				survivors:               []string{"hello-world-backend"},
 			},
 		}, {
-			name: "front-end-really-not-a-regex--backend-survives",
+			name: "front-end-really-not-a-regex--backend-star-not-special",
 			pub: resourceDetails{
 				zombies:                 []string{"hello-world-frontend"},
 				allowedExposedResources: []string{".*/.*"},
 				testDisallowed:          []string{"deployment/hello-world-frontend"},
 			},
 			prv: resourceDetails{
-				allowedExposedResources: []string{"deployment/hello-world-backend"},
-				survivors:               []string{"hello-world-backend"},
+				allowedExposedResources: []string{"*/hello-world-backend"},
+				testDisallowed:          []string{"deployment/hello-world-backend"},
 			},
 		}, {
 			name: "specifically",
@@ -449,11 +449,76 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				allowedExposedResources: []string{"deployment/hello-world-frontend"},
 				zombies:                 []string{"hello-world-frontend"},
 				testAllowed:             []string{"deployment/hello-world-frontend"},
+				testDisallowed:          []string{"service/hello-world-frontend"},
 			},
 			prv: resourceDetails{
 				allowedExposedResources: []string{"service/hello-world-backend"},
 				testAllowed:             []string{"service/hello-world-backend"},
 				testDisallowed:          []string{"deployment/hello-world-backend"},
+				zombies:                 []string{"hello-world-backend"},
+			},
+		}, {
+			name: "dont-go",
+			pub: resourceDetails{
+				allowedExposedResources: []string{"*"},
+				survivors:               []string{"hello-world-frontend"},
+				testAllowed:             []string{"deployment/hello-world-frontend"},
+			},
+			prv: resourceDetails{
+				allowedExposedResources: []string{"service/hello-world-backend"},
+				testAllowed:             []string{"service/hello-world-backend"},
+				survivors:               []string{"hello-world-backend"},
+			},
+		}, {
+			name: "front-remove--back-change-namespace",
+			pub: resourceDetails{
+				allowedExposedResources: []string{"*"},
+				testDisallowed:          []string{"deployment/hello-world-frontend"},
+				namespaces:              []string{"REMOVE"},
+			},
+			prv: resourceDetails{
+				allowedExposedResources: []string{"service/hello-world-backend"},
+				testDisallowed:          []string{"service/hello-world-backend"},
+				namespaces:              []string{"non-existing"},
+			},
+		}, {
+			name: "allow-again",
+			pub: resourceDetails{
+				allowedExposedResources: []string{"service/hello-world-frontend"},
+				testAllowed:             []string{"service/hello-world-frontend"},
+			},
+			prv: resourceDetails{
+				allowedExposedResources: []string{"*"},
+				testAllowed:             []string{"deployment/hello-world-backend"},
+			},
+		}, {
+			name: "front-swap--back-clear",
+			pub: resourceDetails{
+				allowedExposedResources: []string{"deployment/hello-world-frontend"},
+				// The service from the past cycle should come down
+				testDisallowed: []string{"service/hello-world-frontend"},
+				testAllowed:    []string{"deployment/hello-world-frontend"},
+			},
+			prv: resourceDetails{
+				allowedExposedResources: []string{},
+				testDisallowed:          []string{"deployment/hello-world-backend"},
+			},
+		}, {
+			name: "allow-all-again--no-zombies",
+			pub: resourceDetails{
+				allowedExposedResources: []string{"*"},
+				testAllowed: []string{
+					"deployment/hello-world-frontend",
+					"service/hello-world-frontend",
+				},
+			},
+			prv: resourceDetails{
+				allowedExposedResources: []string{"*"},
+				zombies:                 []string{"hello-world-backend"},
+				testAllowed: []string{
+					"deployment/hello-world-backend",
+					"service/hello-world-backend",
+				},
 			},
 		},
 	}
