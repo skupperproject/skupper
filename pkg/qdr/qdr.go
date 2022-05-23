@@ -923,7 +923,7 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 
 		allowedToDelete := true
 		if ignorePrefix != nil && len(*ignorePrefix) > 0 {
-			allowedToDelete = !strings.HasPrefix(v1.Host, *ignorePrefix)
+			allowedToDelete = !strings.HasPrefix(v1.Name, *ignorePrefix)
 		}
 
 		if !ok && allowedToDelete {
