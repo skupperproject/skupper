@@ -18,9 +18,10 @@ const AdaptorHTTP AdaptorType = "http"
 
 type ThroughputUnitType string
 
-const ThroughputUnitGbps ThroughputUnitType = "Gbits/s"
+const ThroughputUnitGbps ThroughputUnitType = "gbits/s"
 const ThroughputUnitTps ThroughputUnitType = "tps"
 const ThroughputUnitMsgs ThroughputUnitType = "msg/s"
+const ThroughputUnitReqs ThroughputUnitType = "req/s"
 
 type LatencyUnitType string
 

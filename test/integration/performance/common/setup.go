@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,6 +66,15 @@ func (r *resultSummary) addResult(app PerformanceApp, result resultInfo) {
 	siteResMap[result.job.Name] = result
 }
 
+func (r *resultSummary) appNames() []string {
+	names := []string{}
+	for appName, _ := range r.apps {
+		names = append(names, appName)
+	}
+	sort.Strings(names)
+	return names
+}
+
 func (r *resultSummary) jobNames(app string) []string {
 	return r.apps[app].Client.JobNames()
 }
@@ -105,7 +115,8 @@ func displaySummary() {
 	sublog := subStepLog(stepLog)
 	logFormat := "%-16s %-8s %-32s %s"
 	sublog.Printf(logFormat, "APP", "SITES", "JOB", "OUTPUT FILE")
-	for appName, app := range summary.apps {
+	for _, appName := range summary.appNames() {
+		app := summary.apps[appName]
 		for _, sites := range skupperSettings.Sites {
 			for _, jobName := range app.Client.JobNames() {
 				res := summary.results[sites][jobName]
@@ -118,7 +129,8 @@ func displaySummary() {
 	// Displaying throughput for each app/job
 	stepLog.Println("Throughput summary")
 	sublog.Printf(throughputHeaderFormat, "APP", "JOB", "SITES", "CLIENTS", "THROUGHPUT", "LATENCY AVG", "LATENCY 50%", "LATENCY 99%")
-	for _, app := range summary.apps {
+	for _, appName := range summary.appNames() {
+		app := summary.apps[appName]
 		for _, sites := range skupperSettings.Sites {
 			for _, jobName := range app.Client.JobNames() {
 				res := summary.results[sites][jobName]

@@ -107,7 +107,7 @@ commands:
       - run:
           name: Archiving test artifacts
           command: |
-            find ./ -name "*.tar.gz" -o -name "*.log" | tar -c -T - | tar -C /tmp/artifacts -xv
+            find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/artifacts -xv
           when: always
       - store_artifacts:
           path: /tmp/artifacts

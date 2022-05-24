@@ -28,9 +28,9 @@ import (
 
 const (
 	ENV_AMQP_DURATION_SECS = "AMQP_DURATION_SECS"
-	ENV_AMQP_TIMEOUT       = "AMQP_PARALLEL_TIMEOUT"
-	ENV_AMQP_CPU           = "AMQP_PARALLEL_CPU"
-	ENV_AMQP_MEMORY        = "AMQP_PARALLEL_MEMORY"
+	ENV_AMQP_TIMEOUT       = "AMQP_TIMEOUT"
+	ENV_AMQP_CPU           = "AMQP_CPU"
+	ENV_AMQP_MEMORY        = "AMQP_MEMORY"
 )
 
 type AmqpTest common.PerformanceApp
@@ -46,7 +46,7 @@ type amqpSettings struct {
 func TestAmqp(t *testing.T) {
 	settings := parseAmqpSettings()
 	a := &AmqpTest{
-		Name:        "AMQP",
+		Name:        "amqp",
 		Description: "AMQP performance test using quiver and dispatch router",
 		Service: common.ServiceInfo{
 			Address:  "amqp-server",

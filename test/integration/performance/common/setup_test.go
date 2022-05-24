@@ -16,7 +16,7 @@ var (
 			Name: "quiver",
 		},
 	}}
-	amqpApp = PerformanceApp{Name: "AMQP", Description: "AMQP Application", Service: ServiceInfo{
+	amqpApp = PerformanceApp{Name: "amqp", Description: "amqp Application", Service: ServiceInfo{
 		Address:  "amqp-server",
 		Protocol: "amqp",
 		Adaptor:  AdaptorTCP,

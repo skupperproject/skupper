@@ -160,7 +160,7 @@ func exposeService(app PerformanceApp) error {
 			return fmt.Errorf("error creating skupper service %s - %v", svc.Address, err)
 		}
 		// Binding the service to the deployment
-		err := serverCluster.VanClient.ServiceInterfaceBind(context.Background(), skupperSvc, "deployment", skupperSvc.Address, skupperSvc.Protocol, map[int]int{svc.Port: svc.Port})
+		err := serverCluster.VanClient.ServiceInterfaceBind(context.Background(), skupperSvc, "deployment", app.Server.Deployment.Name, skupperSvc.Protocol, map[int]int{svc.Port: svc.Port})
 		if err != nil {
 			return fmt.Errorf("error binding service %s - %v", svc.Address, err)
 		}
@@ -204,6 +204,13 @@ func deployServer(app PerformanceApp) error {
 		return fmt.Errorf("error getting cluster to deploy server app: %v", err)
 	}
 	stepLog.Printf("- Deploying %s at %s", app.Server.Deployment.Name, serverCluster.Namespace)
+
+	// Verify if server is already deployed
+	_, err = serverCluster.VanClient.KubeClient.AppsV1().Deployments(serverCluster.Namespace).Get(app.Server.Deployment.Name, metav1.GetOptions{})
+	if err == nil {
+		stepLog.Printf("- %s is already running on namespace %s (ignoring)", app.Server.Deployment.Name, serverCluster.Namespace)
+		return nil
+	}
 
 	// Specify resource requirements (if requested)
 	var resourceReqs v1.ResourceRequirements
