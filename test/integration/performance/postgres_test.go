@@ -46,7 +46,7 @@ type postgresSettings struct {
 }
 
 func TestPostgres(t *testing.T) {
-	settings := parseSettings()
+	settings := parsePostgresSettings()
 	p := &PostgresTest{
 		Name:        "postgres",
 		Description: "Postgres performance test using pgbench",
@@ -122,7 +122,7 @@ func (p *PostgresTest) Validate(serverCluster, clientCluster *base.ClusterContex
 	return res
 }
 
-func parseSettings() *postgresSettings {
+func parsePostgresSettings() *postgresSettings {
 	settings := &postgresSettings{
 		env: map[string]string{},
 	}
@@ -162,7 +162,7 @@ func parseSettings() *postgresSettings {
 	if err != nil {
 		log.Printf("invalid value for %s: %v", ENV_POSTGRES_TIMEOUT, err)
 		log.Printf("the default timeout will be used: 10m")
-		jobTimeout = time.Minute + 10
+		jobTimeout = time.Minute * 10
 	}
 	settings.jobTimeout = jobTimeout
 	settings.env.AddEnvVar(ENV_POSTGRES_TIMEOUT)

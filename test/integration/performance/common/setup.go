@@ -31,8 +31,8 @@ var (
 	skupperSites           int
 	testRunner             *base.ClusterTestRunnerBase
 	summary                = &resultSummary{}
-	throughputHeaderFormat = "%-48s %-12s %-12s %-22s %-19s %-14s %-14s"
-	throughputFormat       = "%-48s %-12d %-12d %-22.2f %-19.2f %-14.2f %-14.2f"
+	throughputHeaderFormat = "%-16s %-40s %-12s %-12s %31s %23s %18s %18s"
+	throughputFormat       = "%-16s %-40s %-12d %-12d %22.2f %8s %19.2f %3s %14.2f %3s %14.2f %3s"
 )
 
 type resultInfo struct {
@@ -51,6 +51,8 @@ type resultSummary struct {
 func (r *resultSummary) addResult(app PerformanceApp, result resultInfo) {
 	if r.apps == nil {
 		r.apps = map[string]PerformanceApp{}
+	}
+	if r.results == nil {
 		r.results = map[int]map[string]resultInfo{}
 	}
 	if _, ok := r.apps[app.Name]; !ok {
@@ -115,20 +117,19 @@ func displaySummary() {
 
 	// Displaying throughput for each app/job
 	stepLog.Println("Throughput summary")
+	sublog.Printf(throughputHeaderFormat, "APP", "JOB", "SITES", "CLIENTS", "THROUGHPUT", "LATENCY AVG", "LATENCY 50%", "LATENCY 99%")
 	for _, app := range summary.apps {
-		sublog.Printf(throughputHeaderFormat, "JOB", "SITES", "CLIENTS",
-			fmt.Sprintf("THROUGHPUT (%s)", strings.ToUpper(string(app.ThroughputUnit))),
-			fmt.Sprintf("LATENCY AVG (%s)", strings.ToUpper(string(app.LatencyUnit))), "LATENCY 50%", "LATENCY 99%")
 		for _, sites := range skupperSettings.Sites {
 			for _, jobName := range app.Client.JobNames() {
 				res := summary.results[sites][jobName]
 				jobRes := res.result
-				sublog.Printf(throughputFormat, jobName, jobRes.Sites, res.job.Clients, jobRes.Throughput,
-					jobRes.LatencyAvg, jobRes.Latency50, jobRes.Latency99)
+				sublog.Printf(throughputFormat, app.Name, jobName, sites, res.job.Clients, jobRes.Throughput,
+					strings.ToLower(string(app.ThroughputUnit)), jobRes.LatencyAvg, strings.ToLower(string(app.LatencyUnit)),
+					jobRes.Latency50, strings.ToLower(string(app.LatencyUnit)),
+					jobRes.Latency99, strings.ToLower(string(app.LatencyUnit)))
 			}
 		}
 	}
-
 }
 
 func parseSettings() (*SkupperSettings, error) {
