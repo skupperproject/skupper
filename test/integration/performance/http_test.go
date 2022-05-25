@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/test/integration/performance/common"
-	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
@@ -224,36 +222,33 @@ func parseHttpSettings() *httpSettings {
 	}
 
 	// duration
-	duration, err := strconv.Atoi(utils.StrDefault("30", os.Getenv(ENV_HTTP_DURATION)))
+	durationStr := settings.env.AddEnvVar(ENV_HTTP_DURATION, "30")
+	duration, err := strconv.Atoi(durationStr)
 	if err != nil {
 		duration = 30
+		log.Printf("invalid duration %s - using default: %d", durationStr, duration)
 	}
 	settings.duration = duration
-	settings.env.AddEnvVar(ENV_HTTP_DURATION)
 
 	// parsing parallel clients
 	var parallelClients []int
-	for _, parallelClientStr := range strings.Split(utils.StrDefault("10", os.Getenv(ENV_HTTP_CLIENTS)), ",") {
+	for _, parallelClientStr := range strings.Split(settings.env.AddEnvVar(ENV_HTTP_CLIENTS, "10"), ",") {
 		clients, err := strconv.Atoi(parallelClientStr)
 		if err != nil {
-			log.Printf("invalid value for %s (int csv expected) - default will be used: 10", ENV_HTTP_CLIENTS)
+			log.Printf("invalid value for %s (int csv expected): %s - default will be used: 10", ENV_HTTP_CLIENTS, parallelClientStr)
 			clients = 10
 		}
 		parallelClients = append(parallelClients, clients)
 	}
 	settings.clients = parallelClients
-	settings.env.AddEnvVar(ENV_HTTP_CLIENTS)
 
 	// memory
-	settings.memory = os.Getenv(ENV_HTTP_MEMORY)
-	settings.env.AddEnvVar(ENV_HTTP_MEMORY)
-
+	settings.memory = settings.env.AddEnvVar(ENV_HTTP_MEMORY, "")
 	// cpu
-	settings.cpu = os.Getenv(ENV_HTTP_CPU)
-	settings.env.AddEnvVar(ENV_HTTP_CPU)
+	settings.cpu = settings.env.AddEnvVar(ENV_HTTP_CPU, "")
 
 	// timeout
-	timeout := utils.StrDefault("10m", os.Getenv(ENV_HTTP_TIMEOUT))
+	timeout := settings.env.AddEnvVar(ENV_HTTP_TIMEOUT, "10m")
 	jobTimeout, err := time.ParseDuration(timeout)
 	if err != nil {
 		log.Printf("invalid value for %s: %v", ENV_HTTP_TIMEOUT, err)
@@ -261,7 +256,6 @@ func parseHttpSettings() *httpSettings {
 		jobTimeout = time.Minute * 10
 	}
 	settings.jobTimeout = jobTimeout
-	settings.env.AddEnvVar(ENV_HTTP_TIMEOUT)
 
 	return settings
 }

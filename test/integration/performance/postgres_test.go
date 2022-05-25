@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/test/integration/performance/common"
-	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
@@ -129,43 +128,40 @@ func parsePostgresSettings() *postgresSettings {
 
 	// parsing parallel clients
 	var parallelClients []int
-	for _, parallelClientStr := range strings.Split(utils.StrDefault("1", os.Getenv(ENV_POSTGRES_PARALLEL_CLIENTS)), ",") {
+	for _, parallelClientStr := range strings.Split(settings.env.AddEnvVar(ENV_POSTGRES_PARALLEL_CLIENTS, "1"), ",") {
 		clients, err := strconv.Atoi(parallelClientStr)
 		if err != nil {
-			log.Printf("invalid value for %s (int csv expected) - default will be used: 1", ENV_POSTGRES_PARALLEL_CLIENTS)
-			clients = 1
+			log.Printf("invalid value for %s (int csv expected): %s - default will be used: 1", ENV_POSTGRES_PARALLEL_CLIENTS, os.Getenv(ENV_POSTGRES_PARALLEL_CLIENTS))
+			parallelClients = []int{1}
+			break
 		}
 		parallelClients = append(parallelClients, clients)
 	}
 	settings.clients = parallelClients
-	settings.env.AddEnvVar(ENV_POSTGRES_PARALLEL_CLIENTS)
 
 	// duration
-	duration, err := strconv.Atoi(utils.StrDefault("30", os.Getenv(ENV_POSTGRES_DURATION_SECS)))
+	durationStr := settings.env.AddEnvVar(ENV_POSTGRES_DURATION_SECS, "30")
+	duration, err := strconv.Atoi(durationStr)
 	if err != nil {
 		duration = 30
+		log.Printf("invalid duration: %s - using default: %d", durationStr, duration)
 	}
 	settings.durationSecs = duration
-	settings.env.AddEnvVar(ENV_POSTGRES_DURATION_SECS)
 
 	// memory
-	settings.memory = os.Getenv(ENV_POSTGRES_MEMORY)
-	settings.env.AddEnvVar(ENV_POSTGRES_MEMORY)
-
+	settings.memory = settings.env.AddEnvVar(ENV_POSTGRES_MEMORY, "")
 	// cpu
-	settings.cpu = os.Getenv(ENV_POSTGRES_CPU)
-	settings.env.AddEnvVar(ENV_POSTGRES_CPU)
+	settings.cpu = settings.env.AddEnvVar(ENV_POSTGRES_CPU, "")
 
 	// timeout
-	timeout := utils.StrDefault("10m", os.Getenv(ENV_POSTGRES_TIMEOUT))
+	timeout := settings.env.AddEnvVar(ENV_POSTGRES_TIMEOUT, "10m")
 	jobTimeout, err := time.ParseDuration(timeout)
 	if err != nil {
-		log.Printf("invalid value for %s: %v", ENV_POSTGRES_TIMEOUT, err)
+		log.Printf("invalid value for %s: %s - %v", ENV_POSTGRES_TIMEOUT, os.Getenv(ENV_POSTGRES_TIMEOUT), err)
 		log.Printf("the default timeout will be used: 10m")
 		jobTimeout = time.Minute * 10
 	}
 	settings.jobTimeout = jobTimeout
-	settings.env.AddEnvVar(ENV_POSTGRES_TIMEOUT)
 
 	return settings
 }

@@ -29,8 +29,13 @@ const LatencyUnitMs LatencyUnitType = "ms"
 
 type AppSettings map[string]string
 
-func (a AppSettings) AddEnvVar(name string) {
-	a[name] = os.Getenv(name)
+func (a AppSettings) AddEnvVar(name string, dflt string) string {
+	value := os.Getenv(name)
+	if value == "" {
+		value = dflt
+	}
+	a[name] = value
+	return value
 }
 
 type PerformanceApp struct {

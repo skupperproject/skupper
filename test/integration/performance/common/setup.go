@@ -34,7 +34,12 @@ var (
 	summary                = &resultSummary{}
 	throughputHeaderFormat = "%-16s %-40s %-12s %-12s %31s %23s %18s %18s"
 	throughputFormat       = "%-16s %-40s %-12d %-12d %22.2f %8s %19.2f %3s %14.2f %3s %14.2f %3s"
+	debug                  bool
 )
+
+func DebugMode() bool {
+	return debug
+}
 
 type resultInfo struct {
 	job      JobInfo
@@ -88,6 +93,7 @@ func RunPerformanceTests(m *testing.M, debugMode bool) {
 
 	// Parsing flags
 	base.ParseFlags()
+	debug = debugMode
 
 	// Parsing settings
 	skupperSettings, err = parseSettings()

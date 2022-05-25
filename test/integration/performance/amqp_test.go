@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/test/integration/performance/common"
-	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
@@ -137,23 +135,21 @@ func parseAmqpSettings() *amqpSettings {
 	}
 
 	// duration
-	duration, err := strconv.Atoi(utils.StrDefault("30", os.Getenv(ENV_AMQP_DURATION_SECS)))
+	durationStr := settings.env.AddEnvVar(ENV_AMQP_DURATION_SECS, "30")
+	duration, err := strconv.Atoi(durationStr)
 	if err != nil {
 		duration = 30
+		log.Printf("invalid duration: %s - using default %d", durationStr, duration)
 	}
 	settings.durationSecs = duration
-	settings.env.AddEnvVar(ENV_AMQP_DURATION_SECS)
 
 	// memory
-	settings.memory = os.Getenv(ENV_AMQP_MEMORY)
-	settings.env.AddEnvVar(ENV_AMQP_MEMORY)
-
+	settings.memory = settings.env.AddEnvVar(ENV_AMQP_MEMORY, "")
 	// cpu
-	settings.cpu = os.Getenv(ENV_AMQP_CPU)
-	settings.env.AddEnvVar(ENV_AMQP_CPU)
+	settings.cpu = settings.env.AddEnvVar(ENV_AMQP_CPU, "")
 
 	// timeout
-	timeout := utils.StrDefault("10m", os.Getenv(ENV_AMQP_TIMEOUT))
+	timeout := settings.env.AddEnvVar(ENV_AMQP_TIMEOUT, "10m")
 	jobTimeout, err := time.ParseDuration(timeout)
 	if err != nil {
 		log.Printf("invalid value for %s: %v", ENV_AMQP_TIMEOUT, err)
@@ -161,7 +157,6 @@ func parseAmqpSettings() *amqpSettings {
 		jobTimeout = time.Minute * 10
 	}
 	settings.jobTimeout = jobTimeout
-	settings.env.AddEnvVar(ENV_AMQP_TIMEOUT)
 
 	return settings
 }

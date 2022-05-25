@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/test/integration/performance/common"
-	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
@@ -126,44 +125,44 @@ func parseRedisSettings() *redisSettings {
 	}
 
 	// requests
-	requests, err := strconv.Atoi(utils.StrDefault("25000", os.Getenv(ENV_REDIS_REQUESTS)))
+	dfltRequests := "25000"
+	if common.DebugMode() {
+		dfltRequests = "1000"
+	}
+	requests, err := strconv.Atoi(settings.env.AddEnvVar(ENV_REDIS_REQUESTS, dfltRequests))
 	if err != nil {
-		requests = 25000
+		requests, _ = strconv.Atoi(dfltRequests)
+		log.Printf("invalid value for requests: %s - using default: %d", os.Getenv(ENV_REDIS_REQUESTS), requests)
 	}
 	settings.requests = requests
-	settings.env.AddEnvVar(ENV_REDIS_REQUESTS)
 
 	// parsing parallel clients
 	var parallelClients []int
-	for _, parallelClientStr := range strings.Split(utils.StrDefault("50", os.Getenv(ENV_REDIS_CLIENTS)), ",") {
+	for _, parallelClientStr := range strings.Split(settings.env.AddEnvVar(ENV_REDIS_CLIENTS, "50"), ",") {
 		clients, err := strconv.Atoi(parallelClientStr)
 		if err != nil {
-			log.Printf("invalid value for %s (int csv expected) - default will be used: 50", ENV_REDIS_CLIENTS)
-			clients = 50
+			log.Printf("invalid value for %s (int csv expected): %s - default will be used: 50", ENV_REDIS_CLIENTS, os.Getenv(ENV_REDIS_CLIENTS))
+			parallelClients = []int{50}
+			break
 		}
 		parallelClients = append(parallelClients, clients)
 	}
 	settings.clients = parallelClients
-	settings.env.AddEnvVar(ENV_REDIS_CLIENTS)
 
 	// memory
-	settings.memory = os.Getenv(ENV_REDIS_MEMORY)
-	settings.env.AddEnvVar(ENV_REDIS_MEMORY)
-
+	settings.memory = settings.env.AddEnvVar(ENV_REDIS_MEMORY, "")
 	// cpu
-	settings.cpu = os.Getenv(ENV_REDIS_CPU)
-	settings.env.AddEnvVar(ENV_REDIS_CPU)
+	settings.cpu = settings.env.AddEnvVar(ENV_REDIS_CPU, "")
 
 	// timeout
-	timeout := utils.StrDefault("10m", os.Getenv(ENV_REDIS_TIMEOUT))
+	timeout := settings.env.AddEnvVar(ENV_REDIS_TIMEOUT, "10m")
 	jobTimeout, err := time.ParseDuration(timeout)
 	if err != nil {
-		log.Printf("invalid value for %s: %v", ENV_REDIS_TIMEOUT, err)
+		log.Printf("invalid value for %s: %s - %v", ENV_REDIS_TIMEOUT, os.Getenv(ENV_REDIS_TIMEOUT), err)
 		log.Printf("the default timeout will be used: 10m")
 		jobTimeout = time.Minute * 10
 	}
 	settings.jobTimeout = jobTimeout
-	settings.env.AddEnvVar(ENV_REDIS_TIMEOUT)
 
 	return settings
 }

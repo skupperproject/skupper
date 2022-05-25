@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/test/integration/performance/common"
-	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	"gotest.tools/assert"
@@ -63,6 +62,22 @@ func (i *IperfTuning) ToArgs(hostname string, size string, clients int) []string
 		params = append(params, "-w", strconv.Itoa(i.WindowSize))
 	}
 	return params
+}
+
+func TestIperf3(t *testing.T) {
+	// Parsing iperfSettings
+	parseIperfSettings()
+
+	i := &IperfTest{
+		Name:           "iperf3",
+		Description:    "iPerf3 TCP performance",
+		Server:         getIperfServerInfo(),
+		Service:        getIperfServiceDef(),
+		Client:         getIperfClientInfo(),
+		ThroughputUnit: common.ThroughputUnitGbps,
+		LatencyUnit:    common.LatencyUnitMs,
+	}
+	assert.Assert(t, common.RunPerformanceTest(i))
 }
 
 func (i *IperfTest) App() common.PerformanceApp {
@@ -122,21 +137,6 @@ func (i *IperfTest) Validate(serverCluster, clientCluster *base.ClusterContext, 
 	log.Printf("throughput: %.2f %s", res.Throughput, i.App().ThroughputUnit)
 
 	return res
-}
-
-func TestIperf3(t *testing.T) {
-	// Parsing iperfSettings
-	parseIperfSettings(t)
-
-	i := &IperfTest{
-		Name:           "iperf3",
-		Description:    "iPerf3 TCP performance",
-		Server:         getIperfServerInfo(),
-		Service:        getIperfServiceDef(),
-		Client:         getIperfClientInfo(),
-		ThroughputUnit: common.ThroughputUnitGbps,
-	}
-	assert.Assert(t, common.RunPerformanceTest(i))
 }
 
 func getIperfServerInfo() *common.ServerInfo {
@@ -217,43 +217,46 @@ func getIperfClientSettings() common.AppSettings {
 	return iperfSettings.Env
 }
 
-func parseIperfSettings(t *testing.T) {
+func parseIperfSettings() {
 	iperfSettings = IperfTuning{
 		Env: map[string]string{},
 	}
 
 	// IPERF_PARALLEL_CLIENTS
 	var iperfParallelClients []int
-	for _, parallelClientStr := range strings.Split(utils.StrDefault("1", os.Getenv(ENV_IPERF_PARALLEL_CLIENTS)), ",") {
+	for _, parallelClientStr := range strings.Split(iperfSettings.Env.AddEnvVar(ENV_IPERF_PARALLEL_CLIENTS, "1"), ",") {
 		parallelClients, err := strconv.Atoi(parallelClientStr)
-		assert.Assert(t, err, "invalid value for IPERF_PARALLEL_CLIENTS (int expected)")
+		if err != nil {
+			iperfParallelClients = []int{1}
+			log.Printf("invalid value for IPERF_PARALLEL_CLIENTS (int expected): %s - using default: 1", parallelClientStr)
+			break
+		}
 		iperfParallelClients = append(iperfParallelClients, parallelClients)
 	}
 	iperfSettings.ParallelClients = iperfParallelClients
-	iperfSettings.Env.AddEnvVar(ENV_IPERF_PARALLEL_CLIENTS)
 
 	// IPERF_TRANSMIT_SIZES
-	iperfSettings.TransmitSizes = strings.Split(utils.StrDefault("1G", os.Getenv(ENV_IPERF_TRANSMIT_SIZES)), ",")
-	iperfSettings.Env.AddEnvVar(ENV_IPERF_TRANSMIT_SIZES)
+	iperfSettings.TransmitSizes = strings.Split(iperfSettings.Env.AddEnvVar(ENV_IPERF_TRANSMIT_SIZES, "1G"), ",")
 
 	// IPERF_WINDOW_SIZE
-	iperfWindowSize, err := strconv.Atoi(utils.StrDefault("0", os.Getenv(ENV_IPERF_WINDOW_SIZE)))
-	assert.Assert(t, err, "invalid value for IPERF_WINDOW_SIZE (int expected)")
+	iperfWindowSize, err := strconv.Atoi(iperfSettings.Env.AddEnvVar(ENV_IPERF_WINDOW_SIZE, "0"))
+	if err != nil {
+		log.Printf("invalid value for IPERF_WINDOW_SIZE (int expected): %s - using default: 0", os.Getenv(ENV_IPERF_WINDOW_SIZE))
+		iperfWindowSize = 0
+	}
 	iperfSettings.WindowSize = iperfWindowSize
-	iperfSettings.Env.AddEnvVar(ENV_IPERF_WINDOW_SIZE)
 
 	// IPERF_MEMORY
-	iperfSettings.Memory = os.Getenv(ENV_IPERF_MEMORY)
-	iperfSettings.Env.AddEnvVar(ENV_IPERF_MEMORY)
-
+	iperfSettings.Memory = iperfSettings.Env.AddEnvVar(ENV_IPERF_MEMORY, "")
 	// IPERF_CPU
-	iperfSettings.Cpu = os.Getenv(ENV_IPERF_CPU)
-	iperfSettings.Env.AddEnvVar(ENV_IPERF_CPU)
+	iperfSettings.Cpu = iperfSettings.Env.AddEnvVar(ENV_IPERF_CPU, "")
 
 	// IPERF_JOB_TIMEOUT
-	iperfJobTimeout := utils.StrDefault("10m", os.Getenv(ENV_IPERF_JOB_TIMEOUT))
+	iperfJobTimeout := iperfSettings.Env.AddEnvVar(ENV_IPERF_JOB_TIMEOUT, "10m")
 	jobTimeout, err := time.ParseDuration(iperfJobTimeout)
-	assert.Assert(t, err, "invalid value for IPERF_JOB_TIMEOUT")
+	if err != nil {
+		log.Printf("invalid value for IPERF_JOB_TIMEOUT: %s - using default: 10m", iperfJobTimeout)
+		jobTimeout = time.Minute * 10
+	}
 	iperfSettings.JobTimeout = jobTimeout
-	iperfSettings.Env.AddEnvVar(ENV_IPERF_JOB_TIMEOUT)
 }
