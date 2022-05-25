@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/integration/performance/common"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -238,7 +239,10 @@ func parseHttpSettings() *httpSettings {
 			log.Printf("invalid value for %s (int csv expected): %s - default will be used: 10", ENV_HTTP_CLIENTS, parallelClientStr)
 			clients = 10
 		}
-		parallelClients = append(parallelClients, clients)
+		// must be unique (impacts generated job names)
+		if !utils.IntSliceContains(parallelClients, clients) {
+			parallelClients = append(parallelClients, clients)
+		}
 	}
 	settings.clients = parallelClients
 

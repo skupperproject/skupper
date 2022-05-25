@@ -151,7 +151,7 @@ func displaySummary() {
 }
 
 func parseSettings() (*SkupperSettings, error) {
-	skupperTimeout := utils.StrDefault("10m", os.Getenv(ENV_SKUPPER_PERF_TIMEOUT))
+	skupperTimeout := utils.StrDefault("60m", os.Getenv(ENV_SKUPPER_PERF_TIMEOUT))
 	if _, err := time.ParseDuration(skupperTimeout); err != nil {
 		return nil, fmt.Errorf("invalid timeout for performance tests: %v", err)
 	}
