@@ -1,7 +1,6 @@
 package common
 
 import (
-	"bytes"
 	"os"
 	"sort"
 	"time"
@@ -125,17 +124,4 @@ type RouterSettings struct {
 type ResourceSettings struct {
 	Memory string `json:"memory,omitempty"`
 	CPU    string `json:"CPU,omitempty"`
-}
-
-// FlushWriter Buffers content till flushed
-type FlushWriter struct {
-	buf bytes.Buffer
-}
-
-func (f *FlushWriter) Write(p []byte) (n int, err error) {
-	return f.buf.Write(p)
-}
-
-func (f *FlushWriter) Flush() (n int, err error) {
-	return os.Stdout.WriteString(f.buf.String())
 }

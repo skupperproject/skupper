@@ -69,7 +69,7 @@ Collects the TCP throughput using iperf3.
 
 #### Postgres
 
-Uses pgbench to benchmark number of transactions per second agains a postgres server.
+Uses pgbench to benchmark number of transactions per second against a postgres server.
 
 #### Redis
 
