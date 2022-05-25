@@ -624,3 +624,7 @@ func (a ByServiceInterfaceAddress) Less(i, j int) bool {
 func (a ByServiceInterfaceAddress) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
+
+func QualifiedServiceName(name string, namespace string) string {
+	return name + "." + namespace + ".svc.cluster.local"
+}

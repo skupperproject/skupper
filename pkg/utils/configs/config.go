@@ -7,11 +7,11 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func ConnectJson() string {
+func ConnectJson(host string) string {
 	connect_json := `
 {
     "scheme": "amqps",
-    "host": "` + types.LocalTransportServiceName + `",
+    "host": "` + host + `",
     "port": "5671",
     "tls": {
         "ca": "/etc/messaging/ca.crt",
