@@ -908,7 +908,7 @@ func (a *BridgeConfigDifference) Print() {
 	log.Printf("SslProfiles added=%v, deleted=%v", a.AddedSslProfiles, a.DeletedSSlProfiles)
 }
 
-func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig) *ConnectorDifference {
+func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ignorePrefix *string) *ConnectorDifference {
 	result := ConnectorDifference{}
 	result.AddedSslProfiles = make(map[string]SslProfile)
 	for key, v1 := range desired.Connectors {
@@ -921,7 +921,10 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig) *C
 	for key, v1 := range actual {
 		_, ok := desired.Connectors[key]
 
-		allowedToDelete := types.InterRouterProfile != v1.SslProfile
+		allowedToDelete := true
+		if ignorePrefix != nil && len(*ignorePrefix) > 0 {
+			allowedToDelete = !strings.HasPrefix(v1.Name, *ignorePrefix)
+		}
 
 		if !ok && allowedToDelete {
 			result.Deleted = append(result.Deleted, v1)
