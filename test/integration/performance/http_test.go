@@ -26,22 +26,26 @@ import (
 )
 
 const (
-	ENV_HTTP_DURATION = "HTTP_DURATION_SECS"
-	ENV_HTTP_CLIENTS  = "HTTP_PARALLEL_CLIENTS"
-	ENV_HTTP_TIMEOUT  = "HTTP_TIMEOUT"
-	ENV_HTTP_CPU      = "HTTP_CPU"
-	ENV_HTTP_MEMORY   = "HTTP_MEMORY"
+	ENV_HTTP_DURATION    = "HTTP_DURATION_SECS"
+	ENV_HTTP_CLIENTS     = "HTTP_PARALLEL_CLIENTS"
+	ENV_HTTP_CONNECTIONS = "HTTP_CONNECTIONS"
+	ENV_HTTP_RATE        = "HTTP_RATE"
+	ENV_HTTP_TIMEOUT     = "HTTP_TIMEOUT"
+	ENV_HTTP_CPU         = "HTTP_CPU"
+	ENV_HTTP_MEMORY      = "HTTP_MEMORY"
 )
 
 type HttpTest common.PerformanceApp
 
 type httpSettings struct {
-	duration   int
-	clients    []int
-	cpu        string
-	memory     string
-	jobTimeout time.Duration
-	env        common.AppSettings
+	duration    int
+	clients     []int
+	connections int
+	rate        int
+	cpu         string
+	memory      string
+	jobTimeout  time.Duration
+	env         common.AppSettings
 }
 
 func TestHttp(t *testing.T) {
@@ -112,8 +116,8 @@ func validateWrk(serverCluster *base.ClusterContext, clientCluster *base.Cluster
 
 	throughputRegex, _ := regexp.Compile(`^Requests/sec:\s+(\d+\.\d+)\s*$`)
 	latencyAvgRegex, _ := regexp.Compile(`\s+Latency\s+(\d+\.\d+)ms`)
-	latency50Regex, _ := regexp.Compile(`\s+50%\s+(\d+\.\d+)ms`)
-	latency99Regex, _ := regexp.Compile(`\s+99%\s+(\d+\.\d+)ms`)
+	latency50Regex, _ := regexp.Compile(`\s+50(\.000)*%\s+(\d+\.\d+)ms`)
+	latency99Regex, _ := regexp.Compile(`\s+99(\.000)*%\s+(\d+\.\d+)ms`)
 
 	var line string
 	for {
@@ -140,13 +144,13 @@ func validateWrk(serverCluster *base.ClusterContext, clientCluster *base.Cluster
 			}
 		} else if latency50Regex.MatchString(line) {
 			match := latency50Regex.FindStringSubmatch(line)
-			if res.Latency50, err = strconv.ParseFloat(match[1], 64); err != nil {
+			if res.Latency50, err = strconv.ParseFloat(match[2], 64); err != nil {
 				res.SetError(fmt.Errorf("error parsing latency 50%%: %v", err))
 				return res
 			}
 		} else if latency99Regex.MatchString(line) {
 			match := latency99Regex.FindStringSubmatch(line)
-			if res.Latency99, err = strconv.ParseFloat(match[1], 64); err != nil {
+			if res.Latency99, err = strconv.ParseFloat(match[2], 64); err != nil {
 				res.SetError(fmt.Errorf("error parsing latency 99%%: %v", err))
 				return res
 			}
@@ -233,11 +237,11 @@ func parseHttpSettings() *httpSettings {
 
 	// parsing parallel clients
 	var parallelClients []int
-	for _, parallelClientStr := range strings.Split(settings.env.AddEnvVar(ENV_HTTP_CLIENTS, "10"), ",") {
+	for _, parallelClientStr := range strings.Split(settings.env.AddEnvVar(ENV_HTTP_CLIENTS, "2"), ",") {
 		clients, err := strconv.Atoi(parallelClientStr)
 		if err != nil {
-			log.Printf("invalid value for %s (int csv expected): %s - default will be used: 10", ENV_HTTP_CLIENTS, parallelClientStr)
-			clients = 10
+			log.Printf("invalid value for %s (int csv expected): %s - default will be used: 2", ENV_HTTP_CLIENTS, parallelClientStr)
+			clients = 2
 		}
 		// must be unique (impacts generated job names)
 		if !utils.IntSliceContains(parallelClients, clients) {
@@ -245,6 +249,26 @@ func parseHttpSettings() *httpSettings {
 		}
 	}
 	settings.clients = parallelClients
+
+	// connections to be kept open (wrk/wrk2)
+	connectionsStr := settings.env.AddEnvVar(ENV_HTTP_CONNECTIONS, "10")
+	connections, err := strconv.Atoi(connectionsStr)
+	if err != nil {
+		connections = 10
+		log.Printf("invalid connections value %s - using default: %d", connectionsStr, connections)
+	}
+	settings.connections = connections
+
+	// rate limit (hey/wrk2 only)
+	rateStr := settings.env.AddEnvVar(ENV_HTTP_RATE, "")
+	if rateStr != "" {
+		rate, err := strconv.Atoi(rateStr)
+		if err != nil {
+			rate = 0
+			log.Printf("invalid rate value %s - using default: %d", rateStr, 0)
+		}
+		settings.rate = rate
+	}
 
 	// memory
 	settings.memory = settings.env.AddEnvVar(ENV_HTTP_MEMORY, "")
@@ -281,6 +305,7 @@ func getHttpClientInfo(settings *httpSettings, serviceName string) *common.Clien
 func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 	var jobs []common.JobInfo
 	imageWrk := "quay.io/skupper/wrk"
+	imageWrk2 := "quay.io/skupper/wrk2"
 	imageHey := "quay.io/skupper/hey"
 	url := fmt.Sprintf("http://%s:8080", serviceName)
 	jobPrefix := "http"
@@ -300,7 +325,9 @@ func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 						Containers: []corev1.Container{{
 							Name: "http-client-wrk", Image: imageWrk,
 							Args: []string{"wrk", "-d", strconv.Itoa(settings.duration) + "s",
-								"-c", strconv.Itoa(clients), "--latency", url},
+								"-c", strconv.Itoa(settings.connections),
+								"-t", strconv.Itoa(clients),
+								"--latency", url},
 						}}, RestartPolicy: corev1.RestartPolicyNever,
 					},
 				},
@@ -312,9 +339,46 @@ func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 			Job:     job,
 		})
 
+		// wrk2 job
+		wrk2Rate := settings.rate
+		if wrk2Rate == 0 {
+			wrk2Rate = 1000
+			log.Printf("rate is required for wrk2 - setting to (default) %d", wrk2Rate)
+		}
+		jobWrk2Name := fmt.Sprintf("%s-wrk2-rate-%d-clients-%d", jobPrefix, wrk2Rate, clients)
+		labelsWrk2 := map[string]string{"job": jobWrk2Name}
+		job = &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{Name: jobWrk2Name, Labels: labelsWrk2},
+			Spec: batchv1.JobSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{Name: jobWrk2Name, Labels: labelsWrk2},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name: "http-client-wrk2", Image: imageWrk2,
+							Args: []string{"wrk", "-d", strconv.Itoa(settings.duration) + "s",
+								"-c", strconv.Itoa(settings.connections),
+								"-t", strconv.Itoa(clients),
+								"-R", strconv.Itoa(wrk2Rate),
+								"--latency", url},
+						}}, RestartPolicy: corev1.RestartPolicyNever,
+					},
+				},
+			},
+		}
+		jobs = append(jobs, common.JobInfo{
+			Name:    jobWrk2Name,
+			Clients: clients,
+			Job:     job,
+		})
+
 		// hey job
 		jobHeyName := fmt.Sprintf("%s-hey-clients-%d", jobPrefix, clients)
 		labelsHey := map[string]string{"job": jobHeyName}
+		heyArgs := []string{"-z", strconv.Itoa(settings.duration) + "s", "-c", strconv.Itoa(clients)}
+		if settings.rate > 0 {
+			heyArgs = append(heyArgs, "-q", strconv.Itoa(settings.rate))
+		}
+		heyArgs = append(heyArgs, url)
 		job = &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{Name: jobHeyName, Labels: labelsHey},
 			Spec: batchv1.JobSpec{
@@ -323,8 +387,7 @@ func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{{
 							Name: "http-client-hey", Image: imageHey,
-							Args: []string{"-z", strconv.Itoa(settings.duration) + "s",
-								"-c", strconv.Itoa(clients), url},
+							Args: heyArgs,
 						}}, RestartPolicy: corev1.RestartPolicyNever,
 					},
 				},
