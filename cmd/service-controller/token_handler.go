@@ -129,6 +129,14 @@ func (c *TokenHandler) isTokenValidInSite(token *corev1.Secret) bool {
 func (c *TokenHandler) isTokenDisabled(token *corev1.Secret) bool {
 	// validate if host is still allowed
 	hostname := token.ObjectMeta.Annotations["inter-router-host"]
+	r, err := c.vanClient.RouterInspect(context.Background())
+	if err == nil {
+		if r.Status.Mode == string(types.TransportModeEdge) {
+			hostname = token.ObjectMeta.Annotations["edge-host"]
+		}
+	} else {
+		event.Recordf(c.name, "Unable to determine router mode: %v", err)
+	}
 	res := c.policy.ValidateOutgoingLink(hostname)
 	return !res.Allowed()
 }
