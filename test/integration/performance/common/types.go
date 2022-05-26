@@ -48,10 +48,11 @@ type PerformanceApp struct {
 }
 
 type ServerInfo struct {
-	Name       string             `json:"name"`
-	Resources  ResourceSettings   `json:"resources,omitempty"`
-	Settings   AppSettings        `json:"settings,omitempty"`
-	Deployment *appsv1.Deployment `json:"deployment"`
+	Name             string             `json:"name"`
+	Resources        ResourceSettings   `json:"resources,omitempty"`
+	Settings         AppSettings        `json:"settings,omitempty"`
+	Deployment       *appsv1.Deployment `json:"deployment"`
+	PostInitCommands [][]string         `json:"postInitCommands"`
 }
 
 type ClientInfo struct {

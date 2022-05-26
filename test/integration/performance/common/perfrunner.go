@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -248,6 +249,24 @@ func deployServer(app PerformanceApp) error {
 		return fmt.Errorf("error waiting for deployment to be ready - %v", err)
 	}
 
+	// Validating if post initialization commands defined
+	if len(app.Server.PostInitCommands) > 0 {
+		stepLog.Printf("- Executing post init commands")
+		pods, _ := kube.GetPods(utils.StringifySelector(app.Server.Deployment.Spec.Template.Labels), serverCluster.Namespace, serverCluster.VanClient.KubeClient)
+		cmdlog := subStepLog(stepLog)
+		for _, cmd := range app.Server.PostInitCommands {
+			for _, pod := range pods {
+				cmdlog.Printf("- Running command: %v on %s", cmd, pod.Name)
+				stdout, stderr, err := k8s.Execute(serverCluster.VanClient.KubeClient, serverCluster.VanClient.RestConfig, serverCluster.Namespace, pod.Name, "", cmd)
+				if err != nil {
+					cmdlog.Printf("error: %v", err)
+					cmdlog.Printf("stdout: %s", stdout.String())
+					cmdlog.Printf("stderr: %s", stderr.String())
+					return fmt.Errorf("error executing post-init command: %v - %v", cmd, err)
+				}
+			}
+		}
+	}
 	return nil
 }
 

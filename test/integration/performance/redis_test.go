@@ -226,6 +226,9 @@ func getRedisServerInfo(settings *redisSettings) *common.ServerInfo {
 		},
 		Settings:   settings.env,
 		Deployment: getRedisDeployment(),
+		PostInitCommands: [][]string{
+			{"redis-cli", "config", "set", "stop-writes-on-bgsave-error", "no"},
+		},
 	}
 }
 
