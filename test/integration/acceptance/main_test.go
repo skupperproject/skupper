@@ -1,3 +1,6 @@
+//go:build integration || acceptance || cli || smoke || annotation || gateway || console
+// +build integration acceptance cli smoke annotation gateway console
+
 package acceptance
 
 import (
