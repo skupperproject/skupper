@@ -1,3 +1,6 @@
+//go:build integration || examples || cli || gateway || acceptance
+// +build integration examples cli gateway acceptance
+
 package examples
 
 import (
