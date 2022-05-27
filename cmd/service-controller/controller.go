@@ -201,7 +201,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
 		return kube.UpdateSkupperServices(changed, deleted, origin, cli.Namespace, cli.KubeClient)
 	}
-	controller.serviceSync = service_sync.NewServiceSync(origin, client.Version, qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", tlsConfig), handler)
+	controller.serviceSync = service_sync.NewServiceSync(origin, client.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
 
 	controller.policyHandler = NewPolicyController(controller.vanClient)
 	return controller, nil

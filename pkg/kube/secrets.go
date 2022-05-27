@@ -52,7 +52,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 			secret = certs.GenerateSecret(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), caSecret)
 		}
 		if cred.ConnectJson {
-			secret.Data["connect.json"] = []byte(configs.ConnectJson())
+			secret.Data["connect.json"] = []byte(configs.ConnectJson(types.QualifiedServiceName(cred.Name, namespace)))
 		}
 	} else {
 		secret = corev1.Secret{

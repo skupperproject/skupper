@@ -198,7 +198,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			CA:          types.LocalCaSecret,
 			Name:        types.LocalServerSecret,
 			Subject:     types.LocalTransportServiceName,
-			Hosts:       []string{types.LocalTransportServiceName, qualifiedServiceName(types.LocalTransportServiceName, namespace)},
+			Hosts:       []string{types.LocalTransportServiceName, types.QualifiedServiceName(types.LocalTransportServiceName, namespace)},
 			ConnectJson: false,
 		})
 		credentials = append(credentials, types.Credential{
@@ -1048,13 +1048,9 @@ func (cli *VanClient) getTransportHosts(namespace string) ([]string, error) {
 		}
 	}
 	hosts = append(hosts, types.TransportServiceName)
-	hosts = append(hosts, qualifiedServiceName(types.TransportServiceName, namespace))
-	hosts = append(hosts, qualifiedServiceName("skupper-internal", namespace))
+	hosts = append(hosts, types.QualifiedServiceName(types.TransportServiceName, namespace))
+	hosts = append(hosts, types.QualifiedServiceName("skupper-internal", namespace))
 	return hosts, nil
-}
-
-func qualifiedServiceName(name string, namespace string) string {
-	return name + "." + namespace + ".svc.cluster.local"
 }
 
 func (cli *VanClient) addClaimsPortsToControllerService(ctx context.Context, namespace string) error {
