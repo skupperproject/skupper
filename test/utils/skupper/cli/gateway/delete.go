@@ -54,17 +54,17 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	gatewayName := d.Name
 	if gatewayName == "" {
 		if len(postGateways) == 0 {
-			gatewayName = preGateways[0].GatewayName
+			gatewayName = preGateways[0].Name
 		} else if len(postGateways) < len(preGateways) {
 			for _, preGw := range preGateways {
 				found := false
 				for _, postGw := range postGateways {
-					if preGw.GatewayName == postGw.GatewayName {
+					if preGw.Name == postGw.Name {
 						found = true
 					}
 				}
 				if !found {
-					gatewayName = preGw.GatewayName
+					gatewayName = preGw.Name
 					break
 				}
 			}
@@ -79,7 +79,7 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	} else {
 		found := false
 		for _, existingGw := range postGateways {
-			if existingGw.GatewayName == gatewayName {
+			if existingGw.Name == gatewayName {
 				found = true
 				break
 			}

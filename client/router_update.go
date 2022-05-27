@@ -736,8 +736,8 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 	gwList, _ := cli.GatewayList(ctx)
 	for _, gw := range gwList {
 		// updating local gateways
-		gatewayDir := getDataHome() + "/skupper/" + gw.GatewayName
-		newGatewayDir := getDataHome() + gatewayClusterDir + gw.GatewayName
+		gatewayDir := getDataHome() + "/skupper/" + gw.Name
+		newGatewayDir := getDataHome() + gatewayClusterDir + gw.Name
 		// create the new base dir for gateways (and ignore errors if it already exists)
 		_ = os.MkdirAll(getDataHome()+gatewayClusterDir, 0755)
 		gd, err := os.Stat(gatewayDir)
@@ -768,11 +768,11 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 				return nil
 			}
 			// Updating paths in service files
-			err = updateFileContent(fmt.Sprintf("%s/user/%s.service", newGatewayDir, gw.GatewayName), getDataHome()+"/skupper/", getDataHome()+gatewayClusterDir)
+			err = updateFileContent(fmt.Sprintf("%s/user/%s.service", newGatewayDir, gw.Name), getDataHome()+"/skupper/", getDataHome()+gatewayClusterDir)
 			if err != nil {
 				return err
 			}
-			err = updateFileContent(getConfigHome()+"/systemd/user/"+gw.GatewayName+".service", getDataHome()+"/skupper/", getDataHome()+gatewayClusterDir)
+			err = updateFileContent(getConfigHome()+"/systemd/user/"+gw.Name+".service", getDataHome()+"/skupper/", getDataHome()+gatewayClusterDir)
 			if err != nil {
 				return err
 			}
@@ -782,7 +782,7 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 			if err != nil {
 				return fmt.Errorf("Unable to user service daemon-reload: %w", err)
 			}
-			cmd = exec.Command("systemctl", "--user", "restart", gw.GatewayName+".service")
+			cmd = exec.Command("systemctl", "--user", "restart", gw.Name+".service")
 			err = cmd.Run()
 			if err != nil {
 				return fmt.Errorf("Unable to user service restart: %w", err)
@@ -790,7 +790,7 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 		}
 
 		// updating router config to fix bad template issues
-		configmap, err := kube.GetConfigMap(gatewayPrefix+gw.GatewayName, cli.GetNamespace(), cli.KubeClient)
+		configmap, err := kube.GetConfigMap(gatewayPrefix+gw.Name, cli.GetNamespace(), cli.KubeClient)
 		if err != nil {
 			return err
 		}
