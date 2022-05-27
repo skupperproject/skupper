@@ -32,8 +32,8 @@ var (
 	skupperSites           int
 	testRunner             *base.ClusterTestRunnerBase
 	summary                = &resultSummary{}
-	throughputHeaderFormat = "%-16s %-40s %-12s %-12s %31s %23s %18s %18s"
-	throughputFormat       = "%-16s %-40s %-12d %-12d %22.2f %8s %19.2f %3s %14.2f %3s %14.2f %3s"
+	throughputHeaderFormat = "%-16s %-48s %-12s %-12s %31s %23s %18s %18s"
+	throughputFormat       = "%-16s %-48s %-12d %-12d %22.2f %8s %19.2f %3s %14.2f %3s %14.2f %3s"
 	debug                  bool
 )
 
@@ -119,7 +119,7 @@ func displaySummary() {
 	log.Println("Performance test execution summary")
 	stepLog.Println("Generated log and json files")
 	sublog := subStepLog(stepLog)
-	logFormat := "%-16s %-8s %-32s %s"
+	logFormat := "%-16s %-8s %-48s %s"
 	sublog.Printf(logFormat, "APP", "SITES", "JOB", "OUTPUT FILE")
 	for _, appName := range summary.appNames() {
 		app := summary.apps[appName]

@@ -30,6 +30,7 @@ const (
 	ENV_REDIS_REQUESTS = "REDIS_NUMBER_REQUESTS"
 	ENV_REDIS_CLIENTS  = "REDIS_PARALLEL_CLIENTS"
 	ENV_REDIS_TESTS    = "REDIS_TESTS"
+	ENV_REDIS_DATASIZE = "REDIS_DATASIZE"
 	ENV_REDIS_TIMEOUT  = "REDIS_TIMEOUT"
 	ENV_REDIS_CPU      = "REDIS_CPU"
 	ENV_REDIS_MEMORY   = "REDIS_MEMORY"
@@ -47,6 +48,7 @@ type redisSettings struct {
 	requests   int
 	clients    []int
 	tests      []string
+	dataSize   int
 	cpu        string
 	memory     string
 	jobTimeout time.Duration
@@ -161,6 +163,7 @@ func parseRedisSettings() *redisSettings {
 	// parsing redis tests to run
 	if os.Getenv(ENV_REDIS_TESTS) == "" {
 		settings.tests = redisDfltTests
+		settings.env.AddEnvVar(ENV_REDIS_TESTS, strings.Join(redisDfltTests, ","))
 	} else {
 		settings.tests = strings.Split(settings.env.AddEnvVar(ENV_REDIS_TESTS, ""), ",")
 		for _, testName := range settings.tests {
@@ -170,6 +173,13 @@ func parseRedisSettings() *redisSettings {
 				break
 			}
 		}
+	}
+
+	// data size (for GET/SET tests)
+	dataSize := settings.env.AddEnvVar(ENV_REDIS_DATASIZE, "3")
+	if settings.dataSize, err = strconv.Atoi(dataSize); err != nil {
+		settings.dataSize = 3
+		log.Printf("invalid data size: %s - using default 3", dataSize)
 	}
 
 	// memory
@@ -239,7 +249,7 @@ func getRedisJobs(settings *redisSettings) []common.JobInfo {
 							Containers: []corev1.Container{{
 								Name: "redis-benchmark", Image: image,
 								Command: []string{"redis-benchmark", "-n", strconv.Itoa(settings.requests),
-									"-c", strconv.Itoa(clients), "-t", testName,
+									"-c", strconv.Itoa(clients), "-t", testName, "-d", strconv.Itoa(settings.dataSize),
 									"-h", "redis-server"},
 							}}, RestartPolicy: corev1.RestartPolicyNever,
 						},
