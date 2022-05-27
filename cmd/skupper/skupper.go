@@ -1495,7 +1495,7 @@ func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
 				gatewayType, err := client.GatewayDetectTypeIfPresent()
 				if err == nil {
 					if gatewayType != "" {
-						l.NewChild(fmt.Sprintf(" A gateway of type %s detected on local host. Run 'skupper gateway delete' to remove.", gatewayType))
+						l.NewChild(fmt.Sprintf(" A gateway of type %s is detected on local host.", gatewayType))
 					}
 				}
 				l.Print()
