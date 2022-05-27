@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/integration/performance/common"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -28,9 +29,16 @@ import (
 const (
 	ENV_REDIS_REQUESTS = "REDIS_NUMBER_REQUESTS"
 	ENV_REDIS_CLIENTS  = "REDIS_PARALLEL_CLIENTS"
+	ENV_REDIS_TESTS    = "REDIS_TESTS"
 	ENV_REDIS_TIMEOUT  = "REDIS_TIMEOUT"
 	ENV_REDIS_CPU      = "REDIS_CPU"
 	ENV_REDIS_MEMORY   = "REDIS_MEMORY"
+)
+
+var (
+	redisDfltRequests = "25000"
+	redisDfltTests    = []string{"PING_INLINE", "PING_MBULK", "SET", "GET", "INCR", "LPUSH", "RPUSH", "LPOP", "RPOP",
+		"SADD", "HSET", "SPOP", "ZADD", "ZPOPMIN", "LPUSH", "LRANGE_100", "LRANGE_300", "LRANGE_500", "LRANGE_600", "MSET"}
 )
 
 type RedisTest common.PerformanceApp
@@ -38,6 +46,7 @@ type RedisTest common.PerformanceApp
 type redisSettings struct {
 	requests   int
 	clients    []int
+	tests      []string
 	cpu        string
 	memory     string
 	jobTimeout time.Duration
@@ -125,13 +134,13 @@ func parseRedisSettings() *redisSettings {
 	}
 
 	// requests
-	dfltRequests := "25000"
 	if common.DebugMode() {
-		dfltRequests = "1000"
+		redisDfltRequests = "1000"
+		redisDfltTests = []string{"MSET"}
 	}
-	requests, err := strconv.Atoi(settings.env.AddEnvVar(ENV_REDIS_REQUESTS, dfltRequests))
+	requests, err := strconv.Atoi(settings.env.AddEnvVar(ENV_REDIS_REQUESTS, redisDfltRequests))
 	if err != nil {
-		requests, _ = strconv.Atoi(dfltRequests)
+		requests, _ = strconv.Atoi(redisDfltRequests)
 		log.Printf("invalid value for requests: %s - using default: %d", os.Getenv(ENV_REDIS_REQUESTS), requests)
 	}
 	settings.requests = requests
@@ -148,6 +157,20 @@ func parseRedisSettings() *redisSettings {
 		parallelClients = append(parallelClients, clients)
 	}
 	settings.clients = parallelClients
+
+	// parsing redis tests to run
+	if os.Getenv(ENV_REDIS_TESTS) == "" {
+		settings.tests = redisDfltTests
+	} else {
+		settings.tests = strings.Split(settings.env.AddEnvVar(ENV_REDIS_TESTS, ""), ",")
+		for _, testName := range settings.tests {
+			if !utils.StringSliceContains(redisDfltTests, testName) {
+				log.Printf("invalid redis test name: %s - using default list: %v", testName, redisDfltTests)
+				settings.tests = redisDfltTests
+				break
+			}
+		}
+	}
 
 	// memory
 	settings.memory = settings.env.AddEnvVar(ENV_REDIS_MEMORY, "")
@@ -183,36 +206,52 @@ func getRedisClientInfo(settings *redisSettings) *common.ClientInfo {
 
 func getRedisJobs(settings *redisSettings) []common.JobInfo {
 	var jobs []common.JobInfo
+	var testCount int
+	var found bool
 	image := "redis"
 	for _, clients := range settings.clients {
-		jobName := fmt.Sprintf("redis-benchmark-clients-%d", clients)
-		labels := map[string]string{"job": jobName}
-		job := &batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   jobName,
-				Labels: labels,
-			},
-			Spec: batchv1.JobSpec{
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   jobName,
-						Labels: labels,
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{{
-							Name: "redis-benchmark", Image: image,
-							Command: []string{"redis-benchmark", "-n", strconv.Itoa(settings.requests),
-								"-c", strconv.Itoa(clients), "-h", "redis-server"},
-						}}, RestartPolicy: corev1.RestartPolicyNever,
+		testNameCount := map[string]int{}
+		for _, testName := range settings.tests {
+			jobTestName := strings.ToLower(testName)
+			jobTestName = strings.ReplaceAll(jobTestName, "_", "")
+			if testCount, found = testNameCount[jobTestName]; found {
+				testCount++
+				testNameCount[jobTestName] = testCount
+				jobTestName += "-" + strconv.Itoa(testCount)
+			} else {
+				testNameCount[jobTestName] = 1
+				jobTestName += "-1"
+			}
+			jobName := fmt.Sprintf("redis-benchmark-%s-clients-%d", jobTestName, clients)
+			labels := map[string]string{"job": jobName}
+			job := &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   jobName,
+					Labels: labels,
+				},
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:   jobName,
+							Labels: labels,
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{{
+								Name: "redis-benchmark", Image: image,
+								Command: []string{"redis-benchmark", "-n", strconv.Itoa(settings.requests),
+									"-c", strconv.Itoa(clients), "-t", testName,
+									"-h", "redis-server"},
+							}}, RestartPolicy: corev1.RestartPolicyNever,
+						},
 					},
 				},
-			},
+			}
+			jobs = append(jobs, common.JobInfo{
+				Name:    jobName,
+				Clients: clients,
+				Job:     job,
+			})
 		}
-		jobs = append(jobs, common.JobInfo{
-			Name:    jobName,
-			Clients: clients,
-			Job:     job,
-		})
 	}
 	return jobs
 }
