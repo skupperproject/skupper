@@ -295,9 +295,9 @@ func TestGatewayForward(t *testing.T) {
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
 	if gatewayType != GatewayMockType {
-		assert.Equal(t, len(gatewayInspect.GatewayListeners), 5)
+		assert.Equal(t, len(gatewayInspect.Listeners), 5)
 	}
-	assert.Equal(t, len(gatewayInspect.GatewayConnectors), 0)
+	assert.Equal(t, len(gatewayInspect.Connectors), 0)
 
 	// Now undo
 	observedError = cli.GatewayUnforward(ctx, gatewayName, types.GatewayEndpoint{Service: types.ServiceInterface{Address: "tcp-go-echo", Protocol: "tcp"}})
@@ -432,11 +432,11 @@ func TestGatewayBind(t *testing.T) {
 
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
-	assert.Equal(t, len(gatewayInspect.GatewayListeners), 0)
+	assert.Equal(t, len(gatewayInspect.Listeners), 0)
 	if gatewayType != GatewayMockType {
-		assert.Equal(t, len(gatewayInspect.GatewayConnectors), 1)
+		assert.Equal(t, len(gatewayInspect.Connectors), 1)
 	} else {
-		assert.Equal(t, len(gatewayInspect.GatewayConnectors), 0)
+		assert.Equal(t, len(gatewayInspect.Connectors), 0)
 	}
 
 	observedError = cli.GatewayRemove(ctx, gatewayName)
@@ -499,9 +499,9 @@ func TestGatewayExpose(t *testing.T) {
 
 	gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 	assert.Assert(t, observedError)
-	assert.Equal(t, len(gatewayInspect.GatewayListeners), 0)
+	assert.Equal(t, len(gatewayInspect.Listeners), 0)
 	if gatewayType != GatewayMockType {
-		assert.Equal(t, len(gatewayInspect.GatewayConnectors), 1)
+		assert.Equal(t, len(gatewayInspect.Connectors), 1)
 	}
 
 	// Now undo
@@ -609,7 +609,7 @@ func TestGatewayInit(t *testing.T) {
 
 		gatewayInspect, observedError := cli.GatewayInspect(ctx, gatewayName)
 		assert.Assert(t, observedError)
-		assert.Equal(t, gatewayInspect.GatewayName, tc.actualName)
+		assert.Equal(t, gatewayInspect.Name, tc.actualName)
 
 		secret, observedError := cli.KubeClient.CoreV1().Secrets(namespace).Get(clusterGatewayName(gatewayName), metav1.GetOptions{})
 		assert.Assert(t, observedError)

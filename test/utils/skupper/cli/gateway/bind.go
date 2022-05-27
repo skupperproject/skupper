@@ -74,18 +74,18 @@ func (b *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 		if len(gwList) > 1 {
 			return
 		}
-		gwName = gwList[0].GatewayName
+		gwName = gwList[0].Name
 	}
 
 	for _, gw := range gwList {
-		if gwName != gw.GatewayName {
+		if gwName != gw.Name {
 			continue
 		}
 		// finding the correct connector
 		var bind types.GatewayEndpoint
 		found := false
 		for i, ingressPort := range si.Ports {
-			for k, v := range gw.GatewayConnectors {
+			for k, v := range gw.Connectors {
 				if strings.Contains(k, b.Address+":"+strconv.Itoa(ingressPort)) {
 					bind = v
 					found = true

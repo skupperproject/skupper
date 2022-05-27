@@ -69,7 +69,7 @@ func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 		}
 		if len(currentGateways) > len(existingGateways) {
 			for _, gw := range currentGateways {
-				if gw.GatewayName != "" {
+				if gw.Name != "" {
 					return true, nil
 				}
 			}
@@ -84,17 +84,17 @@ func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	gatewayName := i.Name
 	if gatewayName == "" {
 		if len(currentGateways) == 1 {
-			gatewayName = currentGateways[0].GatewayName
+			gatewayName = currentGateways[0].Name
 		} else if len(currentGateways) > len(existingGateways) {
 			for _, gw := range currentGateways {
 				found := false
 				for _, existingGw := range existingGateways {
-					if existingGw.GatewayName == gw.GatewayName {
+					if existingGw.Name == gw.Name {
 						found = true
 					}
 				}
 				if !found {
-					gatewayName = gw.GatewayName
+					gatewayName = gw.Name
 					break
 				}
 			}
@@ -109,7 +109,7 @@ func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	} else {
 		found := false
 		for _, existingGw := range currentGateways {
-			if existingGw.GatewayName == gatewayName {
+			if existingGw.Name == gatewayName {
 				found = true
 				break
 			}
