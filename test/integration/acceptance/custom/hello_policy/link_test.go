@@ -159,18 +159,6 @@ func allowIncomingLinkPolicy(namespace string, allow bool) (policySpec skupperv1
 	return
 }
 
-// Return a SkupperClusterPolicySpec that allows outgoing links to the given
-// hostnames (a string list, following the policy's specs) on the given
-// namespace.
-func allowedOutgoingLinksHostnamesPolicy(namespace string, hostnames []string) (policySpec skupperv1.SkupperClusterPolicySpec) {
-	policySpec = skupperv1.SkupperClusterPolicySpec{
-		Namespaces:                    []string{namespace},
-		AllowedOutgoingLinksHostnames: hostnames,
-	}
-
-	return
-}
-
 func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	testTable := []policyTestCase{

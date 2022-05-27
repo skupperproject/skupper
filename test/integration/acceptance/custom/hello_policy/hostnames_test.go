@@ -3,6 +3,11 @@
 
 package hello_policy
 
+// TODO
+// - cross testing (claim on router and vice versa)
+// - full setup checking (create service and expose; check they appear/disappear; perhaps even curl the service).
+// - Add also different removals and reinstates of policy (actual removal, changed namespace list)
+
 import (
 	"fmt"
 	"log"
@@ -13,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,16 +33,55 @@ const (
 	edge           = "edge"
 )
 
+// Return a SkupperClusterPolicySpec that allows outgoing links to the given
+// hostnames (a string list, following the policy's specs) on the given
+// namespace.
+func allowedOutgoingLinksHostnamesPolicy(namespace string, hostnames []string) (policySpec skupperv1.SkupperClusterPolicySpec) {
+	policySpec = skupperv1.SkupperClusterPolicySpec{
+		Namespaces:                    []string{namespace},
+		AllowedOutgoingLinksHostnames: hostnames,
+	}
+
+	return
+} // A function that transforms a string into another string // It is used in the test to perform various transformations to the
+// actual hostnames discovered from skupper Secret entries
 type transformFunction func(string) string
 
+// This is the basic structure of a test: it has an identifier
+// name, a function that will transform the host, and whether the
+// link is expected to be allowed or not, given that transformation.
 type hostnamesPolicyInstructions struct {
 	name           string
 	transformation transformFunction
 	allowed        bool
 }
 
+// This is the main test for policy item AllowedOutgoingLinksHostnames
+//
+// It first creates a link, just so it can inspect its Secret entries and
+// capture the hostname information from it:
+//
+// - skupper.io/url
+// - inter-router-host
+// - edge-host
+//
+// The non-background policies applied by this test are all on the
+// private context, so it should be safe to run it on both single-cluster
+// and multi-cluster environments.
+//
+// The test itself looks like a unit test: it keeps applying different
+// transformations to the hostname on the policies it applies, and then
+// checking whether links can be created (on the create tester), or whether
+// they go up and down (on the status tester).
+//
+// The intention here is to:
+//
+// - Run that type of testing against a real hostname, coming from the
+//   environment
+// - Stress the policy engine a bit
 func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
+	// Normal init, plus getting hostname information from temporary link
 	init := []policyTestCase{
 		{
 			name: "init",
@@ -120,6 +165,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		},
 	}
 
+	// a policyTestRunner table will be generated from these
 	tests := []hostnamesPolicyInstructions{
 		{
 			name:           "same",
@@ -214,36 +260,70 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		},
 	}
 
-	// Creation testing, tied to claim hostname
-	createTestTable := []policyTestCase{}
-
+	// This will be reused on the creation of individual test cases, and represent
+	// the steps to run when a policy is expected to allow a link
 	createTester := []cli.TestScenario{
+		// No hostname given here: it comes from the token
 		createLinkTestScenario(prv, "", "hostnames", false),
 		linkStatusTestScenario(prv, "", "hostnames", true),
 		linkDeleteTestScenario(prv, "", "hostnames"),
 	}
 
+	// This will be reused on the creation of individual test cases, and represent
+	// the steps to run when a policy is expected to disallow a link
 	failCreateTester := []cli.TestScenario{
 		createLinkTestScenario(prv, "", "hostnames", true),
 	}
 
+	// Creation testing, tied to claim hostname
+	createTestTable := []policyTestCase{}
+
+	// Here we build the items that go to createTestTable, which will be the actual
+	// input to the runner
 	for _, t := range tests {
 		var createTestCase policyTestCase
 		var scenarios []cli.TestScenario
 
+		var allowedHosts []string
+		var disallowedHosts []string
+
+		// Select actual scenarios to run based on the expectation of the test
 		if t.allowed {
 			scenarios = createTester
+			allowedHosts = []string{"{{.originalClaim}}", "{{.originalRouter}}", "{{.originalEdge}}"}
+			disallowedHosts = []string{}
 		} else {
 			scenarios = failCreateTester
+			allowedHosts = []string{}
+			disallowedHosts = []string{"{{.originalClaim}}", "{{.originalRouter}}", "{{.originalEdge}}"}
 		}
 
+		// capture for closure
 		transformation := t.transformation
 
 		createTestCase = policyTestCase{
-			name: "create",
+			name: prefixName("create", t.name),
 			steps: []policyTestStep{
 				{
-					name: t.name,
+					name: "run",
+					// At each step, we transform all hostnames using the transformation
+					// function of the test
+					preHook: func(c map[string]string) error {
+						c[claim] = transformation(c[originalClaim])
+						c[router] = transformation(c[originalRouter])
+						c[edge] = transformation(c[originalEdge])
+						return nil
+					},
+					// Check to confirm, and also to ensure that the createLink step runs
+					// only once it is stable.
+					getChecks: []policyGetCheck{
+						{
+							cluster:         prv,
+							allowedHosts:    allowedHosts,
+							disallowedHosts: disallowedHosts,
+						},
+					},
+					// Then we apply the changed hostnames on the policy
 					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(
 							prv.Namespace,
@@ -251,46 +331,54 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						),
 					},
 					cliScenarios: scenarios,
-					preHook: func(c map[string]string) error {
-						c[claim] = transformation(c[originalClaim])
-						c[router] = transformation(c[originalRouter])
-						c[edge] = transformation(c[originalEdge])
-						return nil
-					},
 				},
 			},
 		}
 		createTestTable = append(createTestTable, createTestCase)
 	}
 
-	// status testing, tied to router hostname (link being establised)
-	statusTestTable := []policyTestCase{}
-
+	// The actual steps used on the test cases for policies where the
+	// links are supposed to be allowed or not
 	statusTester := []cli.TestScenario{
 		linkStatusTestScenario(prv, "", "hostnames", true),
 	}
-
 	failStatusTester := []cli.TestScenario{
 		linkStatusTestScenario(prv, "", "hostnames", false),
 	}
+
+	// status testing, tied to router hostname (link being establised)
+	statusTestTable := []policyTestCase{}
 
 	for _, t := range tests {
 		var statusTestCase policyTestCase
 		var scenarios []cli.TestScenario
 
+		// Select steps based on test's expectation
 		if t.allowed {
 			scenarios = statusTester
 		} else {
 			scenarios = failStatusTester
 		}
 
+		// capture for closure
 		transformation := t.transformation
 
 		statusTestCase = policyTestCase{
-			name: "status",
+			name: prefixName("status", t.name),
 			steps: []policyTestStep{
 				{
-					name: t.name,
+					name: "run",
+					// Same as on the create test: transform hostnames then apply policy
+					// using the new values.
+					preHook: func(c map[string]string) error {
+						c[claim] = transformation(c[originalClaim])
+						c[router] = transformation(c[originalRouter])
+						c[edge] = transformation(c[originalEdge])
+						return nil
+					},
+					// Different from the createTester, we do not need GET checks here,
+					// as we're only running status checks (and no create steps).  So, we can
+					// just wait until the status is as expected.
 					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(
 							prv.Namespace,
@@ -298,18 +386,15 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						),
 					},
 					cliScenarios: scenarios,
-					preHook: func(c map[string]string) error {
-						c[claim] = transformation(c[originalClaim])
-						c[router] = transformation(c[originalRouter])
-						c[edge] = transformation(c[originalEdge])
-						return nil
-					},
 				},
 			},
 		}
 		statusTestTable = append(statusTestTable, statusTestCase)
 	}
 
+	// The create tester keeps creating and destroying links; the status tester will only watch
+	// them going up and down.  This test case is actually only a preparation for the status
+	// tester: it creates the link that the status tester will watch.
 	linkForStatus := []policyTestCase{
 		{
 			name: "create-link-for-status-testing",
@@ -317,8 +402,11 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name: "create",
 					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
+						// We start allowing anything, so we can create the link
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
 					},
+					// Check to confirm, and also to ensure that the createLink step runs
+					// only once it is stable.
 					getChecks: []policyGetCheck{
 						{
 							cluster:      prv,
@@ -345,6 +433,8 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		testTable = append(testTable, t...)
 	}
 
+	// This is the context used by the preHook step on the Runner.
+	// It is also used elsewhere on this function.
 	var context = map[string]string{}
 
 	policyTestRunner{

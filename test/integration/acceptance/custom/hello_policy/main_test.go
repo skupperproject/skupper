@@ -4,22 +4,17 @@
 package hello_policy
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	clientv1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -29,196 +24,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type policyGetCheck struct {
-	allowIncoming       *bool
-	allowedHosts        []string
-	disallowedHosts     []string
-	allowedServices     []string
-	disallowedServices  []string
-	allowedResources    []string
-	disallowedResources []string
-	cluster             *base.ClusterContext
-}
+var testPath = "./tmp/"
 
-func (c policyGetCheck) String() string {
-	var ret []string
-
-	if c.allowIncoming != nil {
-		ret = append(ret, fmt.Sprintf("allowIncoming:%v", *c.allowIncoming))
-	}
-
-	if c.cluster != nil {
-		ret = append(ret, fmt.Sprintf("namespace:%v", c.cluster.Namespace))
-	}
-
-	lists := map[string][]string{
-		"allowedHosts":        c.allowedHosts,
-		"disallowedHosts":     c.disallowedHosts,
-		"allowedServices":     c.allowedServices,
-		"disallowedServices":  c.disallowedServices,
-		"allowedResources":    c.allowedResources,
-		"disallowedResources": c.disallowedResources,
-	}
-
-	for k, v := range lists {
-		if len(v) > 0 {
-			ret = append(ret, fmt.Sprintf("%v:%v", k, v))
-		}
-	}
-
-	return fmt.Sprintf("policyGetCheck{%v}", strings.Join(ret, " "))
-}
-
-type checkString func(string) (*client.PolicyAPIResult, error)
-
-// Run all configured checks.  Runs all checks, even if they do not correspond
-// to the expectation, unless an error is returned in any steps.
-func (p policyGetCheck) check() (ok bool, err error) {
-	ok = true
-	var c = client.NewPolicyValidatorAPI(p.cluster.VanClient)
-
-	// allowIncoming
-	if p.allowIncoming != nil {
-
-		var res *client.PolicyAPIResult
-
-		res, err = c.IncomingLink()
-
-		if err != nil {
-			ok = false
-			log.Printf("IncomingLink check failed with error %v", err)
-			return
-		}
-
-		if res.Allowed != *p.allowIncoming {
-			log.Printf("Unexpected IncomingLink result (%v)", res.Allowed)
-			ok = false
-		}
-	}
-
-	// allowedHosts and allowedServices
-	lists := []struct {
-		name     string
-		list     []string
-		function checkString
-		expect   bool
-	}{
-		{
-			name:     "allowedHosts",
-			list:     p.allowedHosts,
-			function: c.OutgoingLink,
-			expect:   true,
-		}, {
-			name:     "disallowedHosts",
-			list:     p.disallowedHosts,
-			function: c.OutgoingLink,
-			expect:   false,
-		}, {
-			name:     "allowedServices",
-			list:     p.allowedServices,
-			function: c.Service,
-			expect:   true,
-		}, {
-			name:     "disallowedServices",
-			list:     p.disallowedServices,
-			function: c.Service,
-			expect:   false,
-		},
-	}
-	for _, list := range lists {
-		if len(list.list) > 0 {
-			continue
-		}
-		for _, element := range list.list {
-			var res *client.PolicyAPIResult
-			res, err = list.function(element)
-			if err != nil {
-				log.Printf("%v check failed with error %v", list.name, err)
-				return false, err
-			}
-			if res.Allowed != list.expect {
-				log.Printf("Unexpected %v result for %v (%v)", list.name, element, res.Allowed)
-				ok = false
-			}
-		}
-
-	}
-
-	// allowedResources
-	resourceItems := []struct {
-		allow bool
-		list  []string
-	}{
-		{
-			allow: true,
-			list:  p.allowedResources,
-		}, {
-			allow: false,
-			list:  p.disallowedResources,
-		},
-	}
-	for _, resourceItem := range resourceItems {
-		for _, element := range resourceItem.list {
-			var res *client.PolicyAPIResult
-			splitted := strings.SplitN(element, "/", 2)
-			if len(splitted) != 2 {
-				// TODO: should we try to do something else, instead?
-				log.Printf("Ignoring GET check for resource without '/': %v", element)
-				continue
-			}
-			res, err = c.Expose(splitted[0], splitted[1])
-			if err != nil {
-				log.Printf("Resource check failed with error %v", err)
-				return false, err
-			}
-			if res.Allowed != resourceItem.allow {
-				log.Printf("Unexpected resource result: %v(%v)", element, res.Allowed)
-				ok = false
-			}
-		}
-	}
-
-	return
-}
-
-// This will keep running all GetChecks in the slice, until all
-// of them return true in the same cycle
-func waitAllGetChecks(checks []policyGetCheck) error {
-	if len(checks) == 0 {
-		// nothing to check
-		return nil
-	}
-	var attempts int
-	ctx, cancelFn := context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
-	defer cancelFn()
-	err := utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
-		attempts++
-		log.Printf("Running GET checks -- attempt %v", attempts)
-		if base.IsTestInterrupted() {
-			return false, fmt.Errorf("Test interrupted by user")
-		}
-		var allGood = true
-		for _, check := range checks {
-			// TODO Change this to have no argument
-			ok, err := check.check()
-			if err != nil {
-				log.Printf("Error on GET check: %v", err)
-				allGood = false
-			}
-			if !ok {
-				log.Printf("Check %+v failed validation", check)
-				allGood = false
-			}
-		}
-		if allGood {
-			log.Printf("All checks pass")
-			return true, nil
-		}
-		return false, nil
-	})
-
-	return err
-
+// Module initialization
+func init() {
+	// Creating a local directory for storing the token
+	_ = os.Mkdir(testPath, 0755)
 }
 
 // Adds the CRD to the cluster

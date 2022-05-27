@@ -17,12 +17,14 @@ func deleteSkupperTestScenario(ctx *base.ClusterContext, prefix string) (deleteS
 		Name: prefixName(prefix, "skupper delete"),
 		Tasks: []cli.SkupperTask{
 			// skupper delete - delete and verify resources have been removed
-			{Ctx: ctx, Commands: []cli.SkupperCommandTester{
-				&cli.DeleteTester{},
-				&cli.StatusTester{
-					NotEnabled: true,
+			{
+				Ctx: ctx, Commands: []cli.SkupperCommandTester{
+					&cli.DeleteTester{},
+					&cli.StatusTester{
+						NotEnabled: true,
+					},
 				},
-			}},
+			},
 		},
 	}
 	return

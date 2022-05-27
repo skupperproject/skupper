@@ -5,17 +5,22 @@ package hello_policy
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"log"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
@@ -204,7 +209,7 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext, context
 			}
 			s.runPreHook(t, pub, prv, contextMap)
 			s.applyPolicies(t, pub, prv, contextMap)
-			s.waitChecks(t, pub, prv)
+			s.waitChecks(t, pub, prv, contextMap)
 			s.runCommands(t, pub, prv)
 
 			if s.sleep.Nanoseconds() > 0 {
@@ -347,9 +352,9 @@ func templatePolicySpec(p skupperv1.SkupperClusterPolicySpec, c map[string]strin
 }
 
 // Wait for all checks to succeed, unless configured otherwise
-func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext) {
+func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext, contextMap map[string]string) {
 	if base.ShouldPolicyWaitOnGet() {
-		err := waitAllGetChecks(s.getChecks)
+		err := waitAllGetChecks(s.getChecks, contextMap)
 		if err != nil {
 			t.Errorf("GET check wait failed: %v", err)
 		}
@@ -357,7 +362,7 @@ func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext) 
 		if len(s.getChecks) > 0 {
 			log.Printf("Running single GET checks, as configured on the environment")
 			for _, check := range s.getChecks {
-				ok, err := check.check()
+				ok, err := check.check(contextMap)
 				if err != nil {
 					errMsg := fmt.Sprintf("GET check %v failed: %v", check, err)
 					log.Printf(errMsg)
@@ -381,4 +386,231 @@ func (s policyTestStep) runCommands(t *testing.T, pub, prv *base.ClusterContext)
 	} else {
 		cli.RunScenarios(t, s.cliScenarios)
 	}
+}
+
+// This will run the configured checks using client.NewPolicyValidatorAPI
+type policyGetCheck struct {
+	allowIncoming       *bool
+	allowedHosts        []string
+	disallowedHosts     []string
+	allowedServices     []string
+	disallowedServices  []string
+	allowedResources    []string
+	disallowedResources []string
+	cluster             *base.ClusterContext
+}
+
+// fmt.Stringer implementation, to make %v for policyGetCheck more consise
+// and informative
+func (c policyGetCheck) String() string {
+	var ret []string
+
+	if c.allowIncoming != nil {
+		ret = append(ret, fmt.Sprintf("allowIncoming:%v", *c.allowIncoming))
+	}
+
+	if c.cluster != nil {
+		ret = append(ret, fmt.Sprintf("namespace:%v", c.cluster.Namespace))
+	}
+
+	lists := []struct {
+		name     string
+		contents []string
+	}{
+		{"allowedHosts", c.allowedHosts},
+		{"disallowedHosts", c.disallowedHosts},
+		{"allowedServices", c.allowedServices},
+		{"disallowedServices", c.disallowedServices},
+		{"allowedResources", c.allowedResources},
+		{"disallowedResources", c.disallowedResources},
+	}
+
+	for _, l := range lists {
+		if len(l.contents) > 0 {
+			ret = append(ret, fmt.Sprintf("%v:%v", l.name, l.contents))
+		}
+	}
+
+	return fmt.Sprintf("policyGetCheck{%v}", strings.Join(ret, " "))
+}
+
+// This will stand for one of the functions in client.PolicyAPIClient, below
+type checkString func(string) (*client.PolicyAPIResult, error)
+
+// Run all configured checks.  Runs all checks, even if prior checks did not
+// correspond to the expectation, unless an error is returned in any steps.
+//
+// If provided, the contextMap will be used to template the strings in the
+// policyGetCheck structure.  It can be set to nil to disable templating.
+func (p policyGetCheck) check(contextMap map[string]string) (ok bool, err error) {
+	ok = true
+	var c = client.NewPolicyValidatorAPI(p.cluster.VanClient)
+
+	// allowIncoming
+	if p.allowIncoming != nil {
+
+		var res *client.PolicyAPIResult
+
+		res, err = c.IncomingLink()
+
+		if err != nil {
+			ok = false
+			log.Printf("IncomingLink check failed with error %v", err)
+			return
+		}
+
+		if res.Allowed != *p.allowIncoming {
+			log.Printf("Unexpected IncomingLink result (%v)", res.Allowed)
+			ok = false
+		}
+	}
+
+	// allowedHosts and allowedServices
+	// All tests are very similar, so we run them with a table
+	lists := []struct {
+		name     string
+		list     []string
+		function checkString
+		expect   bool
+	}{
+		{
+			name:     "allowedHosts",
+			list:     p.allowedHosts,
+			function: c.OutgoingLink,
+			expect:   true,
+		}, {
+			name:     "disallowedHosts",
+			list:     p.disallowedHosts,
+			function: c.OutgoingLink,
+			expect:   false,
+		}, {
+			name:     "allowedServices",
+			list:     p.allowedServices,
+			function: c.Service,
+			expect:   true,
+		}, {
+			name:     "disallowedServices",
+			list:     p.disallowedServices,
+			function: c.Service,
+			expect:   false,
+		},
+	}
+
+	for _, list := range lists {
+		// If not configured, just move on
+		if len(list.list) == 0 {
+			continue
+		}
+		// Template the list, in case we want to get something from the context
+		templatedList, err := templateStringList(list.list, contextMap)
+		if err != nil {
+			log.Printf("Failed templating %v: %v", list.name, err)
+			return false, err
+		}
+		// Run the configured function for each element on the list
+		for _, element := range templatedList {
+			var res *client.PolicyAPIResult
+			res, err = list.function(element)
+			if err != nil {
+				log.Printf("%v check failed with error %v", list.name, err)
+				return false, err
+			}
+			if res.Allowed != list.expect {
+				log.Printf("Unexpected %v result for %v (%v)", list.name, element, res.Allowed)
+				ok = false
+			}
+		}
+
+	}
+
+	// allowedResources is different from the others, as its function takes two
+	// arguments.  Still, allowed and disallowed follow similar paths, so we
+	// use a table
+	resourceItems := []struct {
+		allow bool
+		list  []string
+	}{
+		{
+			allow: true,
+			list:  p.allowedResources,
+		}, {
+			allow: false,
+			list:  p.disallowedResources,
+		},
+	}
+	for _, resourceItem := range resourceItems {
+		// Template the list, in case we want to get something from the context
+		templatedList, err := templateStringList(resourceItem.list, contextMap)
+		if err != nil {
+			log.Printf("Failed templating exposed resources (%v): %v", resourceItem.allow, err)
+			return false, err
+		}
+		for _, element := range templatedList {
+			var res *client.PolicyAPIResult
+			splitted := strings.SplitN(element, "/", 2)
+			if len(splitted) != 2 {
+				// TODO: should we try to do something else, instead?  Fail, perhaps?
+				log.Printf("Ignoring GET check for resource without '/': %v", element)
+				continue
+			}
+			res, err = c.Expose(splitted[0], splitted[1])
+			if err != nil {
+				log.Printf("Resource check failed with error %v", err)
+				return false, err
+			}
+			if res.Allowed != resourceItem.allow {
+				log.Printf("Unexpected resource result: %v(%v)", element, res.Allowed)
+				ok = false
+			}
+		}
+	}
+
+	return
+}
+
+// This will keep running all GetChecks in the slice, until all
+// of them return true in the same cycle, or until timeout
+//
+// As policy changes are supposed to be very quick, the checks
+// will run with a one second interval.
+//
+// If provided, the contextMap will be used to template the strings
+// in the policyGetCheck structure.  It can be set to nil to disable
+// templating.
+func waitAllGetChecks(checks []policyGetCheck, contextMap map[string]string) error {
+	if len(checks) == 0 {
+		// nothing to check
+		return nil
+	}
+	var attempts int
+	ctx, cancelFn := context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
+	defer cancelFn()
+	err := utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
+		attempts++
+		log.Printf("Running GET checks -- attempt %v", attempts)
+		if base.IsTestInterrupted() {
+			return false, fmt.Errorf("Test interrupted by user")
+		}
+		var allGood = true
+		for _, check := range checks {
+			// TODO Change this to have no argument
+			ok, err := check.check(contextMap)
+			if err != nil {
+				log.Printf("Error on GET check: %v", err)
+				allGood = false
+			}
+			if !ok {
+				log.Printf("Check %+v failed validation", check)
+				allGood = false
+			}
+		}
+		if allGood {
+			log.Printf("All checks pass")
+			return true, nil
+		}
+		return false, nil
+	})
+
+	return err
+
 }

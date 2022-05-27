@@ -9,12 +9,12 @@
 // - t.Run names (standard, Polarion)
 // - Enhance to include annotation-based exposing
 // - Console
+// - Re-write to use the runner
 
 package hello_policy
 
 import (
 	"log"
-	"os"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -28,13 +28,14 @@ import (
 // TestHelloPolicy is a test that runs the hello-world-example
 // scenario using just the "skupper" binary, which must be available
 // in the PATH.
+//
 // It is a copy of the test at test/integration/examples/custom/helloworld/,
 // adapted for Policy testing
+//
+// This test includes installation and removal of CRDs in-between other
+// steps.  For that reason, it runs only in one cluster, even if the
+// environment setup has two clusters.
 func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
-
-	// Creating a local directory for storing the token
-	testPath := "./tmp/"
-	_ = os.Mkdir(testPath, 0755)
 
 	// These test scenarios allow defining a set of skupper cli
 	// commands to be executed as a workflow, against specific

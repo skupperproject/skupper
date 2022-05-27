@@ -296,7 +296,7 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 					allowIncoming: &item.worksElsewhere,
 					cluster:       pub2,
 				},
-			})
+			}, nil)
 			cli.RunScenarios(
 				t,
 				[]cli.TestScenario{
