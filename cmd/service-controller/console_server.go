@@ -38,7 +38,7 @@ type ConsoleServer struct {
 }
 
 func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer {
-	pool := qdr.NewAgentPool("amqps://"+types.LocalTransportServiceName+":5671", config)
+	pool := qdr.NewAgentPool("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", config)
 	return &ConsoleServer{
 		agentPool: pool,
 		tokens:    newTokenManager(cli),
