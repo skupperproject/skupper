@@ -157,7 +157,11 @@ func parseSettings() (*SkupperSettings, error) {
 	}
 
 	// SKUPPER_SITES
-	skupperSites := strings.Split(utils.StrDefault("1", os.Getenv(ENV_SKUPPER_SITES)), ",")
+	skupperSites := strings.Split(utils.StrDefault("2", os.Getenv(ENV_SKUPPER_SITES)), ",")
+	if os.Getenv(ENV_SKUPPER_SITES) == "" && DebugMode() {
+		log.Printf("setting skupper sites to 1 (debug mode)")
+		skupperSites = []string{"1"}
+	}
 	var skupperSitesInt []int
 	for _, v := range skupperSites {
 		iv, err := strconv.Atoi(v)
