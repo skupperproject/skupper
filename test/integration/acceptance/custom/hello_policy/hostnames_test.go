@@ -97,7 +97,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					prvPolicy: []skupperv1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy("*", []string{"*"})},
 					name:      "create-token-link",
 					cliScenarios: []cli.TestScenario{
-						createTokenPolicyScenario(pub, "prefix", "./tmp", "hostnames", true),
+						createTokenPolicyScenario(pub, "prefix", testPath, "hostnames", true),
 						// This link is temporary; we only need it to get the hostnames for later steps
 						createLinkTestScenario(prv, "", "hostnames", false),
 						linkStatusTestScenario(prv, "", "hostnames", true),

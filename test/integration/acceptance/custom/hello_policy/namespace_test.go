@@ -6,7 +6,6 @@ package hello_policy
 import (
 	"fmt"
 	"log"
-	"os"
 	"testing"
 
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -71,7 +70,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						},
 					},
 					cliScenarios: []cli.TestScenario{
-						createTokenPolicyScenario(pub, "", "./tmp", "transition", true),
+						createTokenPolicyScenario(pub, "", testPath, "transition", true),
 						createLinkTestScenario(prv, "", "transition", false),
 						sitesConnectedTestScenario(pub, prv, "", "transition"),
 					},
@@ -189,10 +188,6 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 
 	var err error
-
-	// Creating a local directory for storing the token
-	testPath := "./tmp/"
-	_ = os.Mkdir(testPath, 0755)
 
 	t.Run("apply-crd", func(t *testing.T) {
 		if err = removePolicies(t, pub1); err != nil {

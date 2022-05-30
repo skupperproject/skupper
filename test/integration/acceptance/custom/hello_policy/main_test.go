@@ -320,6 +320,8 @@ func TestMain(m *testing.M) {
 //
 // pub3 and prv1 are the same, but they only exist for multi-cluster testing,
 // where each is on a different cluster
+//
+// TODO: change to pub1, pub2, prv1; implement prv1 with Multi
 func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 
 	t.Run("Setup", func(t *testing.T) {

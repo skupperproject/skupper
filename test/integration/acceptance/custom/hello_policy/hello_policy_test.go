@@ -15,6 +15,7 @@ package hello_policy
 
 import (
 	"log"
+	"path/filepath"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -60,13 +61,13 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				// skupper token create - verify token has been created
 				&token.CreateTester{
 					Name:     "public",
-					FileName: testPath + "public-hello-world-1.token.yaml",
+					FileName: filepath.Join(testPath, "public-hello-world-1.token.yaml"),
 				},
 			}},
 			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper link create - connect to public and verify connection created
 				&link.CreateTester{
-					TokenFile: testPath + "public-hello-world-1.token.yaml",
+					TokenFile: filepath.Join(testPath, "public-hello-world-1.token.yaml"),
 					Name:      "public",
 					Cost:      1,
 				},

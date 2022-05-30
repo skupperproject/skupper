@@ -536,7 +536,7 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				}, {
 					name: "create-token-link",
 					cliScenarios: []cli.TestScenario{
-						createTokenPolicyScenario(pub, "prefix", "./tmp", "resources", true),
+						createTokenPolicyScenario(pub, "prefix", testPath, "resources", true),
 						createLinkTestScenario(prv, "", "resources", false),
 						linkStatusTestScenario(prv, "", "resources", true),
 					},

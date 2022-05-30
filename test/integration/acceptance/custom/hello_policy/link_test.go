@@ -4,6 +4,7 @@
 package hello_policy
 
 import (
+	"path/filepath"
 	"testing"
 
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -25,7 +26,7 @@ func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string, disal
 			{
 				Ctx: ctx, Commands: []cli.SkupperCommandTester{
 					&link.CreateTester{
-						TokenFile:       testPath + name + ".token.yaml",
+						TokenFile:       filepath.Join(testPath, name+".token.yaml"),
 						Name:            name,
 						Cost:            1,
 						PolicyProhibits: disallowed,
@@ -136,7 +137,7 @@ func sitesConnectedTestScenario(pub *base.ClusterContext, prv *base.ClusterConte
 // The commands cannot be run in parallel
 func connectSitesTestScenario(pub, prv *base.ClusterContext, prefix, name string) (scenario cli.TestScenario) {
 
-	scenario = createTokenPolicyScenario(pub, prefix, "./tmp", name, true)
+	scenario = createTokenPolicyScenario(pub, prefix, testPath, name, true)
 	scenario.Name = prefixName(prefix, "connect-sites")
 
 	scenario.AppendTasks(
@@ -287,7 +288,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						},
 					},
 					cliScenarios: []cli.TestScenario{
-						createTokenPolicyScenario(pub, "", "./tmp", "previous", true),
+						createTokenPolicyScenario(pub, "", testPath, "previous", true),
 					},
 				}, {
 					name: "disallow-and-create-link",
