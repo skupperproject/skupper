@@ -67,14 +67,14 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 			func(t *testing.T) {
 				for i, policy := range r.pubPolicies {
 					i := strconv.Itoa(i)
-					err := applyPolicy(t, "background-pub-policy-"+i, policy, pub)
+					err := applyPolicy("background-pub-policy-"+i, policy, pub)
 					if err != nil {
 						t.Fatalf("Failed to apply policy: %v", err)
 					}
 				}
 				for i, policy := range r.prvPolicies {
 					i := strconv.Itoa(i)
-					err := applyPolicy(t, "background-prv-policy-"+i, policy, prv)
+					err := applyPolicy("background-prv-policy-"+i, policy, prv)
 					if err != nil {
 						t.Fatalf("Failed to apply policy: %v", err)
 					}
@@ -126,6 +126,11 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext, context
 }
 
 type skipFunction func() string
+
+// A hook function is executed right at the start of a policyTestStep.  It can
+// be a closure that captures variables during test table definition, and that
+// executes when the actual test executes, so it can perform things that can't
+// be done during definition.
 type hookFunction func(map[string]string) error
 
 // Configures a step on the policy test runner, which allows for setting
@@ -208,10 +213,10 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext, context
 					t.Skip(skipResult)
 				}
 			}
-			s.runPreHook(t, pub, prv, contextMap)
+			s.runPreHook(t, contextMap)
 			s.applyPolicies(t, pub, prv, contextMap)
-			s.waitChecks(t, pub, prv, contextMap)
-			s.runCommands(t, pub, prv)
+			s.waitChecks(t, contextMap)
+			s.runCommands(t)
 
 			if s.sleep.Nanoseconds() > 0 {
 				log.Printf("Sleeping for %v", s.sleep)
@@ -220,7 +225,7 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext, context
 		})
 }
 
-func (s policyTestStep) runPreHook(t *testing.T, pub, prv *base.ClusterContext, contextMap map[string]string) {
+func (s policyTestStep) runPreHook(t *testing.T, contextMap map[string]string) {
 	if s.preHook == nil {
 		return
 	}
@@ -282,7 +287,7 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 							t.Fatalf("Failed to template policy %v: %v", policy, err)
 						}
 
-						err = applyPolicy(t, policyName, templatedPolicySpec, item.cluster)
+						err = applyPolicy(policyName, templatedPolicySpec, item.cluster)
 						if err != nil {
 							t.Fatalf("Failed to apply policy: %v", err)
 						}
@@ -353,7 +358,7 @@ func templatePolicySpec(p skupperv1.SkupperClusterPolicySpec, c map[string]strin
 }
 
 // Wait for all checks to succeed, unless configured otherwise
-func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext, contextMap map[string]string) {
+func (s policyTestStep) waitChecks(t *testing.T, contextMap map[string]string) {
 	if base.ShouldPolicyWaitOnGet() {
 		err := waitAllGetChecks(s.getChecks, contextMap)
 		if err != nil {
@@ -381,7 +386,7 @@ func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext, 
 }
 
 // Run the commands part of the policyTestStep
-func (s policyTestStep) runCommands(t *testing.T, pub, prv *base.ClusterContext) {
+func (s policyTestStep) runCommands(t *testing.T) {
 	if s.parallel {
 		cli.RunScenariosParallel(t, s.cliScenarios)
 	} else {

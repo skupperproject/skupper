@@ -28,7 +28,7 @@ var testPath = "./tmp/"
 
 // Adds the CRD to the cluster
 // TODO: can this be improved?
-func applyCrd(t *testing.T, cluster *base.ClusterContext) (err error) {
+func applyCrd(cluster *base.ClusterContext) (err error) {
 	var out []byte
 	log.Printf("Adding CRD into the %v cluster", cluster.KubeConfig)
 	out, err = cluster.KubectlExec("apply -f ../../../../../api/types/crds/skupper_cluster_policy_crd.yaml")
@@ -82,7 +82,7 @@ func removeCrd(t *testing.T, cluster *base.ClusterContext) (changed bool, err er
 }
 
 // Remove the cluster role, but do not fail if it is not there
-func removeClusterRole(t *testing.T, cluster *base.ClusterContext) (changed bool, err error) {
+func removeClusterRole(cluster *base.ClusterContext) (changed bool, err error) {
 	changed = true
 	log.Printf("Removing cluster role %v from the CRD definition", types.ControllerServiceAccountName)
 
@@ -201,7 +201,7 @@ func keepPolicies(t *testing.T, cluster *base.ClusterContext, patterns []regexp.
 
 // Apply a SkupperClusterPolicySpec with the given name on the
 // requested cluster
-func applyPolicy(t *testing.T, name string, spec skupperv1.SkupperClusterPolicySpec, cluster *base.ClusterContext) (err error) {
+func applyPolicy(name string, spec skupperv1.SkupperClusterPolicySpec, cluster *base.ClusterContext) (err error) {
 
 	log.Printf("Applying policy %v (%v)...", name, spec)
 	skupperCli, err := clientv1.NewForConfig(cluster.VanClient.RestConfig)
@@ -412,7 +412,7 @@ func TestPolicies(t *testing.T) {
 						defer wg.Done()
 						log.Printf("Removing Policy CRD from context %v", context.Namespace)
 						removeCrd(t, context)
-						removeClusterRole(t, context)
+						removeClusterRole(context)
 					}()
 				}
 			}
@@ -503,7 +503,7 @@ func TestPolicies(t *testing.T) {
 		base.StopIfInterrupted(t)
 
 		t.Run("testNamespace", func(t *testing.T) {
-			applyCrd(t, pub1)
+			applyCrd(pub1)
 			removePolicies(t, pub1)
 			testNamespace(t, pub1, pub2)
 		})
@@ -511,7 +511,7 @@ func TestPolicies(t *testing.T) {
 		base.StopIfInterrupted(t)
 
 		t.Run("testLinkPolicy", func(t *testing.T) {
-			applyCrd(t, pub1)
+			applyCrd(pub1)
 			removePolicies(t, pub1)
 			removePolicies(t, pub2)
 			testLinkPolicy(t, pub1, pub2)
@@ -520,7 +520,7 @@ func TestPolicies(t *testing.T) {
 		base.StopIfInterrupted(t)
 
 		t.Run("testServicePolicy", func(t *testing.T) {
-			applyCrd(t, pub1)
+			applyCrd(pub1)
 			removePolicies(t, pub1)
 			removePolicies(t, pub2)
 			testServicePolicy(t, pub1, pub2)
@@ -529,7 +529,7 @@ func TestPolicies(t *testing.T) {
 		base.StopIfInterrupted(t)
 
 		t.Run("testServicePolicyTransitions", func(t *testing.T) {
-			applyCrd(t, pub1)
+			applyCrd(pub1)
 			removePolicies(t, pub1)
 			removePolicies(t, pub2)
 			testServicePolicyTransitions(t, pub1, pub2)
@@ -538,7 +538,7 @@ func TestPolicies(t *testing.T) {
 		base.StopIfInterrupted(t)
 
 		t.Run("testHostnames", func(t *testing.T) {
-			applyCrd(t, pub1)
+			applyCrd(pub1)
 			removePolicies(t, pub1)
 			removePolicies(t, pub2)
 			testHostnamesPolicy(t, pub1, pub2)
@@ -547,7 +547,7 @@ func TestPolicies(t *testing.T) {
 		base.StopIfInterrupted(t)
 
 		t.Run("testResourcesPolicy", func(t *testing.T) {
-			applyCrd(t, pub1)
+			applyCrd(pub1)
 			removePolicies(t, pub1)
 			removePolicies(t, pub2)
 			testResourcesPolicy(t, pub1, pub2)

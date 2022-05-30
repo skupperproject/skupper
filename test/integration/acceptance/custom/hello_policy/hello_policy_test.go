@@ -499,7 +499,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	removeCrd(t, pub1)
 	t.Run("No CRD, all works", func(t *testing.T) { cli.RunScenarios(t, mainSteps) })
 	t.Run("Re-expose service, for next test", func(t *testing.T) { cli.RunScenarios(t, []cli.TestScenario{exposeSteps}) })
-	applyCrd(t, pub1)
+	applyCrd(pub1)
 	// TODO: can this run in parallel?
 	t.Run("CRD added and no policy, all comes down", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameDown) })
 	log.Print("Removing CRD again, some resources should come back up")

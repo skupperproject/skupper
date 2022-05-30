@@ -202,7 +202,7 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 			log.Print("Skipping policy setup, per environment")
 			return
 		}
-		if err = applyCrd(t, pub1); err != nil {
+		if err = applyCrd(pub1); err != nil {
 			t.Fatalf("Failed to add the CRD at the start: %v", err)
 			return
 		}
@@ -282,7 +282,7 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				Namespaces:         item.namespaces,
 				AllowIncomingLinks: true,
 			}
-			err = applyPolicy(t, "generated-policy", policySpec, pub1)
+			err = applyPolicy("generated-policy", policySpec, pub1)
 			if err != nil {
 				t.Fatalf("Failed to apply policy: %v", err)
 				return
