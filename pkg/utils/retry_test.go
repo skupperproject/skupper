@@ -240,3 +240,76 @@ func TestRetryError(t *testing.T) {
 	}
 
 }
+
+type TestTryUntilItem struct {
+	workOnSecond  time.Duration
+	funcError     error
+	funcValue     interface{}
+	maxDuration   time.Duration
+	expectTimeout bool
+}
+
+func TestTryUntil(t *testing.T) {
+	testTable := []TestTryUntilItem{
+		{
+			workOnSecond:  time.Second,
+			funcError:     nil,
+			funcValue:     []string{"first", "second", "third"},
+			maxDuration:   5 * time.Second,
+			expectTimeout: false,
+		},
+		{
+			workOnSecond:  4 * time.Second,
+			funcError:     nil,
+			funcValue:     5,
+			maxDuration:   5 * time.Second,
+			expectTimeout: false,
+		},
+		{
+			workOnSecond:  time.Second,
+			funcError:     fmt.Errorf("function is not working"),
+			funcValue:     nil,
+			maxDuration:   5 * time.Second,
+			expectTimeout: false,
+		},
+		{
+			workOnSecond:  30 * time.Second,
+			funcError:     nil,
+			funcValue:     nil,
+			maxDuration:   5 * time.Second,
+			expectTimeout: true,
+		},
+	}
+
+	for _, item := range testTable {
+		name := fmt.Sprintf("workOnSecond: %v maxDuration: %v expectTimeout: %v",
+			item.workOnSecond, item.maxDuration, item.expectTimeout)
+		t.Run(name, func(t *testing.T) {
+
+			resp, err := TryUntil(item.maxDuration, func() Result {
+				time.Sleep(item.workOnSecond)
+				return Result{
+					Value: item.funcValue,
+					Error: item.funcError,
+				}
+			})
+
+			fmt.Printf("result: %v", resp)
+			fmt.Println()
+
+			if item.expectTimeout && err.Error() != "timed out" {
+				t.Errorf("It was expected a timeout but it did not happen")
+			}
+
+			if item.funcValue != nil && resp == nil {
+				t.Errorf("It was expected to receive a value")
+			}
+
+			if !item.expectTimeout && item.funcError != err {
+				t.Errorf("Received wrong error: %s", err)
+			}
+
+		})
+	}
+
+}
