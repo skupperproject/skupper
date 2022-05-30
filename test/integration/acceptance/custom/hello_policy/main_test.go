@@ -27,13 +27,14 @@ import (
 var testPath = "./tmp/"
 
 // Adds the CRD to the cluster
+// TODO: can this be improved?
 func applyCrd(t *testing.T, cluster *base.ClusterContext) (err error) {
 	var out []byte
 	log.Printf("Adding CRD into the %v cluster", cluster.KubeConfig)
 	out, err = cluster.KubectlExec("apply -f ../../../../../api/types/crds/skupper_cluster_policy_crd.yaml")
 	if err != nil {
 		log.Printf("CRD applying failed: %v", err)
-		log.Print("Output:\n", out)
+		log.Print("Output:\n", string(out))
 		return
 	}
 	return
@@ -43,7 +44,7 @@ func isCrdInstalled(cluster *base.ClusterContext) (installed bool, err error) {
 	var out []byte
 	installed = true
 
-	// TODO: replace this by some kube API
+	// TODO: replace this by some kube API?
 	out, err = cluster.KubectlExec("get crd skupperclusterpolicies.skupper.io")
 	if err != nil {
 		if strings.Contains(
@@ -312,6 +313,57 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// This will return up to four namespaces/contexts
+//
+// pub1 and pub2 represent the frontend and backend to be tied together by
+// skupper, on the same cluster.
+//
+// pub3 and prv1 are the same, but they only exist for multi-cluster testing,
+// where each is on a different cluster
+func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
+
+	t.Run("Setup", func(t *testing.T) {
+		// First, validate if skupper binary is in the PATH, or fail the test
+		log.Printf("Running 'skupper version' to determine whether the skupper binary is available and record its version")
+		_, _, err := cli.RunSkupperCli([]string{"version"})
+		if err != nil {
+			t.Fatalf("skupper binary is not available")
+		}
+
+		log.Printf("Creating namespaces")
+		needs := base.ClusterNeeds{
+			// TODO: Change this to just 'policy', as it will be reused
+			NamespaceId:    "policy-namespaces",
+			PublicClusters: 2,
+		}
+		runner := &base.ClusterTestRunnerBase{}
+		if err := runner.Validate(needs); err != nil {
+			t.Skipf("%s", err)
+		}
+		_, err = runner.Build(needs, nil)
+		assert.Assert(t, err)
+
+		// This is the target domain
+		pub1, err = runner.GetPublicContext(1)
+		assert.Assert(t, err)
+		// This is the 'other' domain
+		pub2, err = runner.GetPublicContext(2)
+		assert.Assert(t, err)
+
+		// TODO.  From here down, put it on a loop, as there may be four
+
+		// creating namespaces
+		assert.Assert(t, pub1.CreateNamespace())
+		assert.Assert(t, pub2.CreateNamespace())
+
+		// labelling the namespaces
+		pub1.LabelNamespace("test.skupper.io/test-namespace", "policy")
+		pub2.LabelNamespace("test.skupper.io/test-namespace", "policy")
+	})
+
+	return
+}
+
 // This should be the only test on the package; it sets the environment up and
 // calls the actual tests.  Some items are listed as tests (t.Run), but are not
 // really tests; instead they're setup and teardown functions.  They're set
@@ -504,55 +556,4 @@ func TestPolicies(t *testing.T) {
 		base.StopIfInterrupted(t)
 	})
 
-}
-
-// This will return up to four namespaces/contexts
-//
-// pub1 and pub2 represent the frontend and backend to be tied together by
-// skupper, on the same cluster.
-//
-// pub3 and prv1 are the same, but they only exist for multi-cluster testing,
-// where each is on a different cluster
-func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
-
-	t.Run("Setup", func(t *testing.T) {
-		// First, validate if skupper binary is in the PATH, or fail the test
-		log.Printf("Running 'skupper version' to determine whether the skupper binary is available and record its version")
-		_, _, err := cli.RunSkupperCli([]string{"version"})
-		if err != nil {
-			t.Fatalf("skupper binary is not available")
-		}
-
-		log.Printf("Creating namespaces")
-		needs := base.ClusterNeeds{
-			// TODO: Change this to just 'policy', as it will be reused
-			NamespaceId:    "policy-namespaces",
-			PublicClusters: 2,
-		}
-		runner := &base.ClusterTestRunnerBase{}
-		if err := runner.Validate(needs); err != nil {
-			t.Skipf("%s", err)
-		}
-		_, err = runner.Build(needs, nil)
-		assert.Assert(t, err)
-
-		// This is the target domain
-		pub1, err = runner.GetPublicContext(1)
-		assert.Assert(t, err)
-		// This is the 'other' domain
-		pub2, err = runner.GetPublicContext(2)
-		assert.Assert(t, err)
-
-		// TODO.  From here down, put it on a loop, as there may be four
-
-		// creating namespaces
-		assert.Assert(t, pub1.CreateNamespace())
-		assert.Assert(t, pub2.CreateNamespace())
-
-		// labelling the namespaces
-		pub1.LabelNamespace("test.skupper.io/test-namespace", "policy")
-		pub2.LabelNamespace("test.skupper.io/test-namespace", "policy")
-	})
-
-	return
 }

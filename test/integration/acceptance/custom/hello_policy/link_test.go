@@ -12,7 +12,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/link"
 )
 
-// Uses the named token to create a link from ctx
+// Uses the named token to create a link on ctx
 //
 // Returns a scenario with a single link.CreateTester
 //
@@ -25,7 +25,7 @@ func createLinkTestScenario(ctx *base.ClusterContext, prefix, name string, disal
 			{
 				Ctx: ctx, Commands: []cli.SkupperCommandTester{
 					&link.CreateTester{
-						TokenFile:       "./tmp/" + name + ".token.yaml",
+						TokenFile:       testPath + name + ".token.yaml",
 						Name:            name,
 						Cost:            1,
 						PolicyProhibits: disallowed,
@@ -159,6 +159,16 @@ func allowIncomingLinkPolicy(namespace string, allow bool) (policySpec skupperv1
 	return
 }
 
+// This is the main test for incoming link policy (AllowIncomingLinks), and
+// uses a plain policyTestCase.
+//
+// There are no background policies, and keepPolicies is set as false.  So,
+// every individual test case will start with a blank list of policies
+// (everything is denied).
+//
+// The policies in this test are all applied specifically to one of the named
+// namespaces, so it should be safe to run on both single and multi-cluster
+// configurations.
 func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	testTable := []policyTestCase{
@@ -180,7 +190,7 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				{
 					name: "execute",
 					cliScenarios: []cli.TestScenario{
-						createTokenPolicyScenario(pub, "", "./tmp", "fail", false),
+						createTokenPolicyScenario(pub, "", testPath, "fail", false),
 					},
 					getChecks: []policyGetCheck{
 						{
@@ -201,12 +211,6 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
 					},
-					cliScenarios: []cli.TestScenario{
-						createTokenPolicyScenario(pub, "", "./tmp", "works", true),
-						createLinkTestScenario(prv, "", "works", false),
-						linkStatusTestScenario(prv, "", "works", true),
-						sitesConnectedTestScenario(pub, prv, "", "works"),
-					},
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
@@ -214,16 +218,20 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						}, {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
+							allowedHosts:  []string{"any"},
 						},
+					},
+					cliScenarios: []cli.TestScenario{
+						createTokenPolicyScenario(pub, "", testPath, "works", true),
+						createLinkTestScenario(prv, "", "works", false),
+						linkStatusTestScenario(prv, "", "works", true),
+						sitesConnectedTestScenario(pub, prv, "", "works"),
 					},
 				}, {
 					name: "remove",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, false),
 					},
-					cliScenarios: []cli.TestScenario{
-						linkStatusTestScenario(prv, "", "works", false),
-					},
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
@@ -233,15 +241,13 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							allowIncoming: cli.Boolp(false),
 						},
 					},
+					cliScenarios: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "works", false),
+					},
 				}, {
 					name: "re-allow",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, true),
-					},
-					cliScenarios: []cli.TestScenario{
-						linkStatusTestScenario(prv, "again", "works", true),
-						sitesConnectedTestScenario(pub, prv, "", "works"),
-						linkDeleteTestScenario(prv, "", "works"),
 					},
 					getChecks: []policyGetCheck{
 						{
@@ -251,6 +257,11 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
 						},
+					},
+					cliScenarios: []cli.TestScenario{
+						linkStatusTestScenario(prv, "again", "works", true),
+						sitesConnectedTestScenario(pub, prv, "", "works"),
+						linkDeleteTestScenario(prv, "", "works"),
 					},
 				},
 			},
@@ -269,6 +280,10 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						{
 							allowIncoming: cli.Boolp(true),
 							cluster:       pub,
+						}, {
+							allowIncoming: cli.Boolp(false),
+							allowedHosts:  []string{"any"},
+							cluster:       prv,
 						},
 					},
 					cliScenarios: []cli.TestScenario{
@@ -279,31 +294,31 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, false),
 					},
-					cliScenarios: []cli.TestScenario{
-						createLinkTestScenario(prv, "", "previous", false),
-						linkStatusTestScenario(prv, "", "previous", false),
-					},
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
 							allowIncoming: cli.Boolp(false),
 						},
 					},
+					cliScenarios: []cli.TestScenario{
+						createLinkTestScenario(prv, "", "previous", false),
+						linkStatusTestScenario(prv, "", "previous", false),
+					},
 				}, {
 					name: "re-allow-and-check-link",
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, true),
-					},
-					cliScenarios: []cli.TestScenario{
-						linkStatusTestScenario(prv, "now", "previous", true),
-						sitesConnectedTestScenario(pub, prv, "", "previous"),
-						linkDeleteTestScenario(prv, "", "previous"),
 					},
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
 							allowIncoming: cli.Boolp(true),
 						},
+					},
+					cliScenarios: []cli.TestScenario{
+						linkStatusTestScenario(prv, "now", "previous", true),
+						sitesConnectedTestScenario(pub, prv, "", "previous"),
+						linkDeleteTestScenario(prv, "", "previous"),
 					},
 				},
 			},

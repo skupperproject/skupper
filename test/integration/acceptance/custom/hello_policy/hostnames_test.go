@@ -18,7 +18,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
@@ -95,7 +94,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						skupperInitEdgeTestScenario(prv, "", true),
 					},
 				}, {
-					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy("*", []string{"*"})},
+					prvPolicy: []skupperv1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy("*", []string{"*"})},
 					name:      "create-token-link",
 					cliScenarios: []cli.TestScenario{
 						createTokenPolicyScenario(pub, "prefix", "./tmp", "hostnames", true),
@@ -140,7 +139,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					},
 				}, {
 					name:      "remove-tmp-policy-and-link",
-					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy("REMOVE", []string{})},
+					prvPolicy: []skupperv1.SkupperClusterPolicySpec{allowedOutgoingLinksHostnamesPolicy("REMOVE", []string{})},
 					cliScenarios: []cli.TestScenario{
 						linkStatusTestScenario(prv, "", "hostnames", false),
 						linkDeleteTestScenario(prv, "", "hostnames"),
@@ -254,8 +253,8 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			name: "hardify-dots",
 			transformation: func(input string) string {
 				// we're replacing any "." by "\."
-				re := regexp.MustCompile("\\.")
-				return fmt.Sprintf("^%v$", re.ReplaceAllString(input, "\\."))
+				re := regexp.MustCompile(`\.`)
+				return fmt.Sprintf("^%v$", re.ReplaceAllString(input, `\.`))
 			},
 			allowed: true,
 		},
@@ -325,7 +324,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						},
 					},
 					// Then we apply the changed hostnames on the policy
-					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
+					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(
 							prv.Namespace,
 							[]string{"{{.claim}}", "{{.router}}", "{{.edge}}"},
@@ -380,7 +379,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					// Different from the createTester, we do not need GET checks here,
 					// as we're only running status checks (and no create steps).  So, we can
 					// just wait until the status is as expected.
-					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
+					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowedOutgoingLinksHostnamesPolicy(
 							prv.Namespace,
 							[]string{"{{.claim}}", "{{.router}}", "{{.edge}}"},
@@ -402,7 +401,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			steps: []policyTestStep{
 				{
 					name: "create",
-					prvPolicy: []v1alpha1.SkupperClusterPolicySpec{
+					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
 						// We start allowing anything, so we can create the link
 						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
 					},
@@ -443,7 +442,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		contextMap:   context,
 		keepPolicies: true,
 		// We allow everything on both clusters, except for hostnames
-		pubPolicies: []v1alpha1.SkupperClusterPolicySpec{
+		pubPolicies: []skupperv1.SkupperClusterPolicySpec{
 			{
 				Namespaces:              []string{"*"},
 				AllowIncomingLinks:      true,
@@ -451,7 +450,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				AllowedServices:         []string{"*"},
 			},
 		},
-		prvPolicies: []v1alpha1.SkupperClusterPolicySpec{
+		prvPolicies: []skupperv1.SkupperClusterPolicySpec{
 			{
 				Namespaces:              []string{"*"},
 				AllowIncomingLinks:      true,

@@ -10,7 +10,7 @@ import (
 
 // Returns a test scenario that initializes skupper on the given context as interior,
 // using the same arguments as used on the main hello_world test, and then confirms
-// it is up and has policy enabled.
+// it is up and whether it has policy enabled.
 func skupperInitInteriorTestScenario(ctx *base.ClusterContext, prefix string, withPolicy bool) (initSteps cli.TestScenario) {
 	initSteps = cli.TestScenario{
 		Name: prefixName(prefix, "init-skupper-interior"),
@@ -40,7 +40,7 @@ func skupperInitInteriorTestScenario(ctx *base.ClusterContext, prefix string, wi
 
 // Returns a test scenario that initializes skupper on the given context as edge,
 // using the same arguments as used on the main hello_world test, and then confirms
-// it is up and has policy enabled.
+// it is up and whether it has policy enabled.
 func skupperInitEdgeTestScenario(ctx *base.ClusterContext, prefix string, withPolicy bool) (initSteps cli.TestScenario) {
 	initSteps = cli.TestScenario{
 		Name: prefixName(prefix, "init-skupper-edge"),

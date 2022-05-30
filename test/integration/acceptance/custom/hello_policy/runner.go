@@ -43,8 +43,10 @@ func wipePolicies(t *testing.T, ctx ...*base.ClusterContext) error {
 
 // Runs each policyTestCase in turn
 //
-// By default, all policies are removed between the tests cases, but that can be
-// controlled with keepPolicies
+// By default, all policies are removed between the tests cases, but that can
+// be controlled with keepPolicies.  Notice that between steps in a test case
+// the policies are never removed by the runner (unless explicitly requested in
+// the step).
 type policyTestRunner struct {
 	testCases    []policyTestCase
 	keepPolicies bool
@@ -365,12 +367,12 @@ func (s policyTestStep) waitChecks(t *testing.T, pub, prv *base.ClusterContext, 
 				ok, err := check.check(contextMap)
 				if err != nil {
 					errMsg := fmt.Sprintf("GET check %v failed: %v", check, err)
-					log.Printf(errMsg)
+					log.Print(errMsg)
 					t.Errorf(errMsg)
 				}
 				if !ok {
 					errMsg := fmt.Sprintf("GET check %v returned incorrect response", check)
-					log.Printf(errMsg)
+					log.Print(errMsg)
 					t.Errorf(errMsg)
 				}
 			}
@@ -589,7 +591,7 @@ func waitAllGetChecks(checks []policyGetCheck, contextMap map[string]string) err
 		attempts++
 		log.Printf("Running GET checks -- attempt %v", attempts)
 		if base.IsTestInterrupted() {
-			return false, fmt.Errorf("Test interrupted by user")
+			return false, fmt.Errorf("test interrupted by user")
 		}
 		var allGood = true
 		for _, check := range checks {
