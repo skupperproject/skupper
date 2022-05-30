@@ -110,7 +110,9 @@ to define which topologies will be tested and skupper specific settings.
 | Name                  | Type        | Description                                                                                      | Default value | Sample |
 |:----------------------|:------------|:-------------------------------------------------------------------------------------------------|--------------:|-------:|
 | HTTP_DURATION_SECS    | int         | Duration in seconds for the performance test to run.                                             |            30 |        |
-| HTTP_PARALLEL_CLIENTS | []int (CSV) | List with number of clients to use. A performance test will be executed for each value provided. |            10 |        |
+| HTTP_PARALLEL_CLIENTS | []int (CSV) | List with number of clients to use. A performance test will be executed for each value provided. |             2 |   2,10 |
+| HTTP_CONNECTIONS      | int         | Number of client connections to keep open. Used by wrk only.                                     |            10 |        |
+| HTTP_RATE             | string      | Rate limit in requests per second. Used by wrk2 and hey clients.                                 |               |   1000 |
 | HTTP_MEMORY           | string      | Memory specification for server and client pods.                                                 |               | 2000Mi |
 | HTTP_CPU              | string      | CPU specification for server and client pods.                                                    |               |   500m |
 | HTTP_TIMEOUT          | string      | Time duration to wait for benchmark job to complete.                                             |           10m |        |
@@ -143,6 +145,7 @@ to define which topologies will be tested and skupper specific settings.
 | REDIS_NUMBER_REQUESTS  | int            | Number of requests to send.                                                                                                                     | 25000 (performance tag)/1000 (integration tag) |              |
 | REDIS_PARALLEL_CLIENTS | []int (CSV)    | List with number of clients to use. A performance test will be executed for each value provided.                                                |                                             50 |              |
 | REDIS_TESTS            | []string (CSV) | List with redis-benchamrk tests to run. A performance test will be executed for each test provided. If empty, all operations will be performed. |                                                | GET,SET,MSET |
+| REDIS_DATASIZE         | int            | Data size in bytes.                                                                                                                             |                                              3 |         1024 |
 | REDIS_MEMORY           | string         | Memory specification for server and client pods.                                                                                                |                                                |       2000Mi |
 | REDIS_CPU              | string         | CPU specification for server and client pods.                                                                                                   |                                                |         500m |
 | REDIS_TIMEOUT          | string         | Time duration to wait for benchmark job to complete.                                                                                            |                                            10m |              |
