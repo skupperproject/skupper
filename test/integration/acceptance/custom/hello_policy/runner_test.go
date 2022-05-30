@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -50,8 +49,8 @@ func wipePolicies(t *testing.T, ctx ...*base.ClusterContext) error {
 type policyTestRunner struct {
 	testCases    []policyTestCase
 	keepPolicies bool
-	pubPolicies  []v1alpha1.SkupperClusterPolicySpec
-	prvPolicies  []v1alpha1.SkupperClusterPolicySpec
+	pubPolicies  []skupperv1.SkupperClusterPolicySpec
+	prvPolicies  []skupperv1.SkupperClusterPolicySpec
 	contextMap   map[string]string // user needs to initialize if using
 }
 

@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
@@ -637,7 +636,7 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		testCases:    testTable,
 		keepPolicies: true,
 		// We allow everything on both clusters, except for resources
-		pubPolicies: []v1alpha1.SkupperClusterPolicySpec{
+		pubPolicies: []skupperv1.SkupperClusterPolicySpec{
 			{
 				Namespaces:                    []string{"*"},
 				AllowIncomingLinks:            true,
@@ -645,7 +644,7 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 				AllowedServices:               []string{"*"},
 			},
 		},
-		prvPolicies: []v1alpha1.SkupperClusterPolicySpec{
+		prvPolicies: []skupperv1.SkupperClusterPolicySpec{
 			{
 				Namespaces:                    []string{"*"},
 				AllowIncomingLinks:            true,
