@@ -26,12 +26,6 @@ import (
 
 var testPath = "./tmp/"
 
-// Module initialization
-func init() {
-	// Creating a local directory for storing the token
-	_ = os.Mkdir(testPath, 0755)
-}
-
 // Adds the CRD to the cluster
 func applyCrd(t *testing.T, cluster *base.ClusterContext) (err error) {
 	var out []byte
@@ -338,6 +332,9 @@ func TestMain(m *testing.M) {
 // installed and no policies at test start.  Tests are responsible for running
 // skupper init and skupper delete (?)
 func TestPolicies(t *testing.T) {
+
+	// Creating a local directory for storing the token
+	_ = os.Mkdir(testPath, 0755)
 
 	pub1, pub2, _, _ := setup(t)
 	//	pub1, pub2, pub3, prv1 := setup(t)
