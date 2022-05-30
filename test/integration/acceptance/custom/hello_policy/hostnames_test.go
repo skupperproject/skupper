@@ -7,6 +7,7 @@ package hello_policy
 // - cross testing (claim on router and vice versa)
 // - full setup checking (create service and expose; check they appear/disappear; perhaps even curl the service).
 // - Add also different removals and reinstates of policy (actual removal, changed namespace list)
+// - Change it to use a secondary cluster, if available
 
 import (
 	"fmt"
