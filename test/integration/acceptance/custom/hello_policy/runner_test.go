@@ -185,6 +185,10 @@ type hookFunction func(map[string]string) error
 //
 // The context map is also used when applying policies, so the key/values pairs
 // there can be accessed as Go Templates on the policies' items.
+//
+// Note: When writing the tests, try to keep the fields in the same order as
+// they appear on the struct definition.  That's the order in which they'll be run,
+// and that helps the test reader understand when each step will execute.
 type policyTestStep struct {
 	name         string
 	preHook      hookFunction
@@ -192,8 +196,10 @@ type policyTestStep struct {
 	prvPolicy    []skupperv1.SkupperClusterPolicySpec
 	getChecks    []policyGetCheck
 	cliScenarios []cli.TestScenario
-	parallel     bool // This will run the cliScenarios parallel
-	sleep        time.Duration
+
+	// configuration
+	parallel bool // This will run the cliScenarios parallel
+	sleep    time.Duration
 
 	// if provided, skipFunction will be run and its result checked.  If not empty,
 	// the test will be skipped with the return string as the input to t.Skip().

@@ -5,7 +5,6 @@ package hello_policy
 
 import (
 	"fmt"
-	"log"
 	"testing"
 
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -13,22 +12,12 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
-type namespaceTest struct {
-	// This will go straight to the policy's Namespaces field, so it will
-	// be a definition of which namespaces are being affected by policy
-	// change
-	namespaces []string
-
-	// Whether the policy change should affect the target namespace (pub1)
-	// Notice the target is not what is on the field above; it's always
-	// the same, static, namespace
-	worksOnTarget bool
-
-	// Whether the change should affect other namespaces (more specifically
-	// pub2)
-	worksElsewhere bool
-}
-
+// We have two tests on this file; this function is just the entry point,
+// that calls the other two.
+//
+// In both cases the creation and state of skupper links are used as a proxy to
+// see how the policy engine reacts to different settings for the namespaces
+// field.
 func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	t.Run("testNamespaceLinkTransitions", func(t *testing.T) {
 		testNamespaceLinkTransitions(t, pub1, pub2)
@@ -39,6 +28,10 @@ func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	})
 }
 
+// This test checks how the policy engine reacts to policies that are changing,
+// as opposed to new policies or removal of policies.
+//
+// This test should be ok to run on both single and multi cluster environments.
 func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 
 	testTable := []policyTestCase{
@@ -51,15 +44,15 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
-					prvPolicy: []skupperv1.SkupperClusterPolicySpec{
-						allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
-					},
 					cliScenarios: []cli.TestScenario{
 						skupperInitInteriorTestScenario(pub, "", true),
 						skupperInitEdgeTestScenario(prv, "", true),
 					},
 				}, {
 					name: "connect",
+					// Skupper init does not need those policies, so we
+					// only check them here, where the test will most probably
+					// run only once, saving a few seconds
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
@@ -67,6 +60,7 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 						}, {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
+							allowedHosts:  []string{"any"},
 						},
 					},
 					cliScenarios: []cli.TestScenario{
@@ -84,9 +78,9 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, false),
 					},
-					cliScenarios: []cli.TestScenario{
-						linkStatusTestScenario(prv, "", "transition", false),
-					},
+					// We do not need these GET checks for the cliScenario, as
+					// that's a Status scenario, but this could be an early
+					// warning if the scenario fails.
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
@@ -95,6 +89,9 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
 						},
+					},
+					cliScenarios: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "transition", false),
 					},
 				},
 			},
@@ -106,9 +103,6 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
-					cliScenarios: []cli.TestScenario{
-						linkStatusTestScenario(prv, "", "transition", true),
-					},
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
@@ -117,6 +111,9 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
 						},
+					},
+					cliScenarios: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "transition", true),
 					},
 				},
 			},
@@ -131,14 +128,14 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy("non-existent", true),
 					},
-					cliScenarios: []cli.TestScenario{
-						linkStatusTestScenario(prv, "", "transition", false),
-					},
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
 							allowIncoming: cli.Boolp(false),
 						},
+					},
+					cliScenarios: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "transition", false),
 					},
 				},
 			},
@@ -150,9 +147,6 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 					pubPolicy: []skupperv1.SkupperClusterPolicySpec{
 						allowIncomingLinkPolicy(pub.Namespace, true),
 					},
-					cliScenarios: []cli.TestScenario{
-						linkStatusTestScenario(prv, "", "transition", true),
-					},
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
@@ -161,6 +155,9 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 							cluster:       prv,
 							allowIncoming: cli.Boolp(false),
 						},
+					},
+					cliScenarios: []cli.TestScenario{
+						linkStatusTestScenario(prv, "", "transition", true),
 					},
 				},
 			},
@@ -182,30 +179,40 @@ func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
 	policyTestRunner{
 		testCases:    testTable,
 		keepPolicies: true,
+		prvPolicies: []skupperv1.SkupperClusterPolicySpec{
+			allowedOutgoingLinksHostnamesPolicy(prv.Namespace, []string{"*"}),
+		},
 	}.run(t, pub, prv)
 
 }
+
+// This is the struct used by testNamespaceIncomingLinks
+type namespaceTest struct {
+	// This will go straight to the policy's Namespaces field, so it will
+	// be a definition of which namespaces are being affected by policy
+	// change
+	namespaces []string
+
+	// Whether the policy change should affect the target namespace (pub1)
+	// Notice the target is not what is on the field above; it's always
+	// the same, static, namespace
+	worksOnTarget bool
+
+	// Whether the change should affect other namespaces (more specifically
+	// pub2)
+	worksElsewhere bool
+}
+
+// This test sets some policies with namespaces that use wide-matching regexes
+// (such as "*"), and checks for collateral effects on multiple namespaces.
+//
+// For that reason, it should always run only on a single cluster (ie, pub1 and
+// pub2 should be namespaces of the same cluster).
 func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 
+	// TODO: Change to use policyTestRunner
+
 	var err error
-
-	t.Run("apply-crd", func(t *testing.T) {
-		if err = removePolicies(t, pub1); err != nil {
-			t.Fatalf("Failed to remove policies")
-		}
-		if base.ShouldSkipPolicySetup() {
-			log.Print("Skipping policy setup, per environment")
-			return
-		}
-		if err = applyCrd(pub1); err != nil {
-			t.Fatalf("Failed to add the CRD at the start: %v", err)
-			return
-		}
-	})
-
-	if t.Failed() {
-		t.Fatalf("CRD setup failed")
-	}
 
 	initSteps := []cli.TestScenario{
 		skupperInitInteriorTestScenario(pub1, "pub", true),
@@ -217,48 +224,40 @@ func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 			namespaces:     []string{"*"},
 			worksOnTarget:  true,
 			worksElsewhere: true,
-		},
-		{
-			namespaces:     []string{"public-policy-namespaces-1"},
+		}, {
+			namespaces:     []string{pub1.Namespace},
 			worksOnTarget:  true,
 			worksElsewhere: false,
-		},
-		{
-			namespaces:     []string{"public-policy-namespaces-2"},
+		}, {
+			namespaces:     []string{pub2.Namespace},
 			worksOnTarget:  false,
 			worksElsewhere: true,
-		},
-		{
-			namespaces:     []string{".*1$"},
+		}, {
+			namespaces:     []string{fmt.Sprintf(".*%v$", pub1.Namespace[len(pub1.Namespace)-1:])},
 			worksOnTarget:  true,
 			worksElsewhere: false,
-		},
-		{
-			namespaces:     []string{".*2$"},
+		}, {
+			namespaces:     []string{fmt.Sprintf(".*%v$", pub2.Namespace[len(pub2.Namespace)-1:])},
 			worksOnTarget:  false,
 			worksElsewhere: true,
-		},
-		{
-			namespaces:     []string{"public"},
+		}, {
+			namespaces:     []string{"policy"},
 			worksOnTarget:  true,
 			worksElsewhere: true,
-		},
-		{
+		}, {
 			namespaces:     []string{`test.skupper.io/test-namespace=policy`},
 			worksOnTarget:  true,
 			worksElsewhere: true,
-		},
-		{
+		}, {
 			namespaces:     []string{"non-existing-label=true"},
 			worksOnTarget:  false,
 			worksElsewhere: false,
-		},
-		{ // AND-behavior for labels in a single entry
+		}, {
+			// AND-behavior for labels in a single entry
 			namespaces:     []string{`test.skupper.io/test-namespace=policy,non-existing-label=true`},
 			worksOnTarget:  false,
 			worksElsewhere: false,
-		},
-		{
+		}, {
 			namespaces:     []string{`test.skupper.io/test-namespace=something_else`},
 			worksOnTarget:  false,
 			worksElsewhere: false,
