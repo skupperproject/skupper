@@ -34,7 +34,7 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 
 			var sites []*types.SiteInfo
 			var errStatus error
-			err := utils.RetryError(time.Second, 5, func() error {
+			err := utils.RetryError(time.Second, 3, func() error {
 				sites, errStatus = cli.NetworkStatus()
 
 				if errStatus != nil {
@@ -80,7 +80,7 @@ func NewCmdNetworkStatus(newClient cobraFunc) *cobra.Command {
 					return nil
 				}
 
-				sites = getLocalSiteInfo(serviceInterfaces, currentSite, vir.Status.SiteName, cli.GetNamespace(), vir.ControllerVersion)
+				sites = getLocalSiteInfo(serviceInterfaces, currentSite, vir.Status.SiteName, cli.GetNamespace(), vir.TransportVersion)
 			}
 
 			if sites != nil && len(sites) > 0 {
