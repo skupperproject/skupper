@@ -6,6 +6,8 @@ package hello_policy
 import (
 	"log"
 	"os"
+	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -163,6 +165,13 @@ func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 	return
 }
 
+// Returns the name of the function, without module or package information.
+func getFuncName(function interface{}) string {
+	name := runtime.FuncForPC(reflect.ValueOf(function).Pointer()).Name()
+	split := strings.Split(name, ".")
+	return split[len(split)-1]
+}
+
 // This should be the only test on the package; it sets the environment up and
 // calls the actual tests.  Some items are listed as tests (t.Run), but are not
 // really tests; instead they're setup and teardown functions.  They're set
@@ -295,69 +304,57 @@ func TestPolicies(t *testing.T) {
 		t.Fatalf("Application deployment failed")
 	}
 
+	type policyTestFunction func(*testing.T, *base.ClusterContext, *base.ClusterContext)
+	type policyTestItem struct {
+		function policyTestFunction
+		single   bool
+		multiple bool
+		skipCrd  bool
+	}
+
+	testTable := []policyTestItem{
+		{
+			function: testHelloPolicy,
+			skipCrd:  true,
+		}, {
+			function: testNamespace,
+		}, {
+			function: testLinkPolicy,
+		}, {
+			function: testServicePolicy,
+		}, {
+			function: testServicePolicyTransitions,
+		}, {
+			function: testHostnamesPolicy,
+		}, {
+			function: testResourcesPolicy,
+		},
+	}
+
 	// This allows to select a specific testing with
 	// "go test -run //testname"
 	t.Run("tests", func(t *testing.T) {
-		// Change all below for a loop with function references
-		// and some introspection?
-		t.Run("testHelloPolicy", func(t *testing.T) {
-			testHelloPolicy(t, pub1, pub2)
-		})
-
-		base.StopIfInterrupted(t)
-
-		t.Run("testNamespace", func(t *testing.T) {
-			applyCrd(pub1)
-			removePolicies(t, pub1)
-			testNamespace(t, pub1, pub2)
-		})
-
-		base.StopIfInterrupted(t)
-
-		t.Run("testLinkPolicy", func(t *testing.T) {
-			applyCrd(pub1)
-			removePolicies(t, pub1)
-			removePolicies(t, pub2)
-			testLinkPolicy(t, pub1, pub2)
-		})
-
-		base.StopIfInterrupted(t)
-
-		t.Run("testServicePolicy", func(t *testing.T) {
-			applyCrd(pub1)
-			removePolicies(t, pub1)
-			removePolicies(t, pub2)
-			testServicePolicy(t, pub1, pub2)
-		})
-
-		base.StopIfInterrupted(t)
-
-		t.Run("testServicePolicyTransitions", func(t *testing.T) {
-			applyCrd(pub1)
-			removePolicies(t, pub1)
-			removePolicies(t, pub2)
-			testServicePolicyTransitions(t, pub1, pub2)
-		})
-
-		base.StopIfInterrupted(t)
-
-		t.Run("testHostnames", func(t *testing.T) {
-			applyCrd(pub1)
-			removePolicies(t, pub1)
-			removePolicies(t, pub2)
-			testHostnamesPolicy(t, pub1, pub2)
-		})
-
-		base.StopIfInterrupted(t)
-
-		t.Run("testResourcesPolicy", func(t *testing.T) {
-			applyCrd(pub1)
-			removePolicies(t, pub1)
-			removePolicies(t, pub2)
-			testResourcesPolicy(t, pub1, pub2)
-		})
-
-		base.StopIfInterrupted(t)
+		for _, item := range testTable {
+			item := item
+			name := getFuncName(item.function)
+			t.Run(name, func(t *testing.T) {
+				var err error
+				for _, ctx := range []*base.ClusterContext{pub1, pub2} {
+					if !item.skipCrd {
+						err = applyCrd(ctx)
+						if err != nil {
+							t.Fatalf("failed to apply CRD on %v: %v", ctx, err)
+						}
+					}
+					err = removePolicies(ctx)
+					if err != nil {
+						t.Fatalf("failed to remove policies on %v: %v", ctx, err)
+					}
+				}
+				item.function(t, pub1, pub2)
+			})
+			base.StopIfInterrupted(t)
+		}
 	})
 
 }

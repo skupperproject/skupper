@@ -1,13 +1,10 @@
-//go:build policy
-// +build policy
-
 package hello_policy
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
-	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -101,7 +98,7 @@ func removeClusterRole(cluster *base.ClusterContext) (changed bool, err error) {
 // Removes all policies from the cluster.
 //
 // If policies are provided, only those will be removed, instead
-func removePolicies(t *testing.T, cluster *base.ClusterContext, policies ...string) (err error) {
+func removePolicies(cluster *base.ClusterContext, policies ...string) (err error) {
 
 	log.Print("Removing policies")
 
@@ -115,7 +112,7 @@ func removePolicies(t *testing.T, cluster *base.ClusterContext, policies ...stri
 	if len(policies) == 0 {
 		policies = []string{}
 		// We're listing and removing everything
-		list, err = listPolicies(t, cluster)
+		list, err = listPolicies(cluster)
 		if err != nil {
 			return
 		}
@@ -139,17 +136,22 @@ func removePolicies(t *testing.T, cluster *base.ClusterContext, policies ...stri
 	return
 }
 
-func listPolicies(t *testing.T, cluster *base.ClusterContext) (list *skupperv1.SkupperClusterPolicyList, err error) {
+// A wrapper around clientv1.SkupperV1alpha1Client.SkupperClusterPolicies().List()
+//
+// This function will always return an empty list for clusters without a CRD
+// installed
+func listPolicies(cluster *base.ClusterContext) (list *skupperv1.SkupperClusterPolicyList, err error) {
+
+	list = &skupperv1.SkupperClusterPolicyList{}
 
 	installed, err := isCrdInstalled(cluster)
 	if err != nil {
-		t.Fatalf("Failed to check for CRD on the cluster")
+		err = fmt.Errorf("failed to check for CRD on the cluster: %w", err)
 		return
 	}
 
 	if !installed {
 		log.Print("The CRD is not installed, so considering the policy list as empty")
-		list = &skupperv1.SkupperClusterPolicyList{}
 		return
 	}
 
@@ -169,11 +171,11 @@ func listPolicies(t *testing.T, cluster *base.ClusterContext) (list *skupperv1.S
 
 // Removes all policies in the cluster, except for those that match any
 // of the provided regexp patterns.
-func keepPolicies(t *testing.T, cluster *base.ClusterContext, patterns []regexp.Regexp) (err error) {
+func keepPolicies(cluster *base.ClusterContext, patterns []regexp.Regexp) (err error) {
 
 	policyList := []string{}
 
-	list, err := listPolicies(t, cluster)
+	list, err := listPolicies(cluster)
 	if err != nil {
 		return
 	}
@@ -195,7 +197,7 @@ func keepPolicies(t *testing.T, cluster *base.ClusterContext, patterns []regexp.
 		return
 	}
 
-	err = removePolicies(t, cluster, policyList...)
+	err = removePolicies(cluster, policyList...)
 
 	return
 

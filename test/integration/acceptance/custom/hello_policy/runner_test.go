@@ -27,10 +27,11 @@ import (
 // - If a scenario fails, show events and logs?
 // - on cli.RunScenarios, environment option to bounce pods between each command
 
-func wipePolicies(t *testing.T, ctx ...*base.ClusterContext) error {
+// Removes all policies from all given clusters
+func wipePolicies(ctx ...*base.ClusterContext) error {
 
 	for _, c := range ctx {
-		err := removePolicies(t, c)
+		err := removePolicies(c)
 		if err != nil {
 			return fmt.Errorf("failed removing policies from %v: %w", c.Namespace, err)
 		}
@@ -57,7 +58,7 @@ type policyTestRunner struct {
 // Runs each test case in turn
 func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 
-	err := wipePolicies(t, pub, prv)
+	err := wipePolicies(pub, prv)
 	if err != nil {
 		t.Fatalf("Unable to remove policies: %v", err)
 	}
@@ -85,15 +86,21 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 
 	for _, testCase := range r.testCases {
 		if !r.keepPolicies {
-			keepPolicies(t, pub, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
-			keepPolicies(t, prv, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
+			err = keepPolicies(pub, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
+			if err != nil {
+				t.Fatalf("Failed removing or preserving policies: %v", err)
+			}
+			err = keepPolicies(prv, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
+			if err != nil {
+				t.Fatalf("Failed removing or preserving policies: %v", err)
+			}
 		}
 		if base.IsTestInterrupted() {
 			break
 		}
 		testCase.run(t, pub, prv, r.contextMap)
 	}
-	err = wipePolicies(t, pub, prv)
+	err = wipePolicies(pub, prv)
 	if err != nil {
 		t.Fatalf("Unable to remove policies: %v", err)
 	}
@@ -277,7 +284,7 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 							// Check if the namespace is actually a sentinel
 							switch policy.Namespaces[0] {
 							case "REMOVE":
-								err = removePolicies(t, item.cluster, policyName)
+								err = removePolicies(item.cluster, policyName)
 								if err != nil {
 									t.Fatalf("Failed to remove policy: %v", err)
 								}
