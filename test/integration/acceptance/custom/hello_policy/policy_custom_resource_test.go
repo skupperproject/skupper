@@ -1,3 +1,6 @@
+//go:build policy
+// +build policy
+
 package hello_policy
 
 import (
