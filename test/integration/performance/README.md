@@ -11,8 +11,8 @@ log and json files (results) for each executed test.
 ## Mechanism
 
 When performance tests are executed, a generic mechanism will iterate through
-a list of topologies (default: 1 site only) and then it will initialize
-skupper on a static namespace (default `public-perf-1`). 
+a list of topologies (default: 2 sites) and then it will initialize
+skupper on static namespaces: `public-perf-1` and `public-perf-2`. 
 
 If multiple number of sites are provided (see: [Environment variables](#environment-variables) section),
 performance mechanism will iterate through list of sites and run all performance
@@ -87,7 +87,7 @@ to define which topologies will be tested and skupper specific settings.
 
 | Name                       | Type        | Description                                                                                     |  Default value | Sample |
 |:---------------------------|:------------|:------------------------------------------------------------------------------------------------|---------------:|-------:|
-| SKUPPER_SITES              | []int (CSV) | List with number of skupper sites to iterate through.                                           |              1 |    1,2 |
+| SKUPPER_SITES              | []int (CSV) | List with number of skupper sites to iterate through.                                           |              2 |    1,2 |
 | SKUPPER_MAX_FRAME_SIZE     | int         | Sets the maximum frame size for inter-router connections.                                       |          16384 |        |
 | SKUPPER_MAX_SESSION_FRAMES | int         | Sets the maximum session frames for inter-router connections.                                   |            640 |        |
 | SKUPPER_MEMORY             | string      | Memory specification for the Skupper and Router pods.                                           |                | 2000Mi |
