@@ -130,25 +130,25 @@ to define which topologies will be tested and skupper specific settings.
 
 #### Postgres
 
-| Name                      | Type        | Description                                                                                      | Default value | Sample |
-|:--------------------------|:------------|:-------------------------------------------------------------------------------------------------|--------------:|-------:|
-| POSTGRES_PARALLEL_CLIENTS | []int (CSV) | List with number of clients to use. A performance test will be executed for each value provided. |             1 |        |
-| POSTGRES_DURATION_SECS    | int         | Duration in seconds for the performance test to run.                                             |            30 |        |
-| POSTGRES_MEMORY           | string      | Memory specification for server and client pods.                                                 |               | 2000Mi |
-| POSTGRES_CPU              | string      | CPU specification for server and client pods.                                                    |               |   500m |
-| POSTGRES_TIMEOUT          | string      | Time duration to wait for benchmark job to complete.                                             |           10m |        |
+| Name                      | Type        | Description                                                                                      |                              Default value | Sample |
+|:--------------------------|:------------|:-------------------------------------------------------------------------------------------------|-------------------------------------------:|-------:|
+| POSTGRES_PARALLEL_CLIENTS | []int (CSV) | List with number of clients to use. A performance test will be executed for each value provided. |                                          1 |        |
+| POSTGRES_DURATION_SECS    | int         | Duration in seconds for the performance test to run.                                             | 30 (performance tag) / 5 (integration tag) |        |
+| POSTGRES_MEMORY           | string      | Memory specification for server and client pods.                                                 |                                            | 2000Mi |
+| POSTGRES_CPU              | string      | CPU specification for server and client pods.                                                    |                                            |   500m |
+| POSTGRES_TIMEOUT          | string      | Time duration to wait for benchmark job to complete.                                             |                                        10m |        |
 
 #### Redis
 
-| Name                   | Type           | Description                                                                                                                                     |                                  Default value |       Sample |
-|:-----------------------|:---------------|:------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------:|-------------:|
-| REDIS_NUMBER_REQUESTS  | int            | Number of requests to send.                                                                                                                     | 25000 (performance tag)/1000 (integration tag) |              |
-| REDIS_PARALLEL_CLIENTS | []int (CSV)    | List with number of clients to use. A performance test will be executed for each value provided.                                                |                                             50 |              |
-| REDIS_TESTS            | []string (CSV) | List with redis-benchamrk tests to run. A performance test will be executed for each test provided. If empty, all operations will be performed. |                                                | GET,SET,MSET |
-| REDIS_DATASIZE         | int            | Data size in bytes.                                                                                                                             |                                              3 |         1024 |
-| REDIS_MEMORY           | string         | Memory specification for server and client pods.                                                                                                |                                                |       2000Mi |
-| REDIS_CPU              | string         | CPU specification for server and client pods.                                                                                                   |                                                |         500m |
-| REDIS_TIMEOUT          | string         | Time duration to wait for benchmark job to complete.                                                                                            |                                            10m |              |
+| Name                   | Type           | Description                                                                                                                                     |                                    Default value |       Sample |
+|:-----------------------|:---------------|:------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------:|-------------:|
+| REDIS_NUMBER_REQUESTS  | int            | Number of requests to send.                                                                                                                     | 25000 (performance tag) / 1000 (integration tag) |              |
+| REDIS_PARALLEL_CLIENTS | []int (CSV)    | List with number of clients to use. A performance test will be executed for each value provided.                                                |                                               50 |              |
+| REDIS_TESTS            | []string (CSV) | List with redis-benchamrk tests to run. A performance test will be executed for each test provided. If empty, all operations will be performed. |                                                  | GET,SET,MSET |
+| REDIS_DATASIZE         | int            | Data size in bytes.                                                                                                                             |                                                3 |         1024 |
+| REDIS_MEMORY           | string         | Memory specification for server and client pods.                                                                                                |                                                  |       2000Mi |
+| REDIS_CPU              | string         | CPU specification for server and client pods.                                                                                                   |                                                  |         500m |
+| REDIS_TIMEOUT          | string         | Time duration to wait for benchmark job to complete.                                                                                            |                                              10m |              |
 
 ## How to run the performance tests
 

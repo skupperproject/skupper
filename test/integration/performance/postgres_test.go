@@ -140,7 +140,12 @@ func parsePostgresSettings() *postgresSettings {
 	settings.clients = parallelClients
 
 	// duration
-	durationStr := settings.env.AddEnvVar(ENV_POSTGRES_DURATION_SECS, "30")
+	var durationStr string
+	if os.Getenv(ENV_POSTGRES_DURATION_SECS) == "" && common.DebugMode() {
+		durationStr = "5"
+	} else {
+		durationStr = settings.env.AddEnvVar(ENV_POSTGRES_DURATION_SECS, "30")
+	}
 	duration, err := strconv.Atoi(durationStr)
 	if err != nil {
 		duration = 30
