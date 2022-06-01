@@ -33,7 +33,7 @@ var (
 	testRunner             *base.ClusterTestRunnerBase
 	summary                = &resultSummary{}
 	throughputHeaderFormat = "%-16s %-48s %-12s %-12s %31s %23s %18s %18s"
-	throughputFormat       = "%-16s %-48s %-12d %-12d %22.2f %8s %19.2f %3s %14.2f %3s %14.2f %3s"
+	throughputFormat       = "%-16s %-48s %-12d %-12d %22.2f %8s %19.4f %3s %14.4f %3s %14.4f %3s"
 	debug                  bool
 )
 

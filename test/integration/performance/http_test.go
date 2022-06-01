@@ -115,9 +115,9 @@ func validateWrk(serverCluster *base.ClusterContext, clientCluster *base.Cluster
 	buf := bytes.NewBufferString(logs)
 
 	throughputRegex, _ := regexp.Compile(`^Requests/sec:\s+(\d+\.\d+)\s*$`)
-	latencyAvgRegex, _ := regexp.Compile(`\s+Latency\s+(\d+\.\d+)ms`)
-	latency50Regex, _ := regexp.Compile(`\s+50(\.000)*%\s+(\d+\.\d+)ms`)
-	latency99Regex, _ := regexp.Compile(`\s+99(\.000)*%\s+(\d+\.\d+)ms`)
+	latencyAvgRegex, _ := regexp.Compile(`\s+Latency\s+(\d+\.\d+)([mu]s)`)
+	latency50Regex, _ := regexp.Compile(`\s+50(\.000)*%\s+(\d+\.\d+)([mu]s)`)
+	latency99Regex, _ := regexp.Compile(`\s+99(\.000)*%\s+(\d+\.\d+)([mu]s)`)
 
 	var line string
 	for {
@@ -142,17 +142,26 @@ func validateWrk(serverCluster *base.ClusterContext, clientCluster *base.Cluster
 				res.SetError(fmt.Errorf("error parsing latency average: %v", err))
 				return res
 			}
+			if match[2] == "us" {
+				res.LatencyAvg /= 1000
+			}
 		} else if latency50Regex.MatchString(line) {
 			match := latency50Regex.FindStringSubmatch(line)
 			if res.Latency50, err = strconv.ParseFloat(match[2], 64); err != nil {
 				res.SetError(fmt.Errorf("error parsing latency 50%%: %v", err))
 				return res
 			}
+			if match[3] == "us" {
+				res.Latency50 /= 1000
+			}
 		} else if latency99Regex.MatchString(line) {
 			match := latency99Regex.FindStringSubmatch(line)
 			if res.Latency99, err = strconv.ParseFloat(match[2], 64); err != nil {
 				res.SetError(fmt.Errorf("error parsing latency 99%%: %v", err))
 				return res
+			}
+			if match[3] == "us" {
+				res.Latency99 /= 1000
 			}
 		}
 	}
