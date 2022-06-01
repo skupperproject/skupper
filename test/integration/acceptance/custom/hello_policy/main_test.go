@@ -328,6 +328,8 @@ func TestPolicies(t *testing.T) {
 			function: testHostnamesPolicy,
 		}, {
 			function: testResourcesPolicy,
+		}, {
+			function: test753,
 		},
 	}
 
