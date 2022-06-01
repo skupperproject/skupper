@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	v1alpha12 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -348,9 +350,22 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 	fullArgs := []string{"get", "policies"}
 	fullArgs = append(fullArgs, args...)
 	fullArgs = append(fullArgs, "-o", "json")
-	out, err := p.cli.exec(fullArgs, p.cli.GetNamespace())
+	var out *bytes.Buffer
+	err = utils.RetryWithContext(ctx, time.Millisecond*100, func() (bool, error) {
+		out, err = p.cli.exec(fullArgs, p.cli.GetNamespace())
+		if err != nil {
+			if _, err := getRootObject(p.cli); err != nil && errors.IsNotFound(err) {
+				return true, notEnabledErr
+			}
+			return false, nil
+		}
+		return true, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("Policy validation error: %v", err)
+		if os.IsTimeout(err) {
+			return nil, fmt.Errorf("Policy validation error: %s not ready", types.ControllerDeploymentName)
+		}
+		return nil, notEnabledErr
 	}
 	res := &PolicyAPIResult{}
 	err = json.Unmarshal(out.Bytes(), res)
