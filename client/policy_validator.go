@@ -316,7 +316,8 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 	ctx, cn := context.WithTimeout(context.Background(), time.Second*30)
 	defer cn()
 	notEnabledErr := fmt.Errorf("Skupper is not enabled in namespace '%s'", p.cli.Namespace)
-	err := utils.RetryWithContext(ctx, time.Millisecond*100, func() (bool, error) {
+	policyRetryInterval := time.Millisecond * 200
+	err := utils.RetryWithContext(ctx, policyRetryInterval, func() (bool, error) {
 		_, err := p.cli.exec([]string{"get", "policies", "-h"}, p.cli.GetNamespace())
 		if err != nil {
 			if _, err := getRootObject(p.cli); err != nil && errors.IsNotFound(err) {
@@ -351,19 +352,22 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 	fullArgs = append(fullArgs, args...)
 	fullArgs = append(fullArgs, "-o", "json")
 	var out *bytes.Buffer
-	err = utils.RetryWithContext(ctx, time.Millisecond*100, func() (bool, error) {
+	var retryErr error
+	err = utils.RetryWithContext(ctx, policyRetryInterval, func() (bool, error) {
 		out, err = p.cli.exec(fullArgs, p.cli.GetNamespace())
 		if err != nil {
 			if _, err := getRootObject(p.cli); err != nil && errors.IsNotFound(err) {
 				return true, notEnabledErr
 			}
+			retryErr = err
 			return false, nil
 		}
+		retryErr = nil
 		return true, nil
 	})
 	if err != nil {
 		if os.IsTimeout(err) {
-			return nil, fmt.Errorf("Policy validation error: %s not ready", types.ControllerDeploymentName)
+			return nil, fmt.Errorf("Policy validation error: %s not ready - %v", types.ControllerDeploymentName, retryErr)
 		}
 		return nil, notEnabledErr
 	}
