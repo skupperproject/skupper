@@ -88,6 +88,11 @@ func printDetails(detailsMap map[string]string, level int, last map[int]bool) {
 	sort.Strings(keys)
 
 	for index, key := range keys {
+
+		if len(detailsMap[key]) == 0 {
+			continue
+		}
+
 		for i := 1; i <= level; i++ {
 			if !last[i] {
 				fmt.Printf("│  ")

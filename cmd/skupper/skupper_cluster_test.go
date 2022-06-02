@@ -1538,7 +1538,7 @@ func TestNetworkStatusWithCluster(t *testing.T) {
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "",
-			outputRegExp:    "^Sites\\:\\n╰─\\s\\[local\\]\\s[0-9a-f-]*\\s-\\s.*\\n\\s{3}URL:\\s\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\n\\s{3}name:\\s.*\\n\\s{3}namespace:\\s.*\\n\\s{3}version:\\s.*\\n\\s{3}╰─\\sServices\\:\\n\\s{6}╰─\\sname:\\s.*\\n\\s{9}address:\\s.*\\:\\s\\d{4}\\n\\s{9}protocol:\\s.*\\n\\s{9}╰─\\sTargets\\:\\n\\s{12}╰─\\sname:\\s.*",
+			outputRegExp:    "^Sites\\:\\n╰─\\s\\[local\\]\\s[0-9a-f-]*\\s-\\s.*\\n\\s{3}URL:\\s\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\n\\s{3}mode:\\s.*\\n\\s{3}name:\\s.*\\n\\s{3}namespace:\\s.*\\n\\s{3}version:\\s.*\\n\\s{3}╰─\\sServices\\:\\n\\s{6}╰─\\sname:\\s.*\\n\\s{9}address:\\s.*\\:\\s\\d{4}\\n\\s{9}protocol:\\s.*\\n\\s{9}╰─\\sTargets\\:\\n\\s{12}╰─\\sname:\\s.*",
 			realCluster:     true,
 		},
 	}

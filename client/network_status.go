@@ -41,12 +41,12 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 		}
 
 		if len(site.Namespace) == 0 {
-			return nil, fmt.Errorf("temporarily unable to provide site information")
+			return nil, fmt.Errorf("site %s: unable to get site namespace from service-controller", site.Name)
 		}
 
 		siteConfig, err := cli.SiteConfigInspect(nil, nil)
 		if err != nil || siteConfig == nil {
-			return nil, fmt.Errorf("site configuration not available")
+			return nil, fmt.Errorf("skupper-site configuration not available")
 		}
 
 		currentSite := siteConfig.Reference.UID

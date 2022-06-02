@@ -6,22 +6,32 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
+	"time"
 )
 
 func GetSiteInfo(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.SiteInfo, error) {
 
 	command := getQueryServiceController("sites")
-	buffer, err := serviceControllerExec(command, namespace, clientset, config)
+	execResult, err := utils.TryUntil(3*time.Second, func() utils.Result {
+		res, err := serviceControllerExec(command, namespace, clientset, config)
+		return utils.Result{
+			Value: res,
+			Error: err,
+		}
+	})
+
 	if err != nil {
 		return nil, err
 	} else {
+		bufferResult := execResult.(*bytes.Buffer)
 		var results []types.SiteInfo
-		err = json.Unmarshal(buffer.Bytes(), &results)
+		err = json.Unmarshal(bufferResult.Bytes(), &results)
 
 		if err != nil {
-			return nil, fmt.Errorf("error when unmarshalling response from service controller: %s", string(buffer.Bytes()))
+			return nil, fmt.Errorf("error when unmarshalling response from service controller: %s", string(bufferResult.Bytes()))
 		} else {
 			return &results, nil
 		}
@@ -30,15 +40,23 @@ func GetSiteInfo(namespace string, clientset kubernetes.Interface, config *restc
 
 func GetServiceInfo(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.ServiceInfo, error) {
 	command := getQueryServiceController("services")
-	buffer, err := serviceControllerExec(command, namespace, clientset, config)
+	execResult, err := utils.TryUntil(3*time.Second, func() utils.Result {
+		res, err := serviceControllerExec(command, namespace, clientset, config)
+		return utils.Result{
+			Value: res,
+			Error: err,
+		}
+	})
+
 	if err != nil {
 		return nil, err
 	} else {
+		bufferResult := execResult.(*bytes.Buffer)
 		var results []types.ServiceInfo
-		err = json.Unmarshal(buffer.Bytes(), &results)
+		err = json.Unmarshal(bufferResult.Bytes(), &results)
 
 		if err != nil {
-			return nil, fmt.Errorf("error when unmarshalling response from service controller: %s", string(buffer.Bytes()))
+			return nil, fmt.Errorf("error when unmarshalling response from service controller: %s", string(bufferResult.Bytes()))
 		} else {
 			return &results, nil
 		}
