@@ -105,6 +105,11 @@ commands:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
       - run:
+          name: Run Policy Integration Tests
+          no_output_timeout: 60m
+          command: |
+            go test -tags=policy -timeout=60m -v ./test/integration/...
+      - run:
           name: Archiving test artifacts
           command: |
             find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/artifacts -xv
