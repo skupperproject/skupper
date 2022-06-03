@@ -105,11 +105,6 @@ commands:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
       - run:
-          name: Run Policy Integration Tests
-          no_output_timeout: 60m
-          command: |
-            go test -tags=policy -timeout=60m -v ./test/integration/...
-      - run:
           name: Archiving test artifacts
           command: |
             find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/artifacts -xv
@@ -117,6 +112,30 @@ commands:
       - store_artifacts:
           path: /tmp/artifacts
           destination: test-artifacts
+
+  run_cluster_policy_tests:
+    description: run all e2e policy tests inside the current KUBECONFIG configured cluster
+    parameters:
+      args:
+        default: ""
+        type: string
+    steps:
+      - run:
+          name: Creating policy artifacts directory
+          command: mkdir /tmp/policy-artifacts
+      - run:
+          name: Run Policy Integration Tests
+          no_output_timeout: 60m
+          command: |
+            go test -tags=policy -timeout=60m -v ./test/integration/...
+      - run:
+          name: Archiving policy test artifacts
+          command: |
+            find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/policy-artifacts -xv
+          when: always
+      - store_artifacts:
+          path: /tmp/policy-artifacts
+          destination: policy-test-artifacts
 
   compile_go_program:
     description: Compile specified platform.
@@ -165,6 +184,7 @@ yaml-templates:
       - build-all
       - test
       - minikube_local_cluster_tests
+      - minikube_local_cluster_policy_tests
 
 workflows:
   version: 2.1
@@ -184,6 +204,11 @@ workflows:
           requires:
             - test
             - build_and_push_test_images
+
+      - minikube_local_cluster_policy_tests:
+          <<: *run_for_all_branches_and_numeric_tags
+          pre-steps:
+            - prepare_for_local_cluster_tests
 
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
@@ -318,6 +343,16 @@ jobs:
       - minikube-start-load-balancer
       - run: kubectl cluster-info
       - run_cluster_tests
+
+  minikube_local_cluster_policy_tests:
+    executor: local_cluster_test_executor
+    steps:
+      - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
+      - minikube-install
+      - minikube-start
+      - minikube-start-load-balancer
+      - run: kubectl cluster-info
+      - run_cluster_policy_tests
 
   publish-github-release-artifacts:
     docker:
