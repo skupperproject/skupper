@@ -209,6 +209,8 @@ workflows:
           <<: *run_for_all_branches_and_numeric_tags
           pre-steps:
             - prepare_for_local_cluster_tests
+          requires:
+            - minikube_local_cluster_tests
 
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
