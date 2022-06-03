@@ -227,7 +227,7 @@ workflows:
       - remove_from_registry: # will not run for tags, by default
           requires:
             - test
-            - minikube_local_cluster_tests
+            - minikube_local_cluster_policy_tests
 
 jobs:
   test:
