@@ -190,14 +190,14 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			steps: []policyTestStep{
 				{
 					name: "execute",
-					cliScenarios: []cli.TestScenario{
-						createTokenPolicyScenario(pub, "", testPath, "fail", false),
-					},
 					getChecks: []policyGetCheck{
 						{
 							cluster:       pub,
 							allowIncoming: cli.Boolp(false),
 						},
+					},
+					cliScenarios: []cli.TestScenario{
+						createTokenPolicyScenario(pub, "", testPath, "fail", false),
 					},
 				},
 			},

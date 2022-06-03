@@ -1,32 +1,32 @@
 //go:build policy
 // +build policy
 
-// hello_policy implements a series of tests on the Policy engine, based on the pre-existing
-// hello_world example test.
+// hello_policy implements a series of tests on the Policy engine, based on the
+// pre-existing hello_world example test.
+//
+// There is a single root test on the whole package, located on main_test.go
+// and named TestPolicies.  As the Policy CRD and CRs are cluster-wide, all
+// tests need to be run in serial, and TestPolicies is responsible for that.
+// For this reason, the individual tests' functions are named testXxx (lower
+// first character) so they're not called from `go test` directly.
 //
 // Each policy piece has its own file.  On it, we define both the
 // piece-specific tests _and_ the piece-specific infra.
 //
-// There is a single root test on the whole package, located on main_test.go and named
-// TestPolicies.  As the Policy CRD and CRs are cluster-wide, all tests need to be
-// run in serial, and TestPolicies is responsible for that.  For this reason, the
-// individual tests' functions are named testXxx (lower first character) so they're
-// not called from `go test` directly.
-//
-// The 'piece-specific' infra is a set of functions that mostly return a cli.TestScenario
-// (or a list thereof).  These are called from from the actual tests, to provide the
-// pieces that are then combined into an actual test.
+// The 'piece-specific' infra is a set of functions that mostly return a
+// cli.TestScenario (or a list thereof).  These are called from from the actual
+// tests, to provide the pieces that are then combined into an actual test.
 //
 // More than saving keystrokes, the idea on having these helpers is to:
 //
-// - Make the testing consistent.  As it is based on hello_world, each piece is a
-//   copy of the step done on hello_world, as much as possible.  The functions help
-//   avoiding the tests from deviating from that.  Also, if that standard changes,
-//   it needs changed in a single place
+// - Make the testing consistent.  As it is based on hello_world, each piece is
+// a copy of the step done on hello_world, as much as possible.  The functions
+// help avoiding the tests from deviating from that.  Also, if that standard
+// changes, it needs changed in a single place
 //
-// - The tests become more readable.  Instead of a long structure with details on
-//   what is being done, the tests have a function call whose name and godoc indicate
-//   what is doing.
+// - The tests become more readable.  Instead of a long structure with details
+// on what is being done, the tests have a function call whose name and godoc
+// indicate what is doing.
 //
 // Each of these functions are placed on the same file that holds the test that
 // is more closely related to them.  For example, the checking for link being
@@ -54,7 +54,6 @@
 //             skipFunction
 //             sleep (post execution)
 //
-//
 //     cli.TestScenario (name and list of tasks)
 //       []cli.SkupperTask (which cluster to run, and a list of commands)
 //         []cli.SkupperCommandTester (an interface; each item represent an individual call to the skupper binary)
@@ -68,12 +67,15 @@
 //
 // Writing tests
 //
-// When writing tests, keep in mind that the policies are cluster-wide.  So, while the runner's policyTestStep
-// takes care to install the policy on the cluster associated with the respective context, that cluster may
-// be the same or a different cluster.
+// When writing tests, keep in mind that the policies are cluster-wide.  So,
+// while the runner's policyTestStep takes care to install the policy on the
+// cluster associated with the respective context, that cluster may be the same
+// or a different cluster.
 //
-// If you create policies that affect namespaces on both clusters, you'll have to either check
-// base.MultipleClusters() or create the policies in such a way that the test works on both situations.
+// If you create policies that affect namespaces on both clusters, you'll have
+// to either check base.MultipleClusters() or create the policies in such a way
+// that the test works on both situations.
+//
 package hello_policy
 
 // TODO
@@ -110,4 +112,6 @@ package hello_policy
 // - Check test coverage (specific image and all)
 // - Additional tests: gateway, annotation, upgrade, console
 // - Operator + config map
+// - Check for pod restarts (first just report, then configure tests to fail on restart?)
+// - Restart pods before each step (cli or policy?  Leaning towards cli)
 //

@@ -364,6 +364,7 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world.*"},
 						},
 					},
+					// TODO: add GET
 					//sleep: 10 * time.Second,
 				}, {
 					name:     "create-services",

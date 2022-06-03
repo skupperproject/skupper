@@ -185,7 +185,7 @@ func getFuncName(function interface{}) string {
 // This will ensure that not only the selected tests, but also the setup and
 // tear down are run.
 //
-// TBD control setup/teardown with environment variables.
+// TODO control setup/teardown with environment variables.
 //
 // Because the policy changes are cluster-wise, we need to run all tests in
 // serial.
