@@ -91,7 +91,7 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 
 	// Composing how output should be validated (based on provided attributes)
 	mainContent := []string{}
-	notExpected := []*regexp.Regexp{}
+	notExpected := []regexp.Regexp{}
 
 	// Main info
 	mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for namespace \"%s\"", cluster.Namespace))
@@ -121,7 +121,7 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 		if *s.PolicyEnabled {
 			mainContent = append(mainContent, "(with policies)")
 		} else {
-			notExpected = append(notExpected, regexp.MustCompile("(with policies)"))
+			notExpected = append(notExpected, *regexp.MustCompile("(with policies)"))
 		}
 	}
 
@@ -147,7 +147,7 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 
 	expect := Expect{
 		StdOut:      mainContent,
-		StdOutReNot: []regexp.Regexp{},
+		StdOutReNot: notExpected,
 	}
 
 	return expect.Check(stdout, "")

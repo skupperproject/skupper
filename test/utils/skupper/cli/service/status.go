@@ -20,8 +20,9 @@ import (
 type StatusTester struct {
 	ServiceInterfaces             []types.ServiceInterface
 	UnauthorizedServiceInterfaces []types.ServiceInterface
-	Absent                        bool
-	StrictInterfaceList           bool
+	// TODO REVIEW rename and use []types.ServiceInterface
+	Absent              bool
+	StrictInterfaceList bool
 
 	// By default, unauthorized interfaces count as good on ServiceInterfaces;
 	// if this is set to true, then a service listed in ServiceInterfaces that

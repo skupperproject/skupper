@@ -24,9 +24,9 @@ func createTokenPolicyScenario(cluster *base.ClusterContext, prefix, testPath, n
 			{Ctx: cluster, Commands: []cli.SkupperCommandTester{
 				// skupper token create - verify token has been created
 				&token.CreateTester{
-					Name:             name,
-					FileName:         filepath.Join(testPath, name+".token.yaml"),
-					ExpectDisallowed: !works,
+					Name:            name,
+					FileName:        filepath.Join(testPath, name+".token.yaml"),
+					PolicyProhibits: !works,
 					// Here, we deviate from Hello World, as we're not testing expiry or uses.
 					// This allows the token to be used repeatedly on some tests, saving
 					// some time.

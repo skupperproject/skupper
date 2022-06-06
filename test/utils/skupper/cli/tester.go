@@ -90,7 +90,6 @@ func RunScenarios(t *testing.T, scenarios []TestScenario) {
 			assert.Assert(t, err)
 		})
 		if !passed {
-			t.Fail()
 			log.Printf("%s has failed, exiting", scenario.Name)
 			log.Printf("STDOUT:\n%s", stdout)
 			log.Printf("STDERR:\n%s", stderr)
@@ -128,7 +127,6 @@ func RunScenariosParallel(t *testing.T, scenarios []TestScenario) {
 				assert.Assert(t, err)
 			})
 			if !passed {
-				t.Fail()
 				log.Printf("%s has failed, exiting", scenario.Name)
 				log.Printf("STDOUT:\n%s", stdout)
 				log.Printf("STDERR:\n%s", stderr)
@@ -265,11 +263,11 @@ func checkRe(s string, bits []regexp.Regexp, name string, expected bool) (err er
 	for _, b := range bits {
 		match := b.MatchString(s)
 		if match && !expected {
-			problems = append(problems, fmt.Sprintf("Unexpected %s: regular expression %v matched", name, b))
+			problems = append(problems, fmt.Sprintf("Unexpected %s: regular expression %v matched", name, &b))
 		}
 
 		if !match && expected {
-			problems = append(problems, fmt.Sprintf("Expected %s not found: regular expression %v did not match", name, b))
+			problems = append(problems, fmt.Sprintf("Expected %s not found: regular expression %v did not match", name, &b))
 		}
 	}
 

@@ -68,6 +68,11 @@ func (e *ExposeTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 			return
 		}
 		return
+	} else {
+		if e.PolicyProhibits {
+			err = fmt.Errorf("Policy error was expected, but not encountered")
+			return
+		}
 	}
 
 	// Validating stdout contains expected data

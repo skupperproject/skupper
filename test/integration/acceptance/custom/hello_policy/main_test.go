@@ -309,13 +309,13 @@ func TestPolicies(t *testing.T) {
 		function policyTestFunction
 		single   bool
 		multiple bool
-		skipCrd  bool
+		noCRD    bool
 	}
 
 	testTable := []policyTestItem{
 		{
 			function: testHelloPolicy,
-			skipCrd:  true,
+			noCRD:    true,
 		}, {
 			function: testNamespace,
 		}, {
@@ -342,7 +342,17 @@ func TestPolicies(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				var err error
 				for _, ctx := range []*base.ClusterContext{pub1, pub2} {
-					if !item.skipCrd {
+					if item.noCRD {
+						var changed bool
+						changed, err = removeCrd(ctx)
+						if err != nil {
+							t.Fatalf("Failed to remove CRD on %v: %v", ctx, err)
+						}
+						if !changed {
+							log.Printf("CRD not removed from %v, as it was not there in the first place", ctx)
+						}
+						continue
+					} else {
 						err = applyCrd(ctx)
 						if err != nil {
 							t.Fatalf("failed to apply CRD on %v: %v", ctx, err)

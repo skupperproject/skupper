@@ -54,7 +54,7 @@ func (cc *ClusterContext) CreateNamespace() error {
 		if err == nil && ns != nil {
 			// As we're skipping the creation of namespaces, we're adopting whatever
 			// we find; we will destroy these when DeleteNamespace is called, unless
-			// ShouldSkipNamespaceTeardown returns false.
+			// ShouldSkipNamespaceTeardown returns true.
 			log.Printf("Reusing existing namespace %v", cc.Namespace)
 			cc.nsCreated = true
 		}
@@ -80,6 +80,7 @@ func (cc *ClusterContext) DeleteNamespace() error {
 	return nil
 }
 
+// As the name says, it will add label to this namespace
 func (cc *ClusterContext) LabelNamespace(label string, value string) (err error) {
 
 	payload := fmt.Sprintf(`{"metadata": {"labels": {"%v": "%v"}}}`, label, value)
@@ -89,6 +90,7 @@ func (cc *ClusterContext) LabelNamespace(label string, value string) (err error)
 	return
 }
 
+// TODO: UNUSED.  Remove
 func (cc *ClusterContext) GetNamespace() (ns *apiv1.Namespace, err error) {
 	if !cc.nsCreated {
 		log.Printf("namespace [%s] was not created by ClusterContext, getting reference anyway", cc.Namespace)

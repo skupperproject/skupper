@@ -447,12 +447,12 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 					// skupper service bind - bind service to deployment and validate target has been defined
 					&service.BindTester{
-						ServiceName:     "hello-world-frontend",
-						TargetType:      "deployment",
-						TargetName:      "hello-world-frontend",
-						Protocol:        "http",
-						TargetPort:      8080,
-						ExpectAuthError: true,
+						ServiceName:           "hello-world-frontend",
+						TargetType:            "deployment",
+						TargetName:            "hello-world-frontend",
+						Protocol:              "http",
+						TargetPort:            8080,
+						ExpectServiceNotFound: true,
 					},
 					// skupper service status - validate status expecting frontend now has a target
 					&service.StatusTester{
@@ -468,12 +468,12 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 					// skupper service bind - bind service to deployment and validate target has been defined
 					&service.BindTester{
-						ServiceName:     "hello-world-backend",
-						TargetType:      "deployment",
-						TargetName:      "hello-world-backend",
-						Protocol:        "http",
-						TargetPort:      8080,
-						ExpectAuthError: true,
+						ServiceName:           "hello-world-backend",
+						TargetType:            "deployment",
+						TargetName:            "hello-world-backend",
+						Protocol:              "http",
+						TargetPort:            8080,
+						ExpectServiceNotFound: true,
 					},
 					// skupper service status - validate backend service now has a target
 					&service.StatusTester{

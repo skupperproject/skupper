@@ -93,11 +93,14 @@ func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterIt
 	// with status only, instead.
 	getChecks := []policyGetCheck{}
 	for _, policyItem := range clusterItems {
+
 		allowedResources := []string{}
-		disallowedResources := []string{}
 		allowedResources = append(allowedResources, policyItem.details.survivors...)
 		allowedResources = append(allowedResources, policyItem.details.testAllowed...)
+
+		disallowedResources := []string{}
 		disallowedResources = append(disallowedResources, policyItem.details.testDisallowed...)
+
 		getChecks = append(getChecks, policyGetCheck{
 			allowedResources:    allowedResources,
 			disallowedResources: disallowedResources,
@@ -110,6 +113,13 @@ func resourcePolicyStep(r resourceTest, pub, prv *base.ClusterContext, clusterIt
 
 }
 
+// Returns
+//
+// front - for true input
+// back  - for false input
+//
+// This is used with the clusterItem.front boolean field, to properly name
+// steps.
 func prefixSide(front bool) string {
 	if front {
 		return "front"
@@ -220,6 +230,8 @@ func resourcePreCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error)
 	return steps, nil
 }
 
+// Returns a TestScenario that uses service.BindTester to bind a resource identified by kind/target,
+// and confirm whether that worked or not
 func bindTestScenario(ctx *base.ClusterContext, kind, target string, works bool) cli.TestScenario {
 
 	scenario := cli.TestScenario{
@@ -243,6 +255,8 @@ func bindTestScenario(ctx *base.ClusterContext, kind, target string, works bool)
 	return scenario
 }
 
+// Returns a TestScenario that uses cli.ExposeTester to expose a resource identified by kind/target,
+// and confirm whether that worked or not
 func exposeTestScenario(ctx *base.ClusterContext, kind, target string, works bool) cli.TestScenario {
 
 	scenario := cli.TestScenario{
@@ -342,6 +356,7 @@ func resourcePostCheckSteps(clusterItems []clusterItem) ([]policyTestStep, error
 	return steps, nil
 }
 
+// Returns the steps to be executed when the test is on running skupper service bind
 func resourceBindSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	steps := []policyTestStep{}
 
@@ -374,6 +389,7 @@ func resourceBindSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	return steps, nil
 }
 
+// Returns the steps to be executed when the test is on running skupper expose
 func resourceExposeSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	steps := []policyTestStep{}
 
@@ -407,8 +423,16 @@ func resourceExposeSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 	return steps, nil
 }
 
+// This test uses a resourceTest slice to define the source test table, defining which
+// resources should be allowed to be exposed, per cluster, and which tests should be
+// run at each step.
+//
+// Note there are two 'threads' of testing going on here: one on the front-end, one on
+// the backend.  This is done to increase parallelism, but may make the test a bit
+// harder to understand
 func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
+	// The source test table
 	resourceTests := []resourceTest{
 		{
 			name: "allow-all",
@@ -561,7 +585,7 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		},
 	}
 
-	testTable := []policyTestCase{}
+	// The core tests. init + this + cleanup will make up testTable
 	testCases := []policyTestCase{}
 
 	// We run the same tests twice: once for service create + bind, the
@@ -579,8 +603,14 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		},
 	}
 
+	// Here, we transform []resourceTest into []policyTestCase.
+	//
+	// The first makes it easier to write and understand the test, the later is what
+	// the runner expects
 	for _, p := range profiles {
 		for _, rt := range resourceTests {
+			// The steps of the generated test:
+			//
 			// First, check that any resources that are expected to be down are so
 			// Then, check that the survivors are still around
 			// Next, confirm that zombies did not come back to life
@@ -606,6 +636,8 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			if err != nil {
 				t.Fatalf("resource pre-check step definition failed: %v", err)
 			}
+			// Pick between resourceExposeSteps and resourceBindSteps, as appropriate for
+			// the profile being tested
 			resourceCreateStep, err := p.fn(clusterItems)
 			if err != nil {
 				t.Fatalf("resource creation step definition failed: %v", err)
@@ -627,6 +659,9 @@ func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			testCases = append(testCases, testCase)
 		}
 	}
+
+	// The final test table
+	testTable := []policyTestCase{}
 
 	for _, item := range [][]policyTestCase{init, testCases, cleanup} {
 		testTable = append(testTable, item...)

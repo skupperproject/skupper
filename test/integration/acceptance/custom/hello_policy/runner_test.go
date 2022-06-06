@@ -19,7 +19,6 @@ import (
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
-	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
@@ -602,7 +601,7 @@ func waitAllGetChecks(checks []policyGetCheck, contextMap map[string]string) err
 		return nil
 	}
 	var attempts int
-	ctx, cancelFn := context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Minute*2)
 	defer cancelFn()
 	err := utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
 		attempts++

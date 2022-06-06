@@ -19,6 +19,9 @@ import (
 // any value.  If a variable works differently, that should be described on its
 // comments.
 
+// TODO move to test/utils/env/envvars.go
+// TODO CamelCase; add CLI on items
+
 // ** CLI **
 const (
 
