@@ -4,12 +4,11 @@
 package hello_policy
 
 import (
-	"fmt"
 	"log"
 	"regexp"
-	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	clientv1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -20,8 +19,6 @@ import (
 //
 // It uses kubectl apply, so it is safe to apply on a cluster that already has
 // the CRD installed.
-//
-// TODO: can this be improved?
 func applyCrd(cluster *base.ClusterContext) (err error) {
 	var out []byte
 	log.Printf("Adding CRD into the %v cluster", cluster.KubeConfig)
@@ -34,26 +31,6 @@ func applyCrd(cluster *base.ClusterContext) (err error) {
 	return
 }
 
-// As the name says
-//
-// It uses kubectl get crd skupperclusterpolicies.skupper.io
-func isCrdInstalled(cluster *base.ClusterContext) (installed bool, err error) {
-	var out []byte
-	installed = true
-
-	// TODO: replace this by some kube API?
-	out, err = cluster.KubectlExec("get crd skupperclusterpolicies.skupper.io")
-	if err != nil {
-		if strings.Contains(
-			string(out),
-			`Error from server (NotFound): customresourcedefinitions.apiextensions.k8s.io "`) {
-			installed = false
-			err = nil
-		}
-	}
-	return
-}
-
 // Remove the CRD from the cluster
 //
 // No-op if the CRD was not installed in the first place
@@ -62,11 +39,7 @@ func removeCrd(cluster *base.ClusterContext) (changed bool, err error) {
 
 	log.Printf("Removing CRD from the cluster %v", cluster.KubeConfig)
 
-	installed, err := isCrdInstalled(cluster)
-	if err != nil {
-		log.Print("Failed checking for CRD")
-		return
-	}
+	installed := client.NewClusterPolicyValidator(cluster.VanClient).CrdDefined()
 
 	if !installed {
 		changed = false
@@ -147,11 +120,7 @@ func listPolicies(cluster *base.ClusterContext) (list *skupperv1.SkupperClusterP
 
 	list = &skupperv1.SkupperClusterPolicyList{}
 
-	installed, err := isCrdInstalled(cluster)
-	if err != nil {
-		err = fmt.Errorf("failed to check for CRD on the cluster: %w", err)
-		return
-	}
+	installed := client.NewClusterPolicyValidator(cluster.VanClient).CrdDefined()
 
 	if !installed {
 		log.Print("The CRD is not installed, so considering the policy list as empty")
