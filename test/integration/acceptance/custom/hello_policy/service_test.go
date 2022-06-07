@@ -14,6 +14,9 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/service"
 )
 
+// Creates the frontend service, following the Hello World specification: always on
+// port 8080, named hello-world-frontend, using http, checking whether it works
+// and responding taking the 'allowed' configuration into consideration.
 func serviceCreateFrontTestScenario(pub *base.ClusterContext, prefix string, allowed bool) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
@@ -36,6 +39,9 @@ func serviceCreateFrontTestScenario(pub *base.ClusterContext, prefix string, all
 	return
 }
 
+// Creates the backend service, following the Hello World specification: always on
+// port 8080, named hello-world-backend, using http, checking whether it works
+// and responding taking the 'allowed' configuration into consideration.
 func serviceCreateBackTestScenario(prv *base.ClusterContext, prefix string, allowed bool) (scenario cli.TestScenario) {
 	scenario = cli.TestScenario{
 
@@ -81,9 +87,11 @@ func serviceCheckAbsentTestScenario(cluster *base.ClusterContext, prefix string,
 	return
 }
 
-//
 // A helper to transform a list of interface names into []types.ServiceInterface
 // with the name, protocol http and port 8080
+//
+// If bound is true, the ServiceInterface will include a ServiceInterfaceTarget
+// whose name and service entries are the same as the given service string.
 func genInterfaceList(services []string, bound bool) (interfaces []types.ServiceInterface) {
 	for _, service := range services {
 		var target = []types.ServiceInterfaceTarget{}
@@ -111,6 +119,9 @@ func genInterfaceList(services []string, bound bool) (interfaces []types.Service
 	return interfaces
 }
 
+// Returns a single &service.StatusTester command; the list of services to be checked
+// are given as a simple []string slices, and then transformed to
+// []types.ServiceInterface{} internally.
 func serviceCheckTestCommand(unboundServices, unauthServices, boundServices []string) (scenario *service.StatusTester) {
 	serviceInterfaces := genInterfaceList(unboundServices, false)
 	serviceInterfaces = append(serviceInterfaces, genInterfaceList(boundServices, true)...)
@@ -123,6 +134,10 @@ func serviceCheckTestCommand(unboundServices, unauthServices, boundServices []st
 	}
 	return command
 }
+
+// Returns a test scenario for checking that a set of lists of services are bound or
+// authorized as expected.  The lists of services are given as simple []string slices
+// containing just their names.
 func serviceCheckTestScenario(pub *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
@@ -130,8 +145,10 @@ func serviceCheckTestScenario(pub *base.ClusterContext, prefix string, unboundSe
 		Name: prefixName(prefix, "service-status"),
 		Tasks: []cli.SkupperTask{
 			{
-				Ctx:      pub,
-				Commands: []cli.SkupperCommandTester{serviceCheckTestCommand(unboundServices, unauthServices, boundServices)},
+				Ctx: pub,
+				Commands: []cli.SkupperCommandTester{
+					serviceCheckTestCommand(unboundServices, unauthServices, boundServices),
+				},
 			},
 		},
 	}
@@ -139,7 +156,13 @@ func serviceCheckTestScenario(pub *base.ClusterContext, prefix string, unboundSe
 }
 
 // skupper service status + skupper status
-// TODO: On callers, replace this single call by two calls?
+//
+// All services that are to be exposed on the VAN need to be declared on either
+// boundServices or unauthServices, as their lenghths are summed in order to provide
+// the StatusTester with its ExposedServices field.
+//
+// TODO: On callers, replace this single call by two calls?  This way, these could be
+// run in parallel
 func serviceCheckFrontStatusTestScenario(pub *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
 
 	serviceInterfaces := genInterfaceList(unboundServices, false)
@@ -176,6 +199,14 @@ func serviceCheckFrontStatusTestScenario(pub *base.ClusterContext, prefix string
 	return scenario
 }
 
+// skupper service status + skupper status
+//
+// All services that are to be exposed on the VAN need to be declared on either
+// boundServices or unauthServices, as their lenghths are summed in order to provide
+// the StatusTester with its ExposedServices field.
+//
+// TODO: On callers, replace this single call by two calls?  This way, these could be
+// run in parallel
 func serviceCheckBackStatusTestScenario(prv *base.ClusterContext, prefix string, unboundServices, unauthServices, boundServices []string) (scenario cli.TestScenario) {
 	serviceInterfaces := genInterfaceList(unboundServices, false)
 	serviceInterfaces = append(serviceInterfaces, genInterfaceList(boundServices, true)...)
@@ -208,12 +239,14 @@ func serviceCheckBackStatusTestScenario(prv *base.ClusterContext, prefix string,
 	return scenario
 }
 
-// skupper service status + skupper status
+// This is straight from HelloWorld, it can configure only the scenario name
+//
+// It does both BindTester and ensuing service.StatusTester
 func frontendServiceBindTestScenario(pub *base.ClusterContext, prefix string) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
 
-		Name: "bind-frontend-service",
+		Name: prefixName(prefix, "bind-frontend-service"),
 		Tasks: []cli.SkupperTask{
 			{
 				Ctx: pub, Commands: []cli.SkupperCommandTester{
@@ -252,11 +285,14 @@ func frontendServiceBindTestScenario(pub *base.ClusterContext, prefix string) (s
 	return
 }
 
+// This is straight from HelloWorld, it can configure only the scenario name
+//
+// It does both BindTester and ensuing service.StatusTester
 func backendServiceBindTestScenario(prv *base.ClusterContext, prefix string) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
 
-		Name: "bind-backend-service",
+		Name: prefixName(prefix, "bind-backend-service"),
 		Tasks: []cli.SkupperTask{
 			{
 				Ctx: prv, Commands: []cli.SkupperCommandTester{
@@ -295,6 +331,7 @@ func backendServiceBindTestScenario(prv *base.ClusterContext, prefix string) (sc
 	return
 }
 
+// Returns a test scenario to unbind a specific service, using UnbindTester
 func unbindServiceTestScenario(ctx *base.ClusterContext, prefix, svc string) (scenario cli.TestScenario) {
 
 	scenario = cli.TestScenario{
@@ -319,6 +356,10 @@ func unbindServiceTestScenario(ctx *base.ClusterContext, prefix, svc string) (sc
 //
 // Note that the testing on what happens for bindings that are being denied
 // due to AllowedExposedResources configuration, go on the resources tests, not here
+//
+// This test uses some cluster-wise policies ("*" as namespaces) from which it
+// checks for effects between public and private namespaces.  For that reason, it
+// cannot be used in a multicluster environment
 func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	testTable := []policyTestCase{
@@ -355,7 +396,8 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 			name: "all-hello-world-works",
 			steps: []policyTestStep{
 				{
-					name: "allow-and-wait",
+					name:     "allow-and-create",
+					parallel: true,
 					pubPolicy: []v1alpha1.SkupperClusterPolicySpec{
 						{}, // The first two policies are created empty
 						{},
@@ -364,11 +406,15 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world.*"},
 						},
 					},
-					// TODO: add GET
-					//sleep: 10 * time.Second,
-				}, {
-					name:     "create-services",
-					parallel: true,
+					getChecks: []policyGetCheck{
+						{
+							cluster:         pub,
+							allowedServices: []string{"hello-world-anything"},
+						}, {
+							cluster:         prv,
+							allowedServices: []string{"hello-world-anything"},
+						},
+					},
 					cliScenarios: []cli.TestScenario{
 						serviceCreateFrontTestScenario(pub, "", true),
 						serviceCreateBackTestScenario(prv, "", true),
@@ -396,7 +442,19 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							Namespaces:      []string{"*"},
 							AllowedServices: []string{"^hello-world-frontend"},
 						}, {
+							// Removing the policy by assigning it an empty Namespaces list
 							Namespaces: []string{},
+						},
+					},
+					getChecks: []policyGetCheck{
+						{
+							cluster:            pub,
+							disallowedServices: []string{"hello-world-anything"},
+							allowedServices:    []string{"hello-world-backend", "hello-world-frontend"},
+						}, {
+							cluster:            prv,
+							disallowedServices: []string{"hello-world-anything"},
+							allowedServices:    []string{"hello-world-backend", "hello-world-frontend"},
 						},
 					},
 					cliScenarios: []cli.TestScenario{
@@ -421,6 +479,17 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world-frontend"},
 						},
 					},
+					getChecks: []policyGetCheck{
+						{
+							cluster:            prv,
+							disallowedServices: []string{"hello-world-anything", "hello-world-frontend"},
+							allowedServices:    []string{"hello-world-backend"},
+						}, {
+							cluster:            pub,
+							disallowedServices: []string{"hello-world-backend", "hello-world-anything"},
+							allowedServices:    []string{"hello-world-frontend"},
+						},
+					},
 					cliScenarios: []cli.TestScenario{
 						serviceCheckFrontStatusTestScenario(pub, "", []string{"hello-world-frontend"}, []string{"hello-world-backend"}, []string{}),
 						serviceCheckBackStatusTestScenario(prv, "", []string{"hello-world-backend"}, []string{"hello-world-frontend"}, []string{}),
@@ -443,6 +512,17 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 							AllowedServices: []string{"^hello-world-backend", "^hello-world-frontend"},
 						},
 					},
+					getChecks: []policyGetCheck{
+						{
+							cluster:            prv,
+							disallowedServices: []string{"hello-world-anything"},
+							allowedServices:    []string{"hello-world-backend", "hello-world-frontend"},
+						}, {
+							cluster:            pub,
+							disallowedServices: []string{"hello-world-anything"},
+							allowedServices:    []string{"hello-world-backend", "hello-world-frontend"},
+						},
+					},
 					cliScenarios: []cli.TestScenario{
 						serviceCheckFrontStatusTestScenario(pub, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
 						serviceCheckBackStatusTestScenario(prv, "", []string{"hello-world-frontend", "hello-world-backend"}, []string{}, []string{}),
@@ -462,6 +542,15 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						},
 						{
 							Namespaces: []string{"REMOVE"},
+						},
+					},
+					getChecks: []policyGetCheck{
+						{
+							cluster:            prv,
+							disallowedServices: []string{"hello-world-anything", "hello-world-backend", "hello-world-frontend"},
+						}, {
+							cluster:            pub,
+							disallowedServices: []string{"hello-world-anything", "hello-world-backend", "hello-world-frontend"},
 						},
 					},
 					cliScenarios: []cli.TestScenario{
@@ -487,6 +576,17 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						{
 							Namespaces:      []string{"*"},
 							AllowedServices: []string{"^hello-world-.*"},
+						},
+					},
+					getChecks: []policyGetCheck{
+						{
+							cluster:            prv,
+							allowedServices:    []string{"hello-world-anything", "hello-world-backend", "hello-world-frontend"},
+							disallowedServices: []string{"somethingelse"},
+						}, {
+							cluster:            pub,
+							allowedServices:    []string{"hello-world-anything", "hello-world-backend", "hello-world-frontend"},
+							disallowedServices: []string{"somethingelse"},
 						},
 					},
 					cliScenarios: []cli.TestScenario{
@@ -520,6 +620,15 @@ func testServicePolicy(t *testing.T, pub, prv *base.ClusterContext) {
 						{
 							Namespaces:      []string{"*"},
 							AllowedServices: []string{"non-existing-service"},
+						},
+					},
+					getChecks: []policyGetCheck{
+						{
+							cluster:            prv,
+							disallowedServices: []string{"hello-world-anything", "hello-world-backend", "hello-world-frontend"},
+						}, {
+							cluster:            pub,
+							disallowedServices: []string{"hello-world-anything", "hello-world-backend", "hello-world-frontend"},
 						},
 					},
 					cliScenarios: []cli.TestScenario{

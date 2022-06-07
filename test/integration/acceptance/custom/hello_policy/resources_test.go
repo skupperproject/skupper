@@ -54,6 +54,7 @@ type resourceTest struct {
 	prv  resourceDetails
 }
 
+// TODO document
 type clusterItem struct {
 	cluster *base.ClusterContext
 	details resourceDetails
