@@ -1,10 +1,13 @@
 package service
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
 	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -21,13 +24,26 @@ type StatusTester struct {
 	ServiceInterfaces             []types.ServiceInterface
 	UnauthorizedServiceInterfaces []types.ServiceInterface
 	// TODO REVIEW rename and use []types.ServiceInterface
-	Absent              bool
-	StrictInterfaceList bool
+	Absent bool
+
+	// By default, if the service interface includes no targets, the test is
+	// going to be successful, even if the actual response from the command
+	// indicates it has targets (bindings).  This changes that behavior: if
+	// the requested ServiceInterface had an empty Targets slice, it will be
+	// an error if the command lists a bound target (or if the target lists
+	// differ)
+	CheckNotBound bool
 
 	// By default, unauthorized interfaces count as good on ServiceInterfaces;
 	// if this is set to true, then a service listed in ServiceInterfaces that
 	// is reported as unauthorized will be reported as an error
 	CheckAuthorization bool
+
+	// By default, the command checks that what it has configured in
+	// ServiceInterfaces is listed on the output.  If the option below is set
+	// to true, it will also ensure that it is the whole list, and no other
+	// interfaces are listed on the output
+	StrictInterfaceListCheck bool
 }
 
 func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
@@ -100,6 +116,14 @@ func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 					return
 				}
 			}
+
+		}
+	}
+
+	if s.CheckNotBound || s.StrictInterfaceListCheck {
+		err = s.checkBindings(stdout)
+		if err != nil {
+			return
 		}
 	}
 
@@ -113,4 +137,179 @@ func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 	}
 
 	return
+}
+
+// As we do not have JSON output, for ensuring the output is as
+// expected, we have to parse it, line by line, and create a
+// corresponding struct.  An alternative would be to get this
+// information from `get services -o json`, but that would not
+// be validating the command's output
+//
+// This ties this test very tightly to the command output, which
+// may make the tests fragile.
+func (s *StatusTester) checkBindings(stdout string) (err error) {
+	listedServices, err := s.parseBindings(stdout)
+	if err != nil {
+		return
+	}
+
+	err = s.compareBindings(listedServices)
+
+	return
+}
+
+// This compares the listedServices to s.ServiceInterfaces; it expects that
+// both the list of services be the same, and the list of targets on each
+// service be the same.
+//
+// It currently does not check ports or protocols, only addresses and names
+func (s *StatusTester) compareBindings(listedServices []*types.ServiceInterface) (err error) {
+	structMap := map[string]*types.ServiceInterface{}
+	listedMap := map[string]*types.ServiceInterface{}
+
+	for i, iface := range s.ServiceInterfaces {
+		structMap[iface.Address] = &s.ServiceInterfaces[i]
+	}
+	for _, iface := range listedServices {
+		listedMap[iface.Address] = iface
+	}
+
+	for n, structInterface := range structMap {
+		listedInterface, ok := listedMap[n]
+		if !ok {
+			return fmt.Errorf("Interface %v was expected, but not listed", n)
+		}
+
+		structTargetMap := map[string]types.ServiceInterfaceTarget{}
+		listedTargetMap := map[string]types.ServiceInterfaceTarget{}
+		for _, t := range structInterface.Targets {
+			structTargetMap[t.Name] = t
+		}
+		for _, t := range listedInterface.Targets {
+			listedTargetMap[t.Name] = t
+		}
+
+		for tn := range structTargetMap {
+			_, ok := listedTargetMap[tn]
+			if !ok {
+				return fmt.Errorf("Target %v was expected on interface %v, but not listed", tn, n)
+			}
+			delete(listedTargetMap, tn)
+		}
+		if len(listedTargetMap) > 0 {
+			remainingList := make([]string, 0, len(listedTargetMap))
+			for tn := range listedTargetMap {
+				remainingList = append(remainingList, tn)
+			}
+			return fmt.Errorf("The following targets were listed for interface %v, but were not expected: %v", n, strings.Join(remainingList, ", "))
+		}
+		delete(listedMap, n)
+	}
+	if len(listedMap) > 0 && s.StrictInterfaceListCheck {
+		remainingList := make([]string, 0, len(listedMap))
+		for tn := range listedMap {
+			remainingList = append(remainingList, tn)
+		}
+		return fmt.Errorf("The following interfaces were listed, but were not expected: %v", strings.Join(remainingList, ", "))
+	}
+
+	return
+}
+
+var secondLevel = regexp.MustCompile("^( |│)  (╰|├).*")
+var thirdLevel = regexp.MustCompile("^( |│)  ( |│)  (╰|├).*")
+
+// This does the actual parsing of the command's output
+//
+// It returns []*types.ServiceInterface, but with incomplete information,
+// based on what the status command shows
+//
+// The parsing is incomplete: it does not deal with the situation where
+// no services are listed at all, for example.  In the future, it may be
+// extended to include that and other scenarios, and perhaps replace the
+// regexp matches from s.run(), but for now it provides only the bits
+// necessary for the policy testing.
+func (s *StatusTester) parseBindings(stdout string) (ifaces []*types.ServiceInterface, err error) {
+
+	var scanner = bufio.NewScanner(strings.NewReader(stdout))
+	var line int
+	var iface *types.ServiceInterface
+
+	for scanner.Scan() {
+		line++
+		text := scanner.Text()
+		if strings.HasPrefix(text, "Services exposed") {
+			if line != 1 {
+				err = fmt.Errorf("Header found in unexpected place (line %v) - parsing failed", line)
+				return
+			}
+			// First line, nothing to see here
+			continue
+		}
+		if strings.HasPrefix(text, "├") || strings.HasPrefix(text, "╰") {
+			// First level definition: service
+			pieces := strings.Split(text, " ")
+			if pieces[3] != "port" {
+				err = fmt.Errorf("Parsing failed due to unexpected service output on line %v: %v", line, text)
+				return
+			}
+			port, converr := strconv.Atoi(pieces[4][:len(pieces[4])-1])
+			if err != nil {
+				err = fmt.Errorf("Failed to parse service port: %w", converr)
+				return
+			}
+			iface = &types.ServiceInterface{
+				Address:  pieces[1],
+				Protocol: pieces[2][1:],
+				Ports:    []int{port},
+				Targets:  []types.ServiceInterfaceTarget{},
+			}
+			ifaces = append(ifaces, iface)
+			continue
+		}
+		if secondLevel.MatchString(text) {
+			// I'm only expecting the line "Targets" to be on this indentation level,
+			// so fail otherwise
+			if !strings.HasSuffix(text, "Targets:") {
+				err = fmt.Errorf("Unexpected output where 'Targets:' was expected on line %v: %v", line, text)
+				return
+			}
+			continue
+		}
+		if thirdLevel.MatchString(text) {
+			// Third level definition: target
+			if iface == nil {
+				err = fmt.Errorf("Failed parsing line %v - target definition without a preceding service definition: %v", line, text)
+				return
+			}
+			// We first get what's to the right of ╰─
+			pieces := strings.Split(strings.Trim(text, " "), "─ ")
+			if len(pieces) != 2 {
+				err = fmt.Errorf("Parsing failed due to unexpected target output on line %v: %v", line, text)
+				return
+			}
+			// Then we get the second item, that should be the name
+			pieces = strings.Split(strings.Trim(pieces[1], " "), " ")
+			if len(pieces) != 2 {
+				err = fmt.Errorf("Parsing failed due to unexpected target output format on line %v: %v", line, text)
+				return
+			}
+			id := strings.SplitN(pieces[1], "=", 2)
+			if len(id) > 2 || id[0] != "name" {
+				err = fmt.Errorf("Parsing failed due to unexpected target specification on line %v: %v", line, text)
+				return
+			}
+
+			target := types.ServiceInterfaceTarget{
+				Name: id[1],
+			}
+
+			iface.Targets = append(iface.Targets, target)
+			continue
+		}
+		err = fmt.Errorf("Parsing failed on line %v (unknown): %v", line, text)
+	}
+
+	return
+
 }

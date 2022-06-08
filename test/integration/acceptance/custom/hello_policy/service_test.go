@@ -131,6 +131,7 @@ func serviceCheckTestCommand(unboundServices, unauthServices, boundServices []st
 		ServiceInterfaces:             serviceInterfaces,
 		UnauthorizedServiceInterfaces: unauthInterfaces,
 		CheckAuthorization:            true,
+		CheckNotBound:                 true,
 	}
 	return command
 }
