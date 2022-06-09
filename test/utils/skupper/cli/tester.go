@@ -32,12 +32,19 @@ type SkupperCommandTester interface {
 	Run(cluster *base.ClusterContext) (string, string, error)
 }
 
+type ErrorHookFunction func()
+
 // TestScenario represents a set of tasks performed using the skupper cli.
 // It helps grouping a set of commands that can be performed against
 // different clusters.
 type TestScenario struct {
 	Name  string
 	Tasks []SkupperTask
+
+	// This allows for a function to be configured to be run whenever the
+	// TestScenario fails.  It can be used, for example, for gathering
+	// additional debug information
+	ErrorHook ErrorHookFunction
 }
 
 // Appends the tasks from other TestScenarios to this one.  Use this for
@@ -65,6 +72,9 @@ func RunScenario(scenario TestScenario) (string, string, error) {
 		for _, cmd := range task.Commands {
 			stdout, stderr, err := cmd.Run(task.Ctx)
 			if err != nil {
+				if scenario.ErrorHook != nil {
+					scenario.ErrorHook()
+				}
 				return stdout, stderr, err
 			}
 		}

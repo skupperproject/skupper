@@ -16,6 +16,9 @@ import (
 // - path
 // - cluster
 // And check whether it works or is disallowed by policy
+//
+// Different from Hello World, the token created by this function can be
+// reused 1000 times
 func createTokenPolicyScenario(cluster *base.ClusterContext, prefix, testPath, name string, works bool) (createToken cli.TestScenario) {
 
 	createToken = cli.TestScenario{

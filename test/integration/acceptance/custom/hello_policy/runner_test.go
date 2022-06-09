@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -225,6 +227,7 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext, context
 					t.Skip(skipResult)
 				}
 			}
+			s.installCliErrorHook(t)
 			s.runPreHook(t, contextMap)
 			s.applyPolicies(t, pub, prv, contextMap)
 			s.waitChecks(t, contextMap)
@@ -235,6 +238,22 @@ func (s policyTestStep) run(t *testing.T, pub, prv *base.ClusterContext, context
 				time.Sleep(s.sleep)
 			}
 		})
+}
+
+// Update the configured cliScenarios to have an ErrorHook that runs
+// testRunner.DumpTestInfo()
+func (s policyTestStep) installCliErrorHook(t *testing.T) {
+	for i, scenario := range s.cliScenarios {
+		s.cliScenarios[i].ErrorHook = func() {
+			path := filepath.Join(
+				testPath,
+				strings.ReplaceAll(t.Name()+"-"+scenario.Name, "/", "-"),
+			)
+			_ = os.Mkdir(path, 0755)
+			testRunner.DumpTestInfo(path)
+		}
+	}
+
 }
 
 func (s policyTestStep) runPreHook(t *testing.T, contextMap map[string]string) {

@@ -22,6 +22,7 @@ import (
 )
 
 var testPath = "./tmp/"
+var testRunner = &base.ClusterTestRunnerBase{}
 
 // Helper to deploy an application on Kubernetes and wait for it
 type KubeDeploy struct {
@@ -137,18 +138,17 @@ func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 			NamespaceId:    "policy-namespaces",
 			PublicClusters: 2,
 		}
-		runner := &base.ClusterTestRunnerBase{}
-		if err := runner.Validate(needs); err != nil {
+		if err := testRunner.Validate(needs); err != nil {
 			t.Skipf("%s", err)
 		}
-		_, err = runner.Build(needs, nil)
+		_, err = testRunner.Build(needs, nil)
 		assert.Assert(t, err)
 
 		// This is the target domain
-		pub1, err = runner.GetPublicContext(1)
+		pub1, err = testRunner.GetPublicContext(1)
 		assert.Assert(t, err)
 		// This is the 'other' domain
-		pub2, err = runner.GetPublicContext(2)
+		pub2, err = testRunner.GetPublicContext(2)
 		assert.Assert(t, err)
 
 		// TODO.  From here down, put it on a loop, as there may be four
@@ -330,6 +330,8 @@ func TestPolicies(t *testing.T) {
 			function: testResourcesPolicy,
 		}, {
 			function: test753,
+		}, {
+			function: testLinkIssueNew,
 		},
 	}
 

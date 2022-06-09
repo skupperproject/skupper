@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"testing"
 	"time"
 )
 
@@ -39,7 +40,7 @@ const (
 	ENV_VERBOSE_COMMANDS = "SKUPPER_TEST_VERBOSE_COMMANDS"
 )
 
-// ** TODO **
+// General
 const (
 
 	// Skips the creation of namespaces.  Used during testing development,
@@ -50,6 +51,11 @@ const (
 	// to leave a test setup behind for semi-automated testing, or for
 	// speeding up test runs
 	ENV_SKIP_NAMESPACE_TEARDONW = "SKUPPER_TEST_SKIP_NAMESPACE_TEARDOWN"
+
+	// Individual tests may be marked as issue-related and will be
+	// skipped on the normal runs.  Setting this variable will include
+	// those on the runs
+	ENV_RUN_ISSUE_TESTS = "SKUPPER_TEST_RUN_ISSUE_TESTS"
 )
 
 // ** POLICY **
@@ -146,7 +152,21 @@ func IsMaxStatusAttemptsReached(currentAttempt int) bool {
 
 }
 
+// Reports whether the configuration variable named on the constant
+// ENV_POLICY_NO_GET_WAIT is set or not.  If set, the caller should
+// skip any waits related to GET checks
 func ShouldPolicyWaitOnGet() bool {
 	_, setting := os.LookupEnv(ENV_POLICY_NO_GET_WAIT)
 	return !setting
+}
+
+// Tests that are specific for issues can be defined to not run by default on test
+// runs.  This function checks the environment variable that configures that behavior
+// and runs t.Skipf on behalf of the test, with a note on how to activate it.
+func SkipIssueTests(t *testing.T) {
+	t.Helper()
+	_, ok := os.LookupEnv(ENV_RUN_ISSUE_TESTS)
+	if !ok {
+		t.Skipf("Issue test is being skipped.  To run it, set the environment variable %v", ENV_RUN_ISSUE_TESTS)
+	}
 }
