@@ -344,8 +344,13 @@ func testLinkPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 }
 
-// TODO: document and rename to reflect issue #
-func testLinkIssueNew(t *testing.T, pub, prv *base.ClusterContext) {
+// Testing for #789
+//
+// https://github.com/skupperproject/skupper/issues/789
+//
+// It's basically the same previously-created-token test case above, but on a
+// loop.
+func testLinkIssue789(t *testing.T, pub, prv *base.ClusterContext) {
 
 	base.SkipIssueTests(t)
 

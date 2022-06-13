@@ -331,7 +331,7 @@ func TestPolicies(t *testing.T) {
 		}, {
 			function: test753,
 		}, {
-			function: testLinkIssueNew,
+			function: testLinkIssue789,
 		},
 	}
 
