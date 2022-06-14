@@ -193,11 +193,13 @@ func (c *PolicyController) validateIncomingLinkStateChanged() {
 		event.Recordf(c.name, "[validateIncomingLinkStateChanged] error validating policy: %v", res.Error())
 		return
 	}
-	c.adjustListenerState("validateIncomingLinkStateChanged", "interior-listener", res.Allowed(), client.InteriorListener)
-	c.adjustListenerState("validateIncomingLinkStateChanged", "edge-listener", res.Allowed(), client.EdgeListener)
-}
+	source := "validateIncomingLinkStateChanged"
+	allowed := res.Allowed()
+	listeners := map[string]func(options types.SiteConfigSpec) qdr.Listener{
+		"interior-listener": client.InteriorListener,
+		"edge-listener":     client.EdgeListener,
+	}
 
-func (c *PolicyController) adjustListenerState(source string, listenerName string, allowed bool, listenerFn func(options types.SiteConfigSpec) qdr.Listener) {
 	// Retrieving listener info
 	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.cli.GetNamespace(), c.cli.KubeClient)
 	if err != nil {
@@ -211,32 +213,40 @@ func (c *PolicyController) adjustListenerState(source string, listenerName strin
 		return
 	}
 
-	// Retrieving listener info
-	_, listenerFound := current.Listeners[listenerName]
-
-	// If nothing changed, just return
-	if listenerFound == allowed {
-		return
-	}
-
 	// Changed to allowed
 	if allowed {
 		event.Recordf(c.name, "[%s] allowing links", source)
-		siteConfig, err := c.cli.SiteConfigInspect(context.Background(), nil)
-		if err != nil {
-			event.Recordf(c.name, "[%s] error retrieving site config: %v", source, err)
-			return
-		}
-		current.AddListener(listenerFn(siteConfig.Spec))
 	} else {
 		event.Recordf(c.name, "[%s] blocking links", source)
-		delete(current.Listeners, listenerName)
+	}
+
+	siteConfig, err := c.cli.SiteConfigInspect(context.Background(), nil)
+	if err != nil {
+		event.Recordf(c.name, "[%s] error retrieving site config: %v", source, err)
+		return
+	}
+
+	for listenerName, listenerFn := range listeners {
+		// Retrieving listener info
+		_, listenerFound := current.Listeners[listenerName]
+
+		// If nothing changed, just return
+		if listenerFound == allowed {
+			return
+		}
+
+		// Changed to allowed
+		if allowed {
+			current.AddListener(listenerFn(siteConfig.Spec))
+		} else {
+			delete(current.Listeners, listenerName)
+		}
 	}
 
 	// Update router config
 	updated, err := current.UpdateConfigMap(configmap)
 	if err != nil {
-		event.Recordf(c.name, "[%s] error updating host on %s listener: %v", source, listenerName, err)
+		event.Recordf(c.name, "[%s] error updating listeners: %v", source, err)
 		return
 	}
 
