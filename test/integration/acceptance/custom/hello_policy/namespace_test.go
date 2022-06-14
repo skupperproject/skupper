@@ -12,24 +12,12 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
-// We have two tests on this file; this function is just the entry point,
-// that calls the other two.
-//
-// In both cases the creation and state of skupper links are used as a proxy to
-// see how the policy engine reacts to different settings for the namespaces
-// field.
-func testNamespace(t *testing.T, pub1, pub2 *base.ClusterContext) {
-	t.Run("testNamespaceLinkTransitions", func(t *testing.T) {
-		testNamespaceLinkTransitions(t, pub1, pub2)
-	})
-
-	t.Run("testNamespaceIncomingLinks", func(t *testing.T) {
-		testNamespaceIncomingLinks(t, pub1, pub2)
-	})
-}
-
 // This test checks how the policy engine reacts to policies that are changing,
 // as opposed to new policies or removal of policies.
+//
+// In this test, the creation and state of skupper links are used as a proxy to
+// see how the policy engine reacts to different settings for the namespaces
+// field.
 //
 // This test should be ok to run on both single and multi cluster environments.
 func testNamespaceLinkTransitions(t *testing.T, pub, prv *base.ClusterContext) {
@@ -208,6 +196,10 @@ type namespaceTest struct {
 //
 // For that reason, it should always run only on a single cluster (ie, pub1 and
 // pub2 should be namespaces of the same cluster).
+//
+// In this test, the creation and state of skupper links are used as a proxy to
+// see how the policy engine reacts to different settings for the namespaces
+// field.
 func testNamespaceIncomingLinks(t *testing.T, pub1, pub2 *base.ClusterContext) {
 
 	// TODO: Change to use policyTestRunner

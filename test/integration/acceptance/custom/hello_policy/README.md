@@ -134,19 +134,24 @@ The testing needs to take that into account, and confirm that any pending
 changes have been done to the tested namespace, lest it will report many
 false positives and false negatives.
 
-* Detect policy engine conclusion of work
+The GET checks from the PolicyTestSteps can be used to make sure the policy
+engine has incorporated a CR change before proceeding with a state-changing
+action.
 
 ## namespace selection
 
 Namespace selection is on a list of regular expressions that match namespaces,
-or label selectors (any tokens with a '=' in the middle), plus the special `\*`
+or label selectors (any tokens with a '=' in the middle), plus the special `"*"`
 notation, representing any namespace.
 
-*Question*: Where are regexes anchored?  If everything is a regex and they're
-not anchored, then an item of '.' would also match everything
+*Note*: regexes are not anchored, so an item of `"."` matches any namespaces.
+The same is true for all other policy settings that take a regex (services, 
+outgoing hostnames).
 
-* check and document (link) Kubernetes allowed characters for namespaces
-* should invalid names make the policy invalid?
+A policy CR which points only to non-existing namespaces, or that has an empty
+list for the namespace setting are in practice no-ops: they apply to no
+namespaces.  For that reason, no effort has been done to test for invalid
+namespace names (ie, with invalid characters or formats).
 
 If any of the items on a list applies to a namespace, then the policy applies
 to that namespace.
@@ -165,17 +170,14 @@ to a namespace do not affect others.
 Note that label selection items are the only place on the policy system that
 behaves with an `AND` nature:  all given labels (in an item in the list) must
 apply to a namespace for that label selection to apply.  This should be
-Kubernetes work to ensure, but we test anyway
+Kubernetes work to ensure.
 
-* test multiple labels in a single item
-* test single labels in multiple items
-
-Please also note that an empty namespace selection turns the policy into a
-no-op, as it will apply to no namespaces.
+* test multiple labels in a single item (AND-behavior)
+* test single labels in multiple items (OR-behavior)
 
 ## the additive nature of policies
 
-Policies are disabled by default; a policy where everything is set to deny 
+Policy items are disabled by default; a policy where everything is set to deny
 is a no-op: it won't actually disable any of its items.
 
 * Test no-op
@@ -198,8 +200,8 @@ policies that apply to that namespace, with the following behavior:
 
 Note that policy items of type list also need to be 'activated': a resulting
 policy with an empty `AllowedOutgoingLinksHostnames`, for example, will not
-allow any outgoing connections (until specific hostnames or `\*` are listed 
-on it.
+allow any outgoing connections (until specific hostnames or `"*"` are listed 
+on it).
 
 
 ## Addition and removal of the CRD
@@ -223,51 +225,6 @@ has been changed in place, as opposed to removed and added?
 
 Test for side-effects of removal of policies.
 
-## Test steps
-
-The tests have the following four identifiable phases:
-
-* Background - basic environment configuration, shared by multiple tests
-* Preparation ("Given") - changes to that basic environment that set it
-  to the specific state required by the test.
-* Modification ("When") - execution of the actual feature being tested
-* Verification ("Then") - confirmation that the feature works ok
-
-### Backgrounds
-
-Some tests need to be repeated in different backgrounds, to ensure they
-work the same, while others will require a specific background to produce
-a specific result.
-
-Here 'background' means simply the state of the cluster and namespaces at the
-start of the test.
-
-* current vs 0.8 (or 'previous'.  Make it configurable)
-* pre-existing skupper (just init)?
-* pre-existing skupper network?
-* pre-existing CRD or no?
-* pre-existing policy or no?  Permissive or not?
-
-Note the list above can generate new backgrounds as combinations (eg 0.8 with
-CRD installed before update)
-
-A special background needs provided for semi-automated testing: 'do not touch'.
-It is simply a no-op background.  The tester can prepare the environment
-(background) to what they need before running a specific test with it, so the
-actual background is whatever the tester prepared manually, but the test still
-runs from the code.
-
-Idea: for cluster wide modifications, run the preparation for a set of tests,
-then a single modification, then the verification for all of them.  This might
-save some time on the test.
-
-When working with preparing the environment with backgrounds, keep in mind the
-following cluster-wide resources;
-
-* Policy CRD
-* Policy CRs
-* The skupper-service-controller ClusterRole
-
 ### Verification
 
 For most tests, the verification will be done through attempts to run the
@@ -282,13 +239,11 @@ the case in some situations:
 
 ## Annotation-based skupper enablement
 
-Remember that skupper services can be created by adding annotations to services
-(is that so?  add link to documentation).
+Remember that skupper services can be created by adding annotations to services.
 
-So, besides cli testing, make sure to test with annotations.
+So, besides cli testing, make sure to test with annotations (low priority).
 
 ## Others
-
 
 * test via operator + config map
 * test with non-admin skupper init
@@ -319,18 +274,6 @@ the expected message.
 
 # TODO
 
-
-## single or multiple clusters 
-
-Should a second set of tests be written for two-cluster configurations, or
-should the tests change their behavior for that configuration?
-
-All tests should be able to run in a single-cluster or two-cluster testing
-configuration, and the results should be expected to be different.  For
-example, if a CRD is applied on the private cluster and then removed, the link
-from private to pub will drop, but not reconnect on removal (check whether this
-is expected behavior — it is current behavior), but in any case things can be
-assymetrical.
 
 ## Trying to circumvent controls
 

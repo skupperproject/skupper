@@ -3,11 +3,6 @@
 
 package hello_policy
 
-// TODO
-// - implement service bind
-// - complete the test cases
-// - confirm non-bound check
-
 import (
 	"fmt"
 	"sort"
@@ -54,7 +49,9 @@ type resourceTest struct {
 	prv  resourceDetails
 }
 
-// TODO document
+// This struct is used to translate a []resourceTest (which makes it easy to
+// describe a resource-related policy test) into an actual []policyTestCase
+// testTable (which uses the PolicyTestRunner)
 type clusterItem struct {
 	cluster *base.ClusterContext
 	details resourceDetails
@@ -431,6 +428,9 @@ func resourceExposeSteps(clusterItems []clusterItem) ([]policyTestStep, error) {
 // Note there are two 'threads' of testing going on here: one on the front-end, one on
 // the backend.  This is done to increase parallelism, but may make the test a bit
 // harder to understand
+//
+// As each thread runs on its own namespace, with namespace-specific policies, the
+// test should be safe to run on multicluster environments.
 func testResourcesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 
 	// The source test table

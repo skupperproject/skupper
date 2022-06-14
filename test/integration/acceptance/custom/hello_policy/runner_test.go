@@ -25,7 +25,6 @@ import (
 )
 
 // TODO:
-// - If a scenario fails, show events and logs?
 // - on cli.RunScenarios, environment option to bounce pods between each command
 
 // Removes all policies from all given clusters
@@ -107,10 +106,16 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 	}
 }
 
+// A function to programatically control the skipping of policyTestCase
+// and policyTestStep.  An empty response means no skip; a non-empty
+// response is used as the reason for skipping.
+type skipFunction func() string
+
 // A named slice, with methods to run each step
 type policyTestCase struct {
 	name  string
 	steps []policyTestStep
+	skip  skipFunction
 	// TODO: Add a context, so that tests that are known to run for very
 	// 	 long time when they fail can have their runtimes capped
 }
@@ -122,6 +127,11 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext, context
 	t.Run(
 		c.name,
 		func(t *testing.T) {
+			if c.skip != nil {
+				if skipReason := c.skip(); skipReason != "" {
+					t.Skipf(skipReason)
+				}
+			}
 			for _, step := range c.steps {
 
 				step.run(t, pub, prv, contextMap)
@@ -132,8 +142,6 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext, context
 			base.StopIfInterrupted(t)
 		})
 }
-
-type skipFunction func() string
 
 // A hook function is executed right at the start of a policyTestStep.  It can
 // be a closure that captures variables during test table definition, and that
@@ -354,7 +362,6 @@ func templateStringList(l []string, c map[string]string) ([]string, error) {
 }
 
 // Runs a template over each string item in a skupperv1.SkupperClusterPolicy spec
-// TODO change this to use reflection?
 func templatePolicySpec(p skupperv1.SkupperClusterPolicySpec, c map[string]string) (skupperv1.SkupperClusterPolicySpec, error) {
 	if len(c) == 0 {
 		return p, nil
@@ -630,7 +637,6 @@ func waitAllGetChecks(checks []policyGetCheck, contextMap map[string]string) err
 		}
 		var allGood = true
 		for _, check := range checks {
-			// TODO Change this to have no argument
 			ok, err := check.check(contextMap)
 			if err != nil {
 				log.Printf("Error on GET check: %v", err)

@@ -113,16 +113,19 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// This will return up to four namespaces/contexts
+// This will two or three namespaces/contexts
 //
 // pub1 and pub2 represent the frontend and backend to be tied together by
 // skupper, on the same cluster.
 //
-// pub3 and prv1 are the same, but they only exist for multi-cluster testing,
-// where each is on a different cluster
-//
-// TODO: change to pub1, pub2, prv1; implement prv1 with Multi
-func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
+// prv1 exists for multi-cluster testing, where it takes the place of pub2
+func setup(t *testing.T) (pub1, pub2, prv1 *base.ClusterContext) {
+
+	var privateCount int
+
+	if base.MultipleClusters() {
+		privateCount = 1
+	}
 
 	t.Run("Setup", func(t *testing.T) {
 		// First, validate if skupper binary is in the PATH, or fail the test
@@ -135,8 +138,9 @@ func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 		log.Printf("Creating namespaces")
 		needs := base.ClusterNeeds{
 			// TODO: Change this to just 'policy', as it will be reused
-			NamespaceId:    "policy-namespaces",
-			PublicClusters: 2,
+			NamespaceId:     "policy-namespaces",
+			PublicClusters:  2,
+			PrivateClusters: privateCount,
 		}
 		if err := testRunner.Validate(needs); err != nil {
 			t.Skipf("%s", err)
@@ -151,8 +155,6 @@ func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 		pub2, err = testRunner.GetPublicContext(2)
 		assert.Assert(t, err)
 
-		// TODO.  From here down, put it on a loop, as there may be four
-
 		// creating namespaces
 		assert.Assert(t, pub1.CreateNamespace())
 		assert.Assert(t, pub2.CreateNamespace())
@@ -160,6 +162,16 @@ func setup(t *testing.T) (pub1, pub2, pub3, prv1 *base.ClusterContext) {
 		// labelling the namespaces
 		pub1.LabelNamespace("test.skupper.io/test-namespace", "policy")
 		pub2.LabelNamespace("test.skupper.io/test-namespace", "policy")
+
+		if privateCount > 0 {
+			// This is the other domain, for environments and tests that accept
+			// multi-cluster testing
+			prv1, err = testRunner.GetPrivateContext(1)
+			assert.Assert(t, err)
+			assert.Assert(t, prv1.CreateNamespace())
+			prv1.LabelNamespace("test.skupper.io/test-namespace", "policy")
+		}
+
 	})
 
 	return
@@ -182,26 +194,29 @@ func getFuncName(function interface{}) string {
 //
 //   go test -tags policy -timeout 60 -run "//testNamespace"
 //
-// This will ensure that not only the selected tests, but also the setup and
-// tear down are run.
+// This will ensure that not only the selected tests, but also its setup and
+// tear down steps.
 //
-// TODO control setup/teardown with environment variables.
+// These tests can be tweaked by the use of several environment variables
+// defined on test/utils/base/env.go, policy-specific or not.  That includes
+// SKUPPER_TEST_SKIP_NAMESPACE_SETUP/TEARDOWN.  Those can be used to speed up
+// interactive test development, or to change test behavior.  Check the
+// documentation on that file for details.
 //
 // Because the policy changes are cluster-wise, we need to run all tests in
 // serial.
 //
 // Individual tests should expect the environment they receive to have the CRD
 // installed and no policies at test start.  Tests are responsible for running
-// skupper init and skupper delete (?)
+// skupper init and skupper delete.
 func TestPolicies(t *testing.T) {
 
-	// Creating a local directory for storing the token
+	// Creating a local directory for storing the token, dumps, etc.
 	_ = os.Mkdir(testPath, 0755)
 
-	pub1, pub2, _, _ := setup(t)
-	//	pub1, pub2, pub3, prv1 := setup(t)
+	pub1, pub2, prv1 := setup(t)
 
-	allContexts := []*base.ClusterContext{pub1, pub2}
+	allContexts := []*base.ClusterContext{pub1, pub2, prv1}
 
 	// teardown once test completes
 	tearDownFn := func() {
@@ -233,9 +248,9 @@ func TestPolicies(t *testing.T) {
 				log.Print("Skipping namespace tear down, per env variables")
 				log.Print("Removing skupper from namespaces, instead")
 				if pub1 == nil || pub2 == nil {
-					log.Print("At least one of the namespaces was not initialized, which was not expected.  Skipping this step")
+					log.Print("At least one of the public namespaces was not initialized, which was not expected.  Skipping this step")
 				} else {
-					cli.RunScenariosParallel(t, []cli.TestScenario{
+					scenarios := []cli.TestScenario{
 						{
 							Name: "skupper-delete-pub1",
 							Tasks: []cli.SkupperTask{
@@ -261,7 +276,23 @@ func TestPolicies(t *testing.T) {
 								},
 							},
 						},
-					})
+					}
+					if prv1 != nil {
+						scenarios = append(scenarios, cli.TestScenario{
+							Name: "skupper-delete-prv1",
+							Tasks: []cli.SkupperTask{
+								{
+									Ctx: prv1,
+									Commands: []cli.SkupperCommandTester{
+										&cli.DeleteTester{
+											IgnoreNotInstalled: true,
+										},
+									},
+								},
+							},
+						})
+					}
+					cli.RunScenariosParallel(t, scenarios)
 				}
 
 			} else {
@@ -298,6 +329,9 @@ func TestPolicies(t *testing.T) {
 	t.Run("application-deployment", func(t *testing.T) {
 		// deploying frontend and backend services
 		assert.Assert(t, deployResources(pub1, pub2))
+		if base.MultipleClusters() {
+			assert.Assert(t, deployBackend(prv1))
+		}
 	})
 
 	if t.Failed() {
@@ -307,8 +341,7 @@ func TestPolicies(t *testing.T) {
 	type policyTestFunction func(*testing.T, *base.ClusterContext, *base.ClusterContext)
 	type policyTestItem struct {
 		function policyTestFunction
-		single   bool
-		multiple bool
+		useMulti bool
 		noCRD    bool
 	}
 
@@ -316,22 +349,32 @@ func TestPolicies(t *testing.T) {
 		{
 			function: testHelloPolicy,
 			noCRD:    true,
+			useMulti: false,
 		}, {
-			function: testNamespace,
+			function: testNamespaceLinkTransitions,
+			useMulti: true,
+		}, {
+			function: testNamespaceIncomingLinks,
+			useMulti: false,
 		}, {
 			function: testLinkPolicy,
+			useMulti: true,
 		}, {
 			function: testServicePolicy,
-		}, {
-			function: testServicePolicyTransitions,
+			useMulti: false,
 		}, {
 			function: testHostnamesPolicy,
+			useMulti: true,
 		}, {
 			function: testResourcesPolicy,
+			useMulti: true,
 		}, {
-			function: test753,
+			function: testServicePolicyIssues,
+		}, {
+			function: testLinkIssue753,
 		}, {
 			function: testLinkIssue789,
+			useMulti: true,
 		},
 	}
 
@@ -342,8 +385,19 @@ func TestPolicies(t *testing.T) {
 			item := item
 			name := getFuncName(item.function)
 			t.Run(name, func(t *testing.T) {
+				pub := pub1
+				prv := pub2
+				if item.useMulti && base.MultipleClusters() {
+					assert.Assert(t, prv1 != nil)
+					prv = prv1
+					log.Print("Test running in multi-cluster mode")
+					t.Log("Multi-cluster test")
+				}
 				var err error
-				for _, ctx := range []*base.ClusterContext{pub1, pub2} {
+				for _, ctx := range allContexts {
+					if ctx == nil {
+						continue
+					}
 					if item.noCRD {
 						var changed bool
 						changed, err = removeCrd(ctx)
@@ -365,7 +419,7 @@ func TestPolicies(t *testing.T) {
 						t.Fatalf("failed to remove policies on %v: %v", ctx, err)
 					}
 				}
-				item.function(t, pub1, pub2)
+				item.function(t, pub, prv)
 			})
 			base.StopIfInterrupted(t)
 		}

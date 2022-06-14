@@ -43,7 +43,7 @@
 // The runner is structured as follows:
 //
 //     policyTestRunner (keepPolicies bool, background policies, contextMap)
-//       []policyTestCase (just a name and a set of steps)
+//       []policyTestCase (just a name and a set of steps, optionally a skip function)
 //         []policyTestStep (a name and all the actual configuration of the test: what to execute and how)
 //             preHook
 //             policies
@@ -72,9 +72,11 @@
 // cluster associated with the respective context, that cluster may be the same
 // or a different cluster.
 //
-// If you create policies that affect namespaces on both clusters, you'll have
-// to either check base.MultipleClusters() or create the policies in such a way
-// that the test works on both situations.
+// For each test, there is a configuration on main_test.go that identifies
+// whether it can be run on a multi-cluster environment or not.  When creating
+// new tests, define how it will be have and configure it accordingly; when
+// updating tests, check how it is configured and try to ensure the new or
+// changed tests maintain that behavior.
 //
 package hello_policy
 
@@ -82,33 +84,20 @@ package hello_policy
 //
 // Pre-merge (priority on top)
 // - Document
-//   - The whole (how do things fit together)
-//   - The items (each test file)
 //   - Rationale for individual test cases/steps
 // - Stop at start if CRD already present (avoid changing pre-existing policies); update CI
-// - Review Fernando's PR
-//   - Better CRD removal at the end; check that two contexts point to the same cluster
+// - Better CRD removal at the end; check that two contexts point to the same cluster
 // - Check TODO across the code
-// - Check 'ExpectAuthError': change name to 'Expect no service'?
-// - Add GETs, make test overal less flaky
-// - Reorganize test calling from main_test
-// - Ensure it works with upstream CI (especially host checking)
-// - Check on status for multicluster checking
 // - Re-implement hello_world using runner, composing functions
-// - Dump, capture debug info on errors
-// - List points where I could get help for better solutions (../../../../.../crd)
 //
 // Post-merge (priority on top)
-// - Confirm 'not-bound' checks are really checking services for not being bound
 // - Check for tests that need better finish
 //   - AllowedOutgoingLinksHostnames
 //     - Cross testing (claim on router and vice versa)
 //     - full setup checking (create service and expose; check they appear/disappear; perhaps even curl the service)
 //     - different removals and reinstates of policy (actual removal, changed namespace list)
-// - Define how specific-issue (reproducer) tests are going to be handled
 // - Non-admin skupper init
 // - Non-admin user (or: use admin only for CRD/CR, init)
-// - Review test structure.  In special repeated items (test_name#01)
 // - Check test coverage (specific image and all)
 // - Additional tests: gateway, annotation, upgrade, console
 // - Operator + config map

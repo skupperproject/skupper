@@ -6,7 +6,6 @@
 //   - policy destroys link on source - rebuild
 //   - policy destroys link on dest - ??
 // - "Not authorized service" on skupper service status
-// - t.Run names (standard, Polarion)
 // - Enhance to include annotation-based exposing
 // - Console
 // - Re-write to use the runner
@@ -501,11 +500,11 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 	if err != nil {
 		t.Fatalf("CRD removal failed; the test cannot proceed: %v", err)
 	}
-	t.Run("No CRD, all works", func(t *testing.T) { cli.RunScenarios(t, mainSteps) })
-	t.Run("Re-expose service, for next test", func(t *testing.T) { cli.RunScenarios(t, []cli.TestScenario{exposeSteps}) })
+	t.Run("No-CRD--all-works", func(t *testing.T) { cli.RunScenarios(t, mainSteps) })
+	t.Run("Re-expose-service--for-next-test", func(t *testing.T) { cli.RunScenarios(t, []cli.TestScenario{exposeSteps}) })
 	applyCrd(pub1)
 	// TODO: can this run in parallel?
-	t.Run("CRD added and no policy, all comes down", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameDown) })
+	t.Run("CRD-added-and-no-policy--all-comes-down", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameDown) })
 	log.Print("Removing CRD again, some resources should come back up")
 	changed, err := removeCrd(pub1)
 	if err != nil {
@@ -515,7 +514,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 		t.Errorf("CRD removal didn't fail, but also didn't change anything.  Something is probably off")
 	}
 	// TODO: can this run in parallel?
-	t.Run("CRD removed, link should come back up", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameBackUp) })
+	t.Run("CRD-removed--link-should-come-back-up", func(t *testing.T) { cli.RunScenarios(t, checkStuffCameBackUp) })
 	t.Run("closing", func(t *testing.T) { cli.RunScenariosParallel(t, deleteSteps) })
 
 }

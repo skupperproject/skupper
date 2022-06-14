@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-// This indicates that an interrupt signal has been received at least
-// once.  Functions can access it directly to check whether they should
-// continue, or call StopIfInterrupted (if they have t *testing.T)
+// This indicates that an interrupt signal has been received at least once.
+// Functions can access it using IsTestInterrupted() to check whether they
+// should continue, or call StopIfInterrupted (if they have t *testing.T)
 var userInterrupted bool
 
 // HandleInterruptSignal runs the given fn in case

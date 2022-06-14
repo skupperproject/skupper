@@ -157,10 +157,6 @@ func RunSkupperCli(args []string) (string, string, error) {
 	ctx, fn := context.WithTimeout(context.TODO(), commandTimeout)
 	defer fn()
 
-	// TODO:
-	// - Dry run: SKUPPER_TEST_CLI_DRY_RUN: only print the commands
-	// - call main(): (instead of exec) allow for checking coverage
-
 	// Preparing the command to run
 	cmd := exec.CommandContext(ctx, SkupperBinary, args...)
 	cmd.Stdout = stdout

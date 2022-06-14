@@ -90,17 +90,6 @@ func (cc *ClusterContext) LabelNamespace(label string, value string) (err error)
 	return
 }
 
-// TODO: UNUSED.  Remove
-func (cc *ClusterContext) GetNamespace() (ns *apiv1.Namespace, err error) {
-	if !cc.nsCreated {
-		log.Printf("namespace [%s] was not created by ClusterContext, getting reference anyway", cc.Namespace)
-	}
-	ns, err = cc.VanClient.KubeClient.CoreV1().Namespaces().Get(cc.Namespace, metav1.GetOptions{})
-
-	return
-
-}
-
 func (cc *ClusterContext) waitForSkupperServiceToBeCreated(name string, retryFn func() (*apiv1.Service, error), backoff wait.Backoff) (*apiv1.Service, error) {
 	var service *apiv1.Service = nil
 	var err error
