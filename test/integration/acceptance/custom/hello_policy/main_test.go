@@ -143,7 +143,7 @@ func setup(t *testing.T) (pub1, pub2, prv1 *base.ClusterContext) {
 			PrivateClusters: privateCount,
 		}
 		if err := testRunner.Validate(needs); err != nil {
-			t.Skipf("%s", err)
+			t.Fatalf("%s", err)
 		}
 		_, err = testRunner.Build(needs, nil)
 		assert.Assert(t, err)
@@ -390,7 +390,6 @@ func TestPolicies(t *testing.T) {
 				if item.useMulti && base.MultipleClusters() {
 					assert.Assert(t, prv1 != nil)
 					prv = prv1
-					log.Print("Test running in multi-cluster mode")
 					t.Log("Multi-cluster test")
 				}
 				var err error
