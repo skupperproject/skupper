@@ -69,6 +69,10 @@ type ControllerOptions struct {
 	LoadBalancerIp     string
 }
 
+type ConfigSyncOptions struct {
+	Tuning
+}
+
 type SiteConfigSpec struct {
 	SkupperName         string
 	SkupperNamespace    string
@@ -92,6 +96,7 @@ type SiteConfigSpec struct {
 	Labels              map[string]string
 	Router              RouterOptions
 	Controller          ControllerOptions
+	ConfigSync          ConfigSyncOptions
 }
 
 const (

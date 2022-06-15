@@ -182,3 +182,61 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 	os.Exit(m.Run())
 }
+
+func TestSkupperInitConfigSyncParseArgs(t *testing.T) {
+	cmd := NewCmdInit(nil)
+
+	assert.Assert(t, cmd.ParseFlags([]string{}))
+	assert.Equal(t, routerCreateOpts.ConfigSync.Cpu, "")
+	assert.Equal(t, routerCreateOpts.ConfigSync.CpuLimit, "")
+	assert.Equal(t, routerCreateOpts.ConfigSync.Memory, "")
+	assert.Equal(t, routerCreateOpts.ConfigSync.MemoryLimit, "")
+	assert.Equal(t, routerCreateOpts.Controller.NodeSelector, "")
+	assert.Equal(t, routerCreateOpts.Controller.Affinity, "")
+	assert.Equal(t, routerCreateOpts.Controller.AntiAffinity, "")
+
+	cmdArgs := []string{"--config-sync-cpu", "1", "--config-sync-memory", "2G", "--config-sync-cpu-limit", "2", "--config-sync-memory-limit", "3G"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, routerCreateOpts.ConfigSync.Cpu, "1")
+	assert.Equal(t, routerCreateOpts.ConfigSync.CpuLimit, "2")
+	assert.Equal(t, routerCreateOpts.ConfigSync.Memory, "2G")
+	assert.Equal(t, routerCreateOpts.ConfigSync.MemoryLimit, "3G")
+	assert.Equal(t, routerCreateOpts.Controller.NodeSelector, "")
+	assert.Equal(t, routerCreateOpts.Controller.Affinity, "")
+	assert.Equal(t, routerCreateOpts.Controller.AntiAffinity, "")
+
+}
+
+func TestSkupperInitControllerParseArgs(t *testing.T) {
+	cmd := NewCmdInit(nil)
+
+	assert.Assert(t, cmd.ParseFlags([]string{}))
+	assert.Equal(t, routerCreateOpts.Controller.Cpu, "")
+	assert.Equal(t, routerCreateOpts.Controller.CpuLimit, "")
+	assert.Equal(t, routerCreateOpts.Controller.Memory, "")
+	assert.Equal(t, routerCreateOpts.Controller.MemoryLimit, "")
+	assert.Equal(t, routerCreateOpts.Controller.NodeSelector, "")
+	assert.Equal(t, routerCreateOpts.Controller.Affinity, "")
+	assert.Equal(t, routerCreateOpts.Controller.AntiAffinity, "")
+
+	assert.Equal(t, routerCreateOpts.Controller.IngressHost, "")
+	assert.Equal(t, len(routerCreateOpts.Controller.ServiceAnnotations), 0)
+	assert.Equal(t, routerCreateOpts.Controller.LoadBalancerIp, "")
+
+	cmdArgs := []string{"--controller-cpu", "1", "--controller-memory", "2G", "--controller-cpu-limit", "2", "--controller-memory-limit", "3G"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, routerCreateOpts.Controller.Cpu, "1")
+	assert.Equal(t, routerCreateOpts.Controller.CpuLimit, "2")
+	assert.Equal(t, routerCreateOpts.Controller.Memory, "2G")
+	assert.Equal(t, routerCreateOpts.Controller.MemoryLimit, "3G")
+	assert.Equal(t, routerCreateOpts.Controller.NodeSelector, "")
+	assert.Equal(t, routerCreateOpts.Controller.Affinity, "")
+	assert.Equal(t, routerCreateOpts.Controller.AntiAffinity, "")
+
+	assert.Equal(t, routerCreateOpts.Controller.IngressHost, "")
+	assert.Equal(t, len(routerCreateOpts.Controller.ServiceAnnotations), 0)
+	assert.Equal(t, routerCreateOpts.Controller.LoadBalancerIp, "")
+
+}

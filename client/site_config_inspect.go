@@ -229,6 +229,19 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		result.Spec.Controller.LoadBalancerIp = controllerServiceLoadBalancerIp
 	}
 
+	if configSyncCpu, ok := siteConfig.Data[SiteConfigConfigSyncCpuKey]; ok && configSyncCpu != "" {
+		result.Spec.ConfigSync.Cpu = configSyncCpu
+	}
+	if configSyncMemory, ok := siteConfig.Data[SiteConfigConfigSyncMemoryKey]; ok && configSyncMemory != "" {
+		result.Spec.ConfigSync.Memory = configSyncMemory
+	}
+	if configSyncCpuLimit, ok := siteConfig.Data[SiteConfigConfigSyncCpuLimitKey]; ok && configSyncCpuLimit != "" {
+		result.Spec.ConfigSync.CpuLimit = configSyncCpuLimit
+	}
+	if configSyncMemoryLimit, ok := siteConfig.Data[SiteConfigConfigSyncMemoryLimitKey]; ok && configSyncMemoryLimit != "" {
+		result.Spec.ConfigSync.MemoryLimit = configSyncMemoryLimit
+	}
+
 	annotationExclusions := []string{}
 	labelExclusions := []string{}
 	annotations := map[string]string{}

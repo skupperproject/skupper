@@ -675,9 +675,17 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.Transport.Ports = ports
 
-	sidecars := []*corev1.Container{
-		ConfigSyncContainer(),
+	err = configureDeployment(&van.ConfigSync, &options.ConfigSync.Tuning)
+	if err != nil {
+		fmt.Println("Error configuring config-sync sidecar:", err)
 	}
+
+	van.ConfigSync.Image = GetConfigSyncImageDetails()
+
+	sidecars := []*corev1.Container{
+		kube.ContainerForConfigSync(van.ConfigSync),
+	}
+
 	volumes := []corev1.Volume{}
 	mounts := make([][]corev1.VolumeMount, 2)
 	kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.LocalServerSecret, "/etc/skupper-router-certs/skupper-amqps/")

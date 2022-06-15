@@ -60,3 +60,14 @@ func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
 	setResourceRequests(&container, &ds)
 	return container
 }
+
+func ContainerForConfigSync(ds types.DeploymentSpec) *corev1.Container {
+	container := corev1.Container{
+		Image:           ds.Image.Name,
+		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
+		Name:            types.ConfigSyncContainerName,
+	}
+
+	setResourceRequests(&container, &ds)
+	return &container
+}
