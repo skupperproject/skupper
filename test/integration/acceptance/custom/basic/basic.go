@@ -121,10 +121,12 @@ func (r *BasicTestRunner) Delete(ctx context.Context, t *testing.T) {
 	pub1Cluster, _ := r.GetPublicContext(1)
 	prv1Cluster, _ := r.GetPrivateContext(1)
 	if err := pub1Cluster.VanClient.SiteConfigRemove(ctx); err != nil {
-		_ = pub1Cluster.VanClient.RouterRemove(ctx)
+		t.Logf("error removing site config: %v", err)
+		t.Logf("removing router - err: %v", pub1Cluster.VanClient.RouterRemove(ctx))
 	}
 	if err := prv1Cluster.VanClient.SiteConfigRemove(ctx); err != nil {
-		_ = prv1Cluster.VanClient.RouterRemove(ctx)
+		t.Logf("error removing site config: %v", err)
+		t.Logf("removing router - err: %v", prv1Cluster.VanClient.RouterRemove(ctx))
 	}
 	waitNoPods := func(componentSelector string, cluster *base.ClusterContext) error {
 		return utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
