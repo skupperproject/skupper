@@ -19,6 +19,11 @@ read by any actual Gherkin system (behave or cucumber).
 Instead, they're just a standardized way to write test cases before the actual
 code can be written.
 
+Note, however, that these files are incomplete and do not reflect the current
+set of tests.  They were useful for the initial design of the tests, but were
+neve completed.  See this [discussion](https://github.com/skupperproject/skupper/pull/784#discussion_r901791250)
+for details.
+
 # General questions
 
 # Priorities

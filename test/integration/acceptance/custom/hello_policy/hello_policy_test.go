@@ -94,12 +94,13 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 					SiteName:       "private",
 					ConnectedSites: 1,
 				},
-				// skupper link status - testing all links
+				// skupper link status
+				// TODO: remove Name, address #801, move this below next one and replicate in original Hello World
 				&link.StatusTester{
 					Name:   "public",
 					Active: true,
 				},
-				// skupper link status - now using link name and a 10 secs wait
+				// skupper link status - now using a 10 secs wait
 				&link.StatusTester{
 					Name:   "public",
 					Active: true,

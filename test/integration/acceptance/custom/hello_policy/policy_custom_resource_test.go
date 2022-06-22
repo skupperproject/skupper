@@ -143,7 +143,7 @@ func listPolicies(cluster *base.ClusterContext) (list *skupperv1.SkupperClusterP
 
 // Removes all policies in the cluster, except for those that match any
 // of the provided regexp patterns.
-func keepPolicies(cluster *base.ClusterContext, patterns []regexp.Regexp) (err error) {
+func removeAllPoliciesExcept(cluster *base.ClusterContext, exceptions []regexp.Regexp) (err error) {
 
 	policyList := []string{}
 
@@ -154,7 +154,7 @@ func keepPolicies(cluster *base.ClusterContext, patterns []regexp.Regexp) (err e
 
 	for _, item := range list.Items {
 		var matched bool
-		for _, re := range patterns {
+		for _, re := range exceptions {
 			if re.MatchString(item.Name) {
 				matched = true
 				break

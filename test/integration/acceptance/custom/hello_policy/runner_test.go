@@ -86,11 +86,11 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 
 	for _, testCase := range r.testCases {
 		if !r.keepPolicies {
-			err = keepPolicies(pub, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
+			err = removeAllPoliciesExcept(pub, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
 			if err != nil {
 				t.Fatalf("Failed removing or preserving policies: %v", err)
 			}
-			err = keepPolicies(prv, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
+			err = removeAllPoliciesExcept(prv, []regexp.Regexp{*regexp.MustCompile("^background-.*")})
 			if err != nil {
 				t.Fatalf("Failed removing or preserving policies: %v", err)
 			}

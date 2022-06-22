@@ -58,7 +58,10 @@ func (cc *ClusterContext) CreateNamespace() error {
 			log.Printf("Reusing existing namespace %v", cc.Namespace)
 			cc.nsCreated = true
 		}
-		return nil
+		if ns == nil {
+			return fmt.Errorf("Namespace %v did not exist and namespace creation skipping was requested", cc.Namespace)
+		}
+		return err
 	}
 	_, err := kube.NewNamespace(cc.Namespace, cc.VanClient.KubeClient)
 	if err == nil {
