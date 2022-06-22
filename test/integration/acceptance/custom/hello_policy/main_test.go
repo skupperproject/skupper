@@ -228,7 +228,7 @@ func TestPolicies(t *testing.T) {
 			} else {
 				for i, context := range allContexts {
 					if context == nil {
-						log.Printf("Context #%v is nil; skipping", i)
+						log.Printf("Context #%v is nil; skipping policy teardown", i)
 						break
 					}
 					wg.Add(1)
@@ -298,7 +298,7 @@ func TestPolicies(t *testing.T) {
 			} else {
 				for i, context := range allContexts {
 					if context == nil {
-						log.Printf("Context #%v is nil; skipping", i)
+						log.Printf("Context #%v is nil; skipping namespace removal", i)
 						break
 					}
 					wg.Add(1)

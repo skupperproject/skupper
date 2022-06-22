@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"html/template"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/skupperproject/skupper/client"
@@ -339,7 +339,7 @@ func (s policyTestStep) applyPolicies(t *testing.T, pub, prv *base.ClusterContex
 }
 
 // Templates each of the strings using the map c, and return the result
-func templateStringList(l []string, c map[string]string) ([]string, error) {
+func templateStringList(c map[string]string, l ...string) ([]string, error) {
 	if len(l) == 0 {
 		return l, nil
 	}
@@ -367,19 +367,19 @@ func templatePolicySpec(p skupperv1.SkupperClusterPolicySpec, c map[string]strin
 		return p, nil
 	}
 
-	namespaces, err := templateStringList(p.Namespaces, c)
+	namespaces, err := templateStringList(c, p.Namespaces...)
 	if err != nil {
 		return p, err
 	}
-	allowedOutgoingLinksHostnames, err := templateStringList(p.AllowedOutgoingLinksHostnames, c)
+	allowedOutgoingLinksHostnames, err := templateStringList(c, p.AllowedOutgoingLinksHostnames...)
 	if err != nil {
 		return p, err
 	}
-	allowedExposedResources, err := templateStringList(p.AllowedExposedResources, c)
+	allowedExposedResources, err := templateStringList(c, p.AllowedExposedResources...)
 	if err != nil {
 		return p, err
 	}
-	allowedServices, err := templateStringList(p.AllowedServices, c)
+	allowedServices, err := templateStringList(c, p.AllowedServices...)
 	if err != nil {
 		return p, err
 	}
@@ -546,7 +546,7 @@ func (p policyGetCheck) check(contextMap map[string]string) (ok bool, err error)
 			continue
 		}
 		// Template the list, in case we want to get something from the context
-		templatedList, err := templateStringList(list.list, contextMap)
+		templatedList, err := templateStringList(contextMap, list.list...)
 		if err != nil {
 			log.Printf("Failed templating %v: %v", list.name, err)
 			return false, err
@@ -584,7 +584,7 @@ func (p policyGetCheck) check(contextMap map[string]string) (ok bool, err error)
 	}
 	for _, resourceItem := range resourceItems {
 		// Template the list, in case we want to get something from the context
-		templatedList, err := templateStringList(resourceItem.list, contextMap)
+		templatedList, err := templateStringList(contextMap, resourceItem.list...)
 		if err != nil {
 			log.Printf("Failed templating exposed resources (%v): %v", resourceItem.allow, err)
 			return false, err

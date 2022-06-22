@@ -168,9 +168,9 @@ namespaces make no changes on a given namespace, and that changes specific
 to a namespace do not affect others.
 
 Note that label selection items are the only place on the policy system that
-behaves with an `AND` nature:  all given labels (in an item in the list) must
-apply to a namespace for that label selection to apply.  This should be
-Kubernetes work to ensure.
+behave with an `AND` nature:  all selectors in a given selector string must
+apply to a namespace for that item to apply.  That, however, is [handled by
+Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors).
 
 * test multiple labels in a single item (AND-behavior)
 * test single labels in multiple items (OR-behavior)

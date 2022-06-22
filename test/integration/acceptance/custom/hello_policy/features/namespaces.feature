@@ -14,8 +14,8 @@ Feature: namespace selection
 
   For string list, it tests `allowedServices`
 
-  Questions: 
-  - What would `namespaces: []` mean?  Would it mean that the policy does not apply to anything?
+  Note that an empty namespace list (`namespaces: []`) is a valid selection,
+  which applies to no namespaces at all, making the policy a no-op.
 
   Test factors:
   - namespace selection

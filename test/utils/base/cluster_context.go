@@ -72,6 +72,10 @@ func (cc *ClusterContext) DeleteNamespace() error {
 		log.Printf("namespace [%s] will not be deleted as it was not created by ClusterContext", cc.Namespace)
 		return nil
 	}
+	if ShouldSkipNamespaceTeardown() {
+		log.Print("Skipping namespace tear down, per env variables")
+		return nil
+	}
 	if err := k8s.DeleteNamespaceAndWait(cc.VanClient.KubeClient, cc.Namespace); err != nil {
 		return err
 	}

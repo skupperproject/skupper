@@ -33,11 +33,11 @@ const (
 
 	// If defined, the status commands will try at most this number of
 	// attempts (an int).  Otherwise, they'll fail only on the timeout.
-	ENV_MAX_STATUS_ATTEMPTS = "SKUPPER_TEST_MAX_STATUS_ATTEMPTS"
+	ENV_CLI_MAX_STATUS_ATTEMPTS = "SKUPPER_TEST_CLI_MAX_STATUS_ATTEMPTS"
 
 	// If defined, both stdout and stderr of all issued skupper commands
 	// will be shown on the test output, even if they did not fail
-	ENV_VERBOSE_COMMANDS = "SKUPPER_TEST_VERBOSE_COMMANDS"
+	ENV_CLI_VERBOSE_COMMANDS = "SKUPPER_TEST_CLI_VERBOSE_COMMANDS"
 )
 
 // General
@@ -50,7 +50,7 @@ const (
 	// Skips the teardown of namespaces.  Used during testing development,
 	// to leave a test setup behind for semi-automated testing, or for
 	// speeding up test runs
-	ENV_SKIP_NAMESPACE_TEARDONW = "SKUPPER_TEST_SKIP_NAMESPACE_TEARDOWN"
+	ENV_SKIP_NAMESPACE_TEARDOWN = "SKUPPER_TEST_SKIP_NAMESPACE_TEARDOWN"
 
 	// Individual tests may be marked as issue-related and will be
 	// skipped on the normal runs.  Setting this variable will include
@@ -93,7 +93,7 @@ func ShouldSkipNamespaceSetup() bool {
 }
 
 func ShouldSkipNamespaceTeardown() bool {
-	_, found := os.LookupEnv(ENV_SKIP_NAMESPACE_TEARDONW)
+	_, found := os.LookupEnv(ENV_SKIP_NAMESPACE_TEARDOWN)
 	return found
 }
 
@@ -108,7 +108,7 @@ func ShouldSkipPolicySetup() bool {
 }
 
 func IsVerboseCommandOutput() bool {
-	_, showVerbose := os.LookupEnv(ENV_VERBOSE_COMMANDS)
+	_, showVerbose := os.LookupEnv(ENV_CLI_VERBOSE_COMMANDS)
 	return showVerbose
 }
 
@@ -138,7 +138,7 @@ func PostPolicyChangeSleep() {
 // they reach their timeout)
 func IsMaxStatusAttemptsReached(currentAttempt int) bool {
 
-	envMax := os.Getenv(ENV_MAX_STATUS_ATTEMPTS)
+	envMax := os.Getenv(ENV_CLI_MAX_STATUS_ATTEMPTS)
 
 	max, err := strconv.Atoi(envMax)
 
