@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/test/utils/base"
-	"gotest.tools/assert"
 )
 
 const (
@@ -82,68 +81,86 @@ func RunScenario(scenario TestScenario) (string, string, error) {
 	return stdout, stderr, nil
 }
 
-func RunScenarios(t *testing.T, scenarios []TestScenario) {
+// This is a wrapper to RunScenario, that additionally
+//
+// - calls t.Parallel() as required, and
+// - logs stdout/stderr in case of errors
+//
+// Note this behaves like t.Run() when parallel is true: a return of 'true'
+// declares only that the test did not fail before running t.Parallel(), which
+// is the first thing it does.
+func runScenario(t *testing.T, scenario TestScenario, parallel bool) bool {
 	var stdout, stderr string
 	var err error
 
-	if len(scenarios) > 1 {
-		log.Print("Scenario set outline:")
-		for i, scenario := range scenarios {
-			log.Printf("%2d - %v", i, scenario.Name)
+	passed := t.Run(scenario.Name, func(t *testing.T) {
+		if parallel && base.ShouldRunScenariosInParallel() {
+			t.Parallel()
 		}
-	}
-
-	// Running the scenarios
-	for _, scenario := range scenarios {
-		passed := t.Run(scenario.Name, func(t *testing.T) {
-			stdout, stderr, err = RunScenario(scenario)
-			assert.Assert(t, err)
-		})
-		if !passed {
+		stdout, stderr, err = RunScenario(scenario)
+		if err != nil {
 			log.Printf("%s has failed, exiting", scenario.Name)
 			log.Printf("STDOUT:\n%s", stdout)
 			log.Printf("STDERR:\n%s", stderr)
-			break
+			t.Fatalf("Error: %v", err)
 		}
-	}
+	})
+	return passed
+
+}
+
+func RunScenarios(t *testing.T, scenarios []TestScenario) {
+	runScenarios(t, scenarios, false)
 }
 
 // Runs a list of []TestScenario in parallel.  Each scenario will run in
 // parallel to the other.  However, the RunScenariosParallel call will only
 // return when all of them finish.  This allows the caller function to do
-// other in-test steps that depend on the RunScenariosParallel items finishing.
+// further test steps that depend on the RunScenariosParallel items finishing.
 //
 // To implement and signify that in the output, the steps are enclosed in a
 // test called simply 'parallel'.
 func RunScenariosParallel(t *testing.T, scenarios []TestScenario) {
-	var stdout, stderr string
-	var err error
+	runScenarios(t, scenarios, true)
+}
 
-	t.Run("parallel", func(t *testing.T) {
-		log.Print("Parallel scenario set outline:")
-		for i, scenario := range scenarios {
-			log.Printf("%2d - %v", i, scenario.Name)
+// Runs each of the given scenarios, setting up parallelism as requested, and
+// logging a scenario set outline (whenever the run is parallel or the number
+// of scenarios is greater than one)
+func runScenarios(t *testing.T, scenarios []TestScenario, parallel bool) {
+
+	var scenarioType string
+
+	if parallel {
+		scenarioType = "Parallel scenario"
+	} else {
+		scenarioType = "Scenario"
+	}
+
+	work := func(t *testing.T) {
+		if parallel || len(scenarios) > 1 {
+			log.Printf("%v set outline:", scenarioType)
+			for i, scenario := range scenarios {
+				log.Printf("%2d - %v", i, scenario.Name)
+			}
 		}
 
 		// Running the scenarios
 		for _, scenario := range scenarios {
-			// Make those local, so each run of the closure uses its own version
-			scenario, stdout, stderr, err := scenario, stdout, stderr, err
-			passed := t.Run(scenario.Name, func(t *testing.T) {
-				if base.ShouldRunScenariosInParallel() {
-					t.Parallel()
-				}
-				stdout, stderr, err = RunScenario(scenario)
-				assert.Assert(t, err)
-			})
+			passed := runScenario(t, scenario, parallel)
 			if !passed {
-				log.Printf("%s has failed, exiting", scenario.Name)
-				log.Printf("STDOUT:\n%s", stdout)
-				log.Printf("STDERR:\n%s", stderr)
 				break
 			}
 		}
-	})
+	}
+
+	if parallel {
+		// group parallel scenarios within a subtest named 'parallel'
+		t.Run("parallel", work)
+	} else {
+		work(t)
+	}
+
 }
 
 // RunSkupperCli executes the skupper binary (assuming it is available
