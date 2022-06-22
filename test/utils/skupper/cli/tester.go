@@ -81,34 +81,6 @@ func RunScenario(scenario TestScenario) (string, string, error) {
 	return stdout, stderr, nil
 }
 
-// This is a wrapper to RunScenario, that additionally
-//
-// - calls t.Parallel() as required, and
-// - logs stdout/stderr in case of errors
-//
-// Note this behaves like t.Run() when parallel is true: a return of 'true'
-// declares only that the test did not fail before running t.Parallel(), which
-// is the first thing it does.
-func runScenario(t *testing.T, scenario TestScenario, parallel bool) bool {
-	var stdout, stderr string
-	var err error
-
-	passed := t.Run(scenario.Name, func(t *testing.T) {
-		if parallel && base.ShouldRunScenariosInParallel() {
-			t.Parallel()
-		}
-		stdout, stderr, err = RunScenario(scenario)
-		if err != nil {
-			log.Printf("%s has failed, exiting", scenario.Name)
-			log.Printf("STDOUT:\n%s", stdout)
-			log.Printf("STDERR:\n%s", stderr)
-			t.Fatalf("Error: %v", err)
-		}
-	})
-	return passed
-
-}
-
 func RunScenarios(t *testing.T, scenarios []TestScenario) {
 	runScenarios(t, scenarios, false)
 }
@@ -147,7 +119,20 @@ func runScenarios(t *testing.T, scenarios []TestScenario, parallel bool) {
 
 		// Running the scenarios
 		for _, scenario := range scenarios {
-			passed := runScenario(t, scenario, parallel)
+
+			scenario := scenario
+			passed := t.Run(scenario.Name, func(t *testing.T) {
+				if parallel && base.ShouldRunScenariosInParallel() {
+					t.Parallel()
+				}
+				stdout, stderr, err := RunScenario(scenario)
+				if err != nil {
+					log.Printf("%s has failed, exiting", scenario.Name)
+					log.Printf("STDOUT:\n%s", stdout)
+					log.Printf("STDERR:\n%s", stderr)
+					t.Fatalf("Error: %v", err)
+				}
+			})
 			if !passed {
 				break
 			}
@@ -155,7 +140,9 @@ func runScenarios(t *testing.T, scenarios []TestScenario, parallel bool) {
 	}
 
 	if parallel {
-		// group parallel scenarios within a subtest named 'parallel'
+		// Group parallel scenarios within a subtest named 'parallel'
+		// This helps better undestand the logs and is required for the
+		// scenario set to finish only once all parallel scenarios have.
 		t.Run("parallel", work)
 	} else {
 		work(t)
