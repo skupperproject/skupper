@@ -77,6 +77,10 @@ type ConfigSyncOptions struct {
 	Tuning
 }
 
+type FlowCollectorOptions struct {
+	Tuning
+}
+
 type SiteConfigSpec struct {
 	SkupperName         string
 	SkupperNamespace    string
@@ -85,6 +89,7 @@ type SiteConfigSpec struct {
 	EnableController    bool
 	EnableServiceSync   bool
 	EnableConsole       bool
+	EnableFlowCollector bool
 	AuthMode            string
 	User                string
 	Password            string
@@ -100,6 +105,7 @@ type SiteConfigSpec struct {
 	Router              RouterOptions
 	Controller          ControllerOptions
 	ConfigSync          ConfigSyncOptions
+	FlowCollector       FlowCollectorOptions
 	Platform            Platform
 }
 

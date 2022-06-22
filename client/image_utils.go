@@ -1,19 +1,22 @@
 package client
 
 import (
-	"github.com/skupperproject/skupper/api/types"
-	corev1 "k8s.io/api/core/v1"
 	"os"
 	"strings"
+
+	"github.com/skupperproject/skupper/api/types"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
 	RouterImageEnvKey                 string = "QDROUTERD_IMAGE"
 	ServiceControllerImageEnvKey      string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
 	ConfigSyncImageEnvKey             string = "SKUPPER_CONFIG_SYNC_IMAGE"
+	FlowCollectorImageEnvKey          string = "SKUPPER_VFLOW_COLLECTOR_IMAGE"
 	RouterPullPolicyEnvKey            string = "QDROUTERD_IMAGE_PULL_POLICY"
 	ServiceControllerPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
 	ConfigSyncPullPolicyEnvKey        string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
+	FlowCollectorPullPolicyEnvKey     string = "SKUPPER_VFLOW_COLLECTOR_IMAGE_PULL_POLICY"
 	SkupperImageRegistryEnvKey        string = "SKUPPER_IMAGE_REGISTRY"
 )
 
@@ -100,6 +103,27 @@ func GetConfigSyncImageName() string {
 
 func GetConfigSyncImagePullPolicy() string {
 	return getPullPolicy(ConfigSyncPullPolicyEnvKey)
+}
+
+func GetFlowCollectorImageName() string {
+	image := os.Getenv(FlowCollectorImageEnvKey)
+	if image == "" {
+		imageRegistry := GetImageRegistry()
+		return strings.Join([]string{imageRegistry, FlowCollectorImageName}, "/")
+	} else {
+		return image
+	}
+}
+
+func GetFlowCollectorImagePullPolicy() string {
+	return getPullPolicy(FlowCollectorPullPolicyEnvKey)
+}
+
+func GetFlowCollectorImageDetails() types.ImageDetails {
+	return types.ImageDetails{
+		Name:       GetFlowCollectorImageName(),
+		PullPolicy: GetFlowCollectorImagePullPolicy(),
+	}
 }
 
 func GetImageRegistry() string {

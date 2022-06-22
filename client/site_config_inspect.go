@@ -74,7 +74,12 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	if enableConsole, ok := siteConfig.Data[SiteConfigConsoleKey]; ok {
 		result.Spec.EnableConsole, _ = strconv.ParseBool(enableConsole)
 	} else {
-		result.Spec.EnableConsole = true
+		result.Spec.EnableConsole = false
+	}
+	if enableFlowCollector, ok := siteConfig.Data[SiteConfigFlowCollectorKey]; ok {
+		result.Spec.EnableFlowCollector, _ = strconv.ParseBool(enableFlowCollector)
+	} else {
+		result.Spec.EnableFlowCollector = false
 	}
 	if createNetworkPolicy, ok := siteConfig.Data[SiteConfigCreateNetworkPolicyKey]; ok {
 		result.Spec.CreateNetworkPolicy, _ = strconv.ParseBool(createNetworkPolicy)

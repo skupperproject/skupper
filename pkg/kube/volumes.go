@@ -51,7 +51,24 @@ func AppendSecretVolume(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, 
 	})
 }
 
-func AppendSharedVolume(volumes *[]corev1.Volume, mountsRouter *[]corev1.VolumeMount, mountsSidecar *[]corev1.VolumeMount, volumename string, path string) {
+func AppendSharedSecretVolume(volumes *[]corev1.Volume, mounts []*[]corev1.VolumeMount, name string, path string) {
+	*volumes = append(*volumes, corev1.Volume{
+		Name: name,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: name,
+			},
+		},
+	})
+	for _, mount := range mounts {
+		*mount = append(*mount, corev1.VolumeMount{
+			Name:      name,
+			MountPath: path,
+		})
+	}
+}
+
+func AppendSharedVolume(volumes *[]corev1.Volume, mounts []*[]corev1.VolumeMount, volumename string, path string) {
 
 	*volumes = append(*volumes, corev1.Volume{
 		Name: volumename,
@@ -60,17 +77,13 @@ func AppendSharedVolume(volumes *[]corev1.Volume, mountsRouter *[]corev1.VolumeM
 		},
 	})
 
-	*mountsRouter = append(*mountsRouter, corev1.VolumeMount{
-		Name:      volumename,
-		MountPath: path,
-		ReadOnly:  false,
-	})
-
-	*mountsSidecar = append(*mountsSidecar, corev1.VolumeMount{
-		Name:      volumename,
-		MountPath: path,
-		ReadOnly:  false,
-	})
+	for _, mount := range mounts {
+		*mount = append(*mount, corev1.VolumeMount{
+			Name:      volumename,
+			MountPath: path,
+			ReadOnly:  false,
+		})
+	}
 }
 
 func RemoveSecretVolumeForDeployment(name string, dep *appsv1.Deployment, index int) {

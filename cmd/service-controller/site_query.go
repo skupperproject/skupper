@@ -43,7 +43,7 @@ func newSiteQueryServer(cli *client.VanClient, config *tls.Config) *SiteQuerySer
 		client:    cli,
 		tlsConfig: config,
 		agentPool: qdr.NewAgentPool("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", config),
-		iplookup:  NewIpLookup(cli),
+		iplookup:  NewIpLookup(cli, nil),
 	}
 	sqs.getLocalSiteInfo()
 	sqs.server = qdr.NewRequestServer(getSiteQueryAddress(sqs.siteInfo.SiteId), &sqs, sqs.agentPool)

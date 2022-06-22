@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,7 +16,10 @@ import (
 
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
+	"github.com/skupperproject/skupper/pkg/flow"
 )
+
+type ProcessUpdateHandler func(deleted bool, name string, process *flow.ProcessRecord) error
 
 type IpLookup struct {
 	informer cache.SharedIndexInformer
@@ -22,9 +27,10 @@ type IpLookup struct {
 	lookup   map[string]string
 	reverse  map[string]string
 	lock     sync.RWMutex
+	handler  ProcessUpdateHandler
 }
 
-func NewIpLookup(cli *client.VanClient) *IpLookup {
+func NewIpLookup(cli *client.VanClient, handler ProcessUpdateHandler) *IpLookup {
 	informer := corev1informer.NewPodInformer(
 		cli.KubeClient,
 		cli.Namespace,
@@ -38,6 +44,7 @@ func NewIpLookup(cli *client.VanClient) *IpLookup {
 		events:   events,
 		lookup:   map[string]string{},
 		reverse:  map[string]string{},
+		handler:  handler,
 	}
 
 	informer.AddEventHandler(newEventHandlerFor(iplookup.events, "", SimpleKey, PodResourceVersionTest))
@@ -119,7 +126,6 @@ func (i *IpLookup) runIpLookup() {
 }
 
 func (i *IpLookup) processNextEvent() bool {
-
 	obj, shutdown := i.events.Get()
 
 	if shutdown {
@@ -145,8 +151,38 @@ func (i *IpLookup) processNextEvent() bool {
 					return fmt.Errorf("Expected Pod for %s but got %#v", key, obj)
 				}
 				i.updateLookup(pod.ObjectMeta.Name, key, pod.Status.PodIP)
+				if i.handler != nil {
+					process := &flow.ProcessRecord{}
+					process.Identity = string(pod.ObjectMeta.UID)
+					process.Parent = os.Getenv("SKUPPER_SITE_ID")
+					process.StartTime = uint64(pod.ObjectMeta.CreationTimestamp.UnixNano())
+					process.Name = &pod.ObjectMeta.Name
+					if pod.Status.PodIP != "" {
+						process.SourceHost = &pod.Status.PodIP
+					}
+					process.Image = &pod.Spec.Containers[0].Image
+					process.ImageName = process.Image
+					process.HostName = &pod.Spec.NodeName
+					if labelName, ok := pod.ObjectMeta.Labels["app.kubernetes.io/name"]; ok {
+						process.Group = &labelName
+					} else if labelComponent, ok := pod.ObjectMeta.Labels["app.kubernetes.io/component"]; ok {
+						process.Group = &labelComponent
+					} else if partOf, ok := pod.ObjectMeta.Labels["app.kubernetes.io/part-of"]; ok {
+						process.Group = &partOf
+					} else {
+						// generate process group from image name
+						parts := strings.Split(*process.ImageName, "/")
+						part := parts[len(parts)-1]
+						pg := strings.Split(part, ":")
+						process.Group = &pg[0]
+					}
+					i.handler(false, key, process)
+				}
 			} else {
 				ip := i.deleteLookup(key)
+				if i.handler != nil {
+					i.handler(true, key, nil)
+				}
 				if ip != "" {
 					event.Recordf(IpMappingEvent, "mapping for %s deleted", ip)
 				}

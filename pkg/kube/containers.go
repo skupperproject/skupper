@@ -71,3 +71,14 @@ func ContainerForConfigSync(ds types.DeploymentSpec) *corev1.Container {
 	setResourceRequests(&container, &ds)
 	return &container
 }
+
+func ContainerForFlowCollector(ds types.DeploymentSpec) *corev1.Container {
+	container := corev1.Container{
+		Image:           ds.Image.Name,
+		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
+		Name:            types.FlowCollectorContainerName,
+		Env:             ds.EnvVar,
+	}
+	setResourceRequests(&container, &ds)
+	return &container
+}

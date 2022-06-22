@@ -2,6 +2,7 @@ VERSION := $(shell git describe --tags --dirty=-modified --always)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
+FLOW_COLLECTOR_IMAGE := quay.io/skupper/vflow-collector
 TEST_IMAGE := quay.io/skupper/skupper-tests
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
@@ -24,15 +25,18 @@ build-get:
 	go build -ldflags="${LDFLAGS}"  -o get ./cmd/get
 
 build-service-controller:
-	go build -ldflags="${LDFLAGS}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/claim_verifier.go cmd/service-controller/token_handler.go cmd/service-controller/secret_controller.go cmd/service-controller/claim_handler.go cmd/service-controller/tokens.go cmd/service-controller/links.go cmd/service-controller/services.go cmd/service-controller/policies.go cmd/service-controller/policy_controller.go cmd/service-controller/revoke_access.go
+	go build -ldflags="${LDFLAGS}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/claim_verifier.go cmd/service-controller/token_handler.go cmd/service-controller/secret_controller.go cmd/service-controller/claim_handler.go cmd/service-controller/tokens.go cmd/service-controller/links.go cmd/service-controller/services.go cmd/service-controller/policies.go cmd/service-controller/policy_controller.go cmd/service-controller/revoke_access.go  cmd/service-controller/nodes.go
 
 build-site-controller:
 	go build -ldflags="${LDFLAGS}"  -o site-controller cmd/site-controller/main.go cmd/site-controller/controller.go
 
+build-flow-collector:
+	go build -ldflags="${LDFLAGS}"  -o flow-collector cmd/flow-collector/main.go cmd/flow-collector/controller.go cmd/flow-collector/handlers.go
+
 build-config-sync:
 	go build -ldflags="${LDFLAGS}"  -o config-sync cmd/config-sync/main.go cmd/config-sync/config_sync.go
 
-build-controllers: build-site-controller build-service-controller
+build-controllers: build-site-controller build-service-controller build-flow-collector
 
 docker-build-test-image:
 	${DOCKER} build -t ${TEST_IMAGE} -f Dockerfile.ci-test .
@@ -41,6 +45,7 @@ docker-build: docker-build-test-image
 	${DOCKER} build -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
 	${DOCKER} build -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
 	${DOCKER} build -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
+	${DOCKER} build -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
 
 docker-push-test-image:
 	${DOCKER} push ${TEST_IMAGE}
@@ -49,6 +54,7 @@ docker-push: docker-push-test-image
 	${DOCKER} push ${SERVICE_CONTROLLER_IMAGE}
 	${DOCKER} push ${SITE_CONTROLLER_IMAGE}
 	${DOCKER} push ${CONFIG_SYNC_IMAGE}
+	${DOCKER} push ${FLOW_COLLECTOR_IMAGE}
 
 format:
 	go fmt ./...

@@ -31,6 +31,13 @@ const (
 	SiteConfigConsolePasswordKey       string = "console-password"
 	SiteConfigConsoleIngressKey        string = "console-ingress"
 
+	// vFlow collector options
+	SiteConfigFlowCollectorKey            string = "vflow-collector"
+	SiteConfigFlowCollectorCpuKey         string = "vflow-collector-cpu"
+	SiteConfigFlowCollectorMemoryKey      string = "vflow-collector-memory"
+	SiteConfigFlowCollectorCpuLimitKey    string = "vflow-collector-cpu-limit"
+	SiteConfigFlowCollectorMemoryLimitKey string = "vflow-collector-memory-limit"
+
 	// router options
 	SiteConfigRouterConsoleKey            string = "router-console"
 	SiteConfigRouterLoggingKey            string = "router-logging"
@@ -86,6 +93,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			SiteConfigServiceControllerKey:     "true",
 			SiteConfigServiceSyncKey:           "true",
 			SiteConfigConsoleKey:               "true",
+			SiteConfigFlowCollectorKey:         "true",
 			SiteConfigRouterConsoleKey:         "false",
 			SiteConfigRouterLoggingKey:         "",
 			SiteConfigConsoleAuthenticationKey: types.ConsoleAuthModeInternal,
@@ -111,6 +119,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if !spec.EnableConsole {
 		siteConfig.Data[SiteConfigConsoleKey] = "false"
+	}
+	if !spec.EnableFlowCollector {
+		siteConfig.Data[SiteConfigFlowCollectorKey] = "false"
 	}
 	if spec.AuthMode != "" {
 		siteConfig.Data[SiteConfigConsoleAuthenticationKey] = spec.AuthMode
@@ -268,6 +279,31 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigConfigSyncMemoryLimitKey, spec.ConfigSync.MemoryLimit, err)
 		}
 		siteConfig.Data[SiteConfigConfigSyncMemoryLimitKey] = spec.ConfigSync.MemoryLimit
+	}
+
+	if spec.FlowCollector.Cpu != "" {
+		if _, err := resource.ParseQuantity(spec.FlowCollector.Cpu); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigFlowCollectorCpuKey, spec.FlowCollector.Cpu, err)
+		}
+		siteConfig.Data[SiteConfigFlowCollectorCpuKey] = spec.FlowCollector.Cpu
+	}
+	if spec.FlowCollector.Memory != "" {
+		if _, err := resource.ParseQuantity(spec.FlowCollector.Memory); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigFlowCollectorMemoryKey, spec.FlowCollector.Memory, err)
+		}
+		siteConfig.Data[SiteConfigFlowCollectorMemoryKey] = spec.FlowCollector.Memory
+	}
+	if spec.FlowCollector.CpuLimit != "" {
+		if _, err := resource.ParseQuantity(spec.FlowCollector.CpuLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigFlowCollectorCpuLimitKey, spec.FlowCollector.CpuLimit, err)
+		}
+		siteConfig.Data[SiteConfigFlowCollectorCpuLimitKey] = spec.FlowCollector.CpuLimit
+	}
+	if spec.FlowCollector.MemoryLimit != "" {
+		if _, err := resource.ParseQuantity(spec.FlowCollector.MemoryLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigFlowCollectorMemoryLimitKey, spec.FlowCollector.MemoryLimit, err)
+		}
+		siteConfig.Data[SiteConfigFlowCollectorMemoryLimitKey] = spec.FlowCollector.MemoryLimit
 	}
 
 	// TODO: allow Replicas to be set through skupper-site configmap?
