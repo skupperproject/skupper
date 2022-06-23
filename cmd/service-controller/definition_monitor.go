@@ -410,8 +410,8 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 			// selector, but if the service is already exposed (and pointing to
 			// the router) and the original selector annotation is available,
 			// use it instead so that the target will be the correct endpoint.
-			svcSelector := getApplicationSelector(service)
-			if hasRouterSelector(*service) && hasOriginalSelector(*service) {
+			svcSelector := kube.GetApplicationSelector(service)
+			if kube.HasRouterSelector(*service) && hasOriginalSelector(*service) {
 				svcSelector = service.Annotations[types.OriginalSelectorQualifier]
 			}
 			if svcSelector == "" {

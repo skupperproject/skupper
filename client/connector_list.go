@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
@@ -30,7 +31,7 @@ func getLinkStatus(s *corev1.Secret, edge bool, connections []qdr.Connection) ty
 			link.Url = fmt.Sprintf("%s:%s", s.ObjectMeta.Annotations["inter-router-host"], s.ObjectMeta.Annotations["inter-router-port"])
 		}
 		link.Configured = true
-		if connection := qdr.GetInterRouterOrEdgeConnection(link.Url, connections); connection != nil && connection.Active {
+		if connection := kubeqdr.GetInterRouterOrEdgeConnection(link.Url, connections); connection != nil && connection.Active {
 			link.Connected = true
 		}
 		if s.ObjectMeta.Labels[types.SkupperDisabledQualifier] == "true" {
@@ -65,7 +66,7 @@ func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, er
 		return links, err
 	}
 	edge := current.IsEdge()
-	connections, _ := qdr.GetConnections(cli.Namespace, cli.KubeClient, cli.RestConfig)
+	connections, _ := kubeqdr.GetConnections(cli.Namespace, cli.KubeClient, cli.RestConfig)
 	for _, s := range secrets.Items {
 		links = append(links, getLinkStatus(&s, edge, connections))
 	}
@@ -85,7 +86,7 @@ func (cli *VanClient) getLocalLinkStatus(namespace string, siteNameMap map[strin
 	}
 
 	edge := current.IsEdge()
-	connections, err := qdr.GetConnections(namespace, cli.KubeClient, cli.RestConfig)
+	connections, err := kubeqdr.GetConnections(namespace, cli.KubeClient, cli.RestConfig)
 	if err != nil {
 		return nil, err
 	}

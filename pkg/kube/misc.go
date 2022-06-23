@@ -16,6 +16,7 @@ package kube
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -126,4 +127,33 @@ func PortLabelStrToMap(portsStr string) map[int]int {
 		portMap[iPort] = tPort
 	}
 	return portMap
+}
+
+func SetAnnotation(o *metav1.ObjectMeta, key string, value string) {
+	if o.Annotations == nil {
+		o.Annotations = map[string]string{}
+	}
+	o.Annotations[key] = value
+}
+
+func SetLabel(o *metav1.ObjectMeta, key string, value string) {
+	if o.Labels == nil {
+		o.Labels = map[string]string{}
+	}
+	o.Labels[key] = value
+}
+
+func UpdateLabels(o *metav1.ObjectMeta, desired map[string]string) bool {
+	if reflect.DeepEqual(desired, o.Labels) {
+		return false
+	}
+	if o.Labels == nil {
+		o.Labels = desired
+	} else {
+		//note this only adds new labels, it never removes any (is that what is wanted?)
+		for k, v := range desired {
+			o.Labels[k] = v
+		}
+	}
+	return true
 }

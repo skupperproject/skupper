@@ -12,6 +12,22 @@ import (
 	"time"
 )
 
+type RouterNode struct {
+	Id      string `json:"id"`
+	Name    string `json:"name"`
+	NextHop string `json:"nextHop"`
+	Address string `json:"address"`
+}
+
+type Connection struct {
+	Container  string `json:"container"`
+	OperStatus string `json:"operStatus"`
+	Host       string `json:"host"`
+	Role       string `json:"role"`
+	Active     bool   `json:"active"`
+	Dir        string `json:"dir"`
+}
+
 type Agent struct {
 	connection *amqp.Client
 	session    *amqp.Session

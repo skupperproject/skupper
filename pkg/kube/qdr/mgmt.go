@@ -25,29 +25,14 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/qdr"
 )
-
-type RouterNode struct {
-	Id      string `json:"id"`
-	Name    string `json:"name"`
-	NextHop string `json:"nextHop"`
-	Address string `json:"address"`
-}
-
-type Connection struct {
-	Container  string `json:"container"`
-	OperStatus string `json:"operStatus"`
-	Host       string `json:"host"`
-	Role       string `json:"role"`
-	Active     bool   `json:"active"`
-	Dir        string `json:"dir"`
-}
 
 func getConnectedSitesFromNodesEdge(namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	direct := make(map[string]bool)
 	indirect := make(map[string]bool)
-	interiors := make(map[string]RouterNode)
+	interiors := make(map[string]qdr.RouterNode)
 
 	uplinks, err := getEdgeUplinkConnections(namespace, clientset, config)
 	if err != nil {
@@ -110,7 +95,7 @@ func getConnectedSitesFromNodesEdge(namespace string, clientset kubernetes.Inter
 	return result, nil
 }
 
-func getConnectedSitesFromNodesInterior(nodes []RouterNode, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
+func getConnectedSitesFromNodesInterior(nodes []qdr.RouterNode, namespace string, clientset kubernetes.Interface, config *restclient.Config) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	direct := make(map[string]bool)
 	indirect := make(map[string]bool)
@@ -203,17 +188,17 @@ func get_query_for_router(typename string, routerid string) []string {
 	return results
 }
 
-func GetNodes(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]RouterNode, error) {
+func GetNodes(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]qdr.RouterNode, error) {
 	return getNodesForRouter("", namespace, clientset, config)
 }
 
-func getNodesForRouter(routerid, namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]RouterNode, error) {
+func getNodesForRouter(routerid, namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]qdr.RouterNode, error) {
 	command := get_query_for_router("node", routerid)
 	buffer, err := router_exec(command, namespace, clientset, config)
 	if err != nil {
 		return nil, err
 	} else {
-		results := []RouterNode{}
+		results := []qdr.RouterNode{}
 		err = json.Unmarshal(buffer.Bytes(), &results)
 		if err != nil {
 			fmt.Println("Failed to parse JSON:", err, buffer.String())
@@ -224,7 +209,7 @@ func getNodesForRouter(routerid, namespace string, clientset kubernetes.Interfac
 	}
 }
 
-func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Connection {
+func GetInterRouterOrEdgeConnection(host string, connections []qdr.Connection) *qdr.Connection {
 	for _, c := range connections {
 		if (c.Role == "inter-router" || c.Role == "edge") && c.Host == host {
 			return &c
@@ -233,12 +218,12 @@ func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Conn
 	return nil
 }
 
-func GetConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
+func GetConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]qdr.Connection, error) {
 	return getConnectionsForRouter("", namespace, clientset, config)
 }
 
-func filterSiteRouters(in []Connection) []Connection {
-	results := []Connection{}
+func filterSiteRouters(in []qdr.Connection) []qdr.Connection {
+	results := []qdr.Connection{}
 	for _, c := range in {
 		if strings.Contains(c.Container, "skupper-router") {
 			results = append(results, c)
@@ -247,7 +232,7 @@ func filterSiteRouters(in []Connection) []Connection {
 	return results
 }
 
-func getEdgeUplinkConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
+func getEdgeUplinkConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]qdr.Connection, error) {
 	connections, err := GetConnections(namespace, clientset, config)
 	if err != nil {
 		return nil, err
@@ -256,7 +241,7 @@ func getEdgeUplinkConnections(namespace string, clientset kubernetes.Interface, 
 	return getEdgeConnections("out", connections)
 }
 
-func getEdgeConnectionsForInterior(routerid string, namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
+func getEdgeConnectionsForInterior(routerid string, namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]qdr.Connection, error) {
 	connections, err := getConnectionsForRouter(routerid, namespace, clientset, config)
 	if err != nil {
 		return nil, err
@@ -265,8 +250,8 @@ func getEdgeConnectionsForInterior(routerid string, namespace string, clientset 
 	return getEdgeConnections("in", connections)
 }
 
-func getEdgeConnections(direction string, connections []Connection) ([]Connection, error) {
-	result := []Connection{}
+func getEdgeConnections(direction string, connections []qdr.Connection) ([]qdr.Connection, error) {
+	result := []qdr.Connection{}
 	for _, c := range connections {
 		if c.Role == "edge" && c.Dir == direction {
 			result = append(result, c)
@@ -275,13 +260,13 @@ func getEdgeConnections(direction string, connections []Connection) ([]Connectio
 	return result, nil
 }
 
-func getConnectionsForRouter(routerid string, namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]Connection, error) {
+func getConnectionsForRouter(routerid string, namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]qdr.Connection, error) {
 	command := get_query_for_router("connection", routerid)
 	buffer, err := router_exec(command, namespace, clientset, config)
 	if err != nil {
 		return nil, err
 	} else {
-		results := []Connection{}
+		results := []qdr.Connection{}
 		err = json.Unmarshal(buffer.Bytes(), &results)
 		if err != nil {
 			fmt.Println("Failed to parse JSON:", err, buffer.String())
