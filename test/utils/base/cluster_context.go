@@ -110,7 +110,6 @@ func (cc *ClusterContext) DumpTestInfo(dirName string) {
 		log.Printf("Saved: %s", absPath)
 	} else {
 		log.Printf("error dumping test info: %v", err)
-		return
 	}
 	out, err := cc.KubectlExec("get -o wide pod,service")
 	if err != nil {
