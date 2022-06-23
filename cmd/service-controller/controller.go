@@ -6,16 +6,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsv1informer "k8s.io/client-go/informers/apps/v1"
@@ -30,7 +27,9 @@ import (
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
+	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/service"
 	"github.com/skupperproject/skupper/pkg/service_sync"
 )
 
@@ -45,7 +44,7 @@ type Controller struct {
 
 	// control loop state:
 	events   workqueue.RateLimitingInterface
-	bindings map[string]*ServiceBindings
+	bindings map[string]*service.ServiceBindings
 	ports    *FreePorts
 
 	// service_sync state:
@@ -95,25 +94,6 @@ func getServiceName(name string) string {
 func hasSkupperAnnotation(service corev1.Service, annotation string) bool {
 	_, ok := service.ObjectMeta.Annotations[annotation]
 	return ok
-}
-
-func hasRouterSelector(service corev1.Service) bool {
-	value, ok := service.Spec.Selector[types.ComponentAnnotation]
-	return ok && value == types.RouterComponent
-}
-
-func getApplicationSelector(service *corev1.Service) string {
-	if hasRouterSelector(*service) {
-		selector := map[string]string{}
-		for key, value := range service.Spec.Selector {
-			if key != types.ComponentAnnotation && !(key == "application" && value == "skupper-router") {
-				selector[key] = value
-			}
-		}
-		return utils.StringifySelector(selector)
-	} else {
-		return utils.StringifySelector(service.Spec.Selector)
-	}
 }
 
 func hasOriginalSelector(service corev1.Service) bool {
@@ -338,157 +318,52 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *Controller) createServiceFor(desired *ServiceBindings) error {
-	event.Recordf(ServiceControllerCreateEvent, "Creating new service for %s", desired.address)
-	_, err := kube.NewServiceForAddress(desired.address, desired.publicPorts, desired.ingressPorts, desired.labels, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
-	if err != nil {
-		event.Recordf(ServiceControllerError, "Error while creating service %s: %s", desired.address, err)
-	}
-
-	return err
-}
-
-func (c *Controller) createHeadlessServiceFor(desired *ServiceBindings) error {
-	event.Recordf(ServiceControllerCreateEvent, "Creating new headless service for %s", desired.address)
-	_, err := kube.NewHeadlessServiceForAddress(desired.address, desired.publicPorts, desired.ingressPorts, desired.labels, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
-	if err != nil {
-		event.Recordf(ServiceControllerError, "Error while creating headless service %s: %s", desired.address, err)
-	}
-	return err
-}
-
-func equivalentSelectors(a map[string]string, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k, v := range a {
-		if v2, ok := b[k]; !ok || v != v2 {
-			return false
-		}
-	}
-	for k, v := range b {
-		if v2, ok := a[k]; !ok || v != v2 {
-			return false
-		}
-	}
-	return true
-}
-
-func (c *Controller) checkServiceFor(desired *ServiceBindings, actual *corev1.Service) error {
-	event.Recordf(ServiceControllerEvent, "Checking service changes for %s", actual.ObjectMeta.Name)
-	update := false
-
-	desiredPorts := desired.PortMap()
-
-	// adding or updating ports
-	actualPorts := kube.GetServicePortMap(actual)
-	originalAssignedPorts := kube.GetOriginalAssignedPorts(actual)
-	var ports []corev1.ServicePort
-
-	for pPort, iPort := range desiredPorts {
-		actualIngPort, found := actualPorts[pPort]
-		if !found {
-			update = true
-			ports = append(ports, corev1.ServicePort{
-				Name:       fmt.Sprintf("port%d", pPort),
-				Port:       int32(pPort),
-				TargetPort: intstr.IntOrString{IntVal: int32(iPort)},
-			})
-		} else if actualIngPort != iPort {
-			update = true
-			port := kube.GetServicePort(actual, pPort)
-			port.TargetPort = intstr.IntOrString{IntVal: int32(iPort)}
-			ports = append(ports, *port)
-		}
-	}
-
-	// updating annotations
-	if update {
-		if actual.ObjectMeta.Annotations == nil {
-			actual.ObjectMeta.Annotations = map[string]string{}
-		}
-		if !isOwned(actual) {
-			// If target port has been modified by user
-			if !reflect.DeepEqual(actualPorts, originalAssignedPorts) {
-				actual.ObjectMeta.Annotations[types.OriginalTargetPortQualifier] = kube.PortMapToLabelStr(actualPorts)
-			}
-			actual.ObjectMeta.Annotations[types.OriginalAssignedQualifier] = kube.PortMapToLabelStr(desiredPorts)
-		}
-	}
-
-	// removing ports
-	for pPort, _ := range actualPorts {
-		if _, found := desiredPorts[pPort]; !found {
-			update = true
-		}
-	}
-
-	if desired.headless == nil && !equivalentSelectors(actual.Spec.Selector, kube.GetLabelsForRouter()) {
-		update = true
-		if actual.ObjectMeta.Annotations == nil {
-			actual.ObjectMeta.Annotations = map[string]string{}
-		}
-		originalSelector := getApplicationSelector(actual)
-		if originalSelector != "" {
-			actual.ObjectMeta.Annotations[types.OriginalSelectorQualifier] = originalSelector
-		}
-		actual.Spec.Selector = kube.GetLabelsForRouter()
-	}
-	if !reflect.DeepEqual(desired.labels, actual.Labels) {
-		update = true
-		if actual.Labels == nil {
-			actual.Labels = map[string]string{}
-		}
-		for k, v := range desired.labels {
-			actual.Labels[k] = v
-		}
-	}
-	if update {
-		if len(ports) > 0 {
-			actual.Spec.Ports = ports
-		}
-		_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(actual)
-		return err
-	}
-	return nil
-}
-
-func (c *Controller) ensureServiceFor(desired *ServiceBindings) error {
-	event.Recordf(ServiceControllerEvent, "Checking service for: %s", desired.address)
-	obj, exists, err := c.svcInformer.GetStore().GetByKey(c.namespaced(desired.address))
-	if err != nil {
-		return fmt.Errorf("Error checking service %s", err)
-	} else if !exists {
-		if desired.headless == nil {
-			return c.createServiceFor(desired)
-		} else if desired.origin == "" {
-			// i.e. originating namespace
-			event.Recordf(ServiceControllerError, "Headless service does not exist for for %s", desired.address)
-			return nil
-		} else {
-			return c.createHeadlessServiceFor(desired)
-		}
-	} else {
-		svc := obj.(*corev1.Service)
-		return c.checkServiceFor(desired, svc)
-	}
-}
-
-func (c *Controller) deleteService(svc *corev1.Service) error {
+func (c *Controller) DeleteService(svc *corev1.Service) error {
 	event.Recordf(ServiceControllerDeleteEvent, "Deleting service %s", svc.ObjectMeta.Name)
 	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(svc.ObjectMeta.Name, &metav1.DeleteOptions{})
 }
 
+func (c *Controller) UpdateService(svc *corev1.Service) error {
+	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(svc)
+	return err
+}
+
+func (c *Controller) CreateService(svc *corev1.Service) error {
+	setOwnerReferences(&svc.ObjectMeta)
+	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Create(svc)
+	return err
+}
+
+func (c *Controller) IsOwned(service *corev1.Service) bool {
+	return isOwned(service)
+}
+
+func (c *Controller) GetService(name string) (*corev1.Service, bool, error) {
+	obj, exists, err := c.svcInformer.GetStore().GetByKey(c.namespaced(name))
+	if err != nil {
+		return nil, false, err
+	}
+	if !exists {
+		return nil, false, nil
+	}
+	actual := obj.(*corev1.Service)
+	return actual, true, nil
+}
+
 func (c *Controller) updateActualServices() {
-	for _, v := range c.bindings {
-		c.ensureServiceFor(v)
+	for k, v := range c.bindings {
+		event.Recordf(ServiceControllerEvent, "Checking service for: %s", k)
+		err := v.RealiseIngress()
+		if err != nil {
+			event.Recordf(ServiceControllerError, "Error updating services: %s", err)
+		}
 	}
 	services := c.svcInformer.GetStore().List()
 	for _, v := range services {
 		svc := v.(*corev1.Service)
 		if c.bindings[svc.ObjectMeta.Name] == nil && isOwned(svc) {
 			event.Recordf(ServiceControllerDeleteEvent, "No service binding found for %s", svc.ObjectMeta.Name)
-			c.deleteService(svc)
+			c.DeleteService(svc)
 			c.handleRemovingTlsSupport(types.SkupperServiceCertPrefix + svc.ObjectMeta.Name)
 		}
 	}
@@ -505,6 +380,13 @@ func equalOwnerRefs(a, b []metav1.OwnerReference) bool {
 		}
 	}
 	return true
+}
+
+func setOwnerReferences(o *metav1.ObjectMeta) {
+	owner := getOwnerReference()
+	if owner != nil {
+		o.OwnerReferences = []metav1.OwnerReference{*owner}
+	}
 }
 
 func getOwnerReference() *metav1.OwnerReference {
@@ -593,7 +475,7 @@ func (c *Controller) updateBridgeConfig(name string) error {
 		if !ok {
 			return fmt.Errorf("Expected ConfigMap for %s but got %#v", name, obj)
 		}
-		desiredBridges := requiredBridges(c.bindings, c.origin)
+		desiredBridges := service.RequiredBridges(c.bindings, c.origin)
 		update, err := desiredBridges.UpdateConfigMap(cm)
 		if err != nil {
 			return fmt.Errorf("Error updating %s: %s", cm.ObjectMeta.Name, err)
@@ -610,7 +492,7 @@ func (c *Controller) updateBridgeConfig(name string) error {
 }
 
 func (c *Controller) initialiseServiceBindingsMap() (map[string][]int, error) {
-	c.bindings = map[string]*ServiceBindings{}
+	c.bindings = map[string]*service.ServiceBindings{}
 	// on first initiliasing the service bindings map, need to get any
 	// port allocations from bridge config
 	bridges, err := c.getInitialBridgeConfig()
@@ -630,9 +512,9 @@ func (c *Controller) initialiseServiceBindingsMap() (map[string][]int, error) {
 
 }
 
-func (c *Controller) deleteServiceBindings(k string, v *ServiceBindings) {
+func (c *Controller) deleteServiceBindings(k string, v *service.ServiceBindings) {
 	if v != nil {
-		v.stop()
+		v.Stop()
 	}
 	delete(c.bindings, k)
 }
@@ -646,8 +528,8 @@ func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error 
 	return c.vanClient.KubeClient.AppsV1().StatefulSets(c.vanClient.Namespace).Delete(statefulset.ObjectMeta.Name, &metav1.DeleteOptions{})
 }
 
-func (c *Controller) ensureHeadlessProxyFor(bindings *ServiceBindings, statefulset *appsv1.StatefulSet) error {
-	serviceInterface := asServiceInterface(bindings)
+func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, statefulset *appsv1.StatefulSet) error {
+	serviceInterface := bindings.AsServiceInterface()
 	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, client.Version, c.vanClient.Namespace)
 	if err != nil {
 		return err
@@ -657,8 +539,8 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *ServiceBindings, statefuls
 	return err
 }
 
-func (c *Controller) createHeadlessProxyFor(bindings *ServiceBindings) error {
-	serviceInterface := asServiceInterface(bindings)
+func (c *Controller) createHeadlessProxyFor(bindings *service.ServiceBindings) error {
+	serviceInterface := bindings.AsServiceInterface()
 	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, client.Version, c.vanClient.Namespace)
 	if err != nil {
 		return err
@@ -670,7 +552,7 @@ func (c *Controller) createHeadlessProxyFor(bindings *ServiceBindings) error {
 
 func (c *Controller) updateHeadlessProxies() {
 	for _, v := range c.bindings {
-		if v.headless != nil {
+		if v.IsHeadless() {
 			c.ensureHeadlessProxyFor(v, nil)
 		}
 	}
@@ -678,7 +560,7 @@ func (c *Controller) updateHeadlessProxies() {
 	for _, v := range proxies {
 		proxy := v.(*appsv1.StatefulSet)
 		def, ok := c.bindings[proxy.Spec.ServiceName]
-		if !ok || def == nil || def.headless == nil {
+		if !ok || def == nil || def.IsHeadless() {
 			c.deleteHeadlessProxy(proxy)
 		}
 	}
@@ -776,14 +658,14 @@ func (c *Controller) processNextEvent() bool {
 					bindings := c.bindings[svc.ObjectMeta.Name]
 					if bindings == nil {
 						if isOwned(svc) {
-							err = c.deleteService(svc)
+							err = c.DeleteService(svc)
 							if err != nil {
 								return err
 							}
 						}
 					} else {
 						// check that service matches binding def, else update it
-						err = c.checkServiceFor(bindings, svc)
+						err = bindings.RealiseIngress()
 						if err != nil {
 							return err
 						}
@@ -795,11 +677,7 @@ func (c *Controller) processNextEvent() bool {
 					}
 					bindings := c.bindings[unqualified]
 					if bindings != nil {
-						if bindings.headless == nil {
-							err = c.createServiceFor(bindings)
-						} else if bindings.origin != "" {
-							err = c.createHeadlessServiceFor(bindings)
-						}
+						err = bindings.RealiseIngress()
 						if err != nil {
 							return err
 						}
@@ -809,6 +687,7 @@ func (c *Controller) processNextEvent() bool {
 				event.Recordf(ServiceControllerEvent, "Got targetpods event %s", name)
 				// name is the address of the skupper service
 				c.updateBridgeConfig(c.namespaced(types.TransportConfigMapName))
+				c.updateActualServices()
 			case "statefulset":
 				event.Recordf(ServiceControllerEvent, "Got statefulset proxy event %s", name)
 				obj, exists, err := c.headlessInformer.GetStore().GetByKey(name)
@@ -821,7 +700,7 @@ func (c *Controller) processNextEvent() bool {
 					}
 					// a headless proxy was created or updated, does it match the desired binding?
 					bindings, ok := c.bindings[statefulset.Spec.ServiceName]
-					if !ok || bindings == nil || bindings.headless == nil {
+					if !ok || bindings == nil || bindings.IsHeadless() {
 						err = c.deleteHeadlessProxy(statefulset)
 						if err != nil {
 							return err
@@ -839,7 +718,7 @@ func (c *Controller) processNextEvent() bool {
 						return fmt.Errorf("Could not determine name of deleted statefulset from key %s: %w", name, err)
 					}
 					for _, v := range c.bindings {
-						if v.headless != nil && v.headless.Name == unqualified {
+						if v.IsHeadless() && v.HeadlessName() == unqualified {
 							err = c.createHeadlessProxyFor(v)
 							if err != nil {
 								return err
@@ -906,7 +785,7 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 				return err
 			}
 
-			err = qdr.AddSslProfile(serviceSecret.Name, c.vanClient.Namespace, c.vanClient.KubeClient)
+			err = kubeqdr.AddSslProfile(serviceSecret.Name, c.vanClient.Namespace, c.vanClient.KubeClient)
 			if err != nil {
 				return err
 			}
@@ -921,7 +800,7 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 func (c *Controller) handleRemovingTlsSupport(tlsCredentials string) error {
 
 	if len(tlsCredentials) > 0 {
-		err := qdr.RemoveSslProfile(tlsCredentials, c.vanClient.Namespace, c.vanClient.KubeClient)
+		err := kubeqdr.RemoveSslProfile(tlsCredentials, c.vanClient.Namespace, c.vanClient.KubeClient)
 		if err != nil {
 			return err
 		}
@@ -938,5 +817,66 @@ func (c *Controller) handleRemovingTlsSupport(tlsCredentials string) error {
 		}
 	}
 
+	return nil
+}
+
+func (c *Controller) NewTargetResolver(address string, selector string) (service.TargetResolver, error) {
+	resolver := kube.NewPodTargetResolver(c.vanClient.KubeClient, c.vanClient.Namespace, address, selector)
+	resolver.AddEventHandler(c.newEventHandler("targetpods@"+address, FixedKey, PodResourceVersionTest))
+	err := resolver.Start()
+	return resolver, err
+}
+
+func (c *Controller) NewServiceIngress(def *types.ServiceInterface) service.ServiceIngress {
+	if def.Headless != nil {
+		return kube.NewHeadlessServiceIngress(c, def.Origin)
+	}
+	return kube.NewServiceIngressAlways(c)
+}
+
+func (c *Controller) realiseServiceBindings(required types.ServiceInterface, ports []int) error {
+	bindings := service.NewServiceBindings(required, ports, c)
+	return bindings.RealiseIngress()
+}
+
+func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string][]int) error {
+	res := c.policy.ValidateImportService(required.Address)
+	bindings := c.bindings[required.Address]
+	if bindings == nil {
+		if !res.Allowed() {
+			event.Recordf(ServiceControllerError, "Policy validation error: service %s cannot be created", required.Address)
+			return nil
+		}
+		var ports []int
+		// headless services use distinct proxy pods, so don't need to allocate a port
+		if required.Headless != nil {
+			ports = required.Ports
+		} else {
+			if portAllocations != nil {
+				// existing bridge configuration is used on initialising map to recover
+				// any previous port allocations
+				ports = portAllocations[required.Address]
+			}
+			if len(ports) == 0 {
+				for i := 0; i < len(required.Ports); i++ {
+					port, err := c.ports.nextFreePort()
+					if err != nil {
+						return err
+					}
+					ports = append(ports, port)
+				}
+			}
+		}
+
+		c.bindings[required.Address] = service.NewServiceBindings(required, ports, c)
+	} else {
+		if !res.Allowed() {
+			event.Recordf(ServiceControllerError, "Policy validation error: service %s has been removed", required.Address)
+			delete(c.bindings, required.Address)
+			return nil
+		}
+		// check it is configured correctly
+		bindings.Update(required, c)
+	}
 	return nil
 }

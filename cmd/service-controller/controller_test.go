@@ -14,18 +14,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 )
 
 func TestCheckServiceFor(t *testing.T) {
 	var err error
-
-	stopCh := make(chan struct{})
-	event.StartDefaultEventStore(stopCh)
-	c := &Controller{}
 	kubeClient := fake.NewSimpleClientset()
 	const NS = "fake"
-
-	c.vanClient = &client.VanClient{
+	vanClient := &client.VanClient{
 		KubeClient: kubeClient,
 		Namespace:  NS,
 	}
@@ -33,7 +29,8 @@ func TestCheckServiceFor(t *testing.T) {
 	scenarios := []struct {
 		doc      string
 		actual   *corev1.Service
-		desired  *ServiceBindings
+		desired  *types.ServiceInterface
+		ports    []int
 		expected *corev1.Service
 	}{
 		{
@@ -50,15 +47,15 @@ func TestCheckServiceFor(t *testing.T) {
 					Type:     corev1.ServiceTypeLoadBalancer,
 				},
 			},
-			desired: &ServiceBindings{
-				protocol: "tcp",
-				address:  "test-svc-same",
-				labels: map[string]string{
+			desired: &types.ServiceInterface{
+				Protocol: "tcp",
+				Address:  "test-svc-same",
+				Labels: map[string]string{
 					"app": "test",
 				},
-				publicPorts:  []int{8080},
-				ingressPorts: []int{1024},
+				Ports: []int{8080},
 			},
+			ports: []int{1024},
 			expected: &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-svc-same",
@@ -96,15 +93,15 @@ func TestCheckServiceFor(t *testing.T) {
 					Type:     corev1.ServiceTypeLoadBalancer,
 				},
 			},
-			desired: &ServiceBindings{
-				protocol: "tcp",
-				address:  "test-svc-add",
-				labels: map[string]string{
+			desired: &types.ServiceInterface{
+				Protocol: "tcp",
+				Address:  "test-svc-add",
+				Labels: map[string]string{
 					"app": "test",
 				},
-				publicPorts:  []int{8080, 9090},
-				ingressPorts: []int{1024, 1025},
+				Ports: []int{8080, 9090},
 			},
+			ports: []int{1024, 1025},
 			expected: &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-svc-add",
@@ -144,15 +141,15 @@ func TestCheckServiceFor(t *testing.T) {
 					Type:     corev1.ServiceTypeLoadBalancer,
 				},
 			},
-			desired: &ServiceBindings{
-				protocol: "tcp",
-				address:  "test-svc-del",
-				labels: map[string]string{
+			desired: &types.ServiceInterface{
+				Protocol: "tcp",
+				Address:  "test-svc-del",
+				Labels: map[string]string{
 					"app": "test",
 				},
-				publicPorts:  []int{8080},
-				ingressPorts: []int{1024},
+				Ports: []int{8080},
 			},
+			ports: []int{1024},
 			expected: &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-svc-del",
@@ -191,15 +188,15 @@ func TestCheckServiceFor(t *testing.T) {
 					Type:     corev1.ServiceTypeLoadBalancer,
 				},
 			},
-			desired: &ServiceBindings{
-				protocol: "tcp",
-				address:  "test-svc-add-del",
-				labels: map[string]string{
+			desired: &types.ServiceInterface{
+				Protocol: "tcp",
+				Address:  "test-svc-add-del",
+				Labels: map[string]string{
 					"app": "test",
 				},
-				publicPorts:  []int{8080, 9090},
-				ingressPorts: []int{1024, 1025},
+				Ports: []int{8080, 9090},
 			},
+			ports: []int{1024, 1025},
 			expected: &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-svc-add-del",
@@ -230,7 +227,15 @@ func TestCheckServiceFor(t *testing.T) {
 		t.Run(s.doc, func(t *testing.T) {
 			_, err = kubeClient.CoreV1().Services(NS).Create(s.actual)
 			assert.Assert(t, err)
-			err = c.checkServiceFor(s.desired, s.actual)
+			stopCh := make(chan struct{})
+			event.StartDefaultEventStore(stopCh)
+			c, err := NewController(vanClient, "foo", nil, true)
+			assert.Assert(t, err)
+			go c.svcInformer.Run(stopCh)
+			cache.WaitForCacheSync(stopCh, c.svcInformer.HasSynced)
+			defer close(stopCh)
+
+			err = c.realiseServiceBindings(*s.desired, s.ports)
 			assert.Assert(t, err)
 
 			// validating expected service
