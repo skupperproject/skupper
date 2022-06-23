@@ -31,6 +31,7 @@ type ExposeOptions struct {
 	ProxyTuning    types.Tuning
 	EnableTls      bool
 	TlsCredentials string
+	IngressMode    string
 }
 
 func SkupperNotInstalledError(namespace string) error {
@@ -147,6 +148,10 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 				EnableTls:      options.EnableTls,
 				TlsCredentials: options.TlsCredentials,
 			}
+			err := setServiceIngressMode(service, options.IngressMode)
+			if err != nil {
+				return "", err
+			}
 		}
 	} else if service.Headless != nil {
 		return "", fmt.Errorf("Service already exposed as headless")
@@ -160,6 +165,8 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", fmt.Errorf("Service already exposed without TLS support")
 	} else if !options.EnableTls && service.EnableTls {
 		return "", fmt.Errorf("Service already exposed with TLS support")
+	} else if options.IngressMode != "" && options.IngressMode != string(service.ExposeIngress) {
+		return "", fmt.Errorf("Service already exposed with different ingress mode")
 	}
 
 	// service may exist from remote origin
@@ -766,6 +773,7 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
 	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 protocol)")
+	cmd.Flags().StringVar(&(exposeOpts.IngressMode), "ingress-mode", "", "Controls whether a kubernetes service is created locally for the exposed service. Valid values are Always (default), Never or IfNoLocalTargets.")
 
 	return cmd
 }
@@ -976,6 +984,19 @@ func NewCmdServiceLabel(newClient cobraFunc) *cobra.Command {
 	return labels
 }
 
+func setServiceIngressMode(service *types.ServiceInterface, ingressMode string) error {
+	if ingressMode == string(types.ServiceIngressModeAlways) {
+		service.ExposeIngress = types.ServiceIngressModeAlways
+	} else if ingressMode == string(types.ServiceIngressModeNever) {
+		service.ExposeIngress = types.ServiceIngressModeNever
+	} else if ingressMode == string(types.ServiceIngressModeIfNoLocalTargets) {
+		service.ExposeIngress = types.ServiceIngressModeIfNoLocalTargets
+	} else if ingressMode != "" {
+		return fmt.Errorf("Invalid value for ingress-mode: %s. Must be Always, Never or IfNoLocalTargets.", serviceIngressMode)
+	}
+	return nil
+}
+
 func NewCmdService() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "service create <name> <port> or service delete port",
@@ -985,6 +1006,7 @@ func NewCmdService() *cobra.Command {
 }
 
 var serviceToCreate types.ServiceInterface
+var serviceIngressMode string
 
 func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1015,8 +1037,12 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 			if serviceToCreate.EnableTls {
 				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
 			}
+			err := setServiceIngressMode(&serviceToCreate, serviceIngressMode)
+			if err != nil {
+				return err
+			}
 
-			err := cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
+			err = cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -1027,6 +1053,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
+	cmd.Flags().StringVar(&serviceIngressMode, "ingress-mode", "", "Controls whether a kubernetes service is created locally for the skupper service. Valid values are Always (default), Never or IfNoLocalTargets.")
 
 	return cmd
 }

@@ -442,10 +442,19 @@ type TransportConnectedSites struct {
 	Warnings []string
 }
 
+type ServiceIngressMode string
+
+const (
+	ServiceIngressModeAlways           ServiceIngressMode = "Always"
+	ServiceIngressModeNever            ServiceIngressMode = "Never"
+	ServiceIngressModeIfNoLocalTargets ServiceIngressMode = "IfNoLocalTargets"
+)
+
 type ServiceInterface struct {
 	Address        string                   `json:"address" yaml:"address"`
 	Protocol       string                   `json:"protocol" yaml:"protocol"`
 	Ports          []int                    `json:"ports" yaml:"ports"`
+	ExposeIngress  ServiceIngressMode       `json:"exposeIngress" yaml:"exposeIngress"`
 	EventChannel   bool                     `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
 	Aggregate      string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
 	Headless       *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`

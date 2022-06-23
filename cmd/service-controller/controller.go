@@ -831,7 +831,16 @@ func (c *Controller) NewServiceIngress(def *types.ServiceInterface) service.Serv
 	if def.Headless != nil {
 		return kube.NewHeadlessServiceIngress(c, def.Origin)
 	}
-	return kube.NewServiceIngressAlways(c)
+	switch def.ExposeIngress {
+	case types.ServiceIngressModeIfNoLocalTargets:
+		return kube.NewServiceIngressIfNoLocalTargets(c)
+	case types.ServiceIngressModeNever:
+		return kube.NewServiceIngressNever(c)
+	case types.ServiceIngressModeAlways:
+		return kube.NewServiceIngressAlways(c)
+	default:
+		return kube.NewServiceIngressAlways(c)
+	}
 }
 
 func (c *Controller) realiseServiceBindings(required types.ServiceInterface, ports []int) error {

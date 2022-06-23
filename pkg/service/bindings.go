@@ -33,6 +33,7 @@ type TargetResolver interface {
 
 type ServiceIngress interface {
 	Realise(binding *ServiceBindings) error
+	Mode() types.ServiceIngressMode
 	Matches(def *types.ServiceInterface) bool
 }
 
@@ -83,10 +84,15 @@ func (s *ServiceBindings) PortMap() map[int]int {
 }
 
 func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
+	var mode types.ServiceIngressMode
+	if bindings.ingressBinding != nil {
+		mode = bindings.ingressBinding.Mode()
+	}
 	return types.ServiceInterface{
 		Address:        bindings.Address,
 		Protocol:       bindings.protocol,
 		Ports:          bindings.publicPorts,
+		ExposeIngress:  mode,
 		Aggregate:      bindings.aggregation,
 		EventChannel:   bindings.eventChannel,
 		Headless:       bindings.headless,

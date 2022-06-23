@@ -54,6 +54,15 @@ type ServiceIngressAlways struct {
 	s Services
 }
 
+type ServiceIngressIfNoLocalTargets struct {
+	defaultImpl ServiceIngressAlways
+	s           Services
+}
+
+type ServiceIngressNever struct {
+	s Services
+}
+
 type ServiceIngressHeadlessInOrigin struct {
 	s Services
 }
@@ -80,8 +89,41 @@ func NewServiceIngressAlways(s Services) service.ServiceIngress {
 	}
 }
 
+func NewServiceIngressIfNoLocalTargets(s Services) service.ServiceIngress {
+	return &ServiceIngressIfNoLocalTargets{
+		defaultImpl: ServiceIngressAlways{s: s},
+		s:           s,
+	}
+}
+
+func NewServiceIngressNever(s Services) service.ServiceIngress {
+	return &ServiceIngressNever{
+		s: s,
+	}
+}
+
+func (si *ServiceIngressAlways) Mode() types.ServiceIngressMode {
+	return types.ServiceIngressModeAlways
+}
+
+func (si *ServiceIngressNever) Mode() types.ServiceIngressMode {
+	return types.ServiceIngressModeNever
+}
+
+func (si *ServiceIngressIfNoLocalTargets) Mode() types.ServiceIngressMode {
+	return types.ServiceIngressModeIfNoLocalTargets
+}
+
 func (si *ServiceIngressAlways) Matches(def *types.ServiceInterface) bool {
-	return def.Headless == nil
+	return def.Headless == nil && (def.ExposeIngress == "" || def.ExposeIngress == types.ServiceIngressModeAlways)
+}
+
+func (si *ServiceIngressIfNoLocalTargets) Matches(def *types.ServiceInterface) bool {
+	return def.Headless == nil && def.ExposeIngress == types.ServiceIngressModeIfNoLocalTargets
+}
+
+func (si *ServiceIngressNever) Matches(def *types.ServiceInterface) bool {
+	return def.Headless == nil && def.ExposeIngress == types.ServiceIngressModeNever
 }
 
 func (si *ServiceIngressAlways) create(desired *service.ServiceBindings) error {
@@ -138,12 +180,92 @@ func (si *ServiceIngressAlways) Realise(desired *service.ServiceBindings) error 
 	return si.update(actual, desired)
 }
 
+func (si *ServiceIngressIfNoLocalTargets) update(actual *corev1.Service, desired *service.ServiceBindings) error {
+	target := desired.FindLocalTarget()
+	if target != nil {
+		ports := target.GetLocalTargetPorts(desired)
+		//are ports different from what is there now?
+		updatedPorts := UpdatePorts(&actual.Spec, ports)
+		updatedSelector, err := UpdateSelector(&actual.Spec, target.Selector)
+		if err != nil {
+			return err
+		}
+		updatedLabels := UpdateLabels(&actual.ObjectMeta, desired.Labels)
+		if !(updatedPorts || updatedSelector || updatedLabels) {
+			return nil //nothing changed
+		}
+		return si.s.UpdateService(actual)
+	}
+	return si.defaultImpl.update(actual, desired)
+}
+
+func (si *ServiceIngressIfNoLocalTargets) create(desired *service.ServiceBindings) error {
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: desired.Address,
+			Annotations: map[string]string{
+				"internal.skupper.io/controlled": "true",
+			},
+			Labels: desired.Labels,
+		},
+		Spec: corev1.ServiceSpec{},
+	}
+	target := desired.FindLocalTarget()
+	if target != nil {
+		ports := target.GetLocalTargetPorts(desired)
+		//are ports different from what is there now?
+		UpdatePorts(&service.Spec, ports)
+		_, err := UpdateSelector(&service.Spec, target.Selector)
+		if err != nil {
+			return err
+		}
+	} else {
+		UpdatePorts(&service.Spec, desired.PortMap())
+		UpdateSelectorFromMap(&service.Spec, GetLabelsForRouter())
+	}
+	return si.s.CreateService(service)
+}
+
+func (si *ServiceIngressIfNoLocalTargets) Realise(desired *service.ServiceBindings) error {
+	actual, exists, err := si.s.GetService(desired.Address)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return si.create(desired)
+	}
+	return si.update(actual, desired)
+}
+
+func (si *ServiceIngressNever) Realise(desired *service.ServiceBindings) error {
+	actual, exists, err := si.s.GetService(desired.Address)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return si.s.DeleteService(actual)
+	}
+	return nil
+}
+
+func (si *ServiceIngressHeadlessInOrigin) Mode() types.ServiceIngressMode {
+	return ""
+}
+
 func (si *ServiceIngressHeadlessInOrigin) Matches(def *types.ServiceInterface) bool {
 	return def.Headless != nil && def.Origin == ""
 }
 
 func (si *ServiceIngressHeadlessInOrigin) Realise(desired *service.ServiceBindings) error {
 	return nil
+}
+
+func (si *ServiceIngressHeadlessRemote) Mode() types.ServiceIngressMode {
+	return ""
 }
 
 func (si *ServiceIngressHeadlessRemote) Matches(def *types.ServiceInterface) bool {

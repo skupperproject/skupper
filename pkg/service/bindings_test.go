@@ -28,22 +28,29 @@ func (c *DummyServiceBindingContext) NewTargetResolver(address string, selector 
 	return NewNullTargetResolver(hosts), nil
 }
 func (*DummyServiceBindingContext) NewServiceIngress(def *types.ServiceInterface) ServiceIngress {
-	return newDummyServiceIngress()
+	return newDummyServiceIngress(def.ExposeIngress)
 }
 
-func newDummyServiceIngress() ServiceIngress {
-	return &DummyServiceIngress{}
+func newDummyServiceIngress(mode types.ServiceIngressMode) ServiceIngress {
+	return &DummyServiceIngress{
+		mode: mode,
+	}
 }
 
 type DummyServiceIngress struct {
+	mode types.ServiceIngressMode
 }
 
 func (dsi *DummyServiceIngress) Realise(binding *ServiceBindings) error {
 	return nil
 }
 
+func (dsi *DummyServiceIngress) Mode() types.ServiceIngressMode {
+	return dsi.mode
+}
+
 func (dsi *DummyServiceIngress) Matches(def *types.ServiceInterface) bool {
-	return true
+	return dsi.mode == def.ExposeIngress
 }
 
 func TestNewServiceBindings(t *testing.T) {
@@ -432,6 +439,27 @@ func TestUpdateServiceBindings(t *testing.T) {
 				Address:     "test",
 				publicPorts: []int{8080},
 				targets:     map[string]*EgressBindings{},
+			},
+		},
+		{
+			name: "change ingress binding",
+			initial: types.ServiceInterface{
+				Address:  "test",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+			},
+			update: types.ServiceInterface{
+				Address:       "test",
+				Protocol:      "http",
+				Ports:         []int{8080},
+				ExposeIngress: types.ServiceIngressModeNever,
+			},
+			expected: &ServiceBindings{
+				protocol:       "http",
+				Address:        "test",
+				publicPorts:    []int{8080},
+				targets:        map[string]*EgressBindings{},
+				ingressBinding: newDummyServiceIngress(types.ServiceIngressModeNever),
 			},
 		},
 		{
@@ -828,6 +856,9 @@ func TestUpdateServiceBindings(t *testing.T) {
 				assert.Assert(t, reflect.DeepEqual(b.headless.TargetPorts, s.expected.headless.TargetPorts))
 			}
 			assert.DeepEqual(t, b.Labels, s.expected.Labels)
+			if s.expected.ingressBinding != nil {
+				assert.Equal(t, b.ingressBinding.Mode(), s.expected.ingressBinding.Mode())
+			}
 			assert.Equal(t, len(b.targets), len(s.expected.targets))
 			if len(s.expected.targets) > 0 {
 				for k, v := range s.expected.targets {
