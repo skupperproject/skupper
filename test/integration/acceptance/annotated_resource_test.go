@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -110,7 +111,7 @@ func TestAnnotatedResources(t *testing.T) {
 
 	// Iterate through test table and run each test
 	for _, test := range testTable {
-		t.Run(test.name, func(t *testing.T) {
+		testResult := t.Run(test.name, func(t *testing.T) {
 			var err error
 
 			// 4.1. If test expects modifications to be performed, run them
@@ -201,6 +202,11 @@ func TestAnnotatedResources(t *testing.T) {
 				}
 			}
 		})
+		if !testResult {
+			log.Printf("Test %s failed: gathering info dump", test.name)
+			testRunner.DumpTestInfo(filepath.Join(t.Name(), test.name))
+		}
+
 	}
 
 	// Undeploying resources
