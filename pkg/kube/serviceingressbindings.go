@@ -54,6 +54,13 @@ type ServiceIngressAlways struct {
 	s Services
 }
 
+type IsOwned func(*corev1.Service) bool
+
+type ServiceIngressNever struct {
+	s       Services
+	isowned IsOwned
+}
+
 type ServiceIngressHeadlessInOrigin struct {
 	s Services
 }
@@ -80,8 +87,27 @@ func NewServiceIngressAlways(s Services) service.ServiceIngress {
 	}
 }
 
+func NewServiceIngressNever(s Services, isowned IsOwned) service.ServiceIngress {
+	return &ServiceIngressNever{
+		s:       s,
+		isowned: isowned,
+	}
+}
+
+func (si *ServiceIngressAlways) Mode() types.ServiceIngressMode {
+	return types.ServiceIngressModeAlways
+}
+
+func (si *ServiceIngressNever) Mode() types.ServiceIngressMode {
+	return types.ServiceIngressModeNever
+}
+
 func (si *ServiceIngressAlways) Matches(def *types.ServiceInterface) bool {
-	return def.Headless == nil
+	return def.Headless == nil && (def.ExposeIngress == "" || def.ExposeIngress == types.ServiceIngressModeAlways)
+}
+
+func (si *ServiceIngressNever) Matches(def *types.ServiceInterface) bool {
+	return def.Headless == nil && def.ExposeIngress == types.ServiceIngressModeNever
 }
 
 func (si *ServiceIngressAlways) create(desired *service.ServiceBindings) error {
@@ -140,12 +166,31 @@ func (si *ServiceIngressAlways) Realise(desired *service.ServiceBindings) error 
 	return si.update(actual, desired)
 }
 
+func (si *ServiceIngressNever) Realise(desired *service.ServiceBindings) error {
+	actual, exists, err := si.s.GetService(desired.Address)
+	if err != nil {
+		return err
+	}
+	if exists && si.isowned(actual) {
+		return si.s.DeleteService(actual)
+	}
+	return nil
+}
+
+func (si *ServiceIngressHeadlessInOrigin) Mode() types.ServiceIngressMode {
+	return ""
+}
+
 func (si *ServiceIngressHeadlessInOrigin) Matches(def *types.ServiceInterface) bool {
 	return def.Headless != nil && def.Origin == ""
 }
 
 func (si *ServiceIngressHeadlessInOrigin) Realise(desired *service.ServiceBindings) error {
 	return nil
+}
+
+func (si *ServiceIngressHeadlessRemote) Mode() types.ServiceIngressMode {
+	return ""
 }
 
 func (si *ServiceIngressHeadlessRemote) Matches(def *types.ServiceInterface) bool {

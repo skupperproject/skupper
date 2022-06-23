@@ -16,6 +16,8 @@ package types
 
 import (
 	jsonencoding "encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -144,6 +146,7 @@ const (
 	ProxyQualifier              string = BaseQualifier + "/proxy"
 	TargetServiceQualifier      string = BaseQualifier + "/target"
 	HeadlessQualifier           string = BaseQualifier + "/headless"
+	IngressModeQualifier        string = BaseQualifier + "/ingress"
 	CpuRequestAnnotation        string = BaseQualifier + "/cpu-request"
 	MemoryRequestAnnotation     string = BaseQualifier + "/memory-request"
 	AffinityAnnotation          string = BaseQualifier + "/affinity"
@@ -461,10 +464,18 @@ type TransportConnectedSites struct {
 	Warnings []string
 }
 
+type ServiceIngressMode string
+
+const (
+	ServiceIngressModeAlways ServiceIngressMode = "Always"
+	ServiceIngressModeNever  ServiceIngressMode = "Never"
+)
+
 type ServiceInterface struct {
 	Address                  string                   `json:"address" yaml:"address"`
 	Protocol                 string                   `json:"protocol" yaml:"protocol"`
 	Ports                    []int                    `json:"ports" yaml:"ports"`
+	ExposeIngress            ServiceIngressMode       `json:"exposeIngress" yaml:"exposeIngress"`
 	EventChannel             bool                     `json:"eventchannel,omitempty" yaml:"eventchannel,omitempty"`
 	Aggregate                string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
 	Headless                 *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`
@@ -482,6 +493,17 @@ func (s *ServiceInterface) IsOfLocalOrigin() bool {
 
 func IsOfLocalOrigin(origin string) bool {
 	return origin == "" || origin == "annotation"
+}
+
+func (s *ServiceInterface) SetIngressMode(mode string) error {
+	if strings.EqualFold(mode, string(ServiceIngressModeAlways)) {
+		s.ExposeIngress = ServiceIngressModeAlways
+	} else if strings.EqualFold(mode, string(ServiceIngressModeNever)) {
+		s.ExposeIngress = ServiceIngressModeNever
+	} else if mode != "" {
+		return fmt.Errorf("Invalid value for ingress-mode: %s. Must be Always or Never.", mode)
+	}
+	return nil
 }
 
 type ServiceInterfaceList []ServiceInterface

@@ -232,6 +232,12 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 		if labels, ok := deployment.ObjectMeta.Annotations[types.ServiceLabels]; ok {
 			svc.Labels = utils.LabelToMap(labels)
 		}
+		if ingressMode, ok := deployment.ObjectMeta.Annotations[types.IngressModeQualifier]; ok {
+			err := svc.SetIngressMode(ingressMode)
+			if err != nil {
+				event.Recordf(DefinitionMonitorIgnored, "Ignoring invalid annotation %s: %s", types.IngressModeQualifier, err)
+			}
+		}
 		svc.Origin = "annotation"
 
 		if policyRes := m.policy.ValidateExpose("deployment", deployment.Name); !policyRes.Allowed() {
@@ -302,6 +308,14 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 			svc.Address = statefulset.Spec.ServiceName
 		} else {
 			svc.Address = statefulset.ObjectMeta.Name
+		}
+		if svc.Headless == nil {
+			if ingressMode, ok := statefulset.ObjectMeta.Annotations[types.IngressModeQualifier]; ok {
+				err := svc.SetIngressMode(ingressMode)
+				if err != nil {
+					event.Recordf(DefinitionMonitorIgnored, "Ignoring invalid annotation %s: %s", types.IngressModeQualifier, err)
+				}
+			}
 		}
 
 		selector := ""
@@ -494,6 +508,13 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 		if labels, ok := service.ObjectMeta.Annotations[types.ServiceLabels]; ok {
 			svc.Labels = utils.LabelToMap(labels)
 		}
+		if ingressMode, ok := service.ObjectMeta.Annotations[types.IngressModeQualifier]; ok {
+			err := svc.SetIngressMode(ingressMode)
+			if err != nil {
+				event.Recordf(DefinitionMonitorIgnored, "Ignoring invalid annotation %s: %s", types.IngressModeQualifier, err)
+			}
+		}
+
 		svc.Origin = "annotation"
 
 		if policyRes := m.policy.ValidateExpose("service", service.Name); !policyRes.Allowed() {
