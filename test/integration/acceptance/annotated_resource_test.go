@@ -185,15 +185,16 @@ func TestAnnotatedResources(t *testing.T) {
 					var resp *tools.CurlResponse
 					log.Printf("validating communication with service %s through %s", svc, cluster.Namespace)
 					// reaching service through service-controller's pod (with some attempts to make sure bridge is connected)
+					var lastErr error
 					err = utils.Retry(backoff.Duration, backoff.Steps, func() (bool, error) {
 						endpoint := fmt.Sprintf("http://%s:8080", svc)
-						resp, err = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 10})
-						if err != nil {
+						resp, lastErr = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 10})
+						if lastErr != nil {
 							return false, nil
 						}
 						return resp.StatusCode == 200, nil
 					})
-					assert.Assert(t, err, "unable to reach service %s through %s", svc, cluster.Namespace)
+					assert.Assert(t, err, "unable to reach service %s through %s: %s", svc, cluster.Namespace, lastErr)
 					assert.Equal(t, resp.StatusCode, 200, "bad response received from service %s through %s", svc, cluster.Namespace)
 					assert.Assert(t, resp.Body != "", "empty response body received from service %s through %s", svc, cluster.Namespace)
 					log.Printf("successfully communicated with service %s through %s", svc, cluster.Namespace)
