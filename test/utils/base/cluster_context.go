@@ -112,4 +112,9 @@ func (cc *ClusterContext) DumpTestInfo(dirName string) {
 		log.Printf("error dumping test info: %v", err)
 		return
 	}
+	out, err := cc.KubectlExec("get -o wide pod,service")
+	if err != nil {
+		log.Printf("failed getting kube info: %v", err)
+	}
+	log.Printf("kube info: \n%v", string(out))
 }
