@@ -371,16 +371,35 @@ func TestRouterCreateDefaults(t *testing.T) {
 
 func TestRouterResourcesOptions(t *testing.T) {
 	testcases := []struct {
-		cpuOption      string
-		memoryOption   string
-		expectedCpu    string
-		expectedMemory string
+		cpuOption                     string
+		memoryOption                  string
+		expectedCpu                   string
+		expectedMemory                string
+		configSyncCpuOption           string
+		configSyncMemoryOption        string
+		configSyncCpuLimitOption      string
+		configSyncMemoryLimitOption   string
+		configSyncNodeSelectorOption  string
+		configSyncAffinityOption      string
+		configSyncAntiAffinityOption  string
+		configSyncExpectedCpu         string
+		configSyncExpectedMemory      string
+		configSyncExpectedCpuLimit    string
+		configSyncExpectedMemoryLimit string
 	}{
 		{
-			cpuOption:      "2",
-			memoryOption:   "1G",
-			expectedCpu:    "2",
-			expectedMemory: "1G",
+			cpuOption:                     "2",
+			memoryOption:                  "1G",
+			expectedCpu:                   "2",
+			expectedMemory:                "1G",
+			configSyncCpuOption:           "1",
+			configSyncMemoryOption:        "2G",
+			configSyncCpuLimitOption:      "2",
+			configSyncMemoryLimitOption:   "3G",
+			configSyncExpectedCpu:         "1",
+			configSyncExpectedMemory:      "2G",
+			configSyncExpectedCpuLimit:    "2",
+			configSyncExpectedMemoryLimit: "3G",
 		},
 		{
 			cpuOption:   "0.8",
@@ -421,6 +440,10 @@ func TestRouterResourcesOptions(t *testing.T) {
 		opts.Ingress = "none"
 		opts.Router.Tuning.Cpu = c.cpuOption
 		opts.Router.Tuning.Memory = c.memoryOption
+		opts.ConfigSync.Tuning.Cpu = c.configSyncCpuOption
+		opts.ConfigSync.Tuning.Memory = c.configSyncMemoryOption
+		opts.ConfigSync.Tuning.CpuLimit = c.configSyncCpuLimitOption
+		opts.ConfigSync.Tuning.MemoryLimit = c.configSyncMemoryLimitOption
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
@@ -446,10 +469,39 @@ func TestRouterResourcesOptions(t *testing.T) {
 			assert.Assert(t, !ok, namespace)
 		}
 
+		sideCarContainer := deployment.Spec.Template.Spec.Containers[1]
+		if c.configSyncExpectedMemory != "" {
+			quantity := sideCarContainer.Resources.Requests[corev1.ResourceMemory]
+			assert.Equal(t, c.configSyncExpectedMemory, quantity.String())
+		} else {
+			_, ok := sideCarContainer.Resources.Requests[corev1.ResourceMemory]
+			assert.Assert(t, !ok, namespace)
+		}
+		if c.configSyncExpectedCpu != "" {
+			quantity := sideCarContainer.Resources.Requests[corev1.ResourceCPU]
+			assert.Equal(t, c.configSyncExpectedCpu, quantity.String())
+		} else {
+			_, ok := sideCarContainer.Resources.Requests[corev1.ResourceCPU]
+			assert.Assert(t, !ok, namespace)
+		}
+		if c.configSyncExpectedMemoryLimit != "" {
+			quantity := sideCarContainer.Resources.Limits[corev1.ResourceMemory]
+			assert.Equal(t, c.configSyncExpectedMemoryLimit, quantity.String())
+		} else {
+			_, ok := sideCarContainer.Resources.Limits[corev1.ResourceMemory]
+			assert.Assert(t, !ok, namespace)
+		}
+		if c.configSyncExpectedCpuLimit != "" {
+			quantity := sideCarContainer.Resources.Limits[corev1.ResourceCPU]
+			assert.Equal(t, c.configSyncExpectedCpuLimit, quantity.String())
+		} else {
+			_, ok := sideCarContainer.Resources.Limits[corev1.ResourceCPU]
+			assert.Assert(t, !ok, namespace)
+		}
+
 		existSharedVolume := false
 		for _, volume := range deployment.Spec.Template.Spec.Volumes {
 			if volume.Name == "skupper-router-certs" {
-				//TODO Include tls certs related to service client.
 				existSharedVolume = true
 			}
 		}

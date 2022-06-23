@@ -472,6 +472,11 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringSliceVar(&controllerServiceAnnotations, "controller-service-annotation", []string{}, "Annotations to add to skupper controller service")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.LoadBalancerIp, "controller-load-balancer-ip", "", "Load balancer ip that will be used for controller service, if supported by cloud provider")
 
+	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.Cpu, "config-sync-cpu", "", "CPU request for config-sync pods")
+	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.Memory, "config-sync-memory", "", "Memory request for config-sync pods")
+	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.CpuLimit, "config-sync-cpu-limit", "", "CPU limit for config-sync pods")
+	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
+
 	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept links from within the local cluster.")
 	f := cmd.Flag("cluster-local")
 	f.Deprecated = "This flag is deprecated, use --ingress [loadbalancer|route|none]"

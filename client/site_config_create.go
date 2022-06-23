@@ -61,6 +61,12 @@ const (
 	SiteConfigControllerIngressHostKey        string = "controller-ingress-host"
 	SiteConfigControllerServiceAnnotationsKey string = "controller-service-annotations"
 	SiteConfigControllerLoadBalancerIp        string = "controller-load-balancer-ip"
+
+	//config-sync options
+	SiteConfigConfigSyncCpuKey         string = "config-sync-cpu"
+	SiteConfigConfigSyncMemoryKey      string = "config-sync-memory"
+	SiteConfigConfigSyncCpuLimitKey    string = "config-sync-cpu-limit"
+	SiteConfigConfigSyncMemoryLimitKey string = "config-sync-memory-limit"
 )
 
 func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
@@ -241,6 +247,32 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.Controller.LoadBalancerIp != "" {
 		siteConfig.Data[SiteConfigControllerLoadBalancerIp] = spec.Controller.LoadBalancerIp
 	}
+
+	if spec.ConfigSync.Cpu != "" {
+		if _, err := resource.ParseQuantity(spec.ConfigSync.Cpu); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigConfigSyncCpuKey, spec.ConfigSync.Cpu, err)
+		}
+		siteConfig.Data[SiteConfigConfigSyncCpuKey] = spec.ConfigSync.Cpu
+	}
+	if spec.ConfigSync.Memory != "" {
+		if _, err := resource.ParseQuantity(spec.ConfigSync.Memory); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigConfigSyncMemoryKey, spec.ConfigSync.Memory, err)
+		}
+		siteConfig.Data[SiteConfigConfigSyncMemoryKey] = spec.ConfigSync.Memory
+	}
+	if spec.ConfigSync.CpuLimit != "" {
+		if _, err := resource.ParseQuantity(spec.ConfigSync.CpuLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigConfigSyncCpuLimitKey, spec.ConfigSync.CpuLimit, err)
+		}
+		siteConfig.Data[SiteConfigConfigSyncCpuLimitKey] = spec.ConfigSync.CpuLimit
+	}
+	if spec.ConfigSync.MemoryLimit != "" {
+		if _, err := resource.ParseQuantity(spec.ConfigSync.MemoryLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigConfigSyncMemoryLimitKey, spec.ConfigSync.MemoryLimit, err)
+		}
+		siteConfig.Data[SiteConfigConfigSyncMemoryLimitKey] = spec.ConfigSync.MemoryLimit
+	}
+
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if !spec.SiteControlled {
 		if siteConfig.ObjectMeta.Labels == nil {

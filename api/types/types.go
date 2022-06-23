@@ -250,6 +250,7 @@ type RouterSpec struct {
 	Namespace             string          `json:"namespace,omitempty"`
 	AuthMode              ConsoleAuthMode `json:"authMode,omitempty"`
 	Transport             DeploymentSpec  `json:"transport,omitempty"`
+	ConfigSync            DeploymentSpec  `json:"configSync,omitempty"`
 	Controller            DeploymentSpec  `json:"controller,omitempty"`
 	RouterConfig          string          `json:"routerConfig,omitempty"`
 	Users                 []User          `json:"users,omitempty"`

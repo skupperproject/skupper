@@ -76,6 +76,13 @@ func GetServiceControllerImageDetails() types.ImageDetails {
 	}
 }
 
+func GetConfigSyncImageDetails() types.ImageDetails {
+	return types.ImageDetails{
+		Name:       GetConfigSyncImageName(),
+		PullPolicy: GetConfigSyncImagePullPolicy(),
+	}
+}
+
 func GetConfigSyncImageName() string {
 	image := os.Getenv(ConfigSyncImageEnvKey)
 	if image == "" {
