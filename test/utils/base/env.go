@@ -61,17 +61,6 @@ const (
 // ** POLICY **
 const (
 
-	// Skips the initial setup of policies, for those tests where policies
-	// are used.  Used for speeding up test execution and for semi-automated
-	// testing.
-	ENV_SKIP_POLICY_SETUP = "SKUPPER_TEST_SKIP_POLICY_SETUP"
-
-	// Skips the teardown of policies, for those tests where policies
-	// are used.  In practice, that means that the CRD will be left on
-	// the environment, as well as any policy CRs.  Used for speeding up
-	// test execution and for semi-automated testing
-	ENV_SKIP_POLICY_TEARDOWN = "SKUPPER_TEST_SKIP_POLICY_TEARDOWN"
-
 	// this is used by policyTestStep at test/integration/acceptance/custom/hello_policy/runner.go
 	// It's the number of seconds to wait after any policy changes take effect.  If the PolicyStep
 	// defined several policy changes, they'll all run one after the other, then the sleep will
@@ -94,16 +83,6 @@ func ShouldSkipNamespaceSetup() bool {
 
 func ShouldSkipNamespaceTeardown() bool {
 	_, found := os.LookupEnv(ENV_SKIP_NAMESPACE_TEARDOWN)
-	return found
-}
-
-func ShouldSkipPolicyTeardown() bool {
-	_, found := os.LookupEnv(ENV_SKIP_POLICY_TEARDOWN)
-	return found
-}
-
-func ShouldSkipPolicySetup() bool {
-	_, found := os.LookupEnv(ENV_SKIP_POLICY_SETUP)
 	return found
 }
 

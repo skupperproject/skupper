@@ -223,26 +223,22 @@ func TestPolicies(t *testing.T) {
 		t.Run("teardown", func(t *testing.T) {
 			var wg sync.WaitGroup
 			log.Print("entering teardown")
-			if base.ShouldSkipPolicyTeardown() {
-				log.Print("Skipping policy tear down, per env variables")
-			} else {
-				for i, context := range allContexts {
-					if context == nil {
-						log.Printf("Context #%v is nil; skipping policy teardown", i)
-						break
-					}
-					wg.Add(1)
-					context := context
-					go func() {
-						defer wg.Done()
-						log.Printf("Removing Policy CRD from context %v", context.Namespace)
-						_, err := removeCrd(context)
-						if err != nil {
-							log.Printf("Failed removing CRD: %v", err)
-						}
-						removeClusterRole(context)
-					}()
+			for i, context := range allContexts {
+				if context == nil {
+					log.Printf("Context #%v is nil; skipping policy teardown", i)
+					break
 				}
+				wg.Add(1)
+				context := context
+				go func() {
+					defer wg.Done()
+					log.Printf("Removing Policy CRD from context %v", context.Namespace)
+					_, err := removeCrd(context)
+					if err != nil {
+						log.Printf("Failed removing CRD: %v", err)
+					}
+					removeClusterRole(context)
+				}()
 			}
 			if base.ShouldSkipNamespaceTeardown() {
 				log.Print("Skipping namespace tear down, per env variables")

@@ -13,6 +13,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/k8s"
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -51,17 +52,23 @@ func (cc *ClusterContext) CreateNamespace() error {
 	if ShouldSkipNamespaceSetup() {
 		log.Printf("Skipping namespace creation for %v", cc.Namespace)
 		ns, err := cc.VanClient.KubeClient.CoreV1().Namespaces().Get(cc.Namespace, metav1.GetOptions{})
-		if err == nil && ns != nil {
-			// As we're skipping the creation of namespaces, we're adopting whatever
-			// we find; we will destroy these when DeleteNamespace is called, unless
-			// ShouldSkipNamespaceTeardown returns true.
-			log.Printf("Reusing existing namespace %v", cc.Namespace)
-			cc.nsCreated = true
+		if err == nil {
+			if ns != nil {
+				// As we're skipping the creation of namespaces, we're adopting whatever
+				// we find; we will destroy these when DeleteNamespace is called, unless
+				// ShouldSkipNamespaceTeardown returns true.
+				log.Printf("Reusing existing namespace %v", cc.Namespace)
+				cc.nsCreated = true
+			} else {
+				// Assertion; this should never happen
+				return fmt.Errorf("Namespace check returned nil response, but no errors")
+			}
+		} else {
+			if errors.IsNotFound(err) {
+				return fmt.Errorf("Namespace %v did not exist and namespace creation skipping was requested", cc.Namespace)
+			}
+			return err
 		}
-		if ns == nil {
-			return fmt.Errorf("Namespace %v did not exist and namespace creation skipping was requested", cc.Namespace)
-		}
-		return err
 	}
 	_, err := kube.NewNamespace(cc.Namespace, cc.VanClient.KubeClient)
 	if err == nil {
