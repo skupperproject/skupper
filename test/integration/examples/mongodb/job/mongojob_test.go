@@ -132,7 +132,7 @@ func DropAllPosts(client *mongo.Client, ctx context.Context) error {
 	collection := client.Database(DB_NAME).Collection(COLLECTION_NAME)
 	err := collection.Drop(ctx)
 	if err != nil {
-		fmt.Println("error dropping collection:", err)
+		log.Println("error dropping collection:", err)
 		return err
 	}
 

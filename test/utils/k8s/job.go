@@ -3,6 +3,7 @@ package k8s
 import (
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 	"time"
 
@@ -174,23 +175,26 @@ func AssertJob(t *testing.T, job *batchv1.Job) {
 	}
 }
 
+// TODO: only latest or all?
 func GetJobLogs(ns string, kubeClient kubernetes.Interface, name string) (string, error) {
 	pods, err := kube.GetPods(fmt.Sprintf("job=%s", name), ns, kubeClient)
 	if err != nil {
 		return "", err
 	}
-	// Consider just the latest pod
-	latestPod := pods[0]
+	sort.Slice(pods, func(i, j int) bool {
+		return pods[i].CreationTimestamp.Time.Before(pods[j].CreationTimestamp.Time)
+	})
+	var fullLogs string
 	for _, pod := range pods {
-		if pod.CreationTimestamp.After(latestPod.CreationTimestamp.Time) {
-			latestPod = pod
+		fullLogs += fmt.Sprintf("\n# %v - %v:\n", pod.Name, pod.CreationTimestamp)
+		log, err := kube.GetPodContainerLogs(pod.Name, pod.Spec.Containers[0].Name, ns, kubeClient)
+		if err != nil {
+			return fullLogs, err
 		}
+		fullLogs += log
+		fullLogs += "\n"
 	}
-	log, err := kube.GetPodContainerLogs(latestPod.Name, latestPod.Spec.Containers[0].Name, ns, kubeClient)
-	if err != nil {
-		return "", err
-	}
-	return log, nil
+	return fullLogs, nil
 }
 
 type JobOpts struct {
