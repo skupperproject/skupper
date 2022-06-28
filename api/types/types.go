@@ -96,6 +96,11 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 		Resources: []string{"services", "configmaps", "pods", "secrets"},
 	},
 	{
+		Verbs:     []string{"watch", "create", "patch"},
+		APIGroups: []string{""},
+		Resources: []string{"events"},
+	},
+	{
 		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
 		APIGroups: []string{"apps"},
 		Resources: []string{"deployments", "statefulsets"},

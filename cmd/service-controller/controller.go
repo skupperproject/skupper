@@ -4,6 +4,12 @@ import (
 	"crypto/tls"
 	jsonencoding "encoding/json"
 	"fmt"
+	"github.com/golang/glog"
+	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/record"
+
 	"log"
 	"os"
 	"reflect"
@@ -66,6 +72,7 @@ type Controller struct {
 	claimHandler      *SecretController
 	serviceSync       *service_sync.ServiceSync
 	policyHandler     *PolicyController
+	eventRecorder     record.EventRecorder
 }
 
 const (
@@ -204,7 +211,24 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	controller.serviceSync = service_sync.NewServiceSync(origin, client.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
 
 	controller.policyHandler = NewPolicyController(controller.vanClient)
+
+	controller.eventRecorder = initializeEventRecorder(controller.vanClient)
+
 	return controller, nil
+}
+
+func initializeEventRecorder(cli *client.VanClient) record.EventRecorder {
+
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(glog.Infof)
+	eventBroadcaster.StartRecordingToSink(
+		&typedcorev1.EventSinkImpl{
+			Interface: cli.KubeClient.CoreV1().Events(cli.Namespace)})
+	eventRecorder := eventBroadcaster.NewRecorder(
+		scheme.Scheme,
+		v1.EventSource{
+			Component: "skupper-controller"})
+	return eventRecorder
 }
 
 type ResourceVersionTest func(a interface{}, b interface{}) bool
@@ -340,10 +364,12 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 
 func (c *Controller) createServiceFor(desired *ServiceBindings) error {
 	event.Recordf(ServiceControllerCreateEvent, "Creating new service for %s", desired.address)
-	_, err := kube.NewServiceForAddress(desired.address, desired.publicPorts, desired.ingressPorts, desired.labels, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
+	service, err := kube.NewServiceForAddress(desired.address, desired.publicPorts, desired.ingressPorts, desired.labels, getOwnerReference(), c.vanClient.Namespace, c.vanClient.KubeClient)
 	if err != nil {
 		event.Recordf(ServiceControllerError, "Error while creating service %s: %s", desired.address, err)
 	}
+
+	c.eventRecorder.Event(service, "Warning", ServiceControllerCreateEvent, "creating new service")
 
 	return err
 }
