@@ -175,24 +175,49 @@ func AssertJob(t *testing.T, job *batchv1.Job) {
 	}
 }
 
-// TODO: only latest or all?
 func GetJobLogs(ns string, kubeClient kubernetes.Interface, name string) (string, error) {
+	return GetJobsLogs(ns, kubeClient, name, false)
+}
+
+// Returns the logs of the pods related to a given job.  If 'all' is true, all runs will be
+// returned; failures to get individual logs will be reported on the output, but not cause
+// the function to fail.
+//
+// If 'all' is false, only the last run's logs will be returned.
+func GetJobsLogs(ns string, kubeClient kubernetes.Interface, name string, all bool) (string, error) {
 	pods, err := kube.GetPods(fmt.Sprintf("job=%s", name), ns, kubeClient)
 	if err != nil {
 		return "", err
+	}
+	if len(pods) == 0 {
+		return "", fmt.Errorf("No pods found for job %s on namespace %s", name, ns)
 	}
 	sort.Slice(pods, func(i, j int) bool {
 		return pods[i].CreationTimestamp.Time.Before(pods[j].CreationTimestamp.Time)
 	})
 	var fullLogs string
-	for _, pod := range pods {
-		fullLogs += fmt.Sprintf("\n# %v - %v:\n", pod.Name, pod.CreationTimestamp)
-		log, err := kube.GetPodContainerLogs(pod.Name, pod.Spec.Containers[0].Name, ns, kubeClient)
+	if all {
+		for i, pod := range pods {
+			fullLogs += fmt.Sprintf("\n# %v/%v - %v - %v:\n", i+1, len(pods), pod.Name, pod.CreationTimestamp)
+			log, err := kube.GetPodContainerLogs(pod.Name, pod.Spec.Containers[0].Name, ns, kubeClient)
+			if err != nil {
+				fullLogs += fmt.Sprintf(
+					"Failed getting logs for %v on %v: %v\n",
+					pod.Spec.Containers[0].Name,
+					ns,
+					err,
+				)
+			}
+			fullLogs += log
+			fullLogs += "\n"
+		}
+	} else {
+		// Just the last one
+		pod := pods[len(pods)-1]
+		fullLogs, err = kube.GetPodContainerLogs(pod.Name, pod.Spec.Containers[0].Name, ns, kubeClient)
 		if err != nil {
 			return fullLogs, err
 		}
-		fullLogs += log
-		fullLogs += "\n"
 	}
 	return fullLogs, nil
 }
