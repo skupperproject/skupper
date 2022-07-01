@@ -414,7 +414,7 @@ func (server *ConsoleServer) listen() {
 	r.Handle("/policy/service/{name}", authenticated(server.policies.service()))
 	r.Handle("/policy/incominglink", authenticated(server.policies.incomingLink()))
 	r.Handle("/policy/outgoinglink/{hostname}", authenticated(server.policies.outgoingLink()))
-	r.Handle("/servicecheck/{name}", server.checkService())
+	r.Handle("/servicecheck/{name}", authenticated(server.checkService()))
 	r.PathPrefix("/").Handler(authenticated(http.FileServer(http.Dir("/app/console/"))))
 	if os.Getenv("USE_CORS") != "" {
 		r.Use(cors)
