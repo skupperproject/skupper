@@ -153,4 +153,9 @@ func (cc *ClusterContext) DumpTestInfo(dirName string) {
 		log.Printf("failed getting kube info: %v", err)
 	}
 	log.Printf("kube info: \n%v", string(out))
+	out, err = cc.KubectlExec("get pods --field-selector status.phase!=Running -o yaml")
+	if err != nil {
+		log.Printf("failed non-running job info: %v", err)
+	}
+	log.Printf("non-running job info: \n%v", string(out))
 }
