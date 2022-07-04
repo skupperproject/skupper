@@ -158,4 +158,10 @@ func (cc *ClusterContext) DumpTestInfo(dirName string) {
 		log.Printf("failed non-running job info: %v", err)
 	}
 	log.Printf("non-running job info: \n%v", string(out))
+	//	out, err = cc.KubectlExec("get events")
+	//	if err != nil {
+	//		log.Printf("Failed getting events from %v: %v", cc.Namespace, err)
+	//		return
+	//	}
+	//	log.Printf("kube events for %v:\n%s", cc.Namespace, string(out))
 }
