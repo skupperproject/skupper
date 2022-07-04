@@ -52,7 +52,15 @@ func (l *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	defer cancelFn()
 	attempt := 0
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
+		if base.IsTestInterrupted() {
+			err = fmt.Errorf("Test was interrupted")
+			return false, err
+		}
+		if base.IsMaxStatusAttemptsReached(attempt) {
+			return false, fmt.Errorf("Maximum attempts reached")
+		}
 		attempt++
+
 		stdout, stderr, err = l.run(cluster)
 		log.Printf("Validating 'skupper link status' - attempt %d", attempt)
 		if err != nil {
@@ -96,7 +104,7 @@ func (l *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr 
 
 	// Ensure stdout matches expected regexp
 	if !outRegex.MatchString(stdout) {
-		err = fmt.Errorf("expected output does not match - found: %s - regexp: %s", stdout, outRegex.String())
+		err = fmt.Errorf("expected output does not match - \nfound: \n%s\nregexp: \n%s", stdout, outRegex.String())
 		return
 	}
 
