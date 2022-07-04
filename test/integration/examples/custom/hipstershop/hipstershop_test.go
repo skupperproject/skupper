@@ -94,10 +94,9 @@ func TestHipsterShop(t *testing.T) {
 				jobSucceeded := job.Status.Succeeded == 1
 				if err != nil || !jobSucceeded {
 					// retrieving job logs
-					log, err := k8s.GetJobLogs(cluster.Namespace, cluster.VanClient.KubeClient, job.Name)
+					log, err := k8s.GetJobsLogs(cluster.Namespace, cluster.VanClient.KubeClient, job.Name, true)
 					assert.Assert(t, err)
-					t.Logf("Job %s has failed. Job log:", job.Name)
-					t.Logf(log)
+					t.Logf("Job %s has failed. Job log:\n%s", job.Name, log)
 				}
 				if err != nil {
 					testRunner.DumpTestInfo(cluster.Namespace)
