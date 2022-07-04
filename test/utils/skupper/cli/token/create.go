@@ -35,14 +35,15 @@ const (
 // CreateTester runs `skupper token create` command, validating
 // the output as well as asserting token file has been created.
 type CreateTester struct {
-	Name      string
-	FileName  string
-	Expiry    string
-	Password  string
-	Type      TokenType
-	Uses      string
-	LocalOnly bool
-	PostDelay time.Duration
+	Name            string
+	FileName        string
+	Expiry          string
+	Password        string
+	Type            TokenType
+	Uses            string
+	LocalOnly       bool
+	PostDelay       time.Duration
+	PolicyProhibits bool
 }
 
 func (t *CreateTester) Command(cluster *base.ClusterContext) []string {
@@ -72,7 +73,17 @@ func (t *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	// Execute token create command
 	stdout, stderr, err = cli.RunSkupperCli(t.Command(cluster))
 	if err != nil {
+		log.Println("Validating token creation failing by policy")
+		if t.PolicyProhibits && strings.Contains(stderr, "Policy validation error: incoming links are not allowed") {
+			err = nil
+			return
+		}
 		return
+	} else {
+		if t.PolicyProhibits {
+			err = fmt.Errorf("Token creation was expected to fail, but it didn't")
+			return
+		}
 	}
 
 	// Validating output

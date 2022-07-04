@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -23,6 +24,7 @@ type StatusTester struct {
 	ConsoleEnabled         bool
 	ConsoleAuthInternal    bool
 	NotEnabled             bool
+	PolicyEnabled          *bool
 }
 
 func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
@@ -38,7 +40,14 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	defer cancelFn()
 	attempt := 0
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
+		if base.IsTestInterrupted() {
+			return false, fmt.Errorf("Test interrupted")
+		}
+		if base.IsMaxStatusAttemptsReached(attempt) {
+			return false, fmt.Errorf("Maximum attempts reached")
+		}
 		attempt++
+
 		stdout, stderr, err = s.run(cluster)
 		log.Printf("Validating 'skupper status' - attempt %d", attempt)
 		if err != nil {
@@ -82,6 +91,7 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 
 	// Composing how output should be validated (based on provided attributes)
 	mainContent := []string{}
+	notExpected := []regexp.Regexp{}
 
 	// Main info
 	mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for namespace \"%s\"", cluster.Namespace))
@@ -104,7 +114,16 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 	if s.RouterMode != "" {
 		routerMode = s.RouterMode
 	}
-	mainContent = append(mainContent, fmt.Sprintf("in %s mode.", routerMode))
+	mainContent = append(mainContent, fmt.Sprintf("in %s mode", routerMode))
+
+	// Policy checking, if defined
+	if s.PolicyEnabled != nil {
+		if *s.PolicyEnabled {
+			mainContent = append(mainContent, "(with policies)")
+		} else {
+			notExpected = append(notExpected, *regexp.MustCompile("(with policies)"))
+		}
+	}
 
 	// Connected sites variant
 	connectedSites := "It is not connected to any other sites."
@@ -126,12 +145,12 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 	}
 	mainContent = append(mainContent, exposedServices)
 
-	expectedMainContent := strings.Join(mainContent, " ")
-	if !strings.Contains(stdout, expectedMainContent) {
-		return fmt.Errorf("main content not found - expected: %s - stdout: %s", expectedMainContent, stdout)
+	expect := Expect{
+		StdOut:      mainContent,
+		StdOutReNot: notExpected,
 	}
 
-	return nil
+	return expect.Check(stdout, "")
 }
 
 func (s *StatusTester) validateConsoleEnabled(cluster *base.ClusterContext, stdout string) error {

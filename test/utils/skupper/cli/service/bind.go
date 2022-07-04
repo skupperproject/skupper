@@ -20,6 +20,9 @@ type BindTester struct {
 	TargetName  string
 	Protocol    string
 	TargetPort  int
+
+	ExpectServiceNotFound bool
+	PolicyProhibits       bool
 }
 
 func (s *BindTester) Command(cluster *base.ClusterContext) []string {
@@ -41,7 +44,35 @@ func (s *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	// Execute service bind command
 	stdout, stderr, err = cli.RunSkupperCli(s.Command(cluster))
 	if err != nil {
+		if s.ExpectServiceNotFound {
+			err = cli.Expect{
+				StdErr: []string{"Error: Service", "not found"},
+			}.Check(stdout, stderr)
+			// if string found (err==nil), then no service.  We're good and nothing else to check
+			// if string not found (err!=nil), service is there, and we did not expect it; fail
+			// in either case, nothing else to do here
+			return
+		}
+		if s.PolicyProhibits {
+			err = cli.Expect{
+				StdErr: []string{
+					"Policy validation error:",
+					fmt.Sprintf("%v/%v", s.TargetType, s.TargetName),
+					"cannot be exposed",
+				},
+			}.Check(stdout, stderr)
+			return
+		}
 		return
+	} else {
+		if s.ExpectServiceNotFound {
+			err = fmt.Errorf("Command was expected to fail with Service Not Found, but it didn't")
+			return
+		}
+		if s.PolicyProhibits {
+			err = fmt.Errorf("Policy error was expected, but not encountered")
+			return
+		}
 	}
 
 	// Verifying the skupper-services config map to ensure a target has been defined
