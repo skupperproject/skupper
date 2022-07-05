@@ -153,11 +153,11 @@ func (cc *ClusterContext) DumpTestInfo(dirName string) {
 		log.Printf("failed getting kube info: %v", err)
 	}
 	log.Printf("kube info: \n%v", string(out))
-	out, err = cc.KubectlExec("get pods --field-selector status.phase!=Running -o yaml")
+	out, err = cc.KubectlExec(`get pods -o=jsonpath="{.items[*].status.containerStatuses[?(@.ready==false)]}"`)
 	if err != nil {
-		log.Printf("failed non-running job info: %v", err)
+		log.Printf("failed gathering non-ready pod info: %v", err)
 	}
-	log.Printf("non-running job info: \n%v", string(out))
+	log.Printf("non-ready pod info: \n%v", string(out))
 	//	out, err = cc.KubectlExec("get events")
 	//	if err != nil {
 	//		log.Printf("Failed getting events from %v: %v", cc.Namespace, err)
