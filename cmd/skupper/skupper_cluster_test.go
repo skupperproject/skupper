@@ -1588,7 +1588,7 @@ func TestSkupperInitWithImageRegistry(t *testing.T) {
 			args:            []string{"--image-registry", ":"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "The specified image registry is not valid: parse \":\": missing protocol scheme",
+			expectedError:   "The specified image registry is not valid",
 			realCluster:     true,
 		},
 		{
