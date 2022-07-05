@@ -97,6 +97,7 @@ type SiteConfigSpec struct {
 	Router              RouterOptions
 	Controller          ControllerOptions
 	ConfigSync          ConfigSyncOptions
+	ImageRegistry       string
 }
 
 const (

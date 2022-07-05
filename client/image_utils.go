@@ -3,7 +3,9 @@ package client
 import (
 	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
+	"net/url"
 	"os"
+	"strings"
 )
 
 const (
@@ -94,4 +96,25 @@ func GetConfigSyncImageName() string {
 
 func GetConfigSyncImagePullPolicy() string {
 	return getPullPolicy(ConfigSyncPullPolicyEnvKey)
+}
+
+func SetImageRegistry(url *url.URL) error {
+
+	path := []string{url.String(), RouterImageName}
+	err := os.Setenv(RouterImageEnvKey, strings.Join(path, "/"))
+	if err != nil {
+		return err
+	}
+	path = []string{url.String(), ServiceControllerImageName}
+	err = os.Setenv(ServiceControllerImageEnvKey, strings.Join(path, "/"))
+	if err != nil {
+		return err
+	}
+	path = []string{url.String(), ConfigSyncImageName}
+	err = os.Setenv(ConfigSyncImageEnvKey, strings.Join(path, "/"))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -420,6 +421,18 @@ installation that can then be connected to other skupper installations`,
 				}
 			}
 
+			if routerCreateOpts.ImageRegistry != "" {
+				urlImageRegistry, err := url.Parse(routerCreateOpts.ImageRegistry)
+				if err != nil {
+					return fmt.Errorf("The specified image registry is not valid: %s", err)
+				}
+
+				err = client.SetImageRegistry(urlImageRegistry)
+				if err != nil {
+					return fmt.Errorf("Error setting up the image registry: %s", err)
+				}
+			}
+
 			err = cli.RouterCreate(context.Background(), *siteConfig)
 			if err != nil {
 				return err
@@ -492,6 +505,8 @@ installation that can then be connected to other skupper installations`,
 	hideFlag(cmd, "xp-router-max-frame-size")
 	hideFlag(cmd, "xp-router-max-session-frames")
 	cmd.Flags().SortFlags = false
+
+	cmd.Flags().StringVar(&routerCreateOpts.ImageRegistry, "image-registry", "", "Set a specific image registry to download Skupper images")
 
 	return cmd
 }
