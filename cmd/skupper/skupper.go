@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -422,12 +421,7 @@ installation that can then be connected to other skupper installations`,
 			}
 
 			if routerCreateOpts.ImageRegistry != "" {
-				urlImageRegistry, err := url.Parse(routerCreateOpts.ImageRegistry)
-				if err != nil {
-					return fmt.Errorf("The specified image registry is not valid: %s", err)
-				}
-
-				err = client.SetImageRegistry(urlImageRegistry)
+				err = client.SetImageRegistry(routerCreateOpts.ImageRegistry)
 				if err != nil {
 					return fmt.Errorf("Error setting up the image registry: %s", err)
 				}

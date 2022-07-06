@@ -1584,14 +1584,6 @@ func TestSkupperInitWithImageRegistry(t *testing.T) {
 
 	testcases := []testCase{
 		{
-			doc:             "skupper-init-wrong-image-registry",
-			args:            []string{"--image-registry", ":"},
-			expectedCapture: "",
-			expectedOutput:  "",
-			expectedError:   "The specified image registry is not valid",
-			realCluster:     true,
-		},
-		{
 			doc:             "skupper-init-correct-image-registry",
 			args:            []string{"--image-registry", "localhost:5000"},
 			expectedCapture: "",
@@ -1629,13 +1621,16 @@ func TestSkupperInitWithImageRegistry(t *testing.T) {
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 
 		if tc.expectedError == "" {
-			routerImage := os.Getenv(client.RouterImageEnvKey)
+			imageRegistry := os.Getenv(client.SkupperImageRegistryEnvKey)
+			assert.Equal(t, imageRegistry, "localhost:5000")
+
+			routerImage := client.GetRouterImageName()
 			assert.Equal(t, routerImage, "localhost:5000/skupper-router:main")
 
-			serviceControllerImage := os.Getenv(client.ServiceControllerImageEnvKey)
+			serviceControllerImage := client.GetServiceControllerImageName()
 			assert.Equal(t, serviceControllerImage, "localhost:5000/service-controller:master")
 
-			configSyncImage := os.Getenv(client.ConfigSyncImageEnvKey)
+			configSyncImage := client.GetConfigSyncImageName()
 			assert.Equal(t, configSyncImage, "localhost:5000/config-sync:master")
 
 		}
