@@ -539,6 +539,7 @@ func NewCmdDelete(newClient cobraFunc) *cobra.Command {
 }
 
 var forceHup bool
+var updateImageRegistry string
 
 func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -549,6 +550,14 @@ func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
+
+			if updateImageRegistry != "" {
+				err := client.SetImageRegistry(updateImageRegistry)
+				if err != nil {
+					return fmt.Errorf("Error setting up the image registry: %s", err)
+				}
+			}
+
 			updated, err := cli.RouterUpdateVersion(context.Background(), forceHup)
 			if err != nil {
 				return err
@@ -562,6 +571,7 @@ func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&forceHup, "force-restart", "", false, "Restart skupper daemons even if image tag is not updated")
+	cmd.Flags().StringVar(&updateImageRegistry, "image-registry", "", "Set a specific image registry to download Skupper images")
 	return cmd
 }
 
