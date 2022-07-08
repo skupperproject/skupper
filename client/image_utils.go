@@ -109,11 +109,3 @@ func GetImageRegistry() string {
 	}
 	return imageRegistry
 }
-
-func SetImageRegistry(url string) error {
-	err := os.Setenv(SkupperImageRegistryEnvKey, url)
-	if err != nil {
-		return err
-	}
-	return nil
-}

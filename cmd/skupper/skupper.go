@@ -420,13 +420,6 @@ installation that can then be connected to other skupper installations`,
 				}
 			}
 
-			if routerCreateOpts.ImageRegistry != "" {
-				err = client.SetImageRegistry(routerCreateOpts.ImageRegistry)
-				if err != nil {
-					return fmt.Errorf("Error setting up the image registry: %s", err)
-				}
-			}
-
 			err = cli.RouterCreate(context.Background(), *siteConfig)
 			if err != nil {
 				return err
@@ -500,8 +493,6 @@ installation that can then be connected to other skupper installations`,
 	hideFlag(cmd, "xp-router-max-session-frames")
 	cmd.Flags().SortFlags = false
 
-	cmd.Flags().StringVar(&routerCreateOpts.ImageRegistry, "image-registry", "", "Set a specific image registry to download Skupper images")
-
 	return cmd
 }
 
@@ -539,7 +530,6 @@ func NewCmdDelete(newClient cobraFunc) *cobra.Command {
 }
 
 var forceHup bool
-var updateImageRegistry string
 
 func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -550,13 +540,6 @@ func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-
-			if updateImageRegistry != "" {
-				err := client.SetImageRegistry(updateImageRegistry)
-				if err != nil {
-					return fmt.Errorf("Error setting up the image registry: %s", err)
-				}
-			}
 
 			updated, err := cli.RouterUpdateVersion(context.Background(), forceHup)
 			if err != nil {
@@ -571,7 +554,6 @@ func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&forceHup, "force-restart", "", false, "Restart skupper daemons even if image tag is not updated")
-	cmd.Flags().StringVar(&updateImageRegistry, "image-registry", "", "Set a specific image registry to download Skupper images")
 	return cmd
 }
 

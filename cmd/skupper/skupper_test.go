@@ -240,26 +240,3 @@ func TestSkupperInitControllerParseArgs(t *testing.T) {
 	assert.Equal(t, routerCreateOpts.Controller.LoadBalancerIp, "")
 
 }
-
-func TestSkupperSetImageRegistryParseArgs(t *testing.T) {
-	cmd := NewCmdInit(nil)
-
-	assert.Assert(t, cmd.ParseFlags([]string{}))
-	assert.Equal(t, routerCreateOpts.ImageRegistry, "")
-
-	cmdArgs := []string{"--image-registry", "localhost:5000"}
-
-	assert.Assert(t, cmd.ParseFlags(cmdArgs))
-	assert.Equal(t, routerCreateOpts.ImageRegistry, "localhost:5000")
-
-	cmd = NewCmdUpdate(nil)
-
-	assert.Assert(t, cmd.ParseFlags([]string{}))
-	assert.Equal(t, updateImageRegistry, "")
-
-	cmdArgs = []string{"--image-registry", "localhost:5000"}
-
-	assert.Assert(t, cmd.ParseFlags(cmdArgs))
-	assert.Equal(t, updateImageRegistry, "localhost:5000")
-
-}
