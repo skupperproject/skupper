@@ -260,40 +260,45 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 		jsonDef := current.Data[serviceName]
 		if jsonDef == "" {
 			return fmt.Errorf("Could not find entry for service interface %s", serviceName)
-		} else {
-			service := types.ServiceInterface{}
-			err = jsonencoding.Unmarshal([]byte(jsonDef), &service)
+		}
+		service := types.ServiceInterface{}
+		err = jsonencoding.Unmarshal([]byte(jsonDef), &service)
+		if err != nil {
+			return fmt.Errorf("Failed to read json for service interface %s: %s", serviceName, err)
+		}
+		if service.IsAnnotated() && kube.IsOriginalServiceModified(service.Address, cli.Namespace, cli.GetKubeClient()) {
+			_, err = kube.RemoveServiceAnnotations(service.Address, cli.Namespace, cli.KubeClient, []string{types.ProxyQualifier})
 			if err != nil {
-				return fmt.Errorf("Failed to read json for service interface %s: %s", serviceName, err)
-			} else {
-				modified := false
-				targets := []types.ServiceInterfaceTarget{}
-				for _, t := range service.Targets {
-					if t.Name == targetName || (t.Name == "" && targetName == serviceName) {
-						modified = true
-					} else {
-						targets = append(targets, t)
-					}
-				}
-				if !modified {
-					return fmt.Errorf("Could not find target %s for service interface %s", targetName, serviceName)
-				}
-				if len(targets) == 0 && deleteIfNoTargets {
-					delete(current.Data, serviceName)
+				return fmt.Errorf("Failed to remove %s annotation from modified service: %v", types.ProxyQualifier, err)
+			}
+		} else {
+			modified := false
+			targets := []types.ServiceInterfaceTarget{}
+			for _, t := range service.Targets {
+				if t.Name == targetName || (t.Name == "" && targetName == serviceName) {
+					modified = true
 				} else {
-					service.Targets = targets
-					encoded, err := jsonencoding.Marshal(service)
-					if err != nil {
-						return fmt.Errorf("Failed to create json for service interface: %s", err)
-					} else {
-						current.Data[serviceName] = string(encoded)
-					}
+					targets = append(targets, t)
 				}
 			}
-		}
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
-		if err != nil {
-			return fmt.Errorf("Failed to update skupper-services config map: %v", err.Error())
+			if !modified {
+				return fmt.Errorf("Could not find target %s for service interface %s", targetName, serviceName)
+			}
+			if len(targets) == 0 && deleteIfNoTargets {
+				delete(current.Data, serviceName)
+			} else {
+				service.Targets = targets
+				encoded, err := jsonencoding.Marshal(service)
+				if err != nil {
+					return fmt.Errorf("Failed to create json for service interface: %s", err)
+				} else {
+					current.Data[serviceName] = string(encoded)
+				}
+			}
+			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+			if err != nil {
+				return fmt.Errorf("Failed to update skupper-services config map: %v", err.Error())
+			}
 		}
 	} else if errors.IsNotFound(err) {
 		return fmt.Errorf("No skupper service interfaces defined: %v", err.Error())

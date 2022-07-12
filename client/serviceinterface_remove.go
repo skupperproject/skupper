@@ -2,9 +2,11 @@ package client
 
 import (
 	"context"
+	jsonencoding "encoding/json"
 	"fmt"
 	"log"
 
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,13 +25,18 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 				unretryable = fmt.Errorf("Service %s not defined", address)
 				return nil
 			} else {
-				delete(current.Data, address)
-				_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+				service := types.ServiceInterface{}
+				err = jsonencoding.Unmarshal([]byte(jsonDef), &service)
+				if service.IsAnnotated() && kube.IsOriginalServiceModified(service.Address, cli.Namespace, cli.GetKubeClient()) {
+					_, err = kube.RemoveServiceAnnotations(service.Address, cli.Namespace, cli.KubeClient, []string{types.ProxyQualifier})
+				} else {
+					delete(current.Data, address)
+					_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+				}
 				if err != nil {
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
 					return err
 				} else {
-
 					handleServiceCertificateRemoval(address, cli)
 					return nil
 				}
