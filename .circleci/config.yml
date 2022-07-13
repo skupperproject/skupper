@@ -370,6 +370,7 @@ jobs:
       - minikube-install
       - minikube-start
       - minikube-start-load-balancer
+      - minikube-logs
       - run: kubectl cluster-info
       - run_cluster_tests
 
@@ -380,6 +381,7 @@ jobs:
       - minikube-install
       - minikube-start
       - minikube-start-load-balancer
+      - minikube-logs
       - run: kubectl cluster-info
       - run_cluster_policy_tests
 
