@@ -105,6 +105,9 @@ commands:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
       - run:
+          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          when: always
+      - run:
           name: Archiving test artifacts
           command: |
             find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/artifacts -xv
@@ -129,6 +132,9 @@ commands:
           command: |
             make build-cmd && sudo install skupper /usr/local/bin
             go test -tags=policy -timeout=60m -v ./test/integration/...
+      - run:
+          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          when: always
       - run:
           name: Archiving policy test artifacts
           command: |
