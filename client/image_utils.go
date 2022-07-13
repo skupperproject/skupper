@@ -4,6 +4,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
 	"os"
+	"strings"
 )
 
 const (
@@ -13,6 +14,7 @@ const (
 	RouterPullPolicyEnvKey            string = "QDROUTERD_IMAGE_PULL_POLICY"
 	ServiceControllerPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
 	ConfigSyncPullPolicyEnvKey        string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
+	SkupperImageRegistryEnvKey        string = "SKUPPER_IMAGE_REGISTRY"
 )
 
 func getPullPolicy(key string) string {
@@ -26,7 +28,9 @@ func getPullPolicy(key string) string {
 func GetRouterImageName() string {
 	image := os.Getenv(RouterImageEnvKey)
 	if image == "" {
-		return DefaultRouterImage
+		imageRegistry := GetImageRegistry()
+		return strings.Join([]string{imageRegistry, RouterImageName}, "/")
+
 	} else {
 		return image
 	}
@@ -59,7 +63,8 @@ func addRouterImageOverrideToEnv(env []corev1.EnvVar) []corev1.EnvVar {
 func GetServiceControllerImageName() string {
 	image := os.Getenv(ServiceControllerImageEnvKey)
 	if image == "" {
-		return DefaultServiceControllerImage
+		imageRegistry := GetImageRegistry()
+		return strings.Join([]string{imageRegistry, ServiceControllerImageName}, "/")
 	} else {
 		return image
 	}
@@ -86,7 +91,8 @@ func GetConfigSyncImageDetails() types.ImageDetails {
 func GetConfigSyncImageName() string {
 	image := os.Getenv(ConfigSyncImageEnvKey)
 	if image == "" {
-		return DefaultConfigSyncImage
+		imageRegistry := GetImageRegistry()
+		return strings.Join([]string{imageRegistry, ConfigSyncImageName}, "/")
 	} else {
 		return image
 	}
@@ -94,4 +100,12 @@ func GetConfigSyncImageName() string {
 
 func GetConfigSyncImagePullPolicy() string {
 	return getPullPolicy(ConfigSyncPullPolicyEnvKey)
+}
+
+func GetImageRegistry() string {
+	imageRegistry := os.Getenv(SkupperImageRegistryEnvKey)
+	if imageRegistry == "" {
+		return DefaultImageRegistry
+	}
+	return imageRegistry
 }

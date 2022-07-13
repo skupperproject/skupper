@@ -540,6 +540,7 @@ func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
+
 			updated, err := cli.RouterUpdateVersion(context.Background(), forceHup)
 			if err != nil {
 				return err
