@@ -54,6 +54,14 @@ commands:
           name: Start Minikube Tunnel
           background: true
 
+  minikube-logs:
+    description: Show minikube logs, continuously
+    steps:
+      - run:
+          command: minikube logs -f
+          name: List minikube logs
+          background: true
+
   prepare_for_local_cluster_tests:
     description: install right versions of go, docker, kubectl, and also build
     steps:
@@ -108,6 +116,9 @@ commands:
           command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
           when: always
       - run:
+          command: uptime
+          when: always
+      - run:
           name: Archiving test artifacts
           command: |
             find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/artifacts -xv
@@ -115,6 +126,9 @@ commands:
       - store_artifacts:
           path: /tmp/artifacts
           destination: test-artifacts
+      - run:
+          command: minikube kubectl cluster-info dump
+          when: always
 
   run_cluster_policy_tests:
     description: run all e2e policy tests inside the current KUBECONFIG configured cluster
@@ -136,6 +150,9 @@ commands:
           command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
           when: always
       - run:
+          command: uptime
+          when: always
+      - run:
           name: Archiving policy test artifacts
           command: |
             find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/policy-artifacts -xv
@@ -143,6 +160,9 @@ commands:
       - store_artifacts:
           path: /tmp/policy-artifacts
           destination: policy-test-artifacts
+      - run:
+          command: minikube kubectl cluster-info dump
+          when: always
 
   compile_go_program:
     description: Compile specified platform.
