@@ -54,6 +54,9 @@ commands:
           name: Start Minikube Tunnel
           background: true
 
+  # By default, this is disabled on the jobs, as it generates a lot of
+  # output.  Activate to investigate kubernetes or environment issues
+  # (such as memory pressure).
   minikube-logs:
     description: Show minikube logs, continuously
     steps:
@@ -126,9 +129,9 @@ commands:
       - store_artifacts:
           path: /tmp/artifacts
           destination: test-artifacts
-      - run:
-          command: minikube kubectl cluster-info dump
-          when: always
+#      - run:
+#          command: minikube kubectl cluster-info dump
+#          when: always
 
   run_cluster_policy_tests:
     description: run all e2e policy tests inside the current KUBECONFIG configured cluster
@@ -160,9 +163,9 @@ commands:
       - store_artifacts:
           path: /tmp/policy-artifacts
           destination: policy-test-artifacts
-      - run:
-          command: minikube kubectl cluster-info dump
-          when: always
+#      - run:
+#          command: minikube kubectl cluster-info dump
+#          when: always
 
   compile_go_program:
     description: Compile specified platform.
@@ -370,7 +373,7 @@ jobs:
       - minikube-install
       - minikube-start
       - minikube-start-load-balancer
-      - minikube-logs
+      # - minikube-logs
       - run: kubectl cluster-info
       - run_cluster_tests
 
@@ -381,7 +384,7 @@ jobs:
       - minikube-install
       - minikube-start
       - minikube-start-load-balancer
-      - minikube-logs
+      # - minikube-logs
       - run: kubectl cluster-info
       - run_cluster_policy_tests
 
