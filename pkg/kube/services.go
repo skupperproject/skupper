@@ -331,3 +331,24 @@ func UpdateSelector(spec *corev1.ServiceSpec, selector string) (bool, error) {
 	}
 	return UpdateSelectorFromMap(spec, desired), nil
 }
+
+func IsOriginalServiceModified(name, namespace string, kubeclient kubernetes.Interface) bool {
+	svc, err := GetService(name, namespace, kubeclient)
+	if err != nil {
+		return false
+	}
+	_, origSelector := svc.Annotations[types.OriginalSelectorQualifier]
+	_, origTargetPorts := svc.Annotations[types.OriginalTargetPortQualifier]
+	return origSelector || origTargetPorts
+}
+
+func RemoveServiceAnnotations(name, namespace string, kubeclient kubernetes.Interface, annotations []string) (*corev1.Service, error) {
+	svc, err := GetService(name, namespace, kubeclient)
+	if err != nil {
+		return nil, err
+	}
+	for _, annotation := range annotations {
+		delete(svc.ObjectMeta.Annotations, annotation)
+	}
+	return kubeclient.CoreV1().Services(namespace).Update(svc)
+}

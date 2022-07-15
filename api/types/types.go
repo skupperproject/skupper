@@ -128,7 +128,7 @@ const (
 	ConsoleServerSecret      string = "skupper-console-certs"
 	OauthRouterConsoleSecret string = "skupper-router-console-certs"
 	ServiceCaSecret          string = "skupper-service-ca"
-	ServiceClientSecret      string = "skupper-service-client" //Secret that is used in sslProfiles for all http2 connectors with tls enabled
+	ServiceClientSecret      string = "skupper-service-client" // Secret that is used in sslProfiles for all http2 connectors with tls enabled
 )
 
 // Skupper qualifiers
@@ -542,6 +542,10 @@ func (service *ServiceInterface) AddTarget(target *ServiceInterfaceTarget) {
 		targets = append(targets, *target)
 	}
 	service.Targets = targets
+}
+
+func (service *ServiceInterface) IsAnnotated() bool {
+	return service.Origin == "annotation"
 }
 
 type Headless struct {
