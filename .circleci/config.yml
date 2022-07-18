@@ -54,14 +54,13 @@ commands:
           name: Start Minikube Tunnel
           background: true
 
-  # By default, this is disabled on the jobs, as it generates a lot of
-  # output.  Activate to investigate kubernetes or environment issues
-  # (such as memory pressure).
+  # By default, we grep for oom (out of memory) messages.  To get the
+  # full output, just remove that pipe
   minikube-logs:
     description: Show minikube logs, continuously
     steps:
       - run:
-          command: minikube logs -f
+          command: minikube logs -f | grep -i oom
           name: List minikube logs
           background: true
 
@@ -129,9 +128,9 @@ commands:
       - store_artifacts:
           path: /tmp/artifacts
           destination: test-artifacts
-#      - run:
-#          command: minikube kubectl cluster-info dump
-#          when: always
+      - run:
+          command: minikube kubectl cluster-info dump | grep -i oom
+          when: always
 
   run_cluster_policy_tests:
     description: run all e2e policy tests inside the current KUBECONFIG configured cluster
@@ -163,9 +162,9 @@ commands:
       - store_artifacts:
           path: /tmp/policy-artifacts
           destination: policy-test-artifacts
-#      - run:
-#          command: minikube kubectl cluster-info dump
-#          when: always
+      - run:
+          command: minikube kubectl cluster-info dump | grep -i oom
+          when: always
 
   compile_go_program:
     description: Compile specified platform.
