@@ -25,6 +25,16 @@ executors:
   local_cluster_test_executor:
     machine:
       image: ubuntu-2004:current
+    resource_class: large
+
+  local_cluster_policy_test_executor:
+    machine:
+      image: ubuntu-2004:current
+    # Policy tests run all in sequence.  So, there is no benefit in adding more
+    # CPU or memory.  Within the tests, there is paralellism, but on goroutines,
+    # so they'd not use the additional CPUs.  The only thing a running policy
+    # test competes with is the other system processes
+    # resource_class: medium (the default)
 
 commands:
   minikube-install:
@@ -239,7 +249,8 @@ workflows:
           pre-steps:
             - prepare_for_local_cluster_tests
           requires:
-            - minikube_local_cluster_tests
+            - test
+            - build_and_push_test_images
 
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
@@ -372,18 +383,18 @@ jobs:
       - minikube-install
       - minikube-start
       - minikube-start-load-balancer
-      # - minikube-logs
+      - minikube-logs
       - run: kubectl cluster-info
       - run_cluster_tests
 
   minikube_local_cluster_policy_tests:
-    executor: local_cluster_test_executor
+    executor: local_cluster_policy_test_executor
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - minikube-install
       - minikube-start
       - minikube-start-load-balancer
-      # - minikube-logs
+      - minikube-logs
       - run: kubectl cluster-info
       - run_cluster_policy_tests
 
