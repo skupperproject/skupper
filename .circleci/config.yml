@@ -133,10 +133,11 @@ commands:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
       - run:
-          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
-          when: always
-      - run:
-          command: uptime
+          name: system information at job finish time
+          command: |
+            set +e
+            cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+            uptime
           when: always
       - run:
           name: Archiving test artifacts
@@ -147,8 +148,12 @@ commands:
           path: /tmp/artifacts
           destination: test-artifacts
       - run:
+          name: OOM information from cluster-info dump
           # We do not fail the build whether oom was found or not
-          command: minikube kubectl cluster-info dump | grep -i oom; true
+          command: |
+            set +e
+            minikube kubectl cluster-info dump | grep -i oom
+            true
           when: always
 
   run_cluster_policy_tests:
@@ -168,10 +173,11 @@ commands:
             make build-cmd && sudo install skupper /usr/local/bin
             go test -tags=policy -timeout=60m -v ./test/integration/...
       - run:
-          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
-          when: always
-      - run:
-          command: uptime
+          name: system information at job finish time
+          command: |
+            set +e
+            cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+            uptime
           when: always
       - run:
           name: Archiving policy test artifacts
@@ -182,8 +188,12 @@ commands:
           path: /tmp/policy-artifacts
           destination: policy-test-artifacts
       - run:
+          name: OOM information from cluster-info dump
           # We do not fail the build whether oom was found or not
-          command: minikube kubectl cluster-info dump | grep -i oom; true
+          command: |
+            set +e
+            minikube kubectl cluster-info dump | grep -i oom
+            true
           when: always
 
   compile_go_program:
