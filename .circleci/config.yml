@@ -232,8 +232,8 @@ yaml-templates:
     requires:
       - build-all
       - test
-      - minikube_local_cluster_tests
-      - minikube_local_cluster_policy_tests
+      - main_tests_minikube_local_cluster
+      - policy_tests_minikube_local_cluster
 
 workflows:
   version: 2.1
@@ -246,7 +246,7 @@ workflows:
       - build_and_push_test_images:
           <<: *run_for_all_branches_and_numeric_tags
 
-      - minikube_local_cluster_tests:
+      - main_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
           pre-steps:
             - prepare_for_local_cluster_tests
@@ -254,7 +254,7 @@ workflows:
             - test
             - build_and_push_test_images
 
-      - minikube_local_cluster_policy_tests:
+      - policy_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
           pre-steps:
             - prepare_for_local_cluster_tests
@@ -277,8 +277,8 @@ workflows:
       - remove_from_registry: # will not run for tags, by default
           requires:
             - test
-            - minikube_local_cluster_policy_tests
-            - minikube_local_cluster_tests
+            - policy_tests_minikube_local_cluster
+            - main_tests_minikube_local_cluster
 
 jobs:
   test:
@@ -387,7 +387,7 @@ jobs:
           paths:
               - dist
 
-  minikube_local_cluster_tests:
+  main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
@@ -398,7 +398,7 @@ jobs:
       - run: kubectl cluster-info
       - run_cluster_tests
 
-  minikube_local_cluster_policy_tests:
+  policy_tests_minikube_local_cluster:
     executor: local_cluster_policy_test_executor
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
