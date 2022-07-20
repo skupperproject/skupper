@@ -149,21 +149,26 @@ func (cc *ClusterContext) DumpTestInfo(dirName string) {
 		log.Printf("error dumping test info: %v", err)
 	}
 
-	log.Printf("kube info:")
+	log.Printf("namespace status:")
 	_, err = cc.KubectlExec("get -o wide job,pod,service,event")
 	if err != nil {
 		log.Printf("failed getting kube info: %v", err)
 	}
 
-	log.Printf("non-ready pod info:")
-	_, err = cc.KubectlExec(`get pods -o=jsonpath="{.items[*].status.containerStatuses[?(@.ready==false)]}"`)
+	// These may be up and running now (and their output will show that).  However,
+	// the last time they _terminated_, it was with a non-zero return, and that
+	// may be valuable information for investigations.
+	log.Printf("containers whose last termination was non-zero:")
+	_, err = cc.KubectlExec(`get pods -o=jsonpath="{.items[*].status.containerStatuses[?(@.lastState.terminated.exitCode!=0)]}"`)
 	if err != nil {
-		log.Printf("failed gathering non-ready pod info: %v", err)
+		log.Printf("failed gathering information on containers: %v", err)
 	}
 
-	log.Printf("node info:")
+	// On a healthy node, it will only report that it is ready.  If it faces any
+	// pressures, though (disk, memory, pid), those will be listed
+	log.Printf("node condition:")
 	_, err = cc.KubectlExec(`get node -o jsonpath="{.items[*].status.conditions[?(@.status=='True')]}"`)
 	if err != nil {
-		log.Printf("failed gathering node pod info: %v", err)
+		log.Printf("failed gathering node condition: %v", err)
 	}
 }

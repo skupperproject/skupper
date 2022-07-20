@@ -95,6 +95,7 @@ func TestHipsterShop(t *testing.T) {
 				if err != nil || !jobSucceeded {
 					// retrieving job logs
 					log, err := k8s.GetJobsLogs(cluster.Namespace, cluster.VanClient.KubeClient, job.Name, true)
+					// TODO review this.  After the assertion, nothing will be shown
 					assert.Assert(t, err)
 					t.Logf("Job %s has failed. Job log:\n%s", job.Name, log)
 				}
