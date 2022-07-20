@@ -48,12 +48,20 @@ commands:
             mv minikube /usr/local/bin/
           name: Install Minikube Executable
 
-  minikube-start:
-    description: Starts the minikube service.
+  minikube-start-medium:
+    description: Starts the minikube service, with 2 CPU and 2 GiB
     steps:
       - run:
           command: >-
             minikube start --vm-driver=docker --cpus 2 --memory 2048
+          name: Start Minikube Cluster
+
+  minikube-start-large:
+    description: Starts the minikube service, with 4 CPU and 6GiB
+    steps:
+      - run:
+          command: >-
+            minikube start --vm-driver=docker --cpus 4 --memory 6144
           name: Start Minikube Cluster
 
   minikube-start-load-balancer:
@@ -382,7 +390,7 @@ jobs:
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - minikube-install
-      - minikube-start
+      - minikube-start-large
       - minikube-start-load-balancer
       - minikube-logs
       - run: kubectl cluster-info
@@ -393,7 +401,7 @@ jobs:
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - minikube-install
-      - minikube-start
+      - minikube-start-medium
       - minikube-start-load-balancer
       - minikube-logs
       - run: kubectl cluster-info
