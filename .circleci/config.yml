@@ -147,7 +147,8 @@ commands:
           path: /tmp/artifacts
           destination: test-artifacts
       - run:
-          command: minikube kubectl cluster-info dump | grep -i oom
+          # We do not fail the build whether oom was found or not
+          command: minikube kubectl cluster-info dump | grep -i oom; true
           when: always
 
   run_cluster_policy_tests:
@@ -181,7 +182,8 @@ commands:
           path: /tmp/policy-artifacts
           destination: policy-test-artifacts
       - run:
-          command: minikube kubectl cluster-info dump | grep -i oom
+          # We do not fail the build whether oom was found or not
+          command: minikube kubectl cluster-info dump | grep -i oom; true
           when: always
 
   compile_go_program:
