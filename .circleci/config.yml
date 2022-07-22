@@ -137,6 +137,7 @@ commands:
           command: |
             set +e
             cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+            free -m
             uptime
           when: always
       - run:
@@ -177,6 +178,7 @@ commands:
           command: |
             set +e
             cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+            free -m
             uptime
           when: always
       - run:
