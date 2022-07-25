@@ -56,6 +56,10 @@ commands:
             minikube start --vm-driver=docker --cpus 2 --memory 2048
           name: Start Minikube Cluster
 
+  # We're using only 6 GiB out of the available 15 GiB of the linux/large
+  # CircleCI executor.  This allows us some leeway to grow within this
+  # resource class when memory issues happen, so we can prepare for the
+  # next resource class with plenty of time, when required.
   minikube-start-large:
     description: Starts the minikube service, with 4 CPU and 6GiB
     steps:
