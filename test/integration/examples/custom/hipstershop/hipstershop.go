@@ -142,8 +142,13 @@ func DeployResources(t *testing.T, testRunner base.ClusterTestRunner) {
 
 	t.Logf("Deploying microservices on %s", prv1.Namespace)
 	assert.Assert(t, k8s.CreateResourcesFromYAML(prv1.VanClient, RESOURCES_PRV1))
+
 	t.Logf("Deploying microservices on %s", pub1.Namespace)
 	assert.Assert(t, k8s.CreateResourcesFromYAML(pub1.VanClient, RESOURCES_PUB1))
+	// cartservice requires redis to come up properly, and that connection is
+	// through skupper, so we need to expose it earlier
+	exposeRedis(t, pub1)
+
 	t.Logf("Deploying microservices on %s", pub2.Namespace)
 	assert.Assert(t, k8s.CreateResourcesFromYAML(pub2.VanClient, RESOURCES_PUB2))
 
@@ -224,6 +229,20 @@ func exposePrivate1Resources(t *testing.T, prv1 *base.ClusterContext) {
 	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, recommendationSvc, "deployment", recommendationSvc.Address, "http2", map[int]int{8080: 8080}))
 }
 
+// cartservice depends on redis, so the later needs to be exposed
+// via Skupper right after its deployment
+func exposeRedis(t *testing.T, pub1 *base.ClusterContext) {
+	redisSvc := &types.ServiceInterface{
+		Address:  "redis-cart",
+		Protocol: "tcp",
+		Ports:    []int{6379},
+	}
+	t.Logf("creating redis service interface in public1 cluster")
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, redisSvc))
+	t.Logf("binding redis service interface in public1 cluster")
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, redisSvc, "deployment", redisSvc.Address, "tcp", map[int]int{6379: 6379}))
+}
+
 func exposePublic1Resources(t *testing.T, pub1 *base.ClusterContext) {
 	// Exposing resources from public1 cluster
 	checkoutSvc := &types.ServiceInterface{
@@ -246,24 +265,17 @@ func exposePublic1Resources(t *testing.T, pub1 *base.ClusterContext) {
 		Protocol: "http2",
 		Ports:    []int{9555},
 	}
-	redisSvc := &types.ServiceInterface{
-		Address:  "redis-cart",
-		Protocol: "tcp",
-		Ports:    []int{6379},
-	}
 	// Creating services
 	t.Logf("creating service interfaces in public1 cluster")
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, checkoutSvc))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, cartSvc))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, currencySvc))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, adSvc))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, redisSvc))
 	t.Logf("binding service interfaces in public1 cluster")
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, checkoutSvc, "deployment", checkoutSvc.Address, "http2", map[int]int{5050: 5050}))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, cartSvc, "deployment", cartSvc.Address, "http2", map[int]int{7070: 7070}))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, currencySvc, "deployment", currencySvc.Address, "http2", map[int]int{7000: 7000}))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, adSvc, "deployment", adSvc.Address, "http2", map[int]int{9555: 9555}))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, redisSvc, "deployment", redisSvc.Address, "tcp", map[int]int{6379: 6379}))
 }
 
 func exposePublic2Resources(t *testing.T, pub2 *base.ClusterContext) {
