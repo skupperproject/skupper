@@ -124,7 +124,7 @@ commands:
         background: true
     - run:
         name: vmstat info
-        command: vmstat -w 10
+        command: vmstat -w -t 10
         background: true
 
   system_status:
