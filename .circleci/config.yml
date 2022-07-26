@@ -77,14 +77,18 @@ commands:
           background: true
 
   # By default, we grep for oom (out of memory) messages.  To get the
-  # full output, just remove that pipe
+  # full output, just set the argument 're' to '.'
   minikube-logs:
-    description: Show minikube logs, continuously
+    description: Tail minikube logs, grepping for something (by default, OOM)
+    parameters:
+      re:
+        default: "(oom|error)"
+        type: string
     steps:
-      - run:
-          command: minikube logs -f | grep -i oom
-          name: List minikube logs
-          background: true
+    - run:
+        name: Tail'n'grep minikube logs
+        command: minikube logs -f | egrep -i "<<parameters.re>>"
+        background: true
 
   prepare_for_local_cluster_tests:
     description: install right versions of go, docker, kubectl, and also build
@@ -110,6 +114,36 @@ commands:
       - kube-orb/install-kubectl
       - run: make
 
+  system_monitor:
+    description: shows continuous system state
+    steps:
+    - run:
+        name: sar info
+        command: sar -h -q ALL -P all -r -S -u -W 60
+        background: true
+    - run:
+        name: vmstat info
+        command: vmstat -w -n 1
+        background: true
+
+  system_status:
+    description: shows some point-in-time system status
+    parameters:
+      cluster_dump_re:
+        default: "(oom|error)"
+        type: string
+    steps:
+    - run:
+        name: point-in-time system status
+        command: |
+          set +e
+          cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          free -m
+          uptime
+          minikube kubectl cluster-info dump | grep -i "<<parameters.cluster_dump_re>>"
+          true
+        when: always
+
   run_cluster_tests:
     description: run all e2e tests inside the current KUBECONFIG configured cluster
     parameters:
@@ -117,6 +151,7 @@ commands:
         default: ""
         type: string
     steps:
+      - system_status # before the tests
       - run:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
@@ -136,14 +171,7 @@ commands:
       - run:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
-      - run:
-          name: system information at job finish time
-          command: |
-            set +e
-            cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
-            free -m
-            uptime
-          when: always
+      - system_status
       - run:
           name: Archiving test artifacts
           command: |
@@ -152,14 +180,6 @@ commands:
       - store_artifacts:
           path: /tmp/artifacts
           destination: test-artifacts
-      - run:
-          name: OOM information from cluster-info dump
-          # We do not fail the build whether oom was found or not
-          command: |
-            set +e
-            minikube kubectl cluster-info dump | grep -i oom
-            true
-          when: always
 
   run_cluster_policy_tests:
     description: run all e2e policy tests inside the current KUBECONFIG configured cluster
@@ -168,6 +188,7 @@ commands:
         default: ""
         type: string
     steps:
+      - system_status
       - run:
           name: Creating policy artifacts directory
           command: mkdir /tmp/policy-artifacts
@@ -177,14 +198,7 @@ commands:
           command: |
             make build-cmd && sudo install skupper /usr/local/bin
             go test -tags=policy -timeout=60m -v ./test/integration/...
-      - run:
-          name: system information at job finish time
-          command: |
-            set +e
-            cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
-            free -m
-            uptime
-          when: always
+      - system_status
       - run:
           name: Archiving policy test artifacts
           command: |
@@ -193,14 +207,6 @@ commands:
       - store_artifacts:
           path: /tmp/policy-artifacts
           destination: policy-test-artifacts
-      - run:
-          name: OOM information from cluster-info dump
-          # We do not fail the build whether oom was found or not
-          command: |
-            set +e
-            minikube kubectl cluster-info dump | grep -i oom
-            true
-          when: always
 
   compile_go_program:
     description: Compile specified platform.
