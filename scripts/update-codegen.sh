@@ -18,6 +18,21 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+GOPATH_ORIG="${GOPATH}"
+SCRIPT_ROOT=$(cd `dirname "${BASH_SOURCE[0]}"`/.. && pwd)
+GOPATH_NEW="${SCRIPT_ROOT}/_go_tmp"
+GOPATH="${GOPATH_NEW}"
+TMP_DEST="${1:-}"
+mkdir ${GOPATH_NEW}
+
+cleanup() {
+    if [[ -n "${GOPATH_NEW}" && -d "${GOPATH_NEW}" ]]; then
+        chmod -R 755 ${GOPATH_NEW}
+        rm -rf "${GOPATH_NEW}"
+    fi
+}
+trap "cleanup" EXIT SIGINT
+
 API_VERSION=`grep k8s.io/apimachinery go.mod | awk '{print $NF}'`
 go get -d k8s.io/code-generator@${API_VERSION}
 
@@ -31,4 +46,8 @@ DO_NOT_UPDATE=${DO_NOT_UPDATE:-false}
 if ! ${DO_NOT_UPDATE}; then
     cp -r ${GOPATH}/src/github.com/skupperproject/skupper/pkg/generated ./pkg/
     cp -r ${GOPATH}/src/github.com/skupperproject/skupper/pkg/apis ./pkg/
+elif [[ -n "${TMP_DEST}" && -d "${TMP_DEST}" ]]; then
+    echo "Copying into ${TMP_DEST}"
+    cp -r ${GOPATH}/src/github.com/skupperproject/skupper/pkg/generated ${TMP_DEST}/pkg
+    cp -r ${GOPATH}/src/github.com/skupperproject/skupper/pkg/apis ${TMP_DEST}/pkg
 fi
