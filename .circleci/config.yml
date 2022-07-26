@@ -82,7 +82,8 @@ commands:
     description: Tail minikube logs, grepping for something (by default, OOM)
     parameters:
       re:
-        default: "(oom|error)"
+        # This is for egrep, so you can do things like "(oom|error)"
+        default: "oom"
         type: string
     steps:
     - run:
@@ -119,11 +120,11 @@ commands:
     steps:
     - run:
         name: sar info
-        command: sar -h -q ALL -P all -r -S -u -W 60
+        command: sar -h -q -r -u 60
         background: true
     - run:
         name: vmstat info
-        command: vmstat -w -n 1
+        command: vmstat -w 10
         background: true
 
   system_status:
