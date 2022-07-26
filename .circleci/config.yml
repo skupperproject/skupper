@@ -417,6 +417,7 @@ jobs:
       - minikube-start-large
       - minikube-start-load-balancer
       - minikube-logs
+      - system_monitor
       - run: kubectl cluster-info
       - run_cluster_tests
 
@@ -428,6 +429,7 @@ jobs:
       - minikube-start-medium
       - minikube-start-load-balancer
       - minikube-logs
+      - system_monitor
       - run: kubectl cluster-info
       - run_cluster_policy_tests
 
