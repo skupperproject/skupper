@@ -18,6 +18,16 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+SCRIPT_ROOT=$(cd `dirname "${BASH_SOURCE[0]}"`/.. && pwd)
+[[ $# -eq 1 ]] && VERIFY_ONLY=true || VERIFY_ONLY=false
+TMP_DEST="${1:-${SCRIPT_ROOT}/_tmp_dest}"
+
+cleanup() {
+  [[ -d "${TMP_DEST}/github.com/skupperproject/skupper" ]] && \
+  ! ${VERIFY_ONLY} && rm -rf "${TMP_DEST}"
+}
+trap "cleanup" EXIT SIGINT
+
 API_VERSION=`grep k8s.io/apimachinery go.mod | awk '{print $NF}'`
 go get -d k8s.io/code-generator@${API_VERSION}
 
@@ -25,10 +35,10 @@ bash ${GOPATH}/pkg/mod/k8s.io/code-generator@${API_VERSION}/generate-groups.sh "
     github.com/skupperproject/skupper/pkg/generated/client github.com/skupperproject/skupper/pkg/apis \
     skupper:v1alpha1 \
     --go-header-file ./scripts/boilerplate.go.txt \
+    --output-base ${TMP_DEST} \
     "$@"
 
-DO_NOT_UPDATE=${DO_NOT_UPDATE:-false}
-if ! ${DO_NOT_UPDATE}; then
-    cp -r ${GOPATH}/src/github.com/skupperproject/skupper/pkg/generated ./pkg/
-    cp -r ${GOPATH}/src/github.com/skupperproject/skupper/pkg/apis ./pkg/
+if ! ${VERIFY_ONLY}; then
+    cp -r ${TMP_DEST}/github.com/skupperproject/skupper/pkg/generated ./pkg/
+    cp -r ${TMP_DEST}/github.com/skupperproject/skupper/pkg/apis ./pkg/
 fi
