@@ -20,6 +20,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
@@ -279,12 +280,21 @@ func silenceCobra(cmd *cobra.Command) {
 	cmd.SilenceUsage = true
 }
 
-func NewClient(namespace string, context string, kubeConfigPath string) *client.VanClient {
+func NewClient(namespace string, context string, kubeConfigPath string) types.VanClientInterface {
 	return NewClientHandleError(namespace, context, kubeConfigPath, true)
 }
 
-func NewClientHandleError(namespace string, context string, kubeConfigPath string, exitOnError bool) *client.VanClient {
-	cli, err := client.NewClient(namespace, context, kubeConfigPath)
+func NewClientHandleError(namespace string, context string, kubeConfigPath string, exitOnError bool) types.VanClientInterface {
+
+	var cli types.VanClientInterface
+	var err error
+
+	switch config.GetPlatform() {
+	case types.PlatformKubernetes:
+		cli, err = client.NewClient(namespace, context, kubeConfigPath)
+	case types.PlatformPodman:
+		err = fmt.Errorf("VanClientInterface not implemented for podman")
+	}
 	if err != nil {
 		if exitOnError {
 			if strings.Contains(err.Error(), "invalid configuration: no configuration has been provided") {
@@ -1685,6 +1695,8 @@ func init() {
 	cmdNetwork := NewCmdNetwork()
 	cmdNetwork.AddCommand(NewCmdNetworkStatus(newClient))
 
+	cmdSwitch := NewCmdSwitch()
+
 	rootCmd = &cobra.Command{Use: "skupper"}
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
@@ -1700,12 +1712,13 @@ func init() {
 		cmdCompletion,
 		cmdGateway,
 		cmdRevokeAll,
-		cmdNetwork)
+		cmdNetwork,
+		cmdSwitch)
 
 	rootCmd.PersistentFlags().StringVarP(&kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&kubeContext, "context", "c", "", "The kubeconfig context to use")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "The Kubernetes namespace to use")
-
+	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "", "", "The platform type to use")
 }
 
 func main() {

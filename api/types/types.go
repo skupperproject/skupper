@@ -209,6 +209,13 @@ const (
 	RouterConsoleServiceName               string = "skupper-router-console"
 )
 
+type Platform string
+
+const (
+	PlatformKubernetes Platform = "kubernetes"
+	PlatformPodman              = "podman"
+)
+
 type ConsoleAuthMode string
 
 const (

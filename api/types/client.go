@@ -9,6 +9,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	ENV_PLATFORM = "SKUPPER_PLATFORM"
+)
+
 type ConnectorCreateOptions struct {
 	SkupperNamespace string
 	Name             string
@@ -318,4 +322,5 @@ type VanClientInterface interface {
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
 	NetworkStatus() ([]*SiteInfo, error)
+	//	Platform() Platform
 }

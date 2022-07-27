@@ -127,3 +127,14 @@ func StringSlicesEqual(a, b []string) bool {
 	}
 	return true
 }
+
+// DefaultStr returns the first non-empty string
+func DefaultStr(values ...string) string {
+	if len(values) == 1 {
+		return values[0]
+	}
+	if values[0] != "" {
+		return values[0]
+	}
+	return DefaultStr(values[1:]...)
+}
