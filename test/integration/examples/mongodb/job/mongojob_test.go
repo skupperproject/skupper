@@ -37,10 +37,17 @@ func TestMongoJob(t *testing.T) {
 		assert.Assert(t, err)
 		return client
 	}
+	// When connecting to a replicaset, generally several instances are given on
+	// the url, and the option ?replicaSet is set.  This is not done here, because
+	// we want to connect directly to each instance, so we make changes in one and
+	// see the results in the other, confirming the connectivity between them,
+	// through Skupper.
 	client_a := getClient("mongodb://mongo-a:27017")
 	client_b := getClient("mongodb://mongo-b:27017")
+	client_c := getClient("mongodb://mongo-c:27017")
 	defer client_a.Disconnect(ctx)
 	defer client_b.Disconnect(ctx)
+	defer client_c.Disconnect(ctx)
 
 	// needed in case of a retry
 	err := DropAllPosts(client_a, ctx)
@@ -51,11 +58,15 @@ func TestMongoJob(t *testing.T) {
 
 	err = CountDocuments(client_b, TOTAL_DB_DOCUMENTS, ctx)
 	assert.Assert(t, err)
+	err = CountDocuments(client_c, TOTAL_DB_DOCUMENTS, ctx)
+	assert.Assert(t, err)
 
 	err = PopAllExpectedPosts(client_a, ctx)
 	assert.Assert(t, err)
 
 	err = CountDocuments(client_b, 0, ctx)
+	assert.Assert(t, err)
+	err = CountDocuments(client_c, 0, ctx)
 	assert.Assert(t, err)
 }
 
