@@ -22,9 +22,11 @@ type PlatformInfo struct {
 }
 
 func (p *PlatformInfo) Update(platform types.Platform) error {
-	_ = p.Load()
+	if err := p.Load(); err != nil {
+		return err
+	}
 	if p.Current == "" {
-		p.Current = types.PlatformKubernetes
+		p.Current = platform
 	}
 	p.Previous = p.Current
 	p.Current = platform
