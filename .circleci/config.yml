@@ -76,18 +76,18 @@ commands:
           name: Start Minikube Tunnel
           background: true
 
-  # By default, we grep for oom (out of memory) messages.  To get the
-  # full output, just set the argument 're' to '.'
+  # By default, we grep for out of memory messages.  To get the full output,
+  # just set the argument 're' to '.'
   minikube-logs:
     description: Tail minikube logs, grepping for something (by default, OOM)
     parameters:
       re:
         # This is for egrep, so you can do things like "(oom|error)"
-        default: "oom"
+        default: "(out of memory|oom.?kill)"
         type: string
     steps:
     - run:
-        name: Tail'n'grep minikube logs
+        name: Tail and grep minikube logs
         command: minikube logs -f | egrep -i "<<parameters.re>>"
         background: true
 
