@@ -12,36 +12,38 @@ type PortMapping struct {
 	pool     *ports.FreePorts
 }
 
-func (p *PortMapping) GetPortForAddress(address string) (int, error) {
-	if existing, ok := p.mappings[address]; ok {
+func (p *PortMapping) GetPortForKey(key string) (int, error) {
+	if existing, ok := p.mappings[key]; ok {
+		log.Printf("Port %d already allocated for key %s", existing, key)
 		return existing, nil
 	}
 	allocated, err := p.pool.NextFreePort()
 	if err != nil {
 		return 0, err
 	}
-	p.mappings[address] = allocated
+	p.mappings[key] = allocated
+	log.Printf("Allocated port %d for key %s", allocated, key)
 	return allocated, err
 }
 
-func (p *PortMapping) ReleasePortForAddress(address string) {
-	if existing, ok := p.mappings[address]; ok {
+func (p *PortMapping) ReleasePortForKey(key string) {
+	if existing, ok := p.mappings[key]; ok {
 		p.pool.Release(existing)
-		delete(p.mappings, address)
+		delete(p.mappings, key)
 	}
 }
 
-func (p *PortMapping) recovered(address string, portstr string) {
+func (p *PortMapping) recovered(key string, portstr string) {
 	port, err := strconv.Atoi(portstr)
 	if err != nil {
 		log.Printf("Failed to convert port %q to int: %s", portstr, err)
 		return
 	}
 	p.pool.InUse(port)
-	p.mappings[address] = port
-	if existing, ok := p.mappings[address]; ok {
+	p.mappings[key] = port
+	if existing, ok := p.mappings[key]; ok {
 		p.pool.Release(existing)
-		delete(p.mappings, address)
+		delete(p.mappings, key)
 	}
 }
 
@@ -54,11 +56,11 @@ func RecoverPortMapping(config *RouterConfig) *PortMapping {
 		mapping.pool.InUse(int(listener.Port))
 	}
 
-	for _, listener := range config.Bridges.TcpListeners {
-		mapping.recovered(listener.Address, listener.Port)
+	for key, listener := range config.Bridges.TcpListeners {
+		mapping.recovered(key, listener.Port)
 	}
-	for _, listener := range config.Bridges.HttpListeners {
-		mapping.recovered(listener.Address, listener.Port)
+	for key, listener := range config.Bridges.HttpListeners {
+		mapping.recovered(key, listener.Port)
 	}
 
 	return mapping

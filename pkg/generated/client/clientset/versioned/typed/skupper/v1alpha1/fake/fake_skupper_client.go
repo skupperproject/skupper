@@ -28,6 +28,22 @@ type FakeSkupperV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeSkupperV1alpha1) Connectors(namespace string) v1alpha1.ConnectorInterface {
+	return &FakeConnectors{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) LinkConfigs(namespace string) v1alpha1.LinkConfigInterface {
+	return &FakeLinkConfigs{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) Listeners(namespace string) v1alpha1.ListenerInterface {
+	return &FakeListeners{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) Sites(namespace string) v1alpha1.SiteInterface {
+	return &FakeSites{c, namespace}
+}
+
 func (c *FakeSkupperV1alpha1) SkupperClusterPolicies() v1alpha1.SkupperClusterPolicyInterface {
 	return &FakeSkupperClusterPolicies{c}
 }

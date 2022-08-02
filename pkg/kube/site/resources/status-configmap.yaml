@@ -3,9 +3,9 @@ kind: ConfigMap
 metadata:
   name: skupper-site-status
   ownerReferences:
-  - apiVersion: v1
-    kind: ConfigMap
-    name: skupper-site
+  - apiVersion: skupper.io/v1alpha1
+    kind: Site
+    name: {{ .SiteName }}
     uid: {{ .SiteId }}
 data:
   addresses: '{{- .Addresses -}}'

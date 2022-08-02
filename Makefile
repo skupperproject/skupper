@@ -2,6 +2,7 @@ VERSION := $(shell git describe --tags --dirty=-modified --always)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
 CONTROLLER_PODMAN_IMAGE := quay.io/skupper/controller-podman
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
+SITE_CONTROLLER_V2_IMAGE := quay.io/skupper/site-controller-v2
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
 FLOW_COLLECTOR_IMAGE := quay.io/skupper/flow-collector
 TEST_IMAGE := quay.io/skupper/skupper-tests

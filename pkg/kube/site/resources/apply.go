@@ -59,8 +59,8 @@ func (t NamedTemplate) getYaml() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func resourceTemplates(clients kube.Clients, siteId string, namespace string, config *skuppertypes.SiteConfigSpec) []NamedTemplate {
-	options := getCoreParams(siteId, namespace, config)
+func resourceTemplates(clients kube.Clients, name string, siteId string, namespace string, config *skuppertypes.SiteConfigSpec) []NamedTemplate {
+	options := getCoreParams(name, siteId, namespace, config)
 	templates:= []NamedTemplate{
 		{
 			name:   "deployment",
@@ -150,14 +150,10 @@ func configDigest(config *skuppertypes.SiteConfigSpec) string {
 	return ""
 }
 
-func getCoreParams(siteId string, namespace string, config *skuppertypes.SiteConfigSpec) CoreParams {
+func getCoreParams(name string, siteId string, namespace string, config *skuppertypes.SiteConfigSpec) CoreParams {
 	replicas := config.Routers
 	if replicas == 0 {
 		replicas = 1
-	}
-	name := config.SkupperName
-	if name == "" {
-		name = namespace
 	}
 	return CoreParams{
 		SiteId:          siteId,
@@ -212,8 +208,8 @@ func routeParams(siteId string) []RouteParams {
 	}
 }
 
-func Apply(clients kube.Clients, ctx context.Context, namespace string, siteId string, config *skuppertypes.SiteConfigSpec) error {
-	for _, t := range resourceTemplates(clients, siteId, namespace, config) {
+func Apply(clients kube.Clients, ctx context.Context, namespace string, name string, siteId string, config *skuppertypes.SiteConfigSpec) error {
+	for _, t := range resourceTemplates(clients, name, siteId, namespace, config) {
 		raw, err := t.getYaml()
 		if err != nil {
 			return err
@@ -251,14 +247,16 @@ func apply(clients kube.Clients, ctx context.Context, namespace string, raw []by
 }
 
 type StatusParams struct {
+	SiteName  string
 	SiteId    string
 	Addresses string
 	Errors    string
 }
 
-func ApplyStatus(clients kube.Clients, ctx context.Context, namespace string, siteId string, addresses resolver.HostPorts, errors []string) error {
+func ApplyStatus(clients kube.Clients, ctx context.Context, namespace string, siteName string, siteId string, addresses resolver.HostPorts, errors []string) error {
 	params := StatusParams {
-		SiteId: siteId,
+		SiteName: siteName,
+		SiteId:   siteId,
 	}
 	b, err := json.Marshal(addresses)
 	if err != nil {

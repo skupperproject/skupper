@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube/tokens"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 
@@ -32,9 +33,18 @@ func (s *SkupperKubeToken) Create(cmd *cobra.Command, args []string) error {
 		return s.createFromTemplate(cmd, args)
 	}
 	cli := s.kube.Cli
+	generator, err := tokens.NewTokenGenerator(s.kube.Cli.GetNamespace(), s.kube.Cli)
+	if err != nil {
+		return err
+	}
+	out, err := os.Create(args[0])
+	if err != nil {
+		return fmt.Errorf("Could not create file %s: %s", args[0], err.Error())
+	}
 	switch tokenType {
 	case "cert":
-		err := cli.ConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
+		token := generator.NewCertToken(clientIdentity)
+		err = token.Write(out)
 		if err != nil {
 			return fmt.Errorf("Failed to create token: %w", err)
 		}

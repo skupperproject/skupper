@@ -53,6 +53,14 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=skupper.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("connectors"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Connectors().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("linkconfigs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().LinkConfigs().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("listeners"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Listeners().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("sites"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Sites().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("skupperclusterpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().SkupperClusterPolicies().Informer()}, nil
 

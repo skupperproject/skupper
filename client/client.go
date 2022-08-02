@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/skupperproject/skupper/pkg/kube"
+	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 )
 
 var defaultRetry = wait.Backoff{
@@ -38,6 +39,7 @@ type VanClient struct {
 	RestConfig      *restclient.Config
 	DynamicClient   dynamic.Interface
 	DiscoveryClient *discovery.DiscoveryClient
+	skupperClient   skupperclient.Interface
 	LinkHandler     domain.LinkHandler
 }
 
@@ -120,8 +122,16 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*VanCli
 	if err != nil {
 		return c, err
 	}
+	c.skupperClient, err = skupperclient.NewForConfig(restconfig)
+	if err != nil {
+		return c, err
+	}
 
 	return c, nil
+}
+
+func (cli *VanClient) GetSkupperClient() skupperclient.Interface {
+	return cli.skupperClient
 }
 
 func (cli *VanClient) GetIngressDefault() string {

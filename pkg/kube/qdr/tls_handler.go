@@ -149,7 +149,7 @@ func generateNewSecret(support TlsServiceSupport, tlsManager *TlsManager) (*core
 	if err != nil {
 		return nil, err
 	}
-	_, labels := site.GetSiteAnnotationsAndLabels(siteConfig)
+	_, labels := site.GetSiteAnnotationsAndLabels(&siteConfig.ObjectMeta)
 
 	serviceCredential := types.Credential{
 		CA:          types.ServiceCaSecret,
