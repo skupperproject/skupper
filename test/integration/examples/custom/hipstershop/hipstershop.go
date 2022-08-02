@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"strings"
 	"testing"
 
@@ -167,11 +168,11 @@ func DeployResources(t *testing.T, testRunner base.ClusterTestRunner) {
 			}
 			return true, nil
 		})
-		t.Logf("Pod status at %s:", cluster.Namespace)
+		log.Printf("Pod status at %s:", cluster.Namespace)
 		cluster.KubectlExec("get pods")
 		// If an error has occurred, verify the events as well
 		if err != nil {
-			t.Logf("Latest events")
+			log.Printf("Latest events")
 			cluster.KubectlExec("get events")
 		}
 		return err

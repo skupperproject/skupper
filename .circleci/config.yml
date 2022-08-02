@@ -25,6 +25,16 @@ executors:
   local_cluster_test_executor:
     machine:
       image: ubuntu-2004:current
+    resource_class: large
+
+  local_cluster_policy_test_executor:
+    machine:
+      image: ubuntu-2004:current
+    # Policy tests run all in sequence.  So, there is no benefit in adding more
+    # CPU or memory.  Within the tests, there is paralellism, but on goroutines,
+    # so they'd not use the additional CPUs.  The only thing a running policy
+    # test competes with is the other system processes
+    # resource_class: medium (the default)
 
 commands:
   minikube-install:
@@ -38,12 +48,24 @@ commands:
             mv minikube /usr/local/bin/
           name: Install Minikube Executable
 
-  minikube-start:
-    description: Starts the minikube service.
+  minikube-start-medium:
+    description: Starts the minikube service, with 2 CPU and 2 GiB
     steps:
       - run:
           command: >-
             minikube start --vm-driver=docker --cpus 2 --memory 2048
+          name: Start Minikube Cluster
+
+  # We're using only 6 GiB out of the available 15 GiB of the linux/large
+  # CircleCI executor.  This allows us some leeway to grow within this
+  # resource class when memory issues happen, so we can prepare for the
+  # next resource class with plenty of time, when required.
+  minikube-start-large:
+    description: Starts the minikube service, with 4 CPU and 6GiB
+    steps:
+      - run:
+          command: >-
+            minikube start --vm-driver=docker --cpus 4 --memory 6144
           name: Start Minikube Cluster
 
   minikube-start-load-balancer:
@@ -53,6 +75,21 @@ commands:
           command: minikube tunnel
           name: Start Minikube Tunnel
           background: true
+
+  # By default, we grep for out of memory messages.  To get the full output,
+  # just set the argument 're' to '.'
+  minikube-logs:
+    description: Tail minikube logs, grepping for something (by default, OOM)
+    parameters:
+      re:
+        # This is for egrep, so you can do things like "(oom|error)"
+        default: "(out of memory|oom.?kill)"
+        type: string
+    steps:
+    - run:
+        name: Tail and grep minikube logs
+        command: minikube logs -f | egrep -i "<<parameters.re>>"
+        background: true
 
   prepare_for_local_cluster_tests:
     description: install right versions of go, docker, kubectl, and also build
@@ -78,6 +115,36 @@ commands:
       - kube-orb/install-kubectl
       - run: make
 
+  system_monitor:
+    description: shows continuous system state
+    steps:
+    - run:
+        name: sar info
+        command: sar -h -q -r -u 60
+        background: true
+    - run:
+        name: vmstat info
+        command: vmstat -w -t 10
+        background: true
+
+  system_status:
+    description: shows some point-in-time system status
+    parameters:
+      cluster_dump_re:
+        default: "(oom|error)"
+        type: string
+    steps:
+    - run:
+        name: point-in-time system status
+        command: |
+          set +e
+          cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          free -m
+          uptime
+          minikube kubectl cluster-info dump | grep -i "<<parameters.cluster_dump_re>>"
+          true
+        when: always
+
   run_cluster_tests:
     description: run all e2e tests inside the current KUBECONFIG configured cluster
     parameters:
@@ -85,6 +152,7 @@ commands:
         default: ""
         type: string
     steps:
+      - system_status # before the tests
       - run:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
@@ -104,6 +172,7 @@ commands:
       - run:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
+      - system_status
       - run:
           name: Archiving test artifacts
           command: |
@@ -120,6 +189,7 @@ commands:
         default: ""
         type: string
     steps:
+      - system_status
       - run:
           name: Creating policy artifacts directory
           command: mkdir /tmp/policy-artifacts
@@ -129,6 +199,7 @@ commands:
           command: |
             make build-cmd && sudo install skupper /usr/local/bin
             go test -tags=policy -timeout=60m -v ./test/integration/...
+      - system_status
       - run:
           name: Archiving policy test artifacts
           command: |
@@ -184,8 +255,8 @@ yaml-templates:
     requires:
       - build-all
       - test
-      - minikube_local_cluster_tests
-      - minikube_local_cluster_policy_tests
+      - main_tests_minikube_local_cluster
+      - policy_tests_minikube_local_cluster
 
 workflows:
   version: 2.1
@@ -198,7 +269,7 @@ workflows:
       - build_and_push_test_images:
           <<: *run_for_all_branches_and_numeric_tags
 
-      - minikube_local_cluster_tests:
+      - main_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
           pre-steps:
             - prepare_for_local_cluster_tests
@@ -206,12 +277,13 @@ workflows:
             - test
             - build_and_push_test_images
 
-      - minikube_local_cluster_policy_tests:
+      - policy_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
           pre-steps:
             - prepare_for_local_cluster_tests
           requires:
-            - minikube_local_cluster_tests
+            - test
+            - build_and_push_test_images
 
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
@@ -228,7 +300,8 @@ workflows:
       - remove_from_registry: # will not run for tags, by default
           requires:
             - test
-            - minikube_local_cluster_policy_tests
+            - policy_tests_minikube_local_cluster
+            - main_tests_minikube_local_cluster
 
 jobs:
   test:
@@ -337,23 +410,27 @@ jobs:
           paths:
               - dist
 
-  minikube_local_cluster_tests:
+  main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - minikube-install
-      - minikube-start
+      - minikube-start-large
       - minikube-start-load-balancer
+      - minikube-logs
+      - system_monitor
       - run: kubectl cluster-info
       - run_cluster_tests
 
-  minikube_local_cluster_policy_tests:
-    executor: local_cluster_test_executor
+  policy_tests_minikube_local_cluster:
+    executor: local_cluster_policy_test_executor
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - minikube-install
-      - minikube-start
+      - minikube-start-medium
       - minikube-start-load-balancer
+      - minikube-logs
+      - system_monitor
       - run: kubectl cluster-info
       - run_cluster_policy_tests
 

@@ -5,6 +5,7 @@ package hipstershop
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"testing"
 
@@ -44,6 +45,9 @@ func TestHipsterShop(t *testing.T) {
 	// removes namespaces and cancels context
 	tearDownFn := func() {
 		t.Logf("entering teardown")
+		if t.Failed() {
+			testRunner.DumpTestInfo("TestHipsterShop")
+		}
 		err := base.RemoveNamespacesForContexts(testRunner, []int{1, 2}, []int{1})
 		if err != nil {
 			t.Logf("Error removing namespaces = %s", err)
@@ -94,13 +98,11 @@ func TestHipsterShop(t *testing.T) {
 				jobSucceeded := job.Status.Succeeded == 1
 				if err != nil || !jobSucceeded {
 					// retrieving job logs
-					log, err := k8s.GetJobLogs(cluster.Namespace, cluster.VanClient.KubeClient, job.Name)
-					assert.Assert(t, err)
-					t.Logf("Job %s has failed. Job log:", job.Name)
-					t.Logf(log)
-				}
-				if err != nil {
-					testRunner.DumpTestInfo(cluster.Namespace)
+					jobLog, logErr := k8s.GetJobsLogs(cluster.Namespace, cluster.VanClient.KubeClient, job.Name, true)
+					if logErr != nil {
+						log.Printf("Failed fetching logs for job: %v", logErr)
+					}
+					t.Logf("Job error or failure on %s. Job log:\n%s", job.Name, jobLog)
 				}
 				assert.Assert(t, err)
 				assert.Assert(t, jobSucceeded)

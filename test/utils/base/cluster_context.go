@@ -148,9 +148,76 @@ func (cc *ClusterContext) DumpTestInfo(dirName string) {
 	} else {
 		log.Printf("error dumping test info: %v", err)
 	}
-	out, err := cc.KubectlExec("get -o wide job,pod,service")
+
+	log.Printf("namespace status:")
+	_, err = cc.KubectlExec("get -o wide job,pod,service,event")
 	if err != nil {
 		log.Printf("failed getting kube info: %v", err)
 	}
-	log.Printf("kube info: \n%v", string(out))
+
+	// These may be up and running now (and their output will show that).  However,
+	// the last time they _terminated_, it was with a non-zero return, and that
+	// may be valuable information for investigations.
+	//
+	// Here, we first get their pod and container names, and show some debugging
+	// information...
+	log.Printf("pod container whose last termination was non-zero:")
+	out, err := cc.KubectlExec(`get pod -o go-template='
+	    {{- range .items -}} 
+	      {{- with $pod := . -}} 
+		{{- range $pod.status.containerStatuses -}} 
+		  {{- with $cs := . -}} 
+		    {{- /* do we have a lastStae with exitCode on this cs? */ -}}
+		    {{- if $cs.lastState.terminated.exitCode -}}
+		      {{-  if ne $cs.lastState.terminated.exitCode 0 -}} 
+			{{ $pod.metadata.name }}{{ " " -}}
+			{{ $cs.name }}{{ " " -}}
+			lastExitCode: {{- $cs.lastState.terminated.exitCode }}{{ " " -}}
+			lastReason: {{- $cs.lastState.terminated.reason }}{{ " " -}}
+			lastStart: {{- $cs.lastState.terminated.startedAt }}{{ " " -}}
+			lastFinish: {{- $cs.lastState.terminated.finishedAt }}{{ " " -}}
+			restartCount: {{- $cs.restartCount }}{{ " " -}}
+			started: {{- $cs.started }}{{ " " -}}
+			podReady: {{- $cs.ready }}{{ "\n" -}}
+		      {{- end  -}}
+		    {{- end -}}
+		  {{- end -}}
+		{{- end -}}
+	      {{- end -}}
+	    {{- end -}}'
+	`)
+	if err != nil {
+		log.Printf("failed gathering information on containers: %v", err)
+	} else {
+
+		lines := strings.Split(string(out), "\n")
+		for _, line := range lines {
+
+			if line == "" {
+				continue
+			}
+
+			tokens := strings.Split(line, " ")
+
+			if len(tokens) < 2 {
+				fmt.Printf("The line %q is malformed for this process", line)
+				continue
+			}
+
+			logCmd := fmt.Sprintf("logs %s -c %s -p --tail=2000 --timestamps", tokens[0], tokens[1])
+			_, err = cc.KubectlExec(logCmd)
+			if err != nil {
+				log.Print("Failed fetching logs")
+			}
+
+		}
+	}
+
+	// On a healthy node, it will only report that it is ready.  If it faces any
+	// pressures, though (disk, memory, pid), those will be listed
+	log.Printf("node condition:")
+	_, err = cc.KubectlExec(`get node -o jsonpath="{.items[*].status.conditions[?(@.status=='True')]}"`)
+	if err != nil {
+		log.Printf("failed gathering node condition: %v", err)
+	}
 }
