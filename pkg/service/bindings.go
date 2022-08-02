@@ -148,9 +148,6 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 		}
 	}
 
-	if len(required.TlsCredentials) > 0 {
-		sb.tlsCredentials = required.TlsCredentials
-	}
 	return sb
 }
 
