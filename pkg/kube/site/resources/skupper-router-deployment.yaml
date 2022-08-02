@@ -9,9 +9,9 @@ metadata:
     skupper.io/type: site
   name: skupper-router
   ownerReferences:
-  - apiVersion: v1
-    kind: ConfigMap
-    name: skupper-site
+  - apiVersion: skupper.io/v1alpha1
+    kind: Site
+    name: {{ .SiteName }}
     uid: {{ .SiteId }}
 spec:
   replicas: {{ .Replicas }}

@@ -37,6 +37,9 @@ import (
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 
 	"github.com/skupperproject/skupper/pkg/event"
+	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
+	skupperv1alpha1informer "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/skupper/v1alpha1"
 )
 
 type ResourceChange struct {
@@ -68,6 +71,7 @@ type Controller struct {
 	routeClient     *routev1client.RouteV1Client
 	dynamicClient   dynamic.Interface
 	discoveryClient *discovery.DiscoveryClient
+	skupperClient   skupperclient.Interface
 	queue           workqueue.RateLimitingInterface
 	resync          time.Duration
 }
@@ -80,6 +84,7 @@ func NewController(name string, clients Clients) *Controller {
 		routeClient:     clients.GetRouteClient(),
 		discoveryClient: clients.GetDiscoveryClient(),
 		dynamicClient:   clients.GetDynamicClient(),
+		skupperClient:   clients.GetSkupperClient(),
 		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
 		resync:          time.Minute*5,
 	}
@@ -98,6 +103,10 @@ func (c *Controller)  GetDiscoveryClient() *discovery.DiscoveryClient {
 
 func (c *Controller)  GetRouteClient() *routev1client.RouteV1Client {
 	return c.routeClient
+}
+
+func (c *Controller)  GetSkupperClient() skupperclient.Interface {
+	return c.skupperClient
 }
 
 func (c *Controller) NewWatchers(client kubernetes.Interface) Watchers {
@@ -719,6 +728,266 @@ func (w *NodeWatcher) List() []*corev1.Node {
 	results := []*corev1.Node{}
 	for _, o := range list {
 		results = append(results, o.(*corev1.Node))
+	}
+	return results
+}
+
+func (c *Controller) WatchSites(namespace string, handler SiteHandler) *SiteWatcher {
+	watcher := &SiteWatcher{
+		handler:   handler,
+		informer:  skupperv1alpha1informer.NewSiteInformer(
+			c.skupperClient,
+			namespace,
+			time.Second*30,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+		namespace: namespace,
+	}
+	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
+	return watcher
+}
+type SiteHandler func(string, *skupperv1alpha1.Site) error
+
+type SiteWatcher struct {
+	handler   SiteHandler
+	informer  cache.SharedIndexInformer
+	namespace string
+}
+
+func (w *SiteWatcher) Handle(event ResourceChange) error {
+	obj, err := w.Get(event.Key)
+	if err != nil {
+		return err
+	}
+	return w.handler(event.Key, obj)
+}
+
+func (w *SiteWatcher) HasSynced() func() bool {
+	return w.informer.HasSynced
+}
+
+func (w *SiteWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("Site %s", event.Key)
+}
+
+func (w *SiteWatcher) Start(stopCh <-chan struct{}) {
+	go w.informer.Run(stopCh)
+}
+
+func (w *SiteWatcher) Sync(stopCh <-chan struct{}) bool {
+	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
+}
+
+func (w *SiteWatcher) Get(key string) (*skupperv1alpha1.Site, error) {
+	entity, exists, err := w.informer.GetStore().GetByKey(key)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+	return entity.(*skupperv1alpha1.Site), nil
+}
+
+func (w *SiteWatcher) List() []*skupperv1alpha1.Site {
+	list := w.informer.GetStore().List()
+	results := []*skupperv1alpha1.Site{}
+	for _, o := range list {
+		results = append(results, o.(*skupperv1alpha1.Site))
+	}
+	return results
+}
+
+func (c *Controller) WatchListeners(namespace string, handler ListenerHandler) *ListenerWatcher {
+	watcher := &ListenerWatcher{
+		handler:   handler,
+		informer:  skupperv1alpha1informer.NewListenerInformer(
+			c.skupperClient,
+			namespace,
+			time.Second*30,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+		namespace: namespace,
+	}
+	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
+	return watcher
+}
+type ListenerHandler func(string, *skupperv1alpha1.Listener) error
+
+type ListenerWatcher struct {
+	handler   ListenerHandler
+	informer  cache.SharedIndexInformer
+	namespace string
+}
+
+func (w *ListenerWatcher) Handle(event ResourceChange) error {
+	obj, err := w.Get(event.Key)
+	if err != nil {
+		return err
+	}
+	return w.handler(event.Key, obj)
+}
+
+func (w *ListenerWatcher) HasSynced() func() bool {
+	return w.informer.HasSynced
+}
+
+func (w *ListenerWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("Listener %s", event.Key)
+}
+
+func (w *ListenerWatcher) Start(stopCh <-chan struct{}) {
+	go w.informer.Run(stopCh)
+}
+
+func (w *ListenerWatcher) Sync(stopCh <-chan struct{}) bool {
+	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
+}
+
+func (w *ListenerWatcher) Get(key string) (*skupperv1alpha1.Listener, error) {
+	entity, exists, err := w.informer.GetStore().GetByKey(key)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+	return entity.(*skupperv1alpha1.Listener), nil
+}
+
+func (w *ListenerWatcher) List() []*skupperv1alpha1.Listener {
+	list := w.informer.GetStore().List()
+	results := []*skupperv1alpha1.Listener{}
+	for _, o := range list {
+		results = append(results, o.(*skupperv1alpha1.Listener))
+	}
+	return results
+}
+
+func (c *Controller) WatchConnectors(namespace string, handler ConnectorHandler) *ConnectorWatcher {
+	watcher := &ConnectorWatcher{
+		handler:   handler,
+		informer:  skupperv1alpha1informer.NewConnectorInformer(
+			c.skupperClient,
+			namespace,
+			time.Second*30,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+		namespace: namespace,
+	}
+	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
+	return watcher
+}
+type ConnectorHandler func(string, *skupperv1alpha1.Connector) error
+
+type ConnectorWatcher struct {
+	handler   ConnectorHandler
+	informer  cache.SharedIndexInformer
+	namespace string
+}
+
+func (w *ConnectorWatcher) Handle(event ResourceChange) error {
+	obj, err := w.Get(event.Key)
+	if err != nil {
+		return err
+	}
+	return w.handler(event.Key, obj)
+}
+
+func (w *ConnectorWatcher) HasSynced() func() bool {
+	return w.informer.HasSynced
+}
+
+func (w *ConnectorWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("Connector %s", event.Key)
+}
+
+func (w *ConnectorWatcher) Start(stopCh <-chan struct{}) {
+	go w.informer.Run(stopCh)
+}
+
+func (w *ConnectorWatcher) Sync(stopCh <-chan struct{}) bool {
+	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
+}
+
+func (w *ConnectorWatcher) Get(key string) (*skupperv1alpha1.Connector, error) {
+	entity, exists, err := w.informer.GetStore().GetByKey(key)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+	return entity.(*skupperv1alpha1.Connector), nil
+}
+
+func (w *ConnectorWatcher) List() []*skupperv1alpha1.Connector {
+	list := w.informer.GetStore().List()
+	results := []*skupperv1alpha1.Connector{}
+	for _, o := range list {
+		results = append(results, o.(*skupperv1alpha1.Connector))
+	}
+	return results
+}
+
+func (c *Controller) WatchLinkConfigs(namespace string, handler LinkConfigHandler) *LinkConfigWatcher {
+	watcher := &LinkConfigWatcher{
+		handler:   handler,
+		informer:  skupperv1alpha1informer.NewLinkConfigInformer(
+			c.skupperClient,
+			namespace,
+			time.Second*30,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+		namespace: namespace,
+	}
+	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
+	return watcher
+}
+type LinkConfigHandler func(string, *skupperv1alpha1.LinkConfig) error
+
+type LinkConfigWatcher struct {
+	handler   LinkConfigHandler
+	informer  cache.SharedIndexInformer
+	namespace string
+}
+
+func (w *LinkConfigWatcher) Handle(event ResourceChange) error {
+	obj, err := w.Get(event.Key)
+	if err != nil {
+		return err
+	}
+	return w.handler(event.Key, obj)
+}
+
+func (w *LinkConfigWatcher) HasSynced() func() bool {
+	return w.informer.HasSynced
+}
+
+func (w *LinkConfigWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("LinkConfig %s", event.Key)
+}
+
+func (w *LinkConfigWatcher) Start(stopCh <-chan struct{}) {
+	go w.informer.Run(stopCh)
+}
+
+func (w *LinkConfigWatcher) Sync(stopCh <-chan struct{}) bool {
+	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
+}
+
+func (w *LinkConfigWatcher) Get(key string) (*skupperv1alpha1.LinkConfig, error) {
+	entity, exists, err := w.informer.GetStore().GetByKey(key)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+	return entity.(*skupperv1alpha1.LinkConfig), nil
+}
+
+func (w *LinkConfigWatcher) List() []*skupperv1alpha1.LinkConfig {
+	list := w.informer.GetStore().List()
+	results := []*skupperv1alpha1.LinkConfig{}
+	for _, o := range list {
+		results = append(results, o.(*skupperv1alpha1.LinkConfig))
 	}
 	return results
 }

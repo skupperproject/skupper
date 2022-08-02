@@ -26,12 +26,32 @@ import (
 
 type SkupperV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ConnectorsGetter
+	LinkConfigsGetter
+	ListenersGetter
+	SitesGetter
 	SkupperClusterPoliciesGetter
 }
 
 // SkupperV1alpha1Client is used to interact with features provided by the skupper.io group.
 type SkupperV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *SkupperV1alpha1Client) Connectors(namespace string) ConnectorInterface {
+	return newConnectors(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) LinkConfigs(namespace string) LinkConfigInterface {
+	return newLinkConfigs(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) Listeners(namespace string) ListenerInterface {
+	return newListeners(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) Sites(namespace string) SiteInterface {
+	return newSites(c, namespace)
 }
 
 func (c *SkupperV1alpha1Client) SkupperClusterPolicies() SkupperClusterPolicyInterface {

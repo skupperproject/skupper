@@ -19,6 +19,8 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+
+	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 )
 
 type Clients interface {
@@ -26,4 +28,5 @@ type Clients interface {
 	GetDynamicClient() dynamic.Interface
 	GetDiscoveryClient() *discovery.DiscoveryClient
 	GetRouteClient() *routev1client.RouteV1Client
+	GetSkupperClient() skupperclient.Interface
 }

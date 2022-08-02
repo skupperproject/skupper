@@ -1,44 +1,24 @@
 package site
 
 import (
-	"log"
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
-
-	"github.com/skupperproject/skupper/api/types"
+	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-func getTokenCost(token *corev1.Secret) int32 {
-	if token.ObjectMeta.Annotations == nil {
-		return 0
-	}
-	if costString, ok := token.ObjectMeta.Annotations[types.TokenCost]; ok {
-		cost, err := strconv.Atoi(costString)
-		if err != nil {
-			log.Printf("Ignoring invalid cost annotation %q in %s/%s", costString, token.ObjectMeta.Namespace, token.ObjectMeta.Name)
-			return 0
-		}
-		return int32(cost)
-	}
-	return 0
-}
-
-func getHostPorts(secret *corev1.Secret) map[qdr.Role]HostPort {
+func getHostPorts(lc *skupperv1alpha1.LinkConfig) map[qdr.Role]HostPort {
 	hostPorts := map[qdr.Role]HostPort{}
-	if secret.ObjectMeta.Annotations == nil {
-		return hostPorts
-	}
 	hostPorts[qdr.RoleEdge] = HostPort{
-		host: secret.ObjectMeta.Annotations["edge-host"],
-		port: secret.ObjectMeta.Annotations["edge-port"],
+		host: lc.Spec.Edge.Host,
+		port: strconv.Itoa(lc.Spec.Edge.Port),
 	}
 	hostPorts[qdr.RoleInterRouter] = HostPort{
-		host: secret.ObjectMeta.Annotations["inter-router-host"],
-		port: secret.ObjectMeta.Annotations["inter-router-port"],
+		host: lc.Spec.InterRouter.Host,
+		port: strconv.Itoa(lc.Spec.InterRouter.Port),
 	}
 	return hostPorts
 }
@@ -49,11 +29,20 @@ type HostPort struct {
 	port string
 }
 
+func (o *HostPort) url() string {
+	return fmt.Sprintf("%s:%s", o.host, o.port)
+}
+
+func (o *HostPort) defined() bool {
+	return o.host != "" && o.port != ""
+}
+
 type LinkConfig struct {
 	name          string
 	cost          int32
 	hostPorts     map[qdr.Role]HostPort
 	hasClientCert bool
+	url           string
 }
 
 func NewLinkConfig(name string) *LinkConfig {
@@ -71,6 +60,9 @@ func (l *LinkConfig) Apply(current *qdr.RouterConfig) bool {
 		role = qdr.RoleEdge
 	}
 	hostPort := l.hostPorts[role]
+	if hostPort.defined() {
+		l.url = hostPort.url()
+	}
 	connector := qdr.Connector {
 		Name:       l.name,
 		Cost:       l.cost,
@@ -112,23 +104,26 @@ func (m LinkConfigMap) Apply(current *qdr.RouterConfig) bool {
 	return true //TODO: can optimise by indicating if no change was required
 }
 
-func (config *LinkConfig) Update(secret *corev1.Secret) bool {
+func (config *LinkConfig) Update(lc *skupperv1alpha1.LinkConfig) bool {
 	changed := false
-	if cost := getTokenCost(secret); cost != config.cost {
-		config.cost = cost
+	if int32(lc.Spec.Cost) != config.cost {
+		config.cost = int32(lc.Spec.Cost)
 		changed = true
 	}
-	if _, hasClientCert := secret.Data["tls.crt"]; hasClientCert != config.hasClientCert {
+	if hasClientCert := !lc.Spec.NoClientAuth; hasClientCert != config.hasClientCert {
 		config.hasClientCert = hasClientCert
 		changed = true
 	}
-	if hostPorts := getHostPorts(secret); !reflect.DeepEqual(hostPorts, config.hostPorts) {
+	if hostPorts := getHostPorts(lc); !reflect.DeepEqual(hostPorts, config.hostPorts) {
 		config.hostPorts = hostPorts
 		changed = true
 	}
 	return changed
 }
 
+func (config *LinkConfig) UpdateStatus(lc *skupperv1alpha1.LinkConfig) {
+	lc.Status.Url = config.url
+}
 
 type RemoveConnector struct {
 	name string

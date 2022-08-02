@@ -2,8 +2,10 @@ package site
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	kubetypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/skupperproject/skupper/api/types"
+	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
 	"github.com/skupperproject/skupper/pkg/kube/resolver"
@@ -27,6 +30,8 @@ import (
 
 type Site struct {
 	initialised bool
+	site        *skupperv1alpha1.Site
+	name        string
 	namespace   string
 	siteId      string
 	config      *types.SiteConfigSpec
@@ -47,18 +52,25 @@ func NewSite(namespace string, controller *kube.Controller) *Site {
 	}
 }
 
-func (s *Site) Recover(cm *corev1.ConfigMap) error {
+func (s *Site) Recover(site *skupperv1alpha1.Site) error {
 	//TODO: check version and perform any necessary update tasks
-	return s.Reconcile(cm)
+	return s.Reconcile(site)
 }
 
 func (s *Site) isEdge() bool {
 	return s.config.RouterMode == string(types.TransportModeEdge)
 }
 
-func (s *Site) Reconcile(cm *corev1.ConfigMap) error {
-	s.siteId = string(cm.ObjectMeta.UID)
-	siteConfig, err := site.ReadSiteConfig(cm, defaultIngress(s.controller))
+func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
+	if s.site != nil && s.site.Name != siteDef.Name {
+		log.Printf("Rejecting site %s/%s as %s is already active", siteDef.Namespace, siteDef.Name, s.site.Name)
+		return s.markSiteInactive(siteDef, fmt.Sprintf("An active site already exists in the namespace (%s)", s.site.Name))
+	}
+	s.site = siteDef
+	s.name = string(siteDef.ObjectMeta.Name)
+	s.siteId = string(siteDef.ObjectMeta.UID)
+	log.Printf("Checking site %s/%s (uid %s)", siteDef.Namespace, siteDef.Name, s.siteId)
+	siteConfig, err := site.ReadSiteConfigFrom(&siteDef.ObjectMeta, &siteDef.TypeMeta, siteDef.Spec.Settings, defaultIngress(s.controller))
 	if err != nil {
 		return err
 	}
@@ -66,6 +78,7 @@ func (s *Site) Reconcile(cm *corev1.ConfigMap) error {
 	// ensure necessary resources:
 	// 1. skupper-internal configmap
 	if !s.initialised {
+		log.Printf("Initialising site %s/%s", siteDef.Namespace, siteDef.Name)
 		routerConfig, err := s.getRouterConfig()
 		if err != nil {
 			return err
@@ -82,17 +95,23 @@ func (s *Site) Reconcile(cm *corev1.ConfigMap) error {
 		if createRouterConfig {
 			s.bindings.Apply(routerConfig)
 			err = s.createRouterConfig(routerConfig)
+			if err != nil {
+				return err
+			}
+			log.Printf("Router config created for site %s/%s", siteDef.Namespace, siteDef.Name)
 		} else {
 			err = s.updateRouterConfig(ConfigUpdateList{s.bindings,s})
-		}
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+			log.Printf("Router config updated for site %s/%s", siteDef.Namespace, siteDef.Name)
 		}
 	} else {
 		err = s.updateRouterConfig(s)
 		if err != nil {
 			return err
 		}
+		log.Printf("Router config updated for site %s/%s", siteDef.Namespace, siteDef.Name)
 	}
 	ctxt := context.TODO()
 	// 2. service account (optional)
@@ -112,7 +131,7 @@ func (s *Site) Reconcile(cm *corev1.ConfigMap) error {
 	}
 	//}
 	// 3. deployment, services & any ingress related resources
-	err = resources.Apply(s.controller, ctxt, s.namespace, string(cm.ObjectMeta.UID), s.config)
+	err = resources.Apply(s.controller, ctxt, s.namespace, s.name, s.siteId, s.config)
 	if err != nil {
 		return err
 	}
@@ -259,7 +278,6 @@ func (s *Site) checkCredentials(ctxt context.Context) error {
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
-		log.Printf("Checking secret %s", cred.Name)
 		err = kube.EnsureSecret(cred, s.ownerReference(), s.namespace, s.controller.GetKubeClient())
 		if err != nil {
 			return err
@@ -270,15 +288,36 @@ func (s *Site) checkCredentials(ctxt context.Context) error {
 		return err
 	}
 	if updateStatus {
-		log.Printf("Updating status for %s", s.namespace)
-		err = resources.ApplyStatus(s.controller, ctxt, s.namespace, s.siteId, s.addresses, []string{}/*TODO: pass in any user errors*/)
-		if err != nil {
-			log.Printf("Error while updating status for %s: %s", s.namespace, err)
-			return err
-		}
+		return s.updateStatus()
 	}
 
 	return nil
+}
+
+func (s *Site) endpoints() []skupperv1alpha1.Endpoint {
+	var endpoints []skupperv1alpha1.Endpoint
+	if s.addresses.InterRouter.Host != "" {
+		endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+			Name: "inter-router",
+			Host: s.addresses.InterRouter.Host,
+			Port: strconv.Itoa(int(s.addresses.InterRouter.Port)),
+		})
+	}
+	if s.addresses.Edge.Host != "" {
+		endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+			Name: "edge",
+			Host: s.addresses.Edge.Host,
+			Port: strconv.Itoa(int(s.addresses.Edge.Port)),
+		})
+	}
+	if s.addresses.Claims.Host != "" {
+		endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+			Name: "claims",
+			Host: s.addresses.Claims.Host,
+			Port: strconv.Itoa(int(s.addresses.Claims.Port)),
+		})
+	}
+	return endpoints
 }
 
 func (s *Site) recordError(key string, detail string) {
@@ -291,7 +330,7 @@ func (s *Site) clearError(key string) {
 
 func (s *Site) checkAddresses() (bool, error) {
 	changed := false
-	if !s.isEdge() && !s.resolver.IsLocalAccessOnly() {
+	if !s.isEdge() {
 		hp, err := s.resolver.GetHostPortForInterRouter()
 		if err != nil {
 			return changed, err
@@ -405,14 +444,6 @@ func (s *Site) Apply(config *qdr.RouterConfig) bool {
 	return updated
 }
 
-func (s *Site) UpdateConnector(name string, cm *corev1.ConfigMap) (qdr.ConfigUpdate, error) {
-	return s.bindings.UpdateConnector(name, cm)
-}
-
-func (s *Site) UpdateListener(name string, cm *corev1.ConfigMap) (qdr.ConfigUpdate, error) {
-	return s.bindings.UpdateListener(name, cm)
-}
-
 func (s *Site) getRouterConfig() (*qdr.RouterConfig, error) {
 	current, err := s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Get(context.TODO(), types.TransportConfigMapName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
@@ -428,7 +459,10 @@ func (s *Site) IsInitialised() bool {
 	return s.initialised
 }
 
-func (s *Site) Select(name string, selector string, includeNotReady bool) site.TargetSelection {
+func (s *Site) Select(connector *skupperv1alpha1.Connector) site.TargetSelection {
+	name := connector.Name
+	selector := connector.Spec.Selector
+	includeNotReady := connector.Spec.IncludeNotReady
 	if selector == "" {
 		return nil
 	}
@@ -436,6 +470,7 @@ func (s *Site) Select(name string, selector string, includeNotReady bool) site.T
 		stopCh:          make(chan struct{}),
 		site:            s,
 		name:            name,
+		connector:       connector,
 		namespace:       s.namespace,
 		includeNotReady: includeNotReady,
 	}
@@ -572,6 +607,7 @@ func isOwned(service *corev1.Service) bool {
 
 func (s *Site) updateRouterConfig(update qdr.ConfigUpdate) error {
 	if !s.initialised {
+		log.Printf("Cannot update router config for site in %s", s.namespace)
 		return nil
 	}
 	return kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), s.namespace, context.TODO(), update)
@@ -580,9 +616,9 @@ func (s *Site) updateRouterConfig(update qdr.ConfigUpdate) error {
 //TODO: get rid of this one in favour of version that returns slice
 func (s *Site) ownerReference() *metav1.OwnerReference {
 	return &metav1.OwnerReference{
-		Kind:       "ConfigMap",
-		APIVersion: "v1",
-		Name:       "skupper-site",
+		Kind:       "Site",
+		APIVersion: "skupper.io/v1alpha1",
+		Name:       s.name,
 		UID:        kubetypes.UID(s.siteId),
 	}
 }
@@ -590,78 +626,142 @@ func (s *Site) ownerReference() *metav1.OwnerReference {
 func (s *Site) ownerReferences() []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-			Name:       "skupper-site",
+			Kind:       "Site",
+			APIVersion: "skupper.io/v1alpha1",
+			Name:       s.name,
 			UID:        kubetypes.UID(s.siteId),
 		},
 	}
 }
 
 func (s *Site) createRouterConfig(config *qdr.RouterConfig) error {
-	cm, err := config.AsConfigMapData()
+	data, err := config.AsConfigMapData()
 	if err != nil {
 		return err
 	}
-	_, err = kube.NewConfigMap(types.TransportConfigMapName, &cm, nil, nil, s.ownerReference(), s.namespace, s.controller.GetKubeClient())
+	cm := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: types.TransportConfigMapName,
+			OwnerReferences: s.ownerReferences(),
+			//TODO: Labels & Annotations?
+		},
+		Data: data,
+	}
+
+	_, err = s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
+	if err != nil {
+		log.Printf("Failed to create config map %s/%s: %s", s.namespace, types.TransportConfigMapName, err)
+	} else {
+		log.Printf("Config map %s/%s created successfully", s.namespace, types.TransportConfigMapName)
+	}
 	return err
 }
 
-func (s *Site) CheckConnector(name string, configmap *corev1.ConfigMap) error {
-	update, err := s.bindings.UpdateConnector(name, configmap)
-	if err != nil {
-		return err
+func (s *Site) updateConnectorStatus(connector *skupperv1alpha1.Connector, err error) error {
+	if connector == nil {
+		return nil
 	}
-	if update != nil {
-		return s.updateRouterConfig(update)
+	if err == nil {
+		connector.Status.Active = true
+		connector.Status.StatusMessage = "Ok"
+	} else {
+		connector.Status.Active = false
+		connector.Status.StatusMessage = err.Error()
 	}
-	return nil
+	_, updateErr := s.controller.GetSkupperClient().SkupperV1alpha1().Connectors(connector.ObjectMeta.Namespace).UpdateStatus(context.TODO(), connector, metav1.UpdateOptions{})
+	if updateErr != nil {
+		if err == nil {
+			return updateErr
+		}
+		return fmt.Errorf("Error updating connector status for %s: %s", err, updateErr)
+	}
+	return err
 }
 
-func (s *Site) CheckListener(name string, configmap *corev1.ConfigMap) error {
-	update, err := s.bindings.UpdateListener(name, configmap)
+func (s *Site) CheckConnector(name string, connector *skupperv1alpha1.Connector) error {
+	update, err := s.bindings.UpdateConnector(name, connector)
 	if err != nil {
-		return err
+		return s.updateConnectorStatus(connector, err)
 	}
-	if update != nil {
-		return s.updateRouterConfig(update)
+	if update == nil {
+		return nil
 	}
-	return nil
+	err = s.updateRouterConfig(update)
+	return s.updateConnectorStatus(connector, err)
 }
 
-func (s *Site) newLinkConfig(secret *corev1.Secret) *site.LinkConfig {
-	config := site.NewLinkConfig(secret.ObjectMeta.Name)
-	config.Update(secret)
+func (s *Site) updateListenerStatus(listener *skupperv1alpha1.Listener, err error) error {
+	if listener == nil {
+		return nil
+	}
+	if err == nil {
+		listener.Status.Active = true
+		listener.Status.StatusMessage = "Ok"
+	} else {
+		listener.Status.Active = false
+		listener.Status.StatusMessage = err.Error()
+	}
+	_, updateErr := s.controller.GetSkupperClient().SkupperV1alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
+	if updateErr != nil {
+		if err == nil {
+			return updateErr
+		}
+		return fmt.Errorf("Error updating listener status for %s: %s", err, updateErr)
+	}
+	return err
+}
+
+func (s *Site) CheckListener(name string, listener *skupperv1alpha1.Listener) error {
+	update, err := s.bindings.UpdateListener(name, listener)
+	if err != nil {
+		return s.updateListenerStatus(listener, err)
+	}
+	if update == nil {
+		return nil
+	}
+	err = s.updateRouterConfig(update)
+	return s.updateListenerStatus(listener, err)
+}
+
+func (s *Site) newLinkConfig(linkconfig *skupperv1alpha1.LinkConfig) *site.LinkConfig {
+	config := site.NewLinkConfig(linkconfig.ObjectMeta.Name)
+	config.Update(linkconfig)
 	return config
 }
 
-func (s *Site) CheckLinkConfig(name string, secret *corev1.Secret) error {
+func (s *Site) CheckLinkConfig(name string, linkconfig *skupperv1alpha1.LinkConfig) error {
 	log.Printf("checkLinkConfig(%s)", name)
-	if secret == nil {
+	if linkconfig == nil {
 		return s.unlink(name)
 	}
-	return s.link(secret)
+	return s.link(linkconfig)
 }
 
-func (s *Site) link(token *corev1.Secret) error {
+func (s *Site) link(linkconfig *skupperv1alpha1.LinkConfig) error {
 	var config *site.LinkConfig
-	if existing, ok := s.links[token.ObjectMeta.Name]; ok {
-		if existing.Update(token) {
+	if existing, ok := s.links[linkconfig.ObjectMeta.Name]; ok {
+		if existing.Update(linkconfig) {
 			config = existing
 		}
 	} else {
-		config = s.newLinkConfig(token)
-		s.links[token.ObjectMeta.Name] = config
+		config = s.newLinkConfig(linkconfig)
+		s.links[linkconfig.ObjectMeta.Name] = config
 	}
 	if s.initialised {
 		if config != nil {
-			log.Printf("Connecting site in %s using token %s", s.namespace, token.ObjectMeta.Name)
-			return s.updateRouterConfig(config)
+			log.Printf("Connecting site in %s using token %s", s.namespace, linkconfig.ObjectMeta.Name)
+			err := s.updateRouterConfig(config)
+			config.UpdateStatus(linkconfig)
+			return s.updateLinkConfigStatus(linkconfig, err)
 		} else {
-			log.Printf("No update to router config required for link %s in %s", token.ObjectMeta.Name, token.ObjectMeta.Namespace)
+			log.Printf("No update to router config required for link %s in %s", linkconfig.ObjectMeta.Name, linkconfig.ObjectMeta.Namespace)
 		}
 	} else {
-		log.Printf("Site is not yet initialised, cannot configure router for link %s in %s", token.ObjectMeta.Name, token.ObjectMeta.Namespace)
+		log.Printf("Site is not yet initialised, cannot configure router for link %s in %s", linkconfig.ObjectMeta.Name, linkconfig.ObjectMeta.Namespace)
 	}
 	return nil
 }
@@ -677,6 +777,27 @@ func (s *Site) unlink(name string) error {
 	return nil
 }
 
+func (s *Site) updateLinkConfigStatus(link *skupperv1alpha1.LinkConfig, err error) error {
+	if link == nil {
+		return nil
+	}
+	if err == nil {
+		link.Status.Configured = true
+		link.Status.StatusMessage = "Ok"
+	} else {
+		link.Status.Configured = false
+		link.Status.StatusMessage = err.Error()
+	}
+	_, updateErr := s.controller.GetSkupperClient().SkupperV1alpha1().LinkConfigs(link.ObjectMeta.Namespace).UpdateStatus(context.TODO(), link, metav1.UpdateOptions{})
+	if updateErr != nil {
+		if err == nil {
+			return updateErr
+		}
+		return fmt.Errorf("Error updating link status for %s: %s", err, updateErr)
+	}
+	return err
+}
+
 func (s *Site) CheckLoadBalancer(svc *corev1.Service) error {
 	return s.checkCredentials(context.TODO())
 }
@@ -689,10 +810,66 @@ func (s *Site) Deleted() {
 	s.bindings.CloseAllSelectedConnectors()
 }
 
+func (s *Site) updateStatus() error {
+	log.Printf("Updating site status for %s", s.namespace)
+	s.site.Status.Active = true
+	s.site.Status.Endpoints = s.endpoints()
+	s.site.Status.StatusMessage = "OK"
+	updated, err := s.controller.GetSkupperClient().SkupperV1alpha1().Sites(s.site.ObjectMeta.Namespace).UpdateStatus(context.TODO(), s.site, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	s.site = updated
+	return nil
+}
+
+func (s *Site) NetworkStatusUpdated(network []skupperv1alpha1.SiteRecord) error {
+	if reflect.DeepEqual(s.site.Status.Network, network) {
+		return nil
+	}
+	s.site.Status.Network = network
+	s.site.Status.SitesInNetwork = len(network)
+	services := map[string]string{}
+	for _, site := range network {
+		for _, svc := range site.Services {
+			services[svc.RoutingKey] = svc.RoutingKey
+		}
+	}
+	s.site.Status.ServicesInNetwork = len(services)
+	updated, err := s.UpdateSiteStatus(s.site)
+	if err != nil {
+		return err
+	}
+	s.site = updated
+	return nil
+}
+
+func (s *Site) markSiteInactive(site *skupperv1alpha1.Site, status string) error {
+	if site.Status.Active == false && site.Status.StatusMessage == status {
+		return nil
+	}
+	site.Status.Active = false
+	site.Status.StatusMessage = status
+	_, err := s.UpdateSiteStatus(site)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Site) UpdateSiteStatus(site *skupperv1alpha1.Site) (*skupperv1alpha1.Site, error) {
+	updated, err := s.controller.GetSkupperClient().SkupperV1alpha1().Sites(site.ObjectMeta.Namespace).UpdateStatus(context.TODO(), site, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
 type TargetSelection struct {
 	watcher         *kube.PodWatcher
 	stopCh          chan struct{}
 	site            *Site
+	connector       *skupperv1alpha1.Connector
 	name            string
 	namespace       string
 	includeNotReady bool
@@ -722,8 +899,21 @@ func (w *TargetSelection) List() []string {
 
 }
 
+func (w *TargetSelection) Update(connector *skupperv1alpha1.Connector) {
+	w.connector = connector
+}
+
 func (w *TargetSelection) handle(key string, pod *corev1.Pod) error {
-	return w.site.updateRouterConfig(w.site.bindings)
+	err := w.site.updateRouterConfig(w.site.bindings)
+	if err != nil {
+		return w.site.updateConnectorStatus(w.connector, err)
+	}
+	if len(w.List()) == 0 {
+		log.Printf("No pods available for %s/%s", w.connector.Namespace, w.connector.Name)
+		return w.site.updateConnectorStatus(w.connector, fmt.Errorf("No targets for selector"))
+	}
+	log.Printf("Pods are available for %s/%s", w.connector.Namespace, w.connector.Name)
+	return w.site.updateConnectorStatus(w.connector, nil)
 }
 
 type ConfigUpdateList []qdr.ConfigUpdate

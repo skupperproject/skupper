@@ -24,6 +24,14 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// Connectors returns a ConnectorInformer.
+	Connectors() ConnectorInformer
+	// LinkConfigs returns a LinkConfigInformer.
+	LinkConfigs() LinkConfigInformer
+	// Listeners returns a ListenerInformer.
+	Listeners() ListenerInformer
+	// Sites returns a SiteInformer.
+	Sites() SiteInformer
 	// SkupperClusterPolicies returns a SkupperClusterPolicyInformer.
 	SkupperClusterPolicies() SkupperClusterPolicyInformer
 }
@@ -37,6 +45,26 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// Connectors returns a ConnectorInformer.
+func (v *version) Connectors() ConnectorInformer {
+	return &connectorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// LinkConfigs returns a LinkConfigInformer.
+func (v *version) LinkConfigs() LinkConfigInformer {
+	return &linkConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Listeners returns a ListenerInformer.
+func (v *version) Listeners() ListenerInformer {
+	return &listenerInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Sites returns a SiteInformer.
+func (v *version) Sites() SiteInformer {
+	return &siteInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // SkupperClusterPolicies returns a SkupperClusterPolicyInformer.

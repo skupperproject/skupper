@@ -1,0 +1,108 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sites.skupper.io
+spec:
+  group: skupper.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                serviceAccount:
+                  type: string
+                settings:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+            status:
+              type: object
+              properties:
+                active:
+                  type: boolean
+                status:
+                  type: string
+                endpoints:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      host:
+                        type: string
+                      port:
+                        type: string
+                      name:
+                        type: string
+                sitesInNetwork:
+                  type: integer
+                servicesInNetwork:
+                  type: integer
+                network:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      platform:
+                        type: string
+                      version:
+                        type: string
+                      links:
+                        type: array
+                        items:
+                          type: string
+                      services:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            routingKey:
+                              type: string
+                            connectors:
+                              type: array
+                              items:
+                                type: string
+                            listeners:
+                              type: array
+                              items:
+                                type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+      - name: Active
+        type: boolean
+        description: Whether site is active
+        jsonPath: .status.active
+      - name: Status
+        type: string
+        description: The status of the site
+        jsonPath: .status.status
+      - name: Sites In Network
+        type: integer
+        description: The number of sites in the network
+        jsonPath: .status.sitesInNetwork
+      - name: Services In Network
+        type: integer
+        description: The number of services in the network
+        jsonPath: .status.servicesInNetwork
+  scope: Namespaced
+  names:
+    plural: sites
+    singular: site
+    kind: Site

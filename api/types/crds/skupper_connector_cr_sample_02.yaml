@@ -1,0 +1,8 @@
+apiVersion: skupper.io/v1alpha1
+kind: Connector
+metadata:
+  name: echo-myservice
+spec:
+  routingKey: echo
+  port: 8080
+  host: myservice

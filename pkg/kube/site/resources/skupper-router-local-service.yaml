@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: skupper-router-local
   ownerReferences:
-  - apiVersion: v1
-    kind: ConfigMap
-    name: skupper-site
+  - apiVersion: skupper.io/v1alpha1
+    kind: Site
+    name: {{ .SiteName }}
     uid: {{ .SiteId }}
 spec:
   ports:

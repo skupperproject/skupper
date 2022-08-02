@@ -18,6 +18,38 @@ limitations under the License.
 
 package v1alpha1
 
+// ConnectorListerExpansion allows custom methods to be added to
+// ConnectorLister.
+type ConnectorListerExpansion interface{}
+
+// ConnectorNamespaceListerExpansion allows custom methods to be added to
+// ConnectorNamespaceLister.
+type ConnectorNamespaceListerExpansion interface{}
+
+// LinkConfigListerExpansion allows custom methods to be added to
+// LinkConfigLister.
+type LinkConfigListerExpansion interface{}
+
+// LinkConfigNamespaceListerExpansion allows custom methods to be added to
+// LinkConfigNamespaceLister.
+type LinkConfigNamespaceListerExpansion interface{}
+
+// ListenerListerExpansion allows custom methods to be added to
+// ListenerLister.
+type ListenerListerExpansion interface{}
+
+// ListenerNamespaceListerExpansion allows custom methods to be added to
+// ListenerNamespaceLister.
+type ListenerNamespaceListerExpansion interface{}
+
+// SiteListerExpansion allows custom methods to be added to
+// SiteLister.
+type SiteListerExpansion interface{}
+
+// SiteNamespaceListerExpansion allows custom methods to be added to
+// SiteNamespaceLister.
+type SiteNamespaceListerExpansion interface{}
+
 // SkupperClusterPolicyListerExpansion allows custom methods to be added to
 // SkupperClusterPolicyLister.
 type SkupperClusterPolicyListerExpansion interface{}

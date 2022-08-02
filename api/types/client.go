@@ -7,8 +7,13 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/network"
+	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 )
 
 const (
@@ -351,4 +356,9 @@ type VanClientInterface interface {
 	RevokeAccess(ctx context.Context) error
 	NetworkStatus(ctx context.Context) (*network.NetworkStatusInfo, error)
 	GetConsoleUrl(namespace string) (string, error)
+	GetKubeClient() kubernetes.Interface
+	GetDynamicClient() dynamic.Interface
+	GetDiscoveryClient() *discovery.DiscoveryClient
+	GetRouteClient() *routev1client.RouteV1Client
+	GetSkupperClient() skupperclient.Interface
 }

@@ -146,7 +146,6 @@ func EnsureSecret(cred types.Credential, owner *metav1.OwnerReference, namespace
 		return nil
 	}
 	if certData, ok := existing.Data["tls.crt"]; !ok || !isCertCorrect(cred, certData) {
-		log.Printf("Certificate needs updated for %s", cred.Name)
 		caSecret, err := cli.CoreV1().Secrets(namespace).Get(ctxt, cred.CA, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -154,14 +153,8 @@ func EnsureSecret(cred types.Credential, owner *metav1.OwnerReference, namespace
 		secret := certs.GenerateSecretWithExpiration(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), cred.Expiration, caSecret)
 		existing.Data = secret.Data
 		_, err = cli.CoreV1().Secrets(namespace).Update(ctxt, existing, metav1.UpdateOptions{})
-		if err == nil {
-			log.Printf("Certificate updated for %s", cred.Name)
-		} else {
-			log.Printf("Certificate could not be updated for %s: %s", cred.Name, err)
-		}
 		return err
 	}
-	log.Printf("Certificate is ok for %s", cred.Name)
 
 	return nil
 }

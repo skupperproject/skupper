@@ -18,4 +18,12 @@ limitations under the License.
 
 package v1alpha1
 
+type ConnectorExpansion interface{}
+
+type LinkConfigExpansion interface{}
+
+type ListenerExpansion interface{}
+
+type SiteExpansion interface{}
+
 type SkupperClusterPolicyExpansion interface{}

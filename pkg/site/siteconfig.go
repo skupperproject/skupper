@@ -468,20 +468,24 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 }
 
 func ReadSiteConfig(siteConfig *corev1.ConfigMap, defaultIngress string) (*types.SiteConfig, error) {
+	return ReadSiteConfigFrom(&siteConfig.ObjectMeta, &siteConfig.TypeMeta, siteConfig.Data, defaultIngress)
+}
+
+func ReadSiteConfigFrom(siteConfig *metav1.ObjectMeta, typeMeta *metav1.TypeMeta, data map[string]string, defaultIngress string) (*types.SiteConfig, error) {
 	var errs []string
 	var result types.SiteConfig
 	result.Spec.SkupperNamespace = siteConfig.Namespace
 	// TODO: what should the defaults be for name, namespace
-	if skupperName, ok := siteConfig.Data[SiteConfigNameKey]; ok {
+	if skupperName, ok := data[SiteConfigNameKey]; ok {
 		result.Spec.SkupperName = skupperName
 	} else {
 		result.Spec.SkupperName = siteConfig.Namespace
 	}
-	if routerMode, ok := siteConfig.Data[SiteConfigRouterModeKey]; ok {
+	if routerMode, ok := data[SiteConfigRouterModeKey]; ok {
 		result.Spec.RouterMode = routerMode
 	} else {
 		// check for deprecated key
-		if isEdge, ok := siteConfig.Data["edge"]; ok {
+		if isEdge, ok := data["edge"]; ok {
 			if isEdge == "true" {
 				result.Spec.RouterMode = string(types.TransportModeEdge)
 			} else {
@@ -491,36 +495,36 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, defaultIngress string) (*types
 			result.Spec.RouterMode = string(types.TransportModeInterior)
 		}
 	}
-	if routers, ok := siteConfig.Data[SiteConfigRoutersKey]; ok {
+	if routers, ok := data[SiteConfigRoutersKey]; ok {
 		result.Spec.Routers, _ = strconv.Atoi(routers)
 	}
-	if enableController, ok := siteConfig.Data[SiteConfigServiceControllerKey]; ok {
+	if enableController, ok := data[SiteConfigServiceControllerKey]; ok {
 		result.Spec.EnableController, _ = strconv.ParseBool(enableController)
 	} else {
 		result.Spec.EnableController = true
 	}
-	if enableServiceSync, ok := siteConfig.Data[SiteConfigServiceSyncKey]; ok {
+	if enableServiceSync, ok := data[SiteConfigServiceSyncKey]; ok {
 		result.Spec.EnableServiceSync, _ = strconv.ParseBool(enableServiceSync)
 	} else {
 		result.Spec.EnableServiceSync = true
 	}
-	if value, ok := siteConfig.Data[SiteConfigServiceSyncSiteTtlKey]; ok {
+	if value, ok := data[SiteConfigServiceSyncSiteTtlKey]; ok {
 		ttl, err := time.ParseDuration(value)
 		if err == nil {
 			result.Spec.SiteTtl = ttl
 		}
 	}
-	if enableConsole, ok := siteConfig.Data[SiteConfigConsoleKey]; ok {
+	if enableConsole, ok := data[SiteConfigConsoleKey]; ok {
 		result.Spec.EnableConsole, _ = strconv.ParseBool(enableConsole)
 	} else {
 		result.Spec.EnableConsole = false
 	}
-	if enableFlowCollector, ok := siteConfig.Data[SiteConfigFlowCollectorKey]; ok {
+	if enableFlowCollector, ok := data[SiteConfigFlowCollectorKey]; ok {
 		result.Spec.EnableFlowCollector, _ = strconv.ParseBool(enableFlowCollector)
 	} else {
 		result.Spec.EnableFlowCollector = false
 	}
-	if value, ok := siteConfig.Data[SiteConfigFlowCollectorRecordTtlKey]; ok {
+	if value, ok := data[SiteConfigFlowCollectorRecordTtlKey]; ok {
 		ttl, err := time.ParseDuration(value)
 		if err == nil {
 			result.Spec.FlowCollector.FlowRecordTtl = ttl
@@ -528,75 +532,75 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, defaultIngress string) (*types
 	} else {
 		result.Spec.FlowCollector.FlowRecordTtl = types.DefaultFlowTimeoutDuration
 	}
-	if value, ok := siteConfig.Data[SiteConfigRestAPIKey]; ok {
+	if value, ok := data[SiteConfigRestAPIKey]; ok {
 		result.Spec.EnableRestAPI, _ = strconv.ParseBool(value)
 	} else {
 		result.Spec.EnableRestAPI = result.Spec.EnableConsole
 	}
-	if enableClusterPermissions, ok := siteConfig.Data[SiteConfigClusterPermissionsKey]; ok {
+	if enableClusterPermissions, ok := data[SiteConfigClusterPermissionsKey]; ok {
 		result.Spec.EnableClusterPermissions, _ = strconv.ParseBool(enableClusterPermissions)
 	} else {
 		result.Spec.EnableClusterPermissions = false
 	}
-	if createNetworkPolicy, ok := siteConfig.Data[SiteConfigCreateNetworkPolicyKey]; ok {
+	if createNetworkPolicy, ok := data[SiteConfigCreateNetworkPolicyKey]; ok {
 		result.Spec.CreateNetworkPolicy, _ = strconv.ParseBool(createNetworkPolicy)
 	} else {
 		result.Spec.CreateNetworkPolicy = false
 	}
-	if authMode, ok := siteConfig.Data[SiteConfigConsoleAuthenticationKey]; ok {
+	if authMode, ok := data[SiteConfigConsoleAuthenticationKey]; ok {
 		result.Spec.AuthMode = authMode
 	} else {
 		result.Spec.AuthMode = types.ConsoleAuthModeInternal
 	}
-	if user, ok := siteConfig.Data[SiteConfigConsoleUserKey]; ok {
+	if user, ok := data[SiteConfigConsoleUserKey]; ok {
 		result.Spec.User = user
 	} else {
 		result.Spec.User = ""
 	}
-	if password, ok := siteConfig.Data[SiteConfigConsolePasswordKey]; ok {
+	if password, ok := data[SiteConfigConsolePasswordKey]; ok {
 		result.Spec.Password = password
 	} else {
 		result.Spec.Password = ""
 	}
-	if ingress, ok := siteConfig.Data[SiteConfigIngressKey]; ok {
+	if ingress, ok := data[SiteConfigIngressKey]; ok {
 		result.Spec.Ingress = ingress
 	} else {
 		// check for deprecated key
-		if clusterLocal, ok := siteConfig.Data["cluster-local"]; ok && clusterLocal == "true" {
+		if clusterLocal, ok := data["cluster-local"]; ok && clusterLocal == "true" {
 			result.Spec.Ingress = types.IngressNoneString
 		} else {
 			result.Spec.Ingress = defaultIngress
 		}
 	}
-	if ingressAnnotations, ok := siteConfig.Data[SiteConfigIngressAnnotationsKey]; ok {
+	if ingressAnnotations, ok := data[SiteConfigIngressAnnotationsKey]; ok {
 		result.Spec.IngressAnnotations = asMap(splitWithEscaping(ingressAnnotations, ',', '\\'))
 	}
-	if consoleIngress, ok := siteConfig.Data[SiteConfigConsoleIngressKey]; ok {
+	if consoleIngress, ok := data[SiteConfigConsoleIngressKey]; ok {
 		result.Spec.ConsoleIngress = consoleIngress
 	}
-	if ingressHost, ok := siteConfig.Data[SiteConfigIngressHostKey]; ok {
+	if ingressHost, ok := data[SiteConfigIngressHostKey]; ok {
 		result.Spec.IngressHost = ingressHost
 	}
-	if runAsUser, ok := siteConfig.Data[SiteConfigRunAsUserKey]; ok {
+	if runAsUser, ok := data[SiteConfigRunAsUserKey]; ok {
 		result.Spec.RunAsUser, _ = strconv.ParseInt(runAsUser, 10, 64)
 	}
-	if runAsGroup, ok := siteConfig.Data[SiteConfigRunAsGroupKey]; ok {
+	if runAsGroup, ok := data[SiteConfigRunAsGroupKey]; ok {
 		result.Spec.RunAsGroup, _ = strconv.ParseInt(runAsGroup, 10, 64)
 	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
-	if siteConfig.ObjectMeta.Labels == nil {
+	if siteConfig.Labels == nil {
 		result.Spec.SiteControlled = true
-	} else if ignore, ok := siteConfig.ObjectMeta.Labels[types.SiteControllerIgnore]; ok {
+	} else if ignore, ok := siteConfig.Labels[types.SiteControllerIgnore]; ok {
 		siteIgnore, _ := strconv.ParseBool(ignore)
 		result.Spec.SiteControlled = !siteIgnore
 	} else {
 		result.Spec.SiteControlled = true
 	}
-	result.Reference.UID = string(siteConfig.ObjectMeta.UID)
-	result.Reference.Name = siteConfig.ObjectMeta.Name
-	result.Reference.Kind = siteConfig.TypeMeta.Kind
-	result.Reference.APIVersion = siteConfig.TypeMeta.APIVersion
-	if routerLogging, ok := siteConfig.Data[SiteConfigRouterLoggingKey]; ok && routerLogging != "" {
+	result.Reference.UID = string(siteConfig.UID)
+	result.Reference.Name = siteConfig.Name
+	result.Reference.Kind = typeMeta.Kind
+	result.Reference.APIVersion = typeMeta.APIVersion
+	if routerLogging, ok := data[SiteConfigRouterLoggingKey]; ok && routerLogging != "" {
 		logConf, err := qdr.ParseRouterLogConfig(routerLogging)
 		if err != nil {
 			errs = append(errs, err.Error())
@@ -611,32 +615,32 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, defaultIngress string) (*types
 			result.Spec.Router.Logging = logConf
 		}
 	}
-	if routerCpu, ok := siteConfig.Data[SiteConfigRouterCpuKey]; ok && routerCpu != "" {
+	if routerCpu, ok := data[SiteConfigRouterCpuKey]; ok && routerCpu != "" {
 		result.Spec.Router.Cpu = routerCpu
 	}
-	if routerMemory, ok := siteConfig.Data[SiteConfigRouterMemoryKey]; ok && routerMemory != "" {
+	if routerMemory, ok := data[SiteConfigRouterMemoryKey]; ok && routerMemory != "" {
 		result.Spec.Router.Memory = routerMemory
 	}
-	if routerCpuLimit, ok := siteConfig.Data[SiteConfigRouterCpuLimitKey]; ok && routerCpuLimit != "" {
+	if routerCpuLimit, ok := data[SiteConfigRouterCpuLimitKey]; ok && routerCpuLimit != "" {
 		result.Spec.Router.CpuLimit = routerCpuLimit
 	}
-	if routerMemoryLimit, ok := siteConfig.Data[SiteConfigRouterMemoryLimitKey]; ok && routerMemoryLimit != "" {
+	if routerMemoryLimit, ok := data[SiteConfigRouterMemoryLimitKey]; ok && routerMemoryLimit != "" {
 		result.Spec.Router.MemoryLimit = routerMemoryLimit
 	}
-	if routerNodeSelector, ok := siteConfig.Data[SiteConfigRouterNodeSelectorKey]; ok && routerNodeSelector != "" {
+	if routerNodeSelector, ok := data[SiteConfigRouterNodeSelectorKey]; ok && routerNodeSelector != "" {
 		result.Spec.Router.NodeSelector = routerNodeSelector
 	}
-	if routerAffinity, ok := siteConfig.Data[SiteConfigRouterAffinityKey]; ok && routerAffinity != "" {
+	if routerAffinity, ok := data[SiteConfigRouterAffinityKey]; ok && routerAffinity != "" {
 		result.Spec.Router.Affinity = routerAffinity
 	}
-	if routerAntiAffinity, ok := siteConfig.Data[SiteConfigRouterAntiAffinityKey]; ok && routerAntiAffinity != "" {
+	if routerAntiAffinity, ok := data[SiteConfigRouterAntiAffinityKey]; ok && routerAntiAffinity != "" {
 		result.Spec.Router.AntiAffinity = routerAntiAffinity
 	}
-	if routerIngressHost, ok := siteConfig.Data[SiteConfigRouterIngressHostKey]; ok && routerIngressHost != "" {
+	if routerIngressHost, ok := data[SiteConfigRouterIngressHostKey]; ok && routerIngressHost != "" {
 		result.Spec.Router.IngressHost = routerIngressHost
 	}
 
-	if routerMaxFrameSize, ok := siteConfig.Data[SiteConfigRouterMaxFrameSizeKey]; ok && routerMaxFrameSize != "" {
+	if routerMaxFrameSize, ok := data[SiteConfigRouterMaxFrameSizeKey]; ok && routerMaxFrameSize != "" {
 		val, err := strconv.Atoi(routerMaxFrameSize)
 		if err != nil {
 			errs = append(errs, err.Error())
@@ -646,7 +650,7 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, defaultIngress string) (*types
 	} else {
 		result.Spec.Router.MaxFrameSize = types.RouterMaxFrameSizeDefault
 	}
-	if routerMaxSessionFrames, ok := siteConfig.Data[SiteConfigRouterMaxSessionFramesKey]; ok && routerMaxSessionFrames != "" {
+	if routerMaxSessionFrames, ok := data[SiteConfigRouterMaxSessionFramesKey]; ok && routerMaxSessionFrames != "" {
 		val, err := strconv.Atoi(routerMaxSessionFrames)
 		if err != nil {
 			errs = append(errs, err.Error())
@@ -656,120 +660,120 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, defaultIngress string) (*types
 	} else {
 		result.Spec.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
 	}
-	if routerDataConnectionCount, ok := siteConfig.Data[SiteConfigRouterDataConnectionCountKey]; ok && routerDataConnectionCount != "" {
+	if routerDataConnectionCount, ok := data[SiteConfigRouterDataConnectionCountKey]; ok && routerDataConnectionCount != "" {
 		result.Spec.Router.DataConnectionCount = routerDataConnectionCount
 	}
 
-	if routerServiceAnnotations, ok := siteConfig.Data[SiteConfigRouterServiceAnnotationsKey]; ok {
+	if routerServiceAnnotations, ok := data[SiteConfigRouterServiceAnnotationsKey]; ok {
 		result.Spec.Router.ServiceAnnotations = asMap(splitWithEscaping(routerServiceAnnotations, ',', '\\'))
 	}
-	if routerPodAnnotations, ok := siteConfig.Data[SiteConfigRouterPodAnnotationsKey]; ok {
+	if routerPodAnnotations, ok := data[SiteConfigRouterPodAnnotationsKey]; ok {
 		result.Spec.Router.PodAnnotations = asMap(splitWithEscaping(routerPodAnnotations, ',', '\\'))
 	}
-	if routerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigRouterLoadBalancerIp]; ok {
+	if routerServiceLoadBalancerIp, ok := data[SiteConfigRouterLoadBalancerIp]; ok {
 		result.Spec.Router.LoadBalancerIp = routerServiceLoadBalancerIp
 	}
-	if value, ok := siteConfig.Data[SiteConfigRouterDisableMutualTLS]; ok {
+	if value, ok := data[SiteConfigRouterDisableMutualTLS]; ok {
 		result.Spec.Router.DisableMutualTLS, _ = strconv.ParseBool(value)
 	}
 
-	if controllerCpu, ok := siteConfig.Data[SiteConfigControllerCpuKey]; ok && controllerCpu != "" {
+	if controllerCpu, ok := data[SiteConfigControllerCpuKey]; ok && controllerCpu != "" {
 		result.Spec.Controller.Cpu = controllerCpu
 	}
-	if controllerMemory, ok := siteConfig.Data[SiteConfigControllerMemoryKey]; ok && controllerMemory != "" {
+	if controllerMemory, ok := data[SiteConfigControllerMemoryKey]; ok && controllerMemory != "" {
 		result.Spec.Controller.Memory = controllerMemory
 	}
-	if controllerCpuLimit, ok := siteConfig.Data[SiteConfigControllerCpuLimitKey]; ok && controllerCpuLimit != "" {
+	if controllerCpuLimit, ok := data[SiteConfigControllerCpuLimitKey]; ok && controllerCpuLimit != "" {
 		result.Spec.Controller.CpuLimit = controllerCpuLimit
 	}
-	if controllerMemoryLimit, ok := siteConfig.Data[SiteConfigControllerMemoryLimitKey]; ok && controllerMemoryLimit != "" {
+	if controllerMemoryLimit, ok := data[SiteConfigControllerMemoryLimitKey]; ok && controllerMemoryLimit != "" {
 		result.Spec.Controller.MemoryLimit = controllerMemoryLimit
 	}
-	if controllerNodeSelector, ok := siteConfig.Data[SiteConfigControllerNodeSelectorKey]; ok && controllerNodeSelector != "" {
+	if controllerNodeSelector, ok := data[SiteConfigControllerNodeSelectorKey]; ok && controllerNodeSelector != "" {
 		result.Spec.Controller.NodeSelector = controllerNodeSelector
 	}
-	if controllerAffinity, ok := siteConfig.Data[SiteConfigControllerAffinityKey]; ok && controllerAffinity != "" {
+	if controllerAffinity, ok := data[SiteConfigControllerAffinityKey]; ok && controllerAffinity != "" {
 		result.Spec.Controller.Affinity = controllerAffinity
 	}
-	if controllerAntiAffinity, ok := siteConfig.Data[SiteConfigControllerAntiAffinityKey]; ok && controllerAntiAffinity != "" {
+	if controllerAntiAffinity, ok := data[SiteConfigControllerAntiAffinityKey]; ok && controllerAntiAffinity != "" {
 		result.Spec.Controller.AntiAffinity = controllerAntiAffinity
 	}
-	if controllerIngressHost, ok := siteConfig.Data[SiteConfigControllerIngressHostKey]; ok && controllerIngressHost != "" {
+	if controllerIngressHost, ok := data[SiteConfigControllerIngressHostKey]; ok && controllerIngressHost != "" {
 		result.Spec.Controller.IngressHost = controllerIngressHost
 	}
-	if controllerServiceAnnotations, ok := siteConfig.Data[SiteConfigControllerServiceAnnotationsKey]; ok {
+	if controllerServiceAnnotations, ok := data[SiteConfigControllerServiceAnnotationsKey]; ok {
 		result.Spec.Controller.ServiceAnnotations = asMap(splitWithEscaping(controllerServiceAnnotations, ',', '\\'))
 	}
-	if controllerPodAnnotations, ok := siteConfig.Data[SiteConfigControllerPodAnnotationsKey]; ok {
+	if controllerPodAnnotations, ok := data[SiteConfigControllerPodAnnotationsKey]; ok {
 		result.Spec.Controller.PodAnnotations = asMap(splitWithEscaping(controllerPodAnnotations, ',', '\\'))
 	}
-	if controllerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigControllerLoadBalancerIp]; ok {
+	if controllerServiceLoadBalancerIp, ok := data[SiteConfigControllerLoadBalancerIp]; ok {
 		result.Spec.Controller.LoadBalancerIp = controllerServiceLoadBalancerIp
 	}
 
-	if configSyncCpu, ok := siteConfig.Data[SiteConfigConfigSyncCpuKey]; ok && configSyncCpu != "" {
+	if configSyncCpu, ok := data[SiteConfigConfigSyncCpuKey]; ok && configSyncCpu != "" {
 		result.Spec.ConfigSync.Cpu = configSyncCpu
 	}
-	if configSyncMemory, ok := siteConfig.Data[SiteConfigConfigSyncMemoryKey]; ok && configSyncMemory != "" {
+	if configSyncMemory, ok := data[SiteConfigConfigSyncMemoryKey]; ok && configSyncMemory != "" {
 		result.Spec.ConfigSync.Memory = configSyncMemory
 	}
-	if configSyncCpuLimit, ok := siteConfig.Data[SiteConfigConfigSyncCpuLimitKey]; ok && configSyncCpuLimit != "" {
+	if configSyncCpuLimit, ok := data[SiteConfigConfigSyncCpuLimitKey]; ok && configSyncCpuLimit != "" {
 		result.Spec.ConfigSync.CpuLimit = configSyncCpuLimit
 	}
-	if configSyncMemoryLimit, ok := siteConfig.Data[SiteConfigConfigSyncMemoryLimitKey]; ok && configSyncMemoryLimit != "" {
+	if configSyncMemoryLimit, ok := data[SiteConfigConfigSyncMemoryLimitKey]; ok && configSyncMemoryLimit != "" {
 		result.Spec.ConfigSync.MemoryLimit = configSyncMemoryLimit
 	}
 
-	if value, ok := siteConfig.Data[SiteConfigEnableSkupperEventsKey]; ok {
+	if value, ok := data[SiteConfigEnableSkupperEventsKey]; ok {
 		result.Spec.EnableSkupperEvents, _ = strconv.ParseBool(value)
 	}
 
-	if flowCollectorCpu, ok := siteConfig.Data[SiteConfigFlowCollectorCpuKey]; ok && flowCollectorCpu != "" {
+	if flowCollectorCpu, ok := data[SiteConfigFlowCollectorCpuKey]; ok && flowCollectorCpu != "" {
 		result.Spec.FlowCollector.Cpu = flowCollectorCpu
 	}
-	if flowCollectorMemory, ok := siteConfig.Data[SiteConfigFlowCollectorMemoryKey]; ok && flowCollectorMemory != "" {
+	if flowCollectorMemory, ok := data[SiteConfigFlowCollectorMemoryKey]; ok && flowCollectorMemory != "" {
 		result.Spec.FlowCollector.Memory = flowCollectorMemory
 	}
-	if flowCollectorCpuLimit, ok := siteConfig.Data[SiteConfigFlowCollectorCpuLimitKey]; ok && flowCollectorCpuLimit != "" {
+	if flowCollectorCpuLimit, ok := data[SiteConfigFlowCollectorCpuLimitKey]; ok && flowCollectorCpuLimit != "" {
 		result.Spec.FlowCollector.CpuLimit = flowCollectorCpuLimit
 	}
-	if flowCollectorMemoryLimit, ok := siteConfig.Data[SiteConfigFlowCollectorMemoryLimitKey]; ok && flowCollectorMemoryLimit != "" {
+	if flowCollectorMemoryLimit, ok := data[SiteConfigFlowCollectorMemoryLimitKey]; ok && flowCollectorMemoryLimit != "" {
 		result.Spec.FlowCollector.MemoryLimit = flowCollectorMemoryLimit
 	}
 
-	if externalServer, ok := siteConfig.Data[SiteConfigPrometheusExternalServerKey]; ok {
+	if externalServer, ok := data[SiteConfigPrometheusExternalServerKey]; ok {
 		result.Spec.PrometheusServer.ExternalServer = externalServer
 	} else {
 		result.Spec.PrometheusServer.ExternalServer = ""
 	}
-	if authMode, ok := siteConfig.Data[SiteConfigPrometheusServerAuthenticationKey]; ok {
+	if authMode, ok := data[SiteConfigPrometheusServerAuthenticationKey]; ok {
 		result.Spec.PrometheusServer.AuthMode = authMode
 	} else {
 		result.Spec.PrometheusServer.AuthMode = string(types.PrometheusAuthModeTls)
 	}
-	if user, ok := siteConfig.Data[SiteConfigPrometheusServerUserKey]; ok {
+	if user, ok := data[SiteConfigPrometheusServerUserKey]; ok {
 		result.Spec.PrometheusServer.User = user
 	} else {
 		result.Spec.PrometheusServer.User = ""
 	}
-	if password, ok := siteConfig.Data[SiteConfigPrometheusServerPasswordKey]; ok {
+	if password, ok := data[SiteConfigPrometheusServerPasswordKey]; ok {
 		result.Spec.PrometheusServer.Password = password
 	} else {
 		result.Spec.PrometheusServer.Password = ""
 	}
-	if prometheusCpu, ok := siteConfig.Data[SiteConfigPrometheusServerCpuKey]; ok && prometheusCpu != "" {
+	if prometheusCpu, ok := data[SiteConfigPrometheusServerCpuKey]; ok && prometheusCpu != "" {
 		result.Spec.PrometheusServer.Cpu = prometheusCpu
 	}
-	if prometheusMemory, ok := siteConfig.Data[SiteConfigPrometheusServerMemoryKey]; ok && prometheusMemory != "" {
+	if prometheusMemory, ok := data[SiteConfigPrometheusServerMemoryKey]; ok && prometheusMemory != "" {
 		result.Spec.PrometheusServer.Memory = prometheusMemory
 	}
-	if prometheusCpuLimit, ok := siteConfig.Data[SiteConfigPrometheusServerCpuLimitKey]; ok && prometheusCpuLimit != "" {
+	if prometheusCpuLimit, ok := data[SiteConfigPrometheusServerCpuLimitKey]; ok && prometheusCpuLimit != "" {
 		result.Spec.PrometheusServer.CpuLimit = prometheusCpuLimit
 	}
-	if prometheusMemoryLimit, ok := siteConfig.Data[SiteConfigPrometheusServerMemoryLimitKey]; ok && prometheusMemoryLimit != "" {
+	if prometheusMemoryLimit, ok := data[SiteConfigPrometheusServerMemoryLimitKey]; ok && prometheusMemoryLimit != "" {
 		result.Spec.PrometheusServer.MemoryLimit = prometheusMemoryLimit
 	}
-	if prometheusPodAnnotations, ok := siteConfig.Data[SiteConfigPrometheusServerPodAnnotationsKey]; ok {
+	if prometheusPodAnnotations, ok := data[SiteConfigPrometheusServerPodAnnotationsKey]; ok {
 		result.Spec.PrometheusServer.PodAnnotations = asMap(splitWithEscaping(prometheusPodAnnotations, ',', '\\'))
 	}
 
@@ -782,11 +786,11 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, defaultIngress string) (*types
 	return &result, nil
 }
 
-func GetSiteAnnotationsAndLabels(siteConfig *corev1.ConfigMap) (map[string]string, map[string]string) {
+func GetSiteAnnotationsAndLabels(siteConfig *metav1.ObjectMeta) (map[string]string, map[string]string) {
 	annotationExclusions := []string{}
 	labelExclusions := []string{}
 	annotations := map[string]string{}
-	for key, value := range siteConfig.ObjectMeta.Annotations {
+	for key, value := range siteConfig.Annotations {
 		if key == types.AnnotationExcludes {
 			annotationExclusions = strings.Split(value, ",")
 		} else if key == types.LabelExcludes {
@@ -799,7 +803,7 @@ func GetSiteAnnotationsAndLabels(siteConfig *corev1.ConfigMap) (map[string]strin
 		delete(annotations, key)
 	}
 	labels := map[string]string{}
-	for key, value := range siteConfig.ObjectMeta.Labels {
+	for key, value := range siteConfig.Labels {
 		if key != types.SiteControllerIgnore {
 			labels[key] = value
 		}
