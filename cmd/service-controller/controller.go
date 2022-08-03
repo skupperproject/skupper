@@ -560,7 +560,7 @@ func (c *Controller) updateHeadlessProxies() {
 	for _, v := range proxies {
 		proxy := v.(*appsv1.StatefulSet)
 		def, ok := c.bindings[proxy.Spec.ServiceName]
-		if !ok || def == nil || def.IsHeadless() {
+		if !ok || def == nil || !def.IsHeadless() {
 			c.deleteHeadlessProxy(proxy)
 		}
 	}
@@ -700,7 +700,7 @@ func (c *Controller) processNextEvent() bool {
 					}
 					// a headless proxy was created or updated, does it match the desired binding?
 					bindings, ok := c.bindings[statefulset.Spec.ServiceName]
-					if !ok || bindings == nil || bindings.IsHeadless() {
+					if !ok || bindings == nil || !bindings.IsHeadless() {
 						err = c.deleteHeadlessProxy(statefulset)
 						if err != nil {
 							return err
