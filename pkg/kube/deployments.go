@@ -112,6 +112,15 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 
 	ownerRef := GetDeploymentOwnerReference(transportDep)
 
+	svcName := serviceInterface.Address
+	if serviceInterface.Origin == "" {
+		svcName += "-proxy"
+		_, err = NewHeadlessService(svcName, serviceInterface.Address, serviceInterface.Ports, serviceInterface.Ports, serviceInterface.Labels, &ownerRef, namespace, cli)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	replicas := int32(serviceInterface.Headless.Size)
 	labels := map[string]string{
 		"internal.skupper.io/type": "proxy",
@@ -137,7 +146,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 			Labels: labels,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName: serviceInterface.Address,
+			ServiceName: svcName,
 			Replicas:    &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{

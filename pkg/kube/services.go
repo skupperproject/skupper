@@ -57,6 +57,17 @@ func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int
 	return createServiceFromObject(service, namespace, kubeclient)
 }
 
+func NewHeadlessService(name string, address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+	selector := map[string]string{
+		"internal.skupper.io/service": address,
+	}
+	service := makeServiceObjectForAddress(name, ports, targetPorts, labels, selector, owner)
+	service.Spec.ClusterIP = "None"
+	service.Annotations[types.ServiceQualifier] = address
+
+	return createServiceFromObject(service, namespace, kubeclient)
+}
+
 func makeServiceObjectForAddress(address string, ports []int, targetPorts []int, labels, selector map[string]string, owner *metav1.OwnerReference) *corev1.Service {
 	// TODO: make common service creation and deal with annotation, label differences
 	servicePorts := []corev1.ServicePort{}

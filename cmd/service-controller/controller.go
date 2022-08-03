@@ -361,12 +361,30 @@ func (c *Controller) updateActualServices() {
 	services := c.svcInformer.GetStore().List()
 	for _, v := range services {
 		svc := v.(*corev1.Service)
-		if c.bindings[svc.ObjectMeta.Name] == nil && isOwned(svc) {
+		_, deleteSvc := c.getBindingsForService(svc)
+		if deleteSvc {
 			event.Recordf(ServiceControllerDeleteEvent, "No service binding found for %s", svc.ObjectMeta.Name)
 			c.DeleteService(svc)
 			c.handleRemovingTlsSupport(types.SkupperServiceCertPrefix + svc.ObjectMeta.Name)
 		}
 	}
+}
+
+func (c *Controller) getBindingsForService(svc *corev1.Service) (*service.ServiceBindings, bool) {
+	owned := isOwned(svc)
+	if owned && svc.Spec.ClusterIP == "None" {
+		if svcName := svc.ObjectMeta.Annotations[types.ServiceQualifier]; svcName != "" {
+			bindings := c.bindings[svcName]
+			if bindings == nil || !bindings.IsHeadless() {
+				c.DeleteService(svc)
+			}
+			return nil, false
+		}
+	}
+	if bindings := c.bindings[svc.ObjectMeta.Name]; bindings != nil {
+		return bindings, false
+	}
+	return nil, owned
 }
 
 // TODO: move to pkg
@@ -559,11 +577,19 @@ func (c *Controller) updateHeadlessProxies() {
 	proxies := c.headlessInformer.GetStore().List()
 	for _, v := range proxies {
 		proxy := v.(*appsv1.StatefulSet)
-		def, ok := c.bindings[proxy.Spec.ServiceName]
-		if !ok || def == nil || !def.IsHeadless() {
+		if c.getBindingsForHeadlessProxy(proxy) == nil {
 			c.deleteHeadlessProxy(proxy)
 		}
 	}
+}
+
+func (c *Controller) getBindingsForHeadlessProxy(statefulset *appsv1.StatefulSet) *service.ServiceBindings {
+	svcName := statefulset.ObjectMeta.Annotations[types.ServiceQualifier]
+	bindings, ok := c.bindings[svcName]
+	if !ok || bindings == nil || !bindings.IsHeadless() {
+		return nil
+	}
+	return bindings
 }
 
 func (c *Controller) processNextEvent() bool {
@@ -655,17 +681,15 @@ func (c *Controller) processNextEvent() bool {
 					if !ok {
 						return fmt.Errorf("Expected Service for %s but got %#v", name, obj)
 					}
-					bindings := c.bindings[svc.ObjectMeta.Name]
-					if bindings == nil {
-						if isOwned(svc) {
-							err = c.DeleteService(svc)
-							if err != nil {
-								return err
-							}
-						}
-					} else {
+					bindings, deleteSvc := c.getBindingsForService(svc)
+					if bindings != nil {
 						// check that service matches binding def, else update it
 						err = bindings.RealiseIngress()
+						if err != nil {
+							return err
+						}
+					} else if deleteSvc {
+						err = c.DeleteService(svc)
 						if err != nil {
 							return err
 						}
@@ -699,8 +723,8 @@ func (c *Controller) processNextEvent() bool {
 						return fmt.Errorf("Expected StatefulSet for %s but got %#v", name, obj)
 					}
 					// a headless proxy was created or updated, does it match the desired binding?
-					bindings, ok := c.bindings[statefulset.Spec.ServiceName]
-					if !ok || bindings == nil || !bindings.IsHeadless() {
+					bindings := c.getBindingsForHeadlessProxy(statefulset)
+					if bindings == nil {
 						err = c.deleteHeadlessProxy(statefulset)
 						if err != nil {
 							return err
