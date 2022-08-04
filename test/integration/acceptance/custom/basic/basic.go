@@ -120,10 +120,14 @@ func (r *BasicTestRunner) Delete(ctx context.Context, t *testing.T) {
 	defer cn()
 	pub1Cluster, _ := r.GetPublicContext(1)
 	prv1Cluster, _ := r.GetPrivateContext(1)
-	assert.Assert(t, pub1Cluster.VanClient.SiteConfigRemove(ctx))
-	assert.Assert(t, pub1Cluster.VanClient.RouterRemove(ctx))
-	assert.Assert(t, prv1Cluster.VanClient.SiteConfigRemove(ctx))
-	assert.Assert(t, prv1Cluster.VanClient.RouterRemove(ctx))
+	if err := pub1Cluster.VanClient.SiteConfigRemove(ctx); err != nil {
+		t.Logf("error removing site config: %v", err)
+		t.Logf("removing router - err: %v", pub1Cluster.VanClient.RouterRemove(ctx))
+	}
+	if err := prv1Cluster.VanClient.SiteConfigRemove(ctx); err != nil {
+		t.Logf("error removing site config: %v", err)
+		t.Logf("removing router - err: %v", prv1Cluster.VanClient.RouterRemove(ctx))
+	}
 	waitNoPods := func(componentSelector string, cluster *base.ClusterContext) error {
 		return utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
 			pods, _ := kube.GetPods(componentSelector, cluster.Namespace, cluster.VanClient.KubeClient)
@@ -149,8 +153,8 @@ func (r *BasicTestRunner) TearDown(ctx context.Context) {
 		log.Warn(errMsg)
 	}
 
-	pub.DeleteNamespace()
-	priv.DeleteNamespace()
+	_ = pub.DeleteNamespace()
+	_ = priv.DeleteNamespace()
 }
 
 func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
