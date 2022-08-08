@@ -15,7 +15,12 @@ import (
 )
 
 // DeleteTester allows running and validating `skupper delete`.
-type DeleteTester struct{}
+type DeleteTester struct {
+	// This will ignore the error condition where delete failed because skupper
+	// was not installed in the first place.  It can be used in the situations
+	// where you just want to make sure skupper is not on the namespace
+	IgnoreNotInstalled bool
+}
 
 func (d *DeleteTester) Command(cluster *base.ClusterContext) []string {
 	args := SkupperCommonOptions(cluster)
@@ -27,6 +32,9 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	// Execute delete command
 	stdout, stderr, err = RunSkupperCli(d.Command(cluster))
 	if err != nil {
+		if d.IgnoreNotInstalled && strings.Contains(stderr, "Skupper not installed") {
+			err = nil
+		}
 		return
 	}
 
