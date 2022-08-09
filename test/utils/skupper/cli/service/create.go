@@ -27,7 +27,7 @@ func (s *CreateTester) Command(cluster *base.ClusterContext) []string {
 	args = append(args, "service", "create", s.Name, strconv.Itoa(s.Port))
 
 	if s.Mapping != "" {
-		args = append(args, "--mapping", s.Mapping)
+		args = append(args, "--protocol", s.Mapping)
 	}
 
 	return args
