@@ -104,7 +104,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.SiteServerSecret,
 				types.ServiceCaSecret,
 				types.ServiceClientSecret},
-			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
+			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
 				trans,
@@ -140,7 +140,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.ConsoleServerSecret,
 				types.ServiceCaSecret,
 				types.ServiceClientSecret},
-			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
+			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
 				trans,
@@ -172,11 +172,10 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.ClaimsServerSecret,
 				types.SiteServerSecret,
-				types.OauthRouterConsoleSecret,
 				types.ConsoleServerSecret,
 				types.ServiceCaSecret,
 				types.ServiceClientSecret},
-			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "skupper-router-console"},
+			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
 				trans,
@@ -208,7 +207,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.ServiceCaSecret,
 				types.ServiceClientSecret},
-			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName, "skupper-router-console"},
+			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
 				trans,
@@ -353,7 +352,6 @@ func TestRouterCreateDefaults(t *testing.T) {
 		}
 		// TODO: consider set up short specific opts
 		if !isCluster || (cli.RouteClient == nil && c.authMode == "openshift") {
-			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, types.OauthRouterConsoleSecret) }))
 			c.opts = append(c.opts, cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, types.ConsoleServerSecret) }))
 		}
 		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
