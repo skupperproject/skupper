@@ -35,6 +35,7 @@ type ConsoleServer struct {
 	links     *LinkManager
 	services  *ServiceManager
 	policies  *PolicyManager
+	sites     *SiteManager
 }
 
 func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer {
@@ -45,6 +46,7 @@ func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer 
 		links:     newLinkManager(cli, pool),
 		services:  newServiceManager(cli),
 		policies:  newPolicyManager(cli),
+		sites:     newSiteManager(cli),
 	}
 }
 
@@ -402,6 +404,7 @@ func (server *ConsoleServer) listen() {
 	r.Handle("/links", authenticated(serveLinks(server.links)))
 	r.Handle("/links/", authenticated(serveLinks(server.links)))
 	r.Handle("/links/{name}", authenticated(serveLinks(server.links)))
+	r.Handle("/revokeaccess", authenticated(serveSites(server.sites)))
 	r.Handle("/services", authenticated(serveServices(server.services)))
 	r.Handle("/services/", authenticated(serveServices(server.services)))
 	r.Handle("/services/{name}", authenticated(serveServices(server.services)))
