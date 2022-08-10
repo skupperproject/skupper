@@ -30,7 +30,6 @@ func TestRouterCreateDefaults(t *testing.T) {
 		skupperName          string
 		routerMode           string
 		enableController     bool
-		enableRouterConsole  bool
 		enableConsole        bool
 		authMode             string
 		user                 string
@@ -53,7 +52,6 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper1",
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
-			enableRouterConsole:  false,
 			enableConsole:        false,
 			authMode:             "",
 			user:                 "",
@@ -88,7 +86,6 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper2",
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
-			enableRouterConsole:  true,
 			enableConsole:        true,
 			authMode:             "unsecured",
 			user:                 "",
@@ -124,7 +121,6 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper3",
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
-			enableRouterConsole:  true,
 			enableConsole:        true,
 			authMode:             "internal",
 			user:                 "",
@@ -161,7 +157,6 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper4",
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
-			enableRouterConsole:  true,
 			enableConsole:        true,
 			authMode:             "openshift",
 			user:                 "",
@@ -198,7 +193,6 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper5",
 			routerMode:           string(types.TransportModeEdge),
 			enableController:     true,
-			enableRouterConsole:  true,
 			enableConsole:        true,
 			authMode:             "unsecured",
 			user:                 "Barney",
@@ -321,16 +315,15 @@ func TestRouterCreateDefaults(t *testing.T) {
 
 		err = cli.RouterCreate(ctx, types.SiteConfig{
 			Spec: types.SiteConfigSpec{
-				SkupperName:         c.skupperName,
-				RouterMode:          c.routerMode,
-				EnableController:    c.enableController,
-				EnableServiceSync:   true,
-				EnableRouterConsole: c.enableRouterConsole,
-				AuthMode:            c.authMode,
-				EnableConsole:       c.enableConsole,
-				User:                c.user,
-				Password:            c.password,
-				Ingress:             getIngress(),
+				SkupperName:       c.skupperName,
+				RouterMode:        c.routerMode,
+				EnableController:  c.enableController,
+				EnableServiceSync: true,
+				AuthMode:          c.authMode,
+				EnableConsole:     c.enableConsole,
+				User:              c.user,
+				Password:          c.password,
+				Ingress:           getIngress(),
 			},
 			Reference: types.SiteConfigReference{
 				UID: c.siteId,

@@ -63,7 +63,7 @@ func InteriorListener(options types.SiteConfigSpec) qdr.Listener {
 		Name:             "interior-listener",
 		Role:             qdr.RoleInterRouter,
 		Port:             types.InterRouterListenerPort,
-		SslProfile:       types.InterRouterProfile, //The skupper-internal profile needs to be filtered by the config-sync sidecar, in order to avoid deleting automesh connectors
+		SslProfile:       types.InterRouterProfile, // The skupper-internal profile needs to be filtered by the config-sync sidecar, in order to avoid deleting automesh connectors
 		SaslMechanisms:   "EXTERNAL",
 		AuthenticatePeer: true,
 		MaxFrameSize:     options.Router.MaxFrameSize,
@@ -572,29 +572,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Name: types.ServiceClientSecret,
 		})
 
-	if options.EnableRouterConsole {
-		if van.AuthMode == types.ConsoleAuthModeOpenshift {
-			routerConfig.AddListener(qdr.Listener{
-				Name: types.ConsolePortName,
-				Host: "localhost",
-				Port: types.ConsoleOpenShiftServicePort,
-				Http: true,
-			})
-		} else if van.AuthMode == types.ConsoleAuthModeInternal {
-			routerConfig.AddListener(qdr.Listener{
-				Name:             types.ConsolePortName,
-				Port:             types.ConsoleDefaultServicePort,
-				Http:             true,
-				AuthenticatePeer: true,
-			})
-		} else if van.AuthMode == types.ConsoleAuthModeUnsecured {
-			routerConfig.AddListener(qdr.Listener{
-				Name: types.ConsolePortName,
-				Port: types.ConsoleDefaultServicePort,
-				Http: true,
-			})
-		}
-	}
 	if !isEdge {
 		routerConfig.AddSslProfile(qdr.SslProfile{
 			Name: types.InterRouterProfile,
@@ -623,10 +600,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		})
 		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_MESH_DISCOVERY", Value: "QUERY"})
 	}
-	if options.EnableRouterConsole && options.AuthMode == string(types.ConsoleAuthModeInternal) {
-		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_SOURCE", Value: "/etc/skupper-router/sasl-users/"})
-		envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_AUTO_CREATE_SASLDB_PATH", Value: "/tmp/skrouterd.sasldb"})
-	}
 	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF", Value: "/etc/skupper-router/config/" + types.TransportConfigFile})
 	envVars = append(envVars, corev1.EnvVar{Name: "QDROUTERD_CONF_TYPE", Value: "json"})
 	envVars = append(envVars, corev1.EnvVar{
@@ -646,19 +619,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Name:          "amqps",
 		ContainerPort: types.AmqpsDefaultPort,
 	})
-	if options.EnableRouterConsole {
-		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			ports = append(ports, corev1.ContainerPort{
-				Name:          types.ConsolePortName,
-				ContainerPort: types.ConsoleOpenShiftServicePort,
-			})
-		} else if options.AuthMode != "" {
-			ports = append(ports, corev1.ContainerPort{
-				Name:          types.ConsolePortName,
-				ContainerPort: types.ConsoleDefaultServicePort,
-			})
-		}
-	}
 	ports = append(ports, corev1.ContainerPort{
 		Name:          "http",
 		ContainerPort: types.TransportLivenessPort,
@@ -692,17 +652,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "router-config", types.TransportConfigMapName, "/etc/skupper-router/config/")
 	if !isEdge {
 		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.SiteServerSecret, "/etc/skupper-router-certs/skupper-internal/")
-	}
-
-	if options.EnableRouterConsole {
-		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			sidecars = append(sidecars, OauthProxyContainer(types.TransportServiceAccountName, strconv.Itoa(int(types.ConsoleOpenShiftServicePort))))
-			mounts = append(mounts, []corev1.VolumeMount{})
-			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.OauthRouterConsoleSecret, "/etc/tls/proxy-certs/")
-		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-			kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], "skupper-console-users", "/etc/skupper-router/sasl-users/")
-			kube.AppendConfigVolume(&volumes, &mounts[qdrouterd], "skupper-sasl-config", "skupper-sasl-config", "/etc/sasl2/")
-		}
 	}
 
 	kube.AppendSharedVolume(&volumes, &mounts[qdrouterd], &mounts[configSync], "skupper-router-certs", "/etc/skupper-router-certs")
@@ -857,7 +806,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Post:        post,
 		})
 	}
-	if options.AuthMode == string(types.ConsoleAuthModeInternal) && (options.EnableConsole || options.EnableRouterConsole) {
+	if options.AuthMode == string(types.ConsoleAuthModeInternal) && options.EnableConsole {
 		userData := map[string][]byte{}
 		if options.User != "" {
 			userData[options.User] = []byte(options.Password)
@@ -897,55 +846,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Type: "",
 		},
 	})
-	if options.EnableRouterConsole {
-		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			svcs = append(svcs, &corev1.Service{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "Service",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "skupper-router-console",
-					Annotations: map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.OauthRouterConsoleSecret},
-				},
-				Spec: corev1.ServiceSpec{
-					Selector: van.Transport.Labels,
-					Ports: []corev1.ServicePort{
-						{
-							Name:       "console",
-							Protocol:   "TCP",
-							Port:       types.ConsoleOpenShiftOauthServicePort,
-							TargetPort: intstr.FromInt(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
-						},
-					},
-					Type: "",
-				},
-			})
-		} else {
-			svcs = append(svcs, &corev1.Service{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "Service",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "skupper-router-console",
-					Annotations: map[string]string{},
-				},
-				Spec: corev1.ServiceSpec{
-					Selector: van.Transport.Labels,
-					Ports: []corev1.ServicePort{
-						{
-							Name:       "console",
-							Protocol:   "TCP",
-							Port:       types.ConsoleDefaultServicePort,
-							TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
-						},
-					},
-					Type: "",
-				},
-			})
-		}
-	}
 	if !isEdge {
 		svcType := corev1.ServiceTypeClusterIP
 		if options.IsIngressLoadBalancer() {
@@ -1049,40 +949,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			},
 		})
 	}
-	if options.EnableRouterConsole && cli.RouteClient != nil {
-		termination := routev1.TLSTerminationEdge
-		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			termination = routev1.TLSTerminationReencrypt
-		}
-		host := options.GetRouterIngressHost()
-		if host != "" {
-			host = types.RouterConsoleRouteName + "-" + van.Namespace + "." + host
-		}
-		routes = append(routes, &routev1.Route{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Route",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: types.RouterConsoleRouteName,
-			},
-			Spec: routev1.RouteSpec{
-				Path: "",
-				Host: host,
-				Port: &routev1.RoutePort{
-					TargetPort: intstr.FromString(types.ConsolePortName),
-				},
-				To: routev1.RouteTargetReference{
-					Kind: "Service",
-					Name: types.RouterConsoleServiceName,
-				},
-				TLS: &routev1.TLSConfig{
-					Termination:                   termination,
-					InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
-				},
-			},
-		})
-	}
 	van.Transport.Routes = routes
 
 	return van
@@ -1095,7 +961,7 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 		return fmt.Errorf("OpenShift cluster not detected for --ingress type route")
 	}
 
-	if options.Spec.EnableRouterConsole || options.Spec.EnableConsole {
+	if options.Spec.EnableConsole {
 		if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) || options.Spec.AuthMode == "" {
 			options.Spec.AuthMode = string(types.ConsoleAuthModeInternal)
 			if options.Spec.User == "" {
