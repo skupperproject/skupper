@@ -2,7 +2,7 @@ version: 2.1
 orbs:
     docker: circleci/docker@1.0.1
     kube-orb: circleci/kubernetes@0.11.0
-    go: circleci/go@1.1.1
+    go: circleci/go@1.7.1
 
 parameters:
   ci_service_controller_image:
@@ -307,7 +307,7 @@ jobs:
   test:
     executor:
       name: go/default
-      tag: "1.13"
+      tag: "1.17"
     steps:
       - checkout
       - run:
@@ -322,7 +322,8 @@ jobs:
       - run: make
       - run: make package
       - run: make clean
-      - go/test
+      - go/test:
+          coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
 
   build_and_push_test_images:
     executor: local_cluster_test_executor
@@ -345,7 +346,7 @@ jobs:
   remove_from_registry:
     executor:
       name: go/default
-      tag: "1.13"
+      tag: "1.17"
     steps:
       - setup_remote_docker
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
@@ -358,7 +359,7 @@ jobs:
   build-all:
     executor:
       name: go/default
-      tag: "1.13"
+      tag: "1.17"
     steps:
       - checkout
       - go/mod-download-cached
@@ -384,11 +385,6 @@ jobs:
           goarch: amd64
           platform: windows-amd64
           exesuffix: ".exe"
-
-      - compile_go_program:
-          goos: darwin
-          goarch: "386"
-          platform: mac-i386
 
       - compile_go_program:
           goos: darwin
@@ -460,7 +456,7 @@ jobs:
   publish-github-release-images:
     executor:
       name: go/default
-      tag: "1.13"
+      tag: "1.17"
     steps:
       - checkout
       - setup_remote_docker
@@ -479,7 +475,7 @@ jobs:
   publish-github-master-images:
     executor:
       name: go/default
-      tag: "1.13"
+      tag: "1.17"
     steps:
       - checkout
       - setup_remote_docker
