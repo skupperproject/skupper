@@ -37,7 +37,7 @@ type ServiceIngress interface {
 }
 
 type ServiceBindingContext interface {
-	NewTargetResolver(address string, selector string) (TargetResolver, error)
+	NewTargetResolver(address string, selector string, skipTargetStatus bool) (TargetResolver, error)
 	NewServiceIngress(def *types.ServiceInterface) ServiceIngress
 }
 
@@ -51,18 +51,19 @@ type EgressBindings struct {
 }
 
 type ServiceBindings struct {
-	origin         string
-	protocol       string
-	Address        string
-	publicPorts    []int
-	ingressPorts   []int
-	ingressBinding ServiceIngress
-	aggregation    string
-	eventChannel   bool
-	headless       *types.Headless
-	Labels         map[string]string
-	targets        map[string]*EgressBindings
-	tlsCredentials string
+	origin                   string
+	protocol                 string
+	Address                  string
+	publicPorts              []int
+	ingressPorts             []int
+	ingressBinding           ServiceIngress
+	aggregation              string
+	eventChannel             bool
+	headless                 *types.Headless
+	Labels                   map[string]string
+	targets                  map[string]*EgressBindings
+	tlsCredentials           string
+	PublishNotReadyAddresses bool
 }
 
 func (s *ServiceBindings) FindLocalTarget() *EgressBindings {
@@ -84,15 +85,16 @@ func (s *ServiceBindings) PortMap() map[int]int {
 
 func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
 	return types.ServiceInterface{
-		Address:        bindings.Address,
-		Protocol:       bindings.protocol,
-		Ports:          bindings.publicPorts,
-		Aggregate:      bindings.aggregation,
-		EventChannel:   bindings.eventChannel,
-		Headless:       bindings.headless,
-		Labels:         bindings.Labels,
-		Origin:         bindings.origin,
-		TlsCredentials: bindings.tlsCredentials,
+		Address:                  bindings.Address,
+		Protocol:                 bindings.protocol,
+		Ports:                    bindings.publicPorts,
+		Aggregate:                bindings.aggregation,
+		EventChannel:             bindings.eventChannel,
+		Headless:                 bindings.headless,
+		Labels:                   bindings.Labels,
+		Origin:                   bindings.origin,
+		TlsCredentials:           bindings.tlsCredentials,
+		PublishNotReadyAddresses: bindings.PublishNotReadyAddresses,
 	}
 }
 
@@ -127,18 +129,19 @@ func hasTargetForService(si types.ServiceInterface, service string) bool {
 
 func NewServiceBindings(required types.ServiceInterface, ports []int, bindingContext ServiceBindingContext) *ServiceBindings {
 	sb := &ServiceBindings{
-		origin:         required.Origin,
-		protocol:       required.Protocol,
-		Address:        required.Address,
-		publicPorts:    required.Ports,
-		ingressPorts:   ports,
-		ingressBinding: bindingContext.NewServiceIngress(&required),
-		aggregation:    required.Aggregate,
-		eventChannel:   required.EventChannel,
-		headless:       required.Headless,
-		Labels:         required.Labels,
-		targets:        map[string]*EgressBindings{},
-		tlsCredentials: required.TlsCredentials,
+		origin:                   required.Origin,
+		protocol:                 required.Protocol,
+		Address:                  required.Address,
+		publicPorts:              required.Ports,
+		ingressPorts:             ports,
+		ingressBinding:           bindingContext.NewServiceIngress(&required),
+		aggregation:              required.Aggregate,
+		eventChannel:             required.EventChannel,
+		headless:                 required.Headless,
+		Labels:                   required.Labels,
+		targets:                  map[string]*EgressBindings{},
+		tlsCredentials:           required.TlsCredentials,
+		PublishNotReadyAddresses: required.PublishNotReadyAddresses,
 	}
 	for _, t := range required.Targets {
 		if t.Selector != "" {
@@ -197,6 +200,10 @@ func (bindings *ServiceBindings) Update(required types.ServiceInterface, binding
 		if len(bindings.tlsCredentials) == 0 {
 			bindings.tlsCredentials = types.SkupperServiceCertPrefix + required.Address
 		}
+	}
+
+	if bindings.PublishNotReadyAddresses != required.PublishNotReadyAddresses {
+		bindings.PublishNotReadyAddresses = required.PublishNotReadyAddresses
 	}
 
 	hasSkupperSelector := false
@@ -276,7 +283,7 @@ func (sb *ServiceBindings) HeadlessName() string {
 }
 
 func (sb *ServiceBindings) addSelectorTarget(name string, selector string, port map[int]int, controller ServiceBindingContext) error {
-	resolver, err := controller.NewTargetResolver(sb.Address, selector)
+	resolver, err := controller.NewTargetResolver(sb.Address, selector, sb.PublishNotReadyAddresses)
 	sb.targets[selector] = &EgressBindings{
 		name:        name,
 		Selector:    selector,

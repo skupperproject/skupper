@@ -23,14 +23,15 @@ import (
 )
 
 type ExposeOptions struct {
-	Protocol       string
-	Address        string
-	Ports          []int
-	TargetPorts    []string
-	Headless       bool
-	ProxyTuning    types.Tuning
-	EnableTls      bool
-	TlsCredentials string
+	Protocol                 string
+	Address                  string
+	Ports                    []int
+	TargetPorts              []string
+	Headless                 bool
+	ProxyTuning              types.Tuning
+	EnableTls                bool
+	TlsCredentials           string
+	PublishNotReadyAddresses bool
 }
 
 func SkupperNotInstalledError(namespace string) error {
@@ -124,7 +125,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 			if targetType != "statefulset" {
 				return "", fmt.Errorf("The headless option is only supported for statefulsets")
 			}
-			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.Protocol, options.Address, options.Ports)
+			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.Protocol, options.Address, options.Ports, options.PublishNotReadyAddresses)
 			if err != nil {
 				return "", err
 			}
@@ -141,11 +142,12 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 				}
 			}
 			service = &types.ServiceInterface{
-				Address:        serviceName,
-				Ports:          options.Ports,
-				Protocol:       options.Protocol,
-				EnableTls:      options.EnableTls,
-				TlsCredentials: options.TlsCredentials,
+				Address:                  serviceName,
+				Ports:                    options.Ports,
+				Protocol:                 options.Protocol,
+				EnableTls:                options.EnableTls,
+				TlsCredentials:           options.TlsCredentials,
+				PublishNotReadyAddresses: options.PublishNotReadyAddresses,
 			}
 		}
 	} else if service.Headless != nil {
@@ -745,6 +747,10 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 				exposeOpts.TlsCredentials = types.SkupperServiceCertPrefix + exposeOpts.Address
 			}
 
+			if exposeOpts.PublishNotReadyAddresses && targetType == "service" {
+				return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
+			}
+
 			addr, err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
 			if err == nil {
 				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, addr)
@@ -765,6 +771,7 @@ func NewCmdExpose(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
 	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 protocol)")
+	cmd.Flags().BoolVar(&exposeOpts.PublishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
 
 	return cmd
 }
@@ -1055,6 +1062,7 @@ func NewCmdDeleteService(newClient cobraFunc) *cobra.Command {
 
 var targetPorts []string
 var protocol string
+var publishNotReadyAddresses bool
 
 func NewCmdBind(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1068,6 +1076,10 @@ func NewCmdBind(newClient cobraFunc) *cobra.Command {
 				return fmt.Errorf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
 			} else {
 				targetType, targetName := parseTargetTypeAndName(args[1:])
+
+				if publishNotReadyAddresses && targetType == "service" {
+					return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
+				}
 
 				service, err := cli.ServiceInterfaceInspect(context.Background(), args[0])
 
@@ -1083,6 +1095,8 @@ func NewCmdBind(newClient cobraFunc) *cobra.Command {
 					return err
 				}
 
+				service.PublishNotReadyAddresses = publishNotReadyAddresses
+
 				err = cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, portMapping)
 				if err != nil {
 					return fmt.Errorf("%w", err)
@@ -1093,6 +1107,7 @@ func NewCmdBind(newClient cobraFunc) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
 	cmd.Flags().StringSliceVar(&targetPorts, "target-port", []string{}, "The port the target is listening on (you can also use colon to map source-port to a target-port).")
+	cmd.Flags().BoolVar(&publishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
 
 	return cmd
 }

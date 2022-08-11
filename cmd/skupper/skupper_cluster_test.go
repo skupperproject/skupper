@@ -929,6 +929,14 @@ func TestExposeWithCluster(t *testing.T) {
 			expectedError:   "",
 			realCluster:     true,
 		},
+		{
+			doc:             "expose-test17",
+			args:            []string{"service", "web", "--address", "web", "--publish-not-ready-addresses"},
+			expectedCapture: "",
+			expectedOutput:  "",
+			expectedError:   "--publish-not-ready-addresses option is only valid for headless services and deployments",
+			realCluster:     false,
+		},
 	}
 
 	namespace = "cmd-expose-cluster-test-" + strings.ToLower(utils.RandomId(4))
@@ -1305,6 +1313,14 @@ func TestBindWithCluster(t *testing.T) {
 			expectedOutput:  "",
 			expectedError:   "sctp is not a valid protocol. Choose 'tcp', 'http' or 'http2'",
 			realCluster:     true,
+		},
+		{
+			doc:             "bind-test5",
+			args:            []string{"web", "service", "web", "--publish-not-ready-addresses"},
+			expectedCapture: "",
+			expectedOutput:  "",
+			expectedError:   "--publish-not-ready-addresses option is only valid for headless services and deployments",
+			realCluster:     false,
 		},
 	}
 

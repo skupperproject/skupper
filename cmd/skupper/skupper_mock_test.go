@@ -271,7 +271,7 @@ func (v *vanClientMock) ServiceInterfaceUpdate(ctx context.Context, service *typ
 	return v.injectedReturns.serviceInterfaceUpdate
 }
 
-func (v *vanClientMock) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int) (*types.ServiceInterface, error) {
+func (v *vanClientMock) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool) (*types.ServiceInterface, error) {
 	var calledWith = getHeadlessServiceConfigurationCallArgs{
 		targetName: targetName,
 		protocol:   protocol,

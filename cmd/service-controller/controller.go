@@ -844,8 +844,8 @@ func (c *Controller) handleRemovingTlsSupport(tlsCredentials string) error {
 	return nil
 }
 
-func (c *Controller) NewTargetResolver(address string, selector string) (service.TargetResolver, error) {
-	resolver := kube.NewPodTargetResolver(c.vanClient.KubeClient, c.vanClient.Namespace, address, selector)
+func (c *Controller) NewTargetResolver(address string, selector string, skipTargetStatus bool) (service.TargetResolver, error) {
+	resolver := kube.NewPodTargetResolver(c.vanClient.KubeClient, c.vanClient.Namespace, address, selector, skipTargetStatus)
 	resolver.AddEventHandler(c.newEventHandler("targetpods@"+address, FixedKey, PodResourceVersionTest))
 	err := resolver.Start()
 	return resolver, err

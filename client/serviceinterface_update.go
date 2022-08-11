@@ -205,7 +205,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 	}
 }
 
-func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int) (*types.ServiceInterface, error) {
+func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool) (*types.ServiceInterface, error) {
 	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(targetName, metav1.GetOptions{})
 	if err == nil {
 		if address != "" && address != statefulset.Spec.ServiceName {
@@ -227,6 +227,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 						Selector: utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
 					},
 				},
+				PublishNotReadyAddresses: publishNotReadyAddresses,
 			}
 			if len(ports) == 0 {
 				if len(service.Spec.Ports) > 0 {
