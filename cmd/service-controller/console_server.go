@@ -30,23 +30,23 @@ const (
 )
 
 type ConsoleServer struct {
-	agentPool *qdr.AgentPool
-	tokens    *TokenManager
-	links     *LinkManager
-	services  *ServiceManager
-	policies  *PolicyManager
-	sites     *SiteManager
+	agentPool     *qdr.AgentPool
+	tokens        *TokenManager
+	links         *LinkManager
+	services      *ServiceManager
+	policies      *PolicyManager
+	accessRevoker *AccessRevoker
 }
 
 func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer {
 	pool := qdr.NewAgentPool("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", config)
 	return &ConsoleServer{
-		agentPool: pool,
-		tokens:    newTokenManager(cli),
-		links:     newLinkManager(cli, pool),
-		services:  newServiceManager(cli),
-		policies:  newPolicyManager(cli),
-		sites:     newSiteManager(cli),
+		agentPool:     pool,
+		tokens:        newTokenManager(cli),
+		links:         newLinkManager(cli, pool),
+		services:      newServiceManager(cli),
+		policies:      newPolicyManager(cli),
+		accessRevoker: newAccessRevoker(cli),
 	}
 }
 
@@ -404,7 +404,7 @@ func (server *ConsoleServer) listen() {
 	r.Handle("/links", authenticated(serveLinks(server.links)))
 	r.Handle("/links/", authenticated(serveLinks(server.links)))
 	r.Handle("/links/{name}", authenticated(serveLinks(server.links)))
-	r.Handle("/revokeaccess", authenticated(serveSites(server.sites)))
+	r.Handle("/revokeaccess", authenticated(serveAccessRevoker(server.accessRevoker)))
 	r.Handle("/services", authenticated(serveServices(server.services)))
 	r.Handle("/services/", authenticated(serveServices(server.services)))
 	r.Handle("/services/{name}", authenticated(serveServices(server.services)))

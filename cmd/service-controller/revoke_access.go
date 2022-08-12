@@ -7,21 +7,17 @@ import (
 	"github.com/skupperproject/skupper/client"
 )
 
-const (
-	SiteManagement string = "SiteManagement"
-)
-
-type SiteManager struct {
+type AccessRevoker struct {
 	cli *client.VanClient
 }
 
-func newSiteManager(cli *client.VanClient) *SiteManager {
-	return &SiteManager{
+func newAccessRevoker(cli *client.VanClient) *AccessRevoker {
+	return &AccessRevoker{
 		cli: cli,
 	}
 }
 
-func (m *SiteManager) revokeAccess() error {
+func (m *AccessRevoker) revokeAccess() error {
 	err := m.cli.RevokeAccess(context.Background())
 	if err != nil {
 		return err
@@ -29,9 +25,9 @@ func (m *SiteManager) revokeAccess() error {
 	return nil
 }
 
-func serveSites(m *SiteManager) http.Handler {
+func serveAccessRevoker(m *AccessRevoker) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodDelete {
+		if r.Method == http.MethodPost {
 			err := m.revokeAccess()
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
