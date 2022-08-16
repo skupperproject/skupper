@@ -29,7 +29,7 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 
 		if len(service.TlsCredentials) > 0 {
 
-			configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+			configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
 
 			if err != nil {
 				return err

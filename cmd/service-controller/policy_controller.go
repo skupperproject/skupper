@@ -251,7 +251,7 @@ func (c *PolicyController) validateIncomingLinkStateChanged() {
 	}
 
 	if updated {
-		_, err = c.cli.KubeClient.CoreV1().ConfigMaps(c.cli.GetNamespace()).Update(configmap)
+		_, err = c.cli.ConfigMapManager(c.cli.GetNamespace()).UpdateConfigMap(configmap)
 		if err != nil {
 			event.Recordf(c.name, "[%s] error updating %s ConfigMap: %v", source, configmap.Name, err)
 			return
@@ -273,7 +273,7 @@ func (c *PolicyController) validateOutgoingLinkStateChanged() {
 	}
 	for _, link := range links {
 		// Retrieving state of respective link (enabled/disabled)
-		secret, err := c.cli.KubeClient.CoreV1().Secrets(c.cli.GetNamespace()).Get(link.Name, v1.GetOptions{})
+		secret, _, err := c.cli.SecretManager(c.cli.GetNamespace()).GetSecret(link.Name, &v1.GetOptions{})
 		if err != nil {
 			event.Recordf(c.name, "[validateOutgoingLinkStateChanged] error reading secret %s: %v", link.Name, err)
 			return
@@ -308,7 +308,7 @@ func (c *PolicyController) validateOutgoingLinkStateChanged() {
 		}
 
 		// Update secret
-		_, err = c.cli.KubeClient.CoreV1().Secrets(c.cli.GetNamespace()).Update(secret)
+		_, err = c.cli.SecretManager(c.cli.GetNamespace()).UpdateSecret(secret)
 		if err != nil {
 			event.Recordf(c.name, "[validateOutgoingLinkStateChanged] error updating secret %s: %v", link.Name, res.Error())
 			return

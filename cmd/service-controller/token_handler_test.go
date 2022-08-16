@@ -159,7 +159,7 @@ func TestTokenHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		token := createToken(test.name, test.annotations)
-		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(token)
+		_, err = cli.SecretManager(cli.Namespace).CreateSecret(token)
 		assert.Check(t, err, name)
 
 		err = handler.handler.Handle(test.name, token)
@@ -184,7 +184,7 @@ func TestTokenHandler(t *testing.T) {
 			assert.Equal(t, connector.Cost, test.expectedConnector.Cost, test.name)
 			assert.Equal(t, connector.SslProfile, test.expectedConnector.SslProfile, test.name)
 
-			//now disconnect:
+			// now disconnect:
 			err = handler.handler.Handle(test.name, nil)
 			assert.Check(t, err, test.name)
 			config, err = getRouterConfig(cli)

@@ -153,7 +153,7 @@ func TestClaimHandler(t *testing.T) {
 	name := "foo"
 	password := []byte("abcdefg")
 	claim := newTestClaim(name, server.URL, password, "")
-	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(claim)
+	_, err := cli.SecretManager(cli.Namespace).CreateSecret(claim)
 	assert.Check(t, err, name)
 	cert := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -174,7 +174,7 @@ func TestClaimHandler(t *testing.T) {
 	verifier.addSuccessfulResult([]byte("abcdefg"), cert)
 	err = handler.redeemClaim(claim)
 	assert.Check(t, err, name)
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(name, metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.Namespace).GetSecret(name, &metav1.GetOptions{})
 	assert.Check(t, err, name)
 	for key, value := range cert.ObjectMeta.Annotations {
 		assert.Equal(t, secret.ObjectMeta.Annotations[key], value, name)
@@ -395,7 +395,7 @@ func TestIncompatibleClaims(t *testing.T) {
 
 			// defining the claim on the site that is going to redeem the claim
 			claim := newTestClaim(name, server.URL, password, test.clientSiteVersion)
-			_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(claim)
+			_, err := cli.SecretManager(cli.Namespace).CreateSecret(claim)
 			assert.Check(t, err, name)
 
 			// update the skupper-site version that the fake server is running

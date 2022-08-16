@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/util/retry"
 
@@ -24,12 +23,12 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-func generateConnectorName(namespace string, cli kubernetes.Interface) string {
-	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
+func generateConnectorName(cli types.Secrets) string {
+	secrets, err := cli.ListSecrets(&metav1.ListOptions{})
 	max := 1
 	if err == nil {
 		connector_name_pattern := regexp.MustCompile("link([0-9]+)+")
-		for _, s := range secrets.Items {
+		for _, s := range secrets {
 			count := connector_name_pattern.FindStringSubmatch(s.ObjectMeta.Name)
 			if len(count) > 1 {
 				v, _ := strconv.Atoi(count[1])
@@ -135,7 +134,7 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 			}
 
 			if options.Name == "" {
-				options.Name = generateConnectorName(options.SkupperNamespace, cli.KubeClient)
+				options.Name = generateConnectorName(cli.SecretManager(options.SkupperNamespace))
 			}
 			secret.ObjectMeta.Name = options.Name
 			err = verify(&secret)
@@ -167,7 +166,7 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 				}
 				secret.ObjectMeta.Annotations[types.TokenCost] = strconv.Itoa(int(options.Cost))
 			}
-			_, err = cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Create(&secret)
+			_, err = cli.SecretManager(options.SkupperNamespace).CreateSecret(&secret)
 			if err == nil {
 				return &secret, nil
 			} else if errors.IsAlreadyExists(err) {
@@ -224,11 +223,11 @@ func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string
 	if self == string(generatedBy) {
 		return fmt.Errorf("Can't create connection to self with token")
 	}
-	currentSecrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
+	currentSecrets, err := cli.SecretManager(options.SkupperNamespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 	if err != nil {
 		return fmt.Errorf("Could not retrieve secrets: %w", err)
 	}
-	for _, currentSecret := range currentSecrets.Items {
+	for _, currentSecret := range currentSecrets {
 		currentAuthor, ok := currentSecret.Annotations[types.TokenGeneratedBy]
 		if !ok {
 			return fmt.Errorf("A secret has no author.")
@@ -256,7 +255,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			return err
 		}
 		updated := false
-		//read annotations to get the host and port to connect to
+		// read annotations to get the host and port to connect to
 		profileName := options.Name + "-profile"
 		if _, ok := current.SslProfiles[profileName]; !ok {
 			current.AddSslProfile(qdr.SslProfile{
@@ -291,7 +290,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		}
 		if updated {
 			current.UpdateConfigMap(configmap)
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(configmap)
+			_, err = cli.ConfigMapManager(options.SkupperNamespace).UpdateConfigMap(configmap)
 			return err
 		}
 		return nil
@@ -303,7 +302,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 }
 
 func (cli *VanClient) requireSiteVersion(ctx context.Context, namespace string, minimumVersion string) error {
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

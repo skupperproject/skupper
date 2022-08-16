@@ -5,6 +5,7 @@ import (
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -110,26 +111,30 @@ func (cli *VanClient) GetIngressDefault() string {
 	return types.IngressRouteString
 }
 
-func (cli *VanClient) ServiceManager() types.Services {
+func (cli *VanClient) ServiceManager(namespace string) types.Services {
 	return &kube.ServiceManager{
-		Client: cli,
+		Client:    cli,
+		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
-func (cli *VanClient) ConfigMapManager() types.ConfigMaps {
+func (cli *VanClient) ConfigMapManager(namespace string) types.ConfigMaps {
 	return &kube.ConfigMapManager{
-		Client: cli,
+		Client:    cli,
+		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
-func (cli *VanClient) DeploymentManager() types.Deployments {
+func (cli *VanClient) DeploymentManager(namespace string) types.Deployments {
 	return &kube.DeploymentManager{
-		Client: cli,
+		Client:    cli,
+		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
-func (cli *VanClient) SecretManager() types.Secrets {
+func (cli *VanClient) SecretManager(namespace string) types.Secrets {
 	return &kube.SecretManager{
-		Client: cli,
+		Client:    cli,
+		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}
 }

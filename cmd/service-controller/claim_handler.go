@@ -49,7 +49,7 @@ func (h *ClaimHandler) handleError(claim *corev1.Secret, text string, failed boo
 		claim.ObjectMeta.Annotations[types.LastFailedAnnotationKey] = time.Now().Format(time.RFC3339)
 	}
 	claim.ObjectMeta.Annotations[types.StatusAnnotationKey] = text
-	_, err := h.vanClient.KubeClient.CoreV1().Secrets(h.vanClient.Namespace).Update(claim)
+	_, err := h.vanClient.SecretManager(h.vanClient.Namespace).UpdateSecret(claim)
 	if err != nil {
 		event.Recordf(h.name, "Failed to update status for claim %q: %s", claim.ObjectMeta.Name, err)
 	}
@@ -125,7 +125,7 @@ func (h *ClaimHandler) redeemClaim(claim *corev1.Secret) error {
 		claim.ObjectMeta.Labels[key] = value
 	}
 	claim.Data = token.Data
-	_, err = h.vanClient.KubeClient.CoreV1().Secrets(h.vanClient.Namespace).Update(claim)
+	_, err = h.vanClient.SecretManager(h.vanClient.Namespace).UpdateSecret(claim)
 	if err != nil {
 		return fmt.Errorf("Could not store connection token for claim %q: %s", claim.ObjectMeta.Name, err)
 	}

@@ -90,7 +90,7 @@ func TestConnectorRemove(t *testing.T) {
 			assert.Check(t, err, "Unable to create connector for "+c.connName)
 		}
 
-		//TODO: remove should distinguish found, not found
+		// TODO: remove should distinguish found, not found
 		err = tokenUserClient.ConnectorRemove(ctx, types.ConnectorRemoveOptions{
 			Name:             c.connName,
 			SkupperNamespace: tokenUserNamespace,
@@ -111,7 +111,7 @@ func TestConnectorRemove(t *testing.T) {
 		}
 
 		for _, name := range c.secretsRemoved {
-			_, err := tokenUserClient.KubeClient.CoreV1().Secrets(c.namespace).Get(name, metav1.GetOptions{})
+			_, _, err := tokenUserClient.SecretManager(c.namespace).GetSecret(name, &metav1.GetOptions{})
 			assert.Assert(t, k8serrors.IsNotFound(err), c.namespace)
 		}
 

@@ -18,7 +18,7 @@ import (
 func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string) error {
 	var unretryable error = nil
 	err := retry.RetryOnConflict(defaultRetry, func() error {
-		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+		current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
 		if err == nil && current.Data != nil {
 			jsonDef := current.Data[address]
 			if jsonDef == "" {
@@ -31,7 +31,7 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					_, err = kube.RemoveServiceAnnotations(service.Address, cli.Namespace, cli.KubeClient, []string{types.ProxyQualifier})
 				} else {
 					delete(current.Data, address)
-					_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+					_, err = cli.ConfigMapManager(cli.Namespace).UpdateConfigMap(current)
 				}
 				if err != nil {
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
@@ -61,7 +61,7 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 func handleServiceCertificateRemoval(address string, cli *VanClient) {
 	certName := types.SkupperServiceCertPrefix + address
 
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(certName, metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.Namespace).GetSecret(certName, &metav1.GetOptions{})
 
 	if err == nil && secret != nil {
 
@@ -70,7 +70,7 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 			log.Printf("Failed to remove sslProfile from the router: %v", err.Error())
 		}
 
-		err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+		err = cli.SecretManager(cli.Namespace).DeleteSecret(secret, &metav1.DeleteOptions{})
 
 		if err != nil {
 			log.Printf("Failed to remove secret from the site: %v", err.Error())

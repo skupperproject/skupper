@@ -39,7 +39,7 @@ func createClaimRecord(cli *client.VanClient, name string, password []byte, expi
 	if uses > 0 {
 		record.ObjectMeta.Annotations[types.ClaimsRemaining] = strconv.Itoa(uses)
 	}
-	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&record)
+	_, err := cli.SecretManager(cli.Namespace).CreateSecret(&record)
 	return err
 }
 
@@ -79,24 +79,24 @@ func TestClaimVerifier(t *testing.T) {
 	verifier := newClaimVerifier(cli)
 	generator := newMockTokenGenerator(nil)
 
-	//create some claim records
+	// create some claim records
 	err := createClaimRecord(cli, "a", []byte("abcdefg"), nil, 2)
 	assert.Check(t, err, "claim-verifier-test: creating a")
 	expiration := time.Now().Add(-1 * time.Hour)
 	err = createClaimRecord(cli, "b", []byte("abcdefg"), &expiration, 1)
 	assert.Check(t, err, "claim-verifier-test: creating b")
 
-	//simple test of valid claim
+	// simple test of valid claim
 	secret, _, code := verifier.redeemClaim("a", "foo", []byte("abcdefg"), generator)
 	assert.Equal(t, code, http.StatusOK, "claim-verifier-test: a")
 	assert.Equal(t, secret, generator.Secret, "claim-verifier-test: a")
 	assert.Equal(t, secret.ObjectMeta.Name, "foo", "claim-verifier-test: a")
-	record, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("a", metav1.GetOptions{})
+	record, _, err := cli.SecretManager(cli.Namespace).GetSecret("a", &metav1.GetOptions{})
 	assert.Check(t, err, "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsRemaining], "1", "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsMade], "1", "claim-verifier-test: a")
 
-	//test password checking
+	// test password checking
 	secret, _, code = verifier.redeemClaim("a", "foo", []byte("blahblah"), generator)
 	assert.Equal(t, code, http.StatusForbidden, "claim-verifier-test: a, bad password")
 	assert.Assert(t, secret == nil, "claim-verifier-test: a, bad password")
@@ -105,17 +105,17 @@ func TestClaimVerifier(t *testing.T) {
 	assert.Equal(t, code, http.StatusOK, "claim-verifier-test: a 2nd attempt")
 	assert.Equal(t, secret, generator.Secret, "claim-verifier-test: a 2nd attempt")
 	assert.Equal(t, secret.ObjectMeta.Name, "foo", "claim-verifier-test: a 2nd attempt")
-	record, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("a", metav1.GetOptions{})
+	record, _, err = cli.SecretManager(cli.Namespace).GetSecret("a", &metav1.GetOptions{})
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsRemaining], "0", "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsMade], "2", "claim-verifier-test: a")
 
-	//test claim that does not exist
+	// test claim that does not exist
 	secret, _, code = verifier.redeemClaim("not-there", "foo", []byte("abcdefg"), generator)
 	//  - check the result is as expected
 	assert.Equal(t, code, http.StatusNotFound, "claim-verifier-test: not-there")
 	assert.Assert(t, secret == nil, "claim-verifier-test: not-there")
 
-	//test expired claim
+	// test expired claim
 	secret, _, code = verifier.redeemClaim("b", "foo", []byte("abcdefg"), generator)
 	assert.Equal(t, code, http.StatusNotFound, "claim-verifier-test: b")
 	assert.Assert(t, secret == nil, "claim-verifier-test: b")

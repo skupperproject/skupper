@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -564,7 +565,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 		return err
 	}
 
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayResourceName, metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName, &metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to retreive external gateway secret: %w", err)
 	}
@@ -888,7 +889,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 		secret.Labels = map[string]string{}
 	}
 	secret.Labels[types.SkupperTypeQualifier] = types.TypeGatewayToken
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(secret)
+	_, err = cli.SecretManager(cli.GetNamespace()).CreateSecret(secret)
 	if err != nil {
 		return "", fmt.Errorf("Failed to create gateway secret: %w", err)
 	}
@@ -1159,7 +1160,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 				routerConfigCurrent.Bridges = *bridgeConfigFromFile
 				routerConfigCurrent.UpdateConfigMap(configmap)
 
-				_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
+				_, err = cli.ConfigMapManager(cli.GetNamespace()).UpdateConfigMap(configmap)
 				if err != nil {
 					return err
 				}
@@ -1207,7 +1208,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
 
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayResourceName, metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName, &metav1.GetOptions{})
 	if err != nil {
 		return tarFile.Name(), fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
 	}
@@ -1308,9 +1309,9 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 		}
 	}
 
-	svcList, err := cli.KubeClient.CoreV1().Services(cli.GetNamespace()).List(metav1.ListOptions{LabelSelector: types.GatewayQualifier + "=" + gatewayName})
+	svcList, err := cli.ServiceManager(cli.GetNamespace()).ListServices(&metav1.ListOptions{LabelSelector: types.GatewayQualifier + "=" + gatewayName})
 	if err == nil {
-		for _, service := range svcList.Items {
+		for _, service := range svcList {
 			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				si, err := cli.ServiceInterfaceInspect(ctx, service.Name)
 				if err != nil {
@@ -1325,19 +1326,19 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 					return nil
 				} else {
 					delete(service.ObjectMeta.Labels, types.GatewayQualifier)
-					_, err = cli.KubeClient.CoreV1().Services(cli.GetNamespace()).Update(&service)
+					_, err = cli.ServiceManager(cli.GetNamespace()).UpdateService(&service)
 					return err
 				}
 			})
 		}
 	}
 
-	err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Delete(gatewayResourceName, &metav1.DeleteOptions{})
+	err = cli.SecretManager(cli.GetNamespace()).DeleteSecret(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: gatewayResourceName}}, &metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		errs = append(errs, fmt.Sprintf("Unable to remove gateway secret: %s", err))
 	}
 
-	err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Delete(gatewayResourceName, &metav1.DeleteOptions{})
+	err = cli.ConfigMapManager(cli.GetNamespace()).DeleteConfigMap(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: gatewayResourceName}}, &metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		errs = append(errs, fmt.Sprintf("Unable to remove gateway config map: %s", err))
 	}
@@ -1631,7 +1632,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 			currentGatewayConfig.Bridges = newBridges
 			currentGatewayConfig.UpdateConfigMap(configmap)
 
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
+			_, err = cli.ConfigMapManager(cli.GetNamespace()).UpdateConfigMap(configmap)
 			if err != nil {
 				return err
 			}
@@ -1718,7 +1719,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 					svc.ObjectMeta.Labels = map[string]string{}
 				}
 				svc.ObjectMeta.Labels[types.GatewayQualifier] = gatewayName
-				_, err = cli.KubeClient.CoreV1().Services(cli.GetNamespace()).Update(svc)
+				_, err = cli.ServiceManager(cli.GetNamespace()).UpdateService(svc)
 				return err
 			} else {
 				return err
@@ -1802,12 +1803,12 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, gatewayName string, e
 
 func (cli *VanClient) GatewayList(ctx context.Context) ([]*types.GatewayInspectResponse, error) {
 	var list []*types.GatewayInspectResponse
-	gateways, err := cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).List(metav1.ListOptions{LabelSelector: "skupper.io/type=gateway-definition"})
+	gateways, err := cli.ConfigMapManager(cli.GetNamespace()).ListConfigMaps(&metav1.ListOptions{LabelSelector: "skupper.io/type=gateway-definition"})
 	if err != nil {
 		return nil, err
 	}
 
-	for _, gateway := range gateways.Items {
+	for _, gateway := range gateways {
 		backoff := retry.DefaultRetry
 		for i := 0; i < 20; i++ {
 			if i > 0 {
@@ -2091,7 +2092,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	defer tw.Close()
 
 	gatewayResourceName := clusterGatewayName(gatewayName)
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayResourceName, metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName, &metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		secret, _, err = cli.ConnectorTokenCreate(context.Background(), gatewayResourceName, "")
 		if err != nil {
@@ -2099,7 +2100,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 		}
 		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
 		secret.Labels[types.SkupperTypeQualifier] = types.TypeGatewayToken
-		_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(secret)
+		_, err = cli.SecretManager(cli.GetNamespace()).CreateSecret(secret)
 		if err != nil {
 			return tarFile.Name(), fmt.Errorf("Failed to create gateway secret: %w", err)
 		}

@@ -114,7 +114,7 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 	if current.IsEdge() {
 		return nil, nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
-	service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
+	service, _, err := cli.ServiceManager(cli.Namespace).GetService(types.ControllerServiceName, &metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -166,7 +166,7 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 	}
 	protocol := "https"
 	url := fmt.Sprintf("%s://%s:%d/%s", protocol, host, port, recordName)
-	caSecret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
+	caSecret, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteCaSecret, &metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -239,7 +239,7 @@ func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, passwor
 	if uses > 0 {
 		record.ObjectMeta.Annotations[types.ClaimsRemaining] = strconv.Itoa(uses)
 	}
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&record)
+	_, err = cli.SecretManager(cli.Namespace).CreateSecret(&record)
 	if err != nil {
 		return nil, false, err
 	}

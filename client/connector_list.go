@@ -57,7 +57,7 @@ func (cli *VanClient) getRouterConfig() (*qdr.RouterConfig, error) {
 
 func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, error) {
 	var links []types.LinkStatus
-	secrets, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	secrets, err := cli.SecretManager(cli.Namespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return links, err
 	}
@@ -67,7 +67,7 @@ func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, er
 	}
 	edge := current.IsEdge()
 	connections, _ := kubeqdr.GetConnections(cli.Namespace, cli.KubeClient, cli.RestConfig)
-	for _, s := range secrets.Items {
+	for _, s := range secrets {
 		links = append(links, getLinkStatus(&s, edge, connections))
 	}
 	return links, nil
@@ -75,7 +75,7 @@ func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, er
 
 func (cli *VanClient) getLocalLinkStatus(namespace string, siteNameMap map[string]string) (map[string]*types.LinkStatus, error) {
 	mapLinks := make(map[string]*types.LinkStatus)
-	secrets, err := cli.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	secrets, err := cli.SecretManager(namespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (cli *VanClient) getLocalLinkStatus(namespace string, siteNameMap map[strin
 		return nil, err
 	}
 
-	for _, s := range secrets.Items {
+	for _, s := range secrets {
 		var connectedTo string
 		siteId := s.ObjectMeta.Annotations[types.TokenGeneratedBy]
 		connectedTo = siteId[:7] + "-" + siteNameMap[siteId]

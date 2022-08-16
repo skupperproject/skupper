@@ -12,7 +12,7 @@ import (
 func (cli *VanClient) ServiceInterfaceList(ctx context.Context) ([]*types.ServiceInterface, error) {
 	var vsis []*types.ServiceInterface
 
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+	current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
 	if err == nil {
 		for _, v := range current.Data {
 			if v != "" {

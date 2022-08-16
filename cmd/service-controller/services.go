@@ -166,11 +166,11 @@ func (m *ServiceManager) deleteService(name string) (bool, error) {
 
 func (m *ServiceManager) getServiceTargets() ([]ServiceTarget, error) {
 	targets := []ServiceTarget{}
-	deployments, err := m.cli.KubeClient.AppsV1().Deployments(m.cli.Namespace).List(metav1.ListOptions{})
+	deployments, err := m.cli.DeploymentManager(m.cli.Namespace).ListDeployments(&metav1.ListOptions{})
 	if err != nil {
 		return targets, err
 	}
-	for _, deployment := range deployments.Items {
+	for _, deployment := range deployments {
 		if deployment.ObjectMeta.Name != types.ControllerDeploymentName && deployment.ObjectMeta.Name != types.TransportDeploymentName {
 			targets = append(targets, ServiceTarget{
 				Name:  deployment.ObjectMeta.Name,

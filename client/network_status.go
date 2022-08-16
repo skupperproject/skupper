@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/server"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -10,8 +11,8 @@ import (
 
 func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 
-	//Checking if the router has been deployed
-	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	// Checking if the router has been deployed
+	_, _, err := cli.DeploymentManager(cli.Namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}
@@ -36,7 +37,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 	for _, site := range versionCheckedSites {
 
 		if site.Gateway {
-			//TODO: Define how gateways have to be shown
+			// TODO: Define how gateways have to be shown
 			continue
 		}
 

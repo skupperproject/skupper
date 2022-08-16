@@ -100,7 +100,7 @@ func (c *TokenHandler) removeConnectorFromConfig(ctx context.Context, name strin
 		if err != nil {
 			return err
 		}
-		_, err = c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Update(configmap)
+		_, err = c.vanClient.ConfigMapManager(c.vanClient.Namespace).UpdateConfigMap(configmap)
 		if err != nil {
 			return err
 		}
@@ -110,7 +110,7 @@ func (c *TokenHandler) removeConnectorFromConfig(ctx context.Context, name strin
 		return err
 	}
 	kube.RemoveSecretVolumeForDeployment(name, deployment, 0)
-	_, err = c.vanClient.KubeClient.AppsV1().Deployments(c.vanClient.Namespace).Update(deployment)
+	_, err = c.vanClient.DeploymentManager(c.vanClient.Namespace).UpdateDeployment(deployment)
 	if err != nil {
 		return err
 	}

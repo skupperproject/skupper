@@ -19,7 +19,7 @@ import (
 
 func (cli *VanClient) getConsoleUrl() (string, error) {
 	if cli.RouteClient == nil {
-		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
+		service, _, err := cli.ServiceManager(cli.Namespace).GetService(types.ControllerServiceName, &metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
@@ -88,7 +88,7 @@ func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace stri
 	if err != nil {
 		return nil, err
 	}
-	current, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	current, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
 	if err == nil {
 		siteConfig, err := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
 		if err == nil && siteConfig != nil {
@@ -137,7 +137,7 @@ func (cli *VanClient) getSitesInNetwork(siteId string, namespace string) (types.
 	}
 	self := getSelf(sites, siteId)
 	for _, site := range sites {
-		if site.SiteId == siteId { //skip self
+		if site.SiteId == siteId { // skip self
 			continue
 		}
 		if site.IsConnectedTo(siteId) || (self != nil && self.IsConnectedTo(site.SiteId)) {

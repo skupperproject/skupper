@@ -294,7 +294,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		return nil, fmt.Errorf("OpenShift cluster not detected for --ingress type route")
 	}
 
-	actual, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(siteConfig)
+	actual, err := cli.ConfigMapManager(cli.Namespace).CreateConfigMap(siteConfig)
 	if err != nil {
 		return nil, err
 	}

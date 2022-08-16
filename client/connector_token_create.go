@@ -124,7 +124,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 	} else if ok {
 		return ok
 	} else {
-		service, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.TransportServiceName, metav1.GetOptions{})
+		service, _, err := cli.ServiceManager(namespace).GetService(types.TransportServiceName, &metav1.GetOptions{})
 		if err != nil {
 			return false
 		} else {
@@ -200,7 +200,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
 	// TODO: creat const for ca
-	caSecret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
+	caSecret, _, err := cli.SecretManager(namespace).GetSecret(types.SiteCaSecret, &metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}

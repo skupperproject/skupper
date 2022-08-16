@@ -10,11 +10,11 @@ import (
 )
 
 func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteConfigSpec) ([]string, error) {
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.SiteConfigMapName, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	//For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
+	// For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
 	latestLogging := RouterLogConfigToString(config.Router.Logging)
 	updateLogging := false
 	if configmap.Data[SiteConfigRouterLoggingKey] != latestLogging {
@@ -27,7 +27,7 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 		updateDebugMode = true
 	}
 	if updateLogging || updateDebugMode {
-		configmap, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(configmap)
+		configmap, err = cli.ConfigMapManager(cli.Namespace).UpdateConfigMap(configmap)
 		if err != nil {
 			return nil, err
 		}

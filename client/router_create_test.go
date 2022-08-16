@@ -441,7 +441,7 @@ func TestRouterResourcesOptions(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router", &metav1.GetOptions{})
 		assert.Check(t, err, namespace)
 
 		container := deployment.Spec.Template.Spec.Containers[0]
@@ -590,7 +590,7 @@ func TestRouterAffinityOptions(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router", &metav1.GetOptions{})
 		assert.Check(t, err, namespace)
 
 		spec := deployment.Spec.Template.Spec
@@ -681,7 +681,7 @@ func TestRouterNodeSelectorOption(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router", &metav1.GetOptions{})
 		assert.Check(t, err, namespace)
 
 		spec := deployment.Spec.Template.Spec
@@ -771,7 +771,7 @@ func TestControllerAffinityOptions(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller", &metav1.GetOptions{})
 		assert.Check(t, err, namespace)
 
 		spec := deployment.Spec.Template.Spec
@@ -867,7 +867,7 @@ func TestControllerNodeSelectorOption(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller", &metav1.GetOptions{})
 		assert.Check(t, err, namespace)
 
 		spec := deployment.Spec.Template.Spec
@@ -941,7 +941,7 @@ func TestControllerResourcesOptions(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller", &metav1.GetOptions{})
 		assert.Check(t, err, namespace)
 		assert.Assert(t, len(deployment.Spec.Template.Spec.Containers) > 0, namespace)
 
@@ -1036,7 +1036,7 @@ func TestLabelandAnnotationOptions(t *testing.T) {
 		assert.Check(t, err, namespace)
 
 		for _, name := range deployments {
-			deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+			deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(name, &metav1.GetOptions{})
 			assert.Check(t, err, namespace)
 
 			for key, value := range c.expectedLabels {

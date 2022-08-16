@@ -46,7 +46,7 @@ func (cli *VanClient) updateStarted(from string, namespace string, ownerrefs []m
 			"from": from,
 		},
 	}
-	_, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Create(cm)
+	_, err := cli.ConfigMapManager(namespace).CreateConfigMap(cm)
 	if err != nil {
 		return err
 	}
@@ -54,11 +54,11 @@ func (cli *VanClient) updateStarted(from string, namespace string, ownerrefs []m
 }
 
 func (cli *VanClient) updateCompleted(namespace string) error {
-	return cli.KubeClient.CoreV1().ConfigMaps(namespace).Delete("skupper-update-state", &metav1.DeleteOptions{})
+	return cli.ConfigMapManager(namespace).DeleteConfigMap(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "skupper-update-state"}}, &metav1.DeleteOptions{})
 }
 
 func (cli *VanClient) isUpdating(namespace string) (bool, string, error) {
-	cm, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get("skupper-update-state", metav1.GetOptions{})
+	cm, _, err := cli.ConfigMapManager(namespace).GetConfigMap("skupper-update-state", &metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return false, "", nil
 	} else if err != nil {
@@ -73,7 +73,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	if err != nil {
 		return false, err
 	}
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -140,7 +140,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		if err != nil {
 			return false, err
 		}
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(namespace).Update(configmap)
+		_, err = cli.ConfigMapManager(namespace).UpdateConfigMap(configmap)
 		if err != nil {
 			return false, err
 		}
@@ -170,13 +170,13 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			consoleUsesLoadbalancer = controllerSvc.Spec.Type == corev1.ServiceTypeLoadBalancer
 		}
 		// update annotation on skupper-router-console if it exists
-		routerConsoleService, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.RouterConsoleServiceName, metav1.GetOptions{})
+		routerConsoleService, _, err := cli.ServiceManager(namespace).GetService(types.RouterConsoleServiceName, &metav1.GetOptions{})
 		if err == nil {
 			if routerConsoleService.ObjectMeta.Annotations == nil {
 				routerConsoleService.ObjectMeta.Annotations = map[string]string{}
 			}
 			routerConsoleService.ObjectMeta.Annotations["service.alpha.openshift.io/serving-cert-secret-name"] = types.OauthRouterConsoleSecret
-			_, err := cli.KubeClient.CoreV1().Services(namespace).Update(routerConsoleService)
+			_, err := cli.ServiceManager(namespace).UpdateService(routerConsoleService)
 			if err != nil {
 				return false, err
 			}
@@ -382,7 +382,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 
-	router, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -444,7 +444,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			touch(router)
 			updateRouter = true
 		}
-		_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(router)
+		_, err = cli.DeploymentManager(namespace).UpdateDeployment(router)
 		if err != nil {
 			return false, err
 		}
@@ -453,7 +453,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 
-	controller, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
+	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName, &metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -556,7 +556,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 		replicas := int32(1)
 		controller.Spec.Replicas = &replicas
-		_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(controller)
+		_, err = cli.DeploymentManager(namespace).UpdateDeployment(controller)
 		if err != nil {
 			return false, err
 		}
@@ -598,7 +598,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			services = append(services, "skupper-internal")
 		}
 		for _, service := range services {
-			err = cli.KubeClient.CoreV1().Services(namespace).Delete(service, &metav1.DeleteOptions{})
+			err = cli.ServiceManager(namespace).DeleteService(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: service}}, &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				return false, err
 			}
@@ -612,7 +612,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			"skupper-internal-ca",
 		}
 		for _, secret := range secrets {
-			err = cli.KubeClient.CoreV1().Secrets(namespace).Delete(secret, &metav1.DeleteOptions{})
+			err = cli.SecretManager(namespace).DeleteSecret(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secret}}, &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				return false, err
 			}
@@ -670,7 +670,7 @@ func (cli *VanClient) renameRouterConfigFile() (bool, error) {
 		updConfigFile := strings.ReplaceAll(configFile, "qpid-dispatch", "skupper-router")
 		cm.Data[types.TransportConfigFile] = updConfigFile
 		delete(cm.Data, "qdrouterd.json")
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(cm)
+		_, err = cli.ConfigMapManager(cli.Namespace).UpdateConfigMap(cm)
 		if err != nil {
 			return false, err
 		}
@@ -681,10 +681,10 @@ func (cli *VanClient) renameRouterConfigFile() (bool, error) {
 }
 
 func setAndWaitControllerReplicas(cli *VanClient, replicas int32, namespace string) (*appsv1.Deployment, error) {
-	controller, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
+	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName, &metav1.GetOptions{})
 	if *controller.Spec.Replicas > 0 {
 		controller.Spec.Replicas = &replicas
-		_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(controller)
+		_, err = cli.DeploymentManager(namespace).UpdateDeployment(controller)
 		controller, err = kube.WaitDeploymentReadyReplicas(types.ControllerDeploymentName, namespace, int(replicas), cli.KubeClient, time.Minute, time.Second)
 		if err != nil {
 			return controller, err
@@ -694,7 +694,7 @@ func setAndWaitControllerReplicas(cli *VanClient, replicas int32, namespace stri
 }
 
 func multiportConvertServices(ctx context.Context, cli *VanClient, namespace string) error {
-	servicesCm, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+	servicesCm, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -716,11 +716,11 @@ func multiportConvertServices(ctx context.Context, cli *VanClient, namespace str
 	for _, svc := range *defs {
 		svcBytes, _ := json.Marshal(svc)
 		servicesCm.Data[svc.Address] = string(svcBytes)
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(namespace).Update(servicesCm)
+		_, err = cli.ConfigMapManager(namespace).UpdateConfigMap(servicesCm)
 		if err != nil {
 			return err
 		}
-		servicesCm, _ = cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+		servicesCm, _, _ = cli.ConfigMapManager(namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
 	}
 
 	return err
@@ -849,7 +849,7 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 
 		// updating configmap
 		_ = gatewayConfig.WriteToConfigMap(configmap)
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.GetNamespace()).Update(configmap)
+		_, err = cli.ConfigMapManager(cli.GetNamespace()).UpdateConfigMap(configmap)
 		if err != nil {
 			return fmt.Errorf("Failed to update gateway config map: %s", err)
 		}
@@ -872,12 +872,12 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 }
 
 func (cli *VanClient) restartRouter(namespace string) error {
-	router, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	touch(router)
-	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(router)
+	_, err = cli.DeploymentManager(namespace).UpdateDeployment(router)
 	return err
 }
 
@@ -886,7 +886,7 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 	if err != nil {
 		return false, err
 	}
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(settings.ObjectMeta.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(settings.ObjectMeta.Namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -897,7 +897,7 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 	updated := configureRouterLogging(routerConfig, siteConfig.Spec.Router.Logging)
 	if updated {
 		routerConfig.WriteToConfigMap(configmap)
-		_, err = cli.KubeClient.CoreV1().ConfigMaps(settings.ObjectMeta.Namespace).Update(configmap)
+		_, err = cli.ConfigMapManager(settings.ObjectMeta.Namespace).UpdateConfigMap(configmap)
 		if err != nil {
 			return false, err
 		}
@@ -917,7 +917,7 @@ func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev
 	if err != nil {
 		return false, err
 	}
-	router, err := cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	router, _, err := cli.DeploymentManager(settings.ObjectMeta.Namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -930,7 +930,7 @@ func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev
 	} else {
 		kube.SetEnvVarForDeployment(router, "QDROUTERD_DEBUG", siteConfig.Spec.Router.DebugMode)
 	}
-	_, err = cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Update(router)
+	_, err = cli.DeploymentManager(settings.ObjectMeta.Namespace).UpdateDeployment(router)
 	if err != nil {
 		return false, err
 	}
@@ -939,13 +939,13 @@ func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev
 }
 
 func (cli *VanClient) updateAnnotationsOnDeployment(ctx context.Context, namespace string, name string, annotations map[string]string) (bool, error) {
-	deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(name, &metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
 	if !reflect.DeepEqual(annotations, deployment.Spec.Template.ObjectMeta.Annotations) {
 		deployment.Spec.Template.ObjectMeta.Annotations = annotations
-		_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(deployment)
+		_, err = cli.DeploymentManager(namespace).UpdateDeployment(deployment)
 		if err != nil {
 			return false, err
 		}
@@ -978,12 +978,12 @@ func (cli *VanClient) RouterUpdateAnnotations(ctx context.Context, settings *cor
 }
 
 func (cli *VanClient) RouterRestart(ctx context.Context, namespace string) error {
-	router, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	touch(router)
-	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(router)
+	_, err = cli.DeploymentManager(namespace).UpdateDeployment(router)
 	return err
 }
 
@@ -1054,7 +1054,7 @@ func (cli *VanClient) getTransportHosts(namespace string) ([]string, error) {
 }
 
 func (cli *VanClient) addClaimsPortsToControllerService(ctx context.Context, namespace string) error {
-	svc, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
+	svc, _, err := cli.ServiceManager(namespace).GetService(types.ControllerServiceName, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -1063,7 +1063,7 @@ func (cli *VanClient) addClaimsPortsToControllerService(ctx context.Context, nam
 		Protocol: "TCP",
 		Port:     types.ClaimRedemptionPort,
 	})
-	_, err = cli.KubeClient.CoreV1().Services(namespace).Update(svc)
+	_, err = cli.ServiceManager(namespace).UpdateService(svc)
 	if err != nil {
 		return err
 	}
@@ -1130,17 +1130,17 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 }
 
 func (cli *VanClient) restartController(namespace string) error {
-	controller, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
+	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	touch(controller)
-	_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(controller)
+	_, err = cli.DeploymentManager(namespace).UpdateDeployment(controller)
 	return err
 }
 
 func (cli *VanClient) GetSiteMetadata() (*qdr.SiteMetadata, error) {
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

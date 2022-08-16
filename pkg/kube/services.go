@@ -366,11 +366,12 @@ func RemoveServiceAnnotations(name, namespace string, kubeclient kubernetes.Inte
 }
 
 type ServiceManager struct {
-	Client *client.VanClient
+	Client    *client.VanClient
+	Namespace string
 }
 
 func (s *ServiceManager) GetService(name string, options *metav1.GetOptions) (*corev1.Service, bool, error) {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Client.Namespace)
+	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
 	svc, err := svcCli.Get(name, *options)
 	if err != nil {
 		return nil, false, err
@@ -379,12 +380,12 @@ func (s *ServiceManager) GetService(name string, options *metav1.GetOptions) (*c
 }
 
 func (s *ServiceManager) DeleteService(svc *corev1.Service, options *metav1.DeleteOptions) error {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Client.Namespace)
+	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
 	return svcCli.Delete(svc.Name, options)
 }
 
 func (s *ServiceManager) ListServices(options *metav1.ListOptions) ([]corev1.Service, error) {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Client.Namespace)
+	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
 	list, err := svcCli.List(*options)
 	if err != nil {
 		return nil, err
@@ -393,12 +394,12 @@ func (s *ServiceManager) ListServices(options *metav1.ListOptions) ([]corev1.Ser
 }
 
 func (s *ServiceManager) CreateService(svc *corev1.Service) (*corev1.Service, error) {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Client.Namespace)
+	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
 	return svcCli.Create(svc)
 }
 
 func (s *ServiceManager) UpdateService(svc *corev1.Service) (*corev1.Service, error) {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Client.Namespace)
+	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
 	return svcCli.Update(svc)
 }
 

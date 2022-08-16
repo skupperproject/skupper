@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"math"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -23,7 +24,7 @@ import (
 )
 
 // Syncs the live router config with the configmap (bridge configuration,
-//secrets for services with TLS enabled, and secrets and connectors for links)
+// secrets for services with TLS enabled, and secrets and connectors for links)
 type ConfigSync struct {
 	informer  cache.SharedIndexInformer
 	events    workqueue.RateLimitingInterface
@@ -364,7 +365,7 @@ func (c *ConfigSync) checkCertFiles(path string) error {
 			secretName = strings.TrimSuffix(profile.Name, "-profile")
 		}
 
-		_, err = c.vanClient.GetKubeClient().CoreV1().Secrets(c.vanClient.Namespace).Get(secretName, metav1.GetOptions{})
+		_, _, err = c.vanClient.SecretManager(c.vanClient.Namespace).GetSecret(secretName, &metav1.GetOptions{})
 		if err != nil {
 			continue
 		}
@@ -379,7 +380,7 @@ func (c *ConfigSync) checkCertFiles(path string) error {
 }
 
 func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secretname string) error {
-	secret, err := c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Get(secretname, metav1.GetOptions{})
+	secret, _, err := c.vanClient.SecretManager(c.vanClient.Namespace).GetSecret(secretname, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

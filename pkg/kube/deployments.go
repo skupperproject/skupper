@@ -521,11 +521,12 @@ func WaitDaemonSetReady(name string, namespace string, cli kubernetes.Interface,
 }
 
 type DeploymentManager struct {
-	Client *client.VanClient
+	Client    *client.VanClient
+	Namespace string
 }
 
 func (d *DeploymentManager) GetDeployment(name string, options *metav1.GetOptions) (*appsv1.Deployment, bool, error) {
-	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Namespace)
 	dep, err := depCli.Get(name, *options)
 	if err != nil {
 		return nil, false, err
@@ -534,12 +535,12 @@ func (d *DeploymentManager) GetDeployment(name string, options *metav1.GetOption
 }
 
 func (d *DeploymentManager) DeleteDeployment(dep *appsv1.Deployment, options *metav1.DeleteOptions) error {
-	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Namespace)
 	return depCli.Delete(dep.Name, options)
 }
 
 func (d *DeploymentManager) ListDeployments(options *metav1.ListOptions) ([]appsv1.Deployment, error) {
-	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Namespace)
 	list, err := depCli.List(*options)
 	if err != nil {
 		return nil, err
@@ -548,12 +549,12 @@ func (d *DeploymentManager) ListDeployments(options *metav1.ListOptions) ([]apps
 }
 
 func (d *DeploymentManager) CreateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error) {
-	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Namespace)
 	return depCli.Create(dep)
 }
 
 func (d *DeploymentManager) UpdateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error) {
-	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Namespace)
 	return depCli.Update(dep)
 }
 

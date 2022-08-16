@@ -81,19 +81,19 @@ type vanClientMock struct {
 	injectedReturns                           vanClientMockInjectedReturnValues
 }
 
-func (v *vanClientMock) ServiceManager() types.Services {
+func (v *vanClientMock) ServiceManager(namespace string) types.Services {
 	return &serviceMock{}
 }
 
-func (v *vanClientMock) ConfigMapManager() types.ConfigMaps {
+func (v *vanClientMock) ConfigMapManager(namespace string) types.ConfigMaps {
 	return &configMapMock{}
 }
 
-func (v *vanClientMock) DeploymentManager() types.Deployments {
+func (v *vanClientMock) DeploymentManager(namespace string) types.Deployments {
 	return &deploymentMock{}
 }
 
-func (v *vanClientMock) SecretManager() types.Secrets {
+func (v *vanClientMock) SecretManager(namespace string) types.Secrets {
 	return &secretMock{}
 }
 

@@ -521,7 +521,7 @@ func (m *DefinitionMonitor) restoreServiceDefinitions(service *corev1.Service) e
 		delete(service.ObjectMeta.Annotations, types.OriginalAssignedQualifier)
 	}
 	if updated {
-		_, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Update(service)
+		_, err := m.vanClient.ServiceManager(m.vanClient.Namespace).UpdateService(service)
 		return err
 	}
 	return nil

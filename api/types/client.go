@@ -320,10 +320,10 @@ type VanClientInterface interface {
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
 	NetworkStatus() ([]*SiteInfo, error)
-	ServiceManager() Services
-	ConfigMapManager() ConfigMaps
-	DeploymentManager() Deployments
-	SecretManager() Secrets
+	ServiceManager(namespace string) Services
+	ConfigMapManager(namespace string) ConfigMaps
+	DeploymentManager(namespace string) Deployments
+	SecretManager(namespace string) Secrets
 }
 
 type Services interface {
