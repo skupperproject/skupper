@@ -11,10 +11,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/spf13/cobra"
 	"gotest.tools/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -76,6 +79,22 @@ type vanClientMock struct {
 	routerCreateCalledWith                    []types.SiteConfig
 	siteConfigCreateCalledWith                []types.SiteConfigSpec
 	injectedReturns                           vanClientMockInjectedReturnValues
+}
+
+func (v *vanClientMock) ServiceManager() types.Services {
+	return &serviceMock{}
+}
+
+func (v *vanClientMock) ConfigMapManager() types.ConfigMaps {
+	return &configMapMock{}
+}
+
+func (v *vanClientMock) DeploymentManager() types.Deployments {
+	return &deploymentMock{}
+}
+
+func (v *vanClientMock) SecretManager() types.Secrets {
+	return &secretMock{}
 }
 
 func (v *vanClientMock) ResetCallHistory() {
@@ -681,4 +700,108 @@ func TestCmdBind(t *testing.T) {
 
 			assert.Error(t, err, "some error")
 		})
+}
+
+type configMapMock struct{}
+
+func (v *configMapMock) GetConfigMap(name string, options *metav1.GetOptions) (*corev1.ConfigMap, bool, error) {
+	return nil, false, nil
+}
+
+func (v *configMapMock) DeleteConfigMap(cm *corev1.ConfigMap, options *metav1.DeleteOptions) error {
+	return nil
+}
+
+func (v *configMapMock) ListConfigMaps(options *metav1.ListOptions) ([]corev1.ConfigMap, error) {
+	return nil, nil
+}
+
+func (v *configMapMock) CreateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	return nil, nil
+}
+
+func (v *configMapMock) UpdateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	return nil, nil
+}
+
+func (v *configMapMock) IsOwned(cm *corev1.ConfigMap) bool {
+	return kube.IsOwnedBySkupper(cm.ObjectMeta.OwnerReferences)
+}
+
+type serviceMock struct{}
+
+func (s *serviceMock) GetService(name string, options *metav1.GetOptions) (*corev1.Service, bool, error) {
+	return nil, false, nil
+}
+
+func (s *serviceMock) DeleteService(svc *corev1.Service, options *metav1.DeleteOptions) error {
+	return nil
+}
+
+func (s *serviceMock) ListServices(options *metav1.ListOptions) ([]corev1.Service, error) {
+	return nil, nil
+}
+
+func (s *serviceMock) CreateService(svc *corev1.Service) (*corev1.Service, error) {
+	return nil, nil
+}
+
+func (s *serviceMock) UpdateService(svc *corev1.Service) (*corev1.Service, error) {
+	return nil, nil
+}
+
+func (s *serviceMock) IsOwned(service *corev1.Service) bool {
+	return kube.IsOwnedBySkupper(service.ObjectMeta.OwnerReferences)
+}
+
+type deploymentMock struct{}
+
+func (d *deploymentMock) GetDeployment(name string, options *metav1.GetOptions) (*appsv1.Deployment, bool, error) {
+	return nil, false, nil
+}
+
+func (d *deploymentMock) DeleteDeployment(dep *appsv1.Deployment, options *metav1.DeleteOptions) error {
+	return nil
+}
+
+func (d *deploymentMock) ListDeployments(options *metav1.ListOptions) ([]appsv1.Deployment, error) {
+	return nil, nil
+}
+
+func (d *deploymentMock) CreateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error) {
+	return nil, nil
+}
+
+func (d *deploymentMock) UpdateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error) {
+	return nil, nil
+}
+
+func (d *deploymentMock) IsOwned(dep *appsv1.Deployment) bool {
+	return kube.IsOwnedBySkupper(dep.ObjectMeta.OwnerReferences)
+}
+
+type secretMock struct{}
+
+func (s *secretMock) GetSecret(name string, options *metav1.GetOptions) (*corev1.Secret, bool, error) {
+	return nil, false, nil
+}
+
+func (s *secretMock) DeleteSecret(secret *corev1.Secret, options *metav1.DeleteOptions) error {
+	return nil
+}
+
+func (s *secretMock) ListSecrets(options *metav1.ListOptions) ([]corev1.Secret, error) {
+	return nil, nil
+}
+
+func (s *secretMock) CreateSecret(secret *corev1.Secret) (*corev1.Secret, error) {
+	return nil, nil
+}
+
+func (s *secretMock) UpdateSecret(secret *corev1.Secret) (*corev1.Secret, error) {
+	return nil, nil
+}
+
+func (s *secretMock) IsOwned(secret *corev1.Secret) bool {
+	return kube.IsOwnedBySkupper(secret.ObjectMeta.OwnerReferences)
 }
