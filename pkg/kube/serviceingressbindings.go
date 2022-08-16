@@ -42,27 +42,19 @@ func HasRouterSelector(service corev1.Service) bool {
 	return ok && value == types.RouterComponent
 }
 
-type Services interface {
-	GetService(name string) (*corev1.Service, bool, error)
-	DeleteService(svc *corev1.Service) error
-	CreateService(svc *corev1.Service) error
-	UpdateService(svc *corev1.Service) error
-	IsOwned(service *corev1.Service) bool
-}
-
 type ServiceIngressAlways struct {
-	s Services
+	s types.Services
 }
 
 type ServiceIngressHeadlessInOrigin struct {
-	s Services
+	s types.Services
 }
 
 type ServiceIngressHeadlessRemote struct {
-	s Services
+	s types.Services
 }
 
-func NewHeadlessServiceIngress(s Services, origin string) service.ServiceIngress {
+func NewHeadlessServiceIngress(s types.Services, origin string) service.ServiceIngress {
 	if origin == "" {
 		return &ServiceIngressHeadlessInOrigin{
 			s: s,
@@ -74,7 +66,7 @@ func NewHeadlessServiceIngress(s Services, origin string) service.ServiceIngress
 	}
 }
 
-func NewServiceIngressAlways(s Services) service.ServiceIngress {
+func NewServiceIngressAlways(s types.Services) service.ServiceIngress {
 	return &ServiceIngressAlways{
 		s: s,
 	}
@@ -104,7 +96,8 @@ func (si *ServiceIngressAlways) create(desired *service.ServiceBindings) error {
 	UpdatePorts(&service.Spec, desired.PortMap())
 	UpdateSelectorFromMap(&service.Spec, GetLabelsForRouter())
 
-	return si.s.CreateService(service)
+	_, err := si.s.CreateService(service)
+	return err
 }
 
 func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.ServiceBindings) error {
@@ -124,13 +117,14 @@ func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.
 	}
 
 	if !(updatedPorts || updatedSelector || updatedLabels) {
-		return nil //nothing changed
+		return nil // nothing changed
 	}
-	return si.s.UpdateService(actual)
+	_, err := si.s.UpdateService(actual)
+	return err
 }
 
 func (si *ServiceIngressAlways) Realise(desired *service.ServiceBindings) error {
-	actual, exists, err := si.s.GetService(desired.Address)
+	actual, exists, err := si.s.GetService(desired.Address, nil)
 	if err != nil {
 		return err
 	}
@@ -153,7 +147,7 @@ func (si *ServiceIngressHeadlessRemote) Matches(def *types.ServiceInterface) boo
 }
 
 func (si *ServiceIngressHeadlessRemote) Realise(desired *service.ServiceBindings) error {
-	actual, exists, err := si.s.GetService(desired.Address)
+	actual, exists, err := si.s.GetService(desired.Address, nil)
 	if err != nil {
 		return err
 	}
@@ -183,7 +177,8 @@ func (si *ServiceIngressHeadlessRemote) create(desired *service.ServiceBindings)
 	}
 	UpdatePorts(&service.Spec, desired.PortMap())
 	UpdateSelectorFromMap(&service.Spec, map[string]string{"internal.skupper.io/service": desired.Address})
-	return si.s.CreateService(service)
+	_, err := si.s.CreateService(service)
+	return err
 }
 
 func (si *ServiceIngressHeadlessRemote) update(actual *corev1.Service, desired *service.ServiceBindings) error {
@@ -191,7 +186,8 @@ func (si *ServiceIngressHeadlessRemote) update(actual *corev1.Service, desired *
 	updatedLabels := UpdateLabels(&actual.ObjectMeta, desired.Labels)
 
 	if !(updatedPorts || updatedLabels) {
-		return nil //nothing changed
+		return nil // nothing changed
 	}
-	return si.s.UpdateService(actual)
+	_, err := si.s.UpdateService(actual)
+	return err
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -517,4 +518,45 @@ func WaitDaemonSetReady(name string, namespace string, cli kubernetes.Interface,
 	})
 
 	return dep, err
+}
+
+type DeploymentManager struct {
+	Client *client.VanClient
+}
+
+func (d *DeploymentManager) GetDeployment(name string, options *metav1.GetOptions) (*appsv1.Deployment, bool, error) {
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	dep, err := depCli.Get(name, *options)
+	if err != nil {
+		return nil, false, err
+	}
+	return dep, true, nil
+}
+
+func (d *DeploymentManager) DeleteDeployment(dep *appsv1.Deployment, options *metav1.DeleteOptions) error {
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	return depCli.Delete(dep.Name, options)
+}
+
+func (d *DeploymentManager) ListDeployments(options *metav1.ListOptions) ([]appsv1.Deployment, error) {
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	list, err := depCli.List(*options)
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (d *DeploymentManager) CreateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error) {
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	return depCli.Create(dep)
+}
+
+func (d *DeploymentManager) UpdateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error) {
+	depCli := d.Client.KubeClient.AppsV1().Deployments(d.Client.Namespace)
+	return depCli.Update(dep)
+}
+
+func (d *DeploymentManager) IsOwned(dep *appsv1.Deployment) bool {
+	return IsOwnedBySkupper(dep.ObjectMeta.OwnerReferences)
 }

@@ -318,27 +318,28 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *Controller) DeleteService(svc *corev1.Service) error {
+func (c *Controller) DeleteService(svc *corev1.Service, options *metav1.DeleteOptions) error {
+	if options == nil {
+		options = &metav1.DeleteOptions{}
+	}
 	event.Recordf(ServiceControllerDeleteEvent, "Deleting service %s", svc.ObjectMeta.Name)
-	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(svc.ObjectMeta.Name, &metav1.DeleteOptions{})
+	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(svc.ObjectMeta.Name, options)
 }
 
-func (c *Controller) UpdateService(svc *corev1.Service) error {
-	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(svc)
-	return err
+func (c *Controller) UpdateService(svc *corev1.Service) (*corev1.Service, error) {
+	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(svc)
 }
 
-func (c *Controller) CreateService(svc *corev1.Service) error {
+func (c *Controller) CreateService(svc *corev1.Service) (*corev1.Service, error) {
 	setOwnerReferences(&svc.ObjectMeta)
-	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Create(svc)
-	return err
+	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Create(svc)
 }
 
 func (c *Controller) IsOwned(service *corev1.Service) bool {
 	return isOwned(service)
 }
 
-func (c *Controller) GetService(name string) (*corev1.Service, bool, error) {
+func (c *Controller) GetService(name string, options *metav1.GetOptions) (*corev1.Service, bool, error) {
 	obj, exists, err := c.svcInformer.GetStore().GetByKey(c.namespaced(name))
 	if err != nil {
 		return nil, false, err
@@ -348,6 +349,17 @@ func (c *Controller) GetService(name string) (*corev1.Service, bool, error) {
 	}
 	actual := obj.(*corev1.Service)
 	return actual, true, nil
+}
+
+func (c *Controller) ListServices(options *metav1.ListOptions) ([]corev1.Service, error) {
+	if options == nil {
+		options = &metav1.ListOptions{}
+	}
+	list, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).List(*options)
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
 }
 
 func (c *Controller) updateActualServices() {
@@ -364,7 +376,7 @@ func (c *Controller) updateActualServices() {
 		_, deleteSvc := c.getBindingsForService(svc)
 		if deleteSvc {
 			event.Recordf(ServiceControllerDeleteEvent, "No service binding found for %s", svc.ObjectMeta.Name)
-			c.DeleteService(svc)
+			c.DeleteService(svc, nil)
 			c.handleRemovingTlsSupport(types.SkupperServiceCertPrefix + svc.ObjectMeta.Name)
 		}
 	}
@@ -376,7 +388,7 @@ func (c *Controller) getBindingsForService(svc *corev1.Service) (*service.Servic
 		if svcName := svc.ObjectMeta.Annotations[types.ServiceQualifier]; svcName != "" {
 			bindings := c.bindings[svcName]
 			if bindings == nil || !bindings.IsHeadless() {
-				c.DeleteService(svc)
+				c.DeleteService(svc, nil)
 			}
 			return nil, false
 		}
@@ -689,7 +701,7 @@ func (c *Controller) processNextEvent() bool {
 							return err
 						}
 					} else if deleteSvc {
-						err = c.DeleteService(svc)
+						err = c.DeleteService(svc, nil)
 						if err != nil {
 							return err
 						}

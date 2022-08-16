@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	v12 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ConnectorCreateOptions struct {
@@ -318,4 +320,44 @@ type VanClientInterface interface {
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
 	NetworkStatus() ([]*SiteInfo, error)
+	ServiceManager() Services
+	ConfigMapManager() ConfigMaps
+	DeploymentManager() Deployments
+	SecretManager() Secrets
+}
+
+type Services interface {
+	GetService(name string, options *v1.GetOptions) (*corev1.Service, bool, error)
+	DeleteService(svc *corev1.Service, options *v1.DeleteOptions) error
+	ListServices(options *v1.ListOptions) ([]corev1.Service, error)
+	CreateService(svc *corev1.Service) (*corev1.Service, error)
+	UpdateService(svc *corev1.Service) (*corev1.Service, error)
+	IsOwned(service *corev1.Service) bool
+}
+
+type ConfigMaps interface {
+	GetConfigMap(name string, options *v1.GetOptions) (*corev1.ConfigMap, bool, error)
+	DeleteConfigMap(cm *corev1.ConfigMap, options *v1.DeleteOptions) error
+	ListConfigMaps(options *v1.ListOptions) ([]corev1.ConfigMap, error)
+	CreateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap, error)
+	UpdateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap, error)
+	IsOwned(cm *corev1.ConfigMap) bool
+}
+
+type Deployments interface {
+	GetDeployment(name string, options *v1.GetOptions) (*v12.Deployment, bool, error)
+	DeleteDeployment(dep *v12.Deployment, options *v1.DeleteOptions) error
+	ListDeployments(options *v1.ListOptions) ([]v12.Deployment, error)
+	CreateDeployment(dep *v12.Deployment) (*v12.Deployment, error)
+	UpdateDeployment(dep *v12.Deployment) (*v12.Deployment, error)
+	IsOwned(dep *v12.Deployment) bool
+}
+
+type Secrets interface {
+	GetSecret(name string, options *v1.GetOptions) (*corev1.Secret, bool, error)
+	DeleteSecret(secret *corev1.Secret, options *v1.DeleteOptions) error
+	ListSecrets(options *v1.ListOptions) ([]corev1.Secret, error)
+	CreateSecret(secret *corev1.Secret) (*corev1.Secret, error)
+	UpdateSecret(secret *corev1.Secret) (*corev1.Secret, error)
+	IsOwned(secret *corev1.Secret) bool
 }

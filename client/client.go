@@ -109,3 +109,27 @@ func (cli *VanClient) GetIngressDefault() string {
 	}
 	return types.IngressRouteString
 }
+
+func (cli *VanClient) ServiceManager() types.Services {
+	return &kube.ServiceManager{
+		Client: cli,
+	}
+}
+
+func (cli *VanClient) ConfigMapManager() types.ConfigMaps {
+	return &kube.ConfigMapManager{
+		Client: cli,
+	}
+}
+
+func (cli *VanClient) DeploymentManager() types.Deployments {
+	return &kube.DeploymentManager{
+		Client: cli,
+	}
+}
+
+func (cli *VanClient) SecretManager() types.Secrets {
+	return &kube.SecretManager{
+		Client: cli,
+	}
+}

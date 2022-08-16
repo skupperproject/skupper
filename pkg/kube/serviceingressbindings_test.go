@@ -20,8 +20,11 @@ type TestContext struct {
 	namespace string
 }
 
-func (s *TestContext) GetService(name string) (*corev1.Service, bool, error) {
-	svc, err := s.client.CoreV1().Services(s.namespace).Get(name, metav1.GetOptions{})
+func (s *TestContext) GetService(name string, options *metav1.GetOptions) (*corev1.Service, bool, error) {
+	if options == nil {
+		options = &metav1.GetOptions{}
+	}
+	svc, err := s.client.CoreV1().Services(s.namespace).Get(name, *options)
 	if errors.IsNotFound(err) {
 		return nil, false, nil
 	} else if err != nil {
@@ -30,18 +33,30 @@ func (s *TestContext) GetService(name string) (*corev1.Service, bool, error) {
 	return svc, true, nil
 }
 
-func (s *TestContext) DeleteService(svc *corev1.Service) error {
-	return s.client.CoreV1().Services(s.namespace).Delete(svc.ObjectMeta.Name, &metav1.DeleteOptions{})
+func (s *TestContext) ListServices(options *metav1.ListOptions) ([]corev1.Service, error) {
+	if options == nil {
+		options = &metav1.ListOptions{}
+	}
+	list, err := s.client.CoreV1().Services(s.namespace).List(*options)
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
 }
 
-func (s *TestContext) CreateService(svc *corev1.Service) error {
-	_, err := s.client.CoreV1().Services(s.namespace).Create(svc)
-	return err
+func (s *TestContext) DeleteService(svc *corev1.Service, options *metav1.DeleteOptions) error {
+	if options == nil {
+		options = &metav1.DeleteOptions{}
+	}
+	return s.client.CoreV1().Services(s.namespace).Delete(svc.ObjectMeta.Name, options)
 }
 
-func (s *TestContext) UpdateService(svc *corev1.Service) error {
-	_, err := s.client.CoreV1().Services(s.namespace).Update(svc)
-	return err
+func (s *TestContext) CreateService(svc *corev1.Service) (*corev1.Service, error) {
+	return s.client.CoreV1().Services(s.namespace).Create(svc)
+}
+
+func (s *TestContext) UpdateService(svc *corev1.Service) (*corev1.Service, error) {
+	return s.client.CoreV1().Services(s.namespace).Update(svc)
 }
 
 func (s *TestContext) IsOwned(service *corev1.Service) bool {
@@ -454,7 +469,7 @@ func TestServiceIngressBindings(t *testing.T) {
 	for _, s := range scenarios {
 		t.Run(s.name, func(t *testing.T) {
 			for _, svc := range s.existing {
-				err := context.CreateService(&svc)
+				_, err := context.CreateService(&svc)
 				assert.Assert(t, err == nil)
 			}
 			bindings := service.NewServiceBindings(s.definition, s.allocatedPorts, context)
@@ -476,9 +491,9 @@ func TestServiceIngressBindings(t *testing.T) {
 			}
 			assert.Equal(t, len(actual), 0)
 
-			//cleanup
+			// cleanup
 			for _, svc := range cleanup {
-				err := context.DeleteService(&svc)
+				err := context.DeleteService(&svc, nil)
 				assert.Assert(t, err == nil)
 			}
 		})

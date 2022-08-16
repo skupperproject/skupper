@@ -37,7 +37,7 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 				Selector: utils.StringifySelector(deployment.Spec.Selector.MatchLabels),
 			}
 			if deducePort {
-				//TODO: handle case where there is more than one container (need --container option?)
+				// TODO: handle case where there is more than one container (need --container option?)
 				if deployment.Spec.Template.Spec.Containers[0].Ports != nil {
 					target.TargetPorts = GetAllContainerPorts(deployment.Spec.Template.Spec.Containers[0])
 				}
@@ -54,7 +54,7 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 				Selector: utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
 			}
 			if deducePort {
-				//TODO: handle case where there is more than one container (need --container option?)
+				// TODO: handle case where there is more than one container (need --container option?)
 				if statefulset.Spec.Template.Spec.Containers[0].Ports != nil {
 					target.TargetPorts = GetAllContainerPorts(statefulset.Spec.Template.Spec.Containers[0])
 				}
@@ -150,10 +150,19 @@ func UpdateLabels(o *metav1.ObjectMeta, desired map[string]string) bool {
 	if o.Labels == nil {
 		o.Labels = desired
 	} else {
-		//note this only adds new labels, it never removes any (is that what is wanted?)
+		// note this only adds new labels, it never removes any (is that what is wanted?)
 		for k, v := range desired {
 			o.Labels[k] = v
 		}
 	}
 	return true
+}
+
+func IsOwnedBySkupper(refs []metav1.OwnerReference) bool {
+	for _, ref := range refs {
+		if strings.HasPrefix(ref.Name, types.AppName) {
+			return true
+		}
+	}
+	return false
 }
