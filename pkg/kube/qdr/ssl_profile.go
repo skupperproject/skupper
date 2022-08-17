@@ -4,12 +4,11 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
-	"k8s.io/client-go/kubernetes"
 )
 
-func AddSslProfile(secretName string, namespace string, cli kubernetes.Interface) error {
+func AddSslProfile(secretName string, cli types.ConfigMaps) error {
 
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli)
 	if err != nil {
 		return err
 	}
@@ -28,7 +27,7 @@ func AddSslProfile(secretName string, namespace string, cli kubernetes.Interface
 		return err
 	}
 
-	_, err = cli.CoreV1().ConfigMaps(namespace).Update(configmap)
+	_, err = cli.UpdateConfigMap(configmap)
 	if err != nil {
 		return err
 	}
@@ -36,9 +35,9 @@ func AddSslProfile(secretName string, namespace string, cli kubernetes.Interface
 
 }
 
-func RemoveSslProfile(secretName string, namespace string, cli kubernetes.Interface) error {
+func RemoveSslProfile(secretName string, cli types.ConfigMaps) error {
 
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli)
 	if err != nil {
 		return err
 	}
@@ -56,7 +55,7 @@ func RemoveSslProfile(secretName string, namespace string, cli kubernetes.Interf
 		return err
 	}
 
-	_, err = cli.CoreV1().ConfigMaps(namespace).Update(configmap)
+	_, err = cli.UpdateConfigMap(configmap)
 	if err != nil {
 		return err
 	}

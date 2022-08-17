@@ -243,8 +243,8 @@ func deployServer(app PerformanceApp) error {
 	}
 
 	// Waiting for server deployment to be ready
-	_, err = kube.WaitDeploymentReadyReplicas(app.Server.Deployment.Name, serverCluster.Namespace, 1,
-		serverCluster.VanClient.KubeClient, constants.SkupperServiceReadyPeriod, constants.DefaultTick)
+	_, err = kube.WaitDeploymentReadyReplicas(app.Server.Deployment.Name, serverCluster.VanClient.DeploymentManager(serverCluster.Namespace), 1,
+		constants.SkupperServiceReadyPeriod, constants.DefaultTick)
 	if err != nil {
 		return fmt.Errorf("error waiting for deployment to be ready - %v", err)
 	}

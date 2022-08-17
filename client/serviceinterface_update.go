@@ -206,7 +206,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 }
 
 func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool) (*types.ServiceInterface, error) {
-	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(targetName, metav1.GetOptions{})
+	statefulset, _, err := cli.StatefulSetManager(cli.Namespace).GetStatefulSet(targetName, &metav1.GetOptions{})
 	if err == nil {
 		if address != "" && address != statefulset.Spec.ServiceName {
 			return nil, fmt.Errorf("Cannot specify different address from service name for headless service.")
@@ -267,8 +267,8 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 		if err != nil {
 			return fmt.Errorf("Failed to read json for service interface %s: %s", serviceName, err)
 		}
-		if service.IsAnnotated() && kube.IsOriginalServiceModified(service.Address, cli.Namespace, cli.GetKubeClient()) {
-			_, err = kube.RemoveServiceAnnotations(service.Address, cli.Namespace, cli.KubeClient, []string{types.ProxyQualifier})
+		if service.IsAnnotated() && kube.IsOriginalServiceModified(service.Address, cli.ServiceManager(cli.Namespace)) {
+			_, err = kube.RemoveServiceAnnotations(service.Address, cli.ServiceManager(cli.Namespace), []string{types.ProxyQualifier})
 			if err != nil {
 				return fmt.Errorf("Failed to remove %s annotation from modified service: %v", types.ProxyQualifier, err)
 			}

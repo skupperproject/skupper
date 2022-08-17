@@ -274,11 +274,11 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 
 	// create three service targets
 	deployments := cli.DeploymentManager(namespace)
-	statefulSets := cli.KubeClient.AppsV1().StatefulSets(namespace)
+	statefulSets := cli.StatefulSetManager(namespace)
 
 	_, err = deployments.CreateDeployment(tcpDeployment)
 	assert.Assert(t, err)
-	_, err = statefulSets.Create(tcpStatefulSet)
+	_, err = statefulSets.CreateStatefulSet(tcpStatefulSet)
 	assert.Assert(t, err)
 	_, err = deployments.CreateDeployment(httpDeployment)
 	assert.Assert(t, err)

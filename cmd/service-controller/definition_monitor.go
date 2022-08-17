@@ -468,7 +468,7 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAddress(address string) er
 		deleted := []string{
 			svc.Address,
 		}
-		return kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+		return kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.ConfigMapManager(m.vanClient.Namespace))
 	}
 	return nil
 }
@@ -608,7 +608,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 								svc,
 							}
 							deleted := []string{}
-							kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.Namespace, m.vanClient.KubeClient)
+							kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.ConfigMapManager(m.vanClient.Namespace))
 						}
 					} else {
 						// does it have a skupper annotation?
@@ -621,7 +621,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 									desired,
 								}
 								deleted := []string{}
-								err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+								err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.ConfigMapManager(m.vanClient.Namespace))
 								if err != nil {
 									return fmt.Errorf("failed to update service definition for annotated statefulSet %s: %s", name, err)
 								}
@@ -656,7 +656,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						deleted := []string{
 							svc.Address,
 						}
-						kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.Namespace, m.vanClient.KubeClient)
+						kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.ConfigMapManager(m.vanClient.Namespace))
 					} else {
 						err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name)
 						if err != nil {
@@ -685,7 +685,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 								desired,
 							}
 							deleted := []string{}
-							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.ConfigMapManager(m.vanClient.Namespace))
 							if err != nil {
 								return fmt.Errorf("failed to update service definition for annotated deployment %s: %s", name, err)
 							}
@@ -736,7 +736,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 								desired,
 							}
 							deleted := []string{}
-							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.ConfigMapManager(m.vanClient.Namespace))
 							if err != nil {
 								return fmt.Errorf("failed to update service definition for annotated daemonset %s: %s", name, err)
 							}
@@ -787,7 +787,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 								desired,
 							}
 							deleted := []string{}
-							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.ConfigMapManager(m.vanClient.Namespace))
 							if err != nil {
 								return fmt.Errorf("failed to update service definition for annotated service %s: %s", name, err)
 							}

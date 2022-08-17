@@ -4,12 +4,10 @@ import (
 	jsonencoding "encoding/json"
 	"fmt"
 
+	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
-	"github.com/skupperproject/skupper/api/types"
 )
 
 func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference {
@@ -21,9 +19,8 @@ func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference 
 	}
 }
 
-func NewConfigMap(name string, data *map[string]string, labels *map[string]string, annotations *map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {
-	configMaps := kubeclient.CoreV1().ConfigMaps(namespace)
-	existing, err := configMaps.Get(name, metav1.GetOptions{})
+func NewConfigMap(name string, data *map[string]string, labels *map[string]string, annotations *map[string]string, owner *metav1.OwnerReference, configMaps types.ConfigMaps) (*corev1.ConfigMap, error) {
+	existing, _, err := configMaps.GetConfigMap(name, &metav1.GetOptions{})
 	if err == nil {
 		// TODO:  already exists
 		return existing, nil
@@ -53,7 +50,7 @@ func NewConfigMap(name string, data *map[string]string, labels *map[string]strin
 			}
 		}
 
-		created, err := configMaps.Create(cm)
+		created, err := configMaps.CreateConfigMap(cm)
 
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create config map: %w", err)
@@ -66,8 +63,8 @@ func NewConfigMap(name string, data *map[string]string, labels *map[string]strin
 	}
 }
 
-func GetConfigMap(name string, namespace string, cli kubernetes.Interface) (*corev1.ConfigMap, error) {
-	current, err := cli.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+func GetConfigMap(name string, cli types.ConfigMaps) (*corev1.ConfigMap, error) {
+	current, _, err := cli.GetConfigMap(name, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -75,8 +72,8 @@ func GetConfigMap(name string, namespace string, cli kubernetes.Interface) (*cor
 	}
 }
 
-func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, origin string, namespace string, cli kubernetes.Interface) error {
-	current, err := cli.CoreV1().ConfigMaps(namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, origin string, configMaps types.ConfigMaps) error {
+	current, _, err := configMaps.GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
 	if err == nil {
 		if current.Data == nil {
 			current.Data = make(map[string]string)
@@ -90,7 +87,7 @@ func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, o
 			delete(current.Data, name)
 		}
 
-		_, err = cli.CoreV1().ConfigMaps(namespace).Update(current)
+		_, err = configMaps.UpdateConfigMap(current)
 		if err != nil {
 			return fmt.Errorf("Failed to update skupper-services config map: %s", err)
 		}

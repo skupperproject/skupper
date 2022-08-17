@@ -109,7 +109,7 @@ func main() {
 	}
 
 	log.Println("Waiting for Skupper router component to start")
-	_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
+	_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, cli.DeploymentManager(namespace), time.Second*180, time.Second*5)
 	if err != nil {
 		log.Fatal("Error waiting for transport deployment to be ready: ", err.Error())
 	}

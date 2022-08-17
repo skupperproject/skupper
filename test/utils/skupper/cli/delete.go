@@ -61,7 +61,7 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		}
 
 		// router config is gone
-		_, err = kube.GetConfigMap(types.TransportConfigMapName, cluster.Namespace, cluster.VanClient.KubeClient)
+		_, err = kube.GetConfigMap(types.TransportConfigMapName, cluster.VanClient.ConfigMapManager(cluster.Namespace))
 		if err == nil {
 			log.Printf("%s config map still exists", types.TransportConfigMapName)
 			return false, nil

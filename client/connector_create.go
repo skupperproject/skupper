@@ -99,7 +99,7 @@ func verify(secret *corev1.Secret) error {
 }
 
 func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretData []byte, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
-	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
+	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.DeploymentManager(options.SkupperNamespace))
 	if err == nil {
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
 			scheme.Scheme)
@@ -246,7 +246,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		if err != nil {
 			return err
 		}
-		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, options.SkupperNamespace, cli.KubeClient)
+		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.ConfigMapManager(options.SkupperNamespace))
 		if err != nil {
 			return err
 		}

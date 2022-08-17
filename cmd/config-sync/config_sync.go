@@ -184,7 +184,7 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	} else {
 		differences.Print()
 
-		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.ConfigMapManager(c.vanClient.Namespace))
 		if err != nil {
 			return false, err
 		}
@@ -352,7 +352,7 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 func (c *ConfigSync) checkCertFiles(path string) error {
 
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.ConfigMapManager(c.vanClient.Namespace))
 	if err != nil {
 		return err
 	}

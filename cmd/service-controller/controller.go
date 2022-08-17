@@ -179,7 +179,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	controller.tokenHandler = newTokenHandler(controller.vanClient, origin)
 	controller.claimHandler = newClaimHandler(controller.vanClient, origin)
 	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
-		return kube.UpdateSkupperServices(changed, deleted, origin, cli.Namespace, cli.KubeClient)
+		return kube.UpdateSkupperServices(changed, deleted, origin, cli.ConfigMapManager(cli.Namespace))
 	}
 	controller.serviceSync = service_sync.NewServiceSync(origin, client.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
 
@@ -555,7 +555,7 @@ func (c *Controller) updateServiceSync(defs *corev1.ConfigMap) {
 }
 
 func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error {
-	return c.vanClient.KubeClient.AppsV1().StatefulSets(c.vanClient.Namespace).Delete(statefulset.ObjectMeta.Name, &metav1.DeleteOptions{})
+	return c.vanClient.StatefulSetManager(c.vanClient.Namespace).DeleteStatefulSet(statefulset, &metav1.DeleteOptions{})
 }
 
 func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, statefulset *appsv1.StatefulSet) error {
@@ -565,7 +565,7 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, s
 		return err
 	}
 
-	_, err = kube.CheckProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err = kube.CheckProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient)
 	return err
 }
 
@@ -576,7 +576,7 @@ func (c *Controller) createHeadlessProxyFor(bindings *service.ServiceBindings) e
 		return err
 	}
 
-	_, err = kube.NewProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	_, err = kube.NewProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, config, c.vanClient.Namespace, c.vanClient)
 	return err
 }
 
@@ -821,7 +821,7 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 				return err
 			}
 
-			err = kubeqdr.AddSslProfile(serviceSecret.Name, c.vanClient.Namespace, c.vanClient.KubeClient)
+			err = kubeqdr.AddSslProfile(serviceSecret.Name, c.vanClient.ConfigMapManager(c.vanClient.Namespace))
 			if err != nil {
 				return err
 			}
@@ -836,7 +836,7 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 func (c *Controller) handleRemovingTlsSupport(tlsCredentials string) error {
 
 	if len(tlsCredentials) > 0 {
-		err := kubeqdr.RemoveSslProfile(tlsCredentials, c.vanClient.Namespace, c.vanClient.KubeClient)
+		err := kubeqdr.RemoveSslProfile(tlsCredentials, c.vanClient.ConfigMapManager(c.vanClient.Namespace))
 		if err != nil {
 			return err
 		}

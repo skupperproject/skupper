@@ -42,22 +42,22 @@ func DeleteService(name string, namespace string, kubeclient kubernetes.Interfac
 	return err
 }
 
-func GetService(name string, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	current, err := kubeclient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+func GetService(name string, cli types.Services) (*corev1.Service, error) {
+	current, _, err := cli.GetService(name, &metav1.GetOptions{})
 	return current, err
 }
 
-func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, cli types.VanClientInterface) (*corev1.Service, error) {
 	selector := map[string]string{
 		"internal.skupper.io/service": address,
 	}
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 	service.Spec.ClusterIP = "None"
 
-	return createServiceFromObject(service, namespace, kubeclient)
+	return createServiceFromObject(service, cli.ServiceManager(namespace))
 }
 
-func NewHeadlessService(name string, address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
+func NewHeadlessService(name string, address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, cli types.VanClientInterface) (*corev1.Service, error) {
 	selector := map[string]string{
 		"internal.skupper.io/service": address,
 	}
@@ -65,7 +65,7 @@ func NewHeadlessService(name string, address string, ports []int, targetPorts []
 	service.Spec.ClusterIP = "None"
 	service.Annotations[types.ServiceQualifier] = address
 
-	return createServiceFromObject(service, namespace, kubeclient)
+	return createServiceFromObject(service, cli.ServiceManager(namespace))
 }
 
 func makeServiceObjectForAddress(address string, ports []int, targetPorts []int, labels, selector map[string]string, owner *metav1.OwnerReference) *corev1.Service {
@@ -104,8 +104,8 @@ func makeServiceObjectForAddress(address string, ports []int, targetPorts []int,
 	return service
 }
 
-func createServiceFromObject(service *corev1.Service, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	created, err := kubeclient.CoreV1().Services(namespace).Create(service)
+func createServiceFromObject(service *corev1.Service, cli types.Services) (*corev1.Service, error) {
+	created, err := cli.CreateService(service)
 	if err != nil {
 		return nil, err
 	} else {
@@ -113,8 +113,8 @@ func createServiceFromObject(service *corev1.Service, namespace string, kubeclie
 	}
 }
 
-func CreateService(service *corev1.Service, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	return createServiceFromObject(service, namespace, kubeclient)
+func CreateService(service *corev1.Service, cli types.Services) (*corev1.Service, error) {
+	return createServiceFromObject(service, cli)
 }
 
 func GetLoadBalancerHostOrIp(service *corev1.Service) string {
@@ -128,7 +128,7 @@ func GetLoadBalancerHostOrIp(service *corev1.Service) string {
 	return ""
 }
 
-func GetPortsForServiceTarget(targetName string, defaultNamespace string, kubeclient kubernetes.Interface) (map[int]int, error) {
+func GetPortsForServiceTarget(targetName string, defaultNamespace string, cli types.VanClientInterface) (map[int]int, error) {
 	ports := map[int]int{}
 	parts := strings.Split(targetName, ".")
 	var name, namespace string
@@ -139,7 +139,7 @@ func GetPortsForServiceTarget(targetName string, defaultNamespace string, kubecl
 		name = targetName
 		namespace = defaultNamespace
 	}
-	targetSvc, err := GetService(name, namespace, kubeclient)
+	targetSvc, err := GetService(name, cli.ServiceManager(namespace))
 	if err == nil {
 		if len(targetSvc.Spec.Ports) > 0 {
 			for _, p := range targetSvc.Spec.Ports {
@@ -343,8 +343,8 @@ func UpdateSelector(spec *corev1.ServiceSpec, selector string) (bool, error) {
 	return UpdateSelectorFromMap(spec, desired), nil
 }
 
-func IsOriginalServiceModified(name, namespace string, kubeclient kubernetes.Interface) bool {
-	svc, err := GetService(name, namespace, kubeclient)
+func IsOriginalServiceModified(name string, cli types.Services) bool {
+	svc, err := GetService(name, cli)
 	if err != nil {
 		return false
 	}
@@ -353,13 +353,13 @@ func IsOriginalServiceModified(name, namespace string, kubeclient kubernetes.Int
 	return origSelector || origTargetPorts
 }
 
-func RemoveServiceAnnotations(name, namespace string, kubeclient kubernetes.Interface, annotations []string) (*corev1.Service, error) {
-	svc, err := GetService(name, namespace, kubeclient)
+func RemoveServiceAnnotations(name string, cli types.Services, annotations []string) (*corev1.Service, error) {
+	svc, err := GetService(name, cli)
 	if err != nil {
 		return nil, err
 	}
 	for _, annotation := range annotations {
 		delete(svc.ObjectMeta.Annotations, annotation)
 	}
-	return kubeclient.CoreV1().Services(namespace).Update(svc)
+	return cli.UpdateService(svc)
 }

@@ -373,7 +373,7 @@ func GetFreePort() (port int, err error) {
 }
 
 func (cli *VanClient) getGatewayType(gatewayName string) (string, error) {
-	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.ConfigMapManager(cli.GetNamespace()))
 	if err != nil {
 		return "", err
 	}
@@ -577,7 +577,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 		}
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.ConfigMapManager(cli.GetNamespace()))
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -1019,7 +1019,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 		"skupper.io/gateway-type": gatewayType,
 		"skupper.io/gateway-name": gatewayName,
 	}
-	_, err = kube.NewConfigMap(gatewayResourceName, &mapData, &labels, &annotations, owner, cli.GetNamespace(), cli.KubeClient)
+	_, err = kube.NewConfigMap(gatewayResourceName, &mapData, &labels, &annotations, owner, cli.ConfigMapManager(cli.Namespace))
 	if err != nil {
 		return "", fmt.Errorf("Failed to create gateway config map: %w", err)
 	}
@@ -1124,7 +1124,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 		}
 	}
 
-	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.ConfigMapManager(cli.GetNamespace()))
 	if err == nil {
 		gwType, ok := configmap.ObjectMeta.Annotations["skupper.io/gateway-type"]
 		if ok && gwType != gatewayType {
@@ -1151,7 +1151,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 
 		var unretryable error = nil
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
+			configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.ConfigMapManager(cli.GetNamespace()))
 
 			routerConfigCurrent, err := qdr.GetRouterConfigFromConfigMap(configmap)
 			bcDiff := routerConfigCurrent.Bridges.Difference(bridgeConfigFromFile)
@@ -1220,7 +1220,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 		}
 	}
 
-	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.ConfigMapManager(cli.GetNamespace()))
 	if err != nil {
 		return tarFile.Name(), fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -1283,7 +1283,7 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 	}
 	gatewayResourceName := clusterGatewayName(gatewayName)
 
-	_, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
+	_, err := kube.GetConfigMap(gatewayResourceName, cli.ConfigMapManager(cli.GetNamespace()))
 	if errors.IsNotFound(err) {
 		errs = append(errs, fmt.Sprintf("Config map for gateway %s not found", gatewayResourceName))
 	}
@@ -1513,7 +1513,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 
 	var unretryable error = nil
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
+		configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.ConfigMapManager(cli.GetNamespace()))
 		if err != nil {
 			unretryable = fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 			return nil
@@ -1713,7 +1713,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 		}
 
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			svc, err := kube.GetService(endpoint.Service.Address, cli.GetNamespace(), cli.KubeClient)
+			svc, err := kube.GetService(endpoint.Service.Address, cli.ServiceManager(cli.GetNamespace()))
 			if err == nil {
 				if svc.ObjectMeta.Labels == nil {
 					svc.ObjectMeta.Labels = map[string]string{}
@@ -1731,7 +1731,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 
 	}
 
-	_, err = kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
+	_, err = kube.GetConfigMap(clusterGatewayName(gatewayName), cli.ConfigMapManager(cli.GetNamespace()))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			_, err := cli.GatewayInit(ctx, gatewayName, gatewayType, "")
@@ -1764,7 +1764,7 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, gatewayName string, e
 		gatewayName, _ = getUserDefaultGatewayName()
 	}
 
-	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.ConfigMapManager(cli.GetNamespace()))
 	if err != nil {
 		return fmt.Errorf("Unable to retrieve gateay definition: %w", err)
 	}
@@ -1836,7 +1836,7 @@ func (cli *VanClient) GatewayInspect(ctx context.Context, gatewayName string) (*
 		return nil, fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	}
 
-	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(clusterGatewayName(gatewayName), cli.ConfigMapManager(cli.GetNamespace()))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}
@@ -1962,7 +1962,7 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 
 	exportFile := exportPath + "/" + exportGatewayName + ".yaml"
 
-	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.GetNamespace(), cli.KubeClient)
+	configmap, err := kube.GetConfigMap(gatewayResourceName, cli.ConfigMapManager(cli.GetNamespace()))
 	if err != nil {
 		return exportFile, fmt.Errorf("Failed to retrieve gateway configmap: %w", err)
 	}

@@ -81,6 +81,10 @@ type vanClientMock struct {
 	injectedReturns                           vanClientMockInjectedReturnValues
 }
 
+func (v *vanClientMock) StatefulSetManager(namespace string) types.StatefulSets {
+	return &statefulSetMock{}
+}
+
 func (v *vanClientMock) ServiceManager(namespace string) types.Services {
 	return &serviceMock{}
 }
@@ -804,4 +808,30 @@ func (s *secretMock) UpdateSecret(secret *corev1.Secret) (*corev1.Secret, error)
 
 func (s *secretMock) IsOwned(secret *corev1.Secret) bool {
 	return kube.IsOwnedBySkupper(secret.ObjectMeta.OwnerReferences)
+}
+
+type statefulSetMock struct{}
+
+func (s *statefulSetMock) GetStatefulSet(name string, options *metav1.GetOptions) (*appsv1.StatefulSet, bool, error) {
+	return nil, false, nil
+}
+
+func (s *statefulSetMock) DeleteStatefulSet(ss *appsv1.StatefulSet, options *metav1.DeleteOptions) error {
+	return nil
+}
+
+func (s *statefulSetMock) ListStatefulSets(options *metav1.ListOptions) ([]appsv1.StatefulSet, error) {
+	return nil, nil
+}
+
+func (s *statefulSetMock) CreateStatefulSet(ss *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+	return nil, nil
+}
+
+func (s *statefulSetMock) UpdateStatefulSet(ss *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+	return nil, nil
+}
+
+func (s *statefulSetMock) IsOwned(ss *appsv1.StatefulSet) bool {
+	return kube.IsOwnedBySkupper(ss.ObjectMeta.OwnerReferences)
 }

@@ -566,7 +566,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 				if i > 0 {
 					time.Sleep(time.Second)
 				}
-				service, err := kube.GetService(types.ControllerServiceName, namespace, cli.KubeClient)
+				service, err := kube.GetService(types.ControllerServiceName, cli.ServiceManager(namespace))
 				if err != nil {
 					fmt.Println("Could not determine new console url:", err.Error())
 					break
@@ -659,7 +659,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 }
 
 func (cli *VanClient) renameRouterConfigFile() (bool, error) {
-	cm, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
+	cm, err := kube.GetConfigMap(types.TransportConfigMapName, cli.ConfigMapManager(cli.Namespace))
 	if err != nil {
 		return false, err
 	}
@@ -685,7 +685,7 @@ func setAndWaitControllerReplicas(cli *VanClient, replicas int32, namespace stri
 	if *controller.Spec.Replicas > 0 {
 		controller.Spec.Replicas = &replicas
 		_, err = cli.DeploymentManager(namespace).UpdateDeployment(controller)
-		controller, err = kube.WaitDeploymentReadyReplicas(types.ControllerDeploymentName, namespace, int(replicas), cli.KubeClient, time.Minute, time.Second)
+		controller, err = kube.WaitDeploymentReadyReplicas(types.ControllerDeploymentName, cli.DeploymentManager(namespace), int(replicas), time.Minute, time.Second)
 		if err != nil {
 			return controller, err
 		}
@@ -790,7 +790,7 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 		}
 
 		// updating router config to fix bad template issues
-		configmap, err := kube.GetConfigMap(gatewayPrefix+gw.Name, cli.GetNamespace(), cli.KubeClient)
+		configmap, err := kube.GetConfigMap(gatewayPrefix+gw.Name, cli.ConfigMapManager(cli.GetNamespace()))
 		if err != nil {
 			return err
 		}
@@ -1022,7 +1022,7 @@ func (cli *VanClient) usingRoutes(namespace string) (bool, error) {
 
 func (cli *VanClient) getTransportHosts(namespace string) ([]string, error) {
 	hosts := []string{}
-	oldService, err := kube.GetService("skupper-internal", namespace, cli.KubeClient)
+	oldService, err := kube.GetService("skupper-internal", cli.ServiceManager(namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -1032,7 +1032,7 @@ func (cli *VanClient) getTransportHosts(namespace string) ([]string, error) {
 			if i > 0 {
 				time.Sleep(time.Second)
 			}
-			service, err := kube.GetService(types.TransportServiceName, namespace, cli.KubeClient)
+			service, err := kube.GetService(types.TransportServiceName, cli.ServiceManager(namespace))
 			if err != nil {
 				return nil, err
 			}

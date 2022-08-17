@@ -274,7 +274,7 @@ func (s *SiteQueryServer) getServiceDetail(context context.Context, address stri
 	}
 	detail.Definition = *definition
 
-	service, err := kube.GetService(address, s.client.Namespace, s.client.KubeClient)
+	service, err := kube.GetService(address, s.client.ServiceManager(s.client.Namespace))
 	if err != nil {
 		return detail, err
 	}

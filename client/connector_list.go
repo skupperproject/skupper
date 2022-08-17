@@ -42,7 +42,7 @@ func getLinkStatus(s *corev1.Secret, edge bool, connections []qdr.Connection) ty
 }
 
 func (cli *VanClient) getRouterConfig() (*qdr.RouterConfig, error) {
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.ConfigMapManager(cli.Namespace))
 	if errors.IsNotFound(err) {
 		return nil, fmt.Errorf("Skupper is not installed in %s", cli.Namespace)
 	} else if err != nil {

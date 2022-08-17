@@ -50,7 +50,7 @@ func createPod(cli kubernetes.Interface, name string, namespace string, labels m
 	}
 }
 
-func createDeployment(cli types.Deployments, name string, namespace string, image string, ports []corev1.ContainerPort) (*appsv1.Deployment, error) {
+func createDeployment(cli types.Deployments, name string, image string, ports []corev1.ContainerPort) (*appsv1.Deployment, error) {
 	dep := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -86,7 +86,7 @@ func createDeployment(cli types.Deployments, name string, namespace string, imag
 	}
 }
 
-func createStatefulSet(cli kubernetes.Interface, name string, namespace string, image string, ports []corev1.ContainerPort) (*appsv1.StatefulSet, error) {
+func createStatefulSet(ssCli types.StatefulSets, name string, image string, ports []corev1.ContainerPort) (*appsv1.StatefulSet, error) {
 	ss := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -115,7 +115,7 @@ func createStatefulSet(cli kubernetes.Interface, name string, namespace string, 
 			},
 		},
 	}
-	created, err := cli.AppsV1().StatefulSets(namespace).Create(ss)
+	created, err := ssCli.CreateStatefulSet(ss)
 	if err != nil {
 		return nil, err
 	} else {
@@ -422,14 +422,14 @@ func TestServeServices(t *testing.T) {
 		KubeClient: fake.NewSimpleClientset(),
 	}
 	skupperInitWithController(cli, namespace)
-	dep1, err := createDeployment(cli.DeploymentManager(cli.Namespace), "dep1", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})
+	dep1, err := createDeployment(cli.DeploymentManager(cli.Namespace), "dep1", "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})
 	assert.Check(t, err, namespace)
 	_, err = createPod(cli.KubeClient, "pod1", namespace, dep1.Spec.Selector.MatchLabels, &dep1.Spec.Template.Spec)
 	_, err = createPod(cli.KubeClient, "pod2", namespace, dep1.Spec.Selector.MatchLabels, &dep1.Spec.Template.Spec)
 	assert.Check(t, err, namespace)
-	_, err = createDeployment(cli.DeploymentManager(cli.Namespace), "dep2", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})
+	_, err = createDeployment(cli.DeploymentManager(cli.Namespace), "dep2", "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})
 	assert.Check(t, err, namespace)
-	_, err = createDeployment(cli.DeploymentManager(cli.Namespace), "dep3", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}, {Name: "myport2", ContainerPort: 9191}})
+	_, err = createDeployment(cli.DeploymentManager(cli.Namespace), "dep3", "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}, {Name: "myport2", ContainerPort: 9191}})
 	assert.Check(t, err, namespace)
 	mgr := newServiceManager(cli)
 	router := mux.NewRouter()
@@ -618,11 +618,11 @@ func TestServeServiceTargets(t *testing.T) {
 		KubeClient: fake.NewSimpleClientset(),
 	}
 	skupperInitWithController(cli, namespace)
-	_, err := createDeployment(cli.DeploymentManager(cli.Namespace), "dep1", namespace, "nginx", []corev1.ContainerPort{{Name: "public", ContainerPort: 8181}, {Name: "other", ContainerPort: 9999}})
+	_, err := createDeployment(cli.DeploymentManager(cli.Namespace), "dep1", "nginx", []corev1.ContainerPort{{Name: "public", ContainerPort: 8181}, {Name: "other", ContainerPort: 9999}})
 	assert.Check(t, err, namespace)
-	_, err = createDeployment(cli.DeploymentManager(cli.Namespace), "dep2", namespace, "nginx", []corev1.ContainerPort{{Name: "http", ContainerPort: 80}, {Name: "amqp", ContainerPort: 5672}})
+	_, err = createDeployment(cli.DeploymentManager(cli.Namespace), "dep2", "nginx", []corev1.ContainerPort{{Name: "http", ContainerPort: 80}, {Name: "amqp", ContainerPort: 5672}})
 	assert.Check(t, err, namespace)
-	_, err = createStatefulSet(cli.KubeClient, "ss1", namespace, "nginx", []corev1.ContainerPort{{Name: "https", ContainerPort: 443}, {Name: "amqps", ContainerPort: 5671}})
+	_, err = createStatefulSet(cli.StatefulSetManager(namespace), "ss1", "nginx", []corev1.ContainerPort{{Name: "https", ContainerPort: 443}, {Name: "amqps", ContainerPort: 5671}})
 	assert.Check(t, err, namespace)
 	mgr := newServiceManager(cli)
 	router := mux.NewRouter()

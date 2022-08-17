@@ -468,10 +468,10 @@ func deployResources(pub *base.ClusterContext, prv *base.ClusterContext) error {
 	}
 
 	// Waiting for deployments to be ready
-	if _, err := kube.WaitDeploymentReady("hello-world-frontend", pub.Namespace, pub.VanClient.KubeClient, constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
+	if _, err := kube.WaitDeploymentReady("hello-world-frontend", pub.VanClient.DeploymentManager(pub.Namespace), constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
 		return err
 	}
-	if _, err := kube.WaitDeploymentReady("hello-world-backend", prv.Namespace, prv.VanClient.KubeClient, constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
+	if _, err := kube.WaitDeploymentReady("hello-world-backend", prv.VanClient.DeploymentManager(prv.Namespace), constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
 		return err
 	}
 

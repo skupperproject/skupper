@@ -27,8 +27,8 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 			} else {
 				service := types.ServiceInterface{}
 				err = jsonencoding.Unmarshal([]byte(jsonDef), &service)
-				if service.IsAnnotated() && kube.IsOriginalServiceModified(service.Address, cli.Namespace, cli.GetKubeClient()) {
-					_, err = kube.RemoveServiceAnnotations(service.Address, cli.Namespace, cli.KubeClient, []string{types.ProxyQualifier})
+				if service.IsAnnotated() && kube.IsOriginalServiceModified(service.Address, cli.ServiceManager(cli.Namespace)) {
+					_, err = kube.RemoveServiceAnnotations(service.Address, cli.ServiceManager(cli.Namespace), []string{types.ProxyQualifier})
 				} else {
 					delete(current.Data, address)
 					_, err = cli.ConfigMapManager(cli.Namespace).UpdateConfigMap(current)
@@ -65,7 +65,7 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 
 	if err == nil && secret != nil {
 
-		err = qdr.RemoveSslProfile(secret.Name, cli.Namespace, cli.KubeClient)
+		err = qdr.RemoveSslProfile(secret.Name, cli.ConfigMapManager(cli.Namespace))
 		if err != nil {
 			log.Printf("Failed to remove sslProfile from the router: %v", err.Error())
 		}

@@ -20,17 +20,15 @@ import (
 	"strconv"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface) (*types.ServiceInterfaceTarget, error) {
+func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli types.VanClientInterface) (*types.ServiceInterfaceTarget, error) {
 	if targetType == "deployment" {
-		deployment, err := cli.AppsV1().Deployments(namespace).Get(targetName, metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(targetName, &metav1.GetOptions{})
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     deployment.ObjectMeta.Name,
@@ -47,7 +45,7 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
 		}
 	} else if targetType == "statefulset" {
-		statefulset, err := cli.AppsV1().StatefulSets(namespace).Get(targetName, metav1.GetOptions{})
+		statefulset, _, err := cli.StatefulSetManager(namespace).GetStatefulSet(targetName, &metav1.GetOptions{})
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     statefulset.ObjectMeta.Name,

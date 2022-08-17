@@ -324,6 +324,7 @@ type VanClientInterface interface {
 	ConfigMapManager(namespace string) ConfigMaps
 	DeploymentManager(namespace string) Deployments
 	SecretManager(namespace string) Secrets
+	StatefulSetManager(namespace string) StatefulSets
 }
 
 type Services interface {
@@ -360,4 +361,13 @@ type Secrets interface {
 	CreateSecret(secret *corev1.Secret) (*corev1.Secret, error)
 	UpdateSecret(secret *corev1.Secret) (*corev1.Secret, error)
 	IsOwned(secret *corev1.Secret) bool
+}
+
+type StatefulSets interface {
+	GetStatefulSet(name string, options *v1.GetOptions) (*v12.StatefulSet, bool, error)
+	DeleteStatefulSet(ss *v12.StatefulSet, options *v1.DeleteOptions) error
+	ListStatefulSets(options *v1.ListOptions) ([]v12.StatefulSet, error)
+	CreateStatefulSet(ss *v12.StatefulSet) (*v12.StatefulSet, error)
+	UpdateStatefulSet(ss *v12.StatefulSet) (*v12.StatefulSet, error)
+	IsOwned(ss *v12.StatefulSet) bool
 }

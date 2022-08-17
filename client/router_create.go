@@ -1000,7 +1000,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 		saslData := &map[string]string{
 			"skrouterd.conf": config,
 		}
-		kube.NewConfigMap("skupper-sasl-config", saslData, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+		kube.NewConfigMap("skupper-sasl-config", saslData, nil, nil, siteOwnerRef, cli.ConfigMapManager(van.Namespace))
 	}
 	for _, sa := range van.Transport.ServiceAccounts {
 		sa.ObjectMeta.OwnerReferences = ownerRefs
@@ -1039,7 +1039,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 	}
 	for _, svc := range van.Transport.Services {
 		svc.ObjectMeta.OwnerReferences = ownerRefs
-		_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
+		_, err = kube.CreateService(svc, cli.ServiceManager(van.Namespace))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -1053,14 +1053,14 @@ sasldb_path: /tmp/skrouterd.sasldb
 			}
 		}
 	}
-	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, cli.KubeClient)
+	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, cli.DeploymentManager(van.Namespace))
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
 
-	kube.NewConfigMap(types.ServiceInterfaceConfigMap, nil, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap(types.ServiceInterfaceConfigMap, nil, nil, nil, siteOwnerRef, cli.ConfigMapManager(van.Namespace))
 	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
-	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, nil, nil, siteOwnerRef, cli.ConfigMapManager(van.Namespace))
 
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
 		if options.Spec.IsIngressNginxIngress() || options.Spec.IsIngressKubernetes() {
@@ -1090,7 +1090,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 						fmt.Println("Failed to retrieve route: ", err.Error())
 					}
 				} else if options.Spec.IsIngressLoadBalancer() {
-					service, err := kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
+					service, err := kube.GetService(types.TransportServiceName, cli.ServiceManager(van.Namespace))
 					if err == nil {
 						host := kube.GetLoadBalancerHostOrIP(service)
 						for i := 0; host == "" && i < 120; i++ {
@@ -1098,7 +1098,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 								fmt.Println("Waiting for LoadBalancer IP or hostname...")
 							}
 							time.Sleep(time.Second)
-							service, err = kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
+							service, err = kube.GetService(types.TransportServiceName, cli.ServiceManager(van.Namespace))
 							host = kube.GetLoadBalancerHostOrIP(service)
 						}
 						if host == "" {
@@ -1166,7 +1166,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 		for _, svc := range van.Controller.Services {
 			svc.ObjectMeta.OwnerReferences = ownerRefs
-			_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
+			_, err = kube.CreateService(svc, cli.ServiceManager(van.Namespace))
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
@@ -1204,7 +1204,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 				return err
 			}
 		}
-		_, err = kube.NewControllerDeployment(van, siteOwnerRef, cli.KubeClient)
+		_, err = kube.NewControllerDeployment(van, siteOwnerRef, cli.DeploymentManager(van.Namespace))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -1235,7 +1235,7 @@ func (cli *VanClient) appendIngressHost(prefixes []string, namespace string, cre
 }
 
 func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace string, cred *types.Credential) error {
-	service, err := kube.GetService(serviceName, namespace, cli.KubeClient)
+	service, err := kube.GetService(serviceName, cli.ServiceManager(namespace))
 	if err != nil {
 		return err
 	}
@@ -1248,7 +1248,7 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace s
 			fmt.Println("Waiting for LoadBalancer IP or hostname...")
 		}
 		time.Sleep(time.Second)
-		service, err = kube.GetService(serviceName, namespace, cli.KubeClient)
+		service, err = kube.GetService(serviceName, cli.ServiceManager(namespace))
 		host = kube.GetLoadBalancerHostOrIP(service)
 	}
 	if host == "" {

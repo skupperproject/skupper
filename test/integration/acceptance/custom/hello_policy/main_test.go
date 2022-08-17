@@ -49,7 +49,7 @@ func (kd KubeDeploy) deploy(ctx *base.ClusterContext) (err error) {
 		return
 	}
 	// Waiting for deployments to be ready
-	if _, err = kube.WaitDeploymentReady(kd.name, ctx.Namespace, ctx.VanClient.KubeClient, constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
+	if _, err = kube.WaitDeploymentReady(kd.name, ctx.VanClient.DeploymentManager(ctx.Namespace), constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
 		return
 	}
 	return

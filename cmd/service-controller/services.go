@@ -179,11 +179,11 @@ func (m *ServiceManager) getServiceTargets() ([]ServiceTarget, error) {
 			})
 		}
 	}
-	statefulsets, err := m.cli.KubeClient.AppsV1().StatefulSets(m.cli.Namespace).List(metav1.ListOptions{})
+	statefulsets, err := m.cli.StatefulSetManager(m.cli.Namespace).ListStatefulSets(&metav1.ListOptions{})
 	if err != nil {
 		return targets, err
 	}
-	for _, statefulset := range statefulsets.Items {
+	for _, statefulset := range statefulsets {
 		targets = append(targets, ServiceTarget{
 			Name:  statefulset.ObjectMeta.Name,
 			Type:  "statefulset",

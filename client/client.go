@@ -138,3 +138,10 @@ func (cli *VanClient) SecretManager(namespace string) types.Secrets {
 		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
+
+func (cli *VanClient) StatefulSetManager(namespace string) types.StatefulSets {
+	return &StatefulSetManager{
+		Client:    cli,
+		Namespace: utils.DefaultStr(namespace, cli.Namespace),
+	}
+}

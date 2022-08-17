@@ -201,7 +201,7 @@ func (c *PolicyController) validateIncomingLinkStateChanged() {
 	}
 
 	// Retrieving listener info
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.cli.GetNamespace(), c.cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.cli.ConfigMapManager(c.cli.GetNamespace()))
 	if err != nil {
 		event.Recordf(c.name, "[%s] Unable to read %s ConfigMap: %v", source, types.TransportConfigMapName, err)
 		return
@@ -382,7 +382,7 @@ func (c *PolicyController) validateServiceStateChanged() {
 			}
 		} else {
 			// Validating if allowed service exists
-			_, err := kube.GetService(service.Address, c.cli.Namespace, c.cli.KubeClient)
+			_, err := kube.GetService(service.Address, c.cli.ServiceManager(c.cli.Namespace))
 			// If service is now allowed, but does not exist, remove its definition to let service sync recreate it
 			if len(service.Origin) > 0 && !service.IsAnnotated() && err != nil && errors.IsNotFound(err) {
 				event.Recordf(c.name, "[validateServiceStateChanged] service is now allowed %s", service.Address)

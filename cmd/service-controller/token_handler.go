@@ -83,7 +83,7 @@ func (c *TokenHandler) disconnect(key string) error {
 }
 
 func (c *TokenHandler) removeConnectorFromConfig(ctx context.Context, name string) error {
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.ConfigMapManager(c.vanClient.Namespace))
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (c *TokenHandler) removeConnectorFromConfig(ctx context.Context, name strin
 			return err
 		}
 	}
-	deployment, err := kube.GetDeployment(types.TransportDeploymentName, c.vanClient.Namespace, c.vanClient.KubeClient)
+	deployment, err := kube.GetDeployment(types.TransportDeploymentName, c.vanClient.DeploymentManager(c.vanClient.Namespace))
 	if err != nil {
 		return err
 	}

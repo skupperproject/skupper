@@ -55,7 +55,7 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 				return err
 			}
 
-			err = qdr.AddSslProfile(serviceSecret.Name, cli.Namespace, cli.KubeClient)
+			err = qdr.AddSslProfile(serviceSecret.Name, cli.ConfigMapManager(cli.Namespace))
 			if err != nil {
 				return err
 			}

@@ -320,7 +320,7 @@ func (s *InitTester) validateIngressFor(cluster *base.ClusterContext, ingress st
 func (s *InitTester) validateRouterMode(cluster *base.ClusterContext) error {
 
 	// Loading config map
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cluster.Namespace, cluster.VanClient.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cluster.VanClient.ConfigMapManager(cluster.Namespace))
 	if err != nil {
 		log.Printf("%s config map not found - %v", types.TransportConfigMapName, err)
 		return err
@@ -405,7 +405,7 @@ func (s *InitTester) ValidateRouterDebugMode(cluster *base.ClusterContext) error
 func (s *InitTester) ValidateRouterLogging(cluster *base.ClusterContext) error {
 
 	// Loading config map
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cluster.Namespace, cluster.VanClient.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cluster.VanClient.ConfigMapManager(cluster.Namespace))
 	if err != nil {
 		log.Printf("%s config map not found - %v", types.TransportConfigMapName, err)
 		return err

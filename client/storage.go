@@ -174,3 +174,45 @@ func (s *ServiceManager) UpdateService(svc *v12.Service) (*v12.Service, error) {
 func (s *ServiceManager) IsOwned(service *v12.Service) bool {
 	return kube.IsOwnedBySkupper(service.ObjectMeta.OwnerReferences)
 }
+
+type StatefulSetManager struct {
+	Client    *VanClient
+	Namespace string
+}
+
+func (s *StatefulSetManager) GetStatefulSet(name string, options *v1.GetOptions) (*v13.StatefulSet, bool, error) {
+	depCli := s.Client.KubeClient.AppsV1().StatefulSets(s.Namespace)
+	dep, err := depCli.Get(name, *options)
+	if err != nil {
+		return nil, false, err
+	}
+	return dep, true, nil
+}
+
+func (s *StatefulSetManager) DeleteStatefulSet(ss *v13.StatefulSet, options *v1.DeleteOptions) error {
+	ssCli := s.Client.KubeClient.AppsV1().StatefulSets(s.Namespace)
+	return ssCli.Delete(ss.Name, options)
+}
+
+func (s *StatefulSetManager) ListStatefulSets(options *v1.ListOptions) ([]v13.StatefulSet, error) {
+	ssCli := s.Client.KubeClient.AppsV1().StatefulSets(s.Namespace)
+	list, err := ssCli.List(*options)
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (s *StatefulSetManager) CreateStatefulSet(ss *v13.StatefulSet) (*v13.StatefulSet, error) {
+	ssCli := s.Client.KubeClient.AppsV1().StatefulSets(s.Namespace)
+	return ssCli.Create(ss)
+}
+
+func (s *StatefulSetManager) UpdateStatefulSet(ss *v13.StatefulSet) (*v13.StatefulSet, error) {
+	ssCli := s.Client.KubeClient.AppsV1().StatefulSets(s.Namespace)
+	return ssCli.Update(ss)
+}
+
+func (s *StatefulSetManager) IsOwned(ss *v13.StatefulSet) bool {
+	return kube.IsOwnedBySkupper(ss.ObjectMeta.OwnerReferences)
+}

@@ -188,11 +188,11 @@ func populateAnnotations(clusterIdx int, depAnnotations map[string]string, svcNo
 	svcTargetAnnotations[types.ProxyQualifier] = "http"
 	svcTargetAnnotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-svc-exp-target", clusterIdx)
 
-	//set annotations on statefulset
+	// set annotations on statefulset
 	statefulSetAnnotations[types.ProxyQualifier] = "tcp"
 	statefulSetAnnotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-ss-web", clusterIdx)
 
-	//set annotations on daemonset
+	// set annotations on daemonset
 	daemonSetAnnotations[types.ProxyQualifier] = "tcp"
 	daemonSetAnnotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-ds-web", clusterIdx)
 }
@@ -242,7 +242,7 @@ func createDeployment(cluster *client.VanClient, annotations map[string]string) 
 	}
 
 	// Wait for deployment to be ready
-	dep, err = kube.WaitDeploymentReadyReplicas(dep.Name, cluster.Namespace, 1, cluster.KubeClient, timeout, interval)
+	dep, err = kube.WaitDeploymentReadyReplicas(dep.Name, cluster.DeploymentManager(cluster.Namespace), 1, timeout, interval)
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +317,7 @@ func createStatefulSet(cluster *client.VanClient, annotations map[string]string)
 	}
 
 	// Wait for statefulSet to be ready
-	ss, err = kube.WaitStatefulSetReadyReplicas(ss.Name, cluster.Namespace, 1, cluster.KubeClient, timeout, interval)
+	ss, err = kube.WaitStatefulSetReadyReplicas(ss.Name, cluster.StatefulSetManager(cluster.Namespace), 1, timeout, interval)
 	if err != nil {
 		return nil, err
 	}

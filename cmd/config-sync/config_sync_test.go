@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
@@ -13,8 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"os"
-	"testing"
 )
 
 const TEST_TLS_DIRECTORY = "./tmp/skupper-router/tls"
@@ -127,7 +128,7 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 			err = setUpTestingPath()
 			assert.Assert(t, err)
 
-			configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+			configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.ConfigMapManager(c.vanClient.Namespace))
 			assert.Assert(t, err)
 
 			routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
@@ -218,7 +219,7 @@ func TestSyncSecretsWithoutTlsSupport(t *testing.T) {
 			err = setUpTestingPath()
 			assert.Assert(t, err)
 
-			configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
+			configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.ConfigMapManager(c.vanClient.Namespace))
 			assert.Assert(t, err)
 
 			routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)

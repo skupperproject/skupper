@@ -956,11 +956,11 @@ func TestExposeWithCluster(t *testing.T) {
 
 		// create a target deployment as pre-condition
 		deployments := c.DeploymentManager(namespace)
-		statefulSets := c.KubeClient.AppsV1().StatefulSets(namespace)
+		statefulSets := c.StatefulSetManager(namespace)
 		services := c.ServiceManager(namespace)
 		_, err = deployments.CreateDeployment(tcpDeployment)
 		assert.Assert(t, err)
-		_, err = statefulSets.Create(tcpStatefulSet)
+		_, err = statefulSets.CreateStatefulSet(tcpStatefulSet)
 		assert.Assert(t, err)
 		_, err = services.CreateService(statefulSetService)
 		assert.Assert(t, err)

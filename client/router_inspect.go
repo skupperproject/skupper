@@ -80,7 +80,7 @@ func (cli *VanClient) RouterInspect(ctx context.Context) (*types.RouterInspectRe
 func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace string) (*types.RouterInspectResponse, error) {
 	vir := &types.RouterInspectResponse{}
 
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.ConfigMapManager(namespace))
 	if err != nil {
 		return nil, err
 	}

@@ -54,7 +54,7 @@ func (cli *VanClient) writeDeployment(name string, tw *tar.Writer) error {
 	var b bytes.Buffer
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 
-	deployment, err := kube.GetDeployment(name, cli.Namespace, cli.KubeClient)
+	deployment, err := kube.GetDeployment(name, cli.DeploymentManager(cli.Namespace))
 	if errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
@@ -71,7 +71,7 @@ func (cli *VanClient) writeConfigMap(name string, tw *tar.Writer) error {
 	var b bytes.Buffer
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 
-	cm, err := kube.GetConfigMap(name, cli.Namespace, cli.KubeClient)
+	cm, err := kube.GetConfigMap(name, cli.ConfigMapManager(cli.Namespace))
 	if errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
@@ -134,7 +134,7 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 			return dumpFile, err
 		}
 
-		component := kube.GetDeploymentLabel(deployments[i], "skupper.io/component", cli.Namespace, cli.KubeClient)
+		component := kube.GetDeploymentLabel(deployments[i], "skupper.io/component", cli.DeploymentManager(cli.Namespace))
 
 		podList, err := kube.GetPods("skupper.io/component="+component, cli.Namespace, cli.KubeClient)
 		if errors.IsNotFound(err) {

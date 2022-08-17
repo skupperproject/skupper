@@ -37,7 +37,7 @@ func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.Connect
 }
 
 func (cli *VanClient) removeConnectorRouterConfig(options types.ConnectorRemoveOptions) error {
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, options.SkupperNamespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.ConfigMapManager(options.SkupperNamespace))
 	if err != nil {
 		return err
 	}

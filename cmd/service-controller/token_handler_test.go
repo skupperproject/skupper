@@ -25,7 +25,7 @@ func skupperInit(cli *client.VanClient, name string) error {
 }
 
 func getRouterConfig(cli *client.VanClient) (*qdr.RouterConfig, error) {
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.ConfigMapManager(cli.Namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func TestTokenHandler(t *testing.T) {
 			assert.Check(t, err, test.name)
 			connector, ok = config.Connectors[test.name]
 			assert.Assert(t, !ok, test.name)
-			deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+			deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.DeploymentManager(cli.Namespace))
 			assert.Check(t, err, test.name)
 			assert.Assert(t, !checkVolumeMount(&deployment.Spec.Template.Spec, test.name), test.name)
 		} else {

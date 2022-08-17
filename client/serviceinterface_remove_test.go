@@ -177,7 +177,7 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 
 	waitServiceUpdated := func(ctx context.Context, service string, skupperAnnotations bool) error {
 		err = utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
-			return skupperAnnotations == kube.IsOriginalServiceModified(service, cli.Namespace, cli.KubeClient), nil
+			return skupperAnnotations == kube.IsOriginalServiceModified(service, cli.ServiceManager(cli.Namespace)), nil
 		})
 		return err
 	}
@@ -202,7 +202,7 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 	_, err = cli.DeploymentManager(cli.Namespace).CreateDeployment(httpDeployment)
 	assert.Assert(t, err, "Unable to create deployment")
 
-	_, err = kube.WaitDeploymentReady(httpDeployment.Name, cli.Namespace, cli.KubeClient, time.Minute, time.Second)
+	_, err = kube.WaitDeploymentReady(httpDeployment.Name, cli.DeploymentManager(cli.Namespace), time.Minute, time.Second)
 	assert.Assert(t, err, "Timed out waiting on deployment to be ready")
 
 	// Create a regular k8s service (not touched by skupper)
@@ -317,9 +317,9 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 				err = waitServiceUpdated(ctx, tc.skupperServiceName, true)
 				assert.Assert(t, err, "Kubernetes service has not been modified")
 
-				svc, err := kube.GetService(tc.service.Name, cli.Namespace, cli.KubeClient)
+				svc, err := kube.GetService(tc.service.Name, cli.ServiceManager(cli.Namespace))
 				assert.Assert(t, err, "Kubernetes service not found")
-				assert.Assert(t, kube.IsOriginalServiceModified(tc.service.Name, cli.Namespace, cli.KubeClient), "Original annotations not found")
+				assert.Assert(t, kube.IsOriginalServiceModified(tc.service.Name, cli.ServiceManager(cli.Namespace)), "Original annotations not found")
 
 				// validating ports changed
 				initPorts := kube.GetServicePortMap(tc.service)
@@ -349,9 +349,9 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 				t.Logf("Validating original service has been restored")
 				err = waitServiceUpdated(ctx, tc.skupperServiceName, false)
 				assert.Assert(t, err, "Kubernetes service has not been restored")
-				svc, err := kube.GetService(tc.service.Name, cli.Namespace, cli.KubeClient)
+				svc, err := kube.GetService(tc.service.Name, cli.ServiceManager(cli.Namespace))
 				assert.Assert(t, err, "Kubernetes service not found")
-				assert.Assert(t, !kube.IsOriginalServiceModified(tc.service.Name, cli.Namespace, cli.KubeClient), "Original annotations still present")
+				assert.Assert(t, !kube.IsOriginalServiceModified(tc.service.Name, cli.ServiceManager(cli.Namespace)), "Original annotations still present")
 
 				// validating ports changed
 				initPorts := kube.GetServicePortMap(tc.service)

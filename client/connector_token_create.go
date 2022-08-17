@@ -188,7 +188,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 		namespace = cli.Namespace
 	}
 	// TODO: return error message for all the paths
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli.KubeClient)
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.ConfigMapManager(namespace))
 	if err != nil {
 		return nil, false, err
 	}

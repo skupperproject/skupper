@@ -70,7 +70,7 @@ func Setup(stopCh chan interface{}, testRunner base.ClusterTestRunner) error {
 	}
 
 	// Waiting on TCP echo to be running
-	_, err = kube.WaitDeploymentReady(dep.Name, dep.Namespace, pub.VanClient.KubeClient, constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick)
+	_, err = kube.WaitDeploymentReady(dep.Name, pub.VanClient.DeploymentManager(dep.Namespace), constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick)
 	if err != nil {
 		return fmt.Errorf("deployment not ready: %s", err)
 	}

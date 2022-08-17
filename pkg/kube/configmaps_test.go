@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -162,7 +163,9 @@ func TestNewConfigMap(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			// call NewConfigMap
-			cm, err := NewConfigMap(test.cmName, test.data, test.labels, test.annotations, test.owner, NS, kubeClient)
+			cli, _ := client.NewClient(NS, "", "")
+			cli.KubeClient = kubeClient
+			cm, err := NewConfigMap(test.cmName, test.data, test.labels, test.annotations, test.owner, cli.ConfigMapManager(NS))
 			assert.Equal(t, test.expected.err == nil, err == nil)
 			if err != nil {
 				assert.Equal(t, test.expected.err.Error(), err.Error())
@@ -285,7 +288,12 @@ func TestUpdateSkupperServices(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			// Creating the fake client
-			kubeClient := fake.NewSimpleClientset()
+			cli := &client.VanClient{
+				Namespace:  NS,
+				KubeClient: fake.NewSimpleClientset(),
+			}
+			var kubeClient *fake.Clientset
+			kubeClient = cli.KubeClient.(*fake.Clientset)
 
 			// If testing update error
 			if test.fakeUpdateError {
@@ -312,7 +320,7 @@ func TestUpdateSkupperServices(t *testing.T) {
 			}
 
 			// Validating results
-			err := UpdateSkupperServices(test.changed, test.deleted, "", NS, kubeClient)
+			err := UpdateSkupperServices(test.changed, test.deleted, "", cli.ConfigMapManager(NS))
 			assert.Equal(t, test.expectedErr == nil, err == nil)
 			if err != nil {
 				assert.ErrorContains(t, err, test.expectedErr.Error())
