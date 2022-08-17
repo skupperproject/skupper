@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	v12 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -346,12 +346,12 @@ type ConfigMaps interface {
 }
 
 type Deployments interface {
-	GetDeployment(name string, options *v1.GetOptions) (*v12.Deployment, bool, error)
-	DeleteDeployment(dep *v12.Deployment, options *v1.DeleteOptions) error
-	ListDeployments(options *v1.ListOptions) ([]v12.Deployment, error)
-	CreateDeployment(dep *v12.Deployment) (*v12.Deployment, error)
-	UpdateDeployment(dep *v12.Deployment) (*v12.Deployment, error)
-	IsOwned(dep *v12.Deployment) bool
+	GetDeployment(name string, options *v1.GetOptions) (*appsv1.Deployment, bool, error)
+	DeleteDeployment(dep *appsv1.Deployment, options *v1.DeleteOptions) error
+	ListDeployments(options *v1.ListOptions) ([]appsv1.Deployment, error)
+	CreateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error)
+	UpdateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error)
+	IsOwned(dep *appsv1.Deployment) bool
 }
 
 type Secrets interface {
@@ -364,10 +364,10 @@ type Secrets interface {
 }
 
 type StatefulSets interface {
-	GetStatefulSet(name string, options *v1.GetOptions) (*v12.StatefulSet, bool, error)
-	DeleteStatefulSet(ss *v12.StatefulSet, options *v1.DeleteOptions) error
-	ListStatefulSets(options *v1.ListOptions) ([]v12.StatefulSet, error)
-	CreateStatefulSet(ss *v12.StatefulSet) (*v12.StatefulSet, error)
-	UpdateStatefulSet(ss *v12.StatefulSet) (*v12.StatefulSet, error)
-	IsOwned(ss *v12.StatefulSet) bool
+	GetStatefulSet(name string, options *v1.GetOptions) (*appsv1.StatefulSet, bool, error)
+	DeleteStatefulSet(ss *appsv1.StatefulSet, options *v1.DeleteOptions) error
+	ListStatefulSets(options *v1.ListOptions) ([]appsv1.StatefulSet, error)
+	CreateStatefulSet(ss *appsv1.StatefulSet) (*appsv1.StatefulSet, error)
+	UpdateStatefulSet(ss *appsv1.StatefulSet) (*appsv1.StatefulSet, error)
+	IsOwned(ss *appsv1.StatefulSet) bool
 }
