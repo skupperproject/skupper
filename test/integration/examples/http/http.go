@@ -441,20 +441,20 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	pubCluster1, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "nginx1")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.VanClient.ServiceManager(pubCluster1.Namespace), "nginx1")
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "nghttp2")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.VanClient.ServiceManager(pubCluster1.Namespace), "nghttp2")
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "nghttp2tls")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.VanClient.ServiceManager(pubCluster1.Namespace), "nghttp2tls")
 	assert.Assert(t, err)
 
 	runJob := func(cc *base.ClusterContext, jobName, testName string) {
 		t.Helper()
 		jobCmd := []string{"/app/http_test", "-test.run", testName}
 
-		_, err = k8s.CreateTestJobWithSecret(cc.Namespace, cc.VanClient.KubeClient, jobName, jobCmd, types.ServiceClientSecret)
+		_, err = k8s.CreateTestJobWithSecret(cc.Namespace, cc.VanClient, jobName, jobCmd, types.ServiceClientSecret)
 		assert.Assert(t, err)
 	}
 
@@ -508,12 +508,12 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	privateDeploymentsClient := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)
+	privateDeploymentsClient := prv1Cluster.VanClient.DeploymentManager(prv1Cluster.Namespace)
 
 	createDeploymentInPrivateSite := func(dep *appsv1.Deployment) {
 		t.Helper()
 		fmt.Println("Creating nginx1 deployment...")
-		result, err := privateDeploymentsClient.Create(dep)
+		result, err := privateDeploymentsClient.CreateDeployment(dep)
 		assert.Assert(t, err)
 
 		fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
@@ -533,8 +533,8 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 		Data: cmData,
 	}
 
-	configMaps := prv1Cluster.VanClient.KubeClient.CoreV1().ConfigMaps(prv1Cluster.Namespace)
-	_, err = configMaps.Create(&indexHTMLConfigMap)
+	configMaps := prv1Cluster.VanClient.ConfigMapManager(prv1Cluster.Namespace)
+	_, err = configMaps.CreateConfigMap(&indexHTMLConfigMap)
 	assert.Assert(t, err)
 
 	// Create the deployment for HTTP2
@@ -561,8 +561,8 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2TlsService, "deployment", "nghttp2tls", "http2", map[int]int{})
 	assert.Assert(t, err)
 
-	//update tls service with cert files
-	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(nghttp2TlsDepWithCertFiles)
+	// update tls service with cert files
+	_, err = prv1Cluster.VanClient.DeploymentManager(prv1Cluster.Namespace).UpdateDeployment(nghttp2TlsDepWithCertFiles)
 	assert.Assert(t, err)
 
 	http21service := types.ServiceInterface{
@@ -594,7 +594,7 @@ func tearDown(ctx context.Context, r base.ClusterTestRunner) {
 	_ = prv1Cluster.VanClient.ServiceInterfaceRemove(ctx, http2TlsService.Address)
 
 	// Deleting deployments
-	depCli := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)
-	_ = depCli.Delete(nginxDep.Name, &metav1.DeleteOptions{})
-	_ = depCli.Delete(nghttp2Dep.Name, &metav1.DeleteOptions{})
+	depCli := prv1Cluster.VanClient.DeploymentManager(prv1Cluster.Namespace)
+	_ = depCli.DeleteDeployment(nginxDep, &metav1.DeleteOptions{})
+	_ = depCli.DeleteDeployment(nghttp2Dep, &metav1.DeleteOptions{})
 }

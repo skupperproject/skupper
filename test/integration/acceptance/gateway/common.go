@@ -64,7 +64,7 @@ func Setup(stopCh chan interface{}, testRunner base.ClusterTestRunner) error {
 	pub, _ := testRunner.GetPublicContext(1)
 
 	// Setting up cluster version of tcp echo
-	dep, err := pub.VanClient.KubeClient.AppsV1().Deployments(pub.Namespace).Create(tcp_echo.Deployment)
+	dep, err := pub.VanClient.DeploymentManager(pub.Namespace).CreateDeployment(tcp_echo.Deployment)
 	if err != nil {
 		return fmt.Errorf("error deploying tcp-echo server into %s: %s", pub.Namespace, err)
 	}
@@ -109,7 +109,7 @@ func TearDown(testRunner base.ClusterTestRunner) error {
 
 	}
 	// Deleting the deployment
-	if err := pub.VanClient.KubeClient.AppsV1().Deployments(pub.Namespace).Delete(tcp_echo.Deployment.Name, &v1.DeleteOptions{}); err != nil {
+	if err := pub.VanClient.DeploymentManager(pub.Namespace).DeleteDeployment(tcp_echo.Deployment, &v1.DeleteOptions{}); err != nil {
 		return err
 	}
 

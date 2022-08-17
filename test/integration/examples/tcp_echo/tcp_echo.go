@@ -82,24 +82,24 @@ func tearDown(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	_ = pub1Cluster.VanClient.ServiceInterfaceRemove(ctx, service.Address)
 
 	t.Logf("Deleting deployment...")
-	_ = pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace).Delete(Deployment.Name, &metav1.DeleteOptions{})
+	_ = pub1Cluster.VanClient.DeploymentManager(pub1Cluster.Namespace).DeleteDeployment(Deployment, &metav1.DeleteOptions{})
 }
 
 func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	pub1Cluster, _ := r.GetPublicContext(1)
-	publicDeploymentsClient := pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace)
+	publicDeploymentsClient := pub1Cluster.VanClient.DeploymentManager(pub1Cluster.Namespace)
 
 	fmt.Println("Creating deployment...")
-	result, err := publicDeploymentsClient.Create(Deployment)
+	result, err := publicDeploymentsClient.CreateDeployment(Deployment)
 	assert.Assert(t, err)
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
 	fmt.Printf("Listing deployments in namespace %q:\n", pub1Cluster.Namespace)
-	list, err := publicDeploymentsClient.List(metav1.ListOptions{})
+	list, err := publicDeploymentsClient.ListDeployments(&metav1.ListOptions{})
 	assert.Assert(t, err)
 
-	for _, d := range list.Items {
+	for _, d := range list {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
@@ -121,10 +121,10 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.VanClient.ServiceManager(pub1Cluster.Namespace), "tcp-go-echo")
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.VanClient.ServiceManager(prv1Cluster.Namespace), "tcp-go-echo")
 	assert.Assert(t, err)
 
 	jobName := "tcp-echo"

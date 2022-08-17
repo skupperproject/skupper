@@ -460,10 +460,10 @@ func deployResources(pub *base.ClusterContext, prv *base.ClusterContext) error {
 	})
 
 	// Creating deployments
-	if _, err := pub.VanClient.KubeClient.AppsV1().Deployments(pub.Namespace).Create(frontend); err != nil {
+	if _, err := pub.VanClient.DeploymentManager(pub.Namespace).CreateDeployment(frontend); err != nil {
 		return err
 	}
-	if _, err := prv.VanClient.KubeClient.AppsV1().Deployments(prv.Namespace).Create(backend); err != nil {
+	if _, err := prv.VanClient.DeploymentManager(prv.Namespace).CreateDeployment(backend); err != nil {
 		return err
 	}
 

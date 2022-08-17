@@ -72,7 +72,7 @@ func (s *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		attempt++
 
 		log.Printf("validating created service - attempt: %d", attempt)
-		svc, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(s.Name, v1.GetOptions{})
+		svc, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(s.Name, &v1.GetOptions{})
 		if err != nil {
 			log.Printf("service %s not available yet", s.Name)
 			return false, nil

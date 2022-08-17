@@ -35,7 +35,7 @@ func (s *UnbindTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	// Verifying the skupper-services config map to ensure the target has been removed
 	log.Println("Validating 'skupper service unbind'")
 	log.Printf("validating service %s exists in %s config map", s.ServiceName, types.ServiceInterfaceConfigMap)
-	cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(types.ServiceInterfaceConfigMap, v1.GetOptions{})
+	cm, _, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &v1.GetOptions{})
 	if err != nil {
 		err = fmt.Errorf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
 		return

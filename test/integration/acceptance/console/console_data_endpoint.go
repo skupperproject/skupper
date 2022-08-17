@@ -73,7 +73,7 @@ func CreateFrontendDeployment(t *testing.T, cluster *client.VanClient) {
 	}
 
 	// Deploying resource
-	dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Create(dep)
+	dep, err := cluster.DeploymentManager(cluster.Namespace).CreateDeployment(dep)
 	assert.Assert(t, err)
 }
 
@@ -114,7 +114,7 @@ func CreateBackendDeployment(t *testing.T, cluster *client.VanClient) {
 	}
 
 	// Deploying resource
-	dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Create(dep)
+	dep, err := cluster.DeploymentManager(cluster.Namespace).CreateDeployment(dep)
 	assert.Assert(t, err)
 }
 
@@ -135,7 +135,7 @@ func Setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = privateCluster.VanClient.ServiceInterfaceBind(ctx, &backsvc, "deployment", "hello-world-backend", "http", map[int]int{8080: 8080})
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(publicCluster.Namespace, publicCluster.VanClient.KubeClient, "hello-world-backend")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(publicCluster.VanClient.ServiceManager(publicCluster.Namespace), "hello-world-backend")
 	assert.Assert(t, err)
 
 	err = publicCluster.VanClient.ServiceInterfaceCreate(ctx, &frontsvc)
@@ -144,7 +144,7 @@ func Setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = publicCluster.VanClient.ServiceInterfaceBind(ctx, &frontsvc, "deployment", "hello-world-frontend", "http", map[int]int{8080: 8080})
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(publicCluster.Namespace, publicCluster.VanClient.KubeClient, "hello-world-frontend")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(publicCluster.VanClient.ServiceManager(publicCluster.Namespace), "hello-world-frontend")
 	assert.Assert(t, err)
 }
 
@@ -155,9 +155,11 @@ func TearDown(t *testing.T, r base.ClusterTestRunner) error {
 	privateCluster, _ := r.GetPrivateContext(1)
 
 	// Delete the frontend deployment
-	assert.Assert(t, publicCluster.VanClient.KubeClient.AppsV1().Deployments(publicCluster.Namespace).Delete(frontsvc.Address, &metav1.DeleteOptions{}))
+	dep := &v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: frontsvc.Address}}
+	assert.Assert(t, publicCluster.VanClient.DeploymentManager(publicCluster.Namespace).DeleteDeployment(dep, &metav1.DeleteOptions{}))
 	// Delete the backend deployment
-	assert.Assert(t, privateCluster.VanClient.KubeClient.AppsV1().Deployments(privateCluster.Namespace).Delete(backsvc.Address, &metav1.DeleteOptions{}))
+	dep = &v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: backsvc.Address}}
+	assert.Assert(t, privateCluster.VanClient.DeploymentManager(privateCluster.Namespace).DeleteDeployment(dep, &metav1.DeleteOptions{}))
 
 	return nil
 }

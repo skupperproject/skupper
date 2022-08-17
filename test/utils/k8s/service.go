@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +53,7 @@ func WaitForServiceToBeAvailable(ns string, kubeClient kubernetes.Interface, nam
 	return
 }
 
-func WaitForServiceToBeCreated(ns string, kubeClient kubernetes.Interface, name string, retryFn func() (*apiv1.Service, error), backoff wait.Backoff) (*apiv1.Service, error) {
+func WaitForServiceToBeCreated(cli types.Services, name string, retryFn func() (*apiv1.Service, error), backoff wait.Backoff) (*apiv1.Service, error) {
 	var service *apiv1.Service = nil
 	var err error
 	isError := func(err error) bool {
@@ -60,7 +61,8 @@ func WaitForServiceToBeCreated(ns string, kubeClient kubernetes.Interface, name 
 	}
 
 	_retryFn := func() (*apiv1.Service, error) {
-		return kubeClient.CoreV1().Services(ns).Get(name, metav1.GetOptions{})
+		svc, _, err := cli.GetService(name, &metav1.GetOptions{})
+		return svc, err
 	}
 
 	if retryFn == nil {
@@ -73,8 +75,8 @@ func WaitForServiceToBeCreated(ns string, kubeClient kubernetes.Interface, name 
 	})
 }
 
-func WaitForServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Interface, serviceName string, serviceReadyPeriod time.Duration) (*apiv1.Service, error) {
-	service, err := WaitForServiceToBeCreated(ns, kubeClient, serviceName, nil, constants.DefaultRetry)
+func WaitForServiceToBeCreatedAndReadyToUse(cli types.Services, serviceName string, serviceReadyPeriod time.Duration) (*apiv1.Service, error) {
+	service, err := WaitForServiceToBeCreated(cli, serviceName, nil, constants.DefaultRetry)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +84,7 @@ func WaitForServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Int
 	return service, nil
 }
 
-func WaitForSkupperServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Interface, serviceName string) (*apiv1.Service, error) {
+func WaitForSkupperServiceToBeCreatedAndReadyToUse(cli types.Services, serviceName string) (*apiv1.Service, error) {
 	fmt.Printf("Waiting for skupper service: %s\n", serviceName)
-	return WaitForServiceToBeCreatedAndReadyToUse(ns, kubeClient, serviceName, time.Second*10)
+	return WaitForServiceToBeCreatedAndReadyToUse(cli, serviceName, time.Second*10)
 }

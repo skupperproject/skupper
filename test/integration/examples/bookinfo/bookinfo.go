@@ -68,7 +68,7 @@ func Setup(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
 	var wg sync.WaitGroup
 	waitFor := func(cc *base.ClusterContext, serviceName string, err error) {
 		defer wg.Done()
-		_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(cc.Namespace, cc.VanClient.KubeClient, serviceName)
+		_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(cc.VanClient.ServiceManager(cc.Namespace), serviceName)
 	}
 
 	var detailsError, reviewsError, ratingsError error

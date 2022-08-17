@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"gotest.tools/assert"
@@ -76,12 +78,12 @@ func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 	return job, nil
 }
 
-func CreateTestJobWithSecret(ns string, kubeClient kubernetes.Interface, name string, command []string, secretname string) (*batchv1.Job, error) {
+func CreateTestJobWithSecret(ns string, cli types.VanClientInterface, name string, command []string, secretname string) (*batchv1.Job, error) {
 
 	namespace := ns
 	testImage := GetTestImage()
 
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(secretname, metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(namespace).GetSecret(secretname, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +125,8 @@ func CreateTestJobWithSecret(ns string, kubeClient kubernetes.Interface, name st
 
 	AppendSecretVolume(&job.Spec.Template.Spec.Volumes, &job.Spec.Template.Spec.Containers[0].VolumeMounts, secret.Name, "/tmp/certs/"+secretname+"/")
 
-	jobsClient := kubeClient.BatchV1().Jobs(namespace)
+	vanCli := cli.(*client.VanClient)
+	jobsClient := vanCli.KubeClient.BatchV1().Jobs(namespace)
 
 	job, err = jobsClient.Create(job)
 

@@ -108,14 +108,14 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	//
 	// Retrieve ConfigMap with skupper.io/type: gateway-definition (label)
 	//
-	cmList, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).List(v1.ListOptions{
+	cmList, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).ListConfigMaps(&v1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", types.SkupperTypeQualifier, "gateway-definition"),
 	})
 	if err != nil {
 		return
 	}
 
-	for _, cm := range cmList.Items {
+	for _, cm := range cmList {
 		gwName, ok := cm.Annotations["skupper.io/gateway-name"]
 		if ok && gwName == gatewayName {
 			fmt.Errorf("gateway configmap still exists")

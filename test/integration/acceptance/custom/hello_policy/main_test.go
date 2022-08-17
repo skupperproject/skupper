@@ -41,7 +41,7 @@ func (kd KubeDeploy) deploy(ctx *base.ClusterContext) (err error) {
 		RestartPolicy: corev1.RestartPolicyAlways,
 	})
 	// Creating deployments
-	if _, err = ctx.VanClient.KubeClient.AppsV1().Deployments(ctx.Namespace).Create(deployment); err != nil {
+	if _, err = ctx.VanClient.DeploymentManager(ctx.Namespace).CreateDeployment(deployment); err != nil {
 		if strings.Contains(err.Error(), `deployments.apps "`+kd.name+`" already exists`) {
 			log.Printf("Ignoring application already deployed: %v", err)
 			err = nil

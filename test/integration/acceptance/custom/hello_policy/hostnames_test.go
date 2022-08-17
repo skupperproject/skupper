@@ -105,7 +105,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					// We need to know the actual hosts we'll be connecting to, so we get them from the secret
 					name: "register-hostnames",
 					preHook: func(context map[string]string) error {
-						secret, err := prv.VanClient.KubeClient.CoreV1().Secrets(prv.Namespace).Get("hostnames", v1.GetOptions{})
+						secret, _, err := prv.VanClient.SecretManager(prv.Namespace).GetSecret("hostnames", &v1.GetOptions{})
 						if err != nil {
 							return err
 						}

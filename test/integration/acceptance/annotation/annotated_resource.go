@@ -149,21 +149,23 @@ func UndeployResources(testRunner base.ClusterTestRunner) error {
 	// Removing deployed resources
 	for _, cluster := range []*base.ClusterContext{pub, prv} {
 		cli := cluster.VanClient.KubeClient
+		vanCli := cluster.VanClient
 		log.Printf("removing deployment 'nginx' from: %s", cluster.Namespace)
-		if err := cli.AppsV1().Deployments(cluster.Namespace).Delete("nginx", &metav1.DeleteOptions{}); err != nil {
+		if err := vanCli.DeploymentManager(cluster.Namespace).DeleteDeployment(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "nginx"}}, &metav1.DeleteOptions{}); err != nil {
 			return err
 		}
+		// TODO evaluate if needed to have generic CRUD support for DaemonSets
 		log.Printf("removing daemonset 'nginx-ds' from: %s", cluster.Namespace)
 		if err := cli.AppsV1().DaemonSets(cluster.Namespace).Delete("nginx-ds", &metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 		log.Printf("removing statefulset 'nginx-ss' from: %s", cluster.Namespace)
-		if err := cli.AppsV1().StatefulSets(cluster.Namespace).Delete("nginx-ss", &metav1.DeleteOptions{}); err != nil {
+		if err := vanCli.StatefulSetManager(cluster.Namespace).DeleteStatefulSet(&v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "nginx-ss"}}, &metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 		for _, svc := range servicesMap[cluster.Namespace] {
 			log.Printf("removing service '%s' from: %s", svc, cluster.Namespace)
-			if err := cli.CoreV1().Services(cluster.Namespace).Delete(svc, &metav1.DeleteOptions{}); err != nil {
+			if err := vanCli.ServiceManager(cluster.Namespace).DeleteService(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: svc}}, &metav1.DeleteOptions{}); err != nil {
 				return err
 			}
 		}
@@ -236,7 +238,7 @@ func createDeployment(cluster *client.VanClient, annotations map[string]string) 
 	}
 
 	// Deploying resource
-	dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Create(dep)
+	dep, err := cluster.DeploymentManager(cluster.Namespace).CreateDeployment(dep)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +274,7 @@ func createStatefulSet(cluster *client.VanClient, annotations map[string]string)
 	}
 
 	// Creating the new service
-	svc, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Create(svc)
+	svc, err := cluster.ServiceManager(cluster.Namespace).CreateService(svc)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +313,7 @@ func createStatefulSet(cluster *client.VanClient, annotations map[string]string)
 	}
 
 	// Deploying resource
-	ss, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(ss)
+	ss, err = cluster.StatefulSetManager(cluster.Namespace).CreateStatefulSet(ss)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +399,7 @@ func createService(cluster *client.VanClient, name string, annotations map[strin
 	}
 
 	// Creating the new service
-	svc, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Create(svc)
+	svc, err := cluster.ServiceManager(cluster.Namespace).CreateService(svc)
 	if err != nil {
 		return nil, err
 	}

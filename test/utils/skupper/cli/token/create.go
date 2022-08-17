@@ -170,7 +170,7 @@ func (t *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	claimRecordName := parsedClaimUrl.Path[1:]
 
 	// Retrieving token-claim-record secret
-	tokenClaimRecord, err := cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(claimRecordName, v12.GetOptions{})
+	tokenClaimRecord, _, err := cluster.VanClient.SecretManager(cluster.Namespace).GetSecret(claimRecordName, &v12.GetOptions{})
 	if err != nil {
 		return
 	}

@@ -21,9 +21,9 @@ func RunTests(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 	prvCluster1, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "mongo-a")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.VanClient.ServiceManager(pubCluster1.Namespace), "mongo-a")
 	assert.Assert(t, err)
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prvCluster1.Namespace, prvCluster1.VanClient.KubeClient, "mongo-b")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prvCluster1.VanClient.ServiceManager(prvCluster1.Namespace), "mongo-b")
 	assert.Assert(t, err)
 
 	_, err = prvCluster1.KubectlExec(`exec deploy/mongo-a -- mongo --host 127.0.0.1:27017 --eval 'rs.initiate({ _id : "rs0", members: [ { _id: 0, host: "mongo-a:27017" }, { _id: 1, host: "mongo-b:27017" }]})'`)
