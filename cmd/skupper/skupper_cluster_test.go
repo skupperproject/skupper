@@ -596,7 +596,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 						},
 					},
 				}
-				_, err := c.KubeClient.CoreV1().Secrets(namespace).Create(token)
+				_, err := c.SecretManager(namespace).CreateSecret(token)
 				assert.Check(t, err)
 			}
 		}
@@ -955,14 +955,14 @@ func TestExposeWithCluster(t *testing.T) {
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 		// create a target deployment as pre-condition
-		deployments := c.KubeClient.AppsV1().Deployments(namespace)
+		deployments := c.DeploymentManager(namespace)
 		statefulSets := c.KubeClient.AppsV1().StatefulSets(namespace)
-		services := c.KubeClient.CoreV1().Services(namespace)
-		_, err = deployments.Create(tcpDeployment)
+		services := c.ServiceManager(namespace)
+		_, err = deployments.CreateDeployment(tcpDeployment)
 		assert.Assert(t, err)
 		_, err = statefulSets.Create(tcpStatefulSet)
 		assert.Assert(t, err)
-		_, err = services.Create(statefulSetService)
+		_, err = services.CreateService(statefulSetService)
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
@@ -1124,8 +1124,8 @@ func TestListExposedWithCluster(t *testing.T) {
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 		// create a target deployment as pre-condition
-		deployments := c.KubeClient.AppsV1().Deployments(namespace)
-		_, err = deployments.Create(tcpDeployment)
+		deployments := c.DeploymentManager(namespace)
+		_, err = deployments.CreateDeployment(tcpDeployment)
 		assert.Assert(t, err)
 	}
 
@@ -1340,8 +1340,8 @@ func TestBindWithCluster(t *testing.T) {
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 		// create a target deployment as pre-condition
-		deployments := c.KubeClient.AppsV1().Deployments(namespace)
-		_, err = deployments.Create(tcpDeployment)
+		deployments := c.DeploymentManager(namespace)
+		_, err = deployments.CreateDeployment(tcpDeployment)
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
@@ -1406,8 +1406,8 @@ func TestUnbindWithCluster(t *testing.T) {
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 		// create a target deployment as pre-condition
-		deployments := c.KubeClient.AppsV1().Deployments(namespace)
-		_, err = deployments.Create(tcpDeployment)
+		deployments := c.DeploymentManager(namespace)
+		_, err = deployments.CreateDeployment(tcpDeployment)
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
