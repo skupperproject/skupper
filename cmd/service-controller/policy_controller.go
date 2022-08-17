@@ -401,7 +401,7 @@ func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget) 
 	}
 	getBySelector := func(targetTypes ...string) string {
 		for _, targetType := range targetTypes {
-			retTarget, err := kube.GetServiceInterfaceTarget(targetType, target.Name, true, c.cli.Namespace, c.cli.KubeClient)
+			retTarget, err := kube.GetServiceInterfaceTarget(targetType, target.Name, true, c.cli.Namespace, c.cli)
 			if err == nil {
 				if retTarget.Selector == target.Selector {
 					return targetType
