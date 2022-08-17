@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skupperproject/skupper/client"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -363,46 +362,4 @@ func RemoveServiceAnnotations(name, namespace string, kubeclient kubernetes.Inte
 		delete(svc.ObjectMeta.Annotations, annotation)
 	}
 	return kubeclient.CoreV1().Services(namespace).Update(svc)
-}
-
-type ServiceManager struct {
-	Client    *client.VanClient
-	Namespace string
-}
-
-func (s *ServiceManager) GetService(name string, options *metav1.GetOptions) (*corev1.Service, bool, error) {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
-	svc, err := svcCli.Get(name, *options)
-	if err != nil {
-		return nil, false, err
-	}
-	return svc, true, nil
-}
-
-func (s *ServiceManager) DeleteService(svc *corev1.Service, options *metav1.DeleteOptions) error {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
-	return svcCli.Delete(svc.Name, options)
-}
-
-func (s *ServiceManager) ListServices(options *metav1.ListOptions) ([]corev1.Service, error) {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
-	list, err := svcCli.List(*options)
-	if err != nil {
-		return nil, err
-	}
-	return list.Items, nil
-}
-
-func (s *ServiceManager) CreateService(svc *corev1.Service) (*corev1.Service, error) {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
-	return svcCli.Create(svc)
-}
-
-func (s *ServiceManager) UpdateService(svc *corev1.Service) (*corev1.Service, error) {
-	svcCli := s.Client.KubeClient.CoreV1().Services(s.Namespace)
-	return svcCli.Update(svc)
-}
-
-func (s *ServiceManager) IsOwned(service *corev1.Service) bool {
-	return IsOwnedBySkupper(service.ObjectMeta.OwnerReferences)
 }

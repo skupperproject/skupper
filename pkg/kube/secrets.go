@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/skupperproject/skupper/client"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -144,46 +143,4 @@ func RegenerateCredentials(credential types.Credential, namespace string, ca *co
 	regenerated := certs.GenerateSecret(credential.Name, credential.Subject, strings.Join(credential.Hosts, ","), ca)
 	current.Data = regenerated.Data
 	return cli.CoreV1().Secrets(namespace).Update(current)
-}
-
-type SecretManager struct {
-	Client    *client.VanClient
-	Namespace string
-}
-
-func (s *SecretManager) GetSecret(name string, options *metav1.GetOptions) (*corev1.Secret, bool, error) {
-	secCli := s.Client.KubeClient.CoreV1().Secrets(s.Namespace)
-	sec, err := secCli.Get(name, *options)
-	if err != nil {
-		return nil, false, err
-	}
-	return sec, true, nil
-}
-
-func (s *SecretManager) DeleteSecret(secret *corev1.Secret, options *metav1.DeleteOptions) error {
-	secCli := s.Client.KubeClient.CoreV1().Secrets(s.Namespace)
-	return secCli.Delete(secret.Name, options)
-}
-
-func (s *SecretManager) ListSecrets(options *metav1.ListOptions) ([]corev1.Secret, error) {
-	secCli := s.Client.KubeClient.CoreV1().Secrets(s.Namespace)
-	list, err := secCli.List(*options)
-	if err != nil {
-		return nil, err
-	}
-	return list.Items, err
-}
-
-func (s *SecretManager) CreateSecret(secret *corev1.Secret) (*corev1.Secret, error) {
-	secCli := s.Client.KubeClient.CoreV1().Secrets(s.Namespace)
-	return secCli.Create(secret)
-}
-
-func (s *SecretManager) UpdateSecret(secret *corev1.Secret) (*corev1.Secret, error) {
-	secCli := s.Client.KubeClient.CoreV1().Secrets(s.Namespace)
-	return secCli.Update(secret)
-}
-
-func (s *SecretManager) IsOwned(secret *corev1.Secret) bool {
-	return IsOwnedBySkupper(secret.ObjectMeta.OwnerReferences)
 }

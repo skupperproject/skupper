@@ -112,28 +112,28 @@ func (cli *VanClient) GetIngressDefault() string {
 }
 
 func (cli *VanClient) ServiceManager(namespace string) types.Services {
-	return &kube.ServiceManager{
+	return &ServiceManager{
 		Client:    cli,
 		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
 func (cli *VanClient) ConfigMapManager(namespace string) types.ConfigMaps {
-	return &kube.ConfigMapManager{
+	return &ConfigMapManager{
 		Client:    cli,
 		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
 func (cli *VanClient) DeploymentManager(namespace string) types.Deployments {
-	return &kube.DeploymentManager{
+	return &DeploymentManager{
 		Client:    cli,
 		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
 func (cli *VanClient) SecretManager(namespace string) types.Secrets {
-	return &kube.SecretManager{
+	return &SecretManager{
 		Client:    cli,
 		Namespace: utils.DefaultStr(namespace, cli.Namespace),
 	}

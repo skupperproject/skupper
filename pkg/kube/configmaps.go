@@ -4,7 +4,6 @@ import (
 	jsonencoding "encoding/json"
 	"fmt"
 
-	"github.com/skupperproject/skupper/client"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,46 +99,4 @@ func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, o
 	}
 
 	return nil
-}
-
-type ConfigMapManager struct {
-	Client    *client.VanClient
-	Namespace string
-}
-
-func (c *ConfigMapManager) GetConfigMap(name string, options *metav1.GetOptions) (*corev1.ConfigMap, bool, error) {
-	cmCli := c.Client.KubeClient.CoreV1().ConfigMaps(c.Namespace)
-	cm, err := cmCli.Get(name, *options)
-	if err != nil {
-		return nil, false, err
-	}
-	return cm, true, nil
-}
-
-func (c *ConfigMapManager) DeleteConfigMap(cm *corev1.ConfigMap, options *metav1.DeleteOptions) error {
-	cmCli := c.Client.KubeClient.CoreV1().ConfigMaps(c.Namespace)
-	return cmCli.Delete(cm.Name, options)
-}
-
-func (c *ConfigMapManager) ListConfigMaps(options *metav1.ListOptions) ([]corev1.ConfigMap, error) {
-	cmCli := c.Client.KubeClient.CoreV1().ConfigMaps(c.Namespace)
-	list, err := cmCli.List(*options)
-	if list != nil {
-		return list.Items, err
-	}
-	return nil, err
-}
-
-func (c *ConfigMapManager) CreateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	cmCli := c.Client.KubeClient.CoreV1().ConfigMaps(c.Namespace)
-	return cmCli.Create(cm)
-}
-
-func (c *ConfigMapManager) UpdateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	cmCli := c.Client.KubeClient.CoreV1().ConfigMaps(c.Namespace)
-	return cmCli.Update(cm)
-}
-
-func (c *ConfigMapManager) IsOwned(cm *corev1.ConfigMap) bool {
-	return IsOwnedBySkupper(cm.ObjectMeta.OwnerReferences)
 }
