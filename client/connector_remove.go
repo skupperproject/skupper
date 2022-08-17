@@ -32,7 +32,7 @@ func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.Connect
 		return err
 	}
 
-	return kube.DeleteSecret(options.Name, options.SkupperNamespace, cli.KubeClient)
+	return kube.DeleteSecret(options.Name, cli.SecretManager(options.SkupperNamespace))
 
 }
 

@@ -356,7 +356,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 			svc.Address = service.ObjectMeta.Name
 		}
 		if target, ok := service.ObjectMeta.Annotations[types.TargetServiceQualifier]; ok {
-			port, err := kube.GetPortsForServiceTarget(target, m.vanClient.Namespace, m.vanClient.KubeClient)
+			port, err := kube.GetPortsForServiceTarget(target, m.vanClient.Namespace, m.vanClient)
 			if err != nil {
 				event.Recordf(DefinitionMonitorError, "Could not deduce port for target service %s on annotated service %s: %s", target, service.ObjectMeta.Name, err)
 			}

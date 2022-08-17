@@ -365,7 +365,7 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 			}
 
 			t.Logf("Removing the original service")
-			assert.Assert(t, kube.DeleteService(tc.service.Name, cli.Namespace, cli.KubeClient), "Error removing %s service", tc.service.Name)
+			assert.Assert(t, kube.DeleteService(tc.service.Name, cli.ServiceManager(cli.Namespace)), "Error removing %s service", tc.service.Name)
 		})
 	}
 }

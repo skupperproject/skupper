@@ -815,7 +815,7 @@ func (c *Controller) handleEnableTlsSupport(address string, tlsCredentials strin
 				Name:       configmap.Name,
 				UID:        configmap.UID,
 			}
-			serviceSecret, err := kube.NewSecret(serviceCredential, &ownerReference, c.vanClient.Namespace, c.vanClient.KubeClient)
+			serviceSecret, err := kube.NewSecret(serviceCredential, &ownerReference, c.vanClient.Namespace, c.vanClient.SecretManager(c.vanClient.Namespace))
 
 			if err != nil {
 				return err

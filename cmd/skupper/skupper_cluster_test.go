@@ -973,8 +973,7 @@ func TestExposeWithCluster(t *testing.T) {
 				return
 			}
 			if *clusterRun && len(tc.args) > 0 && tc.args[0] == "service" {
-				c := cli.(*client.VanClient)
-				_, _ = kube.WaitServiceExists(tc.args[1], cli.GetNamespace(), c.KubeClient, time.Second*60, time.Second*5)
+				_, _ = kube.WaitServiceExists(tc.args[1], cli.ServiceManager(cli.GetNamespace()), time.Second*60, time.Second*5)
 			}
 			cmd := NewCmdExpose(testClient)
 			silenceCobra(cmd)

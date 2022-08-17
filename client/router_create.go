@@ -1024,14 +1024,14 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 	}
 	for _, ca := range van.CertAuthoritys {
-		_, err = kube.NewCertAuthority(ca, siteOwnerRef, van.Namespace, cli.KubeClient)
+		_, err = kube.NewCertAuthority(ca, siteOwnerRef, cli.SecretManager(van.Namespace))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	for _, cred := range van.TransportCredentials {
 		if !cred.Post {
-			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
+			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.SecretManager(van.Namespace))
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
@@ -1116,7 +1116,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 						return err
 					}
 				}
-				kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
+				kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.SecretManager(van.Namespace))
 			}
 		}
 	}
@@ -1199,7 +1199,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 					return err
 				}
 			}
-			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
+			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.SecretManager(van.Namespace))
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}

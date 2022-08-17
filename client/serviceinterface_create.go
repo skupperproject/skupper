@@ -50,7 +50,7 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 				Name:       configmap.Name,
 				UID:        configmap.UID,
 			}
-			serviceSecret, err := kube.NewSecret(serviceCredential, &ownerReference, cli.Namespace, cli.KubeClient)
+			serviceSecret, err := kube.NewSecret(serviceCredential, &ownerReference, cli.Namespace, cli.SecretManager(cli.Namespace))
 			if err != nil {
 				return err
 			}

@@ -151,18 +151,18 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	if renameFor050 {
 		// create new resources (as copies of old ones)
 		// services
-		_, err = kube.CopyService("skupper-messaging", types.LocalTransportServiceName, map[string]string{}, namespace, cli.KubeClient)
+		_, err = kube.CopyService("skupper-messaging", types.LocalTransportServiceName, map[string]string{}, cli.ServiceManager(namespace))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return false, err
 		}
-		_, err = kube.CopyService("skupper-internal", types.TransportServiceName, map[string]string{}, namespace, cli.KubeClient)
+		_, err = kube.CopyService("skupper-internal", types.TransportServiceName, map[string]string{}, cli.ServiceManager(namespace))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return false, err
 		}
 		servingCertsAnnotation := map[string]string{
 			"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret,
 		}
-		controllerSvc, err := kube.CopyService("skupper-controller", types.ControllerServiceName, servingCertsAnnotation, namespace, cli.KubeClient)
+		controllerSvc, err := kube.CopyService("skupper-controller", types.ControllerServiceName, servingCertsAnnotation, cli.ServiceManager(namespace))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return false, err
 		}
@@ -184,11 +184,11 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 
 		// secrets
 		// ca's just need to be copied to new secret
-		err = kube.CopySecret("skupper-ca", types.LocalCaSecret, namespace, cli.KubeClient)
+		err = kube.CopySecret("skupper-ca", types.LocalCaSecret, cli.SecretManager(namespace))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return false, err
 		}
-		err = kube.CopySecret("skupper-internal-ca", types.SiteCaSecret, namespace, cli.KubeClient)
+		err = kube.CopySecret("skupper-internal-ca", types.SiteCaSecret, cli.SecretManager(namespace))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return false, err
 		}
@@ -220,7 +220,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		usingRoutes, err = cli.usingRoutes(namespace)
 		if usingRoutes {
 			// no need to regenerate certificate as route names have not changed
-			err = kube.CopySecret("skupper-internal", types.SiteServerSecret, namespace, cli.KubeClient)
+			err = kube.CopySecret("skupper-internal", types.SiteServerSecret, cli.SecretManager(namespace))
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return false, err
 			}
@@ -256,7 +256,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			if len(configmap.ObjectMeta.OwnerReferences) > 0 {
 				owner = &configmap.ObjectMeta.OwnerReferences[0]
 			}
-			kube.NewSecret(cred, owner, namespace, cli.KubeClient)
+			kube.NewSecret(cred, owner, namespace, cli.SecretManager(namespace))
 		}
 
 		// serviceaccounts
@@ -1091,7 +1091,7 @@ func (cli *VanClient) createClaimsServerSecret(ctx context.Context, namespace st
 			return err
 		}
 	}
-	_, err := kube.NewSecret(cred, owner, namespace, cli.KubeClient)
+	_, err := kube.NewSecret(cred, owner, namespace, cli.SecretManager(namespace))
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}

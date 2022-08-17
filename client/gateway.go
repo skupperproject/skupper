@@ -1707,7 +1707,7 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 			return "", fmt.Errorf("Unable to create service: %w", err)
 		}
 
-		_, err = kube.WaitServiceExists(endpoint.Service.Address, cli.GetNamespace(), cli.KubeClient, time.Second*60, time.Second*5)
+		_, err = kube.WaitServiceExists(endpoint.Service.Address, cli.ServiceManager(cli.GetNamespace()), time.Second*60, time.Second*5)
 		if err != nil {
 			return "", err
 		}

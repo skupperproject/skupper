@@ -42,7 +42,7 @@ func (cli *VanClient) regenerateSiteSecret(ca *corev1.Secret) error {
 			return err
 		}
 	}
-	_, err := kube.RegenerateCredentials(siteServerSecret, cli.Namespace, ca, cli.KubeClient)
+	_, err := kube.RegenerateCredentials(siteServerSecret, ca, cli.SecretManager(cli.Namespace))
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (cli *VanClient) regenerateClaimsSecret(ca *corev1.Secret) error {
 			return err
 		}
 	}
-	_, err := kube.RegenerateCredentials(claimsServerSecret, cli.Namespace, ca, cli.KubeClient)
+	_, err := kube.RegenerateCredentials(claimsServerSecret, ca, cli.SecretManager(cli.Namespace))
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (cli *VanClient) RevokeAccess(ctx context.Context) error {
 		}
 	}
 
-	ca, err := kube.RegenerateCertAuthority(types.SiteCaSecret, cli.Namespace, cli.KubeClient)
+	ca, err := kube.RegenerateCertAuthority(types.SiteCaSecret, cli.SecretManager(cli.Namespace))
 	if err != nil {
 		return err
 	}

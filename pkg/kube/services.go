@@ -6,14 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
-
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 func GetLabelsForRouter() map[string]string {
@@ -34,10 +32,10 @@ func GetLoadBalancerHostOrIP(service *corev1.Service) string {
 	return ""
 }
 
-func DeleteService(name string, namespace string, kubeclient kubernetes.Interface) error {
-	_, err := kubeclient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+func DeleteService(name string, cli types.Services) error {
+	svc, _, err := cli.GetService(name, &metav1.GetOptions{})
 	if err == nil {
-		err = kubeclient.CoreV1().Services(namespace).Delete(name, &metav1.DeleteOptions{})
+		err = cli.DeleteService(svc, &metav1.DeleteOptions{})
 	}
 	return err
 }
@@ -155,8 +153,8 @@ func GetPortsForServiceTarget(targetName string, defaultNamespace string, cli ty
 	}
 }
 
-func CopyService(src string, dest string, annotations map[string]string, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	original, err := kubeclient.CoreV1().Services(namespace).Get(src, metav1.GetOptions{})
+func CopyService(src string, dest string, annotations map[string]string, cli types.Services) (*corev1.Service, error) {
+	original, _, err := cli.GetService(src, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -189,21 +187,21 @@ func CopyService(src string, dest string, annotations map[string]string, namespa
 		})
 	}
 
-	copied, err := kubeclient.CoreV1().Services(namespace).Create(service)
+	copied, err := cli.CreateService(service)
 	if err != nil {
 		return nil, err
 	}
 	return copied, nil
 }
 
-func WaitServiceExists(name string, namespace string, cli kubernetes.Interface, timeout, interval time.Duration) (*corev1.Service, error) {
+func WaitServiceExists(name string, cli types.Services, timeout, interval time.Duration) (*corev1.Service, error) {
 	var svc *corev1.Service
 	var err error
 
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		svc, err = cli.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+		svc, _, err = cli.GetService(name, &metav1.GetOptions{})
 		if err != nil {
 			return false, nil
 		}
