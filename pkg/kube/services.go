@@ -126,7 +126,7 @@ func GetLoadBalancerHostOrIp(service *corev1.Service) string {
 	return ""
 }
 
-func GetPortsForServiceTarget(targetName string, defaultNamespace string, cli types.VanClientInterface) (map[int]int, error) {
+func GetPortsForServiceTarget(targetName string, defaultNamespace string, cliFn func(namespace string) types.Services) (map[int]int, error) {
 	ports := map[int]int{}
 	parts := strings.Split(targetName, ".")
 	var name, namespace string
@@ -137,7 +137,7 @@ func GetPortsForServiceTarget(targetName string, defaultNamespace string, cli ty
 		name = targetName
 		namespace = defaultNamespace
 	}
-	targetSvc, err := GetService(name, cli.ServiceManager(namespace))
+	targetSvc, err := GetService(name, cliFn(namespace))
 	if err == nil {
 		if len(targetSvc.Spec.Ports) > 0 {
 			for _, p := range targetSvc.Spec.Ports {

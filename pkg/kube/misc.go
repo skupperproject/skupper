@@ -69,7 +69,9 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			Service: targetName,
 		}
 		if deducePort {
-			ports, err := GetPortsForServiceTarget(targetName, namespace, cli)
+			ports, err := GetPortsForServiceTarget(targetName, namespace, func(namespace string) types.Services {
+				return cli.ServiceManager(namespace)
+			})
 			if err != nil {
 				return nil, err
 			}

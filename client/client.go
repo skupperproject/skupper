@@ -112,36 +112,36 @@ func (cli *VanClient) GetIngressDefault() string {
 }
 
 func (cli *VanClient) ServiceManager(namespace string) types.Services {
-	return &ServiceManager{
-		Client:    cli,
-		Namespace: utils.DefaultStr(namespace, cli.Namespace),
+	return &kube.ServiceManager{
+		KubeClient: cli.KubeClient,
+		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
 func (cli *VanClient) ConfigMapManager(namespace string) types.ConfigMaps {
-	return &ConfigMapManager{
-		Client:    cli,
-		Namespace: utils.DefaultStr(namespace, cli.Namespace),
+	return &kube.ConfigMapManager{
+		KubeClient: cli.KubeClient,
+		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
 func (cli *VanClient) DeploymentManager(namespace string) types.Deployments {
-	return &DeploymentManager{
-		Client:    cli,
-		Namespace: utils.DefaultStr(namespace, cli.Namespace),
+	return &kube.DeploymentManager{
+		KubeClient: cli.KubeClient,
+		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
 func (cli *VanClient) SecretManager(namespace string) types.Secrets {
-	return &SecretManager{
-		Client:    cli,
-		Namespace: utils.DefaultStr(namespace, cli.Namespace),
+	return &kube.SecretManager{
+		KubeClient: cli.KubeClient,
+		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
 func (cli *VanClient) StatefulSetManager(namespace string) types.StatefulSets {
-	return &StatefulSetManager{
-		Client:    cli,
-		Namespace: utils.DefaultStr(namespace, cli.Namespace),
+	return &kube.StatefulSetManager{
+		KubeClient: cli.KubeClient,
+		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
