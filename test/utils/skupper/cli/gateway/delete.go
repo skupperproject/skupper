@@ -8,7 +8,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type DeleteTester struct {
@@ -108,7 +107,7 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	//
 	// Retrieve ConfigMap with skupper.io/type: gateway-definition (label)
 	//
-	cmList, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).ListConfigMaps(&v1.ListOptions{
+	cmList, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).ListConfigMaps(&types.ListFilter{
 		LabelSelector: fmt.Sprintf("%s=%s", types.SkupperTypeQualifier, "gateway-definition"),
 	})
 	if err != nil {

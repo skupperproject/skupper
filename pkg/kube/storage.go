@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/api/types"
 	v13 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,9 +27,15 @@ func (c *ConfigMapManager) DeleteConfigMap(cm string) error {
 	return cmCli.Delete(cm, &v1.DeleteOptions{})
 }
 
-func (c *ConfigMapManager) ListConfigMaps(options *v1.ListOptions) ([]v12.ConfigMap, error) {
+func (c *ConfigMapManager) ListConfigMaps(options *types.ListFilter) ([]v12.ConfigMap, error) {
+	listOptions := v1.ListOptions{}
+	if options != nil {
+		listOptions.LabelSelector = options.LabelSelector
+		listOptions.Limit = options.Limit
+	}
+
 	cmCli := c.KubeClient.CoreV1().ConfigMaps(c.Namespace)
-	list, err := cmCli.List(*options)
+	list, err := cmCli.List(listOptions)
 	if list != nil {
 		return list.Items, err
 	}
@@ -68,9 +75,14 @@ func (d *DeploymentManager) DeleteDeployment(dep string) error {
 	return depCli.Delete(dep, &v1.DeleteOptions{})
 }
 
-func (d *DeploymentManager) ListDeployments(options *v1.ListOptions) ([]v13.Deployment, error) {
+func (d *DeploymentManager) ListDeployments(options *types.ListFilter) ([]v13.Deployment, error) {
+	listOptions := v1.ListOptions{}
+	if options != nil {
+		listOptions.LabelSelector = options.LabelSelector
+		listOptions.Limit = options.Limit
+	}
 	depCli := d.KubeClient.AppsV1().Deployments(d.Namespace)
-	list, err := depCli.List(*options)
+	list, err := depCli.List(listOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +122,15 @@ func (s *SecretManager) DeleteSecret(secret string) error {
 	return secCli.Delete(secret, &v1.DeleteOptions{})
 }
 
-func (s *SecretManager) ListSecrets(options *v1.ListOptions) ([]v12.Secret, error) {
+func (s *SecretManager) ListSecrets(options *types.ListFilter) ([]v12.Secret, error) {
+	listOptions := v1.ListOptions{}
+	if options != nil {
+		listOptions.LabelSelector = options.LabelSelector
+		listOptions.Limit = options.Limit
+	}
+
 	secCli := s.KubeClient.CoreV1().Secrets(s.Namespace)
-	list, err := secCli.List(*options)
+	list, err := secCli.List(listOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -152,9 +170,14 @@ func (s *ServiceManager) DeleteService(svc string) error {
 	return svcCli.Delete(svc, &v1.DeleteOptions{})
 }
 
-func (s *ServiceManager) ListServices(options *v1.ListOptions) ([]v12.Service, error) {
+func (s *ServiceManager) ListServices(options *types.ListFilter) ([]v12.Service, error) {
+	listOptions := v1.ListOptions{}
+	if options != nil {
+		listOptions.LabelSelector = options.LabelSelector
+		listOptions.Limit = options.Limit
+	}
 	svcCli := s.KubeClient.CoreV1().Services(s.Namespace)
-	list, err := svcCli.List(*options)
+	list, err := svcCli.List(listOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -194,9 +217,14 @@ func (s *StatefulSetManager) DeleteStatefulSet(ss string) error {
 	return ssCli.Delete(ss, &v1.DeleteOptions{})
 }
 
-func (s *StatefulSetManager) ListStatefulSets(options *v1.ListOptions) ([]v13.StatefulSet, error) {
+func (s *StatefulSetManager) ListStatefulSets(options *types.ListFilter) ([]v13.StatefulSet, error) {
+	listOptions := v1.ListOptions{}
+	if options != nil {
+		listOptions.LabelSelector = options.LabelSelector
+		listOptions.Limit = options.Limit
+	}
 	ssCli := s.KubeClient.AppsV1().StatefulSets(s.Namespace)
-	list, err := ssCli.List(*options)
+	list, err := ssCli.List(listOptions)
 	if err != nil {
 		return nil, err
 	}

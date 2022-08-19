@@ -17,7 +17,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -716,7 +715,7 @@ func (v *configMapMock) DeleteConfigMap(cm string) error {
 	return nil
 }
 
-func (v *configMapMock) ListConfigMaps(options *metav1.ListOptions) ([]corev1.ConfigMap, error) {
+func (v *configMapMock) ListConfigMaps(options *types.ListFilter) ([]corev1.ConfigMap, error) {
 	return nil, nil
 }
 
@@ -742,7 +741,7 @@ func (s *serviceMock) DeleteService(svc string) error {
 	return nil
 }
 
-func (s *serviceMock) ListServices(options *metav1.ListOptions) ([]corev1.Service, error) {
+func (s *serviceMock) ListServices(options *types.ListFilter) ([]corev1.Service, error) {
 	return nil, nil
 }
 
@@ -768,7 +767,7 @@ func (d *deploymentMock) DeleteDeployment(dep string) error {
 	return nil
 }
 
-func (d *deploymentMock) ListDeployments(options *metav1.ListOptions) ([]appsv1.Deployment, error) {
+func (d *deploymentMock) ListDeployments(options *types.ListFilter) ([]appsv1.Deployment, error) {
 	return nil, nil
 }
 
@@ -794,7 +793,7 @@ func (s *secretMock) DeleteSecret(secret string) error {
 	return nil
 }
 
-func (s *secretMock) ListSecrets(options *metav1.ListOptions) ([]corev1.Secret, error) {
+func (s *secretMock) ListSecrets(options *types.ListFilter) ([]corev1.Secret, error) {
 	return nil, nil
 }
 
@@ -820,7 +819,7 @@ func (s *statefulSetMock) DeleteStatefulSet(ss string) error {
 	return nil
 }
 
-func (s *statefulSetMock) ListStatefulSets(options *metav1.ListOptions) ([]appsv1.StatefulSet, error) {
+func (s *statefulSetMock) ListStatefulSets(options *types.ListFilter) ([]appsv1.StatefulSet, error) {
 	return nil, nil
 }
 

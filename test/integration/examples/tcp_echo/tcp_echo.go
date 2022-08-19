@@ -96,7 +96,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
 	fmt.Printf("Listing deployments in namespace %q:\n", pub1Cluster.Namespace)
-	list, err := publicDeploymentsClient.ListDeployments(&metav1.ListOptions{})
+	list, err := publicDeploymentsClient.ListDeployments(nil)
 	assert.Assert(t, err)
 
 	for _, d := range list {

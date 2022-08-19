@@ -7,10 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/gorilla/mux"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -166,7 +164,7 @@ func (m *ServiceManager) deleteService(name string) (bool, error) {
 
 func (m *ServiceManager) getServiceTargets() ([]ServiceTarget, error) {
 	targets := []ServiceTarget{}
-	deployments, err := m.cli.DeploymentManager(m.cli.Namespace).ListDeployments(&metav1.ListOptions{})
+	deployments, err := m.cli.DeploymentManager(m.cli.Namespace).ListDeployments(nil)
 	if err != nil {
 		return targets, err
 	}
@@ -179,7 +177,7 @@ func (m *ServiceManager) getServiceTargets() ([]ServiceTarget, error) {
 			})
 		}
 	}
-	statefulsets, err := m.cli.StatefulSetManager(m.cli.Namespace).ListStatefulSets(&metav1.ListOptions{})
+	statefulsets, err := m.cli.StatefulSetManager(m.cli.Namespace).ListStatefulSets(nil)
 	if err != nil {
 		return targets, err
 	}

@@ -24,7 +24,7 @@ import (
 )
 
 func generateConnectorName(cli types.Secrets) string {
-	secrets, err := cli.ListSecrets(&metav1.ListOptions{})
+	secrets, err := cli.ListSecrets(nil)
 	max := 1
 	if err == nil {
 		connector_name_pattern := regexp.MustCompile("link([0-9]+)+")
@@ -223,7 +223,7 @@ func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string
 	if self == string(generatedBy) {
 		return fmt.Errorf("Can't create connection to self with token")
 	}
-	currentSecrets, err := cli.SecretManager(options.SkupperNamespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
+	currentSecrets, err := cli.SecretManager(options.SkupperNamespace).ListSecrets(&types.ListFilter{LabelSelector: "skupper.io/type=connection-token"})
 	if err != nil {
 		return fmt.Errorf("Could not retrieve secrets: %w", err)
 	}

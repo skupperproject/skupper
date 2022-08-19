@@ -50,7 +50,7 @@ func SwitchProtocols(t *testing.T, testRunner base.ClusterTestRunner) {
 		assert.Assert(t, err)
 
 		// Retrieving services
-		svcList, err := cluster.ServiceManager(cluster.Namespace).ListServices(&v1.ListOptions{
+		svcList, err := cluster.ServiceManager(cluster.Namespace).ListServices(&types.ListFilter{
 			LabelSelector: "app=nginx",
 		})
 		assert.Assert(t, err)
@@ -129,7 +129,7 @@ func RemoveAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 		assert.Assert(t, err)
 
 		// Retrieving services
-		svcList, err := cluster.ServiceManager(cluster.Namespace).ListServices(&v1.ListOptions{
+		svcList, err := cluster.ServiceManager(cluster.Namespace).ListServices(&types.ListFilter{
 			LabelSelector: "app=nginx",
 		})
 		assert.Assert(t, err)
@@ -218,7 +218,7 @@ func DebugAnnotatedResources(t *testing.T, testRunner base.ClusterTestRunner) {
 		}
 
 		// Retrieving services
-		svcList, _ := cluster.ServiceManager(cluster.Namespace).ListServices(&v1.ListOptions{
+		svcList, _ := cluster.ServiceManager(cluster.Namespace).ListServices(&types.ListFilter{
 			LabelSelector: "app=nginx",
 		})
 

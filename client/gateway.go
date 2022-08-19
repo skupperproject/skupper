@@ -1307,7 +1307,7 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 		}
 	}
 
-	svcList, err := cli.ServiceManager(cli.GetNamespace()).ListServices(&metav1.ListOptions{LabelSelector: types.GatewayQualifier + "=" + gatewayName})
+	svcList, err := cli.ServiceManager(cli.GetNamespace()).ListServices(&types.ListFilter{LabelSelector: types.GatewayQualifier + "=" + gatewayName})
 	if err == nil {
 		for _, service := range svcList {
 			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -1801,7 +1801,7 @@ func (cli *VanClient) GatewayUnexpose(ctx context.Context, gatewayName string, e
 
 func (cli *VanClient) GatewayList(ctx context.Context) ([]*types.GatewayInspectResponse, error) {
 	var list []*types.GatewayInspectResponse
-	gateways, err := cli.ConfigMapManager(cli.GetNamespace()).ListConfigMaps(&metav1.ListOptions{LabelSelector: "skupper.io/type=gateway-definition"})
+	gateways, err := cli.ConfigMapManager(cli.GetNamespace()).ListConfigMaps(&types.ListFilter{LabelSelector: "skupper.io/type=gateway-definition"})
 	if err != nil {
 		return nil, err
 	}

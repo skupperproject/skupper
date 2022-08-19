@@ -3,12 +3,10 @@ package client
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 func (cli *VanClient) regenerateSiteSecret(ca *corev1.Secret) error {
@@ -83,7 +81,7 @@ func (cli *VanClient) regenerateClaimsSecret(ca *corev1.Secret) error {
 }
 
 func (cli *VanClient) RevokeAccess(ctx context.Context) error {
-	records, err := cli.SecretManager(cli.Namespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type=token-claim-record"})
+	records, err := cli.SecretManager(cli.Namespace).ListSecrets(&types.ListFilter{LabelSelector: "skupper.io/type=token-claim-record"})
 	if err != nil {
 		return err
 	}

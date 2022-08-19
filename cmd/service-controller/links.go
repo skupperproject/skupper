@@ -9,11 +9,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/gorilla/mux"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -126,7 +124,7 @@ func getLinkStatus(secret *corev1.Secret, connectors map[string]qdr.ConnectorSta
 
 func (m *LinkManager) getLinks() ([]types.LinkStatus, error) {
 	links := []types.LinkStatus{}
-	secrets, err := m.cli.SecretManager(m.cli.Namespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	secrets, err := m.cli.SecretManager(m.cli.Namespace).ListSecrets(&types.ListFilter{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return links, err
 	}

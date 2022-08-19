@@ -30,11 +30,13 @@ func (s *TestContext) GetService(name string) (*corev1.Service, bool, error) {
 	return svc, true, nil
 }
 
-func (s *TestContext) ListServices(options *metav1.ListOptions) ([]corev1.Service, error) {
-	if options == nil {
-		options = &metav1.ListOptions{}
+func (s *TestContext) ListServices(options *types.ListFilter) ([]corev1.Service, error) {
+	listOptions := metav1.ListOptions{}
+	if options != nil {
+		listOptions.LabelSelector = options.LabelSelector
+		listOptions.Limit = options.Limit
 	}
-	list, err := s.client.CoreV1().Services(s.namespace).List(*options)
+	list, err := s.client.CoreV1().Services(s.namespace).List(listOptions)
 	if err != nil {
 		return nil, err
 	}

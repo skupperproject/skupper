@@ -6,11 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/gorilla/mux"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -89,7 +87,7 @@ func newTokenManager(cli *client.VanClient) *TokenManager {
 
 func (m *TokenManager) getTokens() ([]TokenState, error) {
 	tokens := []TokenState{}
-	secrets, err := m.cli.SecretManager(m.cli.Namespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type=token-claim-record"})
+	secrets, err := m.cli.SecretManager(m.cli.Namespace).ListSecrets(&types.ListFilter{LabelSelector: "skupper.io/type=token-claim-record"})
 	if err != nil {
 		return tokens, err
 	}

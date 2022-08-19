@@ -348,10 +348,7 @@ func (c *Controller) GetService(name string) (*corev1.Service, bool, error) {
 	return actual, true, nil
 }
 
-func (c *Controller) ListServices(options *metav1.ListOptions) ([]corev1.Service, error) {
-	if options == nil {
-		options = &metav1.ListOptions{}
-	}
+func (c *Controller) ListServices(options *types.ListFilter) ([]corev1.Service, error) {
 	list, err := c.vanClient.ServiceManager(c.vanClient.Namespace).ListServices(options)
 	if err != nil {
 		return nil, err

@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 func getLinkStatus(s *corev1.Secret, edge bool, connections []qdr.Connection) types.LinkStatus {
@@ -57,7 +55,7 @@ func (cli *VanClient) getRouterConfig() (*qdr.RouterConfig, error) {
 
 func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, error) {
 	var links []types.LinkStatus
-	secrets, err := cli.SecretManager(cli.Namespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	secrets, err := cli.SecretManager(cli.Namespace).ListSecrets(&types.ListFilter{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return links, err
 	}
@@ -75,7 +73,7 @@ func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, er
 
 func (cli *VanClient) getLocalLinkStatus(namespace string, siteNameMap map[string]string) (map[string]*types.LinkStatus, error) {
 	mapLinks := make(map[string]*types.LinkStatus)
-	secrets, err := cli.SecretManager(namespace).ListSecrets(&metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	secrets, err := cli.SecretManager(namespace).ListSecrets(&types.ListFilter{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return nil, err
 	}
