@@ -29,7 +29,7 @@ func IsConsoleEnabled(cluster *base.ClusterContext) bool {
 }
 
 func GetInternalCredentials(cluster *base.ClusterContext) (error, string, string) {
-	secret, _, err := cluster.VanClient.SecretManager(cluster.Namespace).GetSecret("skupper-console-users", &v1.GetOptions{})
+	secret, _, err := cluster.VanClient.SecretManager(cluster.Namespace).GetSecret("skupper-console-users")
 	if err != nil {
 		return err, "", ""
 	}

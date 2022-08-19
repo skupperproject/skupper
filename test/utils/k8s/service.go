@@ -7,7 +7,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -61,7 +60,7 @@ func WaitForServiceToBeCreated(cli types.Services, name string, retryFn func() (
 	}
 
 	_retryFn := func() (*apiv1.Service, error) {
-		svc, _, err := cli.GetService(name, &metav1.GetOptions{})
+		svc, _, err := cli.GetService(name)
 		return svc, err
 	}
 

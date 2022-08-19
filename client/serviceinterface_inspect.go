@@ -5,14 +5,12 @@ import (
 	jsonencoding "encoding/json"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/skupperproject/skupper/api/types"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 func (cli *VanClient) ServiceInterfaceInspect(ctx context.Context, address string) (*types.ServiceInterface, error) {
-	current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
+	current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 	if err == nil {
 		jsonDef := current.Data[address]
 		if jsonDef == "" {

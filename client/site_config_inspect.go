@@ -5,11 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/skupperproject/skupper/api/types"
 )
 
 func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.ConfigMap) (*types.SiteConfig, error) {
@@ -25,7 +23,7 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *corev1.ConfigMap, namespace string) (*types.SiteConfig, error) {
 	var siteConfig *corev1.ConfigMap
 	if input == nil {
-		cm, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.SiteConfigMapName, &metav1.GetOptions{})
+		cm, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.SiteConfigMapName)
 		if errors.IsNotFound(err) {
 			return nil, nil
 		} else if err != nil {

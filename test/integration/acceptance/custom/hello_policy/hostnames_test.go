@@ -20,7 +20,6 @@ import (
 	skupperv1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -105,7 +104,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					// We need to know the actual hosts we'll be connecting to, so we get them from the secret
 					name: "register-hostnames",
 					preHook: func(context map[string]string) error {
-						secret, _, err := prv.VanClient.SecretManager(prv.Namespace).GetSecret("hostnames", &v1.GetOptions{})
+						secret, _, err := prv.VanClient.SecretManager(prv.Namespace).GetSecret("hostnames")
 						if err != nil {
 							return err
 						}

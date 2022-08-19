@@ -8,7 +8,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DeleteTester runs `skupper service delete` and asserts service has been
@@ -38,7 +37,7 @@ func (s *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
 		attempt++
 		log.Printf("validating service deleted - attempt: %d", attempt)
-		_, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(s.Name, &v1.GetOptions{})
+		_, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(s.Name)
 		if err == nil {
 			log.Printf("service %s still available", s.Name)
 			return false, nil

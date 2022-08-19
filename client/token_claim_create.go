@@ -114,7 +114,7 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 	if current.IsEdge() {
 		return nil, nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
-	service, _, err := cli.ServiceManager(cli.Namespace).GetService(types.ControllerServiceName, &metav1.GetOptions{})
+	service, _, err := cli.ServiceManager(cli.Namespace).GetService(types.ControllerServiceName)
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -166,7 +166,7 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 	}
 	protocol := "https"
 	url := fmt.Sprintf("%s://%s:%d/%s", protocol, host, port, recordName)
-	caSecret, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteCaSecret, &metav1.GetOptions{})
+	caSecret, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteCaSecret)
 	if err != nil {
 		return nil, nil, false, err
 	}

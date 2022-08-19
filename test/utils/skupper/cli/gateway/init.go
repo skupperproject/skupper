@@ -145,7 +145,7 @@ func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	//
 	// Retrieve Secret (token) with same ConfigMap name
 	//
-	_, _, err = cluster.VanClient.SecretManager(cluster.Namespace).GetSecret(cmName, &v1.GetOptions{})
+	_, _, err = cluster.VanClient.SecretManager(cluster.Namespace).GetSecret(cmName)
 	if err != nil {
 		return
 	}

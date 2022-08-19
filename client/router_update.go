@@ -54,11 +54,11 @@ func (cli *VanClient) updateStarted(from string, namespace string, ownerrefs []m
 }
 
 func (cli *VanClient) updateCompleted(namespace string) error {
-	return cli.ConfigMapManager(namespace).DeleteConfigMap(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "skupper-update-state"}}, &metav1.DeleteOptions{})
+	return cli.ConfigMapManager(namespace).DeleteConfigMap("skupper-update-state")
 }
 
 func (cli *VanClient) isUpdating(namespace string) (bool, string, error) {
-	cm, _, err := cli.ConfigMapManager(namespace).GetConfigMap("skupper-update-state", &metav1.GetOptions{})
+	cm, _, err := cli.ConfigMapManager(namespace).GetConfigMap("skupper-update-state")
 	if errors.IsNotFound(err) {
 		return false, "", nil
 	} else if err != nil {
@@ -73,7 +73,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	if err != nil {
 		return false, err
 	}
-	configmap, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.TransportConfigMapName)
 	if err != nil {
 		return false, err
 	}
@@ -170,7 +170,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			consoleUsesLoadbalancer = controllerSvc.Spec.Type == corev1.ServiceTypeLoadBalancer
 		}
 		// update annotation on skupper-router-console if it exists
-		routerConsoleService, _, err := cli.ServiceManager(namespace).GetService(types.RouterConsoleServiceName, &metav1.GetOptions{})
+		routerConsoleService, _, err := cli.ServiceManager(namespace).GetService(types.RouterConsoleServiceName)
 		if err == nil {
 			if routerConsoleService.ObjectMeta.Annotations == nil {
 				routerConsoleService.ObjectMeta.Annotations = map[string]string{}
@@ -382,7 +382,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 
-	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return false, err
 	}
@@ -453,7 +453,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 
-	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName, &metav1.GetOptions{})
+	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName)
 	if err != nil {
 		return false, err
 	}
@@ -598,7 +598,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			services = append(services, "skupper-internal")
 		}
 		for _, service := range services {
-			err = cli.ServiceManager(namespace).DeleteService(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: service}}, &metav1.DeleteOptions{})
+			err = cli.ServiceManager(namespace).DeleteService(service)
 			if err != nil && !errors.IsNotFound(err) {
 				return false, err
 			}
@@ -612,7 +612,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			"skupper-internal-ca",
 		}
 		for _, secret := range secrets {
-			err = cli.SecretManager(namespace).DeleteSecret(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secret}}, &metav1.DeleteOptions{})
+			err = cli.SecretManager(namespace).DeleteSecret(secret)
 			if err != nil && !errors.IsNotFound(err) {
 				return false, err
 			}
@@ -681,7 +681,7 @@ func (cli *VanClient) renameRouterConfigFile() (bool, error) {
 }
 
 func setAndWaitControllerReplicas(cli *VanClient, replicas int32, namespace string) (*appsv1.Deployment, error) {
-	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName, &metav1.GetOptions{})
+	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName)
 	if *controller.Spec.Replicas > 0 {
 		controller.Spec.Replicas = &replicas
 		_, err = cli.DeploymentManager(namespace).UpdateDeployment(controller)
@@ -694,7 +694,7 @@ func setAndWaitControllerReplicas(cli *VanClient, replicas int32, namespace stri
 }
 
 func multiportConvertServices(ctx context.Context, cli *VanClient, namespace string) error {
-	servicesCm, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
+	servicesCm, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 	if err != nil {
 		return err
 	}
@@ -720,7 +720,7 @@ func multiportConvertServices(ctx context.Context, cli *VanClient, namespace str
 		if err != nil {
 			return err
 		}
-		servicesCm, _, _ = cli.ConfigMapManager(namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
+		servicesCm, _, _ = cli.ConfigMapManager(namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 	}
 
 	return err
@@ -872,7 +872,7 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 }
 
 func (cli *VanClient) restartRouter(namespace string) error {
-	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return err
 	}
@@ -886,7 +886,7 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 	if err != nil {
 		return false, err
 	}
-	configmap, _, err := cli.ConfigMapManager(settings.ObjectMeta.Namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(settings.ObjectMeta.Namespace).GetConfigMap(types.TransportConfigMapName)
 	if err != nil {
 		return false, err
 	}
@@ -917,7 +917,7 @@ func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev
 	if err != nil {
 		return false, err
 	}
-	router, _, err := cli.DeploymentManager(settings.ObjectMeta.Namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	router, _, err := cli.DeploymentManager(settings.ObjectMeta.Namespace).GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return false, err
 	}
@@ -939,7 +939,7 @@ func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev
 }
 
 func (cli *VanClient) updateAnnotationsOnDeployment(ctx context.Context, namespace string, name string, annotations map[string]string) (bool, error) {
-	deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(name, &metav1.GetOptions{})
+	deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(name)
 	if err != nil {
 		return false, err
 	}
@@ -978,7 +978,7 @@ func (cli *VanClient) RouterUpdateAnnotations(ctx context.Context, settings *cor
 }
 
 func (cli *VanClient) RouterRestart(ctx context.Context, namespace string) error {
-	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	router, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return err
 	}
@@ -1054,7 +1054,7 @@ func (cli *VanClient) getTransportHosts(namespace string) ([]string, error) {
 }
 
 func (cli *VanClient) addClaimsPortsToControllerService(ctx context.Context, namespace string) error {
-	svc, _, err := cli.ServiceManager(namespace).GetService(types.ControllerServiceName, &metav1.GetOptions{})
+	svc, _, err := cli.ServiceManager(namespace).GetService(types.ControllerServiceName)
 	if err != nil {
 		return err
 	}
@@ -1130,7 +1130,7 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 }
 
 func (cli *VanClient) restartController(namespace string) error {
-	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName, &metav1.GetOptions{})
+	controller, _, err := cli.DeploymentManager(namespace).GetDeployment(types.ControllerDeploymentName)
 	if err != nil {
 		return err
 	}
@@ -1140,7 +1140,7 @@ func (cli *VanClient) restartController(namespace string) error {
 }
 
 func (cli *VanClient) GetSiteMetadata() (*qdr.SiteMetadata, error) {
-	configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.TransportConfigMapName)
 	if err != nil {
 		return nil, err
 	}

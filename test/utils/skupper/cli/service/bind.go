@@ -9,7 +9,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // BindTester runs `skupper service bind` and validate skupper resources
@@ -78,7 +77,7 @@ func (s *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	// Verifying the skupper-services config map to ensure a target has been defined
 	log.Println("Validating 'skupper service bind'")
 	log.Printf("validating service %s exists in %s config map", s.ServiceName, types.ServiceInterfaceConfigMap)
-	cm, _, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &v1.GetOptions{})
+	cm, _, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 	if err != nil {
 		err = fmt.Errorf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
 		return

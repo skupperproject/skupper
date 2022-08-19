@@ -708,11 +708,11 @@ func TestCmdBind(t *testing.T) {
 
 type configMapMock struct{}
 
-func (v *configMapMock) GetConfigMap(name string, options *metav1.GetOptions) (*corev1.ConfigMap, bool, error) {
+func (v *configMapMock) GetConfigMap(name string) (*corev1.ConfigMap, bool, error) {
 	return nil, false, nil
 }
 
-func (v *configMapMock) DeleteConfigMap(cm *corev1.ConfigMap, options *metav1.DeleteOptions) error {
+func (v *configMapMock) DeleteConfigMap(cm string) error {
 	return nil
 }
 
@@ -734,11 +734,11 @@ func (v *configMapMock) IsOwned(cm *corev1.ConfigMap) bool {
 
 type serviceMock struct{}
 
-func (s *serviceMock) GetService(name string, options *metav1.GetOptions) (*corev1.Service, bool, error) {
+func (s *serviceMock) GetService(name string) (*corev1.Service, bool, error) {
 	return nil, false, nil
 }
 
-func (s *serviceMock) DeleteService(svc *corev1.Service, options *metav1.DeleteOptions) error {
+func (s *serviceMock) DeleteService(svc string) error {
 	return nil
 }
 
@@ -760,11 +760,11 @@ func (s *serviceMock) IsOwned(service *corev1.Service) bool {
 
 type deploymentMock struct{}
 
-func (d *deploymentMock) GetDeployment(name string, options *metav1.GetOptions) (*appsv1.Deployment, bool, error) {
+func (d *deploymentMock) GetDeployment(name string) (*appsv1.Deployment, bool, error) {
 	return nil, false, nil
 }
 
-func (d *deploymentMock) DeleteDeployment(dep *appsv1.Deployment, options *metav1.DeleteOptions) error {
+func (d *deploymentMock) DeleteDeployment(dep string) error {
 	return nil
 }
 
@@ -786,11 +786,11 @@ func (d *deploymentMock) IsOwned(dep *appsv1.Deployment) bool {
 
 type secretMock struct{}
 
-func (s *secretMock) GetSecret(name string, options *metav1.GetOptions) (*corev1.Secret, bool, error) {
+func (s *secretMock) GetSecret(name string) (*corev1.Secret, bool, error) {
 	return nil, false, nil
 }
 
-func (s *secretMock) DeleteSecret(secret *corev1.Secret, options *metav1.DeleteOptions) error {
+func (s *secretMock) DeleteSecret(secret string) error {
 	return nil
 }
 
@@ -812,11 +812,11 @@ func (s *secretMock) IsOwned(secret *corev1.Secret) bool {
 
 type statefulSetMock struct{}
 
-func (s *statefulSetMock) GetStatefulSet(name string, options *metav1.GetOptions) (*appsv1.StatefulSet, bool, error) {
+func (s *statefulSetMock) GetStatefulSet(name string) (*appsv1.StatefulSet, bool, error) {
 	return nil, false, nil
 }
 
-func (s *statefulSetMock) DeleteStatefulSet(ss *appsv1.StatefulSet, options *metav1.DeleteOptions) error {
+func (s *statefulSetMock) DeleteStatefulSet(ss string) error {
 	return nil
 }
 

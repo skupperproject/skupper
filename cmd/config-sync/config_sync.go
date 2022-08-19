@@ -12,8 +12,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -365,7 +363,7 @@ func (c *ConfigSync) checkCertFiles(path string) error {
 			secretName = strings.TrimSuffix(profile.Name, "-profile")
 		}
 
-		_, _, err = c.vanClient.SecretManager(c.vanClient.Namespace).GetSecret(secretName, &metav1.GetOptions{})
+		_, _, err = c.vanClient.SecretManager(c.vanClient.Namespace).GetSecret(secretName)
 		if err != nil {
 			continue
 		}
@@ -380,7 +378,7 @@ func (c *ConfigSync) checkCertFiles(path string) error {
 }
 
 func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secretname string) error {
-	secret, _, err := c.vanClient.SecretManager(c.vanClient.Namespace).GetSecret(secretname, &metav1.GetOptions{})
+	secret, _, err := c.vanClient.SecretManager(c.vanClient.Namespace).GetSecret(secretname)
 	if err != nil {
 		return err
 	}

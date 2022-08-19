@@ -6,12 +6,10 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/qdr"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 func isToken(secret *corev1.Secret) bool {
@@ -20,7 +18,7 @@ func isToken(secret *corev1.Secret) bool {
 }
 
 func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.ConnectorRemoveOptions) error {
-	secret, _, err := cli.SecretManager(options.SkupperNamespace).GetSecret(options.Name, &metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(options.SkupperNamespace).GetSecret(options.Name)
 	if errors.IsNotFound(err) || (err == nil && !isToken(secret)) {
 		return fmt.Errorf("No such link %q", options.Name)
 	} else if err != nil {

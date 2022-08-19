@@ -121,7 +121,7 @@ func (s *SiteQueryServer) getGatewayQueryData() ([]data.SiteQueryData, error) {
 
 func getSiteUrl(vanClient *client.VanClient) (string, error) {
 	if vanClient.RouteClient == nil {
-		service, _, err := vanClient.ServiceManager(vanClient.Namespace).GetService(types.TransportServiceName, &metav1.GetOptions{})
+		service, _, err := vanClient.ServiceManager(vanClient.Namespace).GetService(types.TransportServiceName)
 		if err != nil {
 			return "", err
 		} else {

@@ -14,7 +14,7 @@ import (
 
 func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, cli types.Secrets) (*corev1.Secret, error) {
 
-	existing, _, err := cli.GetSecret(ca.Name, &metav1.GetOptions{})
+	existing, _, err := cli.GetSecret(ca.Name)
 	if err == nil {
 		return existing, nil
 	} else if errors.IsNotFound(err) {
@@ -39,7 +39,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 	var secret corev1.Secret
 
 	if cred.CA != "" {
-		caSecret, _, err := cli.GetSecret(cred.CA, &metav1.GetOptions{})
+		caSecret, _, err := cli.GetSecret(cred.CA)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
 		}
@@ -85,7 +85,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 }
 
 func DeleteSecret(name string, secrets types.Secrets) error {
-	err := secrets.DeleteSecret(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name}}, &metav1.DeleteOptions{})
+	err := secrets.DeleteSecret(name)
 	if err == nil {
 		return err
 	} else if errors.IsNotFound(err) {
@@ -96,7 +96,7 @@ func DeleteSecret(name string, secrets types.Secrets) error {
 }
 
 func CopySecret(src string, dest string, cli types.Secrets) error {
-	original, _, err := cli.GetSecret(src, &metav1.GetOptions{})
+	original, _, err := cli.GetSecret(src)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func CopySecret(src string, dest string, cli types.Secrets) error {
 }
 
 func RegenerateCertAuthority(name string, cli types.Secrets) (*corev1.Secret, error) {
-	current, _, err := cli.GetSecret(name, &metav1.GetOptions{})
+	current, _, err := cli.GetSecret(name)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func RegenerateCertAuthority(name string, cli types.Secrets) (*corev1.Secret, er
 }
 
 func RegenerateCredentials(credential types.Credential, ca *corev1.Secret, cli types.Secrets) (*corev1.Secret, error) {
-	current, _, err := cli.GetSecret(credential.Name, &metav1.GetOptions{})
+	current, _, err := cli.GetSecret(credential.Name)
 	if err != nil {
 		return nil, err
 	}

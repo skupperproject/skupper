@@ -17,7 +17,7 @@ import (
 )
 
 func getRootObject(cli *VanClient) (*metav1.OwnerReference, error) {
-	root, _, err := cli.DeploymentManager(cli.Namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	root, _, err := cli.DeploymentManager(cli.Namespace).GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return nil, err
 	} else {
@@ -33,7 +33,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 	}
 	var unretryable error = nil
 	err = retry.RetryOnConflict(defaultRetry, func() error {
-		current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
+		current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 		if err == nil {
 			if overwriteIfExists || current.Data == nil || current.Data[service.Address] == "" {
 				if current.Data == nil {
@@ -206,12 +206,12 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 }
 
 func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool) (*types.ServiceInterface, error) {
-	statefulset, _, err := cli.StatefulSetManager(cli.Namespace).GetStatefulSet(targetName, &metav1.GetOptions{})
+	statefulset, _, err := cli.StatefulSetManager(cli.Namespace).GetStatefulSet(targetName)
 	if err == nil {
 		if address != "" && address != statefulset.Spec.ServiceName {
 			return nil, fmt.Errorf("Cannot specify different address from service name for headless service.")
 		}
-		service, _, err := cli.ServiceManager(cli.Namespace).GetService(statefulset.Spec.ServiceName, &metav1.GetOptions{})
+		service, _, err := cli.ServiceManager(cli.Namespace).GetService(statefulset.Spec.ServiceName)
 		if err == nil {
 			def := types.ServiceInterface{
 				Address:  statefulset.Spec.ServiceName,
@@ -256,7 +256,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 }
 
 func removeServiceInterfaceTarget(serviceName string, targetName string, deleteIfNoTargets bool, cli *VanClient) error {
-	current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
+	current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 	if err == nil {
 		jsonDef := current.Data[serviceName]
 		if jsonDef == "" {

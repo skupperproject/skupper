@@ -19,7 +19,7 @@ import (
 
 func (cli *VanClient) getConsoleUrl() (string, error) {
 	if cli.RouteClient == nil {
-		service, _, err := cli.ServiceManager(cli.Namespace).GetService(types.ControllerServiceName, &metav1.GetOptions{})
+		service, _, err := cli.ServiceManager(cli.Namespace).GetService(types.ControllerServiceName)
 		if err != nil {
 			return "", err
 		} else {
@@ -88,7 +88,7 @@ func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace stri
 	if err != nil {
 		return nil, err
 	}
-	current, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	current, _, err := cli.DeploymentManager(namespace).GetDeployment(types.TransportDeploymentName)
 	if err == nil {
 		siteConfig, err := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
 		if err == nil && siteConfig != nil {

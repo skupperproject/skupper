@@ -22,8 +22,6 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -565,7 +563,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 		return err
 	}
 
-	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName, &metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName)
 	if err != nil {
 		return fmt.Errorf("Failed to retreive external gateway secret: %w", err)
 	}
@@ -1208,7 +1206,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
 
-	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName, &metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName)
 	if err != nil {
 		return tarFile.Name(), fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
 	}
@@ -1333,12 +1331,12 @@ func (cli *VanClient) GatewayRemove(ctx context.Context, gatewayName string) err
 		}
 	}
 
-	err = cli.SecretManager(cli.GetNamespace()).DeleteSecret(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: gatewayResourceName}}, &metav1.DeleteOptions{})
+	err = cli.SecretManager(cli.GetNamespace()).DeleteSecret(gatewayResourceName)
 	if err != nil && !errors.IsNotFound(err) {
 		errs = append(errs, fmt.Sprintf("Unable to remove gateway secret: %s", err))
 	}
 
-	err = cli.ConfigMapManager(cli.GetNamespace()).DeleteConfigMap(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: gatewayResourceName}}, &metav1.DeleteOptions{})
+	err = cli.ConfigMapManager(cli.GetNamespace()).DeleteConfigMap(gatewayResourceName)
 	if err != nil && !errors.IsNotFound(err) {
 		errs = append(errs, fmt.Sprintf("Unable to remove gateway config map: %s", err))
 	}
@@ -2092,7 +2090,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	defer tw.Close()
 
 	gatewayResourceName := clusterGatewayName(gatewayName)
-	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName, &metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.GetNamespace()).GetSecret(gatewayResourceName)
 	if errors.IsNotFound(err) {
 		secret, _, err = cli.ConnectorTokenCreate(context.Background(), gatewayResourceName, "")
 		if err != nil {

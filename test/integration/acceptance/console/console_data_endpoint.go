@@ -156,10 +156,10 @@ func TearDown(t *testing.T, r base.ClusterTestRunner) error {
 
 	// Delete the frontend deployment
 	dep := &v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: frontsvc.Address}}
-	assert.Assert(t, publicCluster.VanClient.DeploymentManager(publicCluster.Namespace).DeleteDeployment(dep, &metav1.DeleteOptions{}))
+	assert.Assert(t, publicCluster.VanClient.DeploymentManager(publicCluster.Namespace).DeleteDeployment(dep.ObjectMeta.Name))
 	// Delete the backend deployment
 	dep = &v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: backsvc.Address}}
-	assert.Assert(t, privateCluster.VanClient.DeploymentManager(privateCluster.Namespace).DeleteDeployment(dep, &metav1.DeleteOptions{}))
+	assert.Assert(t, privateCluster.VanClient.DeploymentManager(privateCluster.Namespace).DeleteDeployment(dep.ObjectMeta.Name))
 
 	return nil
 }

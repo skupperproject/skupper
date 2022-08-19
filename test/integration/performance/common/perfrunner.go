@@ -207,7 +207,7 @@ func deployServer(app PerformanceApp) error {
 	stepLog.Printf("- Deploying %s at %s", app.Server.Deployment.Name, serverCluster.Namespace)
 
 	// Verify if server is already deployed
-	_, _, err = serverCluster.VanClient.DeploymentManager(serverCluster.Namespace).GetDeployment(app.Server.Deployment.Name, &metav1.GetOptions{})
+	_, _, err = serverCluster.VanClient.DeploymentManager(serverCluster.Namespace).GetDeployment(app.Server.Deployment.Name)
 	if err == nil {
 		stepLog.Printf("- %s is already running on namespace %s (ignoring)", app.Server.Deployment.Name, serverCluster.Namespace)
 		return nil

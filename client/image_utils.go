@@ -1,10 +1,11 @@
 package client
 
 import (
-	"github.com/skupperproject/skupper/api/types"
-	corev1 "k8s.io/api/core/v1"
 	"os"
 	"strings"
+
+	"github.com/skupperproject/skupper/api/types"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (

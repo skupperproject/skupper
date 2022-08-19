@@ -100,7 +100,7 @@ func (m *TokenManager) getTokens() ([]TokenState, error) {
 }
 
 func (m *TokenManager) getToken(name string) (*TokenState, error) {
-	secret, _, err := m.cli.SecretManager(m.cli.Namespace).GetSecret(name, &metav1.GetOptions{})
+	secret, _, err := m.cli.SecretManager(m.cli.Namespace).GetSecret(name)
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {
@@ -113,7 +113,7 @@ func (m *TokenManager) getToken(name string) (*TokenState, error) {
 }
 
 func (m *TokenManager) deleteToken(name string) (bool, error) {
-	secret, _, err := m.cli.SecretManager(m.cli.Namespace).GetSecret(name, &metav1.GetOptions{})
+	secret, _, err := m.cli.SecretManager(m.cli.Namespace).GetSecret(name)
 	if errors.IsNotFound(err) {
 		return false, nil
 	} else if err != nil {
@@ -121,7 +121,7 @@ func (m *TokenManager) deleteToken(name string) (bool, error) {
 	} else if !isTokenRecord(secret) {
 		return false, nil
 	}
-	err = m.cli.SecretManager(m.cli.Namespace).DeleteSecret(secret, &metav1.DeleteOptions{})
+	err = m.cli.SecretManager(m.cli.Namespace).DeleteSecret(secret.ObjectMeta.Name)
 	if errors.IsNotFound(err) {
 		return false, nil
 	} else if err != nil {
@@ -146,7 +146,7 @@ func (m *TokenManager) generateToken(options *TokenOptions) (*corev1.Secret, err
 }
 
 func (m *TokenManager) downloadClaim(name string) (*corev1.Secret, error) {
-	secret, _, err := m.cli.SecretManager(m.cli.Namespace).GetSecret(name, &metav1.GetOptions{})
+	secret, _, err := m.cli.SecretManager(m.cli.Namespace).GetSecret(name)
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {

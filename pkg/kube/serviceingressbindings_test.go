@@ -20,11 +20,8 @@ type TestContext struct {
 	namespace string
 }
 
-func (s *TestContext) GetService(name string, options *metav1.GetOptions) (*corev1.Service, bool, error) {
-	if options == nil {
-		options = &metav1.GetOptions{}
-	}
-	svc, err := s.client.CoreV1().Services(s.namespace).Get(name, *options)
+func (s *TestContext) GetService(name string) (*corev1.Service, bool, error) {
+	svc, err := s.client.CoreV1().Services(s.namespace).Get(name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return nil, false, nil
 	} else if err != nil {
@@ -44,11 +41,8 @@ func (s *TestContext) ListServices(options *metav1.ListOptions) ([]corev1.Servic
 	return list.Items, nil
 }
 
-func (s *TestContext) DeleteService(svc *corev1.Service, options *metav1.DeleteOptions) error {
-	if options == nil {
-		options = &metav1.DeleteOptions{}
-	}
-	return s.client.CoreV1().Services(s.namespace).Delete(svc.ObjectMeta.Name, options)
+func (s *TestContext) DeleteService(svc string) error {
+	return s.client.CoreV1().Services(s.namespace).Delete(svc, &metav1.DeleteOptions{})
 }
 
 func (s *TestContext) CreateService(svc *corev1.Service) (*corev1.Service, error) {
@@ -493,7 +487,7 @@ func TestServiceIngressBindings(t *testing.T) {
 
 			// cleanup
 			for _, svc := range cleanup {
-				err := context.DeleteService(&svc, nil)
+				err := context.DeleteService(svc.ObjectMeta.Name)
 				assert.Assert(t, err == nil)
 			}
 		})

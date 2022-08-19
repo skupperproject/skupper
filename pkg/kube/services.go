@@ -33,15 +33,15 @@ func GetLoadBalancerHostOrIP(service *corev1.Service) string {
 }
 
 func DeleteService(name string, cli types.Services) error {
-	svc, _, err := cli.GetService(name, &metav1.GetOptions{})
+	svc, _, err := cli.GetService(name)
 	if err == nil {
-		err = cli.DeleteService(svc, &metav1.DeleteOptions{})
+		err = cli.DeleteService(svc.ObjectMeta.Name)
 	}
 	return err
 }
 
 func GetService(name string, cli types.Services) (*corev1.Service, error) {
-	current, _, err := cli.GetService(name, &metav1.GetOptions{})
+	current, _, err := cli.GetService(name)
 	return current, err
 }
 
@@ -154,7 +154,7 @@ func GetPortsForServiceTarget(targetName string, defaultNamespace string, cliFn 
 }
 
 func CopyService(src string, dest string, annotations map[string]string, cli types.Services) (*corev1.Service, error) {
-	original, _, err := cli.GetService(src, &metav1.GetOptions{})
+	original, _, err := cli.GetService(src)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func WaitServiceExists(name string, cli types.Services, timeout, interval time.D
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		svc, _, err = cli.GetService(name, &metav1.GetOptions{})
+		svc, _, err = cli.GetService(name)
 		if err != nil {
 			return false, nil
 		}

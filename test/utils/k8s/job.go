@@ -83,7 +83,7 @@ func CreateTestJobWithSecret(ns string, cli types.VanClientInterface, name strin
 	namespace := ns
 	testImage := GetTestImage()
 
-	secret, _, err := cli.SecretManager(namespace).GetSecret(secretname, &metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(namespace).GetSecret(secretname)
 	if err != nil {
 		return nil, err
 	}

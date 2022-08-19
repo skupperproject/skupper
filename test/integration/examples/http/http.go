@@ -595,6 +595,6 @@ func tearDown(ctx context.Context, r base.ClusterTestRunner) {
 
 	// Deleting deployments
 	depCli := prv1Cluster.VanClient.DeploymentManager(prv1Cluster.Namespace)
-	_ = depCli.DeleteDeployment(nginxDep, &metav1.DeleteOptions{})
-	_ = depCli.DeleteDeployment(nghttp2Dep, &metav1.DeleteOptions{})
+	_ = depCli.DeleteDeployment(nginxDep.ObjectMeta.Name)
+	_ = depCli.DeleteDeployment(nghttp2Dep.ObjectMeta.Name)
 }

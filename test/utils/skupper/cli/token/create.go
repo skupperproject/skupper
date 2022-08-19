@@ -15,7 +15,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	v1 "k8s.io/api/core/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
 )
@@ -170,7 +169,7 @@ func (t *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	claimRecordName := parsedClaimUrl.Path[1:]
 
 	// Retrieving token-claim-record secret
-	tokenClaimRecord, _, err := cluster.VanClient.SecretManager(cluster.Namespace).GetSecret(claimRecordName, &v12.GetOptions{})
+	tokenClaimRecord, _, err := cluster.VanClient.SecretManager(cluster.Namespace).GetSecret(claimRecordName)
 	if err != nil {
 		return
 	}

@@ -144,7 +144,7 @@ func (m *LinkManager) getLinks() ([]types.LinkStatus, error) {
 }
 
 func (m *LinkManager) getLink(name string) (*types.LinkStatus, error) {
-	secret, _, err := m.cli.SecretManager(m.cli.Namespace).GetSecret(name, &metav1.GetOptions{})
+	secret, _, err := m.cli.SecretManager(m.cli.Namespace).GetSecret(name)
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {

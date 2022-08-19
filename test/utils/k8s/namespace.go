@@ -2,12 +2,13 @@ package k8s
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"time"
 )
 
 func DeleteNamespaceAndWait(kubeClient kubernetes.Interface, name string) error {

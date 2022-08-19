@@ -16,7 +16,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -441,7 +440,7 @@ func TestRouterResourcesOptions(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router", &metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router")
 		assert.Check(t, err, namespace)
 
 		container := deployment.Spec.Template.Spec.Containers[0]
@@ -590,7 +589,7 @@ func TestRouterAffinityOptions(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router", &metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router")
 		assert.Check(t, err, namespace)
 
 		spec := deployment.Spec.Template.Spec
@@ -681,7 +680,7 @@ func TestRouterNodeSelectorOption(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router", &metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-router")
 		assert.Check(t, err, namespace)
 
 		spec := deployment.Spec.Template.Spec
@@ -771,7 +770,7 @@ func TestControllerAffinityOptions(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller", &metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller")
 		assert.Check(t, err, namespace)
 
 		spec := deployment.Spec.Template.Spec
@@ -867,7 +866,7 @@ func TestControllerNodeSelectorOption(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller", &metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller")
 		assert.Check(t, err, namespace)
 
 		spec := deployment.Spec.Template.Spec
@@ -941,7 +940,7 @@ func TestControllerResourcesOptions(t *testing.T) {
 		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
-		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller", &metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment("skupper-service-controller")
 		assert.Check(t, err, namespace)
 		assert.Assert(t, len(deployment.Spec.Template.Spec.Containers) > 0, namespace)
 
@@ -1036,7 +1035,7 @@ func TestLabelandAnnotationOptions(t *testing.T) {
 		assert.Check(t, err, namespace)
 
 		for _, name := range deployments {
-			deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(name, &metav1.GetOptions{})
+			deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(name)
 			assert.Check(t, err, namespace)
 
 			for key, value := range c.expectedLabels {

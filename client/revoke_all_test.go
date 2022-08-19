@@ -12,7 +12,6 @@ import (
 	"gotest.tools/assert"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestRevokeAccess(t *testing.T) {
@@ -48,18 +47,18 @@ func TestRevokeAccess(t *testing.T) {
 	recordName := strings.Join(strings.Split(u.Path, "/"), "")
 	os.Remove(filename)
 
-	ca1, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteCaSecret, &metav1.GetOptions{})
+	ca1, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteCaSecret)
 	assert.Check(t, err, "Unable to get CA before revocation")
 
-	cert1, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteServerSecret, &metav1.GetOptions{})
+	cert1, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteServerSecret)
 	assert.Check(t, err, "Unable to get cert before revocation")
 
 	cli.RevokeAccess(ctx)
 
-	ca2, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteCaSecret, &metav1.GetOptions{})
+	ca2, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteCaSecret)
 	assert.Check(t, err, "Unable to get CA before revocation")
 
-	cert2, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteServerSecret, &metav1.GetOptions{})
+	cert2, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.SiteServerSecret)
 	assert.Check(t, err, "Unable to get cert before revocation")
 
 	for key, value := range ca1.Data {
@@ -68,7 +67,7 @@ func TestRevokeAccess(t *testing.T) {
 	for key, value := range cert1.Data {
 		assert.Assert(t, !bytes.Equal(cert2.Data[key], value), "Same value for "+key)
 	}
-	_, _, err = cli.SecretManager(cli.Namespace).GetSecret(recordName, &metav1.GetOptions{})
+	_, _, err = cli.SecretManager(cli.Namespace).GetSecret(recordName)
 	assert.Assert(t, err != nil, "Expected error when retrieving claim record")
 	assert.Assert(t, errors.IsNotFound(err), "claim record still exists")
 }

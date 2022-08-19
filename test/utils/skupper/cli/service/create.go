@@ -10,7 +10,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // CreateTester runs `skupper service create` and asserts that
@@ -72,7 +71,7 @@ func (s *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		attempt++
 
 		log.Printf("validating created service - attempt: %d", attempt)
-		svc, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(s.Name, &v1.GetOptions{})
+		svc, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(s.Name)
 		if err != nil {
 			log.Printf("service %s not available yet", s.Name)
 			return false, nil

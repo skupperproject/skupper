@@ -9,7 +9,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -18,7 +17,7 @@ import (
 func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string) error {
 	var unretryable error = nil
 	err := retry.RetryOnConflict(defaultRetry, func() error {
-		current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
+		current, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 		if err == nil && current.Data != nil {
 			jsonDef := current.Data[address]
 			if jsonDef == "" {
@@ -61,7 +60,7 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 func handleServiceCertificateRemoval(address string, cli *VanClient) {
 	certName := types.SkupperServiceCertPrefix + address
 
-	secret, _, err := cli.SecretManager(cli.Namespace).GetSecret(certName, &metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.Namespace).GetSecret(certName)
 
 	if err == nil && secret != nil {
 
@@ -70,7 +69,7 @@ func handleServiceCertificateRemoval(address string, cli *VanClient) {
 			log.Printf("Failed to remove sslProfile from the router: %v", err.Error())
 		}
 
-		err = cli.SecretManager(cli.Namespace).DeleteSecret(secret, &metav1.DeleteOptions{})
+		err = cli.SecretManager(cli.Namespace).DeleteSecret(secret.ObjectMeta.Name)
 
 		if err != nil {
 			log.Printf("Failed to remove secret from the site: %v", err.Error())

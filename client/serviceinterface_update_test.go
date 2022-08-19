@@ -316,7 +316,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	}
 
 	// create three service definitions
-	siteCA, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.ServiceCaSecret, &metav1.GetOptions{})
+	siteCA, _, err := cli.SecretManager(cli.Namespace).GetSecret(types.ServiceCaSecret)
 	assert.Assert(t, err)
 
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
@@ -449,17 +449,17 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	assert.Assert(t, err)
 	assert.Equal(t, len(items), 0)
 
-	_, _, err = cli.SecretManager(cli.Namespace).GetSecret("skupper-nginx", &metav1.GetOptions{})
+	_, _, err = cli.SecretManager(cli.Namespace).GetSecret("skupper-nginx")
 	if err != nil {
 		assert.Equal(t, err.Error(), "secrets \"skupper-nginx\" not found")
 	}
 
-	_, _, err = cli.SecretManager(cli.Namespace).GetSecret("skupper-tcp-go-echo", &metav1.GetOptions{})
+	_, _, err = cli.SecretManager(cli.Namespace).GetSecret("skupper-tcp-go-echo")
 	if err != nil {
 		assert.Equal(t, err.Error(), "secrets \"skupper-tcp-go-echo\" not found")
 	}
 
-	_, _, err = cli.SecretManager(cli.Namespace).GetSecret("skupper-tcp-go-echo-ss", &metav1.GetOptions{})
+	_, _, err = cli.SecretManager(cli.Namespace).GetSecret("skupper-tcp-go-echo-ss")
 	if err != nil {
 		assert.Equal(t, err.Error(), "secrets \"skupper-tcp-go-echo-ss\" not found")
 	}

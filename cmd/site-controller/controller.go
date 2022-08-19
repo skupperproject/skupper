@@ -356,7 +356,7 @@ func (c *SiteController) checkTokenRequest(key string) error {
 }
 
 func (c *SiteController) getSiteIdForNamespace(namespace string) string {
-	cm, _, err := c.vanClient.ConfigMapManager(namespace).GetConfigMap(types.SiteConfigMapName, &metav1.GetOptions{})
+	cm, _, err := c.vanClient.ConfigMapManager(namespace).GetConfigMap(types.SiteConfigMapName)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Printf("Could not obtain siteid for namespace %q, assuming not yet initialised", namespace)

@@ -113,7 +113,7 @@ func (cc *ClusterContext) waitForSkupperServiceToBeCreated(name string, retryFn 
 
 	_retryFn := func() (*apiv1.Service, error) {
 		cc.KubectlExec("get pods -o wide")
-		svc, _, err := cc.VanClient.ServiceManager(cc.Namespace).GetService(name, &metav1.GetOptions{})
+		svc, _, err := cc.VanClient.ServiceManager(cc.Namespace).GetService(name)
 		return svc, err
 	}
 

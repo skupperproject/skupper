@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"gotest.tools/assert"
 	"reflect"
 	"testing"
+
+	"gotest.tools/assert"
 )
 
 func TestStringifySelector(t *testing.T) {

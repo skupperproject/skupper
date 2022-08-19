@@ -3,14 +3,12 @@ package client
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/skupperproject/skupper/api/types"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteConfigSpec) ([]string, error) {
-	configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.SiteConfigMapName, &metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.SiteConfigMapName)
 	if err != nil {
 		return nil, err
 	}

@@ -248,7 +248,7 @@ func (s *InitTester) ValidateConsole(cluster *base.ClusterContext) error {
 func (s *InitTester) ValidateIngress(cluster *base.ClusterContext) error {
 	// If edge mode assert there is no skupper-router service defined
 	if s.RouterMode == string(types.TransportModeEdge) {
-		_, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(types.TransportServiceName, &v1.GetOptions{})
+		_, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(types.TransportServiceName)
 		if errors.IsNotFound(err) {
 			return nil
 		}
@@ -284,7 +284,7 @@ func (s *InitTester) validateIngressFor(cluster *base.ClusterContext, ingress st
 	}
 
 	// Verifying the transport service
-	svc, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(service, &v1.GetOptions{})
+	svc, _, err := cluster.VanClient.ServiceManager(cluster.Namespace).GetService(service)
 	if err != nil && ingress != "none" {
 		return fmt.Errorf("could not find service: %s - %v", service, err)
 	} else if err == nil {
@@ -376,7 +376,7 @@ func (s *InitTester) validateRouterMode(cluster *base.ClusterContext) error {
 }
 
 func (s *InitTester) ValidateRouterDebugMode(cluster *base.ClusterContext) error {
-	dep, _, err := cluster.VanClient.DeploymentManager(cluster.Namespace).GetDeployment(types.TransportDeploymentName, &v1.GetOptions{})
+	dep, _, err := cluster.VanClient.DeploymentManager(cluster.Namespace).GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return fmt.Errorf("expected deployment not found: %s - %v", types.TransportDeploymentName, err)
 	}

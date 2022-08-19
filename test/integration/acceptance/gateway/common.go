@@ -16,7 +16,6 @@ import (
 	"github.com/skupperproject/skupper/test/integration/examples/tcp_echo"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -109,7 +108,7 @@ func TearDown(testRunner base.ClusterTestRunner) error {
 
 	}
 	// Deleting the deployment
-	if err := pub.VanClient.DeploymentManager(pub.Namespace).DeleteDeployment(tcp_echo.Deployment, &v1.DeleteOptions{}); err != nil {
+	if err := pub.VanClient.DeploymentManager(pub.Namespace).DeleteDeployment(tcp_echo.Deployment.ObjectMeta.Name); err != nil {
 		return err
 	}
 

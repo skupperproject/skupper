@@ -11,7 +11,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DeleteTester allows running and validating `skupper delete`.
@@ -54,7 +53,7 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		attempt++
 		log.Printf("validating skupper resources have been removed - attempt: %d", attempt)
 		// site config is gone
-		_, _, err = cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.SiteConfigMapName, &metav1.GetOptions{})
+		_, _, err = cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.SiteConfigMapName)
 		if err == nil {
 			log.Printf("skupper-site config map still exists")
 			return false, nil
@@ -68,14 +67,14 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		}
 
 		// router deployment is gone
-		_, _, err = cluster.VanClient.DeploymentManager(cluster.Namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+		_, _, err = cluster.VanClient.DeploymentManager(cluster.Namespace).GetDeployment(types.TransportDeploymentName)
 		if err == nil {
 			log.Printf("%s deployment still exists", types.TransportDeploymentName)
 			return false, nil
 		}
 
 		// controller deployment is gone
-		_, _, err = cluster.VanClient.DeploymentManager(cluster.Namespace).GetDeployment(types.ControllerDeploymentName, &metav1.GetOptions{})
+		_, _, err = cluster.VanClient.DeploymentManager(cluster.Namespace).GetDeployment(types.ControllerDeploymentName)
 		if err == nil {
 			log.Printf("%s deployment still exists", types.ControllerDeploymentName)
 			return false, nil

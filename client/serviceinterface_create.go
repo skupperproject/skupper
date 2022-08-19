@@ -29,7 +29,7 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 
 		if len(service.TlsCredentials) > 0 {
 
-			configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
+			configmap, _, err := cli.ConfigMapManager(cli.Namespace).GetConfigMap(types.TransportConfigMapName)
 
 			if err != nil {
 				return err

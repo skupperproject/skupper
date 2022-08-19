@@ -124,7 +124,7 @@ func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.
 }
 
 func (si *ServiceIngressAlways) Realise(desired *service.ServiceBindings) error {
-	actual, exists, err := si.s.GetService(desired.Address, nil)
+	actual, exists, err := si.s.GetService(desired.Address)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (si *ServiceIngressHeadlessRemote) Matches(def *types.ServiceInterface) boo
 }
 
 func (si *ServiceIngressHeadlessRemote) Realise(desired *service.ServiceBindings) error {
-	actual, exists, err := si.s.GetService(desired.Address, nil)
+	actual, exists, err := si.s.GetService(desired.Address)
 	if err != nil {
 		return err
 	}

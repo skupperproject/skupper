@@ -88,7 +88,7 @@ func (cli *VanClient) RevokeAccess(ctx context.Context) error {
 		return err
 	}
 	for _, record := range records {
-		err = cli.SecretManager(cli.Namespace).DeleteSecret(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: record.Name}}, nil)
+		err = cli.SecretManager(cli.Namespace).DeleteSecret(record.Name)
 		if err != nil {
 			return err
 		}

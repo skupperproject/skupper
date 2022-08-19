@@ -1,11 +1,12 @@
 package qdr
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
-	"reflect"
-	"testing"
 )
 
 func TestInitialConfig(t *testing.T) {

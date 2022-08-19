@@ -11,7 +11,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // UnexposeTester runs `skupper unexpose` and validates outcome
@@ -57,14 +56,14 @@ func (e *UnexposeTester) Run(cluster *base.ClusterContext) (stdout string, stder
 		// Service should have been removed
 		expectedAddress := utils.StrDefault(e.Address, e.TargetName)
 		log.Printf("validating service %s has been removed", expectedAddress)
-		_, _, err = cluster.VanClient.ServiceManager(cluster.Namespace).GetService(expectedAddress, &v1.GetOptions{})
+		_, _, err = cluster.VanClient.ServiceManager(cluster.Namespace).GetService(expectedAddress)
 		if err == nil {
 			log.Printf("service %s still exists", expectedAddress)
 			return false, nil
 		}
 		// Service removed from config map
 		log.Printf("validating service %s no longer exists in %s config map", expectedAddress, types.ServiceInterfaceConfigMap)
-		cm, _, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &v1.GetOptions{})
+		cm, _, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 		if err != nil {
 			return true, fmt.Errorf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
 		}

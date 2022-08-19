@@ -28,7 +28,7 @@ import (
 
 func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli types.VanClientInterface) (*types.ServiceInterfaceTarget, error) {
 	if targetType == "deployment" {
-		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(targetName, &metav1.GetOptions{})
+		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(targetName)
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     deployment.ObjectMeta.Name,
@@ -45,7 +45,7 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
 		}
 	} else if targetType == "statefulset" {
-		statefulset, _, err := cli.StatefulSetManager(namespace).GetStatefulSet(targetName, &metav1.GetOptions{})
+		statefulset, _, err := cli.StatefulSetManager(namespace).GetStatefulSet(targetName)
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     statefulset.ObjectMeta.Name,

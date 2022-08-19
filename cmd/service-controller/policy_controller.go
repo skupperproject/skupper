@@ -16,7 +16,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -273,7 +272,7 @@ func (c *PolicyController) validateOutgoingLinkStateChanged() {
 	}
 	for _, link := range links {
 		// Retrieving state of respective link (enabled/disabled)
-		secret, _, err := c.cli.SecretManager(c.cli.GetNamespace()).GetSecret(link.Name, &v1.GetOptions{})
+		secret, _, err := c.cli.SecretManager(c.cli.GetNamespace()).GetSecret(link.Name)
 		if err != nil {
 			event.Recordf(c.name, "[validateOutgoingLinkStateChanged] error reading secret %s: %v", link.Name, err)
 			return

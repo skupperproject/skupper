@@ -13,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ExposeTester runs `skupper expose` and validates service has
@@ -92,14 +91,14 @@ func (e *ExposeTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		log.Printf("validating service after expose completed - attempt: %d", attempt)
 
 		log.Printf("validating service %s exists", expectedAddress)
-		_, _, err = cluster.VanClient.ServiceManager(cluster.Namespace).GetService(expectedAddress, &v1.GetOptions{})
+		_, _, err = cluster.VanClient.ServiceManager(cluster.Namespace).GetService(expectedAddress)
 		if err != nil {
 			log.Printf("service %s does not exist - %v", expectedAddress, err)
 			return false, nil
 		}
 
 		log.Printf("validating service %s exists in %s config map", expectedAddress, types.ServiceInterfaceConfigMap)
-		cm, _, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap, &v1.GetOptions{})
+		cm, _, err := cluster.VanClient.ConfigMapManager(cluster.Namespace).GetConfigMap(types.ServiceInterfaceConfigMap)
 		if err != nil {
 			log.Printf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
 			return false, nil

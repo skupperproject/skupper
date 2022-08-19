@@ -46,16 +46,16 @@ func GetDeploymentOwnerReference(dep *appsv1.Deployment) metav1.OwnerReference {
 }
 
 func DeleteDeployment(name string, cli types.Deployments) error {
-	dep, _, err := cli.GetDeployment(name, &metav1.GetOptions{})
+	dep, _, err := cli.GetDeployment(name)
 	if err == nil {
-		err = cli.DeleteDeployment(dep, &metav1.DeleteOptions{})
+		err = cli.DeleteDeployment(dep.ObjectMeta.Name)
 	}
 	return err
 }
 
 // TODO, pass full client object with namespace and clientset
 func GetDeployment(name string, cli types.Deployments) (*appsv1.Deployment, error) {
-	existing, _, err := cli.GetDeployment(name, &metav1.GetOptions{})
+	existing, _, err := cli.GetDeployment(name)
 	if err != nil {
 		return nil, err
 	} else {
@@ -78,7 +78,7 @@ func getProxyStatefulSetName(definition types.ServiceInterface) string {
 func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterface, actual *appsv1.StatefulSet, desiredConfig string, namespace string, cli types.VanClientInterface) (*appsv1.StatefulSet, error) {
 	if actual == nil {
 		var err error
-		actual, _, err = cli.StatefulSetManager(namespace).GetStatefulSet(getProxyStatefulSetName(desired), &metav1.GetOptions{})
+		actual, _, err = cli.StatefulSetManager(namespace).GetStatefulSet(getProxyStatefulSetName(desired))
 		if errors.IsNotFound(err) {
 			return NewProxyStatefulSet(image, desired, desiredConfig, namespace, cli)
 		} else if err != nil {
@@ -105,7 +105,7 @@ func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterf
 func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.ServiceInterface, config string, namespace string, cli types.VanClientInterface) (*appsv1.StatefulSet, error) {
 	statefulSets := cli.StatefulSetManager(namespace)
 	deployments := cli.DeploymentManager(namespace)
-	transportDep, _, err := deployments.GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	transportDep, _, err := deployments.GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 }
 
 func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, deployments types.Deployments) (*appsv1.Deployment, error) {
-	existing, _, err := deployments.GetDeployment(types.ControllerDeploymentName, &metav1.GetOptions{})
+	existing, _, err := deployments.GetDeployment(types.ControllerDeploymentName)
 	if err == nil {
 		return existing, nil
 	} else if errors.IsNotFound(err) {
@@ -356,7 +356,7 @@ func setAffinity(spec *types.DeploymentSpec, podspec *corev1.PodSpec) {
 }
 
 func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, deployments types.Deployments) (*appsv1.Deployment, error) {
-	existing, _, err := deployments.GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	existing, _, err := deployments.GetDeployment(types.TransportDeploymentName)
 	if err == nil {
 		return existing, nil
 	} else if errors.IsNotFound(err) {
@@ -450,7 +450,7 @@ func WaitDeploymentReadyReplicas(name string, cli types.Deployments, readyReplic
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		dep, _, err = cli.GetDeployment(name, &metav1.GetOptions{})
+		dep, _, err = cli.GetDeployment(name)
 		if err != nil {
 			// dep does not exist yet
 			return false, nil
@@ -468,7 +468,7 @@ func WaitStatefulSetReadyReplicas(name string, cli types.StatefulSets, readyRepl
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		ss, _, err = cli.GetStatefulSet(name, &metav1.GetOptions{})
+		ss, _, err = cli.GetStatefulSet(name)
 		if err != nil {
 			// ss does not exist yet
 			return false, nil
@@ -487,7 +487,7 @@ func WaitDeploymentReady(name string, cli types.Deployments, timeout, interval t
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		dep, _, err = cli.GetDeployment(name, &metav1.GetOptions{})
+		dep, _, err = cli.GetDeployment(name)
 		if errors.IsNotFound(err) {
 			// dep does not exist yet
 			return false, nil

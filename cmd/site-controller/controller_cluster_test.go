@@ -243,7 +243,7 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	assert.Assert(t, err)
 	<-cont
 
-	currentToken, _, err := publicCli.SecretManager(publicNamespace).GetSecret("req2", &metav1.GetOptions{})
+	currentToken, _, err := publicCli.SecretManager(publicNamespace).GetSecret("req2")
 	assert.Assert(t, err)
 
 	connectSecret := &corev1.Secret{
@@ -285,7 +285,7 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	assert.Assert(t, err)
 
 	// get and modify site-config map for one of the namespaces for coverage
-	site1, _, err := publicCli.ConfigMapManager(publicNamespace).GetConfigMap("skupper-site", &metav1.GetOptions{})
+	site1, _, err := publicCli.ConfigMapManager(publicNamespace).GetConfigMap("skupper-site")
 	assert.Assert(t, err)
 	go watchForEvent(publicCli, publicNamespace, "skupper-site", Update, SiteConfig, "", cont)
 	site1.ObjectMeta.Annotations = map[string]string{
@@ -294,7 +294,7 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	_, err = publicCli.ConfigMapManager(publicNamespace).UpdateConfigMap(site1)
 	<-cont
 
-	err = privateCli.SecretManager(privateNamespace).DeleteSecret(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "connect-2-to-1"}}, &metav1.DeleteOptions{})
+	err = privateCli.SecretManager(privateNamespace).DeleteSecret("connect-2-to-1")
 	assert.Assert(t, err)
 
 	// check for disconnect
@@ -309,12 +309,12 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	assert.Assert(t, err)
 
 	go watchForEvent(publicCli, publicNamespace, "skupper-site", Delete, SiteConfig, "!internal.skupper.io/site-controller-ignore", cont)
-	err = publicCli.ConfigMapManager(publicNamespace).DeleteConfigMap(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "skupper-site"}}, &metav1.DeleteOptions{})
+	err = publicCli.ConfigMapManager(publicNamespace).DeleteConfigMap("skupper-site")
 	assert.Assert(t, err)
 	<-cont
 
 	go watchForEvent(privateCli, privateNamespace, "skupper-site", Delete, SiteConfig, "!internal.skupper.io/site-controller-ignore", cont)
-	err = privateCli.ConfigMapManager(privateNamespace).DeleteConfigMap(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "skupper-site"}}, &metav1.DeleteOptions{})
+	err = privateCli.ConfigMapManager(privateNamespace).DeleteConfigMap("skupper-site")
 	assert.Assert(t, err)
 	<-cont
 

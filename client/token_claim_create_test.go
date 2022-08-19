@@ -13,7 +13,6 @@ import (
 	"gotest.tools/assert"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
 )
@@ -70,7 +69,7 @@ func TestTokenClaimCreateInterior(t *testing.T) {
 	assert.Assert(t, bytes.Equal(claim.Data[types.ClaimPasswordDataKey], []byte("abcde")), "Invalid password in claim")
 
 	recordName := strings.Join(strings.Split(u.Path, "/"), "")
-	record, _, err := cli.SecretManager(cli.Namespace).GetSecret(recordName, &metav1.GetOptions{})
+	record, _, err := cli.SecretManager(cli.Namespace).GetSecret(recordName)
 	assert.Check(t, err, "Could not get claim record")
 	assert.Assert(t, len(record.ObjectMeta.Annotations) > 0, "Claim record has no annotations")
 	assert.Assert(t, len(record.ObjectMeta.Labels) > 0, "Claim record has no labels")
@@ -80,7 +79,7 @@ func TestTokenClaimCreateInterior(t *testing.T) {
 	assert.Assert(t, bytes.Equal(record.Data[types.ClaimPasswordDataKey], []byte("abcde")), "Invalid password in claim record")
 
 	os.Remove(filename)
-	cli.SecretManager(cli.Namespace).DeleteSecret(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: recordName}}, nil)
+	cli.SecretManager(cli.Namespace).DeleteSecret(recordName)
 }
 
 func TestTokenClaimCreateEdge(t *testing.T) {

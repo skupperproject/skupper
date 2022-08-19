@@ -6,13 +6,12 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/server"
 	"github.com/skupperproject/skupper/pkg/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 
 	// Checking if the router has been deployed
-	_, _, err := cli.DeploymentManager(cli.Namespace).GetDeployment(types.TransportDeploymentName, &metav1.GetOptions{})
+	_, _, err := cli.DeploymentManager(cli.Namespace).GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}

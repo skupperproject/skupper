@@ -302,7 +302,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 }
 
 func (cli *VanClient) requireSiteVersion(ctx context.Context, namespace string, minimumVersion string) error {
-	configmap, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.TransportConfigMapName, &metav1.GetOptions{})
+	configmap, _, err := cli.ConfigMapManager(namespace).GetConfigMap(types.TransportConfigMapName)
 	if err != nil {
 		return err
 	}

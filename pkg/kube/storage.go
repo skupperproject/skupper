@@ -12,18 +12,18 @@ type ConfigMapManager struct {
 	Namespace  string
 }
 
-func (c *ConfigMapManager) GetConfigMap(name string, options *v1.GetOptions) (*v12.ConfigMap, bool, error) {
+func (c *ConfigMapManager) GetConfigMap(name string) (*v12.ConfigMap, bool, error) {
 	cmCli := c.KubeClient.CoreV1().ConfigMaps(c.Namespace)
-	cm, err := cmCli.Get(name, *options)
+	cm, err := cmCli.Get(name, v1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
 	return cm, true, nil
 }
 
-func (c *ConfigMapManager) DeleteConfigMap(cm *v12.ConfigMap, options *v1.DeleteOptions) error {
+func (c *ConfigMapManager) DeleteConfigMap(cm string) error {
 	cmCli := c.KubeClient.CoreV1().ConfigMaps(c.Namespace)
-	return cmCli.Delete(cm.Name, options)
+	return cmCli.Delete(cm, &v1.DeleteOptions{})
 }
 
 func (c *ConfigMapManager) ListConfigMaps(options *v1.ListOptions) ([]v12.ConfigMap, error) {
@@ -54,18 +54,18 @@ type DeploymentManager struct {
 	Namespace  string
 }
 
-func (d *DeploymentManager) GetDeployment(name string, options *v1.GetOptions) (*v13.Deployment, bool, error) {
+func (d *DeploymentManager) GetDeployment(name string) (*v13.Deployment, bool, error) {
 	depCli := d.KubeClient.AppsV1().Deployments(d.Namespace)
-	dep, err := depCli.Get(name, *options)
+	dep, err := depCli.Get(name, v1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
 	return dep, true, nil
 }
 
-func (d *DeploymentManager) DeleteDeployment(dep *v13.Deployment, options *v1.DeleteOptions) error {
+func (d *DeploymentManager) DeleteDeployment(dep string) error {
 	depCli := d.KubeClient.AppsV1().Deployments(d.Namespace)
-	return depCli.Delete(dep.Name, options)
+	return depCli.Delete(dep, &v1.DeleteOptions{})
 }
 
 func (d *DeploymentManager) ListDeployments(options *v1.ListOptions) ([]v13.Deployment, error) {
@@ -96,18 +96,18 @@ type SecretManager struct {
 	Namespace  string
 }
 
-func (s *SecretManager) GetSecret(name string, options *v1.GetOptions) (*v12.Secret, bool, error) {
+func (s *SecretManager) GetSecret(name string) (*v12.Secret, bool, error) {
 	secCli := s.KubeClient.CoreV1().Secrets(s.Namespace)
-	sec, err := secCli.Get(name, *options)
+	sec, err := secCli.Get(name, v1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
 	return sec, true, nil
 }
 
-func (s *SecretManager) DeleteSecret(secret *v12.Secret, options *v1.DeleteOptions) error {
+func (s *SecretManager) DeleteSecret(secret string) error {
 	secCli := s.KubeClient.CoreV1().Secrets(s.Namespace)
-	return secCli.Delete(secret.Name, options)
+	return secCli.Delete(secret, &v1.DeleteOptions{})
 }
 
 func (s *SecretManager) ListSecrets(options *v1.ListOptions) ([]v12.Secret, error) {
@@ -138,18 +138,18 @@ type ServiceManager struct {
 	Namespace  string
 }
 
-func (s *ServiceManager) GetService(name string, options *v1.GetOptions) (*v12.Service, bool, error) {
+func (s *ServiceManager) GetService(name string) (*v12.Service, bool, error) {
 	svcCli := s.KubeClient.CoreV1().Services(s.Namespace)
-	svc, err := svcCli.Get(name, *options)
+	svc, err := svcCli.Get(name, v1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
 	return svc, true, nil
 }
 
-func (s *ServiceManager) DeleteService(svc *v12.Service, options *v1.DeleteOptions) error {
+func (s *ServiceManager) DeleteService(svc string) error {
 	svcCli := s.KubeClient.CoreV1().Services(s.Namespace)
-	return svcCli.Delete(svc.Name, options)
+	return svcCli.Delete(svc, &v1.DeleteOptions{})
 }
 
 func (s *ServiceManager) ListServices(options *v1.ListOptions) ([]v12.Service, error) {
@@ -180,18 +180,18 @@ type StatefulSetManager struct {
 	Namespace  string
 }
 
-func (s *StatefulSetManager) GetStatefulSet(name string, options *v1.GetOptions) (*v13.StatefulSet, bool, error) {
+func (s *StatefulSetManager) GetStatefulSet(name string) (*v13.StatefulSet, bool, error) {
 	depCli := s.KubeClient.AppsV1().StatefulSets(s.Namespace)
-	dep, err := depCli.Get(name, *options)
+	dep, err := depCli.Get(name, v1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
 	return dep, true, nil
 }
 
-func (s *StatefulSetManager) DeleteStatefulSet(ss *v13.StatefulSet, options *v1.DeleteOptions) error {
+func (s *StatefulSetManager) DeleteStatefulSet(ss string) error {
 	ssCli := s.KubeClient.AppsV1().StatefulSets(s.Namespace)
-	return ssCli.Delete(ss.Name, options)
+	return ssCli.Delete(ss, &v1.DeleteOptions{})
 }
 
 func (s *StatefulSetManager) ListStatefulSets(options *v1.ListOptions) ([]v13.StatefulSet, error) {

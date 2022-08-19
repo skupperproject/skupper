@@ -97,7 +97,7 @@ func TestWaitForServiceToBeCreated(t *testing.T) {
 			var retryFn func() (*apiv1.Service, error) = nil
 			if tc.retryFn {
 				retryFn = func() (*apiv1.Service, error) {
-					service, _, err := cli.ServiceManager(ns).GetService("serviceC", &v1.GetOptions{})
+					service, _, err := cli.ServiceManager(ns).GetService("serviceC")
 					return service, err
 				}
 			}

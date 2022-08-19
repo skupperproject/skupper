@@ -20,7 +20,7 @@ func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference 
 }
 
 func NewConfigMap(name string, data *map[string]string, labels *map[string]string, annotations *map[string]string, owner *metav1.OwnerReference, configMaps types.ConfigMaps) (*corev1.ConfigMap, error) {
-	existing, _, err := configMaps.GetConfigMap(name, &metav1.GetOptions{})
+	existing, _, err := configMaps.GetConfigMap(name)
 	if err == nil {
 		// TODO:  already exists
 		return existing, nil
@@ -64,7 +64,7 @@ func NewConfigMap(name string, data *map[string]string, labels *map[string]strin
 }
 
 func GetConfigMap(name string, cli types.ConfigMaps) (*corev1.ConfigMap, error) {
-	current, _, err := cli.GetConfigMap(name, &metav1.GetOptions{})
+	current, _, err := cli.GetConfigMap(name)
 	if err != nil {
 		return nil, err
 	} else {
@@ -73,7 +73,7 @@ func GetConfigMap(name string, cli types.ConfigMaps) (*corev1.ConfigMap, error) 
 }
 
 func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, origin string, configMaps types.ConfigMaps) error {
-	current, _, err := configMaps.GetConfigMap(types.ServiceInterfaceConfigMap, &metav1.GetOptions{})
+	current, _, err := configMaps.GetConfigMap(types.ServiceInterfaceConfigMap)
 	if err == nil {
 		if current.Data == nil {
 			current.Data = make(map[string]string)

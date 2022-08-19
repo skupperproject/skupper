@@ -11,12 +11,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"gotest.tools/assert"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"gotest.tools/assert"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func TestConnectorRemove(t *testing.T) {
@@ -111,7 +109,7 @@ func TestConnectorRemove(t *testing.T) {
 		}
 
 		for _, name := range c.secretsRemoved {
-			_, _, err := tokenUserClient.SecretManager(c.namespace).GetSecret(name, &metav1.GetOptions{})
+			_, _, err := tokenUserClient.SecretManager(c.namespace).GetSecret(name)
 			assert.Assert(t, k8serrors.IsNotFound(err), c.namespace)
 		}
 

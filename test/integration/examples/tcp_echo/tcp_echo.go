@@ -82,7 +82,7 @@ func tearDown(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	_ = pub1Cluster.VanClient.ServiceInterfaceRemove(ctx, service.Address)
 
 	t.Logf("Deleting deployment...")
-	_ = pub1Cluster.VanClient.DeploymentManager(pub1Cluster.Namespace).DeleteDeployment(Deployment, &metav1.DeleteOptions{})
+	_ = pub1Cluster.VanClient.DeploymentManager(pub1Cluster.Namespace).DeleteDeployment(Deployment.ObjectMeta.Name)
 }
 
 func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {

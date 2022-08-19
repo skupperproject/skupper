@@ -1,4 +1,5 @@
-//+build job
+//go:build job
+// +build job
 
 package job
 
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"crypto/x509"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/tsenart/vegeta/v12/lib"
 	"golang.org/x/net/http2"
@@ -25,11 +27,11 @@ func TestHttpJob(t *testing.T) {
 }
 
 func TestHttp2Job(t *testing.T) {
-	//TODO: enable this if we add suport for "Upgrade" in skupper http2
-	//testHttpJob(t, "http://nghttp2:8443/")
+	// TODO: enable this if we add suport for "Upgrade" in skupper http2
+	// testHttpJob(t, "http://nghttp2:8443/")
 
-	//https://www.mailgun.com/blog/http-2-cleartext-h2c-client-example-go/
-	//hack to support h2c
+	// https://www.mailgun.com/blog/http-2-cleartext-h2c-client-example-go/
+	// hack to support h2c
 	client := http.Client{
 		Transport: &http2.Transport{
 			// So http2.Transport doesn't complain the URL scheme isn't 'https'
@@ -58,7 +60,7 @@ func TestHttp2Job(t *testing.T) {
 
 func TestHttp2TlsJob(t *testing.T) {
 
-	//Load CA cert
+	// Load CA cert
 	caCert, err := ioutil.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
 	if err != nil {
 		log.Fatal(err)
@@ -115,8 +117,8 @@ func testHttpJob(t *testing.T, url string) {
 	}
 	metrics.Close()
 
-	//this is too verbose, anyway mantaining for now until we add more
-	//assertions
+	// this is too verbose, anyway mantaining for now until we add more
+	// assertions
 	spew.Dump(metrics)
 
 	// Success is the percentage of non-error responses.

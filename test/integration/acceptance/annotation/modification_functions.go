@@ -38,11 +38,11 @@ func SwitchProtocols(t *testing.T, testRunner base.ClusterTestRunner) {
 	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
 
 		// Retrieving the deployment
-		dep, _, err := cluster.DeploymentManager(cluster.Namespace).GetDeployment("nginx", &v1.GetOptions{})
+		dep, _, err := cluster.DeploymentManager(cluster.Namespace).GetDeployment("nginx")
 		assert.Assert(t, err)
 
 		// Retrieving the statefulset
-		ss, _, err := cluster.StatefulSetManager(cluster.Namespace).GetStatefulSet("nginx-ss", &v1.GetOptions{})
+		ss, _, err := cluster.StatefulSetManager(cluster.Namespace).GetStatefulSet("nginx-ss")
 		assert.Assert(t, err)
 
 		// Retrieving the statefulset
@@ -99,7 +99,7 @@ func RemoveAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 
 	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
 		// Retrieving the deployment
-		dep, _, err := cluster.DeploymentManager(cluster.Namespace).GetDeployment("nginx", &v1.GetOptions{})
+		dep, _, err := cluster.DeploymentManager(cluster.Namespace).GetDeployment("nginx")
 		assert.Assert(t, err)
 
 		// Removing annotations and updating
@@ -109,7 +109,7 @@ func RemoveAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 		assert.Assert(t, err)
 
 		// Retrieving the statefulSet
-		ss, _, err := cluster.StatefulSetManager(cluster.Namespace).GetStatefulSet("nginx-ss", &v1.GetOptions{})
+		ss, _, err := cluster.StatefulSetManager(cluster.Namespace).GetStatefulSet("nginx-ss")
 		assert.Assert(t, err)
 
 		// Removing annotations and updating
@@ -156,12 +156,12 @@ func AddAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 		clusterIdx := i + 1
 
 		// Retrieving the deployment
-		dep, _, err := cluster.DeploymentManager(cluster.Namespace).GetDeployment("nginx", &v1.GetOptions{})
+		dep, _, err := cluster.DeploymentManager(cluster.Namespace).GetDeployment("nginx")
 		assert.Assert(t, err)
 		dep.Annotations = map[string]string{}
 
 		// Retrieving the statefulset
-		ss, _, err := cluster.StatefulSetManager(cluster.Namespace).GetStatefulSet("nginx-ss", &v1.GetOptions{})
+		ss, _, err := cluster.StatefulSetManager(cluster.Namespace).GetStatefulSet("nginx-ss")
 		assert.Assert(t, err)
 		ss.Annotations = map[string]string{}
 
@@ -171,10 +171,10 @@ func AddAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 		ds.Annotations = map[string]string{}
 
 		// Retrieving services
-		svcNoTarget, _, err := cluster.ServiceManager(cluster.Namespace).GetService(fmt.Sprintf("nginx-%d-svc-exp-notarget", clusterIdx), &v1.GetOptions{})
+		svcNoTarget, _, err := cluster.ServiceManager(cluster.Namespace).GetService(fmt.Sprintf("nginx-%d-svc-exp-notarget", clusterIdx))
 		assert.Assert(t, err)
 		svcNoTarget.Annotations = map[string]string{}
-		svcTarget, _, err := cluster.ServiceManager(cluster.Namespace).GetService(fmt.Sprintf("nginx-%d-svc-target", clusterIdx), &v1.GetOptions{})
+		svcTarget, _, err := cluster.ServiceManager(cluster.Namespace).GetService(fmt.Sprintf("nginx-%d-svc-target", clusterIdx))
 		assert.Assert(t, err)
 		svcTarget.Annotations = map[string]string{}
 
@@ -210,7 +210,7 @@ func DebugAnnotatedResources(t *testing.T, testRunner base.ClusterTestRunner) {
 	i := 0
 	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
 		// Retrieving the deployment
-		dep, _, err := cluster.DeploymentManager(cluster.Namespace).GetDeployment("nginx", &v1.GetOptions{})
+		dep, _, err := cluster.DeploymentManager(cluster.Namespace).GetDeployment("nginx")
 		assert.Assert(t, err)
 		log.Printf("Deployment: %s - Annotations: %s", dep.Name, dep.Annotations)
 		if len(dep.Annotations) > 0 {

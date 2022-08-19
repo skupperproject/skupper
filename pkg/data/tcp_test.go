@@ -1,9 +1,10 @@
 package data
 
 import (
-	"github.com/skupperproject/skupper/pkg/qdr"
 	"reflect"
 	"testing"
+
+	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 func TestGetTcpServices(t *testing.T) {

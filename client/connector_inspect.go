@@ -3,8 +3,6 @@ package client
 import (
 	"context"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube/qdr"
 )
@@ -15,7 +13,7 @@ func (cli *VanClient) ConnectorInspect(ctx context.Context, name string) (*types
 	if err != nil {
 		return nil, err
 	}
-	secret, _, err := cli.SecretManager(cli.Namespace).GetSecret(name, &metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.Namespace).GetSecret(name)
 	if err != nil {
 		return nil, err
 	}

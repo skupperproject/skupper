@@ -7,6 +7,7 @@ import (
 
 	"crypto/tls"
 	"encoding/json"
+
 	"gotest.tools/assert"
 )
 
@@ -180,8 +181,8 @@ func TestSiteMetadata(t *testing.T) {
 
 func TestMarshalUnmarshalRecordsWithIntegers(t *testing.T) {
 
-	//Marshaling and un-marshaling a map[string]interface{} with int values changes the format of the numbers to float64
-	//https://go.dev/blog/json
+	// Marshaling and un-marshaling a map[string]interface{} with int values changes the format of the numbers to float64
+	// https://go.dev/blog/json
 
 	record := Record{}
 	record["int"] = 65

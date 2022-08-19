@@ -151,7 +151,7 @@ func UndeployResources(testRunner base.ClusterTestRunner) error {
 		cli := cluster.VanClient.KubeClient
 		vanCli := cluster.VanClient
 		log.Printf("removing deployment 'nginx' from: %s", cluster.Namespace)
-		if err := vanCli.DeploymentManager(cluster.Namespace).DeleteDeployment(&v1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "nginx"}}, &metav1.DeleteOptions{}); err != nil {
+		if err := vanCli.DeploymentManager(cluster.Namespace).DeleteDeployment("nginx"); err != nil {
 			return err
 		}
 		// TODO evaluate if needed to have generic CRUD support for DaemonSets
@@ -160,12 +160,12 @@ func UndeployResources(testRunner base.ClusterTestRunner) error {
 			return err
 		}
 		log.Printf("removing statefulset 'nginx-ss' from: %s", cluster.Namespace)
-		if err := vanCli.StatefulSetManager(cluster.Namespace).DeleteStatefulSet(&v1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "nginx-ss"}}, &metav1.DeleteOptions{}); err != nil {
+		if err := vanCli.StatefulSetManager(cluster.Namespace).DeleteStatefulSet("nginx-ss"); err != nil {
 			return err
 		}
 		for _, svc := range servicesMap[cluster.Namespace] {
 			log.Printf("removing service '%s' from: %s", svc, cluster.Namespace)
-			if err := vanCli.ServiceManager(cluster.Namespace).DeleteService(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: svc}}, &metav1.DeleteOptions{}); err != nil {
+			if err := vanCli.ServiceManager(cluster.Namespace).DeleteService(svc); err != nil {
 				return err
 			}
 		}

@@ -174,7 +174,7 @@ func TestClaimHandler(t *testing.T) {
 	verifier.addSuccessfulResult([]byte("abcdefg"), cert)
 	err = handler.redeemClaim(claim)
 	assert.Check(t, err, name)
-	secret, _, err := cli.SecretManager(cli.Namespace).GetSecret(name, &metav1.GetOptions{})
+	secret, _, err := cli.SecretManager(cli.Namespace).GetSecret(name)
 	assert.Check(t, err, name)
 	for key, value := range cert.ObjectMeta.Annotations {
 		assert.Equal(t, secret.ObjectMeta.Annotations[key], value, name)

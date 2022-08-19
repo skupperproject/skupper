@@ -91,7 +91,7 @@ func TestClaimVerifier(t *testing.T) {
 	assert.Equal(t, code, http.StatusOK, "claim-verifier-test: a")
 	assert.Equal(t, secret, generator.Secret, "claim-verifier-test: a")
 	assert.Equal(t, secret.ObjectMeta.Name, "foo", "claim-verifier-test: a")
-	record, _, err := cli.SecretManager(cli.Namespace).GetSecret("a", &metav1.GetOptions{})
+	record, _, err := cli.SecretManager(cli.Namespace).GetSecret("a")
 	assert.Check(t, err, "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsRemaining], "1", "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsMade], "1", "claim-verifier-test: a")
@@ -105,7 +105,7 @@ func TestClaimVerifier(t *testing.T) {
 	assert.Equal(t, code, http.StatusOK, "claim-verifier-test: a 2nd attempt")
 	assert.Equal(t, secret, generator.Secret, "claim-verifier-test: a 2nd attempt")
 	assert.Equal(t, secret.ObjectMeta.Name, "foo", "claim-verifier-test: a 2nd attempt")
-	record, _, err = cli.SecretManager(cli.Namespace).GetSecret("a", &metav1.GetOptions{})
+	record, _, err = cli.SecretManager(cli.Namespace).GetSecret("a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsRemaining], "0", "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsMade], "2", "claim-verifier-test: a")
 
