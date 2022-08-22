@@ -58,8 +58,8 @@ func (o *PodTargetResolver) List() []string {
 
 	for _, p := range pods {
 		pod := p.(*corev1.Pod)
-		isPodEligible = o.skipStatusCheck || (IsPodRunning(pod) && IsPodReady(pod))
-		if isPodEligible && pod.DeletionTimestamp == nil {
+		isPodEligible = o.skipStatusCheck || IsPodReady(pod)
+		if isPodEligible && IsPodRunning(pod) && pod.DeletionTimestamp == nil {
 			event.Recordf(BridgeTargetEvent, "Adding pod for %s: %s", o.address, pod.ObjectMeta.Name)
 			targets = append(targets, pod.Status.PodIP)
 		} else {
