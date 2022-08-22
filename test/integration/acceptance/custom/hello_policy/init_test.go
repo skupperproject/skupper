@@ -18,12 +18,11 @@ func skupperInitInteriorTestScenario(ctx *base.ClusterContext, prefix string, wi
 			{Ctx: ctx, Commands: []cli.SkupperCommandTester{
 				// skupper init - interior mode, enabling console and internal authentication
 				&cli.InitTester{
-					ConsoleAuth:         "internal",
-					ConsoleUser:         "internal",
-					ConsolePassword:     "internal",
-					RouterMode:          "interior",
-					EnableConsole:       true,
-					EnableRouterConsole: true,
+					ConsoleAuth:     "internal",
+					ConsoleUser:     "internal",
+					ConsolePassword: "internal",
+					RouterMode:      "interior",
+					EnableConsole:   true,
 				},
 				// skupper status - verify initialized as interior
 				&cli.StatusTester{
@@ -57,7 +56,6 @@ func skupperInitEdgeTestScenario(ctx *base.ClusterContext, prefix string, withPo
 					RouterMode:            "edge",
 					SiteName:              "private",
 					EnableConsole:         false,
-					EnableRouterConsole:   false,
 					RouterCPU:             "100m",
 					RouterMemory:          "32Mi",
 					ControllerCPU:         "50m",
@@ -66,7 +64,7 @@ func skupperInitEdgeTestScenario(ctx *base.ClusterContext, prefix string, withPo
 					RouterMemoryLimit:     "500Mi",
 					ControllerCPULimit:    "600m",
 					ControllerMemoryLimit: "500Mi",
-					//ConsoleIngress:      "none",
+					// ConsoleIngress:      "none",
 				},
 				// skupper status - verify initialized as edge
 				&cli.StatusTester{

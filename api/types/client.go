@@ -80,7 +80,6 @@ type SiteConfigSpec struct {
 	Routers             int
 	EnableController    bool
 	EnableServiceSync   bool
-	EnableRouterConsole bool
 	EnableConsole       bool
 	AuthMode            string
 	User                string

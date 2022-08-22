@@ -40,7 +40,6 @@ type InitTester struct {
 	ControllerMemoryLimit string
 	SiteName              string
 	EnableConsole         bool
-	EnableRouterConsole   bool
 }
 
 func (s *InitTester) Command(cluster *base.ClusterContext) []string {
@@ -102,8 +101,6 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 		args = append(args, "--site-name", s.SiteName)
 	}
 	args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
-	args = append(args, fmt.Sprintf("--enable-router-console=%v", s.EnableRouterConsole))
-
 	return args
 }
 
@@ -164,12 +161,6 @@ func (s *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	// Validating site name
 	log.Println("Validating site name")
 	if err = s.validateSiteName(cluster); err != nil {
-		return
-	}
-
-	// Validating router console
-	log.Println("Validating router console")
-	if err = s.validateRouterConsole(cluster); err != nil {
 		return
 	}
 
@@ -471,22 +462,6 @@ func (s *InitTester) validateSiteName(cluster *base.ClusterContext) error {
 	if expectedSiteName != inspect.Status.SiteName {
 		return fmt.Errorf("incorrect site name - expected: %s - found: %s", expectedSiteName, inspect.Status.SiteName)
 	}
-	return nil
-}
-
-func (s *InitTester) validateRouterConsole(cluster *base.ClusterContext) error {
-	expectService := s.EnableRouterConsole
-	svc, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(types.RouterConsoleServiceName, v1.GetOptions{})
-	serviceExists := err == nil && svc.Name == types.RouterConsoleServiceName
-
-	if expectService != serviceExists {
-		if expectService {
-			return fmt.Errorf("router console service expected, but not found")
-		} else {
-			return fmt.Errorf("router console service not expected, but exists")
-		}
-	}
-
 	return nil
 }
 

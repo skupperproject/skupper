@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	//core options
+	// core options
 	SiteConfigNameKey                string = "name"
 	SiteConfigRouterModeKey          string = "router-mode"
 	SiteConfigIngressKey             string = "ingress"
@@ -24,14 +24,14 @@ const (
 	SiteConfigCreateNetworkPolicyKey string = "create-network-policy"
 	SiteConfigRoutersKey             string = "routers"
 
-	//console options
+	// console options
 	SiteConfigConsoleKey               string = "console"
 	SiteConfigConsoleAuthenticationKey string = "console-authentication"
 	SiteConfigConsoleUserKey           string = "console-user"
 	SiteConfigConsolePasswordKey       string = "console-password"
 	SiteConfigConsoleIngressKey        string = "console-ingress"
 
-	//router options
+	// router options
 	SiteConfigRouterConsoleKey            string = "router-console"
 	SiteConfigRouterLoggingKey            string = "router-logging"
 	SiteConfigRouterDebugModeKey          string = "router-debug-mode"
@@ -48,7 +48,7 @@ const (
 	SiteConfigRouterServiceAnnotationsKey string = "router-service-annotations"
 	SiteConfigRouterLoadBalancerIp        string = "router-load-balancer-ip"
 
-	//controller options
+	// controller options
 	SiteConfigServiceControllerKey            string = "service-controller"
 	SiteConfigServiceSyncKey                  string = "service-sync"
 	SiteConfigControllerCpuKey                string = "controller-cpu"
@@ -62,7 +62,7 @@ const (
 	SiteConfigControllerServiceAnnotationsKey string = "controller-service-annotations"
 	SiteConfigControllerLoadBalancerIp        string = "controller-load-balancer-ip"
 
-	//config-sync options
+	// config-sync options
 	SiteConfigConfigSyncCpuKey         string = "config-sync-cpu"
 	SiteConfigConfigSyncMemoryKey      string = "config-sync-memory"
 	SiteConfigConfigSyncCpuLimitKey    string = "config-sync-cpu-limit"
@@ -111,9 +111,6 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if !spec.EnableConsole {
 		siteConfig.Data[SiteConfigConsoleKey] = "false"
-	}
-	if spec.EnableRouterConsole {
-		siteConfig.Data[SiteConfigRouterConsoleKey] = "true"
 	}
 	if spec.AuthMode != "" {
 		siteConfig.Data[SiteConfigConsoleAuthenticationKey] = spec.AuthMode
@@ -301,7 +298,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if err != nil {
 		return nil, err
 	}
-	if actual.TypeMeta.Kind == "" || actual.TypeMeta.APIVersion == "" { //why??
+	if actual.TypeMeta.Kind == "" || actual.TypeMeta.APIVersion == "" { // why??
 		actual.TypeMeta = siteConfig.TypeMeta
 	}
 	return cli.SiteConfigInspect(ctx, actual)
