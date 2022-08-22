@@ -324,6 +324,7 @@ jobs:
       - run: make clean
       - go/test:
           coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
+          verbose: true
 
   build_and_push_test_images:
     executor: local_cluster_test_executor
