@@ -955,7 +955,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 }
 
 // RouterCreate instantiates a VAN (router and controller) deployment
-func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig) error {
+func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig, loadbalancertimeout int) error {
 	// todo return error
 	if options.Spec.IsIngressRoute() && cli.RouteClient == nil {
 		return fmt.Errorf("OpenShift cluster not detected for --ingress type route")
@@ -1093,9 +1093,15 @@ sasldb_path: /tmp/skrouterd.sasldb
 					service, err := kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
 					if err == nil {
 						host := kube.GetLoadBalancerHostOrIP(service)
-						for i := 0; host == "" && i < 120; i++ {
+
+						var timeout = loadbalancertimeout
+						if timeout <= 0 {
+							timeout = types.DefaultTimeout
+						}
+
+						for i := 0; host == "" && i < timeout; i++ {
 							if i == 0 {
-								fmt.Println("Waiting for LoadBalancer IP or hostname...")
+								fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", timeout)
 							}
 							time.Sleep(time.Second)
 							service, err = kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
@@ -1189,7 +1195,11 @@ sasldb_path: /tmp/skrouterd.sasldb
 					log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
 				}
 			} else if options.Spec.IsIngressLoadBalancer() {
-				err = cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, van.Namespace, &cred)
+				var timeout = loadbalancertimeout
+				if timeout <= 0 {
+					timeout = types.DefaultTimeout
+				}
+				err = cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, van.Namespace, &cred, timeout)
 				if err != nil {
 					return err
 				}
@@ -1234,7 +1244,7 @@ func (cli *VanClient) appendIngressHost(prefixes []string, namespace string, cre
 	return nil
 }
 
-func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace string, cred *types.Credential) error {
+func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace string, cred *types.Credential, timeout int) error {
 	service, err := kube.GetService(serviceName, namespace, cli.KubeClient)
 	if err != nil {
 		return err
@@ -1243,9 +1253,9 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace s
 		return nil
 	}
 	host := kube.GetLoadBalancerHostOrIP(service)
-	for i := 0; host == "" && i < 120; i++ {
+	for i := 0; host == "" && i < timeout; i++ {
 		if i == 0 {
-			fmt.Println("Waiting for LoadBalancer IP or hostname...")
+			fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", timeout)
 		}
 		time.Sleep(time.Second)
 		service, err = kube.GetService(serviceName, namespace, cli.KubeClient)

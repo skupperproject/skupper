@@ -1086,7 +1086,7 @@ func (cli *VanClient) createClaimsServerSecret(ctx context.Context, namespace st
 			log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
 		}
 	} else {
-		err := cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, namespace, &cred)
+		err := cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, namespace, &cred, types.DefaultTimeout)
 		if err != nil {
 			return err
 		}

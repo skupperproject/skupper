@@ -33,7 +33,7 @@ func (cli *VanClient) regenerateSiteSecret(ca *corev1.Secret) error {
 		}
 	}
 	if !usingRoutes {
-		err := cli.appendLoadBalancerHostOrIp(types.TransportServiceName, cli.Namespace, &siteServerSecret)
+		err := cli.appendLoadBalancerHostOrIp(types.TransportServiceName, cli.Namespace, &siteServerSecret, types.DefaultTimeout)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func (cli *VanClient) regenerateClaimsSecret(ca *corev1.Secret) error {
 		}
 	}
 	if !usingRoutes {
-		err := cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, cli.Namespace, &claimsServerSecret)
+		err := cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, cli.Namespace, &claimsServerSecret, types.DefaultTimeout)
 		if err != nil {
 			return err
 		}

@@ -32,6 +32,8 @@ const (
 	SiteConfigMapName   string = "skupper-site"
 )
 
+const DefaultTimeout = 120 // in seconds
+
 // TransportMode describes how a qdr is intended to be deployed, either interior or edge
 type TransportMode string
 

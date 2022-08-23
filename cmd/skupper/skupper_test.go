@@ -262,3 +262,16 @@ func TestSkupperInitControllerParseArgs(t *testing.T) {
 	assert.Equal(t, routerCreateOpts.Controller.LoadBalancerIp, "")
 
 }
+
+func TestSkupperInitTimeoutParseArgs(t *testing.T) {
+	cmd := NewCmdInit(nil)
+
+	assert.Assert(t, cmd.ParseFlags([]string{}))
+	assert.Equal(t, routerCreateOpts.LoadBalancerTimeout, 120)
+
+	cmdArgs := []string{"--timeout", "240"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, routerCreateOpts.LoadBalancerTimeout, 240)
+
+}

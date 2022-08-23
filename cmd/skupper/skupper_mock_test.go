@@ -90,7 +90,7 @@ func (v *vanClientMock) GetIngressDefault() string {
 	return types.IngressRouteString
 }
 
-func (v *vanClientMock) RouterCreate(ctx context.Context, options types.SiteConfig) error {
+func (v *vanClientMock) RouterCreate(ctx context.Context, options types.SiteConfig, loadbalancertimeout int) error {
 	v.routerCreateCalledWith = append(v.routerCreateCalledWith, options)
 	return v.injectedReturns.routerCreate
 }

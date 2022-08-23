@@ -96,6 +96,7 @@ type SiteConfigSpec struct {
 	Router              RouterOptions
 	Controller          ControllerOptions
 	ConfigSync          ConfigSyncOptions
+	LoadBalancerTimeout int
 }
 
 const (
@@ -269,7 +270,7 @@ type TargetInfo struct {
 }
 
 type VanClientInterface interface {
-	RouterCreate(ctx context.Context, options SiteConfig) error
+	RouterCreate(ctx context.Context, options SiteConfig, loadbalancertimeout int) error
 	RouterInspect(ctx context.Context) (*RouterInspectResponse, error)
 	RouterInspectNamespace(ctx context.Context, namespace string) (*RouterInspectResponse, error)
 	RouterRemove(ctx context.Context) error
