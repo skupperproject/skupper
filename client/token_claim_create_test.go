@@ -50,7 +50,8 @@ func TestTokenClaimCreateInterior(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	})
+	},
+		types.DefaultTimeout)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	filename := "./conn1.yaml"
@@ -101,7 +102,8 @@ func TestTokenClaimCreateEdge(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	})
+	},
+		types.DefaultTimeout)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	err = cli.TokenClaimCreateFile(ctx, "conn1", []byte("abcde"), 0, 5, "./link1.yaml")

@@ -73,7 +73,8 @@ func TestServiceInterfaceInspect(t *testing.T) {
 					Password:          "",
 					Ingress:           types.IngressNoneString,
 				},
-			})
+			},
+				types.DefaultTimeout)
 			assert.Check(t, err, "%s: Unable to create VAN router", testcase.namespace)
 		}
 

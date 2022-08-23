@@ -186,7 +186,7 @@ func configureSiteAndCreateRouter(t *testing.T, ctx context.Context, cli *VanCli
 	}
 	siteConfig, err := cli.SiteConfigCreate(context.Background(), routerCreateOpts)
 	assert.Assert(t, err, "Unable to configure %s site", name)
-	err = cli.RouterCreate(ctx, *siteConfig)
+	err = cli.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
 	assert.Assert(t, err, "Unable to create %s VAN router", name)
 }
 

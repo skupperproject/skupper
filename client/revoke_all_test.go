@@ -33,7 +33,8 @@ func TestRevokeAccess(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	})
+	},
+		types.DefaultTimeout)
 	assert.Check(t, err, "Unable to create router")
 
 	filename := "./link1.yaml"

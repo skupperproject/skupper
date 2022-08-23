@@ -304,7 +304,8 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	})
+	},
+		types.DefaultTimeout)
 	assert.Assert(t, err)
 
 	// wait for skupper router component to be running
