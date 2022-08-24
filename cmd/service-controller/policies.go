@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"text/tabwriter"
 
 	"github.com/gorilla/mux"
@@ -121,6 +122,41 @@ func (p *PolicyManager) outgoingLink() http.Handler {
 				writeJson(pr, w)
 			} else {
 				p.response(pr, w)
+			}
+		}
+	})
+}
+
+func (p *PolicyManager) writeAllowedByInfo(tw *tabwriter.Writer, title string, allowedInfo map[string][]string) {
+	keys := []string{}
+	for value, _ := range allowedInfo {
+		keys = append(keys, value)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		policies := allowedInfo[key]
+		for _, policy := range policies {
+			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%v\t%s\t", title, key, policy))
+			title = ""
+			key = ""
+		}
+	}
+}
+
+func (p *PolicyManager) dump() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			res := p.validator.Dump()
+			if wantsJsonOutput(r) {
+				writeJson(res, w)
+			} else {
+				tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
+				_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t", "RULE", "VALUE", "ALLOWED_BY"))
+				p.writeAllowedByInfo(tw, "AllowIncomingLinks", res.AllowIncomingLinks)
+				p.writeAllowedByInfo(tw, "AllowedOutgoingLinksHostnames", res.AllowedOutgoingLinksHostnames)
+				p.writeAllowedByInfo(tw, "AllowedExposedResources", res.AllowedExposedResources)
+				p.writeAllowedByInfo(tw, "AllowedServices", res.AllowedServices)
+				_ = tw.Flush()
 			}
 		}
 	})

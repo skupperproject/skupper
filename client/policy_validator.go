@@ -289,6 +289,39 @@ func (p *ClusterPolicyValidator) ValidateImportService(serviceName string) *Poli
 	return res
 }
 
+func (p *ClusterPolicyValidator) Dump() *PolicyDump {
+	dump := &PolicyDump{
+		AllowIncomingLinks:            allowedBy{},
+		AllowedOutgoingLinksHostnames: allowedBy{},
+		AllowedExposedResources:       allowedBy{},
+		AllowedServices:               allowedBy{},
+	}
+	policies, err := p.LoadNamespacePolicies()
+	if err != nil {
+		log.Printf("error loading policies: %v", err)
+		return dump
+	}
+	for _, policy := range policies {
+		// Incoming links
+		if policy.Spec.AllowIncomingLinks {
+			dump.AllowIncomingLinks.Add("true", policy.ObjectMeta.Name)
+		}
+		// Outgoing link hostnames
+		for _, hostname := range policy.Spec.AllowedOutgoingLinksHostnames {
+			dump.AllowedOutgoingLinksHostnames.Add(hostname, policy.ObjectMeta.Name)
+		}
+		// Services
+		for _, service := range policy.Spec.AllowedServices {
+			dump.AllowedServices.Add(service, policy.ObjectMeta.Name)
+		}
+		// Exposed resources
+		for _, resource := range policy.Spec.AllowedExposedResources {
+			dump.AllowedExposedResources.Add(resource, policy.ObjectMeta.Name)
+		}
+	}
+	return dump
+}
+
 type PolicyAPIClient struct {
 	cli *VanClient
 }
@@ -298,6 +331,19 @@ type PolicyAPIResult struct {
 	AllowedBy []string `json:"allowedBy"`
 	Enabled   bool     `json:"enabled"`
 	Error     string   `json:"error"`
+}
+
+type allowedBy map[string][]string
+
+func (a allowedBy) Add(key, policy string) {
+	a[key] = append(a[key], policy)
+}
+
+type PolicyDump struct {
+	AllowIncomingLinks            allowedBy `json:"allowIncomingLinks"`
+	AllowedOutgoingLinksHostnames allowedBy `json:"allowedOutgoingLinksHostnames"`
+	AllowedExposedResources       allowedBy `json:"allowedExposedResources"`
+	AllowedServices               allowedBy `json:"allowedServices"`
 }
 
 func NewPolicyValidatorAPI(cli *VanClient) *PolicyAPIClient {
