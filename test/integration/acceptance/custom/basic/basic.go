@@ -49,7 +49,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	createOptsPublic.SkupperNamespace = pub1Cluster.Namespace
 	siteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), createOptsPublic)
 	assert.Assert(t, err)
-	err = pub1Cluster.VanClient.RouterCreate(ctx, *siteConfig)
+	err = pub1Cluster.VanClient.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
 	assert.Assert(t, err)
 
 	const secretFile = "/tmp/public_basic_1_secret.yaml"
@@ -63,7 +63,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	createOptsPrivate.SkupperNamespace = prv1Cluster.Namespace
 	siteConfig, err = prv1Cluster.VanClient.SiteConfigCreate(context.Background(), createOptsPrivate)
 	assert.Assert(t, err)
-	err = prv1Cluster.VanClient.RouterCreate(ctx, *siteConfig)
+	err = prv1Cluster.VanClient.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
 	assert.Assert(t, err)
 
 	var podStartTimeBefore *v1.Time
