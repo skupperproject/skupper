@@ -137,6 +137,20 @@ func TestExposeParseArgs(t *testing.T) {
 	assert.Equal(t, exposeOpts.TlsCredentials, "")
 }
 
+func TestExposePublishNotReadyAddressesParseArgs(t *testing.T) {
+	cmdArgs := []string{"deployment/name", "--publish-not-ready-addresses"}
+	cmd := NewCmdExpose(nil)
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, exposeOpts.PublishNotReadyAddresses, true)
+
+	cmdArgs2 := []string{"statefulset/web", "--headless", "--publish-not-ready-addresses"}
+	cmd2 := NewCmdExpose(nil)
+	assert.Assert(t, cmd2.ParseFlags(cmdArgs2))
+	assert.Equal(t, exposeOpts.Headless, true)
+	assert.Equal(t, exposeOpts.PublishNotReadyAddresses, true)
+}
+
 var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
 
 func TestBindGatewayArgs(t *testing.T) {

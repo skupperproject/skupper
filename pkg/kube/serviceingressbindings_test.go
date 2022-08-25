@@ -63,7 +63,7 @@ func (s *TestContext) AllServices() (map[string]corev1.Service, error) {
 	return svcs, nil
 }
 
-func (c *TestContext) NewTargetResolver(address string, selector string) (service.TargetResolver, error) {
+func (c *TestContext) NewTargetResolver(address string, selector string, skipTargetStatus bool) (service.TargetResolver, error) {
 	return nil, nil
 }
 
@@ -382,6 +382,74 @@ func TestServiceIngressBindings(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "deployment with publishNotReadyAddresses feature",
+			definition: types.ServiceInterface{
+				Address:                  "foo",
+				Protocol:                 "tcp",
+				Ports:                    []int{8080},
+				PublishNotReadyAddresses: true,
+			},
+			allocatedPorts: []int{1024},
+			existing:       []corev1.Service{},
+			expected: []corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"application":          "skupper-router",
+							"skupper.io/component": "router",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Port:       8080,
+								TargetPort: intstr.FromInt(1024),
+								Protocol:   "TCP",
+							},
+						},
+						PublishNotReadyAddresses: true,
+					},
+				},
+			},
+		},
+		{
+			name: "headless remote with publishNotReadyAddresses feature",
+			definition: types.ServiceInterface{
+				Address:  "foo",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Headless: &types.Headless{
+					Name: "foo",
+					Size: 1,
+				},
+				Origin:                   "xyz",
+				PublishNotReadyAddresses: true,
+			},
+			allocatedPorts: []int{1024},
+			existing:       []corev1.Service{},
+			expected: []corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"internal.skupper.io/service": "foo",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Port:       8080,
+								TargetPort: intstr.FromInt(1024),
+								Protocol:   "TCP",
+							},
+						},
+						PublishNotReadyAddresses: true,
+					},
+				},
+			},
+		},
 	}
 	for _, s := range scenarios {
 		t.Run(s.name, func(t *testing.T) {
@@ -402,6 +470,7 @@ func TestServiceIngressBindings(t *testing.T) {
 				assert.Assert(t, reflect.DeepEqual(actualSvc.Spec.Selector, expectedSvc.Spec.Selector), "expected %v, got %v", expectedSvc.Spec.Selector, actualSvc.Spec.Selector)
 				assert.Assert(t, reflect.DeepEqual(IndexServicePorts(&actualSvc), IndexServicePorts(&expectedSvc)), "expected %v, got %v", IndexServicePorts(&expectedSvc), IndexServicePorts(&actualSvc))
 				assert.Assert(t, reflect.DeepEqual(actualSvc.ObjectMeta.Labels, expectedSvc.ObjectMeta.Labels), "expected %v, got %v", expectedSvc.ObjectMeta.Labels, actualSvc.ObjectMeta.Labels)
+				assert.Equal(t, actualSvc.Spec.PublishNotReadyAddresses, expectedSvc.Spec.PublishNotReadyAddresses, "expected %v, got %v", expectedSvc.Spec.PublishNotReadyAddresses, actualSvc.Spec.PublishNotReadyAddresses)
 				delete(actual, expectedSvc.ObjectMeta.Name)
 				cleanup = append(cleanup, actualSvc)
 			}

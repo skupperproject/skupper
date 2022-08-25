@@ -18,7 +18,7 @@ type DummyServiceBindingContext struct {
 	hosts map[string][]string
 }
 
-func (c *DummyServiceBindingContext) NewTargetResolver(address string, selector string) (TargetResolver, error) {
+func (c *DummyServiceBindingContext) NewTargetResolver(address string, selector string, skipStatusCheck bool) (TargetResolver, error) {
 	hosts := []string{}
 	if c.hosts != nil {
 		if value, ok := c.hosts[selector]; ok {
@@ -347,6 +347,73 @@ func TestNewServiceBindings(t *testing.T) {
 				eventChannel: true,
 			},
 		},
+		{
+			name: "tcp-service-publish-not-ready-addresses",
+			service: types.ServiceInterface{
+				Address:                  "test",
+				Protocol:                 "tcp",
+				Ports:                    []int{8080},
+				PublishNotReadyAddresses: true,
+			},
+			expected: &ServiceBindings{
+				protocol:                 "tcp",
+				Address:                  "test",
+				publicPorts:              []int{8080},
+				ingressPorts:             []int{MIN_PORT},
+				targets:                  map[string]*EgressBindings{},
+				PublishNotReadyAddresses: true,
+			},
+		},
+		{
+			name: "http2-headless-publish-not-ready-addresses",
+			service: types.ServiceInterface{
+				Address:  "http2-headless",
+				Protocol: "http2",
+				Ports:    []int{8080},
+				Headless: &types.Headless{
+					Name:        "headless",
+					Size:        1,
+					TargetPorts: map[int]int{8080: 9090},
+				},
+				Labels: map[string]string{
+					"app": "no-head",
+				},
+				Targets: []types.ServiceInterfaceTarget{
+					{Name: "http2-headless", Selector: "", TargetPorts: map[int]int{8080: 9090}, Service: "test-headless"},
+					{Name: "http2-headless", Selector: "app=headless", TargetPorts: map[int]int{8080: 9090}, Service: ""},
+				},
+				PublishNotReadyAddresses: true,
+			},
+			expected: &ServiceBindings{
+				protocol:     "http2",
+				Address:      "http2-headless",
+				publicPorts:  []int{8080},
+				ingressPorts: []int{8080},
+				headless: &types.Headless{
+					Name:        "headless",
+					Size:        1,
+					TargetPorts: map[int]int{8080: 9090},
+				},
+				Labels: map[string]string{
+					"app": "no-head",
+				},
+				targets: map[string]*EgressBindings{
+					"test-headless": {
+						name:        "http2-headless",
+						Selector:    "",
+						service:     "test-headless",
+						egressPorts: map[int]int{8080: 9090},
+					},
+					"app=headless": {
+						name:        "http2-headless",
+						Selector:    "app=headless",
+						service:     "",
+						egressPorts: map[int]int{8080: 9090},
+					},
+				},
+				PublishNotReadyAddresses: true,
+			},
+		},
 	}
 
 	for _, s := range scenarios {
@@ -359,6 +426,7 @@ func TestNewServiceBindings(t *testing.T) {
 			assert.Equal(t, b.aggregation, s.expected.aggregation)
 			assert.Equal(t, b.eventChannel, s.expected.eventChannel)
 			assert.Equal(t, b.headless == nil, s.expected.headless == nil)
+			assert.Equal(t, b.PublishNotReadyAddresses, s.expected.PublishNotReadyAddresses)
 			if s.expected.headless != nil {
 				assert.Equal(t, b.headless.Name, s.expected.headless.Name)
 				assert.Equal(t, b.headless.Size, s.expected.headless.Size)
@@ -809,6 +877,27 @@ func TestUpdateServiceBindings(t *testing.T) {
 				targets:     map[string]*EgressBindings{},
 			},
 		},
+		{
+			name: "add publish not ready addresses",
+			initial: types.ServiceInterface{
+				Address:                  "test",
+				Protocol:                 "tcp",
+				Ports:                    []int{8080},
+				PublishNotReadyAddresses: false,
+			},
+			update: types.ServiceInterface{
+				Address:                  "test",
+				Protocol:                 "tcp",
+				Ports:                    []int{8080},
+				PublishNotReadyAddresses: true,
+			},
+			expected: &ServiceBindings{
+				protocol:                 "tcp",
+				Address:                  "test",
+				publicPorts:              []int{8080},
+				PublishNotReadyAddresses: true,
+			},
+		},
 	}
 
 	for _, s := range scenarios {
@@ -821,6 +910,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 			assert.Equal(t, b.aggregation, s.expected.aggregation)
 			assert.Equal(t, b.eventChannel, s.expected.eventChannel)
 			assert.Equal(t, b.tlsCredentials, s.expected.tlsCredentials)
+			assert.Equal(t, b.PublishNotReadyAddresses, s.expected.PublishNotReadyAddresses)
 			assert.Equal(t, b.headless == nil, s.expected.headless == nil)
 			if s.expected.headless != nil {
 				assert.Equal(t, b.headless.Name, s.expected.headless.Name)
@@ -1312,7 +1402,7 @@ type StopTestBindingContext struct {
 	resolvers []*StoppableResolver
 }
 
-func (c *StopTestBindingContext) NewTargetResolver(address string, selector string) (TargetResolver, error) {
+func (c *StopTestBindingContext) NewTargetResolver(address string, selector string, skipStatusCheck bool) (TargetResolver, error) {
 	resolver := &StoppableResolver{}
 	c.resolvers = append(c.resolvers, resolver)
 	return resolver, nil

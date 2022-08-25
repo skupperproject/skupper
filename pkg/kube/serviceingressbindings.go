@@ -97,7 +97,9 @@ func (si *ServiceIngressAlways) create(desired *service.ServiceBindings) error {
 			},
 			Labels: desired.Labels,
 		},
-		Spec: corev1.ServiceSpec{},
+		Spec: corev1.ServiceSpec{
+			PublishNotReadyAddresses: desired.PublishNotReadyAddresses,
+		},
 	}
 	UpdatePorts(&service.Spec, desired.PortMap())
 	UpdateSelectorFromMap(&service.Spec, GetLabelsForRouter())
@@ -175,7 +177,8 @@ func (si *ServiceIngressHeadlessRemote) create(desired *service.ServiceBindings)
 			Labels: desired.Labels,
 		},
 		Spec: corev1.ServiceSpec{
-			ClusterIP: "None",
+			ClusterIP:                "None",
+			PublishNotReadyAddresses: desired.PublishNotReadyAddresses,
 		},
 	}
 	UpdatePorts(&service.Spec, desired.PortMap())

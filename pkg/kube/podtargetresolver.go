@@ -33,9 +33,10 @@ const (
 )
 
 type PodTargetResolver struct {
-	address  string
-	informer cache.SharedIndexInformer
-	stopper  chan struct{}
+	address         string
+	informer        cache.SharedIndexInformer
+	stopper         chan struct{}
+	skipStatusCheck bool
 }
 
 func (o *PodTargetResolver) Start() error {
@@ -53,9 +54,12 @@ func (o *PodTargetResolver) Close() {
 func (o *PodTargetResolver) List() []string {
 	pods := o.informer.GetStore().List()
 	var targets []string
+	var isPodEligible bool
+
 	for _, p := range pods {
 		pod := p.(*corev1.Pod)
-		if IsPodRunning(pod) && IsPodReady(pod) && pod.DeletionTimestamp == nil {
+		isPodEligible = o.skipStatusCheck || IsPodReady(pod)
+		if isPodEligible && IsPodRunning(pod) && pod.DeletionTimestamp == nil {
 			event.Recordf(BridgeTargetEvent, "Adding pod for %s: %s", o.address, pod.ObjectMeta.Name)
 			targets = append(targets, pod.Status.PodIP)
 		} else {
@@ -80,7 +84,7 @@ func (o *PodTargetResolver) AddEventHandler(handler *cache.ResourceEventHandlerF
 	o.informer.AddEventHandler(handler)
 }
 
-func NewPodTargetResolver(cli kubernetes.Interface, namespace string, address string, selector string) *PodTargetResolver {
+func NewPodTargetResolver(cli kubernetes.Interface, namespace string, address string, selector string, skipPodStatus bool) *PodTargetResolver {
 	return &PodTargetResolver{
 		address: address,
 		informer: corev1informer.NewFilteredPodInformer(
@@ -91,6 +95,7 @@ func NewPodTargetResolver(cli kubernetes.Interface, namespace string, address st
 			internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
 				options.LabelSelector = selector
 			})),
-		stopper: make(chan struct{}),
+		stopper:         make(chan struct{}),
+		skipStatusCheck: skipPodStatus,
 	}
 }

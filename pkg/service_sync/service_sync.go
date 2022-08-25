@@ -101,17 +101,18 @@ func (c *ServiceSync) localDefinitionsUpdated(definitions map[string]types.Servi
 
 	for name, original := range definitions {
 		service := types.ServiceInterface{
-			Address:        original.Address,
-			Protocol:       original.Protocol,
-			Ports:          original.Ports,
-			Origin:         original.Origin,
-			Headless:       original.Headless,
-			Labels:         original.Labels,
-			Aggregate:      original.Aggregate,
-			EventChannel:   original.EventChannel,
-			Targets:        []types.ServiceInterfaceTarget{},
-			EnableTls:      original.EnableTls,
-			TlsCredentials: original.TlsCredentials,
+			Address:                  original.Address,
+			Protocol:                 original.Protocol,
+			Ports:                    original.Ports,
+			Origin:                   original.Origin,
+			Headless:                 original.Headless,
+			Labels:                   original.Labels,
+			Aggregate:                original.Aggregate,
+			EventChannel:             original.EventChannel,
+			Targets:                  []types.ServiceInterfaceTarget{},
+			EnableTls:                original.EnableTls,
+			TlsCredentials:           original.TlsCredentials,
+			PublishNotReadyAddresses: original.PublishNotReadyAddresses,
 		}
 		if service.Origin != "" && service.Origin != "annotation" {
 			if _, ok := c.byOrigin[service.Origin]; !ok {
