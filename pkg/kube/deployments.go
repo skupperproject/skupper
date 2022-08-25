@@ -16,7 +16,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func GetDeploymentLabel(name string, key string, cli types.Deployments) string {
+func GetDeploymentLabel(name string, key string, cli Deployments) string {
 	deployment, err := GetDeployment(name, cli)
 	if err != nil {
 		return ""
@@ -45,7 +45,7 @@ func GetDeploymentOwnerReference(dep *appsv1.Deployment) metav1.OwnerReference {
 	}
 }
 
-func DeleteDeployment(name string, cli types.Deployments) error {
+func DeleteDeployment(name string, cli Deployments) error {
 	dep, _, err := cli.GetDeployment(name)
 	if err == nil {
 		err = cli.DeleteDeployment(dep.ObjectMeta.Name)
@@ -54,7 +54,7 @@ func DeleteDeployment(name string, cli types.Deployments) error {
 }
 
 // TODO, pass full client object with namespace and clientset
-func GetDeployment(name string, cli types.Deployments) (*appsv1.Deployment, error) {
+func GetDeployment(name string, cli Deployments) (*appsv1.Deployment, error) {
 	existing, _, err := cli.GetDeployment(name)
 	if err != nil {
 		return nil, err
@@ -75,10 +75,10 @@ func getProxyStatefulSetName(definition types.ServiceInterface) string {
 	}
 }
 
-func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterface, actual *appsv1.StatefulSet, desiredConfig string, namespace string, cli types.VanClientInterface) (*appsv1.StatefulSet, error) {
+func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterface, actual *appsv1.StatefulSet, desiredConfig string, namespace string, cli Storage) (*appsv1.StatefulSet, error) {
 	if actual == nil {
 		var err error
-		actual, _, err = cli.StatefulSetManager(namespace).GetStatefulSet(getProxyStatefulSetName(desired))
+		actual, _, err = cli.GetStatefulSet(getProxyStatefulSetName(desired))
 		if errors.IsNotFound(err) {
 			return NewProxyStatefulSet(image, desired, desiredConfig, namespace, cli)
 		} else if err != nil {
@@ -96,16 +96,14 @@ func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterf
 		change = true
 	}
 	if change {
-		return cli.StatefulSetManager(namespace).UpdateStatefulSet(actual)
+		return cli.UpdateStatefulSet(actual)
 	} else {
 		return actual, nil
 	}
 }
 
-func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.ServiceInterface, config string, namespace string, cli types.VanClientInterface) (*appsv1.StatefulSet, error) {
-	statefulSets := cli.StatefulSetManager(namespace)
-	deployments := cli.DeploymentManager(namespace)
-	transportDep, _, err := deployments.GetDeployment(types.TransportDeploymentName)
+func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.ServiceInterface, config string, namespace string, cli Storage) (*appsv1.StatefulSet, error) {
+	transportDep, _, err := cli.GetDeployment(types.TransportDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +113,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 	svcName := serviceInterface.Address
 	if serviceInterface.Origin == "" {
 		svcName += "-proxy"
-		_, err = NewHeadlessService(svcName, serviceInterface.Address, serviceInterface.Ports, serviceInterface.Ports, serviceInterface.Labels, &ownerRef, namespace, cli)
+		_, err = NewHeadlessService(svcName, serviceInterface.Address, serviceInterface.Ports, serviceInterface.Ports, serviceInterface.Labels, &ownerRef, cli)
 		if err != nil {
 			return nil, err
 		}
@@ -247,7 +245,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 	}
 	setResourceRequests(&podspec.Containers[0], serviceInterface.Headless)
 
-	created, err := statefulSets.CreateStatefulSet(proxyStatefulSet)
+	created, err := cli.CreateStatefulSet(proxyStatefulSet)
 
 	if err != nil {
 		return nil, err
@@ -257,7 +255,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 
 }
 
-func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, deployments types.Deployments) (*appsv1.Deployment, error) {
+func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, deployments Deployments) (*appsv1.Deployment, error) {
 	existing, _, err := deployments.GetDeployment(types.ControllerDeploymentName)
 	if err == nil {
 		return existing, nil
@@ -355,7 +353,7 @@ func setAffinity(spec *types.DeploymentSpec, podspec *corev1.PodSpec) {
 	}
 }
 
-func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, deployments types.Deployments) (*appsv1.Deployment, error) {
+func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, deployments Deployments) (*appsv1.Deployment, error) {
 	existing, _, err := deployments.GetDeployment(types.TransportDeploymentName)
 	if err == nil {
 		return existing, nil
@@ -443,7 +441,7 @@ func GetContainerPortForDaemonSet(daemonSet *appsv1.DaemonSet) map[int]int {
 
 // WaitDeploymentReadyReplicas waits till given deployment contains the expected
 // number of readyReplicas, or until it times out
-func WaitDeploymentReadyReplicas(name string, cli types.Deployments, readyReplicas int, timeout, interval time.Duration) (*appsv1.Deployment, error) {
+func WaitDeploymentReadyReplicas(name string, cli Deployments, readyReplicas int, timeout, interval time.Duration) (*appsv1.Deployment, error) {
 	var dep *appsv1.Deployment
 	var err error
 
@@ -461,7 +459,7 @@ func WaitDeploymentReadyReplicas(name string, cli types.Deployments, readyReplic
 	return dep, err
 }
 
-func WaitStatefulSetReadyReplicas(name string, cli types.StatefulSets, readyReplicas int, timeout, interval time.Duration) (*appsv1.StatefulSet, error) {
+func WaitStatefulSetReadyReplicas(name string, cli StatefulSets, readyReplicas int, timeout, interval time.Duration) (*appsv1.StatefulSet, error) {
 	var ss *appsv1.StatefulSet
 	var err error
 
@@ -480,7 +478,7 @@ func WaitStatefulSetReadyReplicas(name string, cli types.StatefulSets, readyRepl
 }
 
 // WaitDeploymentReady waits till given deployment contains at least one ReadyReplicas, or until it times out
-func WaitDeploymentReady(name string, cli types.Deployments, timeout, interval time.Duration) (*appsv1.Deployment, error) {
+func WaitDeploymentReady(name string, cli Deployments, timeout, interval time.Duration) (*appsv1.Deployment, error) {
 	var dep *appsv1.Deployment
 	var err error
 

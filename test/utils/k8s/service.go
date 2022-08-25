@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -52,7 +52,7 @@ func WaitForServiceToBeAvailable(ns string, kubeClient kubernetes.Interface, nam
 	return
 }
 
-func WaitForServiceToBeCreated(cli types.Services, name string, retryFn func() (*apiv1.Service, error), backoff wait.Backoff) (*apiv1.Service, error) {
+func WaitForServiceToBeCreated(cli kube.Services, name string, retryFn func() (*apiv1.Service, error), backoff wait.Backoff) (*apiv1.Service, error) {
 	var service *apiv1.Service = nil
 	var err error
 	isError := func(err error) bool {
@@ -74,7 +74,7 @@ func WaitForServiceToBeCreated(cli types.Services, name string, retryFn func() (
 	})
 }
 
-func WaitForServiceToBeCreatedAndReadyToUse(cli types.Services, serviceName string, serviceReadyPeriod time.Duration) (*apiv1.Service, error) {
+func WaitForServiceToBeCreatedAndReadyToUse(cli kube.Services, serviceName string, serviceReadyPeriod time.Duration) (*apiv1.Service, error) {
 	service, err := WaitForServiceToBeCreated(cli, serviceName, nil, constants.DefaultRetry)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func WaitForServiceToBeCreatedAndReadyToUse(cli types.Services, serviceName stri
 	return service, nil
 }
 
-func WaitForSkupperServiceToBeCreatedAndReadyToUse(cli types.Services, serviceName string) (*apiv1.Service, error) {
+func WaitForSkupperServiceToBeCreatedAndReadyToUse(cli kube.Services, serviceName string) (*apiv1.Service, error) {
 	fmt.Printf("Waiting for skupper service: %s\n", serviceName)
 	return WaitForServiceToBeCreatedAndReadyToUse(cli, serviceName, time.Second*10)
 }

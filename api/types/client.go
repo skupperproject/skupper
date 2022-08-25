@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -319,59 +318,9 @@ type VanClientInterface interface {
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
 	NetworkStatus() ([]*SiteInfo, error)
-	ServiceManager(namespace string) Services
-	ConfigMapManager(namespace string) ConfigMaps
-	DeploymentManager(namespace string) Deployments
-	SecretManager(namespace string) Secrets
-	StatefulSetManager(namespace string) StatefulSets
 }
 
 type ListFilter struct {
 	LabelSelector string
 	Limit         int64
-}
-
-type Services interface {
-	GetService(name string) (*corev1.Service, bool, error)
-	DeleteService(name string) error
-	ListServices(options *ListFilter) ([]corev1.Service, error)
-	CreateService(svc *corev1.Service) (*corev1.Service, error)
-	UpdateService(svc *corev1.Service) (*corev1.Service, error)
-	IsOwned(service *corev1.Service) bool
-}
-
-type ConfigMaps interface {
-	GetConfigMap(name string) (*corev1.ConfigMap, bool, error)
-	DeleteConfigMap(cm string) error
-	ListConfigMaps(options *ListFilter) ([]corev1.ConfigMap, error)
-	CreateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap, error)
-	UpdateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap, error)
-	IsOwned(cm *corev1.ConfigMap) bool
-}
-
-type Deployments interface {
-	GetDeployment(name string) (*appsv1.Deployment, bool, error)
-	DeleteDeployment(dep string) error
-	ListDeployments(options *ListFilter) ([]appsv1.Deployment, error)
-	CreateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error)
-	UpdateDeployment(dep *appsv1.Deployment) (*appsv1.Deployment, error)
-	IsOwned(dep *appsv1.Deployment) bool
-}
-
-type Secrets interface {
-	GetSecret(name string) (*corev1.Secret, bool, error)
-	DeleteSecret(secret string) error
-	ListSecrets(options *ListFilter) ([]corev1.Secret, error)
-	CreateSecret(secret *corev1.Secret) (*corev1.Secret, error)
-	UpdateSecret(secret *corev1.Secret) (*corev1.Secret, error)
-	IsOwned(secret *corev1.Secret) bool
-}
-
-type StatefulSets interface {
-	GetStatefulSet(name string) (*appsv1.StatefulSet, bool, error)
-	DeleteStatefulSet(ss string) error
-	ListStatefulSets(options *ListFilter) ([]appsv1.StatefulSet, error)
-	CreateStatefulSet(ss *appsv1.StatefulSet) (*appsv1.StatefulSet, error)
-	UpdateStatefulSet(ss *appsv1.StatefulSet) (*appsv1.StatefulSet, error)
-	IsOwned(ss *appsv1.StatefulSet) bool
 }

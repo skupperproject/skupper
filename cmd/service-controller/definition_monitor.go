@@ -356,7 +356,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 			svc.Address = service.ObjectMeta.Name
 		}
 		if target, ok := service.ObjectMeta.Annotations[types.TargetServiceQualifier]; ok {
-			port, err := kube.GetPortsForServiceTarget(target, m.vanClient.Namespace, func(namespace string) types.Services {
+			port, err := kube.GetPortsForServiceTarget(target, m.vanClient.Namespace, func(namespace string) kube.Services {
 				return m.vanClient.ServiceManager(namespace)
 			})
 			if err != nil {

@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
+	kube "github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -50,7 +50,7 @@ func createPod(cli kubernetes.Interface, name string, namespace string, labels m
 	}
 }
 
-func createDeployment(cli types.Deployments, name string, image string, ports []corev1.ContainerPort) (*appsv1.Deployment, error) {
+func createDeployment(cli kube.Deployments, name string, image string, ports []corev1.ContainerPort) (*appsv1.Deployment, error) {
 	dep := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -86,7 +86,7 @@ func createDeployment(cli types.Deployments, name string, image string, ports []
 	}
 }
 
-func createStatefulSet(ssCli types.StatefulSets, name string, image string, ports []corev1.ContainerPort) (*appsv1.StatefulSet, error) {
+func createStatefulSet(ssCli kube.StatefulSets, name string, image string, ports []corev1.ContainerPort) (*appsv1.StatefulSet, error) {
 	ss := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",

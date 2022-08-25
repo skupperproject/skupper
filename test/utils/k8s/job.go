@@ -81,9 +81,10 @@ func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 func CreateTestJobWithSecret(ns string, cli types.VanClientInterface, name string, command []string, secretname string) (*batchv1.Job, error) {
 
 	namespace := ns
+	vanCli := cli.(*client.VanClient)
 	testImage := GetTestImage()
 
-	secret, _, err := cli.SecretManager(namespace).GetSecret(secretname)
+	secret, _, err := vanCli.SecretManager(namespace).GetSecret(secretname)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +126,6 @@ func CreateTestJobWithSecret(ns string, cli types.VanClientInterface, name strin
 
 	AppendSecretVolume(&job.Spec.Template.Spec.Volumes, &job.Spec.Template.Spec.Containers[0].VolumeMounts, secret.Name, "/tmp/certs/"+secretname+"/")
 
-	vanCli := cli.(*client.VanClient)
 	jobsClient := vanCli.KubeClient.BatchV1().Jobs(namespace)
 
 	job, err = jobsClient.Create(job)

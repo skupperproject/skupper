@@ -80,23 +80,23 @@ type vanClientMock struct {
 	injectedReturns                           vanClientMockInjectedReturnValues
 }
 
-func (v *vanClientMock) StatefulSetManager(namespace string) types.StatefulSets {
+func (v *vanClientMock) StatefulSetManager(namespace string) kube.StatefulSets {
 	return &statefulSetMock{}
 }
 
-func (v *vanClientMock) ServiceManager(namespace string) types.Services {
+func (v *vanClientMock) ServiceManager(namespace string) kube.Services {
 	return &serviceMock{}
 }
 
-func (v *vanClientMock) ConfigMapManager(namespace string) types.ConfigMaps {
+func (v *vanClientMock) ConfigMapManager(namespace string) kube.ConfigMaps {
 	return &configMapMock{}
 }
 
-func (v *vanClientMock) DeploymentManager(namespace string) types.Deployments {
+func (v *vanClientMock) DeploymentManager(namespace string) kube.Deployments {
 	return &deploymentMock{}
 }
 
-func (v *vanClientMock) SecretManager(namespace string) types.Secrets {
+func (v *vanClientMock) SecretManager(namespace string) kube.Secrets {
 	return &secretMock{}
 }
 
@@ -727,7 +727,7 @@ func (v *configMapMock) UpdateConfigMap(cm *corev1.ConfigMap) (*corev1.ConfigMap
 	return nil, nil
 }
 
-func (v *configMapMock) IsOwned(cm *corev1.ConfigMap) bool {
+func (v *configMapMock) IsOwnedConfigMap(cm *corev1.ConfigMap) bool {
 	return kube.IsOwnedBySkupper(cm.ObjectMeta.OwnerReferences)
 }
 
@@ -753,7 +753,7 @@ func (s *serviceMock) UpdateService(svc *corev1.Service) (*corev1.Service, error
 	return nil, nil
 }
 
-func (s *serviceMock) IsOwned(service *corev1.Service) bool {
+func (s *serviceMock) IsOwnedService(service *corev1.Service) bool {
 	return kube.IsOwnedBySkupper(service.ObjectMeta.OwnerReferences)
 }
 
@@ -779,7 +779,7 @@ func (d *deploymentMock) UpdateDeployment(dep *appsv1.Deployment) (*appsv1.Deplo
 	return nil, nil
 }
 
-func (d *deploymentMock) IsOwned(dep *appsv1.Deployment) bool {
+func (d *deploymentMock) IsOwnedDeployment(dep *appsv1.Deployment) bool {
 	return kube.IsOwnedBySkupper(dep.ObjectMeta.OwnerReferences)
 }
 
@@ -805,7 +805,7 @@ func (s *secretMock) UpdateSecret(secret *corev1.Secret) (*corev1.Secret, error)
 	return nil, nil
 }
 
-func (s *secretMock) IsOwned(secret *corev1.Secret) bool {
+func (s *secretMock) IsOwnedSecret(secret *corev1.Secret) bool {
 	return kube.IsOwnedBySkupper(secret.ObjectMeta.OwnerReferences)
 }
 
@@ -831,6 +831,6 @@ func (s *statefulSetMock) UpdateStatefulSet(ss *appsv1.StatefulSet) (*appsv1.Sta
 	return nil, nil
 }
 
-func (s *statefulSetMock) IsOwned(ss *appsv1.StatefulSet) bool {
+func (s *statefulSetMock) IsOwnedStatefulSet(ss *appsv1.StatefulSet) bool {
 	return kube.IsOwnedBySkupper(ss.ObjectMeta.OwnerReferences)
 }

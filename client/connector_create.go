@@ -23,7 +23,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-func generateConnectorName(cli types.Secrets) string {
+func generateConnectorName(cli kube.Secrets) string {
 	secrets, err := cli.ListSecrets(nil)
 	max := 1
 	if err == nil {

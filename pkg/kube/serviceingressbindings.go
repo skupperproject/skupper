@@ -43,18 +43,18 @@ func HasRouterSelector(service corev1.Service) bool {
 }
 
 type ServiceIngressAlways struct {
-	s types.Services
+	s Services
 }
 
 type ServiceIngressHeadlessInOrigin struct {
-	s types.Services
+	s Services
 }
 
 type ServiceIngressHeadlessRemote struct {
-	s types.Services
+	s Services
 }
 
-func NewHeadlessServiceIngress(s types.Services, origin string) service.ServiceIngress {
+func NewHeadlessServiceIngress(s Services, origin string) service.ServiceIngress {
 	if origin == "" {
 		return &ServiceIngressHeadlessInOrigin{
 			s: s,
@@ -66,7 +66,7 @@ func NewHeadlessServiceIngress(s types.Services, origin string) service.ServiceI
 	}
 }
 
-func NewServiceIngressAlways(s types.Services) service.ServiceIngress {
+func NewServiceIngressAlways(s Services) service.ServiceIngress {
 	return &ServiceIngressAlways{
 		s: s,
 	}
@@ -108,7 +108,7 @@ func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.
 	updatedSelector := UpdateSelectorFromMap(&actual.Spec, GetLabelsForRouter())
 	updatedLabels := UpdateLabels(&actual.ObjectMeta, desired.Labels)
 
-	if updatedPorts && !si.s.IsOwned(actual) {
+	if updatedPorts && !si.s.IsOwnedService(actual) {
 		SetAnnotation(&actual.ObjectMeta, types.OriginalTargetPortQualifier, originalPorts)
 		SetAnnotation(&actual.ObjectMeta, types.OriginalAssignedQualifier, PortsAsString(actual.Spec.Ports))
 	}

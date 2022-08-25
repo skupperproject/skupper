@@ -55,7 +55,7 @@ func (s *TestContext) UpdateService(svc *corev1.Service) (*corev1.Service, error
 	return s.client.CoreV1().Services(s.namespace).Update(svc)
 }
 
-func (s *TestContext) IsOwned(service *corev1.Service) bool {
+func (s *TestContext) IsOwnedService(service *corev1.Service) bool {
 	if controlled, ok := service.ObjectMeta.Annotations[types.ControlledQualifier]; ok {
 		return controlled == "true"
 	}

@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,7 +79,7 @@ func TestGetPortForServiceTarget(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			port, err := GetPortsForServiceTarget(test.targetService, NS, func(namespace string) types.Services {
+			port, err := GetPortsForServiceTarget(test.targetService, NS, func(namespace string) Services {
 				return &ServiceManager{KubeClient: kubeClient, Namespace: namespace}
 			})
 			assert.Assert(t, reflect.DeepEqual(test.expected, port))

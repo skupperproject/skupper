@@ -26,9 +26,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli types.VanClientInterface) (*types.ServiceInterfaceTarget, error) {
+func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli Storage) (*types.ServiceInterfaceTarget, error) {
 	if targetType == "deployment" {
-		deployment, _, err := cli.DeploymentManager(namespace).GetDeployment(targetName)
+		deployment, _, err := cli.GetDeployment(targetName)
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     deployment.ObjectMeta.Name,
@@ -45,7 +45,7 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
 		}
 	} else if targetType == "statefulset" {
-		statefulset, _, err := cli.StatefulSetManager(namespace).GetStatefulSet(targetName)
+		statefulset, _, err := cli.GetStatefulSet(targetName)
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     statefulset.ObjectMeta.Name,
@@ -69,8 +69,11 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			Service: targetName,
 		}
 		if deducePort {
-			ports, err := GetPortsForServiceTarget(targetName, namespace, func(namespace string) types.Services {
-				return cli.ServiceManager(namespace)
+			ports, err := GetPortsForServiceTarget(targetName, namespace, func(namespace string) Services {
+				if sm, ok := cli.(*StorageManager); ok {
+					return NewStorageManager(sm.KubeClient, namespace)
+				}
+				return cli
 			})
 			if err != nil {
 				return nil, err

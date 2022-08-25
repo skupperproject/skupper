@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, cli types.Secrets) (*corev1.Secret, error) {
+func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, cli Secrets) (*corev1.Secret, error) {
 
 	existing, _, err := cli.GetSecret(ca.Name)
 	if err == nil {
@@ -35,7 +35,7 @@ func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, cli 
 	}
 }
 
-func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace string, cli types.Secrets) (*corev1.Secret, error) {
+func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace string, cli Secrets) (*corev1.Secret, error) {
 	var secret corev1.Secret
 
 	if cred.CA != "" {
@@ -84,7 +84,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 	return &secret, nil
 }
 
-func DeleteSecret(name string, secrets types.Secrets) error {
+func DeleteSecret(name string, secrets Secrets) error {
 	err := secrets.DeleteSecret(name)
 	if err == nil {
 		return err
@@ -95,7 +95,7 @@ func DeleteSecret(name string, secrets types.Secrets) error {
 	}
 }
 
-func CopySecret(src string, dest string, cli types.Secrets) error {
+func CopySecret(src string, dest string, cli Secrets) error {
 	original, _, err := cli.GetSecret(src)
 	if err != nil {
 		return err
@@ -122,7 +122,7 @@ func CopySecret(src string, dest string, cli types.Secrets) error {
 
 }
 
-func RegenerateCertAuthority(name string, cli types.Secrets) (*corev1.Secret, error) {
+func RegenerateCertAuthority(name string, cli Secrets) (*corev1.Secret, error) {
 	current, _, err := cli.GetSecret(name)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func RegenerateCertAuthority(name string, cli types.Secrets) (*corev1.Secret, er
 	return cli.UpdateSecret(current)
 }
 
-func RegenerateCredentials(credential types.Credential, ca *corev1.Secret, cli types.Secrets) (*corev1.Secret, error) {
+func RegenerateCredentials(credential types.Credential, ca *corev1.Secret, cli Secrets) (*corev1.Secret, error) {
 	current, _, err := cli.GetSecret(credential.Name)
 	if err != nil {
 		return nil, err

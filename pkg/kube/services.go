@@ -32,7 +32,7 @@ func GetLoadBalancerHostOrIP(service *corev1.Service) string {
 	return ""
 }
 
-func DeleteService(name string, cli types.Services) error {
+func DeleteService(name string, cli Services) error {
 	svc, _, err := cli.GetService(name)
 	if err == nil {
 		err = cli.DeleteService(svc.ObjectMeta.Name)
@@ -40,22 +40,22 @@ func DeleteService(name string, cli types.Services) error {
 	return err
 }
 
-func GetService(name string, cli types.Services) (*corev1.Service, error) {
+func GetService(name string, cli Services) (*corev1.Service, error) {
 	current, _, err := cli.GetService(name)
 	return current, err
 }
 
-func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, cli types.VanClientInterface) (*corev1.Service, error) {
+func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, cli Storage) (*corev1.Service, error) {
 	selector := map[string]string{
 		"internal.skupper.io/service": address,
 	}
 	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
 	service.Spec.ClusterIP = "None"
 
-	return createServiceFromObject(service, cli.ServiceManager(namespace))
+	return createServiceFromObject(service, cli)
 }
 
-func NewHeadlessService(name string, address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, cli types.VanClientInterface) (*corev1.Service, error) {
+func NewHeadlessService(name string, address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, cli Storage) (*corev1.Service, error) {
 	selector := map[string]string{
 		"internal.skupper.io/service": address,
 	}
@@ -63,7 +63,7 @@ func NewHeadlessService(name string, address string, ports []int, targetPorts []
 	service.Spec.ClusterIP = "None"
 	service.Annotations[types.ServiceQualifier] = address
 
-	return createServiceFromObject(service, cli.ServiceManager(namespace))
+	return createServiceFromObject(service, cli)
 }
 
 func makeServiceObjectForAddress(address string, ports []int, targetPorts []int, labels, selector map[string]string, owner *metav1.OwnerReference) *corev1.Service {
@@ -102,7 +102,7 @@ func makeServiceObjectForAddress(address string, ports []int, targetPorts []int,
 	return service
 }
 
-func createServiceFromObject(service *corev1.Service, cli types.Services) (*corev1.Service, error) {
+func createServiceFromObject(service *corev1.Service, cli Services) (*corev1.Service, error) {
 	created, err := cli.CreateService(service)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func createServiceFromObject(service *corev1.Service, cli types.Services) (*core
 	}
 }
 
-func CreateService(service *corev1.Service, cli types.Services) (*corev1.Service, error) {
+func CreateService(service *corev1.Service, cli Services) (*corev1.Service, error) {
 	return createServiceFromObject(service, cli)
 }
 
@@ -126,7 +126,7 @@ func GetLoadBalancerHostOrIp(service *corev1.Service) string {
 	return ""
 }
 
-func GetPortsForServiceTarget(targetName string, defaultNamespace string, cliFn func(namespace string) types.Services) (map[int]int, error) {
+func GetPortsForServiceTarget(targetName string, defaultNamespace string, cliFn func(namespace string) Services) (map[int]int, error) {
 	ports := map[int]int{}
 	parts := strings.Split(targetName, ".")
 	var name, namespace string
@@ -153,7 +153,7 @@ func GetPortsForServiceTarget(targetName string, defaultNamespace string, cliFn 
 	}
 }
 
-func CopyService(src string, dest string, annotations map[string]string, cli types.Services) (*corev1.Service, error) {
+func CopyService(src string, dest string, annotations map[string]string, cli Services) (*corev1.Service, error) {
 	original, _, err := cli.GetService(src)
 	if err != nil {
 		return nil, err
@@ -194,7 +194,7 @@ func CopyService(src string, dest string, annotations map[string]string, cli typ
 	return copied, nil
 }
 
-func WaitServiceExists(name string, cli types.Services, timeout, interval time.Duration) (*corev1.Service, error) {
+func WaitServiceExists(name string, cli Services, timeout, interval time.Duration) (*corev1.Service, error) {
 	var svc *corev1.Service
 	var err error
 
@@ -341,7 +341,7 @@ func UpdateSelector(spec *corev1.ServiceSpec, selector string) (bool, error) {
 	return UpdateSelectorFromMap(spec, desired), nil
 }
 
-func IsOriginalServiceModified(name string, cli types.Services) bool {
+func IsOriginalServiceModified(name string, cli Services) bool {
 	svc, err := GetService(name, cli)
 	if err != nil {
 		return false
@@ -351,7 +351,7 @@ func IsOriginalServiceModified(name string, cli types.Services) bool {
 	return origSelector || origTargetPorts
 }
 
-func RemoveServiceAnnotations(name string, cli types.Services, annotations []string) (*corev1.Service, error) {
+func RemoveServiceAnnotations(name string, cli Services, annotations []string) (*corev1.Service, error) {
 	svc, err := GetService(name, cli)
 	if err != nil {
 		return nil, err

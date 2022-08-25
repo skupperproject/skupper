@@ -332,7 +332,7 @@ func (c *Controller) CreateService(svc *corev1.Service) (*corev1.Service, error)
 	return c.vanClient.ServiceManager(c.vanClient.Namespace).CreateService(svc)
 }
 
-func (c *Controller) IsOwned(service *corev1.Service) bool {
+func (c *Controller) IsOwnedService(service *corev1.Service) bool {
 	return isOwned(service)
 }
 
@@ -559,7 +559,7 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, s
 		return err
 	}
 
-	_, err = kube.CheckProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient)
+	_, err = kube.CheckProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient.StorageManager(c.vanClient.Namespace))
 	return err
 }
 
@@ -570,7 +570,7 @@ func (c *Controller) createHeadlessProxyFor(bindings *service.ServiceBindings) e
 		return err
 	}
 
-	_, err = kube.NewProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, config, c.vanClient.Namespace, c.vanClient)
+	_, err = kube.NewProxyStatefulSet(client.GetRouterImageDetails(), serviceInterface, config, c.vanClient.Namespace, c.vanClient.StorageManager(c.vanClient.Namespace))
 	return err
 }
 

@@ -111,35 +111,39 @@ func (cli *VanClient) GetIngressDefault() string {
 	return types.IngressRouteString
 }
 
-func (cli *VanClient) ServiceManager(namespace string) types.Services {
+func (cli *VanClient) StorageManager(namespace string) kube.Storage {
+	return kube.NewStorageManager(cli.KubeClient, utils.DefaultStr(namespace, cli.Namespace))
+}
+
+func (cli *VanClient) ServiceManager(namespace string) kube.Services {
 	return &kube.ServiceManager{
 		KubeClient: cli.KubeClient,
 		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
-func (cli *VanClient) ConfigMapManager(namespace string) types.ConfigMaps {
+func (cli *VanClient) ConfigMapManager(namespace string) kube.ConfigMaps {
 	return &kube.ConfigMapManager{
 		KubeClient: cli.KubeClient,
 		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
-func (cli *VanClient) DeploymentManager(namespace string) types.Deployments {
+func (cli *VanClient) DeploymentManager(namespace string) kube.Deployments {
 	return &kube.DeploymentManager{
 		KubeClient: cli.KubeClient,
 		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
-func (cli *VanClient) SecretManager(namespace string) types.Secrets {
+func (cli *VanClient) SecretManager(namespace string) kube.Secrets {
 	return &kube.SecretManager{
 		KubeClient: cli.KubeClient,
 		Namespace:  utils.DefaultStr(namespace, cli.Namespace),
 	}
 }
 
-func (cli *VanClient) StatefulSetManager(namespace string) types.StatefulSets {
+func (cli *VanClient) StatefulSetManager(namespace string) kube.StatefulSets {
 	return &kube.StatefulSetManager{
 		KubeClient: cli.KubeClient,
 		Namespace:  utils.DefaultStr(namespace, cli.Namespace),

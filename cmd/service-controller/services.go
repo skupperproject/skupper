@@ -127,7 +127,7 @@ func (m *ServiceManager) createService(options *ServiceOptions) error {
 		Ports:    options.GetPorts(),
 	}
 	deducePort := options.DeducePort()
-	target, err := kube.GetServiceInterfaceTarget(options.GetTargetType(), options.GetTargetName(), deducePort, m.cli.Namespace, m.cli)
+	target, err := kube.GetServiceInterfaceTarget(options.GetTargetType(), options.GetTargetName(), deducePort, m.cli.Namespace, m.cli.StorageManager(m.cli.Namespace))
 	if err != nil {
 		return err
 	}

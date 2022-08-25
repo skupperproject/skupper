@@ -6,7 +6,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-func AddSslProfile(secretName string, cli types.ConfigMaps) error {
+func AddSslProfile(secretName string, cli kube.ConfigMaps) error {
 
 	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli)
 	if err != nil {
@@ -35,7 +35,7 @@ func AddSslProfile(secretName string, cli types.ConfigMaps) error {
 
 }
 
-func RemoveSslProfile(secretName string, cli types.ConfigMaps) error {
+func RemoveSslProfile(secretName string, cli kube.ConfigMaps) error {
 
 	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli)
 	if err != nil {
