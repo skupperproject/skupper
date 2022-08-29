@@ -565,7 +565,7 @@ func TestMockDump(t *testing.T) {
 		ns       string
 		nsLabels map[string]string
 		policies []v1alpha1.SkupperClusterPolicy
-		exp      *PolicyDump
+		exp      *PolicyInfo
 	}
 
 	newPolicy := func(name string, spec v1alpha1.SkupperClusterPolicySpec) v1alpha1.SkupperClusterPolicy {
@@ -576,7 +576,7 @@ func TestMockDump(t *testing.T) {
 			Spec: spec,
 		}
 	}
-	emptyDump := &PolicyDump{
+	emptyDump := &PolicyInfo{
 		AllowIncomingLinks:            map[string][]string{},
 		AllowedOutgoingLinksHostnames: map[string][]string{},
 		AllowedExposedResources:       map[string][]string{},
@@ -603,7 +603,7 @@ func TestMockDump(t *testing.T) {
 					AllowedServices:               []string{"*"},
 				}),
 			},
-			exp: &PolicyDump{
+			exp: &PolicyInfo{
 				AllowIncomingLinks:            map[string][]string{"true": {"all-in"}},
 				AllowedOutgoingLinksHostnames: map[string][]string{"*": {"all-in"}},
 				AllowedExposedResources:       map[string][]string{"*": {"all-in"}},
@@ -626,7 +626,7 @@ func TestMockDump(t *testing.T) {
 					AllowedServices:               []string{"*"},
 				}),
 			},
-			exp: &PolicyDump{
+			exp: &PolicyInfo{
 				AllowIncomingLinks:            map[string][]string{"true": {"allow-incoming-links-aaa"}},
 				AllowedOutgoingLinksHostnames: map[string][]string{},
 				AllowedExposedResources:       map[string][]string{},
@@ -653,7 +653,7 @@ func TestMockDump(t *testing.T) {
 					AllowedServices:               []string{"*"},
 				}),
 			},
-			exp: &PolicyDump{
+			exp: &PolicyInfo{
 				AllowIncomingLinks: map[string][]string{},
 				AllowedOutgoingLinksHostnames: map[string][]string{
 					"domain.one.com":   {"allow-outgoing-link-hostnames-1-aaa", "allow-outgoing-link-hostnames-2-aaa"},
@@ -684,7 +684,7 @@ func TestMockDump(t *testing.T) {
 					AllowedServices:               []string{"*"},
 				}),
 			},
-			exp: &PolicyDump{
+			exp: &PolicyInfo{
 				AllowIncomingLinks:            map[string][]string{},
 				AllowedOutgoingLinksHostnames: map[string][]string{},
 				AllowedExposedResources:       map[string][]string{},
@@ -716,7 +716,7 @@ func TestMockDump(t *testing.T) {
 					AllowedServices:               []string{"*"},
 				}),
 			},
-			exp: &PolicyDump{
+			exp: &PolicyInfo{
 				AllowIncomingLinks:            map[string][]string{},
 				AllowedOutgoingLinksHostnames: map[string][]string{},
 				AllowedExposedResources: map[string][]string{

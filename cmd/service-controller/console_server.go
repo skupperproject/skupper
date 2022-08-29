@@ -417,7 +417,7 @@ func (server *ConsoleServer) listen() {
 	r.Handle("/policy/service/{name}", authenticated(server.policies.service()))
 	r.Handle("/policy/incominglink", authenticated(server.policies.incomingLink()))
 	r.Handle("/policy/outgoinglink/{hostname}", authenticated(server.policies.outgoingLink()))
-	r.Handle("/policy/dump", authenticated(server.policies.dump()))
+	r.Handle("/policy/list", authenticated(server.policies.dump()))
 	r.Handle("/servicecheck/{name}", authenticated(server.checkService()))
 	r.PathPrefix("/").Handler(authenticated(http.FileServer(http.Dir("/app/console/"))))
 	if os.Getenv("USE_CORS") != "" {
@@ -444,7 +444,7 @@ func (server *ConsoleServer) listenLocal() {
 	r.Handle("/policy/service/{name}", server.policies.service())
 	r.Handle("/policy/incominglink", server.policies.incomingLink())
 	r.Handle("/policy/outgoinglink/{hostname}", server.policies.outgoingLink())
-	r.Handle("/policy/dump", server.policies.dump())
+	r.Handle("/policy/list", server.policies.dump())
 	log.Fatal(http.ListenAndServe(addr, r))
 }
 

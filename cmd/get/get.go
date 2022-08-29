@@ -90,7 +90,7 @@ func policyCmd() *cobra.Command {
 	simplePathPolicyCommand("outgoinglink", []string{"hostname"}, "Validates if an outgoing link to the given hostname is allowed")
 	simplePathPolicyCommand("expose", []string{"target-type", "target-name"}, "Validates if the given resource can be exposed")
 	simplePathPolicyCommand("service", []string{"name"}, "Validates if service can be created or imported")
-	simplePathPolicyCommand("dump", nil, "Dump policy state for current site")
+	simplePathPolicyCommand("list", nil, "List policy state for current site")
 	return policyCmd
 }
 
