@@ -284,8 +284,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 					Password:          "",
 					Ingress:           types.IngressNoneString,
 				},
-			},
-				types.DefaultTimeout)
+			})
 			assert.Check(t, err, "Unable to create VAN router")
 		}
 
@@ -422,8 +421,7 @@ func TestServiceInterfaceCreateMulti(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	// Creating multiple services

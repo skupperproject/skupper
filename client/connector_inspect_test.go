@@ -56,8 +56,7 @@ func TestConnectorInspectNotFound(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	for _, c := range testcases {

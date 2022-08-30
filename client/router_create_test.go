@@ -327,8 +327,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			Reference: types.SiteConfigReference{
 				UID: c.siteId,
 			},
-		},
-			types.DefaultTimeout)
+		})
 
 		// TODO: make more deterministic
 		time.Sleep(time.Second * 1)
@@ -439,7 +438,7 @@ func TestRouterResourcesOptions(t *testing.T) {
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
-		err = cli.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
 		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
@@ -588,7 +587,7 @@ func TestRouterAffinityOptions(t *testing.T) {
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
-		err = cli.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
 		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
@@ -679,7 +678,7 @@ func TestRouterNodeSelectorOption(t *testing.T) {
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
-		err = cli.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
 		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-router", metav1.GetOptions{})
@@ -769,7 +768,7 @@ func TestControllerAffinityOptions(t *testing.T) {
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
-		err = cli.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
 		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
@@ -865,7 +864,7 @@ func TestControllerNodeSelectorOption(t *testing.T) {
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
-		err = cli.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
 		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
@@ -939,7 +938,7 @@ func TestControllerResourcesOptions(t *testing.T) {
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
-		err = cli.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
 		deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get("skupper-service-controller", metav1.GetOptions{})
@@ -1033,7 +1032,7 @@ func TestLabelandAnnotationOptions(t *testing.T) {
 		siteConfig, err := cli.SiteConfigCreate(ctx, opts)
 		assert.Check(t, err, namespace)
 
-		err = cli.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+		err = cli.RouterCreate(ctx, *siteConfig)
 		assert.Check(t, err, namespace)
 
 		for _, name := range deployments {

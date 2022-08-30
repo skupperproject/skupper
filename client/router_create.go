@@ -955,7 +955,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 }
 
 // RouterCreate instantiates a VAN (router and controller) deployment
-func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig, loadbalancertimeout int) error {
+func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig) error {
 	// todo return error
 	if options.Spec.IsIngressRoute() && cli.RouteClient == nil {
 		return fmt.Errorf("OpenShift cluster not detected for --ingress type route")
@@ -1094,7 +1094,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 					if err == nil {
 						host := kube.GetLoadBalancerHostOrIP(service)
 
-						var timeout = loadbalancertimeout
+						var timeout = ctx.Value(types.Timeout).(int)
 						if timeout <= 0 {
 							timeout = types.DefaultTimeout
 						}
@@ -1195,7 +1195,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 					log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
 				}
 			} else if options.Spec.IsIngressLoadBalancer() {
-				var timeout = loadbalancertimeout
+				var timeout = ctx.Value(types.Timeout).(int)
 				if timeout <= 0 {
 					timeout = types.DefaultTimeout
 				}

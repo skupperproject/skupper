@@ -253,7 +253,7 @@ func (c *SiteController) checkSite(key string) error {
 			log.Println("Initialising skupper site ...")
 			siteConfig, _ := c.vanClient.SiteConfigInspect(context.Background(), configmap)
 			siteConfig.Spec.SkupperNamespace = siteNamespace
-			err = c.vanClient.RouterCreate(context.Background(), *siteConfig, types.DefaultTimeout)
+			err = c.vanClient.RouterCreate(context.Background(), *siteConfig)
 			if err != nil {
 				log.Println("Error initialising skupper: ", err)
 				return err

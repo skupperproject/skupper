@@ -241,7 +241,7 @@ func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) e
 		return err
 	}
 
-	err = pub1Cluster.VanClient.RouterCreate(ctx, *publicSiteConfig, types.DefaultTimeout)
+	err = pub1Cluster.VanClient.RouterCreate(ctx, *publicSiteConfig)
 	if err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) e
 	routerCreateSpecPrv.SkupperNamespace = prv1Cluster.Namespace
 	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpecPrv)
 
-	err = prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig, types.DefaultTimeout)
+	err = prv1Cluster.VanClient.RouterCreate(ctx, *privateSiteConfig)
 	if err != nil {
 		return err
 	}

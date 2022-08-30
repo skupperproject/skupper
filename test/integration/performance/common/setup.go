@@ -330,7 +330,7 @@ func initializeSkupper(testCtx context.Context, testRunner *base.ClusterTestRunn
 			if err != nil {
 				return fmt.Errorf("error creating site: %v", err)
 			}
-			if err = ctx.VanClient.RouterCreate(testCtx, *siteConfig, types.DefaultTimeout); err != nil {
+			if err = ctx.VanClient.RouterCreate(testCtx, *siteConfig); err != nil {
 				return fmt.Errorf("error creating router: %v", err)
 			}
 

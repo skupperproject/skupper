@@ -54,8 +54,7 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", gatewayType, "")
@@ -216,8 +215,7 @@ func TestGatewayForward(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	// setup listener to cause port collition
@@ -350,8 +348,7 @@ func TestGatewayBind(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	// Create the VAN Service Interfaces.
@@ -486,8 +483,7 @@ func TestGatewayExpose(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	gatewayName, observedError := cli.GatewayExpose(ctx, namespace, gatewayType, types.GatewayEndpoint{
@@ -595,8 +591,7 @@ func TestGatewayInit(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	// Init loop

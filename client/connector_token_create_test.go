@@ -27,8 +27,7 @@ func TestConnectorCreateTokenInterior(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	err = cli.ConnectorTokenCreateFile(ctx, "link1", "./link1.yaml")
@@ -55,8 +54,7 @@ func TestConnectorCreateTokenEdge(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	err = cli.ConnectorTokenCreateFile(ctx, "link1", "/tmp/link1.yaml")

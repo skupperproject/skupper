@@ -75,8 +75,7 @@ func TestServiceInterfaceDeleteMulti(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Check(t, err, "Unable to create VAN router")
 
 	// Creating multiple services
@@ -196,8 +195,7 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 			Password:          "",
 			Ingress:           types.IngressNoneString,
 		},
-	},
-		types.DefaultTimeout)
+	})
 	assert.Assert(t, err, "Unable to create VAN router")
 
 	// Deploying an http service

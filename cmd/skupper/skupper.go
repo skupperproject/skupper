@@ -427,7 +427,9 @@ installation that can then be connected to other skupper installations`,
 				}
 			}
 
-			err = cli.RouterCreate(context.Background(), *siteConfig, LoadBalancerTimeout)
+			ctx := context.WithValue(context.Background(), types.Timeout, LoadBalancerTimeout)
+
+			err = cli.RouterCreate(ctx, *siteConfig)
 			if err != nil {
 				return err
 			}
@@ -483,7 +485,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.CpuLimit, "config-sync-cpu-limit", "", "CPU limit for config-sync pods")
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
 
-	cmd.Flags().IntVar(&LoadBalancerTimeout, "timeout", 120, "Configurable timeout in seconds for the ingress loadbalancer option")
+	cmd.Flags().IntVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeout, "Configurable timeout in seconds for the ingress loadbalancer option")
 
 	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept links from within the local cluster.")
 	f := cmd.Flag("cluster-local")

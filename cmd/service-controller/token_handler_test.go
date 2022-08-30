@@ -21,7 +21,7 @@ func skupperInit(cli *client.VanClient, name string) error {
 	if err != nil {
 		return err
 	}
-	return cli.RouterCreate(ctx, *config, types.DefaultTimeout)
+	return cli.RouterCreate(ctx, *config)
 }
 
 func getRouterConfig(cli *client.VanClient) (*qdr.RouterConfig, error) {

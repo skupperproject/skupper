@@ -108,7 +108,7 @@ func (r *EdgeConnectivityTestRunner) Setup(ctx context.Context, testCase *TestCa
 		assert.Assert(t, err)
 
 		// Create the router.
-		err = pub1Cluster.VanClient.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+		err = pub1Cluster.VanClient.RouterCreate(ctx, *siteConfig)
 		assert.Assert(t, err)
 
 		// Create a connection token for this cluster.
@@ -133,7 +133,7 @@ func (r *EdgeConnectivityTestRunner) Setup(ctx context.Context, testCase *TestCa
 	testCase.createOptsPrivate.SkupperNamespace = privateCluster.Namespace
 	siteConfig, err := privateCluster.VanClient.SiteConfigCreate(context.Background(), testCase.createOptsPrivate)
 	assert.Assert(t, err)
-	err = privateCluster.VanClient.RouterCreate(ctx, *siteConfig, types.DefaultTimeout)
+	err = privateCluster.VanClient.RouterCreate(ctx, *siteConfig)
 	assert.Assert(t, err)
 
 	// Make all public-to-public connections. --------------------------

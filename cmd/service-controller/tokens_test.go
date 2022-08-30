@@ -64,7 +64,7 @@ func skupperInitWithController(cli *client.VanClient, name string) error {
 	if err != nil {
 		return err
 	}
-	return cli.RouterCreate(ctx, *config, types.DefaultTimeout)
+	return cli.RouterCreate(ctx, *config)
 }
 
 func TestCreateDeleteTokens(t *testing.T) {

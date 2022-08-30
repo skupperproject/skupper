@@ -34,6 +34,11 @@ const (
 
 const DefaultTimeout = 120 // in seconds
 
+// Context value keys
+const (
+	Timeout string = "timeout"
+)
+
 // TransportMode describes how a qdr is intended to be deployed, either interior or edge
 type TransportMode string
 
