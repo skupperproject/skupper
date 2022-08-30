@@ -160,7 +160,7 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 					if err == nil {
 						writeTar(pod.Name+"-events.txt", events.Bytes(), time.Now(), tw)
 					}
-					policies, err := kube.ExecCommandInContainer([]string{"get", "policies", "dump"}, pod.Name, "service-controller", cli.Namespace, cli.KubeClient, cli.RestConfig)
+					policies, err := kube.ExecCommandInContainer([]string{"get", "policies", "list"}, pod.Name, "service-controller", cli.Namespace, cli.KubeClient, cli.RestConfig)
 					if err == nil {
 						writeTar(pod.Name+"-policies.txt", policies.Bytes(), time.Now(), tw)
 					}
