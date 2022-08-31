@@ -100,6 +100,7 @@ type SiteConfigSpec struct {
 	Router              RouterOptions
 	Controller          ControllerOptions
 	ConfigSync          ConfigSyncOptions
+	Platform            Platform
 }
 
 const (
@@ -162,15 +163,20 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 	return s.ConsoleIngress
 }
 
-func ValidIngressOptions() []string {
-	return []string{IngressRouteString, IngressLoadBalancerString, IngressNodePortString, IngressNginxIngressString, IngressContourHttpProxyString, IngressKubernetes, IngressNoneString}
+func ValidIngressOptions(platform Platform) []string {
+	switch platform {
+	case PlatformPodman:
+		return []string{}
+	default:
+		return []string{IngressRouteString, IngressLoadBalancerString, IngressNodePortString, IngressNginxIngressString, IngressContourHttpProxyString, IngressKubernetes, IngressNoneString}
+	}
 }
 
-func isValidIngress(ingress string) bool {
+func isValidIngress(platform Platform, ingress string) bool {
 	if ingress == "" {
 		return true
 	}
-	for _, value := range ValidIngressOptions() {
+	for _, value := range ValidIngressOptions(platform) {
 		if ingress == value {
 			return true
 		}
@@ -179,14 +185,14 @@ func isValidIngress(ingress string) bool {
 }
 
 func (s *SiteConfigSpec) CheckIngress() error {
-	if !isValidIngress(s.Ingress) {
+	if !isValidIngress(s.Platform, s.Ingress) {
 		return fmt.Errorf("Invalid value for ingress: %s", s.Ingress)
 	}
 	return nil
 }
 
 func (s *SiteConfigSpec) CheckConsoleIngress() error {
-	if !isValidIngress(s.ConsoleIngress) {
+	if !isValidIngress(s.Platform, s.ConsoleIngress) {
 		return fmt.Errorf("Invalid value for console-ingress: %s", s.ConsoleIngress)
 	}
 	return nil
