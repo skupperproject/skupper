@@ -299,7 +299,8 @@ func (v *vanClientMock) NetworkStatus() ([]*types.SiteInfo, error) {
 }
 
 func TestCmdUnexposeRun(t *testing.T) {
-	cmd := NewCmdUnexpose(nil)
+	skupperClient := &SkupperTestClient{}
+	cmd := NewCmdUnexpose(skupperClient)
 	test := func(targetType, targetName, address string) {
 
 		cli := cli.(*vanClientMock)
@@ -358,12 +359,14 @@ func TestCmdUnexposeRun(t *testing.T) {
 }
 
 func TestCmdInit(t *testing.T) {
-	cmd := NewCmdInit(nil)
+	skupperCli := NewSkupperTestClient()
+	cmd := NewCmdInit(skupperCli)
 	var lcli (*vanClientMock)
 	args := []string{}
 	resetCli := func() {
 		cli = &vanClientMock{}
 		lcli = cli.(*vanClientMock)
+		skupperCli.Cli = cli
 	}
 
 	t.Run("SiteConfigInspectReturnsError",
@@ -587,9 +590,11 @@ func TestExpose_Binding(t *testing.T) {
 }
 
 func TestCmdExposeRun(t *testing.T) {
-	cmd := NewCmdExpose(nil)
+	skupperCli := NewSkupperTestClient()
+	cmd := NewCmdExpose(skupperCli)
 	cli = &vanClientMock{} // the global cli is used by the "RunE" func
 	cli := cli.(*vanClientMock)
+	skupperCli.Cli = cli
 
 	args := []string{"service", "name"}
 	exposeOpts.Address = ""
@@ -606,12 +611,14 @@ func TestCmdExposeRun(t *testing.T) {
 }
 
 func TestCmdBind(t *testing.T) {
-	cmd := NewCmdBind(nil)
+	skupperCli := NewSkupperTestClient()
+	cmd := NewCmdBind(skupperCli)
 	var lcli *vanClientMock
 	args := []string{}
 	resetCli := func() {
 		cli = &vanClientMock{}
 		lcli = cli.(*vanClientMock)
+		skupperCli.Cli = cli
 	}
 
 	t.Run("invalidProtocol",

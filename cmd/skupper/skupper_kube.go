@@ -3,12 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 var SkupperKubeCommands = []string{
@@ -19,11 +23,309 @@ var SkupperKubeCommands = []string{
 }
 
 type SkupperKube struct {
-	cli            types.VanClientInterface
-	kubeContext    string
-	namespace      string
-	kubeConfigPath string
+	Cli            types.VanClientInterface
+	KubeContext    string
+	Namespace      string
+	KubeConfigPath string
 	kubeInit       kubeInit
+}
+
+func (s *SkupperKube) TokenCreate(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+	switch tokenType {
+	case "cert":
+		err := cli.ConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
+		if err != nil {
+			return fmt.Errorf("Failed to create token: %w", err)
+		}
+		return nil
+	case "claim":
+		name := clientIdentity
+		if name == "skupper" {
+			name = ""
+		}
+		if password == "" {
+			password = utils.RandomId(24)
+		}
+		err := cli.TokenClaimCreateFile(context.Background(), name, []byte(password), expiry, uses, args[0])
+		if err != nil {
+			return fmt.Errorf("Failed to create token: %w", err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("invalid token type. Specify cert or claim")
+	}
+}
+
+func (s *SkupperKube) RevokeAccess(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+	err := cli.RevokeAccess(context.Background())
+	if err != nil {
+		return fmt.Errorf("Unable to revoke access: %w", err)
+	}
+	return nil
+}
+
+func (s *SkupperKube) NetworkStatus(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+
+	var sites []*types.SiteInfo
+	var errStatus error
+	err := utils.RetryError(time.Second, 3, func() error {
+		sites, errStatus = cli.NetworkStatus()
+
+		if errStatus != nil {
+			return errStatus
+		}
+
+		return nil
+	})
+
+	loadOnlyLocalInformation := false
+
+	if err != nil {
+		fmt.Printf("Unable to retrieve network information: %s", err)
+		fmt.Println()
+		fmt.Println()
+		fmt.Println("Loading just local information:")
+		loadOnlyLocalInformation = true
+	}
+
+	vir, err := cli.RouterInspect(context.Background())
+	if err != nil || vir == nil {
+		fmt.Printf("The router configuration is not available: %s", err)
+		fmt.Println()
+		return nil
+	}
+
+	siteConfig, err := cli.SiteConfigInspect(nil, nil)
+	if err != nil || siteConfig == nil {
+		fmt.Printf("The site configuration is not available: %s", err)
+		fmt.Println()
+		return nil
+	}
+
+	currentSite := siteConfig.Reference.UID
+
+	if loadOnlyLocalInformation {
+		printLocalStatus(vir.Status.TransportReadyReplicas, vir.Status.ConnectedSites.Warnings, vir.Status.ConnectedSites.Total, vir.Status.ConnectedSites.Direct, vir.ExposedServices)
+
+		serviceInterfaces, err := cli.ServiceInterfaceList(context.Background())
+		if err != nil {
+			fmt.Printf("Service local configuration is not available: %s", err)
+			fmt.Println()
+			return nil
+		}
+
+		sites = getLocalSiteInfo(serviceInterfaces, currentSite, vir.Status.SiteName, cli.GetNamespace(), vir.TransportVersion)
+	}
+
+	if sites != nil && len(sites) > 0 {
+		siteList := formatter.NewList()
+		siteList.Item("Sites:")
+		for _, site := range sites {
+
+			if site.Name != selectedSite && selectedSite != "all" {
+				continue
+			}
+
+			location := "remote"
+			siteVersion := site.Version
+			detailsMap := map[string]string{"name": site.Name, "namespace": site.Namespace, "URL": site.Url, "version": siteVersion}
+
+			if len(site.MinimumVersion) > 0 {
+				siteVersion = fmt.Sprintf("%s (minimum version required %s)", site.Version, site.MinimumVersion)
+			}
+
+			if site.SiteId == currentSite {
+				location = "local"
+				detailsMap["mode"] = vir.Status.Mode
+			}
+
+			newItem := fmt.Sprintf("[%s] %s - %s ", location, site.SiteId[:7], site.Name)
+
+			newItem = newItem + fmt.Sprintln()
+
+			if len(site.Links) > 0 {
+				detailsMap["sites linked to"] = fmt.Sprint(strings.Join(site.Links, ", "))
+			}
+
+			serviceLevel := siteList.NewChildWithDetail(newItem, detailsMap)
+			if len(site.Services) > 0 {
+				services := serviceLevel.NewChild("Services:")
+				var addresses []string
+				svcAuth := map[string]bool{}
+				for _, svc := range site.Services {
+					addresses = append(addresses, svc.Name)
+					svcAuth[svc.Name] = true
+				}
+				if vc, ok := cli.(*client.VanClient); ok && site.Namespace == cli.GetNamespace() {
+					policy := client.NewPolicyValidatorAPI(vc)
+					res, _ := policy.Services(addresses...)
+					for addr, auth := range res {
+						svcAuth[addr] = auth.Allowed
+					}
+				}
+				for _, svc := range site.Services {
+					authSuffix := ""
+					if !svcAuth[svc.Name] {
+						authSuffix = " - not authorized"
+					}
+					svcItem := "name: " + svc.Name + authSuffix + fmt.Sprintln()
+					detailsSvc := map[string]string{"protocol": svc.Protocol, "address": svc.Address}
+					targetLevel := services.NewChildWithDetail(svcItem, detailsSvc)
+
+					if len(svc.Targets) > 0 {
+						targets := targetLevel.NewChild("Targets:")
+						for _, target := range svc.Targets {
+							targets.NewChild("name: " + target.Name)
+
+						}
+					}
+
+				}
+			}
+		}
+
+		siteList.Print()
+	}
+
+	return nil
+}
+
+func (s *SkupperKube) ListConnectors(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+	connectors, err := cli.ConnectorList(context.Background())
+	if err == nil {
+		if len(connectors) == 0 {
+			fmt.Println("There are no connectors defined.")
+		} else {
+			fmt.Println("Connectors:")
+			for _, c := range connectors {
+				fmt.Printf("    %s (name=%s)", c.Url, c.Name)
+				fmt.Println()
+			}
+		}
+	} else if errors.IsNotFound(err) {
+		return SkupperNotInstalledError(cli.GetNamespace())
+	} else {
+		return fmt.Errorf("Unable to retrieve connections: %w", err)
+	}
+	return nil
+}
+
+func (s *SkupperKube) Version(cmd *cobra.Command, args []string) error {
+	if !IsZero(reflect.ValueOf(cli)) {
+		fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
+		fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
+		fmt.Printf("%-30s %s\n", "config-sync version", cli.GetVersion(types.TransportComponentName, types.ConfigSyncContainerName))
+	} else {
+		fmt.Printf("%-30s %s\n", "transport version", "not-found (no configuration has been provided)")
+		fmt.Printf("%-30s %s\n", "controller version", "not-found (no configuration has been provided)")
+	}
+	return nil
+}
+
+func (s *SkupperKube) Status(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+	vir, err := cli.RouterInspect(context.Background())
+	if err == nil {
+		ns := cli.GetNamespace()
+		var modedesc string = " in interior mode"
+		if vir.Status.Mode == string(types.TransportModeEdge) {
+			modedesc = " in edge mode"
+		}
+		sitename := ""
+		if vir.Status.SiteName != "" && vir.Status.SiteName != ns {
+			sitename = fmt.Sprintf(" with site name %q", vir.Status.SiteName)
+		}
+		policyStr := ""
+		if vanClient, ok := cli.(*client.VanClient); ok {
+			p := client.NewPolicyValidatorAPI(vanClient)
+			r, err := p.IncomingLink()
+			if err == nil && r.Enabled {
+				policyStr = " (with policies)"
+			}
+		}
+		fmt.Printf("Skupper is enabled for namespace %q%s%s%s.", ns, sitename, modedesc, policyStr)
+		if vir.Status.TransportReadyReplicas == 0 {
+			fmt.Printf(" Status pending...")
+		} else {
+			if len(vir.Status.ConnectedSites.Warnings) > 0 {
+				for _, w := range vir.Status.ConnectedSites.Warnings {
+					fmt.Printf("Warning: %s", w)
+					fmt.Println()
+				}
+			}
+			if vir.Status.ConnectedSites.Total == 0 {
+				fmt.Printf(" It is not connected to any other sites.")
+			} else if vir.Status.ConnectedSites.Total == 1 {
+				fmt.Printf(" It is connected to 1 other site.")
+			} else if vir.Status.ConnectedSites.Total == vir.Status.ConnectedSites.Direct {
+				fmt.Printf(" It is connected to %d other sites.", vir.Status.ConnectedSites.Total)
+			} else {
+				fmt.Printf(" It is connected to %d other sites (%d indirectly).", vir.Status.ConnectedSites.Total, vir.Status.ConnectedSites.Indirect)
+			}
+		}
+		if vir.ExposedServices == 0 {
+			fmt.Printf(" It has no exposed services.")
+		} else if vir.ExposedServices == 1 {
+			fmt.Printf(" It has 1 exposed service.")
+		} else {
+			fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
+		}
+		fmt.Println()
+		if vir.ConsoleUrl != "" {
+			fmt.Println("The site console url is: ", vir.ConsoleUrl)
+			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+			if err != nil {
+				return err
+			}
+			if siteConfig.Spec.AuthMode == "internal" {
+				fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-console-users'")
+			}
+		}
+	} else {
+		if vir == nil {
+			fmt.Printf("Skupper is not enabled in namespace '%s'\n", cli.GetNamespace())
+		} else {
+			return fmt.Errorf("Unable to retrieve skupper status: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *SkupperKube) Update(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+
+	updated, err := cli.RouterUpdateVersion(context.Background(), forceHup)
+	if err != nil {
+		return err
+	}
+	if updated {
+		fmt.Println("Skupper is now updated in '" + cli.GetNamespace() + "'.")
+	} else {
+		fmt.Println("No update required in '" + cli.GetNamespace() + "'.")
+	}
+	return nil
+}
+
+func (s *SkupperKube) Delete(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+	gateways, err := cli.GatewayList(context.Background())
+	for _, gateway := range gateways {
+		cli.GatewayRemove(context.Background(), gateway.Name)
+	}
+	err = cli.SiteConfigRemove(context.Background())
+	if err != nil {
+		err = cli.RouterRemove(context.Background())
+	}
+	if err != nil {
+		return err
+	} else {
+		fmt.Println("Skupper is now removed from '" + cli.GetNamespace() + "'.")
+	}
+	return nil
 }
 
 func (s *SkupperKube) SupportedCommands() []string {
@@ -35,9 +337,9 @@ func (s *SkupperKube) Platform() types.Platform {
 }
 
 func (s *SkupperKube) Options(rootCmd *cobra.Command) {
-	rootCmd.PersistentFlags().StringVarP(&s.kubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
-	rootCmd.PersistentFlags().StringVarP(&s.kubeContext, "context", "c", "", "The kubeconfig context to use")
-	rootCmd.PersistentFlags().StringVarP(&s.namespace, "namespace", "n", "", "The Kubernetes namespace to use")
+	rootCmd.PersistentFlags().StringVarP(&s.KubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
+	rootCmd.PersistentFlags().StringVarP(&s.KubeContext, "context", "c", "", "The kubeconfig context to use")
+	rootCmd.PersistentFlags().StringVarP(&s.Namespace, "namespace", "n", "", "The Kubernetes namespace to use")
 }
 
 type kubeInit struct {
@@ -54,15 +356,14 @@ func (s *SkupperKube) NewClient(cmd *cobra.Command, args []string) {
 	if cmd.Name() == "version" {
 		exitOnError = false
 	}
-	s.cli = NewClientHandleError(s.namespace, s.kubeContext, s.kubeConfigPath, exitOnError)
+	s.Cli = NewClientHandleError(s.Namespace, s.KubeContext, s.KubeConfigPath, exitOnError)
 	// TODO remove once all methods converted
-	cli = s.cli
+	cli = s.Cli
 }
 
 func (s *SkupperKube) Init(cmd *cobra.Command, args []string) error {
-	cli := s.cli
+	cli := s.Cli
 
-	// TODO: should cli allow init to diff ns?
 	silenceCobra(cmd)
 	ns := cli.GetNamespace()
 
@@ -169,6 +470,11 @@ func (s *SkupperKube) Init(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperKube) InitFlags(cmd *cobra.Command) {
+	s.kubeInit = kubeInit{}
+	s.kubeInit.ingressAnnotations = []string{}
+	s.kubeInit.annotations = []string{}
+	s.kubeInit.routerServiceAnnotations = []string{}
+	s.kubeInit.controllerServiceAnnotations = []string{}
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", true, "Enable skupper console")
 	cmd.Flags().BoolVarP(&routerCreateOpts.CreateNetworkPolicy, "create-network-policy", "", false, "Create network policy to restrict access to skupper services exposed through this site to current pods in namespace")
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
@@ -217,15 +523,4 @@ func (s *SkupperKube) InitFlags(cmd *cobra.Command) {
 	f = cmd.Flag("edge")
 	f.Deprecated = "This flag is deprecated, use --router-mode [interior|edge]"
 	f.Hidden = true
-}
-
-func (s *SkupperKube) DebugDump(cmd *cobra.Command, args []string) error {
-	silenceCobra(cmd)
-	file, err := cli.SkupperDump(context.Background(), args[0], client.Version, s.kubeConfigPath, s.kubeContext)
-	if err != nil {
-		return fmt.Errorf("Unable to save skupper dump details: %w", err)
-	} else {
-		fmt.Println("Skupper dump details written to compressed archive: ", file)
-	}
-	return nil
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -50,7 +51,7 @@ func (p *PlatformInfo) Load() error {
 	}
 	if data != nil {
 		decoder := yaml.NewDecoder(bytes.NewReader(data))
-		if err = decoder.Decode(p); err != nil {
+		if err = decoder.Decode(p); err != nil && err != io.EOF {
 			return fmt.Errorf("error decoding %s: %v", PlatformConfigFile, err)
 		}
 	}

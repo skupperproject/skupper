@@ -21,9 +21,10 @@ func TestParseTargetTypeAndName(t *testing.T) {
 }
 
 func TestBindArgs(t *testing.T) {
+	s := &SkupperKube{}
 	genericError := "Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')"
 	b := func(args []string) error {
-		return bindArgs(nil, args)
+		return s.bindArgs(nil, args)
 	}
 
 	assert.Error(t, b([]string{}), genericError)
@@ -31,15 +32,15 @@ func TestBindArgs(t *testing.T) {
 	assert.Error(t, b([]string{"one/Arg"}), genericError)
 	assert.Error(t, b([]string{"one", "resource"}), genericError)
 
-	//must this fail?
-	//assert.Error(t, b([]string{"one/two", "resource/name"}), genericError)
+	// must this fail?
+	// assert.Error(t, b([]string{"one/two", "resource/name"}), genericError)
 
 	assert.Error(t, b([]string{"one", "resource/name"}), "target type must be one of: [deployment, statefulset, pods, service]")
 
 	assert.Assert(t, b([]string{"one", "pods/name"}))
 	assert.Assert(t, b([]string{"one", "pods", "name"}))
 
-	//note  illegal vs extra
+	// note  illegal vs extra
 	assert.Error(t, b([]string{"one", "resource/name", "three"}), "extra argument: three")
 	assert.Error(t, b([]string{"one", "resource/name", "three", "four"}), "illegal argument: four")
 	assert.Error(t, b([]string{"one", "resource/name", "three", "four", "five"}), "illegal argument: four")
@@ -67,7 +68,7 @@ func TestCreateServiceArgs(t *testing.T) {
 }
 
 func TestCreateServiceParseArgs(t *testing.T) {
-	cmd := NewCmdCreateService(nil)
+	cmd := NewCmdCreateService(NewSkupperTestClient())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, serviceToCreate.EnableTls, false)
@@ -81,7 +82,7 @@ func TestCreateServiceParseArgs(t *testing.T) {
 	assert.Equal(t, serviceToCreate.Protocol, "http2")
 	assert.Equal(t, serviceToCreate.TlsCredentials, "")
 
-	//Deprecated flag should work until it is removed.
+	// Deprecated flag should work until it is removed.
 	cmdArgs = []string{"service:8080", "--mapping", "http2", "--enable-tls"}
 
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
@@ -92,11 +93,12 @@ func TestCreateServiceParseArgs(t *testing.T) {
 }
 
 func TestExposeTargetArgs(t *testing.T) {
+	s := &SkupperKube{}
 	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>'"
 	targetError := "target type must be one of: [deployment, statefulset, pods, service]"
 
 	e := func(args []string) error {
-		return exposeTargetArgs(nil, args)
+		return s.ExposeArgs(nil, args)
 	}
 
 	assert.Error(t, e([]string{}), genericError)
@@ -116,14 +118,14 @@ func TestExposeTargetArgs(t *testing.T) {
 	assert.Error(t, e([]string{"deployment", "name", "three"}), "illegal argument: three")
 	assert.Error(t, e([]string{"deployment", "name", "three", "four"}), "illegal argument: three")
 
-	for _, target := range validExposeTargets {
+	for _, target := range validExposeTargetsKube {
 		assert.Assert(t, e([]string{target, "name"}))
 	}
 }
 
 func TestExposeParseArgs(t *testing.T) {
 	cmd_args := []string{"deployment/name", "--address", "theAddress"}
-	cmd := NewCmdExpose(nil)
+	cmd := NewCmdExpose(NewSkupperTestClient())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, exposeOpts.Address, "")
@@ -141,13 +143,13 @@ func TestExposeParseArgs(t *testing.T) {
 
 func TestExposePublishNotReadyAddressesParseArgs(t *testing.T) {
 	cmdArgs := []string{"deployment/name", "--publish-not-ready-addresses"}
-	cmd := NewCmdExpose(nil)
+	cmd := NewCmdExpose(NewSkupperTestClient())
 
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
 	assert.Equal(t, exposeOpts.PublishNotReadyAddresses, true)
 
 	cmdArgs2 := []string{"statefulset/web", "--headless", "--publish-not-ready-addresses"}
-	cmd2 := NewCmdExpose(nil)
+	cmd2 := NewCmdExpose(NewSkupperTestClient())
 	assert.Assert(t, cmd2.ParseFlags(cmdArgs2))
 	assert.Equal(t, exposeOpts.Headless, true)
 	assert.Equal(t, exposeOpts.PublishNotReadyAddresses, true)
@@ -170,7 +172,7 @@ func TestBindGatewayArgs(t *testing.T) {
 	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080", "9090"}))
 	assert.Assert(t, b([]string{"oneArg", "twoArg:threeArg"}))
 
-	//note  illegal vs extra
+	// note  illegal vs extra
 	assert.Error(t, b([]string{"oneArg", "twoArg:threeArg", "fourArg"}), "extra argument: fourArg")
 	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "threeArg is not a valid port")
 	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "threeArg is not a valid port")
@@ -196,7 +198,7 @@ func TestExposeGatewayArgs(t *testing.T) {
 	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080", "9090:9191"}))
 	assert.Assert(t, b([]string{"oneArg", "twoArg", "8080:8081", "9090:9191"}))
 
-	//note  illegal vs extra
+	// note  illegal vs extra
 	assert.Error(t, b([]string{"oneArg", "twoArg:threeArg", "fourArg"}), "extra argument: fourArg")
 	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg"}), "threeArg is not a valid port")
 	assert.Error(t, b([]string{"oneArg", "twoArg", "threeArg", "fourArg", "fiveArg"}), "threeArg is not a valid port")
@@ -208,7 +210,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSkupperInitConfigSyncParseArgs(t *testing.T) {
-	cmd := NewCmdInit(nil)
+	cmd := NewCmdInit(NewSkupperTestClient())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, routerCreateOpts.ConfigSync.Cpu, "")
@@ -233,7 +235,7 @@ func TestSkupperInitConfigSyncParseArgs(t *testing.T) {
 }
 
 func TestSkupperInitControllerParseArgs(t *testing.T) {
-	cmd := NewCmdInit(nil)
+	cmd := NewCmdInit(NewSkupperTestClient())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, routerCreateOpts.Controller.Cpu, "")

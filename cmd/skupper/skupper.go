@@ -31,7 +31,32 @@ type SkupperClient interface {
 	Options(cmd *cobra.Command)
 	Init(cmd *cobra.Command, args []string) error
 	InitFlags(cmd *cobra.Command)
+	Delete(cmd *cobra.Command, args []string) error
+	Update(cmd *cobra.Command, args []string) error
+	Status(cmd *cobra.Command, args []string) error
+	Expose(cmd *cobra.Command, args []string) error
+	ExposeArgs(cmd *cobra.Command, args []string) error
+	ExposeFlags(cmd *cobra.Command)
+	Unexpose(cmd *cobra.Command, args []string) error
+	ServiceCreate(cmd *cobra.Command, args []string) error
+	ServiceDelete(cmd *cobra.Command, args []string) error
+	ServiceStatus(cmd *cobra.Command, args []string) error
+	ServiceLabel(cmd *cobra.Command, args []string) error
+	ServiceBind(cmd *cobra.Command, args []string) error
+	ServiceBindArgs(cmd *cobra.Command, args []string) error
+	ServiceBindFlags(cmd *cobra.Command)
+	ServiceUnbind(cmd *cobra.Command, args []string) error
+	Version(cmd *cobra.Command, args []string) error
 	DebugDump(cmd *cobra.Command, args []string) error
+	DebugEvents(cmd *cobra.Command, args []string) error
+	DebugService(cmd *cobra.Command, args []string) error
+	ListConnectors(cmd *cobra.Command, args []string) error
+	LinkCreate(cmd *cobra.Command, args []string) error
+	LinkDelete(cmd *cobra.Command, args []string) error
+	LinkStatus(cmd *cobra.Command, args []string) error
+	TokenCreate(cmd *cobra.Command, args []string) error
+	RevokeAccess(cmd *cobra.Command, args []string) error
+	NetworkStatus(cmd *cobra.Command, args []string) error
 }
 
 type ExposeOptions struct {
@@ -194,29 +219,6 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 	return options.Address, nil
 }
 
-var validExposeTargets = []string{"deployment", "statefulset", "pods", "service"}
-
-func verifyTargetTypeFromArgs(args []string) error {
-	targetType, _ := parseTargetTypeAndName(args)
-	if !utils.StringSliceContains(validExposeTargets, targetType) {
-		return fmt.Errorf("target type must be one of: [%s]", strings.Join(validExposeTargets, ", "))
-	}
-	return nil
-}
-
-func exposeTargetArgs(cmd *cobra.Command, args []string) error {
-	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
-		return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>'")
-	}
-	if len(args) > 2 {
-		return fmt.Errorf("illegal argument: %s", args[2])
-	}
-	if len(args) > 1 && strings.Contains(args[0], "/") {
-		return fmt.Errorf("extra argument: %s", args[1])
-	}
-	return verifyTargetTypeFromArgs(args)
-}
-
 func createServiceArgs(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 || (len(args) == 1 && !strings.Contains(args[0], ":")) {
 		return fmt.Errorf("Name and port(s) must be specified")
@@ -229,19 +231,6 @@ func createServiceArgs(cmd *cobra.Command, args []string) error {
 		}
 	}
 	return nil
-}
-
-func bindArgs(cmd *cobra.Command, args []string) error {
-	if len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3) {
-		return fmt.Errorf("Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')")
-	}
-	if len(args) > 3 {
-		return fmt.Errorf("illegal argument: %s", args[3])
-	}
-	if len(args) > 2 && strings.Contains(args[1], "/") {
-		return fmt.Errorf("extra argument: %s", args[2])
-	}
-	return verifyTargetTypeFromArgs(args[1:])
 }
 
 func exposeGatewayArgs(cmd *cobra.Command, args []string) error {
@@ -299,12 +288,7 @@ func NewClientHandleError(namespace string, context string, kubeConfigPath strin
 	var cli types.VanClientInterface
 	var err error
 
-	switch config.GetPlatform() {
-	case types.PlatformKubernetes:
-		cli, err = client.NewClient(namespace, context, kubeConfigPath)
-	case types.PlatformPodman:
-		err = fmt.Errorf("VanClientInterface not implemented for podman")
-	}
+	cli, err = client.NewClient(namespace, context, kubeConfigPath)
 	if err != nil {
 		if exitOnError {
 			if strings.Contains(err.Error(), "invalid configuration: no configuration has been provided") {
@@ -385,57 +369,28 @@ func hideFlag(cmd *cobra.Command, name string) {
 	f.Hidden = true
 }
 
-func NewCmdDelete(newClient cobraFunc) *cobra.Command {
+func NewCmdDelete(skupperCli SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "delete",
 		Short:  "Delete skupper installation",
 		Long:   `delete will delete any skupper related objects from the namespace`,
 		Args:   cobra.NoArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			gateways, err := cli.GatewayList(context.Background())
-			for _, gateway := range gateways {
-				cli.GatewayRemove(context.Background(), gateway.Name)
-			}
-			err = cli.SiteConfigRemove(context.Background())
-			if err != nil {
-				err = cli.RouterRemove(context.Background())
-			}
-			if err != nil {
-				return err
-			} else {
-				fmt.Println("Skupper is now removed from '" + cli.GetNamespace() + "'.")
-			}
-			return nil
-		},
+		PreRun: skupperCli.NewClient,
+		RunE:   skupperCli.Delete,
 	}
 	return cmd
 }
 
 var forceHup bool
 
-func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
+func NewCmdUpdate(skupperCli SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "update",
 		Short:  "Update skupper installation version",
 		Long:   "Update the skupper site to " + client.Version,
 		Args:   cobra.NoArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			updated, err := cli.RouterUpdateVersion(context.Background(), forceHup)
-			if err != nil {
-				return err
-			}
-			if updated {
-				fmt.Println("Skupper is now updated in '" + cli.GetNamespace() + "'.")
-			} else {
-				fmt.Println("No update required in '" + cli.GetNamespace() + "'.")
-			}
-			return nil
-		},
+		PreRun: skupperCli.NewClient,
+		RunE:   skupperCli.Delete,
 	}
 	cmd.Flags().BoolVarP(&forceHup, "force-restart", "", false, "Restart skupper daemons even if image tag is not updated")
 	return cmd
@@ -443,277 +398,182 @@ func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 
 var clientIdentity string
 
-func NewCmdStatus(newClient cobraFunc) *cobra.Command {
+func NewCmdConnectionToken(skupperClient SkupperClient) *cobra.Command {
+	cmd := NewCmdTokenCreate(skupperClient, "client-identity")
+	cmd.Use = "connection-token <output-file>"
+	cmd.Short = "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site."
+	return cmd
+}
+
+func NewCmdConnect(skupperClient SkupperClient) *cobra.Command {
+	cmd := NewCmdLinkCreate(skupperClient, "connection-name")
+	cmd.Use = "connect <connection-token-file>"
+	cmd.Short = "Connect this skupper installation to that which issued the specified connectionToken"
+	return cmd
+
+}
+func NewCmdDisconnect(skupperClient SkupperClient) *cobra.Command {
+	cmd := NewCmdLinkDelete(skupperClient)
+	cmd.Use = "disconnect <name>"
+	cmd.Short = "Remove specified connection"
+	return cmd
+
+}
+func NewCmdCheckConnection(skupperClient SkupperClient) *cobra.Command {
+	cmd := NewCmdLinkStatus(skupperClient)
+	cmd.Use = "check-connection all|<connection-name>"
+	cmd.Short = "Check whether a connection to another Skupper site is active"
+	return cmd
+}
+
+func NewCmdListConnectors(skupperClient SkupperClient) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "list-connectors",
+		Short:  "List configured outgoing connections",
+		Args:   cobra.NoArgs,
+		PreRun: skupperClient.NewClient,
+		RunE:   skupperClient.ListConnectors,
+	}
+	return cmd
+}
+
+func NewCmdStatus(skupperCli SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status",
 		Short:  "Report the status of the current Skupper site",
 		Args:   cobra.NoArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			vir, err := cli.RouterInspect(context.Background())
-			if err == nil {
-				ns := cli.GetNamespace()
-				var modedesc string = " in interior mode"
-				if vir.Status.Mode == string(types.TransportModeEdge) {
-					modedesc = " in edge mode"
-				}
-				sitename := ""
-				if vir.Status.SiteName != "" && vir.Status.SiteName != ns {
-					sitename = fmt.Sprintf(" with site name %q", vir.Status.SiteName)
-				}
-				policyStr := ""
-				if vanClient, ok := cli.(*client.VanClient); ok {
-					p := client.NewPolicyValidatorAPI(vanClient)
-					r, err := p.IncomingLink()
-					if err == nil && r.Enabled {
-						policyStr = " (with policies)"
-					}
-				}
-				fmt.Printf("Skupper is enabled for namespace %q%s%s%s.", ns, sitename, modedesc, policyStr)
-				if vir.Status.TransportReadyReplicas == 0 {
-					fmt.Printf(" Status pending...")
-				} else {
-					if len(vir.Status.ConnectedSites.Warnings) > 0 {
-						for _, w := range vir.Status.ConnectedSites.Warnings {
-							fmt.Printf("Warning: %s", w)
-							fmt.Println()
-						}
-					}
-					if vir.Status.ConnectedSites.Total == 0 {
-						fmt.Printf(" It is not connected to any other sites.")
-					} else if vir.Status.ConnectedSites.Total == 1 {
-						fmt.Printf(" It is connected to 1 other site.")
-					} else if vir.Status.ConnectedSites.Total == vir.Status.ConnectedSites.Direct {
-						fmt.Printf(" It is connected to %d other sites.", vir.Status.ConnectedSites.Total)
-					} else {
-						fmt.Printf(" It is connected to %d other sites (%d indirectly).", vir.Status.ConnectedSites.Total, vir.Status.ConnectedSites.Indirect)
-					}
-				}
-				if vir.ExposedServices == 0 {
-					fmt.Printf(" It has no exposed services.")
-				} else if vir.ExposedServices == 1 {
-					fmt.Printf(" It has 1 exposed service.")
-				} else {
-					fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
-				}
-				fmt.Println()
-				if vir.ConsoleUrl != "" {
-					fmt.Println("The site console url is: ", vir.ConsoleUrl)
-					siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-					if err != nil {
-						return err
-					}
-					if siteConfig.Spec.AuthMode == "internal" {
-						fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-console-users'")
-					}
-				}
-			} else {
-				if vir == nil {
-					fmt.Printf("Skupper is not enabled in namespace '%s'\n", cli.GetNamespace())
-				} else {
-					return fmt.Errorf("Unable to retrieve skupper status: %w", err)
-				}
-			}
-			return nil
-		},
+		PreRun: skupperCli.NewClient,
+		RunE:   skupperCli.Status,
 	}
 	return cmd
 }
 
 var exposeOpts ExposeOptions
 
-func NewCmdExpose(newClient cobraFunc) *cobra.Command {
+func NewCmdExpose(skupperCli SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short:  "Expose a set of pods through a Skupper address",
-		Args:   exposeTargetArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			targetType, targetName := parseTargetTypeAndName(args)
-
-			// silence cobra may be moved below the "if" we want to print
-			// the usage message along with this error
-			if exposeOpts.Address == "" {
-				if targetType == "service" {
-					return fmt.Errorf("--address option is required for target type 'service'")
-				}
-				if !exposeOpts.Headless {
-					exposeOpts.Address = targetName
-				}
-			}
-			if !exposeOpts.Headless {
-				if exposeOpts.ProxyTuning.Cpu != "" {
-					return fmt.Errorf("--proxy-cpu option is only valid for headless services")
-				}
-				if exposeOpts.ProxyTuning.Memory != "" {
-					return fmt.Errorf("--proxy-memory option is only valid for headless services")
-				}
-				if exposeOpts.ProxyTuning.CpuLimit != "" {
-					return fmt.Errorf("--proxy-cpu-limit option is only valid for headless services")
-				}
-				if exposeOpts.ProxyTuning.MemoryLimit != "" {
-					return fmt.Errorf("--proxy-memory-limit option is only valid for headless services")
-				}
-				if exposeOpts.ProxyTuning.Affinity != "" {
-					return fmt.Errorf("--proxy-pod-affinity option is only valid for headless services")
-				}
-				if exposeOpts.ProxyTuning.AntiAffinity != "" {
-					return fmt.Errorf("--proxy-pod-antiaffinity option is only valid for headless services")
-				}
-				if exposeOpts.ProxyTuning.NodeSelector != "" {
-					return fmt.Errorf("--proxy-node-selector option is only valid for headless services")
-				}
-			}
-
-			if exposeOpts.EnableTls {
-				exposeOpts.TlsCredentials = types.SkupperServiceCertPrefix + exposeOpts.Address
-			}
-
-			if exposeOpts.PublishNotReadyAddresses && targetType == "service" {
-				return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
-			}
-
-			addr, err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
-			if err == nil {
-				fmt.Printf("%s %s exposed as %s\n", targetType, targetName, addr)
-			}
-			return err
-		},
+		Args:   skupperCli.ExposeArgs,
+		PreRun: skupperCli.NewClient,
+		RunE:   skupperCli.Expose,
 	}
 	cmd.Flags().StringVar(&(exposeOpts.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
 	cmd.Flags().StringVar(&(exposeOpts.Address), "address", "", "The Skupper address to expose")
 	cmd.Flags().IntSliceVar(&(exposeOpts.Ports), "port", []int{}, "The ports to expose on")
 	cmd.Flags().StringSliceVar(&(exposeOpts.TargetPorts), "target-port", []string{}, "The ports to target on pods")
-	cmd.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
-	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Cpu, "proxy-cpu", "", "CPU request for router pods")
-	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Memory, "proxy-memory", "", "Memory request for router pods")
-	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.CpuLimit, "proxy-cpu-limit", "", "CPU limit for router pods")
-	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.MemoryLimit, "proxy-memory-limit", "", "Memory limit for router pods")
-	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
-	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
-	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
 	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 protocol)")
-	cmd.Flags().BoolVar(&exposeOpts.PublishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
 
+	skupperCli.ExposeFlags(cmd)
 	return cmd
 }
 
 var unexposeAddress string
 
-func NewCmdUnexpose(newClient cobraFunc) *cobra.Command {
+func NewCmdUnexpose(skupperCli SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short:  "Unexpose a set of pods previously exposed through a Skupper address",
-		Args:   exposeTargetArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			targetType, targetName := parseTargetTypeAndName(args)
-
-			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
-			if err == nil {
-				fmt.Printf("%s %s unexposed\n", targetType, targetName)
-			} else {
-				return fmt.Errorf("Unable to unbind skupper service: %w", err)
-			}
-			return nil
-		},
+		Args:   skupperCli.ExposeArgs,
+		PreRun: skupperCli.NewClient,
+		RunE:   skupperCli.Unexpose,
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
 
 	return cmd
 }
 
-func NewCmdServiceStatus(newClient cobraFunc) *cobra.Command {
-	showLabels := false
+func NewCmdListExposed(skupperClient SkupperClient) *cobra.Command {
+	cmd := NewCmdServiceStatus(skupperClient)
+	cmd.Use = "list-exposed"
+	return cmd
+}
+
+var showLabels bool
+
+func NewCmdServiceStatus(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status",
 		Short:  "List services exposed over the service network",
 		Args:   cobra.NoArgs,
-		PreRun: newClient,
+		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			vsis, err := cli.ServiceInterfaceList(context.Background())
-			if err == nil {
-				if len(vsis) == 0 {
-					fmt.Println("No services defined")
-				} else {
-					l := formatter.NewList()
-					l.Item("Services exposed through Skupper:")
-					addresses := []string{}
-					for _, si := range vsis {
-						addresses = append(addresses, si.Address)
-					}
-					svcAuth := map[string]bool{}
-					for _, addr := range addresses {
-						svcAuth[addr] = true
-					}
-					if vc, ok := cli.(*client.VanClient); ok {
-						policy := client.NewPolicyValidatorAPI(vc)
-						res, _ := policy.Services(addresses...)
-						for addr, auth := range res {
-							svcAuth[addr] = auth.Allowed
-						}
-					}
-
-					for _, si := range vsis {
-						portStr := "port"
-						if len(si.Ports) > 1 {
-							portStr = "ports"
-						}
-						for _, port := range si.Ports {
-							portStr += fmt.Sprintf(" %d", port)
-						}
-						authSuffix := ""
-						if !svcAuth[si.Address] {
-							authSuffix = " - not authorized"
-						}
-						svc := l.NewChild(fmt.Sprintf("%s (%s %s)%s", si.Address, si.Protocol, portStr, authSuffix))
-						if len(si.Targets) > 0 {
-							targets := svc.NewChild("Targets:")
-							for _, t := range si.Targets {
-								var name string
-								if t.Name != "" {
-									name = fmt.Sprintf("name=%s", t.Name)
-								}
-								targetInfo := ""
-								if t.Selector != "" {
-									targetInfo = fmt.Sprintf("%s %s", t.Selector, name)
-								} else if t.Service != "" {
-									targetInfo = fmt.Sprintf("%s %s", t.Service, name)
-								} else {
-									targetInfo = fmt.Sprintf("%s (no selector)", name)
-								}
-								targets.NewChild(targetInfo)
-							}
-						}
-						if showLabels && len(si.Labels) > 0 {
-							labels := svc.NewChild("Labels:")
-							for k, v := range si.Labels {
-								labels.NewChild(fmt.Sprintf("%s=%s", k, v))
-							}
-						}
-					}
-					l.Print()
-				}
-			} else {
-				return fmt.Errorf("Could not retrieve services: %w", err)
-			}
-			return nil
+			return skupperClient.ServiceStatus(cmd, args)
 		},
 	}
 	cmd.Flags().BoolVar(&showLabels, "show-labels", false, "show service labels")
 	return cmd
 }
 
-func NewCmdServiceLabel(newClient cobraFunc) *cobra.Command {
+func listServices(vsis []*types.ServiceInterface, showLabels bool) {
+	if len(vsis) == 0 {
+		fmt.Println("No services defined")
+	} else {
+		l := formatter.NewList()
+		l.Item("Services exposed through Skupper:")
+		addresses := []string{}
+		for _, si := range vsis {
+			addresses = append(addresses, si.Address)
+		}
+		svcAuth := map[string]bool{}
+		for _, addr := range addresses {
+			svcAuth[addr] = true
+		}
+		if vc, ok := cli.(*client.VanClient); ok {
+			policy := client.NewPolicyValidatorAPI(vc)
+			res, _ := policy.Services(addresses...)
+			for addr, auth := range res {
+				svcAuth[addr] = auth.Allowed
+			}
+		}
 
-	var addLabels, removeLabels []string
-	var showLabels bool
+		for _, si := range vsis {
+			portStr := "port"
+			if len(si.Ports) > 1 {
+				portStr = "ports"
+			}
+			for _, port := range si.Ports {
+				portStr += fmt.Sprintf(" %d", port)
+			}
+			authSuffix := ""
+			if !svcAuth[si.Address] {
+				authSuffix = " - not authorized"
+			}
+			svc := l.NewChild(fmt.Sprintf("%s (%s %s)%s", si.Address, si.Protocol, portStr, authSuffix))
+			if len(si.Targets) > 0 {
+				targets := svc.NewChild("Targets:")
+				for _, t := range si.Targets {
+					var name string
+					if t.Name != "" {
+						name = fmt.Sprintf("name=%s", t.Name)
+					}
+					targetInfo := ""
+					if t.Selector != "" {
+						targetInfo = fmt.Sprintf("%s %s", t.Selector, name)
+					} else if t.Service != "" {
+						targetInfo = fmt.Sprintf("%s %s", t.Service, name)
+					} else {
+						targetInfo = fmt.Sprintf("%s (no selector)", name)
+					}
+					targets.NewChild(targetInfo)
+				}
+			}
+			if showLabels && len(si.Labels) > 0 {
+				labels := svc.NewChild("Labels:")
+				for k, v := range si.Labels {
+					labels.NewChild(fmt.Sprintf("%s=%s", k, v))
+				}
+			}
+		}
+		l.Print()
+	}
+}
+
+var addLabels, removeLabels []string
+
+func NewCmdServiceLabel(skupperClient SkupperClient) *cobra.Command {
+
 	labels := &cobra.Command{
 		Use:   "label <service> [labels...]",
 		Short: "Manage service labels",
@@ -726,7 +586,7 @@ func NewCmdServiceLabel(newClient cobraFunc) *cobra.Command {
 
         # add label1=value1 and remove label2 to/from my-service 
         skupper service label my-service label1=value1 label2-`,
-		PreRun: newClient,
+		PreRun: skupperClient.NewClient,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("service name is required")
@@ -751,54 +611,43 @@ func NewCmdServiceLabel(newClient cobraFunc) *cobra.Command {
 			}
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-			si, err := cli.ServiceInterfaceInspect(context.Background(), name)
-			if si == nil {
-				return fmt.Errorf("invalid service name")
-			}
-			if err != nil {
-				return fmt.Errorf("error retrieving service: %v", err)
-			}
-			if showLabels {
-				if si.Labels != nil && len(si.Labels) > 0 {
-					l := formatter.NewList()
-					l.Item(name)
-					labels := l.NewChild("Labels:")
-					for k, v := range si.Labels {
-						labels.NewChild(fmt.Sprintf("%s=%s", k, v))
-					}
-					l.Print()
-				} else {
-					fmt.Printf("%s has no labels", name)
-					fmt.Println()
-				}
-				return nil
-			}
-			curLabels := si.Labels
-			if curLabels == nil {
-				curLabels = map[string]string{}
-			}
-			// removing labels
-			for _, rmlabel := range removeLabels {
-				delete(curLabels, rmlabel)
-			}
-			// adding labels
-			for _, addLabels := range addLabels {
-				for k, v := range utils.LabelToMap(addLabels) {
-					curLabels[k] = v
-				}
-			}
-			si.Labels = curLabels
-			err = cli.ServiceInterfaceUpdate(context.Background(), si)
-			if err != nil {
-				return fmt.Errorf("error updating service labels: %v", err)
-			}
-			return nil
-		},
+		RunE: skupperClient.ServiceLabel,
 	}
 
 	return labels
+}
+
+func updateServiceLabels(si *types.ServiceInterface) {
+	curLabels := si.Labels
+	if curLabels == nil {
+		curLabels = map[string]string{}
+	}
+	// removing labels
+	for _, rmlabel := range removeLabels {
+		delete(curLabels, rmlabel)
+	}
+	// adding labels
+	for _, addLabels := range addLabels {
+		for k, v := range utils.LabelToMap(addLabels) {
+			curLabels[k] = v
+		}
+	}
+	si.Labels = curLabels
+}
+
+func showServiceLabels(si *types.ServiceInterface, name string) {
+	if si.Labels != nil && len(si.Labels) > 0 {
+		l := formatter.NewList()
+		l.Item(name)
+		labels := l.NewChild("Labels:")
+		for k, v := range si.Labels {
+			labels.NewChild(fmt.Sprintf("%s=%s", k, v))
+		}
+		l.Print()
+	} else {
+		fmt.Printf("%s has no labels", name)
+		fmt.Println()
+	}
 }
 
 func NewCmdService() *cobra.Command {
@@ -811,12 +660,12 @@ func NewCmdService() *cobra.Command {
 
 var serviceToCreate types.ServiceInterface
 
-func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
+func NewCmdCreateService(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "create <name> <port...>",
 		Short:  "Create a skupper service",
 		Args:   createServiceArgs,
-		PreRun: newClient,
+		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 			var sPorts []string
@@ -841,11 +690,7 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
 			}
 
-			err := cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			return nil
+			return skupperClient.ServiceCreate(cmd, args)
 		},
 	}
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "protocol", "tcp", "The mapping in use for this service address (tcp, http, http2)")
@@ -861,19 +706,15 @@ func NewCmdCreateService(newClient cobraFunc) *cobra.Command {
 	return cmd
 }
 
-func NewCmdDeleteService(newClient cobraFunc) *cobra.Command {
+func NewCmdDeleteService(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "delete <name>",
 		Short:  "Delete a skupper service",
 		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
+		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			err := cli.ServiceInterfaceRemove(context.Background(), args[0])
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			return nil
+			return skupperClient.ServiceDelete(cmd, args)
 		},
 	}
 	return cmd
@@ -883,51 +724,23 @@ var targetPorts []string
 var protocol string
 var publishNotReadyAddresses bool
 
-func NewCmdBind(newClient cobraFunc) *cobra.Command {
+func NewCmdBind(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "bind <service-name> <target-type> <target-name>",
 		Short:  "Bind a target to a service",
-		Args:   bindArgs,
-		PreRun: newClient,
+		Args:   skupperClient.ServiceBindArgs,
+		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
 				return fmt.Errorf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
-			} else {
-				targetType, targetName := parseTargetTypeAndName(args[1:])
-
-				if publishNotReadyAddresses && targetType == "service" {
-					return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
-				}
-
-				service, err := cli.ServiceInterfaceInspect(context.Background(), args[0])
-
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				} else if service == nil {
-					return fmt.Errorf("Service %s not found", args[0])
-				}
-
-				// validating ports
-				portMapping, err := parsePortMapping(service, targetPorts)
-				if err != nil {
-					return err
-				}
-
-				service.PublishNotReadyAddresses = publishNotReadyAddresses
-
-				err = cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, portMapping)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
 			}
-			return nil
+			return skupperClient.ServiceBind(cmd, args)
 		},
 	}
 	cmd.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
 	cmd.Flags().StringSliceVar(&targetPorts, "target-port", []string{}, "The port the target is listening on (you can also use colon to map source-port to a target-port).")
-	cmd.Flags().BoolVar(&publishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
-
+	skupperClient.ServiceBindFlags(cmd)
 	return cmd
 }
 
@@ -970,23 +783,13 @@ func parsePortMapping(service *types.ServiceInterface, targetPorts []string) (ma
 	return ports, nil
 }
 
-func NewCmdUnbind(newClient cobraFunc) *cobra.Command {
+func NewCmdUnbind(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unbind <service-name> <target-type> <target-name>",
 		Short:  "Unbind a target from a service",
-		Args:   bindArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			targetType, targetName := parseTargetTypeAndName(args[1:])
-
-			err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			return nil
-		},
+		Args:   skupperClient.ServiceBindArgs,
+		PreRun: skupperClient.NewClient,
+		RunE:   skupperClient.ServiceUnbind,
 	}
 	return cmd
 }
@@ -995,388 +798,16 @@ func IsZero(v reflect.Value) bool {
 	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 }
 
-func NewCmdGateway() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "gateway init or gateway delete",
-		Short: "Manage skupper gateway definitions",
-	}
-	return cmd
-}
-
-const gatewayName string = ""
-
-var gatewayConfigFile string
-var gatewayEndpoint types.GatewayEndpoint
-var gatewayType string
-
-func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "init",
-		Short:  "Initialize a gateway to the service network",
-		Args:   cobra.NoArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			if gatewayType != "" && gatewayType != "service" && gatewayType != "docker" && gatewayType != "podman" {
-				return fmt.Errorf("%s is not a valid gateway type. Choose 'service', 'docker' or 'podman'.", gatewayType)
-			}
-
-			actual, err := cli.GatewayInit(context.Background(), gatewayName, gatewayType, gatewayConfigFile)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			fmt.Println("Skupper gateway: '" + actual + "'. Use 'skupper gateway status' to get more information.")
-
-			return nil
-		},
-	}
-	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
-	cmd.Flags().StringVar(&gatewayConfigFile, "config", "", "The gateway config file to use for initialization")
-
-	return cmd
-}
-
-func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
-	verbose := false
-	cmd := &cobra.Command{
-		Use:    "delete",
-		Short:  "Stop the gateway instance and remove the definition",
-		Args:   cobra.NoArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			err := cli.GatewayRemove(context.Background(), gatewayName)
-			if err != nil && verbose {
-				l := formatter.NewList()
-				l.Item("Exception while removing gateway definition:")
-				parts := strings.Split(err.Error(), ",")
-				for _, part := range parts {
-					l.NewChild(fmt.Sprintf("%s", part))
-				}
-				l.Print()
-			}
-			return nil
-		},
-	}
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More details on any exceptions during gateway removal")
-
-	return cmd
-}
-
-func NewCmdExportConfigGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "export-config <export-gateway-name> <output-path>",
-		Short:  "Export the configuration for a gateway definition",
-		Args:   cobra.ExactArgs(2),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			// TODO: validate args must be non nil, etc.
-			fileName, err := cli.GatewayExportConfig(context.Background(), gatewayName, args[0], args[1])
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			fmt.Println("Skupper gateway definition configuration written to '" + fileName + "'")
-			return nil
-		},
-	}
-
-	return cmd
-}
-
-func NewCmdGenerateBundleGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "generate-bundle <config-file> <output-path>",
-		Short:  "Generate an installation bundle using a gateway config file",
-		Args:   cobra.ExactArgs(2),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			fileName, err := cli.GatewayGenerateBundle(context.Background(), args[0], args[1])
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			fmt.Println("Skupper gateway bundle written to '" + fileName + "'")
-			return nil
-		},
-	}
-
-	return cmd
-}
-
-func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "expose <address> <host> <port...>",
-		Short:  "Expose a process to the service network (ensure gateway and cluster service)",
-		Args:   exposeGatewayArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			if gatewayType != "" && gatewayType != "service" && gatewayType != "docker" && gatewayType != "podman" {
-				return fmt.Errorf("%s is not a valid gateway type. Choose 'service', 'docker' or 'podman'.", gatewayType)
-			}
-
-			if len(args) == 2 {
-				parts := strings.Split(args[1], ":")
-				gatewayEndpoint.Host = parts[0]
-				port, _ := strconv.Atoi(parts[1])
-				gatewayEndpoint.Service.Ports = []int{port}
-			} else {
-				tPorts := []int{}
-				sPorts := []int{}
-				for _, v := range args[2:] {
-					ports := strings.Split(v, ":")
-					sPort, _ := strconv.Atoi(ports[0])
-					tPort := sPort
-					if len(ports) == 2 {
-						tPort, _ = strconv.Atoi(ports[1])
-					}
-					sPorts = append(sPorts, sPort)
-					tPorts = append(tPorts, tPort)
-				}
-				gatewayEndpoint.Host = args[1]
-				gatewayEndpoint.Service.Ports = sPorts
-				gatewayEndpoint.TargetPorts = tPorts
-			}
-			gatewayEndpoint.Service.Address = args[0]
-
-			_, err := cli.GatewayExpose(context.Background(), gatewayName, gatewayType, gatewayEndpoint)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return nil
-		},
-	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
-	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
-
-	return cmd
-}
-
-var deleteLast bool
-
-func NewCmdUnexposeGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "unexpose <address>",
-		Short:  "Unexpose a process previously exposed to the service network",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			gatewayEndpoint.Service.Address = args[0]
-			err := cli.GatewayUnexpose(context.Background(), gatewayName, gatewayEndpoint, deleteLast)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return nil
-		},
-	}
-	cmd.Flags().BoolVarP(&deleteLast, "delete-last", "", true, "Delete the gateway if no services remain")
-
-	return cmd
-}
-
-func NewCmdBindGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "bind <address> <host> <port...>",
-		Short:  "Bind a process to the service network",
-		Args:   bindGatewayArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			if len(args) == 2 {
-				parts := strings.Split(args[1], ":")
-				port, _ := strconv.Atoi(parts[1])
-				gatewayEndpoint.Host = parts[0]
-				gatewayEndpoint.Service.Ports = []int{port}
-			} else {
-				ports := []int{}
-				for _, p := range args[2:] {
-					port, _ := strconv.Atoi(p)
-					ports = append(ports, port)
-				}
-				gatewayEndpoint.Host = args[1]
-				gatewayEndpoint.Service.Ports = ports
-			}
-			gatewayEndpoint.Service.Address = args[0]
-			gatewayEndpoint.Name = args[0]
-
-			err := cli.GatewayBind(context.Background(), gatewayName, gatewayEndpoint)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return nil
-		},
-	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
-	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-
-	return cmd
-}
-
-func NewCmdUnbindGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "unbind <address>",
-		Short:  "Unbind a process from the service network",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			gatewayEndpoint.Service.Address = args[0]
-			err := cli.GatewayUnbind(context.Background(), gatewayName, gatewayEndpoint)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return nil
-		},
-	}
-
-	return cmd
-}
-
-func NewCmdStatusGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "status <gateway-name>",
-		Short:  "Report the status of the gateway(s) for the current skupper site",
-		Args:   cobra.MaximumNArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			gateways, err := cli.GatewayList(context.Background())
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			if len(gateways) == 0 {
-				l := formatter.NewList()
-				l.Item("No gateway definition found on cluster")
-				gatewayType, err := client.GatewayDetectTypeIfPresent()
-				if err == nil {
-					if gatewayType != "" {
-						l.NewChild(fmt.Sprintf(" A gateway of type %s is detected on local host.", gatewayType))
-					}
-				}
-				l.Print()
-				return nil
-			}
-
-			l := formatter.NewList()
-			l.Item("Gateway Definition:")
-			for _, gateway := range gateways {
-				gw := l.NewChild(fmt.Sprintf("%s type:%s version:%s", gateway.Name, gateway.Type, gateway.Version))
-				if len(gateway.Connectors) > 0 {
-					listeners := gw.NewChild("Bindings:")
-					for _, connector := range gateway.Connectors {
-						listeners.NewChild(fmt.Sprintf("%s %s %s %s %d", strings.TrimPrefix(connector.Name, gateway.Name+"-egress-"), connector.Service.Protocol, connector.Service.Address, connector.Host, connector.Service.Ports[0]))
-					}
-				}
-				if len(gateway.Listeners) > 0 {
-					listeners := gw.NewChild("Forwards:")
-					for _, listener := range gateway.Listeners {
-						listeners.NewChild(fmt.Sprintf("%s %s %s %s %d:%s", strings.TrimPrefix(listener.Name, gateway.Name+"-ingress-"), listener.Service.Protocol, listener.Service.Address, listener.Host, listener.Service.Ports[0], listener.LocalPort))
-					}
-				}
-			}
-			l.Print()
-
-			return nil
-		},
-	}
-
-	return cmd
-}
-
-func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "forward <address> <port...>",
-		Short:  "Forward an address to the service network",
-		Args:   cobra.MinimumNArgs(2),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			ports := []int{}
-			for _, p := range args[1:] {
-				port, err := strconv.Atoi(p)
-				if err != nil {
-					return fmt.Errorf("%s is not a valid forward port", p)
-				}
-				ports = append(ports, port)
-			}
-
-			gatewayEndpoint.Service.Address = args[0]
-			gatewayEndpoint.Service.Ports = ports
-
-			err := cli.GatewayForward(context.Background(), gatewayName, gatewayEndpoint)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return nil
-		},
-	}
-
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
-	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().BoolVarP(&gatewayEndpoint.Loopback, "loopback", "", false, "Forward from loopback only")
-
-	return cmd
-}
-
-func NewCmdUnforwardGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "unforward <address>",
-		Short:  "Stop forwarding an address to the service network",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			gatewayEndpoint.Service.Address = args[0]
-			err := cli.GatewayUnforward(context.Background(), gatewayName, gatewayEndpoint)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return nil
-		},
-	}
-
-	return cmd
-}
-
-func NewCmdVersion(newClient cobraFunc) *cobra.Command {
+func NewCmdVersion(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "version",
 		Short:  "Report the version of the Skupper CLI and services",
 		Args:   cobra.NoArgs,
-		PreRun: newClient,
+		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 			fmt.Printf("%-30s %s\n", "client version", client.Version)
-			if !IsZero(reflect.ValueOf(cli)) {
-				fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
-				fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
-				fmt.Printf("%-30s %s\n", "config-sync version", cli.GetVersion(types.TransportComponentName, types.ConfigSyncContainerName))
-			} else {
-				fmt.Printf("%-30s %s\n", "transport version", "not-found (no configuration has been provided)")
-				fmt.Printf("%-30s %s\n", "controller version", "not-found (no configuration has been provided)")
-			}
-			return nil
+			return skupperClient.Version(cmd, args)
 		},
 	}
 	return cmd
@@ -1401,64 +832,41 @@ func NewCmdDebugDump(skupperCli SkupperClient) *cobra.Command {
 	return cmd
 }
 
-func NewCmdDebugEvents(newClient cobraFunc) *cobra.Command {
-	verbose := false
+var verbose bool
+
+func NewCmdDebugEvents(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "events",
 		Short:  "Show events",
 		Args:   cobra.NoArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			output, err := cli.SkupperEvents(verbose)
-			if err != nil {
-				return err
-			}
-			os.Stdout.Write(output.Bytes())
-			return nil
-		},
+		PreRun: skupperClient.NewClient,
+		RunE:   skupperClient.DebugEvents,
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More detailed output (in json)")
 	return cmd
 }
 
-func NewCmdDebugService(newClient cobraFunc) *cobra.Command {
-	verbose := false
+func NewCmdDebugService(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "service <service-name>",
 		Short:  "Check the internal state of a skupper exposed service",
 		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			output, err := cli.SkupperCheckService(args[0], verbose)
-			if err != nil {
-				return err
-			}
-			os.Stdout.Write(output.Bytes())
-			return nil
-		},
+		PreRun: skupperClient.NewClient,
+		RunE:   skupperClient.DebugService,
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More detailed output (in json)")
 	return cmd
 }
 
-func NewCmdRevokeaccess(newClient cobraFunc) *cobra.Command {
+func NewCmdRevokeaccess(skupperClient SkupperClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "revoke-access",
 		Short: "Revoke all previously granted access to the site.",
 		Long: `This will invalidate all previously issued tokens and require that all
 links to this site be re-established with new tokens.`,
 		Args:   cobra.ExactArgs(0),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			err := cli.RevokeAccess(context.Background())
-			if err != nil {
-				return fmt.Errorf("Unable to revoke access: %w", err)
-			}
-			return nil
-		},
+		PreRun: skupperClient.NewClient,
+		RunE:   skupperClient.RevokeAccess,
 	}
 	return cmd
 }
@@ -1487,6 +895,8 @@ the .bash_profile. i.e.: $ source <(skupper completion)
 type cobraFunc func(cmd *cobra.Command, args []string)
 
 var rootCmd *cobra.Command
+
+// TODO Remove after refactor is complete
 var cli types.VanClientInterface
 
 func isSupported(skupperCli SkupperClient, cmd string) bool {
@@ -1513,36 +923,56 @@ func init() {
 	}
 
 	cmdInit := NewCmdInit(skupperCli)
-	// TODO
-	cmdDelete := NewCmdDelete(skupperCli.NewClient)
-	cmdUpdate := NewCmdUpdate(skupperCli.NewClient)
-	cmdStatus := NewCmdStatus(skupperCli.NewClient)
-	cmdExpose := NewCmdExpose(skupperCli.NewClient)
-	cmdUnexpose := NewCmdUnexpose(skupperCli.NewClient)
-	cmdListExposed := NewCmdListExposed(skupperCli.NewClient)
-	cmdCreateService := NewCmdCreateService(skupperCli.NewClient)
-	cmdDeleteService := NewCmdDeleteService(skupperCli.NewClient)
-	cmdStatusService := NewCmdServiceStatus(skupperCli.NewClient)
-	cmdLabelsService := NewCmdServiceLabel(skupperCli.NewClient)
-	cmdBind := NewCmdBind(skupperCli.NewClient)
-	cmdUnbind := NewCmdUnbind(skupperCli.NewClient)
-	cmdVersion := NewCmdVersion(skupperCli.NewClient)
-	cmdDebugDump := NewCmdDebugDump(skupperCli)
-	cmdDebugEvents := NewCmdDebugEvents(skupperCli.NewClient)
-	cmdDebugService := NewCmdDebugService(skupperCli.NewClient)
+	cmdDelete := NewCmdDelete(skupperCli)
+	cmdUpdate := NewCmdUpdate(skupperCli)
+	cmdStatus := NewCmdStatus(skupperCli)
+	cmdExpose := NewCmdExpose(skupperCli)
+	cmdUnexpose := NewCmdUnexpose(skupperCli)
+	cmdListExposed := NewCmdListExposed(skupperCli)
+	cmdCreateService := NewCmdCreateService(skupperCli)
+	cmdDeleteService := NewCmdDeleteService(skupperCli)
+	cmdStatusService := NewCmdServiceStatus(skupperCli)
+	cmdLabelsService := NewCmdServiceLabel(skupperCli)
+	cmdBind := NewCmdBind(skupperCli)
+	cmdUnbind := NewCmdUnbind(skupperCli)
 
-	cmdInitGateway := NewCmdInitGateway(skupperCli.NewClient)
-	cmdDownloadGateway := NewCmdDownloadGateway(skupperCli.NewClient)
-	cmdExportConfigGateway := NewCmdExportConfigGateway(skupperCli.NewClient)
-	cmdGenerateBundleGateway := NewCmdGenerateBundleGateway(skupperCli.NewClient)
-	cmdDeleteGateway := NewCmdDeleteGateway(skupperCli.NewClient)
-	cmdExposeGateway := NewCmdExposeGateway(skupperCli.NewClient)
-	cmdUnexposeGateway := NewCmdUnexposeGateway(skupperCli.NewClient)
-	cmdStatusGateway := NewCmdStatusGateway(skupperCli.NewClient)
-	cmdBindGateway := NewCmdBindGateway(skupperCli.NewClient)
-	cmdUnbindGateway := NewCmdUnbindGateway(skupperCli.NewClient)
-	cmdForwardGateway := NewCmdForwardGateway(skupperCli.NewClient)
-	cmdUnforwardGateway := NewCmdUnforwardGateway(skupperCli.NewClient)
+	cmdVersion := NewCmdVersion(skupperCli)
+	cmdDebugDump := NewCmdDebugDump(skupperCli)
+	cmdDebugEvents := NewCmdDebugEvents(skupperCli)
+	cmdDebugService := NewCmdDebugService(skupperCli)
+
+	// Gateway command is only valid on Kubernetes sites
+	cmdGateway := NewCmdGateway()
+	if skupperKube, ok := skupperCli.(*SkupperKube); ok {
+		cmdInitGateway := NewCmdInitGateway(skupperKube)
+		cmdDownloadGateway := NewCmdDownloadGateway(skupperKube)
+		cmdExportConfigGateway := NewCmdExportConfigGateway(skupperKube)
+		cmdGenerateBundleGateway := NewCmdGenerateBundleGateway(skupperKube)
+		cmdDeleteGateway := NewCmdDeleteGateway(skupperKube)
+		cmdExposeGateway := NewCmdExposeGateway(skupperKube)
+		cmdUnexposeGateway := NewCmdUnexposeGateway(skupperKube)
+		cmdStatusGateway := NewCmdStatusGateway(skupperKube)
+		cmdBindGateway := NewCmdBindGateway(skupperKube)
+		cmdUnbindGateway := NewCmdUnbindGateway(skupperKube)
+		cmdForwardGateway := NewCmdForwardGateway(skupperKube)
+		cmdUnforwardGateway := NewCmdUnforwardGateway(skupperKube)
+
+		cmdDownloadGateway.Hidden = true
+		cmdDownloadGateway.Deprecated = "please use 'skupper gateway export-config' instead."
+
+		cmdGateway.AddCommand(cmdInitGateway)
+		cmdGateway.AddCommand(cmdDownloadGateway)
+		cmdGateway.AddCommand(cmdExportConfigGateway)
+		cmdGateway.AddCommand(cmdGenerateBundleGateway)
+		cmdGateway.AddCommand(cmdDeleteGateway)
+		cmdGateway.AddCommand(cmdExposeGateway)
+		cmdGateway.AddCommand(cmdUnexposeGateway)
+		cmdGateway.AddCommand(cmdStatusGateway)
+		cmdGateway.AddCommand(cmdBindGateway)
+		cmdGateway.AddCommand(cmdUnbindGateway)
+		cmdGateway.AddCommand(cmdForwardGateway)
+		cmdGateway.AddCommand(cmdUnforwardGateway)
+	}
 
 	// backwards compatibility commands hidden
 	deprecatedMessage := "please use 'skupper service [bind|unbind]' instead"
@@ -1551,55 +981,39 @@ func init() {
 	cmdUnbind.Deprecated = deprecatedMessage
 	cmdUnbind.Hidden = true
 
-	cmdListConnectors := NewCmdListConnectors(skupperCli.NewClient) // listconnectors just keeped
+	cmdListConnectors := NewCmdListConnectors(skupperCli) // listconnectors just keeped
 	cmdListConnectors.Hidden = true
 	cmdListConnectors.Deprecated = "please use 'skupper link status'"
 
 	linkDeprecationMessage := "please use 'skupper link [create|delete|status]' instead."
 
-	cmdConnect := NewCmdConnect(skupperCli.NewClient)
+	cmdConnect := NewCmdConnect(skupperCli)
 	cmdConnect.Hidden = true
 	cmdConnect.Deprecated = linkDeprecationMessage
 
-	cmdDisconnect := NewCmdDisconnect(skupperCli.NewClient)
+	cmdDisconnect := NewCmdDisconnect(skupperCli)
 	cmdDisconnect.Hidden = true
 	cmdDisconnect.Deprecated = linkDeprecationMessage
 
-	cmdCheckConnection := NewCmdCheckConnection(skupperCli.NewClient)
+	cmdCheckConnection := NewCmdCheckConnection(skupperCli)
 	cmdCheckConnection.Hidden = true
 	cmdCheckConnection.Deprecated = linkDeprecationMessage
 
-	cmdConnectionToken := NewCmdConnectionToken(skupperCli.NewClient)
+	cmdConnectionToken := NewCmdConnectionToken(skupperCli)
 	cmdConnectionToken.Hidden = true
 	cmdConnectionToken.Deprecated = "please use 'skupper token create' instead."
 
 	cmdListExposed.Hidden = true
 	cmdListExposed.Deprecated = "please use 'skupper service status' instead."
 
-	cmdDownloadGateway.Hidden = true
-	cmdDownloadGateway.Deprecated = "please use 'skupper gateway export-config' instead."
-
 	// setup subcommands
 	cmdService := NewCmdService()
 	cmdService.AddCommand(cmdCreateService)
 	cmdService.AddCommand(cmdDeleteService)
-	cmdService.AddCommand(NewCmdBind(skupperCli.NewClient))
-	cmdService.AddCommand(NewCmdUnbind(skupperCli.NewClient))
+	cmdService.AddCommand(NewCmdBind(skupperCli))
+	cmdService.AddCommand(NewCmdUnbind(skupperCli))
 	cmdService.AddCommand(cmdStatusService)
 	cmdService.AddCommand(cmdLabelsService)
-
-	cmdGateway := NewCmdGateway()
-	cmdGateway.AddCommand(cmdInitGateway)
-	cmdGateway.AddCommand(cmdExportConfigGateway)
-	cmdGateway.AddCommand(cmdGenerateBundleGateway)
-	cmdGateway.AddCommand(cmdDeleteGateway)
-	cmdGateway.AddCommand(cmdExposeGateway)
-	cmdGateway.AddCommand(cmdUnexposeGateway)
-	cmdGateway.AddCommand(cmdStatusGateway)
-	cmdGateway.AddCommand(cmdBindGateway)
-	cmdGateway.AddCommand(cmdUnbindGateway)
-	cmdGateway.AddCommand(cmdForwardGateway)
-	cmdGateway.AddCommand(cmdUnforwardGateway)
 
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)
@@ -1607,19 +1021,19 @@ func init() {
 	cmdDebug.AddCommand(cmdDebugService)
 
 	cmdLink := NewCmdLink()
-	cmdLink.AddCommand(NewCmdLinkCreate(skupperCli.NewClient, ""))
-	cmdLink.AddCommand(NewCmdLinkDelete(skupperCli.NewClient))
-	cmdLink.AddCommand(NewCmdLinkStatus(skupperCli.NewClient))
+	cmdLink.AddCommand(NewCmdLinkCreate(skupperCli, ""))
+	cmdLink.AddCommand(NewCmdLinkDelete(skupperCli))
+	cmdLink.AddCommand(NewCmdLinkStatus(skupperCli))
 
 	cmdToken := NewCmdToken()
-	cmdToken.AddCommand(NewCmdTokenCreate(skupperCli.NewClient, ""))
+	cmdToken.AddCommand(NewCmdTokenCreate(skupperCli, ""))
 
 	cmdCompletion := NewCmdCompletion()
 
-	cmdRevokeAll := NewCmdRevokeaccess(skupperCli.NewClient)
+	cmdRevokeAll := NewCmdRevokeaccess(skupperCli)
 
 	cmdNetwork := NewCmdNetwork()
-	cmdNetwork.AddCommand(NewCmdNetworkStatus(skupperCli.NewClient))
+	cmdNetwork.AddCommand(NewCmdNetworkStatus(skupperCli))
 
 	cmdSwitch := NewCmdSwitch()
 
@@ -1639,9 +1053,9 @@ func init() {
 		cmdCompletion,
 		cmdGateway,
 		cmdRevokeAll,
-		cmdNetwork,
-		cmdSwitch)
+		cmdNetwork)
 
+	rootCmd.AddCommand(cmdSwitch)
 	skupperCli.Options(rootCmd)
 	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "", "", "The platform type to use")
 }

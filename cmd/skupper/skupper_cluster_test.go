@@ -25,6 +25,8 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
+var testClient *SkupperTestClient
+
 type testCase struct {
 	doc             string
 	args            []string
@@ -72,15 +74,26 @@ func newMockClient(namespace string) *client.VanClient {
 	}
 }
 
-func testClient(cmd *cobra.Command, args []string) {
+type SkupperTestClient struct {
+	*SkupperKube
+}
+
+func NewSkupperTestClient() *SkupperTestClient {
+	cli := &SkupperTestClient{&SkupperKube{}}
+	return cli
+}
+
+func (s *SkupperTestClient) NewClient(cmd *cobra.Command, args []string) {
 	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
+		s.Cli = NewClient(s.Namespace, s.KubeContext, s.KubeConfigPath)
 	} else {
-		cli = newMockClient(namespace)
+		s.Cli = newMockClient(s.Namespace)
 	}
+	cli = s.Cli
 }
 
 func skupperInit(t *testing.T, args ...string) {
+
 	initCmd := NewCmdInit(testClient)
 	silenceCobra(initCmd)
 
@@ -251,20 +264,17 @@ func TestInitInteriorWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "init-interior-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: "init-interior-cluster-test-" + strings.ToLower(utils.RandomId(4)),
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
-		_, err := kube.NewNamespace(namespace, c.KubeClient)
+		_, err := kube.NewNamespace(testClient.Namespace, c.KubeClient)
 		assert.Check(t, err)
-		defer kube.DeleteNamespace(namespace, c.KubeClient)
+		defer kube.DeleteNamespace(testClient.Namespace, c.KubeClient)
 	}
 
 	for _, tc := range testcases {
@@ -298,20 +308,17 @@ func TestDeleteWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-delete-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: "cmd-delete-cluster-test-" + strings.ToLower(utils.RandomId(4)),
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
-		_, err := kube.NewNamespace(namespace, c.KubeClient)
+		_, err := kube.NewNamespace(testClient.Namespace, c.KubeClient)
 		assert.Check(t, err)
-		defer kube.DeleteNamespace(namespace, c.KubeClient)
+		defer kube.DeleteNamespace(testClient.Namespace, c.KubeClient)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
@@ -354,15 +361,13 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-connection-token-edge-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-connection-token-edge-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -411,15 +416,13 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-connection-token-interior-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-connection-token-interior-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -460,15 +463,13 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-connect-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-connect-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -508,15 +509,13 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-connect-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-connect-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -565,15 +564,13 @@ func TestDisconnectWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-disconnect-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-disconnect-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -637,15 +634,13 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-list-connectors-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-list-connectors-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -717,15 +712,13 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-check-connection-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-check-connection-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -771,15 +764,13 @@ func TestStatusWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-status-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-status-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -939,15 +930,13 @@ func TestExposeWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-expose-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-expose-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1059,15 +1048,13 @@ func TestUnexposeWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-unexpose-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-unexpose-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1108,15 +1095,13 @@ func TestListExposedWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-list-exposed-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-list-exposed-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1192,15 +1177,13 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-create-service-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-create-service-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1247,15 +1230,13 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-delete-service-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-delete-service-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1324,15 +1305,13 @@ func TestBindWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-bind-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-bind-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1356,9 +1335,11 @@ func TestBindWithCluster(t *testing.T) {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
-		cmd := NewCmdBind(testClient)
-		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
+		t.Run(tc.doc, func(t *testing.T) {
+			cmd := NewCmdBind(testClient)
+			silenceCobra(cmd)
+			testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
+		})
 	}
 }
 
@@ -1390,15 +1371,13 @@ func TestUnbindWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-unbind-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-unbind-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1452,15 +1431,13 @@ func TestVersionWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-version-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-version-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1507,15 +1484,13 @@ func TestDebugDumpWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-debug-dump-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	namespace := "cmd-debug-dump-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
 	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1559,9 +1534,7 @@ func TestNetworkStatusWithCluster(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-debug-network-status-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
+	namespace := "cmd-debug-network-status-cluster-test-" + strings.ToLower(utils.RandomId(4))
 
 	if !*clusterRun {
 		lightRed := "\033[1;31m"
@@ -1569,7 +1542,12 @@ func TestNetworkStatusWithCluster(t *testing.T) {
 		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
 	}
 
-	cli = NewClient(namespace, kubeContext, kubeConfigPath)
+	testClient = &SkupperTestClient{
+		&SkupperKube{
+			Namespace: namespace,
+		},
+	}
+	testClient.NewClient(nil, nil)
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
