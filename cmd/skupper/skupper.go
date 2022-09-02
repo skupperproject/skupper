@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	time2 "time"
+	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
@@ -320,7 +320,7 @@ func asMap(entries []string) map[string]string {
 	return result
 }
 
-var LoadBalancerTimeout time2.Duration
+var LoadBalancerTimeout time.Duration
 
 type InitFlags struct {
 	routerMode string
@@ -390,7 +390,7 @@ func NewCmdUpdate(skupperCli SkupperClient) *cobra.Command {
 		Long:   "Update the skupper site to " + client.Version,
 		Args:   cobra.NoArgs,
 		PreRun: skupperCli.NewClient,
-		RunE:   skupperCli.Delete,
+		RunE:   skupperCli.Update,
 	}
 	cmd.Flags().BoolVarP(&forceHup, "force-restart", "", false, "Restart skupper daemons even if image tag is not updated")
 	return cmd
@@ -845,7 +845,13 @@ func addCommands(skupperCli SkupperClient, rootCmd *cobra.Command, cmds ...*cobr
 }
 
 func init() {
+	rootCmd = &cobra.Command{Use: "skupper"}
 	routev1.AddToScheme(scheme.Scheme)
+
+	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "", "", "The platform type to use")
+	platformFlag := rootCmd.Flag("platform")
+	platformFlag.Hidden = true
+	rootCmd.ParseFlags(os.Args)
 
 	var skupperCli SkupperClient
 	switch config.GetPlatform() {
@@ -969,8 +975,8 @@ func init() {
 	cmdNetwork.AddCommand(NewCmdNetworkStatus(skupperCli))
 
 	cmdSwitch := NewCmdSwitch()
+	cmdSwitch.Hidden = true
 
-	rootCmd = &cobra.Command{Use: "skupper"}
 	addCommands(skupperCli, rootCmd,
 		cmdInit,
 		cmdDelete,
@@ -990,7 +996,7 @@ func init() {
 
 	rootCmd.AddCommand(cmdSwitch)
 	skupperCli.Options(rootCmd)
-	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "", "", "The platform type to use")
+
 }
 
 func main() {
