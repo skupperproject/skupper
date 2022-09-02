@@ -3,9 +3,11 @@ package mongodb
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	vanClient "github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -57,6 +59,12 @@ func Setup(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
 	assert.Assert(t, err)
 
 	_, err = pub1Cluster.KubectlExec("apply -f https://raw.githubusercontent.com/skupperproject/skupper-example-mongodb-replica-set/master/deployment-mongo-b.yaml")
+	assert.Assert(t, err)
+
+	// wait deployments ready
+	_, err = kube.WaitDeploymentReadyReplicas("mongo-a", prv1Cluster.Namespace, 1, prv1Cluster.VanClient.KubeClient, time.Minute, time.Second)
+	assert.Assert(t, err)
+	_, err = kube.WaitDeploymentReadyReplicas("mongo-b", pub1Cluster.Namespace, 1, pub1Cluster.VanClient.KubeClient, time.Minute, time.Second)
 	assert.Assert(t, err)
 
 	expose := func(name string, cli *vanClient.VanClient) {
