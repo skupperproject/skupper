@@ -391,6 +391,14 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 			if hostOverride != "" {
 				b.HostOverride = hostOverride
 			}
+
+			if len(tlsCredentials) > 0 {
+				verifyHostName := new(bool)
+				*verifyHostName = false
+				b.SslProfile = types.ServiceClientSecret
+				b.VerifyHostname = verifyHostName
+			}
+
 			bridges.AddHttpConnector(b)
 		case ProtocolHTTP2:
 			httpConnector := qdr.HttpEndpoint{
@@ -410,13 +418,21 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 			}
 			bridges.AddHttpConnector(httpConnector)
 		case ProtocolTCP:
-			bridges.AddTcpConnector(qdr.TcpEndpoint{
+			tcpConnector := qdr.TcpEndpoint{
 				Name:    endpointName,
 				Host:    host,
 				Port:    strconv.Itoa(tPort),
 				Address: endpointAddr,
 				SiteId:  siteId,
-			})
+			}
+
+			if len(tlsCredentials) > 0 {
+				verifyHostName := new(bool)
+				*verifyHostName = false
+				tcpConnector.SslProfile = types.ServiceClientSecret
+				tcpConnector.VerifyHostname = verifyHostName
+			}
+			bridges.AddTcpConnector(tcpConnector)
 		default:
 			return false, fmt.Errorf("Unrecognised protocol for service %s: %s", address, protocol)
 		}
@@ -436,14 +452,21 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 			if sb.aggregation != "" || sb.eventChannel {
 				endpointAddr = "mc/" + endpointAddr
 			}
-			bridges.AddHttpListener(qdr.HttpEndpoint{
+
+			http1Listener := qdr.HttpEndpoint{
 				Name:         endpointName,
 				Port:         strconv.Itoa(iPort),
 				Address:      endpointAddr,
 				SiteId:       siteId,
 				Aggregation:  sb.aggregation,
 				EventChannel: sb.eventChannel,
-			})
+			}
+
+			if len(sb.tlsCredentials) > 0 {
+				http1Listener.SslProfile = sb.tlsCredentials
+			}
+
+			bridges.AddHttpListener(http1Listener)
 
 		case ProtocolHTTP2:
 			httpListener := qdr.HttpEndpoint{
@@ -462,12 +485,18 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 
 			bridges.AddHttpListener(httpListener)
 		case ProtocolTCP:
-			bridges.AddTcpListener(qdr.TcpEndpoint{
+			tcpListener := qdr.TcpEndpoint{
 				Name:    endpointName,
 				Port:    strconv.Itoa(iPort),
 				Address: endpointAddr,
 				SiteId:  siteId,
-			})
+			}
+
+			if len(sb.tlsCredentials) > 0 {
+				tcpListener.SslProfile = sb.tlsCredentials
+			}
+
+			bridges.AddTcpListener(tcpListener)
 		default:
 			return false, fmt.Errorf("Unrecognised protocol for service %s: %s", sb.Address, sb.protocol)
 		}
