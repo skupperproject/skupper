@@ -14,6 +14,7 @@ import (
 
 func (s *SkupperKube) LinkCreate(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
+	cli := s.Cli
 	siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 	if err != nil {
 		fmt.Println("Unable to retrieve site config: ", err.Error())
@@ -52,6 +53,7 @@ func (s *SkupperKube) LinkCreate(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKube) LinkDelete(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
+	cli := s.Cli
 	connectorRemoveOpts.Name = args[0]
 	connectorRemoveOpts.SkupperNamespace = cli.GetNamespace()
 	connectorRemoveOpts.ForceCurrent = false
@@ -72,7 +74,7 @@ func (s *SkupperKube) LinkStatus(cmd *cobra.Command, args []string) error {
 			if i > 0 {
 				time.Sleep(time.Second)
 			}
-			link, err := cli.ConnectorInspect(context.Background(), args[0])
+			link, err := s.Cli.ConnectorInspect(context.Background(), args[0])
 			if errors.IsNotFound(err) {
 				fmt.Printf("No such link %q", args[0])
 				fmt.Println()
@@ -99,7 +101,7 @@ func (s *SkupperKube) LinkStatus(cmd *cobra.Command, args []string) error {
 			if i > 0 {
 				time.Sleep(time.Second)
 			}
-			links, err := cli.ConnectorList(context.Background())
+			links, err := s.Cli.ConnectorList(context.Background())
 			if err != nil {
 				fmt.Println(err)
 				break

@@ -11,7 +11,7 @@ import (
 
 func (s *SkupperKube) DebugEvents(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
-	output, err := cli.SkupperEvents(verbose)
+	output, err := s.Cli.SkupperEvents(verbose)
 	if err != nil {
 		return err
 	}
@@ -21,7 +21,7 @@ func (s *SkupperKube) DebugEvents(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKube) DebugService(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
-	output, err := cli.SkupperCheckService(args[0], verbose)
+	output, err := s.Cli.SkupperCheckService(args[0], verbose)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func (s *SkupperKube) DebugService(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKube) DebugDump(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
-	file, err := cli.SkupperDump(context.Background(), args[0], client.Version, s.KubeConfigPath, s.KubeContext)
+	file, err := s.Cli.SkupperDump(context.Background(), args[0], client.Version, s.KubeConfigPath, s.KubeContext)
 	if err != nil {
 		return fmt.Errorf("Unable to save skupper dump details: %w", err)
 	} else {

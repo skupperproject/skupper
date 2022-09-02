@@ -67,7 +67,7 @@ func (s *SkupperKube) Expose(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
 	}
 
-	addr, err := expose(cli, context.Background(), targetType, targetName, exposeOpts)
+	addr, err := expose(s.Cli, context.Background(), targetType, targetName, exposeOpts)
 	if err == nil {
 		fmt.Printf("%s %s exposed as %s\n", targetType, targetName, addr)
 	}
@@ -104,7 +104,7 @@ func (s *SkupperKube) Unexpose(cmd *cobra.Command, args []string) error {
 
 	targetType, targetName := parseTargetTypeAndName(args)
 
-	err := cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
+	err := s.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
 	if err == nil {
 		fmt.Printf("%s %s unexposed\n", targetType, targetName)
 	} else {

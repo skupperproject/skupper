@@ -41,7 +41,7 @@ func NewCmdInitGateway(kube *SkupperKube) *cobra.Command {
 				return fmt.Errorf("%s is not a valid gateway type. Choose 'service', 'docker' or 'podman'.", gatewayType)
 			}
 
-			actual, err := cli.GatewayInit(context.Background(), gatewayName, gatewayType, gatewayConfigFile)
+			actual, err := kube.Cli.GatewayInit(context.Background(), gatewayName, gatewayType, gatewayConfigFile)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -76,7 +76,7 @@ func NewCmdDeleteGateway(kube *SkupperKube) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			err := cli.GatewayRemove(context.Background(), gatewayName)
+			err := kube.Cli.GatewayRemove(context.Background(), gatewayName)
 			if err != nil && verbose {
 				l := formatter.NewList()
 				l.Item("Exception while removing gateway definition:")
@@ -108,7 +108,7 @@ func NewCmdDownloadGateway(kube *SkupperKube) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			fileName, err := cli.GatewayDownload(context.Background(), gatewayName, args[0])
+			fileName, err := kube.Cli.GatewayDownload(context.Background(), gatewayName, args[0])
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -135,7 +135,7 @@ func NewCmdExportConfigGateway(kube *SkupperKube) *cobra.Command {
 			silenceCobra(cmd)
 
 			// TODO: validate args must be non nil, etc.
-			fileName, err := cli.GatewayExportConfig(context.Background(), gatewayName, args[0], args[1])
+			fileName, err := kube.Cli.GatewayExportConfig(context.Background(), gatewayName, args[0], args[1])
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -161,7 +161,7 @@ func NewCmdGenerateBundleGateway(kube *SkupperKube) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			fileName, err := cli.GatewayGenerateBundle(context.Background(), args[0], args[1])
+			fileName, err := kube.Cli.GatewayGenerateBundle(context.Background(), args[0], args[1])
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -210,7 +210,7 @@ func NewCmdExposeGateway(kube *SkupperKube) *cobra.Command {
 			}
 			gatewayEndpoint.Service.Address = args[0]
 
-			_, err := cli.GatewayExpose(context.Background(), gatewayName, gatewayType, gatewayEndpoint)
+			_, err := kube.Cli.GatewayExpose(context.Background(), gatewayName, gatewayType, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -243,7 +243,7 @@ func NewCmdUnexposeGateway(kube *SkupperKube) *cobra.Command {
 			silenceCobra(cmd)
 
 			gatewayEndpoint.Service.Address = args[0]
-			err := cli.GatewayUnexpose(context.Background(), gatewayName, gatewayEndpoint, deleteLast)
+			err := kube.Cli.GatewayUnexpose(context.Background(), gatewayName, gatewayEndpoint, deleteLast)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -286,7 +286,7 @@ func NewCmdBindGateway(kube *SkupperKube) *cobra.Command {
 			gatewayEndpoint.Service.Address = args[0]
 			gatewayEndpoint.Name = args[0]
 
-			err := cli.GatewayBind(context.Background(), gatewayName, gatewayEndpoint)
+			err := kube.Cli.GatewayBind(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -320,7 +320,7 @@ func NewCmdUnbindGateway(kube *SkupperKube) *cobra.Command {
 			silenceCobra(cmd)
 
 			gatewayEndpoint.Service.Address = args[0]
-			err := cli.GatewayUnbind(context.Background(), gatewayName, gatewayEndpoint)
+			err := kube.Cli.GatewayUnbind(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -351,7 +351,7 @@ func NewCmdStatusGateway(kube *SkupperKube) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 
-			gateways, err := cli.GatewayList(context.Background())
+			gateways, err := kube.Cli.GatewayList(context.Background())
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -416,7 +416,7 @@ func NewCmdForwardGateway(kube *SkupperKube) *cobra.Command {
 			gatewayEndpoint.Service.Address = args[0]
 			gatewayEndpoint.Service.Ports = ports
 
-			err := cli.GatewayForward(context.Background(), gatewayName, gatewayEndpoint)
+			err := kube.Cli.GatewayForward(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -451,7 +451,7 @@ func NewCmdUnforwardGateway(kube *SkupperKube) *cobra.Command {
 			silenceCobra(cmd)
 
 			gatewayEndpoint.Service.Address = args[0]
-			err := cli.GatewayUnforward(context.Background(), gatewayName, gatewayEndpoint)
+			err := kube.Cli.GatewayUnforward(context.Background(), gatewayName, gatewayEndpoint)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}

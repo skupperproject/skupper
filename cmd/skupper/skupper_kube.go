@@ -32,6 +32,7 @@ type SkupperKube struct {
 
 func (s *SkupperKube) TokenCreate(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
+	cli := s.Cli
 	switch tokenType {
 	case "cert":
 		err := cli.ConnectorTokenCreateFile(context.Background(), clientIdentity, args[0])
@@ -59,7 +60,7 @@ func (s *SkupperKube) TokenCreate(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKube) RevokeAccess(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
-	err := cli.RevokeAccess(context.Background())
+	err := s.Cli.RevokeAccess(context.Background())
 	if err != nil {
 		return fmt.Errorf("Unable to revoke access: %w", err)
 	}
@@ -72,7 +73,7 @@ func (s *SkupperKube) NetworkStatus(cmd *cobra.Command, args []string) error {
 	var sites []*types.SiteInfo
 	var errStatus error
 	err := utils.RetryError(time.Second, 3, func() error {
-		sites, errStatus = cli.NetworkStatus()
+		sites, errStatus = s.Cli.NetworkStatus()
 
 		if errStatus != nil {
 			return errStatus
@@ -91,14 +92,14 @@ func (s *SkupperKube) NetworkStatus(cmd *cobra.Command, args []string) error {
 		loadOnlyLocalInformation = true
 	}
 
-	vir, err := cli.RouterInspect(context.Background())
+	vir, err := s.Cli.RouterInspect(context.Background())
 	if err != nil || vir == nil {
 		fmt.Printf("The router configuration is not available: %s", err)
 		fmt.Println()
 		return nil
 	}
 
-	siteConfig, err := cli.SiteConfigInspect(nil, nil)
+	siteConfig, err := s.Cli.SiteConfigInspect(nil, nil)
 	if err != nil || siteConfig == nil {
 		fmt.Printf("The site configuration is not available: %s", err)
 		fmt.Println()
@@ -110,14 +111,14 @@ func (s *SkupperKube) NetworkStatus(cmd *cobra.Command, args []string) error {
 	if loadOnlyLocalInformation {
 		printLocalStatus(vir.Status.TransportReadyReplicas, vir.Status.ConnectedSites.Warnings, vir.Status.ConnectedSites.Total, vir.Status.ConnectedSites.Direct, vir.ExposedServices)
 
-		serviceInterfaces, err := cli.ServiceInterfaceList(context.Background())
+		serviceInterfaces, err := s.Cli.ServiceInterfaceList(context.Background())
 		if err != nil {
 			fmt.Printf("Service local configuration is not available: %s", err)
 			fmt.Println()
 			return nil
 		}
 
-		sites = getLocalSiteInfo(serviceInterfaces, currentSite, vir.Status.SiteName, cli.GetNamespace(), vir.TransportVersion)
+		sites = getLocalSiteInfo(serviceInterfaces, currentSite, vir.Status.SiteName, s.Cli.GetNamespace(), vir.TransportVersion)
 	}
 
 	if sites != nil && len(sites) > 0 {
@@ -159,7 +160,7 @@ func (s *SkupperKube) NetworkStatus(cmd *cobra.Command, args []string) error {
 					addresses = append(addresses, svc.Name)
 					svcAuth[svc.Name] = true
 				}
-				if vc, ok := cli.(*client.VanClient); ok && site.Namespace == cli.GetNamespace() {
+				if vc, ok := s.Cli.(*client.VanClient); ok && site.Namespace == s.Cli.GetNamespace() {
 					policy := client.NewPolicyValidatorAPI(vc)
 					res, _ := policy.Services(addresses...)
 					for addr, auth := range res {
@@ -195,6 +196,7 @@ func (s *SkupperKube) NetworkStatus(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKube) ListConnectors(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
+	cli := s.Cli
 	connectors, err := cli.ConnectorList(context.Background())
 	if err == nil {
 		if len(connectors) == 0 {
@@ -215,6 +217,7 @@ func (s *SkupperKube) ListConnectors(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperKube) Version(cmd *cobra.Command, args []string) error {
+	cli := s.Cli
 	if !IsZero(reflect.ValueOf(cli)) {
 		fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
 		fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
@@ -228,6 +231,7 @@ func (s *SkupperKube) Version(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKube) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
+	cli := s.Cli
 	vir, err := cli.RouterInspect(context.Background())
 	if err == nil {
 		ns := cli.GetNamespace()
@@ -297,6 +301,7 @@ func (s *SkupperKube) Status(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKube) Update(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
+	cli := s.Cli
 
 	updated, err := cli.RouterUpdateVersion(context.Background(), forceHup)
 	if err != nil {
@@ -312,6 +317,7 @@ func (s *SkupperKube) Update(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKube) Delete(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
+	cli := s.Cli
 	gateways, err := cli.GatewayList(context.Background())
 	for _, gateway := range gateways {
 		cli.GatewayRemove(context.Background(), gateway.Name)
@@ -357,8 +363,6 @@ func (s *SkupperKube) NewClient(cmd *cobra.Command, args []string) {
 		exitOnError = false
 	}
 	s.Cli = NewClientHandleError(s.Namespace, s.KubeContext, s.KubeConfigPath, exitOnError)
-	// TODO remove once all methods converted
-	cli = s.Cli
 }
 
 func (s *SkupperKube) Init(cmd *cobra.Command, args []string) error {

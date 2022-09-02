@@ -89,7 +89,6 @@ func (s *SkupperTestClient) NewClient(cmd *cobra.Command, args []string) {
 	} else {
 		s.Cli = newMockClient(s.Namespace)
 	}
-	cli = s.Cli
 }
 
 func skupperInit(t *testing.T, args ...string) {
@@ -270,6 +269,7 @@ func TestInitInteriorWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(testClient.Namespace, c.KubeClient)
@@ -314,6 +314,7 @@ func TestDeleteWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(testClient.Namespace, c.KubeClient)
@@ -368,6 +369,7 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -423,6 +425,7 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -470,6 +473,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -516,6 +520,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -571,6 +576,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -641,6 +647,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -719,6 +726,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -771,6 +779,7 @@ func TestStatusWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -937,6 +946,7 @@ func TestExposeWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1055,6 +1065,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1102,6 +1113,7 @@ func TestListExposedWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1184,6 +1196,7 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1237,6 +1250,7 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1312,7 +1326,7 @@ func TestBindWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
-
+	cli := testClient.Cli
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
 		assert.Check(t, err)
@@ -1378,6 +1392,7 @@ func TestUnbindWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1438,6 +1453,7 @@ func TestVersionWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1491,6 +1507,7 @@ func TestDebugDumpWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
@@ -1548,6 +1565,7 @@ func TestNetworkStatusWithCluster(t *testing.T) {
 		},
 	}
 	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)

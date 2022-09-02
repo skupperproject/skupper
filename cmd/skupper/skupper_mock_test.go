@@ -299,12 +299,10 @@ func (v *vanClientMock) NetworkStatus() ([]*types.SiteInfo, error) {
 }
 
 func TestCmdUnexposeRun(t *testing.T) {
-	skupperClient := &SkupperTestClient{}
+	skupperClient := NewSkupperTestClient()
 	cmd := NewCmdUnexpose(skupperClient)
 	test := func(targetType, targetName, address string) {
-
-		cli := cli.(*vanClientMock)
-
+		cli := skupperClient.Cli.(*vanClientMock)
 		unexposeAddress = address
 
 		args := []string{targetType}
@@ -338,12 +336,12 @@ func TestCmdUnexposeRun(t *testing.T) {
 	}
 
 	testSuccess := func(targetType, targetName, address string) {
-		cli = &vanClientMock{}
+		skupperClient.Cli = &vanClientMock{}
 		test(targetType, targetName, address)
 	}
 
 	testError := func(targetType, targetName, address string, errorString string) {
-		cli = &vanClientMock{
+		skupperClient.Cli = &vanClientMock{
 			injectedReturns: vanClientMockInjectedReturnValues{
 				serviceInterfaceUnbind: fmt.Errorf("%s", errorString),
 			},
@@ -360,13 +358,13 @@ func TestCmdUnexposeRun(t *testing.T) {
 
 func TestCmdInit(t *testing.T) {
 	skupperCli := NewSkupperTestClient()
+	skupperCli.Cli = &vanClientMock{}
 	cmd := NewCmdInit(skupperCli)
-	var lcli (*vanClientMock)
+	var lcli *vanClientMock
 	args := []string{}
 	resetCli := func() {
-		cli = &vanClientMock{}
-		lcli = cli.(*vanClientMock)
-		skupperCli.Cli = cli
+		lcli = &vanClientMock{}
+		skupperCli.Cli = lcli
 	}
 
 	t.Run("SiteConfigInspectReturnsError",
@@ -592,8 +590,7 @@ func TestExpose_Binding(t *testing.T) {
 func TestCmdExposeRun(t *testing.T) {
 	skupperCli := NewSkupperTestClient()
 	cmd := NewCmdExpose(skupperCli)
-	cli = &vanClientMock{} // the global cli is used by the "RunE" func
-	cli := cli.(*vanClientMock)
+	cli := &vanClientMock{} // the global cli is used by the "RunE" func
 	skupperCli.Cli = cli
 
 	args := []string{"service", "name"}
@@ -612,13 +609,13 @@ func TestCmdExposeRun(t *testing.T) {
 
 func TestCmdBind(t *testing.T) {
 	skupperCli := NewSkupperTestClient()
-	cmd := NewCmdBind(skupperCli)
 	var lcli *vanClientMock
+
+	cmd := NewCmdBind(skupperCli)
 	args := []string{}
 	resetCli := func() {
-		cli = &vanClientMock{}
-		lcli = cli.(*vanClientMock)
-		skupperCli.Cli = cli
+		lcli = &vanClientMock{}
+		skupperCli.Cli = lcli
 	}
 
 	t.Run("invalidProtocol",
