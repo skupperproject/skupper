@@ -16,6 +16,7 @@ package types
 
 import (
 	jsonencoding "encoding/json"
+	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +33,7 @@ const (
 	SiteConfigMapName   string = "skupper-site"
 )
 
-const DefaultTimeout = 120 // in seconds
+const DefaultTimeoutDuration = time.Second * 120
 
 // Context value keys
 const (

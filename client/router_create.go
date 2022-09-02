@@ -1062,6 +1062,9 @@ sasldb_path: /tmp/skrouterd.sasldb
 	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
 	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 
+	currentContext := getCurrentContextOrDefault(ctx)
+	deadline, _ := currentContext.Deadline()
+
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
 		if options.Spec.IsIngressNginxIngress() || options.Spec.IsIngressKubernetes() {
 			err = cli.createIngress(options)
@@ -1094,19 +1097,22 @@ sasldb_path: /tmp/skrouterd.sasldb
 					if err == nil {
 						host := kube.GetLoadBalancerHostOrIP(service)
 
-						var timeout = ctx.Value(types.Timeout).(int)
-						if timeout <= 0 {
-							timeout = types.DefaultTimeout
+						fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", time.Until(deadline).Milliseconds()/1000)
+						deadlineExceeded := false
+
+						for host == "" && !deadlineExceeded {
+							select {
+							case <-ctx.Done():
+								fmt.Println("context deadline exceeded")
+								deadlineExceeded = true
+								break
+							default:
+								time.Sleep(time.Second)
+								service, err = kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
+								host = kube.GetLoadBalancerHostOrIP(service)
+							}
 						}
 
-						for i := 0; host == "" && i < timeout; i++ {
-							if i == 0 {
-								fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", timeout)
-							}
-							time.Sleep(time.Second)
-							service, err = kube.GetService(types.TransportServiceName, van.Namespace, cli.KubeClient)
-							host = kube.GetLoadBalancerHostOrIP(service)
-						}
 						if host == "" {
 							return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", types.TransportServiceName)
 						} else {
@@ -1195,11 +1201,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 					log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
 				}
 			} else if options.Spec.IsIngressLoadBalancer() {
-				var timeout = ctx.Value(types.Timeout).(int)
-				if timeout <= 0 {
-					timeout = types.DefaultTimeout
-				}
-				err = cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, van.Namespace, &cred, timeout)
+				err = cli.appendLoadBalancerHostOrIp(currentContext, types.ControllerServiceName, van.Namespace, &cred)
 				if err != nil {
 					return err
 				}
@@ -1244,7 +1246,7 @@ func (cli *VanClient) appendIngressHost(prefixes []string, namespace string, cre
 	return nil
 }
 
-func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace string, cred *types.Credential, timeout int) error {
+func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceName string, namespace string, cred *types.Credential) error {
 	service, err := kube.GetService(serviceName, namespace, cli.KubeClient)
 	if err != nil {
 		return err
@@ -1253,14 +1255,24 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(serviceName string, namespace s
 		return nil
 	}
 	host := kube.GetLoadBalancerHostOrIP(service)
-	for i := 0; host == "" && i < timeout; i++ {
-		if i == 0 {
-			fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", timeout)
+
+	deadline, _ := getCurrentContextOrDefault(ctx).Deadline()
+	fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", time.Until(deadline).Milliseconds()/1000)
+	deadlineExceeded := false
+
+	for host == "" && !deadlineExceeded {
+		select {
+		case <-ctx.Done():
+			fmt.Println("context deadline exceeded")
+			deadlineExceeded = true
+			break
+		default:
+			time.Sleep(time.Second)
+			service, err = kube.GetService(serviceName, namespace, cli.KubeClient)
+			host = kube.GetLoadBalancerHostOrIP(service)
 		}
-		time.Sleep(time.Second)
-		service, err = kube.GetService(serviceName, namespace, cli.KubeClient)
-		host = kube.GetLoadBalancerHostOrIP(service)
 	}
+
 	if host == "" {
 		return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", serviceName)
 	} else {
@@ -1398,4 +1410,19 @@ func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
 		owner.APIVersion = "v1"
 	}
 	return &owner
+}
+
+func getCurrentContextOrDefault(ctx context.Context) context.Context {
+	var currentContext context.Context
+	var cancel context.CancelFunc
+
+	currentContext = ctx
+	_, ok := ctx.Deadline()
+
+	if !ok {
+		currentContext, cancel = context.WithTimeout(ctx, types.DefaultTimeoutDuration)
+		defer cancel()
+	}
+
+	return currentContext
 }
