@@ -57,6 +57,9 @@ func Setup(t *testing.T, testRunner base.ClusterTestRunner) {
 }
 
 func CreateVAN(t *testing.T, testRunner base.ClusterTestRunner) {
+	testContext, cancel := context.WithTimeout(ctx, types.DefaultTimeoutDuration*2)
+	defer cancel()
+
 	var err error
 	t.Logf("Creating VANs")
 	pub1, _ := testRunner.GetPublicContext(1)
@@ -80,20 +83,20 @@ func CreateVAN(t *testing.T, testRunner base.ClusterTestRunner) {
 	// Creating the router on public1 cluster
 	siteConfig, err := pub1.VanClient.SiteConfigCreate(ctx, siteConfigSpec)
 	assert.Assert(t, err, "error creating site config for public1 cluster")
-	err = pub1.VanClient.RouterCreate(ctx, *siteConfig)
+	err = pub1.VanClient.RouterCreate(testContext, *siteConfig)
 	assert.Assert(t, err, "error creating router on public1 cluster")
 	t.Logf("setting siteConfigSpec to run with Ingress=%v", siteConfig.Spec.Ingress)
 
 	// Creating the router on public2 cluster
 	siteConfig, err = pub2.VanClient.SiteConfigCreate(ctx, siteConfigSpec)
 	assert.Assert(t, err, "error creating site config for public2 cluster")
-	err = pub2.VanClient.RouterCreate(ctx, *siteConfig)
+	err = pub2.VanClient.RouterCreate(testContext, *siteConfig)
 	assert.Assert(t, err, "error creating router on public2 cluster")
 
 	// Creating the router on private1 cluster
 	siteConfig, err = prv1.VanClient.SiteConfigCreate(ctx, siteConfigSpec)
 	assert.Assert(t, err, "error creating site config for private1 cluster")
-	err = prv1.VanClient.RouterCreate(ctx, *siteConfig)
+	err = prv1.VanClient.RouterCreate(testContext, *siteConfig)
 	assert.Assert(t, err, "error creating router on private1 cluster")
 
 	// Creating a local directory for storing the token
