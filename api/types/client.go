@@ -96,7 +96,6 @@ type SiteConfigSpec struct {
 	Router              RouterOptions
 	Controller          ControllerOptions
 	ConfigSync          ConfigSyncOptions
-	LoadBalancerTimeout int
 }
 
 const (
