@@ -27,6 +27,10 @@ var DB_NAME = "my_database"
 var COLLECTION_NAME = "posts"
 
 func TestMongoJob(t *testing.T) {
+	log.Print("Starting test job")
+	defer func() {
+		log.Print("Test job finished")
+	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
@@ -37,25 +41,46 @@ func TestMongoJob(t *testing.T) {
 		assert.Assert(t, err)
 		return client
 	}
+	// When connecting to a replicaset, generally several instances are given on
+	// the url, and the option ?replicaSet is set.  This is not done here, because
+	// we want to connect directly to each instance, so we make changes in one and
+	// see the results in the other, confirming the connectivity between them,
+	// through Skupper.
+	log.Print("connecting client a")
 	client_a := getClient("mongodb://mongo-a:27017")
-	client_b := getClient("mongodb://mongo-b:27017")
 	defer client_a.Disconnect(ctx)
+	log.Print("connecting client b")
+	client_b := getClient("mongodb://mongo-b:27017")
 	defer client_b.Disconnect(ctx)
+	log.Print("connecting client c")
+	client_c := getClient("mongodb://mongo-c:27017")
+	defer client_c.Disconnect(ctx)
 
 	// needed in case of a retry
+	log.Print("Dropping posts")
 	err := DropAllPosts(client_a, ctx)
 	assert.Assert(t, err)
 
+	log.Print("Inserting posts")
 	err = InsertAllPosts(client_a, ctx)
 	assert.Assert(t, err)
 
+	log.Print("Counting documents on client b")
 	err = CountDocuments(client_b, TOTAL_DB_DOCUMENTS, ctx)
 	assert.Assert(t, err)
+	log.Print("Counting documents on client c")
+	err = CountDocuments(client_c, TOTAL_DB_DOCUMENTS, ctx)
+	assert.Assert(t, err)
 
+	log.Print("Popping posts")
 	err = PopAllExpectedPosts(client_a, ctx)
 	assert.Assert(t, err)
 
+	log.Print("Counting again on b, expecting zero")
 	err = CountDocuments(client_b, 0, ctx)
+	assert.Assert(t, err)
+	log.Print("Counting again on c, expecting zero")
+	err = CountDocuments(client_c, 0, ctx)
 	assert.Assert(t, err)
 }
 
