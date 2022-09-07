@@ -1,6 +1,7 @@
 package main
 
 import (
+	jsonencoding "encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -634,4 +636,357 @@ func TestDeducePortFromServiceWithTargets(t *testing.T) {
 			assert.Assert(t, reflect.DeepEqual(deducedPorts, test.expected))
 		})
 	}
+}
+
+func TestUpdateAnnotatedServiceDefinition(t *testing.T) {
+	type test struct {
+		name    string
+		actual  types.ServiceInterface
+		desired types.ServiceInterface
+		result  bool
+		targets []types.ServiceInterfaceTarget
+	}
+
+	tests := []test{
+		{
+			name: "one",
+			actual: types.ServiceInterface{
+				Address:  "one",
+				Protocol: "tcp",
+				Origin:   "annotation",
+				Ports:    []int{8080},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t1",
+						Selector: "foo=bar",
+						TargetPorts: map[int]int{
+							8080: 1024,
+						},
+					},
+				},
+			},
+			desired: types.ServiceInterface{
+				Address:  "one",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t2",
+						Selector: "bar=baz",
+						TargetPorts: map[int]int{
+							8080: 1025,
+						},
+					},
+				},
+			},
+			result: true,
+			targets: []types.ServiceInterfaceTarget{
+				{
+					Name:     "t1",
+					Selector: "foo=bar",
+					TargetPorts: map[int]int{
+						8080: 1024,
+					},
+				},
+				{
+					Name:     "t2",
+					Selector: "bar=baz",
+					TargetPorts: map[int]int{
+						8080: 1025,
+					},
+				},
+			},
+		},
+		{
+			name: "two",
+			actual: types.ServiceInterface{
+				Address:  "two",
+				Protocol: "tcp",
+				Origin:   "annotation",
+				Ports:    []int{8080},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t1",
+						Selector: "foo=bar",
+						TargetPorts: map[int]int{
+							8080: 1024,
+						},
+					},
+				},
+			},
+			desired: types.ServiceInterface{
+				Address:  "two",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t1",
+						Selector: "bar=baz",
+						TargetPorts: map[int]int{
+							8080: 1025,
+						},
+					},
+				},
+			},
+			result: true,
+			targets: []types.ServiceInterfaceTarget{
+				{
+					Name:     "t1",
+					Selector: "bar=baz",
+					TargetPorts: map[int]int{
+						8080: 1025,
+					},
+				},
+			},
+		},
+		{
+			name: "three",
+			actual: types.ServiceInterface{
+				Address:  "three",
+				Protocol: "tcp",
+				Origin:   "annotation",
+				Ports:    []int{8080},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t1",
+						Selector: "foo=bar",
+						TargetPorts: map[int]int{
+							8080: 1024,
+						},
+					},
+				},
+			},
+			desired: types.ServiceInterface{
+				Address:  "three",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t1",
+						Selector: "foo=bar",
+						TargetPorts: map[int]int{
+							8080: 1024,
+						},
+					},
+				},
+			},
+			result: false,
+			targets: []types.ServiceInterfaceTarget{
+				{
+					Name:     "t1",
+					Selector: "foo=bar",
+					TargetPorts: map[int]int{
+						8080: 1024,
+					},
+				},
+			},
+		},
+	}
+	event.StartDefaultEventStore(nil)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := updateAnnotatedServiceDefinition(&test.actual, &test.desired)
+			assert.Equal(t, result, test.result)
+			assert.Assert(t, reflect.DeepEqual(test.desired.Targets, test.targets), "Expected %v, got %v", test.targets, test.desired.Targets)
+		})
+	}
+}
+
+func encodeServiceDefinitions(services []types.ServiceInterface) (map[string]string, error) {
+	results := map[string]string{}
+	for _, service := range services {
+		encoded, err := jsonencoding.Marshal(service)
+		if err != nil {
+			return nil, err
+		}
+		results[service.Address] = string(encoded)
+	}
+	return results, nil
+}
+
+func decodeServiceDefinitions(data map[string]string) (map[string]types.ServiceInterface, error) {
+	services := map[string]types.ServiceInterface{}
+	for _, encoded := range data {
+		service := types.ServiceInterface{}
+		err := jsonencoding.Unmarshal([]byte(encoded), &service)
+		if err != nil {
+			return nil, err
+		}
+		services[service.Address] = service
+	}
+	return services, nil
+}
+
+func indexByAddress(services []types.ServiceInterface) map[string]types.ServiceInterface {
+	results := map[string]types.ServiceInterface{}
+	for _, service := range services {
+		results[service.Address] = service
+	}
+	return results
+}
+
+func TestDeleteServiceDefinitionForAddress(t *testing.T) {
+	type test struct {
+		name     string
+		initial  []types.ServiceInterface
+		address  string
+		target   string
+		expected []types.ServiceInterface
+	}
+
+	tests := []test{
+		{
+			name: "one",
+			initial: []types.ServiceInterface{
+				{
+					Address:  "foo",
+					Protocol: "tcp",
+					Ports:    []int{8080},
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:     "bar",
+							Selector: "x=y",
+							TargetPorts: map[int]int{
+								8080: 1024,
+							},
+						},
+					},
+				},
+				{
+					Address:  "other",
+					Protocol: "tcp",
+					Ports:    []int{8080},
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:     "bar",
+							Selector: "x=y",
+							TargetPorts: map[int]int{
+								8080: 1024,
+							},
+						},
+					},
+				},
+			},
+			address: "foo",
+			target:  "bar",
+			expected: []types.ServiceInterface{
+				{
+					Address:  "other",
+					Protocol: "tcp",
+					Ports:    []int{8080},
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:     "bar",
+							Selector: "x=y",
+							TargetPorts: map[int]int{
+								8080: 1024,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "two",
+			initial: []types.ServiceInterface{
+				{
+					Address:  "foo",
+					Protocol: "tcp",
+					Ports:    []int{8080},
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:     "bar",
+							Selector: "x=y",
+							TargetPorts: map[int]int{
+								8080: 1024,
+							},
+						},
+						{
+							Name:     "baz",
+							Selector: "a=b",
+							TargetPorts: map[int]int{
+								8080: 1025,
+							},
+						},
+					},
+				},
+				{
+					Address:  "other",
+					Protocol: "tcp",
+					Ports:    []int{8080},
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:     "bar",
+							Selector: "x=y",
+							TargetPorts: map[int]int{
+								8080: 1024,
+							},
+						},
+					},
+				},
+			},
+			address: "foo",
+			target:  "bar",
+			expected: []types.ServiceInterface{
+				{
+					Address:  "foo",
+					Protocol: "tcp",
+					Ports:    []int{8080},
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:     "baz",
+							Selector: "a=b",
+							TargetPorts: map[int]int{
+								8080: 1025,
+							},
+						},
+					},
+				},
+				{
+					Address:  "other",
+					Protocol: "tcp",
+					Ports:    []int{8080},
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:     "bar",
+							Selector: "x=y",
+							TargetPorts: map[int]int{
+								8080: 1024,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	event.StartDefaultEventStore(nil)
+	const NS = "test"
+	vanClient := &client.VanClient{
+		Namespace:  NS,
+		KubeClient: fake.NewSimpleClientset(),
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dm := &DefinitionMonitor{
+				vanClient: vanClient,
+				policy:    client.NewClusterPolicyValidator(vanClient),
+			}
+			dm.annotated = indexByAddress(test.initial)
+			data, err := encodeServiceDefinitions(test.initial)
+			assert.NilError(t, err)
+			_, err = kube.NewConfigMap("skupper-services", &data, nil, nil, nil, vanClient.Namespace, vanClient.KubeClient)
+			assert.NilError(t, err)
+			err = dm.deleteServiceDefinitionForAddress(test.address, test.target)
+			assert.NilError(t, err)
+			latest, err := kube.GetConfigMap("skupper-services", vanClient.Namespace, vanClient.KubeClient)
+			assert.NilError(t, err)
+			actual, err := decodeServiceDefinitions(latest.Data)
+			assert.NilError(t, err)
+			expected := indexByAddress(test.expected)
+			assert.Assert(t, reflect.DeepEqual(actual, expected), "Expected %v, got %v", expected, actual)
+
+		})
+	}
+
 }
