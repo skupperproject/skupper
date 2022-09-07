@@ -391,7 +391,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 				}
 			}
 			svcTgt := types.ServiceInterfaceTarget{
-				Name:    target,
+				Name:    service.ObjectMeta.Name,
 				Service: target,
 			}
 			svcPorts := map[int]int{}

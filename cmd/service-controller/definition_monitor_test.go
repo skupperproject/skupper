@@ -318,7 +318,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 				Ports:    []int{8080},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:        "targetsvc",
+						Name:        "svc",
 						Selector:    "",
 						TargetPorts: map[int]int{8080: 8888},
 						Service:     "targetsvc",
@@ -338,7 +338,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 				Ports:    []int{80},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:     "targetsvcnoport",
+						Name:     "svc",
 						Selector: "",
 						Service:  "targetsvcnoport",
 					},
@@ -365,7 +365,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 				Ports:    []int{8888},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:        "targetsvc",
+						Name:        "svc",
 						Selector:    "",
 						TargetPorts: map[int]int{8888: 8888},
 						Service:     "targetsvc",
@@ -382,7 +382,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 				Ports:    []int{8080},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:     "badtargetsvc",
+						Name:     "svc",
 						Selector: "",
 						Service:  "badtargetsvc",
 					},
@@ -398,7 +398,7 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 				Ports:    []int{8888},
 				Targets: []types.ServiceInterfaceTarget{
 					{
-						Name:        "targetsvc",
+						Name:        "svc",
 						Selector:    "",
 						TargetPorts: map[int]int{8888: 8888},
 						Service:     "targetsvc",
