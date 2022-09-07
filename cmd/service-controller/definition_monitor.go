@@ -165,18 +165,26 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 	if actual.Protocol != desired.Protocol || !reflect.DeepEqual(actual.Ports, desired.Ports) {
 		return true
 	}
-	if len(actual.Targets) != len(desired.Targets) {
-		return true
+	targets := map[string]types.ServiceInterfaceTarget{}
+	updated := false
+	for _, target := range actual.Targets {
+		targets[target.Name] = target
 	}
-	if len(desired.Targets) > 0 {
-		nameChanged := actual.Targets[0].Name != desired.Targets[0].Name
-		selectorChanged := actual.Targets[0].Selector != desired.Targets[0].Selector
-		targetPortChanged := !reflect.DeepEqual(actual.Targets[0].TargetPorts, desired.Targets[0].TargetPorts)
-		if nameChanged || selectorChanged || targetPortChanged {
-			return true
+	for _, target := range desired.Targets {
+		existing, ok := targets[target.Name]
+		if !ok || !reflect.DeepEqual(target, existing) {
+			targets[target.Name] = target
+			updated = true
 		}
 	}
-	return false
+	if !updated {
+		return false
+	}
+	desired.Targets = []types.ServiceInterfaceTarget{}
+	for _, target := range targets {
+		desired.Targets = append(desired.Targets, target)
+	}
+	return true
 }
 
 func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployment *appsv1.Deployment) (types.ServiceInterface, bool) {
@@ -469,9 +477,27 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 	}
 }
 
-func (m *DefinitionMonitor) deleteServiceDefinitionForAddress(address string) error {
+func (m *DefinitionMonitor) deleteServiceDefinitionForAddress(address string, targetName string) error {
 	svc, ok := m.annotated[address]
 	if ok {
+		if targetName != "" {
+			// remove target
+			var targets []types.ServiceInterfaceTarget
+			for _, target := range svc.Targets {
+				if target.Name != targetName {
+					targets = append(targets, target)
+				}
+			}
+			svc.Targets = targets
+			if len(svc.Targets) > 0 {
+				changed := []types.ServiceInterface{
+					svc,
+				}
+				deleted := []string{}
+				return kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+			}
+		}
+
 		// delete the svc definition
 		changed := []types.ServiceInterface{}
 		deleted := []string{
@@ -502,7 +528,11 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name strin
 	address, ok := index[name]
 	if ok {
 		event.Recordf(DefinitionMonitorDeletionEvent, "Deleting service definition for annotated %s %s", objectType, name)
-		err := m.deleteServiceDefinitionForAddress(address)
+		_, unqualified, err := cache.SplitMetaNamespaceKey(name)
+		if err != nil {
+			return err
+		}
+		err = m.deleteServiceDefinitionForAddress(address, unqualified)
 		if err != nil {
 			return err
 		}
@@ -634,11 +664,12 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 								if err != nil {
 									return fmt.Errorf("failed to update service definition for annotated statefulSet %s: %s", name, err)
 								}
+								m.annotated[desired.Address] = desired
 							}
 							if address, ok := m.annotatedStatefulSets[name]; ok {
 								if address != desired.Address {
 									event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated statefulSet %s. Was %s, now %s", name, address, desired.Address)
-									if err := m.deleteServiceDefinitionForAddress(address); err != nil {
+									if err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name); err != nil {
 										return fmt.Errorf("Failed to delete stale service definition for %s", address)
 									}
 									m.annotatedStatefulSets[name] = desired.Address
@@ -698,12 +729,13 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							if err != nil {
 								return fmt.Errorf("failed to update service definition for annotated deployment %s: %s", name, err)
 							}
+							m.annotated[desired.Address] = desired
 						}
 						address, ok := m.annotatedDeployments[name]
 						if ok {
 							if address != desired.Address {
 								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated deployment %s. Was %s, now %s", name, address, desired.Address)
-								if err := m.deleteServiceDefinitionForAddress(address); err != nil {
+								if err := m.deleteServiceDefinitionForAnnotatedDeployment(name); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
 								m.annotatedDeployments[name] = desired.Address
@@ -749,12 +781,13 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							if err != nil {
 								return fmt.Errorf("failed to update service definition for annotated daemonset %s: %s", name, err)
 							}
+							m.annotated[desired.Address] = desired
 						}
 						address, ok := m.annotatedDaemonSets[name]
 						if ok {
 							if address != desired.Address {
 								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated daemonset %s. Was %s, now %s", name, address, desired.Address)
-								if err := m.deleteServiceDefinitionForAddress(address); err != nil {
+								if err := m.deleteServiceDefinitionForAnnotatedDaemonSet(name); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
 								m.annotatedDaemonSets[name] = desired.Address
@@ -800,12 +833,13 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							if err != nil {
 								return fmt.Errorf("failed to update service definition for annotated service %s: %s", name, err)
 							}
+							m.annotated[desired.Address] = desired
 						}
 						address, ok := m.annotatedServices[name]
 						if ok {
 							if address != desired.Address {
 								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated service %s. Was %s, now %s", name, address, desired.Address)
-								if err := m.deleteServiceDefinitionForAddress(address); err != nil {
+								if err := m.deleteServiceDefinitionForAnnotatedService(name); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
 								m.annotatedServices[name] = desired.Address
