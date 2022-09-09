@@ -938,7 +938,7 @@ func (a *ConnectorDifference) Empty() bool {
 }
 
 func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, version string, namespace string) (string, error) {
-	config := InitialConfig("$HOSTNAME", siteId, version, true, 3)
+	config := InitialConfig("${HOSTNAME}-"+siteId, siteId, version, true, 3)
 	// add edge-connector
 	config.AddSslProfile(SslProfile{
 		Name: types.InterRouterProfile,
