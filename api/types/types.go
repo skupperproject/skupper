@@ -139,6 +139,7 @@ const (
 	PortQualifier               string = BaseQualifier + "/port"
 	ProxyQualifier              string = BaseQualifier + "/proxy"
 	TargetServiceQualifier      string = BaseQualifier + "/target"
+	HeadlessQualifier           string = BaseQualifier + "/headless"
 	ControlledQualifier         string = InternalQualifier + "/controlled"
 	ServiceQualifier            string = InternalQualifier + "/service"
 	OriginQualifier             string = InternalQualifier + "/origin"
@@ -454,6 +455,14 @@ type ServiceInterface struct {
 	EnableTls                bool                     `json:"enableTls,omitempty"`
 	TlsCredentials           string                   `json:"tlsCredentials,omitempty"`
 	PublishNotReadyAddresses bool                     `json:"publishNotReadyAddresses,omitempty"`
+}
+
+func (s *ServiceInterface) IsOfLocalOrigin() bool {
+	return IsOfLocalOrigin(s.Origin)
+}
+
+func IsOfLocalOrigin(origin string) bool {
+	return origin == "" || origin == "annotation"
 }
 
 type ServiceInterfaceList []ServiceInterface

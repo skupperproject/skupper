@@ -114,7 +114,7 @@ func (c *ServiceSync) localDefinitionsUpdated(definitions map[string]types.Servi
 			TlsCredentials:           original.TlsCredentials,
 			PublishNotReadyAddresses: original.PublishNotReadyAddresses,
 		}
-		if service.Origin != "" && service.Origin != "annotation" {
+		if !service.IsOfLocalOrigin() {
 			if _, ok := c.byOrigin[service.Origin]; !ok {
 				c.byOrigin[service.Origin] = make(map[string]types.ServiceInterface)
 			}

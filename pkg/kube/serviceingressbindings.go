@@ -63,7 +63,7 @@ type ServiceIngressHeadlessRemote struct {
 }
 
 func NewHeadlessServiceIngress(s Services, origin string) service.ServiceIngress {
-	if origin == "" {
+	if types.IsOfLocalOrigin(origin) {
 		return &ServiceIngressHeadlessInOrigin{
 			s: s,
 		}
