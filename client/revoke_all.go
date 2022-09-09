@@ -11,6 +11,38 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
+func (cli *VanClient) isNodePortService(serviceName string) bool {
+	service, err := kube.GetService(serviceName, cli.Namespace, cli.KubeClient)
+	if err != nil {
+		return false
+	}
+	return service.Spec.Type == corev1.ServiceTypeNodePort
+}
+
+func (cli *VanClient) appendRouterIngressHost(cred *types.Credential) bool {
+	config, err := cli.SiteConfigInspect(context.TODO(), nil)
+	if err == nil {
+		host := config.Spec.GetRouterIngressHost()
+		if host != "" {
+			cred.Hosts = append(cred.Hosts, host)
+			return true
+		}
+	}
+	return false
+}
+
+func (cli *VanClient) appendControllerIngressHost(cred *types.Credential) bool {
+	config, err := cli.SiteConfigInspect(context.TODO(), nil)
+	if err == nil {
+		host := config.Spec.GetControllerIngressHost()
+		if host != "" {
+			cred.Hosts = append(cred.Hosts, host)
+			return true
+		}
+	}
+	return false
+}
+
 func (cli *VanClient) regenerateSiteSecret(ctx context.Context, ca *corev1.Secret) error {
 	siteServerSecret := types.Credential{
 		Name:    types.SiteServerSecret,
@@ -32,6 +64,7 @@ func (cli *VanClient) regenerateSiteSecret(ctx context.Context, ca *corev1.Secre
 			return err
 		}
 	}
+
 	if !usingRoutes {
 		err := cli.appendLoadBalancerHostOrIp(ctx, types.TransportServiceName, cli.Namespace, &siteServerSecret)
 		if err != nil {
@@ -40,6 +73,9 @@ func (cli *VanClient) regenerateSiteSecret(ctx context.Context, ca *corev1.Secre
 		err = cli.appendIngressHost([]string{"inter-router", "edge"}, cli.Namespace, &siteServerSecret)
 		if err != nil {
 			return err
+		}
+		if cli.isNodePortService(types.TransportServiceName) {
+			cli.appendRouterIngressHost(&siteServerSecret)
 		}
 	}
 	_, err := kube.RegenerateCredentials(siteServerSecret, cli.Namespace, ca, cli.KubeClient)
@@ -73,6 +109,9 @@ func (cli *VanClient) regenerateClaimsSecret(ctx context.Context, ca *corev1.Sec
 		err = cli.appendIngressHost([]string{"claims"}, cli.Namespace, &claimsServerSecret)
 		if err != nil {
 			return err
+		}
+		if cli.isNodePortService(types.ControllerServiceName) {
+			cli.appendControllerIngressHost(&claimsServerSecret)
 		}
 	}
 	_, err := kube.RegenerateCredentials(claimsServerSecret, cli.Namespace, ca, cli.KubeClient)
