@@ -64,7 +64,7 @@ func GetDeployment(name string, namespace string, cli kubernetes.Interface) (*ap
 }
 
 func getProxyStatefulSetName(definition types.ServiceInterface) string {
-	if definition.Origin == "" {
+	if definition.IsOfLocalOrigin() {
 		// in the originating site, the name cannot clash with
 		// the statefulset being exposed
 		return definition.Address + "-proxy"
@@ -113,7 +113,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 	ownerRef := GetDeploymentOwnerReference(transportDep)
 
 	svcName := serviceInterface.Address
-	if serviceInterface.Origin == "" {
+	if serviceInterface.IsOfLocalOrigin() {
 		svcName += "-proxy"
 		_, err = NewHeadlessService(svcName, serviceInterface.Address, serviceInterface.Ports, serviceInterface.Ports, serviceInterface.Labels, &ownerRef, namespace, cli)
 		if err != nil {

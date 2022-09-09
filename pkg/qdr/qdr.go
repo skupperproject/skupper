@@ -966,7 +966,7 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 	}
 	for iPort, ePort := range ports {
 		address := fmt.Sprintf("%s-%s:%d", definition.Address, "${POD_ID}", iPort)
-		if definition.Origin == "" {
+		if definition.IsOfLocalOrigin() {
 			name := fmt.Sprintf("egress:%d", ePort)
 			host := definition.Headless.Name + "-${POD_ID}." + definition.Address + "." + namespace
 			// in the originating site, just have egress bindings

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -249,8 +250,16 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 			return svc, false
 		}
 		svc.Protocol = protocol
+		if headless, ok := statefulset.ObjectMeta.Annotations[types.HeadlessQualifier]; ok && strings.EqualFold(headless, "true") {
+			svc.Headless = &types.Headless{
+				Name: statefulset.ObjectMeta.Name,
+				Size: int(*statefulset.Spec.Replicas),
+			}
+		}
 		if address, ok := statefulset.ObjectMeta.Annotations[types.AddressQualifier]; ok {
 			svc.Address = address
+		} else if svc.Headless != nil {
+			svc.Address = statefulset.Spec.ServiceName
 		} else {
 			svc.Address = statefulset.ObjectMeta.Name
 		}
