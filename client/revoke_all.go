@@ -11,7 +11,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
-func (cli *VanClient) regenerateSiteSecret(ca *corev1.Secret) error {
+func (cli *VanClient) regenerateSiteSecret(ctx context.Context, ca *corev1.Secret) error {
 	siteServerSecret := types.Credential{
 		Name:    types.SiteServerSecret,
 		Subject: types.TransportServiceName,
@@ -33,7 +33,7 @@ func (cli *VanClient) regenerateSiteSecret(ca *corev1.Secret) error {
 		}
 	}
 	if !usingRoutes {
-		err := cli.appendLoadBalancerHostOrIp(types.TransportServiceName, cli.Namespace, &siteServerSecret)
+		err := cli.appendLoadBalancerHostOrIp(ctx, types.TransportServiceName, cli.Namespace, &siteServerSecret)
 		if err != nil {
 			return err
 		}
@@ -49,7 +49,7 @@ func (cli *VanClient) regenerateSiteSecret(ca *corev1.Secret) error {
 	return cli.restartRouter(cli.Namespace)
 }
 
-func (cli *VanClient) regenerateClaimsSecret(ca *corev1.Secret) error {
+func (cli *VanClient) regenerateClaimsSecret(ctx context.Context, ca *corev1.Secret) error {
 	claimsServerSecret := types.Credential{
 		Name:    types.ClaimsServerSecret,
 		Subject: types.ControllerServiceName,
@@ -66,7 +66,7 @@ func (cli *VanClient) regenerateClaimsSecret(ca *corev1.Secret) error {
 		}
 	}
 	if !usingRoutes {
-		err := cli.appendLoadBalancerHostOrIp(types.ControllerServiceName, cli.Namespace, &claimsServerSecret)
+		err := cli.appendLoadBalancerHostOrIp(ctx, types.ControllerServiceName, cli.Namespace, &claimsServerSecret)
 		if err != nil {
 			return err
 		}
@@ -98,9 +98,9 @@ func (cli *VanClient) RevokeAccess(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	err = cli.regenerateSiteSecret(ca)
+	err = cli.regenerateSiteSecret(ctx, ca)
 	if err != nil {
 		return err
 	}
-	return cli.regenerateClaimsSecret(ca)
+	return cli.regenerateClaimsSecret(ctx, ca)
 }

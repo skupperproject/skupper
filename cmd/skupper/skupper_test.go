@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"github.com/skupperproject/skupper/api/types"
 	"os"
 	"testing"
+	"time"
 
 	"gotest.tools/assert"
 )
@@ -260,5 +262,18 @@ func TestSkupperInitControllerParseArgs(t *testing.T) {
 	assert.Equal(t, routerCreateOpts.Controller.IngressHost, "")
 	assert.Equal(t, len(routerCreateOpts.Controller.ServiceAnnotations), 0)
 	assert.Equal(t, routerCreateOpts.Controller.LoadBalancerIp, "")
+
+}
+
+func TestSkupperInitTimeoutParseArgs(t *testing.T) {
+	cmd := NewCmdInit(nil)
+
+	assert.Assert(t, cmd.ParseFlags([]string{}))
+	assert.Equal(t, LoadBalancerTimeout, types.DefaultTimeoutDuration)
+
+	cmdArgs := []string{"--timeout", "3m"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, LoadBalancerTimeout, time.Minute*3)
 
 }

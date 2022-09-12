@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	time2 "time"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
@@ -316,6 +317,7 @@ func asMap(entries []string) map[string]string {
 }
 
 var ClusterLocal bool
+var LoadBalancerTimeout time2.Duration
 
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
 	var routerMode string
@@ -405,6 +407,10 @@ installation that can then be connected to other skupper installations`,
 				}
 			}
 
+			if LoadBalancerTimeout.Seconds() <= 0 {
+				return fmt.Errorf(`invalid timeout value`)
+			}
+
 			if siteConfig == nil {
 				siteConfig, err = cli.SiteConfigCreate(context.Background(), routerCreateOpts)
 				if err != nil {
@@ -422,7 +428,10 @@ installation that can then be connected to other skupper installations`,
 				}
 			}
 
-			err = cli.RouterCreate(context.Background(), *siteConfig)
+			ctx, cancel := context.WithTimeout(context.Background(), LoadBalancerTimeout)
+			defer cancel()
+
+			err = cli.RouterCreate(ctx, *siteConfig)
 			if err != nil {
 				return err
 			}
@@ -477,6 +486,8 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.Memory, "config-sync-memory", "", "Memory request for config-sync pods")
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.CpuLimit, "config-sync-cpu-limit", "", "CPU limit for config-sync pods")
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
+
+	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
 
 	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept links from within the local cluster.")
 	f := cmd.Flag("cluster-local")

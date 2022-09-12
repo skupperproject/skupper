@@ -16,6 +16,7 @@ package types
 
 import (
 	jsonencoding "encoding/json"
+	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +32,8 @@ const (
 	ClusterLocalPostfix string = ".svc.cluster.local"
 	SiteConfigMapName   string = "skupper-site"
 )
+
+const DefaultTimeoutDuration = time.Second * 120
 
 // TransportMode describes how a qdr is intended to be deployed, either interior or edge
 type TransportMode string

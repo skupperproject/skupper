@@ -296,6 +296,9 @@ func initializeSkupper(testCtx context.Context, testRunner *base.ClusterTestRunn
 		routerOptions = constants.DefaultRouterOptions(&routerOptions)
 	}
 
+	testContext, cancel := context.WithTimeout(testCtx, types.DefaultTimeoutDuration*2)
+	defer cancel()
+
 	if sites > 0 {
 		var connectionToken string
 		log.Printf("Initializing Skupper network with %d sites", sites)
@@ -330,7 +333,7 @@ func initializeSkupper(testCtx context.Context, testRunner *base.ClusterTestRunn
 			if err != nil {
 				return fmt.Errorf("error creating site: %v", err)
 			}
-			if err = ctx.VanClient.RouterCreate(testCtx, *siteConfig); err != nil {
+			if err = ctx.VanClient.RouterCreate(testContext, *siteConfig); err != nil {
 				return fmt.Errorf("error creating router: %v", err)
 			}
 

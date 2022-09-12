@@ -58,11 +58,11 @@ func (d *RevokeAccessTester) Run(cluster *base.ClusterContext) (stdout string, s
 	}
 
 	//
-	// output is currently empty so we must validate if secrets have been recycled
+	// output should be validated if secrets have been recycled
 	//
 	log.Printf("Validating 'skupper revoke-access'")
-	if stdout != "" {
-		err = fmt.Errorf("expected an empty output - found: %s", stdout)
+	if strings.Contains(stdout, "context deadline exceeded") {
+		err = fmt.Errorf("expected no errors - found: %s", stdout)
 		return
 	}
 
