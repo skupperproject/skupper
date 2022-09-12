@@ -558,3 +558,184 @@ func TestMockValidateImportService(t *testing.T) {
 		})
 	}
 }
+
+func TestMockDump(t *testing.T) {
+	type tc struct {
+		name     string
+		ns       string
+		nsLabels map[string]string
+		policies []v1alpha1.SkupperClusterPolicy
+		exp      *PolicyInfo
+	}
+
+	newPolicy := func(name string, spec v1alpha1.SkupperClusterPolicySpec) v1alpha1.SkupperClusterPolicy {
+		return v1alpha1.SkupperClusterPolicy{
+			ObjectMeta: v1.ObjectMeta{
+				Name: name,
+			},
+			Spec: spec,
+		}
+	}
+	emptyDump := &PolicyInfo{
+		AllowIncomingLinks:            map[string][]string{},
+		AllowedOutgoingLinksHostnames: map[string][]string{},
+		AllowedExposedResources:       map[string][]string{},
+		AllowedServices:               map[string][]string{},
+	}
+	const NSA = "aaa"
+	const NSB = "bbb"
+	scenarios := []tc{
+		{
+			name:     "no-policy",
+			ns:       NSA,
+			policies: nil,
+			exp:      emptyDump,
+		},
+		{
+			name: "all-in-policy",
+			ns:   NSA,
+			policies: []v1alpha1.SkupperClusterPolicy{
+				newPolicy("all-in", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:                    []string{"*"},
+					AllowIncomingLinks:            true,
+					AllowedOutgoingLinksHostnames: []string{"*"},
+					AllowedExposedResources:       []string{"*"},
+					AllowedServices:               []string{"*"},
+				}),
+			},
+			exp: &PolicyInfo{
+				AllowIncomingLinks:            map[string][]string{"true": {"all-in"}},
+				AllowedOutgoingLinksHostnames: map[string][]string{"*": {"all-in"}},
+				AllowedExposedResources:       map[string][]string{"*": {"all-in"}},
+				AllowedServices:               map[string][]string{"*": {"all-in"}},
+			},
+		},
+		{
+			name: "allow-incoming-links-only",
+			ns:   NSA,
+			policies: []v1alpha1.SkupperClusterPolicy{
+				newPolicy("allow-incoming-links-aaa", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:         []string{NSA},
+					AllowIncomingLinks: true,
+				}),
+				newPolicy("all-in-bbb", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:                    []string{NSB},
+					AllowIncomingLinks:            true,
+					AllowedOutgoingLinksHostnames: []string{"*"},
+					AllowedExposedResources:       []string{"*"},
+					AllowedServices:               []string{"*"},
+				}),
+			},
+			exp: &PolicyInfo{
+				AllowIncomingLinks:            map[string][]string{"true": {"allow-incoming-links-aaa"}},
+				AllowedOutgoingLinksHostnames: map[string][]string{},
+				AllowedExposedResources:       map[string][]string{},
+				AllowedServices:               map[string][]string{},
+			},
+		},
+		{
+			name: "allow-outgoing-links-hostnames-only",
+			ns:   NSA,
+			policies: []v1alpha1.SkupperClusterPolicy{
+				newPolicy("allow-outgoing-link-hostnames-1-aaa", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:                    []string{NSA},
+					AllowedOutgoingLinksHostnames: []string{"domain.one.com", "domain.two.com"},
+				}),
+				newPolicy("allow-outgoing-link-hostnames-2-aaa", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:                    []string{NSA},
+					AllowedOutgoingLinksHostnames: []string{"domain.one.com", "domain.three.com"},
+				}),
+				newPolicy("all-in-bbb", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:                    []string{NSB},
+					AllowIncomingLinks:            true,
+					AllowedOutgoingLinksHostnames: []string{"*"},
+					AllowedExposedResources:       []string{"*"},
+					AllowedServices:               []string{"*"},
+				}),
+			},
+			exp: &PolicyInfo{
+				AllowIncomingLinks: map[string][]string{},
+				AllowedOutgoingLinksHostnames: map[string][]string{
+					"domain.one.com":   {"allow-outgoing-link-hostnames-1-aaa", "allow-outgoing-link-hostnames-2-aaa"},
+					"domain.two.com":   {"allow-outgoing-link-hostnames-1-aaa"},
+					"domain.three.com": {"allow-outgoing-link-hostnames-2-aaa"},
+				},
+				AllowedExposedResources: map[string][]string{},
+				AllowedServices:         map[string][]string{},
+			},
+		},
+		{
+			name: "allow-services-only",
+			ns:   NSA,
+			policies: []v1alpha1.SkupperClusterPolicy{
+				newPolicy("allow-services-1-aaa", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:      []string{NSA},
+					AllowedServices: []string{"serviceA", "serviceB", "serviceC"},
+				}),
+				newPolicy("allow-services-2-aaa", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:      []string{NSA},
+					AllowedServices: []string{"serviceA", "serviceC", "serviceD"},
+				}),
+				newPolicy("all-in-bbb", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:                    []string{NSB},
+					AllowIncomingLinks:            true,
+					AllowedOutgoingLinksHostnames: []string{"*"},
+					AllowedExposedResources:       []string{"*"},
+					AllowedServices:               []string{"*"},
+				}),
+			},
+			exp: &PolicyInfo{
+				AllowIncomingLinks:            map[string][]string{},
+				AllowedOutgoingLinksHostnames: map[string][]string{},
+				AllowedExposedResources:       map[string][]string{},
+				AllowedServices: map[string][]string{
+					"serviceA": {"allow-services-1-aaa", "allow-services-2-aaa"},
+					"serviceB": {"allow-services-1-aaa"},
+					"serviceC": {"allow-services-1-aaa", "allow-services-2-aaa"},
+					"serviceD": {"allow-services-2-aaa"},
+				},
+			},
+		},
+		{
+			name: "allow-resources-only",
+			ns:   NSA,
+			policies: []v1alpha1.SkupperClusterPolicy{
+				newPolicy("allow-resources-1-aaa", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:              []string{NSA},
+					AllowedExposedResources: []string{"deployment/appA", "deployment/appB", "service/svcC"},
+				}),
+				newPolicy("allow-resources-2-aaa", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:              []string{NSA},
+					AllowedExposedResources: []string{"deployment/appB", "service/svcC", "service/svcD"},
+				}),
+				newPolicy("all-in-bbb", v1alpha1.SkupperClusterPolicySpec{
+					Namespaces:                    []string{NSB},
+					AllowIncomingLinks:            true,
+					AllowedOutgoingLinksHostnames: []string{"*"},
+					AllowedExposedResources:       []string{"*"},
+					AllowedServices:               []string{"*"},
+				}),
+			},
+			exp: &PolicyInfo{
+				AllowIncomingLinks:            map[string][]string{},
+				AllowedOutgoingLinksHostnames: map[string][]string{},
+				AllowedExposedResources: map[string][]string{
+					"deployment/appA": {"allow-resources-1-aaa"},
+					"deployment/appB": {"allow-resources-1-aaa", "allow-resources-2-aaa"},
+					"service/svcC":    {"allow-resources-1-aaa", "allow-resources-2-aaa"},
+					"service/svcD":    {"allow-resources-2-aaa"},
+				},
+				AllowedServices: map[string][]string{},
+			},
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			policyMock := NewClusterPolicyValidatorMock(scenario.ns, scenario.nsLabels, scenario.policies)
+			res := policyMock.Dump()
+			assert.DeepEqual(t, res, scenario.exp)
+		})
+	}
+
+}

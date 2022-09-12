@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"sort"
+	"text/tabwriter"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -289,6 +291,39 @@ func (p *ClusterPolicyValidator) ValidateImportService(serviceName string) *Poli
 	return res
 }
 
+func (p *ClusterPolicyValidator) Dump() *PolicyInfo {
+	dump := &PolicyInfo{
+		AllowIncomingLinks:            AllowedBy{},
+		AllowedOutgoingLinksHostnames: AllowedBy{},
+		AllowedExposedResources:       AllowedBy{},
+		AllowedServices:               AllowedBy{},
+	}
+	policies, err := p.LoadNamespacePolicies()
+	if err != nil {
+		log.Printf("error loading policies: %v", err)
+		return dump
+	}
+	for _, policy := range policies {
+		// Incoming links
+		if policy.Spec.AllowIncomingLinks {
+			dump.AllowIncomingLinks.Add("true", policy.ObjectMeta.Name)
+		}
+		// Outgoing link hostnames
+		for _, hostname := range policy.Spec.AllowedOutgoingLinksHostnames {
+			dump.AllowedOutgoingLinksHostnames.Add(hostname, policy.ObjectMeta.Name)
+		}
+		// Services
+		for _, service := range policy.Spec.AllowedServices {
+			dump.AllowedServices.Add(service, policy.ObjectMeta.Name)
+		}
+		// Exposed resources
+		for _, resource := range policy.Spec.AllowedExposedResources {
+			dump.AllowedExposedResources.Add(resource, policy.ObjectMeta.Name)
+		}
+	}
+	return dump
+}
+
 type PolicyAPIClient struct {
 	cli *VanClient
 }
@@ -298,6 +333,51 @@ type PolicyAPIResult struct {
 	AllowedBy []string `json:"allowedBy"`
 	Enabled   bool     `json:"enabled"`
 	Error     string   `json:"error"`
+}
+
+type AllowedBy map[string][]string
+
+func (a AllowedBy) Add(key, policy string) {
+	a[key] = append(a[key], policy)
+}
+
+func (a AllowedBy) SortedKeys() []string {
+	keys := []string{}
+	for value, _ := range a {
+		keys = append(keys, value)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+type PolicyInfo struct {
+	AllowIncomingLinks            AllowedBy `json:"allowIncomingLinks"`
+	AllowedOutgoingLinksHostnames AllowedBy `json:"allowedOutgoingLinksHostnames"`
+	AllowedExposedResources       AllowedBy `json:"allowedExposedResources"`
+	AllowedServices               AllowedBy `json:"allowedServices"`
+}
+
+func (p *PolicyInfo) String() string {
+	w := &bytes.Buffer{}
+	tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
+	_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t", "RULE", "VALUE", "ALLOWED_BY"))
+	p.writeAllowedByInfo(tw, "AllowIncomingLinks", p.AllowIncomingLinks)
+	p.writeAllowedByInfo(tw, "AllowedOutgoingLinksHostnames", p.AllowedOutgoingLinksHostnames)
+	p.writeAllowedByInfo(tw, "AllowedExposedResources", p.AllowedExposedResources)
+	p.writeAllowedByInfo(tw, "AllowedServices", p.AllowedServices)
+	_ = tw.Flush()
+	return w.String()
+}
+
+func (p *PolicyInfo) writeAllowedByInfo(tw *tabwriter.Writer, title string, allowedInfo AllowedBy) {
+	for _, key := range allowedInfo.SortedKeys() {
+		policies := allowedInfo[key]
+		for _, policy := range policies {
+			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%v\t%s\t", title, key, policy))
+			title = ""
+			key = ""
+		}
+	}
 }
 
 func NewPolicyValidatorAPI(cli *VanClient) *PolicyAPIClient {

@@ -125,3 +125,16 @@ func (p *PolicyManager) outgoingLink() http.Handler {
 		}
 	})
 }
+
+func (p *PolicyManager) dump() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			res := p.validator.Dump()
+			if wantsJsonOutput(r) {
+				writeJson(res, w)
+			} else {
+				w.Write([]byte(res.String()))
+			}
+		}
+	})
+}
