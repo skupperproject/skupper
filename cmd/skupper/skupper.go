@@ -316,7 +316,6 @@ func asMap(entries []string) map[string]string {
 	return result
 }
 
-var ClusterLocal bool
 var LoadBalancerTimeout time2.Duration
 
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
@@ -326,7 +325,7 @@ func NewCmdInit(newClient cobraFunc) *cobra.Command {
 	routerServiceAnnotations := []string{}
 	controllerServiceAnnotations := []string{}
 	labels := []string{}
-	var isEdge bool
+
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
@@ -340,10 +339,6 @@ installation that can then be connected to other skupper installations`,
 			ns := cli.GetNamespace()
 
 			routerModeFlag := cmd.Flag("router-mode")
-			edgeFlag := cmd.Flag("edge")
-			if routerModeFlag.Changed && edgeFlag.Changed {
-				return fmt.Errorf("You can not use the deprecated --edge, and --router-mode together, use --router-mode")
-			}
 
 			if routerModeFlag.Changed {
 				options := []string{string(types.TransportModeInterior), string(types.TransportModeEdge)}
@@ -352,23 +347,12 @@ installation that can then be connected to other skupper installations`,
 				}
 				routerCreateOpts.RouterMode = routerMode
 			} else {
-				if isEdge {
-					routerCreateOpts.RouterMode = string(types.TransportModeEdge)
-				} else {
-					routerCreateOpts.RouterMode = string(types.TransportModeInterior)
-				}
+				routerCreateOpts.RouterMode = string(types.TransportModeInterior)
 			}
 
 			routerIngressFlag := cmd.Flag("ingress")
-			routerClusterLocalFlag := cmd.Flag("cluster-local")
 
-			if routerIngressFlag.Changed && routerClusterLocalFlag.Changed {
-				return fmt.Errorf(`You can not use the deprecated --cluster-local, and --ingress together, use "--ingress none" as equivalent of --cluster-local`)
-			} else if routerClusterLocalFlag.Changed {
-				if ClusterLocal { // this is redundant, because "if changed" it must be true, but it is also correct
-					routerCreateOpts.Ingress = types.IngressNoneString
-				}
-			} else if !routerIngressFlag.Changed {
+			if !routerIngressFlag.Changed {
 				routerCreateOpts.Ingress = cli.GetIngressDefault()
 			}
 			if routerCreateOpts.Ingress == types.IngressNodePortString && routerCreateOpts.IngressHost == "" && routerCreateOpts.Router.IngressHost == "" {
@@ -381,6 +365,8 @@ installation that can then be connected to other skupper installations`,
 			routerCreateOpts.Labels = asMap(labels)
 			routerCreateOpts.IngressAnnotations = asMap(ingressAnnotations)
 			routerCreateOpts.Router.ServiceAnnotations = asMap(routerServiceAnnotations)
+			routerCreateOpts.Router.MaxFrameSize = types.RouterMaxFrameSizeDefault
+			routerCreateOpts.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
 			routerCreateOpts.Controller.ServiceAnnotations = asMap(controllerServiceAnnotations)
 			if err := routerCreateOpts.CheckIngress(); err != nil {
 				return err
@@ -489,20 +475,6 @@ installation that can then be connected to other skupper installations`,
 
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
 
-	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept links from within the local cluster.")
-	f := cmd.Flag("cluster-local")
-	f.Deprecated = "This flag is deprecated, use --ingress [loadbalancer|route|none]"
-	f.Hidden = true
-
-	cmd.Flags().BoolVarP(&isEdge, "edge", "", false, "Configure as an edge")
-	f = cmd.Flag("edge")
-	f.Deprecated = "This flag is deprecated, use --router-mode [interior|edge]"
-	f.Hidden = true
-
-	cmd.Flags().IntVar(&routerCreateOpts.Router.MaxFrameSize, "xp-router-max-frame-size", types.RouterMaxFrameSizeDefault, "Set  max frame size on inter-router listeners/connectors")
-	cmd.Flags().IntVar(&routerCreateOpts.Router.MaxSessionFrames, "xp-router-max-session-frames", types.RouterMaxSessionFramesDefault, "Set  max session frames on inter-router listeners/connectors")
-	hideFlag(cmd, "xp-router-max-frame-size")
-	hideFlag(cmd, "xp-router-max-session-frames")
 	cmd.Flags().SortFlags = false
 
 	return cmd
