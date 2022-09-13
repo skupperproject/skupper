@@ -1172,8 +1172,6 @@ const gatewayName string = ""
 var gatewayConfigFile string
 var gatewayEndpoint types.GatewayEndpoint
 var gatewayType string
-var deprecatedName string
-var deprecatedExportOnly bool
 
 func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1198,17 +1196,7 @@ func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of the gateway definition")
 	cmd.Flags().StringVar(&gatewayConfigFile, "config", "", "The gateway config file to use for initialization")
-	cmd.Flags().BoolVarP(&deprecatedExportOnly, "exportonly", "", false, "Gateway definition for export-config only (e.g. will not be started)")
-
-	f := cmd.Flag("exportonly")
-	f.Deprecated = "gateway will be started"
-	f.Hidden = true
-
-	f = cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1237,11 +1225,6 @@ func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More details on any exceptions during gateway removal")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1263,11 +1246,6 @@ func NewCmdDownloadGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1290,11 +1268,6 @@ func NewCmdExportConfigGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1369,11 +1342,6 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1399,11 +1367,6 @@ func NewCmdUnexposeGateway(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&deleteLast, "delete-last", "", true, "Delete the gateway if no services remain")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1441,18 +1404,8 @@ func NewCmdBindGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The mapping in use for this service address (currently on of tcp, http or http2).")
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	f = cmd.Flag("protocol")
-	f.Deprecated = "protocol is derived from service definition"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1475,16 +1428,6 @@ func NewCmdUnbindGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	f = cmd.Flag("protocol")
-	f.Deprecated = "protocol is derived from service definition"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1571,19 +1514,10 @@ func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The mapping in use for this service address (currently one of tcp, http or http2)")
+
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().BoolVarP(&gatewayEndpoint.Loopback, "loopback", "", false, "Forward from loopback only")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	f = cmd.Flag("protocol")
-	f.Deprecated = "protocol is derived from service definition"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1606,16 +1540,6 @@ func NewCmdUnforwardGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	f = cmd.Flag("protocol")
-	f.Deprecated = "protocol is derived from service definition"
-	f.Hidden = true
 
 	return cmd
 }
