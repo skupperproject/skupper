@@ -543,64 +543,6 @@ func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 
 var clientIdentity string
 
-func NewCmdConnectionToken(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdTokenCreate(newClient, "client-identity")
-	cmd.Use = "connection-token <output-file>"
-	cmd.Short = "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site."
-	return cmd
-}
-
-func NewCmdConnect(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdLinkCreate(newClient, "connection-name")
-	cmd.Use = "connect <connection-token-file>"
-	cmd.Short = "Connect this skupper installation to that which issued the specified connectionToken"
-	return cmd
-
-}
-func NewCmdDisconnect(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdLinkDelete(newClient)
-	cmd.Use = "disconnect <name>"
-	cmd.Short = "Remove specified connection"
-	return cmd
-
-}
-func NewCmdCheckConnection(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdLinkStatus(newClient)
-	cmd.Use = "check-connection all|<connection-name>"
-	cmd.Short = "Check whether a connection to another Skupper site is active"
-	return cmd
-}
-
-func NewCmdListConnectors(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "list-connectors",
-		Short:  "List configured outgoing connections",
-		Args:   cobra.NoArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			connectors, err := cli.ConnectorList(context.Background())
-			if err == nil {
-				if len(connectors) == 0 {
-					fmt.Println("There are no connectors defined.")
-				} else {
-					fmt.Println("Connectors:")
-					for _, c := range connectors {
-						fmt.Printf("    %s (name=%s)", c.Url, c.Name)
-						fmt.Println()
-					}
-				}
-			} else if errors.IsNotFound(err) {
-				return SkupperNotInstalledError(cli.GetNamespace())
-			} else {
-				return fmt.Errorf("Unable to retrieve connections: %w", err)
-			}
-			return nil
-		},
-	}
-	return cmd
-}
-
 func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status",
@@ -783,12 +725,6 @@ func NewCmdUnexpose(newClient cobraFunc) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
 
-	return cmd
-}
-
-func NewCmdListExposed(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdServiceStatus(newClient)
-	cmd.Use = "list-exposed"
 	return cmd
 }
 
@@ -1225,27 +1161,6 @@ func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More details on any exceptions during gateway removal")
-
-	return cmd
-}
-
-func NewCmdDownloadGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "download <output-path>",
-		Short:  "Download a gateway definition to a directory",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			fileName, err := cli.GatewayDownload(context.Background(), gatewayName, args[0])
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			fmt.Println("Skupper gateway definition written to '" + fileName + "'")
-			return nil
-		},
-	}
 
 	return cmd
 }
@@ -1703,20 +1618,16 @@ func init() {
 	cmdStatus := NewCmdStatus(newClient)
 	cmdExpose := NewCmdExpose(newClient)
 	cmdUnexpose := NewCmdUnexpose(newClient)
-	cmdListExposed := NewCmdListExposed(newClient)
 	cmdCreateService := NewCmdCreateService(newClient)
 	cmdDeleteService := NewCmdDeleteService(newClient)
 	cmdStatusService := NewCmdServiceStatus(newClient)
 	cmdLabelsService := NewCmdServiceLabel(newClient)
-	cmdBind := NewCmdBind(newClient)
-	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClientSansExit)
 	cmdDebugDump := NewCmdDebugDump(newClient)
 	cmdDebugEvents := NewCmdDebugEvents(newClient)
 	cmdDebugService := NewCmdDebugService(newClient)
 
 	cmdInitGateway := NewCmdInitGateway(newClient)
-	cmdDownloadGateway := NewCmdDownloadGateway(newClient)
 	cmdExportConfigGateway := NewCmdExportConfigGateway(newClient)
 	cmdGenerateBundleGateway := NewCmdGenerateBundleGateway(newClient)
 	cmdDeleteGateway := NewCmdDeleteGateway(newClient)
@@ -1727,41 +1638,6 @@ func init() {
 	cmdUnbindGateway := NewCmdUnbindGateway(newClient)
 	cmdForwardGateway := NewCmdForwardGateway(newClient)
 	cmdUnforwardGateway := NewCmdUnforwardGateway(newClient)
-
-	// backwards compatibility commands hidden
-	deprecatedMessage := "please use 'skupper service [bind|unbind]' instead"
-	cmdBind.Hidden = true
-	cmdBind.Deprecated = deprecatedMessage
-	cmdUnbind.Deprecated = deprecatedMessage
-	cmdUnbind.Hidden = true
-
-	cmdListConnectors := NewCmdListConnectors(newClient) // listconnectors just keeped
-	cmdListConnectors.Hidden = true
-	cmdListConnectors.Deprecated = "please use 'skupper link status'"
-
-	linkDeprecationMessage := "please use 'skupper link [create|delete|status]' instead."
-
-	cmdConnect := NewCmdConnect(newClient)
-	cmdConnect.Hidden = true
-	cmdConnect.Deprecated = linkDeprecationMessage
-
-	cmdDisconnect := NewCmdDisconnect(newClient)
-	cmdDisconnect.Hidden = true
-	cmdDisconnect.Deprecated = linkDeprecationMessage
-
-	cmdCheckConnection := NewCmdCheckConnection(newClient)
-	cmdCheckConnection.Hidden = true
-	cmdCheckConnection.Deprecated = linkDeprecationMessage
-
-	cmdConnectionToken := NewCmdConnectionToken(newClient)
-	cmdConnectionToken.Hidden = true
-	cmdConnectionToken.Deprecated = "please use 'skupper token create' instead."
-
-	cmdListExposed.Hidden = true
-	cmdListExposed.Deprecated = "please use 'skupper service status' instead."
-
-	cmdDownloadGateway.Hidden = true
-	cmdDownloadGateway.Deprecated = "please use 'skupper gateway export-config' instead."
 
 	// setup subcommands
 	cmdService := NewCmdService()
@@ -1774,7 +1650,6 @@ func init() {
 
 	cmdGateway := NewCmdGateway()
 	cmdGateway.AddCommand(cmdInitGateway)
-	cmdGateway.AddCommand(cmdDownloadGateway)
 	cmdGateway.AddCommand(cmdExportConfigGateway)
 	cmdGateway.AddCommand(cmdGenerateBundleGateway)
 	cmdGateway.AddCommand(cmdDeleteGateway)
@@ -1810,20 +1685,12 @@ func init() {
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
 		cmdUpdate,
-		cmdConnectionToken,
 		cmdToken,
 		cmdLink,
-		cmdConnect,
-		cmdDisconnect,
-		cmdCheckConnection,
 		cmdStatus,
-		cmdListConnectors,
 		cmdExpose,
 		cmdUnexpose,
-		cmdListExposed,
 		cmdService,
-		cmdBind,
-		cmdUnbind,
 		cmdVersion,
 		cmdDebug,
 		cmdCompletion,
