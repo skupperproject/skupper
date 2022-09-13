@@ -17,6 +17,36 @@ var SkupperPodmanCommands = []string{
 type SkupperPodman struct {
 }
 
+func (s *SkupperPodman) Site() SkupperSiteClient {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *SkupperPodman) Service() SkupperServiceClient {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *SkupperPodman) Debug() SkupperDebugClient {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *SkupperPodman) Link() SkupperLinkClient {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *SkupperPodman) Token() SkupperTokenClient {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *SkupperPodman) Network() SkupperNetworkClient {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (s *SkupperPodman) notImplementedExit() {
 	fmt.Println("Not implemented")
 	os.Exit(1)

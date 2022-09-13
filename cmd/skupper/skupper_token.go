@@ -23,7 +23,7 @@ var password string
 var expiry time.Duration
 var uses int
 
-func NewCmdTokenCreate(skupperClient SkupperClient, flag string) *cobra.Command {
+func NewCmdTokenCreate(skupperClient SkupperTokenClient, flag string) *cobra.Command {
 	subflag := ""
 	if flag == "client-identity" {
 		subflag = "i"
@@ -37,7 +37,7 @@ func NewCmdTokenCreate(skupperClient SkupperClient, flag string) *cobra.Command 
 		Short:  "Create a token.  The 'link create' command uses the token to establish a link from a remote Skupper site.",
 		Args:   cobra.ExactArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.TokenCreate,
+		RunE:   skupperClient.Create,
 	}
 	cmd.Flags().StringVarP(&clientIdentity, flag, subflag, types.DefaultVanName, "Provide a specific identity as which connecting skupper installation will be authenticated")
 	cmd.Flags().StringVarP(&tokenType, "token-type", "t", "claim", "Type of token to create. Valid options are 'claim' or 'cert'")

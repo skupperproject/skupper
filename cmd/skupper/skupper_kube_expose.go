@@ -12,7 +12,7 @@ import (
 
 var validExposeTargetsKube = []string{"deployment", "statefulset", "pods", "service"}
 
-func (s *SkupperKube) verifyTargetTypeFromArgs(args []string) error {
+func (s *SkupperKubeService) verifyTargetTypeFromArgs(args []string) error {
 	targetType, _ := parseTargetTypeAndName(args)
 	if !utils.StringSliceContains(validExposeTargetsKube, targetType) {
 		return fmt.Errorf("target type must be one of: [%s]", strings.Join(validExposeTargetsKube, ", "))
@@ -20,7 +20,7 @@ func (s *SkupperKube) verifyTargetTypeFromArgs(args []string) error {
 	return nil
 }
 
-func (s *SkupperKube) Expose(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeService) Expose(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 
 	targetType, targetName := parseTargetTypeAndName(args)
@@ -67,14 +67,14 @@ func (s *SkupperKube) Expose(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
 	}
 
-	addr, err := expose(s.Cli, context.Background(), targetType, targetName, exposeOpts)
+	addr, err := expose(s.kube.Cli, context.Background(), targetType, targetName, exposeOpts)
 	if err == nil {
 		fmt.Printf("%s %s exposed as %s\n", targetType, targetName, addr)
 	}
 	return err
 }
 
-func (s *SkupperKube) ExposeArgs(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeService) ExposeArgs(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
 		return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>'")
 	}
@@ -87,7 +87,7 @@ func (s *SkupperKube) ExposeArgs(cmd *cobra.Command, args []string) error {
 	return s.verifyTargetTypeFromArgs(args)
 }
 
-func (s *SkupperKube) ExposeFlags(cmd *cobra.Command) {
+func (s *SkupperKubeService) ExposeFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Cpu, "proxy-cpu", "", "CPU request for router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Memory, "proxy-memory", "", "Memory request for router pods")
@@ -99,12 +99,12 @@ func (s *SkupperKube) ExposeFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&exposeOpts.PublishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
 }
 
-func (s *SkupperKube) Unexpose(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeService) Unexpose(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 
 	targetType, targetName := parseTargetTypeAndName(args)
 
-	err := s.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
+	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
 	if err == nil {
 		fmt.Printf("%s %s unexposed\n", targetType, targetName)
 	} else {

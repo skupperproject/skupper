@@ -18,7 +18,7 @@ func NewCmdLink() *cobra.Command {
 
 var connectorCreateOpts types.ConnectorCreateOptions
 
-func NewCmdLinkCreate(skupperClient SkupperClient, flag string) *cobra.Command {
+func NewCmdLinkCreate(skupperClient SkupperLinkClient, flag string) *cobra.Command {
 
 	if flag == "" { // hack for backwards compatibility
 		flag = "name"
@@ -29,7 +29,7 @@ func NewCmdLinkCreate(skupperClient SkupperClient, flag string) *cobra.Command {
 		Short:  "Links this skupper site to the site that issued the token",
 		Args:   cobra.ExactArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.LinkCreate,
+		RunE:   skupperClient.Create,
 	}
 	cmd.Flags().StringVarP(&connectorCreateOpts.Name, flag, "", "", "Provide a specific name for the link (used when deleting it)")
 	cmd.Flags().Int32VarP(&connectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this link.")
@@ -39,13 +39,13 @@ func NewCmdLinkCreate(skupperClient SkupperClient, flag string) *cobra.Command {
 
 var connectorRemoveOpts types.ConnectorRemoveOptions
 
-func NewCmdLinkDelete(skupperClient SkupperClient) *cobra.Command {
+func NewCmdLinkDelete(skupperClient SkupperLinkClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "delete <name>",
 		Short:  "Remove specified link",
 		Args:   cobra.ExactArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.LinkDelete,
+		RunE:   skupperClient.Delete,
 	}
 
 	return cmd
@@ -62,13 +62,13 @@ func allConnected(links []types.LinkStatus) bool {
 	return true
 }
 
-func NewCmdLinkStatus(skupperClient SkupperClient) *cobra.Command {
+func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status [<link-name>]",
 		Short:  "Check whether a link to another Skupper site is active",
 		Args:   cobra.MaximumNArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.LinkStatus,
+		RunE:   skupperClient.Status,
 	}
 	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become active")
 

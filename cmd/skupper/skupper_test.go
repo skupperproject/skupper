@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/skupperproject/skupper/api/types"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/api/types"
 
 	"gotest.tools/assert"
 )
@@ -21,7 +22,7 @@ func TestParseTargetTypeAndName(t *testing.T) {
 }
 
 func TestBindArgs(t *testing.T) {
-	s := &SkupperKube{}
+	s := &SkupperKubeService{}
 	genericError := "Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')"
 	b := func(args []string) error {
 		return s.bindArgs(nil, args)
@@ -68,7 +69,7 @@ func TestCreateServiceArgs(t *testing.T) {
 }
 
 func TestCreateServiceParseArgs(t *testing.T) {
-	cmd := NewCmdCreateService(NewSkupperTestClient())
+	cmd := NewCmdCreateService(NewSkupperTestClient().Service())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, serviceToCreate.EnableTls, false)
@@ -93,7 +94,7 @@ func TestCreateServiceParseArgs(t *testing.T) {
 }
 
 func TestExposeTargetArgs(t *testing.T) {
-	s := &SkupperKube{}
+	s := &SkupperKubeService{}
 	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>'"
 	targetError := "target type must be one of: [deployment, statefulset, pods, service]"
 
@@ -125,7 +126,7 @@ func TestExposeTargetArgs(t *testing.T) {
 
 func TestExposeParseArgs(t *testing.T) {
 	cmd_args := []string{"deployment/name", "--address", "theAddress"}
-	cmd := NewCmdExpose(NewSkupperTestClient())
+	cmd := NewCmdExpose(NewSkupperTestClient().Service())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, exposeOpts.Address, "")
@@ -143,13 +144,13 @@ func TestExposeParseArgs(t *testing.T) {
 
 func TestExposePublishNotReadyAddressesParseArgs(t *testing.T) {
 	cmdArgs := []string{"deployment/name", "--publish-not-ready-addresses"}
-	cmd := NewCmdExpose(NewSkupperTestClient())
+	cmd := NewCmdExpose(NewSkupperTestClient().Service())
 
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
 	assert.Equal(t, exposeOpts.PublishNotReadyAddresses, true)
 
 	cmdArgs2 := []string{"statefulset/web", "--headless", "--publish-not-ready-addresses"}
-	cmd2 := NewCmdExpose(NewSkupperTestClient())
+	cmd2 := NewCmdExpose(NewSkupperTestClient().Service())
 	assert.Assert(t, cmd2.ParseFlags(cmdArgs2))
 	assert.Equal(t, exposeOpts.Headless, true)
 	assert.Equal(t, exposeOpts.PublishNotReadyAddresses, true)
@@ -210,7 +211,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSkupperInitConfigSyncParseArgs(t *testing.T) {
-	cmd := NewCmdInit(NewSkupperTestClient())
+	cmd := NewCmdInit(NewSkupperTestClient().Site())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, routerCreateOpts.ConfigSync.Cpu, "")
@@ -235,7 +236,7 @@ func TestSkupperInitConfigSyncParseArgs(t *testing.T) {
 }
 
 func TestSkupperInitControllerParseArgs(t *testing.T) {
-	cmd := NewCmdInit(NewSkupperTestClient())
+	cmd := NewCmdInit(NewSkupperTestClient().Site())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, routerCreateOpts.Controller.Cpu, "")
@@ -268,7 +269,7 @@ func TestSkupperInitControllerParseArgs(t *testing.T) {
 }
 
 func TestSkupperInitTimeoutParseArgs(t *testing.T) {
-	cmd := NewCmdInit(nil)
+	cmd := NewCmdInit(NewSkupperTestClient().Site())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
 	assert.Equal(t, LoadBalancerTimeout, types.DefaultTimeoutDuration)

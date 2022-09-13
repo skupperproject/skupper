@@ -5,43 +5,53 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
 )
 
-func (s *SkupperKube) bindArgs(cmd *cobra.Command, args []string) error {
-	if len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3) {
-		return fmt.Errorf("Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')")
-	}
-	if len(args) > 3 {
-		return fmt.Errorf("illegal argument: %s", args[3])
-	}
-	if len(args) > 2 && strings.Contains(args[1], "/") {
-		return fmt.Errorf("extra argument: %s", args[2])
-	}
-	return s.verifyTargetTypeFromArgs(args[1:])
+type SkupperKubeService struct {
+	kube *SkupperKube
 }
 
-func (s *SkupperKube) ServiceCreate(cmd *cobra.Command, args []string) error {
-	err := s.Cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
+func (s *SkupperKubeService) NewClient(cmd *cobra.Command, args []string) {
+	s.kube.NewClient(cmd, args)
+}
+
+func (s *SkupperKubeService) Platform() types.Platform {
+	return s.kube.Platform()
+}
+
+func (s *SkupperKubeService) Create(cmd *cobra.Command, args []string) error {
+	err := s.kube.Cli.ServiceInterfaceCreate(context.Background(), &serviceToCreate)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	return nil
 }
 
-func (s *SkupperKube) ServiceDelete(cmd *cobra.Command, args []string) error {
-	err := s.Cli.ServiceInterfaceRemove(context.Background(), args[0])
+func (s *SkupperKubeService) CreateFlags(cmd *cobra.Command) {}
+
+func (s *SkupperKubeService) Delete(cmd *cobra.Command, args []string) error {
+	err := s.kube.Cli.ServiceInterfaceRemove(context.Background(), args[0])
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	return nil
 }
 
-func (s *SkupperKube) ServiceStatus(cmd *cobra.Command, args []string) error {
-	cli := s.Cli
-	vsis, err := s.Cli.ServiceInterfaceList(context.Background())
+func (s *SkupperKubeService) DeleteFlags(cmd *cobra.Command) {}
+
+func (s *SkupperKubeService) List(cmd *cobra.Command, args []string) error {
+	return nil
+}
+
+func (s *SkupperKubeService) ListFlags(cmd *cobra.Command) {}
+
+func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
+	cli := s.kube.Cli
+	vsis, err := s.kube.Cli.ServiceInterfaceList(context.Background())
 	if err == nil {
 		if len(vsis) == 0 {
 			fmt.Println("No services defined")
@@ -110,9 +120,11 @@ func (s *SkupperKube) ServiceStatus(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (s *SkupperKube) ServiceLabel(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeService) StatusFlags(cmd *cobra.Command) {}
+
+func (s *SkupperKubeService) Label(cmd *cobra.Command, args []string) error {
 	name := args[0]
-	si, err := s.Cli.ServiceInterfaceInspect(context.Background(), name)
+	si, err := s.kube.Cli.ServiceInterfaceInspect(context.Background(), name)
 	if si == nil {
 		return fmt.Errorf("invalid service name")
 	}
@@ -124,21 +136,21 @@ func (s *SkupperKube) ServiceLabel(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	updateServiceLabels(si)
-	err = s.Cli.ServiceInterfaceUpdate(context.Background(), si)
+	err = s.kube.Cli.ServiceInterfaceUpdate(context.Background(), si)
 	if err != nil {
 		return fmt.Errorf("error updating service labels: %v", err)
 	}
 	return nil
 }
 
-func (s *SkupperKube) ServiceBind(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 	targetType, targetName := parseTargetTypeAndName(args[1:])
 
 	if publishNotReadyAddresses && targetType == "service" {
 		return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
 	}
 
-	service, err := s.Cli.ServiceInterfaceInspect(context.Background(), args[0])
+	service, err := s.kube.Cli.ServiceInterfaceInspect(context.Background(), args[0])
 
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -154,7 +166,7 @@ func (s *SkupperKube) ServiceBind(cmd *cobra.Command, args []string) error {
 
 	service.PublishNotReadyAddresses = publishNotReadyAddresses
 
-	err = s.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, portMapping)
+	err = s.kube.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, portMapping)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -162,22 +174,35 @@ func (s *SkupperKube) ServiceBind(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (s *SkupperKube) ServiceBindArgs(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeService) BindArgs(cmd *cobra.Command, args []string) error {
 	return s.bindArgs(cmd, args)
 }
 
-func (s *SkupperKube) ServiceBindFlags(cmd *cobra.Command) {
+func (s *SkupperKubeService) BindFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&publishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
 }
 
-func (s *SkupperKube) ServiceUnbind(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeService) Unbind(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 
 	targetType, targetName := parseTargetTypeAndName(args[1:])
 
-	err := s.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
+	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	return nil
+}
+
+func (s *SkupperKubeService) bindArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3) {
+		return fmt.Errorf("Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')")
+	}
+	if len(args) > 3 {
+		return fmt.Errorf("illegal argument: %s", args[3])
+	}
+	if len(args) > 2 && strings.Contains(args[1], "/") {
+		return fmt.Errorf("extra argument: %s", args[2])
+	}
+	return s.verifyTargetTypeFromArgs(args[1:])
 }

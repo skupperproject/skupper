@@ -12,9 +12,21 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-func (s *SkupperKube) LinkCreate(cmd *cobra.Command, args []string) error {
+type SkupperKubeLink struct {
+	kube *SkupperKube
+}
+
+func (s *SkupperKubeLink) NewClient(cmd *cobra.Command, args []string) {
+	s.kube.NewClient(cmd, args)
+}
+
+func (s *SkupperKubeLink) Platform() types.Platform {
+	return s.Platform()
+}
+
+func (s *SkupperKubeLink) Create(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
-	cli := s.Cli
+	cli := s.kube.Cli
 	siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 	if err != nil {
 		fmt.Println("Unable to retrieve site config: ", err.Error())
@@ -51,9 +63,14 @@ func (s *SkupperKube) LinkCreate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (s *SkupperKube) LinkDelete(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeLink) CreateFlags(cmd *cobra.Command) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *SkupperKubeLink) Delete(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
-	cli := s.Cli
+	cli := s.kube.Cli
 	connectorRemoveOpts.Name = args[0]
 	connectorRemoveOpts.SkupperNamespace = cli.GetNamespace()
 	connectorRemoveOpts.ForceCurrent = false
@@ -66,7 +83,33 @@ func (s *SkupperKube) LinkDelete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (s *SkupperKube) LinkStatus(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeLink) DeleteFlags(cmd *cobra.Command) {}
+
+func (s *SkupperKubeLink) List(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+	cli := s.kube.Cli
+	connectors, err := cli.ConnectorList(context.Background())
+	if err == nil {
+		if len(connectors) == 0 {
+			fmt.Println("There are no connectors defined.")
+		} else {
+			fmt.Println("Connectors:")
+			for _, c := range connectors {
+				fmt.Printf("    %s (name=%s)", c.Url, c.Name)
+				fmt.Println()
+			}
+		}
+	} else if errors.IsNotFound(err) {
+		return SkupperNotInstalledError(cli.GetNamespace())
+	} else {
+		return fmt.Errorf("Unable to retrieve connections: %w", err)
+	}
+	return nil
+}
+
+func (s *SkupperKubeLink) ListFlags(cmd *cobra.Command) {}
+
+func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 
 	if len(args) == 1 && args[0] != "all" {
@@ -74,7 +117,7 @@ func (s *SkupperKube) LinkStatus(cmd *cobra.Command, args []string) error {
 			if i > 0 {
 				time.Sleep(time.Second)
 			}
-			link, err := s.Cli.ConnectorInspect(context.Background(), args[0])
+			link, err := s.kube.Cli.ConnectorInspect(context.Background(), args[0])
 			if errors.IsNotFound(err) {
 				fmt.Printf("No such link %q", args[0])
 				fmt.Println()
@@ -101,7 +144,7 @@ func (s *SkupperKube) LinkStatus(cmd *cobra.Command, args []string) error {
 			if i > 0 {
 				time.Sleep(time.Second)
 			}
-			links, err := s.Cli.ConnectorList(context.Background())
+			links, err := s.kube.Cli.ConnectorList(context.Background())
 			if err != nil {
 				fmt.Println(err)
 				break
@@ -128,3 +171,5 @@ func (s *SkupperKube) LinkStatus(cmd *cobra.Command, args []string) error {
 	}
 	return nil
 }
+
+func (s *SkupperKubeLink) StatusFlags(cmd *cobra.Command) {}

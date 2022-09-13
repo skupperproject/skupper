@@ -300,7 +300,7 @@ func (v *vanClientMock) NetworkStatus() ([]*types.SiteInfo, error) {
 
 func TestCmdUnexposeRun(t *testing.T) {
 	skupperClient := NewSkupperTestClient()
-	cmd := NewCmdUnexpose(skupperClient)
+	cmd := NewCmdUnexpose(skupperClient.Service())
 	test := func(targetType, targetName, address string) {
 		cli := skupperClient.Cli.(*vanClientMock)
 		unexposeAddress = address
@@ -359,7 +359,7 @@ func TestCmdUnexposeRun(t *testing.T) {
 func TestCmdInit(t *testing.T) {
 	skupperCli := NewSkupperTestClient()
 	skupperCli.Cli = &vanClientMock{}
-	cmd := NewCmdInit(skupperCli)
+	cmd := NewCmdInit(skupperCli.Site())
 	var lcli *vanClientMock
 	args := []string{}
 	resetCli := func() {
@@ -589,7 +589,7 @@ func TestExpose_Binding(t *testing.T) {
 
 func TestCmdExposeRun(t *testing.T) {
 	skupperCli := NewSkupperTestClient()
-	cmd := NewCmdExpose(skupperCli)
+	cmd := NewCmdExpose(skupperCli.Service())
 	cli := &vanClientMock{} // the global cli is used by the "RunE" func
 	skupperCli.Cli = cli
 
@@ -611,7 +611,7 @@ func TestCmdBind(t *testing.T) {
 	skupperCli := NewSkupperTestClient()
 	var lcli *vanClientMock
 
-	cmd := NewCmdBind(skupperCli)
+	cmd := NewCmdBind(skupperCli.Service())
 	args := []string{}
 	resetCli := func() {
 		lcli = &vanClientMock{}

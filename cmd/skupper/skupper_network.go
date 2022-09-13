@@ -17,13 +17,13 @@ func NewCmdNetwork() *cobra.Command {
 
 var selectedSite string
 
-func NewCmdNetworkStatus(skupperClient SkupperClient) *cobra.Command {
+func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status",
 		Short:  "Shows information about the current site, and connected sites.",
 		Args:   cobra.MaximumNArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.NetworkStatus,
+		RunE:   skupperClient.Status,
 	}
 
 	cmd.Flags().StringVarP(&selectedSite, "site", "s", "all", "Site identifier")

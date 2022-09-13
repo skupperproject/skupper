@@ -24,39 +24,79 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-type SkupperClient interface {
-	NewClient(cmd *cobra.Command, args []string)
-	Platform() types.Platform
-	SupportedCommands() []string
-	Options(cmd *cobra.Command)
-	Init(cmd *cobra.Command, args []string) error
-	InitFlags(cmd *cobra.Command)
+type SkupperClientManager interface {
+	Create(cmd *cobra.Command, args []string) error
+	CreateFlags(cmd *cobra.Command)
 	Delete(cmd *cobra.Command, args []string) error
-	Update(cmd *cobra.Command, args []string) error
+	DeleteFlags(cmd *cobra.Command)
+	List(cmd *cobra.Command, args []string) error
+	ListFlags(cmd *cobra.Command)
 	Status(cmd *cobra.Command, args []string) error
+	StatusFlags(cmd *cobra.Command)
+	SkupperClientCommon
+}
+
+type SkupperSiteClient interface {
+	SkupperClientManager
+	Update(cmd *cobra.Command, args []string) error
+	UpdateFlags(cmd *cobra.Command)
+	Version(cmd *cobra.Command, args []string) error
+	RevokeAccess(cmd *cobra.Command, args []string) error
+	SkupperClientCommon
+}
+
+type SkupperServiceClient interface {
+	SkupperClientManager
+	Label(cmd *cobra.Command, args []string) error
+	Bind(cmd *cobra.Command, args []string) error
+	BindArgs(cmd *cobra.Command, args []string) error
+	BindFlags(cmd *cobra.Command)
+	Unbind(cmd *cobra.Command, args []string) error
 	Expose(cmd *cobra.Command, args []string) error
 	ExposeArgs(cmd *cobra.Command, args []string) error
 	ExposeFlags(cmd *cobra.Command)
 	Unexpose(cmd *cobra.Command, args []string) error
-	ServiceCreate(cmd *cobra.Command, args []string) error
-	ServiceDelete(cmd *cobra.Command, args []string) error
-	ServiceStatus(cmd *cobra.Command, args []string) error
-	ServiceLabel(cmd *cobra.Command, args []string) error
-	ServiceBind(cmd *cobra.Command, args []string) error
-	ServiceBindArgs(cmd *cobra.Command, args []string) error
-	ServiceBindFlags(cmd *cobra.Command)
-	ServiceUnbind(cmd *cobra.Command, args []string) error
-	Version(cmd *cobra.Command, args []string) error
-	DebugDump(cmd *cobra.Command, args []string) error
-	DebugEvents(cmd *cobra.Command, args []string) error
-	DebugService(cmd *cobra.Command, args []string) error
-	ListConnectors(cmd *cobra.Command, args []string) error
-	LinkCreate(cmd *cobra.Command, args []string) error
-	LinkDelete(cmd *cobra.Command, args []string) error
-	LinkStatus(cmd *cobra.Command, args []string) error
-	TokenCreate(cmd *cobra.Command, args []string) error
-	RevokeAccess(cmd *cobra.Command, args []string) error
-	NetworkStatus(cmd *cobra.Command, args []string) error
+	SkupperClientCommon
+}
+
+type SkupperDebugClient interface {
+	Dump(cmd *cobra.Command, args []string) error
+	Events(cmd *cobra.Command, args []string) error
+	Service(cmd *cobra.Command, args []string) error
+	SkupperClientCommon
+}
+
+type SkupperLinkClient interface {
+	SkupperClientManager
+	SkupperClientCommon
+}
+
+type SkupperTokenClient interface {
+	Create(cmd *cobra.Command, args []string) error
+	CreateFlags(cmd *cobra.Command)
+	SkupperClientCommon
+}
+
+type SkupperNetworkClient interface {
+	Status(cmd *cobra.Command, args []string) error
+	StatusFlags(cmd *cobra.Command)
+	SkupperClientCommon
+}
+
+type SkupperClientCommon interface {
+	NewClient(cmd *cobra.Command, args []string)
+	Platform() types.Platform
+}
+
+type SkupperClient interface {
+	Options(cmd *cobra.Command)
+	SupportedCommands() []string
+	Site() SkupperSiteClient
+	Service() SkupperServiceClient
+	Debug() SkupperDebugClient
+	Link() SkupperLinkClient
+	Token() SkupperTokenClient
+	Network() SkupperNetworkClient
 }
 
 type ExposeOptions struct {
@@ -329,7 +369,7 @@ type InitFlags struct {
 
 var initFlags InitFlags
 
-func NewCmdInit(skupperCli SkupperClient) *cobra.Command {
+func NewCmdInit(skupperCli SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
@@ -337,7 +377,7 @@ func NewCmdInit(skupperCli SkupperClient) *cobra.Command {
 installation that can then be connected to other skupper installations`,
 		Args:   cobra.NoArgs,
 		PreRun: skupperCli.NewClient,
-		RunE:   skupperCli.Init,
+		RunE:   skupperCli.Create,
 	}
 	platform := skupperCli.Platform()
 	routerCreateOpts.EnableController = true
@@ -359,7 +399,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().SortFlags = false
 
 	// platform specific flags
-	skupperCli.InitFlags(cmd)
+	skupperCli.CreateFlags(cmd)
 
 	return cmd
 }
@@ -369,7 +409,7 @@ func hideFlag(cmd *cobra.Command, name string) {
 	f.Hidden = true
 }
 
-func NewCmdDelete(skupperCli SkupperClient) *cobra.Command {
+func NewCmdDelete(skupperCli SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "delete",
 		Short:  "Delete skupper installation",
@@ -383,7 +423,7 @@ func NewCmdDelete(skupperCli SkupperClient) *cobra.Command {
 
 var forceHup bool
 
-func NewCmdUpdate(skupperCli SkupperClient) *cobra.Command {
+func NewCmdUpdate(skupperCli SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "update",
 		Short:  "Update skupper installation version",
@@ -398,46 +438,46 @@ func NewCmdUpdate(skupperCli SkupperClient) *cobra.Command {
 
 var clientIdentity string
 
-func NewCmdConnectionToken(skupperClient SkupperClient) *cobra.Command {
+func NewCmdConnectionToken(skupperClient SkupperTokenClient) *cobra.Command {
 	cmd := NewCmdTokenCreate(skupperClient, "client-identity")
 	cmd.Use = "connection-token <output-file>"
 	cmd.Short = "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site."
 	return cmd
 }
 
-func NewCmdConnect(skupperClient SkupperClient) *cobra.Command {
+func NewCmdConnect(skupperClient SkupperLinkClient) *cobra.Command {
 	cmd := NewCmdLinkCreate(skupperClient, "connection-name")
 	cmd.Use = "connect <connection-token-file>"
 	cmd.Short = "Connect this skupper installation to that which issued the specified connectionToken"
 	return cmd
 
 }
-func NewCmdDisconnect(skupperClient SkupperClient) *cobra.Command {
+func NewCmdDisconnect(skupperClient SkupperLinkClient) *cobra.Command {
 	cmd := NewCmdLinkDelete(skupperClient)
 	cmd.Use = "disconnect <name>"
 	cmd.Short = "Remove specified connection"
 	return cmd
 
 }
-func NewCmdCheckConnection(skupperClient SkupperClient) *cobra.Command {
+func NewCmdCheckConnection(skupperClient SkupperLinkClient) *cobra.Command {
 	cmd := NewCmdLinkStatus(skupperClient)
 	cmd.Use = "check-connection all|<connection-name>"
 	cmd.Short = "Check whether a connection to another Skupper site is active"
 	return cmd
 }
 
-func NewCmdListConnectors(skupperClient SkupperClient) *cobra.Command {
+func NewCmdListConnectors(skupperClient SkupperLinkClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "list-connectors",
 		Short:  "List configured outgoing connections",
 		Args:   cobra.NoArgs,
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.ListConnectors,
+		RunE:   skupperClient.List,
 	}
 	return cmd
 }
 
-func NewCmdStatus(skupperCli SkupperClient) *cobra.Command {
+func NewCmdStatus(skupperCli SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status",
 		Short:  "Report the status of the current Skupper site",
@@ -450,7 +490,7 @@ func NewCmdStatus(skupperCli SkupperClient) *cobra.Command {
 
 var exposeOpts ExposeOptions
 
-func NewCmdExpose(skupperCli SkupperClient) *cobra.Command {
+func NewCmdExpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short:  "Expose a set of pods through a Skupper address",
@@ -470,7 +510,7 @@ func NewCmdExpose(skupperCli SkupperClient) *cobra.Command {
 
 var unexposeAddress string
 
-func NewCmdUnexpose(skupperCli SkupperClient) *cobra.Command {
+func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
 		Short:  "Unexpose a set of pods previously exposed through a Skupper address",
@@ -483,7 +523,7 @@ func NewCmdUnexpose(skupperCli SkupperClient) *cobra.Command {
 	return cmd
 }
 
-func NewCmdListExposed(skupperClient SkupperClient) *cobra.Command {
+func NewCmdListExposed(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := NewCmdServiceStatus(skupperClient)
 	cmd.Use = "list-exposed"
 	return cmd
@@ -491,7 +531,7 @@ func NewCmdListExposed(skupperClient SkupperClient) *cobra.Command {
 
 var showLabels bool
 
-func NewCmdServiceStatus(skupperClient SkupperClient) *cobra.Command {
+func NewCmdServiceStatus(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status",
 		Short:  "List services exposed over the service network",
@@ -499,7 +539,7 @@ func NewCmdServiceStatus(skupperClient SkupperClient) *cobra.Command {
 		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			return skupperClient.ServiceStatus(cmd, args)
+			return skupperClient.Status(cmd, args)
 		},
 	}
 	cmd.Flags().BoolVar(&showLabels, "show-labels", false, "show service labels")
@@ -508,7 +548,7 @@ func NewCmdServiceStatus(skupperClient SkupperClient) *cobra.Command {
 
 var addLabels, removeLabels []string
 
-func NewCmdServiceLabel(skupperClient SkupperClient) *cobra.Command {
+func NewCmdServiceLabel(skupperClient SkupperServiceClient) *cobra.Command {
 
 	labels := &cobra.Command{
 		Use:   "label <service> [labels...]",
@@ -547,7 +587,7 @@ func NewCmdServiceLabel(skupperClient SkupperClient) *cobra.Command {
 			}
 			return nil
 		},
-		RunE: skupperClient.ServiceLabel,
+		RunE: skupperClient.Label,
 	}
 
 	return labels
@@ -596,7 +636,7 @@ func NewCmdService() *cobra.Command {
 
 var serviceToCreate types.ServiceInterface
 
-func NewCmdCreateService(skupperClient SkupperClient) *cobra.Command {
+func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "create <name> <port...>",
 		Short:  "Create a skupper service",
@@ -626,7 +666,7 @@ func NewCmdCreateService(skupperClient SkupperClient) *cobra.Command {
 				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
 			}
 
-			return skupperClient.ServiceCreate(cmd, args)
+			return skupperClient.Create(cmd, args)
 		},
 	}
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "protocol", "tcp", "The mapping in use for this service address (tcp, http, http2)")
@@ -642,7 +682,7 @@ func NewCmdCreateService(skupperClient SkupperClient) *cobra.Command {
 	return cmd
 }
 
-func NewCmdDeleteService(skupperClient SkupperClient) *cobra.Command {
+func NewCmdDeleteService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "delete <name>",
 		Short:  "Delete a skupper service",
@@ -650,7 +690,7 @@ func NewCmdDeleteService(skupperClient SkupperClient) *cobra.Command {
 		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			return skupperClient.ServiceDelete(cmd, args)
+			return skupperClient.Delete(cmd, args)
 		},
 	}
 	return cmd
@@ -660,23 +700,23 @@ var targetPorts []string
 var protocol string
 var publishNotReadyAddresses bool
 
-func NewCmdBind(skupperClient SkupperClient) *cobra.Command {
+func NewCmdBind(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "bind <service-name> <target-type> <target-name>",
 		Short:  "Bind a target to a service",
-		Args:   skupperClient.ServiceBindArgs,
+		Args:   skupperClient.BindArgs,
 		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
 				return fmt.Errorf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
 			}
-			return skupperClient.ServiceBind(cmd, args)
+			return skupperClient.Bind(cmd, args)
 		},
 	}
 	cmd.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
 	cmd.Flags().StringSliceVar(&targetPorts, "target-port", []string{}, "The port the target is listening on (you can also use colon to map source-port to a target-port).")
-	skupperClient.ServiceBindFlags(cmd)
+	skupperClient.BindFlags(cmd)
 	return cmd
 }
 
@@ -719,13 +759,13 @@ func parsePortMapping(service *types.ServiceInterface, targetPorts []string) (ma
 	return ports, nil
 }
 
-func NewCmdUnbind(skupperClient SkupperClient) *cobra.Command {
+func NewCmdUnbind(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unbind <service-name> <target-type> <target-name>",
 		Short:  "Unbind a target from a service",
-		Args:   skupperClient.ServiceBindArgs,
+		Args:   skupperClient.BindArgs,
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.ServiceUnbind,
+		RunE:   skupperClient.Unbind,
 	}
 	return cmd
 }
@@ -734,7 +774,7 @@ func IsZero(v reflect.Value) bool {
 	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 }
 
-func NewCmdVersion(skupperClient SkupperClient) *cobra.Command {
+func NewCmdVersion(skupperClient SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "version",
 		Short:  "Report the version of the Skupper CLI and services",
@@ -757,44 +797,44 @@ func NewCmdDebug() *cobra.Command {
 	return cmd
 }
 
-func NewCmdDebugDump(skupperCli SkupperClient) *cobra.Command {
+func NewCmdDebugDump(skupperCli SkupperDebugClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "dump <filename>.tar.gz",
 		Short:  "Collect and store skupper logs, config, etc. to compressed archive file",
 		Args:   cobra.ExactArgs(1),
 		PreRun: skupperCli.NewClient,
-		RunE:   skupperCli.DebugDump,
+		RunE:   skupperCli.Dump,
 	}
 	return cmd
 }
 
 var verbose bool
 
-func NewCmdDebugEvents(skupperClient SkupperClient) *cobra.Command {
+func NewCmdDebugEvents(skupperClient SkupperDebugClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "events",
 		Short:  "Show events",
 		Args:   cobra.NoArgs,
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.DebugEvents,
+		RunE:   skupperClient.Events,
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More detailed output (in json)")
 	return cmd
 }
 
-func NewCmdDebugService(skupperClient SkupperClient) *cobra.Command {
+func NewCmdDebugService(skupperClient SkupperDebugClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "service <service-name>",
 		Short:  "Check the internal state of a skupper exposed service",
 		Args:   cobra.ExactArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.DebugService,
+		RunE:   skupperClient.Service,
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More detailed output (in json)")
 	return cmd
 }
 
-func NewCmdRevokeaccess(skupperClient SkupperClient) *cobra.Command {
+func NewCmdRevokeaccess(skupperClient SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "revoke-access",
 		Short: "Revoke all previously granted access to the site.",
@@ -861,24 +901,24 @@ func init() {
 		skupperCli = &SkupperPodman{}
 	}
 
-	cmdInit := NewCmdInit(skupperCli)
-	cmdDelete := NewCmdDelete(skupperCli)
-	cmdUpdate := NewCmdUpdate(skupperCli)
-	cmdStatus := NewCmdStatus(skupperCli)
-	cmdExpose := NewCmdExpose(skupperCli)
-	cmdUnexpose := NewCmdUnexpose(skupperCli)
-	cmdListExposed := NewCmdListExposed(skupperCli)
-	cmdCreateService := NewCmdCreateService(skupperCli)
-	cmdDeleteService := NewCmdDeleteService(skupperCli)
-	cmdStatusService := NewCmdServiceStatus(skupperCli)
-	cmdLabelsService := NewCmdServiceLabel(skupperCli)
-	cmdBind := NewCmdBind(skupperCli)
-	cmdUnbind := NewCmdUnbind(skupperCli)
+	cmdInit := NewCmdInit(skupperCli.Site())
+	cmdDelete := NewCmdDelete(skupperCli.Site())
+	cmdUpdate := NewCmdUpdate(skupperCli.Site())
+	cmdStatus := NewCmdStatus(skupperCli.Site())
+	cmdExpose := NewCmdExpose(skupperCli.Service())
+	cmdUnexpose := NewCmdUnexpose(skupperCli.Service())
+	cmdListExposed := NewCmdListExposed(skupperCli.Service())
+	cmdCreateService := NewCmdCreateService(skupperCli.Service())
+	cmdDeleteService := NewCmdDeleteService(skupperCli.Service())
+	cmdStatusService := NewCmdServiceStatus(skupperCli.Service())
+	cmdLabelsService := NewCmdServiceLabel(skupperCli.Service())
+	cmdBind := NewCmdBind(skupperCli.Service())
+	cmdUnbind := NewCmdUnbind(skupperCli.Service())
 
-	cmdVersion := NewCmdVersion(skupperCli)
-	cmdDebugDump := NewCmdDebugDump(skupperCli)
-	cmdDebugEvents := NewCmdDebugEvents(skupperCli)
-	cmdDebugService := NewCmdDebugService(skupperCli)
+	cmdVersion := NewCmdVersion(skupperCli.Site())
+	cmdDebugDump := NewCmdDebugDump(skupperCli.Debug())
+	cmdDebugEvents := NewCmdDebugEvents(skupperCli.Debug())
+	cmdDebugService := NewCmdDebugService(skupperCli.Debug())
 
 	// Gateway command is only valid on Kubernetes sites
 	cmdGateway := NewCmdGateway()
@@ -920,25 +960,25 @@ func init() {
 	cmdUnbind.Deprecated = deprecatedMessage
 	cmdUnbind.Hidden = true
 
-	cmdListConnectors := NewCmdListConnectors(skupperCli) // listconnectors just keeped
+	cmdListConnectors := NewCmdListConnectors(skupperCli.Link()) // listconnectors just keeped
 	cmdListConnectors.Hidden = true
 	cmdListConnectors.Deprecated = "please use 'skupper link status'"
 
 	linkDeprecationMessage := "please use 'skupper link [create|delete|status]' instead."
 
-	cmdConnect := NewCmdConnect(skupperCli)
+	cmdConnect := NewCmdConnect(skupperCli.Link())
 	cmdConnect.Hidden = true
 	cmdConnect.Deprecated = linkDeprecationMessage
 
-	cmdDisconnect := NewCmdDisconnect(skupperCli)
+	cmdDisconnect := NewCmdDisconnect(skupperCli.Link())
 	cmdDisconnect.Hidden = true
 	cmdDisconnect.Deprecated = linkDeprecationMessage
 
-	cmdCheckConnection := NewCmdCheckConnection(skupperCli)
+	cmdCheckConnection := NewCmdCheckConnection(skupperCli.Link())
 	cmdCheckConnection.Hidden = true
 	cmdCheckConnection.Deprecated = linkDeprecationMessage
 
-	cmdConnectionToken := NewCmdConnectionToken(skupperCli)
+	cmdConnectionToken := NewCmdConnectionToken(skupperCli.Token())
 	cmdConnectionToken.Hidden = true
 	cmdConnectionToken.Deprecated = "please use 'skupper token create' instead."
 
@@ -949,8 +989,8 @@ func init() {
 	cmdService := NewCmdService()
 	cmdService.AddCommand(cmdCreateService)
 	cmdService.AddCommand(cmdDeleteService)
-	cmdService.AddCommand(NewCmdBind(skupperCli))
-	cmdService.AddCommand(NewCmdUnbind(skupperCli))
+	cmdService.AddCommand(NewCmdBind(skupperCli.Service()))
+	cmdService.AddCommand(NewCmdUnbind(skupperCli.Service()))
 	cmdService.AddCommand(cmdStatusService)
 	cmdService.AddCommand(cmdLabelsService)
 
@@ -960,19 +1000,19 @@ func init() {
 	cmdDebug.AddCommand(cmdDebugService)
 
 	cmdLink := NewCmdLink()
-	cmdLink.AddCommand(NewCmdLinkCreate(skupperCli, ""))
-	cmdLink.AddCommand(NewCmdLinkDelete(skupperCli))
-	cmdLink.AddCommand(NewCmdLinkStatus(skupperCli))
+	cmdLink.AddCommand(NewCmdLinkCreate(skupperCli.Link(), ""))
+	cmdLink.AddCommand(NewCmdLinkDelete(skupperCli.Link()))
+	cmdLink.AddCommand(NewCmdLinkStatus(skupperCli.Link()))
 
 	cmdToken := NewCmdToken()
-	cmdToken.AddCommand(NewCmdTokenCreate(skupperCli, ""))
+	cmdToken.AddCommand(NewCmdTokenCreate(skupperCli.Token(), ""))
 
 	cmdCompletion := NewCmdCompletion()
 
-	cmdRevokeAll := NewCmdRevokeaccess(skupperCli)
+	cmdRevokeAll := NewCmdRevokeaccess(skupperCli.Site())
 
 	cmdNetwork := NewCmdNetwork()
-	cmdNetwork.AddCommand(NewCmdNetworkStatus(skupperCli))
+	cmdNetwork.AddCommand(NewCmdNetworkStatus(skupperCli.Network()))
 
 	cmdSwitch := NewCmdSwitch()
 	cmdSwitch.Hidden = true
