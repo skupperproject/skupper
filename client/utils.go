@@ -1,6 +1,12 @@
 package client
 
-import "strings"
+import (
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+	"text/tabwriter"
+)
 
 func splitWithEscaping(s string, separator, escape byte) []string {
 	var token []byte
@@ -31,4 +37,34 @@ func asMap(entries []string) map[string]string {
 		}
 	}
 	return result
+}
+
+func PrintKeyValueMap(entries map[string]string) error {
+	writer := new(tabwriter.Writer)
+	writer.Init(os.Stdout, 8, 8, 0, '\t', 0)
+	defer writer.Flush()
+
+	keys := make([]string, 0, len(entries))
+	for k := range entries {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	_, err := fmt.Fprint(writer, "\n ---\n")
+	if err != nil {
+		return err
+	}
+
+	for _, key := range keys {
+		_, err := fmt.Fprintf(writer, "\n %s\t%s\t", key, entries[key])
+		if err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprint(writer, "\n ---\n")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

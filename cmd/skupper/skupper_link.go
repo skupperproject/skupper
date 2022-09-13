@@ -1,6 +1,7 @@
 package main
 
 import (
+	"time"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/spf13/cobra"
@@ -52,6 +53,8 @@ func NewCmdLinkDelete(skupperClient SkupperLinkClient) *cobra.Command {
 }
 
 var waitFor int
+var remoteInfoTimeout time.Duration
+var verbose bool
 
 func allConnected(links []types.LinkStatus) bool {
 	for _, l := range links {
@@ -71,6 +74,8 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 		RunE:   skupperClient.Status,
 	}
 	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become active")
+	cmd.Flags().DurationVar(&remoteInfoTimeout, "timeout", time.Second*120, "Configurable timeout for retrieving information about remote links")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed information about the links")
 
 	return cmd
 
