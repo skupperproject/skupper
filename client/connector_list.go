@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,6 +34,8 @@ func getLinkStatus(s *corev1.Secret, edge bool, connections []qdr.Connection) ty
 		link.Configured = true
 		if connection := kubeqdr.GetInterRouterOrEdgeConnection(link.Url, connections); connection != nil && connection.Active {
 			link.Connected = true
+			link.Cost, _ = strconv.Atoi(s.ObjectMeta.Annotations[types.TokenCost])
+			link.Created = s.ObjectMeta.CreationTimestamp.String()
 		}
 		if s.ObjectMeta.Labels[types.SkupperDisabledQualifier] == "true" {
 			link.Description = "Destination host is not allowed"
