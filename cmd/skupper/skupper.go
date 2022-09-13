@@ -42,7 +42,6 @@ type SkupperSiteClient interface {
 	UpdateFlags(cmd *cobra.Command)
 	Version(cmd *cobra.Command, args []string) error
 	RevokeAccess(cmd *cobra.Command, args []string) error
-	SkupperClientCommon
 }
 
 type SkupperServiceClient interface {
@@ -56,7 +55,6 @@ type SkupperServiceClient interface {
 	ExposeArgs(cmd *cobra.Command, args []string) error
 	ExposeFlags(cmd *cobra.Command)
 	Unexpose(cmd *cobra.Command, args []string) error
-	SkupperClientCommon
 }
 
 type SkupperDebugClient interface {
@@ -68,7 +66,6 @@ type SkupperDebugClient interface {
 
 type SkupperLinkClient interface {
 	SkupperClientManager
-	SkupperClientCommon
 }
 
 type SkupperTokenClient interface {

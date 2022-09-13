@@ -126,6 +126,10 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 
 	err = cli.RouterCreate(ctx, *siteConfig)
 	if err != nil {
+		err2 := cli.SiteConfigRemove(context.Background())
+		if err2 != nil {
+			fmt.Println("Failed to cleanup site: ", err2)
+		}
 		return err
 	}
 	fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
