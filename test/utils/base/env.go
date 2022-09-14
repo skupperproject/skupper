@@ -56,6 +56,9 @@ const (
 	// skipped on the normal runs.  Setting this variable will include
 	// those on the runs
 	ENV_RUN_ISSUE_TESTS = "SKUPPER_TEST_RUN_ISSUE_TESTS"
+
+	// If populated, skupper integration tests will not run in debug mode
+	ENV_SKIP_DEBUG = "SKUPPER_TEST_SKIP_DEBUG"
 )
 
 // ** POLICY **

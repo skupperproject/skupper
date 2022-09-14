@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -62,7 +63,7 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 	if s.ConsoleIngress != "" {
 		args = append(args, "--console-ingress", s.ConsoleIngress)
 	}
-	if s.RouterDebugMode == "" {
+	if s.RouterDebugMode == "" && os.Getenv(base.ENV_SKIP_DEBUG) == "" {
 		s.RouterDebugMode = "gdb"
 	}
 	args = append(args, "--router-debug-mode", s.RouterDebugMode)
