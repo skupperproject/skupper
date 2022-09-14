@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/test/utils/base"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -31,7 +30,7 @@ func DefaultRouterOptions(spec *types.RouterOptions) types.RouterOptions {
 		spec = &types.RouterOptions{}
 	}
 
-	if os.Getenv(base.ENV_SKIP_DEBUG) == "" {
+	if os.Getenv("SKUPPER_TEST_SKIP_DEBUG") == "" {
 		spec.DebugMode = "gdb"
 	}
 	if spec.Logging == nil {
