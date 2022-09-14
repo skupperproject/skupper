@@ -112,7 +112,6 @@ func TestHelloWorldCLI(t *testing.T) {
 						ConsoleUser:           "admin",
 						ConsolePassword:       "admin",
 						Ingress:               "none",
-						RouterDebugMode:       "gdb",
 						RouterLogging:         "trace",
 						RouterMode:            "edge",
 						SiteName:              "private",
