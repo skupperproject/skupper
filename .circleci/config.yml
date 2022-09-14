@@ -25,6 +25,7 @@ executors:
   local_cluster_test_executor:
     machine:
       image: ubuntu-2004:current
+    resource_class: large
 
 commands:
   minikube-install:
@@ -33,7 +34,7 @@ commands:
       - run:
           command: >-
             curl -Lo minikube
-            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && 
+            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 &&
             chmod +x minikube && sudo
             mv minikube /usr/local/bin/
           name: Install Minikube Executable
@@ -43,7 +44,7 @@ commands:
     steps:
       - run:
           command: >-
-            minikube start --vm-driver=docker --cpus 2 --memory 2048
+            minikube start --vm-driver=docker --cpus 4 --memory 6144
           name: Start Minikube Cluster
 
   minikube-start-load-balancer:
