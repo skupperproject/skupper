@@ -18,8 +18,6 @@ type ForwardTester struct {
 	Address         string
 	Port            []string
 	Loopback        bool
-	Mapping         string
-	Name            string
 	IsGatewayActive bool
 }
 
@@ -30,12 +28,6 @@ func (f *ForwardTester) Command(cluster *base.ClusterContext) []string {
 
 	if f.Loopback {
 		args = append(args, "--loopback")
-	}
-	if f.Mapping != "" {
-		args = append(args, "--mapping", f.Mapping)
-	}
-	if f.Name != "" {
-		args = append(args, "--name", f.Name)
 	}
 
 	return args
@@ -70,14 +62,13 @@ func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr
 
 	gwList, err := cluster.VanClient.GatewayList(ctx)
 
-	gwName := f.Name
-	if gwName == "" {
-		// If no gateway name provided and there are many gateways, no further validation can be done
-		if len(gwList) > 1 {
-			return
-		}
-		gwName = gwList[0].Name
+	var gwName string
+
+	// If there are many gateways, no further validation can be done
+	if len(gwList) > 1 {
+		return
 	}
+	gwName = gwList[0].Name
 
 	for _, gw := range gwList {
 		if gwName != gw.Name {

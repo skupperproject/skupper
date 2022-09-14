@@ -13,21 +13,12 @@ import (
 // UnbindTester runs `skupper gateway unbind` and asserts that
 // the gateway service is no longer bound to a cluster service
 type UnbindTester struct {
-	Address  string
-	Name     string
-	Protocol string
+	Address string
 }
 
 func (b *UnbindTester) Command(cluster *base.ClusterContext) []string {
 	args := cli.SkupperCommonOptions(cluster)
 	args = append(args, "gateway", "unbind", b.Address)
-
-	if b.Name != "" {
-		args = append(args, "--name", b.Name)
-	}
-	if b.Protocol != "" {
-		args = append(args, "--protocol", b.Protocol)
-	}
 
 	return args
 }
@@ -51,14 +42,13 @@ func (b *UnbindTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	ctx := context.Background()
 	gwList, err := cluster.VanClient.GatewayList(ctx)
 
-	gwName := b.Name
-	if gwName == "" {
-		// If no gateway name provided and there are many gateways, no further validation can be done
-		if len(gwList) > 1 {
-			return
-		}
-		gwName = gwList[0].Name
+	var gwName string
+
+	// If there are many gateways, no further validation can be done
+	if len(gwList) > 1 {
+		return
 	}
+	gwName = gwList[0].Name
 
 	for _, gw := range gwList {
 		if gwName != gw.Name {
