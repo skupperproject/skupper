@@ -1,9 +1,11 @@
 package constants
 
 import (
+	"os"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/test/utils/base"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -29,7 +31,9 @@ func DefaultRouterOptions(spec *types.RouterOptions) types.RouterOptions {
 		spec = &types.RouterOptions{}
 	}
 
-	spec.DebugMode = "gdb"
+	if os.Getenv(base.ENV_SKIP_DEBUG) == "" {
+		spec.DebugMode = "gdb"
+	}
 	if spec.Logging == nil {
 		spec.Logging = []types.RouterLogConfig{}
 	}
