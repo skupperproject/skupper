@@ -52,7 +52,6 @@ func skupperInitEdgeTestScenario(ctx *base.ClusterContext, prefix string, withPo
 					ConsoleUser:           "admin",
 					ConsolePassword:       "admin",
 					Ingress:               "none",
-					RouterDebugMode:       "gdb",
 					RouterLogging:         "trace",
 					RouterMode:            "edge",
 					SiteName:              "private",
