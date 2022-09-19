@@ -32,10 +32,6 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	ns := cli.GetNamespace()
 
 	routerModeFlag := cmd.Flag("router-mode")
-	edgeFlag := cmd.Flag("edge")
-	if routerModeFlag.Changed && edgeFlag.Changed {
-		return fmt.Errorf("You can not use the deprecated --edge, and --router-mode together, use --router-mode")
-	}
 
 	if routerModeFlag.Changed {
 		options := []string{string(types.TransportModeInterior), string(types.TransportModeEdge)}
@@ -44,24 +40,13 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		}
 		routerCreateOpts.RouterMode = initFlags.routerMode
 	} else {
-		if s.kubeInit.isEdge {
-			routerCreateOpts.RouterMode = string(types.TransportModeEdge)
-		} else {
-			routerCreateOpts.RouterMode = string(types.TransportModeInterior)
-		}
+		routerCreateOpts.RouterMode = string(types.TransportModeInterior)
 	}
 
 	routerIngressFlag := cmd.Flag("ingress")
-	routerClusterLocalFlag := cmd.Flag("cluster-local")
 	routerCreateOpts.Platform = s.kube.Platform()
 
-	if routerIngressFlag.Changed && routerClusterLocalFlag.Changed {
-		return fmt.Errorf(`You can not use the deprecated --cluster-local, and --ingress together, use "--ingress none" as equivalent of --cluster-local`)
-	} else if routerClusterLocalFlag.Changed {
-		if s.kubeInit.clusterLocal { // this is redundant, because "if changed" it must be true, but it is also correct
-			routerCreateOpts.Ingress = types.IngressNoneString
-		}
-	} else if !routerIngressFlag.Changed {
+	if !routerIngressFlag.Changed {
 		routerCreateOpts.Ingress = cli.GetIngressDefault()
 	}
 	if routerCreateOpts.Ingress == types.IngressNodePortString && routerCreateOpts.IngressHost == "" && routerCreateOpts.Router.IngressHost == "" {
@@ -181,16 +166,6 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
 
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
-
-	cmd.Flags().BoolVarP(&s.kubeInit.clusterLocal, "cluster-local", "", false, "Set up Skupper to only accept links from within the local cluster.")
-	f := cmd.Flag("cluster-local")
-	f.Deprecated = "This flag is deprecated, use --ingress [" + strings.Join(types.ValidIngressOptions(s.kube.Platform()), "|") + "]"
-	f.Hidden = true
-
-	cmd.Flags().BoolVarP(&s.kubeInit.isEdge, "edge", "", false, "Configure as an edge")
-	f = cmd.Flag("edge")
-	f.Deprecated = "This flag is deprecated, use --router-mode [interior|edge]"
-	f.Hidden = true
 }
 
 func (s *SkupperKubeSite) Delete(cmd *cobra.Command, args []string) error {

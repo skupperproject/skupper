@@ -435,45 +435,6 @@ func NewCmdUpdate(skupperCli SkupperSiteClient) *cobra.Command {
 
 var clientIdentity string
 
-func NewCmdConnectionToken(skupperClient SkupperTokenClient) *cobra.Command {
-	cmd := NewCmdTokenCreate(skupperClient, "client-identity")
-	cmd.Use = "connection-token <output-file>"
-	cmd.Short = "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site."
-	return cmd
-}
-
-func NewCmdConnect(skupperClient SkupperLinkClient) *cobra.Command {
-	cmd := NewCmdLinkCreate(skupperClient, "connection-name")
-	cmd.Use = "connect <connection-token-file>"
-	cmd.Short = "Connect this skupper installation to that which issued the specified connectionToken"
-	return cmd
-
-}
-func NewCmdDisconnect(skupperClient SkupperLinkClient) *cobra.Command {
-	cmd := NewCmdLinkDelete(skupperClient)
-	cmd.Use = "disconnect <name>"
-	cmd.Short = "Remove specified connection"
-	return cmd
-
-}
-func NewCmdCheckConnection(skupperClient SkupperLinkClient) *cobra.Command {
-	cmd := NewCmdLinkStatus(skupperClient)
-	cmd.Use = "check-connection all|<connection-name>"
-	cmd.Short = "Check whether a connection to another Skupper site is active"
-	return cmd
-}
-
-func NewCmdListConnectors(skupperClient SkupperLinkClient) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "list-connectors",
-		Short:  "List configured outgoing connections",
-		Args:   cobra.NoArgs,
-		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.List,
-	}
-	return cmd
-}
-
 func NewCmdStatus(skupperCli SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status",
@@ -517,12 +478,6 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
 
-	return cmd
-}
-
-func NewCmdListExposed(skupperClient SkupperServiceClient) *cobra.Command {
-	cmd := NewCmdServiceStatus(skupperClient)
-	cmd.Use = "list-exposed"
 	return cmd
 }
 
@@ -904,13 +859,10 @@ func init() {
 	cmdStatus := NewCmdStatus(skupperCli.Site())
 	cmdExpose := NewCmdExpose(skupperCli.Service())
 	cmdUnexpose := NewCmdUnexpose(skupperCli.Service())
-	cmdListExposed := NewCmdListExposed(skupperCli.Service())
 	cmdCreateService := NewCmdCreateService(skupperCli.Service())
 	cmdDeleteService := NewCmdDeleteService(skupperCli.Service())
 	cmdStatusService := NewCmdServiceStatus(skupperCli.Service())
 	cmdLabelsService := NewCmdServiceLabel(skupperCli.Service())
-	cmdBind := NewCmdBind(skupperCli.Service())
-	cmdUnbind := NewCmdUnbind(skupperCli.Service())
 
 	cmdVersion := NewCmdVersion(skupperCli.Site())
 	cmdDebugDump := NewCmdDebugDump(skupperCli.Debug())
@@ -921,7 +873,6 @@ func init() {
 	cmdGateway := NewCmdGateway()
 	if skupperKube, ok := skupperCli.(*SkupperKube); ok {
 		cmdInitGateway := NewCmdInitGateway(skupperKube)
-		cmdDownloadGateway := NewCmdDownloadGateway(skupperKube)
 		cmdExportConfigGateway := NewCmdExportConfigGateway(skupperKube)
 		cmdGenerateBundleGateway := NewCmdGenerateBundleGateway(skupperKube)
 		cmdDeleteGateway := NewCmdDeleteGateway(skupperKube)
@@ -933,11 +884,7 @@ func init() {
 		cmdForwardGateway := NewCmdForwardGateway(skupperKube)
 		cmdUnforwardGateway := NewCmdUnforwardGateway(skupperKube)
 
-		cmdDownloadGateway.Hidden = true
-		cmdDownloadGateway.Deprecated = "please use 'skupper gateway export-config' instead."
-
 		cmdGateway.AddCommand(cmdInitGateway)
-		cmdGateway.AddCommand(cmdDownloadGateway)
 		cmdGateway.AddCommand(cmdExportConfigGateway)
 		cmdGateway.AddCommand(cmdGenerateBundleGateway)
 		cmdGateway.AddCommand(cmdDeleteGateway)
@@ -949,38 +896,6 @@ func init() {
 		cmdGateway.AddCommand(cmdForwardGateway)
 		cmdGateway.AddCommand(cmdUnforwardGateway)
 	}
-
-	// backwards compatibility commands hidden
-	deprecatedMessage := "please use 'skupper service [bind|unbind]' instead"
-	cmdBind.Hidden = true
-	cmdBind.Deprecated = deprecatedMessage
-	cmdUnbind.Deprecated = deprecatedMessage
-	cmdUnbind.Hidden = true
-
-	cmdListConnectors := NewCmdListConnectors(skupperCli.Link()) // listconnectors just keeped
-	cmdListConnectors.Hidden = true
-	cmdListConnectors.Deprecated = "please use 'skupper link status'"
-
-	linkDeprecationMessage := "please use 'skupper link [create|delete|status]' instead."
-
-	cmdConnect := NewCmdConnect(skupperCli.Link())
-	cmdConnect.Hidden = true
-	cmdConnect.Deprecated = linkDeprecationMessage
-
-	cmdDisconnect := NewCmdDisconnect(skupperCli.Link())
-	cmdDisconnect.Hidden = true
-	cmdDisconnect.Deprecated = linkDeprecationMessage
-
-	cmdCheckConnection := NewCmdCheckConnection(skupperCli.Link())
-	cmdCheckConnection.Hidden = true
-	cmdCheckConnection.Deprecated = linkDeprecationMessage
-
-	cmdConnectionToken := NewCmdConnectionToken(skupperCli.Token())
-	cmdConnectionToken.Hidden = true
-	cmdConnectionToken.Deprecated = "please use 'skupper token create' instead."
-
-	cmdListExposed.Hidden = true
-	cmdListExposed.Deprecated = "please use 'skupper service status' instead."
 
 	// setup subcommands
 	cmdService := NewCmdService()

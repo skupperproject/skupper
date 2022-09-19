@@ -386,7 +386,7 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 			continue
 		}
 
-		cmd := NewCmdConnectionToken(testClient.Token())
+		cmd := NewCmdTokenCreate(testClient.Token(), "")
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -442,7 +442,7 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 			continue
 		}
 
-		cmd := NewCmdConnectionToken(testClient.Token())
+		cmd := NewCmdTokenCreate(testClient.Token(), "")
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -454,7 +454,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 			doc:             "connect-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Links this skupper site to the site that issued the token",
+			expectedOutput:  "Links this skupper installation to that which issued the specified token",
 			expectedError:   "",
 			realCluster:     false,
 		},
@@ -489,7 +489,7 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 			continue
 		}
 
-		cmd := NewCmdConnect(testClient.Link())
+		cmd := NewCmdLinkCreate(testClient.Link(), "link")
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -501,7 +501,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 			doc:             "connect-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Links this skupper site to the site that issued the token",
+			expectedOutput:  "Links this skupper installation to that which issued the specified token",
 			expectedError:   "",
 			realCluster:     false,
 		},
@@ -536,7 +536,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 			continue
 		}
 
-		cmd := NewCmdConnect(testClient.Link())
+		cmd := NewCmdLinkCreate(testClient.Link(), "link")
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -605,7 +605,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 				assert.Check(t, err)
 			}
 		}
-		cmd := NewCmdDisconnect(testClient.Link())
+		cmd := NewCmdLinkDelete(testClient.Link())
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -665,12 +665,12 @@ func TestListConnectorsWithCluster(t *testing.T) {
 
 		// create a connection to list
 		if tc.createConn {
-			connectCmd := NewCmdConnect(testClient.Link())
+			connectCmd := NewCmdLinkCreate(testClient.Link(), "")
 			silenceCobra(connectCmd)
 			testCommand(t, connectCmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
 		}
 
-		cmd := NewCmdListConnectors(testClient.Link())
+		cmd := NewCmdLinkStatus(testClient.Link())
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -743,12 +743,12 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		}
 
 		if tc.createConn {
-			cmd := NewCmdConnect(testClient.Link())
+			cmd := NewCmdLinkCreate(testClient.Link(), "link")
 			silenceCobra(cmd)
 			testCommand(t, cmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
 		}
 
-		cmd := NewCmdCheckConnection(testClient.Link())
+		cmd := NewCmdLinkStatus(testClient.Link())
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -1140,7 +1140,7 @@ func TestListExposedWithCluster(t *testing.T) {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
-		cmd := NewCmdListExposed(testClient.Service())
+		cmd := NewCmdServiceStatus(testClient.Service())
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}

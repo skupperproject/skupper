@@ -87,8 +87,6 @@ type kubeInit struct {
 	ingressAnnotations           []string
 	routerServiceAnnotations     []string
 	controllerServiceAnnotations []string
-	clusterLocal                 bool
-	isEdge                       bool
 }
 
 func (s *SkupperKube) NewClient(cmd *cobra.Command, args []string) {
