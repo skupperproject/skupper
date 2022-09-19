@@ -494,7 +494,7 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 			doc:             "connect-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Links this skupper installation to that which issued the specified token",
+			expectedOutput:  "Links this skupper site to the site that issued the token",
 			expectedError:   "",
 			realCluster:     false,
 		},
