@@ -389,10 +389,6 @@ installation that can then be connected to other skupper installations`,
 
 	cmd.Flags().IntVar(&routerCreateOpts.Routers, "routers", 0, "Number of router replicas to start")
 
-	cmd.Flags().IntVar(&routerCreateOpts.Router.MaxFrameSize, "xp-router-max-frame-size", types.RouterMaxFrameSizeDefault, "Set  max frame size on inter-router listeners/connectors")
-	cmd.Flags().IntVar(&routerCreateOpts.Router.MaxSessionFrames, "xp-router-max-session-frames", types.RouterMaxSessionFramesDefault, "Set  max session frames on inter-router listeners/connectors")
-	hideFlag(cmd, "xp-router-max-frame-size")
-	hideFlag(cmd, "xp-router-max-session-frames")
 	cmd.Flags().SortFlags = false
 
 	// platform specific flags
