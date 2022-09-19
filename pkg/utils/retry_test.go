@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -309,6 +310,85 @@ func TestTryUntil(t *testing.T) {
 				t.Errorf("Received wrong error: %s", err)
 			}
 
+		})
+	}
+
+}
+
+type TestRetryErrorWithContextItem struct {
+	doc           string
+	timeout       time.Duration
+	workOnTry     int
+	expectedTries int
+	expectSuccess bool
+}
+
+func TestRetryErrorWithContext(t *testing.T) {
+	testTable := []TestRetryErrorWithContextItem{
+		{
+			doc:           "The execution should work at the first try",
+			timeout:       time.Second * 2,
+			workOnTry:     1,
+			expectedTries: 1,
+			expectSuccess: true,
+		}, {
+			doc:           "The execution should work at the second try",
+			timeout:       time.Second * 3,
+			workOnTry:     2,
+			expectedTries: 2,
+			expectSuccess: true,
+		}, {
+			doc:           "The execution should work after many tries",
+			timeout:       time.Second * 5,
+			workOnTry:     4,
+			expectedTries: 4,
+			expectSuccess: true,
+		}, {
+			doc:           "The execution should time out after one retry due the context",
+			timeout:       time.Second,
+			workOnTry:     5,
+			expectedTries: 1,
+			expectSuccess: false,
+		}, {
+			doc:           "The execution should time out after many retries due the context",
+			timeout:       time.Second * 4,
+			workOnTry:     5,
+			expectedTries: 4,
+			expectSuccess: false,
+		},
+	}
+
+	for _, item := range testTable {
+
+		t.Run(item.doc, func(t *testing.T) {
+			var currentTry int
+
+			ctx, cancel := context.WithTimeout(context.Background(), item.timeout)
+			defer cancel()
+
+			start := time.Now()
+
+			resp := RetryErrorWithContext(ctx, time.Second, func() (err error) {
+				currentTry++
+				if currentTry == item.workOnTry {
+					return nil
+				}
+				return fmt.Errorf("Still not working")
+			})
+
+			elapsed := time.Since(start)
+
+			if item.expectSuccess && elapsed > item.timeout {
+				t.Errorf("The execution should have timed out, but it has not.")
+			}
+
+			if item.expectSuccess != (resp == nil) {
+				t.Errorf("Received error: %v", resp)
+			}
+
+			if item.expectedTries != currentTry {
+				t.Errorf("Returned in %d tries", currentTry)
+			}
 		})
 	}
 

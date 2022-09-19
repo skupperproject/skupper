@@ -120,3 +120,22 @@ func RetryWithContext(ctx context.Context, interval time.Duration, f ConditionFu
 		}
 	}
 }
+
+// RetryErrorWithContext will retry as long the checked function is returning an error and the context does not time out
+func RetryErrorWithContext(ctx context.Context, interval time.Duration, f CheckedFunc) error {
+	tick := time.NewTicker(interval)
+	defer tick.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return context.DeadlineExceeded
+
+		case <-tick.C:
+			err := f()
+			if err == nil {
+				return nil
+			}
+		}
+	}
+}

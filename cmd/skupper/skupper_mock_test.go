@@ -298,6 +298,10 @@ func (v *vanClientMock) NetworkStatus() ([]*types.SiteInfo, error) {
 	return nil, nil
 }
 
+func (v *vanClientMock) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*types.RemoteLinkInfo, error) {
+	return nil, nil
+}
+
 func TestCmdUnexposeRun(t *testing.T) {
 	skupperClient := NewSkupperTestClient()
 	cmd := NewCmdUnexpose(skupperClient.Service())
