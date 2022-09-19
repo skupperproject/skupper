@@ -59,6 +59,8 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	routerCreateOpts.Labels = asMap(initFlags.labels)
 	routerCreateOpts.IngressAnnotations = asMap(s.kubeInit.ingressAnnotations)
 	routerCreateOpts.Router.ServiceAnnotations = asMap(s.kubeInit.routerServiceAnnotations)
+	routerCreateOpts.Router.MaxFrameSize = types.RouterMaxFrameSizeDefault
+	routerCreateOpts.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
 	routerCreateOpts.Controller.ServiceAnnotations = asMap(s.kubeInit.controllerServiceAnnotations)
 	if err := routerCreateOpts.CheckIngress(); err != nil {
 		return err
