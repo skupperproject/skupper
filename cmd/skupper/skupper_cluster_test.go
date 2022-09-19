@@ -1620,6 +1620,16 @@ func TestLinkStatus(t *testing.T) {
 			createConn:      false,
 		},
 		{
+			doc:             "Should display link details of an existing link",
+			args:            []string{"link1", "--verbose"},
+			expectedCapture: "",
+			expectedOutput:  "",
+			expectedError:   "",
+			outputRegExp:    "^\\n\\sCost:.*\\n\\sCreated:.*\\n\\sName:.*\\n\\sNamespace:.*\\n\\sSite:.*\\n\\sStatus:.*\\n\\sURL:.*\\n",
+			realCluster:     true,
+			createConn:      true,
+		},
+		{
 			doc:             "Should display local links",
 			args:            []string{},
 			expectedCapture: "Links initiated from this site",
@@ -1651,6 +1661,8 @@ func TestLinkStatus(t *testing.T) {
 		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
 	}
 
+	cli = NewClient(namespace, kubeContext, kubeConfigPath)
+
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
 		assert.Check(t, err)
@@ -1659,9 +1671,6 @@ func TestLinkStatus(t *testing.T) {
 	skupperInit(t, []string{}...)
 
 	for _, tc := range testcases {
-		if tc.realCluster && !*clusterRun {
-			continue
-		}
 
 		// create a connection to list
 		if tc.createConn {

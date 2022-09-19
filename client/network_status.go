@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
+func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, error) {
 
 	//Checking if the router has been deployed
 	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
@@ -17,7 +17,7 @@ func (cli *VanClient) NetworkStatus() ([]*types.SiteInfo, error) {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}
 
-	sites, err := server.GetSiteInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
+	sites, err := server.GetSiteInfo(ctx, cli.Namespace, cli.KubeClient, cli.RestConfig)
 
 	if err != nil {
 		return nil, err
@@ -173,7 +173,7 @@ func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.Site
 
 	currentSiteId := siteConfig.Reference.UID
 
-	sites, err := server.GetSiteInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
+	sites, err := server.GetSiteInfo(ctx, cli.Namespace, cli.KubeClient, cli.RestConfig)
 
 	if err != nil {
 		return nil, err
