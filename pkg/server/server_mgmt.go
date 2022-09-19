@@ -21,7 +21,7 @@ func GetSiteInfo(ctx context.Context, namespace string, clientset kubernetes.Int
 	if ok {
 		timeout = time.Until(deadline)
 	} else {
-		timeout = 120 * time.Second
+		timeout = types.DefaultTimeoutDuration
 	}
 
 	command := getQueryServiceController("sites")
