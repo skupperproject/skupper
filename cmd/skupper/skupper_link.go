@@ -80,3 +80,15 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 	return cmd
 
 }
+
+func createLinkDetailMap(link *types.LinkStatus, siteConfig *types.SiteConfig) map[string]string {
+	return map[string]string{
+		"Name:":      link.Name,
+		"Status:":    "Active",
+		"Namespace:": siteConfig.Spec.SkupperNamespace,
+		"Site:":      siteConfig.Spec.SkupperName + "-" + siteConfig.Reference.UID,
+		"URL:":       link.Url,
+		"Cost:":      strconv.Itoa(link.Cost),
+		"Created:":   link.Created,
+	}
+}
