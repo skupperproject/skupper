@@ -313,7 +313,7 @@ func TestDeleteWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -332,7 +332,7 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 			doc:             "connection-token-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
+			expectedOutput:  "Create a token.  The 'link create' command uses the token to establish a link from a remote Skupper site.",
 			expectedError:   "",
 			realCluster:     false,
 		},
@@ -370,14 +370,14 @@ func TestConnectionTokenWithEdgeCluster(t *testing.T) {
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
 
-		cmd := NewCmdConnectionToken(testClient)
+		cmd := NewCmdTokenCreate(testClient, "")
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -389,7 +389,7 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 			doc:             "connection-token-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site.",
+			expectedOutput:  "Create a token.  The 'link create' command uses the token to establish a link from a remote Skupper site.",
 			expectedError:   "",
 			realCluster:     false,
 		},
@@ -427,14 +427,14 @@ func TestConnectionTokenWithInteriorCluster(t *testing.T) {
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 	}
-	skupperInit(t, []string{"--cluster-local"}...)
+	skupperInit(t, []string{"--ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
 
-		cmd := NewCmdConnectionToken(testClient)
+		cmd := NewCmdTokenCreate(testClient, "")
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -446,13 +446,13 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 			doc:             "connect-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Connect this skupper installation to that which issued the specified connectionToken",
+			expectedOutput:  "Links this skupper site to the site that issued the token",
 			expectedError:   "",
 			realCluster:     false,
 		},
 		{
 			doc:             "connect-test2",
-			args:            []string{"/tmp/foo.yaml", "--connection-name", "edge-conn1"},
+			args:            []string{"/tmp/foo.yaml"},
 			expectedCapture: "Site configured to link to",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -475,14 +475,14 @@ func TestConnectWithEdgeCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
 
-		cmd := NewCmdConnect(testClient)
+		cmd := NewCmdLinkCreate(testClient, "link")
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -494,13 +494,13 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 			doc:             "connect-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Connect this skupper installation to that which issued the specified connectionToken",
+			expectedOutput:  "Links this skupper site to the site that issued the token",
 			expectedError:   "",
 			realCluster:     false,
 		},
 		{
 			doc:             "connect-test2",
-			args:            []string{"/tmp/foo.yaml", "--connection-name", "interior-conn1"},
+			args:            []string{"/tmp/foo.yaml"},
 			expectedCapture: "Site configured to link to",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -523,14 +523,14 @@ func TestConnectWithInteriorCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--cluster-local"}...)
+	skupperInit(t, []string{"--ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
 
-		cmd := NewCmdConnect(testClient)
+		cmd := NewCmdLinkCreate(testClient, "link")
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -542,7 +542,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 			doc:             "disconnect-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Remove specified connection",
+			expectedOutput:  "Remove specified link",
 			expectedError:   "",
 			realCluster:     false,
 		},
@@ -580,7 +580,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -600,7 +600,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 				assert.Check(t, err)
 			}
 		}
-		cmd := NewCmdDisconnect(testClient)
+		cmd := NewCmdLinkDelete(testClient)
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -612,7 +612,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 			doc:             "list-connectors-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "List configured outgoing connections",
+			expectedOutput:  "Check whether a link to another Skupper site is active",
 			expectedError:   "",
 			realCluster:     false,
 			createConn:      false,
@@ -620,7 +620,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		{
 			doc:             "list-connectors-test2",
 			args:            []string{},
-			expectedCapture: "There are no connectors defined.",
+			expectedCapture: "There are no links configured or active",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -629,7 +629,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		{
 			doc:             "list-connectors-test3",
 			args:            []string{},
-			expectedCapture: "Connectors:",
+			expectedCapture: "Link",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -652,7 +652,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -661,12 +661,12 @@ func TestListConnectorsWithCluster(t *testing.T) {
 
 		// create a connection to list
 		if tc.createConn {
-			connectCmd := NewCmdConnect(testClient)
+			connectCmd := NewCmdLinkCreate(testClient, "")
 			silenceCobra(connectCmd)
 			testCommand(t, connectCmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
 		}
 
-		cmd := NewCmdListConnectors(testClient)
+		cmd := NewCmdLinkStatus(testClient)
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -678,7 +678,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 			doc:             "check-connection-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Check whether a connection to another Skupper site is active",
+			expectedOutput:  "Check whether a link to another Skupper site is active",
 			expectedError:   "",
 			realCluster:     false,
 		},
@@ -732,7 +732,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -740,12 +740,12 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		}
 
 		if tc.createConn {
-			cmd := NewCmdConnect(testClient)
+			cmd := NewCmdLinkCreate(testClient, "link")
 			silenceCobra(cmd)
 			testCommand(t, cmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
 		}
 
-		cmd := NewCmdCheckConnection(testClient)
+		cmd := NewCmdLinkStatus(testClient)
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -786,7 +786,7 @@ func TestStatusWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -965,7 +965,7 @@ func TestExposeWithCluster(t *testing.T) {
 		_, err = services.Create(statefulSetService)
 		assert.Assert(t, err)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		t.Run(tc.doc, func(t *testing.T) {
@@ -1074,7 +1074,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1129,7 +1129,7 @@ func TestListExposedWithCluster(t *testing.T) {
 		assert.Assert(t, err)
 	}
 
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	if *clusterRun {
 		exposeCmd := NewCmdExpose(testClient)
@@ -1141,7 +1141,7 @@ func TestListExposedWithCluster(t *testing.T) {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
-		cmd := NewCmdListExposed(testClient)
+		cmd := NewCmdServiceStatus(testClient)
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
@@ -1207,7 +1207,7 @@ func TestCreateServiceWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1262,7 +1262,7 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
@@ -1344,7 +1344,7 @@ func TestBindWithCluster(t *testing.T) {
 		_, err = deployments.Create(tcpDeployment)
 		assert.Assert(t, err)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
@@ -1410,7 +1410,7 @@ func TestUnbindWithCluster(t *testing.T) {
 		_, err = deployments.Create(tcpDeployment)
 		assert.Assert(t, err)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient)
@@ -1467,7 +1467,7 @@ func TestVersionWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1522,7 +1522,7 @@ func TestDebugDumpWithCluster(t *testing.T) {
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
-	skupperInit(t, []string{"--edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
 	testPath := "./tmp/"
 	os.Mkdir(testPath, 0755)

@@ -12,16 +12,12 @@ import (
 )
 
 type DeleteTester struct {
-	Name string
 }
 
 func (d *DeleteTester) Command(cluster *base.ClusterContext) []string {
 	args := cli.SkupperCommonOptions(cluster)
 	args = append(args, "gateway", "delete")
 
-	if d.Name != "" {
-		args = append(args, "--name", d.Name)
-	}
 	return args
 }
 
@@ -50,44 +46,30 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		return
 	}
 
-	// If i.Name is empty we need to discover the deleted gateway name
-	gatewayName := d.Name
-	if gatewayName == "" {
-		if len(postGateways) == 0 {
-			gatewayName = preGateways[0].Name
-		} else if len(postGateways) < len(preGateways) {
-			for _, preGw := range preGateways {
-				found := false
-				for _, postGw := range postGateways {
-					if preGw.Name == postGw.Name {
-						found = true
-					}
-				}
-				if !found {
-					gatewayName = preGw.Name
-					break
+	var gatewayName string
+
+	if len(postGateways) == 0 {
+		gatewayName = preGateways[0].Name
+	} else if len(postGateways) < len(preGateways) {
+		for _, preGw := range preGateways {
+			found := false
+			for _, postGw := range postGateways {
+				if preGw.Name == postGw.Name {
+					found = true
 				}
 			}
-			if gatewayName == "" {
-				err = fmt.Errorf("unable to discover gateway name")
-				return
-			}
-		} else {
-			err = fmt.Errorf("gateway has not been removed")
-			return
-		}
-	} else {
-		found := false
-		for _, existingGw := range postGateways {
-			if existingGw.Name == gatewayName {
-				found = true
+			if !found {
+				gatewayName = preGw.Name
 				break
 			}
 		}
-		if found {
-			err = fmt.Errorf("gateway %s still exists", gatewayName)
+		if gatewayName == "" {
+			err = fmt.Errorf("unable to discover gateway name")
 			return
 		}
+	} else {
+		err = fmt.Errorf("gateway has not been removed")
+		return
 	}
 
 	// Validate router config files and local user service resources removed

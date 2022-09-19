@@ -316,7 +316,6 @@ func asMap(entries []string) map[string]string {
 	return result
 }
 
-var ClusterLocal bool
 var LoadBalancerTimeout time2.Duration
 
 func NewCmdInit(newClient cobraFunc) *cobra.Command {
@@ -326,7 +325,7 @@ func NewCmdInit(newClient cobraFunc) *cobra.Command {
 	routerServiceAnnotations := []string{}
 	controllerServiceAnnotations := []string{}
 	labels := []string{}
-	var isEdge bool
+
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialise skupper installation",
@@ -340,10 +339,6 @@ installation that can then be connected to other skupper installations`,
 			ns := cli.GetNamespace()
 
 			routerModeFlag := cmd.Flag("router-mode")
-			edgeFlag := cmd.Flag("edge")
-			if routerModeFlag.Changed && edgeFlag.Changed {
-				return fmt.Errorf("You can not use the deprecated --edge, and --router-mode together, use --router-mode")
-			}
 
 			if routerModeFlag.Changed {
 				options := []string{string(types.TransportModeInterior), string(types.TransportModeEdge)}
@@ -352,23 +347,12 @@ installation that can then be connected to other skupper installations`,
 				}
 				routerCreateOpts.RouterMode = routerMode
 			} else {
-				if isEdge {
-					routerCreateOpts.RouterMode = string(types.TransportModeEdge)
-				} else {
-					routerCreateOpts.RouterMode = string(types.TransportModeInterior)
-				}
+				routerCreateOpts.RouterMode = string(types.TransportModeInterior)
 			}
 
 			routerIngressFlag := cmd.Flag("ingress")
-			routerClusterLocalFlag := cmd.Flag("cluster-local")
 
-			if routerIngressFlag.Changed && routerClusterLocalFlag.Changed {
-				return fmt.Errorf(`You can not use the deprecated --cluster-local, and --ingress together, use "--ingress none" as equivalent of --cluster-local`)
-			} else if routerClusterLocalFlag.Changed {
-				if ClusterLocal { // this is redundant, because "if changed" it must be true, but it is also correct
-					routerCreateOpts.Ingress = types.IngressNoneString
-				}
-			} else if !routerIngressFlag.Changed {
+			if !routerIngressFlag.Changed {
 				routerCreateOpts.Ingress = cli.GetIngressDefault()
 			}
 			if routerCreateOpts.Ingress == types.IngressNodePortString && routerCreateOpts.IngressHost == "" && routerCreateOpts.Router.IngressHost == "" {
@@ -381,6 +365,8 @@ installation that can then be connected to other skupper installations`,
 			routerCreateOpts.Labels = asMap(labels)
 			routerCreateOpts.IngressAnnotations = asMap(ingressAnnotations)
 			routerCreateOpts.Router.ServiceAnnotations = asMap(routerServiceAnnotations)
+			routerCreateOpts.Router.MaxFrameSize = types.RouterMaxFrameSizeDefault
+			routerCreateOpts.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
 			routerCreateOpts.Controller.ServiceAnnotations = asMap(controllerServiceAnnotations)
 			if err := routerCreateOpts.CheckIngress(); err != nil {
 				return err
@@ -493,20 +479,6 @@ installation that can then be connected to other skupper installations`,
 
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
 
-	cmd.Flags().BoolVarP(&ClusterLocal, "cluster-local", "", false, "Set up Skupper to only accept links from within the local cluster.")
-	f := cmd.Flag("cluster-local")
-	f.Deprecated = "This flag is deprecated, use --ingress [loadbalancer|route|none]"
-	f.Hidden = true
-
-	cmd.Flags().BoolVarP(&isEdge, "edge", "", false, "Configure as an edge")
-	f = cmd.Flag("edge")
-	f.Deprecated = "This flag is deprecated, use --router-mode [interior|edge]"
-	f.Hidden = true
-
-	cmd.Flags().IntVar(&routerCreateOpts.Router.MaxFrameSize, "xp-router-max-frame-size", types.RouterMaxFrameSizeDefault, "Set  max frame size on inter-router listeners/connectors")
-	cmd.Flags().IntVar(&routerCreateOpts.Router.MaxSessionFrames, "xp-router-max-session-frames", types.RouterMaxSessionFramesDefault, "Set  max session frames on inter-router listeners/connectors")
-	hideFlag(cmd, "xp-router-max-frame-size")
-	hideFlag(cmd, "xp-router-max-session-frames")
 	cmd.Flags().SortFlags = false
 
 	return cmd
@@ -574,64 +546,6 @@ func NewCmdUpdate(newClient cobraFunc) *cobra.Command {
 }
 
 var clientIdentity string
-
-func NewCmdConnectionToken(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdTokenCreate(newClient, "client-identity")
-	cmd.Use = "connection-token <output-file>"
-	cmd.Short = "Create a connection token.  The 'connect' command uses the token to establish a connection from a remote Skupper site."
-	return cmd
-}
-
-func NewCmdConnect(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdLinkCreate(newClient, "connection-name")
-	cmd.Use = "connect <connection-token-file>"
-	cmd.Short = "Connect this skupper installation to that which issued the specified connectionToken"
-	return cmd
-
-}
-func NewCmdDisconnect(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdLinkDelete(newClient)
-	cmd.Use = "disconnect <name>"
-	cmd.Short = "Remove specified connection"
-	return cmd
-
-}
-func NewCmdCheckConnection(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdLinkStatus(newClient)
-	cmd.Use = "check-connection all|<connection-name>"
-	cmd.Short = "Check whether a connection to another Skupper site is active"
-	return cmd
-}
-
-func NewCmdListConnectors(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "list-connectors",
-		Short:  "List configured outgoing connections",
-		Args:   cobra.NoArgs,
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-			connectors, err := cli.ConnectorList(context.Background())
-			if err == nil {
-				if len(connectors) == 0 {
-					fmt.Println("There are no connectors defined.")
-				} else {
-					fmt.Println("Connectors:")
-					for _, c := range connectors {
-						fmt.Printf("    %s (name=%s)", c.Url, c.Name)
-						fmt.Println()
-					}
-				}
-			} else if errors.IsNotFound(err) {
-				return SkupperNotInstalledError(cli.GetNamespace())
-			} else {
-				return fmt.Errorf("Unable to retrieve connections: %w", err)
-			}
-			return nil
-		},
-	}
-	return cmd
-}
 
 func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -815,12 +729,6 @@ func NewCmdUnexpose(newClient cobraFunc) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
 
-	return cmd
-}
-
-func NewCmdListExposed(newClient cobraFunc) *cobra.Command {
-	cmd := NewCmdServiceStatus(newClient)
-	cmd.Use = "list-exposed"
 	return cmd
 }
 
@@ -1204,8 +1112,6 @@ const gatewayName string = ""
 var gatewayConfigFile string
 var gatewayEndpoint types.GatewayEndpoint
 var gatewayType string
-var deprecatedName string
-var deprecatedExportOnly bool
 
 func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 	cmd := &cobra.Command{
@@ -1230,17 +1136,7 @@ func NewCmdInitGateway(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of the gateway definition")
 	cmd.Flags().StringVar(&gatewayConfigFile, "config", "", "The gateway config file to use for initialization")
-	cmd.Flags().BoolVarP(&deprecatedExportOnly, "exportonly", "", false, "Gateway definition for export-config only (e.g. will not be started)")
-
-	f := cmd.Flag("exportonly")
-	f.Deprecated = "gateway will be started"
-	f.Hidden = true
-
-	f = cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1269,37 +1165,6 @@ func NewCmdDeleteGateway(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More details on any exceptions during gateway removal")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	return cmd
-}
-
-func NewCmdDownloadGateway(newClient cobraFunc) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:    "download <output-path>",
-		Short:  "Download a gateway definition to a directory",
-		Args:   cobra.ExactArgs(1),
-		PreRun: newClient,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			silenceCobra(cmd)
-
-			fileName, err := cli.GatewayDownload(context.Background(), gatewayName, args[0])
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			fmt.Println("Skupper gateway definition written to '" + fileName + "'")
-			return nil
-		},
-	}
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1322,11 +1187,6 @@ func NewCmdExportConfigGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1401,11 +1261,6 @@ func NewCmdExposeGateway(newClient cobraFunc) *cobra.Command {
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().StringVarP(&gatewayType, "type", "", "service", "The gateway type one of: 'service', 'docker', 'podman'")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1431,11 +1286,6 @@ func NewCmdUnexposeGateway(newClient cobraFunc) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&deleteLast, "delete-last", "", true, "Delete the gateway if no services remain")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1473,18 +1323,8 @@ func NewCmdBindGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The mapping in use for this service address (currently on of tcp, http or http2).")
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	f = cmd.Flag("protocol")
-	f.Deprecated = "protocol is derived from service definition"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1507,16 +1347,6 @@ func NewCmdUnbindGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	f = cmd.Flag("protocol")
-	f.Deprecated = "protocol is derived from service definition"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1603,19 +1433,10 @@ func NewCmdForwardGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The mapping in use for this service address (currently one of tcp, http or http2)")
+
 	cmd.Flags().StringVar(&gatewayEndpoint.Service.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().BoolVar(&gatewayEndpoint.Service.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().BoolVarP(&gatewayEndpoint.Loopback, "loopback", "", false, "Forward from loopback only")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	f = cmd.Flag("protocol")
-	f.Deprecated = "protocol is derived from service definition"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1638,16 +1459,6 @@ func NewCmdUnforwardGateway(newClient cobraFunc) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&gatewayEndpoint.Service.Protocol, "protocol", "tcp", "The protocol to gateway (tcp, http or http2).")
-	cmd.Flags().StringVar(&deprecatedName, "name", "", "The name of gateway definition to remove")
-
-	f := cmd.Flag("name")
-	f.Deprecated = "default name will be used"
-	f.Hidden = true
-
-	f = cmd.Flag("protocol")
-	f.Deprecated = "protocol is derived from service definition"
-	f.Hidden = true
 
 	return cmd
 }
@@ -1811,20 +1622,16 @@ func init() {
 	cmdStatus := NewCmdStatus(newClient)
 	cmdExpose := NewCmdExpose(newClient)
 	cmdUnexpose := NewCmdUnexpose(newClient)
-	cmdListExposed := NewCmdListExposed(newClient)
 	cmdCreateService := NewCmdCreateService(newClient)
 	cmdDeleteService := NewCmdDeleteService(newClient)
 	cmdStatusService := NewCmdServiceStatus(newClient)
 	cmdLabelsService := NewCmdServiceLabel(newClient)
-	cmdBind := NewCmdBind(newClient)
-	cmdUnbind := NewCmdUnbind(newClient)
 	cmdVersion := NewCmdVersion(newClientSansExit)
 	cmdDebugDump := NewCmdDebugDump(newClient)
 	cmdDebugEvents := NewCmdDebugEvents(newClient)
 	cmdDebugService := NewCmdDebugService(newClient)
 
 	cmdInitGateway := NewCmdInitGateway(newClient)
-	cmdDownloadGateway := NewCmdDownloadGateway(newClient)
 	cmdExportConfigGateway := NewCmdExportConfigGateway(newClient)
 	cmdGenerateBundleGateway := NewCmdGenerateBundleGateway(newClient)
 	cmdDeleteGateway := NewCmdDeleteGateway(newClient)
@@ -1835,41 +1642,6 @@ func init() {
 	cmdUnbindGateway := NewCmdUnbindGateway(newClient)
 	cmdForwardGateway := NewCmdForwardGateway(newClient)
 	cmdUnforwardGateway := NewCmdUnforwardGateway(newClient)
-
-	// backwards compatibility commands hidden
-	deprecatedMessage := "please use 'skupper service [bind|unbind]' instead"
-	cmdBind.Hidden = true
-	cmdBind.Deprecated = deprecatedMessage
-	cmdUnbind.Deprecated = deprecatedMessage
-	cmdUnbind.Hidden = true
-
-	cmdListConnectors := NewCmdListConnectors(newClient) // listconnectors just keeped
-	cmdListConnectors.Hidden = true
-	cmdListConnectors.Deprecated = "please use 'skupper link status'"
-
-	linkDeprecationMessage := "please use 'skupper link [create|delete|status]' instead."
-
-	cmdConnect := NewCmdConnect(newClient)
-	cmdConnect.Hidden = true
-	cmdConnect.Deprecated = linkDeprecationMessage
-
-	cmdDisconnect := NewCmdDisconnect(newClient)
-	cmdDisconnect.Hidden = true
-	cmdDisconnect.Deprecated = linkDeprecationMessage
-
-	cmdCheckConnection := NewCmdCheckConnection(newClient)
-	cmdCheckConnection.Hidden = true
-	cmdCheckConnection.Deprecated = linkDeprecationMessage
-
-	cmdConnectionToken := NewCmdConnectionToken(newClient)
-	cmdConnectionToken.Hidden = true
-	cmdConnectionToken.Deprecated = "please use 'skupper token create' instead."
-
-	cmdListExposed.Hidden = true
-	cmdListExposed.Deprecated = "please use 'skupper service status' instead."
-
-	cmdDownloadGateway.Hidden = true
-	cmdDownloadGateway.Deprecated = "please use 'skupper gateway export-config' instead."
 
 	// setup subcommands
 	cmdService := NewCmdService()
@@ -1882,7 +1654,6 @@ func init() {
 
 	cmdGateway := NewCmdGateway()
 	cmdGateway.AddCommand(cmdInitGateway)
-	cmdGateway.AddCommand(cmdDownloadGateway)
 	cmdGateway.AddCommand(cmdExportConfigGateway)
 	cmdGateway.AddCommand(cmdGenerateBundleGateway)
 	cmdGateway.AddCommand(cmdDeleteGateway)
@@ -1918,20 +1689,12 @@ func init() {
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
 		cmdUpdate,
-		cmdConnectionToken,
 		cmdToken,
 		cmdLink,
-		cmdConnect,
-		cmdDisconnect,
-		cmdCheckConnection,
 		cmdStatus,
-		cmdListConnectors,
 		cmdExpose,
 		cmdUnexpose,
-		cmdListExposed,
 		cmdService,
-		cmdBind,
-		cmdUnbind,
 		cmdVersion,
 		cmdDebug,
 		cmdCompletion,

@@ -18,8 +18,6 @@ type BindTester struct {
 	Address         string
 	Host            string
 	EgressPort      []string
-	Name            string
-	Protocol        string
 	IsGatewayActive bool
 }
 
@@ -27,13 +25,6 @@ func (b *BindTester) Command(cluster *base.ClusterContext) []string {
 	args := cli.SkupperCommonOptions(cluster)
 	args = append(args, "gateway", "bind", b.Address, b.Host)
 	args = append(args, b.EgressPort...)
-
-	if b.Name != "" {
-		args = append(args, "--name", b.Name)
-	}
-	if b.Protocol != "" {
-		args = append(args, "--protocol", b.Protocol)
-	}
 
 	return args
 }
@@ -68,14 +59,13 @@ func (b *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	// Validating service bind definition
 	gwList, err := cluster.VanClient.GatewayList(ctx)
 
-	gwName := b.Name
-	if gwName == "" {
-		// If no gateway name provided and there are many gateways, no further validation can be done
-		if len(gwList) > 1 {
-			return
-		}
-		gwName = gwList[0].Name
+	var gwName string
+
+	// If there are many gateways, no further validation can be done
+	if len(gwList) > 1 {
+		return
 	}
+	gwName = gwList[0].Name
 
 	for _, gw := range gwList {
 		if gwName != gw.Name {

@@ -33,7 +33,7 @@ func NewCmdLinkCreate(newClient cobraFunc, flag string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:    "create <input-token-file>",
-		Short:  "Links this skupper installation to that which issued the specified token",
+		Short:  "Links this skupper site to the site that issued the token",
 		Args:   cobra.ExactArgs(1),
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -13,21 +13,12 @@ import (
 // UnforwardTester runs `skupper gateway unforward` and asserts that
 // the a local port is no longer forwarding requests to the cluster
 type UnforwardTester struct {
-	Address  string
-	Protocol string
-	Name     string
+	Address string
 }
 
 func (f *UnforwardTester) Command(cluster *base.ClusterContext) []string {
 	args := cli.SkupperCommonOptions(cluster)
 	args = append(args, "gateway", "unforward", f.Address)
-
-	if f.Protocol != "" {
-		args = append(args, "--protocol", f.Protocol)
-	}
-	if f.Name != "" {
-		args = append(args, "--name", f.Name)
-	}
 
 	return args
 }
@@ -51,14 +42,13 @@ func (f *UnforwardTester) Run(cluster *base.ClusterContext) (stdout string, stde
 	ctx := context.Background()
 	gwList, err := cluster.VanClient.GatewayList(ctx)
 
-	gwName := f.Name
-	if gwName == "" {
-		// If no gateway name provided and there are many gateways, no further validation can be done
-		if len(gwList) > 1 {
-			return
-		}
-		gwName = gwList[0].Name
+	var gwName string
+
+	// If here are many gateways, no further validation can be done
+	if len(gwList) > 1 {
+		return
 	}
+	gwName = gwList[0].Name
 
 	for _, gw := range gwList {
 		if gwName != gw.Name {
