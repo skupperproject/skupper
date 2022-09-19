@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-
+    "time"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/spf13/cobra"
 )
@@ -16,6 +16,7 @@ func NewCmdNetwork() *cobra.Command {
 }
 
 var selectedSite string
+var networkStatusTimeout time.Duration
 
 func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -27,6 +28,7 @@ func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&selectedSite, "site", "s", "all", "Site identifier")
+	cmd.Flags().DurationVar(&networkStatusTimeout, "timeout", time.Second*120, "Configurable timeout for retrieving remote information")
 
 	return cmd
 

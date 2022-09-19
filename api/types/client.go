@@ -333,6 +333,6 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
-	NetworkStatus() ([]*SiteInfo, error)
+	NetworkStatus(ctx context.Context) ([]*SiteInfo, error)
 	GetRemoteLinks(ctx context.Context, siteConfig *SiteConfig) ([]*RemoteLinkInfo, error)
 }

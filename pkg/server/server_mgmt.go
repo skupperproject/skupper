@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
@@ -12,10 +13,19 @@ import (
 	"time"
 )
 
-func GetSiteInfo(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.SiteInfo, error) {
+func GetSiteInfo(ctx context.Context, namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.SiteInfo, error) {
+
+	var timeout time.Duration
+	deadline, ok := ctx.Deadline()
+
+	if ok {
+		timeout = time.Until(deadline)
+	} else {
+		timeout = 120 * time.Second
+	}
 
 	command := getQueryServiceController("sites")
-	execResult, err := utils.TryUntil(3*time.Second, func() utils.Result {
+	execResult, err := utils.TryUntil(timeout, func() utils.Result {
 		res, err := serviceControllerExec(command, namespace, clientset, config)
 		return utils.Result{
 			Value: res,
