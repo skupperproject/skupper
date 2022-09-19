@@ -1645,10 +1645,10 @@ func TestLinkStatus(t *testing.T) {
 	kubeContext = ""
 	kubeConfigPath = ""
 
-	if *clusterRun {
-		cli = NewClient(namespace, kubeContext, kubeConfigPath)
-	} else {
-		cli = newMockClient(namespace)
+	if !*clusterRun {
+		lightRed := "\033[1;31m"
+		resetColor := "\033[0m"
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
 	}
 
 	if c, ok := cli.(*client.VanClient); ok {
