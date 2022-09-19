@@ -278,6 +278,12 @@ type TargetInfo struct {
 	SiteId string `json:"site_id,omitempty"`
 }
 
+type RemoteLinkInfo struct {
+	SiteName  string `json:"site_name,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	SiteId    string `json:"site_id,omitempty"`
+}
+
 type VanClientInterface interface {
 	RouterCreate(ctx context.Context, options SiteConfig) error
 	RouterInspect(ctx context.Context) (*RouterInspectResponse, error)
@@ -328,4 +334,5 @@ type VanClientInterface interface {
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
 	NetworkStatus() ([]*SiteInfo, error)
+	GetRemoteLinks(ctx context.Context, siteConfig *SiteConfig) ([]*RemoteLinkInfo, error)
 }

@@ -50,7 +50,7 @@ func PrintKeyValueMap(entries map[string]string) error {
 	}
 	sort.Strings(keys)
 
-	_, err := fmt.Fprint(writer, "\n ---\n")
+	_, err := fmt.Fprint(writer, "")
 	if err != nil {
 		return err
 	}
@@ -60,10 +60,6 @@ func PrintKeyValueMap(entries map[string]string) error {
 		if err != nil {
 			return err
 		}
-	}
-	_, err = fmt.Fprint(writer, "\n ---\n")
-	if err != nil {
-		return err
 	}
 
 	return nil

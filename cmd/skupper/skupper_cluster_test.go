@@ -55,6 +55,19 @@ func checkStringContains(t *testing.T, got, expected string) {
 	}
 }
 
+func checkSliceStringContains(t *testing.T, lines []string, expected string) {
+
+	found := false
+	for _, line := range lines {
+		if strings.Contains(line, expected) {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Expected to contain: \n %v\nGot:\n %v\n", expected, lines)
+	}
+}
+
 func checkStringOmits(t *testing.T, got, expected string) {
 	if strings.Contains(got, expected) {
 		t.Errorf("Expected to not contain: \n %v\nGot: %v", expected, got)
@@ -143,7 +156,8 @@ func testCommand(t *testing.T, cmd *cobra.Command, testName string, expectedErro
 		assert.Check(t, err, testName)
 	}
 	if expectedCapture != "" {
-		checkStringContains(t, lines[0], expectedCapture)
+		checkSliceStringContains(t, lines, expectedCapture)
+
 	} else if outputRegExp == "" {
 		assert.Equal(t, string(stdOutput), "")
 	}
@@ -1589,6 +1603,74 @@ func TestNetworkStatusWithCluster(t *testing.T) {
 			continue
 		}
 		cmd := NewCmdNetworkStatus(testClient.Network())
+		silenceCobra(cmd)
+		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
+	}
+}
+
+func TestLinkStatus(t *testing.T) {
+	testcases := []testCase{
+		{
+			doc:             "Should not display any detail if the link does not exist",
+			args:            []string{"link1", "--verbose"},
+			expectedCapture: "No such link",
+			expectedOutput:  "",
+			expectedError:   "",
+			realCluster:     true,
+			createConn:      false,
+		},
+		{
+			doc:             "Should display local links",
+			args:            []string{},
+			expectedCapture: "Links initiated from this site",
+			expectedOutput:  "",
+			expectedError:   "",
+			outputRegExp:    "",
+			realCluster:     true,
+			createConn:      true,
+		},
+		{
+			doc:             "Should display remote links",
+			args:            []string{},
+			expectedCapture: "Currently active links from other sites",
+			expectedOutput:  "",
+			expectedError:   "",
+			outputRegExp:    "",
+			realCluster:     true,
+			createConn:      true,
+		},
+	}
+
+	namespace = "cmd-link-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	kubeContext = ""
+	kubeConfigPath = ""
+
+	if *clusterRun {
+		cli = NewClient(namespace, kubeContext, kubeConfigPath)
+	} else {
+		cli = newMockClient(namespace)
+	}
+
+	if c, ok := cli.(*client.VanClient); ok {
+		_, err := kube.NewNamespace(namespace, c.KubeClient)
+		assert.Check(t, err)
+		defer kube.DeleteNamespace(namespace, c.KubeClient)
+	}
+	skupperInit(t, []string{}...)
+
+	for _, tc := range testcases {
+		if tc.realCluster && !*clusterRun {
+			continue
+		}
+
+		// create a connection to list
+		if tc.createConn {
+			connectCmd := NewCmdLinkCreate(testClient, "")
+			silenceCobra(connectCmd)
+			testCommand(t, connectCmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
+		}
+
+		cmd := NewCmdLinkStatus(testClient)
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}

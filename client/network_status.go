@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/server"
@@ -160,4 +161,38 @@ func getSiteNameMap(sites *[]types.SiteInfo) map[string]string {
 	}
 
 	return siteNameMap
+}
+
+func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*types.RemoteLinkInfo, error) {
+
+	//Checking if the router has been deployed
+	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("skupper is not installed: %s", err)
+	}
+
+	currentSiteId := siteConfig.Reference.UID
+
+	sites, err := server.GetSiteInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var remoteLinks []*types.RemoteLinkInfo
+
+	for _, site := range *sites {
+
+		if site.SiteId == currentSiteId {
+			continue
+		}
+
+		for _, link := range site.Links {
+			if link == currentSiteId {
+				newRemoteLink := types.RemoteLinkInfo{SiteName: site.Name, Namespace: site.Namespace, SiteId: site.SiteId}
+				remoteLinks = append(remoteLinks, &newRemoteLink)
+			}
+		}
+	}
+	return remoteLinks, nil
 }
