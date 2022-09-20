@@ -15,6 +15,10 @@
 /test/**/bin/
 /test/**/tmp
 
+# Generated code
+/swagger
+/client/generated/libpod/
+
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 

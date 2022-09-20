@@ -18,6 +18,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+FORCE="${FORCE:-false}"
+[[ -d pkg/generated ]] && ! ${FORCE} && exit 0
+
 SCRIPT_ROOT=$(cd `dirname "${BASH_SOURCE[0]}"`/.. && pwd)
 [[ $# -eq 1 ]] && VERIFY_ONLY=true || VERIFY_ONLY=false
 TMP_DEST="${1:-${SCRIPT_ROOT}/_tmp_dest}"
