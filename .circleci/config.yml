@@ -392,6 +392,11 @@ jobs:
           platform: mac-amd64
 
       - compile_go_program:
+          goos: darwin
+          goarch: arm64
+          platform: mac-arm64
+
+      - compile_go_program:
           goos: linux
           goarch: arm
           platform: linux-arm32
