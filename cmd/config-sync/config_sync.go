@@ -98,9 +98,7 @@ const (
 )
 
 func (c *ConfigSync) processNextEvent() bool {
-	log.Println("getting sync event")
 	obj, shutdown := c.events.Get()
-	log.Println("sync triggered")
 
 	if shutdown {
 		return false
@@ -153,7 +151,6 @@ func (c *ConfigSync) processNextEvent() bool {
 				}
 			}
 		}
-		log.Println("sync succeeded")
 		c.events.Forget(obj)
 		return nil
 	}(obj)
