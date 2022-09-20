@@ -40,7 +40,6 @@ func TestGateway(t *testing.T) {
 	t.Run("local-gateway-service", testLocalGatewayService)
 	t.Run("local-gateway-docker", testLocalGatewayDocker)
 	t.Run("local-gateway-podman", testLocalGatewayPodman)
-
 }
 
 //
