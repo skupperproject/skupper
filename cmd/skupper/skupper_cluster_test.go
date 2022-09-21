@@ -1651,36 +1651,40 @@ func TestLinkStatus(t *testing.T) {
 		},
 	}
 
-	namespace = "cmd-link-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	kubeContext = ""
-	kubeConfigPath = ""
-
-	if !*clusterRun {
-		lightRed := "\033[1;31m"
-		resetColor := "\033[0m"
-		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
+	namespace := "cmd-link-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	testClient = &SkupperTestClient{
+		SkupperKube: &SkupperKube{
+			Namespace: namespace,
+		},
 	}
-
-	cli = NewClient(namespace, kubeContext, kubeConfigPath)
+	testClient.NewClient(nil, nil)
+	cli := testClient.Cli
 
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
+
 	}
+
 	skupperInit(t, []string{}...)
 
 	for _, tc := range testcases {
+		if tc.realCluster && !*clusterRun {
+			continue
+		}
 
 		// create a connection to list
 		if tc.createConn {
-			connectCmd := NewCmdLinkCreate(testClient, "")
-			silenceCobra(connectCmd)
-			testCommand(t, connectCmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
+
+			cmd := NewCmdLinkCreate(testClient.Link(), "")
+			silenceCobra(cmd)
+			testCommand(t, cmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
 		}
 
-		cmd := NewCmdLinkStatus(testClient)
+		cmd := NewCmdLinkStatus(testClient.Link())
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
+
 }

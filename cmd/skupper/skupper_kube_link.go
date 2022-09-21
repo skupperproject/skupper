@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -112,6 +115,21 @@ func (s *SkupperKubeLink) ListFlags(cmd *cobra.Command) {}
 func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 
+	if remoteInfoTimeout.Seconds() <= 0 {
+		return fmt.Errorf(`invalid timeout value`)
+	}
+
+	if verbose && (len(args) == 0 || args[0] == "all") {
+		fmt.Println("In order to provide detailed information about the link, please specify the name")
+		return nil
+	}
+
+	siteConfig, err := s.kube.Cli.SiteConfigInspect(context.Background(), nil)
+
+	if err != nil {
+		fmt.Println("Site configuration is not currently available")
+	}
+
 	if len(args) == 1 && args[0] != "all" {
 		for i := 0; ; i++ {
 			if i > 0 {
@@ -125,6 +143,15 @@ func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 			} else if err != nil {
 				fmt.Println(err)
 				break
+			} else if verboseLinkStatus {
+				detailMap := createLinkDetailMap(link, siteConfig)
+				err = client.PrintKeyValueMap(detailMap)
+				if err != nil {
+					fmt.Println(err)
+				}
+				fmt.Println()
+				break
+
 			} else if link.Connected {
 				fmt.Printf("Link %s is active", link.Name)
 				fmt.Println()
@@ -149,6 +176,9 @@ func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 				fmt.Println(err)
 				break
 			} else if allConnected(links) || i == waitFor {
+				fmt.Println("\nLinks initiated from this site:")
+				fmt.Println("-------------------------------")
+
 				if len(links) == 0 {
 					fmt.Println("There are no links configured or active")
 				}
@@ -165,6 +195,33 @@ func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 						fmt.Println()
 					}
 				}
+
+				ctx, cancel := context.WithTimeout(context.Background(), remoteInfoTimeout)
+				defer cancel()
+
+				fmt.Println("\nCurrently active links from other sites:")
+				fmt.Println("----------------------------------------")
+
+				var remoteLinks []*types.RemoteLinkInfo
+				err := utils.RetryErrorWithContext(ctx, time.Second, func() error {
+					remoteLinks, err = s.kube.Cli.GetRemoteLinks(ctx, siteConfig)
+					if err != nil {
+						return err
+					}
+					return nil
+				})
+
+				if err != nil {
+					fmt.Println(err)
+					break
+				} else if len(remoteLinks) > 0 {
+					for _, remoteLink := range remoteLinks {
+						fmt.Printf("A link from the namespace %s on site %s(%s) is active ", remoteLink.Namespace, remoteLink.SiteName, remoteLink.SiteId)
+						fmt.Println()
+					}
+				} else {
+					fmt.Println("There are no active links")
+				}
 				break
 			}
 		}
@@ -173,3 +230,26 @@ func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperKubeLink) StatusFlags(cmd *cobra.Command) {}
+
+func createLinkDetailMap(link *types.LinkStatus, siteConfig *types.SiteConfig) map[string]string {
+
+	status := "Active"
+
+	if !link.Connected {
+		status = "Not active"
+
+		if len(link.Description) > 0 {
+			status = fmt.Sprintf("%s (%s)", status, link.Description)
+		}
+	}
+
+	return map[string]string{
+		"Name:":      link.Name,
+		"Status:":    status,
+		"Namespace:": siteConfig.Spec.SkupperNamespace,
+		"Site:":      siteConfig.Spec.SkupperName + "-" + siteConfig.Reference.UID,
+		"URL:":       link.Url,
+		"Cost:":      strconv.Itoa(link.Cost),
+		"Created:":   link.Created,
+	}
+}
