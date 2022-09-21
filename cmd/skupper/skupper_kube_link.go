@@ -120,7 +120,7 @@ func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	if verbose && (len(args) == 0 || args[0] == "all") {
-		fmt.Println("In order to provide detailed information about the link, please specify the name")
+		fmt.Println("In order to provide detailed information about the link, specify the link name")
 		return nil
 	}
 
@@ -176,7 +176,7 @@ func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 				fmt.Println(err)
 				break
 			} else if allConnected(links) || i == waitFor {
-				fmt.Println("\nLinks initiated from this site:")
+				fmt.Println("\nLinks created from this site:")
 				fmt.Println("-------------------------------")
 
 				if len(links) == 0 {
@@ -248,7 +248,6 @@ func createLinkDetailMap(link *types.LinkStatus, siteConfig *types.SiteConfig) m
 		"Status:":    status,
 		"Namespace:": siteConfig.Spec.SkupperNamespace,
 		"Site:":      siteConfig.Spec.SkupperName + "-" + siteConfig.Reference.UID,
-		"URL:":       link.Url,
 		"Cost:":      strconv.Itoa(link.Cost),
 		"Created:":   link.Created,
 	}
