@@ -28,10 +28,17 @@ func (s *SkupperKubeNetwork) Platform() types.Platform {
 func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 
+	if networkStatusTimeout.Seconds() <= 0 {
+		return fmt.Errorf(`invalid timeout value`)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), networkStatusTimeout)
+	defer cancel()
+
 	var sites []*types.SiteInfo
 	var errStatus error
-	err := utils.RetryError(time.Second, 3, func() error {
-		sites, errStatus = s.kube.Cli.NetworkStatus()
+	err := utils.RetryErrorWithContext(ctx, time.Second, func() error {
+		sites, errStatus = s.kube.Cli.NetworkStatus(ctx)
 
 		if errStatus != nil {
 			return errStatus

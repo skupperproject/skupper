@@ -1,8 +1,8 @@
 package main
 
 import (
-	"time"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -54,7 +54,7 @@ func NewCmdLinkDelete(skupperClient SkupperLinkClient) *cobra.Command {
 
 var waitFor int
 var remoteInfoTimeout time.Duration
-var verbose bool
+var verboseLinkStatus bool
 
 func allConnected(links []types.LinkStatus) bool {
 	for _, l := range links {
@@ -75,31 +75,8 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 	}
 	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become active")
 	cmd.Flags().DurationVar(&remoteInfoTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for retrieving information about remote links")
-	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed information about a link")
+	cmd.Flags().BoolVar(&verboseLinkStatus, "verbose", false, "Show detailed information about a link")
 
 	return cmd
 
-}
-
-func createLinkDetailMap(link *types.LinkStatus, siteConfig *types.SiteConfig) map[string]string {
-
-	status := "Active"
-
-	if !link.Connected {
-		status = "Not active"
-
-		if len(link.Description) > 0 {
-			status = fmt.Sprintf("%s (%s)", status, link.Description)
-		}
-	}
-
-	return map[string]string{
-		"Name:":      link.Name,
-		"Status:":    status,
-		"Namespace:": siteConfig.Spec.SkupperNamespace,
-		"Site:":      siteConfig.Spec.SkupperName + "-" + siteConfig.Reference.UID,
-		"URL:":       link.Url,
-		"Cost:":      strconv.Itoa(link.Cost),
-		"Created:":   link.Created,
-	}
 }
