@@ -1625,7 +1625,7 @@ func TestLinkStatus(t *testing.T) {
 			expectedCapture: "",
 			expectedOutput:  "",
 			expectedError:   "",
-			outputRegExp:    "^\\n\\sCost:.*\\n\\sCreated:.*\\n\\sName:.*\\n\\sNamespace:.*\\n\\sSite:.*\\n\\sStatus:.*\\n\\sURL:.*\\n",
+			outputRegExp:    "^\\n\\sCost:.*\\n\\sCreated:.*\\n\\sName:.*\\n\\sNamespace:.*\\n\\sSite:.*\\n\\sStatus:.*\\n",
 			realCluster:     true,
 			createConn:      true,
 		},
