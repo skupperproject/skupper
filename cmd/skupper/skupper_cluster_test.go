@@ -1651,6 +1651,12 @@ func TestLinkStatus(t *testing.T) {
 		},
 	}
 
+	if !*clusterRun {
+		lightRed := "\033[1;31m"
+		resetColor := "\033[0m"
+		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
+	}
+
 	namespace := "cmd-link-cluster-test-" + strings.ToLower(utils.RandomId(4))
 	testClient = &SkupperTestClient{
 		SkupperKube: &SkupperKube{
