@@ -711,7 +711,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test2",
-			args:            []string{"all", "--timeout", "1s"},
+			args:            []string{"all", "--timeout", "1s"}, //added timeout to not wait for remote links which are not relevant for this testq
 			expectedCapture: "There are no links configured or active",
 			expectedOutput:  "",
 			expectedError:   "",
