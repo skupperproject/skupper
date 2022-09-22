@@ -9,6 +9,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -76,7 +77,7 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if routerLogging != "" {
-		logConfig, err := client.ParseRouterLogConfig(routerLogging)
+		logConfig, err := qdr.ParseRouterLogConfig(routerLogging)
 		if err != nil {
 			return fmt.Errorf("Bad value for --router-logging: %s", err)
 		}

@@ -406,7 +406,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 
 		updateRouter = true
 	}
-	desiredRouterImage := GetRouterImageName()
+	desiredRouterImage := types.GetRouterImageName()
 	if router.Spec.Template.Spec.Containers[0].Image != desiredRouterImage {
 		router.Spec.Template.Spec.Containers[0].Image = desiredRouterImage
 		updateRouter = true
@@ -580,7 +580,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 
-	desiredControllerImage := GetServiceControllerImageName()
+	desiredControllerImage := types.GetServiceControllerImageName()
 	if controller.Spec.Template.Spec.Containers[0].Image != desiredControllerImage {
 		controller.Spec.Template.Spec.Containers[0].Image = desiredControllerImage
 		updateController = true
@@ -934,7 +934,7 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 	if err != nil {
 		return false, err
 	}
-	updated := configureRouterLogging(routerConfig, siteConfig.Spec.Router.Logging)
+	updated := qdr.ConfigureRouterLogging(routerConfig, siteConfig.Spec.Router.Logging)
 	if updated {
 		routerConfig.WriteToConfigMap(configmap)
 		_, err = cli.KubeClient.CoreV1().ConfigMaps(settings.ObjectMeta.Namespace).Update(configmap)
@@ -1250,7 +1250,7 @@ func createFlowCollectorSidecar(ctx context.Context, cli *VanClient, controller 
 		}
 	}
 	flowContainer := controller.Spec.Template.Spec.Containers[0]
-	flowContainer.Image = GetFlowCollectorImageName()
+	flowContainer.Image = types.GetFlowCollectorImageName()
 	flowContainer.Name = types.FlowCollectorContainerName
 	controller.Spec.Template.Spec.Containers = append(controller.Spec.Template.Spec.Containers, flowContainer)
 	return nil

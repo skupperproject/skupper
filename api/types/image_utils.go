@@ -1,10 +1,9 @@
-package client
+package types
 
 import (
 	"os"
 	"strings"
 
-	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -43,14 +42,14 @@ func GetRouterImagePullPolicy() string {
 	return getPullPolicy(RouterPullPolicyEnvKey)
 }
 
-func GetRouterImageDetails() types.ImageDetails {
-	return types.ImageDetails{
+func GetRouterImageDetails() ImageDetails {
+	return ImageDetails{
 		Name:       GetRouterImageName(),
 		PullPolicy: GetRouterImagePullPolicy(),
 	}
 }
 
-func addRouterImageOverrideToEnv(env []corev1.EnvVar) []corev1.EnvVar {
+func AddRouterImageOverrideToEnv(env []corev1.EnvVar) []corev1.EnvVar {
 	result := env
 	image := os.Getenv(RouterImageEnvKey)
 	if image != "" {
@@ -77,15 +76,15 @@ func GetServiceControllerImagePullPolicy() string {
 	return getPullPolicy(ServiceControllerPullPolicyEnvKey)
 }
 
-func GetServiceControllerImageDetails() types.ImageDetails {
-	return types.ImageDetails{
+func GetServiceControllerImageDetails() ImageDetails {
+	return ImageDetails{
 		Name:       GetServiceControllerImageName(),
 		PullPolicy: GetServiceControllerImagePullPolicy(),
 	}
 }
 
-func GetConfigSyncImageDetails() types.ImageDetails {
-	return types.ImageDetails{
+func GetConfigSyncImageDetails() ImageDetails {
+	return ImageDetails{
 		Name:       GetConfigSyncImageName(),
 		PullPolicy: GetConfigSyncImagePullPolicy(),
 	}
@@ -119,8 +118,8 @@ func GetFlowCollectorImagePullPolicy() string {
 	return getPullPolicy(FlowCollectorPullPolicyEnvKey)
 }
 
-func GetFlowCollectorImageDetails() types.ImageDetails {
-	return types.ImageDetails{
+func GetFlowCollectorImageDetails() ImageDetails {
+	return ImageDetails{
 		Name:       GetFlowCollectorImageName(),
 		PullPolicy: GetFlowCollectorImagePullPolicy(),
 	}

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -169,7 +170,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		siteConfig.Data[SiteConfigRunAsGroupKey] = strconv.FormatInt(spec.RunAsGroup, 10)
 	}
 	if spec.Router.Logging != nil {
-		siteConfig.Data[SiteConfigRouterLoggingKey] = RouterLogConfigToString(spec.Router.Logging)
+		siteConfig.Data[SiteConfigRouterLoggingKey] = qdr.RouterLogConfigToString(spec.Router.Logging)
 	}
 	if spec.Router.DebugMode != "" {
 		siteConfig.Data[SiteConfigRouterDebugModeKey] = spec.Router.DebugMode

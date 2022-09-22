@@ -53,49 +53,10 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 
 func ConfigSyncContainer() *corev1.Container {
 	return &corev1.Container{
-		Image:           GetConfigSyncImageName(),
-		ImagePullPolicy: kube.GetPullPolicy(GetConfigSyncImagePullPolicy()),
+		Image:           types.GetConfigSyncImageName(),
+		ImagePullPolicy: kube.GetPullPolicy(types.GetConfigSyncImagePullPolicy()),
 		Name:            "config-sync",
 	}
-}
-
-func disableMutualTLS(l *qdr.Listener) {
-	l.SaslMechanisms = ""
-	l.AuthenticatePeer = false
-}
-
-func InteriorListener(options types.SiteConfigSpec) qdr.Listener {
-	l := qdr.Listener{
-		Name:             "interior-listener",
-		Role:             qdr.RoleInterRouter,
-		Port:             types.InterRouterListenerPort,
-		SslProfile:       types.InterRouterProfile, // The skupper-internal profile needs to be filtered by the config-sync sidecar, in order to avoid deleting automesh connectors
-		SaslMechanisms:   "EXTERNAL",
-		AuthenticatePeer: true,
-		MaxFrameSize:     options.Router.MaxFrameSize,
-		MaxSessionFrames: options.Router.MaxSessionFrames,
-	}
-	if options.Router.DisableMutualTLS {
-		disableMutualTLS(&l)
-	}
-	return l
-}
-
-func EdgeListener(options types.SiteConfigSpec) qdr.Listener {
-	l := qdr.Listener{
-		Name:             "edge-listener",
-		Role:             qdr.RoleEdge,
-		Port:             types.EdgeListenerPort,
-		SslProfile:       types.InterRouterProfile,
-		SaslMechanisms:   "EXTERNAL",
-		AuthenticatePeer: true,
-		MaxFrameSize:     options.Router.MaxFrameSize,
-		MaxSessionFrames: options.Router.MaxSessionFrames,
-	}
-	if options.Router.DisableMutualTLS {
-		disableMutualTLS(&l)
-	}
-	return l
 }
 
 func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {
@@ -124,7 +85,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		oauthProxy
 	)
 
-	van.Controller.Image = GetServiceControllerImageDetails()
+	van.Controller.Image = types.GetServiceControllerImageDetails()
 	van.Controller.Replicas = 1
 	van.Controller.LabelSelector = map[string]string{
 		types.ComponentAnnotation: types.ControllerComponentName,
@@ -149,7 +110,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_ROUTER_MODE", Value: options.RouterMode})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_NAME", Value: transport.ObjectMeta.Name})
 	envVars = append(envVars, corev1.EnvVar{Name: "OWNER_UID", Value: string(transport.ObjectMeta.UID)})
-	envVars = addRouterImageOverrideToEnv(envVars)
+	envVars = types.AddRouterImageOverrideToEnv(envVars)
 	if !options.EnableServiceSync {
 		envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_DISABLE_SERVICE_SYNC", Value: "true"})
 	}
@@ -176,7 +137,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		if err != nil {
 			fmt.Println("Error configuring flow collector sidecar:", err)
 		}
-		van.Collector.Image = GetFlowCollectorImageDetails()
+		van.Collector.Image = types.GetFlowCollectorImageDetails()
 		van.Collector.EnvVar = envVars
 		sidecars = append(sidecars, kube.ContainerForFlowCollector(van.Collector))
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
@@ -583,7 +544,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 
 	van.AuthMode = types.ConsoleAuthMode(options.AuthMode)
 
-	van.Transport.Image = GetRouterImageDetails()
+	van.Transport.Image = types.GetRouterImageDetails()
 	van.Transport.Replicas = 1
 	if options.Routers != 0 {
 		van.Transport.Replicas = int32(options.Routers)
@@ -612,53 +573,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 
 	isEdge := options.RouterMode == string(types.TransportModeEdge)
-	routerConfig := qdr.InitialConfig(van.Name+"-${HOSTNAME}", siteId, version.Version, isEdge, 3)
-	if options.Router.Logging != nil {
-		configureRouterLogging(&routerConfig, options.Router.Logging)
-	}
-	routerConfig.AddAddress(qdr.Address{
-		Prefix:       "mc",
-		Distribution: "multicast",
-	})
-	routerConfig.AddListener(qdr.Listener{
-		Port:        9090,
-		Role:        "normal",
-		Http:        true,
-		HttpRootDir: "disabled",
-		Websockets:  false,
-		Healthz:     true,
-		Metrics:     true,
-	})
-	routerConfig.AddListener(qdr.Listener{
-		Name: "amqp",
-		Host: "localhost",
-		Port: types.AmqpDefaultPort,
-	})
-	routerConfig.AddSslProfile(qdr.SslProfile{
-		Name: "skupper-amqps",
-	})
-	routerConfig.AddListener(qdr.Listener{
-		Name:             "amqps",
-		Port:             types.AmqpsDefaultPort,
-		SslProfile:       "skupper-amqps",
-		SaslMechanisms:   "EXTERNAL",
-		AuthenticatePeer: true,
-	})
-
-	routerConfig.AddSimpleSslProfileWithPath("/etc/skupper-router-certs",
-		qdr.SslProfile{
-			Name: types.ServiceClientSecret,
-		})
-
-	if !isEdge {
-		routerConfig.AddSslProfile(qdr.SslProfile{
-			Name: types.InterRouterProfile,
-		})
-		listeners := []qdr.Listener{InteriorListener(options), EdgeListener(options)}
-		for _, listener := range listeners {
-			routerConfig.AddListener(listener)
-		}
-	}
+	routerConfig := qdr.InitialConfigSkupperRouter(van.Name+"-${HOSTNAME}", siteId, version.Version, isEdge, 3, options.Router)
 	van.RouterConfig, _ = qdr.MarshalRouterConfig(routerConfig)
 
 	envVars := []corev1.EnvVar{}
@@ -718,7 +633,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		fmt.Println("Error configuring config-sync sidecar:", err)
 	}
 
-	van.ConfigSync.Image = GetConfigSyncImageDetails()
+	van.ConfigSync.Image = types.GetConfigSyncImageDetails()
 
 	sidecars := []*corev1.Container{
 		kube.ContainerForConfigSync(van.ConfigSync),

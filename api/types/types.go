@@ -164,6 +164,7 @@ const (
 	OriginalTargetPortQualifier string = InternalQualifier + "/originalTargetPort"
 	OriginalAssignedQualifier   string = InternalQualifier + "/originalAssignedPort"
 	InternalTypeQualifier       string = InternalQualifier + "/type"
+	InternalMetadataQualifier   string = InternalQualifier + "/metadata"
 	SkupperTypeQualifier        string = BaseQualifier + "/type"
 	TypeProxyQualifier          string = InternalTypeQualifier + "=proxy"
 	SkupperDisabledQualifier    string = InternalQualifier + "/disabled"
@@ -459,6 +460,16 @@ type Credential struct {
 
 type CertAuthority struct {
 	Name string
+}
+
+type CredentialHandler interface {
+	NewCertAuthority(ca CertAuthority) (*corev1.Secret, error)
+	DeleteCertAuthority(id string) error
+	ListCertAuthorities() ([]CertAuthority, error)
+	NewCredential(cred Credential) (*corev1.Secret, error)
+	DeleteCredential(id string) error
+	ListCredentials() ([]Credential, error)
+	GetSecret(name string) (*corev1.Secret, error)
 }
 
 type User struct {

@@ -195,9 +195,9 @@ func (c *PolicyController) validateIncomingLinkStateChanged() {
 	}
 	source := "validateIncomingLinkStateChanged"
 	allowed := res.Allowed()
-	listeners := map[string]func(options types.SiteConfigSpec) qdr.Listener{
-		"interior-listener": client.InteriorListener,
-		"edge-listener":     client.EdgeListener,
+	listeners := map[string]func(options types.RouterOptions) qdr.Listener{
+		"interior-listener": qdr.InteriorListener,
+		"edge-listener":     qdr.EdgeListener,
 	}
 
 	// Retrieving listener info
@@ -237,7 +237,7 @@ func (c *PolicyController) validateIncomingLinkStateChanged() {
 
 		// Changed to allowed
 		if allowed {
-			current.AddListener(listenerFn(siteConfig.Spec))
+			current.AddListener(listenerFn(siteConfig.Spec.Router))
 		} else {
 			delete(current.Listeners, listenerName)
 		}
