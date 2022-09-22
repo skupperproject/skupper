@@ -5,16 +5,15 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
-
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/spf13/cobra"
 	"gotest.tools/assert"
@@ -638,7 +637,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "list-connectors-test2",
-			args:            []string{},
+			args:            []string{"--timeout", "1s"}, //added timeout to not wait for remote links which are not relevant for this test
 			expectedCapture: "There are no links configured or active",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -647,10 +646,20 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "list-connectors-test3",
-			args:            []string{},
+			args:            []string{"--timeout", "1s"}, //added timeout to not wait for remote links which are not relevant for this test
 			expectedCapture: "Link",
 			expectedOutput:  "",
 			expectedError:   "",
+			realCluster:     true,
+			createConn:      true,
+		},
+		{
+			doc:             "Should display link details of an existing link",
+			args:            []string{"link1", "--verbose"},
+			expectedCapture: "",
+			expectedOutput:  "",
+			expectedError:   "",
+			outputRegExp:    "^\\n\\sCost:.*\\n\\sCreated:.*\\n\\sName:.*\\n\\sNamespace:.*\\n\\sSite:.*\\n\\sStatus:.*\\n",
 			realCluster:     true,
 			createConn:      true,
 		},
@@ -702,7 +711,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test2",
-			args:            []string{"all"},
+			args:            []string{"all", "--timeout", "1s"},
 			expectedCapture: "There are no links configured or active",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -727,7 +736,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test5",
-			args:            []string{"all"},
+			args:            []string{"all", "--timeout", "1s"},
 			expectedCapture: "Link link1 not active",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -1606,91 +1615,4 @@ func TestNetworkStatusWithCluster(t *testing.T) {
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
-}
-
-func TestLinkStatus(t *testing.T) {
-	testcases := []testCase{
-		{
-			doc:             "Should not display any detail if the link does not exist",
-			args:            []string{"link1", "--verbose"},
-			expectedCapture: "No such link",
-			expectedOutput:  "",
-			expectedError:   "",
-			realCluster:     true,
-			createConn:      false,
-		},
-		{
-			doc:             "Should display link details of an existing link",
-			args:            []string{"link1", "--verbose"},
-			expectedCapture: "",
-			expectedOutput:  "",
-			expectedError:   "",
-			outputRegExp:    "^\\n\\sCost:.*\\n\\sCreated:.*\\n\\sName:.*\\n\\sNamespace:.*\\n\\sSite:.*\\n\\sStatus:.*\\n",
-			realCluster:     true,
-			createConn:      true,
-		},
-		{
-			doc:             "Should display local links",
-			args:            []string{},
-			expectedCapture: "Links initiated from this site",
-			expectedOutput:  "",
-			expectedError:   "",
-			outputRegExp:    "",
-			realCluster:     true,
-			createConn:      true,
-		},
-		{
-			doc:             "Should display remote links",
-			args:            []string{},
-			expectedCapture: "Currently active links from other sites",
-			expectedOutput:  "",
-			expectedError:   "",
-			outputRegExp:    "",
-			realCluster:     true,
-			createConn:      true,
-		},
-	}
-
-	if !*clusterRun {
-		lightRed := "\033[1;31m"
-		resetColor := "\033[0m"
-		t.Skip(fmt.Sprintf("%sSkipping: This test only works in real clusters.%s", string(lightRed), string(resetColor)))
-	}
-
-	namespace := "cmd-link-cluster-test-" + strings.ToLower(utils.RandomId(4))
-	testClient = &SkupperTestClient{
-		SkupperKube: &SkupperKube{
-			Namespace: namespace,
-		},
-	}
-	testClient.NewClient(nil, nil)
-	cli := testClient.Cli
-
-	if c, ok := cli.(*client.VanClient); ok {
-		_, err := kube.NewNamespace(namespace, c.KubeClient)
-		assert.Check(t, err)
-		defer kube.DeleteNamespace(namespace, c.KubeClient)
-
-	}
-
-	skupperInit(t, []string{}...)
-
-	for _, tc := range testcases {
-		if tc.realCluster && !*clusterRun {
-			continue
-		}
-
-		// create a connection to list
-		if tc.createConn {
-
-			cmd := NewCmdLinkCreate(testClient.Link(), "")
-			silenceCobra(cmd)
-			testCommand(t, cmd, tc.doc, "", "Site configured to link to", "", "", []string{"/tmp/foo.yaml"}...)
-		}
-
-		cmd := NewCmdLinkStatus(testClient.Link())
-		silenceCobra(cmd)
-		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
-	}
-
 }
