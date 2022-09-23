@@ -236,13 +236,8 @@ func (s *SitePodmanHandler) canCreate(site *SitePodman) error {
 
 	// Validate podman version
 	cli := s.cli
-	version, err := cli.Version()
-	if err != nil {
-		return fmt.Errorf("error validating podman version - %v", err)
-	}
-	apiVersion := utils.ParseVersion(version.Server.APIVersion)
-	if apiVersion.Major < 4 {
-		return fmt.Errorf("podman version must be 4.0.0 or greater, found: %s", version.Server.APIVersion)
+	if err := cli.Validate(); err != nil {
+		return err
 	}
 
 	// TODO improve on container and network already exists
@@ -324,7 +319,7 @@ func (s *SitePodmanHandler) Get() (domain.Site, error) {
 	configHandler := NewRouterConfigHandlerPodman(s.cli)
 	config, err := configHandler.GetRouterConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Skupper is not enabled for user '%s'", Namespace)
 	}
 
 	// Setting basic site info
