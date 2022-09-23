@@ -11,10 +11,11 @@ import (
 var notImplementedErr = fmt.Errorf("Not implemented")
 
 var SkupperPodmanCommands = []string{
-	"switch",
+	"switch", "init", "delete",
 }
 
 type SkupperPodman struct {
+	site *SkupperPodmanSite
 }
 
 func (s *SkupperPodman) Site() SkupperSiteClient {

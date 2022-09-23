@@ -10,6 +10,7 @@ import (
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/skupperproject/skupper/pkg/version"
 	"github.com/spf13/cobra/doc"
@@ -391,20 +392,45 @@ func NewCmdInit(skupperCli SkupperSiteClient) *cobra.Command {
 installation that can then be connected to other skupper installations`,
 		Args:   cobra.NoArgs,
 		PreRun: skupperCli.NewClient,
-		RunE:   skupperCli.Create,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			routerModeFlag := cmd.Flag("router-mode")
+
+			if routerModeFlag.Changed {
+				options := []string{string(types.TransportModeInterior), string(types.TransportModeEdge)}
+				if !utils.StringSliceContains(options, initFlags.routerMode) {
+					return fmt.Errorf(`invalid "--router-mode=%v", it must be one of "%v"`, initFlags.routerMode, strings.Join(options, ", "))
+				}
+				routerCreateOpts.RouterMode = initFlags.routerMode
+			} else {
+				routerCreateOpts.RouterMode = string(types.TransportModeInterior)
+			}
+
+			if routerLogging != "" {
+				logConfig, err := qdr.ParseRouterLogConfig(routerLogging)
+				if err != nil {
+					return fmt.Errorf("Bad value for --router-logging: %s", err)
+				}
+				routerCreateOpts.Router.Logging = logConfig
+			}
+			if routerCreateOpts.Router.DebugMode != "" {
+				if routerCreateOpts.Router.DebugMode != "asan" && routerCreateOpts.Router.DebugMode != "gdb" {
+					return fmt.Errorf("Bad value for --router-debug-mode: %s (use 'asan' or 'gdb')", routerCreateOpts.Router.DebugMode)
+				}
+			}
+
+			return skupperCli.Create(cmd, args)
+		},
 	}
 	platform := skupperCli.Platform()
 	routerCreateOpts.EnableController = true
 	cmd.Flags().StringVarP(&routerCreateOpts.SkupperName, "site-name", "", "", "Provide a specific name for this skupper installation")
-	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: ["+strings.Join(types.ValidIngressOptions(platform), "|")+"]. If not specified route is used when available, otherwise loadbalancer is used.")
+	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: ["+strings.Join(types.ValidIngressOptions(platform), "|")+"].")
 	cmd.Flags().StringVarP(&routerCreateOpts.IngressHost, "ingress-host", "", "", "Hostname or alias by which the ingress route or proxy can be reached")
 	cmd.Flags().StringVarP(&initFlags.routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
 
 	cmd.Flags().StringSliceVar(&initFlags.labels, "labels", []string{}, "Labels to add to skupper pods")
 	cmd.Flags().StringVarP(&routerLogging, "router-logging", "", "", "Logging settings for router. 'trace', 'debug', 'info' (default), 'notice', 'warning', and 'error' are valid values.")
 	cmd.Flags().StringVarP(&routerCreateOpts.Router.DebugMode, "router-debug-mode", "", "", "Enable debug mode for router ('asan' or 'gdb' are valid values)")
-
-	cmd.Flags().IntVar(&routerCreateOpts.Routers, "routers", 0, "Number of router replicas to start")
 
 	cmd.Flags().SortFlags = false
 

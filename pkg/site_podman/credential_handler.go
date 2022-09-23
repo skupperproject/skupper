@@ -116,7 +116,7 @@ func (p *PodmanCredentialHandler) LoadVolumeAsSecret(vol *container.Volume) (*co
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vol.Name,
-			Namespace: Namespace,
+			Namespace: Username,
 		},
 		Data: map[string][]byte{},
 		Type: "kubernetes.io/tls",

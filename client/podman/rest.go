@@ -57,10 +57,12 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	} else {
 		host := endpoint
 		match, _ := regexp.Match(`(http[s]*|tcp)://`, []byte(host))
-		if !match && !strings.Contains(host, "://") {
-			host = "http://" + host
-		} else {
-			return nil, fmt.Errorf("invalid endpoint: %s", host)
+		if !match {
+			if !strings.Contains(host, "://") {
+				host = "http://" + host
+			} else {
+				return nil, fmt.Errorf("invalid endpoint: %s", host)
+			}
 		}
 		u, err = url.Parse(host)
 		if err != nil {
