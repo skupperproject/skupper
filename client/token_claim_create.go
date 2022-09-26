@@ -149,7 +149,7 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 		port = 443
 		localOnly = false
 	} else {
-		ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
+		ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli)
 		if err != nil {
 			return nil, nil, false, err
 		}

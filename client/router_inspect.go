@@ -50,7 +50,7 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 				if proxy != nil {
 					return "https://" + proxy.Host, nil
 				}
-				routes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
+				routes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli)
 				if err != nil {
 					return "", err
 				}

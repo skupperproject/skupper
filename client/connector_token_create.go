@@ -147,7 +147,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 			} else if ok := configureHostPortsForContourProxies(result, cli, namespace); ok {
 				return true
 			} else {
-				ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli.KubeClient)
+				ingressRoutes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli)
 				if err != nil {
 					fmt.Printf("Could not check for ingress: %s", err)
 					fmt.Println()
