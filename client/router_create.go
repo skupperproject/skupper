@@ -1232,7 +1232,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 }
 
 func (cli *VanClient) appendIngressHost(prefixes []string, namespace string, cred *types.Credential) error {
-	routes, err := kube.GetIngressRoutes(types.IngressName, namespace, cli.KubeClient)
+	routes, err := kube.GetIngressRoutes(types.IngressName, namespace, cli)
 	if err != nil {
 		return err
 	}
@@ -1348,7 +1348,7 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 		})
 	}
 
-	return kube.CreateIngress(types.IngressName, routes, site.Spec.IsIngressNginxIngress(), true, asOwnerReference(site.Reference), namespace, site.Spec.IngressAnnotations, cli.KubeClient)
+	return kube.CreateIngress(types.IngressName, routes, site.Spec.IsIngressNginxIngress(), true, asOwnerReferences(site.Reference), namespace, site.Spec.IngressAnnotations, cli)
 }
 
 func (cli *VanClient) createContourProxies(site types.SiteConfig) error {
@@ -1425,4 +1425,12 @@ func getCurrentContextOrDefault(ctx context.Context) context.Context {
 	}
 
 	return currentContext
+}
+
+func asOwnerReferences(in types.SiteConfigReference) []metav1.OwnerReference {
+	ref := asOwnerReference(in)
+	if ref == nil {
+		return nil
+	}
+	return []metav1.OwnerReference{*ref}
 }

@@ -30,11 +30,12 @@ var defaultRetry = wait.Backoff{
 
 // A VAN Client manages orchestration and communications with the network components
 type VanClient struct {
-	Namespace     string
-	KubeClient    kubernetes.Interface
-	RouteClient   *routev1client.RouteV1Client
-	RestConfig    *restclient.Config
-	DynamicClient dynamic.Interface
+	Namespace       string
+	KubeClient      kubernetes.Interface
+	RouteClient     *routev1client.RouteV1Client
+	RestConfig      *restclient.Config
+	DynamicClient   dynamic.Interface
+	DiscoveryClient *discovery.DiscoveryClient
 }
 
 func (cli *VanClient) GetNamespace() string {
@@ -43,6 +44,14 @@ func (cli *VanClient) GetNamespace() string {
 
 func (cli *VanClient) GetKubeClient() kubernetes.Interface {
 	return cli.KubeClient
+}
+
+func (cli *VanClient) GetDynamicClient() dynamic.Interface {
+	return cli.DynamicClient
+}
+
+func (cli *VanClient) GetDiscoveryClient() *discovery.DiscoveryClient {
+	return cli.DiscoveryClient
 }
 
 func (cli *VanClient) GetVersion(component string, name string) string {
@@ -86,6 +95,7 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*VanCli
 			return c, err
 		}
 	}
+	c.DiscoveryClient = dc
 
 	if namespace == "" {
 		c.Namespace, _, err = kubeconfig.Namespace()
