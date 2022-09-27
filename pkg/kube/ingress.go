@@ -227,11 +227,19 @@ func ensureIngressRoutesV1(client dynamic.Interface, namespace string, name stri
 	obj, err := client.Resource(ingressResource).Namespace(namespace).Get(name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		obj = &unstructured.Unstructured{}
+		ingressClassName, ok := annotations["kubernetes.io/ingress.class"]
+		if ok {
+			delete(annotations, "kubernetes.io/ingress.class")
+		}
 		obj.SetGroupVersionKind(ingressGVK)
 		obj.SetName(name)
 		obj.SetOwnerReferences(ownerRefs)
 		obj.SetAnnotations(annotations)
 		err := writeIngressRules(routes, obj)
+		if err != nil {
+			return err
+		}
+		err = unstructured.SetNestedField(obj.UnstructuredContent(), ingressClassName, "spec", "ingressClassName")
 		if err != nil {
 			return err
 		}
