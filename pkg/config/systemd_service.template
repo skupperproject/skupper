@@ -1,0 +1,15 @@
+[Unit]
+Description=skupper-{{.Platform}}.service
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor={{.RuntimeDir}}/containers
+
+[Service]
+TimeoutStopSec=70
+RemainAfterExit=yes
+ExecStart={{.DataHomeDir}}/start-{{.Platform}}.sh
+ExecStop={{.DataHomeDir}}/stop-{{.Platform}}.sh
+Type=simple
+
+[Install]
+WantedBy=default.target

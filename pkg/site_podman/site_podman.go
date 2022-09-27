@@ -5,8 +5,8 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
-	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes"
 	"github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -230,6 +230,20 @@ func (s *SitePodmanHandler) Create(site domain.Site) error {
 		}
 	}
 
+	// Creating startup scripts first
+	scripts := config.GetStartupScripts(types.PlatformPodman)
+	err = scripts.Create()
+	if err != nil {
+		return fmt.Errorf("error creating startup scripts: %w\n", err)
+	}
+
+	// Creating systemd user service
+	if err = config.NewSystemdServiceInfo(types.PlatformPodman).Create(); err != nil {
+		fmt.Printf("Unable to create startup service - %v\n", err)
+		fmt.Printf("The startup scripts: %s and %s are available at %s\n,",
+			scripts.GetStartFileName(), scripts.GetStopFileName(), scripts.GetPath())
+	}
+
 	return nil
 }
 
@@ -398,12 +412,17 @@ func (s *SitePodmanHandler) Delete() error {
 	}
 	podmanSite := site.(*SitePodman)
 
-	// Stopping and removing containers
 	deployHandler := NewSkupperDeploymentHandlerPodman(s.cli)
 	deploys, err := deployHandler.List()
 	if err != nil {
 		return fmt.Errorf("error retrieving deployments - %w", err)
 	}
+	volumeList, err := s.cli.VolumeList()
+	if err != nil {
+		return fmt.Errorf("error retrieving volume list - %w", err)
+	}
+
+	// Stopping and removing containers
 	for _, dep := range deploys {
 		err = deployHandler.Undeploy(dep.GetName())
 		if err != nil {
@@ -412,25 +431,22 @@ func (s *SitePodmanHandler) Delete() error {
 	}
 
 	// Removing networks
-	if err = s.cli.NetworkRemove(podmanSite.ContainerNetwork); err != nil {
-		return fmt.Errorf("error removing container network %s - %w", podmanSite.ContainerNetwork, err)
-	}
+	_ = s.cli.NetworkRemove(podmanSite.ContainerNetwork)
 
 	// Removing volumes
-	volumeList, err := s.cli.VolumeList()
-	if err != nil {
-		return fmt.Errorf("error retrieving volume list - %w", err)
-	}
 	for _, v := range volumeList {
 		if app, ok := v.GetLabels()["application"]; ok && app == types.AppName {
-			if err = s.cli.VolumeRemove(v.Name); err != nil {
-				if _, ok := err.(*volumes.VolumeDeleteLibpodNotFound); !ok {
-					return fmt.Errorf("error removing volume %s - %w", v.Name, err)
-				}
-			}
+			_ = s.cli.VolumeRemove(v.Name)
 		}
 	}
 
+	// Removing startup files and service
+	scripts := config.GetStartupScripts(types.PlatformPodman)
+	scripts.Remove()
+	systemd := config.NewSystemdServiceInfo(types.PlatformPodman)
+	if err = systemd.Remove(); err != nil {
+		fmt.Printf("Unable to remove systemd service - %v\n", err)
+	}
 	return nil
 }
 

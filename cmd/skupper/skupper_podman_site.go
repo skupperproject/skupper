@@ -73,6 +73,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Error initializing Skupper - %w", err)
 	}
+
 	fmt.Println("Skupper is now installed for user '" + site_podman.Username + "'.  Use 'skupper status' to get more information.")
 	return nil
 }

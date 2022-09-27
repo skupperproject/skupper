@@ -138,12 +138,8 @@ func (s *SkupperDeploymentHandlerPodman) Undeploy(name string) error {
 	}
 
 	for _, c := range stopContainers {
-		if err = s.cli.ContainerStop(c); err != nil {
-			return err
-		}
-		if err = s.cli.ContainerRemove(c); err != nil {
-			return err
-		}
+		_ = s.cli.ContainerStop(c)
+		_ = s.cli.ContainerRemove(c)
 	}
 	return nil
 }
