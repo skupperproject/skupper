@@ -119,7 +119,7 @@ func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(`invalid timeout value`)
 	}
 
-	if verbose && (len(args) == 0 || args[0] == "all") {
+	if verboseLinkStatus && (len(args) == 0 || args[0] == "all") {
 		fmt.Println("In order to provide detailed information about the link, specify the link name")
 		return nil
 	}
