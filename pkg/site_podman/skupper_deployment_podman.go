@@ -54,7 +54,7 @@ func (s *SkupperDeploymentHandlerPodman) Deploy(deployment domain.SkupperDeploym
 	for _, component := range deployment.GetComponents() {
 
 		// Pulling image first
-		err = s.cli.ImagePull(component.Image())
+		err = s.cli.ImagePull(component.GetImage())
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func (s *SkupperDeploymentHandlerPodman) Deploy(deployment domain.SkupperDeploym
 		labels[types.ComponentAnnotation] = deployment.GetName()
 		c := &container.Container{
 			Name:          component.Name(),
-			Image:         component.Image(),
+			Image:         component.GetImage(),
 			Env:           component.GetEnv(),
 			Labels:        labels,
 			Networks:      networkMap,

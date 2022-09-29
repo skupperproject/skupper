@@ -37,11 +37,17 @@ type SitePodmanHandler struct {
 }
 
 func NewSitePodmanHandler(endpoint string) (*SitePodmanHandler, error) {
+	if endpoint == "" {
+		podmanCfg, err := NewPodmanConfigFileHandler().GetConfig()
+		if err != nil {
+			return nil, fmt.Errorf("Unable to load local podman configuration - %w", err)
+		}
+		endpoint = podmanCfg.Endpoint
+	}
 	c, err := podman.NewPodmanClient(endpoint, "")
 	if err != nil {
 		return nil, err
 	}
-
 	return &SitePodmanHandler{
 		cli:      c,
 		endpoint: endpoint,

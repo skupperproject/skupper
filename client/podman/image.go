@@ -42,6 +42,7 @@ func (p *PodmanRestClient) ImageInspect(id string) (*container.Image, error) {
 	img := &container.Image{
 		Id:         res.Payload.ID,
 		Repository: res.Payload.RepoTags[0],
+		Digest:     string(res.Payload.Digest),
 		Created:    res.Payload.Created.String(),
 	}
 	if !strings.HasPrefix(img.Id, id) {

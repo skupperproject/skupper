@@ -94,11 +94,7 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 }
 
 func (s *SkupperPodmanSite) Delete(cmd *cobra.Command, args []string) error {
-	podmanCfg, err := site_podman.NewPodmanConfigFileHandler().GetConfig()
-	if err != nil {
-		return fmt.Errorf("Unable to load local podman configuration - %w", err)
-	}
-	siteHandler, err := site_podman.NewSitePodmanHandler(podmanCfg.Endpoint)
+	siteHandler, err := site_podman.NewSitePodmanHandler("")
 	if err != nil {
 		return fmt.Errorf("Unable to delete Skupper - %w", err)
 	}
@@ -128,10 +124,12 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperPodmanSite) StatusFlags(cmd *cobra.Command) {}
 
-func (s *SkupperPodmanSite) NewClient(cmd *cobra.Command, args []string) {}
+func (s *SkupperPodmanSite) NewClient(cmd *cobra.Command, args []string) {
+	s.podman.NewClient(cmd, args)
+}
 
 func (s *SkupperPodmanSite) Platform() types.Platform {
-	return types.PlatformPodman
+	return s.podman.Platform()
 }
 
 func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
@@ -141,7 +139,28 @@ func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
-	return notImplementedErr
+	siteHandler, err := site_podman.NewSitePodmanHandler("")
+	if err != nil {
+		return fmt.Errorf("Unable to communicate with Skupper - %w", err)
+	}
+
+	site, err := siteHandler.Get()
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve site information - %w", err)
+	}
+
+	for _, deploy := range site.GetDeployments() {
+		for _, component := range deploy.GetComponents() {
+			if component.Name() == types.TransportDeploymentName {
+				img, err := s.podman.cli.ImageInspect(component.GetImage())
+				if err != nil {
+					return fmt.Errorf("error retrieving image info for %s - %w", component.GetImage(), err)
+				}
+				fmt.Printf("%-30s %s (%s)\n", "transport version", img.Repository, img.Digest[:19])
+			}
+		}
+	}
+	return nil
 }
 
 func (s *SkupperPodmanSite) RevokeAccess(cmd *cobra.Command, args []string) error {

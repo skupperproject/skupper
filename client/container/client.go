@@ -237,6 +237,7 @@ type ContainerNetworkInfo struct {
 type Image struct {
 	Id         string
 	Repository string
+	Digest     string
 	Created    string
 }
 

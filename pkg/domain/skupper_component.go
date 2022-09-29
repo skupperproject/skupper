@@ -6,7 +6,8 @@ import (
 
 type SkupperComponent interface {
 	Name() string
-	Image() string
+	GetImage() string
+	SetImage(image string)
 	GetEnv() map[string]string
 	GetLabels() map[string]string
 	GetSiteIngresses() []SiteIngress
@@ -18,6 +19,7 @@ type SkupperComponentHandler interface {
 }
 
 type Router struct {
+	Image         string
 	Env           map[string]string
 	Labels        map[string]string
 	SiteIngresses []SiteIngress
@@ -27,8 +29,12 @@ func (r *Router) Name() string {
 	return types.TransportDeploymentName
 }
 
-func (r *Router) Image() string {
+func (r *Router) GetImage() string {
 	return types.GetRouterImageName()
+}
+
+func (r *Router) SetImage(image string) {
+	r.Image = image
 }
 
 func (r *Router) GetEnv() map[string]string {

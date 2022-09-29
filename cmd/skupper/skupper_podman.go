@@ -5,21 +5,30 @@ import (
 	"os"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/site_podman"
 	"github.com/spf13/cobra"
 )
 
 var notImplementedErr = fmt.Errorf("Not implemented")
 
 var SkupperPodmanCommands = []string{
-	"switch", "init", "delete",
+	"switch", "init", "delete", "version",
 }
 
 type SkupperPodman struct {
 	site *SkupperPodmanSite
+	cli  *podman.PodmanRestClient
 }
 
 func (s *SkupperPodman) Site() SkupperSiteClient {
-	return &SkupperPodmanSite{}
+	if s.site != nil {
+		return s.site
+	}
+	s.site = &SkupperPodmanSite{
+		podman: s,
+	}
+	return s.site
 }
 
 func (s *SkupperPodman) Service() SkupperServiceClient {
@@ -48,7 +57,20 @@ func notImplementedExit() {
 }
 
 func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
-	notImplementedExit()
+	podmanCfg, err := site_podman.NewPodmanConfigFileHandler().GetConfig()
+	if err != nil {
+		return
+	}
+	c, err := podman.NewPodmanClient(podmanCfg.Endpoint, "")
+	if err != nil {
+		if podmanCfg.Endpoint != "" {
+			fmt.Printf("Podman endpoint is not available: %s", podmanCfg.Endpoint)
+			os.Exit(1)
+		}
+		return
+	}
+	// only if default endpoint is available or correct endpoint is set
+	s.cli = c
 }
 
 func (s *SkupperPodman) Platform() types.Platform {

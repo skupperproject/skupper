@@ -1,10 +1,8 @@
 package site_podman
 
 import (
-	"fmt"
 	"strconv"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/domain"
 )
@@ -24,12 +22,8 @@ func (s *SkupperComponentHandlerPodman) Get(name string) (domain.SkupperComponen
 	if err != nil {
 		return nil, err
 	}
-	notOwnedErr := fmt.Errorf("container is not owned by Skupper")
-	if c.Labels == nil {
-		return nil, notOwnedErr
-	}
-	if app, ok := c.Labels["application"]; !ok || app != types.AppName {
-		return nil, notOwnedErr
+	if err = OwnedBySkupper("container", c.Labels); err != nil {
+		return nil, err
 	}
 	// parsing site ingresses
 	siteIngresses := []domain.SiteIngress{}
@@ -49,6 +43,7 @@ func (s *SkupperComponentHandlerPodman) Get(name string) (domain.SkupperComponen
 
 	// currently only router component is supported
 	component := &domain.Router{
+		Image:         c.Image,
 		Env:           c.Env,
 		Labels:        c.Labels,
 		SiteIngresses: siteIngresses,
@@ -64,6 +59,10 @@ func (s *SkupperComponentHandlerPodman) List() ([]domain.SkupperComponent, error
 		return nil, err
 	}
 	for _, c := range list {
+		// ignoring containers not owned by Skupper
+		if err = OwnedBySkupper("container", c.Labels); err != nil {
+			continue
+		}
 		component, err := s.Get(c.Name)
 		if err != nil {
 			continue
