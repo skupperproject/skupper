@@ -13,12 +13,13 @@ import (
 var notImplementedErr = fmt.Errorf("Not implemented")
 
 var SkupperPodmanCommands = []string{
-	"switch", "init", "delete", "version",
+	"switch", "init", "delete", "version", "token",
 }
 
 type SkupperPodman struct {
-	site *SkupperPodmanSite
-	cli  *podman.PodmanRestClient
+	cli   *podman.PodmanRestClient
+	site  *SkupperPodmanSite
+	token *SkupperPodmanToken
 }
 
 func (s *SkupperPodman) Site() SkupperSiteClient {
@@ -44,7 +45,13 @@ func (s *SkupperPodman) Link() SkupperLinkClient {
 }
 
 func (s *SkupperPodman) Token() SkupperTokenClient {
-	return &SkupperPodmanToken{}
+	if s.token != nil {
+		return s.token
+	}
+	s.token = &SkupperPodmanToken{
+		podman: s,
+	}
+	return s.token
 }
 
 func (s *SkupperPodman) Network() SkupperNetworkClient {

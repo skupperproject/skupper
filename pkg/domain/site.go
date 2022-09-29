@@ -11,6 +11,7 @@ import (
 type Site interface {
 	GetName() string
 	GetId() string
+	GetVersion() string
 	GetMode() string
 	GetPlatform() string
 	GetCertAuthorities() []types.CertAuthority
@@ -33,6 +34,7 @@ type SiteHandler interface {
 type SiteCommon struct {
 	Name            string
 	Id              string
+	Version         string
 	Mode            string
 	Platform        string
 	CertAuthorities []types.CertAuthority
@@ -73,6 +75,10 @@ func (s *SiteCommon) GetName() string {
 
 func (s *SiteCommon) GetId() string {
 	return s.Id
+}
+
+func (s *SiteCommon) GetVersion() string {
+	return s.Version
 }
 
 func (s *SiteCommon) GetMode() string {

@@ -3,19 +3,15 @@ package client
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
-
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TODO: should these move to types?
@@ -29,14 +25,6 @@ type RouterHostPorts struct {
 	InterRouter HostPort
 	Hosts       string
 	LocalOnly   bool
-}
-
-func annotateConnectionToken(secret *corev1.Secret, role string, host string, port string) {
-	if secret.ObjectMeta.Annotations == nil {
-		secret.ObjectMeta.Annotations = map[string]string{}
-	}
-	secret.ObjectMeta.Annotations[role+"-host"] = host
-	secret.ObjectMeta.Annotations[role+"-port"] = port
 }
 
 func configureHostPortsFromRoutes(result *RouterHostPorts, cli *VanClient, namespace string) (bool, error) {
@@ -235,8 +223,8 @@ func (cli *VanClient) ConnectorTokenCreateFromTemplate(ctx context.Context, toke
 		},
 		Data: template.Data,
 	}
-	annotateConnectionToken(secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
-	annotateConnectionToken(secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
+	certs.AnnotateConnectionToken(secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
+	certs.AnnotateConnectionToken(secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
 	if siteId != "" {
 		secret.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteId
 	}
@@ -272,8 +260,8 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 		return nil, false, fmt.Errorf("Could not determine host/ports for token")
 	}
 	secret := certs.GenerateSecret(subject, subject, hostPorts.Hosts, caSecret)
-	annotateConnectionToken(&secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
-	annotateConnectionToken(&secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
+	certs.AnnotateConnectionToken(&secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
+	certs.AnnotateConnectionToken(&secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
 	secret.Annotations[types.SiteVersion] = current.GetSiteMetadata().Version
 	if secret.ObjectMeta.Labels == nil {
 		secret.ObjectMeta.Labels = map[string]string{}
@@ -301,24 +289,7 @@ func (cli *VanClient) ConnectorTokenCreateFile(ctx context.Context, subject stri
 	}
 	secret, localOnly, err := cli.ConnectorTokenCreate(ctx, subject, "")
 	if err == nil {
-		// generate yaml and save it to the specified path
-		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-		out, err := os.Create(secretFile)
-		if err != nil {
-			return fmt.Errorf("Could not write to file " + secretFile + ": " + err.Error())
-		}
-		err = s.Encode(secret, out)
-		if err != nil {
-			return fmt.Errorf("Could not write out generated secret: " + err.Error())
-		} else {
-			var extra string
-			if localOnly {
-				extra = "(Note: token will only be valid for local cluster)"
-			}
-			fmt.Printf("Connection token written to %s %s", secretFile, extra)
-			fmt.Println()
-			return nil
-		}
+		return certs.GenerateSecretFile(secretFile, secret, localOnly)
 	} else {
 		return err
 	}

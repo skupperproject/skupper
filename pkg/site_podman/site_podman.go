@@ -368,6 +368,7 @@ func (s *SitePodmanHandler) Get() (domain.Site, error) {
 	site.Name = config.Metadata.Id
 	site.Mode = string(config.Metadata.Mode)
 	site.Id = config.GetSiteMetadata().Id
+	site.Version = config.GetSiteMetadata().Version
 	site.Platform = types.PlatformPodman
 
 	// Reading cert authorities

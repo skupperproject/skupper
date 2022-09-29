@@ -93,7 +93,7 @@ func generateSecret(name string, subject string, hosts string, ca *CertificateAu
 	}
 
 	notBefore := time.Now()
-	notAfter := notBefore.Add(5 * 365 * 24 * time.Hour) //TODO: make configurable?
+	notAfter := notBefore.Add(5 * 365 * 24 * time.Hour) // TODO: make configurable?
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -124,7 +124,7 @@ func generateSecret(name string, subject string, hosts string, ca *CertificateAu
 	var parent *x509.Certificate
 	var cakey interface{}
 	if ca == nil {
-		//self signed
+		// self signed
 		template.IsCA = true
 		template.KeyUsage |= x509.KeyUsageCertSign
 		parent = &template
@@ -233,7 +233,7 @@ func GenerateCACertificateData(name string, subject string) CertificateData {
 func PutCertificateData(name string, secretFile string, certData CertificateData, annotations map[string]string) {
 	secret := CertDataToSecret(name, certData, annotations)
 
-	//generate a yaml and save it to the specified path
+	// generate a yaml and save it to the specified path
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 	out, err := os.Create(secretFile)
 	if err != nil {
@@ -274,6 +274,34 @@ func GetSecretContent(secretFile string) (map[string][]byte, error) {
 func GenerateSimpleSecret(name string, ca *corev1.Secret) corev1.Secret {
 	caCert := getCAFromSecret(ca)
 	return generateSimpleSecretWithCA(name, &caCert)
+}
+
+func AnnotateConnectionToken(secret *corev1.Secret, role string, host string, port string) {
+	if secret.ObjectMeta.Annotations == nil {
+		secret.ObjectMeta.Annotations = map[string]string{}
+	}
+	secret.ObjectMeta.Annotations[role+"-host"] = host
+	secret.ObjectMeta.Annotations[role+"-port"] = port
+}
+
+func GenerateSecretFile(secretFile string, secret *corev1.Secret, localOnly bool) error {
+	// generate yaml and save it to the specified path
+	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
+	out, err := os.Create(secretFile)
+	if err != nil {
+		return fmt.Errorf("Could not write to file " + secretFile + ": " + err.Error())
+	}
+	err = s.Encode(secret, out)
+	if err != nil {
+		return fmt.Errorf("Could not write out generated secret: " + err.Error())
+	}
+	var extra string
+	if localOnly {
+		extra = "(Note: token will only be valid for local cluster)"
+	}
+	fmt.Printf("Connection token written to %s %s", secretFile, extra)
+	fmt.Println()
+	return nil
 }
 
 func GetTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {

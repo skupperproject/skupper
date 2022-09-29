@@ -41,13 +41,6 @@ func NewCmdTokenCreate(skupperClient SkupperTokenClient, flag string) *cobra.Com
 		RunE:   skupperClient.Create,
 	}
 	cmd.Flags().StringVarP(&clientIdentity, flag, subflag, types.DefaultVanName, "Provide a specific identity as which connecting skupper installation will be authenticated")
-	cmd.Flags().StringVarP(&tokenType, "token-type", "t", "claim", "Type of token to create. Valid options are 'claim' or 'cert'")
-	cmd.Flags().StringVarP(&password, "password", "p", "", "A password for the claim (only valid if --token-type=claim). If not specified one will be generated.")
-	cmd.Flags().DurationVarP(&expiry, "expiry", "", 15*time.Minute, "Expiration time for claim (only valid if --token-type=claim)")
-	cmd.Flags().IntVarP(&uses, "uses", "", 1, "Number of uses for which claim will be valid (only valid if --token-type=claim)")
-	cmd.Flags().StringVarP(&tokenTemplate, "template", "", "", "The name of a secret used as a template for the token")
-	f := cmd.Flag("template")
-	f.Hidden = true
-
+	skupperClient.CreateFlags(cmd)
 	return cmd
 }
