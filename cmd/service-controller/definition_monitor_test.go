@@ -787,9 +787,17 @@ func TestUpdateAnnotatedServiceDefinition(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result := updateAnnotatedServiceDefinition(&test.actual, &test.desired)
 			assert.Equal(t, result, test.result)
-			assert.Assert(t, reflect.DeepEqual(test.desired.Targets, test.targets), "Expected %v, got %v", test.targets, test.desired.Targets)
+			assert.Assert(t, reflect.DeepEqual(indexTargetsByName(test.desired.Targets), indexTargetsByName(test.targets)), "Expected %v, got %v", test.targets, test.desired.Targets)
 		})
 	}
+}
+
+func indexTargetsByName(targets []types.ServiceInterfaceTarget) map[string]types.ServiceInterfaceTarget {
+	results := map[string]types.ServiceInterfaceTarget{}
+	for _, target := range targets {
+		results[target.Name] = target
+	}
+	return results
 }
 
 func encodeServiceDefinitions(services []types.ServiceInterface) (map[string]string, error) {
