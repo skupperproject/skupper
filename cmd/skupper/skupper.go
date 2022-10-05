@@ -11,6 +11,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
+	"github.com/spf13/cobra/doc"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -816,6 +817,43 @@ the .bash_profile. i.e.: $ source <(skupper completion)
 	return cmd
 }
 
+func NewCmdMan() *cobra.Command {
+	var outDir string
+	cmd := &cobra.Command{
+		Use:   "man",
+		Short: "generate man pages",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			info, err := os.Stat(outDir)
+			if err != nil && os.IsNotExist(err) {
+				err = os.MkdirAll(outDir, 0755)
+				if err != nil {
+					return fmt.Errorf("error creating output directory - %w", err)
+				}
+			} else if err == nil {
+				if !info.IsDir() {
+					return fmt.Errorf("%s is not a directory", outDir)
+				}
+			}
+			header := &doc.GenManHeader{
+				Title:   "SKUPPER",
+				Section: "1",
+			}
+			err = doc.GenManTree(rootCmd, header, outDir)
+			if err != nil {
+				return err
+			}
+			err = doc.GenMarkdownTree(rootCmd, outDir)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&outDir, "output-directory", "", "docs.out", "output directory")
+	cmd.Hidden = true
+	return cmd
+}
+
 type cobraFunc func(cmd *cobra.Command, args []string)
 
 var rootCmd *cobra.Command
@@ -943,6 +981,7 @@ func init() {
 		cmdNetwork)
 
 	rootCmd.AddCommand(cmdSwitch)
+	rootCmd.AddCommand(NewCmdMan())
 	skupperCli.Options(rootCmd)
 
 }
