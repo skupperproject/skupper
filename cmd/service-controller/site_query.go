@@ -341,6 +341,9 @@ func querySites(agent qdr.RequestResponse, sites []data.SiteQueryData) {
 			Address: getSiteQueryAddress(s.SiteId),
 			Version: version.Version,
 		}
+		if s.Namespace == "" {
+			continue
+		}
 		response, err := agent.Request(&request)
 		if err != nil {
 			event.Recordf(SiteQueryError, "Request to %s failed: %s", s.SiteId, err)

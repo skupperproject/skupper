@@ -67,7 +67,7 @@ func (r *RouterConfigHandlerPodman) RemoveRouterConfig() error {
 	if err == nil {
 		return nil
 	}
-	if _, notFound := err.(*volumes.VolumeDeleteLibpodNotFound); notFound {
+	if _, notFound := err.(*volumes.VolumeInspectLibpodNotFound); notFound {
 		return nil
 	}
 	return fmt.Errorf("error removing router config - %v", err)

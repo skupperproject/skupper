@@ -1,6 +1,8 @@
 package podman
 
 import (
+	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes"
@@ -40,10 +42,17 @@ func FromCreatedToVolume(created *volumes.VolumeCreateLibpodCreated) *container.
 }
 
 func (p *PodmanRestClient) VolumeRemove(id string) error {
+	v, err := p.VolumeInspect(id)
+	if err != nil {
+		return err
+	}
+	if !container.IsOwnedBySkupper(v.GetLabels()) {
+		return fmt.Errorf("volume %s is not owned by Skupper", id)
+	}
 	cli := volumes.New(p.RestClient, formats)
 	params := volumes.NewVolumeDeleteLibpodParams()
 	params.Name = id
-	_, err := cli.VolumeDeleteLibpod(params)
+	_, err = cli.VolumeDeleteLibpod(params)
 	if err != nil {
 		return err
 	}

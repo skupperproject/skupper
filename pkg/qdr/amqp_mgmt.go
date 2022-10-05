@@ -5,11 +5,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	amqp "github.com/interconnectedcloud/go-amqp"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	amqp "github.com/interconnectedcloud/go-amqp"
 )
 
 type RouterNode struct {
@@ -57,7 +58,7 @@ func getSiteMetadata(metadata string) SiteMetadata {
 	err := json.Unmarshal([]byte(metadata), &result)
 	if err != nil {
 		log.Printf("Assuming old format for router metadata %s: %s", metadata, err)
-		//assume old format, where metadata just holds site id
+		// assume old format, where metadata just holds site id
 		result.Id = metadata
 	}
 	return result
@@ -172,7 +173,7 @@ func asRouter(record Record) *Router {
 func (node *RouterNode) asRouter() *Router {
 	return &Router{
 		Id: node.Id,
-		//SiteId ???
+		// SiteId ???
 		Address: node.Address,
 		Edge:    false, /*RouterNode is always an interior*/
 	}

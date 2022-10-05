@@ -7,9 +7,13 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
+const (
+	SharedTlsCertificates = "skupper-router-certs"
+)
+
 var (
 	Username                = os.Getenv("USER")
-	SkupperContainerVolumes = []string{"skupper-local-server", "skupper-internal", "skupper-site-server", "skupper-router-certs"}
+	SkupperContainerVolumes = []string{"skupper-local-server", "skupper-internal", "skupper-site-server", SharedTlsCertificates}
 )
 
 func OwnedBySkupper(resource string, labels map[string]string) error {

@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/skupperproject/skupper/api/types"
 )
 
 const (
@@ -186,6 +188,15 @@ func (v *Volume) CreateFile(name string, data []byte, overwrite bool) (*os.File,
 	if err != nil {
 		return nil, err
 	}
+	// validate if basedirectory exists
+	if strings.Contains(name, "/") {
+		baseDir := path.Dir(name)
+		fqBaseDir := path.Join(vDir.Name(), baseDir)
+		err = os.MkdirAll(fqBaseDir, 0755)
+		if err != nil && !errors.Is(err, os.ErrExist) {
+			return nil, fmt.Errorf("unable to create base directory %s under volume %s - %v", baseDir, v.Name, err)
+		}
+	}
 	fqName := path.Join(vDir.Name(), name)
 	_, err = os.Stat(fqName)
 	if err != nil {
@@ -204,6 +215,25 @@ func (v *Volume) CreateFile(name string, data []byte, overwrite bool) (*os.File,
 		return nil, fmt.Errorf("error writing to file %s inside volume %s - %v", name, v.Name, err)
 	}
 	return f, nil
+}
+
+func (v *Volume) CreateDirectory(name string) error {
+	vDir, err := v.getVolumeDir()
+	if err != nil {
+		return err
+	}
+	fqName := path.Join(vDir.Name(), name)
+	_, err = os.Stat(fqName)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("error validating if directory exists - %v", err)
+		}
+	}
+	err = os.MkdirAll(fqName, 0755)
+	if err != nil {
+		return fmt.Errorf("error creating directory %s inside volume %s - %v", name, v.Name, err)
+	}
+	return nil
 }
 
 func (v *Volume) DeleteFile(name string, recursive bool) error {
@@ -256,4 +286,12 @@ type Network struct {
 type Subnet struct {
 	Subnet  string
 	Gateway string
+}
+
+func IsOwnedBySkupper(labels map[string]string) bool {
+	if labels == nil {
+		return false
+	}
+	owner, ok := labels["application"]
+	return ok && owner == types.AppName
 }

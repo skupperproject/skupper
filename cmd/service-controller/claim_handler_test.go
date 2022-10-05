@@ -173,7 +173,7 @@ func TestClaimHandler(t *testing.T) {
 		},
 	}
 	verifier.addSuccessfulResult([]byte("abcdefg"), cert)
-	err = handler.redeemClaim(claim)
+	err = handler.redeemer.RedeemClaim(claim)
 	assert.Check(t, err, name)
 	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(name, metav1.GetOptions{})
 	assert.Check(t, err, name)
@@ -285,7 +285,7 @@ func TestInvalidClaims(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		err := handler.redeemClaim(test.secret)
+		err := handler.redeemer.RedeemClaim(test.secret)
 		assert.Check(t, err, test.secret.ObjectMeta.Name)
 		assert.Equal(t, test.secret.ObjectMeta.Annotations[types.StatusAnnotationKey], test.err, test.secret.ObjectMeta.Name)
 	}
@@ -403,7 +403,7 @@ func TestIncompatibleClaims(t *testing.T) {
 			verifier.cli.KubeClient = initFakeClientSet("claim-handler-server-test", test.serverSiteVersion)
 
 			// validating redeemClaim
-			err = handler.redeemClaim(claim)
+			err = handler.redeemer.RedeemClaim(claim)
 			assert.Assert(t, (err == nil) == (test.err == ""))
 			if test.err != "" {
 				assert.ErrorContains(t, err, test.err)

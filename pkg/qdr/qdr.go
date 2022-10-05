@@ -1166,3 +1166,41 @@ func EdgeListener(options types.RouterOptions) Listener {
 	}
 	return l
 }
+
+func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Connection {
+	for _, c := range connections {
+		if (c.Role == "inter-router" || c.Role == "edge") && c.Host == host {
+			return &c
+		}
+	}
+	return nil
+}
+
+func GetLinkStatus(s *corev1.Secret, edge bool, connections []Connection) types.LinkStatus {
+	link := types.LinkStatus{
+		Name: s.ObjectMeta.Name,
+	}
+	if s.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeClaimRequest {
+		link.Url = s.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey]
+		if desc, ok := s.ObjectMeta.Annotations[types.StatusAnnotationKey]; ok {
+			link.Description = "Failed to redeem claim: " + desc
+		}
+		link.Configured = false
+	} else {
+		if edge {
+			link.Url = fmt.Sprintf("%s:%s", s.ObjectMeta.Annotations["edge-host"], s.ObjectMeta.Annotations["edge-port"])
+		} else {
+			link.Url = fmt.Sprintf("%s:%s", s.ObjectMeta.Annotations["inter-router-host"], s.ObjectMeta.Annotations["inter-router-port"])
+		}
+		link.Configured = true
+		if connection := GetInterRouterOrEdgeConnection(link.Url, connections); connection != nil && connection.Active {
+			link.Connected = true
+			link.Cost, _ = strconv.Atoi(s.ObjectMeta.Annotations[types.TokenCost])
+			link.Created = s.ObjectMeta.CreationTimestamp.String()
+		}
+		if s.ObjectMeta.Labels[types.SkupperDisabledQualifier] == "true" {
+			link.Description = "Destination host is not allowed"
+		}
+	}
+	return link
+}
