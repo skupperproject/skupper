@@ -17,6 +17,7 @@ type ConnectorCreateOptions struct {
 	SkupperNamespace string
 	Name             string
 	Cost             int32
+	Yaml             []byte
 }
 
 type ConnectorRemoveOptions struct {
@@ -307,7 +308,7 @@ type VanClientInterface interface {
 	RouterUpdateVersion(ctx context.Context, hup bool) (bool, error)
 	RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error)
 	ConnectorCreateFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
-	ConnectorCreateSecretFromData(ctx context.Context, secretData []byte, options ConnectorCreateOptions) (*corev1.Secret, error)
+	ConnectorCreateSecretFromData(ctx context.Context, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreate(ctx context.Context, secret *corev1.Secret, options ConnectorCreateOptions) error
 	ConnectorInspect(ctx context.Context, name string) (*LinkStatus, error)
 	ConnectorList(ctx context.Context) ([]LinkStatus, error)

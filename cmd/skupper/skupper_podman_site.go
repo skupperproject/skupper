@@ -6,7 +6,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/pkg/domain"
-	"github.com/skupperproject/skupper/pkg/site_podman"
+	podman "github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +25,7 @@ type PodmanInitFlags struct {
 func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	siteName := routerCreateOpts.SkupperName
 	if siteName == "" {
-		siteName = site_podman.Username
+		siteName = podman.Username
 	}
 	// fmt.Printf("site name         : %s\n", siteName)
 	// fmt.Printf("mode              : %s\n", initFlags.routerMode)
@@ -44,7 +44,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	}
 
 	// Site initialization
-	site := &site_podman.SitePodman{
+	site := &podman.SitePodman{
 		SiteCommon: &domain.SiteCommon{
 			Name:     siteName,
 			Mode:     initFlags.routerMode,
@@ -57,7 +57,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		PodmanEndpoint:             s.flags.PodmanEndpoint,
 	}
 
-	siteHandler, err := site_podman.NewSitePodmanHandler(site.PodmanEndpoint)
+	siteHandler, err := podman.NewSitePodmanHandler(site.PodmanEndpoint)
 	if err != nil {
 		return fmt.Errorf("Unable to initialize Skupper - %w", err)
 	}
@@ -65,7 +65,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	// Validating if site is already initialized
 	curSite, err := siteHandler.Get()
 	if err == nil && curSite != nil {
-		return fmt.Errorf("Skupper has already been initialized for user '" + site_podman.Username + "'.")
+		return fmt.Errorf("Skupper has already been initialized for user '" + podman.Username + "'.")
 	}
 
 	// Initializing
@@ -74,7 +74,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Error initializing Skupper - %w", err)
 	}
 
-	fmt.Println("Skupper is now installed for user '" + site_podman.Username + "'.  Use 'skupper status' to get more information.")
+	fmt.Println("Skupper is now installed for user '" + podman.Username + "'.  Use 'skupper status' to get more information.")
 	return nil
 }
 
@@ -94,7 +94,7 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 }
 
 func (s *SkupperPodmanSite) Delete(cmd *cobra.Command, args []string) error {
-	siteHandler, err := site_podman.NewSitePodmanHandler("")
+	siteHandler, err := podman.NewSitePodmanHandler("")
 	if err != nil {
 		return fmt.Errorf("Unable to delete Skupper - %w", err)
 	}
@@ -106,7 +106,7 @@ func (s *SkupperPodmanSite) Delete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Skupper is now removed for user '" + site_podman.Username + "'.")
+	fmt.Println("Skupper is now removed for user '" + podman.Username + "'.")
 	return nil
 }
 
@@ -139,7 +139,7 @@ func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
-	siteHandler, err := site_podman.NewSitePodmanHandler("")
+	siteHandler, err := podman.NewSitePodmanHandler("")
 	if err != nil {
 		return fmt.Errorf("Unable to communicate with Skupper - %w", err)
 	}

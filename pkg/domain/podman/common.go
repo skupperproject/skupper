@@ -1,4 +1,4 @@
-package site_podman
+package podman
 
 import (
 	"fmt"

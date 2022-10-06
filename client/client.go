@@ -1,12 +1,12 @@
 package client
 
 import (
-	openshiftapps "github.com/openshift/client-go/apps/clientset/versioned"
 	"time"
+
+	openshiftapps "github.com/openshift/client-go/apps/clientset/versioned"
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/version"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -57,10 +57,6 @@ func (cli *VanClient) GetDiscoveryClient() *discovery.DiscoveryClient {
 
 func (cli *VanClient) GetVersion(component string, name string) string {
 	return kube.GetComponentVersion(cli.Namespace, cli.KubeClient, component, name)
-}
-
-func (cli *VanClient) GetMinimumCompatibleVersion() string {
-	return version.MinimumCompatibleVersion
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {

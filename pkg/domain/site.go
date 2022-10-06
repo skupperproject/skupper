@@ -8,6 +8,8 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
+var MinimumCompatibleVersion = "0.8.0"
+
 type Site interface {
 	GetName() string
 	GetId() string
@@ -166,4 +168,15 @@ func ConfigureSiteCredentials(site Site, ingressHosts ...string) {
 		})
 	}
 	site.SetCredentials(credentials)
+}
+
+// VerifySiteCompatibility returns nil if current site version is compatible
+// with the provided version, otherwise it returns a clear error.
+func VerifySiteCompatibility(localSiteVersion, remoteSiteVersion string) error {
+	if utils.LessRecentThanVersion(remoteSiteVersion, localSiteVersion) {
+		if !utils.IsValidFor(remoteSiteVersion, MinimumCompatibleVersion) {
+			return fmt.Errorf("minimum version required %s", MinimumCompatibleVersion)
+		}
+	}
+	return nil
 }

@@ -6,7 +6,10 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,8 +22,9 @@ import (
 type LinkHandler interface {
 	Create(secret *corev1.Secret, name string, cost int) error
 	Delete(name string) error
-	List() []types.LinkStatus
-	Status(name string) types.LinkStatus
+	List() ([]*corev1.Secret, error)
+	StatusAll() ([]types.LinkStatus, error)
+	Status(name string) (types.LinkStatus, error)
 }
 
 type SecretUpdateFn func(claim *corev1.Secret) error
@@ -133,4 +137,85 @@ func (c *ClaimRedeemer) RedeemClaim(claim *corev1.Secret) error {
 	}
 	c.logger(c.name, "Retrieved token %s from %s", token.ObjectMeta.Name, url)
 	return nil
+}
+
+func VerifyNotSelfOrDuplicate(secret corev1.Secret, self string, linkHandler LinkHandler) error {
+	if secret.ObjectMeta.Annotations == nil {
+		return fmt.Errorf("The secret has not annotations")
+	}
+	generatedBy, ok := secret.ObjectMeta.Annotations[types.TokenGeneratedBy]
+	if !ok {
+		return fmt.Errorf("Can't find secret origin.")
+	}
+	if self == string(generatedBy) {
+		return fmt.Errorf("Can't create connection to self with token")
+	}
+	currentSecrets, err := linkHandler.List()
+	if err != nil {
+		return fmt.Errorf("Could not retrieve secrets: %w", err)
+	}
+	for _, currentSecret := range currentSecrets {
+		currentAuthor, ok := currentSecret.Annotations[types.TokenGeneratedBy]
+		if !ok {
+			return fmt.Errorf("A secret has no author.")
+		}
+		if generatedBy == currentAuthor {
+			return fmt.Errorf("Already connected to \"%s\".", currentAuthor)
+		}
+	}
+	return nil
+}
+
+// VerifySecretCompatibility returns nil if current site version is compatible
+// with the token or cert provided. If sites are not compatible an error is
+// returned with the appropriate information
+func VerifySecretCompatibility(localSiteVersion string, secret corev1.Secret) error {
+	var secretVersion string
+	if secret.Annotations != nil {
+		secretVersion = secret.Annotations[types.SiteVersion]
+	}
+	if err := VerifySiteCompatibility(localSiteVersion, secretVersion); err != nil {
+		if secretVersion == "" {
+			secretVersion = "undefined"
+		}
+		return fmt.Errorf("%v - remote site version is %s", err, secretVersion)
+	}
+	return nil
+}
+
+func GenerateLinkName(linkHandler LinkHandler) string {
+	secrets, err := linkHandler.List()
+	max := 1
+	if err == nil {
+		connector_name_pattern := regexp.MustCompile("link([0-9]+)+")
+		for _, s := range secrets {
+			count := connector_name_pattern.FindStringSubmatch(s.ObjectMeta.Name)
+			if len(count) > 1 {
+				v, _ := strconv.Atoi(count[1])
+				if v >= max {
+					max = v + 1
+				}
+			}
+
+		}
+	} else {
+		log.Fatal("Could not retrieve token secrets:", err)
+	}
+	return "link" + strconv.Itoa(max)
+}
+
+func GetTokenEndpoint(site Site, secret *corev1.Secret) (string, string) {
+	var hostname string
+	var port string
+	if secret.ObjectMeta.Annotations == nil {
+		secret.ObjectMeta.Annotations = map[string]string{}
+	}
+	if site.GetMode() == string(types.TransportModeEdge) {
+		hostname = secret.ObjectMeta.Annotations["edge-host"]
+		port = secret.ObjectMeta.Annotations["edge-port"]
+	} else {
+		hostname = secret.ObjectMeta.Annotations["inter-router-host"]
+		port = secret.ObjectMeta.Annotations["inter-router-port"]
+	}
+	return hostname, port
 }

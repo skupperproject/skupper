@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/server"
 	"github.com/skupperproject/skupper/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,7 +15,7 @@ type GetLocalLinks func(*VanClient, string, map[string]string) (map[string]*type
 
 func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, error) {
 
-	//Checking if the router has been deployed
+	// Checking if the router has been deployed
 	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Skupper is not installed: %s", err)
@@ -43,7 +45,7 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, err
 	for _, site := range versionCheckedSites {
 
 		if site.Gateway {
-			//TODO: Define how gateways have to be shown
+			// TODO: Define how gateways have to be shown
 			continue
 		}
 
@@ -160,8 +162,8 @@ func (cli *VanClient) checkSiteVersion(sites *[]types.SiteInfo) []types.SiteInfo
 
 	for _, site := range *sites {
 		if utils.LessRecentThanVersion(site.Version, localSiteVersion) {
-			if utils.IsValidFor(site.Version, cli.GetMinimumCompatibleVersion()) {
-				site.MinimumVersion = cli.GetMinimumCompatibleVersion()
+			if utils.IsValidFor(site.Version, domain.MinimumCompatibleVersion) {
+				site.MinimumVersion = domain.MinimumCompatibleVersion
 			}
 		}
 

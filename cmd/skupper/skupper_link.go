@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"time"
 
@@ -30,7 +33,15 @@ func NewCmdLinkCreate(skupperClient SkupperLinkClient, flag string) *cobra.Comma
 		Short:  "Links this skupper site to the site that issued the token",
 		Args:   cobra.ExactArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.Create,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// loading secret from file
+			yaml, err := ioutil.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("Could not read connection token: %s", err.Error())
+			}
+			connectorCreateOpts.Yaml = yaml
+			return skupperClient.Create(cmd, args)
+		},
 	}
 	cmd.Flags().StringVarP(&connectorCreateOpts.Name, flag, "", "", "Provide a specific name for the link (used when deleting it)")
 	cmd.Flags().Int32VarP(&connectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this link.")
@@ -46,7 +57,17 @@ func NewCmdLinkDelete(skupperClient SkupperLinkClient) *cobra.Command {
 		Short:  "Remove specified link",
 		Args:   cobra.ExactArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.Delete,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+			connectorRemoveOpts.Name = args[0]
+			err := skupperClient.Delete(cmd, args)
+			if err == nil {
+				fmt.Println("Link '" + args[0] + "' has been removed")
+			} else {
+				return fmt.Errorf("Failed to remove link: %w", err)
+			}
+			return nil
+		},
 	}
 
 	return cmd

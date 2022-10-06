@@ -6,7 +6,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/domain"
-	"github.com/skupperproject/skupper/pkg/site_podman"
+	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -21,7 +21,7 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	secretFile := args[0]
 
 	// Determining ingress host
-	siteHandler, err := site_podman.NewSitePodmanHandler("")
+	siteHandler, err := podman.NewSitePodmanHandler("")
 	if err != nil {
 		return fmt.Errorf("error retrieving site information - %w", err)
 	}
@@ -29,7 +29,7 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error inspecting site - %w", err)
 	}
-	sitePodman := site.(*site_podman.SitePodman)
+	sitePodman := site.(*podman.SitePodman)
 	if sitePodman.IsEdge() {
 		return fmt.Errorf("Edge configuration cannot accept connections")
 	}
@@ -45,10 +45,10 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	}
 
 	// Retrieving CA
-	credHandler := site_podman.NewPodmanCredentialHandler(s.podman.cli)
+	credHandler := podman.NewPodmanCredentialHandler(s.podman.cli)
 
 	// Creating secret
-	tokenHandler := &site_podman.TokenCertHandlerPodman{}
+	tokenHandler := &podman.TokenCertHandlerPodman{}
 	return tokenHandler.Create(secretFile, subject, info, sitePodman, credHandler)
 }
 

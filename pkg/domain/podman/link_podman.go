@@ -1,9 +1,9 @@
-package site_podman
+package podman
 
 import (
 	"fmt"
-	"log"
 	"path"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
@@ -65,10 +65,19 @@ func (l *LinkHandlerPodman) updateClaim(claim *corev1.Secret) error {
 }
 
 func (l *LinkHandlerPodman) log(name string, format string, args ...interface{}) {
-	log.Printf("[%s] - "+format, append([]interface{}{name}, args...)...)
+	msg := fmt.Sprintf("[%s] - "+format, append([]interface{}{name}, args...)...)
+	if strings.Contains(msg, "ailed") {
+		fmt.Println(msg)
+	}
 }
 
 func (l *LinkHandlerPodman) Create(secret *corev1.Secret, name string, cost int) error {
+	// adjusting secret name
+	if name == "" {
+		name = domain.GenerateLinkName(l)
+	}
+	secret.Name = name
+
 	// validating secret
 	v, err := l.cli.VolumeInspect(name)
 	if err == nil && v != nil {
@@ -82,8 +91,22 @@ func (l *LinkHandlerPodman) Create(secret *corev1.Secret, name string, cost int)
 	if kind, ok = secret.Labels[types.SkupperTypeQualifier]; !ok {
 		return fmt.Errorf("unable to determine token type")
 	}
-	// adjusting secret name
-	secret.Name = name
+
+	// Verifying token
+	err = domain.VerifyToken(secret)
+	if err != nil {
+		return err
+	}
+
+	// Validating token
+	if err = domain.VerifyNotSelfOrDuplicate(*secret, l.site.GetId(), l); err != nil {
+		return err
+	}
+	err = domain.VerifySecretCompatibility(l.site.GetVersion(), *secret)
+	if err != nil {
+		return err
+	}
+
 	// saving secret as a volume
 	switch kind {
 	case types.TypeToken:
@@ -101,15 +124,7 @@ func (l *LinkHandlerPodman) Create(secret *corev1.Secret, name string, cost int)
 	if err != nil {
 		return fmt.Errorf("error retrieving transport config - %w", err)
 	}
-	var hostname string
-	var port string
-	if l.site.GetMode() == string(types.TransportModeEdge) {
-		hostname = secret.ObjectMeta.Annotations["edge-host"]
-		port = secret.ObjectMeta.Annotations["edge-port"]
-	} else {
-		hostname = secret.ObjectMeta.Annotations["inter-router-host"]
-		port = secret.ObjectMeta.Annotations["inter-router-port"]
-	}
+	hostname, port := domain.GetTokenEndpoint(l.site, secret)
 
 	profile := qdr.SslProfile{Name: fmt.Sprintf("%s-profile", name)}
 	cfg.AddSslProfileWithPath("/etc/skupper-router-certs", profile)
@@ -195,12 +210,31 @@ func (l *LinkHandlerPodman) Delete(name string) error {
 	return nil
 }
 
-func (l *LinkHandlerPodman) List() []types.LinkStatus {
+func (l *LinkHandlerPodman) List() ([]*corev1.Secret, error) {
+	vl, err := l.cli.VolumeList()
+	if err != nil {
+		return nil, err
+	}
+	var secrets []*corev1.Secret
+	for _, v := range vl {
+		if l.IsValidLink(v.Name) != nil {
+			continue
+		}
+		secret, err := l.credHandler.LoadVolumeAsSecret(v)
+		if err != nil {
+			return nil, fmt.Errorf("error loading volume as secret: %s - %w", v.Name, err)
+		}
+		secrets = append(secrets, secret)
+	}
+	return secrets, nil
+}
+
+func (l *LinkHandlerPodman) StatusAll() ([]types.LinkStatus, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (l *LinkHandlerPodman) Status(name string) types.LinkStatus {
+func (l *LinkHandlerPodman) Status(name string) (types.LinkStatus, error) {
 	// TODO implement me
 	panic("implement me")
 }

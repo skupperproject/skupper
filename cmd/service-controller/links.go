@@ -167,7 +167,7 @@ func (m *LinkManager) deleteLink(name string) (bool, error) {
 }
 
 func (m *LinkManager) createLink(cost int, token []byte) error {
-	secret, err := m.cli.ConnectorCreateSecretFromData(context.Background(), token, types.ConnectorCreateOptions{Cost: int32(cost), SkupperNamespace: m.cli.Namespace})
+	secret, err := m.cli.ConnectorCreateSecretFromData(context.Background(), types.ConnectorCreateOptions{Cost: int32(cost), SkupperNamespace: m.cli.Namespace, Yaml: token})
 	if err != nil {
 		return err
 	}

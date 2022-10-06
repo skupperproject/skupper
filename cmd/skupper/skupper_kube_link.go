@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"time"
@@ -36,11 +35,7 @@ func (s *SkupperKubeLink) Create(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 	connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
-	yaml, err := ioutil.ReadFile(args[0])
-	if err != nil {
-		return fmt.Errorf("Could not read connection token: %s", err.Error())
-	}
-	secret, err := cli.ConnectorCreateSecretFromData(context.Background(), yaml, connectorCreateOpts)
+	secret, err := cli.ConnectorCreateSecretFromData(context.Background(), connectorCreateOpts)
 	if err != nil {
 		return fmt.Errorf("Failed to create link: %w", err)
 	} else {
@@ -72,18 +67,10 @@ func (s *SkupperKubeLink) CreateFlags(cmd *cobra.Command) {
 }
 
 func (s *SkupperKubeLink) Delete(cmd *cobra.Command, args []string) error {
-	silenceCobra(cmd)
 	cli := s.kube.Cli
-	connectorRemoveOpts.Name = args[0]
 	connectorRemoveOpts.SkupperNamespace = cli.GetNamespace()
 	connectorRemoveOpts.ForceCurrent = false
-	err := cli.ConnectorRemove(context.Background(), connectorRemoveOpts)
-	if err == nil {
-		fmt.Println("Link '" + args[0] + "' has been removed")
-	} else {
-		return fmt.Errorf("Failed to remove link: %w", err)
-	}
-	return nil
+	return cli.ConnectorRemove(context.Background(), connectorRemoveOpts)
 }
 
 func (s *SkupperKubeLink) DeleteFlags(cmd *cobra.Command) {}
