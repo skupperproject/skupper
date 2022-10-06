@@ -1062,7 +1062,10 @@ sasldb_path: /tmp/skrouterd.sasldb
 	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
 	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 
-	currentContext := getCurrentContextOrDefault(ctx)
+	currentContext, cn := getCurrentContextOrDefault(ctx)
+	if cn != nil {
+		defer cn()
+	}
 	deadline, _ := currentContext.Deadline()
 
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
@@ -1256,7 +1259,8 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceNam
 	}
 	host := kube.GetLoadBalancerHostOrIP(service)
 
-	deadline, _ := getCurrentContextOrDefault(ctx).Deadline()
+	ctx, _ = getCurrentContextOrDefault(ctx)
+	deadline, _ := ctx.Deadline()
 	fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", time.Until(deadline).Milliseconds()/1000)
 	deadlineExceeded := false
 
@@ -1412,7 +1416,7 @@ func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
 	return &owner
 }
 
-func getCurrentContextOrDefault(ctx context.Context) context.Context {
+func getCurrentContextOrDefault(ctx context.Context) (context.Context, context.CancelFunc) {
 	var currentContext context.Context
 	var cancel context.CancelFunc
 
@@ -1421,10 +1425,9 @@ func getCurrentContextOrDefault(ctx context.Context) context.Context {
 
 	if !ok {
 		currentContext, cancel = context.WithTimeout(ctx, types.DefaultTimeoutDuration)
-		defer cancel()
 	}
 
-	return currentContext
+	return currentContext, cancel
 }
 
 func asOwnerReferences(in types.SiteConfigReference) []metav1.OwnerReference {
