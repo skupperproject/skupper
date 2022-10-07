@@ -20,6 +20,10 @@ type RouterNode struct {
 	Address string `json:"address"`
 }
 
+func (r *RouterNode) IsSelf() bool {
+	return r.NextHop == "(self)"
+}
+
 type Connection struct {
 	Container  string `json:"container"`
 	OperStatus string `json:"operStatus"`
@@ -166,11 +170,11 @@ func asRouter(record Record) *Router {
 	} else {
 		r.Edge = false
 	}
-	r.Address = getRouterAgentAddress(r.Id, r.Edge)
+	r.Address = GetRouterAgentAddress(r.Id, r.Edge)
 	return &r
 }
 
-func (node *RouterNode) asRouter() *Router {
+func (node *RouterNode) AsRouter() *Router {
 	return &Router{
 		Id: node.Id,
 		// SiteId ???
@@ -311,7 +315,7 @@ func stringify(items []interface{}) []string {
 	return s
 }
 
-func getRouterAgentAddress(id string, edge bool) string {
+func GetRouterAgentAddress(id string, edge bool) string {
 	if edge {
 		return "amqp:/_edge/" + id + "/$management"
 	} else {
@@ -319,7 +323,7 @@ func getRouterAgentAddress(id string, edge bool) string {
 	}
 }
 
-func getRouterAddress(id string, edge bool) string {
+func GetRouterAddress(id string, edge bool) string {
 	if edge {
 		return "amqp:/_edge/" + id
 	} else {
@@ -666,7 +670,7 @@ func (a *Agent) GetAllRouters() ([]Router, error) {
 	}
 	routers := []Router{}
 	for _, n := range nodes {
-		routers = append(routers, *n.asRouter())
+		routers = append(routers, *n.AsRouter())
 	}
 	edges, err := a.getAllEdgeRouters(getAddressesFor(routers))
 	if err != nil {
@@ -1084,7 +1088,7 @@ func (a *Agent) getAllEdgeRouters(agents []string) ([]Router, error) {
 			router := Router{
 				Id:      c.Container,
 				Edge:    true,
-				Address: getRouterAddress(c.Container, true),
+				Address: GetRouterAddress(c.Container, true),
 			}
 			edges = append(edges, router)
 		}
@@ -1103,7 +1107,7 @@ func (a *Agent) getEdgeRouters(agent string) ([]Router, error) {
 			router := Router{
 				Id:      c.Container,
 				Edge:    true,
-				Address: getRouterAddress(c.Container, true),
+				Address: GetRouterAddress(c.Container, true),
 			}
 			edges = append(edges, router)
 		}
@@ -1122,7 +1126,7 @@ func (a *Agent) GetLocalGateways() ([]Router, error) {
 			router := Router{
 				Id:      c.Container,
 				Edge:    true,
-				Address: getRouterAddress(c.Container, true),
+				Address: GetRouterAddress(c.Container, true),
 			}
 			gateways = append(gateways, router)
 		}
@@ -1152,9 +1156,13 @@ func (a *Agent) getInteriorAddressForUplink() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return GetInteriorAddressForUplink(connections)
+}
+
+func GetInteriorAddressForUplink(connections []Connection) (string, error) {
 	for _, c := range connections {
 		if c.Role == "edge" && c.Dir == "out" {
-			return getRouterAgentAddress(c.Container, false), nil
+			return GetRouterAgentAddress(c.Container, false), nil
 		}
 	}
 	return "", fmt.Errorf("Could not find uplink connection")

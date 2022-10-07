@@ -7,6 +7,7 @@ import (
 
 	"crypto/tls"
 	"encoding/json"
+
 	"gotest.tools/assert"
 )
 
@@ -88,18 +89,18 @@ func TestQDR(t *testing.T) {
 		assert.Assert(t, router_node.Id == record["id"] && router_node.Name == record["name"] && router_node.Address == record["address"] && router_node.NextHop == record["nextHop"], "asRouterNode failure")
 	}
 
-	// asRouter ------------------------------------
+	// AsRouter ------------------------------------
 	record["metadata"] = "my_metadata"
 	router := asRouter(record)
-	assert.Assert(t, router.Id == record["id"] && router.Site.Id == record["metadata"] && router.Edge == false, "asRouter failure.")
+	assert.Assert(t, router.Id == record["id"] && router.Site.Id == record["metadata"] && router.Edge == false, "AsRouter failure.")
 
 	record["mode"] = "edge"
 	router = asRouter(record)
-	assert.Assert(t, router.Edge == true, "asRouter failure. (edge)")
+	assert.Assert(t, router.Edge == true, "AsRouter failure. (edge)")
 
-	// RouterNode.asRouter ----------------------------
-	router2 := router_node.asRouter()
-	assert.Assert(t, router2.Id == router_node.Id && router2.Edge == false, "RouterNode.asRouter failure: Id |%s|  Edge: %t.", router2.Id, router2.Edge)
+	// RouterNode.AsRouter ----------------------------
+	router2 := router_node.AsRouter()
+	assert.Assert(t, router2.Id == router_node.Id && router2.Edge == false, "RouterNode.AsRouter failure: Id |%s|  Edge: %t.", router2.Id, router2.Edge)
 
 	// NewAgentPool ------------------------------------
 	agentPool := NewAgentPool("my_url", &tls.Config{})
@@ -130,16 +131,16 @@ func TestQDR(t *testing.T) {
 		assert.Assert(t, str == correct[i], "stringify failure: element %d is |%s|, should be |%s|.", i, str, correct[i])
 	}
 
-	// getRouterAddress -----------------------------------
+	// GetRouterAddress -----------------------------------
 	id := "foo"
 
 	correctAddr := "amqp:/_edge/" + id
-	resultAddr := getRouterAddress(id, true)
-	assert.Assert(t, correctAddr == resultAddr, "getRouterAddress failure: |%s| should be |%s|", correctAddr, resultAddr)
+	resultAddr := GetRouterAddress(id, true)
+	assert.Assert(t, correctAddr == resultAddr, "GetRouterAddress failure: |%s| should be |%s|", correctAddr, resultAddr)
 
 	correctAddr = "amqp:/_topo/0/" + id
-	resultAddr = getRouterAddress(id, false)
-	assert.Assert(t, correctAddr == resultAddr, "getRouterAddress failure: |%s| should be |%s|", correctAddr, resultAddr)
+	resultAddr = GetRouterAddress(id, false)
+	assert.Assert(t, correctAddr == resultAddr, "GetRouterAddress failure: |%s| should be |%s|", correctAddr, resultAddr)
 
 	// AsUint64 -----------------------------------
 	integers := []interface{}{uint8(12), uint16(12), uint32(12), uint64(12),
@@ -180,8 +181,8 @@ func TestSiteMetadata(t *testing.T) {
 
 func TestMarshalUnmarshalRecordsWithIntegers(t *testing.T) {
 
-	//Marshaling and un-marshaling a map[string]interface{} with int values changes the format of the numbers to float64
-	//https://go.dev/blog/json
+	// Marshaling and un-marshaling a map[string]interface{} with int values changes the format of the numbers to float64
+	// https://go.dev/blog/json
 
 	record := Record{}
 	record["int"] = 65

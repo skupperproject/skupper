@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -211,13 +212,16 @@ func (l *LinkHandlerPodman) Delete(name string) error {
 	return nil
 }
 
-func (l *LinkHandlerPodman) List() ([]*corev1.Secret, error) {
+func (l *LinkHandlerPodman) list(name string) ([]*corev1.Secret, error) {
 	vl, err := l.cli.VolumeList()
 	if err != nil {
 		return nil, err
 	}
 	var secrets []*corev1.Secret
 	for _, v := range vl {
+		if name != "" && v.Name != name {
+			continue
+		}
 		if l.IsValidLink(v.Name) != nil {
 			continue
 		}
@@ -226,26 +230,84 @@ func (l *LinkHandlerPodman) List() ([]*corev1.Secret, error) {
 			return nil, fmt.Errorf("error loading volume as secret: %s - %w", v.Name, err)
 		}
 		secrets = append(secrets, secret)
+		if name != "" {
+			break
+		}
 	}
 	return secrets, nil
 }
 
+func (l *LinkHandlerPodman) List() ([]*corev1.Secret, error) {
+	return l.list("")
+}
+
+func (l *LinkHandlerPodman) status(name string) ([]types.LinkStatus, error) {
+	var ls []types.LinkStatus
+	secrets, err := l.list(name)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving secrets - %w", err)
+	}
+	connections, err := l.routerManager.QueryConnections("", false)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving router connections - %w", err)
+	}
+	for _, secret := range secrets {
+		ls = append(ls, qdr.GetLinkStatus(secret, l.site.IsEdge(), connections))
+	}
+	return ls, nil
+}
 func (l *LinkHandlerPodman) StatusAll() ([]types.LinkStatus, error) {
-	// TODO implement me
-	panic("implement me")
+	return l.status("")
 }
 
 func (l *LinkHandlerPodman) Status(name string) (types.LinkStatus, error) {
-	// TODO implement me
-	panic("implement me")
+	var empty types.LinkStatus
+	ls, err := l.status(name)
+	if err != nil {
+		return empty, err
+	}
+	if len(ls) == 0 {
+		return empty, fmt.Errorf("No such link %q", name)
+	}
+	return ls[0], nil
 }
 
 func (l *LinkHandlerPodman) Detail(link types.LinkStatus) (map[string]string, error) {
-	// TODO implement me
-	panic("implement me")
+	status := "Active"
+
+	if !link.Connected {
+		status = "Not active"
+
+		if len(link.Description) > 0 {
+			status = fmt.Sprintf("%s (%s)", status, link.Description)
+		}
+	}
+
+	return map[string]string{
+		"Name:":    link.Name,
+		"Status:":  status,
+		"Site:":    l.site.Name + "-" + l.site.Id,
+		"Cost:":    strconv.Itoa(link.Cost),
+		"Created:": link.Created,
+	}, nil
 }
 
 func (l *LinkHandlerPodman) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
-	// TODO implement me
-	panic("implement me")
+	routers, err := l.routerManager.QueryAllRouters()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving remote links - %w", err)
+	}
+	var remoteLinks []*types.RemoteLinkInfo
+	for _, router := range routers {
+		if router.Id == l.site.Id {
+			continue
+		}
+		if utils.StringSliceContains(router.ConnectedTo, l.site.Id) {
+			remoteLinks = append(remoteLinks, &types.RemoteLinkInfo{
+				SiteName: router.Id,
+				SiteId:   router.Site.Id,
+			})
+		}
+	}
+	return remoteLinks, nil
 }

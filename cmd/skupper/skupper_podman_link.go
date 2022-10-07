@@ -13,7 +13,8 @@ import (
 )
 
 type SkupperPodmanLink struct {
-	podman *SkupperPodman
+	podman      *SkupperPodman
+	linkHandler domain.LinkHandler
 }
 
 func (s *SkupperPodmanLink) Create(cmd *cobra.Command, args []string) error {
@@ -76,5 +77,18 @@ func (s *SkupperPodmanLink) Platform() types.Platform {
 }
 
 func (s *SkupperPodmanLink) LinkHandler() domain.LinkHandler {
-	return nil
+	if s.linkHandler != nil {
+		return s.linkHandler
+	}
+	siteHandler, err := podman.NewSitePodmanHandler("")
+	if err != nil {
+		return nil
+	}
+	site, err := siteHandler.Get()
+	if err != nil {
+		return nil
+	}
+	sitePodman := site.(*podman.SitePodman)
+	s.linkHandler = podman.NewLinkHandlerPodman(sitePodman, s.podman.cli)
+	return s.linkHandler
 }
