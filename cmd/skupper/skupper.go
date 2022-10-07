@@ -10,6 +10,7 @@ import (
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -69,6 +70,7 @@ type SkupperDebugClient interface {
 
 type SkupperLinkClient interface {
 	SkupperClientManager
+	LinkHandler() domain.LinkHandler
 }
 
 type SkupperTokenClient interface {

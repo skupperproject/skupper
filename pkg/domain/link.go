@@ -2,6 +2,7 @@ package domain
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -25,6 +26,8 @@ type LinkHandler interface {
 	List() ([]*corev1.Secret, error)
 	StatusAll() ([]types.LinkStatus, error)
 	Status(name string) (types.LinkStatus, error)
+	Detail(link types.LinkStatus) (map[string]string, error)
+	RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error)
 }
 
 type SecretUpdateFn func(claim *corev1.Secret) error

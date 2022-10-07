@@ -80,7 +80,11 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, options
 				return nil, fmt.Errorf("outgoing link to %s is not allowed", hostname)
 			}
 
-			linkHandler := domainkube.NewLinkHandlerKube(options.SkupperNamespace, cli.KubeClient)
+			cfg, err := cli.getRouterConfig(ctx, cli.Namespace)
+			if err != nil {
+				return nil, fmt.Errorf("error reading router config: %w", err)
+			}
+			linkHandler := domainkube.NewLinkHandlerKube(options.SkupperNamespace, siteConfig, cfg, cli.KubeClient, cli.RestConfig)
 			if options.Name == "" {
 				options.Name = domain.GenerateLinkName(linkHandler)
 			}

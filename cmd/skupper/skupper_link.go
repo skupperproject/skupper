@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
+	"k8s.io/apimachinery/pkg/api/errors"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/spf13/cobra"
 
@@ -92,7 +97,120 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 		Short:  "Check whether a link to another Skupper site is active",
 		Args:   cobra.MaximumNArgs(1),
 		PreRun: skupperClient.NewClient,
-		RunE:   skupperClient.Status,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			linkHandler := skupperClient.LinkHandler()
+			if linkHandler == nil {
+				return fmt.Errorf("unable to retrieve links")
+			}
+			if remoteInfoTimeout.Seconds() <= 0 {
+				return fmt.Errorf(`invalid timeout value`)
+			}
+
+			if verboseLinkStatus && (len(args) == 0 || args[0] == "all") {
+				fmt.Println("In order to provide detailed information about the link, specify the link name")
+				return nil
+			}
+
+			if len(args) == 1 && args[0] != "all" {
+				for i := 0; ; i++ {
+					if i > 0 {
+						time.Sleep(time.Second)
+					}
+					link, err := linkHandler.Status(args[0])
+					if errors.IsNotFound(err) {
+						fmt.Printf("No such link %q", args[0])
+						fmt.Println()
+						break
+					} else if err != nil {
+						fmt.Println(err)
+						break
+					} else if verboseLinkStatus {
+						detailMap, err := linkHandler.Detail(link)
+						err = formatter.PrintKeyValueMap(detailMap)
+						if err != nil {
+							fmt.Println(err)
+						}
+						fmt.Println()
+						break
+
+					} else if link.Connected {
+						fmt.Printf("Link %s is active", link.Name)
+						fmt.Println()
+						break
+					} else if i == waitFor {
+						if link.Description != "" {
+							fmt.Printf("Link %s not active (%s)", link.Name, link.Description)
+						} else {
+							fmt.Printf("Link %s not active", link.Name)
+						}
+						fmt.Println()
+						break
+					}
+				}
+			} else {
+				for i := 0; ; i++ {
+					if i > 0 {
+						time.Sleep(time.Second)
+					}
+					links, err := linkHandler.StatusAll()
+					if err != nil {
+						fmt.Println(err)
+						break
+					} else if allConnected(links) || i == waitFor {
+						fmt.Println("\nLinks created from this site:")
+						fmt.Println("-------------------------------")
+
+						if len(links) == 0 {
+							fmt.Println("There are no links configured or active")
+						}
+						for _, link := range links {
+							if link.Connected {
+								fmt.Printf("Link %s is active", link.Name)
+								fmt.Println()
+							} else {
+								if link.Description != "" {
+									fmt.Printf("Link %s not active (%s)", link.Name, link.Description)
+								} else {
+									fmt.Printf("Link %s not active", link.Name)
+								}
+								fmt.Println()
+							}
+						}
+
+						ctx, cancel := context.WithTimeout(context.Background(), remoteInfoTimeout)
+						defer cancel()
+
+						fmt.Println("\nCurrently active links from other sites:")
+						fmt.Println("----------------------------------------")
+
+						var remoteLinks []*types.RemoteLinkInfo
+						err := utils.RetryErrorWithContext(ctx, time.Second, func() error {
+							remoteLinks, err = linkHandler.RemoteLinks(ctx)
+							if err != nil {
+								return err
+							}
+							return nil
+						})
+
+						if err != nil {
+							fmt.Println(err)
+							break
+						} else if len(remoteLinks) > 0 {
+							for _, remoteLink := range remoteLinks {
+								fmt.Printf("A link from the namespace %s on site %s(%s) is active ", remoteLink.Namespace, remoteLink.SiteName, remoteLink.SiteId)
+								fmt.Println()
+							}
+						} else {
+							fmt.Println("There are no active links")
+						}
+						break
+					}
+				}
+			}
+			return nil
+		},
 	}
 	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become active")
 	cmd.Flags().DurationVar(&remoteInfoTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for retrieving information about remote links")

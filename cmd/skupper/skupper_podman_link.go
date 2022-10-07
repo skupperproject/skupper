@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -72,4 +73,8 @@ func (s *SkupperPodmanLink) NewClient(cmd *cobra.Command, args []string) {
 
 func (s *SkupperPodmanLink) Platform() types.Platform {
 	return s.podman.Platform()
+}
+
+func (s *SkupperPodmanLink) LinkHandler() domain.LinkHandler {
+	return nil
 }

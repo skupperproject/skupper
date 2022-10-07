@@ -1,6 +1,7 @@
 package podman
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
@@ -235,6 +236,16 @@ func (l *LinkHandlerPodman) StatusAll() ([]types.LinkStatus, error) {
 }
 
 func (l *LinkHandlerPodman) Status(name string) (types.LinkStatus, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (l *LinkHandlerPodman) Detail(link types.LinkStatus) (map[string]string, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (l *LinkHandlerPodman) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
 	// TODO implement me
 	panic("implement me")
 }
