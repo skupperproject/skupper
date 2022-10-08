@@ -154,13 +154,24 @@ func (r *responseReaderBody) Consume(reader io.Reader, i interface{}) error {
 	}
 
 	var dataClean []byte
-	for i, v := range data {
+	for idx, v := range data {
 		// skip 8 first bytes every 8k chunk
-		if i%(8192+8) < 8 {
+		if idx%(8192+8) < 8 {
 			continue
 		}
 		dataClean = append(dataClean, v)
 	}
+
+	for idx, v := range dataClean {
+		// bad characters ascii 0 or 1 returned sometimes, stripping them off
+		if v < 2 {
+			dataClean = dataClean[:idx]
+			break
+		}
+	}
+
+	// fmt.Println(string(dataClean[len(dataClean)-8 : len(dataClean)]))
+	// fmt.Println(dataClean[len(dataClean)-8 : len(dataClean)])
 	*bodyStr = string(dataClean)
 	return nil
 }
