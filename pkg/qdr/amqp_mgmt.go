@@ -57,7 +57,7 @@ type SiteMetadata struct {
 	Version string `json:"version,omitempty"`
 }
 
-func getSiteMetadata(metadata string) SiteMetadata {
+func GetSiteMetadata(metadata string) SiteMetadata {
 	result := SiteMetadata{}
 	err := json.Unmarshal([]byte(metadata), &result)
 	if err != nil {
@@ -162,7 +162,7 @@ func asRouterNode(record Record) RouterNode {
 func asRouter(record Record) *Router {
 	r := Router{
 		Id:      record.AsString("id"),
-		Site:    getSiteMetadata(record.AsString("metadata")),
+		Site:    GetSiteMetadata(record.AsString("metadata")),
 		Version: record.AsString("version"),
 	}
 	if record.AsString("mode") == "edge" {
@@ -709,7 +709,7 @@ func (a *Agent) getSiteIds(routers []Router) error {
 	}
 	for i, records := range results {
 		if len(records) == 1 {
-			routers[i].Site = getSiteMetadata(records[0].AsString("metadata"))
+			routers[i].Site = GetSiteMetadata(records[0].AsString("metadata"))
 		} else {
 			return fmt.Errorf("Unexpected number of router records: %d", len(records))
 		}

@@ -302,7 +302,7 @@ func (l *LinkHandlerPodman) RemoteLinks(ctx context.Context) ([]*types.RemoteLin
 		if router.Id == l.site.Id {
 			continue
 		}
-		if utils.StringSliceContains(router.ConnectedTo, l.site.Id) {
+		if utils.StringSliceContains(router.ConnectedTo, l.site.Name) {
 			remoteLinks = append(remoteLinks, &types.RemoteLinkInfo{
 				SiteName: router.Id,
 				SiteId:   router.Site.Id,

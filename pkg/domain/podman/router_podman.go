@@ -73,7 +73,8 @@ func (r *RouterEntityManagerPodman) QueryConnections(routerId string, edge bool)
 }
 
 func (r *RouterEntityManagerPodman) QueryAllRouters() ([]qdr.Router, error) {
-	var routers []qdr.Router
+	var routersToQuery []qdr.Router
+	var routersRet []qdr.Router
 	routerNodes, err := r.QueryRouterNodes()
 	if err != nil {
 		return nil, err
@@ -83,25 +84,41 @@ func (r *RouterEntityManagerPodman) QueryAllRouters() ([]qdr.Router, error) {
 		return nil, err
 	}
 	for _, r := range routerNodes {
-		routers = append(routers, *r.AsRouter())
+		routersToQuery = append(routersToQuery, *r.AsRouter())
 	}
-	routers = append(routers, edgeRouters...)
-	// querying io.skupper.router.router to retrieve version for all routers found
-	for _, router := range routers {
+	for _, r := range edgeRouters {
+		routersToQuery = append(routersToQuery, r)
+	}
+	for _, router := range routersToQuery {
+		// querying io.skupper.router.router to retrieve version for all routers found
 		routerToQuery := router.Id
 		cmd := qdr.SkmanageQueryCommand("io.skupper.router.router", routerToQuery, router.Edge, "")
 		rJson, err := r.cli.ContainerExec(types.TransportDeploymentName, cmd)
 		if err != nil {
 			return nil, fmt.Errorf("error querying router info from %s - %w", routerToQuery, err)
 		}
-		var s qdr.SiteMetadata
-		err = json.Unmarshal([]byte(rJson), &s)
+		var records []qdr.Record
+		err = json.Unmarshal([]byte(rJson), &records)
 		if err != nil {
 			return nil, fmt.Errorf("error decoding router info from %s - %w", routerToQuery, err)
 		}
-		router.Site = s
+		router.Site = qdr.GetSiteMetadata(records[0].AsString("metadata"))
+
+		// retrieving connections
+		conns, err := r.QueryConnections(routerToQuery, router.Edge)
+		if err != nil {
+			return nil, fmt.Errorf("error querying router connections from %s - %w", routerToQuery, err)
+		}
+		for _, conn := range conns {
+			if conn.Role == types.InterRouterRole && conn.Dir == qdr.DirectionOut {
+				router.ConnectedTo = append(router.ConnectedTo, conn.Container)
+			} else if conn.Role == types.EdgeRole && conn.Dir == qdr.DirectionIn {
+				router.ConnectedTo = append(router.ConnectedTo, conn.Container)
+			}
+		}
+		routersRet = append(routersRet, router)
 	}
-	return routers, nil
+	return routersRet, nil
 }
 
 func (r *RouterEntityManagerPodman) QueryRouterNodes() ([]qdr.RouterNode, error) {

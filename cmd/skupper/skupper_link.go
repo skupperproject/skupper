@@ -199,7 +199,11 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 							break
 						} else if len(remoteLinks) > 0 {
 							for _, remoteLink := range remoteLinks {
-								fmt.Printf("A link from the namespace %s on site %s(%s) is active ", remoteLink.Namespace, remoteLink.SiteName, remoteLink.SiteId)
+								var nsStr string
+								if remoteLink.Namespace != "" {
+									nsStr = fmt.Sprintf("the namespace %s on site ", remoteLink.Namespace)
+								}
+								fmt.Printf("A link from %s%s(%s) is active ", nsStr, remoteLink.SiteName, remoteLink.SiteId)
 								fmt.Println()
 							}
 						} else {

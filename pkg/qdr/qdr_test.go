@@ -1,11 +1,12 @@
 package qdr
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
-	"reflect"
-	"testing"
 )
 
 func TestInitialConfig(t *testing.T) {
@@ -13,11 +14,11 @@ func TestInitialConfig(t *testing.T) {
 	if config.Metadata.Id != "foo" {
 		t.Errorf("Invalid id, expected 'foo' got %q", config.Metadata.Id)
 	}
-	if getSiteMetadata(config.Metadata.Metadata).Id != "bar" {
-		t.Errorf("Invalid metadata, expected id to be 'bar' got %q", getSiteMetadata(config.Metadata.Metadata).Id)
+	if GetSiteMetadata(config.Metadata.Metadata).Id != "bar" {
+		t.Errorf("Invalid metadata, expected id to be 'bar' got %q", GetSiteMetadata(config.Metadata.Metadata).Id)
 	}
-	if getSiteMetadata(config.Metadata.Metadata).Version != "1.2.3" {
-		t.Errorf("Invalid metadata, expected version to be '1.2.3' got %q", getSiteMetadata(config.Metadata.Metadata).Version)
+	if GetSiteMetadata(config.Metadata.Metadata).Version != "1.2.3" {
+		t.Errorf("Invalid metadata, expected version to be '1.2.3' got %q", GetSiteMetadata(config.Metadata.Metadata).Version)
 	}
 	if config.Metadata.Mode != ModeEdge {
 		t.Errorf("Invalid id, expected %q got %q", ModeEdge, config.Metadata.Mode)
@@ -29,11 +30,11 @@ func TestInitialConfig(t *testing.T) {
 	if config.Metadata.Id != "bing" {
 		t.Errorf("Invalid id, expected 'bing' got %q", config.Metadata.Id)
 	}
-	if getSiteMetadata(config.Metadata.Metadata).Id != "bong" {
-		t.Errorf("Invalid metadata, expectedsite id to be 'bong' got %q", getSiteMetadata(config.Metadata.Metadata).Id)
+	if GetSiteMetadata(config.Metadata.Metadata).Id != "bong" {
+		t.Errorf("Invalid metadata, expectedsite id to be 'bong' got %q", GetSiteMetadata(config.Metadata.Metadata).Id)
 	}
-	if getSiteMetadata(config.Metadata.Metadata).Version != "3.2.1" {
-		t.Errorf("Invalid metadata, expected version to be '3.2.1' got %q", getSiteMetadata(config.Metadata.Metadata).Version)
+	if GetSiteMetadata(config.Metadata.Metadata).Version != "3.2.1" {
+		t.Errorf("Invalid metadata, expected version to be '3.2.1' got %q", GetSiteMetadata(config.Metadata.Metadata).Version)
 	}
 	if config.Metadata.Mode != ModeInterior {
 		t.Errorf("Invalid id, expected %q got %q", ModeInterior, config.Metadata.Mode)

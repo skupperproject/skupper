@@ -165,7 +165,7 @@ func TestSiteMetadata(t *testing.T) {
 		Id:      "foo",
 		Version: "1.2.3",
 	}
-	b := getSiteMetadata(getSiteMetadataString(a.Id, a.Version))
+	b := GetSiteMetadata(getSiteMetadataString(a.Id, a.Version))
 	if b.Id != a.Id {
 		t.Errorf("Invalid metadata, expected id to be %q got %q", a.Id, b.Id)
 	}
@@ -173,7 +173,7 @@ func TestSiteMetadata(t *testing.T) {
 		t.Errorf("Invalid metadata, expected version to be %q got %q", a.Id, b.Id)
 	}
 	id := "I am not an object"
-	c := getSiteMetadata(id)
+	c := GetSiteMetadata(id)
 	if c.Id != id {
 		t.Errorf("Invalid metadata, expected id to be %q got %q", id, c.Id)
 	}
