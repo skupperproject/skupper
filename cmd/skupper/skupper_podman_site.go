@@ -7,6 +7,7 @@ import (
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	podman "github.com/skupperproject/skupper/pkg/domain/podman"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/spf13/cobra"
 )
 
@@ -119,7 +120,49 @@ func (s *SkupperPodmanSite) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
-	return notImplementedErr
+	siteHandler, err := podman.NewSitePodmanHandler("")
+	site, err := siteHandler.Get()
+	if err != nil {
+		fmt.Printf("Skupper is not enabled for '%s'\n", podman.Username)
+		return nil
+	}
+
+	routerMgr := podman.NewRouterEntityManagerPodman(s.podman.cli)
+	routers, err := routerMgr.QueryAllRouters()
+	if err != nil {
+		return fmt.Errorf("error verifying network - %w", err)
+	}
+	connectedSites := qdr.ConnectedSitesInfo(site.GetId(), routers)
+
+	// Preparing output
+	sitename := ""
+	if site.GetName() != "" && site.GetName() != podman.Username {
+		sitename = fmt.Sprintf(" with site name %q", site.GetName())
+	}
+	var modedesc string = " in interior mode"
+	if site.GetMode() == string(types.TransportModeEdge) {
+		modedesc = " in edge mode"
+	}
+
+	fmt.Printf("Skupper is enabled for %q%s%s.", podman.Username, sitename, modedesc)
+	if len(connectedSites.Warnings) > 0 {
+		for _, w := range connectedSites.Warnings {
+			fmt.Printf("Warning: %s", w)
+			fmt.Println()
+		}
+	}
+	if connectedSites.Total == 0 {
+		fmt.Printf(" It is not connected to any other sites.")
+	} else if connectedSites.Total == 1 {
+		fmt.Printf(" It is connected to 1 other site.")
+	} else if connectedSites.Total == connectedSites.Direct {
+		fmt.Printf(" It is connected to %d other sites.", connectedSites.Total)
+	} else {
+		fmt.Printf(" It is connected to %d other sites (%d indirectly).", connectedSites.Total, connectedSites.Indirect)
+	}
+
+	fmt.Println()
+	return nil
 }
 
 func (s *SkupperPodmanSite) StatusFlags(cmd *cobra.Command) {}

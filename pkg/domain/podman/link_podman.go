@@ -293,13 +293,16 @@ func (l *LinkHandlerPodman) Detail(link types.LinkStatus) (map[string]string, er
 }
 
 func (l *LinkHandlerPodman) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
+	var remoteLinks []*types.RemoteLinkInfo
+	if l.site.GetMode() == string(types.TransportModeEdge) {
+		return remoteLinks, nil
+	}
 	routers, err := l.routerManager.QueryAllRouters()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving remote links - %w", err)
 	}
-	var remoteLinks []*types.RemoteLinkInfo
 	for _, router := range routers {
-		if router.Id == l.site.Id {
+		if router.Id == l.site.Name {
 			continue
 		}
 		if utils.StringSliceContains(router.ConnectedTo, l.site.Name) {

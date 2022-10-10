@@ -112,8 +112,6 @@ func (r *RouterEntityManagerPodman) QueryAllRouters() ([]qdr.Router, error) {
 		for _, conn := range conns {
 			if conn.Role == types.InterRouterRole && conn.Dir == qdr.DirectionOut {
 				router.ConnectedTo = append(router.ConnectedTo, conn.Container)
-			} else if conn.Role == types.EdgeRole && conn.Dir == qdr.DirectionIn {
-				router.ConnectedTo = append(router.ConnectedTo, conn.Container)
 			}
 		}
 		routersRet = append(routersRet, router)

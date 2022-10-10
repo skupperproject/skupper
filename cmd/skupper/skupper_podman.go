@@ -13,7 +13,7 @@ import (
 var notImplementedErr = fmt.Errorf("Not implemented")
 
 var SkupperPodmanCommands = []string{
-	"switch", "init", "delete", "version", "token", "link",
+	"switch", "init", "delete", "status", "version", "token", "link",
 }
 
 type SkupperPodman struct {

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type RouterNode struct {
@@ -1397,4 +1399,30 @@ func (a *Agent) CreateSslProfile(profile SslProfile) error {
 	}
 
 	return nil
+}
+
+func ConnectedSitesInfo(selfId string, routers []Router) types.TransportConnectedSites {
+	var connectedSites types.TransportConnectedSites
+	var self *Router
+	for _, r := range routers {
+		if r.Site.Id == selfId {
+			self = &r
+			break
+		}
+	}
+	if self == nil {
+		return connectedSites
+	}
+	for _, r := range routers {
+		if r.Edge && len(r.ConnectedTo) > 1 {
+			connectedSites.Warnings = append(connectedSites.Warnings, "There are edge uplinks to distinct networks, please verify topology (connected counts may not be accurate).")
+		}
+		if utils.StringSliceContains(r.ConnectedTo, self.Id) {
+			connectedSites.Direct += 1
+		}
+	}
+	connectedSites.Total = len(routers) - 1
+	connectedSites.Direct += len(self.ConnectedTo)
+	connectedSites.Indirect = connectedSites.Total - connectedSites.Direct
+	return connectedSites
 }
