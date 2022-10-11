@@ -113,6 +113,7 @@ commands:
       - docker/install-docker
       - go/install
       - kube-orb/install-kubectl
+      - run: make generate-client
       - run: make
 
   system_monitor:
@@ -319,6 +320,7 @@ jobs:
                 exit 1
               fi
       - go/mod-download-cached
+      - run: make generate-client
       - run: make
       - run: make package
       - run: make clean
@@ -340,6 +342,7 @@ jobs:
             source $BASH_ENV
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
+      - run: make -e generate-client
       - run: make -e docker-build
       - run: make -e docker-push
 
@@ -474,6 +477,7 @@ jobs:
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
+            make -e generate-client
             make -e docker-build
             make -e docker-push
 
@@ -493,5 +497,6 @@ jobs:
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:master' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:master' >> $BASH_ENV
             source $BASH_ENV
+            make -e generate-client
             make -e docker-build
             make -e docker-push

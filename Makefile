@@ -55,6 +55,11 @@ format:
 
 generate-client:
 	./scripts/update-codegen.sh
+	./scripts/libpod-generate.sh
+
+force-generate-client:
+	FORCE=true ./scripts/update-codegen.sh
+	FORCE=true ./scripts/libpod-generate.sh
 
 client-mock-test:
 	go test -v -count=1 ./client
