@@ -10,6 +10,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -165,6 +166,9 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 	if actual.Protocol != desired.Protocol || !reflect.DeepEqual(actual.Ports, desired.Ports) {
 		return true
 	}
+	if actual.Headless != desired.Headless {
+		return true
+	}
 	targets := map[string]types.ServiceInterfaceTarget{}
 	updated := false
 	for _, target := range actual.Targets {
@@ -262,6 +266,31 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 			svc.Headless = &types.Headless{
 				Name: statefulset.ObjectMeta.Name,
 				Size: int(*statefulset.Spec.Replicas),
+			}
+			if cpu, ok := statefulset.ObjectMeta.Annotations[types.CpuRequestAnnotation]; ok {
+				quantity, err := resource.ParseQuantity(cpu)
+				if err != nil {
+					event.Recordf(DefinitionMonitorError, "Invalid cpu annotation on statefulset %s: %s", statefulset.ObjectMeta.Name, err)
+				} else {
+					svc.Headless.CpuRequest = &quantity
+				}
+			}
+			if memory, ok := statefulset.ObjectMeta.Annotations[types.MemoryRequestAnnotation]; ok {
+				quantity, err := resource.ParseQuantity(memory)
+				if err != nil {
+					event.Recordf(DefinitionMonitorError, "Invalid memory annotation on statefulset %s: %s", statefulset.ObjectMeta.Name, err)
+				} else {
+					svc.Headless.MemoryRequest = &quantity
+				}
+			}
+			if affinity, ok := statefulset.ObjectMeta.Annotations[types.AffinityAnnotation]; ok {
+				svc.Headless.Affinity = utils.LabelToMap(affinity)
+			}
+			if antiAffinity, ok := statefulset.ObjectMeta.Annotations[types.AntiAffinityAnnotation]; ok {
+				svc.Headless.AntiAffinity = utils.LabelToMap(antiAffinity)
+			}
+			if nodeSelector, ok := statefulset.ObjectMeta.Annotations[types.NodeSelectorAnnotation]; ok {
+				svc.Headless.NodeSelector = utils.LabelToMap(nodeSelector)
 			}
 		}
 		if address, ok := statefulset.ObjectMeta.Annotations[types.AddressQualifier]; ok {
@@ -602,9 +631,10 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							svc := types.ServiceInterface{}
 							err := jsonencoding.Unmarshal([]byte(v), &svc)
 							if err == nil {
-								if svc.Headless != nil && svc.Origin == "" {
+								if svc.Headless != nil && svc.IsOfLocalOrigin() {
 									m.headless[svc.Headless.Name] = svc
-								} else if svc.Origin == "annotation" {
+								}
+								if svc.Origin == "annotation" {
 									m.annotated[svc.Address] = svc
 								}
 							} else {
@@ -638,51 +668,53 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					if !ok {
 						return fmt.Errorf("Expected StatefulSet for %s but got %#v", name, obj)
 					}
-					// is this statefulset one that has been exposed with the headless option?
-					svc, ok := m.headless[statefulset.ObjectMeta.Name]
-					if ok {
-						if svc.Headless.Size != int(*statefulset.Spec.Replicas) {
+					// does it have a skupper annotation?
+					if desired, ok := m.getServiceDefinitionFromAnnotatedStatefulSet(statefulset); ok {
+						event.Recordf(DefinitionMonitorEvent, "Checking annotated statefulSet %s", name)
+						actual, ok := m.annotated[desired.Address]
+						if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
+							event.Recordf(DefinitionMonitorUpdateEvent, "Updating service definition for annotated statefulSet %s to %#v", name, desired)
+							changed := []types.ServiceInterface{
+								desired,
+							}
+							deleted := []string{}
+							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+							if err != nil {
+								return fmt.Errorf("failed to update service definition for annotated statefulSet %s: %s", name, err)
+							}
+							m.annotated[desired.Address] = desired
+							if desired.Headless != nil {
+								m.headless[desired.Address] = desired
+							} else if _, ok := m.headless[desired.Address]; ok {
+								delete(m.headless, desired.Address)
+							}
+						}
+						if address, ok := m.annotatedStatefulSets[name]; ok {
+							if address != desired.Address {
+								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated statefulSet %s. Was %s, now %s", name, address, desired.Address)
+								if err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name); err != nil {
+									return fmt.Errorf("Failed to delete stale service definition for %s", address)
+								}
+								m.annotatedStatefulSets[name] = desired.Address
+							}
+						} else {
+							m.annotatedStatefulSets[name] = desired.Address
+						}
+
+					} else {
+						// is this statefulset one that has been exposed with the headless option?
+						if _, ok := m.annotatedStatefulSets[name]; ok {
+							err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name)
+							if err != nil {
+								return fmt.Errorf("Failed to delete service definition on statefulset %s which is no longer annotated: %s", name, err)
+							}
+						} else if svc, ok := m.headless[statefulset.ObjectMeta.Name]; ok && svc.Headless.Size != int(*statefulset.Spec.Replicas) {
 							svc.Headless.Size = int(*statefulset.Spec.Replicas)
 							changed := []types.ServiceInterface{
 								svc,
 							}
 							deleted := []string{}
 							kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.Namespace, m.vanClient.KubeClient)
-						}
-					} else {
-						// does it have a skupper annotation?
-						if desired, ok := m.getServiceDefinitionFromAnnotatedStatefulSet(statefulset); ok {
-							event.Recordf(DefinitionMonitorEvent, "Checking annotated statefulSet %s", name)
-							actual, ok := m.annotated[desired.Address]
-							if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
-								event.Recordf(DefinitionMonitorUpdateEvent, "Updating service definition for annotated statefulSet %s to %#v", name, desired)
-								changed := []types.ServiceInterface{
-									desired,
-								}
-								deleted := []string{}
-								err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
-								if err != nil {
-									return fmt.Errorf("failed to update service definition for annotated statefulSet %s: %s", name, err)
-								}
-								m.annotated[desired.Address] = desired
-							}
-							if address, ok := m.annotatedStatefulSets[name]; ok {
-								if address != desired.Address {
-									event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated statefulSet %s. Was %s, now %s", name, address, desired.Address)
-									if err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name); err != nil {
-										return fmt.Errorf("Failed to delete stale service definition for %s", address)
-									}
-									m.annotatedStatefulSets[name] = desired.Address
-								}
-							} else {
-								m.annotatedStatefulSets[name] = desired.Address
-							}
-
-						} else {
-							err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name)
-							if err != nil {
-								return fmt.Errorf("Failed to delete service definition on statefulset %s which is no longer annotated: %s", name, err)
-							}
 						}
 					}
 				} else {
