@@ -257,7 +257,11 @@ func equivalentServiceDefinition(a *types.ServiceInterface, b *types.ServiceInte
 	if a.Headless == nil && b.Headless == nil {
 		return true
 	} else if a.Headless != nil && b.Headless != nil {
-		return reflect.DeepEqual(a.Headless, b.Headless)
+		if a.Headless.Name != b.Headless.Name || a.Headless.Size != b.Headless.Size || !reflect.DeepEqual(a.Headless.TargetPorts, b.Headless.TargetPorts) {
+			return false
+		} else {
+			return true
+		}
 	} else {
 		return false
 	}
