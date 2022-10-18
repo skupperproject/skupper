@@ -7,6 +7,7 @@ import (
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func GetRoute(name string, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {
@@ -17,7 +18,7 @@ func GetRoute(name string, namespace string, rc *routev1client.RouteV1Client) (*
 func CreateRoute(route *routev1.Route, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {
 	current, err := rc.Routes(namespace).Get(route.Name, metav1.GetOptions{})
 	if err == nil {
-		return current, fmt.Errorf("Route %s already exists", route.Name)
+		return current, errors.NewAlreadyExists(schema.GroupResource{Group: "openshift.io", Resource: "routes"}, route.Name)
 	} else if errors.IsNotFound(err) {
 		created, err := rc.Routes(namespace).Create(route)
 		if err != nil {
