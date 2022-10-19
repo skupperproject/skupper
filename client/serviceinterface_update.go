@@ -126,7 +126,7 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 	} else if service.EventChannel && service.Protocol != "http" {
 		return fmt.Errorf("The event-channel option is currently only valid for http")
 	} else if service.EnableTls && service.Protocol == "http" {
-		return fmt.Errorf("The TLS support is only available for http2 ant tcp protocols")
+		return fmt.Errorf("The TLS support is only available for http2 and tcp protocols")
 	} else {
 		return nil
 	}
