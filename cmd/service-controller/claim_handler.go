@@ -5,6 +5,7 @@ import (
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/event"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -29,6 +30,9 @@ func newClaimHandler(cli *client.VanClient, siteId string) *SecretController {
 		siteId:    siteId,
 	}
 	site, _ := cli.GetSiteMetadata()
+	if site == nil {
+		site = &qdr.SiteMetadata{}
+	}
 	handler.redeemer = domain.NewClaimRedeemer(handler.name, site.Id, site.Version, handler.updateSecret, event.Recordf)
 	return NewSecretController(handler.name, types.ClaimRequestSelector, cli.KubeClient, cli.Namespace, handler)
 }
