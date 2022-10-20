@@ -44,7 +44,7 @@ func (l *LinkHandlerKube) Delete(name string) error {
 }
 
 func (l *LinkHandlerKube) List() ([]*corev1.Secret, error) {
-	currentSecrets, err := l.cli.CoreV1().Secrets(l.namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
+	currentSecrets, err := l.cli.CoreV1().Secrets(l.namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve secrets: %w", err)
 	}
