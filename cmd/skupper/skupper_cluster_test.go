@@ -5,15 +5,16 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/spf13/cobra"
 	"gotest.tools/assert"
@@ -637,7 +638,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "list-connectors-test2",
-			args:            []string{"--timeout", "1s"}, //added timeout to not wait for remote links which are not relevant for this test
+			args:            []string{"--timeout", "1s"}, // added timeout to not wait for remote links which are not relevant for this test
 			expectedCapture: "There are no links configured or active",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -646,7 +647,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "list-connectors-test3",
-			args:            []string{"--timeout", "1s"}, //added timeout to not wait for remote links which are not relevant for this test
+			args:            []string{"--timeout", "1s"}, // added timeout to not wait for remote links which are not relevant for this test
 			expectedCapture: "Link",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -661,7 +662,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 			expectedError:   "",
 			outputRegExp:    "^\\n\\sCost:.*\\n\\sCreated:.*\\n\\sName:.*\\n\\sNamespace:.*\\n\\sSite:.*\\n\\sStatus:.*\\n",
 			realCluster:     true,
-			createConn:      true,
+			createConn:      false,
 		},
 	}
 
@@ -711,7 +712,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test2",
-			args:            []string{"all", "--timeout", "1s"}, //added timeout to not wait for remote links which are not relevant for this testq
+			args:            []string{"all", "--timeout", "1s"}, // added timeout to not wait for remote links which are not relevant for this testq
 			expectedCapture: "There are no links configured or active",
 			expectedOutput:  "",
 			expectedError:   "",
