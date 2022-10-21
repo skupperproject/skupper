@@ -231,8 +231,8 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", fmt.Errorf("Service already exposed, cannot reconfigure as headless")
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
 		return "", fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
-	} else if options.EnableTls && options.Protocol != "http2" {
-		return "", fmt.Errorf("TLS can not be enabled for service with mapping %s (only available for http2)", service.Protocol)
+	} else if options.EnableTls && options.Protocol == "http" {
+		return "", fmt.Errorf("TLS can not be enabled for service with mapping %s (only available for http2 and tcp protocols)", service.Protocol)
 	} else if options.EnableTls && !service.EnableTls {
 		return "", fmt.Errorf("Service already exposed without TLS support")
 	} else if !options.EnableTls && service.EnableTls {
@@ -457,7 +457,7 @@ func NewCmdExpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd.Flags().StringVar(&(exposeOpts.Address), "address", "", "The Skupper address to expose")
 	cmd.Flags().IntSliceVar(&(exposeOpts.Ports), "port", []int{}, "The ports to expose on")
 	cmd.Flags().StringSliceVar(&(exposeOpts.TargetPorts), "target-port", []string{}, "The ports to target on pods")
-	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 protocol)")
+	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 and tcp protocols)")
 
 	skupperCli.ExposeFlags(cmd)
 	return cmd

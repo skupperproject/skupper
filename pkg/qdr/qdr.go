@@ -430,11 +430,13 @@ type Address struct {
 }
 
 type TcpEndpoint struct {
-	Name    string `json:"name,omitempty"`
-	Host    string `json:"host,omitempty"`
-	Port    string `json:"port,omitempty"`
-	Address string `json:"address,omitempty"`
-	SiteId  string `json:"siteId,omitempty"`
+	Name           string `json:"name,omitempty"`
+	Host           string `json:"host,omitempty"`
+	Port           string `json:"port,omitempty"`
+	Address        string `json:"address,omitempty"`
+	SiteId         string `json:"siteId,omitempty"`
+	SslProfile     string `json:"sslProfile,omitempty"`
+	VerifyHostname *bool  `json:"verifyHostname,omitempty"`
 }
 
 type HttpEndpoint struct {
