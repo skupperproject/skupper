@@ -9,6 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type GetLocalLinks func(*VanClient, string, map[string]string) (map[string]*types.LinkStatus, error)
+
 func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, error) {
 
 	//Checking if the router has been deployed
@@ -21,6 +23,10 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, err
 
 	if err != nil {
 		return nil, err
+	}
+
+	if sites == nil {
+		return nil, fmt.Errorf("could not retreive information about the sites from the service controller")
 	}
 
 	versionCheckedSites := cli.checkSiteVersion(sites)
@@ -52,7 +58,7 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, err
 
 		currentSite := siteConfig.Reference.UID
 
-		listLinks, err := cli.getFormattedLinks(site, siteNameMap, site.SiteId == currentSite)
+		listLinks, err := GetFormattedLinks(GetLocalLinkStatus, cli, site, siteNameMap, site.SiteId == currentSite)
 		if err != nil {
 			return nil, err
 		}
@@ -70,21 +76,31 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, err
 	return listSites, nil
 }
 
-func (cli *VanClient) getFormattedLinks(site types.SiteInfo, siteNameMap map[string]string, isLocalSite bool) ([]string, error) {
+func GetFormattedLinks(getLocalLinks GetLocalLinks, cli *VanClient, site types.SiteInfo, siteNameMap map[string]string, isLocalSite bool) ([]string, error) {
 	lightRed := "\033[1;31m"
 	resetColor := "\033[0m"
 	var listLinks []string
 
+	if siteNameMap == nil || len(siteNameMap) == 0 {
+		return nil, fmt.Errorf("the site name map used to format the links has no values or it is not initialized")
+	}
+
 	if len(site.Namespace) == 0 {
-		return nil, fmt.Errorf("unspecified namespace")
+		return nil, fmt.Errorf("unspecified namespace in SiteInfo")
 	}
 
 	for _, link := range site.Links {
 		if len(link) > 0 {
-			formattedLink := link[:7] + "-" + siteNameMap[link]
+
+			trimmedLink := link
+			if len(link) > 7 {
+				trimmedLink = link[:7]
+			}
+
+			formattedLink := trimmedLink + "-" + siteNameMap[link]
 
 			if isLocalSite {
-				mapLinkStatus, err := cli.getLocalLinkStatus(site.Namespace, siteNameMap)
+				mapLinkStatus, err := getLocalLinks(cli, site.Namespace, siteNameMap)
 				if err != nil {
 					return nil, err
 				}

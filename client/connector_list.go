@@ -76,7 +76,7 @@ func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, er
 	return links, nil
 }
 
-func (cli *VanClient) getLocalLinkStatus(namespace string, siteNameMap map[string]string) (map[string]*types.LinkStatus, error) {
+func GetLocalLinkStatus(cli *VanClient, namespace string, siteNameMap map[string]string) (map[string]*types.LinkStatus, error) {
 	mapLinks := make(map[string]*types.LinkStatus)
 	secrets, err := cli.KubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
