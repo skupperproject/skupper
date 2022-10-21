@@ -483,6 +483,7 @@ func getAllSites(routers []qdr.Router) []data.SiteQueryData {
 					Site: data.Site{
 						SiteId:    r.Site.Id,
 						Version:   r.Site.Version,
+						Platform:  r.Site.Platform,
 						Edge:      r.Edge && strings.Contains(r.Id, "skupper-router"),
 						Connected: []string{},
 						Gateway:   false,

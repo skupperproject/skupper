@@ -12,6 +12,7 @@ import (
 
 	amqp "github.com/interconnectedcloud/go-amqp"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
@@ -55,8 +56,9 @@ type Router struct {
 }
 
 type SiteMetadata struct {
-	Id      string `json:"id,omitempty"`
-	Version string `json:"version,omitempty"`
+	Id       string `json:"id,omitempty"`
+	Version  string `json:"version,omitempty"`
+	Platform string `json:"platform,omitempty"`
 }
 
 func GetSiteMetadata(metadata string) SiteMetadata {
@@ -72,8 +74,9 @@ func GetSiteMetadata(metadata string) SiteMetadata {
 
 func getSiteMetadataString(siteId string, version string) string {
 	siteDetails := SiteMetadata{
-		Id:      siteId,
-		Version: version,
+		Id:       siteId,
+		Version:  version,
+		Platform: string(config.GetPlatform()),
 	}
 	metadata, _ := json.Marshal(siteDetails)
 	return string(metadata)

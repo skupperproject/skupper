@@ -21,6 +21,7 @@ type SitePodman struct {
 	IngressBindEdgePort        int
 	ContainerNetwork           string
 	PodmanEndpoint             string
+	RouterOpts                 types.RouterOptions
 }
 
 func (s *SitePodman) GetPlatform() string {
@@ -98,6 +99,7 @@ func (s *SitePodmanHandler) ConfigurePodmanDeployments(site *SitePodman) {
 						"QDROUTERD_CONF":      "/etc/skupper-router/config/" + types.TransportConfigFile,
 						"QDROUTERD_CONF_TYPE": "json",
 						"SKUPPER_SITE_ID":     site.Id,
+						"QDROUTERD_DEBUG":     site.RouterOpts.DebugMode,
 					},
 					SiteIngresses: []domain.SiteIngress{
 						&SiteIngressPodmanHost{
@@ -200,8 +202,9 @@ func (s *SitePodmanHandler) Create(site domain.Site) error {
 	}
 
 	// Create initial transport config file
-	// TODO add log and debug options
-	initialRouterConfig := qdr.InitialConfigSkupperRouter(podmanSite.GetName(), podmanSite.GetId(), version.Version, podmanSite.IsEdge(), 3, types.RouterOptions{})
+	podmanSite.RouterOpts.MaxFrameSize = types.RouterMaxFrameSizeDefault
+	podmanSite.RouterOpts.MaxSessionFrames = types.RouterMaxSessionFramesDefault
+	initialRouterConfig := qdr.InitialConfigSkupperRouter(podmanSite.GetName(), podmanSite.GetId(), version.Version, podmanSite.IsEdge(), 3, podmanSite.RouterOpts)
 	var routerConfigHandler qdr.RouterConfigHandler
 	routerConfigHandler = NewRouterConfigHandlerPodman(s.cli)
 	err = routerConfigHandler.SaveRouterConfig(&initialRouterConfig)

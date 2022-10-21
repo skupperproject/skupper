@@ -273,6 +273,7 @@ type SiteInfo struct {
 	Name           string   `json:"site_name,omitempty"`
 	Namespace      string   `json:"namespace,omitempty"`
 	SiteId         string   `json:"site_id,omitempty"`
+	Platform       string   `json:"platform,omitempty"`
 	Url            string   `json:"url,omitempty"`
 	Version        string   `json:"version,omitempty"`
 	Gateway        bool     `json:"gateway,omitempty"`

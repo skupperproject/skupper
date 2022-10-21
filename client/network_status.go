@@ -45,8 +45,9 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, err
 
 	for _, site := range versionCheckedSites {
 
-		if site.Gateway {
-			// TODO: Define how gateways have to be shown
+		platform := utils.DefaultStr(site.Platform, string(types.PlatformKubernetes))
+		if site.Gateway || platform != string(types.PlatformKubernetes) {
+			// TODO: Define how gateways and non-k8s sites have to be shown
 			continue
 		}
 

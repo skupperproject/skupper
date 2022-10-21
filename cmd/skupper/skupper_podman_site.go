@@ -33,6 +33,8 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	// fmt.Printf("platform          : %s\n", types.PlatformPodman)
 	// fmt.Printf("ingress           : %s\n", routerCreateOpts.Ingress)
 	// fmt.Printf("ingress-host      : %s\n", routerCreateOpts.IngressHost)
+	// fmt.Printf("router-logging    : %s\n", routerCreateOpts.Router.Logging)
+	// fmt.Printf("debug-mode        : %s\n", routerCreateOpts.Router.DebugMode)
 	// fmt.Printf("inter-router-port : %d\n", s.flags.IngressBindInterRouterPort)
 	// fmt.Printf("edge-port         : %d\n", s.flags.IngressBindEdgePort)
 	// fmt.Printf("container-network : %s\n", s.flags.ContainerNetwork)
@@ -51,6 +53,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 			Mode:     initFlags.routerMode,
 			Platform: types.PlatformPodman,
 		},
+		RouterOpts:                 routerCreateOpts.Router,
 		IngressBindHost:            routerCreateOpts.IngressHost,
 		IngressBindInterRouterPort: s.flags.IngressBindInterRouterPort,
 		IngressBindEdgePort:        s.flags.IngressBindEdgePort,
