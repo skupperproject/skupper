@@ -439,6 +439,16 @@ func (s *SitePodmanHandler) Delete() error {
 			return fmt.Errorf("error removing deployment %s - %w", dep.GetName(), err)
 		}
 	}
+	containers, err := s.cli.ContainerList()
+	if err != nil {
+		return fmt.Errorf("error listing containers - %w", err)
+	}
+	for _, c := range containers {
+		if OwnedBySkupper("container", c.Labels) == nil {
+			_ = s.cli.ContainerStop(c.Name)
+			_ = s.cli.ContainerRemove(c.Name)
+		}
+	}
 
 	// Removing networks
 	_ = s.cli.NetworkRemove(podmanSite.ContainerNetwork)

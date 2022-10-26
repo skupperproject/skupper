@@ -13,7 +13,7 @@ const (
 
 var (
 	Username                = os.Getenv("USER")
-	SkupperContainerVolumes = []string{"skupper-local-server", "skupper-internal", "skupper-site-server", SharedTlsCertificates}
+	SkupperContainerVolumes = []string{"skupper-services", "skupper-local-server", "skupper-internal", "skupper-site-server", SharedTlsCertificates}
 )
 
 func OwnedBySkupper(resource string, labels map[string]string) error {

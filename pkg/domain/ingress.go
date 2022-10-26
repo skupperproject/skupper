@@ -32,22 +32,31 @@ func (s *SiteIngressCommon) GetTarget() Port {
 }
 
 type AddressIngress interface {
-	Address() string
-	Host() string
-	Port() int
-	Protocol() string
+	GetAddress() string
+	SetAddress(address string)
+	GetHost() string
+	SetHost(host string)
+	GetPorts() map[int]int
+	SetPorts(ports map[int]int)
+	GetProtocol() string
+	SetProtocol(protocol string)
 }
 
 type EgressResolver interface {
-	Name() string
+	// String returns an expression representing selectable targets
+	String() string
 	Resolve() []AddressEgress
 }
 
 type AddressEgress interface {
-	Address() string
-	Host() string
-	Port() int
-	Protocol() string
+	GetAddress() string
+	SetAddress(address string)
+	GetHost() string
+	SetHost(host string)
+	GetPorts() map[int]int
+	SetPorts(ports map[int]int)
+	GetProtocol() string
+	SetProtocol(protocol string)
 }
 
 type Port interface {
