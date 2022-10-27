@@ -9,6 +9,7 @@ import (
 	"log"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	vanClient "github.com/skupperproject/skupper/client"
@@ -45,16 +46,18 @@ func TestAnnotatedResources(t *testing.T) {
 			modification:  nil,
 			expectedSites: 2,
 			expectedServicesProto: map[string]string{
-				"nginx-1-dep-web":          "tcp",
-				"nginx-2-dep-web":          "tcp",
-				"nginx-1-svc-exp-notarget": "tcp",
-				"nginx-2-svc-exp-notarget": "tcp",
-				"nginx-1-svc-exp-target":   "http",
-				"nginx-2-svc-exp-target":   "http",
-				"nginx-1-ss-web":           "tcp",
-				"nginx-2-ss-web":           "tcp",
-				"nginx-1-ds-web":           "tcp",
-				"nginx-2-ds-web":           "tcp",
+				"nginx-1-dep-web:8080":          "tcp",
+				"nginx-1-dep-web:9090":          "tcp",
+				"nginx-2-dep-web:8080":          "tcp",
+				"nginx-2-dep-web:9090":          "tcp",
+				"nginx-1-svc-exp-notarget:8080": "tcp",
+				"nginx-2-svc-exp-notarget:8080": "tcp",
+				"nginx-1-svc-exp-target:8080":   "http",
+				"nginx-2-svc-exp-target:8080":   "http",
+				"nginx-1-ss-web:8080":           "tcp",
+				"nginx-2-ss-web:8080":           "tcp",
+				"nginx-1-ds-web:8080":           "tcp",
+				"nginx-2-ds-web:8080":           "tcp",
 			},
 		},
 		{
@@ -63,16 +66,18 @@ func TestAnnotatedResources(t *testing.T) {
 			modification:  annotation.SwitchProtocols,
 			expectedSites: 2,
 			expectedServicesProto: map[string]string{
-				"nginx-1-dep-web":          "http",
-				"nginx-2-dep-web":          "http",
-				"nginx-1-svc-exp-notarget": "http",
-				"nginx-2-svc-exp-notarget": "http",
-				"nginx-1-svc-exp-target":   "tcp",
-				"nginx-2-svc-exp-target":   "tcp",
-				"nginx-1-ss-web":           "http",
-				"nginx-2-ss-web":           "http",
-				"nginx-1-ds-web":           "http",
-				"nginx-2-ds-web":           "http",
+				"nginx-1-dep-web:8080":          "http",
+				"nginx-2-dep-web:8080":          "http",
+				"nginx-1-dep-web:9090":          "http",
+				"nginx-2-dep-web:9090":          "http",
+				"nginx-1-svc-exp-notarget:8080": "http",
+				"nginx-2-svc-exp-notarget:8080": "http",
+				"nginx-1-svc-exp-target:8080":   "tcp",
+				"nginx-2-svc-exp-target:8080":   "tcp",
+				"nginx-1-ss-web:8080":           "http",
+				"nginx-2-ss-web:8080":           "http",
+				"nginx-1-ds-web:8080":           "http",
+				"nginx-2-ds-web:8080":           "http",
 			},
 		},
 		{
@@ -88,16 +93,18 @@ func TestAnnotatedResources(t *testing.T) {
 			modification:  annotation.AddAnnotation,
 			expectedSites: 2,
 			expectedServicesProto: map[string]string{
-				"nginx-1-dep-web":          "tcp",
-				"nginx-2-dep-web":          "tcp",
-				"nginx-1-svc-exp-notarget": "tcp",
-				"nginx-2-svc-exp-notarget": "tcp",
-				"nginx-1-svc-exp-target":   "http",
-				"nginx-2-svc-exp-target":   "http",
-				"nginx-1-ss-web":           "tcp",
-				"nginx-2-ss-web":           "tcp",
-				"nginx-1-ds-web":           "tcp",
-				"nginx-2-ds-web":           "tcp",
+				"nginx-1-dep-web:8080":          "tcp",
+				"nginx-2-dep-web:8080":          "tcp",
+				"nginx-1-dep-web:9090":          "tcp",
+				"nginx-2-dep-web:9090":          "tcp",
+				"nginx-1-svc-exp-notarget:8080": "tcp",
+				"nginx-2-svc-exp-notarget:8080": "tcp",
+				"nginx-1-svc-exp-target:8080":   "http",
+				"nginx-2-svc-exp-target:8080":   "http",
+				"nginx-1-ss-web:8080":           "tcp",
+				"nginx-2-ss-web:8080":           "tcp",
+				"nginx-1-ds-web:8080":           "tcp",
+				"nginx-2-ds-web:8080":           "tcp",
 			},
 		},
 		{
@@ -184,11 +191,12 @@ func TestAnnotatedResources(t *testing.T) {
 			for _, cluster := range []*vanClient.VanClient{pub.VanClient, prv.VanClient} {
 				for svc := range test.expectedServicesProto {
 					var resp *tools.CurlResponse
+					parts := strings.Split(svc, ":")
 					log.Printf("validating communication with service %s through %s", svc, cluster.Namespace)
 					// reaching service through service-controller's pod (with some attempts to make sure bridge is connected)
 					var lastErr error
 					err = utils.Retry(backoff.Duration, backoff.Steps, func() (bool, error) {
-						endpoint := fmt.Sprintf("http://%s:8080", svc)
+						endpoint := fmt.Sprintf("http://%s:8080", parts[0])
 						resp, lastErr = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 10})
 						if lastErr != nil {
 							return false, nil

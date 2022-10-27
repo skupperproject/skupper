@@ -22,6 +22,7 @@ type StatusTester struct {
 	ConnectedSitesIndirect int
 	ExposedServices        int
 	ConsoleEnabled         bool
+	CollectorEnabled       bool
 	ConsoleAuthInternal    bool
 	NotEnabled             bool
 	PolicyEnabled          *bool

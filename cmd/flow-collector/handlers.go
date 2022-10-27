@@ -79,7 +79,7 @@ func (c *Controller) connectorHandler(w http.ResponseWriter, r *http.Request) {
 
 func (c *Controller) addressHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	c.flowCollector.Request <- flow.ApiRequest{RecordType: flow.VanAddress, Request: r}
+	c.flowCollector.Request <- flow.ApiRequest{RecordType: flow.Address, Request: r}
 	response := <-c.flowCollector.Response
 	w.WriteHeader(response.Status)
 	if response.Body != nil {
@@ -127,9 +127,29 @@ func (c *Controller) flowPairHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *Controller) flowAggregateHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) sitePairHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	c.flowCollector.Request <- flow.ApiRequest{RecordType: flow.FlowAggregate, Request: r}
+	c.flowCollector.Request <- flow.ApiRequest{RecordType: flow.SitePair, Request: r}
+	response := <-c.flowCollector.Response
+	w.WriteHeader(response.Status)
+	if response.Body != nil {
+		fmt.Fprintf(w, "%s", *response.Body)
+	}
+}
+
+func (c *Controller) processGroupPairHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	c.flowCollector.Request <- flow.ApiRequest{RecordType: flow.ProcessGroupPair, Request: r}
+	response := <-c.flowCollector.Response
+	w.WriteHeader(response.Status)
+	if response.Body != nil {
+		fmt.Fprintf(w, "%s", *response.Body)
+	}
+}
+
+func (c *Controller) processPairHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	c.flowCollector.Request <- flow.ApiRequest{RecordType: flow.ProcessPair, Request: r}
 	response := <-c.flowCollector.Response
 	w.WriteHeader(response.Status)
 	if response.Body != nil {

@@ -30,7 +30,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		skupperName          string
 		routerMode           string
 		enableController     bool
-		enableConsole        bool
+		enableFlowCollector  bool
 		authMode             string
 		user                 string
 		password             string
@@ -52,7 +52,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper1",
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
-			enableConsole:        false,
+			enableFlowCollector:  false,
 			authMode:             "",
 			user:                 "",
 			password:             "",
@@ -86,7 +86,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper2",
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
-			enableConsole:        true,
+			enableFlowCollector:  true,
 			authMode:             "unsecured",
 			user:                 "",
 			password:             "",
@@ -121,7 +121,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper3",
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
-			enableConsole:        true,
+			enableFlowCollector:  true,
 			authMode:             "internal",
 			user:                 "",
 			password:             "",
@@ -157,7 +157,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper4",
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
-			enableConsole:        true,
+			enableFlowCollector:  true,
 			authMode:             "openshift",
 			user:                 "",
 			password:             "",
@@ -192,7 +192,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			skupperName:          "skupper5",
 			routerMode:           string(types.TransportModeEdge),
 			enableController:     true,
-			enableConsole:        true,
+			enableFlowCollector:  true,
 			authMode:             "unsecured",
 			user:                 "Barney",
 			password:             "Rubble",
@@ -317,15 +317,15 @@ func TestRouterCreateDefaults(t *testing.T) {
 
 		err = cli.RouterCreate(ctx, types.SiteConfig{
 			Spec: types.SiteConfigSpec{
-				SkupperName:       c.skupperName,
-				RouterMode:        c.routerMode,
-				EnableController:  c.enableController,
-				EnableServiceSync: true,
-				AuthMode:          c.authMode,
-				EnableConsole:     c.enableConsole,
-				User:              c.user,
-				Password:          c.password,
-				Ingress:           getIngress(),
+				SkupperName:         c.skupperName,
+				RouterMode:          c.routerMode,
+				EnableController:    c.enableController,
+				EnableServiceSync:   true,
+				AuthMode:            c.authMode,
+				EnableFlowCollector: c.enableFlowCollector,
+				User:                c.user,
+				Password:            c.password,
+				Ingress:             getIngress(),
 			},
 			Reference: types.SiteConfigReference{
 				UID: c.siteId,

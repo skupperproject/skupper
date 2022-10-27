@@ -4,28 +4,35 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"time"
+	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // RecordTypes
 const (
-	Site          = iota // 0
-	Router               // 1
-	Link                 // 2
-	Controller           // 3
-	Listener             // 4
-	Connector            // 5
-	Flow                 // 6
-	Process              // 7
-	Image                // 8
-	Ingress              // 9
-	Egress               // 10
-	Collector            // 11
-	ProcessGroup         // 12
-	Host                 // 13
-	FlowPair             // 14 (generated)
-	FlowAggregate        // 15
-	EventSource          // 16
+	Site             = iota // 0
+	Router                  // 1
+	Link                    // 2
+	Controller              // 3
+	Listener                // 4
+	Connector               // 5
+	Flow                    // 6
+	Process                 // 7
+	Image                   // 8
+	Ingress                 // 9
+	Egress                  // 10
+	Collector               // 11
+	ProcessGroup            // 12
+	Host                    // 13
+	FlowPair                // 14 (generated)
+	FlowAggregate           // 15
+	EventSource             // 16
+	SitePair                // 17
+	ProcessGroupPair        // 18
+	ProcessPair             // 19
+	Address                 // 20
 )
 
 var recordNames = []string{
@@ -46,6 +53,10 @@ var recordNames = []string{
 	"FLOWPAIR",
 	"FLOWAGGREGATE",
 	"EVENTSOURCE",
+	"SITEPAIR",
+	"PROCESSGROUPPAIR",
+	"PROCESSPAIR",
+	"ADDRESS",
 }
 
 // Attribute Types
@@ -149,11 +160,11 @@ var attributeNames = []string{
 	"Group",           // 46
 }
 
-type listResponse struct {
-	Results       []interface{} `json:"results,omitempty"`
-	Time          uint64        `json:"time,omitempty"`
-	LengthTotal   int           `json:"lengthTotal,omitempty"`
-	LengthResults int           `json:"lengthResults,omitempty"`
+type Payload struct {
+	Results       interface{} `json:"results,omitempty"`
+	Timestamp     uint64      `json:"timestamp,omitempty"`
+	LengthTotal   int         `json:"lengthTotal,omitempty"`
+	LengthResults int         `json:"lengthResults,omitempty"`
 }
 
 type Base struct {
@@ -468,10 +479,12 @@ type FlowAggregateRecord struct {
 	DestinationId             *string `json:"destinationId,omitempty"`
 	DestinationName           *string `json:"destinationName,omitempty"`
 	SourceOctets              uint64  `json:"sourceOctets,omitempty"`
+	SourceOctetRate           uint64  `json:"sourceOctetRate,omitempty"`
 	SourceMinLatency          uint64  `json:"sourceMinLatency,omitempty"`
 	SourceMaxLatency          uint64  `json:"sourceMaxLatency,omitempty"`
 	SourceAverageLatency      uint64  `json:"sourceAverageLatency,omitempty"`
 	DestinationOctets         uint64  `json:"destinationOctets,omitempty"`
+	DestinationOctetRate      uint64  `json:"destinationOctetRate,omitempty"`
 	DestinationMinLatency     uint64  `json:"destinationMinLatency,omitempty"`
 	DestinationMaxLatency     uint64  `json:"destinationMaxLatency,omitempty"`
 	DestinationAverageLatency uint64  `json:"destinationAverageLatency,omitempty"`
@@ -569,109 +582,175 @@ func paginate(offset int, limit int, length int) (int, int) {
 	return start, end
 }
 
-func sortAndFilterResponse(list interface{}, offset, limit int) (listResponse, error) {
-	response := listResponse{}
-
-	switch list.(type) {
-	case []SiteRecord:
-		sites := list.([]SiteRecord)
-		sort.Slice(sites, func(i, j int) bool {
-			return sites[i].Identity < sites[j].Identity
-		})
-		response.LengthTotal = len(sites)
-		response.Time = uint64(time.Now().UnixNano())
-		start, end := paginate(offset, limit, len(sites))
-		result := ToIntf(sites[start:end])
-		response.Results = result
-		response.LengthResults = len(result)
-		return response, nil
+func validateAndReturnSortQuery(sortBy string) (string, string, error) {
+	parts := strings.Split(sortBy, ".")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("Malformed sortBy query parameter")
 	}
-	return response, fmt.Errorf("Unrecognized list type to filter %T", list)
+	field, order := parts[0], parts[1]
+	if order != "asc" && order != "desc" {
+		return "", "", fmt.Errorf("Malformed order direction in sortBy query parameter, should be asc or desc")
+	}
+	return field, order, nil
 }
 
-func sortAndFilter(list interface{}, offset, limit int) ([]interface{}, error) {
+func getField(field string, record interface{}) interface{} {
+	x := reflect.ValueOf(record)
+	if x.Kind() == reflect.Struct {
+		switch x.FieldByName(field).Kind() {
+		case reflect.String:
+			return x.FieldByName(field).String()
+		case reflect.Ptr:
+			elem := x.FieldByName(field).Elem()
+			switch elem.Kind() {
+			case reflect.String:
+				return fmt.Sprintf("%s", (x.FieldByName(field).Elem().Interface()))
+			case reflect.Uint64:
+				return x.FieldByName(field).Elem().Uint()
+			}
+		case reflect.Int:
+			return x.FieldByName(field).Int()
+		case reflect.Uint64:
+			return x.FieldByName(field).Uint()
+		default:
+			return nil
+		}
+	} else {
+		return nil
+	}
+	return nil
+}
+
+func compareFields(x, y interface{}, order string) bool {
+	if x != nil && y != nil {
+		switch x.(type) {
+		case string:
+			if order == "asc" {
+				return x.(string) < y.(string)
+			} else {
+				return x.(string) > y.(string)
+			}
+		case uint64:
+			if order == "asc" {
+				return x.(uint64) < y.(uint64)
+			} else {
+				return x.(uint64) > y.(uint64)
+			}
+		case int32:
+			if order == "asc" {
+				return x.(int32) < y.(int32)
+			} else {
+				return x.(int32) > y.(int32)
+			}
+		case int64:
+			if order == "asc" {
+				return x.(int64) < y.(int64)
+			} else {
+				return x.(int64) > y.(int64)
+			}
+		case int:
+			if order == "asc" {
+				return x.(int) < y.(int)
+			} else {
+				return x.(int) > y.(int)
+			}
+		default:
+			return false
+		}
+	} else {
+		return false
+	}
+}
+
+func sortAndFilter(list interface{}, sortBy string, offset, limit int) ([]interface{}, error) {
+	// tag to field name
+	sortBy = cases.Title(language.Und, cases.NoLower).String(sortBy)
+	field, order, err := validateAndReturnSortQuery(sortBy)
+	if err != nil {
+		return nil, err
+	}
 	switch list.(type) {
 	case []SiteRecord:
 		sites := list.([]SiteRecord)
 		sort.Slice(sites, func(i, j int) bool {
-			return sites[i].Identity < sites[j].Identity
+			return compareFields(getField(field, sites[i]), getField(field, sites[j]), order)
 		})
 		start, end := paginate(offset, limit, len(sites))
 		return ToIntf(sites[start:end]), nil
 	case []HostRecord:
 		hosts := list.([]HostRecord)
 		sort.Slice(hosts, func(i, j int) bool {
-			return hosts[i].Identity < hosts[j].Identity
+			return compareFields(getField(field, hosts[i]), getField(field, hosts[j]), order)
 		})
 		start, end := paginate(offset, limit, len(hosts))
 		return ToIntf(hosts[start:end]), nil
 	case []RouterRecord:
 		routers := list.([]RouterRecord)
 		sort.Slice(routers, func(i, j int) bool {
-			return routers[i].Identity < routers[j].Identity
+			return compareFields(getField(field, routers[i]), getField(field, routers[j]), order)
 		})
 		start, end := paginate(offset, limit, len(routers))
 		return ToIntf(routers[start:end]), nil
 	case []LinkRecord:
 		links := list.([]LinkRecord)
 		sort.Slice(links, func(i, j int) bool {
-			return links[i].Identity < links[j].Identity
+			return compareFields(getField(field, links[i]), getField(field, links[j]), order)
 		})
 		start, end := paginate(offset, limit, len(links))
 		return ToIntf(links[start:end]), nil
 	case []ListenerRecord:
 		listeners := list.([]ListenerRecord)
 		sort.Slice(listeners, func(i, j int) bool {
-			return listeners[i].Identity < listeners[j].Identity
+			return compareFields(getField(field, listeners[i]), getField(field, listeners[j]), order)
 		})
 		start, end := paginate(offset, limit, len(listeners))
 		return ToIntf(listeners[start:end]), nil
 	case []ConnectorRecord:
 		connectors := list.([]ConnectorRecord)
 		sort.Slice(connectors, func(i, j int) bool {
-			return connectors[i].Identity < connectors[j].Identity
+			return compareFields(getField(field, connectors[i]), getField(field, connectors[j]), order)
 		})
 		start, end := paginate(offset, limit, len(connectors))
 		return ToIntf(connectors[start:end]), nil
 	case []VanAddressRecord:
 		addresses := list.([]VanAddressRecord)
 		sort.Slice(addresses, func(i, j int) bool {
-			return addresses[i].Identity < addresses[j].Identity
+			return compareFields(getField(field, addresses[i]), getField(field, addresses[j]), order)
 		})
 		start, end := paginate(offset, limit, len(addresses))
 		return ToIntf(addresses[start:end]), nil
 	case []ProcessRecord:
 		processes := list.([]ProcessRecord)
 		sort.Slice(processes, func(i, j int) bool {
-			return processes[i].Identity < processes[j].Identity
+			return compareFields(getField(field, processes[i]), getField(field, processes[j]), order)
 		})
 		start, end := paginate(offset, limit, len(processes))
 		return ToIntf(processes[start:end]), nil
 	case []ProcessGroupRecord:
 		processGroups := list.([]ProcessGroupRecord)
 		sort.Slice(processGroups, func(i, j int) bool {
-			return processGroups[i].Identity < processGroups[j].Identity
+			return compareFields(getField(field, processGroups[i]), getField(field, processGroups[j]), order)
 		})
 		start, end := paginate(offset, limit, len(processGroups))
 		return ToIntf(processGroups[start:end]), nil
 	case []FlowRecord:
 		flows := list.([]FlowRecord)
 		sort.Slice(flows, func(i, j int) bool {
-			return flows[i].Identity < flows[j].Identity
+			return compareFields(getField(field, flows[i]), getField(field, flows[j]), order)
 		})
 		start, end := paginate(offset, limit, len(flows))
 		return ToIntf(flows[start:end]), nil
 	case []FlowPairRecord:
 		flowPairs := list.([]FlowPairRecord)
 		sort.Slice(flowPairs, func(i, j int) bool {
-			return flowPairs[i].Identity < flowPairs[j].Identity
+			return compareFields(getField(field, flowPairs[i]), getField(field, flowPairs[j]), order)
 		})
 		start, end := paginate(offset, limit, len(flowPairs))
 		return ToIntf(flowPairs[start:end]), nil
 	case []FlowAggregateRecord:
 		flowAggregates := list.([]FlowAggregateRecord)
 		sort.Slice(flowAggregates, func(i, j int) bool {
-			return flowAggregates[i].Identity < flowAggregates[j].Identity
+			return compareFields(getField(field, flowAggregates[i]), getField(field, flowAggregates[j]), order)
 		})
 		start, end := paginate(offset, limit, len(flowAggregates))
 		return ToIntf(flowAggregates[start:end]), nil

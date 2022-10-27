@@ -306,15 +306,27 @@ func main() {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	var flowAggregateApi = api1.PathPrefix("/flowaggregates").Subrouter()
-	flowAggregateApi.StrictSlash(true)
-	flowAggregateApi.HandleFunc("/sitepairs", authenticated(http.HandlerFunc(c.flowAggregateHandler))).Name("sitepair-list")
-	flowAggregateApi.HandleFunc("/sitepairs/{id}", authenticated(http.HandlerFunc(c.flowAggregateHandler))).Name("sitepair-item")
-	flowAggregateApi.HandleFunc("/processpairs", authenticated(http.HandlerFunc(c.flowAggregateHandler))).Name("processpair-list")
-	flowAggregateApi.HandleFunc("/processpairs/{id}", authenticated(http.HandlerFunc(c.flowAggregateHandler))).Name("processpair-item")
-	flowAggregateApi.HandleFunc("/processgrouppairs", authenticated(http.HandlerFunc(c.flowAggregateHandler))).Name("processgrouppair-list")
-	flowAggregateApi.HandleFunc("/processgrouppairs/{id}", authenticated(http.HandlerFunc(c.flowAggregateHandler))).Name("processgrouppair-item")
-	flowAggregateApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var sitepairApi = api1.PathPrefix("/sitepairs").Subrouter()
+	sitepairApi.StrictSlash(true)
+	sitepairApi.HandleFunc("/", authenticated(http.HandlerFunc(c.sitePairHandler))).Name("list")
+	sitepairApi.HandleFunc("/{id}", authenticated(http.HandlerFunc(c.sitePairHandler))).Name("item")
+	sitepairApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	var processgrouppairApi = api1.PathPrefix("/processgrouppairs").Subrouter()
+	processgrouppairApi.StrictSlash(true)
+	processgrouppairApi.HandleFunc("/", authenticated(http.HandlerFunc(c.processGroupPairHandler))).Name("list")
+	processgrouppairApi.HandleFunc("/{id}", authenticated(http.HandlerFunc(c.processGroupPairHandler))).Name("item")
+	processgrouppairApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	var processpairApi = api1.PathPrefix("/processpairs").Subrouter()
+	processpairApi.StrictSlash(true)
+	processpairApi.HandleFunc("/", authenticated(http.HandlerFunc(c.processPairHandler))).Name("list")
+	processpairApi.HandleFunc("/{id}", authenticated(http.HandlerFunc(c.processPairHandler))).Name("item")
+	processpairApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 

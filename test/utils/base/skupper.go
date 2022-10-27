@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/data"
+	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/tools"
@@ -61,11 +62,14 @@ func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
 	return nil
 }
 
-// GetConsoleData returns the ConsoleData by querying localhost:8080/DATA
-// on Skupper's proxy controller pod
+// GetConsoleData returns the ConsoleData by emulating query to localhost:8080/DATA
+// via vFlow api on service-controller vflow-collector sidecar
 func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.ConsoleData, error) {
-	const dataEndpoint = "https://127.0.0.1:8080/DATA"
+	// TODO: replace console data with vFlow api
+	const vFlowUrl = "https://127.0.0.1:8010/api/v1alpha1"
 	var consoleData data.ConsoleData
+	var sites []flow.SiteRecord
+	var listeners []flow.ListenerRecord
 
 	curlOpts := tools.CurlOpts{
 		Silent:   true,
@@ -76,63 +80,80 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 	}
 
 	// runs inside skupper-controller's pod
-	resp, err := tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", dataEndpoint, curlOpts)
+	// retriev site list
+	resp, err := tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", vFlowUrl+"/sites/", curlOpts)
 	if err != nil {
 		log.Printf("error executing curl: %s", err)
 		return consoleData, err
 	}
 
-	// 4.2.1. Parsing ConsoleData response
-	if err = json.Unmarshal([]byte(resp.Body), &consoleData); err != nil {
+	// 4.2.1. Parsing sites response
+	if err = json.Unmarshal([]byte(resp.Body), &sites); err != nil {
 		if strings.HasPrefix(resp.Body, "Error") {
 			log.Printf(resp.Body)
 			return consoleData, fmt.Errorf(resp.Body)
 		} else {
-			log.Printf("error unmarshalling ConsoleData: %s", err)
+			log.Printf("error unmarshalling SiteRecords: %s", err)
 			log.Printf("invalid response body: %s", resp.Body)
 			return consoleData, err
 		}
 	}
+	for _, site := range sites {
+		consoleData.Sites = append(consoleData.Sites, data.Site{
+			SiteId:    site.Identity,
+			SiteName:  *site.Name,
+			Namespace: *site.NameSpace,
+		})
+	}
+
+	// retrieve listener list
+	resp, err = tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", vFlowUrl+"/listeners/", curlOpts)
+	if err != nil {
+		log.Printf("error executing curl: %s", err)
+		return consoleData, err
+	}
+
+	// 4.2.1. Parsing listeners response
+	if err = json.Unmarshal([]byte(resp.Body), &listeners); err != nil {
+		if strings.HasPrefix(resp.Body, "Error") {
+			log.Printf(resp.Body)
+			return consoleData, fmt.Errorf(resp.Body)
+		} else {
+			log.Printf("error unmarshalling ListenerRecords: %s", err)
+			log.Printf("invalid response body: %s", resp.Body)
+			return consoleData, err
+		}
+	}
+	uniqueListeners := make(map[string]flow.ListenerRecord)
+	for _, listener := range listeners {
+		if listener.EndTime == 0 {
+			if _, ok := uniqueListeners[*listener.Name]; !ok {
+				uniqueListeners[*listener.Name] = listener
+			}
+		}
+	}
 
 	var ServiceByType []interface{}
-	var tcpsvc data.TcpService
-	var httpsvc data.HttpService
-
-	// Iterate over Services
-	for _, elem := range consoleData.Services {
-
-		svcmap, ok := elem.(map[string]interface{})
-		if !ok {
-			log.Printf("[GetConsoleData] - Unable to determine protocol")
-			continue
-		}
-
-		svcProto, ok := svcmap["protocol"]
-		if !ok {
-			log.Println("[GetConsoleData] - Unable to determine protocol ", svcProto)
-			continue
-		}
-
-		// Marshal the element
-		svcmarsh, err := json.Marshal(elem)
-		if err != nil {
-			log.Println("[GetConsoleData] - Error marshalling svc", err)
-			break
-		}
-
-		// HTTP Service
-		if svcProto == "http" {
-			if err = json.Unmarshal(svcmarsh, &httpsvc); err == nil {
-				ServiceByType = append(ServiceByType, httpsvc)
+	for _, listener := range uniqueListeners {
+		switch *listener.Protocol {
+		case "tcp":
+			tcpsvc := data.TcpService{
+				Service: data.Service{
+					Address:  *listener.Address,
+					Protocol: "tcp",
+				},
 			}
-			// TCP Service
-		} else if svcProto == "tcp" {
-			if err = json.Unmarshal(svcmarsh, &tcpsvc); err == nil {
-				ServiceByType = append(ServiceByType, tcpsvc)
+			ServiceByType = append(ServiceByType, tcpsvc)
+		case "http1":
+			httpsvc := data.HttpService{
+				Service: data.Service{
+					Address:  *listener.Address,
+					Protocol: "http",
+				},
 			}
-			// Protocol not HTTP nor TCP
-		} else {
-			fmt.Println("[GetConsoleData] - Unsupported protocol ", svcProto)
+			ServiceByType = append(ServiceByType, httpsvc)
+		default:
+			fmt.Println("[GetConsoleData] - Unsupported protocol ", *listener.Protocol)
 		}
 	}
 

@@ -41,6 +41,7 @@ type InitTester struct {
 	ControllerMemoryLimit string
 	SiteName              string
 	EnableConsole         bool
+	EnableFlowCollector   bool
 }
 
 func (s *InitTester) Command(cluster *base.ClusterContext) []string {
@@ -102,6 +103,7 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 		args = append(args, "--site-name", s.SiteName)
 	}
 	args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
+	args = append(args, fmt.Sprintf("--enable-vflow-collector=%v", s.EnableFlowCollector))
 	return args
 }
 
@@ -124,9 +126,11 @@ func (s *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	}
 
 	// Validating the console based on Init Tester flags
-	log.Println("Validating console")
-	if err = s.ValidateConsole(cluster); err != nil {
-		return
+	if s.EnableConsole {
+		log.Println("Validating console")
+		if err = s.ValidateConsole(cluster); err != nil {
+			return
+		}
 	}
 
 	// Validating Ingress
@@ -136,9 +140,11 @@ func (s *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	}
 
 	// Validating Console Ingress
-	log.Println("Validating console ingress")
-	if err = s.ValidateConsoleIngress(cluster); err != nil {
-		return
+	if s.EnableConsole {
+		log.Println("Validating console ingress")
+		if err = s.ValidateConsoleIngress(cluster); err != nil {
+			return
+		}
 	}
 
 	// Validating Router Debug Mode
