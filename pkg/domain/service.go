@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/version"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
@@ -194,7 +194,7 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 	siteId := fmt.Sprintf("%s-%s", site.GetId(), service.GetAddress())
 
 	// Adjust logging level
-	svcRouterConfig := qdr.InitialConfig(siteName, siteId, client.Version, true, 3)
+	svcRouterConfig := qdr.InitialConfig(siteName, siteId, version.Version, true, 3)
 	svcRouterConfig.LogConfig = parentRouterConfig.LogConfig
 
 	// Setting sslProfiles

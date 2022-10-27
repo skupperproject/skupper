@@ -6,9 +6,8 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/version"
 )
-
-var MinimumCompatibleVersion = "0.8.0"
 
 type Site interface {
 	GetName() string
@@ -174,8 +173,8 @@ func ConfigureSiteCredentials(site Site, ingressHosts ...string) {
 // with the provided version, otherwise it returns a clear error.
 func VerifySiteCompatibility(localSiteVersion, remoteSiteVersion string) error {
 	if utils.LessRecentThanVersion(remoteSiteVersion, localSiteVersion) {
-		if !utils.IsValidFor(remoteSiteVersion, MinimumCompatibleVersion) {
-			return fmt.Errorf("minimum version required %s", MinimumCompatibleVersion)
+		if !utils.IsValidFor(remoteSiteVersion, version.MinimumCompatibleVersion) {
+			return fmt.Errorf("minimum version required %s", version.MinimumCompatibleVersion)
 		}
 	}
 	return nil

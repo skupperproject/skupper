@@ -77,6 +77,7 @@ func (s *SkupperDeploymentHandlerPodman) Deploy(deployment domain.SkupperDeploym
 				return err
 			}
 			volume.Destination = destDir
+			volume.Mode = "z" // shared between containers
 			mounts = append(mounts, *volume)
 		}
 

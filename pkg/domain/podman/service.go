@@ -55,6 +55,9 @@ func (s *ServicePodman) AsServiceInterface() *types.ServiceInterface {
 func (s *ServicePodman) ContainerPorts() []container.Port {
 	ports := []container.Port{}
 	for port, hostPort := range s.GetIngress().GetPorts() {
+		if hostPort == 0 {
+			continue
+		}
 		ports = append(ports, container.Port{
 			Host:     strconv.Itoa(hostPort),
 			HostIP:   s.GetIngress().GetHost(),
@@ -90,7 +93,7 @@ func (s *ServiceHandlerPodman) validateNewService(servicePodman *ServicePodman) 
 	// Validating if service exists
 	_, err := s.handler.Get(servicePodman.GetAddress())
 	if err == nil {
-		return fmt.Errorf("Service %s already defined")
+		return fmt.Errorf("Service %s already defined", servicePodman.GetAddress())
 	}
 
 	// Validating service definition
@@ -105,13 +108,25 @@ func (s *ServiceHandlerPodman) validateNewService(servicePodman *ServicePodman) 
 	}
 
 	// Validating if ingress ports are available
-	if servicePodman.Ingress.GetPorts() != nil && len(servicePodman.Ingress.GetPorts()) > 0 {
+	if servicePodman.Ingress != nil && servicePodman.Ingress.GetPorts() != nil && len(servicePodman.Ingress.GetPorts()) > 0 {
 		for port, _ := range servicePodman.Ingress.GetPorts() {
 			if utils.TcpPortInUse(servicePodman.Ingress.GetHost(), port) {
 				return fmt.Errorf("ingress port %d is already in use", port)
 			}
 		}
 	}
+
+	if servicePodman.Ingress == nil {
+		servicePodman.Ingress = &domain.AddressIngressCommon{
+			Address:  servicePodman.GetAddress(),
+			Ports:    map[int]int{},
+			Protocol: servicePodman.GetProtocol(),
+		}
+		for _, port := range servicePodman.Ports {
+			servicePodman.Ingress.GetPorts()[port] = 0
+		}
+	}
+
 	return nil
 }
 
@@ -214,10 +229,15 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 		Labels: map[string]string{
 			types.AddressQualifier: servicePodman.GetAddress(),
 		},
-		Networks:      routerContainer.Networks,
 		Mounts:        routerContainer.Mounts,
+		Networks:      map[string]container.ContainerNetworkInfo{},
 		Ports:         servicePodman.ContainerPorts(),
 		RestartPolicy: "always",
+	}
+	for netName, _ := range routerContainer.Networks {
+		c.Networks[netName] = container.ContainerNetworkInfo{
+			ID: netName,
+		}
 	}
 	for l, v := range servicePodman.Labels {
 		c.Labels[l] = v
@@ -340,10 +360,14 @@ func (s *ServiceInterfaceHandlerPodman) Get(address string) (*types.ServiceInter
 	if err != nil {
 		return nil, err
 	}
+	notDefined := fmt.Errorf("Service %s not defined", address)
 	if svcMap == nil {
-		return nil, nil
+		return nil, notDefined
 	}
-	svc := svcMap[address]
+	svc, ok := svcMap[address]
+	if !ok {
+		return nil, notDefined
+	}
 	return svc, nil
 }
 

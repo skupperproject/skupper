@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/domain/kube"
 	"github.com/skupperproject/skupper/pkg/server"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -164,8 +164,8 @@ func (cli *VanClient) checkSiteVersion(sites *[]types.SiteInfo) []types.SiteInfo
 
 	for _, site := range *sites {
 		if utils.LessRecentThanVersion(site.Version, localSiteVersion) {
-			if utils.IsValidFor(site.Version, domain.MinimumCompatibleVersion) {
-				site.MinimumVersion = domain.MinimumCompatibleVersion
+			if utils.IsValidFor(site.Version, version.MinimumCompatibleVersion) {
+				site.MinimumVersion = version.MinimumCompatibleVersion
 			}
 		}
 
