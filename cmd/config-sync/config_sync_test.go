@@ -118,6 +118,44 @@ func TestSyncSecretsWithTlsEnabled(t *testing.T) {
 			sslProfileToSync: "skupper-tls-adservice",
 			expected:         "./tmp/skupper-router/tls/skupper-tls-adservice",
 		},
+		{
+			doc:    "adding-tcp-connector-with-tls",
+			before: &qdr.BridgeConfigDifference{},
+			after: &qdr.BridgeConfigDifference{
+				TcpConnectors: qdr.TcpEndpointDifference{
+					Added: []qdr.TcpEndpoint{
+						{
+							Name:       "adservice",
+							SslProfile: "skupper-service-client",
+						},
+					},
+				},
+				AddedSslProfiles: []string{
+					"skupper-service-client",
+				},
+			},
+			sslProfileToSync: "skupper-service-client",
+			expected:         "./tmp/skupper-router/tls/skupper-service-client",
+		},
+		{
+			doc:    "adding-tcp-listener-with-tls",
+			before: &qdr.BridgeConfigDifference{},
+			after: &qdr.BridgeConfigDifference{
+				TcpListeners: qdr.TcpEndpointDifference{
+					Added: []qdr.TcpEndpoint{
+						{
+							Name:       "adservice",
+							SslProfile: "skupper-tls-adservice",
+						},
+					},
+				},
+				AddedSslProfiles: []string{
+					"skupper-tls-adservice",
+				},
+			},
+			sslProfileToSync: "skupper-tls-adservice",
+			expected:         "./tmp/skupper-router/tls/skupper-tls-adservice",
+		},
 	}
 
 	for _, s := range scenarios {

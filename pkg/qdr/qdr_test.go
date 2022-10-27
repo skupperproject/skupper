@@ -528,11 +528,31 @@ func TestGetSslProfilesDifference(t *testing.T) {
 				SslProfile:      types.SkupperServiceCertPrefix + "another-new-listener",
 			},
 		},
+		TcpConnectors: map[string]TcpEndpoint{
+			"newConnector": {
+				Name:       "newTcpConnector",
+				Address:    "new-tcp-connector",
+				Host:       "abc.io",
+				Port:       "4321",
+				SiteId:     "abc",
+				SslProfile: types.ServiceClientSecret,
+			},
+		},
+		TcpListeners: map[string]TcpEndpoint{
+			"newListener": {
+				Name:       "newTCPListener",
+				Address:    "new-tcp-listener",
+				Host:       "localhost",
+				Port:       "8765",
+				SiteId:     "def",
+				SslProfile: types.SkupperServiceCertPrefix + "the-database",
+			},
+		},
 	}
 
 	addedSslProfiles, deletedSslProfiles := getSslProfilesDifference(&before, &after)
 
-	expectedAddedSslProfiles := []string{types.SkupperServiceCertPrefix + "new-listener", types.SkupperServiceCertPrefix + "another-new-listener"}
+	expectedAddedSslProfiles := []string{types.SkupperServiceCertPrefix + "new-listener", types.SkupperServiceCertPrefix + "another-new-listener", types.SkupperServiceCertPrefix + "the-database"}
 	expectedDeletedSslProfiles := []string{types.SkupperServiceCertPrefix + "blue"}
 	assert.Assert(t, utils.StringSlicesEqual(addedSslProfiles, expectedAddedSslProfiles), "Expected %v but got %v", expectedAddedSslProfiles, addedSslProfiles)
 	assert.Assert(t, utils.StringSlicesEqual(deletedSslProfiles, expectedDeletedSslProfiles), "Expected %v but got %v", expectedDeletedSslProfiles, deletedSslProfiles)

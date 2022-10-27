@@ -110,11 +110,12 @@ func (r Record) AsRecord(field string) Record {
 
 func asTcpEndpoint(record Record) TcpEndpoint {
 	return TcpEndpoint{
-		Name:    record.AsString("name"),
-		Host:    record.AsString("host"),
-		Port:    record.AsString("port"),
-		Address: record.AsString("address"),
-		SiteId:  record.AsString("siteId"),
+		Name:       record.AsString("name"),
+		Host:       record.AsString("host"),
+		Port:       record.AsString("port"),
+		Address:    record.AsString("address"),
+		SiteId:     record.AsString("siteId"),
+		SslProfile: record.AsString("sslProfile"),
 	}
 }
 
