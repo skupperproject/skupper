@@ -20,6 +20,7 @@ import (
 type serviceAction int
 
 const (
+	ServiceVolumePrefix                   = "skupper-config-"
 	SkupperServicesLockfile               = "skupper-services.json.lock"
 	SkupperServicesFilename               = "skupper-services.json"
 	serviceCreate           serviceAction = iota
@@ -49,6 +50,18 @@ func (s *ServicePodman) AsServiceInterface() *types.ServiceInterface {
 		EnableTls:      s.Tls,
 		TlsCredentials: s.TlsCredentials,
 	}
+
+	for _, egressResolver := range s.EgressResolvers {
+		egresses, _ := egressResolver.Resolve()
+		for _, egress := range egresses {
+			svc.Targets = append(svc.Targets, types.ServiceInterfaceTarget{
+				Name:        egressResolver.String(),
+				TargetPorts: egress.GetPorts(),
+				Service:     egress.GetHost(),
+			})
+		}
+	}
+
 	return svc
 }
 
@@ -109,18 +122,19 @@ func (s *ServiceHandlerPodman) validateNewService(servicePodman *ServicePodman) 
 
 	// Validating if ingress ports are available
 	if servicePodman.Ingress != nil && servicePodman.Ingress.GetPorts() != nil && len(servicePodman.Ingress.GetPorts()) > 0 {
-		for port, _ := range servicePodman.Ingress.GetPorts() {
-			if utils.TcpPortInUse(servicePodman.Ingress.GetHost(), port) {
-				return fmt.Errorf("ingress port %d is already in use", port)
+		for port, hostPort := range servicePodman.Ingress.GetPorts() {
+			if utils.TcpPortInUse(servicePodman.Ingress.GetHost(), hostPort) {
+				return fmt.Errorf("ingress port %d is already in use", hostPort)
+			}
+			if !utils.IntSliceContains(servicePodman.Ports, port) {
+				return fmt.Errorf("service does not specify mapped port %d", port)
 			}
 		}
 	}
 
 	if servicePodman.Ingress == nil {
 		servicePodman.Ingress = &domain.AddressIngressCommon{
-			Address:  servicePodman.GetAddress(),
-			Ports:    map[int]int{},
-			Protocol: servicePodman.GetProtocol(),
+			Ports: map[int]int{},
 		}
 		for _, port := range servicePodman.Ports {
 			servicePodman.Ingress.GetPorts()[port] = 0
@@ -175,10 +189,24 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 		_ = s.handler.Delete(servicePodman.GetAddress())
 	})
 
-	// Will be used as an env var
+	// Creating the router config
 	var svcRouterConfig *qdr.RouterConfig
 	var svcRouterConfigStr string
+	var configVolume *container.Volume
 	svcRouterConfig, svcRouterConfigStr, err = domain.CreateRouterServiceConfig(site, routerConfig, servicePodman)
+
+	// Creating volume to store config for service router
+	volumeName := ServiceVolumePrefix + servicePodman.Address
+	if configVolume, err = s.cli.VolumeCreate(&container.Volume{Name: volumeName}); err != nil {
+		return fmt.Errorf("error creating volume to store router configuration file - %w", err)
+	}
+	cleanupFns = append(cleanupFns, func() {
+		_ = s.cli.VolumeRemove(configVolume.Name)
+	})
+	if _, err = configVolume.CreateFile(types.TransportConfigFile, []byte(svcRouterConfigStr), false); err != nil {
+		return fmt.Errorf("error saving router configuration file - %w", err)
+	}
+	configVolume.Destination = "/etc/skupper-router/config/"
 
 	// Create TLS credentials (optional)
 	if servicePodman.IsTls() {
@@ -215,13 +243,20 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 	if err != nil {
 		return fmt.Errorf("error retrieving %s container - %w", types.TransportDeploymentName, err)
 	}
+	mounts := []container.Volume{}
+	for _, v := range routerContainer.Mounts {
+		if v.Name != types.TransportConfigMapName {
+			mounts = append(mounts, v)
+		}
+	}
+	mounts = append(mounts, *configVolume)
 	site.GetDeployments()[0].GetComponents()[0].GetImage()
 	c := &container.Container{
 		Name:  servicePodman.GetContainerName(),
 		Image: utils.DefaultStr(routerContainer.Image, types.GetRouterImageName()),
 		Env: map[string]string{
 			"APPLICATION_NAME":    svcRouterConfig.GetSiteMetadata().Id,
-			"QDROUTERD_CONF":      svcRouterConfigStr,
+			"QDROUTERD_CONF":      "/etc/skupper-router/config/" + types.TransportConfigFile,
 			"QDROUTERD_CONF_TYPE": "json",
 			"SKUPPER_SITE_ID":     svcRouterConfig.GetSiteMetadata().Id,
 			"QDROUTERD_DEBUG":     routerContainer.Env["QDROUTERD_DEBUG"],
@@ -229,7 +264,7 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 		Labels: map[string]string{
 			types.AddressQualifier: servicePodman.GetAddress(),
 		},
-		Mounts:        routerContainer.Mounts,
+		Mounts:        mounts,
 		Networks:      map[string]container.ContainerNetworkInfo{},
 		Ports:         servicePodman.ContainerPorts(),
 		RestartPolicy: "always",
@@ -259,23 +294,276 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 }
 
 func (s *ServiceHandlerPodman) Delete(address string) error {
-	// TODO implement me
-	panic("implement me")
+	// Check service exists
+	svc, err := s.Get(address)
+	if err != nil {
+		return err
+	}
+	svcPodman := svc.(*ServicePodman)
+
+	// Stop container
+	_ = s.cli.ContainerStop(svcPodman.GetContainerName())
+
+	// Remove container
+	_ = s.cli.ContainerRemove(svcPodman.GetContainerName())
+
+	// Removing config volume
+	_ = s.cli.VolumeRemove(ServiceVolumePrefix + address)
+
+	// If tls credentials were defined, remove the respective directory
+	if svcPodman.IsTls() {
+		v, err := s.cli.VolumeInspect(SharedTlsCertificates)
+		if err != nil {
+			return err
+		}
+		tlsCredentialName := types.SkupperServiceCertPrefix + svcPodman.GetAddress()
+		_ = v.DeleteFile(tlsCredentialName, true)
+	}
+
+	// Remove skupper-services entry
+	_ = s.handler.Delete(address)
+
+	return nil
 }
 
-func (s *ServiceHandlerPodman) AddTargets(address string, targets []types.ServiceInterfaceTarget) error {
-	// TODO implement me
-	panic("implement me")
+func (s *ServiceHandlerPodman) Get(address string) (domain.Service, error) {
+	svcs, err := s.handler.List()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving service list - %w", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, svc := range svcs {
+		if svc.Address == address {
+			return s.handler.ToServicePodman(svc)
+		}
+	}
+	return nil, fmt.Errorf("Service %s not defined", address)
 }
 
-func (s *ServiceHandlerPodman) RemoveTargets(address string, targets []types.ServiceInterfaceTarget) error {
-	// TODO implement me
-	panic("implement me")
+func (s *ServiceHandlerPodman) List() ([]domain.Service, error) {
+	var services []domain.Service
+	list, err := s.handler.List()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving service list - %w", err)
+	}
+	for _, svc := range list {
+		// for local services, retrieve respective containers
+		svcPodman, err := s.handler.ToServicePodman(svc)
+		if err != nil {
+			return nil, err
+		}
+		services = append(services, svcPodman)
+	}
+	return services, nil
 }
 
-func (s *ServiceHandlerPodman) RemoveAllTargets() error {
-	// TODO implement me
-	panic("implement me")
+func (s *ServiceHandlerPodman) GetServiceRouterConfig(address string) (*qdr.RouterConfig, error) {
+	var err error
+	volumeName := ServiceVolumePrefix + address
+
+	var vol *container.Volume
+	vol, err = s.cli.VolumeInspect(volumeName)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving config volume - %w", err)
+	}
+	var configStr string
+	if configStr, err = vol.ReadFile(types.TransportConfigFile); err != nil {
+		return nil, fmt.Errorf("error reading config file - %w", err)
+	}
+	var config qdr.RouterConfig
+	config, err = qdr.UnmarshalRouterConfig(configStr)
+	return &config, err
+}
+
+func (s *ServiceHandlerPodman) SaveServiceRouterConfig(address string, config *qdr.RouterConfig) error {
+	var err error
+	volumeName := ServiceVolumePrefix + address
+
+	var vol *container.Volume
+	vol, err = s.cli.VolumeInspect(volumeName)
+	if err != nil {
+		return fmt.Errorf("error retrieving config volume - %w", err)
+	}
+	var configStr string
+	configStr, err = qdr.MarshalRouterConfig(*config)
+	_, err = vol.CreateFile(types.TransportConfigFile, []byte(configStr), true)
+
+	return err
+}
+
+func (s *ServiceHandlerPodman) AddEgressResolver(address string, egressResolver domain.EgressResolver) error {
+	siteHandler, err := NewSitePodmanHandler("")
+	if err != nil {
+		return fmt.Errorf("error preparing site handler - %w", err)
+	}
+	site, err := siteHandler.Get()
+	if err != nil {
+		return fmt.Errorf("error retrieving site info - %w", err)
+	}
+	egresses, err := egressResolver.Resolve()
+	if err != nil {
+		return fmt.Errorf("error resolving egresses - %w", err)
+	}
+
+	// Retrieve service definition
+	svc, err := s.Get(address)
+	if err != nil {
+		return err
+	}
+	svcPodman := svc.(*ServicePodman)
+	routerEntityMgr := NewRouterEntityManagerPodmanFor(s.cli, svcPodman.ContainerName)
+
+	// Verify egress resolver is not already defined
+	egressResolverStr := egressResolver.String()
+	for _, resolver := range svc.GetEgressResolvers() {
+		if resolver.String() == egressResolverStr {
+			return fmt.Errorf("egress resolver already defined")
+		}
+	}
+
+	// Retrieve router configuration for service
+	config, err := s.GetServiceRouterConfig(address)
+	if err != nil {
+		return fmt.Errorf("error retrieving service config - %w", err)
+	}
+
+	// Add the egress to the service definition
+	svc.AddEgressResolver(egressResolver)
+
+	// Update skupper-services
+	if err = s.handler.Update(svcPodman.AsServiceInterface()); err != nil {
+		return fmt.Errorf("error updating service definition - %w", err)
+	}
+
+	// Add egresses to the router config
+	if err = domain.ServiceRouterConfigAddTargets(site, config, svcPodman, egressResolver); err != nil {
+		return fmt.Errorf("error adding targets to router config - %w", err)
+	}
+
+	// Update router config file
+	if err = s.SaveServiceRouterConfig(address, config); err != nil {
+		return fmt.Errorf("error updating router config for service %s - %w", address, err)
+	}
+
+	// Update router entities
+	for _, egress := range egresses {
+		connectorNames := domain.RouterConnectorNamesForEgress(address, egress)
+		for port, _ := range egress.GetPorts() {
+			connectorName := connectorNames[port]
+			switch svcPodman.GetProtocol() {
+			case "tcp":
+				tcpConnector := config.Bridges.TcpConnectors[connectorName]
+				err = routerEntityMgr.CreateTcpConnector(tcpConnector)
+			case "http":
+				fallthrough
+			case "http2":
+				httpConnector := config.Bridges.HttpConnectors[connectorName]
+				err = routerEntityMgr.CreateHttpConnector(httpConnector)
+			}
+			if err != nil {
+				return fmt.Errorf("error creating %s connector - %w", svcPodman.GetProtocol(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func (s *ServiceHandlerPodman) RemoveEgressResolver(address string, egressResolver domain.EgressResolver) error {
+	var egresses []domain.AddressEgress
+	var err error
+
+	// if nil, remove all
+	if egressResolver != nil {
+		egresses, err = egressResolver.Resolve()
+		if err != nil {
+			return fmt.Errorf("error resolving egresses - %w", err)
+		}
+	}
+
+	// Retrieve service definition
+	svc, err := s.Get(address)
+	if err != nil {
+		return err
+	}
+	svcPodman := svc.(*ServicePodman)
+	origEgressResolvers := svcPodman.GetEgressResolvers()
+	routerEntityMgr := NewRouterEntityManagerPodmanFor(s.cli, svcPodman.ContainerName)
+
+	// Verify egress resolver is defined
+	updatedResolvers := []domain.EgressResolver{}
+	if egressResolver != nil {
+		egressResolverStr := egressResolver.String()
+		found := false
+		for _, resolver := range svc.GetEgressResolvers() {
+			if resolver.String() == egressResolverStr {
+				found = true
+			} else {
+				updatedResolvers = append(updatedResolvers, resolver)
+			}
+		}
+		if !found {
+			return fmt.Errorf("egress resolver not defined")
+		}
+	}
+
+	// Retrieve router configuration for service
+	config, err := s.GetServiceRouterConfig(address)
+	if err != nil {
+		return fmt.Errorf("error retrieving service config - %w", err)
+	}
+
+	// Remove the egress from the service definition
+	svc.SetEgressResolvers(updatedResolvers)
+
+	// Update skupper-services
+	if err = s.handler.Update(svcPodman.AsServiceInterface()); err != nil {
+		return fmt.Errorf("error updating service definition - %w", err)
+	}
+
+	// Remove egresses from the router config
+	if err = domain.ServiceRouterConfigRemoveTargets(config, svcPodman, egressResolver); err != nil {
+		return fmt.Errorf("error removing targets to router config - %w", err)
+	}
+
+	// Update router config file
+	if err = s.SaveServiceRouterConfig(address, config); err != nil {
+		return fmt.Errorf("error updating router config for service %s - %w", address, err)
+	}
+
+	// Update router entities
+	if len(egresses) == 0 && len(origEgressResolvers) > 0 {
+		for _, resolver := range origEgressResolvers {
+			resolved, err := resolver.Resolve()
+			if err != nil {
+				return fmt.Errorf("error resolving egresses - %w", err)
+			}
+			egresses = append(egresses, resolved...)
+		}
+	}
+	for _, egress := range egresses {
+		connectorNames := domain.RouterConnectorNamesForEgress(address, egress)
+		for port, _ := range egress.GetPorts() {
+			connectorName := connectorNames[port]
+			switch svcPodman.GetProtocol() {
+			case "tcp":
+				err = routerEntityMgr.DeleteTcpConnector(connectorName)
+			case "http":
+				fallthrough
+			case "http2":
+				err = routerEntityMgr.DeleteHttpConnector(connectorName)
+			}
+			if err != nil {
+				return fmt.Errorf("error deleting %s connector - %w", svcPodman.GetProtocol(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func (s *ServiceHandlerPodman) RemoveAllEgressResolvers(address string) error {
+	return s.RemoveEgressResolver(address, nil)
 }
 
 type ServiceInterfaceHandlerPodman struct {
@@ -377,4 +665,68 @@ func (s *ServiceInterfaceHandlerPodman) Update(service *types.ServiceInterface) 
 
 func (s *ServiceInterfaceHandlerPodman) Delete(address string) error {
 	return s.manipulateService(&types.ServiceInterface{Address: address}, serviceDelete)
+}
+
+func (s *ServiceInterfaceHandlerPodman) ToServicePodman(svcIface *types.ServiceInterface) (*ServicePodman, error) {
+	svc := &ServicePodman{
+		ServiceCommon: &domain.ServiceCommon{
+			Address:        svcIface.Address,
+			Protocol:       svcIface.Protocol,
+			Ports:          svcIface.Ports,
+			EventChannel:   svcIface.EventChannel,
+			Aggregate:      svcIface.Aggregate,
+			Labels:         svcIface.Labels,
+			Origin:         svcIface.Origin,
+			Tls:            svcIface.EnableTls,
+			TlsCredentials: svcIface.TlsCredentials,
+			Ingress:        &domain.AddressIngressCommon{},
+		},
+	}
+
+	// set default ingress
+	ingressPorts := map[int]int{}
+	for _, port := range svcIface.Ports {
+		ingressPorts[port] = 0
+	}
+	svc.Ingress.SetPorts(ingressPorts)
+
+	// local service
+	if svcIface.Origin == "" {
+		// retrieve container for respective address
+		containers, err := s.cli.ContainerList()
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving containers - %w", err)
+		}
+		var svcContainer *container.Container
+		for _, c := range containers {
+			if addr, ok := c.Labels[types.AddressQualifier]; ok && addr == svcIface.Address {
+				svcContainer, err = s.cli.ContainerInspect(c.Name)
+				if err != nil {
+					return nil, fmt.Errorf("error reading container info %s - %w", c.Name, err)
+				}
+				break
+			}
+		}
+		if svcContainer == nil {
+			return nil, fmt.Errorf("service container could not be found")
+		}
+
+		// setting remaining information
+		svc.ContainerName = svcContainer.Name
+
+		// reading ingress info from container spec
+		if len(svcContainer.Ports) > 0 {
+			for _, port := range svcContainer.Ports {
+				svcPort, _ := strconv.Atoi(port.Target)
+				hostPort, _ := strconv.Atoi(port.Host)
+				svc.Ingress.GetPorts()[svcPort] = hostPort
+				svc.Ingress.SetHost(port.HostIP)
+			}
+		}
+		for _, target := range svcIface.Targets {
+			svc.EgressResolvers = append(svc.EgressResolvers, domain.EgressResolverFromString(target.Name))
+		}
+	}
+
+	return svc, nil
 }

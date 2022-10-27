@@ -11,17 +11,23 @@ import (
 )
 
 type RouterEntityManagerPodman struct {
-	cli *podman.PodmanRestClient
+	cli       *podman.PodmanRestClient
+	container string
 }
 
 func NewRouterEntityManagerPodman(cli *podman.PodmanRestClient) *RouterEntityManagerPodman {
+	return NewRouterEntityManagerPodmanFor(cli, types.TransportDeploymentName)
+}
+
+func NewRouterEntityManagerPodmanFor(cli *podman.PodmanRestClient, container string) *RouterEntityManagerPodman {
 	return &RouterEntityManagerPodman{
-		cli: cli,
+		cli:       cli,
+		container: container,
 	}
 }
 
 func (r *RouterEntityManagerPodman) exec(cmd []string) (string, error) {
-	return r.cli.ContainerExec(types.TransportDeploymentName, cmd)
+	return r.cli.ContainerExec(r.container, cmd)
 }
 
 func (r *RouterEntityManagerPodman) CreateSslProfile(sslProfile qdr.SslProfile) error {
@@ -171,4 +177,36 @@ func (r *RouterEntityManagerPodman) QueryEdgeRouters() ([]qdr.Router, error) {
 		}
 	}
 	return routers, nil
+}
+
+func (r *RouterEntityManagerPodman) CreateTcpConnector(tcpConnector qdr.TcpEndpoint) error {
+	cmd := qdr.SkmanageCreateCommand("tcpConnector", tcpConnector.Name, tcpConnector)
+	if _, err := r.exec(cmd); err != nil {
+		return fmt.Errorf("error creating tcpConnector %s - %w", tcpConnector.Name, err)
+	}
+	return nil
+}
+
+func (r *RouterEntityManagerPodman) DeleteTcpConnector(name string) error {
+	cmd := qdr.SkmanageDeleteCommand("tcpConnector", name)
+	if _, err := r.exec(cmd); err != nil {
+		return fmt.Errorf("error deleting tcpConnector %s - %w", name, err)
+	}
+	return nil
+}
+
+func (r *RouterEntityManagerPodman) CreateHttpConnector(httpConnector qdr.HttpEndpoint) error {
+	cmd := qdr.SkmanageCreateCommand("httpConnector", httpConnector.Name, httpConnector)
+	if _, err := r.exec(cmd); err != nil {
+		return fmt.Errorf("error creating httpConnector %s - %w", httpConnector.Name, err)
+	}
+	return nil
+}
+
+func (r *RouterEntityManagerPodman) DeleteHttpConnector(name string) error {
+	cmd := qdr.SkmanageDeleteCommand("httpConnector", name)
+	if _, err := r.exec(cmd); err != nil {
+		return fmt.Errorf("error deleting httpConnector %s - %w", name, err)
+	}
+	return nil
 }

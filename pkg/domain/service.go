@@ -14,10 +14,11 @@ import (
 type ServiceHandler interface {
 	Create(service Service) error
 	Delete(address string) error
+	Get(address string) (Service, error)
 	List() ([]Service, error)
 	AddEgressResolver(address string, egressResolver EgressResolver) error
 	RemoveEgressResolver(address string, egressResolver EgressResolver) error
-	RemoveAllEgressResolvers() error
+	RemoveAllEgressResolvers(address string) error
 }
 
 // Service defines a generic representation of a Skupper service
@@ -44,6 +45,7 @@ type Service interface {
 	SetIngress(ingress AddressIngress)
 	GetEgressResolvers() []EgressResolver
 	AddEgressResolver(resolver EgressResolver)
+	SetEgressResolvers(resolvers []EgressResolver)
 }
 
 type ServiceCommon struct {
@@ -144,6 +146,10 @@ func (s *ServiceCommon) GetEgressResolvers() []EgressResolver {
 	return s.EgressResolvers
 }
 
+func (s *ServiceCommon) SetEgressResolvers(resolvers []EgressResolver) {
+	s.EgressResolvers = resolvers
+}
+
 func (s *ServiceCommon) AddEgressResolver(resolver EgressResolver) {
 	s.EgressResolvers = append(s.EgressResolvers, resolver)
 }
@@ -155,7 +161,10 @@ func ValidateService(service Service) error {
 	}
 
 	for _, resolver := range service.GetEgressResolvers() {
-		targets := resolver.Resolve()
+		targets, err := resolver.Resolve()
+		if err != nil {
+			return fmt.Errorf("error resolving egresses - %w", err)
+		}
 		for _, target := range targets {
 			for _, targetPort := range target.GetPorts() {
 				if targetPort < 0 || 65535 < targetPort {
@@ -258,53 +267,101 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 	}
 
 	// If egress resolvers defined, resolve the respective connectors
-	boolFalse := false
 	for _, egressResolver := range service.GetEgressResolvers() {
-		for _, target := range egressResolver.Resolve() {
-			for port, targetPort := range target.GetPorts() {
-				connectorName := fmt.Sprintf("%s@%s:%d:%d", service.GetAddress(), target.GetHost(), port, targetPort)
-				connectorHost := target.GetHost()
-				connectorPort := strconv.Itoa(targetPort)
-				connectorAddr := fmt.Sprintf("%s:%d", service.GetAddress(), port)
-				switch service.GetProtocol() {
-				case "tcp":
-					svcRouterConfig.AddTcpConnector(qdr.TcpEndpoint{
-						Name:    connectorName,
-						Host:    connectorHost,
-						Port:    connectorPort,
-						Address: connectorAddr,
-						SiteId:  siteId,
-					})
-				case "http":
-					svcRouterConfig.AddHttpConnector(qdr.HttpEndpoint{
-						Name:           connectorName,
-						Host:           connectorHost,
-						Port:           connectorPort,
-						Address:        connectorAddr,
-						SiteId:         siteId,
-						Aggregation:    service.GetAggregate(),
-						EventChannel:   service.IsEventChannel(),
-						SslProfile:     service.GetTlsCredentials(),
-						VerifyHostname: &boolFalse,
-					})
-				case "http2":
-					svcRouterConfig.AddHttpConnector(qdr.HttpEndpoint{
-						Name:            connectorName,
-						Host:            connectorHost,
-						Port:            connectorPort,
-						Address:         connectorAddr,
-						SiteId:          siteId,
-						ProtocolVersion: qdr.HttpVersion2,
-						Aggregation:     service.GetAggregate(),
-						EventChannel:    service.IsEventChannel(),
-						SslProfile:      service.GetTlsCredentials(),
-						VerifyHostname:  &boolFalse,
-					})
-				}
-			}
+		if err := ServiceRouterConfigAddTargets(site, &svcRouterConfig, service, egressResolver); err != nil {
+			return nil, "", err
 		}
 	}
 
 	svcRouterConfigStr, err := qdr.MarshalRouterConfig(svcRouterConfig)
 	return &svcRouterConfig, svcRouterConfigStr, err
+}
+
+func RouterConnectorNamesForEgress(address string, target AddressEgress) map[int]string {
+	names := map[int]string{}
+	for port, targetPort := range target.GetPorts() {
+		names[port] = fmt.Sprintf("%s@%s:%d:%d", address, target.GetHost(), port, targetPort)
+	}
+	return names
+}
+
+func ServiceRouterConfigAddTargets(site Site, svcRouterConfig *qdr.RouterConfig, service Service, egressResolver EgressResolver) error {
+	siteId := fmt.Sprintf("%s-%s", site.GetId(), service.GetAddress())
+
+	boolFalse := false
+	targets, err := egressResolver.Resolve()
+	if err != nil {
+		return fmt.Errorf("error resolving egresses - %w", err)
+	}
+	for _, target := range targets {
+		connectorNames := RouterConnectorNamesForEgress(service.GetAddress(), target)
+		for port, targetPort := range target.GetPorts() {
+			connectorName := connectorNames[port]
+			connectorHost := target.GetHost()
+			connectorPort := strconv.Itoa(targetPort)
+			connectorAddr := fmt.Sprintf("%s:%d", service.GetAddress(), port)
+			switch service.GetProtocol() {
+			case "tcp":
+				svcRouterConfig.AddTcpConnector(qdr.TcpEndpoint{
+					Name:    connectorName,
+					Host:    connectorHost,
+					Port:    connectorPort,
+					Address: connectorAddr,
+					SiteId:  siteId,
+				})
+			case "http":
+				svcRouterConfig.AddHttpConnector(qdr.HttpEndpoint{
+					Name:           connectorName,
+					Host:           connectorHost,
+					Port:           connectorPort,
+					Address:        connectorAddr,
+					SiteId:         siteId,
+					Aggregation:    service.GetAggregate(),
+					EventChannel:   service.IsEventChannel(),
+					SslProfile:     service.GetTlsCredentials(),
+					VerifyHostname: &boolFalse,
+				})
+			case "http2":
+				svcRouterConfig.AddHttpConnector(qdr.HttpEndpoint{
+					Name:            connectorName,
+					Host:            connectorHost,
+					Port:            connectorPort,
+					Address:         connectorAddr,
+					SiteId:          siteId,
+					ProtocolVersion: qdr.HttpVersion2,
+					Aggregation:     service.GetAggregate(),
+					EventChannel:    service.IsEventChannel(),
+					SslProfile:      service.GetTlsCredentials(),
+					VerifyHostname:  &boolFalse,
+				})
+			}
+		}
+	}
+	return nil
+}
+
+func ServiceRouterConfigRemoveTargets(svcRouterConfig *qdr.RouterConfig, service Service, egressResolver EgressResolver) error {
+	if egressResolver == nil {
+		svcRouterConfig.Bridges.TcpConnectors = map[string]qdr.TcpEndpoint{}
+		svcRouterConfig.Bridges.HttpConnectors = map[string]qdr.HttpEndpoint{}
+		return nil
+	}
+	targets, err := egressResolver.Resolve()
+	if err != nil {
+		return fmt.Errorf("error resolving egresses - %w", err)
+	}
+	for _, target := range targets {
+		connectorNames := RouterConnectorNamesForEgress(service.GetAddress(), target)
+		for port, _ := range target.GetPorts() {
+			connectorName := connectorNames[port]
+			switch service.GetProtocol() {
+			case "tcp":
+				svcRouterConfig.RemoveTcpConnector(connectorName)
+			case "http":
+			case "http2":
+				svcRouterConfig.RemoveHttpConnector(connectorName)
+			}
+		}
+	}
+	return nil
 }

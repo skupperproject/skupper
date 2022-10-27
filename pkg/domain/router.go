@@ -15,4 +15,8 @@ type RouterEntityManager interface {
 	QueryRouterNodes() ([]qdr.RouterNode, error)
 	QueryEdgeRouters() ([]qdr.Router, error)
 	QueryConnections(routerId string, edge bool) ([]qdr.Connection, error)
+	CreateTcpConnector(tcpConnector qdr.TcpEndpoint) error
+	DeleteTcpConnector(name string) error
+	CreateHttpConnector(httpConnector qdr.HttpEndpoint) error
+	DeleteHttpConnector(name string) error
 }
