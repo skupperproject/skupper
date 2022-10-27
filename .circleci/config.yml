@@ -229,7 +229,7 @@ commands:
             VERSION="${CIRCLE_TAG:-ci-${CIRCLE_BUILD_NUM}}";
             GOOS=<< parameters.goos >>
             GOARCH=<< parameters.goarch >>
-            go build -ldflags "-X github.com/skupperproject/skupper/client.Version=${VERSION}"
+            go build -ldflags "-X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}"
             -o dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>
             ./cmd/skupper
 

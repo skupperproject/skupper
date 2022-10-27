@@ -21,6 +21,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/version"
 	"gopkg.in/yaml.v3"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -893,7 +894,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 		return "", fmt.Errorf("Failed to create gateway secret: %w", err)
 	}
 
-	routerConfig := qdr.InitialConfig(clusterGatewayName(gatewayName), "{{.RouterID}}", Version, true, 3)
+	routerConfig := qdr.InitialConfig(clusterGatewayName(gatewayName), "{{.RouterID}}", version.Version, true, 3)
 
 	// NOTE: at instantiation time detect amqp port in use and allocate port if needed
 	routerConfig.AddListener(qdr.Listener{
@@ -2114,7 +2115,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 		}
 	}
 
-	routerConfig := qdr.InitialConfig(gatewayPrefix+"{{.Hostname}}", "{{.RouterID}}", Version, true, 3)
+	routerConfig := qdr.InitialConfig(gatewayPrefix+"{{.Hostname}}", "{{.RouterID}}", version.Version, true, 3)
 
 	if len(gatewayConfig.QdrListeners) == 0 {
 		routerConfig.AddListener(qdr.Listener{

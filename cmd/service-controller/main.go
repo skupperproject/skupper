@@ -16,6 +16,7 @@ import (
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/version"
 )
 
 func describe(i interface{}) {
@@ -75,13 +76,13 @@ func main() {
 	isVersion := flag.Bool("version", false, "Report the version of the Skupper Service Controller")
 	flag.Parse()
 	if *isVersion {
-		fmt.Println(client.Version)
+		fmt.Println(version.Version)
 		os.Exit(0)
 	}
 
 	// Startup message
 	log.Printf("Skupper service controller")
-	log.Printf("Version: %s", client.Version)
+	log.Printf("Version: %s", version.Version)
 
 	origin := os.Getenv("SKUPPER_SITE_ID")
 	namespace := os.Getenv("SKUPPER_NAMESPACE")

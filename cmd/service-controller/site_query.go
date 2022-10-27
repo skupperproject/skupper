@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/version"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -57,7 +58,7 @@ func (s *SiteQueryServer) getLocalSiteInfo() {
 	s.siteInfo.SiteId = os.Getenv("SKUPPER_SITE_ID")
 	s.siteInfo.SiteName = os.Getenv("SKUPPER_SITE_NAME")
 	s.siteInfo.Namespace = os.Getenv("SKUPPER_NAMESPACE")
-	s.siteInfo.Version = client.Version
+	s.siteInfo.Version = version.Version
 	url, err := getSiteUrl(s.client)
 	if err != nil {
 		event.Recordf(SiteQueryError, "Failed to get site url: %s", err)
@@ -162,7 +163,7 @@ func (s *SiteQueryServer) Request(request *qdr.Request) (*qdr.Response, error) {
 }
 
 func (s *SiteQueryServer) HandleSiteQuery(request *qdr.Request) (*qdr.Response, error) {
-	//if request has explicit version, send SiteQueryData, else send LegacySiteData
+	// if request has explicit version, send SiteQueryData, else send LegacySiteData
 	if request.Version == "" {
 		event.Record(SiteQueryRequest, "legacy site data request")
 		data := s.siteInfo.AsLegacySiteInfo()
@@ -171,7 +172,7 @@ func (s *SiteQueryServer) HandleSiteQuery(request *qdr.Request) (*qdr.Response, 
 			return nil, fmt.Errorf("Could not encode response: %s", err)
 		}
 		return &qdr.Response{
-			Version: client.Version,
+			Version: version.Version,
 			Body:    string(bytes),
 		}, nil
 	} else {
@@ -185,7 +186,7 @@ func (s *SiteQueryServer) HandleSiteQuery(request *qdr.Request) (*qdr.Response, 
 			return nil, fmt.Errorf("Could not encode response: %s", err)
 		}
 		return &qdr.Response{
-			Version: client.Version,
+			Version: version.Version,
 			Body:    string(bytes),
 		}, nil
 	}
@@ -196,7 +197,7 @@ func (s *SiteQueryServer) HandleServiceCheck(request *qdr.Request) (*qdr.Respons
 	data, err := s.getServiceDetail(context.Background(), request.Body)
 	if err != nil {
 		return &qdr.Response{
-			Version: client.Version,
+			Version: version.Version,
 			Type:    ServiceCheckError,
 			Body:    err.Error(),
 		}, nil
@@ -206,7 +207,7 @@ func (s *SiteQueryServer) HandleServiceCheck(request *qdr.Request) (*qdr.Respons
 		return nil, fmt.Errorf("Could not encode service check response: %s", err)
 	}
 	return &qdr.Response{
-		Version: client.Version,
+		Version: version.Version,
 		Type:    request.Type,
 		Body:    string(bytes),
 	}, nil
@@ -223,7 +224,7 @@ func (s *SiteQueryServer) HandleGatewayQuery(request *qdr.Request) (*qdr.Respons
 		return nil, fmt.Errorf("Could not encode response: %s", err)
 	}
 	return &qdr.Response{
-		Version: client.Version,
+		Version: version.Version,
 		Body:    string(bytes),
 	}, nil
 
@@ -338,13 +339,13 @@ func querySites(agent qdr.RequestResponse, sites []data.SiteQueryData) {
 	for i, s := range sites {
 		request := qdr.Request{
 			Address: getSiteQueryAddress(s.SiteId),
-			Version: client.Version,
+			Version: version.Version,
 		}
 		response, err := agent.Request(&request)
 		if err != nil {
 			event.Recordf(SiteQueryError, "Request to %s failed: %s", s.SiteId, err)
 		} else if response.Version == "" {
-			//assume legacy version of site-query protocol
+			// assume legacy version of site-query protocol
 			info := data.LegacySiteInfo{}
 			err := json.Unmarshal([]byte(response.Body), &info)
 			if err != nil {
@@ -377,7 +378,7 @@ func queryGateways(agent qdr.RequestResponse, sites []data.SiteQueryData) []data
 	for _, s := range sites {
 		request := qdr.Request{
 			Address: getSiteQueryAddress(s.SiteId),
-			Version: client.Version,
+			Version: version.Version,
 			Type:    GatewayQuery,
 		}
 		response, err := agent.Request(&request)
@@ -422,7 +423,7 @@ func checkServiceForSites(agent qdr.RequestResponse, address string, sites *data
 	for _, s := range sites.Details {
 		request := qdr.Request{
 			Address: getSiteQueryAddress(s.SiteId),
-			Version: client.Version,
+			Version: version.Version,
 			Type:    ServiceCheck,
 			Body:    address,
 		}

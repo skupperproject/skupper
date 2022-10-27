@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +24,7 @@ func (s *SkupperKubeDebug) Platform() types.Platform {
 
 func (s *SkupperKubeDebug) Dump(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
-	file, err := s.kube.Cli.SkupperDump(context.Background(), args[0], client.Version, s.kube.KubeConfigPath, s.kube.KubeContext)
+	file, err := s.kube.Cli.SkupperDump(context.Background(), args[0], version.Version, s.kube.KubeConfigPath, s.kube.KubeContext)
 	if err != nil {
 		return fmt.Errorf("Unable to save skupper dump details: %w", err)
 	} else {

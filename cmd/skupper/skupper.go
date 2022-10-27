@@ -11,6 +11,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
+	"github.com/skupperproject/skupper/pkg/version"
 	"github.com/spf13/cobra/doc"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -421,7 +422,7 @@ func NewCmdUpdate(skupperCli SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "update",
 		Short:  "Update skupper installation version",
-		Long:   "Update the skupper site to " + client.Version,
+		Long:   "Update the skupper site to " + version.Version,
 		Args:   cobra.NoArgs,
 		PreRun: skupperCli.NewClient,
 		RunE:   skupperCli.Update,
@@ -731,7 +732,7 @@ func NewCmdVersion(skupperClient SkupperSiteClient) *cobra.Command {
 		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			fmt.Printf("%-30s %s\n", "client version", client.Version)
+			fmt.Printf("%-30s %s\n", "client version", version.Version)
 			return skupperClient.Version(cmd, args)
 		},
 	}

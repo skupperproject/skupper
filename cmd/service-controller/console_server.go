@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/skupperproject/skupper/pkg/version"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -103,7 +104,7 @@ func (server *ConsoleServer) httpInternalError(w http.ResponseWriter, err error)
 func (server *ConsoleServer) version() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		v := VersionInfo{
-			ServiceControllerVersion: client.Version,
+			ServiceControllerVersion: version.Version,
 		}
 		agent, err := server.agentPool.Get()
 		if err != nil {

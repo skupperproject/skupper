@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/version"
 )
 
 func describe(i interface{}) {
@@ -40,7 +41,7 @@ func main() {
 	isVersion := flag.Bool("version", false, "Report the version of the Skupper Site Controller")
 	flag.Parse()
 	if *isVersion {
-		fmt.Println(client.Version)
+		fmt.Println(version.Version)
 		os.Exit(0)
 	}
 
