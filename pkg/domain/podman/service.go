@@ -72,10 +72,9 @@ func (s *ServicePodman) ContainerPorts() []container.Port {
 			continue
 		}
 		ports = append(ports, container.Port{
-			Host:     strconv.Itoa(hostPort),
-			HostIP:   s.GetIngress().GetHost(),
-			Target:   strconv.Itoa(port),
-			Protocol: s.GetProtocol(),
+			Host:   strconv.Itoa(hostPort),
+			HostIP: s.GetIngress().GetHost(),
+			Target: strconv.Itoa(port),
 		})
 	}
 	return ports

@@ -358,6 +358,7 @@ func ServiceRouterConfigRemoveTargets(svcRouterConfig *qdr.RouterConfig, service
 			case "tcp":
 				svcRouterConfig.RemoveTcpConnector(connectorName)
 			case "http":
+				fallthrough
 			case "http2":
 				svcRouterConfig.RemoveHttpConnector(connectorName)
 			}
