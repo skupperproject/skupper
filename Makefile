@@ -5,7 +5,7 @@ CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
 TEST_IMAGE := quay.io/skupper/skupper-tests
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
-LDFLAGS := -X github.com/skupperproject/skupper/client.Version=${VERSION}
+LDFLAGS := -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
 
 all: build-cmd build-get build-config-sync build-controllers build-tests
 

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -84,9 +85,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	site := config.GetSiteMetadata()
 	// compare to version of library running
 	updateSite := false
-	if utils.LessRecentThanVersion(Version, site.Version) {
+	if utils.LessRecentThanVersion(version.Version, site.Version) {
 		// site is newer than client library, cannot update
-		return false, fmt.Errorf("Site (%s) is newer than library (%s); cannot update", site.Version, Version)
+		return false, fmt.Errorf("Site (%s) is newer than library (%s); cannot update", site.Version, version.Version)
 	}
 	renameFor050 := false
 	addClaimsSupport := false
@@ -108,7 +109,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	} else {
 		originalVersion = site.Version
 	}
-	if utils.MoreRecentThanVersion(Version, site.Version) || (utils.EquivalentVersion(Version, site.Version) && Version != site.Version) {
+	if utils.MoreRecentThanVersion(version.Version, site.Version) || (utils.EquivalentVersion(version.Version, site.Version) && version.Version != site.Version) {
 		if !inprogress {
 			if utils.LessRecentThanVersion(originalVersion, "0.7.0") {
 				addClaimsSupport = true
@@ -133,7 +134,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		// site is marked as older than library, need to update
 		updateSite = true
 
-		site.Version = Version
+		site.Version = version.Version
 		config.SetSiteMetadata(&site)
 
 		_, err = config.UpdateConfigMap(configmap)
@@ -804,7 +805,7 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 		if err != nil {
 			return err
 		}
-		sm.Version = Version
+		sm.Version = version.Version
 		smStr, err := json.Marshal(sm)
 		if err != nil {
 			return err

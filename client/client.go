@@ -5,6 +5,7 @@ import (
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/version"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -19,8 +20,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
-var Version = "undefined"
-var minimumCompatibleVersion = "0.8.0"
 var defaultRetry = wait.Backoff{
 	Steps:    100,
 	Duration: 10 * time.Millisecond,
@@ -59,7 +58,7 @@ func (cli *VanClient) GetVersion(component string, name string) string {
 }
 
 func (cli *VanClient) GetMinimumCompatibleVersion() string {
-	return minimumCompatibleVersion
+	return version.MinimumCompatibleVersion
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) (*VanClient, error) {

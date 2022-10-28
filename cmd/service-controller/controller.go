@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -181,7 +182,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
 		return kube.UpdateSkupperServices(changed, deleted, origin, cli.Namespace, cli.KubeClient)
 	}
-	controller.serviceSync = service_sync.NewServiceSync(origin, client.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
+	controller.serviceSync = service_sync.NewServiceSync(origin, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
 
 	controller.policyHandler = NewPolicyController(controller.vanClient)
 	return controller, nil
@@ -548,7 +549,7 @@ func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error 
 
 func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, statefulset *appsv1.StatefulSet) error {
 	serviceInterface := bindings.AsServiceInterface()
-	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, client.Version, c.vanClient.Namespace)
+	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, version.Version, c.vanClient.Namespace)
 	if err != nil {
 		return err
 	}
@@ -559,7 +560,7 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, s
 
 func (c *Controller) createHeadlessProxyFor(bindings *service.ServiceBindings) error {
 	serviceInterface := bindings.AsServiceInterface()
-	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, client.Version, c.vanClient.Namespace)
+	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, version.Version, c.vanClient.Namespace)
 	if err != nil {
 		return err
 	}

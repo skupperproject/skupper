@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1informer "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/informers/internalinterfaces"
@@ -42,13 +43,13 @@ func main() {
 	isVersion := flag.Bool("version", false, "Report the version of Config Sync")
 	flag.Parse()
 	if *isVersion {
-		fmt.Println(client.Version)
+		fmt.Println(version.Version)
 		os.Exit(0)
 	}
 
 	// Startup message
 	log.Printf("Config Sync")
-	log.Printf("Version: %s", client.Version)
+	log.Printf("Version: %s", version.Version)
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
