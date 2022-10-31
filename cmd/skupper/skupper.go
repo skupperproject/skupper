@@ -59,6 +59,7 @@ type SkupperServiceClient interface {
 	ExposeArgs(cmd *cobra.Command, args []string) error
 	ExposeFlags(cmd *cobra.Command)
 	Unexpose(cmd *cobra.Command, args []string) error
+	UnexposeFlags(cmd *cobra.Command) error
 }
 
 type SkupperDebugClient interface {
@@ -114,6 +115,8 @@ type ExposeOptions struct {
 	PublishNotReadyAddresses bool
 	IngressMode              string
 	BridgeImage              string
+	Aggregate                string
+	EventChannel             bool
 }
 
 func SkupperNotInstalledError(namespace string) error {
@@ -491,22 +494,24 @@ var exposeOpts ExposeOptions
 
 func NewCmdExpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>|deploymentconfig <name>]",
+		Use:    "expose",
 		Short:  "Expose a set of pods through a Skupper address",
 		Args:   skupperCli.ExposeArgs,
 		PreRun: skupperCli.NewClient,
 		RunE:   skupperCli.Expose,
 	}
+
 	cmd.Flags().StringVar(&(exposeOpts.Protocol), "protocol", "tcp", "The protocol to proxy (tcp, http, or http2)")
 	cmd.Flags().StringVar(&(exposeOpts.Address), "address", "", "The Skupper address to expose")
 	cmd.Flags().IntSliceVar(&(exposeOpts.Ports), "port", []int{}, "The ports to expose on")
 	cmd.Flags().StringSliceVar(&(exposeOpts.TargetPorts), "target-port", []string{}, "The ports to target on pods")
 	cmd.Flags().StringVar(&(exposeOpts.IngressMode), "enable-ingress-from-target-site", "", "Determines whether access to the Skupper service is enabled in the site the target was exposed through. Always (default) or Never are valid values.")
-	cmd.Flags().StringVar(&exposeOpts.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
+
+	cmd.Flags().StringVar(&exposeOpts.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
+	cmd.Flags().BoolVar(&exposeOpts.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
+
 	cmd.Flags().BoolVar(&exposeOpts.GeneratedCerts, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 and tcp protocols)")
 	cmd.Flags().BoolVar(&exposeOpts.GeneratedCerts, "generate-tls-secrets", false, "If specified, the service will be exposed over TLS (valid only for http2 and tcp protocols)")
-	cmd.Flags().StringVar(&exposeOpts.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to expose the service over TLS (valid only for http2 and tcp protocols)")
-	cmd.Flags().StringVar(&exposeOpts.TlsCertAuthority, "tls-trust", "", "K8s secret name with the CA to expose the service over TLS (valid only for http2 and tcp protocols)")
 
 	f := cmd.Flag("enable-tls")
 	f.Deprecated = "use 'generate-tls-secrets' instead"
@@ -527,7 +532,7 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 		RunE:   skupperCli.Unexpose,
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
-
+	skupperCli.UnexposeFlags(cmd)
 	return cmd
 }
 
@@ -692,6 +697,9 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "generate-tls-secrets", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
 	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to encrypt the communication using TLS (valid only for http2 and tcp protocols)")
+
+	// platform specific flags
+	skupperClient.CreateFlags(cmd)
 
 	f := cmd.Flag("mapping")
 	f.Deprecated = "protocol is now the flag to set the mapping"
@@ -1018,7 +1026,10 @@ func init() {
 	cmdService.AddCommand(NewCmdBind(skupperCli.Service()))
 	cmdService.AddCommand(NewCmdUnbind(skupperCli.Service()))
 	cmdService.AddCommand(cmdStatusService)
-	cmdService.AddCommand(cmdLabelsService)
+	// Labels cannot be modified on podman sites
+	if config.GetPlatform() == types.PlatformKubernetes {
+		cmdService.AddCommand(cmdLabelsService)
+	}
 
 	cmdDebug := NewCmdDebug()
 	cmdDebug.AddCommand(cmdDebugDump)

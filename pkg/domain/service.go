@@ -38,9 +38,10 @@ type Service interface {
 	GetOrigin() string
 	SetOrigin(origin string)
 	IsTls() bool
-	SetTls(tls bool)
 	GetTlsCredentials() string
 	SetTlsCredentials(credential string)
+	GetTlsCertAuthority() string
+	SetTlsCertAuthority(ca string)
 	GetIngress() AddressIngress
 	SetIngress(ingress AddressIngress)
 	GetEgressResolvers() []EgressResolver
@@ -49,17 +50,17 @@ type Service interface {
 }
 
 type ServiceCommon struct {
-	Address         string
-	Protocol        string
-	Ports           []int
-	EventChannel    bool
-	Aggregate       string
-	Labels          map[string]string
-	Origin          string
-	Tls             bool
-	TlsCredentials  string
-	Ingress         AddressIngress
-	EgressResolvers []EgressResolver
+	Address          string
+	Protocol         string
+	Ports            []int
+	EventChannel     bool
+	Aggregate        string
+	Labels           map[string]string
+	Origin           string
+	TlsCredentials   string
+	TlsCertAuthority string
+	Ingress          AddressIngress
+	EgressResolvers  []EgressResolver
 }
 
 func (s *ServiceCommon) GetAddress() string {
@@ -119,11 +120,7 @@ func (s *ServiceCommon) SetOrigin(origin string) {
 }
 
 func (s *ServiceCommon) IsTls() bool {
-	return s.Tls
-}
-
-func (s *ServiceCommon) SetTls(tls bool) {
-	s.Tls = tls
+	return s.TlsCredentials != ""
 }
 
 func (s *ServiceCommon) GetTlsCredentials() string {
@@ -132,6 +129,14 @@ func (s *ServiceCommon) GetTlsCredentials() string {
 
 func (s *ServiceCommon) SetTlsCredentials(credential string) {
 	s.TlsCredentials = credential
+}
+
+func (s *ServiceCommon) GetTlsCertAuthority() string {
+	return s.TlsCertAuthority
+}
+
+func (s *ServiceCommon) SetTlsCertAuthority(ca string) {
+	s.TlsCertAuthority = ca
 }
 
 func (s *ServiceCommon) GetIngress() AddressIngress {

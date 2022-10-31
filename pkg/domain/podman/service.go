@@ -47,7 +47,6 @@ func (s *ServicePodman) AsServiceInterface() *types.ServiceInterface {
 		Labels:         s.Labels,
 		Targets:        []types.ServiceInterfaceTarget{},
 		Origin:         s.Origin,
-		EnableTls:      s.Tls,
 		TlsCredentials: s.TlsCredentials,
 	}
 
@@ -300,6 +299,15 @@ func (s *ServiceHandlerPodman) Delete(address string) error {
 	}
 	svcPodman := svc.(*ServicePodman)
 
+	// Inspect container to ensure it belongs to Skupper
+	svcContainer, err := s.cli.ContainerInspect(svcPodman.GetContainerName())
+	if err != nil {
+		return nil
+	}
+	if appValue, ok := svcContainer.Labels["application"]; !ok || appValue != types.AppName {
+		return fmt.Errorf("container %s is not managed by Skupper", svcPodman.ContainerName)
+	}
+
 	// Stop container
 	_ = s.cli.ContainerStop(svcPodman.GetContainerName())
 
@@ -335,7 +343,7 @@ func (s *ServiceHandlerPodman) Get(address string) (domain.Service, error) {
 	}
 	for _, svc := range svcs {
 		if svc.Address == address {
-			return s.handler.ToServicePodman(svc)
+			return s.handler.ToServicePodman(svc, false)
 		}
 	}
 	return nil, fmt.Errorf("Service %s not defined", address)
@@ -349,7 +357,7 @@ func (s *ServiceHandlerPodman) List() ([]domain.Service, error) {
 	}
 	for _, svc := range list {
 		// for local services, retrieve respective containers
-		svcPodman, err := s.handler.ToServicePodman(svc)
+		svcPodman, err := s.handler.ToServicePodman(svc, false)
 		if err != nil {
 			return nil, err
 		}
@@ -666,7 +674,7 @@ func (s *ServiceInterfaceHandlerPodman) Delete(address string) error {
 	return s.manipulateService(&types.ServiceInterface{Address: address}, serviceDelete)
 }
 
-func (s *ServiceInterfaceHandlerPodman) ToServicePodman(svcIface *types.ServiceInterface) (*ServicePodman, error) {
+func (s *ServiceInterfaceHandlerPodman) ToServicePodman(svcIface *types.ServiceInterface, newService bool) (*ServicePodman, error) {
 	svc := &ServicePodman{
 		ServiceCommon: &domain.ServiceCommon{
 			Address:        svcIface.Address,
@@ -676,7 +684,6 @@ func (s *ServiceInterfaceHandlerPodman) ToServicePodman(svcIface *types.ServiceI
 			Aggregate:      svcIface.Aggregate,
 			Labels:         svcIface.Labels,
 			Origin:         svcIface.Origin,
-			Tls:            svcIface.EnableTls,
 			TlsCredentials: svcIface.TlsCredentials,
 			Ingress:        &domain.AddressIngressCommon{},
 		},
@@ -691,35 +698,37 @@ func (s *ServiceInterfaceHandlerPodman) ToServicePodman(svcIface *types.ServiceI
 
 	// local service
 	if svcIface.Origin == "" {
-		// retrieve container for respective address
-		containers, err := s.cli.ContainerList()
-		if err != nil {
-			return nil, fmt.Errorf("error retrieving containers - %w", err)
-		}
-		var svcContainer *container.Container
-		for _, c := range containers {
-			if addr, ok := c.Labels[types.AddressQualifier]; ok && addr == svcIface.Address {
-				svcContainer, err = s.cli.ContainerInspect(c.Name)
-				if err != nil {
-					return nil, fmt.Errorf("error reading container info %s - %w", c.Name, err)
-				}
-				break
+		if !newService {
+			// retrieve container for respective address
+			containers, err := s.cli.ContainerList()
+			if err != nil {
+				return nil, fmt.Errorf("error retrieving containers - %w", err)
 			}
-		}
-		if svcContainer == nil {
-			return nil, fmt.Errorf("service container could not be found")
-		}
+			var svcContainer *container.Container
+			for _, c := range containers {
+				if addr, ok := c.Labels[types.AddressQualifier]; ok && addr == svcIface.Address {
+					svcContainer, err = s.cli.ContainerInspect(c.Name)
+					if err != nil {
+						return nil, fmt.Errorf("error reading container info %s - %w", c.Name, err)
+					}
+					break
+				}
+			}
+			if svcContainer == nil {
+				return nil, fmt.Errorf("service container could not be found")
+			}
 
-		// setting remaining information
-		svc.ContainerName = svcContainer.Name
+			// setting remaining information
+			svc.ContainerName = svcContainer.Name
 
-		// reading ingress info from container spec
-		if len(svcContainer.Ports) > 0 {
-			for _, port := range svcContainer.Ports {
-				svcPort, _ := strconv.Atoi(port.Target)
-				hostPort, _ := strconv.Atoi(port.Host)
-				svc.Ingress.GetPorts()[svcPort] = hostPort
-				svc.Ingress.SetHost(port.HostIP)
+			// reading ingress info from container spec
+			if len(svcContainer.Ports) > 0 {
+				for _, port := range svcContainer.Ports {
+					svcPort, _ := strconv.Atoi(port.Target)
+					hostPort, _ := strconv.Atoi(port.Host)
+					svc.Ingress.GetPorts()[svcPort] = hostPort
+					svc.Ingress.SetHost(port.HostIP)
+				}
 			}
 		}
 		for _, target := range svcIface.Targets {

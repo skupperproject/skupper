@@ -94,7 +94,7 @@ func (s *SkupperKubeService) Expose(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKubeService) ExposeArgs(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
-		return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>'")
+		return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>')")
 	}
 	if len(args) > 2 {
 		return fmt.Errorf("illegal argument: %s", args[2])
@@ -106,6 +106,12 @@ func (s *SkupperKubeService) ExposeArgs(cmd *cobra.Command, args []string) error
 }
 
 func (s *SkupperKubeService) ExposeFlags(cmd *cobra.Command) {
+	cmd.Use = "expose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>|deploymentconfig <name>]"
+
+	cmd.Flags().StringVar(&exposeOpts.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to expose the service over TLS (valid only for http2 and tcp protocols)")
+	cmd.Flags().StringVar(&exposeOpts.TlsCertAuthority, "tls-trust", "", "K8s secret name with the CA to expose the service over TLS (valid only for http2 and tcp protocols)")
+	cmd.Flags().StringVar(&exposeOpts.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
+
 	cmd.Flags().BoolVar(&(exposeOpts.Headless), "headless", false, "Expose through a headless service (valid only for a statefulset target)")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Cpu, "proxy-cpu", "", "CPU request for router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Memory, "proxy-memory", "", "Memory request for router pods")
@@ -119,7 +125,6 @@ func (s *SkupperKubeService) ExposeFlags(cmd *cobra.Command) {
 
 func (s *SkupperKubeService) Unexpose(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
-
 	targetType, targetName := parseTargetTypeAndName(args)
 
 	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
@@ -128,5 +133,10 @@ func (s *SkupperKubeService) Unexpose(cmd *cobra.Command, args []string) error {
 	} else {
 		return fmt.Errorf("Unable to unbind skupper service: %w", err)
 	}
+	return nil
+}
+
+func (s *SkupperKubeService) UnexposeFlags(cmd *cobra.Command) error {
+	cmd.Use = "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]"
 	return nil
 }
