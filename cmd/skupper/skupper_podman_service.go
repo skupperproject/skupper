@@ -66,7 +66,7 @@ func (p *PodmanServiceCreateFlags) ToPortMapping(service podman.ServicePodman) (
 			return nil, fmt.Errorf("invalid host port: %s", hostPort)
 		}
 		if _, ok := ports[isp]; mapping && !ok {
-			return nil, fmt.Errorf("%s is not a valid service port: %d", isp)
+			return nil, fmt.Errorf("%d is not a valid service port", isp)
 		}
 		// if service port not mapped, use positional index to determine it
 		if !mapping {

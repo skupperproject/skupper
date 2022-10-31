@@ -20,7 +20,6 @@ import (
 type serviceAction int
 
 const (
-	ServiceVolumePrefix                   = "skupper-config-"
 	SkupperServicesLockfile               = "skupper-services.json.lock"
 	SkupperServicesFilename               = "skupper-services.json"
 	serviceCreate           serviceAction = iota
@@ -193,17 +192,18 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 	var configVolume *container.Volume
 	svcRouterConfig, svcRouterConfigStr, err = domain.CreateRouterServiceConfig(site, routerConfig, servicePodman)
 
-	// Creating volume to store config for service router
-	volumeName := ServiceVolumePrefix + servicePodman.Address
-	if configVolume, err = s.cli.VolumeCreate(&container.Volume{Name: volumeName}); err != nil {
-		return fmt.Errorf("error creating volume to store router configuration file - %w", err)
+	// Creating directory inside skupper-internal volume to store config for service router
+	configFile := path.Join(servicePodman.Address, types.TransportConfigFile)
+	configVolume, err = s.cli.VolumeInspect(types.TransportConfigMapName)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve %s volume - %w", types.TransportConfigMapName, err)
 	}
-	cleanupFns = append(cleanupFns, func() {
-		_ = s.cli.VolumeRemove(configVolume.Name)
-	})
-	if _, err = configVolume.CreateFile(types.TransportConfigFile, []byte(svcRouterConfigStr), false); err != nil {
+	if _, err = configVolume.CreateFile(configFile, []byte(svcRouterConfigStr), false); err != nil {
 		return fmt.Errorf("error saving router configuration file - %w", err)
 	}
+	cleanupFns = append(cleanupFns, func() {
+		_ = configVolume.DeleteFile(servicePodman.Address, true)
+	})
 	configVolume.Destination = "/etc/skupper-router/config/"
 
 	// Create TLS credentials (optional)
@@ -241,20 +241,13 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 	if err != nil {
 		return fmt.Errorf("error retrieving %s container - %w", types.TransportDeploymentName, err)
 	}
-	mounts := []container.Volume{}
-	for _, v := range routerContainer.Mounts {
-		if v.Name != types.TransportConfigMapName {
-			mounts = append(mounts, v)
-		}
-	}
-	mounts = append(mounts, *configVolume)
 	site.GetDeployments()[0].GetComponents()[0].GetImage()
 	c := &container.Container{
 		Name:  servicePodman.GetContainerName(),
 		Image: utils.DefaultStr(routerContainer.Image, types.GetRouterImageName()),
 		Env: map[string]string{
 			"APPLICATION_NAME":    svcRouterConfig.GetSiteMetadata().Id,
-			"QDROUTERD_CONF":      "/etc/skupper-router/config/" + types.TransportConfigFile,
+			"QDROUTERD_CONF":      "/etc/skupper-router/config/" + configFile,
 			"QDROUTERD_CONF_TYPE": "json",
 			"SKUPPER_SITE_ID":     svcRouterConfig.GetSiteMetadata().Id,
 			"QDROUTERD_DEBUG":     routerContainer.Env["QDROUTERD_DEBUG"],
@@ -262,7 +255,7 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 		Labels: map[string]string{
 			types.AddressQualifier: servicePodman.GetAddress(),
 		},
-		Mounts:        mounts,
+		Mounts:        routerContainer.Mounts,
 		Networks:      map[string]container.ContainerNetworkInfo{},
 		Ports:         servicePodman.ContainerPorts(),
 		RestartPolicy: "always",
@@ -314,8 +307,12 @@ func (s *ServiceHandlerPodman) Delete(address string) error {
 	// Remove container
 	_ = s.cli.ContainerRemove(svcPodman.GetContainerName())
 
-	// Removing config volume
-	_ = s.cli.VolumeRemove(ServiceVolumePrefix + address)
+	// Removing config file
+	v, err := s.cli.VolumeInspect(types.TransportConfigMapName)
+	if err != nil {
+		return fmt.Errorf("error reading volume %s - %w", types.TransportConfigMapName, err)
+	}
+	_ = v.DeleteFile(address, true)
 
 	// If tls credentials were defined, remove the respective directory
 	if svcPodman.IsTls() {
@@ -368,15 +365,15 @@ func (s *ServiceHandlerPodman) List() ([]domain.Service, error) {
 
 func (s *ServiceHandlerPodman) GetServiceRouterConfig(address string) (*qdr.RouterConfig, error) {
 	var err error
-	volumeName := ServiceVolumePrefix + address
 
 	var vol *container.Volume
-	vol, err = s.cli.VolumeInspect(volumeName)
+	vol, err = s.cli.VolumeInspect(types.TransportConfigMapName)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving config volume - %w", err)
 	}
 	var configStr string
-	if configStr, err = vol.ReadFile(types.TransportConfigFile); err != nil {
+	configFile := path.Join(address, types.TransportConfigFile)
+	if configStr, err = vol.ReadFile(configFile); err != nil {
 		return nil, fmt.Errorf("error reading config file - %w", err)
 	}
 	var config qdr.RouterConfig
@@ -386,16 +383,16 @@ func (s *ServiceHandlerPodman) GetServiceRouterConfig(address string) (*qdr.Rout
 
 func (s *ServiceHandlerPodman) SaveServiceRouterConfig(address string, config *qdr.RouterConfig) error {
 	var err error
-	volumeName := ServiceVolumePrefix + address
+	configFile := path.Join(address, types.TransportConfigFile)
 
 	var vol *container.Volume
-	vol, err = s.cli.VolumeInspect(volumeName)
+	vol, err = s.cli.VolumeInspect(types.TransportConfigMapName)
 	if err != nil {
 		return fmt.Errorf("error retrieving config volume - %w", err)
 	}
 	var configStr string
 	configStr, err = qdr.MarshalRouterConfig(*config)
-	_, err = vol.CreateFile(types.TransportConfigFile, []byte(configStr), true)
+	_, err = vol.CreateFile(configFile, []byte(configStr), true)
 
 	return err
 }
