@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/podman"
@@ -82,6 +83,7 @@ func (r *RouterEntityManagerPodman) QueryAllRouters() ([]qdr.Router, error) {
 	var routersToQuery []qdr.Router
 	var routersRet []qdr.Router
 	routerNodes, err := r.QueryRouterNodes()
+	var routerNodesIds []string
 	if err != nil {
 		return nil, err
 	}
@@ -90,12 +92,26 @@ func (r *RouterEntityManagerPodman) QueryAllRouters() ([]qdr.Router, error) {
 		return nil, err
 	}
 	for _, r := range routerNodes {
+		routerNodesIds = append(routerNodesIds, r.Id)
 		routersToQuery = append(routersToQuery, *r.AsRouter())
 	}
 	for _, r := range edgeRouters {
 		routersToQuery = append(routersToQuery, r)
 	}
 	for _, router := range routersToQuery {
+		// ignore service related routers
+		svcRouter := false
+		if router.Edge {
+			for _, routerNodeId := range routerNodesIds {
+				if strings.HasPrefix(router.Id, routerNodeId+"-") {
+					svcRouter = true
+					break
+				}
+			}
+		}
+		if svcRouter {
+			continue
+		}
 		// querying io.skupper.router.router to retrieve version for all routers found
 		routerToQuery := router.Id
 		cmd := qdr.SkmanageQueryCommand("io.skupper.router.router", routerToQuery, router.Edge, "")
