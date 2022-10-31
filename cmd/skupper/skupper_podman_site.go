@@ -164,6 +164,19 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 		fmt.Printf(" It is connected to %d other sites (%d indirectly).", connectedSites.Total, connectedSites.Indirect)
 	}
 
+	svcIfaceHandler := podman.NewServiceInterfaceHandlerPodman(s.podman.cli)
+	list, err := svcIfaceHandler.List()
+	if err != nil {
+		return fmt.Errorf("error retrieving service list - %w", err)
+	}
+	if len(list) == 0 {
+		fmt.Printf(" It has no exposed services.")
+	} else if len(list) == 1 {
+		fmt.Printf(" It has 1 exposed service.")
+	} else {
+		fmt.Printf(" It has %d exposed services.", len(list))
+	}
+
 	fmt.Println()
 	return nil
 }
