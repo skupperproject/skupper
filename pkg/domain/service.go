@@ -242,10 +242,11 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 		switch service.GetProtocol() {
 		case "tcp":
 			svcRouterConfig.AddTcpListener(qdr.TcpEndpoint{
-				Name:    listenerName,
-				Port:    listenerPort,
-				Address: listenerAddr,
-				SiteId:  siteId,
+				Name:       listenerName,
+				Port:       listenerPort,
+				Address:    listenerAddr,
+				SiteId:     siteId,
+				SslProfile: service.GetTlsCredentials(),
 			})
 		case "http":
 			svcRouterConfig.AddHttpListener(qdr.HttpEndpoint{
@@ -255,7 +256,6 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 				SiteId:       siteId,
 				Aggregation:  service.GetAggregate(),
 				EventChannel: service.IsEventChannel(),
-				SslProfile:   service.GetTlsCredentials(),
 			})
 		case "http2":
 			svcRouterConfig.AddHttpListener(qdr.HttpEndpoint{
@@ -308,23 +308,23 @@ func ServiceRouterConfigAddTargets(site Site, svcRouterConfig *qdr.RouterConfig,
 			switch service.GetProtocol() {
 			case "tcp":
 				svcRouterConfig.AddTcpConnector(qdr.TcpEndpoint{
-					Name:    connectorName,
-					Host:    connectorHost,
-					Port:    connectorPort,
-					Address: connectorAddr,
-					SiteId:  siteId,
-				})
-			case "http":
-				svcRouterConfig.AddHttpConnector(qdr.HttpEndpoint{
 					Name:           connectorName,
 					Host:           connectorHost,
 					Port:           connectorPort,
 					Address:        connectorAddr,
 					SiteId:         siteId,
-					Aggregation:    service.GetAggregate(),
-					EventChannel:   service.IsEventChannel(),
 					SslProfile:     service.GetTlsCredentials(),
 					VerifyHostname: &boolFalse,
+				})
+			case "http":
+				svcRouterConfig.AddHttpConnector(qdr.HttpEndpoint{
+					Name:         connectorName,
+					Host:         connectorHost,
+					Port:         connectorPort,
+					Address:      connectorAddr,
+					SiteId:       siteId,
+					Aggregation:  service.GetAggregate(),
+					EventChannel: service.IsEventChannel(),
 				})
 			case "http2":
 				svcRouterConfig.AddHttpConnector(qdr.HttpEndpoint{
