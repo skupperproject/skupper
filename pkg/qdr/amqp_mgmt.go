@@ -673,6 +673,14 @@ func (a *Agent) GetAllRouters() ([]Router, error) {
 	if err != nil {
 		return nil, err
 	}
+	hasNodeIdPrefix := func(edgeId string) bool {
+		for _, node := range nodes {
+			if strings.HasPrefix(edgeId, node.Id+"-") {
+				return true
+			}
+		}
+		return false
+	}
 	routers := []Router{}
 	for _, n := range nodes {
 		routers = append(routers, *n.AsRouter())
@@ -681,7 +689,11 @@ func (a *Agent) GetAllRouters() ([]Router, error) {
 	if err != nil {
 		return nil, err
 	}
-	routers = append(routers, edges...)
+	for _, e := range edges {
+		if !hasNodeIdPrefix(e.Id) {
+			routers = append(routers, e)
+		}
+	}
 	err = a.getSiteIds(routers)
 	if err != nil {
 		return nil, err
