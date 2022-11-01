@@ -33,7 +33,16 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	if sitePodman.IsEdge() {
 		return fmt.Errorf("Edge configuration cannot accept connections")
 	}
-	ingressHost := utils.DefaultStr(s.ingressHost, sitePodman.IngressBindHost)
+	var defaultIngressHost string
+	if len(sitePodman.IngressHosts) >= 2 {
+		defaultIngressHost = sitePodman.IngressHosts[1]
+	}
+	if s.ingressHost != "" {
+		if !utils.StringSliceContains(sitePodman.IngressHosts, s.ingressHost) {
+			return fmt.Errorf("tokens can only be generated for the available ingress hosts: %v", sitePodman.IngressHosts[1:])
+		}
+	}
+	ingressHost := utils.DefaultStr(s.ingressHost, defaultIngressHost)
 	if ingressHost == "" {
 		return fmt.Errorf("Unable to determine ingress host (use --ingress-host)")
 	}

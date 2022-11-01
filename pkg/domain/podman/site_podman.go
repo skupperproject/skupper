@@ -16,7 +16,8 @@ import (
 
 type SitePodman struct {
 	*domain.SiteCommon
-	IngressBindHost            string
+	IngressHosts               []string
+	IngressBindIPs             []string
 	IngressBindInterRouterPort int
 	IngressBindEdgePort        int
 	ContainerNetwork           string
@@ -65,9 +66,13 @@ func (s *SitePodmanHandler) prepare(site domain.Site) (domain.Site, error) {
 	if err := podmanSite.ValidateMinimumRequirements(); err != nil {
 		return nil, err
 	}
+	// Validating ingress hosts (required as certificates must have valid hosts)
+	if len(podmanSite.IngressHosts) == 0 {
+		return nil, fmt.Errorf("at least one ingress host is required")
+	}
 
 	// Preparing site
-	domain.ConfigureSiteCredentials(podmanSite, podmanSite.IngressBindHost)
+	domain.ConfigureSiteCredentials(podmanSite, podmanSite.IngressHosts...)
 	s.ConfigurePodmanDeployments(podmanSite)
 
 	if err := s.canCreate(podmanSite); err != nil {
@@ -87,50 +92,57 @@ func (s *SitePodmanHandler) ConfigurePodmanDeployments(site *SitePodman) {
 	if !site.IsEdge() {
 		volumeMounts[types.SiteServerSecret] = "/etc/skupper-router-certs/skupper-internal/"
 	}
+	routerComponent := &domain.Router{
+		// TODO ADD Labels
+		Labels: map[string]string{},
+		Env: map[string]string{
+			"APPLICATION_NAME":    "skupper-router",
+			"QDROUTERD_CONF":      "/etc/skupper-router/config/" + types.TransportConfigFile,
+			"QDROUTERD_CONF_TYPE": "json",
+			"SKUPPER_SITE_ID":     site.Id,
+			"QDROUTERD_DEBUG":     site.RouterOpts.DebugMode,
+		},
+	}
 	routerDepl := &SkupperDeploymentPodman{
 		Name: types.TransportDeploymentName,
 		SkupperDeploymentCommon: &domain.SkupperDeploymentCommon{
 			Components: []domain.SkupperComponent{
-				&domain.Router{
-					// TODO ADD Labels
-					Labels: map[string]string{},
-					Env: map[string]string{
-						"APPLICATION_NAME":    "skupper-router",
-						"QDROUTERD_CONF":      "/etc/skupper-router/config/" + types.TransportConfigFile,
-						"QDROUTERD_CONF_TYPE": "json",
-						"SKUPPER_SITE_ID":     site.Id,
-						"QDROUTERD_DEBUG":     site.RouterOpts.DebugMode,
-					},
-					SiteIngresses: []domain.SiteIngress{
-						&SiteIngressPodmanHost{
-							SiteIngressCommon: &domain.SiteIngressCommon{
-								Name: types.InterRouterIngressPrefix,
-								Host: site.IngressBindHost,
-								Port: site.IngressBindInterRouterPort,
-								Target: &domain.PortCommon{
-									Name: types.InterRouterIngressPrefix,
-									Port: int(types.InterRouterListenerPort),
-								},
-							},
-						},
-						&SiteIngressPodmanHost{
-							SiteIngressCommon: &domain.SiteIngressCommon{
-								Name: types.EdgeIngressPrefix,
-								Host: site.IngressBindHost,
-								Port: site.IngressBindEdgePort,
-								Target: &domain.PortCommon{
-									Name: types.EdgeIngressPrefix,
-									Port: int(types.EdgeListenerPort),
-								},
-							},
-						},
-					},
-				},
+				routerComponent,
 			},
 		},
 		Aliases:      []string{types.TransportServiceName, types.LocalTransportServiceName},
 		VolumeMounts: volumeMounts,
 		Networks:     []string{site.ContainerNetwork},
+	}
+
+	// Defining site ingresses
+	ingressBindIps := site.IngressBindIPs
+	if len(ingressBindIps) == 0 {
+		ingressBindIps = append(ingressBindIps, "")
+	}
+	for _, ingressBindIp := range ingressBindIps {
+		routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressPodmanHost{
+			SiteIngressCommon: &domain.SiteIngressCommon{
+				Name: types.InterRouterIngressPrefix,
+				Host: ingressBindIp,
+				Port: site.IngressBindInterRouterPort,
+				Target: &domain.PortCommon{
+					Name: types.InterRouterIngressPrefix,
+					Port: int(types.InterRouterListenerPort),
+				},
+			},
+		})
+		routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressPodmanHost{
+			SiteIngressCommon: &domain.SiteIngressCommon{
+				Name: types.EdgeIngressPrefix,
+				Host: ingressBindIp,
+				Port: site.IngressBindEdgePort,
+				Target: &domain.PortCommon{
+					Name: types.EdgeIngressPrefix,
+					Port: int(types.EdgeListenerPort),
+				},
+			},
+		})
 	}
 	site.Deployments = append(site.Deployments, routerDepl)
 }
@@ -388,6 +400,11 @@ func (s *SitePodmanHandler) Get() (domain.Site, error) {
 		return nil, fmt.Errorf("error reading credentials - %w", err)
 	}
 	site.Credentials = creds
+	for _, cred := range creds {
+		if cred.Name == types.SiteServerSecret {
+			site.IngressHosts = cred.Hosts
+		}
+	}
 
 	// Reading deployments
 	deployHandler := NewSkupperDeploymentHandlerPodman(s.cli)
@@ -403,7 +420,7 @@ func (s *SitePodmanHandler) Get() (domain.Site, error) {
 			site.ContainerNetwork = depPodman.Networks[0]
 			for _, siteIng := range comp.GetSiteIngresses() {
 				if siteIng.GetTarget().GetPort() == int(types.InterRouterListenerPort) {
-					site.IngressBindHost = siteIng.GetHost()
+					site.IngressBindIPs = append(site.IngressBindIPs, siteIng.GetHost())
 					site.IngressBindInterRouterPort = siteIng.GetPort()
 				} else if siteIng.GetTarget().GetPort() == int(types.EdgeListenerPort) {
 					site.IngressBindEdgePort = siteIng.GetPort()

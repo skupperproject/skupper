@@ -17,6 +17,8 @@ type SkupperPodmanSite struct {
 }
 
 type PodmanInitFlags struct {
+	IngressHosts               []string
+	IngressBindIPs             []string
 	IngressBindInterRouterPort int
 	IngressBindEdgePort        int
 	ContainerNetwork           string
@@ -54,7 +56,8 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 			Platform: types.PlatformPodman,
 		},
 		RouterOpts:                 routerCreateOpts.Router,
-		IngressBindHost:            routerCreateOpts.IngressHost,
+		IngressHosts:               s.flags.IngressHosts,
+		IngressBindIPs:             s.flags.IngressBindIPs,
 		IngressBindInterRouterPort: s.flags.IngressBindInterRouterPort,
 		IngressBindEdgePort:        s.flags.IngressBindEdgePort,
 		ContainerNetwork:           s.flags.ContainerNetwork,
@@ -83,6 +86,17 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
+	// --ingress-host (multiple)
+	cmd.Flags().StringSliceVarP(&s.flags.IngressHosts, "ingress-host", "", []string{},
+		"Hostname or alias by which the ingress route or proxy can be reached.\n"+
+			"Tokens can only be generated for addresses provided through ingress-hosts,\n"+
+			"so it can be used multiple times.",
+	)
+
+	// --ingress-bind-ip
+	cmd.Flags().StringSliceVarP(&s.flags.IngressBindIPs, "ingress-bind-ip", "", []string{},
+		"IP addresses in the host machines that will be bound to the inter-router and edge ports.")
+
 	// --bind-port (interior)
 	cmd.Flags().IntVar(&s.flags.IngressBindInterRouterPort, "bind-port", int(types.InterRouterListenerPort),
 		"ingress host binding port used for incoming links from sites using interior mode")
