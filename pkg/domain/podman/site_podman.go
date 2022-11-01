@@ -66,6 +66,10 @@ func (s *SitePodmanHandler) prepare(site domain.Site) (domain.Site, error) {
 	if err := podmanSite.ValidateMinimumRequirements(); err != nil {
 		return nil, err
 	}
+	// Validating mode (only interior is allowed at this point)
+	if podmanSite.Mode == string(types.TransportModeEdge) {
+		return nil, fmt.Errorf("edge mode is not yet allowed")
+	}
 	// Validating ingress hosts (required as certificates must have valid hosts)
 	if len(podmanSite.IngressHosts) == 0 {
 		return nil, fmt.Errorf("at least one ingress host is required")

@@ -673,15 +673,8 @@ func (a *Agent) GetAllRouters() ([]Router, error) {
 	if err != nil {
 		return nil, err
 	}
-	hasNodeIdPrefix := func(edgeId string) bool {
-		for _, node := range nodes {
-			if strings.HasPrefix(edgeId, node.Id+"-") {
-				return true
-			}
-		}
-		return false
-	}
 	routers := []Router{}
+	routersFiltered := []Router{}
 	for _, n := range nodes {
 		routers = append(routers, *n.AsRouter())
 	}
@@ -690,14 +683,32 @@ func (a *Agent) GetAllRouters() ([]Router, error) {
 		return nil, err
 	}
 	for _, e := range edges {
-		if !hasNodeIdPrefix(e.Id) {
-			routers = append(routers, e)
-		}
+		routers = append(routers, e)
 	}
 	err = a.getSiteIds(routers)
 	if err != nil {
 		return nil, err
 	}
+	isSvcRouter := func(edgeId string) bool {
+		for _, r := range routers {
+			if r.Edge {
+				continue
+			}
+			// podman svc
+			if strings.HasPrefix(edgeId, r.Site.Id+"-") {
+				return true
+			} else if strings.HasSuffix(edgeId, "-"+r.Site.Id) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, r := range routers {
+		if !r.Edge || !isSvcRouter(r.Site.Id) {
+			routersFiltered = append(routersFiltered, r)
+		}
+	}
+	routers = routersFiltered
 	err = a.getConnectedTo(routers)
 	if err != nil {
 		return nil, err
