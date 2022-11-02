@@ -165,6 +165,23 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: types.SiteConfigSpec{
+				RunAsUser:  1000,
+				RunAsGroup: 2000,
+			},
+			expected: types.SiteConfigSpec{
+				RunAsUser:        1000,
+				RunAsGroup:       2000,
+				SkupperName:      "site-config-roundtrip-7",
+				SkupperNamespace: "site-config-roundtrip-7",
+				Ingress:          "loadbalancer",
+				RouterMode:       "interior",
+				AuthMode:         "internal",
+				Annotations:      map[string]string{},
+				Labels:           map[string]string{},
+			},
+		},
 	}
 
 	isCluster := *clusterRun

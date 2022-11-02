@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -42,6 +43,8 @@ type InitTester struct {
 	SiteName              string
 	EnableConsole         bool
 	EnableFlowCollector   bool
+	RunAsUser             string
+	RunAsGroup            string
 }
 
 func (s *InitTester) Command(cluster *base.ClusterContext) []string {
@@ -103,7 +106,16 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 		args = append(args, "--site-name", s.SiteName)
 	}
 	args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
+<<<<<<< HEAD
 	args = append(args, fmt.Sprintf("--enable-vflow-collector=%v", s.EnableFlowCollector))
+=======
+	if s.RunAsUser != "" {
+		args = append(args, "--run-as-user", s.RunAsUser)
+	}
+	if s.RunAsGroup != "" {
+		args = append(args, "--run-as-group", s.RunAsGroup)
+	}
+>>>>>>> bea8d66 (update containers and security context)
 	return args
 }
 
@@ -183,6 +195,11 @@ func (s *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 		return
 	}
 
+	// Validating security context
+	log.Println("Validating deployment pod security context")
+	if err = s.validatePodSecurityContext(cluster); err != nil {
+		return
+	}
 	return
 }
 
@@ -545,6 +562,37 @@ func (s *InitTester) validateControllerCPUMemory(cluster *base.ClusterContext) e
 					}
 				}
 			}
+		}
+	}
+	return nil
+}
+
+func (s *InitTester) validatePodSecurityContext(cluster *base.ClusterContext) error {
+	dep, err := cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(types.TransportDeploymentName, v1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("expected deployment not found: %s - %v", types.TransportDeploymentName, err)
+	}
+	psc := dep.Spec.Template.Spec.SecurityContext
+
+	if psc == nil {
+		return fmt.Errorf("expected security context not found: %s", types.TransportDeploymentName)
+	}
+
+	if psc.RunAsNonRoot != nil && *psc.RunAsNonRoot != true {
+		return fmt.Errorf("expected security context to RunAsNonRoot")
+	}
+
+	if psc.RunAsUser != nil {
+		rau, _ := strconv.ParseInt(s.RunAsUser, 10, 64)
+		if *psc.RunAsUser != rau {
+			return fmt.Errorf("--run-as-user defined as: [%s] but deployment has [%d]", s.RunAsUser, *psc.RunAsUser)
+		}
+	}
+
+	if psc.RunAsGroup != nil {
+		rag, _ := strconv.ParseInt(s.RunAsGroup, 10, 64)
+		if *psc.RunAsGroup != rag {
+			return fmt.Errorf("--run-as-group defined as: [%s] but deployment has [%d]", s.RunAsGroup, *psc.RunAsGroup)
 		}
 	}
 	return nil

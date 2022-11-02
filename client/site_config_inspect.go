@@ -131,6 +131,12 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	if ingressHost, ok := siteConfig.Data[SiteConfigIngressHostKey]; ok {
 		result.Spec.IngressHost = ingressHost
 	}
+	if runAsUser, ok := siteConfig.Data[SiteConfigRunAsUserKey]; ok {
+		result.Spec.RunAsUser, _ = strconv.ParseInt(runAsUser, 10, 64)
+	}
+	if runAsGroup, ok := siteConfig.Data[SiteConfigRunAsGroupKey]; ok {
+		result.Spec.RunAsGroup, _ = strconv.ParseInt(runAsGroup, 10, 64)
+	}
 	// TODO: allow Replicas to be set through skupper-site configmap?
 	if siteConfig.ObjectMeta.Labels == nil {
 		result.Spec.SiteControlled = true

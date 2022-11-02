@@ -258,7 +258,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 
 }
 
-func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, podSecurityContext *corev1.PodSecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.ControllerDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -292,6 +292,10 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 		}
 		if ownerRef != nil {
 			dep.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+		}
+
+		if podSecurityContext != nil {
+			dep.Spec.Template.Spec.SecurityContext = podSecurityContext
 		}
 
 		setAffinity(&van.Controller, &dep.Spec.Template.Spec)
@@ -357,7 +361,7 @@ func setAffinity(spec *types.DeploymentSpec, podspec *corev1.PodSpec) {
 	}
 }
 
-func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, podSecurityContext *corev1.PodSecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -390,6 +394,10 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 					},
 				},
 			},
+		}
+
+		if podSecurityContext != nil {
+			dep.Spec.Template.Spec.SecurityContext = podSecurityContext
 		}
 
 		setAffinity(&van.Transport, &dep.Spec.Template.Spec)
