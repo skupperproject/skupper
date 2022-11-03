@@ -864,11 +864,25 @@ func getSslProfilesDifference(before *BridgeConfig, desired *BridgeConfig) (Adde
 		originalSslConfig[httpListener.SslProfile] = httpListener.SslProfile
 	}
 
+	for _, tcpConnector := range before.TcpConnectors {
+		originalSslConfig[tcpConnector.SslProfile] = tcpConnector.SslProfile
+	}
+	for _, tcpListener := range before.TcpListeners {
+		originalSslConfig[tcpListener.SslProfile] = tcpListener.SslProfile
+	}
+
 	for _, httpConnector := range desired.HttpConnectors {
 		newSslConfig[httpConnector.SslProfile] = httpConnector.SslProfile
 	}
 	for _, httpListener := range desired.HttpListeners {
 		newSslConfig[httpListener.SslProfile] = httpListener.SslProfile
+	}
+
+	for _, tcpConnector := range desired.TcpConnectors {
+		newSslConfig[tcpConnector.SslProfile] = tcpConnector.SslProfile
+	}
+	for _, tcpListener := range desired.TcpListeners {
+		newSslConfig[tcpListener.SslProfile] = tcpListener.SslProfile
 	}
 
 	for key, name := range originalSslConfig {
