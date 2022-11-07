@@ -24,7 +24,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-func OauthProxyContainer(serviceAccount string, servicePort string, defaultPort, defaultTargetPort int32) *corev1.Container {
+func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Container {
 	return &corev1.Container{
 		Image: "openshift/oauth-proxy:latest",
 		Name:  "oauth-proxy",
@@ -40,11 +40,11 @@ func OauthProxyContainer(serviceAccount string, servicePort string, defaultPort,
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          "http",
-				ContainerPort: defaultPort,
+				ContainerPort: types.FlowCollectorDefaultServicePort,
 			},
 			{
 				Name:          "https",
-				ContainerPort: defaultTargetPort,
+				ContainerPort: types.ConsoleOpenShiftOauthServiceTargetPort,
 			},
 		},
 	}
@@ -161,7 +161,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		sidecars = append(sidecars, kube.ContainerForFlowCollector(van.Collector))
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
-			sidecars = append(sidecars, OauthProxyContainer(types.ControllerServiceAccountName, csp, types.FlowCollectorDefaultServicePort, types.FlowCollectorDefaultServiceTargetPort))
+			sidecars = append(sidecars, OauthProxyContainer(types.ControllerServiceAccountName, csp))
 		}
 	}
 	if options.RouterMode != string(types.TransportModeEdge) {
