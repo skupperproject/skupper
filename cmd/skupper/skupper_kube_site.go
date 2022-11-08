@@ -184,6 +184,11 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 
 	f := cmd.Flag("enable-console")
 	f.Deprecated = "Stand alone console is planned for deprecation. Use vFlow collector console instead via --enable-vflow-collector flag"
+
+	// hide run-as flags
+	f := cmd.Flag("run-as-user")
+	f.Hidden = true
+	f = cmd.Flag("run-as-group")
 	f.Hidden = true
 }
 
