@@ -156,12 +156,12 @@ func (c *ConfigSync) processNextEvent() bool {
 	}(obj)
 
 	if err != nil {
-		if c.events.NumRequeues(obj) < 5 {
+		if c.events.NumRequeues(obj) < 25 {
 			log.Printf("Requeuing %v after error: %v", obj, err)
 			c.events.AddRateLimited(obj)
 		} else {
 			log.Printf("Delayed requeue %v after error: %v", obj, err)
-			c.events.AddAfter(obj, time.Duration(math.Min(float64(c.events.NumRequeues(obj)/5), 10))*time.Minute)
+			c.events.AddAfter(obj, time.Duration(math.Min(float64(c.events.NumRequeues(obj)/50), 10))*time.Second)
 		}
 		utilruntime.HandleError(err)
 	}
