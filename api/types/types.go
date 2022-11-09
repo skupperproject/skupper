@@ -486,6 +486,7 @@ type ServiceInterface struct {
 	Origin                   string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
 	EnableTls                bool                     `json:"enableTls,omitempty"`
 	TlsCredentials           string                   `json:"tlsCredentials,omitempty"`
+	TlsCertAuthority         string                   `json:"certAuthority,omitempty"`
 	PublishNotReadyAddresses bool                     `json:"publishNotReadyAddresses,omitempty"`
 	BridgeImage              string                   `json:"bridgeImage,omitempty"`
 }

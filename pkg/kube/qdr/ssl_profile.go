@@ -62,3 +62,19 @@ func RemoveSslProfile(secretName string, namespace string, cli kubernetes.Interf
 	}
 	return nil
 }
+
+func ExistsSslProfile(secretName string, namespace string, cli kubernetes.Interface) (bool, error) {
+
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli)
+	if err != nil {
+		return false, err
+	}
+	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return false, err
+	}
+
+	_, ok := current.SslProfiles[secretName]
+
+	return ok, nil
+}

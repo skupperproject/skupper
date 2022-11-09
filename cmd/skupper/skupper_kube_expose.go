@@ -59,8 +59,26 @@ func (s *SkupperKubeService) Expose(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if exposeOpts.EnableTls {
+	tlsTrustOptionIsMissing := exposeOpts.TlsCredentials != "" && exposeOpts.TlsCertAuthority == ""
+	tlsCredentialsOptionIsMissing := exposeOpts.TlsCredentials == "" && exposeOpts.TlsCertAuthority != ""
+	tlsCustomCertsAreWellSpecified := exposeOpts.TlsCredentials != "" && exposeOpts.TlsCertAuthority != ""
+	tlsWithSkupperGeneratedCerts := exposeOpts.EnableTls && exposeOpts.TlsCredentials == "" && exposeOpts.TlsCertAuthority == ""
+
+	if tlsTrustOptionIsMissing {
+		return fmt.Errorf("to enable TLS, is it necessary to specify --tls-trust option")
+	}
+
+	if tlsCredentialsOptionIsMissing {
+		return fmt.Errorf("to enable TLS, is it necessary to specify --tls-cert option")
+	}
+
+	if tlsCustomCertsAreWellSpecified {
+		exposeOpts.EnableTls = true
+	}
+
+	if tlsWithSkupperGeneratedCerts {
 		exposeOpts.TlsCredentials = types.SkupperServiceCertPrefix + exposeOpts.Address
+		exposeOpts.TlsCertAuthority = types.ServiceClientSecret
 	}
 
 	if exposeOpts.PublishNotReadyAddresses && targetType == "service" {

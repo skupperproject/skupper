@@ -71,6 +71,7 @@ type ServiceBindings struct {
 	Annotations              map[string]string
 	targets                  map[string]*EgressBindings
 	tlsCredentials           string
+	tlsCertAuthority         string
 	PublishNotReadyAddresses bool
 	external                 ExternalBridge
 }
@@ -117,6 +118,7 @@ func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
 		Annotations:              bindings.Annotations,
 		Origin:                   bindings.origin,
 		TlsCredentials:           bindings.tlsCredentials,
+		TlsCertAuthority:         bindings.tlsCertAuthority,
 		PublishNotReadyAddresses: bindings.PublishNotReadyAddresses,
 	}
 }
@@ -391,7 +393,7 @@ func (eb *EgressBindings) hasLocalTarget() bool {
 
 func (eb *EgressBindings) updateBridgeConfiguration(sb *ServiceBindings, siteId string, bridges *qdr.BridgeConfig) {
 	for _, target := range eb.resolver.List() {
-		addEgressBridge(sb.protocol, target, eb.egressPorts, sb.Address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, sb.tlsCredentials, bridges)
+		addEgressBridge(sb.protocol, target, eb.egressPorts, sb.Address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, sb.tlsCertAuthority, bridges)
 	}
 }
 
@@ -415,7 +417,7 @@ const (
 	ProtocolHTTP2 string = "http2"
 )
 
-func addEgressBridge(protocol string, host string, port map[int]int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, tlsCredentials string, bridges *qdr.BridgeConfig) (bool, error) {
+func addEgressBridge(protocol string, host string, port map[int]int, address string, target string, siteId string, hostOverride string, aggregation string, eventchannel bool, tlsCertAuthority string, bridges *qdr.BridgeConfig) (bool, error) {
 	if host == "" {
 		return false, fmt.Errorf("Cannot add connector without host (%s %s)", address, protocol)
 	}
@@ -453,10 +455,10 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 				ProtocolVersion: qdr.HttpVersion2,
 			}
 
-			if len(tlsCredentials) > 0 {
+			if len(tlsCertAuthority) > 0 {
 				verifyHostName := new(bool)
 				*verifyHostName = false
-				httpConnector.SslProfile = types.ServiceClientSecret
+				httpConnector.SslProfile = tlsCertAuthority
 				httpConnector.VerifyHostname = verifyHostName
 			}
 			bridges.AddHttpConnector(httpConnector)
@@ -469,10 +471,10 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 				SiteId:  siteId,
 			}
 
-			if len(tlsCredentials) > 0 {
+			if len(tlsCertAuthority) > 0 {
 				verifyHostName := new(bool)
 				*verifyHostName = false
-				tcpConnector.SslProfile = types.ServiceClientSecret
+				tcpConnector.SslProfile = tlsCertAuthority
 				tcpConnector.VerifyHostname = verifyHostName
 			}
 
