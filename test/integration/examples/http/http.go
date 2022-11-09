@@ -52,6 +52,14 @@ var http2TlsService = types.ServiceInterface{
 	TlsCredentials: "skupper-tls-nghttp2tls",
 }
 
+var http2TcpTlsService = types.ServiceInterface{
+	Address:        "nghttp2tcptls",
+	Protocol:       "tcp",
+	Ports:          []int{8443},
+	EnableTls:      true,
+	TlsCredentials: "skupper-tls-nghttp2tcptls",
+}
+
 var nginxDep = &appsv1.Deployment{
 	TypeMeta: metav1.TypeMeta{
 		APIVersion: "apps/v1",
@@ -215,6 +223,68 @@ var nghttp2TlsDep = &appsv1.Deployment{
 	},
 }
 
+var nghttp2TcpTlsDep = &appsv1.Deployment{
+	TypeMeta: metav1.TypeMeta{
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "nghttp2tcptls",
+	},
+	Spec: appsv1.DeploymentSpec{
+		Replicas: int32Ptr(1),
+		Selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{"application": "nghttp2tcptls"},
+		},
+		Template: apiv1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"application": "nghttp2tcptls",
+				},
+			},
+			Spec: apiv1.PodSpec{
+				Volumes: []apiv1.Volume{
+					{
+						Name: "index-html",
+						VolumeSource: apiv1.VolumeSource{
+							ConfigMap: &apiv1.ConfigMapVolumeSource{
+								LocalObjectReference: apiv1.LocalObjectReference{
+									Name: "index-html",
+								},
+							},
+						},
+					},
+				},
+				Containers: []apiv1.Container{
+					{
+						Name:            "nghttp2tcptls",
+						Image:           "docker.io/svagi/nghttp2",
+						ImagePullPolicy: apiv1.PullIfNotPresent,
+						Ports: []apiv1.ContainerPort{
+							{
+								Name:          "nghttp2tcptls",
+								Protocol:      apiv1.ProtocolTCP,
+								ContainerPort: 8443,
+							},
+						},
+						Command: []string{
+							"nghttpd",
+							"--no-tls",
+							"-v",
+							"8443",
+							"-d",
+							"/webroot/",
+						},
+						VolumeMounts: []apiv1.VolumeMount{
+							{Name: "index-html", MountPath: "/webroot", ReadOnly: true},
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
 var nghttp2TlsDepWithCertFiles = &appsv1.Deployment{
 	TypeMeta: metav1.TypeMeta{
 		APIVersion: "apps/v1",
@@ -263,6 +333,78 @@ var nghttp2TlsDepWithCertFiles = &appsv1.Deployment{
 						Ports: []apiv1.ContainerPort{
 							{
 								Name:          "nghttp2tls",
+								Protocol:      apiv1.ProtocolTCP,
+								ContainerPort: 8443,
+							},
+						},
+						Command: []string{
+							"nghttpd",
+							"-v",
+							"-d",
+							"/webroot/",
+							"8443",
+							"/certs/tls.key",
+							"/certs/tls.crt",
+						},
+						VolumeMounts: []apiv1.VolumeMount{
+							{Name: "index-html", MountPath: "/webroot", ReadOnly: true},
+							{Name: "certs", MountPath: "/certs", ReadOnly: true},
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
+var nghttp2tcpTlsDepWithCertFiles = &appsv1.Deployment{
+	TypeMeta: metav1.TypeMeta{
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "nghttp2tcptls",
+	},
+	Spec: appsv1.DeploymentSpec{
+		Replicas: int32Ptr(1),
+		Selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{"application": "nghttp2tcptls"},
+		},
+		Template: apiv1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"application": "nghttp2tcptls",
+				},
+			},
+			Spec: apiv1.PodSpec{
+				Volumes: []apiv1.Volume{
+					{
+						Name: "index-html",
+						VolumeSource: apiv1.VolumeSource{
+							ConfigMap: &apiv1.ConfigMapVolumeSource{
+								LocalObjectReference: apiv1.LocalObjectReference{
+									Name: "index-html",
+								},
+							},
+						},
+					},
+					{
+						Name: "certs",
+						VolumeSource: apiv1.VolumeSource{
+							Secret: &apiv1.SecretVolumeSource{
+								SecretName: "skupper-tls-nghttp2tcptls",
+							},
+						},
+					},
+				},
+				Containers: []apiv1.Container{
+					{
+						Name:            "nghttp2tcptls",
+						Image:           "docker.io/svagi/nghttp2",
+						ImagePullPolicy: apiv1.PullIfNotPresent,
+						Ports: []apiv1.ContainerPort{
+							{
+								Name:          "nghttp2tcptls",
 								Protocol:      apiv1.ProtocolTCP,
 								ContainerPort: 8443,
 							},
@@ -450,6 +592,9 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "nghttp2tls")
 	assert.Assert(t, err)
 
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, "nghttp2tcptls")
+	assert.Assert(t, err)
+
 	runJob := func(cc *base.ClusterContext, jobName, testName string) {
 		t.Helper()
 		jobCmd := []string{"/app/http_test", "-test.run", testName}
@@ -481,10 +626,16 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 		waitJob(pubCluster1, "http2")
 	})
 
-	// Send GET requests via HTTPD2
+	// Send GET requests via HTTP2 over TLS
 	t.Run("http2tls", func(t *testing.T) {
 		runJob(pubCluster1, "http2tls", "TestHttp2TlsJob")
 		waitJob(pubCluster1, "http2tls")
+	})
+
+	// Send GET requests via HTTP2 over TLS on a service exposed with TCP protocol
+	t.Run("http2tcptls", func(t *testing.T) {
+		runJob(pubCluster1, "http2tcptls", "TestHttp2TcpTlsJob")
+		waitJob(pubCluster1, "http2tcptls")
 	})
 
 	// Send a huge load for HTTPD2
@@ -543,6 +694,9 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	// Create the deployment for HTTP2 with TLS enabled
 	createDeploymentInPrivateSite(nghttp2TlsDep)
 
+	// Create the deployment for HTTP2 with TLS enabled on a service exposed with TCP protocol
+	createDeploymentInPrivateSite(nghttp2TcpTlsDep)
+
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, err)
 
@@ -563,6 +717,13 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 
 	//update tls service with cert files
 	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(nghttp2TlsDepWithCertFiles)
+	assert.Assert(t, err)
+
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2TcpTlsService, "deployment", "nghttp2tcptls", "tcp", map[int]int{})
+	assert.Assert(t, err)
+
+	//update tls service with cert files
+	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(nghttp2tcpTlsDepWithCertFiles)
 	assert.Assert(t, err)
 
 	http21service := types.ServiceInterface{
@@ -592,6 +753,7 @@ func tearDown(ctx context.Context, r base.ClusterTestRunner) {
 	_ = prv1Cluster.VanClient.ServiceInterfaceRemove(ctx, service.Address)
 	_ = prv1Cluster.VanClient.ServiceInterfaceRemove(ctx, http2service.Address)
 	_ = prv1Cluster.VanClient.ServiceInterfaceRemove(ctx, http2TlsService.Address)
+	_ = prv1Cluster.VanClient.ServiceInterfaceRemove(ctx, http2TcpTlsService.Address)
 
 	// Deleting deployments
 	depCli := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)
