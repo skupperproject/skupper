@@ -556,6 +556,7 @@ func (c *Controller) initialiseServiceBindingsMap() (map[string][]int, error) {
 	c.ports.inuse(int(types.InterRouterListenerPort))
 	c.ports.inuse(int(types.ConsoleDefaultServicePort))
 	c.ports.inuse(9090) // currently hardcoded in config
+	c.ports.inuse(9191) // currently hardcoded in config
 	return allocations, nil
 
 }

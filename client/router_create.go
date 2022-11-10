@@ -391,6 +391,12 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		}
 
 		svcs = append(svcs, svc)
+		for _, p := range controllerPorts {
+			van.Controller.Ports = append(van.Controller.Ports, corev1.ContainerPort{
+				Name:          p.Name,
+				ContainerPort: p.Port,
+			})
+		}
 	}
 	van.Controller.Services = svcs
 

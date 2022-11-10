@@ -35,6 +35,25 @@ func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
 		Name:            types.ControllerContainerName,
 		Env:             ds.EnvVar,
+		Ports:           ds.Ports,
+		LivenessProbe: &corev1.Probe{
+			InitialDelaySeconds: 60,
+			Handler: corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Port: intstr.FromInt(8182),
+					Path: "/healthz",
+				},
+			},
+		},
+		ReadinessProbe: &corev1.Probe{
+			InitialDelaySeconds: 1,
+			Handler: corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Port: intstr.FromInt(8182),
+					Path: "/healthz",
+				},
+			},
+		},
 	}
 	setResourceRequests(&container, &ds)
 	return container
@@ -54,6 +73,15 @@ func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
 				},
 			},
 		},
+		ReadinessProbe: &corev1.Probe{
+			InitialDelaySeconds: 1,
+			Handler: corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Port: intstr.FromInt(int(ds.LivenessPort)),
+					Path: "/healthz",
+				},
+			},
+		},
 		Env:   ds.EnvVar,
 		Ports: ds.Ports,
 	}
@@ -66,6 +94,15 @@ func ContainerForConfigSync(ds types.DeploymentSpec) *corev1.Container {
 		Image:           ds.Image.Name,
 		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
 		Name:            types.ConfigSyncContainerName,
+		ReadinessProbe: &corev1.Probe{
+			InitialDelaySeconds: 1,
+			Handler: corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Port: intstr.FromInt(9191),
+					Path: "/healthz",
+				},
+			},
+		},
 	}
 
 	setResourceRequests(&container, &ds)

@@ -373,6 +373,7 @@ func (server *ConsoleServer) writeJson(obj interface{}, w http.ResponseWriter) {
 func (server *ConsoleServer) start(stopCh <-chan struct{}) error {
 	go server.listen()
 	go server.listenLocal()
+	go server.listenHealthz()
 	return nil
 }
 
@@ -446,6 +447,16 @@ func (server *ConsoleServer) listenLocal() {
 	r.Handle("/policy/incominglink", server.policies.incomingLink())
 	r.Handle("/policy/outgoinglink/{hostname}", server.policies.outgoingLink())
 	r.Handle("/policy/list", server.policies.dump())
+	log.Fatal(http.ListenAndServe(addr, r))
+}
+
+func (server *ConsoleServer) listenHealthz() {
+	addr := ":8182"
+	r := mux.NewRouter()
+	r.Handle("/healthz", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	}))
 	log.Fatal(http.ListenAndServe(addr, r))
 }
 
