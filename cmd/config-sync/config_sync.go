@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"math"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -87,7 +88,11 @@ func (c *ConfigSync) runConfigSync() {
 	if err != nil {
 		log.Printf("An error has ocurred when checking certification files for the router: %s", err)
 	}
-
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	})
+	go http.ListenAndServe(":9191", nil)
 	for c.processNextEvent() {
 	}
 }
