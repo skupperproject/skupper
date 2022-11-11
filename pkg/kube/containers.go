@@ -36,6 +36,17 @@ func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 		Name:            types.ControllerContainerName,
 		Env:             ds.EnvVar,
 		Ports:           ds.Ports,
+		StartupProbe: &corev1.Probe{
+			InitialDelaySeconds: 1,
+			PeriodSeconds:       1,
+			FailureThreshold:    60,
+			Handler: corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Port: intstr.FromInt(8182),
+					Path: "/healthz",
+				},
+			},
+		},
 		LivenessProbe: &corev1.Probe{
 			InitialDelaySeconds: 60,
 			Handler: corev1.Handler{
@@ -46,7 +57,8 @@ func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 			},
 		},
 		ReadinessProbe: &corev1.Probe{
-			InitialDelaySeconds: 1,
+			InitialDelaySeconds: 5,
+			PeriodSeconds:       5,
 			Handler: corev1.Handler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Port: intstr.FromInt(8182),
