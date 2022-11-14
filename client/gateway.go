@@ -198,6 +198,8 @@ mkdir -p $certs_dir
 cp -R ./skupper-router-certs/* $certs_dir
 cp ./config/skrouterd.json $qdrcfg_dir
     
+chmod -R 0755 $local_dir
+
 python3 ./expandvars.py $qdrcfg_dir/skrouterd.json
 
 if [ "$type" == "service" ]; then
@@ -214,6 +216,7 @@ elif [ "$type" == "docker" ] || [ "$type" == "podman" ]; then
     ${type} run --restart always -d --name ${gateway_name} --network host \
 	   -e QDROUTERD_CONF_TYPE=json \
 	   -e QDROUTERD_CONF=/opt/skupper/config/skrouterd.json \
+	   -e SKUPPER_SITE_ID=gateway_${gateway_name}_$(uuidgen) \
 	   -v ${local_dir}:${QDR_CONF_DIR}:Z \
 	   ${gateway_image} 
     exit    
@@ -729,6 +732,7 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 		return fmt.Errorf("Failed to setup gateway local directories: %w", err)
 	}
 
+	siteId, _ := getGatewaySiteId(gatewayDir)
 	containerCmd := gatewayType
 	containerCmdArgs := []string{
 		"run",
@@ -739,6 +743,8 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 		gatewayName,
 		"--network",
 		"host",
+		"-e",
+		"SKUPPER_SITE_ID=gateway" + "_" + gatewayName + "_" + siteId,
 		"-e",
 		"QDROUTERD_CONF_TYPE=json",
 		"-e",
@@ -790,11 +796,10 @@ func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*q
 
 	for _, binding := range a.Bindings {
 		for i, _ := range binding.TargetPorts {
-			name := gatewayName + gatewayEgress + binding.Service.Address
 			switch binding.Service.Protocol {
 			case "tcp":
 				bc.AddTcpConnector(qdr.TcpEndpoint{
-					Name:    name,
+					Name:    binding.Service.Address,
 					Host:    binding.Host,
 					Port:    strconv.Itoa(binding.TargetPorts[i]),
 					Address: binding.Service.Address,
@@ -802,7 +807,7 @@ func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*q
 				})
 			case "http":
 				bc.AddHttpConnector(qdr.HttpEndpoint{
-					Name:            name,
+					Name:            binding.Service.Address,
 					Host:            binding.Host,
 					Port:            strconv.Itoa(binding.TargetPorts[i]),
 					Address:         binding.Service.Address,
@@ -813,7 +818,7 @@ func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*q
 				})
 			case "http2":
 				bc.AddHttpConnector(qdr.HttpEndpoint{
-					Name:            name,
+					Name:            binding.Service.Address,
 					Host:            binding.Host,
 					Port:            strconv.Itoa(binding.TargetPorts[i]),
 					Address:         binding.Service.Address,
@@ -828,11 +833,10 @@ func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*q
 	}
 	for _, forward := range a.Forwards {
 		for i, _ := range forward.TargetPorts {
-			name := gatewayName + gatewayIngress + forward.Service.Address
 			switch forward.Service.Protocol {
 			case "tcp":
 				bc.AddTcpListener(qdr.TcpEndpoint{
-					Name:    name,
+					Name:    forward.Service.Address,
 					Host:    forward.Host,
 					Port:    strconv.Itoa(forward.Service.Ports[i]),
 					Address: forward.Service.Address,
@@ -840,7 +844,7 @@ func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*q
 				})
 			case "http":
 				bc.AddHttpListener(qdr.HttpEndpoint{
-					Name:            name,
+					Name:            forward.Service.Address,
 					Host:            forward.Host,
 					Port:            strconv.Itoa(forward.Service.Ports[i]),
 					Address:         forward.Service.Address,
@@ -851,7 +855,7 @@ func (a *GatewayConfig) getBridgeConfig(gatewayName string, routerId string) (*q
 				})
 			case "http2":
 				bc.AddHttpListener(qdr.HttpEndpoint{
-					Name:            name,
+					Name:            forward.Service.Address,
 					Host:            forward.Host,
 					Port:            strconv.Itoa(forward.Service.Ports[i]),
 					Address:         forward.Service.Address,
@@ -933,11 +937,10 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 		// TODO: how to deal with service dependencies (e.g. how to know that we should create them)
 		for _, binding := range gatewayConfig.Bindings {
 			for i, _ := range binding.TargetPorts {
-				name := gatewayName + gatewayEgress + binding.Service.Address
 				switch binding.Service.Protocol {
 				case "tcp":
 					routerConfig.AddTcpConnector(qdr.TcpEndpoint{
-						Name:    name,
+						Name:    binding.Service.Address,
 						Host:    binding.Host,
 						Port:    strconv.Itoa(binding.TargetPorts[i]),
 						Address: binding.Service.Address,
@@ -945,7 +948,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 					})
 				case "http":
 					routerConfig.AddHttpConnector(qdr.HttpEndpoint{
-						Name:            name,
+						Name:            binding.Service.Address,
 						Host:            binding.Host,
 						Port:            strconv.Itoa(binding.TargetPorts[i]),
 						Address:         binding.Service.Address,
@@ -956,7 +959,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 					})
 				case "http2":
 					routerConfig.AddHttpConnector(qdr.HttpEndpoint{
-						Name:            name,
+						Name:            binding.Service.Address,
 						Host:            binding.Host,
 						Port:            strconv.Itoa(binding.TargetPorts[i]),
 						Address:         binding.Service.Address,
@@ -972,11 +975,10 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 
 		for _, forward := range gatewayConfig.Forwards {
 			for i, _ := range forward.TargetPorts {
-				name := gatewayName + gatewayIngress + forward.Service.Address
 				switch forward.Service.Protocol {
 				case "tcp":
 					routerConfig.AddTcpListener(qdr.TcpEndpoint{
-						Name:    name,
+						Name:    forward.Service.Address,
 						Host:    forward.Host,
 						Port:    strconv.Itoa(forward.Service.Ports[i]),
 						Address: forward.Service.Address,
@@ -984,7 +986,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 					})
 				case "http":
 					routerConfig.AddHttpListener(qdr.HttpEndpoint{
-						Name:            name,
+						Name:            forward.Service.Address,
 						Host:            forward.Host,
 						Port:            strconv.Itoa(forward.Service.Ports[i]),
 						Address:         forward.Service.Address,
@@ -995,7 +997,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 					})
 				case "http2":
 					routerConfig.AddHttpListener(qdr.HttpEndpoint{
-						Name:            name,
+						Name:            forward.Service.Address,
 						Host:            forward.Host,
 						Port:            strconv.Itoa(forward.Service.Ports[i]),
 						Address:         forward.Service.Address,
@@ -1528,7 +1530,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 		if addEndpoint {
 			for i, _ := range service.Ports {
 				if gatewayDirection == gatewayEgress {
-					name := fmt.Sprintf("%s:%d", gatewayName+gatewayEgress+service.Address, si.Ports[i])
+					name := fmt.Sprintf("%s:%d", service.Address, si.Ports[i])
 					switch si.Protocol {
 					case "tcp":
 						newBridges.AddTcpConnector(qdr.TcpEndpoint{
@@ -1556,7 +1558,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 						return nil
 					}
 				} else {
-					name := fmt.Sprintf("%s:%d", gatewayName+gatewayIngress+service.Address, si.Ports[i])
+					name := fmt.Sprintf("%s:%d", service.Address, si.Ports[i])
 					portToUse := strconv.Itoa(endpoint.Service.Ports[i])
 					if !checkPortFree("tcp", portToUse) {
 						freePort, err := GetFreePort()
@@ -1600,7 +1602,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 		} else {
 			for i, _ := range si.Ports {
 				if gatewayDirection == gatewayEgress {
-					name := fmt.Sprintf("%s:%d", gatewayName+gatewayEgress+endpoint.Service.Address, si.Ports[i])
+					name := fmt.Sprintf("%s:%d", endpoint.Service.Address, si.Ports[i])
 					switch si.Protocol {
 					case "tcp":
 						newBridges.RemoveTcpConnector(name)
@@ -1611,7 +1613,7 @@ func (cli *VanClient) gatewayBridgeEndpointUpdate(ctx context.Context, gatewayNa
 						return nil
 					}
 				} else {
-					name := fmt.Sprintf("%s:%d", gatewayName+gatewayIngress+endpoint.Service.Address, si.Ports[i])
+					name := fmt.Sprintf("%s:%d", endpoint.Service.Address, si.Ports[i])
 					switch si.Protocol {
 					case "tcp":
 						newBridges.RemoveTcpListener(name)

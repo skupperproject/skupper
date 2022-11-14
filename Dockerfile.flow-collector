@@ -14,8 +14,8 @@ RUN make
 FROM node:16.17 AS console-builder
 
 WORKDIR /skupper-console/
-ADD https://github.com/bartoval/skupper-console/archive/master.tar.gz .
-RUN tar -zxf master.tar.gz
+ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
+RUN tar -zxf main.tar.gz
 WORKDIR ./skupper-console-main
 RUN yarn install && yarn build
 

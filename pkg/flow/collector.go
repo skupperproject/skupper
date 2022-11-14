@@ -60,6 +60,7 @@ type FlowCollector struct {
 	Processes               map[string]*ProcessRecord
 	ProcessGroups           map[string]*ProcessGroupRecord
 	VanAddresses            map[string]*VanAddressRecord
+	routersToSiteReconcile  map[string]string
 	flowsToProcessReconcile map[string]string
 	flowsToPairReconcile    map[string]string
 	connectorsToReconcile   map[string]string
@@ -92,6 +93,7 @@ func NewFlowCollector(origin string, connectionFactory messaging.ConnectionFacto
 		VanAddresses:            make(map[string]*VanAddressRecord),
 		Processes:               make(map[string]*ProcessRecord),
 		ProcessGroups:           make(map[string]*ProcessGroupRecord),
+		routersToSiteReconcile:  make(map[string]string),
 		flowsToProcessReconcile: make(map[string]string),
 		flowsToPairReconcile:    make(map[string]string),
 		connectorsToReconcile:   make(map[string]string),

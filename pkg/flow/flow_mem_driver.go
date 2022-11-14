@@ -11,6 +11,76 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, connector bool) error {
+	sourceHost := flow.SourceHost
+	if connector {
+		if connector, ok := c.Connectors[flow.Parent]; ok {
+			sourceHost = connector.DestHost
+		}
+	}
+
+	if site, ok := c.Sites[siteId]; ok {
+		groupName := *site.NameSpace + "-" + *sourceHost
+		groupIdentity := ""
+		for _, pg := range c.ProcessGroups {
+			if *pg.Name == groupName {
+				groupIdentity = pg.Identity
+			}
+		}
+		if groupIdentity == "" {
+			groupIdentity = uuid.New().String()
+			c.ProcessGroups[groupIdentity] = &ProcessGroupRecord{
+				Base: Base{
+					RecType:   recordNames[ProcessGroup],
+					Identity:  groupIdentity,
+					StartTime: uint64(time.Now().UnixNano()),
+				},
+				Name: &groupName,
+			}
+		}
+		processName := *site.Name + "-" + *sourceHost
+		procFound := false
+		for _, proc := range c.Processes {
+			if *proc.Name == processName {
+				procFound = true
+			}
+		}
+		if !procFound {
+			log.Println("Inferring gateway process for flow: ", *sourceHost)
+			procIdentity := uuid.New().String()
+			c.Processes[procIdentity] = &ProcessRecord{
+				Base: Base{
+					RecType:   recordNames[Process],
+					Identity:  procIdentity,
+					Parent:    siteId,
+					StartTime: uint64(time.Now().UnixNano()),
+				},
+				Name:          &processName,
+				Group:         &groupName,
+				GroupIdentity: &groupIdentity,
+				HostName:      site.Name,
+				SourceHost:    sourceHost,
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *FlowCollector) isGatewaySite(siteId string) bool {
+	if site, ok := c.Sites[siteId]; ok {
+		if site.NameSpace != nil {
+			parts := strings.Split(*site.NameSpace, "-")
+			if len(parts) > 1 {
+				if parts[0] == "gateway" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func (c *FlowCollector) getRecordSiteId(record interface{}) string {
 
 	if record == nil {
@@ -109,6 +179,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 			if router.StartTime > 0 && router.EndTime == 0 {
 				if _, ok := fc.Routers[router.Identity]; !ok {
 					fc.Routers[router.Identity] = &router
+					if router.Parent != "" {
+						if _, ok := fc.Sites[router.Parent]; !ok {
+							fc.routersToSiteReconcile[router.Identity] = router.Parent
+						}
+					}
 				}
 				// to do router update handling
 			}
@@ -344,12 +419,23 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 								addr.flowBegin()
 							}
 						}
+						// TODO: workaround for gateway
+						siteId := fc.getRecordSiteId(*listener)
+						if fc.isGatewaySite(siteId) {
+							fc.inferGatewayProcess(siteId, flow, false)
+						}
 					} else if connector, ok := fc.Connectors[flow.Parent]; ok {
 						connector.addFlow(flow.Identity)
 						for _, addr := range fc.VanAddresses {
 							if addr.Name == *connector.Address {
 								addr.flowBegin()
 							}
+						}
+						// TODO: workaround for gateway
+						siteId := fc.getRecordSiteId(*connector)
+						if fc.isGatewaySite(siteId) {
+							fc.inferGatewayProcess(siteId, flow, true)
+							fc.connectorsToReconcile[connector.Identity] = connector.Identity
 						}
 					}
 					if flow.CounterFlow != nil {
@@ -1211,6 +1297,28 @@ func (fc *FlowCollector) getFlowProcess(id string) (ProcessRecord, bool) {
 }
 
 func (fc *FlowCollector) reconcileRecords() error {
+	for routerId, siteId := range fc.routersToSiteReconcile {
+		// TODO: This is temporary workaround until gateway or CE site emits events
+		parts := strings.Split(siteId, "_")
+		if len(parts) > 1 {
+			if parts[0] == "gateway" {
+				if _, ok := fc.Sites[siteId]; !ok {
+					name := parts[1]
+					namespace := parts[0] + "-" + parts[1]
+					fc.Sites[siteId] = &SiteRecord{
+						Base: Base{
+							RecType:   recordNames[Site],
+							Identity:  siteId,
+							StartTime: uint64(time.Now().UnixNano()),
+						},
+						Name:      &name,
+						NameSpace: &namespace,
+					}
+				}
+			}
+		}
+		delete(fc.routersToSiteReconcile, routerId)
+	}
 	for _, flowId := range fc.flowsToProcessReconcile {
 		if flow, ok := fc.Flows[flowId]; ok {
 			if flow.SourceHost != nil {
@@ -1270,12 +1378,27 @@ func (fc *FlowCollector) reconcileRecords() error {
 				delete(fc.connectorsToReconcile, connId)
 			} else if connector.DestHost != nil {
 				siteId := fc.getRecordSiteId(*connector)
+				// TODO: workaround for gateway
+				// maybe the site should indicate it is a gateway
+				parts := strings.Split(siteId, "_")
+				gateway := false
+				if len(parts) > 1 && parts[0] == "gateway" {
+					gateway = true
+				}
 				for _, process := range fc.Processes {
-					if siteId == process.Parent && process.SourceHost != nil {
-						if *connector.DestHost == *process.SourceHost {
-							connector.process = &process.Identity
-							process.connector = &connector.Identity
-							delete(fc.connectorsToReconcile, connId)
+					if siteId == process.Parent {
+						if gateway {
+							if process.SourceHost != nil && *process.SourceHost == *connector.DestHost {
+								connector.process = &process.Identity
+								process.connector = &connector.Identity
+								delete(fc.connectorsToReconcile, connId)
+							}
+						} else if process.SourceHost != nil {
+							if *connector.DestHost == *process.SourceHost {
+								connector.process = &process.Identity
+								process.connector = &connector.Identity
+								delete(fc.connectorsToReconcile, connId)
+							}
 						}
 					}
 				}
