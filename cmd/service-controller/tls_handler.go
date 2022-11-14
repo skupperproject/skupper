@@ -64,33 +64,23 @@ func EnableTlsSupport(support TlsSupport, getSecret GetSecretFunc, getConfigMap 
 	return nil
 }
 
-func DisableTlsSupport(support TlsSupport, removeSslProfile RemoveSslProfileFunc, getSecret GetSecretFunc, deleteSecret DeleteSecretFunc) error {
+func DisableTlsSupport(credentials string, removeSslProfile RemoveSslProfileFunc, getSecret GetSecretFunc, deleteSecret DeleteSecretFunc) error {
+	if len(credentials) > 0 {
+		if isGeneratedBySkupper(credentials) {
+			err := removeSslProfile(credentials)
+			if err != nil {
+				return err
+			}
 
-	if len(support.credentials) > 0 {
-		err := removeSslProfile(support.credentials)
-		if err != nil {
-			return err
-		}
-
-		if isGeneratedBySkupper(support.credentials) {
-			_, err = getSecret(support.credentials)
+			_, err = getSecret(credentials)
 			if err == nil {
-				err = deleteSecret(support.credentials)
+				err = deleteSecret(credentials)
 				if err != nil {
 					return err
 				}
 			}
 		}
 	}
-
-	//skupper-service-client profile is used by more than one connector, thus it can't be deleted
-	if len(support.certAuthority) > 0 && support.certAuthority != types.ServiceClientSecret {
-		err := removeSslProfile(support.certAuthority)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

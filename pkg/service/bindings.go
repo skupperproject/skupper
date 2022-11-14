@@ -70,8 +70,8 @@ type ServiceBindings struct {
 	Labels                   map[string]string
 	Annotations              map[string]string
 	targets                  map[string]*EgressBindings
-	tlsCredentials           string
-	tlsCertAuthority         string
+	TlsCredentials           string
+	TlsCertAuthority         string
 	PublishNotReadyAddresses bool
 	external                 ExternalBridge
 }
@@ -117,8 +117,8 @@ func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
 		Labels:                   bindings.Labels,
 		Annotations:              bindings.Annotations,
 		Origin:                   bindings.origin,
-		TlsCredentials:           bindings.tlsCredentials,
-		TlsCertAuthority:         bindings.tlsCertAuthority,
+		TlsCredentials:           bindings.TlsCredentials,
+		TlsCertAuthority:         bindings.TlsCertAuthority,
 		PublishNotReadyAddresses: bindings.PublishNotReadyAddresses,
 	}
 }
@@ -166,7 +166,8 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 		Labels:                   required.Labels,
 		Annotations:              required.Annotations,
 		targets:                  map[string]*EgressBindings{},
-		tlsCredentials:           required.TlsCredentials,
+		TlsCredentials:           required.TlsCredentials,
+		TlsCertAuthority:         required.TlsCertAuthority,
 		PublishNotReadyAddresses: required.PublishNotReadyAddresses,
 	}
 	if required.RequiresExternalBridge() {
@@ -229,12 +230,12 @@ func (bindings *ServiceBindings) Update(required types.ServiceInterface, binding
 		bindings.headless = nil
 	}
 
-	if bindings.tlsCredentials != required.TlsCredentials {
+	if bindings.TlsCredentials != required.TlsCredentials {
 
 		// Credentials will be overridden only if there are no value for them,
 		// and in that case a new secret has to be generated in that site.
-		if len(bindings.tlsCredentials) == 0 {
-			bindings.tlsCredentials = types.SkupperServiceCertPrefix + required.Address
+		if len(bindings.TlsCredentials) == 0 {
+			bindings.TlsCredentials = types.SkupperServiceCertPrefix + required.Address
 		}
 	}
 
@@ -393,7 +394,7 @@ func (eb *EgressBindings) hasLocalTarget() bool {
 
 func (eb *EgressBindings) updateBridgeConfiguration(sb *ServiceBindings, siteId string, bridges *qdr.BridgeConfig) {
 	for _, target := range eb.resolver.List() {
-		addEgressBridge(sb.protocol, target, eb.egressPorts, sb.Address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, sb.tlsCertAuthority, bridges)
+		addEgressBridge(sb.protocol, target, eb.egressPorts, sb.Address, eb.name, siteId, eb.service, sb.aggregation, sb.eventChannel, sb.TlsCertAuthority, bridges)
 	}
 }
 
@@ -519,8 +520,8 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 				ProtocolVersion: qdr.HttpVersion2,
 			}
 
-			if len(sb.tlsCredentials) > 0 {
-				httpListener.SslProfile = sb.tlsCredentials
+			if len(sb.TlsCredentials) > 0 {
+				httpListener.SslProfile = sb.TlsCredentials
 			}
 
 			bridges.AddHttpListener(httpListener)
@@ -532,8 +533,8 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 				SiteId:  siteId,
 			}
 
-			if len(sb.tlsCredentials) > 0 {
-				tcpListener.SslProfile = sb.tlsCredentials
+			if len(sb.TlsCredentials) > 0 {
+				tcpListener.SslProfile = sb.TlsCredentials
 			}
 
 			bridges.AddTcpListener(tcpListener)
