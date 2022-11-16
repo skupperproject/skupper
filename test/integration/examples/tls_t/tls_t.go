@@ -1,13 +1,12 @@
-//go:build integration || smoke || examples
-// +build integration smoke examples
-
 package tls_t
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
-	"net"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -57,16 +56,19 @@ var Deployment *appsv1.Deployment = &appsv1.Deployment{
 			Spec: apiv1.PodSpec{
 				Containers: []apiv1.Container{
 					{
-						Name:            "ssl-server",
-						Image:           "quay.io/skupper/skupper-tests",
+						Name: "ssl-server",
+						//Image: "localhost.localdomain:5000/skupper-tests:latest",
+						//Image:           "quay.io/skupper/skupper-tests",
+						Image:           "quay.io/dhashimo/skupper-tests",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
-						Args: strings.Split("microdnf install openssl ; "+
-							"openssl s_server "+
-							" -port 8443 "+
-							"-cert /cert/tls.crt "+
-							"-key /cert/tls.key "+
-							"-rev",
-							" "),
+						Args: []string{
+							"sh", "-c",
+							"microdnf install openssl ; " +
+								"openssl s_server " +
+								"-port 8443 " +
+								"-cert /cert/tls.crt " +
+								"-key /cert/tls.key " +
+								"-rev"},
 						Ports: []apiv1.ContainerPort{
 							{
 								Protocol:      apiv1.ProtocolTCP,
@@ -117,6 +119,11 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	pub1Cluster, _ := r.GetPublicContext(1)
 	publicDeploymentsClient := pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace)
 
+	// We need to create the service interface before the deployment, because
+	// the deployment needs to mount the secret created by the service
+	err := pub1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
+	assert.Assert(t, err)
+
 	fmt.Println("Creating deployment...")
 	result, err := publicDeploymentsClient.Create(Deployment)
 	assert.Assert(t, err)
@@ -131,16 +138,12 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
-	err = pub1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
-	assert.Assert(t, err)
-
-	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", "tcp", map[int]int{})
+	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "ssl-server", "tcp", map[int]int{})
 	assert.Assert(t, err)
 }
 
 func runTests(t *testing.T, r base.ClusterTestRunner) {
 
-	// XXX
 	endTime := time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
 
 	pub1Cluster, err := r.GetPublicContext(1)
@@ -149,126 +152,141 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "ssl-server")
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "ssl-server")
 	assert.Assert(t, err)
 
-	jobName := "tcp-echo"
-	jobCmd := []string{"/app/tcp_echo_test", "-test.run", "Job"}
+	jobName := "ssl-client"
+	jobCmd := []string{"/app/tls_test", "-test.run", "TestTlsJob"}
 
 	// Note here we are executing the same test but, in two different
 	// namespaces (or clusters), the same service must exist in both clusters
 	// because of the skupper connections and the "skupper exposed"
 	// deployment.
-	_, err = k8s.CreateTestJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, jobCmd)
+	_, err = k8s.CreateTestJobWithSecret(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, jobCmd, "skupper-tls-ssl-server")
 	assert.Assert(t, err)
 
-	_, err = k8s.CreateTestJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, jobCmd)
+	_, err = k8s.CreateTestJobWithSecret(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, jobCmd, "skupper-tls-ssl-server")
 	assert.Assert(t, err)
 
 	endTime = time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
 
 	rb := r.(*base.ClusterTestRunnerBase)
 	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
-	if err != nil {
+	if err != nil || job.Status.Succeeded != 1 {
 		rb.DumpTestInfo(jobName)
+		logs, _ := k8s.GetJobsLogs(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, true)
+		log.Printf("%s job output: %s", jobName, logs)
 	}
 	assert.Assert(t, err)
 	pub1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
 	job, err = k8s.WaitForJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
-	if err != nil {
+	if err != nil || job.Status.Succeeded != 1 {
 		rb.DumpTestInfo(jobName)
+		logs, _ := k8s.GetJobsLogs(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, true)
+		log.Printf("%s job output: %s", jobName, logs)
 	}
 	assert.Assert(t, err)
 	prv1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
-	// Running netcat
-	for _, cluster := range []*base.ClusterContext{pub1Cluster, prv1Cluster} {
-		t.Logf("Running netcat job against %s", cluster.Namespace)
-		ncJob := k8s.NewJob("netcat", cluster.Namespace, k8s.JobOpts{
-			Image:   "quay.io/prometheus/busybox",
-			Restart: apiv1.RestartPolicyNever,
-			Labels:  map[string]string{"job": "netcat"},
-			Command: []string{"sh"},
-			Args:    []string{"-c", "echo Halo | nc tcp-go-echo 9090"},
-		})
-		// Asserting job has been created
-		_, err := cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Create(ncJob)
-		assert.Assert(t, err)
-		// Asserting job completed
-		_, jobErr := k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, ncJob.Name, time.Minute)
-		// Asserting job output
-		logs, err := k8s.GetJobLogs(cluster.Namespace, cluster.VanClient.KubeClient, ncJob.Name)
-		if jobErr != nil || err != nil {
-			rb.DumpTestInfo(ncJob.Name)
-			log.Printf("%s job output: %s", ncJob.Name, logs)
-		}
-		assert.Assert(t, jobErr)
-		assert.Assert(t, err)
-		assert.Assert(t, strings.Contains(logs, "HALO"), "invalid response - %s", logs)
-	}
 }
 
 func SendReceive(addr string) error {
 	doneCh := make(chan error)
 	go func(doneCh chan error) {
 
-		strEcho := "Halo"
-		log.Println("Resolving TCP Address")
-		tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+		strEcho := "Halo\n"
+
+		log.Println("Starting openssl s_client...")
+		cmd := exec.Command(
+			"openssl",
+			"s_client",
+			"-quiet",
+			"-verify_return_error",
+			"-connect",
+			addr,
+			"-CAfile",
+			"/tmp/certs/skupper-tls-ssl-server/ca.crt",
+		)
+		cmd.Stderr = os.Stderr
+
+		pipeIn, err := cmd.StdinPipe()
 		if err != nil {
-			doneCh <- fmt.Errorf("ResolveTCPAddr failed: %s\n", err.Error())
+			doneCh <- fmt.Errorf("error opening stdin pipe: %w", err)
+			return
+		}
+		defer pipeIn.Close()
+
+		pipeOut, err := cmd.StdoutPipe()
+		if err != nil {
+			doneCh <- fmt.Errorf("error opening stdout pipe: %w", err)
 			return
 		}
 
-		log.Println("Opening TCP connection")
-		conn, err := net.DialTCP("tcp", nil, tcpAddr)
+		err = cmd.Start()
 		if err != nil {
-			doneCh <- fmt.Errorf("Dial failed: %s\n", err.Error())
-			return
+			doneCh <- fmt.Errorf("error opening stdin pipe: %w", err)
 		}
-		defer conn.Close()
+		defer func() {
+			log.Printf("Closing stdin pipe...")
+			pipeIn.Close()
+			log.Printf("Waiting for the command to complete...")
+			cmd.Wait()
+			log.Printf("...done")
+		}()
 
 		log.Println("Sending data")
-		_, err = conn.Write([]byte(strEcho))
+		_, err = pipeIn.Write([]byte(strEcho))
 		if err != nil {
-			doneCh <- fmt.Errorf("Write to server failed: %s\n", err.Error())
+			doneCh <- fmt.Errorf("write to server failed: %w", err)
 			return
 		}
 
 		log.Println("Receiving reply")
-		reply := make([]byte, 1024)
 
-		_, err = conn.Read(reply)
+		time.Sleep(time.Second * 2)
+
+		pReader := bufio.NewReader(pipeOut)
+
+		reply, err := pReader.ReadString('\n')
+
 		if err != nil {
-			doneCh <- fmt.Errorf("Read from server failed: %s\n", err.Error())
+			doneCh <- fmt.Errorf("read from server failed: %w (reply: %q)", err, reply)
 			return
 		}
 
-		log.Println("Sent to server = ", strEcho)
-		log.Println("Reply from server = ", string(reply))
+		log.Printf("Sent to server = %q", strEcho)
+		log.Printf("Reply from server = %q", string(reply))
 
-		if !strings.Contains(string(reply), strings.ToUpper(strEcho)) {
-			doneCh <- fmt.Errorf("Response from server different that expected: %s\n", string(reply))
-			return
+		if len(reply) == len(strEcho) {
+			for i_c, c := range []byte(strings.Trim(strEcho, "\n")) {
+				i_r := len(reply) - 2 - i_c
+				r := reply[i_r]
+
+				if r != c {
+					doneCh <- fmt.Errorf("response from server different than expected: %s (%d/%q != %d/%q)", string(reply), i_r, r, i_c, c)
+				}
+			}
+		} else {
+
+			doneCh <- fmt.Errorf("response length from server different than expected: %s", string(reply))
 		}
 
 		doneCh <- nil
 	}(doneCh)
 	timeoutCh := time.After(time.Minute)
 
-	// TCP Echo Client job sometimes hangs waiting for response
-	// This will cause job to fail and a retry to occur
+	// This will cause job to fail and a retry to occur if the job is hung
 	var err error
 	select {
 	case err = <-doneCh:
 	case <-timeoutCh:
-		err = fmt.Errorf("timed out waiting for tcp-echo job to finish")
+		err = fmt.Errorf("timed out waiting for tls_test job to finish")
 	}
 
 	return err

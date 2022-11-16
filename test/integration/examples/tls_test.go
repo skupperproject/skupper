@@ -7,12 +7,7 @@ import (
 	"context"
 	"testing"
 
-	//"github.com/skupperproject/skupper/test/integration/examples/tls_test"
-	//"skupper/test/integration/examples/tls_test"
-
-	//"tls_t"
 	"github.com/skupperproject/skupper/test/integration/examples/tls_t"
-
 	"github.com/skupperproject/skupper/test/utils/constants"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
