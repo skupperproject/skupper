@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func AddSslProfile(secretName string, namespace string, cli kubernetes.Interface) error {
+func AddSslProfile(sslProfile qdr.SslProfile, namespace string, cli kubernetes.Interface) error {
 
 	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli)
 	if err != nil {
@@ -18,9 +18,11 @@ func AddSslProfile(secretName string, namespace string, cli kubernetes.Interface
 		return err
 	}
 
-	if _, ok := current.SslProfiles[secretName]; !ok {
+	if _, ok := current.SslProfiles[sslProfile.Name]; !ok {
 		current.AddSslProfile(qdr.SslProfile{
-			Name: secretName,
+			Name:       sslProfile.Name,
+			CertFile:   sslProfile.CertFile,
+			CaCertFile: sslProfile.CaCertFile,
 		})
 	}
 	_, err = current.UpdateConfigMap(configmap)

@@ -286,7 +286,7 @@ func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDiffer
 	for _, deleted := range changes.DeletedSSlProfiles {
 		if len(deleted) > 0 {
 
-			log.Printf("Deleting cert files related to HTTP Listener sslProfile %s", deleted)
+			log.Printf("Deleting cert files related to sslProfile %s", deleted)
 
 			if err := delSslProfile("io.skupper.router.sslProfile", deleted); err != nil {
 				return fmt.Errorf("Error deleting ssl profile: #{err}")

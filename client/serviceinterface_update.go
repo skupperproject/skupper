@@ -4,6 +4,8 @@ import (
 	"context"
 	jsonencoding "encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/kube/qdr"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -88,7 +90,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 	return err
 }
 
-func validateServiceInterface(service *types.ServiceInterface) error {
+func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) error {
 	errs := validation.IsDNS1035Label(service.Address)
 	if len(errs) > 0 {
 		return fmt.Errorf("Invalid service name: %q", errs)
@@ -105,6 +107,21 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 		for _, targetPort := range target.TargetPorts {
 			if targetPort < 0 || 65535 < targetPort {
 				return fmt.Errorf("Bad target port number. Target: %s  Port: %d", target.Name, targetPort)
+			}
+		}
+	}
+
+	if service.EnableTls {
+		if service.TlsCredentials != "" && strings.HasPrefix(types.SkupperServiceCertPrefix, service.TlsCredentials) {
+			_, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("Secret %s not available for service %s", service.TlsCredentials, service.Address)
+			}
+		}
+		if service.TlsCertAuthority != "" && service.TlsCertAuthority != types.ServiceClientSecret {
+			_, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCertAuthority, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("Secret %s not available for service %s", service.TlsCertAuthority, service.Address)
 			}
 		}
 	}
@@ -130,6 +147,7 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 	} else {
 		return nil
 	}
+
 }
 
 func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
@@ -137,7 +155,7 @@ func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types
 	if err == nil {
 		_, err = cli.ServiceInterfaceInspect(ctx, service.Address)
 		if err == nil {
-			err = validateServiceInterface(service)
+			err = validateServiceInterface(service, cli)
 			if err != nil {
 				return err
 			}
@@ -163,7 +181,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 	}
 	owner, err := getRootObject(cli)
 	if err == nil {
-		err = validateServiceInterface(service)
+		err = validateServiceInterface(service, cli)
 		if err != nil {
 			return err
 		}
@@ -197,6 +215,14 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 			}
 		}
 		service.AddTarget(target)
+
+		tlsSupport := qdr.TlsSupport{Address: service.Address, Credentials: service.TlsCredentials, CertAuthority: service.TlsCertAuthority}
+		err = qdr.EnableTlsSupport(tlsSupport, cli.getSecret, cli.getConfigMap, cli.newSecret, cli.addSslProfile, cli.existsSslProfile)
+
+		if err != nil {
+			return err
+		}
+
 		return updateServiceInterface(service, true, owner, cli)
 	} else if errors.IsNotFound(err) {
 		return fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)

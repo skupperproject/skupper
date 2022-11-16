@@ -724,9 +724,11 @@ func (c *Controller) processNextEvent() bool {
 							if err == nil {
 								c.updateServiceBindings(si, portAllocations)
 
-								tlsSupport := TlsSupport{address: si.Address, credentials: si.TlsCredentials, certAuthority: si.TlsCertAuthority}
-								err = EnableTlsSupport(tlsSupport, c.getSecret, c.getConfigMap, c.newSecret, c.addSslProfile, c.existsSslProfile)
-								event.Recordf(ServiceControllerError, "Could not parse service definition for %s: %s", k, err)
+								tlsSupport := kubeqdr.TlsSupport{Address: si.Address, Credentials: si.TlsCredentials}
+								err = kubeqdr.EnableTlsSupport(tlsSupport, c.getSecret, c.getConfigMap, c.newSecret, c.addSslProfile, c.existsSslProfile)
+								if err != nil {
+									event.Recordf(ServiceControllerError, "Could not parse service definition for %s: %s", k, err)
+								}
 							} else {
 								event.Recordf(ServiceControllerError, "Could not parse service definition for %s: %s", k, err)
 							}
@@ -735,15 +737,19 @@ func (c *Controller) processNextEvent() bool {
 							_, ok := cm.Data[k]
 							if !ok {
 								c.deleteServiceBindings(k, v)
-								err = DisableTlsSupport(v.TlsCredentials, c.removeSslProfile, c.getSecret, c.deleteSecret)
-								event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
+								err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.removeSslProfile, c.getSecret, c.deleteSecret)
+								if err != nil {
+									event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
+								}
 							}
 						}
 					} else if len(c.bindings) > 0 {
 						for k, v := range c.bindings {
 							c.deleteServiceBindings(k, v)
-							err = DisableTlsSupport(v.TlsCredentials, c.removeSslProfile, c.getSecret, c.deleteSecret)
-							event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
+							err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.removeSslProfile, c.getSecret, c.deleteSecret)
+							if err != nil {
+								event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
+							}
 						}
 					}
 				}
@@ -954,7 +960,7 @@ func (c *Controller) newSecret(credential types.Credential, ownerReference *meta
 	return kube.NewSecret(credential, ownerReference, c.vanClient.Namespace, c.vanClient.KubeClient)
 }
 
-func (c *Controller) addSslProfile(sslProfile string) error {
+func (c *Controller) addSslProfile(sslProfile qdr.SslProfile) error {
 	return kubeqdr.AddSslProfile(sslProfile, c.vanClient.Namespace, c.vanClient.KubeClient)
 }
 
