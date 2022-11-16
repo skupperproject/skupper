@@ -72,24 +72,19 @@ func TestCreateServiceParseArgs(t *testing.T) {
 	cmd := NewCmdCreateService(NewSkupperTestClient().Service())
 
 	assert.Assert(t, cmd.ParseFlags([]string{}))
-	assert.Equal(t, serviceToCreate.EnableTls, false)
 	assert.Equal(t, serviceToCreate.Protocol, "tcp")
 	assert.Equal(t, serviceToCreate.TlsCredentials, "")
 
 	cmdArgs := []string{"service:8080", "--protocol", "http2", "--enable-tls"}
 
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
-	assert.Equal(t, serviceToCreate.EnableTls, true)
 	assert.Equal(t, serviceToCreate.Protocol, "http2")
-	assert.Equal(t, serviceToCreate.TlsCredentials, "")
 
 	// Deprecated flag should work until it is removed.
 	cmdArgs = []string{"service:8080", "--mapping", "http2", "--enable-tls"}
 
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
-	assert.Equal(t, serviceToCreate.EnableTls, true)
 	assert.Equal(t, serviceToCreate.Protocol, "http2")
-	assert.Equal(t, serviceToCreate.TlsCredentials, "")
 
 }
 
@@ -137,7 +132,7 @@ func TestExposeParseArgs(t *testing.T) {
 	cmdArgs := []string{"deployment/name", "--address", "theAddress", "--protocol", "http2", "--enable-tls"}
 
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
-	assert.Equal(t, exposeOpts.EnableTls, true)
+	assert.Equal(t, exposeOpts.GeneratedCerts, true)
 	assert.Equal(t, exposeOpts.Protocol, "http2")
 	assert.Equal(t, exposeOpts.TlsCredentials, "")
 }

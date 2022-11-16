@@ -170,10 +170,10 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
 			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
 			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
-			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-6-addr"},
-			secretsExpected:  []string{types.ServiceClientSecret, types.SiteCaSecret, "skupper-vsic-6-addr"},
+			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, types.SkupperServiceCertPrefix + "vsic-6-addr"},
+			secretsExpected:  []string{types.ServiceClientSecret, types.SiteCaSecret, types.SkupperServiceCertPrefix + "skupper-vsic-6-addr"},
 			timeout:          60.0,
-			tlsCredentials:   "skupper-vsic-6-addr",
+			tlsCredentials:   types.SkupperServiceCertPrefix + "skupper-vsic-6-addr",
 		},
 	}
 

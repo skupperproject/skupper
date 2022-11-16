@@ -49,12 +49,11 @@ type ServiceBindingContext interface {
 }
 
 type EgressBindings struct {
-	name           string
-	Selector       string
-	service        string
-	egressPorts    map[int]int
-	resolver       TargetResolver
-	tlsCredentials string
+	name        string
+	Selector    string
+	service     string
+	egressPorts map[int]int
+	resolver    TargetResolver
 }
 
 type ServiceBindings struct {
@@ -354,11 +353,10 @@ func (sb *ServiceBindings) removeSelectorTarget(selector string) {
 
 func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, tlsCredentials string) error {
 	sb.targets[service] = &EgressBindings{
-		name:           name,
-		service:        service,
-		egressPorts:    port,
-		resolver:       NewNullTargetResolver([]string{service}),
-		tlsCredentials: tlsCredentials,
+		name:        name,
+		service:     service,
+		egressPorts: port,
+		resolver:    NewNullTargetResolver([]string{service}),
 	}
 	return nil
 }
