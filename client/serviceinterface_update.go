@@ -111,18 +111,16 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 		}
 	}
 
-	if service.EnableTls {
-		if service.TlsCredentials != "" && strings.HasPrefix(types.SkupperServiceCertPrefix, service.TlsCredentials) {
-			_, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
-			if err != nil {
-				return fmt.Errorf("Secret %s not available for service %s", service.TlsCredentials, service.Address)
-			}
+	if service.TlsCredentials != "" && strings.HasPrefix(types.SkupperServiceCertPrefix, service.TlsCredentials) {
+		_, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Secret %s not available for service %s", service.TlsCredentials, service.Address)
 		}
-		if service.TlsCertAuthority != "" && service.TlsCertAuthority != types.ServiceClientSecret {
-			_, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCertAuthority, metav1.GetOptions{})
-			if err != nil {
-				return fmt.Errorf("Secret %s not available for service %s", service.TlsCertAuthority, service.Address)
-			}
+	}
+	if service.TlsCertAuthority != "" && service.TlsCertAuthority != types.ServiceClientSecret {
+		_, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCertAuthority, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Secret %s not available for service %s", service.TlsCertAuthority, service.Address)
 		}
 	}
 
@@ -142,7 +140,7 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 		return fmt.Errorf("The aggregate option is currently only valid for http")
 	} else if service.EventChannel && service.Protocol != "http" && service.Protocol != "udp" {
 		return fmt.Errorf("The event-channel option is currently only valid for http")
-	} else if service.EnableTls && service.Protocol == "http" {
+	} else if (service.TlsCredentials != "" || service.TlsCertAuthority != "") && service.Protocol == "http" {
 		return fmt.Errorf("The TLS support is only available for http2 and tcp protocols")
 	} else {
 		return nil

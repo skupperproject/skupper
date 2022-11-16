@@ -1702,7 +1702,6 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 			Address:          endpoint.Service.Address,
 			Protocol:         endpoint.Service.Protocol,
 			Ports:            endpoint.Service.Ports,
-			EnableTls:        endpoint.Service.EnableTls,
 			TlsCredentials:   endpoint.Service.TlsCredentials,
 			TlsCertAuthority: endpoint.Service.TlsCertAuthority,
 		})

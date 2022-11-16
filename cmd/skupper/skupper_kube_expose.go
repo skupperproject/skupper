@@ -61,7 +61,6 @@ func (s *SkupperKubeService) Expose(cmd *cobra.Command, args []string) error {
 
 	tlsTrustOptionIsMissing := exposeOpts.TlsCredentials != "" && exposeOpts.TlsCertAuthority == ""
 	tlsCredentialsOptionIsMissing := exposeOpts.TlsCredentials == "" && exposeOpts.TlsCertAuthority != ""
-	tlsCustomCertsAreSpecifiedCorrectly := exposeOpts.TlsCredentials != "" && exposeOpts.TlsCertAuthority != ""
 	tlsWithSkupperGeneratedCerts := exposeOpts.GeneratedCerts && exposeOpts.TlsCredentials == "" && exposeOpts.TlsCertAuthority == ""
 	tlsCustomCertsAndGeneratedCerts := exposeOpts.GeneratedCerts && (exposeOpts.TlsCredentials != "" || exposeOpts.TlsCertAuthority != "")
 
@@ -77,12 +76,7 @@ func (s *SkupperKubeService) Expose(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("the option --generate-tls-secrets can not be used with custom certificates")
 	}
 
-	if tlsCustomCertsAreSpecifiedCorrectly {
-		exposeOpts.EnableTls = true
-	}
-
 	if tlsWithSkupperGeneratedCerts {
-		exposeOpts.EnableTls = true
 		exposeOpts.TlsCredentials = types.SkupperServiceCertPrefix + exposeOpts.Address
 		exposeOpts.TlsCertAuthority = types.ServiceClientSecret
 	}

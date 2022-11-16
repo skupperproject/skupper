@@ -484,7 +484,6 @@ type ServiceInterface struct {
 	Annotations              map[string]string        `json:"annotations,omitempty" yaml:"annotations,omitempty"`
 	Targets                  []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
 	Origin                   string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
-	EnableTls                bool                     `json:"enableTls,omitempty"`
 	TlsCredentials           string                   `json:"tlsCredentials,omitempty"`
 	TlsCertAuthority         string                   `json:"certAuthority,omitempty"`
 	PublishNotReadyAddresses bool                     `json:"publishNotReadyAddresses,omitempty"`

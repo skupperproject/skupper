@@ -105,7 +105,6 @@ type ExposeOptions struct {
 	TargetPorts              []string
 	Headless                 bool
 	ProxyTuning              types.Tuning
-	EnableTls                bool
 	GeneratedCerts           bool
 	TlsCredentials           string
 	TlsCertAuthority         string
@@ -225,7 +224,6 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 				Address:                  serviceName,
 				Ports:                    options.Ports,
 				Protocol:                 options.Protocol,
-				EnableTls:                options.EnableTls,
 				TlsCredentials:           options.TlsCredentials,
 				TlsCertAuthority:         options.TlsCertAuthority,
 				PublishNotReadyAddresses: options.PublishNotReadyAddresses,
@@ -242,13 +240,16 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", fmt.Errorf("Service already exposed, cannot reconfigure as headless")
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
 		return "", fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
+	} else if (options.TlsCredentials != "" || options.TlsCertAuthority != "") && options.Protocol == "http" {
 	} else if options.BridgeImage != "" && service.BridgeImage != options.BridgeImage {
 		return "", fmt.Errorf("Service %s already exists with a different bridge image: %s", serviceName, service.BridgeImage)
-	} else if options.EnableTls && options.Protocol == "http" {
-		return "", fmt.Errorf("TLS can not be enabled for service with mapping %s (only available for http2 and tcp protocols)", service.Protocol)
-	} else if options.EnableTls && !service.EnableTls {
+	} else if options.TlsCredentials != "" && service.TlsCredentials == "" {
 		return "", fmt.Errorf("Service already exposed without TLS support")
-	} else if !options.EnableTls && service.EnableTls {
+	} else if options.TlsCertAuthority != "" && service.TlsCertAuthority == "" {
+		return "", fmt.Errorf("Service already exposed without TLS support")
+	} else if options.TlsCredentials == "" && service.TlsCredentials != "" {
+		return "", fmt.Errorf("Service already exposed with TLS support")
+	} else if options.TlsCertAuthority == "" && service.TlsCertAuthority != "" {
 		return "", fmt.Errorf("Service already exposed with TLS support")
 	} else if options.IngressMode != "" && options.IngressMode != string(service.ExposeIngress) {
 		return "", fmt.Errorf("Service already exposed with different ingress mode")
@@ -608,8 +609,8 @@ func NewCmdService() *cobra.Command {
 }
 
 var serviceToCreate types.ServiceInterface
-var generateTlsCerts bool
 var serviceIngressMode string
+var createSvcWithGeneratedTlsCerts bool
 
 func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -637,21 +638,18 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 				serviceToCreate.Ports = append(serviceToCreate.Ports, servicePort)
 			}
 
-			createServiceOverTlsWithGeneratedCerts := generateTlsCerts && serviceToCreate.TlsCredentials == ""
-			createServiceOverTlsWithCustomCerts := !generateTlsCerts && serviceToCreate.TlsCredentials != ""
-			createServiceOverTlsWithCustomAndGeneratedCerts := generateTlsCerts && serviceToCreate.TlsCredentials != ""
+			createServiceOverTlsWithCustomAndGeneratedCerts := createSvcWithGeneratedTlsCerts && serviceToCreate.TlsCredentials != ""
 
-			if createServiceOverTlsWithGeneratedCerts {
-				serviceToCreate.EnableTls = true
-				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
-			} else if createServiceOverTlsWithCustomCerts {
-				serviceToCreate.EnableTls = true
-			} else if createServiceOverTlsWithCustomAndGeneratedCerts {
+			if createServiceOverTlsWithCustomAndGeneratedCerts {
 				return fmt.Errorf("the option --generate-tls-secrets can not be used with custom certificates")
 			}
 			err := serviceToCreate.SetIngressMode(serviceIngressMode)
 			if err != nil {
 				return err
+			}
+
+			if createSvcWithGeneratedTlsCerts {
+				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
 			}
 
 			return skupperClient.Create(cmd, args)
@@ -661,10 +659,10 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().StringVar(&serviceIngressMode, "enable-ingress", "", "Determines whether access to the Skupper service is enabled in this site. Valid values are Always (default) or Never.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().BoolVar(&generateTlsCerts, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
+	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
+	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "generate-tls-secrets", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
-	cmd.Flags().BoolVar(&generateTlsCerts, "generate-tls-secrets", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to encrypt the communication using TLS (valid only for http2 and tcp protocols)")
 
 	f := cmd.Flag("mapping")
