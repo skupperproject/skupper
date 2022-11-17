@@ -59,12 +59,12 @@ var Deployment *appsv1.Deployment = &appsv1.Deployment{
 						Name: "ssl-server",
 						//Image: "localhost.localdomain:5000/skupper-tests:latest",
 						//Image:           "quay.io/skupper/skupper-tests",
+						// TODO: Use var or default
 						Image:           "quay.io/dhashimo/skupper-tests",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Args: []string{
 							"sh", "-c",
-							"microdnf install openssl ; " +
-								"openssl s_server " +
+							"openssl s_server " +
 								"-port 8443 " +
 								"-cert /cert/tls.crt " +
 								"-key /cert/tls.key " +
@@ -249,8 +249,6 @@ func SendReceive(addr string) error {
 
 		log.Println("Receiving reply")
 
-		time.Sleep(time.Second * 2)
-
 		pReader := bufio.NewReader(pipeOut)
 
 		reply, err := pReader.ReadString('\n')
@@ -286,7 +284,7 @@ func SendReceive(addr string) error {
 	select {
 	case err = <-doneCh:
 	case <-timeoutCh:
-		err = fmt.Errorf("timed out waiting for tls_test job to finish")
+		err = fmt.Errorf("timed out waiting for SendReceive function to finish")
 	}
 
 	return err
