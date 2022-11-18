@@ -176,7 +176,7 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 		if t.Selector != "" {
 			sb.addSelectorTarget(t.Name, t.Selector, getTargetPorts(required, t), bindingContext)
 		} else if t.Service != "" {
-			sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), required.TlsCredentials)
+			sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t))
 		}
 	}
 
@@ -258,7 +258,7 @@ func (bindings *ServiceBindings) Update(required types.ServiceInterface, binding
 		} else if t.Service != "" {
 			target := bindings.targets[t.Service]
 			if target == nil {
-				bindings.addServiceTarget(t.Name, t.Service, targetPort, required.TlsCredentials)
+				bindings.addServiceTarget(t.Name, t.Service, targetPort)
 			} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
 				target.egressPorts = targetPort
 			}
@@ -351,7 +351,7 @@ func (sb *ServiceBindings) removeSelectorTarget(selector string) {
 	delete(sb.targets, selector)
 }
 
-func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, tlsCredentials string) error {
+func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int) error {
 	sb.targets[service] = &EgressBindings{
 		name:        name,
 		service:     service,
