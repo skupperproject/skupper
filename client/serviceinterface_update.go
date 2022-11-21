@@ -269,7 +269,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 					},
 				},
 				PublishNotReadyAddresses: publishNotReadyAddresses,
-				Namespace:                namespace,
+				Namespace:                svcNamespace,
 			}
 			if len(ports) == 0 {
 				if len(service.Spec.Ports) > 0 {
