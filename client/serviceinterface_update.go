@@ -201,7 +201,8 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		}
 
 		deducePorts := len(service.Ports) == 0 && len(targetPorts) == 0
-		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, cli.Namespace, cli.KubeClient, cli.OCAppsClient)
+		namespace := utils.GetOrDefault(service.Namespace, cli.GetNamespace())
+		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, namespace, cli.KubeClient, cli.OCAppsClient)
 		if err != nil {
 			return err
 		}
@@ -244,13 +245,14 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 	}
 }
 
-func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool) (*types.ServiceInterface, error) {
-	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(context.TODO(), targetName, metav1.GetOptions{})
+func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool, namespace string) (*types.ServiceInterface, error) {
+	svcNamespace := utils.GetOrDefault(namespace, cli.GetNamespace())
+	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(svcNamespace).Get(context.TODO(), targetName, metav1.GetOptions{})
 	if err == nil {
 		if address != "" && address != statefulset.Spec.ServiceName {
 			return nil, fmt.Errorf("Cannot specify different address from service name for headless service.")
 		}
-		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), statefulset.Spec.ServiceName, metav1.GetOptions{})
+		service, err := cli.KubeClient.CoreV1().Services(svcNamespace).Get(context.TODO(), statefulset.Spec.ServiceName, metav1.GetOptions{})
 		if err == nil {
 			def := types.ServiceInterface{
 				Address:  statefulset.Spec.ServiceName,
@@ -267,6 +269,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 					},
 				},
 				PublishNotReadyAddresses: publishNotReadyAddresses,
+				Namespace:                namespace,
 			}
 			if len(ports) == 0 {
 				if len(service.Spec.Ports) > 0 {

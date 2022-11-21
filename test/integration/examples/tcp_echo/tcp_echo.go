@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/kube"
+
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -26,6 +28,12 @@ func int32Ptr(i int32) *int32 { return &i }
 
 var service = types.ServiceInterface{
 	Address:  "tcp-go-echo",
+	Protocol: "tcp",
+	Ports:    []int{9090},
+}
+
+var serviceNs = types.ServiceInterface{
+	Address:  "tcp-go-echo-ns",
 	Protocol: "tcp",
 	Ports:    []int{9090},
 }
@@ -70,24 +78,38 @@ var Deployment *appsv1.Deployment = &appsv1.Deployment{
 }
 
 func Run(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
-	defer tearDown(ctx, t, r)
-	setup(ctx, t, r)
-	runTests(t, r)
+	pub1Cluster, _ := r.GetPublicContext(1)
+	service.Namespace = pub1Cluster.Namespace
+
+	defer tearDown(ctx, t, r, pub1Cluster.Namespace)
+	setup(ctx, t, pub1Cluster, service)
+	runTests(t, r, service)
 }
 
-func tearDown(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
+func RunForNamespace(ctx context.Context, t *testing.T, r base.ClusterTestRunner, namespace string) {
+	pub1Cluster, _ := r.GetPublicContext(1)
+	_, err := kube.NewNamespace(namespace, pub1Cluster.VanClient.KubeClient)
+	assert.Assert(t, err)
+	serviceNs.Namespace = namespace
+
+	defer kube.DeleteNamespace(namespace, pub1Cluster.VanClient.KubeClient)
+	defer tearDown(ctx, t, r, namespace)
+	setup(ctx, t, pub1Cluster, serviceNs)
+	runTests(t, r, serviceNs)
+}
+
+func tearDown(ctx context.Context, t *testing.T, r base.ClusterTestRunner, namespace string) {
 	pub1Cluster, _ := r.GetPublicContext(1)
 
 	t.Logf("Deleting skupper service")
 	_ = pub1Cluster.VanClient.ServiceInterfaceRemove(ctx, service.Address)
 
 	t.Logf("Deleting deployment...")
-	_ = pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace).Delete(ctx, Deployment.Name, metav1.DeleteOptions{})
+	_ = pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(namespace).Delete(ctx, Deployment.Name, &metav1.DeleteOptions{})
 }
 
-func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
-	pub1Cluster, _ := r.GetPublicContext(1)
-	publicDeploymentsClient := pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace)
+func setup(ctx context.Context, t *testing.T, cluster *base.ClusterContext, svc types.ServiceInterface) {
+	publicDeploymentsClient := cluster.VanClient.KubeClient.AppsV1().Deployments(svc.Namespace)
 
 	fmt.Println("Creating deployment...")
 	result, err := publicDeploymentsClient.Create(ctx, Deployment, metav1.CreateOptions{})
@@ -95,7 +117,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-	fmt.Printf("Listing deployments in namespace %q:\n", pub1Cluster.Namespace)
+	fmt.Printf("Listing deployments in namespace %q:\n", svc.Namespace)
 	list, err := publicDeploymentsClient.List(ctx, metav1.ListOptions{})
 	assert.Assert(t, err)
 
@@ -103,14 +125,14 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
-	err = pub1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
+	err = cluster.VanClient.ServiceInterfaceCreate(ctx, &svc)
 	assert.Assert(t, err)
 
-	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "tcp-go-echo", map[int]int{})
+	err = cluster.VanClient.ServiceInterfaceBind(ctx, &svc, "deployment", "tcp-go-echo", map[int]int{})
 	assert.Assert(t, err)
 }
 
-func runTests(t *testing.T, r base.ClusterTestRunner) {
+func runTests(t *testing.T, r base.ClusterTestRunner, svc types.ServiceInterface) {
 
 	// XXX
 	endTime := time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
@@ -121,23 +143,37 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, svc.Address)
 	assert.Assert(t, err)
 
-	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "tcp-go-echo")
+	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, svc.Address)
 	assert.Assert(t, err)
 
-	jobName := "tcp-echo"
+	jobName := svc.Address
 	jobCmd := []string{"/app/tcp_echo_test", "-test.run", "Job"}
 
 	// Note here we are executing the same test but, in two different
 	// namespaces (or clusters), the same service must exist in both clusters
 	// because of the skupper connections and the "skupper exposed"
 	// deployment.
-	_, err = k8s.CreateTestJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, jobCmd)
+	_, err = k8s.CreateTestJobWithEnv(
+		pub1Cluster.Namespace,
+		pub1Cluster.VanClient.KubeClient,
+		jobName,
+		jobCmd,
+		[]apiv1.EnvVar{
+			{Name: "ADDRESS", Value: fmt.Sprintf("%s:%d", svc.Address, svc.Ports[0])},
+		})
 	assert.Assert(t, err)
 
-	_, err = k8s.CreateTestJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, jobCmd)
+	_, err = k8s.CreateTestJobWithEnv(
+		prv1Cluster.Namespace,
+		prv1Cluster.VanClient.KubeClient,
+		jobName,
+		jobCmd,
+		[]apiv1.EnvVar{
+			{Name: "ADDRESS", Value: fmt.Sprintf("%s:%d", svc.Address, svc.Ports[0])},
+		})
 	assert.Assert(t, err)
 
 	endTime = time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
@@ -152,15 +188,16 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	prv1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
+	netcatJobName := fmt.Sprintf("netcat-%s", svc.Address)
 	// Running netcat
 	for _, cluster := range []*base.ClusterContext{pub1Cluster, prv1Cluster} {
 		t.Logf("Running netcat job against %s", cluster.Namespace)
-		ncJob := k8s.NewJob("netcat", cluster.Namespace, k8s.JobOpts{
+		ncJob := k8s.NewJob(netcatJobName, cluster.Namespace, k8s.JobOpts{
 			Image:   "quay.io/prometheus/busybox",
 			Restart: apiv1.RestartPolicyNever,
-			Labels:  map[string]string{"job": "netcat"},
+			Labels:  map[string]string{"job": netcatJobName},
 			Command: []string{"sh"},
-			Args:    []string{"-c", "echo Halo | nc tcp-go-echo 9090"},
+			Args:    []string{"-c", fmt.Sprintf("echo Halo | nc %s %d", svc.Address, svc.Ports[0])},
 		})
 		// Asserting job has been created
 		_, err := cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Create(context.TODO(), ncJob, metav1.CreateOptions{})

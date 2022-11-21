@@ -129,6 +129,7 @@ func (c *ServiceSync) localDefinitionsUpdated(definitions map[string]types.Servi
 			TlsCertAuthority:         original.TlsCertAuthority,
 			PublishNotReadyAddresses: original.PublishNotReadyAddresses,
 			BridgeImage:              original.BridgeImage,
+			Namespace:                original.Namespace,
 		}
 		if !service.IsOfLocalOrigin() {
 			if _, ok := c.byOrigin[service.Origin]; !ok {

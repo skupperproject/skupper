@@ -516,6 +516,7 @@ type ServiceInterface struct {
 	TlsCertAuthority         string                   `json:"tlsCertAuthority,omitempty"`
 	PublishNotReadyAddresses bool                     `json:"publishNotReadyAddresses,omitempty"`
 	BridgeImage              string                   `json:"bridgeImage,omitempty"`
+	Namespace                string                   `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 }
 
 func (s *ServiceInterface) IsOfLocalOrigin() bool {

@@ -117,6 +117,7 @@ type ExposeOptions struct {
 	BridgeImage              string
 	Aggregate                string
 	EventChannel             bool
+	Namespace                string
 }
 
 func SkupperNotInstalledError(namespace string) error {
@@ -210,7 +211,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 			if targetType != "statefulset" {
 				return "", fmt.Errorf("The headless option is only supported for statefulsets")
 			}
-			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.Protocol, options.Address, options.Ports, options.PublishNotReadyAddresses)
+			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.Protocol, options.Address, options.Ports, options.PublishNotReadyAddresses, options.Namespace)
 			if err != nil {
 				return "", err
 			}
@@ -234,10 +235,12 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 				TlsCertAuthority:         options.TlsCertAuthority,
 				PublishNotReadyAddresses: options.PublishNotReadyAddresses,
 				BridgeImage:              options.BridgeImage,
+				Namespace:                options.Namespace,
 			}
 			err := service.SetIngressMode(options.IngressMode)
 			if err != nil {
 				return "", err
+
 			}
 		}
 	} else if service.Headless != nil {
@@ -696,6 +699,7 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "generate-tls-secrets", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
 	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to encrypt the communication using TLS (valid only for http2 and tcp protocols)")
+	cmd.Flags().StringVar(&serviceToCreate.Namespace, "namespace", "", "Expose resources from a specific namespace")
 
 	// platform specific flags
 	skupperClient.CreateFlags(cmd)

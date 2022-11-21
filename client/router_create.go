@@ -229,7 +229,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	})
 	van.Controller.RoleBindings = roleBindings
 
-	van.Controller.ClusterRoles = ClusterRoles()
+	van.Controller.ClusterRoles = cli.ClusterRoles()
 	van.Controller.ClusterRoleBindings = ClusterRoleBindings(van.Namespace)
 
 	svctype := corev1.ServiceTypeClusterIP
@@ -440,7 +440,7 @@ func ClusterRoleBindings(namespace string) []*rbacv1.ClusterRoleBinding {
 	return clusterRoleBindings
 }
 
-func ClusterRoles() []*rbacv1.ClusterRole {
+func (cli *VanClient) ClusterRoles() []*rbacv1.ClusterRole {
 	clusterRoles := []*rbacv1.ClusterRole{}
 	clusterRoles = append(clusterRoles, &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
@@ -450,7 +450,7 @@ func ClusterRoles() []*rbacv1.ClusterRole {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: types.ControllerClusterRoleName,
 		},
-		Rules: []rbacv1.PolicyRule{
+		Rules: append([]rbacv1.PolicyRule{
 			{
 				APIGroups: []string{"skupper.io"},
 				Resources: []string{"skupperclusterpolicies"},
@@ -459,14 +459,8 @@ func ClusterRoles() []*rbacv1.ClusterRole {
 			{
 				APIGroups: []string{""},
 				Resources: []string{"namespaces"},
-				Verbs:     []string{"get"},
-			},
-			{
-				APIGroups: []string{""},
-				Resources: []string{"nodes"},
-				Verbs:     []string{"get", "list", "watch"},
-			},
-		},
+				Verbs:     []string{"get"}},
+		}, cli.getControllerRules()...),
 	})
 	return clusterRoles
 }

@@ -64,7 +64,7 @@ func (s *TestContext) AllServices() (map[string]corev1.Service, error) {
 	return svcs, nil
 }
 
-func (c *TestContext) NewTargetResolver(address string, selector string, skipTargetStatus bool) (service.TargetResolver, error) {
+func (c *TestContext) NewTargetResolver(address string, selector string, skipTargetStatus bool, namespace string) (service.TargetResolver, error) {
 	return nil, nil
 }
 

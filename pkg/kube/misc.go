@@ -67,9 +67,11 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 	} else if targetType == "pods" {
 		return nil, fmt.Errorf("VAN service interfaces for pods not yet implemented")
 	} else if targetType == "service" {
+		var svcName, svcNamespace string = GetServiceName(targetName, namespace)
+		var fName = fmt.Sprintf("%s.%s", svcName, svcNamespace)
 		target := types.ServiceInterfaceTarget{
-			Name:    targetName,
-			Service: targetName,
+			Name:    fName,
+			Service: fName,
 		}
 		if deducePort {
 			ports, err := GetPortsForServiceTarget(targetName, namespace, cli)

@@ -138,3 +138,13 @@ func DefaultStr(values ...string) string {
 	}
 	return DefaultStr(values[1:]...)
 }
+
+func GetOrDefault(str string, defaultStr string) string {
+	var result string
+	if len(str) > 0 {
+		result = str
+	} else {
+		result = defaultStr
+	}
+	return result
+}

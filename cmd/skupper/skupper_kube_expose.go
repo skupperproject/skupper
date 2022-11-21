@@ -121,6 +121,7 @@ func (s *SkupperKubeService) ExposeFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
 	cmd.Flags().StringVar(&exposeOpts.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
 	cmd.Flags().BoolVar(&exposeOpts.PublishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
+	cmd.Flags().StringVar(&exposeOpts.Namespace, "namespace", "", "Expose resources from a specific namespace")
 }
 
 func (s *SkupperKubeService) Unexpose(cmd *cobra.Command, args []string) error {
