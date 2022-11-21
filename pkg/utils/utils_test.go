@@ -53,3 +53,27 @@ func TestSliceEquals(t *testing.T) {
 		})
 	}
 }
+
+func TestGetOrDefault(t *testing.T) {
+	type test struct {
+		name         string
+		value        string
+		defaultValue string
+		result       string
+	}
+
+	testTable := []test{
+		{name: "empty string", value: "", defaultValue: "default-value", result: "default-value"},
+		{name: "valid value", value: "provided-value", defaultValue: "default-value", result: "provided-value"},
+		{name: "both empty", value: "", defaultValue: "", result: ""},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			expectedResult := test.result
+			actualResult := GetOrDefault(test.value, test.defaultValue)
+			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+		})
+	}
+}
