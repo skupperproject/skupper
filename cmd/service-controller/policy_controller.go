@@ -345,7 +345,7 @@ func (c *PolicyController) validateExposeStateChanged() {
 			continue
 		}
 		for _, target := range service.Targets {
-			targetType := c.inferTargetType(target)
+			targetType := c.inferTargetType(target, utils.GetOrDefault(service.Namespace, c.cli.GetNamespace()))
 			res := c.validator.ValidateExpose(targetType, target.Name)
 			if res.Error() != nil {
 				event.Recordf(c.name, "[validateExposeStateChanged] error validating if target can still be exposed: %v", err)
@@ -397,7 +397,7 @@ func (c *PolicyController) validateServiceStateChanged() {
 	}
 }
 
-func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget) string {
+func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget, namespace string) string {
 	if target.Service != "" {
 		return "service"
 	}
@@ -406,7 +406,7 @@ func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget) 
 	}
 	getBySelector := func(targetTypes ...string) string {
 		for _, targetType := range targetTypes {
-			retTarget, err := kube.GetServiceInterfaceTarget(targetType, target.Name, true, c.cli.Namespace, c.cli.KubeClient, c.cli.OCAppsClient)
+			retTarget, err := kube.GetServiceInterfaceTarget(targetType, target.Name, true, namespace, c.cli.KubeClient, c.cli.OCAppsClient)
 			if err == nil {
 				if retTarget.Selector == target.Selector {
 					return targetType

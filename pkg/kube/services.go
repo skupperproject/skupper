@@ -130,15 +130,7 @@ func GetLoadBalancerHostOrIp(service *corev1.Service) string {
 
 func GetPortsForServiceTarget(targetName string, defaultNamespace string, kubeclient kubernetes.Interface) (map[int]int, error) {
 	ports := map[int]int{}
-	parts := strings.Split(targetName, ".")
-	var name, namespace string
-	if len(parts) > 1 {
-		name = parts[0]
-		namespace = parts[1]
-	} else {
-		name = targetName
-		namespace = defaultNamespace
-	}
+	var name, namespace string = GetServiceName(targetName, defaultNamespace)
 	targetSvc, err := GetService(name, namespace, kubeclient)
 	if err == nil {
 		if len(targetSvc.Spec.Ports) > 0 {
@@ -153,6 +145,19 @@ func GetPortsForServiceTarget(targetName string, defaultNamespace string, kubecl
 	} else {
 		return ports, err
 	}
+}
+
+func GetServiceName(targetName string, defaultNamespace string) (string, string) {
+	parts := strings.Split(targetName, ".")
+	var name, namespace string
+	if len(parts) > 1 {
+		name = parts[0]
+		namespace = parts[1]
+	} else {
+		name = targetName
+		namespace = defaultNamespace
+	}
+	return name, namespace
 }
 
 func CopyService(src string, dest string, annotations map[string]string, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {

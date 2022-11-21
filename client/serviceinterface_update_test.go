@@ -242,6 +242,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	}
 
 	var namespace string = "van-serviceinterface-update"
+	var anotherNamespace string = "another-namespace"
 	var cli *VanClient
 	var err error
 	if *clusterRun {
@@ -253,6 +254,9 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 
 	_, err = kube.NewNamespace(namespace, cli.KubeClient)
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
+
+	_, err = kube.NewNamespace(anotherNamespace, cli.KubeClient)
+	defer kube.DeleteNamespace(anotherNamespace, cli.KubeClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -273,9 +277,12 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced)
 
 	// create three service targets
+	deploymentsNamespace := cli.KubeClient.AppsV1().Deployments(anotherNamespace)
 	deployments := cli.KubeClient.AppsV1().Deployments(namespace)
 	statefulSets := cli.KubeClient.AppsV1().StatefulSets(namespace)
 
+	_, err = deploymentsNamespace.Create(ctx, tcpDeployment, metav1.CreateOptions{})
+	assert.Assert(t, err)
 	_, err = deployments.Create(ctx, tcpDeployment, metav1.CreateOptions{})
 	assert.Assert(t, err)
 	_, err = statefulSets.Create(ctx, tcpStatefulSet, metav1.CreateOptions{})
@@ -355,6 +362,19 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(ctx, &serviceCert, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
+	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
+		Address:      "tcp-go-echo-namespace",
+		Protocol:     "tcp",
+		Ports:        []int{9090},
+		EventChannel: false,
+		Aggregate:    "",
+		Namespace:    anotherNamespace,
+	})
+	assert.Assert(t, err)
+	serviceCert = certs.GenerateSecret("tcp-go-echo-namespace-echo", "tcp-go-echo", "tcp-go-echo", siteCA)
+	_, err = cli.KubeClient.CoreV1().Secrets(anotherNamespace).Create(&serviceCert)
+	assert.Assert(t, err)
+
 	// bind services to targets
 	// TODO: could range on list if target type was not needed for bind
 	si, err := cli.ServiceInterfaceInspect(ctx, "tcp-go-echo")
@@ -376,9 +396,15 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx", map[int]int{8080: 8080, 9090: 8080})
 	assert.Assert(t, err)
 
+	// test deployment in another namespace
+	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-namespace")
+	assert.Assert(t, err)
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", "tcp", map[int]int{9090: 9090})
+	assert.Assert(t, err)
+
 	items, err := cli.ServiceInterfaceList(ctx)
 	assert.Assert(t, err)
-	assert.Equal(t, len(items), 3)
+	assert.Equal(t, len(items), 4)
 
 	if *clusterRun {
 		// this delay is for service-controller to update
@@ -436,10 +462,13 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "nginx", "nginx", false)
 	assert.Assert(t, err)
 
+	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo-namespace", false)
+	assert.Assert(t, err)
+
 	// and remove all defined services
 	items, err = cli.ServiceInterfaceList(ctx)
 	assert.Assert(t, err)
-	assert.Equal(t, len(items), 3)
+	assert.Equal(t, len(items), 4)
 	for _, si := range items {
 		err = cli.ServiceInterfaceRemove(ctx, si.Address)
 		assert.Assert(t, err)

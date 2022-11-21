@@ -18,7 +18,7 @@ type DummyServiceBindingContext struct {
 	hosts map[string][]string
 }
 
-func (c *DummyServiceBindingContext) NewTargetResolver(address string, selector string, skipStatusCheck bool) (TargetResolver, error) {
+func (c *DummyServiceBindingContext) NewTargetResolver(address string, selector string, skipStatusCheck bool, namespace string) (TargetResolver, error) {
 	hosts := []string{}
 	if c.hosts != nil {
 		if value, ok := c.hosts[selector]; ok {
@@ -1514,7 +1514,7 @@ type StopTestBindingContext struct {
 	resolvers []*StoppableResolver
 }
 
-func (c *StopTestBindingContext) NewTargetResolver(address string, selector string, skipStatusCheck bool) (TargetResolver, error) {
+func (c *StopTestBindingContext) NewTargetResolver(address string, selector string, skipStatusCheck bool, namespace string) (TargetResolver, error) {
 	resolver := &StoppableResolver{}
 	c.resolvers = append(c.resolvers, resolver)
 	return resolver, nil

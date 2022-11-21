@@ -43,7 +43,7 @@ type ExternalBridge interface {
 }
 
 type ServiceBindingContext interface {
-	NewTargetResolver(address string, selector string, skipTargetStatus bool) (TargetResolver, error)
+	NewTargetResolver(address string, selector string, skipTargetStatus bool, namespace string) (TargetResolver, error)
 	NewServiceIngress(def *types.ServiceInterface) ServiceIngress
 	NewExternalBridge(def *types.ServiceInterface) ExternalBridge
 }
@@ -73,6 +73,7 @@ type ServiceBindings struct {
 	TlsCertAuthority         string
 	PublishNotReadyAddresses bool
 	external                 ExternalBridge
+	Namespace                string
 }
 
 func (s *ServiceBindings) RequiresExternalBridge() bool {
@@ -127,6 +128,7 @@ func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
 		TlsCredentials:           bindings.TlsCredentials,
 		TlsCertAuthority:         bindings.TlsCertAuthority,
 		PublishNotReadyAddresses: bindings.PublishNotReadyAddresses,
+		Namespace:                bindings.Namespace,
 	}
 }
 
@@ -176,6 +178,7 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 		TlsCredentials:           required.TlsCredentials,
 		TlsCertAuthority:         required.TlsCertAuthority,
 		PublishNotReadyAddresses: required.PublishNotReadyAddresses,
+		Namespace:                required.Namespace,
 	}
 	if required.RequiresExternalBridge() {
 		sb.external = bindingContext.NewExternalBridge(&required)
@@ -252,6 +255,10 @@ func (bindings *ServiceBindings) Update(required types.ServiceInterface, binding
 
 	if bindings.TlsCertAuthority != required.TlsCertAuthority {
 		bindings.TlsCertAuthority = required.TlsCertAuthority
+	}
+
+	if bindings.Namespace != required.Namespace {
+		bindings.Namespace = required.Namespace
 	}
 
 	hasSkupperSelector := false
@@ -348,7 +355,7 @@ func (sb *ServiceBindings) HeadlessName() string {
 }
 
 func (sb *ServiceBindings) addSelectorTarget(name string, selector string, port map[int]int, controller ServiceBindingContext) error {
-	resolver, err := controller.NewTargetResolver(sb.Address, selector, sb.PublishNotReadyAddresses)
+	resolver, err := controller.NewTargetResolver(sb.Address, selector, sb.PublishNotReadyAddresses, sb.Namespace)
 	sb.targets[selector] = &EgressBindings{
 		name:        name,
 		Selector:    selector,
