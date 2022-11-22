@@ -83,10 +83,15 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	c := runtime.New(hostPort, basePath, []string{u.Scheme})
 	if u.Scheme == "https" {
 		ct := c.Transport.(*http.Transport)
-		if ct.TLSClientConfig != nil {
+		if ct.TLSClientConfig == nil {
 			ct.TLSClientConfig = &tls.Config{}
 		}
 		ct.TLSClientConfig.InsecureSkipVerify = true
+	} else {
+		ct := c.Transport.(*http.Transport)
+		ct.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return net.Dial("tcp", hostPort)
+		}
 	}
 	if isSockFile {
 		_, err := os.Stat(u.RequestURI())
@@ -203,7 +208,7 @@ func (p *PodmanRestClient) ResponseIDReader(httpClient *runtime2.ClientOperation
 func (p *PodmanRestClient) Validate() error {
 	version, err := p.Version()
 	if err != nil {
-		return fmt.Errorf("Podman service is not available on provided endpoint - %w", err)
+		return fmt.Errorf("Podman service is not available on provided endpoint (unable to verify version) - %w", err)
 	}
 	apiVersion := utils.ParseVersion(version.Server.APIVersion)
 	if apiVersion.Major < 4 {

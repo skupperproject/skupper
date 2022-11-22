@@ -1,6 +1,7 @@
 package podman
 
 import (
+	"context"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -10,7 +11,10 @@ import (
 
 func TestVolume(t *testing.T) {
 	var err error
-	cli := NewClientOrSkip(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cli, wg := NewClientOrSkip(t, ctx)
+	defer wg.Wait()
+	defer cancel()
 
 	name := RandomName("skupper-volume-test")
 	labels := map[string]string{

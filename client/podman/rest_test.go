@@ -29,15 +29,18 @@ func TestNewPodmanClient(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			var err error
 			ctx, cancel := context.WithCancel(context.Background())
 			endpoint, wg := StartPodmanService(t, ctx, tc.tcp)
 			defer wg.Wait()
 			defer cancel()
 			assert.Assert(t, endpoint != "", "invalid endpoint")
-			err := utils.RetryError(time.Second, 10, func() error {
-				_, err := NewPodmanClient(endpoint, "")
+			err = utils.RetryError(time.Second, 10, func() error {
+				_, err = NewPodmanClient(endpoint, "")
+				t.Logf("ERROR = %v", err)
 				return err
 			})
+
 			assert.Assert(t, err, "unable to create podman rest client")
 		})
 	}
@@ -78,6 +81,11 @@ func PodmanSkipValidation(t *testing.T) {
 	}
 }
 
+// StartPodmanService runs a podman service (using unix socket or tcp)
+// and will keep it running until the provided context is closed.
+// It returns the generated endpoint as well as a WaitGroup. You must
+// wait for the WaitGroup to be done, otherwise podman service might
+// remain running after you are done testing.
 func StartPodmanService(t *testing.T, ctx context.Context, tcp bool) (string, *sync.WaitGroup) {
 	// Validate if podman is available or skip
 	PodmanSkipValidation(t)
