@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		routerMode           string
 		enableController     bool
 		enableFlowCollector  bool
+		enableClusterPerms   bool
 		authMode             string
 		user                 string
 		password             string
@@ -39,6 +41,8 @@ func TestRouterCreateDefaults(t *testing.T) {
 		cmsExpected          []string
 		rolesExpected        []string
 		roleBindingsExpected []string
+		clusterRolesExpected []string
+		clusterRoleResources sets.String
 		secretsExpected      []string
 		svcsExpected         []string
 		svcAccountsExpected  []string
@@ -53,6 +57,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
 			enableFlowCollector:  false,
+			enableClusterPerms:   false,
 			authMode:             "",
 			user:                 "",
 			password:             "",
@@ -60,6 +65,8 @@ func TestRouterCreateDefaults(t *testing.T) {
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
+			clusterRolesExpected: []string{types.ControllerClusterRoleName},
+			clusterRoleResources: sets.NewString("skupperclusterpolicies", "namespaces"),
 			roleBindingsExpected: []string{types.TransportRoleBindingName, types.ControllerRoleBindingName},
 			secretsExpected: []string{types.LocalCaSecret,
 				types.SiteCaSecret,
@@ -87,6 +94,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
 			enableFlowCollector:  true,
+			enableClusterPerms:   false,
 			authMode:             "unsecured",
 			user:                 "",
 			password:             "",
@@ -94,6 +102,8 @@ func TestRouterCreateDefaults(t *testing.T) {
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
+			clusterRolesExpected: []string{types.ControllerClusterRoleName},
+			clusterRoleResources: sets.NewString("skupperclusterpolicies", "namespaces"),
 			roleBindingsExpected: []string{types.TransportRoleBindingName, types.ControllerRoleBindingName},
 			secretsExpected: []string{types.LocalCaSecret,
 				types.SiteCaSecret,
@@ -122,6 +132,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
 			enableFlowCollector:  true,
+			enableClusterPerms:   false,
 			authMode:             "internal",
 			user:                 "",
 			password:             "",
@@ -129,6 +140,8 @@ func TestRouterCreateDefaults(t *testing.T) {
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName, "skupper-sasl-config"},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
+			clusterRolesExpected: []string{types.ControllerClusterRoleName},
+			clusterRoleResources: sets.NewString("skupperclusterpolicies", "namespaces"),
 			roleBindingsExpected: []string{types.TransportRoleBindingName, types.ControllerRoleBindingName},
 			secretsExpected: []string{types.LocalCaSecret,
 				types.SiteCaSecret,
@@ -158,6 +171,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			routerMode:           string(types.TransportModeInterior),
 			enableController:     true,
 			enableFlowCollector:  true,
+			enableClusterPerms:   false,
 			authMode:             "openshift",
 			user:                 "",
 			password:             "",
@@ -165,6 +179,8 @@ func TestRouterCreateDefaults(t *testing.T) {
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
+			clusterRolesExpected: []string{types.ControllerClusterRoleName},
+			clusterRoleResources: sets.NewString("skupperclusterpolicies", "namespaces"),
 			roleBindingsExpected: []string{types.TransportRoleBindingName, types.ControllerRoleBindingName},
 			secretsExpected: []string{types.LocalCaSecret,
 				types.SiteCaSecret,
@@ -193,6 +209,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			routerMode:           string(types.TransportModeEdge),
 			enableController:     true,
 			enableFlowCollector:  true,
+			enableClusterPerms:   false,
 			authMode:             "unsecured",
 			user:                 "Barney",
 			password:             "Rubble",
@@ -200,6 +217,8 @@ func TestRouterCreateDefaults(t *testing.T) {
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
+			clusterRolesExpected: []string{types.ControllerClusterRoleName},
+			clusterRoleResources: sets.NewString("skupperclusterpolicies", "namespaces"),
 			roleBindingsExpected: []string{types.TransportRoleBindingName, types.ControllerRoleBindingName},
 			secretsExpected: []string{types.LocalCaSecret,
 				types.ConsoleServerSecret,
@@ -208,6 +227,43 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.ServiceCaSecret,
 				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName},
+			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
+			opts: []cmp.Option{
+				trans,
+				cmpopts.IgnoreSliceElements(func(v string) bool { return !strings.HasPrefix(v, "skupper") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "dockercfg") }),
+				cmpopts.IgnoreSliceElements(func(v string) bool { return strings.Contains(v, "token") }),
+			},
+		},
+		{
+			namespace:            "van-router-create6",
+			siteId:               "66666",
+			expectedError:        "",
+			doc:                  "test six",
+			skupperName:          "skupper6",
+			routerMode:           string(types.TransportModeInterior),
+			enableController:     true,
+			enableFlowCollector:  true,
+			enableClusterPerms:   true,
+			authMode:             "",
+			user:                 "",
+			password:             "",
+			clusterLocal:         true,
+			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
+			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
+			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
+			clusterRolesExpected: []string{types.ControllerClusterRoleName},
+			clusterRoleResources: sets.NewString("ingresses", "skupperclusterpolicies", "namespaces", "services", "configmaps", "pods", "secrets", "deployments", "statefulsets", "daemonsets"),
+			roleBindingsExpected: []string{types.TransportRoleBindingName, types.ControllerRoleBindingName},
+			secretsExpected: []string{types.LocalCaSecret,
+				types.SiteCaSecret,
+				types.LocalServerSecret,
+				types.LocalClientSecret,
+				types.ClaimsServerSecret,
+				types.SiteServerSecret,
+				types.ServiceCaSecret,
+				types.ServiceClientSecret},
+			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName, types.TransportServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName},
 			opts: []cmp.Option{
 				trans,
@@ -230,6 +286,8 @@ func TestRouterCreateDefaults(t *testing.T) {
 		depsFound := []string{}
 		cmsFound := []string{}
 		rolesFound := []string{}
+		clusterRolesFound := []string{}
+		clusterRolesResourcesFound := sets.NewString()
 		roleBindingsFound := []string{}
 		secretsFound := []string{}
 		svcsFound := []string{}
@@ -271,6 +329,16 @@ func TestRouterCreateDefaults(t *testing.T) {
 				rolesFound = append(rolesFound, role.Name)
 			},
 		})
+		clusterRoleInformer := informers.Rbac().V1().ClusterRoles().Informer()
+		clusterRoleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				clusterRole := obj.(*rbacv1.ClusterRole)
+				clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
+				for _, p := range clusterRole.Rules {
+					clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+				}
+			},
+		})
 		roleBindingInformer := informers.Rbac().V1().RoleBindings().Informer()
 		roleBindingInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
@@ -307,6 +375,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), secretInformer.HasSynced)
 		cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced)
 		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
+		cache.WaitForCacheSync(ctx.Done(), clusterRoleInformer.HasSynced)
 
 		getIngress := func() string {
 			if c.clusterLocal || !isCluster {
@@ -317,15 +386,16 @@ func TestRouterCreateDefaults(t *testing.T) {
 
 		err = cli.RouterCreate(ctx, types.SiteConfig{
 			Spec: types.SiteConfigSpec{
-				SkupperName:         c.skupperName,
-				RouterMode:          c.routerMode,
-				EnableController:    c.enableController,
-				EnableServiceSync:   true,
-				AuthMode:            c.authMode,
-				EnableFlowCollector: c.enableFlowCollector,
-				User:                c.user,
-				Password:            c.password,
-				Ingress:             getIngress(),
+				SkupperName:              c.skupperName,
+				RouterMode:               c.routerMode,
+				EnableController:         c.enableController,
+				EnableServiceSync:        true,
+				AuthMode:                 c.authMode,
+				EnableFlowCollector:      c.enableFlowCollector,
+				EnableClusterPermissions: c.enableClusterPerms,
+				User:                     c.user,
+				Password:                 c.password,
+				Ingress:                  getIngress(),
 			},
 			Reference: types.SiteConfigReference{
 				UID: c.siteId,
@@ -343,6 +413,12 @@ func TestRouterCreateDefaults(t *testing.T) {
 		}
 		if diff := cmp.Diff(c.rolesExpected, rolesFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" roles mismatch (-want +got):\n%s", diff)
+		}
+		if diff := cmp.Diff(c.clusterRolesExpected, clusterRolesFound, c.opts...); diff != "" {
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" cluster roles mismatch (-want +got):\n%s", diff)
+		}
+		if diff := cmp.Diff(c.clusterRoleResources, clusterRolesResourcesFound, c.opts...); diff != "" {
+			t.Errorf("TestRouterCreateDefaults "+c.doc+" cluster roles policy resources mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.roleBindingsExpected, roleBindingsFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" role bindings mismatch (-want +got):\n%s", diff)
