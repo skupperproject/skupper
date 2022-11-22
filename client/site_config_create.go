@@ -107,6 +107,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			SiteConfigServiceSyncKey:           "true",
 			SiteConfigConsoleKey:               "true",
 			SiteConfigFlowCollectorKey:         "true",
+			SiteConfigClusterPermissionsKey:    "false",
 			SiteConfigRouterConsoleKey:         "false",
 			SiteConfigRouterLoggingKey:         "",
 			SiteConfigConsoleAuthenticationKey: types.ConsoleAuthModeInternal,
@@ -171,6 +172,7 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		siteConfig.Data[SiteConfigCreateNetworkPolicyKey] = "true"
 	}
 <<<<<<< HEAD
+<<<<<<< HEAD
 	if spec.RunAsUser != 0 {
 		siteConfig.Data[SiteConfigRunAsUserKey] = strconv.FormatInt(spec.RunAsUser, 10)
 	}
@@ -180,6 +182,10 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if !spec.EnableClusterPermissions {
 		siteConfig.Data[SiteConfigClusterPermissionsKey] = "false"
 >>>>>>> ea28d53 (address pr comments)
+=======
+	if spec.EnableClusterPermissions {
+		siteConfig.Data[SiteConfigClusterPermissionsKey] = "true"
+>>>>>>> fa54ec5 (fix new flag exposure)
 	}
 	if spec.Router.Logging != nil {
 		siteConfig.Data[SiteConfigRouterLoggingKey] = qdr.RouterLogConfigToString(spec.Router.Logging)
