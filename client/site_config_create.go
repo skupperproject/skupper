@@ -24,8 +24,12 @@ const (
 	SiteConfigIngressHostKey         string = "ingress-host"
 	SiteConfigCreateNetworkPolicyKey string = "create-network-policy"
 	SiteConfigRoutersKey             string = "routers"
+<<<<<<< HEAD
 	SiteConfigRunAsUserKey           string = "run-as-user"
 	SiteConfigRunAsGroupKey          string = "run-as-group"
+=======
+	SiteConfigClusterPermissionsKey  string = "cluster-permissions"
+>>>>>>> ea28d53 (address pr comments)
 
 	// console options
 	SiteConfigConsoleKey               string = "console"
@@ -166,11 +170,16 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.CreateNetworkPolicy {
 		siteConfig.Data[SiteConfigCreateNetworkPolicyKey] = "true"
 	}
+<<<<<<< HEAD
 	if spec.RunAsUser != 0 {
 		siteConfig.Data[SiteConfigRunAsUserKey] = strconv.FormatInt(spec.RunAsUser, 10)
 	}
 	if spec.RunAsGroup != 0 {
 		siteConfig.Data[SiteConfigRunAsGroupKey] = strconv.FormatInt(spec.RunAsGroup, 10)
+=======
+	if !spec.EnableClusterPermissions {
+		siteConfig.Data[SiteConfigClusterPermissionsKey] = "false"
+>>>>>>> ea28d53 (address pr comments)
 	}
 	if spec.Router.Logging != nil {
 		siteConfig.Data[SiteConfigRouterLoggingKey] = qdr.RouterLogConfigToString(spec.Router.Logging)

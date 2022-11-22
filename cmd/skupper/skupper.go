@@ -696,10 +696,14 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
+<<<<<<< HEAD
 	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "generate-tls-secrets", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
 	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to encrypt the communication using TLS (valid only for http2 and tcp protocols)")
 	cmd.Flags().StringVar(&serviceToCreate.Namespace, "namespace", "", "Expose resources from a specific namespace")
+=======
+	cmd.Flags().StringVar(&serviceToCreate.Namespace, "target-namespace", "", "Expose resources from a specific namespace")
+>>>>>>> ea28d53 (address pr comments)
 
 	// platform specific flags
 	skupperClient.CreateFlags(cmd)

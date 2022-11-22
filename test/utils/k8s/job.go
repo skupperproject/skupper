@@ -83,13 +83,8 @@ func createTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 							Command: command,
 							Env: append([]apiv1.EnvVar{
 								{Name: "JOB", Value: name},
-<<<<<<< HEAD
-							},
-							ImagePullPolicy: GetTestImagePullPolicy(),
-=======
 							}, env...),
-							ImagePullPolicy: apiv1.PullAlways,
->>>>>>> 70e522c (support exposing deployments/statefulsets cross namespace)
+							ImagePullPolicy: GetTestImagePullPolicy(),
 						},
 					},
 					RestartPolicy: apiv1.RestartPolicyNever,
