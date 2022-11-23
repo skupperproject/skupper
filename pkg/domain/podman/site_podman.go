@@ -58,8 +58,16 @@ func NewSitePodmanHandler(endpoint string) (*SitePodmanHandler, error) {
 
 func (s *SitePodmanHandler) prepare(site domain.Site) (domain.Site, error) {
 	podmanSite, ok := site.(*SitePodman)
+
 	if !ok {
 		return nil, fmt.Errorf("not a valid podman site definition")
+	}
+	podmanSite.Platform = types.PlatformPodman
+	if podmanSite.Mode == "" {
+		podmanSite.Mode = "interior"
+	}
+	if podmanSite.ContainerNetwork == "" {
+		podmanSite.ContainerNetwork = container.ContainerNetworkName
 	}
 
 	// Validating basic info

@@ -138,6 +138,9 @@ func (s *SkupperPodmanSite) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	siteHandler, err := podman.NewSitePodmanHandler("")
+	if err != nil {
+		return err
+	}
 	site, err := siteHandler.Get()
 	if err != nil {
 		fmt.Printf("Skupper is not enabled for '%s'\n", podman.Username)
