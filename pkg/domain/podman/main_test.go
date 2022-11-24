@@ -88,19 +88,19 @@ func TestMain(m *testing.M) {
 
 		err = configureSiteAndCreateRouter(context.Background(), cliKube, "skupper-k8s")
 		if err != nil {
-			teardown()
+			teardownKube()
 		}
 	}
 
 	rc := m.Run()
 
 	// Teardown
-	teardown()
+	teardownKube()
 
 	os.Exit(rc)
 }
 
-func teardown() {
+func teardownKube() {
 	if *clusterRun {
 		err := kube.DeleteNamespace(NS, cliKube.KubeClient)
 		if err != nil {
