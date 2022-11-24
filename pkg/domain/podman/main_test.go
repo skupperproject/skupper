@@ -1,5 +1,5 @@
-//go:build system || podman
-// +build system podman
+//go:build podman
+// +build podman
 
 package podman
 
