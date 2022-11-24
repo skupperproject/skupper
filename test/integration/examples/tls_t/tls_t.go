@@ -56,11 +56,8 @@ var Deployment *appsv1.Deployment = &appsv1.Deployment{
 			Spec: apiv1.PodSpec{
 				Containers: []apiv1.Container{
 					{
-						Name: "ssl-server",
-						//Image: "localhost.localdomain:5000/skupper-tests:latest",
-						//Image:           "quay.io/skupper/skupper-tests",
-						// TODO: Use var or default
-						Image:           "quay.io/dhashimo/skupper-tests",
+						Name:            "ssl-server",
+						Image:           k8s.GetTestImage(),
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Args: []string{
 							"sh", "-c",
