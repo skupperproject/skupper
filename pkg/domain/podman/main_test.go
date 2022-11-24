@@ -14,6 +14,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -31,6 +32,7 @@ var (
 const (
 	ENV_PODMAN_ENDPOINT = "SKUPPER_TEST_PODMAN_ENDPOINT"
 	NS                  = "podman-system-test"
+	NGINX_IMAGE         = "nginxinc/nginx-unprivileged:stable-alpine"
 )
 
 // newBasicSite returns a new instance of a basic SitePodman instance
@@ -43,6 +45,22 @@ func newBasicSite() domain.Site {
 		IngressHosts:   []string{"127.0.0.1"},
 		PodmanEndpoint: getEndpoint(),
 	}
+}
+
+func createBasicSite() error {
+	siteHandler, err := NewSitePodmanHandler(getEndpoint())
+	if err != nil {
+		return err
+	}
+	return siteHandler.Create(newBasicSite())
+}
+
+func teardownBasicSite() error {
+	siteHandler, err := NewSitePodmanHandler(getEndpoint())
+	if err != nil {
+		return err
+	}
+	return siteHandler.Delete()
 }
 
 func getEndpoint() string {
@@ -117,5 +135,24 @@ func configureSiteAndCreateRouter(ctx context.Context, cli *client.VanClient, na
 		}
 	}
 
+	return nil
+}
+
+func runNginxContainer() error {
+	if err := cli.ImagePull(NGINX_IMAGE); err != nil {
+		return err
+	}
+	c := container.Container{
+		Name:     "nginx-container",
+		Image:    NGINX_IMAGE,
+		Networks: map[string]container.ContainerNetworkInfo{},
+	}
+	c.Networks[container.ContainerNetworkName] = container.ContainerNetworkInfo{ID: container.ContainerNetworkName}
+	if err := cli.ContainerCreate(&c); err != nil {
+		return err
+	}
+	if err := cli.ContainerStart(c.Name); err != nil {
+		return err
+	}
 	return nil
 }
