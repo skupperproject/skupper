@@ -174,7 +174,8 @@ func (s *SitePodmanHandler) Create(site domain.Site) error {
 	// cleanup on error
 	defer func() {
 		if err != nil {
-			for _, fn := range cleanupFns {
+			for i := len(cleanupFns) - 1; i >= 0; i-- {
+				fn := cleanupFns[i]
 				fn()
 			}
 		}
@@ -244,12 +245,12 @@ func (s *SitePodmanHandler) Create(site domain.Site) error {
 		var vol *container.Volume
 		vol, err = s.cli.VolumeInspect(volumeName)
 		if vol == nil && err != nil {
-			_, err = s.cli.VolumeCreate(&container.Volume{Name: volumeName})
+			vol, err = s.cli.VolumeCreate(&container.Volume{Name: volumeName})
 			if err != nil {
 				return err
 			}
 			cleanupFns = append(cleanupFns, func() {
-				_ = s.cli.VolumeRemove(volumeName)
+				_ = s.cli.VolumeRemove(vol.Name)
 			})
 		}
 	}
@@ -261,6 +262,9 @@ func (s *SitePodmanHandler) Create(site domain.Site) error {
 		if err != nil {
 			return err
 		}
+		cleanupFns = append(cleanupFns, func() {
+			_ = deployHandler.Undeploy(depl.GetName())
+		})
 	}
 
 	// Creating startup scripts first

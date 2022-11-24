@@ -10,12 +10,18 @@ import (
 	"gotest.tools/assert"
 )
 
+var (
+	siteHandlerCreated bool
+)
+
 func TestSiteHandlerCreate(t *testing.T) {
 	siteHandler, err := NewSitePodmanHandler(getEndpoint())
 	assert.Assert(t, err)
 
-	err = siteHandler.Create(siteBasic)
+	err = siteHandler.Create(newBasicSite())
 	assert.Assert(t, err)
+
+	siteHandlerCreated = true
 }
 
 func TestSiteHandlerGet(t *testing.T) {
@@ -26,7 +32,7 @@ func TestSiteHandlerGet(t *testing.T) {
 	assert.Assert(t, err)
 
 	podmanSite := site.(*SitePodman)
-	assert.Assert(t, podmanSite.GetName() == siteBasic.GetName())
+	assert.Assert(t, podmanSite.GetName() == newBasicSite().GetName())
 	assert.Assert(t, podmanSite.GetMode() == "interior")
 	assert.Assert(t, podmanSite.ContainerNetwork == container.ContainerNetworkName)
 	assert.Assert(t, len(podmanSite.IngressHosts) > 0)
@@ -39,6 +45,10 @@ func TestSiteHandlerGet(t *testing.T) {
 }
 
 func TestSiteHandlerDelete(t *testing.T) {
+	if !siteHandlerCreated {
+		t.Skip("site not created by this test")
+	}
+
 	siteHandler, err := NewSitePodmanHandler(getEndpoint())
 	assert.Assert(t, err)
 	err = siteHandler.Delete()
