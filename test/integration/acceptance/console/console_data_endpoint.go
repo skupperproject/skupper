@@ -133,7 +133,7 @@ func Setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err := privateCluster.VanClient.ServiceInterfaceCreate(ctx, &backsvc)
 	assert.Assert(t, err)
 
-	err = privateCluster.VanClient.ServiceInterfaceBind(ctx, &backsvc, "deployment", "hello-world-backend", map[int]int{8080: 8080})
+	err = privateCluster.VanClient.ServiceInterfaceBind(ctx, &backsvc, "deployment", "hello-world-backend", map[int]int{8080: 8080}, "")
 	assert.Assert(t, err)
 
 	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(publicCluster.Namespace, publicCluster.VanClient.KubeClient, "hello-world-backend")
@@ -142,7 +142,7 @@ func Setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = publicCluster.VanClient.ServiceInterfaceCreate(ctx, &frontsvc)
 	assert.Assert(t, err)
 
-	err = publicCluster.VanClient.ServiceInterfaceBind(ctx, &frontsvc, "deployment", "hello-world-frontend", map[int]int{8080: 8080})
+	err = publicCluster.VanClient.ServiceInterfaceBind(ctx, &frontsvc, "deployment", "hello-world-frontend", map[int]int{8080: 8080}, "")
 	assert.Assert(t, err)
 
 	_, err = k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(publicCluster.Namespace, publicCluster.VanClient.KubeClient, "hello-world-frontend")

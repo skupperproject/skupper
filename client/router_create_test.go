@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"strings"
 	"testing"
@@ -306,30 +307,34 @@ func TestRouterCreateDefaults(t *testing.T) {
 		_, err = kube.NewNamespace(c.namespace, cli.KubeClient)
 		assert.Check(t, err, c.doc)
 		defer kube.DeleteNamespace(c.namespace, cli.KubeClient)
+		err = cli.KubeClient.RbacV1().ClusterRoles().Delete(types.ControllerClusterRoleName, &metav1.DeleteOptions{})
+		fieldSelector := fields.OneTermEqualSelector("metadata.name", types.ControllerClusterRoleName).String()
 
-		informers := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0, informers.WithNamespace(c.namespace))
-		depInformer := informers.Apps().V1().Deployments().Informer()
+		clusterRoleInformerFactory := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0,
+			informers.WithTweakListOptions(func(opts *metav1.ListOptions) { opts.FieldSelector = fieldSelector }))
+		informerFactory := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0, informers.WithNamespace(c.namespace))
+		depInformer := informerFactory.Apps().V1().Deployments().Informer()
 		depInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				dep := obj.(*appsv1.Deployment)
 				depsFound = append(depsFound, dep.Name)
 			},
 		})
-		cmInformer := informers.Core().V1().ConfigMaps().Informer()
+		cmInformer := informerFactory.Core().V1().ConfigMaps().Informer()
 		cmInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				cm := obj.(*corev1.ConfigMap)
 				cmsFound = append(cmsFound, cm.Name)
 			},
 		})
-		roleInformer := informers.Rbac().V1().Roles().Informer()
+		roleInformer := informerFactory.Rbac().V1().Roles().Informer()
 		roleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				role := obj.(*rbacv1.Role)
 				rolesFound = append(rolesFound, role.Name)
 			},
 		})
-		clusterRoleInformer := informers.Rbac().V1().ClusterRoles().Informer()
+		clusterRoleInformer := clusterRoleInformerFactory.Rbac().V1().ClusterRoles().Informer()
 		clusterRoleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				clusterRole := obj.(*rbacv1.ClusterRole)
@@ -339,35 +344,36 @@ func TestRouterCreateDefaults(t *testing.T) {
 				}
 			},
 		})
-		roleBindingInformer := informers.Rbac().V1().RoleBindings().Informer()
+		roleBindingInformer := informerFactory.Rbac().V1().RoleBindings().Informer()
 		roleBindingInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				roleBinding := obj.(*rbacv1.RoleBinding)
 				roleBindingsFound = append(roleBindingsFound, roleBinding.Name)
 			},
 		})
-		secretInformer := informers.Core().V1().Secrets().Informer()
+		secretInformer := informerFactory.Core().V1().Secrets().Informer()
 		secretInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				secret := obj.(*corev1.Secret)
 				secretsFound = append(secretsFound, secret.Name)
 			},
 		})
-		svcInformer := informers.Core().V1().Services().Informer()
+		svcInformer := informerFactory.Core().V1().Services().Informer()
 		svcInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				svc := obj.(*corev1.Service)
 				svcsFound = append(svcsFound, svc.Name)
 			},
 		})
-		svcAccountInformer := informers.Core().V1().ServiceAccounts().Informer()
+		svcAccountInformer := informerFactory.Core().V1().ServiceAccounts().Informer()
 		svcAccountInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				svcAccount := obj.(*corev1.ServiceAccount)
 				svcAccountsFound = append(svcAccountsFound, svcAccount.Name)
 			},
 		})
-		informers.Start(ctx.Done())
+		clusterRoleInformerFactory.Start(ctx.Done())
+		informerFactory.Start(ctx.Done())
 		cache.WaitForCacheSync(ctx.Done(), depInformer.HasSynced)
 		cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced)
 		cache.WaitForCacheSync(ctx.Done(), roleInformer.HasSynced)

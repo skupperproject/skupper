@@ -120,6 +120,13 @@ type ExposeOptions struct {
 	Namespace                string
 }
 
+type BindOptions struct {
+	TargetPorts              []string
+	PublishNotReadyAddresses bool
+	tlsCertAuthority         string
+	Namespace                string
+}
+
 func SkupperNotInstalledError(namespace string) error {
 	return fmt.Errorf("Skupper is not installed in Namespace: '" + namespace + "`")
 
@@ -272,7 +279,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", err
 	}
 
-	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, targetPorts)
+	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, targetPorts, options.Namespace)
 	if errors.IsNotFound(err) {
 		return "", SkupperNotInstalledError(cli.GetNamespace())
 	} else if err != nil {
@@ -524,6 +531,7 @@ func NewCmdExpose(skupperCli SkupperServiceClient) *cobra.Command {
 }
 
 var unexposeAddress string
+var unexposeNamespace string
 
 func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -534,6 +542,7 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 		RunE:   skupperCli.Unexpose,
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
+	cmd.Flags().StringVar(&unexposeNamespace, "target-namespace", "", "Target namespace from previously exposed service")
 	skupperCli.UnexposeFlags(cmd)
 	return cmd
 }
@@ -696,14 +705,10 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
-<<<<<<< HEAD
 	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "generate-tls-secrets", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
 	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to encrypt the communication using TLS (valid only for http2 and tcp protocols)")
-	cmd.Flags().StringVar(&serviceToCreate.Namespace, "namespace", "", "Expose resources from a specific namespace")
-=======
 	cmd.Flags().StringVar(&serviceToCreate.Namespace, "target-namespace", "", "Expose resources from a specific namespace")
->>>>>>> ea28d53 (address pr comments)
 
 	// platform specific flags
 	skupperClient.CreateFlags(cmd)
@@ -733,9 +738,7 @@ func NewCmdDeleteService(skupperClient SkupperServiceClient) *cobra.Command {
 	return cmd
 }
 
-var targetPorts []string
-var publishNotReadyAddresses bool
-var tlsCertAuthority string
+var bindOptions BindOptions
 
 func NewCmdBind(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -750,8 +753,8 @@ func NewCmdBind(skupperClient SkupperServiceClient) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringSliceVar(&targetPorts, "target-port", []string{}, "The port the target is listening on (you can also use colon to map source-port to a target-port).")
-	cmd.Flags().StringVar(&tlsCertAuthority, "tls-trust", "", "K8s secret name with the CA to expose the service over TLS (valid only for http2 and tcp protocols)")
+	cmd.Flags().StringSliceVar(&bindOptions.TargetPorts, "target-port", []string{}, "The port the target is listening on (you can also use colon to map source-port to a target-port).")
+	cmd.Flags().StringVar(&bindOptions.tlsCertAuthority, "tls-trust", "", "K8s secret name with the CA to expose the service over TLS (valid only for http2 and tcp protocols)")
 
 	skupperClient.BindFlags(cmd)
 	return cmd
@@ -796,6 +799,8 @@ func parsePortMapping(service *types.ServiceInterface, targetPorts []string) (ma
 	return ports, nil
 }
 
+var unbindNamespace string
+
 func NewCmdUnbind(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unbind <service-name> <target-type> <target-name>",
@@ -804,6 +809,8 @@ func NewCmdUnbind(skupperClient SkupperServiceClient) *cobra.Command {
 		PreRun: skupperClient.NewClient,
 		RunE:   skupperClient.Unbind,
 	}
+
+	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace from previously bound service")
 	return cmd
 }
 

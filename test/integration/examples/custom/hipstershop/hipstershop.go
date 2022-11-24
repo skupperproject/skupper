@@ -67,12 +67,13 @@ func CreateVAN(t *testing.T, testRunner base.ClusterTestRunner) {
 	prv1, _ := testRunner.GetPrivateContext(1)
 
 	siteConfigSpec := types.SiteConfigSpec{
-		SiteControlled:    true,
-		EnableController:  true,
-		EnableServiceSync: true,
-		User:              "admin",
-		Password:          "admin",
-		Router:            constants.DefaultRouterOptions(nil),
+		SiteControlled:           true,
+		EnableController:         true,
+		EnableServiceSync:        true,
+		EnableClusterPermissions: true,
+		User:                     "admin",
+		Password:                 "admin",
+		Router:                   constants.DefaultRouterOptions(nil),
 	}
 
 	// If using only 1 cluster, set ClusterLocal to True
@@ -228,8 +229,8 @@ func exposePrivate1Resources(t *testing.T, prv1 *base.ClusterContext) {
 	assert.Assert(t, prv1.VanClient.ServiceInterfaceCreate(ctx, productCatalogSvc))
 	assert.Assert(t, prv1.VanClient.ServiceInterfaceCreate(ctx, recommendationSvc))
 	t.Logf("Binding service interfaces in private1 cluster")
-	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, productCatalogSvc, "deployment", productCatalogSvc.Address, map[int]int{3550: 3550}))
-	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, recommendationSvc, "deployment", recommendationSvc.Address, map[int]int{8080: 8080}))
+	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, productCatalogSvc, "deployment", productCatalogSvc.Address, map[int]int{3550: 3550}, ""))
+	assert.Assert(t, prv1.VanClient.ServiceInterfaceBind(ctx, recommendationSvc, "deployment", recommendationSvc.Address, map[int]int{8080: 8080}, ""))
 }
 
 // cartservice depends on redis, so the later needs to be exposed
@@ -243,7 +244,7 @@ func exposeRedis(t *testing.T, pub1 *base.ClusterContext) {
 	t.Logf("creating redis service interface in public1 cluster")
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, redisSvc))
 	t.Logf("binding redis service interface in public1 cluster")
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, redisSvc, "deployment", redisSvc.Address, map[int]int{6379: 6379}))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, redisSvc, "deployment", redisSvc.Address, map[int]int{6379: 6379}, ""))
 }
 
 func exposePublic1Resources(t *testing.T, pub1 *base.ClusterContext) {
@@ -275,10 +276,10 @@ func exposePublic1Resources(t *testing.T, pub1 *base.ClusterContext) {
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, currencySvc))
 	assert.Assert(t, pub1.VanClient.ServiceInterfaceCreate(ctx, adSvc))
 	t.Logf("binding service interfaces in public1 cluster")
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, checkoutSvc, "deployment", checkoutSvc.Address, map[int]int{5050: 5050}))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, cartSvc, "deployment", cartSvc.Address, map[int]int{7070: 7070}))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, currencySvc, "deployment", currencySvc.Address, map[int]int{7000: 7000}))
-	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, adSvc, "deployment", adSvc.Address, map[int]int{9555: 9555}))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, checkoutSvc, "deployment", checkoutSvc.Address, map[int]int{5050: 5050}, ""))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, cartSvc, "deployment", cartSvc.Address, map[int]int{7070: 7070}, ""))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, currencySvc, "deployment", currencySvc.Address, map[int]int{7000: 7000}, ""))
+	assert.Assert(t, pub1.VanClient.ServiceInterfaceBind(ctx, adSvc, "deployment", adSvc.Address, map[int]int{9555: 9555}, ""))
 }
 
 func exposePublic2Resources(t *testing.T, pub2 *base.ClusterContext) {
@@ -304,7 +305,7 @@ func exposePublic2Resources(t *testing.T, pub2 *base.ClusterContext) {
 	assert.Assert(t, pub2.VanClient.ServiceInterfaceCreate(ctx, shippingSvc))
 	assert.Assert(t, pub2.VanClient.ServiceInterfaceCreate(ctx, emailSvc))
 	t.Logf("binding service interfaces in public2 cluster")
-	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, paymentSvc, "deployment", paymentSvc.Address, map[int]int{50051: 50051}))
-	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, shippingSvc, "deployment", shippingSvc.Address, map[int]int{50051: 50051}))
-	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, emailSvc, "deployment", emailSvc.Address, map[int]int{5000: 8080}))
+	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, paymentSvc, "deployment", paymentSvc.Address, map[int]int{50051: 50051}, ""))
+	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, shippingSvc, "deployment", shippingSvc.Address, map[int]int{50051: 50051}, ""))
+	assert.Assert(t, pub2.VanClient.ServiceInterfaceBind(ctx, emailSvc, "deployment", emailSvc.Address, map[int]int{5000: 8080}, ""))
 }

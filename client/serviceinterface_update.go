@@ -184,7 +184,7 @@ func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types
 	}
 }
 
-func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, targetPorts map[int]int) error {
+func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, targetPorts map[int]int, namespace string) error {
 	policy := NewPolicyValidatorAPI(cli)
 	res, err := policy.Expose(targetType, targetName)
 	if err != nil {
@@ -201,8 +201,8 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		}
 
 		deducePorts := len(service.Ports) == 0 && len(targetPorts) == 0
-		namespace := utils.GetOrDefault(service.Namespace, cli.GetNamespace())
-		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, namespace, cli.KubeClient, cli.OCAppsClient)
+		svcNamespace := utils.GetOrDefault(namespace, cli.GetNamespace())
+		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, svcNamespace, cli.KubeClient, cli.OCAppsClient)
 		if err != nil {
 			return err
 		}
@@ -264,12 +264,12 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 				},
 				Targets: []types.ServiceInterfaceTarget{
 					types.ServiceInterfaceTarget{
-						Name:     statefulset.ObjectMeta.Name,
-						Selector: utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
+						Name:      statefulset.ObjectMeta.Name,
+						Selector:  utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
+						Namespace: svcNamespace,
 					},
 				},
 				PublishNotReadyAddresses: publishNotReadyAddresses,
-				Namespace:                svcNamespace,
 			}
 			if len(ports) == 0 {
 				if len(service.Spec.Ports) > 0 {

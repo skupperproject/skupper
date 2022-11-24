@@ -49,11 +49,13 @@ type ServiceBindingContext interface {
 }
 
 type EgressBindings struct {
-	name        string
-	Selector    string
-	service     string
-	egressPorts map[int]int
-	resolver    TargetResolver
+	name           string
+	Selector       string
+	service        string
+	egressPorts    map[int]int
+	resolver       TargetResolver
+	tlsCredentials string
+	namespace      string
 }
 
 type ServiceBindings struct {
@@ -128,7 +130,6 @@ func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
 		TlsCredentials:           bindings.TlsCredentials,
 		TlsCertAuthority:         bindings.TlsCertAuthority,
 		PublishNotReadyAddresses: bindings.PublishNotReadyAddresses,
-		Namespace:                bindings.Namespace,
 	}
 }
 
@@ -178,16 +179,15 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 		TlsCredentials:           required.TlsCredentials,
 		TlsCertAuthority:         required.TlsCertAuthority,
 		PublishNotReadyAddresses: required.PublishNotReadyAddresses,
-		Namespace:                required.Namespace,
 	}
 	if required.RequiresExternalBridge() {
 		sb.external = bindingContext.NewExternalBridge(&required)
 	}
 	for _, t := range required.Targets {
 		if t.Selector != "" {
-			sb.addSelectorTarget(t.Name, t.Selector, getTargetPorts(required, t), bindingContext)
+			sb.addSelectorTarget(t.Name, t.Selector, getTargetPorts(required, t), t.Namespace, bindingContext)
 		} else if t.Service != "" {
-			sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t))
+			sb.addServiceTarget(t.Name, t.Service, getTargetPorts(required, t), t.Namespace, required.TlsCredentials)
 		}
 	}
 
@@ -270,16 +270,26 @@ func (bindings *ServiceBindings) Update(required types.ServiceInterface, binding
 		if t.Selector != "" {
 			target := bindings.targets[t.Selector]
 			if target == nil {
-				bindings.addSelectorTarget(t.Name, t.Selector, targetPort, bindingContext)
-			} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
-				target.egressPorts = targetPort
+				bindings.addSelectorTarget(t.Name, t.Selector, targetPort, t.Namespace, bindingContext)
+			} else {
+				if !reflect.DeepEqual(target.egressPorts, targetPort) {
+					target.egressPorts = targetPort
+				}
+				if target.namespace != t.Namespace {
+					target.namespace = t.Namespace
+				}
 			}
 		} else if t.Service != "" {
 			target := bindings.targets[t.Service]
 			if target == nil {
-				bindings.addServiceTarget(t.Name, t.Service, targetPort)
-			} else if !reflect.DeepEqual(target.egressPorts, targetPort) {
-				target.egressPorts = targetPort
+				bindings.addServiceTarget(t.Name, t.Service, targetPort, t.Namespace, required.TlsCredentials)
+			} else {
+				if !reflect.DeepEqual(target.egressPorts, targetPort) {
+					target.egressPorts = targetPort
+				}
+				if target.namespace != t.Namespace {
+					target.namespace = t.Namespace
+				}
 			}
 		}
 	}
@@ -354,13 +364,14 @@ func (sb *ServiceBindings) HeadlessName() string {
 	return sb.headless.Name
 }
 
-func (sb *ServiceBindings) addSelectorTarget(name string, selector string, port map[int]int, controller ServiceBindingContext) error {
-	resolver, err := controller.NewTargetResolver(sb.Address, selector, sb.PublishNotReadyAddresses, sb.Namespace)
+func (sb *ServiceBindings) addSelectorTarget(name string, selector string, port map[int]int, namespace string, controller ServiceBindingContext) error {
+	resolver, err := controller.NewTargetResolver(sb.Address, selector, sb.PublishNotReadyAddresses, namespace)
 	sb.targets[selector] = &EgressBindings{
 		name:        name,
 		Selector:    selector,
 		egressPorts: port,
 		resolver:    resolver,
+		namespace:   namespace,
 	}
 	return err
 }
@@ -370,12 +381,14 @@ func (sb *ServiceBindings) removeSelectorTarget(selector string) {
 	delete(sb.targets, selector)
 }
 
-func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int) error {
+func (sb *ServiceBindings) addServiceTarget(name string, service string, port map[int]int, namespace string, tlsCredentials string) error {
 	sb.targets[service] = &EgressBindings{
-		name:        name,
-		service:     service,
-		egressPorts: port,
-		resolver:    NewNullTargetResolver([]string{service}),
+		name:           name,
+		service:        service,
+		egressPorts:    port,
+		resolver:       NewNullTargetResolver([]string{service}),
+		tlsCredentials: tlsCredentials,
+		namespace:      namespace,
 	}
 	return nil
 }

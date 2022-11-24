@@ -262,7 +262,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	defer cancel()
 
 	svcsFound := []string{}
-	svcsExpected := []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "nginx", "tcp-go-echo", "tcp-go-echo-ss"}
+	svcsExpected := []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "nginx", "tcp-go-echo", "tcp-go-echo-ss", "tcp-go-echo-namespace"}
 
 	informers := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0, informers.WithNamespace(namespace))
 	svcInformer := informers.Core().V1().Services().Informer()
@@ -368,7 +368,6 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		Ports:        []int{9090},
 		EventChannel: false,
 		Aggregate:    "",
-		Namespace:    anotherNamespace,
 	})
 	assert.Assert(t, err)
 	serviceCert = certs.GenerateSecret("tcp-go-echo-namespace-echo", "tcp-go-echo", "tcp-go-echo", siteCA)
@@ -379,28 +378,31 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	// TODO: could range on list if target type was not needed for bind
 	si, err := cli.ServiceInterfaceInspect(ctx, "tcp-go-echo")
 	assert.Assert(t, err)
-	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", map[int]int{9090: 9090})
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", map[int]int{9090: 9090}, cli.Namespace)
 	assert.Assert(t, err)
 
 	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-ss")
 	assert.Assert(t, err)
-	err = cli.ServiceInterfaceBind(ctx, si, "statefulset", "tcp-go-echo-ss", map[int]int{9090: 9090})
+	err = cli.ServiceInterfaceBind(ctx, si, "statefulset", "tcp-go-echo-ss", map[int]int{9090: 9090}, cli.Namespace)
 	assert.Assert(t, err)
 
 	si, err = cli.ServiceInterfaceInspect(ctx, "nginx")
 	assert.Assert(t, err)
 	// bad bind
-	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx2", map[int]int{8080: 8080, 9090: 8080})
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx2", map[int]int{8080: 8080, 9090: 8080}, cli.Namespace)
 	assert.Error(t, err, "Could not read deployment nginx2: deployments.apps \"nginx2\" not found")
 	// good bind
-	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx", map[int]int{8080: 8080, 9090: 8080})
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "nginx", map[int]int{8080: 8080, 9090: 8080}, cli.Namespace)
 	assert.Assert(t, err)
 
 	// test deployment in another namespace
 	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-namespace")
 	assert.Assert(t, err)
-	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", "tcp", map[int]int{9090: 9090})
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", map[int]int{9090: 9090}, anotherNamespace)
 	assert.Assert(t, err)
+	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-namespace")
+	assert.Assert(t, err)
+	assert.Equal(t, si.Targets[0].Namespace, anotherNamespace)
 
 	items, err := cli.ServiceInterfaceList(ctx)
 	assert.Assert(t, err)

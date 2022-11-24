@@ -604,6 +604,7 @@ type ServiceInterfaceTarget struct {
 	Selector    string      `json:"selector,omitempty"`
 	TargetPorts map[int]int `json:"targetPorts,omitempty"`
 	Service     string      `json:"service,omitempty"`
+	Namespace   string      `json:"namespace,omitempty"`
 }
 
 type ServiceInterfaceV1 struct {

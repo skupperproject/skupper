@@ -34,8 +34,9 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		deployment, err := cli.AppsV1().Deployments(namespace).Get(context.TODO(), targetName, metav1.GetOptions{})
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
-				Name:     deployment.ObjectMeta.Name,
-				Selector: utils.StringifySelector(deployment.Spec.Selector.MatchLabels),
+				Name:      deployment.ObjectMeta.Name,
+				Selector:  utils.StringifySelector(deployment.Spec.Selector.MatchLabels),
+				Namespace: namespace,
 			}
 			if deducePort {
 				//TODO: handle case where there is more than one container (need --container option?)
@@ -51,8 +52,9 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		statefulset, err := cli.AppsV1().StatefulSets(namespace).Get(context.TODO(), targetName, metav1.GetOptions{})
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
-				Name:     statefulset.ObjectMeta.Name,
-				Selector: utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
+				Name:      statefulset.ObjectMeta.Name,
+				Selector:  utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
+				Namespace: namespace,
 			}
 			if deducePort {
 				//TODO: handle case where there is more than one container (need --container option?)
@@ -68,10 +70,11 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		return nil, fmt.Errorf("VAN service interfaces for pods not yet implemented")
 	} else if targetType == "service" {
 		var svcName, svcNamespace string = GetServiceName(targetName, namespace)
-		var fName = fmt.Sprintf("%s.%s", svcName, svcNamespace)
+		var formattedName = fmt.Sprintf("%s.%s", svcName, svcNamespace)
 		target := types.ServiceInterfaceTarget{
-			Name:    fName,
-			Service: fName,
+			Name:      formattedName,
+			Service:   formattedName,
+			Namespace: namespace,
 		}
 		if deducePort {
 			ports, err := GetPortsForServiceTarget(targetName, namespace, cli)
