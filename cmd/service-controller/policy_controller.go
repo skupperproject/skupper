@@ -345,7 +345,7 @@ func (c *PolicyController) validateExposeStateChanged() {
 			continue
 		}
 		for _, target := range service.Targets {
-			targetType := c.inferTargetType(target, utils.GetOrDefault(service.Namespace, c.cli.GetNamespace()))
+			targetType := c.inferTargetType(target, utils.GetOrDefault(target.Namespace, c.cli.GetNamespace()))
 			res := c.validator.ValidateExpose(targetType, target.Name)
 			if res.Error() != nil {
 				event.Recordf(c.name, "[validateExposeStateChanged] error validating if target can still be exposed: %v", err)

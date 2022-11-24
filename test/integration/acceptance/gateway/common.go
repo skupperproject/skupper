@@ -78,7 +78,7 @@ func Setup(stopCh chan interface{}, testRunner base.ClusterTestRunner) error {
 	if err := pub.VanClient.ServiceInterfaceCreate(ctx, tcpEchoClusterSvc); err != nil {
 		return fmt.Errorf("error creating skupper service %s: %s", tcpEchoClusterSvc.Address, err)
 	}
-	if err := pub.VanClient.ServiceInterfaceBind(ctx, tcpEchoClusterSvc, "deployment", dep.Name, map[int]int{9090: 9090}); err != nil {
+	if err := pub.VanClient.ServiceInterfaceBind(ctx, tcpEchoClusterSvc, "deployment", dep.Name, map[int]int{9090: 9090}, ""); err != nil {
 		return fmt.Errorf("error binding skupper service %s with deployment %s: %s", tcpEchoClusterSvc.Address, dep.Name, err)
 	}
 

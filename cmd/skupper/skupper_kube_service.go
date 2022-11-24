@@ -146,7 +146,7 @@ func (s *SkupperKubeService) Label(cmd *cobra.Command, args []string) error {
 func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 	targetType, targetName := parseTargetTypeAndName(args[1:])
 
-	if publishNotReadyAddresses && targetType == "service" {
+	if bindOptions.PublishNotReadyAddresses && targetType == "service" {
 		return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
 	}
 
@@ -159,16 +159,14 @@ func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 	}
 
 	// validating ports
-	portMapping, err := parsePortMapping(service, targetPorts)
+	portMapping, err := parsePortMapping(service, bindOptions.TargetPorts)
 	if err != nil {
 		return err
 	}
 
-	service.PublishNotReadyAddresses = publishNotReadyAddresses
+	service.PublishNotReadyAddresses = bindOptions.PublishNotReadyAddresses
 
-	service.TlsCertAuthority = tlsCertAuthority
-
-	err = s.kube.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, portMapping)
+	err = s.kube.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, bindOptions.Protocol, portMapping, bindOptions.Namespace)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -181,7 +179,8 @@ func (s *SkupperKubeService) BindArgs(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperKubeService) BindFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolVar(&publishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
+	cmd.Flags().BoolVar(&bindOptions.PublishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
+	cmd.Flags().StringVar(&bindOptions.Namespace, "target-namespace", "", "Expose resources from a specific namespace")
 }
 
 func (s *SkupperKubeService) Unbind(cmd *cobra.Command, args []string) error {

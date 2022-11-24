@@ -826,6 +826,8 @@ func TestStatusWithCluster(t *testing.T) {
 }
 
 func TestExposeWithCluster(t *testing.T) {
+	anotherNs := fmt.Sprintf("another-namespace-%s", strings.ToLower(utils.RandomId(4)))
+
 	testcases := []testCase{
 		{
 			doc:             "expose-test1",
@@ -963,9 +965,17 @@ func TestExposeWithCluster(t *testing.T) {
 			expectedError:   "--publish-not-ready-addresses option is only valid for headless services and deployments",
 			realCluster:     false,
 		},
+		{
+			doc:             "expose-test18",
+			args:            []string{"deployment", "tcp-go-echo", "--port", "9090", "--target-namespace", anotherNs},
+			expectedCapture: "deployment tcp-go-echo exposed as tcp-go-echo",
+			expectedOutput:  "",
+			expectedError:   "",
+			realCluster:     true,
+		},
 	}
 
-	namespace := "cmd-expose-cluster-test-" + strings.ToLower(utils.RandomId(4))
+	namespace := fmt.Sprintf("cmd-expose-cluster-test-%s", strings.ToLower(utils.RandomId(4)))
 	testClient = &SkupperTestClient{
 		SkupperKube: &SkupperKube{
 			Namespace: namespace,
@@ -977,10 +987,14 @@ func TestExposeWithCluster(t *testing.T) {
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
 		assert.Check(t, err)
+		_, err = kube.NewNamespace(anotherNs, c.KubeClient)
+		assert.Check(t, err)
+		defer kube.DeleteNamespace(anotherNs, c.KubeClient)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 		// create a target deployment as pre-condition
 		deployments := c.KubeClient.AppsV1().Deployments(namespace)
+		anotherNsDeployments := c.KubeClient.AppsV1().Deployments(anotherNs)
 		statefulSets := c.KubeClient.AppsV1().StatefulSets(namespace)
 		services := c.KubeClient.CoreV1().Services(namespace)
 		_, err = deployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
@@ -988,6 +1002,8 @@ func TestExposeWithCluster(t *testing.T) {
 		_, err = statefulSets.Create(context.TODO(), tcpStatefulSet, metav1.CreateOptions{})
 		assert.Assert(t, err)
 		_, err = services.Create(context.TODO(), statefulSetService, metav1.CreateOptions{})
+		assert.Assert(t, err)
+		_, err = anotherNsDeployments.Create(tcpDeployment)
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
@@ -1302,6 +1318,8 @@ func TestDeleteServiceWithCluster(t *testing.T) {
 }
 
 func TestBindWithCluster(t *testing.T) {
+	anotherNs := fmt.Sprintf("another-namespace-%s", strings.ToLower(utils.RandomId(4)))
+
 	testcases := []testCase{
 		{
 			doc:             "bind-test1",
@@ -1335,6 +1353,14 @@ func TestBindWithCluster(t *testing.T) {
 			expectedError:   "--publish-not-ready-addresses option is only valid for headless services and deployments",
 			realCluster:     false,
 		},
+		{
+			doc:             "bind-test6",
+			args:            []string{"tcp-go-echo", "deployment", "tcp-go-echo", "--target-namespace", anotherNs},
+			expectedCapture: "",
+			expectedOutput:  "",
+			expectedError:   "",
+			realCluster:     true,
+		},
 	}
 
 	namespace := "cmd-bind-cluster-test-" + strings.ToLower(utils.RandomId(4))
@@ -1348,11 +1374,17 @@ func TestBindWithCluster(t *testing.T) {
 	if c, ok := cli.(*client.VanClient); ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
 		assert.Check(t, err)
+		_, err = kube.NewNamespace(anotherNs, c.KubeClient)
+		assert.Check(t, err)
+		defer kube.DeleteNamespace(anotherNs, c.KubeClient)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 
 		// create a target deployment as pre-condition
 		deployments := c.KubeClient.AppsV1().Deployments(namespace)
 		_, err = deployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
+		assert.Assert(t, err)
+		deploymentAnotherNs := c.KubeClient.AppsV1().Deployments(anotherNs)
+		_, err = deploymentAnotherNs.Create(tcpDeployment)
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)

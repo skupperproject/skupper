@@ -29,6 +29,7 @@ type serviceInterfaceBindCallArgs struct {
 	targetName  string
 	protocol    string
 	targetPorts map[int]int
+	namespace   string
 }
 
 type getHeadlessServiceConfigurationCallArgs struct {
@@ -242,12 +243,13 @@ func (v *vanClientMock) SkupperCheckService(service string, verbose bool) (*byte
 	return nil, nil
 }
 
-func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, targetPorts map[int]int) error {
+func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, targetPorts map[int]int, namespace string) error {
 	var calledWith = serviceInterfaceBindCallArgs{
 		service:     service,
 		targetType:  targetType,
 		targetName:  targetName,
 		targetPorts: targetPorts,
+		namespace:   namespace,
 	}
 	v.serviceInterfaceBindCalledWith = append(v.serviceInterfaceBindCalledWith, calledWith)
 
@@ -544,7 +546,7 @@ func TestExpose_Binding(t *testing.T) {
 		func(t *testing.T) {
 			cli := &vanClientMock{}
 
-			fmt.Println("TARGET PORTS =", targetPorts)
+			fmt.Println("TARGET PORTS =", bindOptions.TargetPorts)
 			fmt.Println("OPTIONS =", options)
 			exposedAs, err := expose(cli, ctx, "any", "name", options)
 			assert.Assert(t, err)
