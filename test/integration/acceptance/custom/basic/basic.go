@@ -394,6 +394,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			}
 			t.Logf("Testing: %s\n", c.doc)
 			defer r.Delete(ctx, t)
+			c.createOptsPublic.EnableClusterPermissions = true
 			r.Setup(ctx, c.createOptsPublic, c.createOptsPrivate, c.tokenType, c.testSync, t)
 			r.RunTests(ctx, t)
 		})

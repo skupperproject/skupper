@@ -88,6 +88,8 @@ func (r *EdgeConnectivityTestRunner) Setup(ctx context.Context, testCase *TestCa
 	testContext, cancel := context.WithTimeout(ctx, types.DefaultTimeoutDuration*2)
 	defer cancel()
 	publicSecrets := make(map[int]string, 0)
+	testCase.createOptsPrivate.EnableClusterPermissions = true
+	testCase.createOptsPublic.EnableClusterPermissions = true
 
 	// Make Public namespaces -------------------------------------------
 	createOptsPublic := testCase.createOptsPublic
