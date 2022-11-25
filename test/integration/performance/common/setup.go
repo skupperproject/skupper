@@ -314,14 +314,15 @@ func initializeSkupper(testCtx context.Context, testRunner *base.ClusterTestRunn
 				return err
 			}
 			siteConfigSpec := types.SiteConfigSpec{
-				RouterMode:        "interior",
-				EnableController:  true,
-				EnableServiceSync: true,
-				AuthMode:          "internal",
-				User:              "admin",
-				Password:          "admin",
-				Ingress:           ctx.VanClient.GetIngressDefault(),
-				Router:            routerOptions,
+				RouterMode:               "interior",
+				EnableController:         true,
+				EnableServiceSync:        true,
+				AuthMode:                 "internal",
+				User:                     "admin",
+				Password:                 "admin",
+				Ingress:                  ctx.VanClient.GetIngressDefault(),
+				Router:                   routerOptions,
+				EnableClusterPermissions: true,
 			}
 			// If running against a single cluster only, use none
 			if !base.MultipleClusters() {

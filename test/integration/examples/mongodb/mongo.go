@@ -125,7 +125,7 @@ func Setup(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
 		err = cli.ServiceInterfaceCreate(ctx, &service)
 		assert.Assert(t, err)
 
-		err = cli.ServiceInterfaceBind(ctx, &service, "deployment", name, map[int]int{})
+		err = cli.ServiceInterfaceBind(ctx, &service, "deployment", name, map[int]int{}, "")
 		assert.Assert(t, err)
 
 	}
