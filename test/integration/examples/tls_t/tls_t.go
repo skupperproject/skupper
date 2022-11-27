@@ -29,9 +29,146 @@ func int32Ptr(i int32) *int32 { return &i }
 var service = types.ServiceInterface{
 	Address:        "ssl-server",
 	Protocol:       "tcp",
-	Ports:          []int{8443},
+	Ports:          serverPortsInt(),
 	EnableTls:      true,
 	TlsCredentials: "skupper-tls-ssl-server",
+}
+
+// The options will be sent to openssl s_server's call from cmd.Exec, but
+// that command will be executing 'sh -c', so any redirections, variables
+// or quoted arguments are accepted in this single string; they'll just
+// be concatenated to the rest of the command before execution
+type serverProfile struct {
+	Port    int32
+	Options string
+}
+
+var plainServer = serverProfile{
+	Port:    8443,
+	Options: "",
+}
+
+var tls1Server = serverProfile{
+	Port:    8444,
+	Options: "-tls1",
+}
+
+var tls1_1Server = serverProfile{
+	Port:    8445,
+	Options: "-tls1_1",
+}
+
+var tls1_2Server = serverProfile{
+	Port:    8446,
+	Options: "-tls1_2",
+}
+
+var tls1_3Server = serverProfile{
+	Port:    8447,
+	Options: "-tls1_3",
+}
+
+// These are no longer supported by the openssl client, so we
+// cannot test with them
+// var ssl2Server = serverProfile{
+// 	Port:    8448,
+// 	Options: "-ssl2",
+// }
+// var ssl3Server = serverProfile{
+// 	Port:    8449,
+// 	Options: "-ssl3",
+// }
+
+var servers = []serverProfile{
+	plainServer,
+	tls1Server,
+	tls1_1Server,
+	tls1_2Server,
+	tls1_3Server,
+}
+
+// Returns a string with a shell line consisting of multiple commands to be
+// run in background, and a final 'wait' command.  It's to be used in an
+// invocation to 'sh -c'
+func testServers() string {
+	var resp string
+	for _, s := range servers {
+		resp += "openssl s_server " +
+			"-cert /cert/tls.crt " +
+			"-key /cert/tls.key " +
+			"-rev "
+		resp += fmt.Sprintf("--port %d %v & ", s.Port, s.Options)
+	}
+	resp += "wait"
+	return resp
+}
+
+// The ports to be exposed by the container hosting the SSL server
+func serverPorts() (resp []apiv1.ContainerPort) {
+	for _, s := range servers {
+		resp = append(resp,
+			apiv1.ContainerPort{
+
+				Protocol:      apiv1.ProtocolTCP,
+				ContainerPort: s.Port,
+			})
+	}
+	return
+}
+
+// A list of ports the server will be listening to.  It will be used on the
+// Skupper service
+func serverPortsInt() (resp []int) {
+	for _, s := range servers {
+		resp = append(resp, int(s.Port))
+	}
+	return
+}
+
+// The options will be sent to openssl s_client's call via cmd.Exec,
+// as provided
+type clientProfile struct {
+	Options []string
+}
+
+var plainClient = clientProfile{
+	Options: []string{},
+}
+
+var tls1Client = clientProfile{
+	Options: []string{"-tls1"},
+}
+
+var Tests = []struct {
+	Client  clientProfile
+	Server  serverProfile
+	Success bool
+}{
+	{
+		plainClient,
+		plainServer,
+		true,
+	}, {
+		plainClient,
+		tls1Server,
+		false,
+	}, {
+		plainClient,
+		tls1_1Server,
+		false,
+	}, {
+		plainClient,
+		tls1_2Server,
+		true,
+	}, {
+		plainClient,
+		tls1_3Server,
+		true,
+	}, {
+		tls1Client,
+		plainServer,
+		false,
+	},
 }
 
 var Deployment *appsv1.Deployment = &appsv1.Deployment{
@@ -58,20 +195,12 @@ var Deployment *appsv1.Deployment = &appsv1.Deployment{
 					{
 						Name:            "ssl-server",
 						Image:           k8s.GetTestImage(),
-						ImagePullPolicy: apiv1.PullIfNotPresent,
+						ImagePullPolicy: k8s.GetTestImagePullPolicy(),
 						Args: []string{
 							"sh", "-c",
-							"openssl s_server " +
-								"-port 8443 " +
-								"-cert /cert/tls.crt " +
-								"-key /cert/tls.key " +
-								"-rev"},
-						Ports: []apiv1.ContainerPort{
-							{
-								Protocol:      apiv1.ProtocolTCP,
-								ContainerPort: 8443,
-							},
+							testServers(),
 						},
+						Ports: serverPorts(),
 						VolumeMounts: []apiv1.VolumeMount{
 							{
 								Name:      "cert",
@@ -156,7 +285,7 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	assert.Assert(t, err)
 
 	jobName := "ssl-client"
-	jobCmd := []string{"/app/tls_test", "-test.run", "TestTlsJob"}
+	jobCmd := []string{"/app/tls_test", "-test.run", "TestTlsJob", "-test.v"}
 
 	// Note here we are executing the same test but, in two different
 	// namespaces (or clusters), the same service must exist in both clusters
@@ -193,23 +322,70 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 
 }
 
-func SendReceive(addr string) error {
+// openssl s_client sends a lot of things on connection to the stdout.  We
+// cannot ignore it with -quiet, as the information there can be useful.
+// However, we cannot send it to stderr either, as the command does not provide
+// such functionality.  So, we just flush it on the log.  Network commands may
+// take a while to show everything, so we give the command a five seconds wait
+// to complete.
+func flushStdOut(r *bufio.Reader) {
+	// TODO: change this for a goroutine that scans stdout and sends each
+	// line to a channel.  The flush would be a continuous read from that
+	// channel with the timeout pattern.  After that, reading from the
+	// stdout would be a synchronous channel read.
+	log.Printf("Flushing stdout")
+
+	s, err := r.ReadString('\n')
+	log.Printf(s)
+	if err != nil {
+		log.Printf("Error flushing stdout: %v", err)
+	}
+
+outer:
+	for {
+		if r.Buffered() != 0 {
+			//			log.Printf("Buffered :%d", r.Buffered())
+			s, err := r.ReadString('\n')
+			log.Printf(s)
+			if err != nil {
+				log.Printf("Error flushing stdout: %v", err)
+			}
+		} else {
+			for i := 0; i < 5; i++ {
+				time.Sleep(time.Millisecond * 200)
+				//				log.Printf("buffered :%d", r.Buffered())
+				if r.Buffered() != 0 {
+					continue outer
+				}
+
+			}
+			break outer
+		}
+	}
+	log.Printf("Flush complete")
+}
+
+func SendReceive(addr string, options []string) error {
+	cmdArgs := []string{
+		"s_client",
+		"-verify_return_error",
+		"-connect",
+		addr,
+		"-CAfile",
+		"/tmp/certs/skupper-tls-ssl-server/ca.crt",
+		"-no_ign_eof",
+	}
+
+	cmdArgs = append(cmdArgs, options...)
 	doneCh := make(chan error)
 	go func(doneCh chan error) {
 
 		strEcho := "Halo\n"
 
 		log.Println("Starting openssl s_client...")
-		cmd := exec.Command(
-			"openssl",
-			"s_client",
-			"-quiet",
-			"-verify_return_error",
-			"-connect",
-			addr,
-			"-CAfile",
-			"/tmp/certs/skupper-tls-ssl-server/ca.crt",
-		)
+		log.Printf("Executing command openssl %v", cmdArgs)
+		//cmd := exec.Command("openssl", append(cmdArgs, "-quiet")...)
+		cmd := exec.Command("openssl", cmdArgs...)
 		cmd.Stderr = os.Stderr
 
 		pipeIn, err := cmd.StdinPipe()
@@ -227,7 +403,7 @@ func SendReceive(addr string) error {
 
 		err = cmd.Start()
 		if err != nil {
-			doneCh <- fmt.Errorf("error opening stdin pipe: %w", err)
+			doneCh <- fmt.Errorf("error starting command: %w", err)
 		}
 		defer func() {
 			log.Printf("Closing stdin pipe...")
@@ -237,18 +413,26 @@ func SendReceive(addr string) error {
 			log.Printf("...done")
 		}()
 
+		pReader := bufio.NewReader(pipeOut)
+
+		// This write and return are ignored; they're there just to
+		// flush the output before the actual test
+		_, err = pipeIn.Write([]byte(strEcho))
+		flushStdOut(pReader)
+		//		log.Printf("Buffered :%d", pReader.Buffered())
+
 		log.Println("Sending data")
 		_, err = pipeIn.Write([]byte(strEcho))
 		if err != nil {
 			doneCh <- fmt.Errorf("write to server failed: %w", err)
 			return
 		}
+		//		log.Printf("Buffered :%d", pReader.Buffered())
 
 		log.Println("Receiving reply")
 
-		pReader := bufio.NewReader(pipeOut)
-
 		reply, err := pReader.ReadString('\n')
+		//		log.Printf("Buffered :%d", pReader.Buffered())
 
 		if err != nil {
 			doneCh <- fmt.Errorf("read from server failed: %w (reply: %q)", err, reply)
@@ -283,6 +467,12 @@ func SendReceive(addr string) error {
 	case <-timeoutCh:
 		err = fmt.Errorf("timed out waiting for SendReceive function to finish")
 	}
+
+	//	if err != nil {
+	//		log.Printf("Re-executing command without -quiet, for debugging purposes only")
+	//		cmd := exec.Command("openssl", cmdArgs...)
+	//		cmd.Start()
+	//	}
 
 	return err
 }
