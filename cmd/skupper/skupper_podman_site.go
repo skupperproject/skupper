@@ -240,5 +240,9 @@ func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperPodmanSite) RevokeAccess(cmd *cobra.Command, args []string) error {
-	return notImplementedErr
+	siteHandler, err := podman.NewSitePodmanHandler("")
+	if err != nil {
+		return fmt.Errorf("Unable to communicate with Skupper site - %w", err)
+	}
+	return siteHandler.RevokeAccess()
 }

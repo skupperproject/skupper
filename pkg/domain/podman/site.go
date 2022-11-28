@@ -506,3 +506,37 @@ func (s *SitePodmanHandler) Delete() error {
 func (s *SitePodmanHandler) Update() error {
 	return fmt.Errorf("not implemented")
 }
+
+func (s *SitePodmanHandler) RevokeAccess() error {
+	site, err := s.Get()
+	if err != nil {
+		return err
+	}
+	podmanSite := site.(*SitePodman)
+
+	credHandler := NewPodmanCredentialHandler(s.cli)
+	// Regenerating Site CA
+	_, err = credHandler.NewCertAuthority(types.CertAuthority{Name: types.SiteCaSecret})
+	if err != nil {
+		return fmt.Errorf("error creating site CA - %w", err)
+	}
+
+	// Regenerating Site Server
+	_, err = credHandler.NewCredential(types.Credential{
+		CA:          types.SiteCaSecret,
+		Name:        types.SiteServerSecret,
+		Subject:     types.TransportServiceName,
+		Hosts:       podmanSite.IngressHosts,
+		ConnectJson: false,
+	})
+	if err != nil {
+		return fmt.Errorf("error creating site credential - %w", err)
+	}
+
+	// Restarting router
+	err = s.cli.ContainerRestart(types.TransportDeploymentName)
+	if err != nil {
+		return fmt.Errorf("error starting %s - %w", types.TransportDeploymentName, err)
+	}
+	return nil
+}

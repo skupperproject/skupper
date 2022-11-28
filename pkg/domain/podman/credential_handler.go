@@ -177,12 +177,11 @@ func (p *PodmanCredentialHandler) SaveSecretAsVolume(secret *corev1.Secret, kind
 }
 
 func (p *PodmanCredentialHandler) NewCertAuthority(ca types.CertAuthority) (*corev1.Secret, error) {
-	caSecret, err := p.GetSecret(ca.Name)
-	if err == nil {
-		return caSecret, nil
-	}
-	if _, notFound := err.(*volumes.VolumeInspectLibpodNotFound); !notFound {
-		return nil, fmt.Errorf("Failed to check CA %s : %w", ca.Name, err)
+	_, err := p.GetSecret(ca.Name)
+	if err != nil {
+		if _, notFound := err.(*volumes.VolumeInspectLibpodNotFound); !notFound {
+			return nil, fmt.Errorf("Failed to check CA %s : %w", ca.Name, err)
+		}
 	}
 	newCA := certs.GenerateCASecret(ca.Name, ca.Name)
 	_, err = p.SaveSecretAsVolume(&newCA, "CertAuthority")
@@ -265,4 +264,17 @@ func getTlsCrtHostnames(tlscrtData []byte) (subject string, hostnames []string, 
 		hostnames = append(hostnames, name)
 	}
 	return subject, hostnames, nil
+}
+
+func (p *PodmanCredentialHandler) GetCredential(id string) (*types.Credential, error) {
+	credentials, err := p.ListCredentials()
+	if err != nil {
+		return nil, err
+	}
+	for _, cred := range credentials {
+		if cred.Name == id {
+			return &cred, nil
+		}
+	}
+	return nil, fmt.Errorf("credential not found")
 }

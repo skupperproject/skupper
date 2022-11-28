@@ -15,6 +15,8 @@ import (
 func TestPodmanCredentialHandler(t *testing.T) {
 	credHandler := NewPodmanCredentialHandler(cli)
 	caName := "test-ca-" + utils.RandomId(5)
+	existingCAs, err := credHandler.ListCertAuthorities()
+	assert.Assert(t, err)
 
 	// Cert Authorities
 	t.Run("ca-create", func(t *testing.T) {
@@ -29,8 +31,15 @@ func TestPodmanCredentialHandler(t *testing.T) {
 	t.Run("ca-list", func(t *testing.T) {
 		caList, err := credHandler.ListCertAuthorities()
 		assert.Assert(t, err)
-		assert.Equal(t, 1, len(caList))
-		assert.Equal(t, caName, caList[0].Name)
+		assert.Equal(t, len(existingCAs)+1, len(caList))
+		found := false
+		for _, ca := range caList {
+			if ca.Name == caName {
+				found = true
+				break
+			}
+		}
+		assert.Assert(t, found, "CA %s not found", caName)
 	})
 	t.Run("ca-delete", func(t *testing.T) {
 		assert.Assert(t, credHandler.DeleteCertAuthority(caName))
@@ -47,8 +56,10 @@ func TestPodmanCredentialHandler(t *testing.T) {
 		Subject: credSubj,
 		Hosts:   credHosts,
 	}
-	_, err := credHandler.NewCertAuthority(types.CertAuthority{Name: caName})
+	_, err = credHandler.NewCertAuthority(types.CertAuthority{Name: caName})
 	var credSecret *corev1.Secret
+	credsFound, err := credHandler.ListCredentials()
+	assert.Assert(t, err)
 
 	t.Run("cred-create", func(t *testing.T) {
 		// ca creation
@@ -69,11 +80,18 @@ func TestPodmanCredentialHandler(t *testing.T) {
 	t.Run("cred-list", func(t *testing.T) {
 		credList, err := credHandler.ListCredentials()
 		assert.Assert(t, err)
-		assert.Equal(t, 1, len(credList))
-		assert.Equal(t, cred.Name, credList[0].Name)
-		assert.Equal(t, cred.CA, credList[0].CA)
-		assert.Equal(t, cred.Subject, credList[0].Subject)
-		assert.DeepEqual(t, cred.Hosts, credList[0].Hosts)
+		assert.Equal(t, len(credsFound)+1, len(credList))
+		found := false
+		for _, c := range credList {
+			if c.Name == cred.Name {
+				found = true
+				assert.Equal(t, cred.CA, c.CA)
+				assert.Equal(t, cred.Subject, c.Subject)
+				assert.DeepEqual(t, cred.Hosts, c.Hosts)
+				break
+			}
+		}
+		assert.Assert(t, found, "credential %s not found", cred.Name)
 	})
 	t.Run("cred-delete", func(t *testing.T) {
 		assert.Assert(t, credHandler.DeleteCredential(cred.Name))

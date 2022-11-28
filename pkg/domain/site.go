@@ -29,6 +29,7 @@ type SiteHandler interface {
 	Get() (Site, error)
 	Delete() error
 	Update() error
+	RevokeAccess() error
 }
 
 // SiteCommon base implementation of the Site interface
@@ -110,7 +111,7 @@ func (s *SiteCommon) ValidateMinimumRequirements() error {
 }
 
 func ConfigureSiteCredentials(site Site, ingressHosts ...string) {
-	isEdge := site.GetMode() != string(types.TransportModeEdge)
+	isInterior := site.GetMode() != string(types.TransportModeEdge)
 
 	// CAs
 	cas := []types.CertAuthority{}
@@ -118,7 +119,7 @@ func ConfigureSiteCredentials(site Site, ingressHosts ...string) {
 		cas = site.GetCertAuthorities()
 	}
 	cas = append(cas, types.CertAuthority{Name: types.LocalCaSecret})
-	if isEdge {
+	if isInterior {
 		cas = append(cas, types.CertAuthority{Name: types.SiteCaSecret})
 	}
 	cas = append(cas, types.CertAuthority{Name: types.ServiceCaSecret})
@@ -155,7 +156,7 @@ func ConfigureSiteCredentials(site Site, ingressHosts ...string) {
 		Simple:      true,
 	})
 
-	if isEdge {
+	if isInterior {
 		hosts := []string{types.TransportServiceName}
 		hosts = append(hosts, ingressHosts...)
 		credentials = append(credentials, types.Credential{

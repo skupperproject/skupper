@@ -469,6 +469,7 @@ type CredentialHandler interface {
 	NewCredential(cred Credential) (*corev1.Secret, error)
 	DeleteCredential(id string) error
 	ListCredentials() ([]Credential, error)
+	GetCredential(id string) (*Credential, error)
 	GetSecret(name string) (*corev1.Secret, error)
 }
 
