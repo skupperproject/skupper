@@ -79,12 +79,56 @@ var tls1_3Server = serverProfile{
 // 	Options: "-ssl3",
 // }
 
+var alpnServer = serverProfile{
+	Port:    8449,
+	Options: "-alpn test_proto1",
+}
+
+var npnServer = serverProfile{
+	Port:    8450,
+	Options: "-nextprotoneg test_proto1 -no_tls1_3",
+}
+
+var compServer = serverProfile{
+	Port:    8451,
+	Options: "-comp",
+}
+
+var noTicketServer = serverProfile{
+	Port:    8452,
+	Options: "-no_ticket -no_tls1_3",
+}
+
+var prefServer = serverProfile{
+	Port:    8453,
+	Options: "-serverpref",
+}
+
+var bugsServer = serverProfile{
+	Port:    8454,
+	Options: "-bugs",
+}
+
+var sniServer = serverProfile{
+	Port: 8455,
+	Options: "-servername named_server " +
+		"-cert2 /cert/tls.crt " +
+		"-key2 /cert/tls.key ",
+}
+
 var servers = []serverProfile{
 	plainServer,
 	tls1Server,
 	tls1_1Server,
 	tls1_2Server,
 	tls1_3Server,
+	alpnServer,
+	npnServer,
+	compServer,
+	noTicketServer,
+	prefServer,
+	bugsServer,
+	sniServer,
 }
 
 // Returns a string with a shell line consisting of multiple commands to be
@@ -96,6 +140,9 @@ func testServers() string {
 		resp += "openssl s_server " +
 			"-cert /cert/tls.crt " +
 			"-key /cert/tls.key " +
+			//			"-Verify 10 " +
+			//			"-verify_return_error " +
+			"-brief " +
 			"-rev "
 		resp += fmt.Sprintf("--port %d %v & ", s.Port, s.Options)
 	}
@@ -139,35 +186,163 @@ var tls1Client = clientProfile{
 	Options: []string{"-tls1"},
 }
 
+var tls1_1Client = clientProfile{
+	Options: []string{"-tls1_1"},
+}
+
+var tls1_2Client = clientProfile{
+	Options: []string{"-tls1_2"},
+}
+
+var tls1_3Client = clientProfile{
+	Options: []string{"-tls1_3"},
+}
+
+// No longer supported by openssl cli
+// var ssl3Client = clientProfile{
+// 	Options: []string{"-ssl3"},
+// }
+
+var reconnectClient = clientProfile{
+	Options: []string{"-reconnect"},
+}
+
+var bugsClient = clientProfile{
+	Options: []string{"-bugs"},
+}
+
+var compClient = clientProfile{
+	Options: []string{"-comp"},
+}
+
+var alpnClient = clientProfile{
+	Options: []string{"-alpn", "test_proto1"},
+}
+
+var npnClient = clientProfile{
+	Options: []string{"-nextprotoneg", "test_proto1", "-no_tls1_3"},
+}
+
+var sniClient = clientProfile{
+	Options: []string{"-servername", "named_server"},
+}
+
 var Tests = []struct {
 	Client  clientProfile
 	Server  serverProfile
 	Success bool
+	// a string to be sought in the openssl cli output.  No match is a failure
+	Seek string
 }{
+	// plainClient with a variety of servers
 	{
-		plainClient,
-		plainServer,
-		true,
+		Client:  plainClient,
+		Server:  plainServer,
+		Success: true,
 	}, {
-		plainClient,
-		tls1Server,
-		false,
+		Client:  plainClient,
+		Server:  tls1Server,
+		Success: false,
 	}, {
-		plainClient,
-		tls1_1Server,
-		false,
+		Client:  plainClient,
+		Server:  tls1_1Server,
+		Success: false,
 	}, {
-		plainClient,
-		tls1_2Server,
-		true,
+		Client:  plainClient,
+		Server:  tls1_2Server,
+		Success: true,
 	}, {
-		plainClient,
-		tls1_3Server,
-		true,
+		Client:  plainClient,
+		Server:  tls1_3Server,
+		Success: true,
 	}, {
-		tls1Client,
-		plainServer,
-		false,
+		Client:  plainClient,
+		Server:  alpnServer,
+		Success: true,
+	}, {
+		Client:  plainClient,
+		Server:  npnServer,
+		Success: true,
+	}, {
+		Client:  plainClient,
+		Server:  compServer,
+		Success: true,
+	}, {
+		Client:  plainClient,
+		Server:  noTicketServer,
+		Success: true,
+	}, {
+		Client:  plainClient,
+		Server:  prefServer,
+		Success: true,
+	}, {
+		Client:  plainClient,
+		Server:  bugsServer,
+		Success: true,
+	}, {
+		Client:  plainClient,
+		Server:  sniServer,
+		Success: true,
+	},
+	// plainServer with a variety of clients
+	{
+		Client:  tls1Client,
+		Server:  plainServer,
+		Success: false,
+	}, {
+		Client:  tls1_1Client,
+		Server:  plainServer,
+		Success: false,
+	}, {
+		Client:  tls1_2Client,
+		Server:  plainServer,
+		Success: true,
+	}, {
+		Client:  tls1_3Client,
+		Server:  plainServer,
+		Success: true,
+	}, {
+		Client:  bugsClient,
+		Server:  plainServer,
+		Success: true,
+	}, {
+		Client:  compClient,
+		Server:  plainServer,
+		Success: true,
+	}, {
+		Client:  alpnClient,
+		Server:  plainServer,
+		Success: true,
+	}, {
+		Client:  npnClient,
+		Server:  plainServer,
+		Success: true,
+	},
+	// special cases (ie both client and server are non-plain)
+	{
+		Client:  compClient,
+		Server:  compServer,
+		Success: true,
+	}, {
+		Client: alpnClient,
+		Server: alpnServer,
+		// TODO: this is a known error; change this once it is fixed
+		Success: false,
+		Seek:    "ALPN protocol: test_proto1",
+	}, {
+		Client: npnClient,
+		Server: npnServer,
+		// TODO: Are we supporting NPN?  Or just ALPN?
+		Success: false,
+		Seek:    "Next protocol: (1) proto_test1",
+	},
+	// TODO: This fails, and causes further tests to fail, if it comes first: why
+	//       does that happen, and why does it not impact tests coming from the
+	//       next job run?
+	{
+		Client:  reconnectClient,
+		Server:  plainServer,
+		Success: true,
 	},
 }
 
@@ -326,14 +501,22 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 // cannot ignore it with -quiet, as the information there can be useful.
 // However, we cannot send it to stderr either, as the command does not provide
 // such functionality.  So, we just flush it on the log.  Network commands may
-// take a while to show everything, so we give the command a five seconds wait
-// to complete.
-func flushStdOut(r *bufio.Reader) {
+// take a while to show everything, so we give the command some time to
+// complete.
+// 'seek', if given, is a string to be searched for on the initial flush.  If
+// given and not found, return an error.
+func flushStdOut(r *bufio.Reader, seek string) error {
 	// TODO: change this for a goroutine that scans stdout and sends each
 	// line to a channel.  The flush would be a continuous read from that
 	// channel with the timeout pattern.  After that, reading from the
 	// stdout would be a synchronous channel read.
 	log.Printf("Flushing stdout")
+
+	var found bool
+
+	if seek == "" {
+		found = true
+	}
 
 	s, err := r.ReadString('\n')
 	log.Printf(s)
@@ -344,16 +527,17 @@ func flushStdOut(r *bufio.Reader) {
 outer:
 	for {
 		if r.Buffered() != 0 {
-			//			log.Printf("Buffered :%d", r.Buffered())
 			s, err := r.ReadString('\n')
 			log.Printf(s)
 			if err != nil {
 				log.Printf("Error flushing stdout: %v", err)
 			}
+			if strings.Contains(s, seek) {
+				found = true
+			}
 		} else {
 			for i := 0; i < 5; i++ {
 				time.Sleep(time.Millisecond * 200)
-				//				log.Printf("buffered :%d", r.Buffered())
 				if r.Buffered() != 0 {
 					continue outer
 				}
@@ -362,10 +546,17 @@ outer:
 			break outer
 		}
 	}
+	if !found {
+		return fmt.Errorf("stdout flush did not match string %q", seek)
+	}
 	log.Printf("Flush complete")
+	return nil
 }
 
-func SendReceive(addr string, options []string) error {
+func SendReceive(addr string, options []string, seek string) error {
+	defer func() {
+		log.Println("SendReceive completed")
+	}()
 	cmdArgs := []string{
 		"s_client",
 		"-verify_return_error",
@@ -374,6 +565,7 @@ func SendReceive(addr string, options []string) error {
 		"-CAfile",
 		"/tmp/certs/skupper-tls-ssl-server/ca.crt",
 		"-no_ign_eof",
+		// "-tlsextdebug", // if setting this, consider increasing the stdout flush timeout
 	}
 
 	cmdArgs = append(cmdArgs, options...)
@@ -418,8 +610,11 @@ func SendReceive(addr string, options []string) error {
 		// This write and return are ignored; they're there just to
 		// flush the output before the actual test
 		_, err = pipeIn.Write([]byte(strEcho))
-		flushStdOut(pReader)
-		//		log.Printf("Buffered :%d", pReader.Buffered())
+		err = flushStdOut(pReader, seek)
+		if err != nil {
+			doneCh <- err
+			return
+		}
 
 		log.Println("Sending data")
 		_, err = pipeIn.Write([]byte(strEcho))
@@ -427,12 +622,10 @@ func SendReceive(addr string, options []string) error {
 			doneCh <- fmt.Errorf("write to server failed: %w", err)
 			return
 		}
-		//		log.Printf("Buffered :%d", pReader.Buffered())
 
 		log.Println("Receiving reply")
 
 		reply, err := pReader.ReadString('\n')
-		//		log.Printf("Buffered :%d", pReader.Buffered())
 
 		if err != nil {
 			doneCh <- fmt.Errorf("read from server failed: %w (reply: %q)", err, reply)
