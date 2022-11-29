@@ -15,5 +15,13 @@ jobs:
           go-version: '1.17'
       - uses: ./.github/actions/podman-latest
       - uses: ./.github/actions/minikube-latest
-      - run: |
-          go test -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
+      #- name: Cloning skupper 
+      #  run: |
+      #    git clone -b podman https://github.com/fgiorgetti/skupper
+      #- name: Generating podman clients
+      #  run: |
+      #    cd skupper
+      #    make generate-client
+      #- name: Skupper Podman System Tests
+      #  run: |
+      #    cd skupper && podman unshare go test -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
