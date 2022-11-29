@@ -15,9 +15,6 @@ jobs:
           go-version: '1.17'
       - uses: ./.github/actions/podman-latest
       - uses: ./.github/actions/minikube-latest
-      #- name: Cloning skupper 
-      #  run: |
-      #    git clone -b podman https://github.com/fgiorgetti/skupper
       #- name: Generating podman clients
       #  run: |
       #    cd skupper
