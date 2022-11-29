@@ -109,9 +109,10 @@ var bugsServer = serverProfile{
 	Options: "-bugs",
 }
 
+// We do not currently support SNI
 var sniServer = serverProfile{
 	Port: 8455,
-	Options: "-servername named_server " +
+	Options: "-servername ssl-server " +
 		"-cert2 /cert/tls.crt " +
 		"-key2 /cert/tls.key ",
 }
@@ -140,6 +141,7 @@ func testServers() string {
 		resp += "openssl s_server " +
 			"-cert /cert/tls.crt " +
 			"-key /cert/tls.key " +
+			"-servername_fatal " +
 			//			"-Verify 10 " +
 			//			"-verify_return_error " +
 			"-brief " +
@@ -223,17 +225,26 @@ var npnClient = clientProfile{
 	Options: []string{"-nextprotoneg", "test_proto1", "-no_tls1_3"},
 }
 
+// We do not currently support SNI
 var sniClient = clientProfile{
-	Options: []string{"-servername", "named_server"},
+	Options: []string{"-servername", "ssl-server"},
 }
 
 var Tests = []struct {
 	Client  clientProfile
 	Server  serverProfile
 	Success bool
-	// a string to be sought in the openssl cli output.  No match is a failure
+	// a string to be sought in the initial openssl cli output.  No match is a failure
 	Seek string
 }{
+	// TODO: This fails, and causes further tests to fail, if it comes first: why
+	//       does that happen, and why does it not impact tests coming from the
+	//       next job run?
+	{
+		Client:  reconnectClient,
+		Server:  plainServer,
+		Success: true,
+	},
 	// plainClient with a variety of servers
 	{
 		Client:  plainClient,
@@ -264,8 +275,11 @@ var Tests = []struct {
 		Server:  npnServer,
 		Success: true,
 	}, {
+		// TLS compression is insecure; we want to make sure
+		// it is not active, even if we ask for it
 		Client:  plainClient,
 		Server:  compServer,
+		Seek:    "Compression: NONE",
 		Success: true,
 	}, {
 		Client:  plainClient,
@@ -282,7 +296,7 @@ var Tests = []struct {
 	}, {
 		Client:  plainClient,
 		Server:  sniServer,
-		Success: true,
+		Success: false,
 	},
 	// plainServer with a variety of clients
 	{
@@ -306,22 +320,43 @@ var Tests = []struct {
 		Server:  plainServer,
 		Success: true,
 	}, {
+		// TLS compression is insecure; we want to make sure
+		// it is not active, even if we ask for it
 		Client:  compClient,
 		Server:  plainServer,
+		Seek:    "Compression: NONE",
 		Success: true,
 	}, {
 		Client:  alpnClient,
 		Server:  plainServer,
-		Success: true,
+		Seek:    "ALPN protocol: test_proto1",
+		Success: false,
 	}, {
 		Client:  npnClient,
+		Server:  plainServer,
+		Seek:    "Next protocol: (1) proto_test1",
+		Success: false,
+	}, {
+		// This works but shouldn't.  The problem, however, is on the
+		// test.  The client is asking about SNI, the server responds
+		// with its 'main' cert and responder, which are the same as
+		// the ones accessible via SNI, so the client is fine with it.
+		//
+		// A proper test should have different certificate and responder
+		// behind the 'main' and the 'SNI' names.  However, as we do
+		// not support SNI at the moment, there is no reason to put
+		// time into that.
+		Client:  sniClient,
 		Server:  plainServer,
 		Success: true,
 	},
 	// special cases (ie both client and server are non-plain)
 	{
+		// TLS compression is insecure; we want to make sure
+		// it is not active, even if we ask for it
 		Client:  compClient,
 		Server:  compServer,
+		Seek:    "Compression: NONE",
 		Success: true,
 	}, {
 		Client: alpnClient,
@@ -335,14 +370,10 @@ var Tests = []struct {
 		// TODO: Are we supporting NPN?  Or just ALPN?
 		Success: false,
 		Seek:    "Next protocol: (1) proto_test1",
-	},
-	// TODO: This fails, and causes further tests to fail, if it comes first: why
-	//       does that happen, and why does it not impact tests coming from the
-	//       next job run?
-	{
-		Client:  reconnectClient,
-		Server:  plainServer,
-		Success: true,
+	}, {
+		Client:  sniClient,
+		Server:  sniServer,
+		Success: false,
 	},
 }
 
@@ -565,7 +596,8 @@ func SendReceive(addr string, options []string, seek string) error {
 		"-CAfile",
 		"/tmp/certs/skupper-tls-ssl-server/ca.crt",
 		"-no_ign_eof",
-		// "-tlsextdebug", // if setting this, consider increasing the stdout flush timeout
+		"-verify_hostname", "ssl-server",
+		// 		"-tlsextdebug", // if setting this, consider increasing the stdout flush timeout
 	}
 
 	cmdArgs = append(cmdArgs, options...)
