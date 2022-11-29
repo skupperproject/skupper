@@ -1,0 +1,19 @@
+name: Podman system tests
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+jobs:
+  build:
+    name: Podman
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.17'
+      - uses: ./.github/actions/podman-latest
+      - uses: ./.github/actions/minikube-latest
+      - run: |
+          go test -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
