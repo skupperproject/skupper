@@ -4,6 +4,7 @@
 package podman
 
 import (
+	"os"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -15,6 +16,7 @@ func TestPodmanRouterConfigHandler(t *testing.T) {
 	var err error
 
 	// router config handler for podman
+	os.Setenv(types.ENV_PLATFORM, "podman")
 	configHandler := NewRouterConfigHandlerPodman(cli)
 
 	// saving initial router config
