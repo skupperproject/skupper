@@ -144,8 +144,8 @@ func encodeProcess(process *ProcessRecord) (*amqp.Message, error) {
 	if process.SourceHost != nil {
 		m[uint32(SourceHost)] = *process.SourceHost
 	}
-	if process.Group != nil {
-		m[uint32(Group)] = *process.Group
+	if process.GroupName != nil {
+		m[uint32(Group)] = *process.GroupName
 	}
 
 	record = append(record, m)
@@ -422,7 +422,7 @@ func decode(msg *amqp.Message) []interface{} {
 						process.Image = &v
 					}
 					if v, ok := m["Group"].(string); ok {
-						process.Group = &v
+						process.GroupName = &v
 					}
 					if v, ok := m["GroupIdentity"].(string); ok {
 						process.GroupIdentity = &v

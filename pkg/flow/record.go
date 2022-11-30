@@ -235,57 +235,6 @@ type RouterRecord struct {
 	ImageVersion *string `json:"imageVersion,omitempty"`
 	Hostname     *string `json:"hostname,omitempty"`
 	BuildVersion *string `json:"buildVersion,omitempty"`
-	listeners    []string
-	connectors   []string
-	links        []string
-}
-
-func (r *RouterRecord) addListener(id string) error {
-	if id == "" {
-		return fmt.Errorf("listener id is empty")
-	}
-	r.listeners = addIdentity(r.listeners, id)
-	return nil
-}
-
-func (r *RouterRecord) removeListener(id string) error {
-	if id == "" {
-		return fmt.Errorf("listener id is empty")
-	}
-	r.listeners = removeIdentity(r.listeners, id)
-	return nil
-}
-
-func (r *RouterRecord) addConnector(id string) error {
-	if id == "" {
-		return fmt.Errorf("connector id is empty")
-	}
-	r.connectors = addIdentity(r.connectors, id)
-	return nil
-}
-
-func (r *RouterRecord) removeConnector(id string) error {
-	if id == "" {
-		return fmt.Errorf("connector id is empty")
-	}
-	r.connectors = removeIdentity(r.connectors, id)
-	return nil
-}
-
-func (r *RouterRecord) addLink(id string) error {
-	if id == "" {
-		return fmt.Errorf("link id is empty")
-	}
-	r.links = addIdentity(r.links, id)
-	return nil
-}
-
-func (r *RouterRecord) removeLink(id string) error {
-	if id == "" {
-		return fmt.Errorf("link id is empty")
-	}
-	r.links = removeIdentity(r.links, id)
-	return nil
 }
 
 type LinkRecord struct {
@@ -307,24 +256,6 @@ type ListenerRecord struct {
 	FlowRateL4  *uint64 `json:"flowRateL4,omitempty"`
 	FlowCountL7 *uint64 `json:"flowCountL7,omitempty"`
 	FlowRateL7  *uint64 `json:"flowRateL7,omitempty"`
-	vanIdentity *string
-	flows       []string
-}
-
-func (listener *ListenerRecord) addFlow(id string) error {
-	if id == "" {
-		return fmt.Errorf("flow id is empty")
-	}
-	listener.flows = addIdentity(listener.flows, id)
-	return nil
-}
-
-func (listener *ListenerRecord) removeFlow(id string) error {
-	if id == "" {
-		return fmt.Errorf("flow id is empty")
-	}
-	listener.flows = removeIdentity(listener.flows, id)
-	return nil
 }
 
 type ConnectorRecord struct {
@@ -337,25 +268,7 @@ type ConnectorRecord struct {
 	FlowRateL4  *uint64 `json:"flowRateL4,omitempty"`
 	FlowCountL7 *uint64 `json:"flowCountL7,omitempty"`
 	FlowRateL7  *uint64 `json:"flowRateL7,omitempty"`
-	vanIdentity *string
 	process     *string
-	flows       []string
-}
-
-func (connector *ConnectorRecord) addFlow(id string) error {
-	if id == "" {
-		return fmt.Errorf("flow id is empty")
-	}
-	connector.flows = addIdentity(connector.flows, id)
-	return nil
-}
-
-func (connector *ConnectorRecord) removeFlow(id string) error {
-	if id == "" {
-		return fmt.Errorf("flow id is empty")
-	}
-	connector.flows = removeIdentity(connector.flows, id)
-	return nil
 }
 
 // Van Address represents a service that is attached to the application network
@@ -366,59 +279,15 @@ type VanAddressRecord struct {
 	ConnectorCount int    `json:"connectorCount"`
 	TotalFlows     int    `json:"totalFlows"`
 	CurrentFlows   int    `json:"currentFlows"`
-	listeners      []string
-	connectors     []string
-}
-
-func (addr *VanAddressRecord) flowBegin() {
-	addr.TotalFlows++
-	addr.CurrentFlows++
-	// fire watches
-}
-
-func (addr *VanAddressRecord) flowEnd() {
-	addr.CurrentFlows--
-	// fire watches
-}
-
-func (addr *VanAddressRecord) addListener(id string) error {
-	if id == "" {
-		return fmt.Errorf("Listener id is empty")
-	}
-	addr.listeners = addIdentity(addr.listeners, id)
-	addr.ListenerCount = len(addr.listeners)
-	// fire watches
-	return nil
-}
-
-func (addr *VanAddressRecord) removeListener(id string) error {
-	addr.listeners = removeIdentity(addr.listeners, id)
-	addr.ListenerCount = len(addr.listeners)
-	return nil
-}
-
-func (addr *VanAddressRecord) addConnector(id string) error {
-	if id == "" {
-		return fmt.Errorf("Connector id is empty")
-	}
-	addr.connectors = addIdentity(addr.connectors, id)
-	addr.ConnectorCount = len(addr.connectors)
-	// fire watches
-	return nil
-}
-
-func (a *VanAddressRecord) removeConnector(id string) error {
-	a.connectors = removeIdentity(a.connectors, id)
-	a.ConnectorCount = len(a.connectors)
-	return nil
 }
 
 type ProcessRecord struct {
 	Base
 	Name               *string `json:"name,omitempty"`
+	ParentName         *string `json:"parentName,omitempty"`
 	ImageName          *string `json:"imageName,omitempty"`
 	Image              *string `json:"image,omitempty"`
-	Group              *string `json:"group,omitempty"`
+	GroupName          *string `json:"groupName,omitempty"`
 	GroupIdentity      *string `json:"groupIdentity,omitempty"`
 	HostName           *string `json:"hostName,omitempty"`
 	SourceHost         *string `json:"sourceHost,omitempty"`
@@ -427,7 +296,6 @@ type ProcessRecord struct {
 	OctetsReceived     uint64  `json:"octetsReceived"`
 	OctetsReceivedRate uint64  `json:"octetReceivedRate"`
 	connector          *string
-	flows              []string
 }
 
 type ProcessGroupRecord struct {
@@ -456,6 +324,7 @@ type FlowRecord struct {
 	Method         *string `json:"method,omitempty"`
 	Result         *string `json:"result,omitempty"`
 	Process        *string `json:"process,omitempty"`
+	ProcessName    *string `json:"processName,omitempty"`
 }
 
 // Note a flowpair does not have a defined parent relationship through Base
@@ -531,25 +400,6 @@ type EgressRecord struct {
 type CollectorRecord struct {
 	Base
 	//	name, kind, process
-}
-
-func addIdentity(list []string, id string) []string {
-	list = append(list, id)
-	return list
-}
-
-func removeIdentity(list []string, id string) []string {
-	index := -1
-	for x, y := range list {
-		if y == id {
-			index = x
-		}
-	}
-	if index != -1 {
-		list[index] = list[len(list)-1]
-		list = list[:len(list)-1]
-	}
-	return list
 }
 
 // Convert a slice or array of a specific type to array of interface{}

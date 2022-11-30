@@ -183,12 +183,15 @@ func main() {
 	api1.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
-	api1.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Println(r.RequestURI)
-			next.ServeHTTP(w, r)
+	var logUri = os.Getenv("LOG_REQ_URI")
+	if logUri == "true" {
+		api1.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				log.Println(r.RequestURI)
+				next.ServeHTTP(w, r)
+			})
 		})
-	})
+	}
 
 	var eventsourceApi = api1.PathPrefix("/eventsources").Subrouter()
 	eventsourceApi.StrictSlash(true)
@@ -275,6 +278,7 @@ func main() {
 	processApi.HandleFunc("/", authenticated(http.HandlerFunc(c.processHandler))).Name("list")
 	processApi.HandleFunc("/{id}", authenticated(http.HandlerFunc(c.processHandler))).Name("item")
 	processApi.HandleFunc("/{id}/flows", authenticated(http.HandlerFunc(c.processHandler))).Name("flows")
+	processApi.HandleFunc("/{id}/addresses", authenticated(http.HandlerFunc(c.processHandler))).Name("addresses")
 	processApi.HandleFunc("/{id}/connector", authenticated(http.HandlerFunc(c.processHandler))).Name("connector")
 	processApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

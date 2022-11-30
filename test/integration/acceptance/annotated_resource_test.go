@@ -9,7 +9,6 @@ import (
 	"log"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	vanClient "github.com/skupperproject/skupper/client"
@@ -191,12 +190,11 @@ func TestAnnotatedResources(t *testing.T) {
 			for _, cluster := range []*vanClient.VanClient{pub.VanClient, prv.VanClient} {
 				for svc := range test.expectedServicesProto {
 					var resp *tools.CurlResponse
-					parts := strings.Split(svc, ":")
 					log.Printf("validating communication with service %s through %s", svc, cluster.Namespace)
 					// reaching service through service-controller's pod (with some attempts to make sure bridge is connected)
 					var lastErr error
 					err = utils.Retry(backoff.Duration, backoff.Steps, func() (bool, error) {
-						endpoint := fmt.Sprintf("http://%s:8080", parts[0])
+						endpoint := fmt.Sprintf("http://%s", svc)
 						resp, lastErr = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 10})
 						if lastErr != nil {
 							return false, nil

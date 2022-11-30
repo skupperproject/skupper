@@ -176,7 +176,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
 
 	f := cmd.Flag("enable-console")
-	f.Deprecated = "Stand alone console is planned for deprecation. Use vFlow collector consle instead via --enable-collector flag"
+	f.Deprecated = "Stand alone console is planned for deprecation. Use vFlow collector console instead via --enable-vflow-collector flag"
 	f.Hidden = true
 }
 
@@ -257,14 +257,15 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 			fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
 		}
 		fmt.Println()
-		if vir.ConsoleUrl != "" {
-			fmt.Println("The site console url is: ", vir.ConsoleUrl)
-			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-			if err != nil {
-				return err
-			}
-			if siteConfig.Spec.AuthMode == "internal" {
-				fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-console-users'")
+		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+		if err != nil {
+			return err
+		} else {
+			if siteConfig.Spec.EnableFlowCollector && vir.ConsoleUrl != "" {
+				fmt.Println("The site console url is: ", vir.ConsoleUrl)
+				if siteConfig.Spec.AuthMode == "internal" {
+					fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-console-users'")
+				}
 			}
 		}
 	} else {

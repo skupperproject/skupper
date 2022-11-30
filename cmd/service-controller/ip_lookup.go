@@ -163,18 +163,18 @@ func (i *IpLookup) processNextEvent() bool {
 					process.Image = &pod.Spec.Containers[0].Image
 					process.ImageName = process.Image
 					process.HostName = &pod.Spec.NodeName
-					if labelName, ok := pod.ObjectMeta.Labels["app.kubernetes.io/name"]; ok {
-						process.Group = &labelName
-					} else if labelComponent, ok := pod.ObjectMeta.Labels["app.kubernetes.io/component"]; ok {
-						process.Group = &labelComponent
-					} else if partOf, ok := pod.ObjectMeta.Labels["app.kubernetes.io/part-of"]; ok {
-						process.Group = &partOf
+					if labelName, ok := pod.ObjectMeta.Labels["app.kubernetes.io/part-of"]; ok {
+						process.GroupName = &labelName
+					} else if labelComponent, ok := pod.ObjectMeta.Labels["app.kubernetes.io/name"]; ok {
+						process.GroupName = &labelComponent
+					} else if partOf, ok := pod.ObjectMeta.Labels["app.kubernetes.io/component"]; ok {
+						process.GroupName = &partOf
 					} else {
 						// generate process group from image name
 						parts := strings.Split(*process.ImageName, "/")
 						part := parts[len(parts)-1]
 						pg := strings.Split(part, ":")
-						process.Group = &pg[0]
+						process.GroupName = &pg[0]
 					}
 					i.handler(false, key, process)
 				}

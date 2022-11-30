@@ -557,7 +557,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 			err = createNodeClusterRoleRule(ctx, cli, namespace)
 			if err != nil {
-				return false, err
+				log.Printf("unable to update cluster role for nodes resource")
 			}
 			if siteConfig.Spec.AuthMode != string(types.ConsoleAuthModeOpenshift) {
 				err = updateControllerPorts(ctx, cli, namespace)

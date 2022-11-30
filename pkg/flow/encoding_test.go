@@ -187,7 +187,7 @@ func TestRecordDecoding(t *testing.T) {
 				assert.Assert(t, ok)
 				assert.Equal(t, *process.Name, s.fields[Name])
 				assert.Equal(t, *process.ImageName, s.fields[ImageName])
-				assert.Equal(t, *process.Group, s.fields[Group])
+				assert.Equal(t, *process.GroupName, s.fields[Group])
 				assert.Equal(t, *process.HostName, s.fields[HostName])
 				assert.Equal(t, *process.SourceHost, s.fields[SourceHost])
 			}
@@ -431,7 +431,7 @@ func TestRecordEncoding(t *testing.T) {
 				scenarioProcess.SourceHost = &v
 			}
 			if v, ok := s.fields[Group].(string); ok {
-				scenarioProcess.Group = &v
+				scenarioProcess.GroupName = &v
 			}
 			if v, ok := s.fields[HostName].(string); ok {
 				scenarioProcess.HostName = &v

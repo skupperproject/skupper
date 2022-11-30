@@ -47,7 +47,7 @@ spec:
     metadata:
       labels:
         application: skupper-vflow-collector
-        app.kubernetes.io/part-of: vanflow
+        app.kubernetes.io/part-of: skupper
     spec:
       serviceAccountName: skupper-vflow-collector
       containers:
