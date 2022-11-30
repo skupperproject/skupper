@@ -117,10 +117,18 @@ func fromSubnets(subnets []*container.Subnet) []*models.Subnet {
 
 func (p *PodmanRestClient) NetworkRemove(id string) error {
 	cli := networks.New(p.RestClient, formats)
+	existing, err := p.NetworkInspect(id)
+	if err != nil {
+		return fmt.Errorf("network does not exist %s - %w", id, err)
+	}
+	if !container.IsOwnedBySkupper(existing.Labels) {
+		return fmt.Errorf("network %s is not owned by Skupper", id)
+	}
+
 	params := networks.NewNetworkDeleteLibpodParams()
 	params.Force = boolTrue()
 	params.Name = id
-	_, err := cli.NetworkDeleteLibpod(params)
+	_, err = cli.NetworkDeleteLibpod(params)
 	if err != nil {
 		return fmt.Errorf("error removing network %s: %v", id, err)
 	}

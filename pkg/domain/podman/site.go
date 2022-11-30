@@ -314,7 +314,9 @@ func (s *SitePodmanHandler) canCreate(site *SitePodman) error {
 	// Validating skupper networks available
 	net, err := cli.NetworkInspect(site.ContainerNetwork)
 	if err == nil && net != nil {
-		return fmt.Errorf("network %s already exists", site.ContainerNetwork)
+		if !net.DNS {
+			return fmt.Errorf("network %s cannot be used as DNS is not enabled, fix the existing network or use a different one", site.ContainerNetwork)
+		}
 	}
 
 	// Validating bind ports
@@ -330,22 +332,24 @@ func (s *SitePodmanHandler) canCreate(site *SitePodman) error {
 	}
 
 	// Validate network ability to resolve names
-	createdNetwork, err := cli.NetworkCreate(&container.Network{
-		Name:     site.ContainerNetwork,
-		DNS:      true,
-		Internal: false,
-	})
-	if err != nil {
-		return fmt.Errorf("error validating network creation - %v", err)
-	}
-	defer func(cli *podman.PodmanRestClient, id string) {
-		err := cli.NetworkRemove(id)
+	if net == nil {
+		createdNetwork, err := cli.NetworkCreate(&container.Network{
+			Name:     site.ContainerNetwork,
+			DNS:      true,
+			Internal: false,
+		})
 		if err != nil {
-			fmt.Printf("ERROR removing network %s - %v\n", id, err)
+			return fmt.Errorf("error validating network creation - %v", err)
 		}
-	}(cli, site.ContainerNetwork)
-	if !createdNetwork.DNS {
-		return fmt.Errorf("network %s cannot resolve names - podman plugins must be installed", site.ContainerNetwork)
+		defer func(cli *podman.PodmanRestClient, id string) {
+			err := cli.NetworkRemove(id)
+			if err != nil {
+				fmt.Printf("ERROR removing network %s - %v\n", id, err)
+			}
+		}(cli, site.ContainerNetwork)
+		if !createdNetwork.DNS {
+			return fmt.Errorf("network %s cannot resolve names - podman plugins must be installed", site.ContainerNetwork)
+		}
 	}
 
 	// Validating existing volumes
@@ -371,7 +375,11 @@ func (s *SitePodmanHandler) canCreate(site *SitePodman) error {
 }
 
 func (s *SitePodmanHandler) createNetwork(site *SitePodman) error {
-	_, err := s.cli.NetworkCreate(&container.Network{
+	existingNet, err := s.cli.NetworkInspect(site.ContainerNetwork)
+	if err == nil && existingNet != nil {
+		return nil
+	}
+	_, err = s.cli.NetworkCreate(&container.Network{
 		Name:     site.ContainerNetwork,
 		DNS:      true,
 		Internal: false,

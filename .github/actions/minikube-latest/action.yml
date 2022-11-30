@@ -19,6 +19,12 @@ runs:
       shell: bash
       run: |
         curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
+    - id: prepare-environment
+      shell: bash
+      run: |
+        IPADDR="$(ifconfig eth0 | grep "inet " | awk '{print $2}')"
+        echo "IPADDR=${IPADDR}"
+        echo "IPADDR=${IPADDR}" >> ${GITHUB_ENV}
     - id: run-minikube
       shell: bash
       run: |
