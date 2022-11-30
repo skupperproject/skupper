@@ -33,15 +33,23 @@ func RunPerformanceTest(perfTest PerformanceTest) error {
 	log.Printf("- Running performance test for: %s", app.Name)
 	stepLog.Printf(app.Description)
 
+	// TODO I moved this as a test; might impact other tests
+	// Expose the target service
+	err, svc, skupperSvc := createService(app)
+	if err != nil {
+		return err
+	}
+
 	// Deploying server app
 	if err := deployServer(app); err != nil {
 		return err
 	}
 
-	// Expose the target service
-	if err := exposeService(app); err != nil {
+	//	if app.TlsCredentials != "" {
+	if err := bindService(app, *svc, skupperSvc); err != nil {
 		return err
 	}
+	//	}
 
 	// Running all client jobs
 	if err := runClientJobs(perfTest); err != nil {
@@ -143,7 +151,7 @@ func runClientJobs(perfTest PerformanceTest) error {
 	return nil
 }
 
-func exposeService(app PerformanceApp) error {
+func createService(app PerformanceApp) (error, *ServiceInfo, *types.ServiceInterface) {
 	serverCluster, _ := getServerCluster()
 	// Creating skupper service
 	if skupperSites > 0 {
@@ -155,25 +163,23 @@ func exposeService(app PerformanceApp) error {
 			Ports:    []int{svc.Port},
 		}
 
+		if app.TlsCredentials != "" {
+			skupperSvc.TlsCredentials = app.TlsCredentials
+			skupperSvc.EnableTls = true
+		}
+
 		// Creating service
 		stepLog.Printf("- Creating service %s (port %d)", skupperSvc.Address, skupperSvc.Ports)
 		if err := serverCluster.VanClient.ServiceInterfaceCreate(context.Background(), skupperSvc); err != nil {
-			return fmt.Errorf("error creating skupper service %s - %v", svc.Address, err)
+			return fmt.Errorf("error creating skupper service %s - %v", svc.Address, err), nil, nil
 		}
-		// Binding the service to the deployment
-		err := serverCluster.VanClient.ServiceInterfaceBind(context.Background(), skupperSvc, "deployment", app.Server.Deployment.Name, skupperSvc.Protocol, map[int]int{svc.Port: svc.Port})
-		if err != nil {
-			return fmt.Errorf("error binding service %s - %v", svc.Address, err)
-		}
-
-		// Waiting for service to be available across all namespaces/clusters
-		for i := 1; i <= testRunner.Needs.PublicClusters; i++ {
-			ctx, _ := testRunner.GetPublicContext(i)
-			_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(ctx.Namespace, ctx.VanClient.KubeClient, skupperSvc.Address)
-			if err != nil {
-				return fmt.Errorf("timedout waiting for service %s to be ready - %v", skupperSvc.Address, err)
-			}
-		}
+		//		if app.TlsCredentials == "" {
+		//			err := bindService(app, svc, skupperSvc)
+		//			if err != nil {
+		//				return err, nil, nil
+		//			}
+		//		}
+		return nil, &svc, skupperSvc
 	} else {
 		svc := app.Service
 		stepLog.Printf("- Creating service %s (port %d) - without Skupper", svc.Address, svc.Port)
@@ -192,7 +198,26 @@ func exposeService(app PerformanceApp) error {
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("error creating kubernetes service %s - %v", svc.Address, err)
+			return fmt.Errorf("error creating kubernetes service %s - %v", svc.Address, err), nil, nil
+		}
+	}
+	return nil, nil, nil
+}
+
+func bindService(app PerformanceApp, svc ServiceInfo, skupperSvc *types.ServiceInterface) error {
+	serverCluster, _ := getServerCluster()
+	// Binding the service to the deployment
+	err := serverCluster.VanClient.ServiceInterfaceBind(context.Background(), skupperSvc, "deployment", app.Server.Deployment.Name, skupperSvc.Protocol, map[int]int{svc.Port: svc.Port})
+	if err != nil {
+		return fmt.Errorf("error binding service %s - %v", svc.Address, err)
+	}
+
+	// Waiting for service to be available across all namespaces/clusters
+	for i := 1; i <= testRunner.Needs.PublicClusters; i++ {
+		ctx, _ := testRunner.GetPublicContext(i)
+		_, err := k8s.WaitForSkupperServiceToBeCreatedAndReadyToUse(ctx.Namespace, ctx.VanClient.KubeClient, skupperSvc.Address)
+		if err != nil {
+			return fmt.Errorf("timedout waiting for service %s to be ready - %v", skupperSvc.Address, err)
 		}
 	}
 	return nil
