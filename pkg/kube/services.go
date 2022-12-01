@@ -260,7 +260,7 @@ func GetOriginalTargetPorts(service *corev1.Service) map[int]int {
 	return PortLabelStrToMap(originalTargetPort)
 }
 
-func UpdatePorts(spec *corev1.ServiceSpec, desiredPortMappings map[int]int) bool {
+func UpdatePorts(spec *corev1.ServiceSpec, desiredPortMappings map[int]int, protocol corev1.Protocol) bool {
 	var ports []corev1.ServicePort
 	update := false
 	for _, port := range spec.Ports {
@@ -281,6 +281,7 @@ func UpdatePorts(spec *corev1.ServiceSpec, desiredPortMappings map[int]int) bool
 			Name:       fmt.Sprintf("port%d", port),
 			Port:       int32(port),
 			TargetPort: intstr.IntOrString{IntVal: int32(targetPort)},
+			Protocol:   protocol,
 		})
 	}
 	if update {
@@ -362,4 +363,11 @@ func RemoveServiceAnnotations(name, namespace string, kubeclient kubernetes.Inte
 		delete(svc.ObjectMeta.Annotations, annotation)
 	}
 	return kubeclient.CoreV1().Services(namespace).Update(svc)
+}
+
+func protocol(protocol string) corev1.Protocol {
+	if strings.EqualFold(protocol, "udp") {
+		return corev1.ProtocolUDP
+	}
+	return corev1.ProtocolTCP
 }

@@ -51,7 +51,8 @@ type Services interface {
 }
 
 type ServiceIngressAlways struct {
-	s Services
+	s        Services
+	selector map[string]string
 }
 
 type IsOwned func(*corev1.Service) bool
@@ -81,9 +82,19 @@ func NewHeadlessServiceIngress(s Services, origin string) service.ServiceIngress
 	}
 }
 
-func NewServiceIngressAlways(s Services) service.ServiceIngress {
+func NewServiceIngressExternalBridge(s Services, address string) service.ServiceIngress {
 	return &ServiceIngressAlways{
 		s: s,
+		selector: map[string]string{
+			"skupper.io/external-bridge": address,
+		},
+	}
+}
+
+func NewServiceIngressAlways(s Services) service.ServiceIngress {
+	return &ServiceIngressAlways{
+		s:        s,
+		selector: GetLabelsForRouter(),
 	}
 }
 
@@ -130,8 +141,8 @@ func (si *ServiceIngressAlways) create(desired *service.ServiceBindings) error {
 	for key, value := range desired.Annotations {
 		service.ObjectMeta.Annotations[key] = value
 	}
-	UpdatePorts(&service.Spec, desired.PortMap())
-	UpdateSelectorFromMap(&service.Spec, GetLabelsForRouter())
+	UpdatePorts(&service.Spec, desired.PortMap(), protocol(desired.Protocol()))
+	UpdateSelectorFromMap(&service.Spec, si.selector)
 
 	return si.s.CreateService(service)
 }
@@ -140,8 +151,8 @@ func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.
 	originalPorts := PortsAsString(actual.Spec.Ports)
 	originalSelector := GetApplicationSelector(actual)
 
-	updatedPorts := UpdatePorts(&actual.Spec, desired.PortMap())
-	updatedSelector := UpdateSelectorFromMap(&actual.Spec, GetLabelsForRouter())
+	updatedPorts := UpdatePorts(&actual.Spec, desired.PortMap(), protocol(desired.Protocol()))
+	updatedSelector := UpdateSelectorFromMap(&actual.Spec, si.selector)
 	updatedLabels := UpdateLabels(&actual.ObjectMeta, desired.Labels)
 	updatedAnnotations := UpdateAnnotations(&actual.ObjectMeta, desired.Annotations)
 
@@ -230,13 +241,13 @@ func (si *ServiceIngressHeadlessRemote) create(desired *service.ServiceBindings)
 			PublishNotReadyAddresses: desired.PublishNotReadyAddresses,
 		},
 	}
-	UpdatePorts(&service.Spec, desired.PortMap())
+	UpdatePorts(&service.Spec, desired.PortMap(), protocol(desired.Protocol()))
 	UpdateSelectorFromMap(&service.Spec, map[string]string{"internal.skupper.io/service": desired.Address})
 	return si.s.CreateService(service)
 }
 
 func (si *ServiceIngressHeadlessRemote) update(actual *corev1.Service, desired *service.ServiceBindings) error {
-	updatedPorts := UpdatePorts(&actual.Spec, desired.PortMap())
+	updatedPorts := UpdatePorts(&actual.Spec, desired.PortMap(), protocol(desired.Protocol()))
 	updatedLabels := UpdateLabels(&actual.ObjectMeta, desired.Labels)
 	updatedAnnotations := UpdateAnnotations(&actual.ObjectMeta, desired.Annotations)
 

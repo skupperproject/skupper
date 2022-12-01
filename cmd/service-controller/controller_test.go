@@ -246,6 +246,9 @@ func TestCheckServiceFor(t *testing.T) {
 			assert.Equal(t, len(svc.Spec.Ports), len(s.expected.Spec.Ports))
 			for _, expPort := range s.expected.Spec.Ports {
 				curPort := kube.GetServicePort(svc, int(expPort.Port))
+				if expPort.Protocol == "" {
+					expPort.Protocol = "TCP"
+				}
 				assert.Assert(t, reflect.DeepEqual(expPort, *curPort), "expected: %v - got: %v", expPort, curPort)
 			}
 			assert.Assert(t, reflect.DeepEqual(svc.Spec.Selector, s.expected.Spec.Selector), "expected: %v - got: %v", s.expected.Spec.Selector, svc.Spec.Selector)

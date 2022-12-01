@@ -74,6 +74,10 @@ func (c *TestContext) NewServiceIngress(def *types.ServiceInterface) service.Ser
 	return NewServiceIngressAlways(c)
 }
 
+func (c *TestContext) NewExternalBridge(def *types.ServiceInterface) service.ExternalBridge {
+	return nil
+}
+
 func TestServiceIngressBindings(t *testing.T) {
 	context := &TestContext{
 		client:    fake.NewSimpleClientset(),
