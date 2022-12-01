@@ -37,6 +37,10 @@ func newDummyServiceIngress(mode types.ServiceIngressMode) ServiceIngress {
 	}
 }
 
+func (c *DummyServiceBindingContext) NewExternalBridge(def *types.ServiceInterface) ExternalBridge {
+	return nil
+}
+
 type DummyServiceIngress struct {
 	mode types.ServiceIngressMode
 }
@@ -1515,6 +1519,9 @@ func (c *StopTestBindingContext) NewTargetResolver(address string, selector stri
 	return resolver, nil
 }
 func (*StopTestBindingContext) NewServiceIngress(def *types.ServiceInterface) ServiceIngress {
+	return nil
+}
+func (c *StopTestBindingContext) NewExternalBridge(def *types.ServiceInterface) ExternalBridge {
 	return nil
 }
 

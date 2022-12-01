@@ -44,6 +44,7 @@ type Controller struct {
 	svcDefInformer    cache.SharedIndexInformer
 	svcInformer       cache.SharedIndexInformer
 	headlessInformer  cache.SharedIndexInformer
+	externalBridges   cache.SharedIndexInformer
 
 	// control loop state:
 	events   workqueue.RateLimitingInterface
@@ -146,6 +147,14 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
 			options.LabelSelector = "internal.skupper.io/type=proxy"
 		}))
+	externalBridges := appsv1informer.NewFilteredDeploymentInformer(
+		cli.KubeClient,
+		cli.Namespace,
+		time.Second*30,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
+			options.LabelSelector = "skupper.io/external-bridge"
+		}))
 
 	events := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-service-controller")
 
@@ -158,6 +167,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 		svcDefInformer:     svcDefInformer,
 		svcInformer:        svcInformer,
 		headlessInformer:   headlessInformer,
+		externalBridges:    externalBridges,
 		events:             events,
 		ports:              newFreePorts(),
 		disableServiceSync: disableServiceSync,
@@ -175,6 +185,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	bridgeDefInformer.AddEventHandler(controller.newEventHandler("bridges", AnnotatedKey, ConfigMapResourceVersionTest))
 	svcInformer.AddEventHandler(controller.newEventHandler("actual-services", AnnotatedKey, ServiceResourceVersionTest))
 	headlessInformer.AddEventHandler(controller.newEventHandler("statefulset", AnnotatedKey, StatefulSetResourceVersionTest))
+	externalBridges.AddEventHandler(controller.newEventHandler("external-bridges", AnnotatedKey, DeploymentResourceVersionTest))
 	controller.consoleServer = newConsoleServer(cli, tlsConfig)
 	controller.siteQueryServer = newSiteQueryServer(cli, tlsConfig)
 
@@ -312,6 +323,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	go c.bridgeDefInformer.Run(stopCh)
 	go c.svcInformer.Run(stopCh)
 	go c.headlessInformer.Run(stopCh)
+	go c.externalBridges.Run(stopCh)
 
 	defer utilruntime.HandleCrash()
 	defer c.events.ShutDown()
@@ -319,7 +331,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	log.Println("Starting the Skupper controller")
 
 	log.Println("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.svcDefInformer.HasSynced, c.bridgeDefInformer.HasSynced, c.svcInformer.HasSynced, c.headlessInformer.HasSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.svcDefInformer.HasSynced, c.bridgeDefInformer.HasSynced, c.svcInformer.HasSynced, c.headlessInformer.HasSynced, c.externalBridges.HasSynced); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
 
@@ -386,6 +398,36 @@ func (c *Controller) GetService(name string) (*corev1.Service, bool, error) {
 	return actual, true, nil
 }
 
+func (c *Controller) updateExternalBridges() {
+	for key, binding := range c.bindings {
+		if binding.RequiresExternalBridge() {
+			err := binding.RealiseExternalBridge()
+			if err != nil {
+				event.Recordf(ServiceControllerError, "Error realising external bridge for %s: %s", key, err)
+			}
+		}
+	}
+	stale := []string{}
+	for _, obj := range c.externalBridges.GetStore().List() {
+		if bridge, ok := obj.(*appsv1.Deployment); ok {
+			if address, ok := bridge.ObjectMeta.Labels["skupper.io/external-bridge"]; ok {
+				if binding, ok := c.bindings[address]; ok && binding.RequiresExternalBridge() {
+					continue
+				}
+			}
+			// couldn't find a matching binding, assume stale
+			stale = append(stale, bridge.ObjectMeta.Name)
+		}
+	}
+	//delete all stale deployments:
+	for _, name := range stale {
+		err := kube.DeleteDeployment(name, c.vanClient.Namespace, c.vanClient.KubeClient)
+		if err != nil {
+			event.Recordf(ServiceControllerError, "Error deleting stale external bridge %s: %s", name, err)
+		}
+	}
+}
+
 func (c *Controller) updateActualServices() {
 	for k, v := range c.bindings {
 		event.Recordf(ServiceControllerEvent, "Checking service for: %s", k)
@@ -441,6 +483,14 @@ func setOwnerReferences(o *metav1.ObjectMeta) {
 	if owner != nil {
 		o.OwnerReferences = []metav1.OwnerReference{*owner}
 	}
+}
+
+func getOwnerRefs() []metav1.OwnerReference {
+	owner := getOwnerReference()
+	if owner != nil {
+		return []metav1.OwnerReference{*owner}
+	}
+	return nil
 }
 
 func getOwnerReference() *metav1.OwnerReference {
@@ -694,6 +744,7 @@ func (c *Controller) processNextEvent() bool {
 				c.updateBridgeConfig(c.namespaced(types.TransportConfigMapName))
 				c.updateActualServices()
 				c.updateHeadlessProxies()
+				c.updateExternalBridges()
 			case "bridges":
 				if c.bindings == nil {
 					// not yet initialised
@@ -788,6 +839,8 @@ func (c *Controller) processNextEvent() bool {
 					}
 
 				}
+			case "external-bridges":
+				//Nothing to do
 			default:
 				c.events.Forget(obj)
 				return fmt.Errorf("unexpected event key %s (%s, %s)", key, category, name)
@@ -889,6 +942,9 @@ func (c *Controller) NewTargetResolver(address string, selector string, skipTarg
 }
 
 func (c *Controller) NewServiceIngress(def *types.ServiceInterface) service.ServiceIngress {
+	if def.RequiresExternalBridge() {
+		return kube.NewServiceIngressExternalBridge(c, def.Address)
+	}
 	if def.Headless != nil {
 		return kube.NewHeadlessServiceIngress(c, def.Origin)
 	}
@@ -897,6 +953,10 @@ func (c *Controller) NewServiceIngress(def *types.ServiceInterface) service.Serv
 	} else {
 		return kube.NewServiceIngressAlways(c)
 	}
+}
+
+func (c *Controller) NewExternalBridge(def *types.ServiceInterface) service.ExternalBridge {
+	return kube.NewExternalBridge(kube.NewDeployments(c.vanClient.KubeClient, c.vanClient.Namespace, c.externalBridges, getOwnerRefs()), def)
 }
 
 func (c *Controller) realiseServiceBindings(required types.ServiceInterface, ports []int) error {
@@ -914,9 +974,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		}
 		var ports []int
 		// headless services use distinct proxy pods, so don't need to allocate a port
-		if required.Headless != nil {
-			ports = required.Ports
-		} else {
+		if required.RequiresIngressPortAllocations() {
 			if portAllocations != nil {
 				// existing bridge configuration is used on initialising map to recover
 				// any previous port allocations
@@ -931,6 +989,8 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 					ports = append(ports, port)
 				}
 			}
+		} else {
+			ports = required.Ports
 		}
 
 		c.bindings[required.Address] = service.NewServiceBindings(required, ports, c)

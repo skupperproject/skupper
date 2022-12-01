@@ -119,11 +119,11 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 		return fmt.Errorf("Only one of aggregate and event-channel can be specified for a given service.")
 	} else if service.Aggregate != "" && service.Aggregate != "json" && service.Aggregate != "multipart" {
 		return fmt.Errorf("%s is not a valid aggregation strategy. Choose 'json' or 'multipart'.", service.Aggregate)
-	} else if service.Protocol != "" && service.Protocol != "tcp" && service.Protocol != "http" && service.Protocol != "http2" {
+	} else if (service.Protocol != "" && service.Protocol != "tcp" && service.Protocol != "http" && service.Protocol != "http2") && service.BridgeImage == "" {
 		return fmt.Errorf("%s is not a valid mapping. Choose 'tcp', 'http' or 'http2'.", service.Protocol)
 	} else if service.Aggregate != "" && service.Protocol != "http" {
 		return fmt.Errorf("The aggregate option is currently only valid for http")
-	} else if service.EventChannel && service.Protocol != "http" {
+	} else if service.EventChannel && service.Protocol != "http" && service.Protocol != "udp" {
 		return fmt.Errorf("The event-channel option is currently only valid for http")
 	} else if service.EnableTls && service.Protocol == "http" {
 		return fmt.Errorf("The TLS support is only available for http2 and tcp protocols")

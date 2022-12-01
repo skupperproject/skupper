@@ -487,6 +487,7 @@ type ServiceInterface struct {
 	EnableTls                bool                     `json:"enableTls,omitempty"`
 	TlsCredentials           string                   `json:"tlsCredentials,omitempty"`
 	PublishNotReadyAddresses bool                     `json:"publishNotReadyAddresses,omitempty"`
+	BridgeImage              string                   `json:"bridgeImage,omitempty"`
 }
 
 func (s *ServiceInterface) IsOfLocalOrigin() bool {
@@ -506,6 +507,22 @@ func (s *ServiceInterface) SetIngressMode(mode string) error {
 		return fmt.Errorf("Invalid value for ingress-mode: %s. Must be Always or Never.", mode)
 	}
 	return nil
+}
+
+func (s *ServiceInterface) RequiresExternalBridge() bool {
+	if s.BridgeImage != "" {
+		return true
+	}
+	for _, valid := range []string{"tcp", "http", "http2"} {
+		if s.Protocol == valid {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *ServiceInterface) RequiresIngressPortAllocations() bool {
+	return s.Headless == nil && !s.RequiresExternalBridge()
 }
 
 type ServiceInterfaceList []ServiceInterface

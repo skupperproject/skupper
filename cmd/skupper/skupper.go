@@ -109,6 +109,7 @@ type ExposeOptions struct {
 	TlsCredentials           string
 	PublishNotReadyAddresses bool
 	IngressMode              string
+	BridgeImage              string
 }
 
 func SkupperNotInstalledError(namespace string) error {
@@ -225,6 +226,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 				EnableTls:                options.EnableTls,
 				TlsCredentials:           options.TlsCredentials,
 				PublishNotReadyAddresses: options.PublishNotReadyAddresses,
+				BridgeImage:              options.BridgeImage,
 			}
 			err := service.SetIngressMode(options.IngressMode)
 			if err != nil {
@@ -237,6 +239,8 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", fmt.Errorf("Service already exposed, cannot reconfigure as headless")
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
 		return "", fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
+	} else if options.BridgeImage != "" && service.BridgeImage != options.BridgeImage {
+		return "", fmt.Errorf("Service %s already exists with a different bridge image: %s", serviceName, service.BridgeImage)
 	} else if options.EnableTls && options.Protocol == "http" {
 		return "", fmt.Errorf("TLS can not be enabled for service with mapping %s (only available for http2 and tcp protocols)", service.Protocol)
 	} else if options.EnableTls && !service.EnableTls {
@@ -467,6 +471,7 @@ func NewCmdExpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd.Flags().StringSliceVar(&(exposeOpts.TargetPorts), "target-port", []string{}, "The ports to target on pods")
 	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 and tcp protocols)")
 	cmd.Flags().StringVar(&(exposeOpts.IngressMode), "enable-ingress-from-target-site", "", "Determines whether access to the Skupper service is enabled in the site the target was exposed through. Always (default) or Never are valid values.")
+	cmd.Flags().StringVar(&exposeOpts.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
 
 	skupperCli.ExposeFlags(cmd)
 	return cmd
@@ -638,6 +643,7 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
+	cmd.Flags().StringVar(&serviceToCreate.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
 
 	f := cmd.Flag("mapping")
 	f.Deprecated = "protocol is now the flag to set the mapping"

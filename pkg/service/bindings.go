@@ -37,9 +37,15 @@ type ServiceIngress interface {
 	Matches(def *types.ServiceInterface) bool
 }
 
+type ExternalBridge interface {
+	Realise() error
+	Matches(def *types.ServiceInterface) bool
+}
+
 type ServiceBindingContext interface {
 	NewTargetResolver(address string, selector string, skipTargetStatus bool) (TargetResolver, error)
 	NewServiceIngress(def *types.ServiceInterface) ServiceIngress
+	NewExternalBridge(def *types.ServiceInterface) ExternalBridge
 }
 
 type EgressBindings struct {
@@ -66,6 +72,11 @@ type ServiceBindings struct {
 	targets                  map[string]*EgressBindings
 	tlsCredentials           string
 	PublishNotReadyAddresses bool
+	external                 ExternalBridge
+}
+
+func (s *ServiceBindings) RequiresExternalBridge() bool {
+	return s.external != nil
 }
 
 func (s *ServiceBindings) FindLocalTarget() *EgressBindings {
@@ -83,6 +94,10 @@ func (s *ServiceBindings) PortMap() map[int]int {
 		ports[s.publicPorts[i]] = s.ingressPorts[i]
 	}
 	return ports
+}
+
+func (s *ServiceBindings) Protocol() string {
+	return s.protocol
 }
 
 func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
@@ -152,6 +167,9 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 		tlsCredentials:           required.TlsCredentials,
 		PublishNotReadyAddresses: required.PublishNotReadyAddresses,
 	}
+	if required.RequiresExternalBridge() {
+		sb.external = bindingContext.NewExternalBridge(&required)
+	}
 	for _, t := range required.Targets {
 		if t.Selector != "" {
 			sb.addSelectorTarget(t.Name, t.Selector, getTargetPorts(required, t), bindingContext)
@@ -165,6 +183,13 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 
 func (bindings *ServiceBindings) RealiseIngress() error {
 	return bindings.ingressBinding.Realise(bindings)
+}
+
+func (bindings *ServiceBindings) RealiseExternalBridge() error {
+	if bindings.external == nil {
+		return nil
+	}
+	return bindings.external.Realise()
 }
 
 func (bindings *ServiceBindings) Update(required types.ServiceInterface, bindingContext ServiceBindingContext) {
@@ -268,6 +293,13 @@ func (bindings *ServiceBindings) Update(required types.ServiceInterface, binding
 			bindings.Annotations[k] = v
 		}
 	}
+	if bindings.external == nil || !bindings.external.Matches(&required) {
+		if required.RequiresExternalBridge() {
+			bindings.external = bindingContext.NewExternalBridge(&required)
+		} else {
+			bindings.external = nil
+		}
+	}
 }
 
 type NullTargetResolver struct {
@@ -341,7 +373,7 @@ func (sb *ServiceBindings) Stop() {
 }
 
 func (sb *ServiceBindings) updateBridgeConfiguration(siteId string, bridges *qdr.BridgeConfig) {
-	if sb.headless == nil {
+	if sb.headless == nil && !sb.RequiresExternalBridge() {
 		addIngressBridge(sb, siteId, bridges)
 		for _, eb := range sb.targets {
 			eb.updateBridgeConfiguration(sb, siteId, bridges)
