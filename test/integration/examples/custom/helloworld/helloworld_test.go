@@ -275,6 +275,14 @@ func TestHelloWorldCLI(t *testing.T) {
 						},
 					},
 				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target: "http://hello-world-frontend:8080",
+					},
+					&cli.CurlTester{
+						Target: "http://hello-world-backend:8080/api/hello",
+					},
+				}},
 			},
 		}, {
 			Name: "service-unbind-delete",
