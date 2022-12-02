@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -237,6 +238,17 @@ var Tests = []struct {
 	// a string to be sought in the initial openssl cli output.  No match is a failure
 	Seek string
 }{
+	// TODO: This fails, and causes further tests to fail, if it comes first: why
+	//       does that happen, and why does it not impact tests coming from the
+	//       next job run?
+	//       That's under investigation on skupper-router #864.  Once that is
+	//       closed, move this to the top of the list and change the success
+	//       expectation.
+	{
+		Client:  reconnectClient,
+		Server:  plainServer,
+		Success: false,
+	},
 	// plainClient with a variety of servers
 	{
 		Client:  plainClient,
@@ -365,17 +377,6 @@ var Tests = []struct {
 	}, {
 		Client:  sniClient,
 		Server:  sniServer,
-		Success: false,
-	},
-	// TODO: This fails, and causes further tests to fail, if it comes first: why
-	//       does that happen, and why does it not impact tests coming from the
-	//       next job run?
-	//       That's under investigation on skupper-router #864.  Once that is
-	//       closed, move this to the top of the list and change the success
-	//       expectation.
-	{
-		Client:  reconnectClient,
-		Server:  plainServer,
 		Success: false,
 	},
 }
@@ -539,11 +540,7 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 // complete.
 // 'seek', if given, is a string to be searched for on the initial flush.  If
 // given and not found, return an error.
-func flushStdOut(r *bufio.Reader, seek string) error {
-	// TODO: change this for a goroutine that scans stdout and sends each
-	// line to a channel.  The flush would be a continuous read from that
-	// channel with the timeout pattern.  After that, reading from the
-	// stdout would be a synchronous channel read.
+func flushStdOut(outputCh <-chan string, seek string) error {
 	log.Printf("Flushing stdout")
 
 	var found bool
@@ -552,39 +549,35 @@ func flushStdOut(r *bufio.Reader, seek string) error {
 		found = true
 	}
 
-	s, err := r.ReadString('\n')
-	log.Printf(s)
-	if err != nil {
-		log.Printf("Error flushing stdout: %v", err)
-	}
+	var count int
 
 outer:
 	for {
-		if r.Buffered() != 0 {
-			s, err := r.ReadString('\n')
-			log.Printf(s)
-			if err != nil {
-				log.Printf("Error flushing stdout: %v", err)
-			}
-			if strings.Contains(s, seek) {
-				found = true
-			}
-		} else {
-			for i := 0; i < 5; i++ {
-				time.Sleep(time.Millisecond * 200)
-				if r.Buffered() != 0 {
-					continue outer
-				}
-
-			}
+		count++
+		//		log.Printf("on the for :%v", count)
+		timeoutCh := time.After(time.Second)
+		var line string
+		var ok bool
+		select {
+		case line, ok = <-outputCh:
+		case <-timeoutCh:
+			log.Printf("Flush complete")
 			break outer
 		}
+		if !ok {
+			return fmt.Errorf("command output finished during initial stdout flush")
+		}
+		log.Printf("  %v", line)
+		if strings.Contains(line, seek) {
+			found = true
+		}
 	}
+
 	if !found {
 		return fmt.Errorf("stdout flush did not match string %q", seek)
 	}
-	log.Printf("Flush complete")
 	return nil
+
 }
 
 func SendReceive(addr string, options []string, seek string) error {
@@ -600,8 +593,14 @@ func SendReceive(addr string, options []string, seek string) error {
 		"/tmp/certs/skupper-tls-ssl-server/ca.crt",
 		"-no_ign_eof",
 		"-verify_hostname", "ssl-server",
-		// 		"-tlsextdebug", // if setting this, consider increasing the stdout flush timeout
+		"-tlsextdebug",
 	}
+
+	// there is no reason to keep the command waiting for output
+	// buffer space to be available: at first, we want to flush it
+	// all out, then we read just one line after one write.  So, we
+	// read as much as we can without blocking.
+	outputCh := make(chan string, 100)
 
 	cmdArgs = append(cmdArgs, options...)
 	doneCh := make(chan error)
@@ -611,7 +610,6 @@ func SendReceive(addr string, options []string, seek string) error {
 
 		log.Println("Starting openssl s_client...")
 		log.Printf("Executing command openssl %v", cmdArgs)
-		//cmd := exec.Command("openssl", append(cmdArgs, "-quiet")...)
 		cmd := exec.Command("openssl", cmdArgs...)
 		cmd.Stderr = os.Stderr
 
@@ -642,10 +640,24 @@ func SendReceive(addr string, options []string, seek string) error {
 
 		pReader := bufio.NewReader(pipeOut)
 
-		// This write and return are ignored; they're there just to
-		// flush the output before the actual test
-		_, err = pipeIn.Write([]byte(strEcho))
-		err = flushStdOut(pReader, seek)
+		go func() {
+			for {
+				line, err := pReader.ReadString('\n')
+				outputCh <- line
+				if err == io.EOF {
+					log.Printf("Read EOF")
+					close(outputCh)
+					return
+				}
+				if err != nil {
+					log.Printf("non-EOF error reading command output: %v", err)
+					close(outputCh)
+					return
+				}
+			}
+		}()
+
+		err = flushStdOut(outputCh, seek)
 		if err != nil {
 			doneCh <- err
 			return
@@ -660,12 +672,7 @@ func SendReceive(addr string, options []string, seek string) error {
 
 		log.Println("Receiving reply")
 
-		reply, err := pReader.ReadString('\n')
-
-		if err != nil {
-			doneCh <- fmt.Errorf("read from server failed: %w (reply: %q)", err, reply)
-			return
-		}
+		reply := <-outputCh
 
 		log.Printf("Sent to server = %q", strEcho)
 		log.Printf("Reply from server = %q", string(reply))
@@ -696,11 +703,18 @@ func SendReceive(addr string, options []string, seek string) error {
 		err = fmt.Errorf("timed out waiting for SendReceive function to finish")
 	}
 
-	//	if err != nil {
-	//		log.Printf("Re-executing command without -quiet, for debugging purposes only")
-	//		cmd := exec.Command("openssl", cmdArgs...)
-	//		cmd.Start()
-	//	}
-
-	return err
+	log.Print("Flushing stdout after test")
+	// Otherwise, output gets mixed with the next test
+	for {
+		select {
+		case line, ok := <-outputCh:
+			if !ok {
+				// We're done here, so we just return whatever err we got before
+				return err
+			}
+			log.Printf("  %v", line)
+		case <-timeoutCh:
+			return fmt.Errorf("timed out waiting for SendReceive function to finish")
+		}
+	}
 }
