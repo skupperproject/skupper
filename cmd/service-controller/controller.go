@@ -724,8 +724,8 @@ func (c *Controller) processNextEvent() bool {
 							if err == nil {
 								c.updateServiceBindings(si, portAllocations)
 
-								tlsSupport := kubeqdr.TlsSupport{Address: si.Address, Credentials: si.TlsCredentials}
-								err = kubeqdr.EnableTlsSupport(tlsSupport, c.getSecret, c.getConfigMap, c.newSecret, c.addSslProfile, c.existsSslProfile)
+								tlsSupport := kubeqdr.TlsServiceSupport{Address: si.Address, Credentials: si.TlsCredentials}
+								err = kubeqdr.EnableTlsSupport(tlsSupport, c.vanClient)
 								if err != nil {
 									event.Recordf(ServiceControllerError, "Could not parse service definition for %s: %s", k, err)
 								}
@@ -737,7 +737,7 @@ func (c *Controller) processNextEvent() bool {
 							_, ok := cm.Data[k]
 							if !ok {
 								c.deleteServiceBindings(k, v)
-								err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.removeSslProfile, c.getSecret, c.deleteSecret)
+								err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.vanClient)
 								if err != nil {
 									event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 								}
@@ -746,7 +746,7 @@ func (c *Controller) processNextEvent() bool {
 					} else if len(c.bindings) > 0 {
 						for k, v := range c.bindings {
 							c.deleteServiceBindings(k, v)
-							err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.removeSslProfile, c.getSecret, c.deleteSecret)
+							err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.vanClient)
 							if err != nil {
 								event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 							}
@@ -946,32 +946,4 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		bindings.Update(required, c)
 	}
 	return nil
-}
-
-func (c *Controller) getSecret(name string) (*corev1.Secret, error) {
-	return c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Get(name, metav1.GetOptions{})
-}
-
-func (c *Controller) getConfigMap() (*corev1.ConfigMap, error) {
-	return c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
-}
-
-func (c *Controller) newSecret(credential types.Credential, ownerReference *metav1.OwnerReference) (*corev1.Secret, error) {
-	return kube.NewSecret(credential, ownerReference, c.vanClient.Namespace, c.vanClient.KubeClient)
-}
-
-func (c *Controller) addSslProfile(sslProfile qdr.SslProfile) error {
-	return kubeqdr.AddSslProfile(sslProfile, c.vanClient.Namespace, c.vanClient.KubeClient)
-}
-
-func (c *Controller) existsSslProfile(sslProfile string) (bool, error) {
-	return kubeqdr.ExistsSslProfile(sslProfile, c.vanClient.Namespace, c.vanClient.KubeClient)
-}
-
-func (c *Controller) removeSslProfile(sslProfile string) error {
-	return kubeqdr.RemoveSslProfile(sslProfile, c.vanClient.Namespace, c.vanClient.KubeClient)
-}
-
-func (c *Controller) deleteSecret(secretName string) error {
-	return c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Delete(secretName, &metav1.DeleteOptions{})
 }

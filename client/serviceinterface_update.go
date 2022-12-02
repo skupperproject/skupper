@@ -214,8 +214,8 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		}
 		service.AddTarget(target)
 
-		tlsSupport := qdr.TlsSupport{Address: service.Address, Credentials: service.TlsCredentials, CertAuthority: service.TlsCertAuthority}
-		err = qdr.EnableTlsSupport(tlsSupport, cli.getSecret, cli.getConfigMap, cli.newSecret, cli.addSslProfile, cli.existsSslProfile)
+		tlsSupport := qdr.TlsServiceSupport{Address: service.Address, Credentials: service.TlsCredentials, CertAuthority: service.TlsCertAuthority}
+		err = qdr.EnableTlsSupport(tlsSupport, cli)
 
 		if err != nil {
 			return err

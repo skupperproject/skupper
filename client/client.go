@@ -1,6 +1,10 @@
 package client
 
 import (
+	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
+	"github.com/skupperproject/skupper/pkg/qdr"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
@@ -117,4 +121,32 @@ func (cli *VanClient) GetIngressDefault() string {
 		return types.IngressLoadBalancerString
 	}
 	return types.IngressRouteString
+}
+
+func (cli *VanClient) GetSecret(name string) (*corev1.Secret, error) {
+	return cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(name, metav1.GetOptions{})
+}
+
+func (cli *VanClient) GetConfigMap() (*corev1.ConfigMap, error) {
+	return cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+}
+
+func (cli *VanClient) NewSecret(credential types.Credential, ownerReference *metav1.OwnerReference) (*corev1.Secret, error) {
+	return kube.NewSecret(credential, ownerReference, cli.Namespace, cli.KubeClient)
+}
+
+func (cli *VanClient) AddSslProfile(sslProfile qdr.SslProfile) error {
+	return kubeqdr.AddSslProfile(sslProfile, cli.Namespace, cli.KubeClient)
+}
+
+func (cli *VanClient) ExistsSslProfile(sslProfile string) (bool, error) {
+	return kubeqdr.ExistsSslProfile(sslProfile, cli.Namespace, cli.KubeClient)
+}
+
+func (cli *VanClient) RemoveSslProfile(sslProfile string) error {
+	return kubeqdr.RemoveSslProfile(sslProfile, cli.Namespace, cli.KubeClient)
+}
+
+func (cli *VanClient) DeleteSecret(secretName string) error {
+	return cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secretName, &metav1.DeleteOptions{})
 }
