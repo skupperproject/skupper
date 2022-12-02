@@ -278,10 +278,16 @@ func TestHelloWorldCLI(t *testing.T) {
 				}},
 				{Ctx: prv, Commands: []cli.SkupperCommandTester{
 					&cli.CurlTester{
-						Target: "http://hello-world-frontend:8080",
+						Target:    "http://hello-world-frontend:8080",
+						Silent:    true,
+						ShowError: true,
+						Verbose:   true,
 					},
 					&cli.CurlTester{
-						Target: "http://hello-world-backend:8080/api/hello",
+						Target:    "http://hello-world-backend:8080/api/hello",
+						Silent:    true,
+						ShowError: true,
+						Verbose:   true,
 					},
 				}},
 			},
@@ -427,24 +433,36 @@ func TestHelloWorldCLI(t *testing.T) {
 			Tasks: []cli.SkupperTask{
 				{Ctx: prv, Commands: []cli.SkupperCommandTester{
 					&cli.CurlTester{
-						Target: "http://hello-world-backend-k8s-service:8080/api/hello",
+						Target:    "http://hello-world-backend-k8s-service:8080/api/hello",
+						Silent:    true,
+						ShowError: true,
+						Verbose:   true,
 					},
 				}},
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
 					&cli.CurlTester{
 						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
 						ExpectFail: true, // this is a standard k8s service, so before exposure it does not exist on pub
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 				{Ctx: prv, Commands: []cli.SkupperCommandTester{
 					&cli.CurlTester{
 						Target:     "http://hello-world-frontend-k8s-service:8080",
 						ExpectFail: true, // this is a standard k8s service, so before exposure it does not exist on pub
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
 					&cli.CurlTester{
-						Target: "http://hello-world-frontend-k8s-service:8080",
+						Target:    "http://hello-world-frontend-k8s-service:8080",
+						Silent:    true,
+						ShowError: true,
+						Verbose:   true,
 					},
 				}},
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
@@ -489,6 +507,9 @@ func TestHelloWorldCLI(t *testing.T) {
 						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
 						Interval:   time.Second,
 						MaxRetries: 100,
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
@@ -496,6 +517,9 @@ func TestHelloWorldCLI(t *testing.T) {
 						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
 						Interval:   time.Second,
 						MaxRetries: 100,
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 				{Ctx: prv, Commands: []cli.SkupperCommandTester{
@@ -503,6 +527,9 @@ func TestHelloWorldCLI(t *testing.T) {
 						Target:     "http://hello-world-frontend-k8s-service:8080",
 						Interval:   time.Second,
 						MaxRetries: 100,
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
@@ -510,6 +537,9 @@ func TestHelloWorldCLI(t *testing.T) {
 						Target:     "http://hello-world-frontend-k8s-service:8080",
 						Interval:   time.Second,
 						MaxRetries: 100,
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 			},
@@ -556,6 +586,9 @@ func TestHelloWorldCLI(t *testing.T) {
 						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
 						Interval:   time.Second,
 						MaxRetries: 100,
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
@@ -564,6 +597,9 @@ func TestHelloWorldCLI(t *testing.T) {
 						ExpectFail: true, // this was a standard k8s service, so after unexpose it should not exist on pub
 						Interval:   time.Second,
 						MaxRetries: 100,
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 				{Ctx: prv, Commands: []cli.SkupperCommandTester{
@@ -572,6 +608,9 @@ func TestHelloWorldCLI(t *testing.T) {
 						ExpectFail: true, // this was a standard k8s service, so after unexpose it should not exist on prv
 						Interval:   time.Second,
 						MaxRetries: 100,
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 				{Ctx: pub, Commands: []cli.SkupperCommandTester{
@@ -581,6 +620,9 @@ func TestHelloWorldCLI(t *testing.T) {
 						Target:     "http://hello-world-frontend-k8s-service:8080",
 						Interval:   time.Second,
 						MaxRetries: 100,
+						Silent:     true,
+						ShowError:  true,
+						Verbose:    true,
 					},
 				}},
 			},
@@ -619,6 +661,11 @@ func TestHelloWorldCLI(t *testing.T) {
 
 	// Running the scenarios
 	cli.RunScenarios(t, scenarios)
+
+	if t.Failed() {
+		pub.DumpTestInfo("hello_world")
+		prv.DumpTestInfo("hello_world")
+	}
 
 }
 
