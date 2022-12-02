@@ -304,6 +304,13 @@ func (s *SkupperKubeSite) Version(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
 		fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
 		fmt.Printf("%-30s %s\n", "config-sync version", cli.GetVersion(types.TransportComponentName, types.ConfigSyncContainerName))
+
+		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+		if err == nil {
+			if siteConfig.Spec.EnableFlowCollector {
+				fmt.Printf("%-30s %s\n", "vflow-collector version", cli.GetVersion(types.ControllerComponentName, types.FlowCollectorContainerName))
+			}
+		}
 	} else {
 		fmt.Printf("%-30s %s\n", "transport version", "not-found (no configuration has been provided)")
 		fmt.Printf("%-30s %s\n", "controller version", "not-found (no configuration has been provided)")
