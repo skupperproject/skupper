@@ -342,7 +342,7 @@ var Tests = []struct {
 		Server:  plainServer,
 		Success: true,
 	},
-	// special cases (ie both client and server are non-plain)
+	// matching cases (ie both client and server are non-plain)
 	{
 		// TLS compression is insecure; we want to make sure
 		// it is not active, even if we ask for it
