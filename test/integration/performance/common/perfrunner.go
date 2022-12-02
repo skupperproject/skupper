@@ -33,8 +33,6 @@ func RunPerformanceTest(perfTest PerformanceTest) error {
 	log.Printf("- Running performance test for: %s", app.Name)
 	stepLog.Printf(app.Description)
 
-	// TODO I moved this as a test; might impact other tests
-	// Expose the target service
 	err, svc, skupperSvc := createService(app)
 	if err != nil {
 		return err
@@ -45,11 +43,10 @@ func RunPerformanceTest(perfTest PerformanceTest) error {
 		return err
 	}
 
-	//	if app.TlsCredentials != "" {
+	// Bind needs to be after deployment, for the TLS case
 	if err := bindService(app, *svc, skupperSvc); err != nil {
 		return err
 	}
-	//	}
 
 	// Running all client jobs
 	if err := runClientJobs(perfTest); err != nil {
@@ -173,12 +170,6 @@ func createService(app PerformanceApp) (error, *ServiceInfo, *types.ServiceInter
 		if err := serverCluster.VanClient.ServiceInterfaceCreate(context.Background(), skupperSvc); err != nil {
 			return fmt.Errorf("error creating skupper service %s - %v", svc.Address, err), nil, nil
 		}
-		//		if app.TlsCredentials == "" {
-		//			err := bindService(app, svc, skupperSvc)
-		//			if err != nil {
-		//				return err, nil, nil
-		//			}
-		//		}
 		return nil, &svc, skupperSvc
 	} else {
 		svc := app.Service
