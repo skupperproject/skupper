@@ -247,7 +247,7 @@ var Tests = []struct {
 	{
 		Client:  reconnectClient,
 		Server:  plainServer,
-		Success: false,
+		Success: true,
 	},
 	// plainClient with a variety of servers
 	{
