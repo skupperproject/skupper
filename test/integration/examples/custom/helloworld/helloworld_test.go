@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -422,6 +423,168 @@ func TestHelloWorldCLI(t *testing.T) {
 				}},
 			},
 		}, {
+			Name: "expose-service",
+			Tasks: []cli.SkupperTask{
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target: "http://hello-world-backend-k8s-service:8080/api/hello",
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
+						ExpectFail: true, // this is a standard k8s service, so before exposure it does not exist on pub
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target:     "http://hello-world-frontend-k8s-service:8080",
+						ExpectFail: true, // this is a standard k8s service, so before exposure it does not exist on pub
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target: "http://hello-world-frontend-k8s-service:8080",
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					// skupper expose - expose and ensure service is available
+					&cli.ExposeTester{
+						TargetType: "service",
+						TargetName: "hello-world-frontend-k8s-service",
+						Address:    "hello-world-frontend-k8s-service",
+						Port:       8080,
+						Protocol:   "http",
+						TargetPort: 8080,
+					},
+					// skupper status - asserts that 1 service is exposed
+					&cli.StatusTester{
+						RouterMode:          "interior",
+						ConnectedSites:      1,
+						ExposedServices:     1,
+						ConsoleEnabled:      true,
+						ConsoleAuthInternal: true,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					// skupper expose - exposes backend and certify it is available
+					&cli.ExposeTester{
+						TargetType: "service",
+						TargetName: "hello-world-backend-k8s-service",
+						Address:    "hello-world-backend-k8s-service",
+						Port:       8080,
+						Protocol:   "http",
+						TargetPort: 8080,
+					},
+					// skupper status - asserts that there are 2 exposed services
+					&cli.StatusTester{
+						RouterMode:      "edge",
+						SiteName:        "private",
+						ConnectedSites:  1,
+						ExposedServices: 2,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
+						Interval:   time.Second,
+						MaxRetries: 100,
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
+						Interval:   time.Second,
+						MaxRetries: 100,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target:     "http://hello-world-frontend-k8s-service:8080",
+						Interval:   time.Second,
+						MaxRetries: 100,
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target:     "http://hello-world-frontend-k8s-service:8080",
+						Interval:   time.Second,
+						MaxRetries: 100,
+					},
+				}},
+			},
+		}, {
+			Name: "unexpose-service",
+			Tasks: []cli.SkupperTask{
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					// skupper unexpose - unexpose and verify it has been removed
+					&cli.UnexposeTester{
+						TargetType:            "service",
+						TargetName:            "hello-world-frontend-k8s-service",
+						Address:               "hello-world-frontend-k8s-service",
+						SkipRemovalValidation: true,
+					},
+					// skupper status - verify only 1 service is exposed
+					&cli.StatusTester{
+						RouterMode:          "interior",
+						ConnectedSites:      1,
+						ExposedServices:     1,
+						ConsoleEnabled:      true,
+						ConsoleAuthInternal: true,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					// skupper unexpose - unexpose and verify it has been removed
+					&cli.UnexposeTester{
+						TargetType:            "deployment",
+						TargetName:            "hello-world-backend-k8s-service",
+						Address:               "hello-world-backend-k8s-service",
+						SkipRemovalValidation: true,
+					},
+					// skupper status - verify there is no exposed services
+					&cli.StatusTester{
+						RouterMode:      "edge",
+						SiteName:        "private",
+						ConnectedSites:  1,
+						ExposedServices: 0,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					// After unexpose, is the pre-existing k8s service still
+					// working on its own namespace?
+					&cli.CurlTester{
+						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
+						Interval:   time.Second,
+						MaxRetries: 100,
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target:     "http://hello-world-backend-k8s-service:8080/api/hello",
+						ExpectFail: true, // this was a standard k8s service, so after unexpose it should not exist on pub
+						Interval:   time.Second,
+						MaxRetries: 100,
+					},
+				}},
+				{Ctx: prv, Commands: []cli.SkupperCommandTester{
+					&cli.CurlTester{
+						Target:     "http://hello-world-frontend-k8s-service:8080",
+						ExpectFail: true, // this was a standard k8s service, so after unexpose it should not exist on prv
+						Interval:   time.Second,
+						MaxRetries: 100,
+					},
+				}},
+				{Ctx: pub, Commands: []cli.SkupperCommandTester{
+					// After unexpose, is the pre-existing k8s service still
+					// working on its own namespace?
+					&cli.CurlTester{
+						Target:     "http://hello-world-frontend-k8s-service:8080",
+						Interval:   time.Second,
+						MaxRetries: 100,
+					},
+				}},
+			},
+		}, {
 			Name: "version",
 			Tasks: []cli.SkupperTask{
 				// skupper version - verify version is being reported accordingly
@@ -480,6 +643,32 @@ func deployResources(pub *base.ClusterContext, prv *base.ClusterContext) error {
 	if _, err := prv.VanClient.KubeClient.AppsV1().Deployments(prv.Namespace).Create(backend); err != nil {
 		return err
 	}
+
+	// Creating k8s services
+	k8s.CreateService(
+		pub.VanClient,
+		"hello-world-frontend-k8s-service",
+		map[string]string{},
+		map[string]string{"app": "hello-world-frontend"},
+		map[string]string{"app": "hello-world-frontend"},
+		[]v1.ServicePort{
+			{
+				Port: 8080,
+			},
+		},
+	)
+	k8s.CreateService(
+		prv.VanClient,
+		"hello-world-backend-k8s-service",
+		map[string]string{},
+		map[string]string{"app": "hello-world-backend"},
+		map[string]string{"app": "hello-world-backend"},
+		[]v1.ServicePort{
+			{
+				Port: 8080,
+			},
+		},
+	)
 
 	// Waiting for deployments to be ready
 	if _, err := kube.WaitDeploymentReady("hello-world-frontend", pub.Namespace, pub.VanClient.KubeClient, constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
