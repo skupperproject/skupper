@@ -41,7 +41,7 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          "http",
-				ContainerPort: types.ConsoleDefaultServicePort,
+				ContainerPort: types.FlowCollectorDefaultServicePort,
 			},
 			{
 				Name:          "https",
@@ -103,6 +103,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	// service-controller container index
 	const (
 		serviceController = iota
+		vFlowCollector
 		oauthProxy
 	)
 
@@ -140,27 +141,42 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	volumes := []corev1.Volume{}
 	mounts := make([][]corev1.VolumeMount, 1)
 
-	if options.EnableConsole {
+	if options.EnableFlowCollector {
+		mounts = append(mounts, []corev1.VolumeMount{})
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
-			sidecars = append(sidecars, OauthProxyContainer(types.ControllerServiceAccountName, csp))
-			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_PORT", Value: csp})
-			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_HOST", Value: "localhost"})
+			envVars = append(envVars, corev1.EnvVar{Name: "VFLOW_PORT", Value: csp})
+			envVars = append(envVars, corev1.EnvVar{Name: "VFLOW_HOST", Value: "localhost"})
 			mounts = append(mounts, []corev1.VolumeMount{})
 			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.ConsoleServerSecret, "/etc/tls/proxy-certs/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
-			kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
+			envVars = append(envVars, corev1.EnvVar{Name: "VFLOW_USERS", Value: "/etc/console-users"})
+			kube.AppendSharedSecretVolume(&volumes, []*[]corev1.VolumeMount{&mounts[serviceController], &mounts[vFlowCollector]}, "skupper-console-users", "/etc/console-users/")
+		}
+		err := configureDeployment(&van.Collector, &options.FlowCollector.Tuning)
+		if err != nil {
+			fmt.Println("Error configuring vFlow collector sidecar:", err)
+		}
+		van.Collector.Image = GetFlowCollectorImageDetails()
+		van.Collector.EnvVar = envVars
+		sidecars = append(sidecars, kube.ContainerForFlowCollector(van.Collector))
+		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+			csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
+			sidecars = append(sidecars, OauthProxyContainer(types.ControllerServiceAccountName, csp))
 		}
 	}
 	if options.RouterMode != string(types.TransportModeEdge) {
 		kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ClaimsServerSecret, "/etc/service-controller/certs/")
 	}
-	if options.EnableConsole && options.AuthMode != string(types.ConsoleAuthModeOpenshift) {
-		kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ConsoleServerSecret, "/etc/service-controller/console/")
+	if options.AuthMode != string(types.ConsoleAuthModeOpenshift) && options.EnableFlowCollector {
+		kube.AppendSecretVolume(&volumes, &mounts[vFlowCollector], types.ConsoleServerSecret, "/etc/service-controller/console/")
 	}
-	// mount secret needed for communication with router
-	kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.LocalClientSecret, "/etc/messaging/")
+	localClientMounts := []*[]corev1.VolumeMount{}
+	localClientMounts = append(localClientMounts, &mounts[serviceController])
+	if options.EnableFlowCollector {
+		localClientMounts = append(localClientMounts, &mounts[vFlowCollector])
+	}
+	kube.AppendSharedSecretVolume(&volumes, localClientMounts, types.LocalClientSecret, "/etc/messaging/")
 	van.Controller.EnvVar = envVars
 	van.Controller.Volumes = volumes
 	van.Controller.VolumeMounts = mounts
@@ -230,12 +246,12 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	annotations := map[string]string{}
 	controllerPorts := []corev1.ServicePort{}
 	routes := []*routev1.Route{}
-	if options.EnableConsole {
+	if options.EnableFlowCollector {
 		metricsPort := corev1.ServicePort{
 			Name:       "metrics",
 			Protocol:   "TCP",
-			Port:       types.ConsoleDefaultServicePort,
-			TargetPort: intstr.FromInt(int(types.ConsoleDefaultServiceTargetPort)),
+			Port:       types.FlowCollectorDefaultServicePort,
+			TargetPort: intstr.FromInt(int(types.FlowCollectorDefaultServiceTargetPort)),
 		}
 
 		if options.IsConsoleIngressRoute() {
@@ -279,9 +295,6 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		} else if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret}
 		} else {
-			// if using openshift oauth or openshift routes, use openshift service annotation
-			// to create the console cert as it is then signed by the cluster ca
-			// otherwise we create it ourselves
 			controllerHosts := []string{types.ControllerServiceName + "." + van.Namespace}
 			controllerIngressHost := options.GetControllerIngressHost()
 			post := false // indicates whether credentials need to be revised after creating appropriate ingress resources
@@ -421,11 +434,18 @@ func ClusterRoles() []*rbacv1.ClusterRole {
 			{
 				APIGroups: []string{"skupper.io"},
 				Resources: []string{"skupperclusterpolicies"},
-				Verbs:     []string{"get", "list", "watch"}},
+				Verbs:     []string{"get", "list", "watch"},
+			},
 			{
 				APIGroups: []string{""},
 				Resources: []string{"namespaces"},
-				Verbs:     []string{"get"}},
+				Verbs:     []string{"get"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"nodes"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
 		},
 	})
 	return clusterRoles
@@ -655,7 +675,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		kube.AppendSecretVolume(&volumes, &mounts[qdrouterd], types.SiteServerSecret, "/etc/skupper-router-certs/skupper-internal/")
 	}
 
-	kube.AppendSharedVolume(&volumes, &mounts[qdrouterd], &mounts[configSync], "skupper-router-certs", "/etc/skupper-router-certs")
+	kube.AppendSharedVolume(&volumes, []*[]corev1.VolumeMount{&mounts[qdrouterd], &mounts[configSync]}, "skupper-router-certs", "/etc/skupper-router-certs")
 
 	van.Transport.Volumes = volumes
 	van.Transport.VolumeMounts = mounts
@@ -807,7 +827,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Post:        post,
 		})
 	}
-	if options.AuthMode == string(types.ConsoleAuthModeInternal) && options.EnableConsole {
+	if options.AuthMode == string(types.ConsoleAuthModeInternal) && options.EnableFlowCollector {
 		userData := map[string][]byte{}
 		if options.User != "" {
 			userData[options.User] = []byte(options.Password)
@@ -962,7 +982,7 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 		return fmt.Errorf("OpenShift cluster not detected for --ingress type route")
 	}
 
-	if options.Spec.EnableConsole {
+	if options.Spec.EnableFlowCollector {
 		if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) || options.Spec.AuthMode == "" {
 			options.Spec.AuthMode = string(types.ConsoleAuthModeInternal)
 			if options.Spec.User == "" {
@@ -1303,11 +1323,11 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 				ServiceName: types.ControllerServiceName,
 				ServicePort: int(types.ClaimRedemptionPort),
 			})
-			if site.Spec.EnableConsole {
+			if site.Spec.EnableFlowCollector {
 				routes = append(routes, kube.IngressRoute{
 					Host:        strings.Join([]string{"console", namespace, site.Spec.GetControllerIngressHost()}, "."),
 					ServiceName: types.ControllerServiceName,
-					ServicePort: int(types.ConsoleDefaultServicePort),
+					ServicePort: int(types.FlowCollectorDefaultServicePort),
 				})
 			}
 		} else {
@@ -1317,11 +1337,11 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 				ServicePort: int(types.ClaimRedemptionPort),
 				Resolve:     true,
 			})
-			if site.Spec.EnableConsole {
+			if site.Spec.EnableFlowCollector {
 				routes = append(routes, kube.IngressRoute{
 					Host:        "console",
 					ServiceName: types.ControllerServiceName,
-					ServicePort: int(types.ConsoleDefaultServicePort),
+					ServicePort: int(types.FlowCollectorDefaultServicePort),
 					Resolve:     true,
 				})
 			}
@@ -1371,12 +1391,12 @@ func (cli *VanClient) createContourProxies(site types.SiteConfig) error {
 				ServiceName: types.ControllerServiceName,
 				ServicePort: int(types.ClaimRedemptionPort),
 			})
-			if site.Spec.EnableConsole {
+			if site.Spec.EnableFlowCollector {
 				routes = append(routes, kube.IngressRoute{
 					Name:        types.ConsoleIngressPrefix,
 					Host:        strings.Join([]string{types.ConsoleIngressPrefix, namespace, site.Spec.GetControllerIngressHost()}, "."),
 					ServiceName: types.ControllerServiceName,
-					ServicePort: int(types.ConsoleDefaultServicePort),
+					ServicePort: int(types.FlowCollectorDefaultServicePort),
 				})
 			}
 		}

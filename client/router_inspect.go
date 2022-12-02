@@ -25,7 +25,7 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 		} else {
 			if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
 				host := kube.GetLoadBalancerHostOrIp(service)
-				return "https://" + host + ":8080", nil
+				return "https://" + host + ":8010", nil
 			} else if service.Spec.Type == corev1.ServiceTypeNodePort {
 				port := ""
 				for _, p := range service.Spec.Ports {

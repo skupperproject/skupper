@@ -27,6 +27,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
+	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/kube"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
 	"github.com/skupperproject/skupper/pkg/qdr"
@@ -65,7 +66,10 @@ type Controller struct {
 	tokenHandler      *SecretController
 	claimHandler      *SecretController
 	serviceSync       *service_sync.ServiceSync
+	flowController    *flow.FlowController
+	ipLookup          *IpLookup
 	policyHandler     *PolicyController
+	nodeWatcher       *NodeWatcher
 }
 
 const (
@@ -184,7 +188,21 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	}
 	controller.serviceSync = service_sync.NewServiceSync(origin, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
 
+	siteCreationTime := uint64(time.Now().UnixNano())
+	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
+	if err == nil {
+		siteCreationTime = uint64(configmap.ObjectMeta.CreationTimestamp.UnixNano())
+	}
+	controller.flowController = flow.NewFlowController(origin, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig))
+	ipHandler := func(deleted bool, name string, process *flow.ProcessRecord) error {
+		return flow.UpdateProcess(controller.flowController, deleted, name, process)
+	}
+	controller.ipLookup = NewIpLookup(controller.vanClient, ipHandler)
 	controller.policyHandler = NewPolicyController(controller.vanClient)
+	nwHandler := func(deleted bool, name string, host *flow.HostRecord) error {
+		return flow.UpdateHost(controller.flowController, deleted, name, host)
+	}
+	controller.nodeWatcher = NewNodeWatcher(controller.vanClient, nwHandler)
 	return controller, nil
 }
 
@@ -193,6 +211,12 @@ type ResourceVersionTest func(a interface{}, b interface{}) bool
 func ConfigMapResourceVersionTest(a interface{}, b interface{}) bool {
 	aa := a.(*corev1.ConfigMap)
 	bb := b.(*corev1.ConfigMap)
+	return aa.ResourceVersion == bb.ResourceVersion
+}
+
+func NodeResourceVersionTest(a interface{}, b interface{}) bool {
+	aa := a.(*corev1.Node)
+	bb := b.(*corev1.Node)
 	return aa.ResourceVersion == bb.ResourceVersion
 }
 
@@ -297,9 +321,14 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	if !c.disableServiceSync {
 		c.serviceSync.Start(stopCh)
 	}
+	c.flowController.Start(stopCh)
 	go wait.Until(c.runServiceCtrl, time.Second, stopCh)
 	c.definitionMonitor.start(stopCh)
 	c.siteQueryServer.start(stopCh)
+	c.ipLookup.start(stopCh)
+	if c.nodeWatcher != nil {
+		c.nodeWatcher.start(stopCh)
+	}
 	c.consoleServer.start(stopCh)
 	if c.claimVerifier != nil {
 		c.claimVerifier.start(stopCh)

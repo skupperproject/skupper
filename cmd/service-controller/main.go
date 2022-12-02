@@ -1,11 +1,8 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -14,6 +11,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -43,34 +41,6 @@ func SetupSignalHandler() (stopCh <-chan struct{}) {
 	return stop
 }
 
-func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
-	var config tls.Config
-	config.InsecureSkipVerify = true
-	if verify {
-		certPool := x509.NewCertPool()
-		file, err := ioutil.ReadFile(ca)
-		if err != nil {
-			return nil, err
-		}
-		certPool.AppendCertsFromPEM(file)
-		config.RootCAs = certPool
-		config.InsecureSkipVerify = false
-	}
-
-	_, errCert := os.Stat(cert)
-	_, errKey := os.Stat(key)
-	if errCert == nil || errKey == nil {
-		tlsCert, err := tls.LoadX509KeyPair(cert, key)
-		if err != nil {
-			log.Fatal("Could not load x509 key pair", err.Error())
-		}
-		config.Certificates = []tls.Certificate{tlsCert}
-	}
-	config.MinVersion = tls.VersionTLS10
-
-	return &config, nil
-}
-
 func main() {
 	// if -version used, report and exit
 	isVersion := flag.Bool("version", false, "Report the version of the Skupper Service Controller")
@@ -97,7 +67,7 @@ func main() {
 		log.Fatal("Error getting van client", err.Error())
 	}
 
-	tlsConfig, err := getTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
+	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
 	if err != nil {
 		log.Fatal("Error getting tls config", err.Error())
 	}

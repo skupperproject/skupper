@@ -130,7 +130,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	s.kubeInit.annotations = []string{}
 	s.kubeInit.routerServiceAnnotations = []string{}
 	s.kubeInit.controllerServiceAnnotations = []string{}
-	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", true, "Enable skupper console")
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console")
 	cmd.Flags().BoolVarP(&routerCreateOpts.CreateNetworkPolicy, "create-network-policy", "", false, "Create network policy to restrict access to skupper services exposed through this site to current pods in namespace")
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
@@ -141,6 +141,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringSliceVar(&s.kubeInit.routerServiceAnnotations, "router-service-annotations", []string{}, "Annotations to add to skupper router service")
 	cmd.Flags().StringSliceVar(&s.kubeInit.controllerServiceAnnotations, "controller-service-annotation", []string{}, "Annotations to add to skupper controller service")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-vflow-collector", "", false, "Enable cross-site vFlow collection for the application network")
 
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Cpu, "router-cpu", "", "CPU request for router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Memory, "router-memory", "", "Memory request for router pods")
@@ -167,7 +168,16 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.CpuLimit, "config-sync-cpu-limit", "", "CPU limit for config-sync pods")
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
 
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Cpu, "vflow-collector-cpu", "", "CPU request for vFlow collector pods")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Memory, "vflow-collector-memory", "", "Memory request for vFlow collector pods")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "vflow-collector-cpu-limit", "", "CPU limit for vFlow collector pods")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "vflow-collector-memory-limit", "", "Memory limit for vFlow collector pods")
+
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
+
+	f := cmd.Flag("enable-console")
+	f.Deprecated = "Stand alone console is planned for deprecation. Use vFlow collector console instead via --enable-vflow-collector flag"
+	f.Hidden = true
 }
 
 func (s *SkupperKubeSite) Delete(cmd *cobra.Command, args []string) error {
@@ -247,14 +257,15 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 			fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
 		}
 		fmt.Println()
-		if vir.ConsoleUrl != "" {
-			fmt.Println("The site console url is: ", vir.ConsoleUrl)
-			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-			if err != nil {
-				return err
-			}
-			if siteConfig.Spec.AuthMode == "internal" {
-				fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-console-users'")
+		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+		if err != nil {
+			return err
+		} else {
+			if siteConfig.Spec.EnableFlowCollector && vir.ConsoleUrl != "" {
+				fmt.Println("The site console url is: ", vir.ConsoleUrl)
+				if siteConfig.Spec.AuthMode == "internal" {
+					fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-console-users'")
+				}
 			}
 		}
 	} else {

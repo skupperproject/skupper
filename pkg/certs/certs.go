@@ -17,6 +17,7 @@ package certs
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -273,4 +274,32 @@ func GetSecretContent(secretFile string) (map[string][]byte, error) {
 func GenerateSimpleSecret(name string, ca *corev1.Secret) corev1.Secret {
 	caCert := getCAFromSecret(ca)
 	return generateSimpleSecretWithCA(name, &caCert)
+}
+
+func GetTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
+	var config tls.Config
+	config.InsecureSkipVerify = true
+	if verify {
+		certPool := x509.NewCertPool()
+		file, err := ioutil.ReadFile(ca)
+		if err != nil {
+			return nil, err
+		}
+		certPool.AppendCertsFromPEM(file)
+		config.RootCAs = certPool
+		config.InsecureSkipVerify = false
+	}
+
+	_, errCert := os.Stat(cert)
+	_, errKey := os.Stat(key)
+	if errCert == nil || errKey == nil {
+		tlsCert, err := tls.LoadX509KeyPair(cert, key)
+		if err != nil {
+			log.Fatal("Could not load x509 key pair", err.Error())
+		}
+		config.Certificates = []tls.Certificate{tlsCert}
+	}
+	config.MinVersion = tls.VersionTLS10
+
+	return &config, nil
 }

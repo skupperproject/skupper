@@ -95,6 +95,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	addClusterPolicy := false
 	updateRouterPolicyRule := false
 	addCertsSharedVolume := false
+	substituteFlowCollector := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
 		return false, err
@@ -106,6 +107,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		addClusterPolicy = utils.LessRecentThanVersion(originalVersion, "0.9.0")
 		updateRouterPolicyRule = utils.LessRecentThanVersion(originalVersion, "0.9.0")
 		addCertsSharedVolume = utils.LessRecentThanVersion(originalVersion, "0.9.0")
+		substituteFlowCollector = utils.LessRecentThanVersion(originalVersion, "1.3.0")
 	} else {
 		originalVersion = site.Version
 	}
@@ -122,6 +124,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 				addClusterPolicy = true
 				updateRouterPolicyRule = true
 				addCertsSharedVolume = true
+			}
+			if utils.LessRecentThanVersion(originalVersion, "1.3.0") {
+				substituteFlowCollector = true
 			}
 
 			err = cli.updateStarted(site.Version, namespace, configmap.ObjectMeta.OwnerReferences)
@@ -435,7 +440,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 
 	if addCertsSharedVolume {
-		kube.AppendSharedVolume(&router.Spec.Template.Spec.Volumes, &router.Spec.Template.Spec.Containers[0].VolumeMounts, &router.Spec.Template.Spec.Containers[1].VolumeMounts, "skupper-router-certs", "/etc/skupper-router-certs")
+		kube.AppendSharedVolume(&router.Spec.Template.Spec.Volumes, []*[]corev1.VolumeMount{&router.Spec.Template.Spec.Containers[0].VolumeMounts, &router.Spec.Template.Spec.Containers[1].VolumeMounts}, "skupper-router-certs", "/etc/skupper-router-certs")
 		updateRouter = true
 	}
 
@@ -541,6 +546,31 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		err = kube.UpdateRole(namespace, types.TransportRoleName, types.TransportPolicyRule, cli.KubeClient)
 		if err != nil {
 			return false, err
+		}
+	}
+
+	if substituteFlowCollector {
+		siteConfig, _ := cli.SiteConfigInspect(ctx, nil)
+		if siteConfig.Spec.EnableConsole {
+			err = convertSiteConfigToCollectorEnabled(ctx, cli, namespace)
+			if err != nil {
+				return false, err
+			}
+			err = createNodeClusterRoleRule(ctx, cli, namespace)
+			if err != nil {
+				log.Printf("unable to update cluster role for nodes resource")
+			}
+			if siteConfig.Spec.AuthMode != string(types.ConsoleAuthModeOpenshift) {
+				err = updateControllerPorts(ctx, cli, namespace)
+				if err != nil {
+					return false, err
+				}
+			}
+			err = createFlowCollectorSidecar(ctx, cli, controller)
+			if err != nil {
+				return false, err
+			}
+			updateController = true
 		}
 	}
 
@@ -1160,4 +1190,59 @@ func hasContainer(name string, containers []corev1.Container) bool {
 		}
 	}
 	return false
+}
+
+func convertSiteConfigToCollectorEnabled(ctx context.Context, cli *VanClient, namespace string) error {
+	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	configmap.Data[SiteConfigConsoleKey] = "false"
+	configmap.Data[SiteConfigFlowCollectorKey] = "true"
+	_, err = cli.KubeClient.CoreV1().ConfigMaps(namespace).Update(configmap)
+	return err
+}
+
+func createNodeClusterRoleRule(ctx context.Context, cli *VanClient, namespace string) error {
+	clusterRole, err := cli.KubeClient.RbacV1().ClusterRoles().Get(types.ControllerClusterRoleName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	clusterRole.Rules = append(clusterRole.Rules, rbacv1.PolicyRule{
+		APIGroups: []string{""},
+		Resources: []string{"nodes"},
+		Verbs:     []string{"get", "list", "watch"},
+	})
+	_, err = cli.KubeClient.RbacV1().ClusterRoles().Update(clusterRole)
+	return err
+}
+
+func updateControllerPorts(ctx context.Context, cli *VanClient, namespace string) error {
+	svc, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.ConsoleRouteName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	for i, port := range svc.Spec.Ports {
+		if port.Name == "metrics" {
+			svc.Spec.Ports[i].Port = types.FlowCollectorDefaultServicePort
+			svc.Spec.Ports[i].TargetPort = intstr.FromInt(int(types.FlowCollectorDefaultServiceTargetPort))
+		}
+	}
+	_, err = cli.KubeClient.CoreV1().Services(namespace).Update(svc)
+	return err
+}
+
+func createFlowCollectorSidecar(ctx context.Context, cli *VanClient, controller *appsv1.Deployment) error {
+	for i, env := range controller.Spec.Template.Spec.Containers[0].Env {
+		parts := strings.Split(env.Name, "_")
+		if parts[0] == "METRICS" {
+			parts[0] = "VFLOW"
+			controller.Spec.Template.Spec.Containers[0].Env[i].Name = strings.Join(parts, "_")
+		}
+	}
+	vFlowContainer := controller.Spec.Template.Spec.Containers[0]
+	vFlowContainer.Image = GetFlowCollectorImageName()
+	vFlowContainer.Name = types.FlowCollectorContainerName
+	controller.Spec.Template.Spec.Containers = append(controller.Spec.Template.Spec.Containers, vFlowContainer)
+	return nil
 }

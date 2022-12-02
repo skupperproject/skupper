@@ -90,6 +90,7 @@ const (
 	ControllerClusterRoleName            string = "skupper-service-controller"
 	ControllerConfigPath                 string = "/etc/messaging/"
 	ControllerServiceName                string = "skupper"
+	FlowCollectorContainerName           string = "vflow-collector"
 )
 
 var ControllerPolicyRule = []rbacv1.PolicyRule{
@@ -203,11 +204,13 @@ const (
 	OpenShiftServingCertSecretName string = "service.alpha.openshift.io/serving-cert-secret-name"
 )
 
-// Console constants
+// Console and vFlow Collector constants
 const (
 	ConsolePortName                        string = "console"
 	ConsoleDefaultServicePort              int32  = 8080
 	ConsoleDefaultServiceTargetPort        int32  = 8080
+	FlowCollectorDefaultServicePort        int32  = 8010
+	FlowCollectorDefaultServiceTargetPort  int32  = 8010
 	ConsoleOpenShiftServicePort            int32  = 8888
 	ConsoleOpenShiftOauthServicePort       int32  = 443
 	ConsoleOpenShiftOauthServiceTargetPort int32  = 8443
@@ -267,6 +270,7 @@ type RouterSpec struct {
 	Transport             DeploymentSpec  `json:"transport,omitempty"`
 	ConfigSync            DeploymentSpec  `json:"configSync,omitempty"`
 	Controller            DeploymentSpec  `json:"controller,omitempty"`
+	Collector             DeploymentSpec  `json:"collector,omitempty"`
 	RouterConfig          string          `json:"routerConfig,omitempty"`
 	Users                 []User          `json:"users,omitempty"`
 	CertAuthoritys        []CertAuthority `json:"certAuthoritys,omitempty"`
