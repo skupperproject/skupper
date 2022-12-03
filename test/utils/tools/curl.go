@@ -24,6 +24,7 @@ type CurlOpts struct {
 	Username string
 	Password string
 	Timeout  int
+	Verbose  bool
 }
 
 // ToParams returns curl options serialized as a string slice
@@ -31,6 +32,9 @@ func (c *CurlOpts) ToParams() []string {
 	params := []string{}
 	if c.Silent {
 		params = append(params, "-s")
+	}
+	if c.Verbose {
+		params = append(params, "-v")
 	}
 	if c.Insecure {
 		params = append(params, "-k")
