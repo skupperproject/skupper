@@ -20,6 +20,7 @@ import (
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/version"
 )
 
 // should this be in utils?
@@ -129,13 +130,13 @@ func main() {
 	isVersion := flag.Bool("version", false, "Report the version of the Skupper vFlow Collector")
 	flag.Parse()
 	if *isVersion {
-		fmt.Println(client.Version)
+		fmt.Println(version.Version)
 		os.Exit(0)
 	}
 
 	// Startup message
 	log.Printf("Skupper vFlow collector controller")
-	log.Printf("Version: %s", client.Version)
+	log.Printf("Version: %s", version.Version)
 
 	origin := os.Getenv("SKUPPER_SITE_ID")
 	namespace := os.Getenv("SKUPPER_NAMESPACE")
