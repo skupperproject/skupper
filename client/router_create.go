@@ -463,7 +463,13 @@ func (cli *VanClient) ClusterRoles(enablePermissions bool) []*rbacv1.ClusterRole
 			{
 				APIGroups: []string{""},
 				Resources: []string{"namespaces"},
-				Verbs:     []string{"get"}},
+				Verbs:     []string{"get"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"nodes"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
 		}, controllerRules...),
 	})
 	return clusterRoles
