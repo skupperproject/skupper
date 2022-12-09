@@ -11,6 +11,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
+	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -33,7 +34,7 @@ func TestContainer(t *testing.T) {
 
 	name := RandomName("skupper-test")
 
-	image := types.GetServiceControllerImageName()
+	image := images.GetServiceControllerImageName()
 	env := map[string]string{
 		"VAR1": "VAL1",
 		"VAR2": "VAL2",

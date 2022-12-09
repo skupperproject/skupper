@@ -2,6 +2,7 @@ package domain
 
 import (
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/images"
 )
 
 type SkupperComponent interface {
@@ -30,7 +31,7 @@ func (r *Router) Name() string {
 }
 
 func (r *Router) GetImage() string {
-	return types.GetRouterImageName()
+	return images.GetRouterImageName()
 }
 
 func (r *Router) SetImage(image string) {

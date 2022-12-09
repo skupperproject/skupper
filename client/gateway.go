@@ -21,6 +21,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/version"
 	"gopkg.in/yaml.v3"
 
@@ -752,7 +753,7 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 		"QDROUTERD_CONF=" + containerDir + "/config/skrouterd.json",
 		"-v",
 		gatewayDir + ":" + containerDir + ":Z",
-		types.GetRouterImageName(),
+		images.GetRouterImageName(),
 	}
 
 	cmd := exec.Command(containerCmd, containerCmdArgs...)
@@ -1250,7 +1251,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 	gatewayInfo := UnitInfo{
 		IsSystemService: false,
 		Binary:          "${QDR_BIN_PATH}",
-		Image:           types.GetRouterImageName(),
+		Image:           images.GetRouterImageName(),
 		ConfigPath:      "${QDR_CONF_DIR}",
 		GatewayName:     gatewayName,
 	}
@@ -2246,7 +2247,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	gatewayInfo := UnitInfo{
 		IsSystemService: false,
 		Binary:          "${QDR_BIN_PATH}",
-		Image:           types.GetRouterImageName(),
+		Image:           images.GetRouterImageName(),
 		ConfigPath:      "${QDR_CONF_DIR}",
 		GatewayName:     gatewayName,
 	}

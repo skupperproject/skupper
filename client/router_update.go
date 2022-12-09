@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -406,7 +407,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 
 		updateRouter = true
 	}
-	desiredRouterImage := types.GetRouterImageName()
+	desiredRouterImage := images.GetRouterImageName()
 	if router.Spec.Template.Spec.Containers[0].Image != desiredRouterImage {
 		router.Spec.Template.Spec.Containers[0].Image = desiredRouterImage
 		updateRouter = true
@@ -580,7 +581,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 
-	desiredControllerImage := types.GetServiceControllerImageName()
+	desiredControllerImage := images.GetServiceControllerImageName()
 	if controller.Spec.Template.Spec.Containers[0].Image != desiredControllerImage {
 		controller.Spec.Template.Spec.Containers[0].Image = desiredControllerImage
 		updateController = true
@@ -1250,7 +1251,7 @@ func createFlowCollectorSidecar(ctx context.Context, cli *VanClient, controller 
 		}
 	}
 	flowContainer := controller.Spec.Template.Spec.Containers[0]
-	flowContainer.Image = types.GetFlowCollectorImageName()
+	flowContainer.Image = images.GetFlowCollectorImageName()
 	flowContainer.Name = types.FlowCollectorContainerName
 	controller.Spec.Template.Spec.Containers = append(controller.Spec.Template.Spec.Containers, flowContainer)
 	return nil

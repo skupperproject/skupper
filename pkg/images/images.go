@@ -1,4 +1,4 @@
-package types
+package images
 
 const (
 	DefaultImageRegistry       string = "quay.io/skupper"

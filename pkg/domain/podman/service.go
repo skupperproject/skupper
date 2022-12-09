@@ -13,6 +13,7 @@ import (
 	"github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/domain"
+	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
@@ -244,7 +245,7 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 	site.GetDeployments()[0].GetComponents()[0].GetImage()
 	c := &container.Container{
 		Name:  servicePodman.GetContainerName(),
-		Image: utils.DefaultStr(routerContainer.Image, types.GetRouterImageName()),
+		Image: utils.DefaultStr(routerContainer.Image, images.GetRouterImageName()),
 		Env: map[string]string{
 			"APPLICATION_NAME":    svcRouterConfig.GetSiteMetadata().Id,
 			"QDROUTERD_CONF":      "/etc/skupper-router/config/" + configFile,
