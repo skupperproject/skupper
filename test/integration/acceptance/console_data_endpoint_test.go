@@ -16,8 +16,8 @@ import (
 	"gotest.tools/assert"
 )
 
-const vFlowURL = "https://0.0.0.0:8010/api/v1alpha1"
-const vFlowSitesURL = "https://0.0.0.0:8010/api/v1alpha1/sites/"
+const flowURL = "https://0.0.0.0:8010/api/v1alpha1"
+const flowSitesURL = "https://0.0.0.0:8010/api/v1alpha1/sites/"
 const consoleURL = "https://0.0.0.0:8080"
 const consoleDataURL = "https://0.0.0.0:8080/DATA"
 
@@ -46,7 +46,7 @@ func TestDataEndpoint(t *testing.T) {
 	// Test if the endpoint /DATA is accessible in Skupper Private/authenticated console
 	t.Run("test-private-data-endpoint-available", testPrivateDataEndpointAvailable)
 
-	// TODO: update to retrieve vFlow data for flow traffic
+	// TODO: update to retrieve data for flow traffic
 	// Test if values in /DATA increases after one call to the test frontend
 	// t.Run("test-data-endpoint-one-request", testDataEndpointOneRequest)
 
@@ -63,7 +63,7 @@ func testAuthenticatedConsoleAvailableValidUserPass(t *testing.T) {
 	pubCluster, err := testRunner.GetPublicContext(1)
 	assert.Assert(t, err)
 
-	testConsoleAccess(t, pubCluster, vFlowURL+"/sites/", "admin", "admin", expectedReturnCode)
+	testConsoleAccess(t, pubCluster, flowURL+"/sites/", "admin", "admin", expectedReturnCode)
 }
 
 // Test if the Skupper console is available / accessible in Private cluster, unauthenticated
@@ -75,7 +75,7 @@ func testUnauthenticatedConsoleAvailable(t *testing.T) {
 		privCluster, err := testRunner.GetPrivateContext(1)
 		assert.Assert(t, err)
 
-		testConsoleAccess(t, privCluster, vFlowURL+"/sites/", "", "", expectedReturnCode)
+		testConsoleAccess(t, privCluster, flowURL+"/sites/", "", "", expectedReturnCode)
 	})
 }
 
@@ -92,7 +92,7 @@ func testAuthenticatedConsoleAvailableInvalidUserPass(t *testing.T) {
 	username := "skupper-user"
 	password := "not-real-pass"
 
-	testConsoleAccess(t, pubCluster, vFlowURL+"/sites/", username, password, expectedReturnCode)
+	testConsoleAccess(t, pubCluster, flowURL+"/sites/", username, password, expectedReturnCode)
 }
 
 func testConsoleAccess(t *testing.T, cluster *base.ClusterContext, consoleURL string, userParam string, pwdParam string, expectedReturnCode int) {
@@ -117,7 +117,7 @@ func testPublicDataEndpointAvailable(t *testing.T) {
 	pubCluster, err := testRunner.GetPublicContext(1)
 	assert.Assert(t, err)
 
-	testConsoleAccess(t, pubCluster, vFlowURL+"/sites/", "admin", "admin", expectedReturnCode)
+	testConsoleAccess(t, pubCluster, flowURL+"/sites/", "admin", "admin", expectedReturnCode)
 }
 
 // Test if the endpoint /DATA is accessible in Skupper Private/authenticated console
@@ -129,7 +129,7 @@ func testPrivateDataEndpointAvailable(t *testing.T) {
 	privCluster, err := testRunner.GetPrivateContext(1)
 	assert.Assert(t, err)
 
-	testConsoleAccess(t, privCluster, vFlowURL+"/sites/", "", "", expectedReturnCode)
+	testConsoleAccess(t, privCluster, flowURL+"/sites/", "", "", expectedReturnCode)
 }
 
 func getHttpRequestsNumbersFromConsole(cluster *base.ClusterContext, clientAddressFilter string, userParam string, passParam string) console.HttpRequestFromConsole {

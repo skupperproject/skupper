@@ -65,7 +65,7 @@ func UpdateProcess(c *FlowController, deleted bool, name string, process *Proces
 		for id, record := range c.processRecords {
 			if *record.Name == match {
 				process = record
-				process.EndTime = uint64(t.UnixNano())
+				process.EndTime = uint64(t.UnixNano()) / uint64(time.Microsecond)
 				delete(c.processRecords, id)
 				c.processOutgoing <- process
 				break
@@ -126,19 +126,16 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 		NameSpace: &nameSpace,
 	}
 
-	// prime the pumps
-	beacon.Now = uint64(time.Now().UnixNano())
 	c.beaconOutgoing <- beacon
-	heartbeat.Now = uint64(time.Now().UnixNano())
+	heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 	c.recordOutgoing <- heartbeat
 	c.recordOutgoing <- site
 
 	for {
 		select {
 		case <-beaconTimer.C:
-			beacon.Now = uint64(time.Now().UnixNano())
 			c.beaconOutgoing <- beacon
-			heartbeat.Now = uint64(time.Now().UnixNano())
+			heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 			c.recordOutgoing <- heartbeat
 		case process := <-c.processOutgoing:
 			c.recordOutgoing <- process

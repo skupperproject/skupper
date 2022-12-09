@@ -2,16 +2,16 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: skupper-vflow-collector
+  name: skupper-flow-collector
   labels:
-    application: skupper-vflow-collector
+    application: skupper-flow-collector
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    application: skupper-vflow-collector
-  name: skupper-vflow-collector
+    application: skupper-flow-collector
+  name: skupper-flow-collector
 rules:
 - apiGroups:
   - apps
@@ -24,32 +24,32 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    application: skupper-vflow-collector
-  name: skupper-vflow-collector
+    application: skupper-flow-collector
+  name: skupper-flow-collector
 subjects:
 - kind: ServiceAccount
-  name: skupper-vflow-collector
+  name: skupper-flow-collector
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: skupper-vflow-collector
+  name: skupper-flow-collector
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: skupper-vflow-collector
+  name: skupper-flow-collector
 spec:
   replicas: 1
   selector:
     matchLabels:
-      application: skupper-vflow-collector
+      application: skupper-flow-collector
   template:
     metadata:
       labels:
-        application: skupper-vflow-collector
+        application: skupper-flow-collector
         app.kubernetes.io/part-of: skupper
     spec:
-      serviceAccountName: skupper-vflow-collector
+      serviceAccountName: skupper-flow-collector
       # Please ensure that you can use SeccompProfile and do not use
       # if your project must work on old Kubernetes
       # versions < 1.19 or on vendors versions which
@@ -59,8 +59,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-      - name: skupper-vflow-collector
-        image: quay.io/skupper/vflow-collector:latest
+      - name: skupper-flow-collector
+        image: quay.io/skupper/flow-collector:latest
         imagePullPolicy: Always
         securityContext:
           capabilities:
@@ -84,12 +84,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: skupper-vflow-collector
+  name: skupper-flow-collector
 spec:
   ports:
   - port: 8010
     protocol: TCP
     targetPort: 8010
   selector:
-    application: skupper-vflow-collector
+    application: skupper-flow-collector
   type: ClusterIP

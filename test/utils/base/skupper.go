@@ -63,10 +63,10 @@ func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
 }
 
 // GetConsoleData returns the ConsoleData by emulating query to localhost:8080/DATA
-// via vFlow api on service-controller vflow-collector sidecar
+// via flow api on service-controller flow-collector sidecar
 func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.ConsoleData, error) {
-	// TODO: replace console data with vFlow api
-	const vFlowUrl = "https://127.0.0.1:8010/api/v1alpha1"
+	// TODO: replace console data with flow api
+	const flowUrl = "https://127.0.0.1:8010/api/v1alpha1"
 	var consoleData data.ConsoleData
 	var sites []flow.SiteRecord
 	var listeners []flow.ListenerRecord
@@ -81,7 +81,7 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 
 	// runs inside skupper-controller's pod
 	// retriev site list
-	resp, err := tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", vFlowUrl+"/sites/", curlOpts)
+	resp, err := tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", flowUrl+"/sites/", curlOpts)
 	if err != nil {
 		log.Printf("error executing curl: %s", err)
 		return consoleData, err
@@ -107,7 +107,7 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 	}
 
 	// retrieve listener list
-	resp, err = tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", vFlowUrl+"/listeners/", curlOpts)
+	resp, err = tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", flowUrl+"/listeners/", curlOpts)
 	if err != nil {
 		log.Printf("error executing curl: %s", err)
 		return consoleData, err

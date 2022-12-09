@@ -31,12 +31,12 @@ func NewController(origin string, scheme string, host string, port string, tlsCo
 func (c *Controller) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
-	log.Println("Starting the Skupper vFlow collector controller")
+	log.Println("Starting the Skupper flow collector")
 
 	c.flowCollector.Start(stopCh)
 
 	<-stopCh
-	log.Println("Shutting down vFlow collector")
+	log.Println("Shutting down the Skupper flow collector")
 
 	return nil
 }

@@ -2,9 +2,12 @@ package flow
 
 import (
 	"fmt"
+	"net/url"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -162,19 +165,12 @@ var attributeNames = []string{
 	"StreamIdentity",  // 47
 }
 
-type Payload struct {
-	Results       interface{} `json:"results,omitempty"`
-	Timestamp     uint64      `json:"timestamp,omitempty"`
-	LengthTotal   int         `json:"lengthTotal,omitempty"`
-	LengthResults int         `json:"lengthResults,omitempty"`
-}
-
 type Base struct {
 	RecType   string `json:"recType,omitempty"`
 	Identity  string `json:"identity,omitempty"`
 	Parent    string `json:"parent,omitempty"`
-	StartTime uint64 `json:"startTime,omitempty"`
-	EndTime   uint64 `json:"endTime,omitempty"`
+	StartTime uint64 `json:"startTime"`
+	EndTime   uint64 `json:"endTime"`
 }
 
 type BeaconRecord struct {
@@ -182,7 +178,6 @@ type BeaconRecord struct {
 	SourceType string `json:"sourceType,omitempty"`
 	Address    string `json:"address,omitempty"`
 	Direct     string `json:"direct,omitempty"`
-	Now        uint64 `json:"now,omitempty"`
 	Identity   string `json:"identity,omitempty"`
 }
 
@@ -196,6 +191,14 @@ type HeartbeatRecord struct {
 type FlushRecord struct {
 	Address string `json:"address,omitempty"`
 	Source  string `json:"source,omitempty"`
+}
+
+type EventSourceRecord struct {
+	Base
+	Beacon     *BeaconRecord `json:"beacon,omitempty"`
+	LastHeard  uint64        `json:"lastHeard,omitempty"`
+	Heartbeats int           `json:"heartbeats,omitempty"`
+	Beacons    int           `json:"beacons,omitempty"`
 }
 
 type SiteRecord struct {
@@ -277,11 +280,17 @@ type ConnectorRecord struct {
 type VanAddressRecord struct {
 	Base
 	Name           string `json:"name,omitempty"`
+	Protocol       string `json:"protocol,omitempty"`
 	ListenerCount  int    `json:"listenerCount"`
 	ConnectorCount int    `json:"connectorCount"`
 	TotalFlows     int    `json:"totalFlows"`
 	CurrentFlows   int    `json:"currentFlows"`
+	SourceOctets   uint64 `json:"sourceOctets"`
+	DestOctets     uint64 `json:"destOctets"`
 }
+
+var Internal string = "internal"
+var External string = "external"
 
 type ProcessRecord struct {
 	Base
@@ -293,6 +302,7 @@ type ProcessRecord struct {
 	GroupIdentity      *string `json:"groupIdentity,omitempty"`
 	HostName           *string `json:"hostName,omitempty"`
 	SourceHost         *string `json:"sourceHost,omitempty"`
+	ProcessRole        *string `json:"processRole,omitempty"`
 	OctetsSent         uint64  `json:"octetsSent"`
 	OctetsSentRate     uint64  `json:"octetSentRate"`
 	OctetsReceived     uint64  `json:"octetsReceived"`
@@ -303,37 +313,53 @@ type ProcessRecord struct {
 type ProcessGroupRecord struct {
 	Base
 	Name               *string `json:"name,omitempty"`
+	ProcessGroupRole   *string `json:"processGroupRole,omitempty"`
 	OctetsSent         uint64  `json:"octetsSent"`
 	OctetsSentRate     uint64  `json:"octetSentRate"`
 	OctetsReceived     uint64  `json:"octetsReceived"`
 	OctetsReceivedRate uint64  `json:"octetReceivedRate"`
 }
 
+type FlowPlace int
+
+const (
+	unknown    FlowPlace = iota
+	clientSide           // forward flow
+	serverSide           // counter flow
+)
+
 type FlowRecord struct {
 	Base
-	SourceHost     *string `json:"sourceHost,omitempty"`
-	SourcePort     *string `json:"sourcePort,omitempty"`
-	CounterFlow    *string `json:"counterFlow,omitempty"`
-	Trace          *string `json:"trace,omitempty"`
-	Latency        *uint64 `json:"latency,omitempty"`
-	Octets         *uint64 `json:"octets"`
-	OctetRate      *uint64 `json:"octetRate"`
-	OctetsOut      *uint64 `json:"octetsOut,omitempty"`
-	OctetsUnacked  *uint64 `json:"octetsUnacked,omitempty"`
-	WindowClosures *uint64 `json:"windowClosures,omitempty"`
-	WindowSize     *uint64 `json:"windowSize,omitempty"`
-	Reason         *string `json:"reason,omitempty"`
-	Method         *string `json:"method,omitempty"`
-	Result         *string `json:"result,omitempty"`
-	Process        *string `json:"process,omitempty"`
-	ProcessName    *string `json:"processName,omitempty"`
+	SourceHost     *string   `json:"sourceHost,omitempty"`
+	SourcePort     *string   `json:"sourcePort,omitempty"`
+	CounterFlow    *string   `json:"counterFlow,omitempty"`
+	Trace          *string   `json:"trace,omitempty"`
+	Latency        *uint64   `json:"latency,omitempty"`
+	Octets         *uint64   `json:"octets"`
+	OctetRate      *uint64   `json:"octetRate"`
+	OctetsOut      *uint64   `json:"octetsOut,omitempty"`
+	OctetsUnacked  *uint64   `json:"octetsUnacked,omitempty"`
+	WindowClosures *uint64   `json:"windowClosures,omitempty"`
+	WindowSize     *uint64   `json:"windowSize,omitempty"`
+	Reason         *string   `json:"reason,omitempty"`
+	Method         *string   `json:"method,omitempty"`
+	Result         *string   `json:"result,omitempty"`
+	StreamIdentity *uint64   `json:"streamIdentity,omitempty"`
+	Process        *string   `json:"process,omitempty"`
+	ProcessName    *string   `json:"processName,omitempty"`
+	Protocol       *string   `json:"protocol,omitempty"`
+	Place          FlowPlace `json:"place"`
 }
 
 // Note a flowpair does not have a defined parent relationship through Base
 type FlowPairRecord struct {
 	Base
+	Protocol                *string     `json:"protocol,omitempty"`
 	SourceSiteId            string      `json:"sourceSiteId,omitempty"`
+	SourceSiteName          *string     `json:"sourceSiteName,omitempty"`
 	DestinationSiteId       string      `json:"destinationSiteId,omitempty"`
+	DestinationSiteName     *string     `json:"destinationSiteName,omitempty"`
+	FlowTrace               *string     `json:"flowTrace,omitempty"`
 	ForwardFlow             *FlowRecord `json:"forwardFlow,omitempty"`
 	CounterFlow             *FlowRecord `json:"counterFlow,omitempty"`
 	SiteAggregateId         *string     `json:"siteAggregateId,omitempty"`
@@ -359,20 +385,6 @@ type FlowAggregateRecord struct {
 	DestinationMinLatency     uint64  `json:"destinationMinLatency,omitempty"`
 	DestinationMaxLatency     uint64  `json:"destinationMaxLatency,omitempty"`
 	DestinationAverageLatency uint64  `json:"destinationAverageLatency,omitempty"`
-}
-
-func min(a, b uint64) uint64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b uint64) uint64 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 type ControllerRecord struct {
@@ -404,6 +416,119 @@ type CollectorRecord struct {
 	//	name, kind, process
 }
 
+type Payload struct {
+	Results        interface{} `json:"results"`
+	QueryParams    QueryParams `json:"queryParams"`
+	Status         string      `json:"status"`
+	Timestamp      uint64      `json:"timestamp"`
+	Elapsed        uint64      `json:"elapsed"`
+	Count          int         `json:"count"`
+	TimeRangeCount int         `json:"timeRangeCount"`
+	TotalCount     int         `json:"totalCount"`
+}
+
+type QueryParams struct {
+	Offset             int               `json:"offset"`
+	Limit              int               `json:"limit"`
+	SortBy             string            `json:"sortBy"`
+	Filter             string            `json:"filter"`
+	TimeRangeStart     uint64            `json:"timeRangeStart"`
+	TimeRangeEnd       uint64            `json:"timeRangeEnd"`
+	TimeRangeOperation TimeRangeRelation `json:"timeRangeOperation"`
+}
+
+func getQueryParams(url *url.URL) QueryParams {
+	now := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+	qp := QueryParams{
+		Offset:             -1,
+		Limit:              -1,
+		SortBy:             "identity.asc",
+		Filter:             "",
+		TimeRangeStart:     now - (15 * oneMinute),
+		TimeRangeEnd:       now,
+		TimeRangeOperation: intersects,
+	}
+	offset, err := strconv.Atoi(url.Query().Get("offset"))
+	if err == nil {
+		qp.Offset = offset
+	}
+	limit, err := strconv.Atoi(url.Query().Get("limit"))
+	if err == nil {
+		qp.Limit = limit
+	}
+	sortBy := url.Query().Get("sortBy")
+	if sortBy != "" {
+		qp.SortBy = sortBy
+	}
+	filter := url.Query().Get("filter")
+	if filter != "" {
+		qp.Filter = filter
+	}
+	timeRangeStart := url.Query().Get("timeRangeStart")
+	if timeRangeStart != "" {
+		v, err := strconv.Atoi(timeRangeStart)
+		if err == nil {
+			qp.TimeRangeStart = uint64(v)
+		}
+	}
+	timeRangeEnd := url.Query().Get("timeRangeEnd")
+	if timeRangeEnd != "" {
+		v, err := strconv.Atoi(timeRangeEnd)
+		if err == nil {
+			qp.TimeRangeEnd = uint64(v)
+		}
+	}
+	timeRangeOperation := url.Query().Get("timeRangeOperation")
+	switch timeRangeOperation {
+	case "contains":
+		qp.TimeRangeOperation = contains
+	case "within":
+		qp.TimeRangeOperation = within
+	default:
+		qp.TimeRangeOperation = intersects
+	}
+	return qp
+}
+
+func min(a, b uint64) uint64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+const oneMinute uint64 = 60000000
+const oneHour uint64 = 3600000000
+const oneDay uint64 = 86400000000
+
+type TimeRangeRelation int
+
+const (
+	intersects TimeRangeRelation = iota
+	contains
+	within
+)
+
+func (base *Base) TimeRangeValid(qp QueryParams) bool {
+	switch qp.TimeRangeOperation {
+	case intersects:
+		return !(base.EndTime != 0 && base.EndTime < qp.TimeRangeStart || base.StartTime > qp.TimeRangeEnd)
+	case contains:
+		return base.StartTime <= qp.TimeRangeStart && (base.EndTime == 0 || base.EndTime >= qp.TimeRangeEnd)
+	case within:
+		return base.StartTime >= qp.TimeRangeStart && (base.EndTime != 0 && base.EndTime <= qp.TimeRangeEnd)
+	default:
+		return false
+	}
+}
+
 // Convert a slice or array of a specific type to array of interface{}
 func ToIntf(s interface{}) []interface{} {
 	v := reflect.ValueOf(s)
@@ -422,7 +547,6 @@ func paginate(offset int, limit int, length int) (int, int) {
 	} else if start > length {
 		start = length
 	}
-
 	if limit < 0 {
 		limit = length
 	}
@@ -430,20 +554,32 @@ func paginate(offset int, limit int, length int) (int, int) {
 	if end > length {
 		end = length
 	}
-
 	return start, end
 }
 
-func validateAndReturnSortQuery(sortBy string) (string, string, error) {
+func validateAndReturnSortQuery(sortBy string) (string, string, string, error) {
+	sortBy = cases.Title(language.Und, cases.NoLower).String(sortBy)
 	parts := strings.Split(sortBy, ".")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Malformed sortBy query parameter")
+	if len(parts) < 2 {
+		return "", "", "", fmt.Errorf("Malformed sortBy query parameter")
 	}
-	field, order := parts[0], parts[1]
+	order := parts[len(parts)-1]
+	field := parts[0]
+	subField := cases.Title(language.Und, cases.NoLower).String(strings.Join(parts[1:len(parts)-1], "."))
 	if order != "asc" && order != "desc" {
-		return "", "", fmt.Errorf("Malformed order direction in sortBy query parameter, should be asc or desc")
+		return "", "", "", fmt.Errorf("Malformed order direction in sortBy query parameter, should be asc or desc")
 	}
-	return field, order, nil
+	return field, subField, order, nil
+}
+
+func validateAndReturnFilterQuery(filter string) (string, string, error) {
+	parts := strings.Split(filter, ".")
+	if len(parts) == 1 {
+		return "", "", fmt.Errorf("Missing filter query value parameter")
+	}
+	field := cases.Title(language.Und, cases.NoLower).String(parts[0])
+	match := strings.Join(parts[1:], ".")
+	return field, match, nil
 }
 
 func getField(field string, record interface{}) interface{} {
@@ -459,6 +595,8 @@ func getField(field string, record interface{}) interface{} {
 				return fmt.Sprintf("%s", (x.FieldByName(field).Elem().Interface()))
 			case reflect.Uint64:
 				return x.FieldByName(field).Elem().Uint()
+			case reflect.Struct:
+				return x.FieldByName(field).Elem().Interface()
 			}
 		case reflect.Int:
 			return x.FieldByName(field).Int()
@@ -471,6 +609,38 @@ func getField(field string, record interface{}) interface{} {
 		return nil
 	}
 	return nil
+}
+
+func matchFieldValue(x interface{}, y string) bool {
+	if x != nil && y != "" {
+		switch x.(type) {
+		case string:
+			return x.(string) == y
+		case uint64:
+			i, err := strconv.ParseInt(y, 10, 64)
+			if err == nil {
+				return x.(uint64) == uint64(i)
+			}
+		case int32:
+			i, err := strconv.ParseInt(y, 10, 32)
+			if err == nil {
+				return x.(int32) == int32(i)
+			}
+		case int64:
+			i, err := strconv.ParseInt(y, 10, 64)
+			if err == nil {
+				return x.(int64) == int64(i)
+			}
+		case int:
+			i, err := strconv.ParseInt(y, 10, 64)
+			if err == nil {
+				return x.(int) == int(i)
+			}
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 func compareFields(x, y interface{}, order string) bool {
@@ -514,105 +684,47 @@ func compareFields(x, y interface{}, order string) bool {
 	}
 }
 
-func sortAndFilter(list interface{}, sortBy string, offset, limit int) ([]interface{}, error) {
-	// tag to field name
-	sortBy = cases.Title(language.Und, cases.NoLower).String(sortBy)
-	field, order, err := validateAndReturnSortQuery(sortBy)
+// type any = interface{}
+func filterRecord[T any](item T, filter string) bool {
+	if filter == "" {
+		return true
+	}
+	field, match, err := validateAndReturnFilterQuery(filter)
+	// todo propagate error or log
 	if err != nil {
-		return nil, err
+		return false
 	}
-	switch list.(type) {
-	case []SiteRecord:
-		sites := list.([]SiteRecord)
-		sort.Slice(sites, func(i, j int) bool {
-			return compareFields(getField(field, sites[i]), getField(field, sites[j]), order)
-		})
-		start, end := paginate(offset, limit, len(sites))
-		return ToIntf(sites[start:end]), nil
-	case []HostRecord:
-		hosts := list.([]HostRecord)
-		sort.Slice(hosts, func(i, j int) bool {
-			return compareFields(getField(field, hosts[i]), getField(field, hosts[j]), order)
-		})
-		start, end := paginate(offset, limit, len(hosts))
-		return ToIntf(hosts[start:end]), nil
-	case []RouterRecord:
-		routers := list.([]RouterRecord)
-		sort.Slice(routers, func(i, j int) bool {
-			return compareFields(getField(field, routers[i]), getField(field, routers[j]), order)
-		})
-		start, end := paginate(offset, limit, len(routers))
-		return ToIntf(routers[start:end]), nil
-	case []LinkRecord:
-		links := list.([]LinkRecord)
-		sort.Slice(links, func(i, j int) bool {
-			return compareFields(getField(field, links[i]), getField(field, links[j]), order)
-		})
-		start, end := paginate(offset, limit, len(links))
-		return ToIntf(links[start:end]), nil
-	case []ListenerRecord:
-		listeners := list.([]ListenerRecord)
-		sort.Slice(listeners, func(i, j int) bool {
-			return compareFields(getField(field, listeners[i]), getField(field, listeners[j]), order)
-		})
-		start, end := paginate(offset, limit, len(listeners))
-		return ToIntf(listeners[start:end]), nil
-	case []ConnectorRecord:
-		connectors := list.([]ConnectorRecord)
-		sort.Slice(connectors, func(i, j int) bool {
-			return compareFields(getField(field, connectors[i]), getField(field, connectors[j]), order)
-		})
-		start, end := paginate(offset, limit, len(connectors))
-		return ToIntf(connectors[start:end]), nil
-	case []VanAddressRecord:
-		addresses := list.([]VanAddressRecord)
-		sort.Slice(addresses, func(i, j int) bool {
-			return compareFields(getField(field, addresses[i]), getField(field, addresses[j]), order)
-		})
-		start, end := paginate(offset, limit, len(addresses))
-		return ToIntf(addresses[start:end]), nil
-	case []ProcessRecord:
-		processes := list.([]ProcessRecord)
-		sort.Slice(processes, func(i, j int) bool {
-			return compareFields(getField(field, processes[i]), getField(field, processes[j]), order)
-		})
-		start, end := paginate(offset, limit, len(processes))
-		return ToIntf(processes[start:end]), nil
-	case []ProcessGroupRecord:
-		processGroups := list.([]ProcessGroupRecord)
-		sort.Slice(processGroups, func(i, j int) bool {
-			return compareFields(getField(field, processGroups[i]), getField(field, processGroups[j]), order)
-		})
-		start, end := paginate(offset, limit, len(processGroups))
-		return ToIntf(processGroups[start:end]), nil
-	case []FlowRecord:
-		flows := list.([]FlowRecord)
-		sort.Slice(flows, func(i, j int) bool {
-			return compareFields(getField(field, flows[i]), getField(field, flows[j]), order)
-		})
-		start, end := paginate(offset, limit, len(flows))
-		return ToIntf(flows[start:end]), nil
-	case []FlowPairRecord:
-		flowPairs := list.([]FlowPairRecord)
-		sort.Slice(flowPairs, func(i, j int) bool {
-			return compareFields(getField(field, flowPairs[i]), getField(field, flowPairs[j]), order)
-		})
-		start, end := paginate(offset, limit, len(flowPairs))
-		return ToIntf(flowPairs[start:end]), nil
-	case []FlowAggregateRecord:
-		flowAggregates := list.([]FlowAggregateRecord)
-		sort.Slice(flowAggregates, func(i, j int) bool {
-			return compareFields(getField(field, flowAggregates[i]), getField(field, flowAggregates[j]), order)
-		})
-		start, end := paginate(offset, limit, len(flowAggregates))
-		return ToIntf(flowAggregates[start:end]), nil
-	case []eventSource:
-		eventSources := list.([]eventSource)
-		sort.Slice(eventSources, func(i, j int) bool {
-			return eventSources[i].Beacon.Address < eventSources[j].Beacon.Address
-		})
-		start, end := paginate(offset, limit, len(eventSources))
-		return ToIntf(eventSources[start:end]), nil
+	value := getField(field, item)
+	x := reflect.ValueOf(value)
+	if x.Kind() == reflect.Struct {
+		return filterRecord(value, match)
 	}
-	return nil, fmt.Errorf("Unrecognized list type to filter %T", list)
+	return matchFieldValue(value, match)
+}
+
+func sortAndSlice[T any](list []T, payload *Payload) error {
+	offset := payload.QueryParams.Offset
+	limit := payload.QueryParams.Limit
+	start := 0
+	end := 0
+	field, subField, order, err := validateAndReturnSortQuery(payload.QueryParams.SortBy)
+	if err != nil {
+		return err
+	}
+	payload.TimeRangeCount = len(list)
+	sort.Slice(list, func(i, j int) bool {
+		v1 := getField(field, list[i])
+		v2 := getField(field, list[j])
+		x := reflect.ValueOf(v1)
+		// todo: embedded all the way down
+		if x.Kind() == reflect.Struct {
+			v1 = getField(subField, v1)
+			v2 = getField(subField, v2)
+		}
+		return compareFields(v1, v2, order)
+	})
+	start, end = paginate(offset, limit, len(list))
+	payload.Count = end - start
+	payload.Results = (list[start:end])
+	return nil
 }

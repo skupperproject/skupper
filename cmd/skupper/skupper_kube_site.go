@@ -134,7 +134,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	s.kubeInit.annotations = []string{}
 	s.kubeInit.routerServiceAnnotations = []string{}
 	s.kubeInit.controllerServiceAnnotations = []string{}
-	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console")
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console must be used in conjunction with '--enable-flow-collector' flag")
 	cmd.Flags().BoolVarP(&routerCreateOpts.CreateNetworkPolicy, "create-network-policy", "", false, "Create network policy to restrict access to skupper services exposed through this site to current pods in namespace")
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'openshift', 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
@@ -146,7 +146,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringSliceVar(&s.kubeInit.controllerServiceAnnotations, "controller-service-annotation", []string{}, "Annotations to add to skupper controller service")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
 	cmd.Flags().DurationVar(&routerCreateOpts.SiteTtl, "service-sync-site-ttl", 0, "Time after which stale services, i.e. those whose site has not been heard from, created through service-sync are removed.")
-	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-vflow-collector", "", false, "Enable cross-site vFlow collection for the application network")
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-flow-collector", "", false, "Enable cross-site flow collection for the application network")
 	cmd.Flags().Int64Var(&routerCreateOpts.RunAsUser, "run-as-user", 0, "The UID to run the entrypoint of the container processes")
 	cmd.Flags().Int64Var(&routerCreateOpts.RunAsGroup, "run-as-group", 0, "The GID to run the entrypoint of the container processes")
 
@@ -176,13 +176,14 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.CpuLimit, "config-sync-cpu-limit", "", "CPU limit for config-sync pods")
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
 
-	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Cpu, "vflow-collector-cpu", "", "CPU request for vFlow collector pods")
-	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Memory, "vflow-collector-memory", "", "Memory request for vFlow collector pods")
-	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "vflow-collector-cpu-limit", "", "CPU limit for vFlow collector pods")
-	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "vflow-collector-memory-limit", "", "Memory limit for vFlow collector pods")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Cpu, "flow-collector-cpu", "", "CPU request for flow collector pods")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Memory, "flow-collector-memory", "", "Memory request for flow collector pods")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector pods")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "flow-collector-memory-limit", "", "Memory limit for flow collector pods")
 
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
 
+<<<<<<< HEAD
 	f := cmd.Flag("enable-console")
 	f.Deprecated = "Stand alone console is planned for deprecation. Use vFlow collector console instead via --enable-vflow-collector flag"
 	// hide run-as flags
@@ -194,6 +195,8 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	f = cmd.Flag("router-disable-mutual-tls")
 	f.Hidden = true
 
+=======
+>>>>>>> 154de4f (initial time range)
 }
 
 func (s *SkupperKubeSite) Delete(cmd *cobra.Command, args []string) error {
@@ -320,7 +323,7 @@ func (s *SkupperKubeSite) Version(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%-30s %s\n", "transport version", cli.GetVersion(types.TransportComponentName, types.TransportContainerName))
 		fmt.Printf("%-30s %s\n", "controller version", cli.GetVersion(types.ControllerComponentName, types.ControllerContainerName))
 		fmt.Printf("%-30s %s\n", "config-sync version", cli.GetVersion(types.TransportComponentName, types.ConfigSyncContainerName))
-		fmt.Printf("%-30s %s\n", "vflow-collector version", cli.GetVersion(types.ControllerComponentName, types.FlowCollectorContainerName))
+		fmt.Printf("%-30s %s\n", "flow-collector version", cli.GetVersion(types.ControllerComponentName, types.FlowCollectorContainerName))
 	} else {
 		fmt.Printf("%-30s %s\n", "transport version", "not-found (no configuration has been provided)")
 		fmt.Printf("%-30s %s\n", "controller version", "not-found (no configuration has been provided)")

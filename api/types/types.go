@@ -92,7 +92,7 @@ const (
 	ControllerClusterRoleName            string = "skupper-service-controller"
 	ControllerConfigPath                 string = "/etc/messaging/"
 	ControllerServiceName                string = "skupper"
-	FlowCollectorContainerName           string = "vflow-collector"
+	FlowCollectorContainerName           string = "flow-collector"
 )
 
 var ControllerPolicyRule = []rbacv1.PolicyRule{

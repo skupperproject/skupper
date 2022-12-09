@@ -2,7 +2,7 @@ VERSION := $(shell git describe --tags --dirty=-modified --always)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
-VFLOW_COLLECTOR_IMAGE := quay.io/skupper/vflow-collector
+FLOW_COLLECTOR_IMAGE := quay.io/skupper/flow-collector
 TEST_IMAGE := quay.io/skupper/skupper-tests
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
@@ -46,7 +46,7 @@ docker-build: docker-build-test-image
 	${DOCKER} build -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
 	${DOCKER} build -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
 	${DOCKER} build -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
-	${DOCKER} build -t ${VFLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
+	${DOCKER} build -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
 
 docker-push-test-image:
 	${DOCKER} push ${TEST_IMAGE}
@@ -55,7 +55,7 @@ docker-push: docker-push-test-image
 	${DOCKER} push ${SERVICE_CONTROLLER_IMAGE}
 	${DOCKER} push ${SITE_CONTROLLER_IMAGE}
 	${DOCKER} push ${CONFIG_SYNC_IMAGE}
-	${DOCKER} push ${VFLOW_COLLECTOR_IMAGE}
+	${DOCKER} push ${FLOW_COLLECTOR_IMAGE}
 
 format:
 	go fmt ./...

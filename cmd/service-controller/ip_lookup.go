@@ -155,7 +155,7 @@ func (i *IpLookup) processNextEvent() bool {
 					process := &flow.ProcessRecord{}
 					process.Identity = string(pod.ObjectMeta.UID)
 					process.Parent = os.Getenv("SKUPPER_SITE_ID")
-					process.StartTime = uint64(pod.ObjectMeta.CreationTimestamp.UnixNano())
+					process.StartTime = uint64(pod.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
 					process.Name = &pod.ObjectMeta.Name
 					if pod.Status.PodIP != "" {
 						process.SourceHost = &pod.Status.PodIP
@@ -163,8 +163,12 @@ func (i *IpLookup) processNextEvent() bool {
 					process.Image = &pod.Spec.Containers[0].Image
 					process.ImageName = process.Image
 					process.HostName = &pod.Spec.NodeName
+					process.ProcessRole = &flow.External
 					if labelName, ok := pod.ObjectMeta.Labels["app.kubernetes.io/part-of"]; ok {
 						process.GroupName = &labelName
+						if labelName == "skupper" {
+							process.ProcessRole = &flow.Internal
+						}
 					} else if labelComponent, ok := pod.ObjectMeta.Labels["app.kubernetes.io/name"]; ok {
 						process.GroupName = &labelComponent
 					} else if partOf, ok := pod.ObjectMeta.Labels["app.kubernetes.io/component"]; ok {

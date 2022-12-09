@@ -1206,7 +1206,7 @@ func convertSiteConfigToCollectorEnabled(ctx context.Context, cli *VanClient, na
 	if err != nil {
 		return err
 	}
-	configmap.Data[SiteConfigConsoleKey] = "false"
+	configmap.Data[SiteConfigConsoleKey] = "true"
 	configmap.Data[SiteConfigFlowCollectorKey] = "true"
 	_, err = cli.KubeClient.CoreV1().ConfigMaps(namespace).Update(configmap)
 	return err
@@ -1245,13 +1245,13 @@ func createFlowCollectorSidecar(ctx context.Context, cli *VanClient, controller 
 	for i, env := range controller.Spec.Template.Spec.Containers[0].Env {
 		parts := strings.Split(env.Name, "_")
 		if parts[0] == "METRICS" {
-			parts[0] = "VFLOW"
+			parts[0] = "FLOW"
 			controller.Spec.Template.Spec.Containers[0].Env[i].Name = strings.Join(parts, "_")
 		}
 	}
-	vFlowContainer := controller.Spec.Template.Spec.Containers[0]
-	vFlowContainer.Image = GetFlowCollectorImageName()
-	vFlowContainer.Name = types.FlowCollectorContainerName
-	controller.Spec.Template.Spec.Containers = append(controller.Spec.Template.Spec.Containers, vFlowContainer)
+	flowContainer := controller.Spec.Template.Spec.Containers[0]
+	flowContainer.Image = GetFlowCollectorImageName()
+	flowContainer.Name = types.FlowCollectorContainerName
+	controller.Spec.Template.Spec.Containers = append(controller.Spec.Template.Spec.Containers, flowContainer)
 	return nil
 }
