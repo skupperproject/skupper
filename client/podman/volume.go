@@ -81,7 +81,7 @@ func VolumesToNamedVolumes(c *container.Container) []*models.NamedVolume {
 		m := &models.NamedVolume{
 			Dest:    v.Destination,
 			Name:    v.Name,
-			Options: []string{"z"}, // shared between containers
+			Options: []string{"z", "U"}, // shared between containers
 		}
 		namedVolumes = append(namedVolumes, m)
 	}
