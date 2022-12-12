@@ -287,7 +287,6 @@ type ImageDetails struct {
 type DeploymentSpec struct {
 	Image               ImageDetails                 `json:"image,omitempty"`
 	Replicas            int32                        `json:"replicas,omitempty"`
-	LivenessPort        int32                        `json:"livenessPort,omitempty"`
 	Labels              map[string]string            `json:"labels,omitempty"`
 	Annotations         map[string]string            `json:"annotations,omitempty"`
 	LabelSelector       map[string]string            `json:"labelSelector,omitempty"`
