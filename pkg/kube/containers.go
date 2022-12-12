@@ -29,6 +29,62 @@ func setResourceRequests(container *corev1.Container, resources types.Resources)
 	}
 }
 
+func controllerStartupProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 1,
+		PeriodSeconds:       1,
+		FailureThreshold:    60,
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Port: intstr.FromInt(8182),
+				Path: "/healthz",
+			},
+		},
+	}
+}
+
+func controllerLivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 60,
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Port: intstr.FromInt(8182),
+				Path: "/healthz",
+			},
+		},
+	}
+}
+
+func controllerReadinessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       5,
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Port: intstr.FromInt(8182),
+				Path: "/healthz",
+			},
+		},
+	}
+}
+
+func CheckProbesForControllerContainer(c *corev1.Container) bool {
+	updated := false
+	if c.StartupProbe == nil {
+		c.StartupProbe = controllerStartupProbe()
+		updated = true
+	}
+	if c.LivenessProbe == nil {
+		c.LivenessProbe = controllerLivenessProbe()
+		updated = true
+	}
+	if c.ReadinessProbe == nil {
+		c.ReadinessProbe = controllerReadinessProbe()
+		updated = true
+	}
+	return updated
+}
+
 func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 	container := corev1.Container{
 		Image:           ds.Image.Name,
@@ -36,39 +92,49 @@ func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 		Name:            types.ControllerContainerName,
 		Env:             ds.EnvVar,
 		Ports:           ds.Ports,
-		StartupProbe: &corev1.Probe{
-			InitialDelaySeconds: 1,
-			PeriodSeconds:       1,
-			FailureThreshold:    60,
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Port: intstr.FromInt(8182),
-					Path: "/healthz",
-				},
-			},
-		},
-		LivenessProbe: &corev1.Probe{
-			InitialDelaySeconds: 60,
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Port: intstr.FromInt(8182),
-					Path: "/healthz",
-				},
-			},
-		},
-		ReadinessProbe: &corev1.Probe{
-			InitialDelaySeconds: 5,
-			PeriodSeconds:       5,
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Port: intstr.FromInt(8182),
-					Path: "/healthz",
-				},
-			},
-		},
+		StartupProbe:    controllerStartupProbe(),
+		LivenessProbe:   controllerLivenessProbe(),
+		ReadinessProbe:  controllerReadinessProbe(),
 	}
 	setResourceRequests(&container, &ds)
 	return container
+}
+
+func transportLivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 60,
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Port: intstr.FromInt(int(types.TransportLivenessPort)),
+				Path: "/healthz",
+			},
+		},
+	}
+}
+
+func transportReadinessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 1,
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Port: intstr.FromInt(int(types.TransportLivenessPort)),
+				Path: "/healthz",
+			},
+		},
+	}
+}
+
+func CheckProbesForTransportContainer(c *corev1.Container) bool {
+	updated := false
+	if c.LivenessProbe == nil {
+		c.LivenessProbe = transportLivenessProbe()
+		updated = true
+	}
+	if c.ReadinessProbe == nil {
+		c.ReadinessProbe = transportReadinessProbe()
+		updated = true
+	}
+	return updated
 }
 
 func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
@@ -76,29 +142,33 @@ func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
 		Image:           ds.Image.Name,
 		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
 		Name:            types.TransportContainerName,
-		LivenessProbe: &corev1.Probe{
-			InitialDelaySeconds: 60,
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Port: intstr.FromInt(int(ds.LivenessPort)),
-					Path: "/healthz",
-				},
-			},
-		},
-		ReadinessProbe: &corev1.Probe{
-			InitialDelaySeconds: 1,
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Port: intstr.FromInt(int(ds.LivenessPort)),
-					Path: "/healthz",
-				},
-			},
-		},
-		Env:   ds.EnvVar,
-		Ports: ds.Ports,
+		LivenessProbe:   transportLivenessProbe(),
+		ReadinessProbe:  transportReadinessProbe(),
+		Env:             ds.EnvVar,
+		Ports:           ds.Ports,
 	}
 	setResourceRequests(&container, &ds)
 	return container
+}
+
+func configSyncReadinessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 1,
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Port: intstr.FromInt(9191),
+				Path: "/healthz",
+			},
+		},
+	}
+}
+
+func CheckProbesForConfigSync(c *corev1.Container) bool {
+	if c.ReadinessProbe == nil {
+		c.ReadinessProbe = configSyncReadinessProbe()
+		return true
+	}
+	return false
 }
 
 func ContainerForConfigSync(ds types.DeploymentSpec) *corev1.Container {
@@ -106,15 +176,7 @@ func ContainerForConfigSync(ds types.DeploymentSpec) *corev1.Container {
 		Image:           ds.Image.Name,
 		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
 		Name:            types.ConfigSyncContainerName,
-		ReadinessProbe: &corev1.Probe{
-			InitialDelaySeconds: 1,
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Port: intstr.FromInt(9191),
-					Path: "/healthz",
-				},
-			},
-		},
+		ReadinessProbe:  configSyncReadinessProbe(),
 	}
 
 	setResourceRequests(&container, &ds)

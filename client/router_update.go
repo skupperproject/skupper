@@ -406,6 +406,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		router.Spec.Template.Spec.Containers[0].Image = desiredRouterImage
 		updateRouter = true
 	}
+	if kube.CheckProbesForTransportContainer(&router.Spec.Template.Spec.Containers[0]) {
+		updateRouter = true
+	}
 	configSync := ConfigSyncContainer()
 	if !hasContainer(configSync.Name, router.Spec.Template.Spec.Containers) {
 		err = kube.UpdateRole(namespace, types.TransportRoleName, types.TransportPolicyRule, cli.KubeClient)
@@ -417,6 +420,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 	if router.Spec.Template.Spec.Containers[1].Image != configSync.Image {
 		router.Spec.Template.Spec.Containers[1].Image = configSync.Image
+		updateRouter = true
+	}
+	if kube.CheckProbesForConfigSync(&router.Spec.Template.Spec.Containers[1]) {
 		updateRouter = true
 	}
 	if renamedSkRouter {
@@ -547,6 +553,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	desiredControllerImage := GetServiceControllerImageName()
 	if controller.Spec.Template.Spec.Containers[0].Image != desiredControllerImage {
 		controller.Spec.Template.Spec.Containers[0].Image = desiredControllerImage
+		updateController = true
+	}
+	if kube.CheckProbesForControllerContainer(&controller.Spec.Template.Spec.Containers[0]) {
 		updateController = true
 	}
 	if updateController || hup {

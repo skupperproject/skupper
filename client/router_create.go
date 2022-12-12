@@ -510,7 +510,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 
 	van.AuthMode = types.ConsoleAuthMode(options.AuthMode)
-	van.Transport.LivenessPort = types.TransportLivenessPort
 
 	van.Transport.Image = GetRouterImageDetails()
 	van.Transport.Replicas = 1
