@@ -2,6 +2,7 @@ package podman
 
 import (
 	"fmt"
+	"os/user"
 	"strconv"
 	"strings"
 
@@ -43,6 +44,23 @@ func (p *PodmanRestClient) ContainerInspect(id string) (*container.Container, er
 }
 
 func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
+	curUser, err := user.Current()
+	var containerUser string
+	var idMappings *models.IDMappingOptions
+	var userNs *models.Namespace
+
+	if err == nil {
+		// this is based on:
+		// https://www.redhat.com/sysadmin/debug-rootless-podman-mounted-volumes
+		// idMappings is mandatory and is set to the same value podman sets it
+		// when using --userns=keep-id
+		containerUser = curUser.Uid + ":" + curUser.Gid
+		idMappings = &models.IDMappingOptions{
+			HostGIDMapping: false,
+			HostUIDMapping: false,
+		}
+		userNs = &models.Namespace{Nsmode: models.NamespaceMode("keep-id")}
+	}
 	spec := &models.SpecGenerator{
 		Annotations: c.Annotations,
 		CNINetworks: c.NetworkNames(),
@@ -57,6 +75,9 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 		Pod:           c.Pod,
 		PortMappings:  ToPortmappings(c),
 		RestartPolicy: c.RestartPolicy,
+		User:          containerUser,
+		Userns:        userNs,
+		Idmappings:    idMappings,
 	}
 
 	// Network info
