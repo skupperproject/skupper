@@ -1,6 +1,9 @@
 package service_sync
 
 import (
+	vanClient "github.com/skupperproject/skupper/client"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 	"reflect"
 	"strings"
 	"testing"
@@ -39,6 +42,14 @@ func newUpdateChannel() *updateChannel {
 func (c *updateCollector) handler(changed []types.ServiceInterface, deleted []string, origin string) error {
 	c.updates = append(c.updates, updateRecord{changed, deleted, origin})
 	return nil
+}
+
+func NewMockClient(namespace string) *vanClient.VanClient {
+	return &vanClient.VanClient{
+		Namespace:     namespace,
+		KubeClient:    fake.NewSimpleClientset(),
+		EventRecorder: &record.FakeRecorder{},
+	}
 }
 
 func (c *updateChannel) handler(changed []types.ServiceInterface, deleted []string, origin string) error {
@@ -120,8 +131,8 @@ func TestServiceSync(t *testing.T) {
 			factory := NewMockConnectionFactory("test-channel")
 			updates1 := newUpdateChannel()
 			updates2 := newUpdateChannel()
-			site1 := NewServiceSync("foo", 0, "v1", factory, updates1.handler)
-			site2 := NewServiceSync("bar", 0, "v1", factory, updates2.handler)
+			site1 := NewServiceSync("foo", 0, "v1", factory, updates1.handler, NewMockClient("namespace"))
+			site2 := NewServiceSync("bar", 0, "v1", factory, updates2.handler, NewMockClient("namespace"))
 			site1.Start(stopper)
 			site2.Start(stopper)
 			factory.topics.newTopic(ServiceSyncAddress).waitForReceivers(2)
@@ -176,7 +187,7 @@ func TestRemoveStaleDefinitions(t *testing.T) {
 
 	updates := newUpdateCollector()
 	factory := NewMockConnectionFactory("test-channel")
-	site := NewServiceSync("foo", 0, "v1", factory, updates.handler)
+	site := NewServiceSync("foo", 0, "v1", factory, updates.handler, NewMockClient("namespace"))
 
 	defs := map[string]types.ServiceInterface{
 		"d": types.ServiceInterface{
@@ -223,7 +234,7 @@ func TestUpdateRemoteDefinitions(t *testing.T) {
 
 	updates := newUpdateCollector()
 	factory := NewMockConnectionFactory("test-channel")
-	site := NewServiceSync("foo", 0, "v1", factory, updates.handler)
+	site := NewServiceSync("foo", 0, "v1", factory, updates.handler, NewMockClient("namespace"))
 
 	defs := map[string]types.ServiceInterface{
 		"d": types.ServiceInterface{
@@ -287,7 +298,7 @@ func TestLocalDefinitionsUpdated(t *testing.T) {
 
 	updates := newUpdateCollector()
 	factory := NewMockConnectionFactory("test-channel")
-	site := NewServiceSync("foo", 0, "v1", factory, updates.handler)
+	site := NewServiceSync("foo", 0, "v1", factory, updates.handler, NewMockClient("namespace"))
 
 	defs := map[string]types.ServiceInterface{
 		"svc-e": types.ServiceInterface{

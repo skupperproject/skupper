@@ -1,6 +1,9 @@
 package service_sync
 
 import (
+	"fmt"
+	vanClient "github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"time"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
@@ -18,6 +21,7 @@ type base struct {
 	updates           chan ServiceUpdate
 	closed            bool
 	client            messaging.Connection
+	vanClient         *vanClient.VanClient
 }
 
 func (c *base) stop() {
@@ -38,11 +42,12 @@ func (c *sender) start() {
 	go c.send()
 }
 
-func newSender(connectionFactory messaging.ConnectionFactory, updates chan ServiceUpdate) *sender {
+func newSender(connectionFactory messaging.ConnectionFactory, updates chan ServiceUpdate, vanClient *vanClient.VanClient) *sender {
 	return &sender{
 		base: base{
 			connectionFactory: connectionFactory,
 			updates:           updates,
+			vanClient:         vanClient,
 		},
 	}
 }
@@ -65,7 +70,8 @@ func (c *sender) _send() error {
 		return err
 	}
 	c.client = client
-	event.Recordf(ServiceSyncEvent, "Service sync sender connection to %s established", c.connectionFactory.Url())
+	message := fmt.Sprintf("Service sync sender connection to %s established", c.connectionFactory.Url())
+	kube.RecordNormalEvent(c.vanClient.GetNamespace(), ServiceSyncEvent, message, c.vanClient.EventRecorder, c.vanClient.KubeClient)
 	defer client.Close()
 
 	sender, err := client.Sender(ServiceSyncAddress)
@@ -101,11 +107,12 @@ type receiver struct {
 	base
 }
 
-func newReceiver(connectionFactory messaging.ConnectionFactory, updates chan ServiceUpdate) *receiver {
+func newReceiver(connectionFactory messaging.ConnectionFactory, updates chan ServiceUpdate, vanClient *vanClient.VanClient) *receiver {
 	return &receiver{
 		base: base{
 			connectionFactory: connectionFactory,
 			updates:           updates,
+			vanClient:         vanClient,
 		},
 	}
 }
@@ -131,7 +138,8 @@ func (c *receiver) _receive() error {
 		return err
 	}
 	c.client = client
-	event.Recordf(ServiceSyncEvent, "Service sync receiver connection to %s established", c.connectionFactory.Url())
+	message := fmt.Sprintf("Service sync receiver connection to %s established", c.connectionFactory.Url())
+	kube.RecordNormalEvent(c.vanClient.Namespace, ServiceSyncEvent, message, c.vanClient.EventRecorder, c.vanClient.KubeClient)
 	defer client.Close()
 
 	receiver, err := client.Receiver(ServiceSyncAddress, 10)

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"k8s.io/client-go/tools/record"
 	"time"
 
 	openshiftapps "github.com/openshift/client-go/apps/clientset/versioned"
@@ -39,6 +40,7 @@ type VanClient struct {
 	DynamicClient   dynamic.Interface
 	DiscoveryClient *discovery.DiscoveryClient
 	LinkHandler     domain.LinkHandler
+	EventRecorder   record.EventRecorder
 }
 
 func (cli *VanClient) GetNamespace() string {
@@ -112,6 +114,7 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*VanCli
 	} else {
 		c.Namespace = namespace
 	}
+	c.EventRecorder = kube.NewEventRecorder(c.Namespace, c.KubeClient)
 	c.DynamicClient, err = dynamic.NewForConfig(restconfig)
 	if err != nil {
 		return c, err

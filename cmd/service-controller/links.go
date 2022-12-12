@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -158,11 +159,13 @@ func (m *LinkManager) getLink(name string) (*types.LinkStatus, error) {
 }
 
 func (m *LinkManager) deleteLink(name string) (bool, error) {
+	secret, _ := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
 	err := m.cli.ConnectorRemove(context.Background(), types.ConnectorRemoveOptions{Name: name, SkupperNamespace: m.cli.Namespace})
 	if err != nil {
+		kube.RecordWarningEvent(m.cli.Namespace, LinkManagement, fmt.Sprintf("Error trying to delete secret %s: %s", secret.Name, err), m.cli.EventRecorder, m.cli.KubeClient)
 		return false, err
 	}
-	event.Recordf(LinkManagement, "Deleted link %q", name)
+	kube.RecordNormalEvent(m.cli.Namespace, LinkManagement, fmt.Sprintf("Deleted secret %s", secret.Name), m.cli.EventRecorder, m.cli.KubeClient)
 	return true, nil
 }
 
@@ -171,7 +174,9 @@ func (m *LinkManager) createLink(cost int, token []byte) error {
 	if err != nil {
 		return err
 	}
-	event.Recordf(LinkManagement, "Created link %q", secret.ObjectMeta.Name)
+	message := fmt.Sprintf("Created link %q", secret.ObjectMeta.Name)
+	kube.RecordNormalEvent(m.cli.Namespace, LinkManagement, message, m.cli.EventRecorder, m.cli.KubeClient)
+
 	return nil
 }
 

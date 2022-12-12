@@ -236,7 +236,7 @@ func TestSender(t *testing.T) {
 		t.Run(s.name, func(t *testing.T) {
 			factory := NewMockConnectionFactory("test-channel")
 			outgoing := make(chan ServiceUpdate)
-			sender := newSender(factory, outgoing)
+			sender := newSender(factory, outgoing, NewMockClient("test"))
 			sender.start()
 			conn, err := factory.Connect()
 			assert.Assert(t, err)
@@ -328,7 +328,7 @@ func TestReceiver(t *testing.T) {
 		t.Run(s.name, func(t *testing.T) {
 			factory := NewMockConnectionFactory("test-channel")
 			incoming := make(chan ServiceUpdate)
-			receiver := newReceiver(factory, incoming)
+			receiver := newReceiver(factory, incoming, NewMockClient("test"))
 			receiver.start()
 			factory.topics.newTopic(ServiceSyncAddress).waitForReceivers(1)
 

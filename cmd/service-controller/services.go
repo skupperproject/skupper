@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/event"
 	"io/ioutil"
 	"net/http"
 
@@ -14,7 +15,6 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -298,7 +298,8 @@ func serveServices(m *ServiceManager) http.Handler {
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
-					event.Recordf("Service %s exposed", options.GetServiceName())
+					message := fmt.Sprintf("Service %s exposed", options.GetServiceName())
+					kube.RecordNormalEvent(m.cli.Namespace, ServiceManagement, message, m.cli.EventRecorder, m.cli.KubeClient)
 				}
 			}
 		} else if r.Method == http.MethodDelete {
@@ -309,7 +310,8 @@ func serveServices(m *ServiceManager) http.Handler {
 				} else if !deleted {
 					http.Error(w, "No such service", http.StatusNotFound)
 				} else {
-					event.Recordf("Service %s deleted", name)
+					message := fmt.Sprintf("Service %s deleted", name)
+					kube.RecordNormalEvent(m.cli.Namespace, ServiceManagement, message, m.cli.EventRecorder, m.cli.KubeClient)
 				}
 			} else {
 				http.Error(w, "Invalid method", http.StatusMethodNotAllowed)

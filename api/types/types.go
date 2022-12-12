@@ -126,6 +126,11 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 		APIGroups: []string{"networking.k8s.io"},
 		Resources: []string{"ingresses"},
 	},
+	{
+		Verbs:     []string{"watch", "create", "patch"},
+		APIGroups: []string{""},
+		Resources: []string{"events"},
+	},
 }
 
 // Certifcates/Secrets constants

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"k8s.io/client-go/tools/record"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -143,6 +144,8 @@ func TestCreateDeleteLinks(t *testing.T) {
 		Namespace:  testname,
 		KubeClient: fake.NewSimpleClientset(),
 	}
+	cli.EventRecorder = &record.FakeRecorder{}
+
 	connectors := &MockConnectorManager{}
 	manager := &LinkManager{
 		cli:        cli,

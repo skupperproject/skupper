@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"k8s.io/client-go/tools/record"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -421,6 +422,8 @@ func TestServeServices(t *testing.T) {
 		Namespace:  namespace,
 		KubeClient: fake.NewSimpleClientset(),
 	}
+	cli.EventRecorder = &record.FakeRecorder{}
+
 	skupperInitWithController(cli, namespace)
 	dep1, err := createDeployment(cli.KubeClient, "dep1", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})
 	assert.Check(t, err, namespace)

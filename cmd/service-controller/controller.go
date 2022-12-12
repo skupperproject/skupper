@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	jsonencoding "encoding/json"
 	"fmt"
+	"k8s.io/client-go/tools/record"
 	"log"
 	"os"
 	"strings"
@@ -74,6 +75,7 @@ type Controller struct {
 	policyHandler     *PolicyController
 	nodeWatcher       *NodeWatcher
 	tlsManager        *kubeqdr.TlsManager
+	eventRecorder     record.EventRecorder
 }
 
 const (
@@ -175,6 +177,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 		disableServiceSync: disableServiceSync,
 	}
 	AddStaticPolicyWatcher(controller.policy)
+	controller.eventRecorder = kube.NewEventRecorder(cli.Namespace, cli.KubeClient)
 
 	// Organize service definitions
 	controller.byOrigin = make(map[string]map[string]types.ServiceInterface)
@@ -210,7 +213,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	if siteConfig != nil {
 		ttl = siteConfig.Spec.SiteTtl
 	}
-	controller.serviceSync = service_sync.NewServiceSync(origin, ttl, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
+	controller.serviceSync = service_sync.NewServiceSync(origin, ttl, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler, cli)
 
 	controller.flowController = flow.NewFlowController(origin, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig))
 	ipHandler := func(deleted bool, name string, process *flow.ProcessRecord) error {
@@ -370,7 +373,9 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) DeleteService(svc *corev1.Service) error {
-	event.Recordf(ServiceControllerDeleteEvent, "Deleting service %s", svc.ObjectMeta.Name)
+	message := fmt.Sprintf("Deleting service %s", svc.ObjectMeta.Name)
+	kube.RecordNormalEvent(c.vanClient.Namespace, ServiceControllerDeleteEvent, message, c.eventRecorder, c.vanClient.KubeClient)
+
 	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(context.TODO(), svc.ObjectMeta.Name, metav1.DeleteOptions{})
 }
 
@@ -382,6 +387,16 @@ func (c *Controller) UpdateService(svc *corev1.Service) error {
 func (c *Controller) CreateService(svc *corev1.Service) error {
 	setOwnerReferences(&svc.ObjectMeta)
 	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
+	reason := ServiceControllerCreateEvent
+
+	if err == nil {
+		message := fmt.Sprintf("Creating service %s", svc.ObjectMeta.Name)
+		kube.RecordNormalEvent(c.vanClient.Namespace, reason, message, c.eventRecorder, c.vanClient.KubeClient)
+	} else {
+		message := fmt.Sprintf("Error trying to create service %s: %s", svc.ObjectMeta.Name, err)
+		kube.RecordWarningEvent(c.vanClient.Namespace, reason, message, c.eventRecorder, c.vanClient.KubeClient)
+	}
+
 	return err
 }
 

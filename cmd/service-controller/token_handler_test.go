@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"k8s.io/client-go/tools/record"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -79,6 +80,8 @@ func TestTokenHandler(t *testing.T) {
 		Namespace:  "claim-handler-test",
 		KubeClient: fake.NewSimpleClientset(),
 	}
+
+	cli.EventRecorder = &record.FakeRecorder{}
 
 	handler := newTokenHandler(cli, "site-a")
 

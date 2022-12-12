@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -64,7 +65,8 @@ func (c *TokenHandler) getTokenCost(token *corev1.Secret) (int32, bool) {
 }
 
 func (c *TokenHandler) connect(token *corev1.Secret) error {
-	event.Recordf(c.name, "Connecting using token %s", token.ObjectMeta.Name)
+	message := fmt.Sprintf("Connecting using token %s", token.ObjectMeta.Name)
+	kube.RecordNormalEvent(c.vanClient.Namespace, c.name, message, c.vanClient.EventRecorder, c.vanClient.KubeClient)
 	var options types.ConnectorCreateOptions
 	options.Name = token.ObjectMeta.Name
 	options.SkupperNamespace = c.vanClient.Namespace
@@ -79,7 +81,8 @@ func (c *TokenHandler) disconnect(key string) error {
 	if err != nil {
 		return err
 	}
-	event.Recordf(c.name, "Disconnecting connector %s", name)
+	message := fmt.Sprintf(c.name, "Disconnecting connector %s", name)
+	kube.RecordNormalEvent(c.vanClient.Namespace, c.name, message, c.vanClient.EventRecorder, c.vanClient.KubeClient)
 	return c.removeConnectorFromConfig(context.Background(), name)
 }
 
