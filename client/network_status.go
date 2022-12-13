@@ -96,7 +96,6 @@ func GetFormattedLinks(getLocalLinks GetLocalLinks, cli *VanClient, site types.S
 			if len(link) > 7 {
 				trimmedLink = link[:7]
 			}
-
 			formattedLink := trimmedLink + "-" + siteNameMap[link]
 
 			if isLocalSite {
