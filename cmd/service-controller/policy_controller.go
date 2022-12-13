@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/tools/record"
 	"log"
 	"strconv"
 	"strings"
@@ -44,7 +43,7 @@ type PolicyController struct {
 	informer      cache.SharedIndexInformer
 	queue         workqueue.RateLimitingInterface
 	activeMap     map[string]time.Time
-	eventRecorder record.EventRecorder
+	eventRecorder kube.SkupperEventRecorder
 }
 
 func (c *PolicyController) loadActiveMap() {

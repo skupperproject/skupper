@@ -81,7 +81,9 @@ func TestTokenHandler(t *testing.T) {
 		KubeClient: fake.NewSimpleClientset(),
 	}
 
-	cli.EventRecorder = &record.FakeRecorder{}
+	cli.EventRecorder = kube.SkupperEventRecorder{
+		EventRecorder: &record.FakeRecorder{},
+	}
 
 	handler := newTokenHandler(cli, "site-a")
 

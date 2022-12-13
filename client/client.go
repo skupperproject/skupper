@@ -1,7 +1,6 @@
 package client
 
 import (
-	"k8s.io/client-go/tools/record"
 	"time"
 
 	openshiftapps "github.com/openshift/client-go/apps/clientset/versioned"
@@ -40,7 +39,7 @@ type VanClient struct {
 	DynamicClient   dynamic.Interface
 	DiscoveryClient *discovery.DiscoveryClient
 	LinkHandler     domain.LinkHandler
-	EventRecorder   record.EventRecorder
+	EventRecorder   kube.SkupperEventRecorder
 }
 
 func (cli *VanClient) GetNamespace() string {

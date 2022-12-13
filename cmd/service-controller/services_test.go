@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"io"
 	"io/ioutil"
 	"k8s.io/client-go/tools/record"
@@ -422,7 +423,9 @@ func TestServeServices(t *testing.T) {
 		Namespace:  namespace,
 		KubeClient: fake.NewSimpleClientset(),
 	}
-	cli.EventRecorder = &record.FakeRecorder{}
+	cli.EventRecorder = kube.SkupperEventRecorder{
+		EventRecorder: &record.FakeRecorder{},
+	}
 
 	skupperInitWithController(cli, namespace)
 	dep1, err := createDeployment(cli.KubeClient, "dep1", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})

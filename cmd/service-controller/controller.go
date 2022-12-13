@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	jsonencoding "encoding/json"
 	"fmt"
-	"k8s.io/client-go/tools/record"
 	"log"
 	"os"
 	"strings"
@@ -75,7 +74,7 @@ type Controller struct {
 	policyHandler     *PolicyController
 	nodeWatcher       *NodeWatcher
 	tlsManager        *kubeqdr.TlsManager
-	eventRecorder     record.EventRecorder
+	eventRecorder     kube.SkupperEventRecorder
 }
 
 const (

@@ -2,6 +2,7 @@ package service_sync
 
 import (
 	vanClient "github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	"reflect"
@@ -46,9 +47,11 @@ func (c *updateCollector) handler(changed []types.ServiceInterface, deleted []st
 
 func NewMockClient(namespace string) *vanClient.VanClient {
 	return &vanClient.VanClient{
-		Namespace:     namespace,
-		KubeClient:    fake.NewSimpleClientset(),
-		EventRecorder: &record.FakeRecorder{},
+		Namespace:  namespace,
+		KubeClient: fake.NewSimpleClientset(),
+		EventRecorder: kube.SkupperEventRecorder{
+			EventRecorder: &record.FakeRecorder{},
+		},
 	}
 }
 

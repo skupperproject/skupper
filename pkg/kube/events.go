@@ -12,7 +12,12 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-func NewEventRecorder(namespace string, cli kubernetes.Interface) record.EventRecorder {
+type SkupperEventRecorder struct {
+	EventRecorder record.EventRecorder
+	Source        *v1.Service
+}
+
+func NewEventRecorder(namespace string, cli kubernetes.Interface) SkupperEventRecorder {
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
@@ -23,17 +28,21 @@ func NewEventRecorder(namespace string, cli kubernetes.Interface) record.EventRe
 		scheme.Scheme,
 		v1.EventSource{
 			Component: types.ControllerServiceName})
-	return eventRecorder
+	service, _ := cli.CoreV1().Services(namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
+
+	skupperEventRecorder := SkupperEventRecorder{
+		EventRecorder: eventRecorder,
+		Source:        service,
+	}
+	return skupperEventRecorder
 }
 
-func RecordWarningEvent(namespace string, reason string, message string, recorder record.EventRecorder, cli kubernetes.Interface) {
+func RecordWarningEvent(namespace string, reason string, message string, recorder SkupperEventRecorder, cli kubernetes.Interface) {
 	event.Recordf(reason, message)
-	deployment, _ := cli.CoreV1().Services(namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
-	recorder.Event(deployment, v1.EventTypeWarning, reason, message)
+	recorder.EventRecorder.Event(recorder.Source, v1.EventTypeWarning, reason, message)
 }
 
-func RecordNormalEvent(namespace string, reason string, message string, recorder record.EventRecorder, cli kubernetes.Interface) {
+func RecordNormalEvent(namespace string, reason string, message string, recorder SkupperEventRecorder, cli kubernetes.Interface) {
 	event.Recordf(reason, message)
-	deployment, _ := cli.CoreV1().Services(namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
-	recorder.Event(deployment, v1.EventTypeNormal, reason, message)
+	recorder.EventRecorder.Event(recorder.Source, v1.EventTypeNormal, reason, message)
 }
