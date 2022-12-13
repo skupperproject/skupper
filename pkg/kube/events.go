@@ -24,17 +24,17 @@ func NewEventRecorder(namespace string, cli kubernetes.Interface) SkupperEventRe
 	eventBroadcaster.StartRecordingToSink(
 		&typedcorev1.EventSinkImpl{
 			Interface: cli.CoreV1().Events(namespace)})
-	eventRecorder := eventBroadcaster.NewRecorder(
+	kubeEventRecorder := eventBroadcaster.NewRecorder(
 		scheme.Scheme,
 		v1.EventSource{
 			Component: types.ControllerServiceName})
 	service, _ := cli.CoreV1().Services(namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
 
-	skupperEventRecorder := SkupperEventRecorder{
-		EventRecorder: eventRecorder,
+	eventRecorder := SkupperEventRecorder{
+		EventRecorder: kubeEventRecorder,
 		Source:        service,
 	}
-	return skupperEventRecorder
+	return eventRecorder
 }
 
 func RecordWarningEvent(namespace string, reason string, message string, recorder SkupperEventRecorder, cli kubernetes.Interface) {
