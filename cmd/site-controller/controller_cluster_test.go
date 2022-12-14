@@ -261,6 +261,7 @@ func TestSiteControlleWithCluster(t *testing.T) {
 		Data: currentToken.Data,
 	}
 	connectSecret.ObjectMeta.Annotations[types.TokenCost] = "5"
+	connectSecret.ObjectMeta.Annotations[types.TokenDcc]  = "2"
 
 	os.Setenv("WATCH_NAMESPACE", privateNamespace)
 	privateController, err := NewSiteController(privateCli)

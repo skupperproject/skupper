@@ -38,6 +38,7 @@ connector {
     name: {{.Name}}-connector
     host: {{.Host}}
     port: {{.Port}}
+    dataConnectionCount: {{.Dcc}}
     role: {{.Role}}
     cost: {{.Cost}}
     sslProfile: {{.Name}}-profile

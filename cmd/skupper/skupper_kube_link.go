@@ -36,6 +36,7 @@ func (s *SkupperKubeLink) Create(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 	connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
+	connectorCreateOpts.Dcc, _ = cmd.Flags().GetInt("dataConnectionCount")
 	yaml, err := ioutil.ReadFile(args[0])
 	if err != nil {
 		return fmt.Errorf("Could not read connection token: %s", err.Error())

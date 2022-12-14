@@ -287,6 +287,21 @@ func getTokenCost(token *corev1.Secret) (int32, bool) {
 	return 0, false
 }
 
+func getTokenDcc(token *corev1.Secret) (int, bool) {
+	if token.ObjectMeta.Annotations == nil {
+		return 0, false
+	}
+	if dccString, ok := token.ObjectMeta.Annotations[types.TokenDcc]; ok {
+		dcc, err := strconv.Atoi(dccString)
+		if err != nil {
+			log.Printf("Ignoring invalid dcc annotation %q", dccString)
+			return 0, false
+		}
+		return int(dcc), true
+	}
+	return 0, false
+}
+
 func (c *SiteController) connect(token *corev1.Secret, namespace string) error {
 	log.Printf("Connecting site in %s using token %s", namespace, token.ObjectMeta.Name)
 	var options types.ConnectorCreateOptions
@@ -294,6 +309,9 @@ func (c *SiteController) connect(token *corev1.Secret, namespace string) error {
 	options.SkupperNamespace = namespace
 	if cost, ok := getTokenCost(token); ok {
 		options.Cost = cost
+	}
+	if dcc, ok := getTokenDcc(token); ok {
+		options.Dcc = dcc
 	}
 	return c.vanClient.ConnectorCreate(context.Background(), token, options)
 }

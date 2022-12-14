@@ -62,6 +62,21 @@ func (c *TokenHandler) getTokenCost(token *corev1.Secret) (int32, bool) {
 	return 0, false
 }
 
+func (c *TokenHandler) getTokenDcc(token *corev1.Secret) (int, bool) {
+	if token.ObjectMeta.Annotations == nil {
+		return 0, false
+	}
+	if dccString, ok := token.ObjectMeta.Annotations[types.TokenDcc]; ok {
+		dcc, err := strconv.Atoi(dccString)
+		if err != nil {
+			event.Recordf(c.name, "Ignoring invalid dcc annotation %q", dccString)
+			return 0, false
+		}
+		return int(dcc), true
+	}
+	return 0, false
+}
+
 func (c *TokenHandler) connect(token *corev1.Secret) error {
 	event.Recordf(c.name, "Connecting using token %s", token.ObjectMeta.Name)
 	var options types.ConnectorCreateOptions
@@ -69,6 +84,9 @@ func (c *TokenHandler) connect(token *corev1.Secret) error {
 	options.SkupperNamespace = c.vanClient.Namespace
 	if cost, ok := c.getTokenCost(token); ok {
 		options.Cost = cost
+	}
+	if dcc, ok := c.getTokenDcc(token); ok {
+                options.Dcc  = dcc
 	}
 	return c.vanClient.ConnectorCreate(context.Background(), token, options)
 }
