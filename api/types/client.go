@@ -17,7 +17,7 @@ type ConnectorCreateOptions struct {
 	SkupperNamespace string
 	Name             string
 	Cost             int32
-        Dcc              int
+	Dcc              int
 }
 
 type ConnectorRemoveOptions struct {

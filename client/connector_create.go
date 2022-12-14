@@ -274,7 +274,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			Name:       options.Name,
 			Cost:       options.Cost,
 			SslProfile: profileName,
-                        Dcc:        options.Dcc,
+			Dcc:        options.Dcc,
 		}
 		connector.SetMaxFrameSize(siteConfig.Spec.Router.MaxFrameSize)
 		connector.SetMaxSessionFrames(siteConfig.Spec.Router.MaxSessionFrames)

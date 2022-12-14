@@ -1165,7 +1165,7 @@ type ConnectorStatus struct {
 	Port        string
 	Role        string
 	Cost        int
-        Dcc         int
+	Dcc         int
 	Status      string
 	Description string
 }
@@ -1224,7 +1224,7 @@ func asRecord(connector Connector) Record {
 	}
 	if connector.Dcc > 0 {
 		record["dataConnectionCount"] = connector.Dcc
-        }
+	}
 
 	return record
 }

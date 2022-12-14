@@ -86,7 +86,7 @@ func (c *TokenHandler) connect(token *corev1.Secret) error {
 		options.Cost = cost
 	}
 	if dcc, ok := c.getTokenDcc(token); ok {
-                options.Dcc  = dcc
+		options.Dcc = dcc
 	}
 	return c.vanClient.ConnectorCreate(context.Background(), token, options)
 }
