@@ -128,6 +128,24 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 	},
 }
 
+var ClusterControllerPolicyRules = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{"skupper.io"},
+		Resources: []string{"skupperclusterpolicies"},
+		Verbs:     []string{"get", "list", "watch"},
+	},
+	{
+		APIGroups: []string{""},
+		Resources: []string{"namespaces"},
+		Verbs:     []string{"get"},
+	},
+	{
+		APIGroups: []string{""},
+		Resources: []string{"nodes"},
+		Verbs:     []string{"get", "list", "watch"},
+	},
+}
+
 // Certifcates/Secrets constants
 const (
 	LocalClientSecret        string = "skupper-local-client"

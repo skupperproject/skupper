@@ -329,7 +329,7 @@ type VanClientInterface interface {
 	ServiceInterfaceUpdate(ctx context.Context, service *ServiceInterface) error
 	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, protocol string, targetPorts map[int]int, namespace string) error
 	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool, namespace string) (*ServiceInterface, error)
-	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error
+	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool, namespace string) error
 	GatewayBind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
 	GatewayUnbind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
 	GatewayExpose(ctx context.Context, gatewayName string, gatewayType string, endpoint GatewayEndpoint) (string, error)

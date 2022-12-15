@@ -128,7 +128,7 @@ func (s *SkupperKubeService) Unexpose(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 	targetType, targetName := parseTargetTypeAndName(args)
 
-	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true)
+	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true, unexposeNamespace)
 	if err == nil {
 		fmt.Printf("%s %s unexposed\n", targetType, targetName)
 	} else {

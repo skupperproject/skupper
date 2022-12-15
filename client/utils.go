@@ -1,6 +1,14 @@
 package client
 
 import (
+<<<<<<< HEAD
+=======
+	"fmt"
+	"hash/crc32"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"os"
+	"sort"
+>>>>>>> ecdafd7 (address pr comments)
 	"strings"
 )
 
@@ -34,3 +42,69 @@ func asMap(entries []string) map[string]string {
 	}
 	return result
 }
+<<<<<<< HEAD
+=======
+
+func PrintKeyValueMap(entries map[string]string) error {
+	writer := new(tabwriter.Writer)
+	writer.Init(os.Stdout, 8, 8, 0, '\t', 0)
+	defer writer.Flush()
+
+	keys := make([]string, 0, len(entries))
+	for k := range entries {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	_, err := fmt.Fprint(writer, "")
+	if err != nil {
+		return err
+	}
+
+	for _, key := range keys {
+		_, err := fmt.Fprintf(writer, "\n %s\t%s\t", key, entries[key])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ContainsAllPolicies(elements []rbacv1.PolicyRule, included []rbacv1.PolicyRule) bool {
+	if nil == elements || nil == included {
+		return false
+	}
+	getHashedRules := func(rules []rbacv1.PolicyRule) []uint32 {
+		var hashedRules []uint32
+		for _, inc := range rules {
+			var resources []string
+			resources = append(resources, inc.Resources...)
+			resources = append(resources, inc.Verbs...)
+			resources = append(resources, inc.APIGroups...)
+			sort.Strings(resources)
+			str := strings.Join(resources, "")
+			hashedRules = append(hashedRules, crc32.ChecksumIEEE([]byte(str)))
+		}
+		return hashedRules
+	}
+	hashedIncluded := getHashedRules(included)
+	hashedElements := getHashedRules(elements)
+
+	for _, el := range hashedElements {
+		if !Contains(hashedIncluded, el) {
+			return false
+		}
+	}
+	return true
+}
+
+func Contains(elements []uint32, element uint32) bool {
+	for _, el := range elements {
+		if el == element {
+			return true
+		}
+	}
+	return false
+}
+>>>>>>> ecdafd7 (address pr comments)

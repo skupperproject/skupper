@@ -199,7 +199,13 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		if err != nil {
 			return err
 		}
-
+		err = validateCrossNamespacePermissions(cli, namespace)
+		if err != nil {
+			return err
+		}
+		if protocol != "" && service.Protocol != protocol {
+			return fmt.Errorf("Invalid protocol %s for service with mapping %s", protocol, service.Protocol)
+		}
 		deducePorts := len(service.Ports) == 0 && len(targetPorts) == 0
 		svcNamespace := utils.GetOrDefault(namespace, cli.GetNamespace())
 		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, svcNamespace, cli.KubeClient, cli.OCAppsClient)
@@ -297,7 +303,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 	}
 }
 
-func removeServiceInterfaceTarget(serviceName string, targetName string, deleteIfNoTargets bool, cli *VanClient) error {
+func removeServiceInterfaceTarget(serviceName string, targetName string, deleteIfNoTargets bool, namespace string, cli *VanClient) error {
 	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil {
 		jsonDef := current.Data[serviceName]
@@ -309,8 +315,8 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 		if err != nil {
 			return fmt.Errorf("Failed to read json for service interface %s: %s", serviceName, err)
 		}
-		if service.IsAnnotated() && kube.IsOriginalServiceModified(service.Address, cli.Namespace, cli.GetKubeClient()) {
-			_, err = kube.RemoveServiceAnnotations(service.Address, cli.Namespace, cli.KubeClient, []string{types.ProxyQualifier})
+		if service.IsAnnotated() && kube.IsOriginalServiceModified(service.Address, namespace, cli.GetKubeClient()) {
+			_, err = kube.RemoveServiceAnnotations(service.Address, namespace, cli.KubeClient, []string{types.ProxyQualifier})
 			if err != nil {
 				return fmt.Errorf("Failed to remove %s annotation from modified service: %v", types.ProxyQualifier, err)
 			}
@@ -351,13 +357,29 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 	return nil
 }
 
-func (cli *VanClient) ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error {
+func validateCrossNamespacePermissions(cli *VanClient, targetNamespace string) error {
+	if len(targetNamespace) > 0 && targetNamespace != cli.GetNamespace() {
+		clusterRole, err := cli.KubeClient.RbacV1().ClusterRoles().Get(types.ControllerClusterRoleName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Failed fetching cluster roles: %s", err)
+		}
+		policyRules := append(types.ClusterControllerPolicyRules, cli.getControllerRules()...)
+		if !ContainsAllPolicies(policyRules, clusterRole.Rules) {
+			return fmt.Errorf("Current site does not included needed permissions to expose targets in other namespaces")
+		}
+		return nil
+	}
+	return nil
+}
+
+func (cli *VanClient) ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool, namespace string) error {
+	svcNamespace := utils.GetOrDefault(namespace, cli.Namespace)
 	if targetType == "deployment" || targetType == "statefulset" || targetType == "service" || targetType == "deploymentconfig" {
 		if address == "" {
-			err := removeServiceInterfaceTarget(targetName, targetName, deleteIfNoTargets, cli)
+			err := removeServiceInterfaceTarget(targetName, targetName, deleteIfNoTargets, svcNamespace, cli)
 			return err
 		} else {
-			err := removeServiceInterfaceTarget(address, targetName, deleteIfNoTargets, cli)
+			err := removeServiceInterfaceTarget(address, targetName, deleteIfNoTargets, svcNamespace, cli)
 			return err
 		}
 	} else if targetType == "pods" {

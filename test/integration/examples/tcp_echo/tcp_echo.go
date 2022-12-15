@@ -115,13 +115,8 @@ func setup(ctx context.Context, t *testing.T, cluster *base.ClusterContext, svc 
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-<<<<<<< HEAD
-	fmt.Printf("Listing deployments in namespace %q:\n", svc.Namespace)
-	list, err := publicDeploymentsClient.List(ctx, metav1.ListOptions{})
-=======
 	fmt.Printf("Listing deployments in namespace %q:\n", namespace)
-	list, err := publicDeploymentsClient.List(metav1.ListOptions{})
->>>>>>> 810c655 (address pr comments and more)
+	list, err := publicDeploymentsClient.List(ctx, metav1.ListOptions{})
 	assert.Assert(t, err)
 
 	for _, d := range list.Items {

@@ -91,14 +91,18 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 					targets := svc.NewChild("Targets:")
 					for _, t := range si.Targets {
 						var name string
+						var namespace string
 						if t.Name != "" {
 							name = fmt.Sprintf("name=%s", t.Name)
 						}
+						if t.Namespace != "" {
+							namespace = fmt.Sprintf("namespace=%s", t.Namespace)
+						}
 						targetInfo := ""
 						if t.Selector != "" {
-							targetInfo = fmt.Sprintf("%s %s", t.Selector, name)
+							targetInfo = fmt.Sprintf("%s %s %s", t.Selector, name, namespace)
 						} else if t.Service != "" {
-							targetInfo = fmt.Sprintf("%s %s", t.Service, name)
+							targetInfo = fmt.Sprintf("%s %s %s", t.Service, name, namespace)
 						} else {
 							targetInfo = fmt.Sprintf("%s (no selector)", name)
 						}
@@ -188,7 +192,7 @@ func (s *SkupperKubeService) Unbind(cmd *cobra.Command, args []string) error {
 
 	targetType, targetName := parseTargetTypeAndName(args[1:])
 
-	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false)
+	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false, unbindNamespace)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

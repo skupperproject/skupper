@@ -454,23 +454,7 @@ func (cli *VanClient) ClusterRoles(enablePermissions bool) []*rbacv1.ClusterRole
 		ObjectMeta: metav1.ObjectMeta{
 			Name: types.ControllerClusterRoleName,
 		},
-		Rules: append([]rbacv1.PolicyRule{
-			{
-				APIGroups: []string{"skupper.io"},
-				Resources: []string{"skupperclusterpolicies"},
-				Verbs:     []string{"get", "list", "watch"},
-			},
-			{
-				APIGroups: []string{""},
-				Resources: []string{"namespaces"},
-				Verbs:     []string{"get"},
-			},
-			{
-				APIGroups: []string{""},
-				Resources: []string{"nodes"},
-				Verbs:     []string{"get", "list", "watch"},
-			},
-		}, controllerRules...),
+		Rules: append(types.ClusterControllerPolicyRules, controllerRules...),
 	})
 	return clusterRoles
 }
@@ -1177,7 +1161,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 		for _, clusterRole := range van.Controller.ClusterRoles {
 			clusterRole.ObjectMeta.OwnerReferences = ownerRefs
 			// optional (in case of failure, cluster admin can add necessary cluster roles manually)
-			kube.CreateClusterRole(clusterRole, cli.KubeClient)
+			kube.CreateOrExtendClusterRole(clusterRole, cli.KubeClient, options.Spec.EnableClusterPermissions)
 		}
 		for _, clusterRoleBinding := range van.Controller.ClusterRoleBindings {
 			clusterRoleBinding.ObjectMeta.OwnerReferences = ownerRefs

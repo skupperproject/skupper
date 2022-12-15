@@ -543,7 +543,6 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
 	cmd.Flags().StringVar(&unexposeNamespace, "target-namespace", "", "Target namespace from previously exposed service")
-	skupperCli.UnexposeFlags(cmd)
 	return cmd
 }
 
@@ -810,7 +809,8 @@ func NewCmdUnbind(skupperClient SkupperServiceClient) *cobra.Command {
 		RunE:   skupperClient.Unbind,
 	}
 
-	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace from previously bound service")
+	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace from previously binded service")
+
 	return cmd
 }
 

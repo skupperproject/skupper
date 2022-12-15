@@ -533,9 +533,10 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 		}
 		policyValidator := NewClusterPolicyValidator(cli)
+
 		for _, clusterRole := range cli.ClusterRoles(siteConfig.Spec.EnableClusterPermissions) {
 			// optional (in case of failure, cluster admin can add necessary cluster roles manually)
-			kube.CreateClusterRole(clusterRole, cli.KubeClient)
+			kube.CreateOrExtendClusterRole(clusterRole, cli.KubeClient, siteConfig.Spec.EnableClusterPermissions)
 		}
 		for _, clusterRoleBinding := range ClusterRoleBindings(namespace) {
 			clusterRoleBinding.ObjectMeta.OwnerReferences = ownerRefs

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"reflect"
 	"testing"
 	"time"
@@ -249,6 +250,8 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		cli, err = NewClient(namespace, "", "")
 	} else {
 		cli, err = newMockClient(namespace, "", "")
+		types.ControllerPolicyRule = []rbacv1.PolicyRule{}
+		types.ClusterControllerPolicyRules = []rbacv1.PolicyRule{}
 	}
 	assert.Assert(t, err)
 
@@ -301,15 +304,16 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 
 	err = cli.RouterCreate(ctx, types.SiteConfig{
 		Spec: types.SiteConfigSpec{
-			SkupperName:       "skupper",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
+			SkupperName:              "skupper",
+			RouterMode:               string(types.TransportModeInterior),
+			EnableController:         true,
+			EnableServiceSync:        true,
+			EnableConsole:            false,
+			AuthMode:                 "",
+			User:                     "",
+			Password:                 "",
+			Ingress:                  types.IngressNoneString,
+			EnableClusterPermissions: true,
 		},
 	})
 	assert.Assert(t, err)
@@ -455,16 +459,16 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	assert.Equal(t, si.EventChannel, true)
 
 	// unbind targets
-	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo", false)
+	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo", false, cli.Namespace)
 	assert.Assert(t, err)
 
-	err = cli.ServiceInterfaceUnbind(ctx, "statefulset", "tcp-go-echo-ss", "tcp-go-echo-ss", false)
+	err = cli.ServiceInterfaceUnbind(ctx, "statefulset", "tcp-go-echo-ss", "tcp-go-echo-ss", false, cli.Namespace)
 	assert.Assert(t, err)
 
-	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "nginx", "nginx", false)
+	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "nginx", "nginx", false, cli.Namespace)
 	assert.Assert(t, err)
 
-	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo-namespace", false)
+	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo-namespace", false, anotherNamespace)
 	assert.Assert(t, err)
 
 	// and remove all defined services
