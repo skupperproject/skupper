@@ -2,12 +2,14 @@ package v1_3_0
 
 import (
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/main/kube"
 	"github.com/skupperproject/skupper/pkg/update"
-	"github.com/skupperproject/skupper/pkg/update/shared"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-type UpdateAddVflowCollectorKube struct{}
+type UpdateAddVflowCollectorKube struct {
+	Common *kube.KubeTask
+}
 
 func (u *UpdateAddVflowCollectorKube) Version() string {
 	return "1.3.0"
@@ -30,6 +32,6 @@ func (u *UpdateAddVflowCollectorKube) Platforms() []types.Platform {
 }
 
 func (u *UpdateAddVflowCollectorKube) Run() update.Result {
-	shared.RestartController = true
+	u.Common.RestartController = true
 	return update.Result{}
 }

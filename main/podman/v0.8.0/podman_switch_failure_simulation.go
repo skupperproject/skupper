@@ -4,11 +4,14 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/main/podman"
 	"github.com/skupperproject/skupper/pkg/update"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-type PodmanSwitch struct{}
+type PodmanSwitch struct {
+	Common *podman.PodmanTask
+}
 
 func (p *PodmanSwitch) Info() string {
 	return "Simulates a blocking failure while adding support for switch command"

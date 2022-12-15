@@ -4,12 +4,14 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/main/podman"
 	"github.com/skupperproject/skupper/pkg/update"
-	"github.com/skupperproject/skupper/pkg/update/shared"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-type UpdatePodmanContainers struct{}
+type UpdatePodmanContainers struct {
+	Common *podman.PodmanTask
+}
 
 func (u *UpdatePodmanContainers) Version() string {
 	return "*"
@@ -35,10 +37,10 @@ func (u *UpdatePodmanContainers) Platforms() []types.Platform {
 }
 
 func (u *UpdatePodmanContainers) Run() update.Result {
-	if shared.RestartController {
+	if u.Common.RestartController {
 		fmt.Println("Restarting controller")
 	}
-	if shared.RestartRouter {
+	if u.Common.RestartRouter {
 		fmt.Println("Restarting router")
 	}
 	return update.Result{}
