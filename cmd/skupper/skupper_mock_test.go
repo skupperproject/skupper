@@ -19,8 +19,8 @@ import (
 )
 
 type serviceInterfaceUnbindCallArgs struct {
-	targetType, targetName, address string
-	deleteIfNoTargets               bool
+	targetType, targetName, address, namespace string
+	deleteIfNoTargets                          bool
 }
 
 type serviceInterfaceBindCallArgs struct {
@@ -149,12 +149,13 @@ func (v *vanClientMock) ServiceInterfaceCreate(ctx context.Context, service *typ
 	return nil
 }
 
-func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error {
+func (v *vanClientMock) ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool, namespace string) error {
 	var calledWith = serviceInterfaceUnbindCallArgs{
 		targetType:        targetType,
 		targetName:        targetName,
 		address:           address,
 		deleteIfNoTargets: deleteIfNoTargets,
+		namespace:         namespace,
 	}
 	v.serviceInterfaceUnbindCalledWith = append(v.serviceInterfaceUnbindCalledWith, calledWith)
 

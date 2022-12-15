@@ -345,7 +345,8 @@ func (c *PolicyController) validateExposeStateChanged() {
 			continue
 		}
 		for _, target := range service.Targets {
-			targetType := c.inferTargetType(target, utils.GetOrDefault(target.Namespace, c.cli.GetNamespace()))
+			svcNamespace := utils.GetOrDefault(target.Namespace, c.cli.GetNamespace())
+			targetType := c.inferTargetType(target, svcNamespace)
 			res := c.validator.ValidateExpose(targetType, target.Name)
 			if res.Error() != nil {
 				event.Recordf(c.name, "[validateExposeStateChanged] error validating if target can still be exposed: %v", err)
@@ -354,7 +355,7 @@ func (c *PolicyController) validateExposeStateChanged() {
 			if !res.Allowed() {
 				// resource is no longer allowed, unbinding
 				event.Recordf(c.name, "[validateExposeStateChanged] exposed resource is no longer authorized - unbinding service %s: %v", service.Address, err)
-				err = c.cli.ServiceInterfaceUnbind(context.Background(), "deployment", target.Name, service.Address, false)
+				err = c.cli.ServiceInterfaceUnbind(context.Background(), "deployment", target.Name, service.Address, false, svcNamespace)
 				if err != nil {
 					event.Recordf(c.name, "[validateExposeStateChanged] error unbinding service %s: %v", service.Address, err)
 					return

@@ -3,10 +3,27 @@ package kube
 import (
 	"context"
 
+	"fmt"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+func CreateOrExtendClusterRole(clusterRole *rbacv1.ClusterRole, kubeclient kubernetes.Interface, enabledExtension bool) error {
+	cRole, err := kubeclient.RbacV1().ClusterRoles().Get(clusterRole.Name, metav1.GetOptions{})
+	if err != nil {
+		fmt.Println(err)
+	}
+	if cRole != nil && len(cRole.Rules) > 0 {
+		if enabledExtension {
+			err = UpdateClusterRole(clusterRole.Name, clusterRole.Rules, kubeclient)
+		}
+	} else {
+		_, err = CreateClusterRole(clusterRole, kubeclient)
+	}
+	return err
+}
 
 func CreateClusterRole(clusterRole *rbacv1.ClusterRole, kubeclient kubernetes.Interface) (*rbacv1.ClusterRole, error) {
 	clusterRoles := kubeclient.RbacV1().ClusterRoles()
