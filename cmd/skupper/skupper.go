@@ -466,7 +466,7 @@ func NewCmdExpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd.Flags().IntSliceVar(&(exposeOpts.Ports), "port", []int{}, "The ports to expose on")
 	cmd.Flags().StringSliceVar(&(exposeOpts.TargetPorts), "target-port", []string{}, "The ports to target on pods")
 	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 and tcp protocols)")
-	cmd.Flags().StringVar(&(exposeOpts.IngressMode), "ingress-mode", "", "Controls whether a kubernetes service is created locally for the exposed service. Valid values are Always (default) or Never.")
+	cmd.Flags().StringVar(&(exposeOpts.IngressMode), "enable-ingress-from-target-site", "", "Determines whether access to the Skupper service is enabled in the site the target was exposed through. Always (default) or Never are valid values.")
 
 	skupperCli.ExposeFlags(cmd)
 	return cmd
@@ -634,7 +634,7 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "protocol", "tcp", "The mapping in use for this service address (tcp, http, http2)")
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
-	cmd.Flags().StringVar(&serviceIngressMode, "ingress-mode", "", "Controls whether a kubernetes service is created locally for the skupper service. Valid values are Always (default) or Never.")
+	cmd.Flags().StringVar(&serviceIngressMode, "enable-ingress", "", "Determines whether access to the Skupper service is enabled in this site. Valid values are Always (default) or Never.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
 	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
