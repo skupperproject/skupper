@@ -26,7 +26,7 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, err
 	}
 
 	if sites == nil {
-		return nil, fmt.Errorf("could not retreive information about the sites from the service controller")
+		return nil, fmt.Errorf("could not retrieve information about the sites from the service controller")
 	}
 
 	versionCheckedSites := cli.checkSiteVersion(sites)
@@ -105,8 +105,10 @@ func GetFormattedLinks(getLocalLinks GetLocalLinks, cli *VanClient, site types.S
 					return nil, err
 				}
 
-				if !mapLinkStatus[formattedLink].Connected {
-					formattedLink = fmt.Sprintf("%s%s (link not active)%s", lightRed, formattedLink, resetColor)
+				if _, ok := mapLinkStatus[formattedLink]; ok {
+					if !mapLinkStatus[formattedLink].Connected {
+						formattedLink = fmt.Sprintf("%s%s (link not active)%s", lightRed, formattedLink, resetColor)
+					}
 				}
 			}
 
