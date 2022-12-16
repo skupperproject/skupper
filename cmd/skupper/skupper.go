@@ -809,7 +809,7 @@ func NewCmdUnbind(skupperClient SkupperServiceClient) *cobra.Command {
 		RunE:   skupperClient.Unbind,
 	}
 
-	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace from previously binded service")
+	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace from previously bound service")
 
 	return cmd
 }
