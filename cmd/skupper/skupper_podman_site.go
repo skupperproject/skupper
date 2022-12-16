@@ -30,17 +30,6 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	if siteName == "" {
 		siteName = podman.Username
 	}
-	// fmt.Printf("site name         : %s\n", siteName)
-	// fmt.Printf("mode              : %s\n", initFlags.routerMode)
-	// fmt.Printf("platform          : %s\n", types.PlatformPodman)
-	// fmt.Printf("ingress           : %s\n", routerCreateOpts.Ingress)
-	// fmt.Printf("ingress-host      : %s\n", routerCreateOpts.IngressHost)
-	// fmt.Printf("router-logging    : %s\n", routerCreateOpts.Router.Logging)
-	// fmt.Printf("debug-mode        : %s\n", routerCreateOpts.Router.DebugMode)
-	// fmt.Printf("inter-router-port : %d\n", s.flags.IngressBindInterRouterPort)
-	// fmt.Printf("edge-port         : %d\n", s.flags.IngressBindEdgePort)
-	// fmt.Printf("container-network : %s\n", s.flags.ContainerNetwork)
-	// fmt.Printf("podman-endpoint   : %s\n", s.flags.PodmanEndpoint)
 
 	// Validating ingress mode
 	routerCreateOpts.Platform = types.PlatformPodman
@@ -73,6 +62,14 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	curSite, err := siteHandler.Get()
 	if err == nil && curSite != nil {
 		return fmt.Errorf("Skupper has already been initialized for user '" + podman.Username + "'.")
+	}
+
+	// Validating ingress type
+	if routerCreateOpts.Ingress != types.IngressNoneString {
+		// Validating ingress hosts (required as certificates must have valid hosts)
+		if len(site.IngressHosts) == 0 {
+			return fmt.Errorf("At least one ingress host is required")
+		}
 	}
 
 	// Initializing

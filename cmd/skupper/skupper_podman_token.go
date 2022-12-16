@@ -36,6 +36,8 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	var defaultIngressHost string
 	if len(sitePodman.IngressHosts) >= 2 {
 		defaultIngressHost = sitePodman.IngressHosts[1]
+	} else {
+		return fmt.Errorf("tokens cannot be generated for sites initialized with ingress type none")
 	}
 	if s.ingressHost != "" {
 		if !utils.StringSliceContains(sitePodman.IngressHosts, s.ingressHost) {
