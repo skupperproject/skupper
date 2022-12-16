@@ -70,6 +70,9 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		if len(site.IngressHosts) == 0 {
 			return fmt.Errorf("At least one ingress host is required")
 		}
+	} else {
+		// If none is set, do not allow any ingress host (ignore those provided via CLI)
+		site.IngressHosts = []string{}
 	}
 
 	// Initializing
