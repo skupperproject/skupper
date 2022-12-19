@@ -25,7 +25,8 @@ func (cli *VanClient) ServiceInterfaceCreate(ctx context.Context, service *types
 		}
 
 		tlsSupport := kubeqdr.TlsServiceSupport{Address: service.Address, Credentials: service.TlsCredentials}
-		err = kubeqdr.EnableTlsSupport(tlsSupport, cli)
+		tlsManager := &kubeqdr.TlsManager{KubeClient: cli.KubeClient, Namespace: cli.Namespace}
+		err = kubeqdr.EnableTlsSupport(tlsSupport, tlsManager)
 		if err != nil {
 			return err
 		}

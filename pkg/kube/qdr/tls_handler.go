@@ -3,9 +3,11 @@ package qdr
 import (
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"strings"
 )
 
@@ -147,4 +149,37 @@ func generateNewSecret(support TlsServiceSupport, tlsManager TlsManagerInterface
 
 func isGeneratedBySkupper(credentials string) bool {
 	return strings.HasPrefix(credentials, types.SkupperServiceCertPrefix)
+}
+
+type TlsManager struct {
+	KubeClient kubernetes.Interface
+	Namespace  string
+}
+
+func (manager *TlsManager) GetSecret(name string) (*corev1.Secret, error) {
+	return manager.KubeClient.CoreV1().Secrets(manager.Namespace).Get(name, metav1.GetOptions{})
+}
+
+func (manager *TlsManager) GetConfigMap() (*corev1.ConfigMap, error) {
+	return manager.KubeClient.CoreV1().ConfigMaps(manager.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+}
+
+func (manager *TlsManager) NewSecret(credential types.Credential, ownerReference *metav1.OwnerReference) (*corev1.Secret, error) {
+	return kube.NewSecret(credential, ownerReference, manager.Namespace, manager.KubeClient)
+}
+
+func (manager *TlsManager) AddSslProfile(sslProfile qdr.SslProfile) error {
+	return AddSslProfile(sslProfile, manager.Namespace, manager.KubeClient)
+}
+
+func (manager *TlsManager) ExistsSslProfile(sslProfile string) (bool, error) {
+	return ExistsSslProfile(sslProfile, manager.Namespace, manager.KubeClient)
+}
+
+func (manager *TlsManager) RemoveSslProfile(sslProfile string) error {
+	return RemoveSslProfile(sslProfile, manager.Namespace, manager.KubeClient)
+}
+
+func (manager *TlsManager) DeleteSecret(secretName string) error {
+	return manager.KubeClient.CoreV1().Secrets(manager.Namespace).Delete(secretName, &metav1.DeleteOptions{})
 }

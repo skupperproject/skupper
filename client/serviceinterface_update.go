@@ -215,7 +215,8 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		service.AddTarget(target)
 
 		tlsSupport := qdr.TlsServiceSupport{Address: service.Address, Credentials: service.TlsCredentials, CertAuthority: service.TlsCertAuthority}
-		err = qdr.EnableTlsSupport(tlsSupport, cli)
+		tlsManager := &qdr.TlsManager{KubeClient: cli.KubeClient, Namespace: cli.Namespace}
+		err = qdr.EnableTlsSupport(tlsSupport, tlsManager)
 
 		if err != nil {
 			return err

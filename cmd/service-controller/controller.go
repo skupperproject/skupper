@@ -72,6 +72,7 @@ type Controller struct {
 	ipLookup          *IpLookup
 	policyHandler     *PolicyController
 	nodeWatcher       *NodeWatcher
+	tlsManager        *kubeqdr.TlsManager
 }
 
 const (
@@ -220,6 +221,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 		return flow.UpdateHost(controller.flowController, deleted, name, host)
 	}
 	controller.nodeWatcher = NewNodeWatcher(controller.vanClient, nwHandler)
+	controller.tlsManager = &kubeqdr.TlsManager{KubeClient: controller.vanClient.KubeClient, Namespace: controller.vanClient.Namespace}
 	return controller, nil
 }
 
@@ -725,7 +727,7 @@ func (c *Controller) processNextEvent() bool {
 								c.updateServiceBindings(si, portAllocations)
 
 								tlsSupport := kubeqdr.TlsServiceSupport{Address: si.Address, Credentials: si.TlsCredentials}
-								err = kubeqdr.EnableTlsSupport(tlsSupport, c.vanClient)
+								err = kubeqdr.EnableTlsSupport(tlsSupport, c.tlsManager)
 								if err != nil {
 									event.Recordf(ServiceControllerError, "Could not parse service definition for %s: %s", k, err)
 								}
@@ -737,7 +739,7 @@ func (c *Controller) processNextEvent() bool {
 							_, ok := cm.Data[k]
 							if !ok {
 								c.deleteServiceBindings(k, v)
-								err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.vanClient)
+								err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.tlsManager)
 								if err != nil {
 									event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 								}
@@ -746,7 +748,7 @@ func (c *Controller) processNextEvent() bool {
 					} else if len(c.bindings) > 0 {
 						for k, v := range c.bindings {
 							c.deleteServiceBindings(k, v)
-							err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.vanClient)
+							err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.tlsManager)
 							if err != nil {
 								event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 							}
