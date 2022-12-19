@@ -58,6 +58,7 @@ const (
 	// controller options
 	SiteConfigServiceControllerKey            string = "service-controller"
 	SiteConfigServiceSyncKey                  string = "service-sync"
+	SiteConfigServiceSyncSiteTtlKey           string = "service-sync-site-ttl"
 	SiteConfigControllerCpuKey                string = "controller-cpu"
 	SiteConfigControllerMemoryKey             string = "controller-memory"
 	SiteConfigControllerCpuLimitKey           string = "controller-cpu-limit"
@@ -116,6 +117,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if !spec.EnableServiceSync {
 		siteConfig.Data[SiteConfigServiceSyncKey] = "false"
+	}
+	if spec.SiteTtl != 0 {
+		siteConfig.Data[SiteConfigServiceSyncSiteTtlKey] = spec.SiteTtl.String()
 	}
 	if !spec.EnableConsole {
 		siteConfig.Data[SiteConfigConsoleKey] = "false"

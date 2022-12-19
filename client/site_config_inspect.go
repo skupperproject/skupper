@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -70,6 +71,12 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		result.Spec.EnableServiceSync, _ = strconv.ParseBool(enableServiceSync)
 	} else {
 		result.Spec.EnableServiceSync = true
+	}
+	if value, ok := siteConfig.Data[SiteConfigServiceSyncSiteTtlKey]; ok {
+		ttl, err := time.ParseDuration(value)
+		if err == nil {
+			result.Spec.SiteTtl = ttl
+		}
 	}
 	if enableConsole, ok := siteConfig.Data[SiteConfigConsoleKey]; ok {
 		result.Spec.EnableConsole, _ = strconv.ParseBool(enableConsole)

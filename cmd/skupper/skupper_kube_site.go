@@ -141,6 +141,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringSliceVar(&s.kubeInit.routerServiceAnnotations, "router-service-annotations", []string{}, "Annotations to add to skupper router service")
 	cmd.Flags().StringSliceVar(&s.kubeInit.controllerServiceAnnotations, "controller-service-annotation", []string{}, "Annotations to add to skupper controller service")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
+	cmd.Flags().DurationVar(&routerCreateOpts.SiteTtl, "service-sync-site-ttl", 0, "Time after which stale services, i.e. those whose site has not been heard from, created through service-sync are removed.")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-vflow-collector", "", false, "Enable cross-site vFlow collection for the application network")
 
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Cpu, "router-cpu", "", "CPU request for router pods")
