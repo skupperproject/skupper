@@ -181,6 +181,9 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 			updated = true
 		}
 	}
+	if !reflect.DeepEqual(actual.Labels, desired.Labels) {
+		updated = true
+	}
 	if !updated {
 		return false
 	}
