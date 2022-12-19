@@ -111,7 +111,6 @@ func GetFormattedLinks(getLocalLinks GetLocalLinks, cli *VanClient, site types.S
 					}
 				}
 			}
-
 			listLinks = append(listLinks, formattedLink)
 		}
 	}
