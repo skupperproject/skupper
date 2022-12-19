@@ -88,8 +88,8 @@ func TestServiceSync(t *testing.T) {
 			factory := NewMockConnectionFactory("test-channel")
 			updates1 := newUpdateChannel()
 			updates2 := newUpdateChannel()
-			site1 := NewServiceSync("foo", "v1", factory, updates1.handler)
-			site2 := NewServiceSync("bar", "v1", factory, updates2.handler)
+			site1 := NewServiceSync("foo", 0, "v1", factory, updates1.handler)
+			site2 := NewServiceSync("bar", 0, "v1", factory, updates2.handler)
 			site1.Start(stopper)
 			site2.Start(stopper)
 			factory.topics.newTopic(ServiceSyncAddress).waitForReceivers(2)
@@ -140,7 +140,7 @@ func TestRemoveStaleDefinitions(t *testing.T) {
 
 	updates := newUpdateCollector()
 	factory := NewMockConnectionFactory("test-channel")
-	site := NewServiceSync("foo", "v1", factory, updates.handler)
+	site := NewServiceSync("foo", 0, "v1", factory, updates.handler)
 
 	defs := map[string]types.ServiceInterface{
 		"d": types.ServiceInterface{
@@ -187,7 +187,7 @@ func TestUpdateRemoteDefinitions(t *testing.T) {
 
 	updates := newUpdateCollector()
 	factory := NewMockConnectionFactory("test-channel")
-	site := NewServiceSync("foo", "v1", factory, updates.handler)
+	site := NewServiceSync("foo", 0, "v1", factory, updates.handler)
 
 	defs := map[string]types.ServiceInterface{
 		"d": types.ServiceInterface{
@@ -251,7 +251,7 @@ func TestLocalDefinitionsUpdated(t *testing.T) {
 
 	updates := newUpdateCollector()
 	factory := NewMockConnectionFactory("test-channel")
-	site := NewServiceSync("foo", "v1", factory, updates.handler)
+	site := NewServiceSync("foo", 0, "v1", factory, updates.handler)
 
 	defs := map[string]types.ServiceInterface{
 		"svc-e": types.ServiceInterface{

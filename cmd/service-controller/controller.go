@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	jsonencoding "encoding/json"
 	"fmt"
@@ -186,13 +187,18 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
 		return kube.UpdateSkupperServices(changed, deleted, origin, cli.Namespace, cli.KubeClient)
 	}
-	controller.serviceSync = service_sync.NewServiceSync(origin, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
-
 	siteCreationTime := uint64(time.Now().UnixNano())
 	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
 	if err == nil {
 		siteCreationTime = uint64(configmap.ObjectMeta.CreationTimestamp.UnixNano())
 	}
+	siteConfig, _ := controller.vanClient.SiteConfigInspect(context.TODO(), configmap)
+	var ttl time.Duration
+	if siteConfig != nil {
+		ttl = siteConfig.Spec.SiteTtl
+	}
+	controller.serviceSync = service_sync.NewServiceSync(origin, ttl, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
+
 	controller.flowController = flow.NewFlowController(origin, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig))
 	ipHandler := func(deleted bool, name string, process *flow.ProcessRecord) error {
 		return flow.UpdateProcess(controller.flowController, deleted, name, process)

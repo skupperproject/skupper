@@ -19,6 +19,7 @@ type UpdateHandler func(changed []types.ServiceInterface, deleted []string, orig
 type ServiceSync struct {
 	origin            string
 	version           string
+	ttl               time.Duration
 	handler           UpdateHandler
 	connectionFactory messaging.ConnectionFactory
 	outgoing          chan ServiceUpdate
@@ -36,10 +37,18 @@ type ServiceUpdate struct {
 	definitions map[string]types.ServiceInterface
 }
 
-func NewServiceSync(origin string, version string, connectionFactory messaging.ConnectionFactory, handler UpdateHandler) *ServiceSync {
+func getTtl(ttl time.Duration) time.Duration {
+	if ttl == 0 {
+		return 60 * time.Second
+	}
+	return ttl
+}
+
+func NewServiceSync(origin string, ttl time.Duration, version string, connectionFactory messaging.ConnectionFactory, handler UpdateHandler) *ServiceSync {
 	s := &ServiceSync{
 		origin:            origin,
 		version:           version,
+		ttl:               getTtl(ttl),
 		handler:           handler,
 		connectionFactory: connectionFactory,
 		outgoing:          make(chan ServiceUpdate, 10),
@@ -181,7 +190,7 @@ func (c *ServiceSync) removeStaleDefinitions() {
 		var deleted []string
 
 		if lastHeard, ok := c.heardFrom[origin]; ok {
-			if now.Sub(lastHeard) >= 60*time.Second {
+			if now.Sub(lastHeard) >= c.ttl {
 				agedOrigins = append(agedOrigins, origin)
 				agedDefinitions := c.byOrigin[origin]
 				for name, _ := range agedDefinitions {

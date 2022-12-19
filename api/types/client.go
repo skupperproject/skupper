@@ -88,6 +88,7 @@ type SiteConfigSpec struct {
 	Routers             int
 	EnableController    bool
 	EnableServiceSync   bool
+	SiteTtl             time.Duration
 	EnableConsole       bool
 	EnableFlowCollector bool
 	AuthMode            string
