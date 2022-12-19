@@ -39,7 +39,7 @@ type ServiceUpdate struct {
 
 func getTtl(ttl time.Duration) time.Duration {
 	if ttl == 0 {
-		return 60 * time.Second
+		return 3 * 60 * time.Second
 	}
 	return ttl
 }
