@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/service"
 	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	kubetypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"strings"
 	"testing"
 
@@ -219,6 +223,118 @@ func TestDisableTlsSupport(t *testing.T) {
 		}
 
 	}
+}
+
+func TestCheckBindingSecrets(t *testing.T) {
+
+	var tests = []struct {
+		name          string
+		bindings      map[string]*service.ServiceBindings
+		mockedSecrets []string
+		expectedError string
+	}{
+		{
+			name: "Service does not need TLS support",
+			bindings: map[string]*service.ServiceBindings{
+				"service1": {
+					Address:          "service1",
+					TlsCertAuthority: "",
+					TlsCredentials:   "",
+				},
+			},
+		},
+		{
+			name: "The services that need it have the required secrets in the cluster",
+			bindings: map[string]*service.ServiceBindings{
+				"service1": {
+					Address:          "service1",
+					TlsCertAuthority: "",
+					TlsCredentials:   "",
+				},
+				"service2": {
+					Address:          "service2",
+					TlsCertAuthority: "skupper-tls-service2",
+					TlsCredentials:   "skupper-tls-client",
+				},
+			},
+			mockedSecrets: []string{"skupper-tls-service2", "skupper-tls-client"},
+		},
+		{
+			name: "The secret with the server credentials is missing in the cluster",
+			bindings: map[string]*service.ServiceBindings{
+				"service1": {
+					Address:          "service1",
+					TlsCertAuthority: "",
+					TlsCredentials:   "",
+				},
+				"service2": {
+					Address:          "service2",
+					TlsCertAuthority: "skupper-tls-service2",
+					TlsCredentials:   "skupper-tls-client",
+				},
+			},
+			mockedSecrets: []string{"skupper-tls-client"},
+			expectedError: "SslProfile skupper-tls-service2 for service service2 does not exist in this cluster",
+		},
+		{
+			name: "The secret that contains the CA is missing in the cluster",
+			bindings: map[string]*service.ServiceBindings{
+				"service1": {
+					Address:          "service1",
+					TlsCertAuthority: "",
+					TlsCredentials:   "",
+				},
+				"service2": {
+					Address:          "service2",
+					TlsCertAuthority: "skupper-tls-service2",
+					TlsCredentials:   "skupper-tls-client",
+				},
+			},
+			mockedSecrets: []string{"skupper-tls-service2"},
+			expectedError: "SslProfile skupper-tls-client for service service2 does not exist in this cluster",
+		},
+		{
+			name: "There are no secrets in the cluster related to the bindings",
+			bindings: map[string]*service.ServiceBindings{
+				"service1": {
+					Address:          "service1",
+					TlsCertAuthority: "",
+					TlsCredentials:   "",
+				},
+				"service2": {
+					Address:          "service2",
+					TlsCertAuthority: "skupper-tls-service2",
+					TlsCredentials:   "skupper-tls-client",
+				},
+			},
+			mockedSecrets: []string{},
+			expectedError: "SslProfile skupper-tls-client for service service2 does not exist in this cluster",
+		},
+	}
+	for _, test := range tests {
+
+		kubeClient := fake.NewSimpleClientset()
+		setUpKubernetesMock(kubeClient, test.mockedSecrets)
+
+		fmt.Println(test.name)
+		err := CheckBindingSecrets(test.bindings, "", kubeClient)
+		if test.expectedError != "" {
+			assert.Error(t, err, test.expectedError, test.name)
+		}
+
+	}
+}
+
+func setUpKubernetesMock(client *fake.Clientset, mockedSecrets []string) {
+	client.Fake.PrependReactor("get", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		secretName := action.(k8stesting.GetAction).GetName()
+
+		if utils.StringSliceContains(mockedSecrets, secretName) {
+
+			return true, nil, nil
+		}
+		return true, nil, fmt.Errorf("secret %s not found", secretName)
+	})
 }
 
 type MockTlsManager struct {

@@ -5,6 +5,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/service"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -88,6 +89,26 @@ func DisableTlsSupport(credentials string, tlsManager TlsManagerInterface) error
 				if err != nil {
 					return err
 				}
+			}
+		}
+	}
+	return nil
+}
+
+func CheckBindingSecrets(services map[string]*service.ServiceBindings, namespace string, cli kubernetes.Interface) error {
+	for _, service := range services {
+
+		if service.TlsCredentials != "" {
+			_, err := cli.CoreV1().Secrets(namespace).Get(service.TlsCredentials, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("SslProfile %s for service %s does not exist in this cluster", service.TlsCredentials, service.Address)
+			}
+		}
+
+		if service.TlsCertAuthority != "" {
+			_, err := cli.CoreV1().Secrets(namespace).Get(service.TlsCertAuthority, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("SslProfile %s for service %s does not exist in this cluster", service.TlsCertAuthority, service.Address)
 			}
 		}
 	}

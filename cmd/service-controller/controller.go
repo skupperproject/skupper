@@ -580,6 +580,11 @@ func (c *Controller) updateBridgeConfig(name string) error {
 		if !ok {
 			return fmt.Errorf("Expected ConfigMap for %s but got %#v", name, obj)
 		}
+		//check credentials before creating bridges
+		errWithProfiles := kubeqdr.CheckBindingSecrets(c.bindings, c.vanClient.Namespace, c.vanClient.KubeClient)
+		if errWithProfiles != nil {
+			return fmt.Errorf("error checking SSL profiles before adding the bindings: %s", errWithProfiles)
+		}
 		desiredBridges := service.RequiredBridges(c.bindings, c.origin)
 		update, err := desiredBridges.UpdateConfigMap(cm)
 		if err != nil {
