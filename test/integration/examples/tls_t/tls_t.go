@@ -1,5 +1,5 @@
-//go:build integration || smoke || examples
-// +build integration smoke examples
+//go:build integration || smoke || examples || job
+// +build integration smoke examples job
 
 // This test is based on the tcp_echo example test.  However, instead
 // of using a tcp echo server, it uses openssl's s_server and s_client
