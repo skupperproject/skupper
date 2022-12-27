@@ -47,7 +47,7 @@ commands:
       - run:
           command: >-
             curl -Lo minikube
-            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && 
+            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 &&
             chmod +x minikube && sudo
             mv minikube /usr/local/bin/
           name: Install Minikube Executable
@@ -171,7 +171,7 @@ commands:
             go test -tags=integration -timeout=60m -v ./test/integration/...
       - run:
           name: Run client tests in real cluster
-          command: go test -v -count=1 ./client -use-cluster
+          command: go test -v -count=1 -timeout=20m ./client -use-cluster
       - run:
           name: Run skupper cli tests in real cluster
           command: go test -v -count=1 ./cmd/skupper -use-cluster
