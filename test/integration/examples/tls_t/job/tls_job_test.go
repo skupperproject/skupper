@@ -19,7 +19,6 @@ func TestTlsJob(t *testing.T) {
 		testName = m.ReplaceAllLiteralString(testName, "-")
 
 		t.Run(testName, func(t *testing.T) {
-			// TODO: move string to package var?
 			addr := fmt.Sprintf("ssl-server:%v", test.Server.Port)
 			result := tls_t.SendReceive(addr, test.Client.Options, test.Seek)
 			t.Logf("Success expected: %t; result: %v", test.Success, result)

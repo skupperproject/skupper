@@ -196,9 +196,12 @@ func createService(app PerformanceApp) (error, *ServiceInfo, *types.ServiceInter
 }
 
 func bindService(app PerformanceApp, svc ServiceInfo, skupperSvc *types.ServiceInterface) error {
-	serverCluster, _ := getServerCluster()
+	serverCluster, err := getServerCluster()
+	if err != nil {
+		return fmt.Errorf("failed to bind service: %w", err)
+	}
 	// Binding the service to the deployment
-	err := serverCluster.VanClient.ServiceInterfaceBind(context.Background(), skupperSvc, "deployment", app.Server.Deployment.Name, skupperSvc.Protocol, map[int]int{svc.Port: svc.Port})
+	err = serverCluster.VanClient.ServiceInterfaceBind(context.Background(), skupperSvc, "deployment", app.Server.Deployment.Name, skupperSvc.Protocol, map[int]int{svc.Port: svc.Port})
 	if err != nil {
 		return fmt.Errorf("error binding service %s - %v", svc.Address, err)
 	}

@@ -1,6 +1,8 @@
 //go:build integration || performance
 // +build integration performance
 
+// This is a copy of the Redis test, adapted for services that are
+// configured with --enable-tls
 package performance
 
 import (
@@ -204,9 +206,6 @@ func getRedisTlsServerInfo(settings *redisSettings) *common.ServerInfo {
 		},
 		Settings:   settings.env,
 		Deployment: getRedisTlsDeployment(),
-		//		PostInitCommands: [][]string{
-		//			{"redis-cli", "config", "set", "stop-writes-on-bgsave-error", "no"},
-		//		},
 	}
 }
 
