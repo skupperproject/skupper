@@ -1,6 +1,7 @@
 package client
 
 import (
+	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	"time"
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
@@ -32,6 +33,7 @@ type VanClient struct {
 	Namespace       string
 	KubeClient      kubernetes.Interface
 	RouteClient     *routev1client.RouteV1Client
+	AppsClient      *appsv1client.AppsV1Client
 	RestConfig      *restclient.Config
 	DynamicClient   dynamic.Interface
 	DiscoveryClient *discovery.DiscoveryClient
@@ -94,6 +96,14 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*VanCli
 			return c, err
 		}
 	}
+	resources, err = dc.ServerResourcesForGroupVersion("apps.openshift.io/v1")
+	if err == nil && len(resources.APIResources) > 0 {
+		c.AppsClient, err = appsv1client.NewForConfig(restconfig)
+		if err != nil {
+			return c, err
+		}
+	}
+
 	c.DiscoveryClient = dc
 
 	if namespace == "" {
