@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var validExposeTargetsKube = []string{"deployment", "statefulset", "pods", "service"}
+var validExposeTargetsKube = []string{"deployment", "statefulset", "pods", "service", "deploymentconfig"}
 
 func (s *SkupperKubeService) verifyTargetTypeFromArgs(args []string) error {
 	targetType, _ := parseTargetTypeAndName(args)

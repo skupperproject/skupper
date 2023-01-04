@@ -36,7 +36,7 @@ func TestBindArgs(t *testing.T) {
 	// must this fail?
 	// assert.Error(t, b([]string{"one/two", "resource/name"}), genericError)
 
-	assert.Error(t, b([]string{"one", "resource/name"}), "target type must be one of: [deployment, statefulset, pods, service]")
+	assert.Error(t, b([]string{"one", "resource/name"}), "target type must be one of: [deployment, statefulset, pods, service, deploymentconfig]")
 
 	assert.Assert(t, b([]string{"one", "pods/name"}))
 	assert.Assert(t, b([]string{"one", "pods", "name"}))
@@ -96,7 +96,7 @@ func TestCreateServiceParseArgs(t *testing.T) {
 func TestExposeTargetArgs(t *testing.T) {
 	s := &SkupperKubeService{}
 	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>'"
-	targetError := "target type must be one of: [deployment, statefulset, pods, service]"
+	targetError := "target type must be one of: [deployment, statefulset, pods, service, deploymentconfig]"
 
 	e := func(args []string) error {
 		return s.ExposeArgs(nil, args)

@@ -871,7 +871,7 @@ func TestExposeWithCluster(t *testing.T) {
 			args:            []string{"deployent", "tcp-not-deployed"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "target type must be one of: [deployment, statefulset, pods, service]",
+			expectedError:   "target type must be one of: [deployment, statefulset, pods, service, deploymentconfig]",
 			realCluster:     false,
 		},
 		{
@@ -1054,7 +1054,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 			args:            []string{"deployent", "tcp-not-deployed"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "target type must be one of: [deployment, statefulset, pods, service]",
+			expectedError:   "target type must be one of: [deployment, statefulset, pods, service, deploymentconfig]",
 			realCluster:     false,
 		},
 		{

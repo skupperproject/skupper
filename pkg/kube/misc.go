@@ -16,19 +16,19 @@ package kube
 
 import (
 	"fmt"
+	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
+	"k8s.io/client-go/kubernetes"
 	"reflect"
 	"strconv"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface) (*types.ServiceInterfaceTarget, error) {
+func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface, appscli *appsv1client.AppsV1Client) (*types.ServiceInterfaceTarget, error) {
 	if targetType == "deployment" {
 		deployment, err := cli.AppsV1().Deployments(namespace).Get(targetName, metav1.GetOptions{})
 		if err == nil {
@@ -80,6 +80,22 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			}
 		}
 		return &target, nil
+	} else if targetType == "deploymentconfig" {
+		depconfig, err := GetDeploymentConfig(targetName, namespace, appscli)
+		if err == nil {
+			target := types.ServiceInterfaceTarget{
+				Name:     depconfig.ObjectMeta.Name,
+				Selector: utils.StringifySelector(depconfig.Spec.Selector),
+			}
+			if deducePort {
+				if depconfig.Spec.Template.Spec.Containers[0].Ports != nil {
+					target.TargetPorts = GetAllContainerPorts(depconfig.Spec.Template.Spec.Containers[0])
+				}
+			}
+			return &target, nil
+		} else {
+			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
+		}
 	} else {
 		return nil, fmt.Errorf("VAN service interface unsupported target type")
 	}

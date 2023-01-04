@@ -171,7 +171,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 			return fmt.Errorf("Invalid protocol %s for service with mapping %s", protocol, service.Protocol)
 		}
 		deducePorts := len(service.Ports) == 0 && len(targetPorts) == 0
-		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, cli.Namespace, cli.KubeClient)
+		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, cli.Namespace, cli.KubeClient, cli.AppsClient)
 		if err != nil {
 			return err
 		}
