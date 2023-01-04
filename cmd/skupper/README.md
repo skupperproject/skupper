@@ -63,3 +63,25 @@ skupper help
 ```
 
 For more information see the [Skupper Documentation](https://skupper.io/docs/index.html).
+
+
+## Building `skupper`
+
+Use the following command to build the `skupper` CLI:
+
+```
+make build-cmd
+```
+
+Note that this build command creates a 'version' of `skupper` related to the last commit hash for the repo, for example:
+
+```
+$ skupper version
+client version                 0fe3e54
+```
+
+If you want to update sites using your build of `skupper`, specify a version greater than the current version, for example:
+
+```
+make VERSION=9.9.9 build-cmd
+```
