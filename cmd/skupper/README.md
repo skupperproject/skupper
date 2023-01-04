@@ -85,3 +85,5 @@ If you want to update sites using your build of `skupper`, specify a version gre
 ```
 make VERSION=9.9.9 build-cmd
 ```
+
+Note that if you require changes to images, you must build those separately and reference the updated images in the `Makefile`.
