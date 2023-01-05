@@ -421,6 +421,27 @@ func TestNewServiceBindings(t *testing.T) {
 				PublishNotReadyAddresses: true,
 			},
 		},
+		{
+			name: "add-annotations",
+			service: types.ServiceInterface{
+				Address:  "test",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Annotations: map[string]string{
+					"app": "test",
+				},
+			},
+			expected: &ServiceBindings{
+				protocol:     "tcp",
+				Address:      "test",
+				publicPorts:  []int{8080},
+				ingressPorts: []int{MIN_PORT},
+				Annotations: map[string]string{
+					"app": "test",
+				},
+				targets: map[string]*EgressBindings{},
+			},
+		},
 	}
 
 	for _, s := range scenarios {
@@ -440,6 +461,7 @@ func TestNewServiceBindings(t *testing.T) {
 				assert.Assert(t, reflect.DeepEqual(b.headless.TargetPorts, s.expected.headless.TargetPorts))
 			}
 			assert.DeepEqual(t, b.Labels, s.expected.Labels)
+			assert.DeepEqual(t, b.Annotations, s.expected.Annotations)
 			assert.Equal(t, len(b.targets), len(s.expected.targets))
 			if len(s.expected.targets) > 0 {
 				for k, v := range s.expected.targets {
@@ -926,6 +948,59 @@ func TestUpdateServiceBindings(t *testing.T) {
 				PublishNotReadyAddresses: true,
 			},
 		},
+		{
+			name: "add annotations",
+			initial: types.ServiceInterface{
+				Address:  "test",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+			},
+			update: types.ServiceInterface{
+				Address:  "test",
+				Protocol: "tcp",
+				Ports:    []int{8080, 9090},
+				Annotations: map[string]string{
+					"foo": "bar",
+				},
+			},
+			expected: &ServiceBindings{
+				protocol:    "tcp",
+				Address:     "test",
+				publicPorts: []int{8080, 9090},
+				targets:     map[string]*EgressBindings{},
+				Annotations: map[string]string{
+					"foo": "bar",
+				},
+			},
+		},
+		{
+			name: "change annotations",
+			initial: types.ServiceInterface{
+				Address:  "test",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Annotations: map[string]string{
+					"foo": "bar",
+				},
+			},
+			update: types.ServiceInterface{
+				Address:  "test",
+				Protocol: "tcp",
+				Ports:    []int{8080, 9090},
+				Annotations: map[string]string{
+					"foo": "baz",
+				},
+			},
+			expected: &ServiceBindings{
+				protocol:    "tcp",
+				Address:     "test",
+				publicPorts: []int{8080, 9090},
+				targets:     map[string]*EgressBindings{},
+				Annotations: map[string]string{
+					"foo": "baz",
+				},
+			},
+		},
 	}
 
 	for _, s := range scenarios {
@@ -946,6 +1021,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				assert.Assert(t, reflect.DeepEqual(b.headless.TargetPorts, s.expected.headless.TargetPorts))
 			}
 			assert.DeepEqual(t, b.Labels, s.expected.Labels)
+			assert.DeepEqual(t, b.Annotations, s.expected.Annotations)
 			if s.expected.ingressBinding != nil {
 				assert.Equal(t, b.ingressBinding.Mode(), s.expected.ingressBinding.Mode())
 			}

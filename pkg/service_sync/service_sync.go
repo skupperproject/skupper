@@ -119,6 +119,7 @@ func (c *ServiceSync) localDefinitionsUpdated(definitions map[string]types.Servi
 			Origin:                   original.Origin,
 			Headless:                 original.Headless,
 			Labels:                   original.Labels,
+			Annotations:              original.Annotations,
 			Aggregate:                original.Aggregate,
 			EventChannel:             original.EventChannel,
 			Targets:                  []types.ServiceInterfaceTarget{},
@@ -263,7 +264,7 @@ func getAddresses(services []types.ServiceInterface) []string {
 }
 
 func equivalentServiceDefinition(a *types.ServiceInterface, b *types.ServiceInterface) bool {
-	if a.Protocol != b.Protocol || !reflect.DeepEqual(a.Ports, b.Ports) || a.EventChannel != b.EventChannel || a.Aggregate != b.Aggregate || !reflect.DeepEqual(a.Labels, b.Labels) {
+	if a.Protocol != b.Protocol || !reflect.DeepEqual(a.Ports, b.Ports) || a.EventChannel != b.EventChannel || a.Aggregate != b.Aggregate || !reflect.DeepEqual(a.Labels, b.Labels) || !reflect.DeepEqual(a.Annotations, b.Annotations) {
 		return false
 	}
 	if a.Headless == nil && b.Headless == nil {
