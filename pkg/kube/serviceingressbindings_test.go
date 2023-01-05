@@ -450,6 +450,157 @@ func TestServiceIngressBindings(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "annotations create",
+			definition: types.ServiceInterface{
+				Address:  "foo",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Annotations: map[string]string{
+					"foo": "bar",
+				},
+			},
+			allocatedPorts: []int{1024},
+			existing:       []corev1.Service{},
+			expected: []corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+						Annotations: map[string]string{
+							"foo": "bar",
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"application":          "skupper-router",
+							"skupper.io/component": "router",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Port:       8080,
+								TargetPort: intstr.FromInt(1024),
+								Protocol:   "TCP",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "annotations update",
+			definition: types.ServiceInterface{
+				Address:  "foo",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Annotations: map[string]string{
+					"foo": "baz",
+				},
+			},
+			allocatedPorts: []int{1024},
+			existing: []corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+						Annotations: map[string]string{
+							"foo": "bar",
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"foo": "bar",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Port:       8080,
+								TargetPort: intstr.FromInt(9090),
+								Protocol:   "TCP",
+							},
+						},
+					},
+				},
+			},
+			expected: []corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+						Annotations: map[string]string{
+							"foo": "baz",
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"application":          "skupper-router",
+							"skupper.io/component": "router",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Port:       8080,
+								TargetPort: intstr.FromInt(1024),
+								Protocol:   "TCP",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "annotations no change needed",
+			definition: types.ServiceInterface{
+				Address:  "foo",
+				Protocol: "tcp",
+				Ports:    []int{8080},
+				Annotations: map[string]string{
+					"foo": "bar",
+				},
+			},
+			allocatedPorts: []int{1024},
+			existing: []corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+						Annotations: map[string]string{
+							"foo": "bar",
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"application":          "skupper-router",
+							"skupper.io/component": "router",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Port:       8080,
+								TargetPort: intstr.FromInt(1024),
+								Protocol:   "TCP",
+							},
+						},
+					},
+				},
+			},
+			expected: []corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foo",
+						Annotations: map[string]string{
+							"foo": "bar",
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"application":          "skupper-router",
+							"skupper.io/component": "router",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Port:       8080,
+								TargetPort: intstr.FromInt(1024),
+								Protocol:   "TCP",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, s := range scenarios {
 		t.Run(s.name, func(t *testing.T) {
@@ -470,6 +621,9 @@ func TestServiceIngressBindings(t *testing.T) {
 				assert.Assert(t, reflect.DeepEqual(actualSvc.Spec.Selector, expectedSvc.Spec.Selector), "expected %v, got %v", expectedSvc.Spec.Selector, actualSvc.Spec.Selector)
 				assert.Assert(t, reflect.DeepEqual(IndexServicePorts(&actualSvc), IndexServicePorts(&expectedSvc)), "expected %v, got %v", IndexServicePorts(&expectedSvc), IndexServicePorts(&actualSvc))
 				assert.Assert(t, reflect.DeepEqual(actualSvc.ObjectMeta.Labels, expectedSvc.ObjectMeta.Labels), "expected %v, got %v", expectedSvc.ObjectMeta.Labels, actualSvc.ObjectMeta.Labels)
+				for key, value := range expectedSvc.ObjectMeta.Annotations {
+					assert.Equal(t, value, actualSvc.ObjectMeta.Annotations[key])
+				}
 				assert.Equal(t, actualSvc.Spec.PublishNotReadyAddresses, expectedSvc.Spec.PublishNotReadyAddresses, "expected %v, got %v", expectedSvc.Spec.PublishNotReadyAddresses, actualSvc.Spec.PublishNotReadyAddresses)
 				delete(actual, expectedSvc.ObjectMeta.Name)
 				cleanup = append(cleanup, actualSvc)

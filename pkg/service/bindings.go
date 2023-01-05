@@ -62,6 +62,7 @@ type ServiceBindings struct {
 	eventChannel             bool
 	headless                 *types.Headless
 	Labels                   map[string]string
+	Annotations              map[string]string
 	targets                  map[string]*EgressBindings
 	tlsCredentials           string
 	PublishNotReadyAddresses bool
@@ -98,6 +99,7 @@ func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
 		EventChannel:             bindings.eventChannel,
 		Headless:                 bindings.headless,
 		Labels:                   bindings.Labels,
+		Annotations:              bindings.Annotations,
 		Origin:                   bindings.origin,
 		TlsCredentials:           bindings.tlsCredentials,
 		PublishNotReadyAddresses: bindings.PublishNotReadyAddresses,
@@ -145,6 +147,7 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 		eventChannel:             required.EventChannel,
 		headless:                 required.Headless,
 		Labels:                   required.Labels,
+		Annotations:              required.Annotations,
 		targets:                  map[string]*EgressBindings{},
 		tlsCredentials:           required.TlsCredentials,
 		PublishNotReadyAddresses: required.PublishNotReadyAddresses,
@@ -253,6 +256,16 @@ func (bindings *ServiceBindings) Update(required types.ServiceInterface, binding
 		}
 		for k, v := range required.Labels {
 			bindings.Labels[k] = v
+		}
+	}
+	if !reflect.DeepEqual(bindings.Annotations, required.Annotations) {
+		if bindings.Annotations == nil {
+			bindings.Annotations = map[string]string{}
+		} else if len(required.Annotations) == 0 {
+			bindings.Annotations = nil
+		}
+		for k, v := range required.Annotations {
+			bindings.Annotations[k] = v
 		}
 	}
 }

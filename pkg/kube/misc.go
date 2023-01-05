@@ -157,3 +157,18 @@ func UpdateLabels(o *metav1.ObjectMeta, desired map[string]string) bool {
 	}
 	return true
 }
+
+func UpdateAnnotations(o *metav1.ObjectMeta, desired map[string]string) bool {
+	if reflect.DeepEqual(desired, o.Annotations) {
+		return false
+	}
+	if o.Annotations == nil {
+		o.Annotations = desired
+	} else {
+		//note this only adds new annotations, it never removes any
+		for k, v := range desired {
+			o.Annotations[k] = v
+		}
+	}
+	return true
+}

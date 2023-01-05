@@ -47,8 +47,6 @@ func (c *updateChannel) handler(changed []types.ServiceInterface, deleted []stri
 }
 
 func TestServiceSync(t *testing.T) {
-	stopper := make(chan struct{})
-	event.StartDefaultEventStore(stopper)
 	scenarios := []struct {
 		name  string
 		site1 ServiceUpdate
@@ -80,9 +78,43 @@ func TestServiceSync(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "labels and annotations",
+			site1: ServiceUpdate{
+				definitions: map[string]types.ServiceInterface{
+					"a": types.ServiceInterface{
+						Address:  "a",
+						Protocol: "tcp",
+						Ports:    []int{8080, 9090},
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+			site2: ServiceUpdate{
+				definitions: map[string]types.ServiceInterface{
+					"d": types.ServiceInterface{
+						Address:  "d",
+						Protocol: "tcp",
+						Ports:    []int{8080, 9090},
+					},
+					"b": types.ServiceInterface{
+						Address:  "b",
+						Protocol: "http",
+						Ports:    []int{6666, 7777, 8888},
+						Annotations: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, s := range scenarios {
+		stopper := make(chan struct{})
+		event.StartDefaultEventStore(stopper)
 		t.Run(s.name, func(t *testing.T) {
 			//hook up two instances of service sync
 			factory := NewMockConnectionFactory("test-channel")
@@ -109,7 +141,9 @@ func TestServiceSync(t *testing.T) {
 						assert.Equal(t, expected.Protocol, actual.Protocol, "Wrong protocol for %s expected: %v - got: %v", actual.Address, expected.Protocol, actual.Protocol)
 						assert.Equal(t, actual.Origin, update.origin, "Wrong origin for %s expected: %v - got: %v", actual.Address, expected.Origin, actual.Origin)
 						assert.Assert(t, reflect.DeepEqual(expected.Ports, actual.Ports), "Wrong ports for key %s expected: %v - got: %v", actual.Address, expected.Ports, actual.Ports)
-						assert.Assert(t, reflect.DeepEqual(expected.Headless, actual.Headless), "Wrong headless for key %s expected: %v - got: %v", actual.Address, expected.Ports, actual.Ports)
+						assert.Assert(t, reflect.DeepEqual(expected.Headless, actual.Headless), "Wrong headless for key %s expected: %v - got: %v", actual.Address, expected.Headless, actual.Headless)
+						assert.Assert(t, reflect.DeepEqual(expected.Labels, actual.Labels), "Wrong labels for key %s expected: %v - got: %v", actual.Address, expected.Labels, actual.Labels)
+						assert.Assert(t, reflect.DeepEqual(expected.Annotations, actual.Annotations), "Wrong annotations for key %s expected: %v - got: %v", actual.Address, expected.Annotations, actual.Annotations)
 					}
 					site1Done = true
 
@@ -123,7 +157,9 @@ func TestServiceSync(t *testing.T) {
 						assert.Equal(t, expected.Protocol, actual.Protocol, "Wrong protocol for %s expected: %v - got: %v", actual.Address, expected.Protocol, actual.Protocol)
 						assert.Equal(t, actual.Origin, update.origin, "Wrong origin for %s expected: %v - got: %v", actual.Address, expected.Origin, actual.Origin)
 						assert.Assert(t, reflect.DeepEqual(expected.Ports, actual.Ports), "Wrong ports for key %s expected: %v - got: %v", actual.Address, expected.Ports, actual.Ports)
-						assert.Assert(t, reflect.DeepEqual(expected.Headless, actual.Headless), "Wrong headless for key %s expected: %v - got: %v", actual.Address, expected.Ports, actual.Ports)
+						assert.Assert(t, reflect.DeepEqual(expected.Headless, actual.Headless), "Wrong headless for key %s expected: %v - got: %v", actual.Address, expected.Headless, actual.Headless)
+						assert.Assert(t, reflect.DeepEqual(expected.Labels, actual.Labels), "Wrong labels for key %s expected: %v - got: %v", actual.Address, expected.Labels, actual.Labels)
+						assert.Assert(t, reflect.DeepEqual(expected.Annotations, actual.Annotations), "Wrong annotations for key %s expected: %v - got: %v", actual.Address, expected.Annotations, actual.Annotations)
 					}
 					site2Done = true
 

@@ -127,6 +127,9 @@ func (si *ServiceIngressAlways) create(desired *service.ServiceBindings) error {
 			PublishNotReadyAddresses: desired.PublishNotReadyAddresses,
 		},
 	}
+	for key, value := range desired.Annotations {
+		service.ObjectMeta.Annotations[key] = value
+	}
 	UpdatePorts(&service.Spec, desired.PortMap())
 	UpdateSelectorFromMap(&service.Spec, GetLabelsForRouter())
 
@@ -140,6 +143,7 @@ func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.
 	updatedPorts := UpdatePorts(&actual.Spec, desired.PortMap())
 	updatedSelector := UpdateSelectorFromMap(&actual.Spec, GetLabelsForRouter())
 	updatedLabels := UpdateLabels(&actual.ObjectMeta, desired.Labels)
+	updatedAnnotations := UpdateAnnotations(&actual.ObjectMeta, desired.Annotations)
 
 	if updatedPorts && !si.s.IsOwned(actual) {
 		SetAnnotation(&actual.ObjectMeta, types.OriginalTargetPortQualifier, originalPorts)
@@ -149,7 +153,7 @@ func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.
 		SetAnnotation(&actual.ObjectMeta, types.OriginalSelectorQualifier, originalSelector)
 	}
 
-	if !(updatedPorts || updatedSelector || updatedLabels) {
+	if !(updatedPorts || updatedSelector || updatedLabels || updatedAnnotations) {
 		return nil //nothing changed
 	}
 	return si.s.UpdateService(actual)
@@ -234,8 +238,9 @@ func (si *ServiceIngressHeadlessRemote) create(desired *service.ServiceBindings)
 func (si *ServiceIngressHeadlessRemote) update(actual *corev1.Service, desired *service.ServiceBindings) error {
 	updatedPorts := UpdatePorts(&actual.Spec, desired.PortMap())
 	updatedLabels := UpdateLabels(&actual.ObjectMeta, desired.Labels)
+	updatedAnnotations := UpdateAnnotations(&actual.ObjectMeta, desired.Annotations)
 
-	if !(updatedPorts || updatedLabels) {
+	if !(updatedPorts || updatedLabels || updatedAnnotations) {
 		return nil //nothing changed
 	}
 	return si.s.UpdateService(actual)

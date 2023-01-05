@@ -175,6 +175,7 @@ const (
 	AnnotationExcludes          string = BaseQualifier + "/exclude-annotations"
 	LabelExcludes               string = BaseQualifier + "/exclude-labels"
 	ServiceLabels               string = BaseQualifier + "/service-labels"
+	ServiceAnnotations          string = BaseQualifier + "/service-annotations"
 	ComponentAnnotation         string = BaseQualifier + "/component"
 	SiteControllerIgnore        string = InternalQualifier + "/site-controller-ignore"
 	RouterComponent             string = "router"
@@ -480,6 +481,7 @@ type ServiceInterface struct {
 	Aggregate                string                   `json:"aggregate,omitempty" yaml:"aggregate,omitempty"`
 	Headless                 *Headless                `json:"headless,omitempty" yaml:"headless,omitempty"`
 	Labels                   map[string]string        `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Annotations              map[string]string        `json:"annotations,omitempty" yaml:"annotations,omitempty"`
 	Targets                  []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
 	Origin                   string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
 	EnableTls                bool                     `json:"enableTls,omitempty"`

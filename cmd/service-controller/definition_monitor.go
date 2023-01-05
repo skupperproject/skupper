@@ -181,7 +181,7 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 			updated = true
 		}
 	}
-	if !reflect.DeepEqual(actual.Labels, desired.Labels) {
+	if !reflect.DeepEqual(actual.Labels, desired.Labels) || !reflect.DeepEqual(actual.Annotations, desired.Annotations) {
 		updated = true
 	}
 	if !updated {
@@ -231,6 +231,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 		}
 		if labels, ok := deployment.ObjectMeta.Annotations[types.ServiceLabels]; ok {
 			svc.Labels = utils.LabelToMap(labels)
+		}
+		if annotations, ok := deployment.ObjectMeta.Annotations[types.ServiceAnnotations]; ok {
+			svc.Annotations = utils.LabelToMap(annotations)
 		}
 		if ingressMode, ok := deployment.ObjectMeta.Annotations[types.IngressModeQualifier]; ok {
 			err := svc.SetIngressMode(ingressMode)
@@ -331,6 +334,12 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 		if len(port) > 0 {
 			svc.Targets[0].TargetPorts = port
 		}
+		if labels, ok := statefulset.ObjectMeta.Annotations[types.ServiceLabels]; ok {
+			svc.Labels = utils.LabelToMap(labels)
+		}
+		if annotations, ok := statefulset.ObjectMeta.Annotations[types.ServiceAnnotations]; ok {
+			svc.Annotations = utils.LabelToMap(annotations)
+		}
 		svc.Origin = "annotation"
 
 		if policyRes := m.policy.ValidateExpose("statefulset", statefulset.Name); !policyRes.Allowed() {
@@ -385,6 +394,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset
 		}
 		if labels, ok := daemonset.ObjectMeta.Annotations[types.ServiceLabels]; ok {
 			svc.Labels = utils.LabelToMap(labels)
+		}
+		if annotations, ok := daemonset.ObjectMeta.Annotations[types.ServiceAnnotations]; ok {
+			svc.Annotations = utils.LabelToMap(annotations)
 		}
 		svc.Origin = "annotation"
 
@@ -507,6 +519,9 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 		}
 		if labels, ok := service.ObjectMeta.Annotations[types.ServiceLabels]; ok {
 			svc.Labels = utils.LabelToMap(labels)
+		}
+		if annotations, ok := service.ObjectMeta.Annotations[types.ServiceAnnotations]; ok {
+			svc.Annotations = utils.LabelToMap(annotations)
 		}
 		if ingressMode, ok := service.ObjectMeta.Annotations[types.IngressModeQualifier]; ok {
 			err := svc.SetIngressMode(ingressMode)
