@@ -185,6 +185,7 @@ const (
 	LastFailedAnnotationKey     string = InternalQualifier + "/last-failed"
 	StatusAnnotationKey         string = InternalQualifier + "/status"
 	GatewayQualifier            string = InternalQualifier + "/gateway"
+	IngressOnlyQualifier        string = BaseQualifier + "/ingress-only"
 )
 
 // standard labels
