@@ -62,17 +62,17 @@ func (c *TokenHandler) getTokenCost(token *corev1.Secret) (int32, bool) {
 	return 0, false
 }
 
-func (c *TokenHandler) getTokenDcc(token *corev1.Secret) (int, bool) {
+func (c *TokenHandler) getTokenConCount(token *corev1.Secret) (int, bool) {
 	if token.ObjectMeta.Annotations == nil {
 		return 0, false
 	}
-	if dccString, ok := token.ObjectMeta.Annotations[types.TokenDcc]; ok {
-		dcc, err := strconv.Atoi(dccString)
+	if conCountString, ok := token.ObjectMeta.Annotations[types.TokenConCount]; ok {
+		conCount, err := strconv.Atoi(conCountString)
 		if err != nil {
-			event.Recordf(c.name, "Ignoring invalid dcc annotation %q", dccString)
+			event.Recordf(c.name, "Ignoring invalid conCount annotation %q", conCountString)
 			return 0, false
 		}
-		return int(dcc), true
+		return int(conCount), true
 	}
 	return 0, false
 }
@@ -85,8 +85,8 @@ func (c *TokenHandler) connect(token *corev1.Secret) error {
 	if cost, ok := c.getTokenCost(token); ok {
 		options.Cost = cost
 	}
-	if dcc, ok := c.getTokenDcc(token); ok {
-		options.Dcc = dcc
+	if conCount, ok := c.getTokenConCount(token); ok {
+		options.ConCount = conCount
 	}
 	return c.vanClient.ConnectorCreate(context.Background(), token, options)
 }

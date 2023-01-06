@@ -156,10 +156,10 @@ func TestTokenHandler(t *testing.T) {
 			},
 			expectedConnector: nil,
 		},
-		{ // Set dataConnectionCount to 3
+		{ // Set data-connection-count to 3
 			name: "six",
 			annotations: map[string]string{
-				types.TokenDcc:      "3",
+				types.TokenConCount: "3",
 				"inter-router-host": "myrouter.com",
 				"inter-router-port": "55671",
 			},
@@ -169,10 +169,10 @@ func TestTokenHandler(t *testing.T) {
 				Port:       "55671",
 				Cost:       0,
 				SslProfile: "six-profile",
-				Dcc:        3,
+				ConCount:   3,
 			},
 		},
-		{ // Do not set dataConnectionCount
+		{ // Do not set data-connection-count
 			name: "seven",
 			annotations: map[string]string{
 				"inter-router-host": "myrouter.com",
@@ -184,15 +184,15 @@ func TestTokenHandler(t *testing.T) {
 				Port:       "55671",
 				Cost:       0,
 				SslProfile: "seven-profile",
-				Dcc:        0,
+				ConCount:   0,
 			},
 		},
-		{ // Set dataConnectionCount to a bad value
+		{ // Set data-connection-count to a bad value
 			name: "eight",
 			annotations: map[string]string{
 				"inter-router-host": "myrouter.com",
 				"inter-router-port": "55671",
-				types.TokenDcc:      "foo",
+				types.TokenConCount: "foo",
 			},
 			expectedConnector: &qdr.Connector{
 				Name:       "eight",
@@ -200,7 +200,7 @@ func TestTokenHandler(t *testing.T) {
 				Port:       "55671",
 				Cost:       0,
 				SslProfile: "eight-profile",
-				Dcc:        0,
+				ConCount:   0,
 			},
 		},
 	}
@@ -229,7 +229,7 @@ func TestTokenHandler(t *testing.T) {
 			assert.Equal(t, connector.Host, test.expectedConnector.Host, test.name)
 			assert.Equal(t, connector.Port, test.expectedConnector.Port, test.name)
 			assert.Equal(t, connector.Cost, test.expectedConnector.Cost, test.name)
-			assert.Equal(t, connector.Dcc, test.expectedConnector.Dcc, test.name)
+			assert.Equal(t, connector.ConCount, test.expectedConnector.ConCount, test.name)
 			assert.Equal(t, connector.SslProfile, test.expectedConnector.SslProfile, test.name)
 
 			//now disconnect:

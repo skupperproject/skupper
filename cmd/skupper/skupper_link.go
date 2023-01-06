@@ -34,7 +34,7 @@ func NewCmdLinkCreate(skupperClient SkupperLinkClient, flag string) *cobra.Comma
 	}
 	cmd.Flags().StringVarP(&connectorCreateOpts.Name, flag, "", "", "Provide a specific name for the link (used when deleting it)")
 	cmd.Flags().Int32VarP(&connectorCreateOpts.Cost, "cost", "", 1, "Specify a cost for this link.")
-	cmd.Flags().IntVarP(&connectorCreateOpts.Dcc, "dataConnectionCount", "", 1, "How many inter-router data connections")
+	cmd.Flags().IntVarP(&connectorCreateOpts.ConCount, "data-connection-count", "", 0, "How many data links for each inter-router connection. A zero value (default) means no value is set. Router will use its default value.")
 
 	return cmd
 }

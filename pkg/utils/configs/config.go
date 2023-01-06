@@ -25,6 +25,12 @@ func ConnectJson(host string) string {
 }
 
 func ConnectorConfig(connector *types.Connector) string {
+	// The data-connection-count expression will yield
+	// no output if .ConCount is 0.
+	// Almost no output. If it is on a line by itself,
+	// it will yield a blank line, which looks weird in the output.
+	// By putting it on the same line as 'cost' in this code,
+	// that blank output line is prevented.
 	config := `
 
 sslProfile {
@@ -38,9 +44,8 @@ connector {
     name: {{.Name}}-connector
     host: {{.Host}}
     port: {{.Port}}
-    dataConnectionCount: {{.Dcc}}
     role: {{.Role}}
-    cost: {{.Cost}}
+    cost: {{.Cost}} {{if .ConCount}}{{printf "\n    dataConnectionCount:" }} {{.ConCount}}{{end}}
     sslProfile: {{.Name}}-profile
 }
 

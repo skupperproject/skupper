@@ -94,10 +94,10 @@ func getLinkFromClaim(s *corev1.Secret) *types.LinkStatus {
 				link.Cost = cost
 			}
 		}
-		if value, ok := s.ObjectMeta.Annotations[types.TokenDcc]; ok {
-			dcc, err := strconv.Atoi(value)
+		if value, ok := s.ObjectMeta.Annotations[types.TokenConCount]; ok {
+			conCount, err := strconv.Atoi(value)
 			if err == nil {
-				link.Dcc = dcc
+				link.ConCount = conCount
 			}
 		}
 	}

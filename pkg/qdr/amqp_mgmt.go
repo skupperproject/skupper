@@ -1165,7 +1165,7 @@ type ConnectorStatus struct {
 	Port        string
 	Role        string
 	Cost        int
-	Dcc         int
+	ConCount    int
 	Status      string
 	Description string
 }
@@ -1177,7 +1177,7 @@ func asConnectorStatus(record Record) ConnectorStatus {
 		Port:        record.AsString("port"),
 		Role:        record.AsString("role"),
 		Cost:        record.AsInt("cost"),
-		Dcc:         record.AsInt("dataConnectionCount"),
+		ConCount:    record.AsInt("data-connection-count"),
 		Status:      record.AsString("connectionStatus"),
 		Description: record.AsString("connectionMsg"),
 	}
@@ -1188,7 +1188,7 @@ func asConnector(record Record) Connector {
 		Name:           record.AsString("name"),
 		Host:           record.AsString("host"),
 		Port:           record.AsString("port"),
-		Dcc:            record.AsInt("dataConnectionCount"),
+		ConCount:       record.AsInt("data-connection-count"),
 		RouteContainer: record.AsBool("routeContainer"),
 		VerifyHostname: record.AsBool("verifyHostname"),
 		SslProfile:     record.AsString("sslProfile"),
@@ -1222,8 +1222,8 @@ func asRecord(connector Connector) Record {
 	if connector.MaxSessionFrames > 0 {
 		record["maxSessionFrames"] = connector.MaxSessionFrames
 	}
-	if connector.Dcc > 0 {
-		record["dataConnectionCount"] = connector.Dcc
+	if connector.ConCount > 0 {
+		record["dataConnectionCount"] = connector.ConCount
 	}
 
 	return record
