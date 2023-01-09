@@ -570,7 +570,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 
 	secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(gatewayResourceName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to retreive external gateway secret: %w", err)
+		return fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
 	}
 
 	for _, cert := range certs {
