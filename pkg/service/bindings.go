@@ -66,6 +66,14 @@ type ServiceBindings struct {
 	PublishNotReadyAddresses bool
 }
 
+func (s *ServiceBindings) GetIngressPorts() []int {
+	return s.ingressPorts
+}
+
+func (s *ServiceBindings) SetIngressPorts(ports []int) {
+	s.ingressPorts = ports
+}
+
 func (s *ServiceBindings) FindLocalTarget() *EgressBindings {
 	for _, eb := range s.targets {
 		if eb.hasLocalTarget() {

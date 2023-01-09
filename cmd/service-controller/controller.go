@@ -930,6 +930,25 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			delete(c.bindings, required.Address)
 			return nil
 		}
+		ports := bindings.GetIngressPorts()
+		if len(ports) < len(required.Ports) {
+			for i := 0; i < len(required.Ports); i++ {
+				port, err := c.ports.nextFreePort()
+				if err != nil {
+					return err
+				}
+				ports = append(ports, port)
+			}
+			bindings.SetIngressPorts(ports)
+		} else if len(ports) > len(required.Ports) {
+			// in case updated service exposes less ports than before
+			for i := len(required.Ports); i < len(ports); i++ {
+				c.ports.release(ports[i])
+			}
+			ports = ports[:len(required.Ports)]
+			bindings.SetIngressPorts(ports)
+		}
+
 		// check it is configured correctly
 		bindings.Update(required, c)
 	}
