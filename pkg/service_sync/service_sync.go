@@ -41,6 +41,9 @@ func getTtl(ttl time.Duration) time.Duration {
 	if ttl == 0 {
 		return 3 * 60 * time.Second
 	}
+	if ttl < time.Minute {
+		return time.Minute
+	}
 	return ttl
 }
 

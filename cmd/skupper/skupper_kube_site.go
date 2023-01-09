@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -89,6 +90,9 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 
 	if LoadBalancerTimeout.Seconds() <= 0 {
 		return fmt.Errorf(`invalid timeout value`)
+	}
+	if routerCreateOpts.SiteTtl != 0 && routerCreateOpts.SiteTtl < time.Minute {
+		return fmt.Errorf("The minimum value for service-sync-site-ttl is 1 minute")
 	}
 
 	if siteConfig == nil {
