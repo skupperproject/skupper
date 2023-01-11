@@ -28,16 +28,16 @@ const (
 	serviceDelete
 )
 
-type ServicePodman struct {
+type Service struct {
 	*domain.ServiceCommon
 	ContainerName string
 }
 
-func (s *ServicePodman) GetContainerName() string {
+func (s *Service) GetContainerName() string {
 	return utils.DefaultStr(s.ContainerName, s.GetAddress())
 }
 
-func (s *ServicePodman) AsServiceInterface() *types.ServiceInterface {
+func (s *Service) AsServiceInterface() *types.ServiceInterface {
 	svc := &types.ServiceInterface{
 		Address:        s.Address,
 		Protocol:       s.Protocol,
@@ -64,7 +64,7 @@ func (s *ServicePodman) AsServiceInterface() *types.ServiceInterface {
 	return svc
 }
 
-func (s *ServicePodman) ContainerPorts() []container.Port {
+func (s *Service) ContainerPorts() []container.Port {
 	ports := []container.Port{}
 	for port, hostPort := range s.GetIngress().GetPorts() {
 		if hostPort == 0 {
@@ -79,28 +79,28 @@ func (s *ServicePodman) ContainerPorts() []container.Port {
 	return ports
 }
 
-type ServiceHandlerPodman struct {
+type ServiceHandler struct {
 	cli     *podman.PodmanRestClient
-	handler *ServiceInterfaceHandlerPodman
+	handler *ServiceInterfaceHandler
 }
 
-func NewServiceHandlerPodman(cli *podman.PodmanRestClient) *ServiceHandlerPodman {
-	return &ServiceHandlerPodman{
+func NewServiceHandlerPodman(cli *podman.PodmanRestClient) *ServiceHandler {
+	return &ServiceHandler{
 		cli:     cli,
 		handler: NewServiceInterfaceHandlerPodman(cli),
 	}
 }
 
-func (s *ServiceHandlerPodman) Create(service domain.Service) error {
+func (s *ServiceHandler) Create(service domain.Service) error {
 	// Validate service interface definition exists
-	servicePodman := service.(*ServicePodman)
+	servicePodman := service.(*Service)
 	if err := s.validateNewService(servicePodman); err != nil {
 		return err
 	}
 	return s.createService(servicePodman)
 }
 
-func (s *ServiceHandlerPodman) validateNewService(servicePodman *ServicePodman) error {
+func (s *ServiceHandler) validateNewService(servicePodman *Service) error {
 	// Validating if service exists
 	_, err := s.handler.Get(servicePodman.GetAddress())
 	if err == nil {
@@ -142,7 +142,7 @@ func (s *ServiceHandlerPodman) validateNewService(servicePodman *ServicePodman) 
 	return nil
 }
 
-func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error {
+func (s *ServiceHandler) createService(servicePodman *Service) error {
 	// rollback in case of error
 	var cleanupFns []func()
 	var err error
@@ -285,13 +285,13 @@ func (s *ServiceHandlerPodman) createService(servicePodman *ServicePodman) error
 	return nil
 }
 
-func (s *ServiceHandlerPodman) Delete(address string) error {
+func (s *ServiceHandler) Delete(address string) error {
 	// Check service exists
 	svc, err := s.Get(address)
 	if err != nil {
 		return err
 	}
-	svcPodman := svc.(*ServicePodman)
+	svcPodman := svc.(*Service)
 
 	// Inspect container to ensure it belongs to Skupper
 	svcContainer, err := s.cli.ContainerInspect(svcPodman.GetContainerName())
@@ -331,7 +331,7 @@ func (s *ServiceHandlerPodman) Delete(address string) error {
 	return nil
 }
 
-func (s *ServiceHandlerPodman) Get(address string) (domain.Service, error) {
+func (s *ServiceHandler) Get(address string) (domain.Service, error) {
 	svcs, err := s.handler.List()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving service list - %w", err)
@@ -347,7 +347,7 @@ func (s *ServiceHandlerPodman) Get(address string) (domain.Service, error) {
 	return nil, fmt.Errorf("Service %s not defined", address)
 }
 
-func (s *ServiceHandlerPodman) List() ([]domain.Service, error) {
+func (s *ServiceHandler) List() ([]domain.Service, error) {
 	var services []domain.Service
 	list, err := s.handler.List()
 	if err != nil {
@@ -364,7 +364,7 @@ func (s *ServiceHandlerPodman) List() ([]domain.Service, error) {
 	return services, nil
 }
 
-func (s *ServiceHandlerPodman) GetServiceRouterConfig(address string) (*qdr.RouterConfig, error) {
+func (s *ServiceHandler) GetServiceRouterConfig(address string) (*qdr.RouterConfig, error) {
 	var err error
 
 	var vol *container.Volume
@@ -382,7 +382,7 @@ func (s *ServiceHandlerPodman) GetServiceRouterConfig(address string) (*qdr.Rout
 	return &config, err
 }
 
-func (s *ServiceHandlerPodman) SaveServiceRouterConfig(address string, config *qdr.RouterConfig) error {
+func (s *ServiceHandler) SaveServiceRouterConfig(address string, config *qdr.RouterConfig) error {
 	var err error
 	configFile := path.Join(address, types.TransportConfigFile)
 
@@ -398,7 +398,7 @@ func (s *ServiceHandlerPodman) SaveServiceRouterConfig(address string, config *q
 	return err
 }
 
-func (s *ServiceHandlerPodman) AddEgressResolver(address string, egressResolver domain.EgressResolver) error {
+func (s *ServiceHandler) AddEgressResolver(address string, egressResolver domain.EgressResolver) error {
 	siteHandler, err := NewSitePodmanHandler("")
 	if err != nil {
 		return fmt.Errorf("error preparing site handler - %w", err)
@@ -417,7 +417,7 @@ func (s *ServiceHandlerPodman) AddEgressResolver(address string, egressResolver 
 	if err != nil {
 		return err
 	}
-	svcPodman := svc.(*ServicePodman)
+	svcPodman := svc.(*Service)
 	routerEntityMgr := NewRouterEntityManagerPodmanFor(s.cli, svcPodman.ContainerName)
 
 	// Verify egress resolver is not already defined
@@ -475,7 +475,7 @@ func (s *ServiceHandlerPodman) AddEgressResolver(address string, egressResolver 
 	return nil
 }
 
-func (s *ServiceHandlerPodman) RemoveEgressResolver(address string, egressResolver domain.EgressResolver) error {
+func (s *ServiceHandler) RemoveEgressResolver(address string, egressResolver domain.EgressResolver) error {
 	var egresses []domain.AddressEgress
 	var err error
 
@@ -492,7 +492,7 @@ func (s *ServiceHandlerPodman) RemoveEgressResolver(address string, egressResolv
 	if err != nil {
 		return err
 	}
-	svcPodman := svc.(*ServicePodman)
+	svcPodman := svc.(*Service)
 	origEgressResolvers := svcPodman.GetEgressResolvers()
 	routerEntityMgr := NewRouterEntityManagerPodmanFor(s.cli, svcPodman.ContainerName)
 
@@ -567,21 +567,21 @@ func (s *ServiceHandlerPodman) RemoveEgressResolver(address string, egressResolv
 	return nil
 }
 
-func (s *ServiceHandlerPodman) RemoveAllEgressResolvers(address string) error {
+func (s *ServiceHandler) RemoveAllEgressResolvers(address string) error {
 	return s.RemoveEgressResolver(address, nil)
 }
 
-type ServiceInterfaceHandlerPodman struct {
+type ServiceInterfaceHandler struct {
 	cli *podman.PodmanRestClient
 }
 
-func NewServiceInterfaceHandlerPodman(cli *podman.PodmanRestClient) *ServiceInterfaceHandlerPodman {
-	return &ServiceInterfaceHandlerPodman{
+func NewServiceInterfaceHandlerPodman(cli *podman.PodmanRestClient) *ServiceInterfaceHandler {
+	return &ServiceInterfaceHandler{
 		cli: cli,
 	}
 }
 
-func (s *ServiceInterfaceHandlerPodman) manipulateService(service *types.ServiceInterface, action serviceAction) error {
+func (s *ServiceInterfaceHandler) manipulateService(service *types.ServiceInterface, action serviceAction) error {
 	// Saving content
 	vol, err := s.cli.VolumeInspect(types.ServiceInterfaceConfigMap)
 	if err != nil {
@@ -621,11 +621,11 @@ func (s *ServiceInterfaceHandlerPodman) manipulateService(service *types.Service
 	return nil
 }
 
-func (s *ServiceInterfaceHandlerPodman) Create(service *types.ServiceInterface) error {
+func (s *ServiceInterfaceHandler) Create(service *types.ServiceInterface) error {
 	return s.manipulateService(service, serviceCreate)
 }
 
-func (s *ServiceInterfaceHandlerPodman) List() (map[string]*types.ServiceInterface, error) {
+func (s *ServiceInterfaceHandler) List() (map[string]*types.ServiceInterface, error) {
 	res := map[string]*types.ServiceInterface{}
 	servicesVolume, err := s.cli.VolumeInspect(types.ServiceInterfaceConfigMap)
 	if err != nil {
@@ -648,7 +648,7 @@ func (s *ServiceInterfaceHandlerPodman) List() (map[string]*types.ServiceInterfa
 	return res, nil
 }
 
-func (s *ServiceInterfaceHandlerPodman) Get(address string) (*types.ServiceInterface, error) {
+func (s *ServiceInterfaceHandler) Get(address string) (*types.ServiceInterface, error) {
 	svcMap, err := s.List()
 	if err != nil {
 		return nil, err
@@ -664,16 +664,16 @@ func (s *ServiceInterfaceHandlerPodman) Get(address string) (*types.ServiceInter
 	return svc, nil
 }
 
-func (s *ServiceInterfaceHandlerPodman) Update(service *types.ServiceInterface) error {
+func (s *ServiceInterfaceHandler) Update(service *types.ServiceInterface) error {
 	return s.manipulateService(service, serviceUpdate)
 }
 
-func (s *ServiceInterfaceHandlerPodman) Delete(address string) error {
+func (s *ServiceInterfaceHandler) Delete(address string) error {
 	return s.manipulateService(&types.ServiceInterface{Address: address}, serviceDelete)
 }
 
-func (s *ServiceInterfaceHandlerPodman) ToServicePodman(svcIface *types.ServiceInterface, newService bool) (*ServicePodman, error) {
-	svc := &ServicePodman{
+func (s *ServiceInterfaceHandler) ToServicePodman(svcIface *types.ServiceInterface, newService bool) (*Service, error) {
+	svc := &Service{
 		ServiceCommon: &domain.ServiceCommon{
 			Address:        svcIface.Address,
 			Protocol:       svcIface.Protocol,

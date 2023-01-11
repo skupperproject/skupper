@@ -7,34 +7,34 @@ import (
 )
 
 var (
-	PodmanConfigFile = path.Join(config.GetDataHome(), "podman.yaml")
+	ConfigFile = path.Join(config.GetDataHome(), "podman.yaml")
 )
 
-type PodmanConfig struct {
+type Config struct {
 	Endpoint string `yaml:"endpoint"`
 }
 
-type podmanConfigFileHandler struct {
+type configFileHandler struct {
 	config *config.ConfigFileHandlerCommon
 }
 
-func (p *podmanConfigFileHandler) GetConfig() (*PodmanConfig, error) {
+func (p *configFileHandler) GetConfig() (*Config, error) {
 	err := p.config.Load()
 	if err != nil {
 		return nil, err
 	}
-	return p.config.GetData().(*PodmanConfig), nil
+	return p.config.GetData().(*Config), nil
 }
 
-func (p *podmanConfigFileHandler) Save(config *PodmanConfig) error {
+func (p *configFileHandler) Save(config *Config) error {
 	p.config.SetData(config)
 	return p.config.Save()
 }
 
-func NewPodmanConfigFileHandler() *podmanConfigFileHandler {
+func NewPodmanConfigFileHandler() *configFileHandler {
 	c := &config.ConfigFileHandlerCommon{}
-	c.SetFileName(PodmanConfigFile)
-	c.SetData(&PodmanConfig{})
-	p := &podmanConfigFileHandler{config: c}
+	c.SetFileName(ConfigFile)
+	c.SetData(&Config{})
+	p := &configFileHandler{config: c}
 	return p
 }

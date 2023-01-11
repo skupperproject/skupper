@@ -3,7 +3,6 @@ package podman
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -11,27 +10,27 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-type RouterEntityManagerPodman struct {
+type RouterEntityManager struct {
 	cli       *podman.PodmanRestClient
 	container string
 }
 
-func NewRouterEntityManagerPodman(cli *podman.PodmanRestClient) *RouterEntityManagerPodman {
+func NewRouterEntityManagerPodman(cli *podman.PodmanRestClient) *RouterEntityManager {
 	return NewRouterEntityManagerPodmanFor(cli, types.TransportDeploymentName)
 }
 
-func NewRouterEntityManagerPodmanFor(cli *podman.PodmanRestClient, container string) *RouterEntityManagerPodman {
-	return &RouterEntityManagerPodman{
+func NewRouterEntityManagerPodmanFor(cli *podman.PodmanRestClient, container string) *RouterEntityManager {
+	return &RouterEntityManager{
 		cli:       cli,
 		container: container,
 	}
 }
 
-func (r *RouterEntityManagerPodman) exec(cmd []string) (string, error) {
+func (r *RouterEntityManager) exec(cmd []string) (string, error) {
 	return r.cli.ContainerExec(r.container, cmd)
 }
 
-func (r *RouterEntityManagerPodman) CreateSslProfile(sslProfile qdr.SslProfile) error {
+func (r *RouterEntityManager) CreateSslProfile(sslProfile qdr.SslProfile) error {
 	cmd := qdr.SkmanageCreateCommand("sslProfile", sslProfile.Name, sslProfile)
 	if _, err := r.exec(cmd); err != nil {
 		return fmt.Errorf("error creating sslProfile %s - %w", sslProfile.Name, err)
@@ -39,7 +38,7 @@ func (r *RouterEntityManagerPodman) CreateSslProfile(sslProfile qdr.SslProfile) 
 	return nil
 }
 
-func (r *RouterEntityManagerPodman) DeleteSslProfile(name string) error {
+func (r *RouterEntityManager) DeleteSslProfile(name string) error {
 	cmd := qdr.SkmanageDeleteCommand("sslProfile", name)
 	if _, err := r.exec(cmd); err != nil {
 		return fmt.Errorf("error deleting sslProfile %s - %w", name, err)
@@ -47,7 +46,7 @@ func (r *RouterEntityManagerPodman) DeleteSslProfile(name string) error {
 	return nil
 }
 
-func (r *RouterEntityManagerPodman) CreateConnector(connector qdr.Connector) error {
+func (r *RouterEntityManager) CreateConnector(connector qdr.Connector) error {
 	cmd := qdr.SkmanageCreateCommand("connector", connector.Name, connector)
 	if _, err := r.exec(cmd); err != nil {
 		return fmt.Errorf("error creating connector %s - %w", connector.Name, err)
@@ -55,7 +54,7 @@ func (r *RouterEntityManagerPodman) CreateConnector(connector qdr.Connector) err
 	return nil
 }
 
-func (r *RouterEntityManagerPodman) DeleteConnector(name string) error {
+func (r *RouterEntityManager) DeleteConnector(name string) error {
 	cmd := qdr.SkmanageDeleteCommand("connector", name)
 	if _, err := r.exec(cmd); err != nil {
 		return fmt.Errorf("error deleting sslProfile %s - %w", name, err)
@@ -63,7 +62,7 @@ func (r *RouterEntityManagerPodman) DeleteConnector(name string) error {
 	return nil
 }
 
-func (r *RouterEntityManagerPodman) QueryConnections(routerId string, edge bool) ([]qdr.Connection, error) {
+func (r *RouterEntityManager) QueryConnections(routerId string, edge bool) ([]qdr.Connection, error) {
 	cmd := qdr.SkmanageQueryCommand("connection", routerId, edge, "")
 	var data string
 	var err error
@@ -71,7 +70,6 @@ func (r *RouterEntityManagerPodman) QueryConnections(routerId string, edge bool)
 		return nil, fmt.Errorf("error querying connections - %w", err)
 	}
 	var connections []qdr.Connection
-	ioutil.WriteFile("/tmp/baddata", []byte(data), 0644)
 	err = json.Unmarshal([]byte(data), &connections)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections - %w", err)
@@ -79,7 +77,7 @@ func (r *RouterEntityManagerPodman) QueryConnections(routerId string, edge bool)
 	return connections, nil
 }
 
-func (r *RouterEntityManagerPodman) QueryAllRouters() ([]qdr.Router, error) {
+func (r *RouterEntityManager) QueryAllRouters() ([]qdr.Router, error) {
 	var routersToQuery []qdr.Router
 	var routersTmp []qdr.Router
 	routerNodes, err := r.QueryRouterNodes()
@@ -147,7 +145,7 @@ func (r *RouterEntityManagerPodman) QueryAllRouters() ([]qdr.Router, error) {
 	return routersTmp, nil
 }
 
-func (r *RouterEntityManagerPodman) QueryRouterNodes() ([]qdr.RouterNode, error) {
+func (r *RouterEntityManager) QueryRouterNodes() ([]qdr.RouterNode, error) {
 	var routerNodes []qdr.RouterNode
 	// Retrieving all connections
 	conns, err := r.QueryConnections("", false)
@@ -176,7 +174,7 @@ func (r *RouterEntityManagerPodman) QueryRouterNodes() ([]qdr.RouterNode, error)
 	return routerNodes, nil
 }
 
-func (r *RouterEntityManagerPodman) QueryEdgeRouters() ([]qdr.Router, error) {
+func (r *RouterEntityManager) QueryEdgeRouters() ([]qdr.Router, error) {
 	var routers []qdr.Router
 	routerNodes, err := r.QueryRouterNodes()
 	if err != nil {
@@ -201,7 +199,7 @@ func (r *RouterEntityManagerPodman) QueryEdgeRouters() ([]qdr.Router, error) {
 	return routers, nil
 }
 
-func (r *RouterEntityManagerPodman) CreateTcpConnector(tcpConnector qdr.TcpEndpoint) error {
+func (r *RouterEntityManager) CreateTcpConnector(tcpConnector qdr.TcpEndpoint) error {
 	cmd := qdr.SkmanageCreateCommand("tcpConnector", tcpConnector.Name, tcpConnector)
 	if _, err := r.exec(cmd); err != nil {
 		return fmt.Errorf("error creating tcpConnector %s - %w", tcpConnector.Name, err)
@@ -209,7 +207,7 @@ func (r *RouterEntityManagerPodman) CreateTcpConnector(tcpConnector qdr.TcpEndpo
 	return nil
 }
 
-func (r *RouterEntityManagerPodman) DeleteTcpConnector(name string) error {
+func (r *RouterEntityManager) DeleteTcpConnector(name string) error {
 	cmd := qdr.SkmanageDeleteCommand("tcpConnector", name)
 	if _, err := r.exec(cmd); err != nil {
 		return fmt.Errorf("error deleting tcpConnector %s - %w", name, err)
@@ -217,7 +215,7 @@ func (r *RouterEntityManagerPodman) DeleteTcpConnector(name string) error {
 	return nil
 }
 
-func (r *RouterEntityManagerPodman) CreateHttpConnector(httpConnector qdr.HttpEndpoint) error {
+func (r *RouterEntityManager) CreateHttpConnector(httpConnector qdr.HttpEndpoint) error {
 	cmd := qdr.SkmanageCreateCommand("httpConnector", httpConnector.Name, httpConnector)
 	if _, err := r.exec(cmd); err != nil {
 		return fmt.Errorf("error creating httpConnector %s - %w", httpConnector.Name, err)
@@ -225,7 +223,7 @@ func (r *RouterEntityManagerPodman) CreateHttpConnector(httpConnector qdr.HttpEn
 	return nil
 }
 
-func (r *RouterEntityManagerPodman) DeleteHttpConnector(name string) error {
+func (r *RouterEntityManager) DeleteHttpConnector(name string) error {
 	cmd := qdr.SkmanageDeleteCommand("httpConnector", name)
 	if _, err := r.exec(cmd); err != nil {
 		return fmt.Errorf("error deleting httpConnector %s - %w", name, err)

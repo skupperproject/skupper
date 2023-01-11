@@ -32,13 +32,13 @@ var (
 const (
 	ENV_PODMAN_ENDPOINT = "SKUPPER_TEST_PODMAN_ENDPOINT"
 	NS                  = "podman-system-test"
-	NGINX_IMAGE         = "nginxinc/nginx-unprivileged:stable-alpine"
+	NGINX_IMAGE         = "docker.io/nginxinc/nginx-unprivileged:stable-alpine"
 )
 
-// newBasicSite returns a new instance of a basic SitePodman instance
+// newBasicSite returns a new instance of a basic Site instance
 // as a Site instance that has already been removed should not be reused
 func newBasicSite() domain.Site {
-	return &SitePodman{
+	return &Site{
 		SiteCommon: &domain.SiteCommon{
 			Name: "site-podman-test",
 		},

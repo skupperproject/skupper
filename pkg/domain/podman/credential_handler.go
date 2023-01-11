@@ -1,9 +1,7 @@
 package podman
 
 import (
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -18,11 +16,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type PodmanCredentialHandler struct {
+type CredentialHandler struct {
 	cli *podman.PodmanRestClient
 }
 
-func (p *PodmanCredentialHandler) ListCertAuthorities() ([]types.CertAuthority, error) {
+func (p *CredentialHandler) ListCertAuthorities() ([]types.CertAuthority, error) {
 	list, err := p.cli.VolumeList()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving certificate authorities - %w", err)
@@ -39,7 +37,7 @@ func (p *PodmanCredentialHandler) ListCertAuthorities() ([]types.CertAuthority, 
 	return cas, nil
 }
 
-func (p *PodmanCredentialHandler) ListCredentials() ([]types.Credential, error) {
+func (p *CredentialHandler) ListCredentials() ([]types.Credential, error) {
 	list, err := p.cli.VolumeList()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving certificate authorities - %w", err)
@@ -86,7 +84,7 @@ func (p *PodmanCredentialHandler) ListCredentials() ([]types.Credential, error) 
 				if err != nil {
 					return nil, fmt.Errorf("error reading tls.crt file from volume %s - %w", v.Name, err)
 				}
-				cn, hostnames, err := getTlsCrtHostnames([]byte(dataStr))
+				cn, hostnames, err := certs.GetTlsCrtHostnames([]byte(dataStr))
 				if err != nil {
 					return nil, fmt.Errorf("unable to retrieve subject and hostnames from tls.crt under %s - %w", v.Name, err)
 				}
@@ -106,13 +104,13 @@ func (p *PodmanCredentialHandler) ListCredentials() ([]types.Credential, error) 
 	return creds, nil
 }
 
-func NewPodmanCredentialHandler(cli *podman.PodmanRestClient) *PodmanCredentialHandler {
-	return &PodmanCredentialHandler{
+func NewPodmanCredentialHandler(cli *podman.PodmanRestClient) *CredentialHandler {
+	return &CredentialHandler{
 		cli: cli,
 	}
 }
 
-func (p *PodmanCredentialHandler) LoadVolumeAsSecret(vol *container.Volume) (*corev1.Secret, error) {
+func (p *CredentialHandler) LoadVolumeAsSecret(vol *container.Volume) (*corev1.Secret, error) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vol.Name,
@@ -148,7 +146,7 @@ func (p *PodmanCredentialHandler) LoadVolumeAsSecret(vol *container.Volume) (*co
 	return secret, nil
 }
 
-func (p *PodmanCredentialHandler) SaveSecretAsVolume(secret *corev1.Secret, kind string) (*container.Volume, error) {
+func (p *CredentialHandler) SaveSecretAsVolume(secret *corev1.Secret, kind string) (*container.Volume, error) {
 	vol, err := p.cli.VolumeInspect(secret.Name)
 
 	if err != nil {
@@ -176,7 +174,7 @@ func (p *PodmanCredentialHandler) SaveSecretAsVolume(secret *corev1.Secret, kind
 	return nil, err
 }
 
-func (p *PodmanCredentialHandler) NewCertAuthority(ca types.CertAuthority) (*corev1.Secret, error) {
+func (p *CredentialHandler) NewCertAuthority(ca types.CertAuthority) (*corev1.Secret, error) {
 	_, err := p.GetSecret(ca.Name)
 	if err != nil {
 		if _, notFound := err.(*volumes.VolumeInspectLibpodNotFound); !notFound {
@@ -188,11 +186,11 @@ func (p *PodmanCredentialHandler) NewCertAuthority(ca types.CertAuthority) (*cor
 	return &newCA, err
 }
 
-func (p *PodmanCredentialHandler) DeleteCertAuthority(id string) error {
+func (p *CredentialHandler) DeleteCertAuthority(id string) error {
 	return p.removeVolume(id)
 }
 
-func (p *PodmanCredentialHandler) removeVolume(id string) error {
+func (p *CredentialHandler) removeVolume(id string) error {
 	_, err := p.cli.VolumeInspect(id)
 	if err != nil {
 		if _, notFound := err.(*volumes.VolumeInspectLibpodNotFound); !notFound {
@@ -206,7 +204,7 @@ func (p *PodmanCredentialHandler) removeVolume(id string) error {
 	return nil
 }
 
-func (p *PodmanCredentialHandler) NewCredential(cred types.Credential) (*corev1.Secret, error) {
+func (p *CredentialHandler) NewCredential(cred types.Credential) (*corev1.Secret, error) {
 	var caSecret *corev1.Secret
 	var err error
 	if cred.CA != "" {
@@ -220,7 +218,7 @@ func (p *PodmanCredentialHandler) NewCredential(cred types.Credential) (*corev1.
 	return &secret, err
 }
 
-func (p *PodmanCredentialHandler) GetSecret(name string) (*corev1.Secret, error) {
+func (p *CredentialHandler) GetSecret(name string) (*corev1.Secret, error) {
 	vol, err := p.cli.VolumeInspect(name)
 	if err != nil {
 		return nil, err
@@ -228,11 +226,11 @@ func (p *PodmanCredentialHandler) GetSecret(name string) (*corev1.Secret, error)
 	return p.LoadVolumeAsSecret(vol)
 }
 
-func (p *PodmanCredentialHandler) DeleteCredential(id string) error {
+func (p *CredentialHandler) DeleteCredential(id string) error {
 	return p.removeVolume(id)
 }
 
-func (p *PodmanCredentialHandler) getCertAuthorityForCaCrt(caCrtContent string) *types.CertAuthority {
+func (p *CredentialHandler) getCertAuthorityForCaCrt(caCrtContent string) *types.CertAuthority {
 	cas, err := p.ListCertAuthorities()
 	if err != nil {
 		return nil
@@ -250,23 +248,7 @@ func (p *PodmanCredentialHandler) getCertAuthorityForCaCrt(caCrtContent string) 
 	return nil
 }
 
-func getTlsCrtHostnames(tlscrtData []byte) (subject string, hostnames []string, err error) {
-	b, _ := pem.Decode(tlscrtData)
-	if b == nil {
-		return "", nil, fmt.Errorf("error decoding certificate data")
-	}
-	cert, err := x509.ParseCertificate(b.Bytes)
-	if err != nil {
-		return "", nil, err
-	}
-	subject = cert.Subject.CommonName
-	for _, name := range cert.DNSNames {
-		hostnames = append(hostnames, name)
-	}
-	return subject, hostnames, nil
-}
-
-func (p *PodmanCredentialHandler) GetCredential(id string) (*types.Credential, error) {
+func (p *CredentialHandler) GetCredential(id string) (*types.Credential, error) {
 	credentials, err := p.ListCredentials()
 	if err != nil {
 		return nil, err

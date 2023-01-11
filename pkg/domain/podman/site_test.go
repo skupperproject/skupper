@@ -31,7 +31,7 @@ func TestSiteHandlerGet(t *testing.T) {
 	site, err := siteHandler.Get()
 	assert.Assert(t, err)
 
-	podmanSite := site.(*SitePodman)
+	podmanSite := site.(*Site)
 	assert.Assert(t, podmanSite.GetName() == newBasicSite().GetName())
 	assert.Assert(t, podmanSite.GetMode() == "interior")
 	assert.Assert(t, podmanSite.ContainerNetwork == container.ContainerNetworkName)

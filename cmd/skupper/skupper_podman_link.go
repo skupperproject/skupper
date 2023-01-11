@@ -35,7 +35,7 @@ func (s *SkupperPodmanLink) Create(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error decoding token - %w", err)
 	}
 
-	linkHandler := podman.NewLinkHandlerPodman(site.(*podman.SitePodman), s.podman.cli)
+	linkHandler := podman.NewLinkHandlerPodman(site.(*podman.Site), s.podman.cli)
 	return linkHandler.Create(&secret, connectorCreateOpts.Name, int(connectorCreateOpts.Cost))
 }
 
@@ -50,7 +50,7 @@ func (s *SkupperPodmanLink) Delete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error retrieving site information - %w", err)
 	}
-	linkHandler := podman.NewLinkHandlerPodman(site.(*podman.SitePodman), s.podman.cli)
+	linkHandler := podman.NewLinkHandlerPodman(site.(*podman.Site), s.podman.cli)
 	return linkHandler.Delete(connectorRemoveOpts.Name)
 }
 
@@ -88,7 +88,7 @@ func (s *SkupperPodmanLink) LinkHandler() domain.LinkHandler {
 	if err != nil {
 		return nil
 	}
-	sitePodman := site.(*podman.SitePodman)
+	sitePodman := site.(*podman.Site)
 	s.linkHandler = podman.NewLinkHandlerPodman(sitePodman, s.podman.cli)
 	return s.linkHandler
 }

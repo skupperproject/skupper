@@ -29,7 +29,7 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error inspecting site - %w", err)
 	}
-	sitePodman := site.(*podman.SitePodman)
+	sitePodman := site.(*podman.Site)
 	if sitePodman.IsEdge() {
 		return fmt.Errorf("Edge configuration cannot accept connections")
 	}
@@ -59,7 +59,7 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	credHandler := podman.NewPodmanCredentialHandler(s.podman.cli)
 
 	// Creating secret
-	tokenHandler := &podman.TokenCertHandlerPodman{}
+	tokenHandler := &podman.TokenCertHandler{}
 	return tokenHandler.Create(secretFile, subject, info, sitePodman, credHandler)
 }
 

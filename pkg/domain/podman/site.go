@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
-type SitePodman struct {
+type Site struct {
 	*domain.SiteCommon
 	IngressHosts               []string
 	IngressBindIPs             []string
@@ -25,20 +25,20 @@ type SitePodman struct {
 	RouterOpts                 types.RouterOptions
 }
 
-func (s *SitePodman) GetPlatform() string {
+func (s *Site) GetPlatform() string {
 	return "podman"
 }
 
-func (s *SitePodman) GetIngressClasses() []string {
+func (s *Site) GetIngressClasses() []string {
 	return []string{"host"}
 }
 
-type SitePodmanHandler struct {
+type SiteHandler struct {
 	cli      *podman.PodmanRestClient
 	endpoint string
 }
 
-func NewSitePodmanHandler(endpoint string) (*SitePodmanHandler, error) {
+func NewSitePodmanHandler(endpoint string) (*SiteHandler, error) {
 	if endpoint == "" {
 		podmanCfg, err := NewPodmanConfigFileHandler().GetConfig()
 		if err != nil {
@@ -50,14 +50,14 @@ func NewSitePodmanHandler(endpoint string) (*SitePodmanHandler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SitePodmanHandler{
+	return &SiteHandler{
 		cli:      c,
 		endpoint: endpoint,
 	}, nil
 }
 
-func (s *SitePodmanHandler) prepare(site domain.Site) (domain.Site, error) {
-	podmanSite, ok := site.(*SitePodman)
+func (s *SiteHandler) prepare(site domain.Site) (domain.Site, error) {
+	podmanSite, ok := site.(*Site)
 
 	if !ok {
 		return nil, fmt.Errorf("not a valid podman site definition")
@@ -90,7 +90,7 @@ func (s *SitePodmanHandler) prepare(site domain.Site) (domain.Site, error) {
 	return podmanSite, nil
 }
 
-func (s *SitePodmanHandler) ConfigurePodmanDeployments(site *SitePodman) {
+func (s *SiteHandler) ConfigurePodmanDeployments(site *Site) {
 	// Router Deployment
 	volumeMounts := map[string]string{
 		types.LocalServerSecret:      "/etc/skupper-router-certs/skupper-amqps/",
@@ -111,7 +111,7 @@ func (s *SitePodmanHandler) ConfigurePodmanDeployments(site *SitePodman) {
 			"QDROUTERD_DEBUG":     site.RouterOpts.DebugMode,
 		},
 	}
-	routerDepl := &SkupperDeploymentPodman{
+	routerDepl := &SkupperDeployment{
 		Name: types.TransportDeploymentName,
 		SkupperDeploymentCommon: &domain.SkupperDeploymentCommon{
 			Components: []domain.SkupperComponent{
@@ -129,7 +129,7 @@ func (s *SitePodmanHandler) ConfigurePodmanDeployments(site *SitePodman) {
 		ingressBindIps = append(ingressBindIps, "")
 	}
 	for _, ingressBindIp := range ingressBindIps {
-		routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressPodmanHost{
+		routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressHost{
 			SiteIngressCommon: &domain.SiteIngressCommon{
 				Name: types.InterRouterIngressPrefix,
 				Host: ingressBindIp,
@@ -140,7 +140,7 @@ func (s *SitePodmanHandler) ConfigurePodmanDeployments(site *SitePodman) {
 				},
 			},
 		})
-		routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressPodmanHost{
+		routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressHost{
 			SiteIngressCommon: &domain.SiteIngressCommon{
 				Name: types.EdgeIngressPrefix,
 				Host: ingressBindIp,
@@ -155,17 +155,17 @@ func (s *SitePodmanHandler) ConfigurePodmanDeployments(site *SitePodman) {
 	site.Deployments = append(site.Deployments, routerDepl)
 }
 
-func (s *SitePodmanHandler) Create(site domain.Site) error {
+func (s *SiteHandler) Create(site domain.Site) error {
 	var err error
 	var cleanupFns []func()
 
 	var preparedSite domain.Site
-	podmanSite := site.(*SitePodman)
+	podmanSite := site.(*Site)
 	preparedSite, err = s.prepare(podmanSite)
 	if err != nil {
 		return err
 	}
-	podmanSite = preparedSite.(*SitePodman)
+	podmanSite = preparedSite.(*Site)
 
 	// cleanup on error
 	defer func() {
@@ -178,7 +178,7 @@ func (s *SitePodmanHandler) Create(site domain.Site) error {
 	}()
 
 	// Save podman local configuration
-	err = NewPodmanConfigFileHandler().Save(&PodmanConfig{
+	err = NewPodmanConfigFileHandler().Save(&Config{
 		Endpoint: s.endpoint,
 	})
 	if err != nil {
@@ -280,7 +280,7 @@ func (s *SitePodmanHandler) Create(site domain.Site) error {
 	return nil
 }
 
-func (s *SitePodmanHandler) canCreate(site *SitePodman) error {
+func (s *SiteHandler) canCreate(site *Site) error {
 
 	// Validating podman endpoint
 	if s.cli == nil {
@@ -370,7 +370,7 @@ func (s *SitePodmanHandler) canCreate(site *SitePodman) error {
 	return nil
 }
 
-func (s *SitePodmanHandler) createNetwork(site *SitePodman) error {
+func (s *SiteHandler) createNetwork(site *Site) error {
 	existingNet, err := s.cli.NetworkInspect(site.ContainerNetwork)
 	if err == nil && existingNet != nil {
 		return nil
@@ -386,8 +386,8 @@ func (s *SitePodmanHandler) createNetwork(site *SitePodman) error {
 	return nil
 }
 
-func (s *SitePodmanHandler) Get() (domain.Site, error) {
-	site := &SitePodman{
+func (s *SiteHandler) Get() (domain.Site, error) {
+	site := &Site{
 		SiteCommon:     &domain.SiteCommon{},
 		PodmanEndpoint: s.endpoint,
 	}
@@ -436,7 +436,7 @@ func (s *SitePodmanHandler) Get() (domain.Site, error) {
 
 	for _, dep := range site.GetDeployments() {
 		for _, comp := range dep.GetComponents() {
-			depPodman := dep.(*SkupperDeploymentPodman)
+			depPodman := dep.(*SkupperDeployment)
 			site.ContainerNetwork = depPodman.Networks[0]
 			for _, siteIng := range comp.GetSiteIngresses() {
 				if siteIng.GetTarget().GetPort() == int(types.InterRouterListenerPort) {
@@ -452,12 +452,12 @@ func (s *SitePodmanHandler) Get() (domain.Site, error) {
 	return site, nil
 }
 
-func (s *SitePodmanHandler) Delete() error {
+func (s *SiteHandler) Delete() error {
 	site, err := s.Get()
 	if err != nil {
 		return err
 	}
-	podmanSite := site.(*SitePodman)
+	podmanSite := site.(*Site)
 
 	deployHandler := NewSkupperDeploymentHandlerPodman(s.cli)
 	deploys, err := deployHandler.List()
@@ -507,16 +507,16 @@ func (s *SitePodmanHandler) Delete() error {
 	return nil
 }
 
-func (s *SitePodmanHandler) Update() error {
+func (s *SiteHandler) Update() error {
 	return fmt.Errorf("not implemented")
 }
 
-func (s *SitePodmanHandler) RevokeAccess() error {
+func (s *SiteHandler) RevokeAccess() error {
 	site, err := s.Get()
 	if err != nil {
 		return err
 	}
-	podmanSite := site.(*SitePodman)
+	podmanSite := site.(*Site)
 
 	credHandler := NewPodmanCredentialHandler(s.cli)
 	// Regenerating Site CA

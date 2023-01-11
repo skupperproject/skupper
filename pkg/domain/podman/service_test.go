@@ -27,7 +27,7 @@ func TestPodmanServiceInterfaceHandler(t *testing.T) {
 	svcHandler := NewServiceHandlerPodman(cli)
 
 	// service used in this test
-	nginxService := &ServicePodman{
+	nginxService := &Service{
 		ServiceCommon: &domain.ServiceCommon{
 			Address:  "nginx",
 			Protocol: "tcp",
@@ -77,7 +77,7 @@ func TestPodmanServiceInterfaceHandler(t *testing.T) {
 	})
 }
 
-func compareNginxSvc(t *testing.T, nginxService *ServicePodman, svc domain.Service) {
+func compareNginxSvc(t *testing.T, nginxService *Service, svc domain.Service) {
 	assert.Equal(t, nginxService.GetAddress(), svc.GetAddress())
 	assert.Equal(t, nginxService.GetProtocol(), svc.GetProtocol())
 	assert.DeepEqual(t, nginxService.GetPorts(), svc.GetPorts())

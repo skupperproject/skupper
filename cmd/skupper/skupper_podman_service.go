@@ -38,7 +38,7 @@ func (p *PodmanServiceCreateFlags) HasHostBindings() bool {
 	return p.HostIP != "" || len(p.HostPorts) > 0
 }
 
-func (p *PodmanServiceCreateFlags) ToPortMapping(service podman.ServicePodman) (map[int]int, error) {
+func (p *PodmanServiceCreateFlags) ToPortMapping(service podman.Service) (map[int]int, error) {
 	if len(p.HostPorts) > 0 && len(service.Ports) != len(p.HostPorts) {
 		return nil, fmt.Errorf("service defines %d ports but only %d mapped (all ports must be mapped)",
 			len(service.Ports), len(p.HostPorts))
@@ -79,8 +79,8 @@ func (p *PodmanServiceCreateFlags) ToPortMapping(service podman.ServicePodman) (
 
 type SkupperPodmanService struct {
 	podman          *SkupperPodman
-	svcHandler      *podman.ServiceHandlerPodman
-	svcIfaceHandler *podman.ServiceInterfaceHandlerPodman
+	svcHandler      *podman.ServiceHandler
+	svcIfaceHandler *podman.ServiceInterfaceHandler
 	createFlags     PodmanServiceCreateFlags
 	exposeFlags     PodmanExposeFlags
 }
@@ -150,7 +150,7 @@ func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 			}
 
 			for _, svc := range services {
-				svcPodman := svc.(*podman.ServicePodman)
+				svcPodman := svc.(*podman.Service)
 				portStr := "port"
 				if len(svcPodman.GetPorts()) > 1 {
 					portStr = "ports"
@@ -222,7 +222,7 @@ func (s *SkupperPodmanService) Bind(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	podmanService := service.(*podman.ServicePodman)
+	podmanService := service.(*podman.Service)
 
 	// validating ports
 	portMapping, err := parsePortMapping(podmanService.AsServiceInterface(), targetPorts)
@@ -275,7 +275,7 @@ func (s *SkupperPodmanService) Unbind(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	podmanService := service.(*podman.ServicePodman)
+	podmanService := service.(*podman.Service)
 
 	// Retrieving egress info
 	var egressResolver *domain.EgressResolver
@@ -293,7 +293,7 @@ func (s *SkupperPodmanService) Unbind(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperPodmanService) Expose(cmd *cobra.Command, args []string) error {
-	servicePodman := &podman.ServicePodman{
+	servicePodman := &podman.Service{
 		ServiceCommon: &domain.ServiceCommon{
 			Address:      exposeOpts.Address,
 			Protocol:     exposeOpts.Protocol,
@@ -395,7 +395,7 @@ func (s *SkupperPodmanService) Unexpose(cmd *cobra.Command, args []string) error
 	if err != nil {
 		return err
 	}
-	podmanService := service.(*podman.ServicePodman)
+	podmanService := service.(*podman.Service)
 
 	// Retrieving egress info
 	var egressResolver *domain.EgressResolver

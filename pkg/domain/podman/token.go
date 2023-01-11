@@ -8,9 +8,9 @@ import (
 	"github.com/skupperproject/skupper/pkg/domain"
 )
 
-type TokenCertHandlerPodman struct{}
+type TokenCertHandler struct{}
 
-func (t *TokenCertHandlerPodman) Create(filename, subject string, info *domain.TokenCertInfo, site domain.Site, credHandler types.CredentialHandler) error {
+func (t *TokenCertHandler) Create(filename, subject string, info *domain.TokenCertInfo, site domain.Site, credHandler types.CredentialHandler) error {
 	caSecret, err := credHandler.GetSecret(types.SiteCaSecret)
 	if err != nil {
 		return fmt.Errorf("error retrieving CA secret - %w", err)

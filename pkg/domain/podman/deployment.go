@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/domain"
 )
 
-type SkupperDeploymentPodman struct {
+type SkupperDeployment struct {
 	*domain.SkupperDeploymentCommon
 	Name         string
 	Aliases      []string
@@ -18,22 +18,22 @@ type SkupperDeploymentPodman struct {
 	Networks     []string
 }
 
-func (s *SkupperDeploymentPodman) GetName() string {
+func (s *SkupperDeployment) GetName() string {
 	return s.Name
 }
 
-type SkupperDeploymentHandlerPodman struct {
+type SkupperDeploymentHandler struct {
 	cli *podman.PodmanRestClient
 }
 
-func NewSkupperDeploymentHandlerPodman(cli *podman.PodmanRestClient) *SkupperDeploymentHandlerPodman {
-	return &SkupperDeploymentHandlerPodman{
+func NewSkupperDeploymentHandlerPodman(cli *podman.PodmanRestClient) *SkupperDeploymentHandler {
+	return &SkupperDeploymentHandler{
 		cli: cli,
 	}
 }
 
 // Deploy deploys each component as a container
-func (s *SkupperDeploymentHandlerPodman) Deploy(deployment domain.SkupperDeployment) error {
+func (s *SkupperDeploymentHandler) Deploy(deployment domain.SkupperDeployment) error {
 	var err error
 	var cleanupContainers []string
 
@@ -50,7 +50,7 @@ func (s *SkupperDeploymentHandlerPodman) Deploy(deployment domain.SkupperDeploym
 		return fmt.Errorf("podman implementation currently allows only one component per deployment")
 	}
 
-	podmanDeployment := deployment.(*SkupperDeploymentPodman)
+	podmanDeployment := deployment.(*SkupperDeployment)
 	for _, component := range deployment.GetComponents() {
 
 		// Pulling image first
@@ -121,7 +121,7 @@ func (s *SkupperDeploymentHandlerPodman) Deploy(deployment domain.SkupperDeploym
 	return nil
 }
 
-func (s *SkupperDeploymentHandlerPodman) Undeploy(name string) error {
+func (s *SkupperDeploymentHandler) Undeploy(name string) error {
 	containers, err := s.cli.ContainerList()
 	if err != nil {
 		return fmt.Errorf("error listing containers - %w", err)
@@ -145,7 +145,7 @@ func (s *SkupperDeploymentHandlerPodman) Undeploy(name string) error {
 	return nil
 }
 
-func (s *SkupperDeploymentHandlerPodman) List() ([]domain.SkupperDeployment, error) {
+func (s *SkupperDeploymentHandler) List() ([]domain.SkupperDeployment, error) {
 	depMap := map[string]domain.SkupperDeployment{}
 
 	list, err := s.cli.ContainerList()
@@ -181,7 +181,7 @@ func (s *SkupperDeploymentHandlerPodman) List() ([]domain.SkupperDeployment, err
 		for _, mount := range ci.Mounts {
 			mounts[mount.Name] = mount.Destination
 		}
-		deployment := &SkupperDeploymentPodman{
+		deployment := &SkupperDeployment{
 			SkupperDeploymentCommon: &domain.SkupperDeploymentCommon{},
 			Name:                    deployName,
 			Aliases:                 aliases,

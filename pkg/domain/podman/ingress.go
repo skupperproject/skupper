@@ -4,6 +4,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/domain"
 )
 
-type SiteIngressPodmanHost struct {
+type SiteIngressHost struct {
 	*domain.SiteIngressCommon
 }

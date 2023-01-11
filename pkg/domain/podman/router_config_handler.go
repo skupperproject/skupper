@@ -10,17 +10,17 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-type RouterConfigHandlerPodman struct {
+type RouterConfigHandler struct {
 	cli *podman.PodmanRestClient
 }
 
-func NewRouterConfigHandlerPodman(cli *podman.PodmanRestClient) *RouterConfigHandlerPodman {
-	return &RouterConfigHandlerPodman{
+func NewRouterConfigHandlerPodman(cli *podman.PodmanRestClient) *RouterConfigHandler {
+	return &RouterConfigHandler{
 		cli: cli,
 	}
 }
 
-func (r *RouterConfigHandlerPodman) GetRouterConfig() (*qdr.RouterConfig, error) {
+func (r *RouterConfigHandler) GetRouterConfig() (*qdr.RouterConfig, error) {
 	var configVolume *container.Volume
 	configVolume, err := r.cli.VolumeInspect(types.TransportConfigMapName)
 	if err != nil {
@@ -39,7 +39,7 @@ func (r *RouterConfigHandlerPodman) GetRouterConfig() (*qdr.RouterConfig, error)
 	return &routerConfig, nil
 }
 
-func (r *RouterConfigHandlerPodman) SaveRouterConfig(config *qdr.RouterConfig) error {
+func (r *RouterConfigHandler) SaveRouterConfig(config *qdr.RouterConfig) error {
 	var configVolume *container.Volume
 	configVolume, err := r.cli.VolumeInspect(types.TransportConfigMapName)
 	if err != nil {
@@ -62,7 +62,7 @@ func (r *RouterConfigHandlerPodman) SaveRouterConfig(config *qdr.RouterConfig) e
 	return nil
 }
 
-func (r *RouterConfigHandlerPodman) RemoveRouterConfig() error {
+func (r *RouterConfigHandler) RemoveRouterConfig() error {
 	err := r.cli.VolumeRemove(types.TransportConfigMapName)
 	if err == nil {
 		return nil

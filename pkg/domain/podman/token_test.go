@@ -24,7 +24,7 @@ func TestPodmanTokenCertHandler(t *testing.T) {
 	}()
 
 	// creating a token file
-	tokenHandler := &TokenCertHandlerPodman{}
+	tokenHandler := &TokenCertHandler{}
 	tokenFile, err := os.CreateTemp(os.TempDir(), "token.*.yaml")
 	assert.Assert(t, err)
 	_ = tokenFile.Close()

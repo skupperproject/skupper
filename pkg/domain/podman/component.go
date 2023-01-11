@@ -7,17 +7,17 @@ import (
 	"github.com/skupperproject/skupper/pkg/domain"
 )
 
-type SkupperComponentHandlerPodman struct {
+type SkupperComponentHandler struct {
 	cli *podman.PodmanRestClient
 }
 
-func NewSkupperComponentHandlerPodman(cli *podman.PodmanRestClient) *SkupperComponentHandlerPodman {
-	return &SkupperComponentHandlerPodman{
+func NewSkupperComponentHandlerPodman(cli *podman.PodmanRestClient) *SkupperComponentHandler {
+	return &SkupperComponentHandler{
 		cli: cli,
 	}
 }
 
-func (s *SkupperComponentHandlerPodman) Get(name string) (domain.SkupperComponent, error) {
+func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, error) {
 	c, err := s.cli.ContainerInspect(name)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func (s *SkupperComponentHandlerPodman) Get(name string) (domain.SkupperComponen
 	for _, port := range c.Ports {
 		hostPort, _ := strconv.Atoi(port.Host)
 		targetPort, _ := strconv.Atoi(port.Target)
-		siteIngresses = append(siteIngresses, SiteIngressPodmanHost{
+		siteIngresses = append(siteIngresses, SiteIngressHost{
 			&domain.SiteIngressCommon{
 				Host: port.HostIP,
 				Port: hostPort,
@@ -52,7 +52,7 @@ func (s *SkupperComponentHandlerPodman) Get(name string) (domain.SkupperComponen
 	return component, nil
 }
 
-func (s *SkupperComponentHandlerPodman) List() ([]domain.SkupperComponent, error) {
+func (s *SkupperComponentHandler) List() ([]domain.SkupperComponent, error) {
 	components := []domain.SkupperComponent{}
 	list, err := s.cli.ContainerList()
 	if err != nil {

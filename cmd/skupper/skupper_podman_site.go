@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
@@ -28,7 +30,11 @@ type PodmanInitFlags struct {
 func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	siteName := routerCreateOpts.SkupperName
 	if siteName == "" {
-		siteName = podman.Username
+		var err error
+		siteName, err = getUserDefaultPodmanName()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Validating ingress mode
@@ -38,7 +44,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	}
 
 	// Site initialization
-	site := &podman.SitePodman{
+	site := &podman.Site{
 		SiteCommon: &domain.SiteCommon{
 			Name:     siteName,
 			Mode:     initFlags.routerMode,
@@ -83,6 +89,11 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Skupper is now installed for user '" + podman.Username + "'.  Use 'skupper status' to get more information.")
 	return nil
+}
+
+func getUserDefaultPodmanName() (string, error) {
+	hostname, _ := os.Hostname()
+	return hostname + "-" + strings.ToLower(podman.Username), nil
 }
 
 func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {

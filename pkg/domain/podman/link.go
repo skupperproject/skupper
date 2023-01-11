@@ -16,17 +16,17 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type LinkHandlerPodman struct {
+type LinkHandler struct {
 	cli              *podman.PodmanRestClient
 	routerCfgHandler qdr.RouterConfigHandler
 	routerManager    domain.RouterEntityManager
-	credHandler      *PodmanCredentialHandler
-	site             *SitePodman
+	credHandler      *CredentialHandler
+	site             *Site
 	redeemer         *domain.ClaimRedeemer
 }
 
-func NewLinkHandlerPodman(site *SitePodman, cli *podman.PodmanRestClient) *LinkHandlerPodman {
-	l := &LinkHandlerPodman{
+func NewLinkHandlerPodman(site *Site, cli *podman.PodmanRestClient) *LinkHandler {
+	l := &LinkHandler{
 		site: site,
 		cli:  cli,
 	}
@@ -37,7 +37,7 @@ func NewLinkHandlerPodman(site *SitePodman, cli *podman.PodmanRestClient) *LinkH
 	return l
 }
 
-func (l *LinkHandlerPodman) updateClaim(claim *corev1.Secret) error {
+func (l *LinkHandler) updateClaim(claim *corev1.Secret) error {
 	var kind string
 	if claim.Labels == nil {
 		kind = types.TypeClaimRequest
@@ -66,14 +66,14 @@ func (l *LinkHandlerPodman) updateClaim(claim *corev1.Secret) error {
 	return err
 }
 
-func (l *LinkHandlerPodman) log(name string, format string, args ...interface{}) {
+func (l *LinkHandler) log(name string, format string, args ...interface{}) {
 	msg := fmt.Sprintf("[%s] - "+format, append([]interface{}{name}, args...)...)
-	if strings.Contains(msg, "ailed") {
+	if strings.Contains(strings.ToLower(msg), "failed") {
 		fmt.Println(msg)
 	}
 }
 
-func (l *LinkHandlerPodman) Create(secret *corev1.Secret, name string, cost int) error {
+func (l *LinkHandler) Create(secret *corev1.Secret, name string, cost int) error {
 	// adjusting secret name
 	if name == "" {
 		name = domain.GenerateLinkName(l)
@@ -159,7 +159,7 @@ func (l *LinkHandlerPodman) Create(secret *corev1.Secret, name string, cost int)
 	return err
 }
 
-func (l *LinkHandlerPodman) IsValidLink(name string) error {
+func (l *LinkHandler) IsValidLink(name string) error {
 	v, err := l.cli.VolumeInspect(name)
 	if err != nil {
 		return fmt.Errorf("no such link %q", name)
@@ -173,7 +173,7 @@ func (l *LinkHandlerPodman) IsValidLink(name string) error {
 	return nil
 }
 
-func (l *LinkHandlerPodman) Delete(name string) error {
+func (l *LinkHandler) Delete(name string) error {
 	// validating link is valid
 	if err := l.IsValidLink(name); err != nil {
 		return err
@@ -212,7 +212,7 @@ func (l *LinkHandlerPodman) Delete(name string) error {
 	return nil
 }
 
-func (l *LinkHandlerPodman) list(name string) ([]*corev1.Secret, error) {
+func (l *LinkHandler) list(name string) ([]*corev1.Secret, error) {
 	vl, err := l.cli.VolumeList()
 	if err != nil {
 		return nil, err
@@ -237,11 +237,11 @@ func (l *LinkHandlerPodman) list(name string) ([]*corev1.Secret, error) {
 	return secrets, nil
 }
 
-func (l *LinkHandlerPodman) List() ([]*corev1.Secret, error) {
+func (l *LinkHandler) List() ([]*corev1.Secret, error) {
 	return l.list("")
 }
 
-func (l *LinkHandlerPodman) status(name string) ([]types.LinkStatus, error) {
+func (l *LinkHandler) status(name string) ([]types.LinkStatus, error) {
 	var ls []types.LinkStatus
 	secrets, err := l.list(name)
 	if err != nil {
@@ -256,11 +256,11 @@ func (l *LinkHandlerPodman) status(name string) ([]types.LinkStatus, error) {
 	}
 	return ls, nil
 }
-func (l *LinkHandlerPodman) StatusAll() ([]types.LinkStatus, error) {
+func (l *LinkHandler) StatusAll() ([]types.LinkStatus, error) {
 	return l.status("")
 }
 
-func (l *LinkHandlerPodman) Status(name string) (types.LinkStatus, error) {
+func (l *LinkHandler) Status(name string) (types.LinkStatus, error) {
 	var empty types.LinkStatus
 	ls, err := l.status(name)
 	if err != nil {
@@ -272,7 +272,7 @@ func (l *LinkHandlerPodman) Status(name string) (types.LinkStatus, error) {
 	return ls[0], nil
 }
 
-func (l *LinkHandlerPodman) Detail(link types.LinkStatus) (map[string]string, error) {
+func (l *LinkHandler) Detail(link types.LinkStatus) (map[string]string, error) {
 	status := "Active"
 
 	if !link.Connected {
@@ -292,7 +292,7 @@ func (l *LinkHandlerPodman) Detail(link types.LinkStatus) (map[string]string, er
 	}, nil
 }
 
-func (l *LinkHandlerPodman) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
+func (l *LinkHandler) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
 	var remoteLinks []*types.RemoteLinkInfo
 	if l.site.GetMode() == string(types.TransportModeEdge) {
 		return remoteLinks, nil

@@ -27,7 +27,7 @@ func TestLinkHandlerPodman(t *testing.T) {
 	}()
 	site, err := siteHandler.Get()
 	assert.Assert(t, err)
-	podmanSite := site.(*SitePodman)
+	podmanSite := site.(*Site)
 
 	// Testing link creation
 	linkHandler := NewLinkHandlerPodman(podmanSite, cli)

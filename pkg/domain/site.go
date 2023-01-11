@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/qdr"
@@ -105,7 +106,7 @@ func (s *SiteCommon) ValidateMinimumRequirements() error {
 		return reqMsg("mode")
 	}
 	if s.Id == "" {
-		s.Id = utils.RandomId(10)
+		s.Id = uuid.New().String()
 	}
 	return nil
 }
