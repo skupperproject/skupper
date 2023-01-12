@@ -8,11 +8,11 @@ import (
 	apiv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"log"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -323,12 +323,14 @@ func (r *BasicTestRunner) TearDown(ctx context.Context) {
 
 	pub, err := r.GetPublicContext(1)
 	if err != nil {
-		log.Warn(errMsg)
+		log.Print(errMsg)
+		return
 	}
 
 	priv, err := r.GetPrivateContext(1)
 	if err != nil {
-		log.Warn(errMsg)
+		log.Print(errMsg)
+		return
 	}
 
 	_ = pub.DeleteNamespace()
