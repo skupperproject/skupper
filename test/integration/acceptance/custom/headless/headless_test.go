@@ -17,6 +17,10 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+
+// TestHeadless deploys a statefulset, exposes it as headless service and then
+// inspects if it is available in a remote cluster.
+// It also checks if proxies have unique identifiers and if annotations are correct
 func TestHeadless(t *testing.T) {
 	needs := base.ClusterNeeds{
 		NamespaceId:     "headless",
@@ -30,6 +34,7 @@ func TestHeadless(t *testing.T) {
 	_, err := testRunner.Build(needs, nil)
 	assert.Assert(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	base.HandleInterruptSignal(func() {
 		testRunner.TearDown(ctx)
 		cancel()
