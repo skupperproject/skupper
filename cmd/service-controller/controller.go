@@ -732,7 +732,7 @@ func (c *Controller) processNextEvent() bool {
 								c.updateServiceBindings(si, portAllocations)
 
 								tlsSupport := kubeqdr.TlsServiceSupport{Address: si.Address, Credentials: si.TlsCredentials}
-								err = kubeqdr.EnableTlsSupport(tlsSupport, c.tlsManager)
+								err = c.tlsManager.EnableTlsSupport(tlsSupport)
 								if err != nil {
 									event.Recordf(ServiceControllerError, "Could not parse service definition for %s: %s", k, err)
 								}
@@ -744,7 +744,7 @@ func (c *Controller) processNextEvent() bool {
 							_, ok := cm.Data[k]
 							if !ok {
 								c.deleteServiceBindings(k, v)
-								err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.tlsManager)
+								err = c.tlsManager.DisableTlsSupport(v.TlsCredentials)
 								if err != nil {
 									event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 								}
@@ -753,7 +753,7 @@ func (c *Controller) processNextEvent() bool {
 					} else if len(c.bindings) > 0 {
 						for k, v := range c.bindings {
 							c.deleteServiceBindings(k, v)
-							err = kubeqdr.DisableTlsSupport(v.TlsCredentials, c.tlsManager)
+							err = c.tlsManager.DisableTlsSupport(v.TlsCredentials)
 							if err != nil {
 								event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 							}
