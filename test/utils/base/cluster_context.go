@@ -69,6 +69,10 @@ func (cc *ClusterContext) CreateNamespace() error {
 			}
 			return err
 		}
+	} else if ShouldForceNamespaceCleanup() {
+		if k8s.DeleteNamespaceAndWait(cc.VanClient.KubeClient, cc.Namespace) == nil {
+			log.Printf("Removed existing namespace %v", cc.Namespace)
+		}
 	}
 	_, err := kube.NewNamespace(cc.Namespace, cc.VanClient.KubeClient)
 	if err == nil {

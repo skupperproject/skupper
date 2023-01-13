@@ -52,6 +52,9 @@ const (
 	// speeding up test runs
 	ENV_SKIP_NAMESPACE_TEARDOWN = "SKUPPER_TEST_SKIP_NAMESPACE_TEARDOWN"
 
+	// ENV_FORCE_NAMESPACE_CLEANUP will try to remove the namespace before creating it
+	ENV_FORCE_NAMESPACE_CLEANUP = "SKUPPER_FORCE_NAMESPACE_CLEANUP"
+
 	// Individual tests may be marked as issue-related and will be
 	// skipped on the normal runs.  Setting this variable will include
 	// those on the runs
@@ -86,6 +89,11 @@ func ShouldSkipNamespaceSetup() bool {
 
 func ShouldSkipNamespaceTeardown() bool {
 	_, found := os.LookupEnv(ENV_SKIP_NAMESPACE_TEARDOWN)
+	return found
+}
+
+func ShouldForceNamespaceCleanup() bool {
+	_, found := os.LookupEnv(ENV_FORCE_NAMESPACE_CLEANUP)
 	return found
 }
 
