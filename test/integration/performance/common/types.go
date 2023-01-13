@@ -45,6 +45,7 @@ type PerformanceApp struct {
 	Client         *ClientInfo        `json:"client"`
 	ThroughputUnit ThroughputUnitType `json:"throughputUnit,omitempty"`
 	LatencyUnit    LatencyUnitType    `json:"latencyUnit,omitempty"`
+	TlsCredentials string             `json:"tlsCredentials"`
 }
 
 type ServerInfo struct {

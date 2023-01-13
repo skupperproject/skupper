@@ -24,6 +24,24 @@ func GetTestImage() string {
 	return testImage
 }
 
+// Allows to control when Skupper test images (quay.io/skupper/skupper-tests)
+// will be pulled.  The variable is TEST_IMAGE_PULL_POLICY, and the accepted
+// values are PullIfNotPresent, PullNever and PullAlways (the default, if none
+// set).  If an invalid value is provided, it is passed as-is to K8S, which may
+// refuse it.
+func GetTestImagePullPolicy() apiv1.PullPolicy {
+	policy := os.Getenv("TEST_IMAGE_PULL_POLICY")
+	if policy == "" || policy == "PullAlways" {
+		return apiv1.PullAlways
+	} else if policy == "PullIfNotPresent" {
+		return apiv1.PullIfNotPresent
+	} else if policy == "PullNever" {
+		return apiv1.PullNever
+	} else {
+		return apiv1.PullPolicy(policy)
+	}
+}
+
 func int32Ptr(i int32) *int32 { return &i }
 
 func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, command []string) (*batchv1.Job, error) {
@@ -57,7 +75,7 @@ func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 							Env: []apiv1.EnvVar{
 								{Name: "JOB", Value: name},
 							},
-							ImagePullPolicy: apiv1.PullAlways,
+							ImagePullPolicy: GetTestImagePullPolicy(),
 						},
 					},
 					RestartPolicy: apiv1.RestartPolicyNever,
@@ -112,7 +130,7 @@ func CreateTestJobWithSecret(ns string, kubeClient kubernetes.Interface, name st
 							Env: []apiv1.EnvVar{
 								{Name: "JOB", Value: name},
 							},
-							ImagePullPolicy: apiv1.PullAlways,
+							ImagePullPolicy: GetTestImagePullPolicy(),
 						},
 					},
 					RestartPolicy: apiv1.RestartPolicyNever,
