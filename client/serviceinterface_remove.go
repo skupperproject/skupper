@@ -4,8 +4,6 @@ import (
 	"context"
 	jsonencoding "encoding/json"
 	"fmt"
-	"log"
-
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -37,7 +35,15 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
 					return err
 				} else {
-					handleServiceCertificateRemoval(address, cli)
+					if len(service.TlsCredentials) > 0 {
+						tlsManager := qdr.TlsManager{KubeClient: cli.KubeClient, Namespace: cli.Namespace}
+						serviceList, err := cli.ServiceInterfaceList(ctx)
+						if err != nil {
+							return err
+						}
+						tlsManager.DisableTlsSupport(service.TlsCredentials, serviceList)
+					}
+
 					return nil
 				}
 			}
@@ -56,25 +62,4 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 		return unretryable
 	}
 	return err
-}
-
-func handleServiceCertificateRemoval(address string, cli *VanClient) {
-	certName := types.SkupperServiceCertPrefix + address
-
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(certName, metav1.GetOptions{})
-
-	if err == nil && secret != nil {
-
-		err = qdr.RemoveSslProfile(secret.Name, cli.Namespace, cli.KubeClient)
-		if err != nil {
-			log.Printf("Failed to remove sslProfile from the router: %v", err.Error())
-		}
-
-		err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
-
-		if err != nil {
-			log.Printf("Failed to remove secret from the site: %v", err.Error())
-		}
-	}
-
 }

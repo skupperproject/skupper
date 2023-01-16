@@ -14,7 +14,7 @@ import (
 
 type TlsManagerInterface interface {
 	EnableTlsSupport(support TlsServiceSupport) error
-	DisableTlsSupport(credentials string) error
+	DisableTlsSupport(credentials string, serviceList []*types.ServiceInterface) error
 }
 
 type TlsServiceSupport struct {
@@ -70,9 +70,23 @@ func (manager *TlsManager) EnableTlsSupport(support TlsServiceSupport) error {
 	return nil
 }
 
-func (manager *TlsManager) DisableTlsSupport(credentials string) error {
+func (manager *TlsManager) DisableTlsSupport(credentials string, serviceList []*types.ServiceInterface) error {
 	if len(credentials) > 0 {
 		if isGeneratedBySkupper(credentials) {
+
+			if len(serviceList) > 0 {
+				numServicesUseSslProfile := 0
+				for _, service := range serviceList {
+					if service.TlsCredentials == credentials {
+						numServicesUseSslProfile++
+					}
+				}
+
+				if numServicesUseSslProfile > 1 {
+					return fmt.Errorf("cannot remove the sslprofile because there is more than one service using it")
+				}
+			}
+
 			err := manager.RemoveSslProfile(credentials)
 			if err != nil {
 				return err

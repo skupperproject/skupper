@@ -111,7 +111,7 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 		}
 	}
 
-	if service.TlsCredentials != "" && !strings.HasPrefix(types.SkupperServiceCertPrefix, service.TlsCredentials) {
+	if service.TlsCredentials != "" && !strings.HasPrefix(service.TlsCredentials, types.SkupperServiceCertPrefix) {
 		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Secret %s not available for service %s", service.TlsCredentials, service.Address)

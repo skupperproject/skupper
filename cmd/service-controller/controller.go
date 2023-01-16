@@ -744,7 +744,8 @@ func (c *Controller) processNextEvent() bool {
 							_, ok := cm.Data[k]
 							if !ok {
 								c.deleteServiceBindings(k, v)
-								err = c.tlsManager.DisableTlsSupport(v.TlsCredentials)
+								serviceList, err := c.vanClient.ServiceInterfaceList(nil)
+								err = c.tlsManager.DisableTlsSupport(v.TlsCredentials, serviceList)
 								if err != nil {
 									event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 								}
@@ -753,7 +754,8 @@ func (c *Controller) processNextEvent() bool {
 					} else if len(c.bindings) > 0 {
 						for k, v := range c.bindings {
 							c.deleteServiceBindings(k, v)
-							err = c.tlsManager.DisableTlsSupport(v.TlsCredentials)
+							serviceList, err := c.vanClient.ServiceInterfaceList(nil)
+							err = c.tlsManager.DisableTlsSupport(v.TlsCredentials, serviceList)
 							if err != nil {
 								event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 							}
