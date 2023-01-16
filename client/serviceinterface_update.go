@@ -111,16 +111,31 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 		}
 	}
 
-	if service.TlsCredentials != "" && strings.HasPrefix(types.SkupperServiceCertPrefix, service.TlsCredentials) {
-		_, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
+	if service.TlsCredentials != "" && !strings.HasPrefix(types.SkupperServiceCertPrefix, service.TlsCredentials) {
+		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Secret %s not available for service %s", service.TlsCredentials, service.Address)
 		}
+
+		if _, ok := secret.Data["tls.crt"]; !ok {
+			return fmt.Errorf("tls.crt file is missing in secret %s", service.TlsCredentials)
+		}
+
+		if _, ok := secret.Data["tls.key"]; !ok {
+			return fmt.Errorf("tls.key file is missing in secret %s", service.TlsCredentials)
+		}
+
+		if _, ok := secret.Data["ca.crt"]; !ok {
+			return fmt.Errorf("ca.crt file is missing in secret %s", service.TlsCredentials)
+		}
 	}
 	if service.TlsCertAuthority != "" && service.TlsCertAuthority != types.ServiceClientSecret {
-		_, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCertAuthority, metav1.GetOptions{})
+		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCertAuthority, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Secret %s not available for service %s", service.TlsCertAuthority, service.Address)
+		}
+		if _, ok := secret.Data["ca.crt"]; !ok {
+			return fmt.Errorf("ca.crt file is missing in secret %s", service.TlsCertAuthority)
 		}
 	}
 
@@ -216,7 +231,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 
 		tlsSupport := qdr.TlsServiceSupport{Address: service.Address, Credentials: service.TlsCredentials, CertAuthority: service.TlsCertAuthority}
 		tlsManager := &qdr.TlsManager{KubeClient: cli.KubeClient, Namespace: cli.Namespace}
-		err = qdr.EnableTlsSupport(tlsSupport, tlsManager)
+		err = tlsManager.EnableTlsSupport(tlsSupport)
 
 		if err != nil {
 			return err

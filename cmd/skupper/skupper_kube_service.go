@@ -166,6 +166,8 @@ func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 
 	service.PublishNotReadyAddresses = publishNotReadyAddresses
 
+	//check secret and add it to the service
+
 	err = s.kube.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, protocol, portMapping)
 	if err != nil {
 		return fmt.Errorf("%w", err)
