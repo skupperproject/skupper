@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -91,7 +92,7 @@ func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterf
 		*actual.Spec.Replicas = int32(desired.Headless.Size)
 	}
 	actualConfig := FindEnvVar(actual.Spec.Template.Spec.Containers[0].Env, "QDROUTERD_CONF")
-	if actualConfig == nil || actualConfig.Value != desiredConfig {
+	if actualConfig == nil || !qdr.RouterConfigEquals(actualConfig.Value, desiredConfig) {
 		SetEnvVarForStatefulSet(actual, "QDROUTERD_CONF", desiredConfig)
 		change = true
 	}
