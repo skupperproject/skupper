@@ -745,7 +745,8 @@ func (c *Controller) processNextEvent() bool {
 							if !ok {
 								c.deleteServiceBindings(k, v)
 								serviceList, err := c.vanClient.ServiceInterfaceList(nil)
-								err = c.tlsManager.DisableTlsSupport(v.TlsCredentials, serviceList)
+								tlsSupport := kubeqdr.TlsServiceSupport{Address: v.Address, Credentials: v.TlsCredentials}
+								err = c.tlsManager.DisableTlsSupport(tlsSupport, serviceList)
 								if err != nil {
 									event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 								}
@@ -755,7 +756,11 @@ func (c *Controller) processNextEvent() bool {
 						for k, v := range c.bindings {
 							c.deleteServiceBindings(k, v)
 							serviceList, err := c.vanClient.ServiceInterfaceList(nil)
-							err = c.tlsManager.DisableTlsSupport(v.TlsCredentials, serviceList)
+							tlsSupport := kubeqdr.TlsServiceSupport{
+								Address:     v.Address,
+								Credentials: v.TlsCredentials,
+							}
+							err = c.tlsManager.DisableTlsSupport(tlsSupport, serviceList)
 							if err != nil {
 								event.Recordf(ServiceControllerError, "Disabling TLS support for Skupper credentials has failed: %s", err)
 							}

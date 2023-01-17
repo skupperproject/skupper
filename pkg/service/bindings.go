@@ -234,12 +234,16 @@ func (bindings *ServiceBindings) Update(required types.ServiceInterface, binding
 		// Credentials will be overridden only if there are no value for them,
 		// and in that case a new secret has to be generated in that site.
 		if len(bindings.TlsCredentials) == 0 {
-			bindings.TlsCredentials = types.SkupperServiceCertPrefix + required.Address
+			bindings.TlsCredentials = required.TlsCredentials
 		}
 	}
 
 	if bindings.PublishNotReadyAddresses != required.PublishNotReadyAddresses {
 		bindings.PublishNotReadyAddresses = required.PublishNotReadyAddresses
+	}
+
+	if bindings.TlsCertAuthority != required.TlsCertAuthority {
+		bindings.TlsCertAuthority = required.TlsCertAuthority
 	}
 
 	hasSkupperSelector := false

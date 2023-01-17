@@ -487,7 +487,7 @@ type ServiceInterface struct {
 	Targets                  []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
 	Origin                   string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
 	TlsCredentials           string                   `json:"tlsCredentials,omitempty"`
-	TlsCertAuthority         string                   `json:"certAuthority,omitempty"`
+	TlsCertAuthority         string                   `json:"tlsCertAuthority,omitempty"`
 	PublishNotReadyAddresses bool                     `json:"publishNotReadyAddresses,omitempty"`
 	BridgeImage              string                   `json:"bridgeImage,omitempty"`
 }

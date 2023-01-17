@@ -41,7 +41,12 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 						if err != nil {
 							return err
 						}
-						tlsManager.DisableTlsSupport(service.TlsCredentials, serviceList)
+						fmt.Println(service)
+						for _, service2 := range serviceList {
+							fmt.Println(service2)
+						}
+						tlsSupport := qdr.TlsServiceSupport{Address: service.Address, Credentials: service.TlsCredentials}
+						tlsManager.DisableTlsSupport(tlsSupport, serviceList)
 					}
 
 					return nil
