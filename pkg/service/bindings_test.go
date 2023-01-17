@@ -703,7 +703,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:       "tcp",
 				Address:        "test",
 				publicPorts:    []int{8080},
-				TlsCredentials: "skupper-tls-test",
+				TlsCredentials: "xyz",
 			},
 		},
 		{
