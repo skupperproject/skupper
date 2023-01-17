@@ -465,6 +465,18 @@ func convert(from interface{}, to interface{}) error {
 	return nil
 }
 
+func RouterConfigEquals(actual, desired string) bool {
+	actualConfig, err := UnmarshalRouterConfig(actual)
+	if err != nil {
+		return false
+	}
+	desiredConfig, err := UnmarshalRouterConfig(desired)
+	if err != nil {
+		return false
+	}
+	return reflect.DeepEqual(actualConfig, desiredConfig)
+}
+
 func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 	result := RouterConfig{
 		Metadata:    RouterMetadata{},
