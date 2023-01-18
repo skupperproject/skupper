@@ -38,14 +38,15 @@ func (a AppSettings) AddEnvVar(name string, dflt string) string {
 }
 
 type PerformanceApp struct {
-	Name           string             `json:"name"`
-	Description    string             `json:"description,omitempty"`
-	Service        ServiceInfo        `json:"service"`
-	Server         *ServerInfo        `json:"server"`
-	Client         *ClientInfo        `json:"client"`
-	ThroughputUnit ThroughputUnitType `json:"throughputUnit,omitempty"`
-	LatencyUnit    LatencyUnitType    `json:"latencyUnit,omitempty"`
-	TlsCredentials string             `json:"tlsCredentials"`
+	Name             string             `json:"name"`
+	Description      string             `json:"description,omitempty"`
+	Service          ServiceInfo        `json:"service"`
+	Server           *ServerInfo        `json:"server"`
+	Client           *ClientInfo        `json:"client"`
+	ThroughputUnit   ThroughputUnitType `json:"throughputUnit,omitempty"`
+	LatencyUnit      LatencyUnitType    `json:"latencyUnit,omitempty"`
+	TlsCredentials   string             `json:"tlsCredentials"`
+	TlsCertAuthority string             `json:"tlsCertAuthority"`
 }
 
 type ServerInfo struct {

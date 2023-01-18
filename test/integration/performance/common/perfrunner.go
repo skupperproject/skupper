@@ -164,6 +164,10 @@ func createService(app PerformanceApp) (error, *ServiceInfo, *types.ServiceInter
 			skupperSvc.TlsCredentials = app.TlsCredentials
 		}
 
+		if app.TlsCertAuthority != "" {
+			skupperSvc.TlsCertAuthority = app.TlsCertAuthority
+		}
+
 		// Creating service
 		stepLog.Printf("- Creating service %s (port %d)", skupperSvc.Address, skupperSvc.Ports)
 		if err := serverCluster.VanClient.ServiceInterfaceCreate(context.Background(), skupperSvc); err != nil {

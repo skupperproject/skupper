@@ -2,7 +2,7 @@
 // +build integration performance
 
 // This is a copy of the Redis test, adapted for services that are
-// configured with --enable-tls
+// configured with --generate-tls-secrets
 package performance
 
 import (
@@ -38,11 +38,12 @@ func TestRedisTls(t *testing.T) {
 			Adaptor:  common.AdaptorTCP,
 			Port:     6379,
 		},
-		Server:         getRedisTlsServerInfo(settings),
-		Client:         getRedisTlsClientInfo(settings),
-		ThroughputUnit: common.ThroughputUnitMsgs,
-		LatencyUnit:    common.LatencyUnitMs,
-		TlsCredentials: "skupper-tls-redis-server-tls",
+		Server:           getRedisTlsServerInfo(settings),
+		Client:           getRedisTlsClientInfo(settings),
+		ThroughputUnit:   common.ThroughputUnitMsgs,
+		LatencyUnit:      common.LatencyUnitMs,
+		TlsCredentials:   "skupper-tls-redis-server-tls",
+		TlsCertAuthority: "skupper-service-client",
 	}
 	assert.Assert(t, common.RunPerformanceTest(a))
 }
