@@ -39,12 +39,11 @@ import (
 
 func int32Ptr(i int32) *int32 { return &i }
 
-// A skupper service with EnableTls
+// A skupper service with tls just by setting the credentials
 var service = types.ServiceInterface{
 	Address:        "ssl-server",
 	Protocol:       "tcp",
 	Ports:          serverPortsInt(),
-	EnableTls:      true,
 	TlsCredentials: "skupper-tls-ssl-server",
 }
 
