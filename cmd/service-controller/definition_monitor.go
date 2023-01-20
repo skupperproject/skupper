@@ -3,6 +3,7 @@ package main
 import (
 	jsonencoding "encoding/json"
 	"fmt"
+	appv1 "github.com/openshift/api/apps/v1"
 	"reflect"
 	"strconv"
 	"strings"
@@ -29,21 +30,22 @@ import (
 // changes to other entities (currently statefulsets exposed via
 // headless services)
 type DefinitionMonitor struct {
-	origin                string
-	vanClient             *client.VanClient
-	policy                *client.ClusterPolicyValidator
-	statefulSetInformer   cache.SharedIndexInformer
-	daemonSetInformer     cache.SharedIndexInformer
-	deploymentInformer    cache.SharedIndexInformer
-	svcDefInformer        cache.SharedIndexInformer
-	svcInformer           cache.SharedIndexInformer
-	events                workqueue.RateLimitingInterface
-	headless              map[string]types.ServiceInterface
-	annotated             map[string]types.ServiceInterface
-	annotatedDeployments  map[string]string
-	annotatedStatefulSets map[string]string
-	annotatedDaemonSets   map[string]string
-	annotatedServices     map[string]string
+	origin                   string
+	vanClient                *client.VanClient
+	policy                   *client.ClusterPolicyValidator
+	statefulSetInformer      cache.SharedIndexInformer
+	daemonSetInformer        cache.SharedIndexInformer
+	deploymentInformer       cache.SharedIndexInformer
+	deploymentConfigInformer cache.SharedIndexInformer
+	svcDefInformer           cache.SharedIndexInformer
+	svcInformer              cache.SharedIndexInformer
+	events                   workqueue.RateLimitingInterface
+	headless                 map[string]types.ServiceInterface
+	annotated                map[string]types.ServiceInterface
+	annotatedDeployments     map[string]string
+	annotatedStatefulSets    map[string]string
+	annotatedDaemonSets      map[string]string
+	annotatedServices        map[string]string
 }
 
 const (
@@ -92,12 +94,22 @@ func newDefinitionMonitor(origin string, cli *client.VanClient, svcDefInformer c
 	monitor.svcDefInformer.AddEventHandler(newEventHandlerFor(monitor.events, "servicedefs", AnnotatedKey, ConfigMapResourceVersionTest))
 	monitor.svcInformer.AddEventHandler(newEventHandlerFor(monitor.events, "services", AnnotatedKey, ServiceResourceVersionTest))
 
+	if cli.AppsClient != nil {
+		monitor.deploymentConfigInformer.AddEventHandler(newEventHandlerFor(monitor.events, "deploymentconfigs", AnnotatedKey, DeploymentConfigResourceVersionTest))
+	}
+
 	return monitor
 }
 
 func DeploymentResourceVersionTest(a interface{}, b interface{}) bool {
 	aa := a.(*appsv1.Deployment)
 	bb := b.(*appsv1.Deployment)
+	return aa.ResourceVersion == bb.ResourceVersion
+}
+
+func DeploymentConfigResourceVersionTest(a interface{}, b interface{}) bool {
+	aa := a.(*appv1.DeploymentConfig)
+	bb := b.(*appv1.DeploymentConfig)
 	return aa.ResourceVersion == bb.ResourceVersion
 }
 
@@ -133,6 +145,14 @@ func deducePort(deployment *appsv1.Deployment) map[int]int {
 		return kube.PortLabelStrToMap(port)
 	} else {
 		return kube.GetContainerPort(deployment)
+	}
+}
+
+func deducePortFromDeploymentConfig(deploymentConfig *appv1.DeploymentConfig) map[int]int {
+	if port, ok := deploymentConfig.ObjectMeta.Annotations[types.PortQualifier]; ok {
+		return kube.PortLabelStrToMap(port)
+	} else {
+		return kube.GetContainerPortForDeploymentConfig(deploymentConfig)
 	}
 }
 
@@ -245,6 +265,61 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 
 		if policyRes := m.policy.ValidateExpose("deployment", deployment.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deployment/%s cannot be exposed", deployment.ObjectMeta.Name)
+			return types.ServiceInterface{}, false
+		}
+		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
+			return types.ServiceInterface{}, false
+		}
+
+		return svc, true
+	} else {
+		return svc, false
+	}
+}
+
+func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeploymentConfig(deploymentConfig *appv1.DeploymentConfig) (types.ServiceInterface, bool) {
+	var svc types.ServiceInterface
+	if protocol, ok := deploymentConfig.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
+		port := map[int]int{}
+		if port = deducePortFromDeploymentConfig(deploymentConfig); len(port) > 0 {
+			svc.Ports = []int{}
+			for p, _ := range port {
+				svc.Ports = append(svc.Ports, p)
+			}
+		} else if protocol == "http" {
+			svc.Ports = []int{80}
+		} else {
+			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated deploymentconfig %s; cannot deduce port", deploymentConfig.ObjectMeta.Name)
+			return svc, false
+		}
+		svc.Protocol = protocol
+		if address, ok := deploymentConfig.ObjectMeta.Annotations[types.AddressQualifier]; ok {
+			svc.Address = address
+		} else {
+			svc.Address = deploymentConfig.ObjectMeta.Name
+		}
+
+		selector := ""
+		if deploymentConfig.Spec.Selector != nil {
+			selector = utils.StringifySelector(deploymentConfig.Spec.Selector)
+		}
+		svc.Targets = []types.ServiceInterfaceTarget{
+			{
+				Name:     deploymentConfig.ObjectMeta.Name,
+				Selector: selector,
+			},
+		}
+		if len(port) > 0 {
+			svc.Targets[0].TargetPorts = port
+		}
+		if labels, ok := deploymentConfig.ObjectMeta.Annotations[types.ServiceLabels]; ok {
+			svc.Labels = utils.LabelToMap(labels)
+		}
+		svc.Origin = "annotation"
+
+		if policyRes := m.policy.ValidateExpose("deployment", deploymentConfig.Name); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deployment/%s cannot be exposed", deploymentConfig.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
 		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
@@ -827,6 +902,58 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 					err := m.deleteServiceDefinitionForAnnotatedDeployment(name)
 					if err != nil {
 						return fmt.Errorf("Failed to delete service definition on removal of previously annotated deployment %s: %s", name, err)
+					}
+				}
+			case "deploymentconfigs":
+				event.Recordf(DefinitionMonitorEvent, "deploymentconfig event for %s", name)
+				obj, exists, err := m.deploymentConfigInformer.GetStore().GetByKey(name)
+				if err != nil {
+					return fmt.Errorf("Error reading deploymentconfig %s from cache: %s", name, err)
+				} else if exists {
+					deploymentConfig, ok := obj.(*appv1.DeploymentConfig)
+					if !ok {
+						return fmt.Errorf("Expected Deployment for %s but got %#v", name, obj)
+					}
+
+					desired, ok := m.getServiceDefinitionFromAnnotatedDeploymentConfig(deploymentConfig)
+					if ok {
+						event.Recordf(DefinitionMonitorEvent, "Checking annotated deploymentconfig %s", name)
+						actual, ok := m.annotated[desired.Address]
+						if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
+							event.Recordf(DefinitionMonitorUpdateEvent, "Updating service definition for annotated deploymentconfig %s to %#v", name, desired)
+							changed := []types.ServiceInterface{
+								desired,
+							}
+							deleted := []string{}
+							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+							if err != nil {
+								return fmt.Errorf("failed to update service definition for annotated deployment %s: %s", name, err)
+							}
+							m.annotated[desired.Address] = desired
+						}
+						address, ok := m.annotatedDeployments[name]
+						if ok {
+							if address != desired.Address {
+								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated deploymentconfig %s. Was %s, now %s", name, address, desired.Address)
+								if err := m.deleteServiceDefinitionForAnnotatedDeployment(name); err != nil {
+									return fmt.Errorf("Failed to delete stale service definition for %s", address)
+								}
+								m.annotatedDeployments[name] = desired.Address
+							}
+						} else {
+							m.annotatedDeployments[name] = desired.Address
+						}
+
+					} else {
+						err := m.deleteServiceDefinitionForAnnotatedDeployment(name)
+						if err != nil {
+							return fmt.Errorf("Failed to delete service definition on deploymentconfig %s which is no longer annotated: %s", name, err)
+						}
+					}
+				} else {
+					err := m.deleteServiceDefinitionForAnnotatedDeployment(name)
+					if err != nil {
+						return fmt.Errorf("Failed to delete service definition on removal of previously annotated deploymentconfig %s: %s", name, err)
 					}
 				}
 			case "daemonsets":
