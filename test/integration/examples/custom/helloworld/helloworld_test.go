@@ -98,8 +98,8 @@ func TestHelloWorldCLI(t *testing.T) {
 						RouterMode:          "interior",
 						EnableConsole:       false,
 						EnableFlowCollector: true,
-						RunAsUser:       "1000",
-						RunAsGroup:      "2000",
+						RunAsUser:           "1000",
+						RunAsGroup:          "2000",
 					},
 					// skupper status - verify initialized as interior
 					&cli.StatusTester{
