@@ -54,6 +54,14 @@ spec:
       - name: skupper-vflow-collector
         image: quay.io/skupper/vflow-collector:latest
         imagePullPolicy: Always
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         env:
         - name: SKUPPER_NAMESPACE
           valueFrom:

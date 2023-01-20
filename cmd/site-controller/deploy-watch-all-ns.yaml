@@ -135,3 +135,11 @@ spec:
       containers:
       - name: site-controller
         image: quay.io/skupper/site-controller:master
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
