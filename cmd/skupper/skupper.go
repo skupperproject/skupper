@@ -957,9 +957,7 @@ func init() {
 	rootCmd = &cobra.Command{Use: "skupper"}
 	routev1.AddToScheme(scheme.Scheme)
 
-	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "", "", "The platform type to use")
-	platformFlag := rootCmd.Flag("platform")
-	platformFlag.Hidden = true
+	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "", "", "The platform type to use [kubernetes, podman]")
 	rootCmd.ParseFlags(os.Args)
 
 	var skupperCli SkupperClient
