@@ -106,16 +106,13 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 		args = append(args, "--site-name", s.SiteName)
 	}
 	args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
-<<<<<<< HEAD
 	args = append(args, fmt.Sprintf("--enable-vflow-collector=%v", s.EnableFlowCollector))
-=======
 	if s.RunAsUser != "" {
 		args = append(args, "--run-as-user", s.RunAsUser)
 	}
 	if s.RunAsGroup != "" {
 		args = append(args, "--run-as-group", s.RunAsGroup)
 	}
->>>>>>> bea8d66 (update containers and security context)
 	return args
 }
 
