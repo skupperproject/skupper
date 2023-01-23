@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	jsonencoding "encoding/json"
 	"fmt"
 	"reflect"
@@ -47,7 +48,7 @@ func TestNewConfigMap(t *testing.T) {
 			},
 		},
 	}
-	kubeClient.CoreV1().ConfigMaps(NS).Create(existingCm)
+	kubeClient.CoreV1().ConfigMaps(NS).Create(context.TODO(), existingCm, metav1.CreateOptions{})
 
 	// Add a fake reaction when trying to get or create "error-cm"
 	kubeClient.Fake.PrependReactor("*", "configmaps", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
@@ -308,7 +309,7 @@ func TestUpdateSkupperServices(t *testing.T) {
 						cm.Data[def.Address] = string(jsonDef)
 					}
 				}
-				kubeClient.CoreV1().ConfigMaps(NS).Create(cm)
+				kubeClient.CoreV1().ConfigMaps(NS).Create(context.TODO(), cm, metav1.CreateOptions{})
 			}
 
 			// Validating results
@@ -320,7 +321,7 @@ func TestUpdateSkupperServices(t *testing.T) {
 
 			// Validating data
 			if test.hasSkupperServices {
-				cm, _ := kubeClient.CoreV1().ConfigMaps(NS).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+				cm, _ := kubeClient.CoreV1().ConfigMaps(NS).Get(context.TODO(), types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 				assert.Equal(t, test.expectedData == nil, cm.Data == nil)
 
 				// Stringify expectedData first

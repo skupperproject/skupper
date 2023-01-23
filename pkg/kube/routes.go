@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -11,16 +12,16 @@ import (
 )
 
 func GetRoute(name string, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {
-	current, err := rc.Routes(namespace).Get(name, metav1.GetOptions{})
+	current, err := rc.Routes(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	return current, err
 }
 
 func CreateRoute(route *routev1.Route, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {
-	current, err := rc.Routes(namespace).Get(route.Name, metav1.GetOptions{})
+	current, err := rc.Routes(namespace).Get(context.TODO(), route.Name, metav1.GetOptions{})
 	if err == nil {
 		return current, errors.NewAlreadyExists(schema.GroupResource{Group: "openshift.io", Resource: "routes"}, route.Name)
 	} else if errors.IsNotFound(err) {
-		created, err := rc.Routes(namespace).Create(route)
+		created, err := rc.Routes(namespace).Create(context.TODO(), route, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		} else {
@@ -32,12 +33,12 @@ func CreateRoute(route *routev1.Route, namespace string, rc *routev1client.Route
 }
 
 func UpdateTargetServiceForRoute(routeName string, serviceName string, namespace string, rc *routev1client.RouteV1Client) error {
-	current, err := rc.Routes(namespace).Get(routeName, metav1.GetOptions{})
+	current, err := rc.Routes(namespace).Get(context.TODO(), routeName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	current.Spec.To.Name = serviceName
-	_, err = rc.Routes(namespace).Update(current)
+	_, err = rc.Routes(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

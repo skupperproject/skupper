@@ -34,8 +34,8 @@ func configureHostPortsFromRoutes(result *RouterHostPorts, cli *VanClient, names
 	if cli.RouteClient == nil {
 		return false, nil
 	} else {
-		interRouterRoute, err1 := cli.RouteClient.Routes(namespace).Get("skupper-inter-router", metav1.GetOptions{})
-		edgeRoute, err2 := cli.RouteClient.Routes(namespace).Get("skupper-edge", metav1.GetOptions{})
+		interRouterRoute, err1 := cli.RouteClient.Routes(namespace).Get(context.TODO(), "skupper-inter-router", metav1.GetOptions{})
+		edgeRoute, err2 := cli.RouteClient.Routes(namespace).Get(context.TODO(), "skupper-edge", metav1.GetOptions{})
 		if err1 != nil && err2 != nil && errors.IsNotFound(err1) && errors.IsNotFound(err2) {
 			return false, nil
 		} else if err1 != nil {
@@ -111,7 +111,7 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 	} else if ok {
 		return ok
 	} else {
-		service, err := cli.KubeClient.CoreV1().Services(namespace).Get(types.TransportServiceName, metav1.GetOptions{})
+		service, err := cli.KubeClient.CoreV1().Services(namespace).Get(context.TODO(), types.TransportServiceName, metav1.GetOptions{})
 		if err != nil {
 			return false
 		} else {
@@ -192,7 +192,7 @@ func (cli *VanClient) ConnectorTokenCreateFromTemplate(ctx context.Context, toke
 	if current.IsEdge() {
 		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
-	template, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(templateName, metav1.GetOptions{})
+	template, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(context.TODO(), templateName, metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
@@ -249,7 +249,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
 	// TODO: creat const for ca
-	caSecret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
+	caSecret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), types.SiteCaSecret, metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}

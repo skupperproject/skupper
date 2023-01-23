@@ -118,7 +118,7 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, options
 				}
 				secret.ObjectMeta.Annotations[types.TokenCost] = strconv.Itoa(int(options.Cost))
 			}
-			_, err = cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Create(&secret)
+			_, err = cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
 			if err == nil {
 				return &secret, nil
 			} else if errors.IsAlreadyExists(err) {
@@ -214,7 +214,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		}
 		if updated {
 			current.UpdateConfigMap(configmap)
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(configmap)
+			_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(context.TODO(), configmap, metav1.UpdateOptions{})
 			return err
 		}
 		return nil
@@ -226,7 +226,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 }
 
 func (cli *VanClient) requireSiteVersion(ctx context.Context, namespace string, minimumVersion string) error {
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), types.TransportConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

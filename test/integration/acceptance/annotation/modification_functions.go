@@ -1,6 +1,7 @@
 package annotation
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"testing"
@@ -10,7 +11,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/base"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //
@@ -38,19 +39,19 @@ func SwitchProtocols(t *testing.T, testRunner base.ClusterTestRunner) {
 	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
 
 		// Retrieving the deployment
-		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get("nginx", v1.GetOptions{})
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), "nginx", v1.GetOptions{})
 		assert.Assert(t, err)
 
 		// Retrieving the statefulset
-		ss, err := cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Get("nginx-ss", v1.GetOptions{})
+		ss, err := cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Get(context.TODO(), "nginx-ss", v1.GetOptions{})
 		assert.Assert(t, err)
 
 		// Retrieving the statefulset
-		ds, err := cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Get("nginx-ds", v1.GetOptions{})
+		ds, err := cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Get(context.TODO(), "nginx-ds", v1.GetOptions{})
 		assert.Assert(t, err)
 
 		// Retrieving services
-		svcList, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).List(v1.ListOptions{
+		svcList, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).List(context.TODO(), v1.ListOptions{
 			LabelSelector: "app=nginx",
 		})
 		assert.Assert(t, err)
@@ -70,20 +71,20 @@ func SwitchProtocols(t *testing.T, testRunner base.ClusterTestRunner) {
 
 		// Performing updates
 		if updateDeployment {
-			_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(dep)
+			_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(context.TODO(), dep, v1.UpdateOptions{})
 			assert.Assert(t, err)
 		}
 		if updateStatefulSet {
-			_, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(ss)
+			_, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(context.TODO(), ss, v1.UpdateOptions{})
 			assert.Assert(t, err)
 		}
 		if updateDaemonSet {
-			_, err = cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Update(ds)
+			_, err = cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Update(context.TODO(), ds, v1.UpdateOptions{})
 			assert.Assert(t, err)
 		}
 
 		for _, svc := range svcUpdateList {
-			_, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(&svc)
+			_, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(context.TODO(), &svc, v1.UpdateOptions{})
 			assert.Assert(t, err)
 		}
 
@@ -99,37 +100,37 @@ func RemoveAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 
 	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
 		// Retrieving the deployment
-		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get("nginx", v1.GetOptions{})
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), "nginx", v1.GetOptions{})
 		assert.Assert(t, err)
 
 		// Removing annotations and updating
 		delete(dep.Annotations, types.ProxyQualifier)
 		delete(dep.Annotations, types.AddressQualifier)
-		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(dep)
+		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(context.TODO(), dep, v1.UpdateOptions{})
 		assert.Assert(t, err)
 
 		// Retrieving the statefulSet
-		ss, err := cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Get("nginx-ss", v1.GetOptions{})
+		ss, err := cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Get(context.TODO(), "nginx-ss", v1.GetOptions{})
 		assert.Assert(t, err)
 
 		// Removing annotations and updating
 		delete(ss.Annotations, types.ProxyQualifier)
 		delete(ss.Annotations, types.AddressQualifier)
-		_, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(ss)
+		_, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(context.TODO(), ss, v1.UpdateOptions{})
 		assert.Assert(t, err)
 
 		// Retrieving the daemonSet
-		ds, err := cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Get("nginx-ds", v1.GetOptions{})
+		ds, err := cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Get(context.TODO(), "nginx-ds", v1.GetOptions{})
 		assert.Assert(t, err)
 
 		// Removing annotations and updating
 		delete(ds.Annotations, types.ProxyQualifier)
 		delete(ds.Annotations, types.AddressQualifier)
-		_, err = cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Update(ds)
+		_, err = cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Update(context.TODO(), ds, v1.UpdateOptions{})
 		assert.Assert(t, err)
 
 		// Retrieving services
-		svcList, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).List(v1.ListOptions{
+		svcList, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).List(context.TODO(), v1.ListOptions{
 			LabelSelector: "app=nginx",
 		})
 		assert.Assert(t, err)
@@ -138,7 +139,7 @@ func RemoveAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 		for _, svc := range svcList.Items {
 			delete(svc.Annotations, types.ProxyQualifier)
 			delete(svc.Annotations, types.AddressQualifier)
-			_, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(&svc)
+			_, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(context.TODO(), &svc, v1.UpdateOptions{})
 			assert.Assert(t, err)
 		}
 	}
@@ -156,25 +157,25 @@ func AddAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 		clusterIdx := i + 1
 
 		// Retrieving the deployment
-		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get("nginx", v1.GetOptions{})
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), "nginx", v1.GetOptions{})
 		assert.Assert(t, err)
 		dep.Annotations = map[string]string{}
 
 		// Retrieving the statefulset
-		ss, err := cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Get("nginx-ss", v1.GetOptions{})
+		ss, err := cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Get(context.TODO(), "nginx-ss", v1.GetOptions{})
 		assert.Assert(t, err)
 		ss.Annotations = map[string]string{}
 
 		// Retrieving the daemonset
-		ds, err := cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Get("nginx-ds", v1.GetOptions{})
+		ds, err := cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Get(context.TODO(), "nginx-ds", v1.GetOptions{})
 		assert.Assert(t, err)
 		ds.Annotations = map[string]string{}
 
 		// Retrieving services
-		svcNoTarget, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Get(fmt.Sprintf("nginx-%d-svc-exp-notarget", clusterIdx), v1.GetOptions{})
+		svcNoTarget, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Get(context.TODO(), fmt.Sprintf("nginx-%d-svc-exp-notarget", clusterIdx), v1.GetOptions{})
 		assert.Assert(t, err)
 		svcNoTarget.Annotations = map[string]string{}
-		svcTarget, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Get(fmt.Sprintf("nginx-%d-svc-target", clusterIdx), v1.GetOptions{})
+		svcTarget, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Get(context.TODO(), fmt.Sprintf("nginx-%d-svc-target", clusterIdx), v1.GetOptions{})
 		assert.Assert(t, err)
 		svcTarget.Annotations = map[string]string{}
 
@@ -182,21 +183,21 @@ func AddAnnotation(t *testing.T, testRunner base.ClusterTestRunner) {
 		populateAnnotations(clusterIdx, dep.Annotations, svcNoTarget.Annotations, svcTarget.Annotations, ss.Annotations, ds.Annotations)
 
 		// Updating deployment
-		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(dep)
+		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(context.TODO(), dep, v1.UpdateOptions{})
 		assert.Assert(t, err)
 
 		// Updating statefulSet
-		_, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(ss)
+		_, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Update(context.TODO(), ss, v1.UpdateOptions{})
 		assert.Assert(t, err)
 
 		// Updating daemonSet
-		_, err = cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Update(ds)
+		_, err = cluster.KubeClient.AppsV1().DaemonSets(cluster.Namespace).Update(context.TODO(), ds, v1.UpdateOptions{})
 		assert.Assert(t, err)
 
 		// Updating services
-		_, err = cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(svcNoTarget)
+		_, err = cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(context.TODO(), svcNoTarget, v1.UpdateOptions{})
 		assert.Assert(t, err)
-		_, err = cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(svcTarget)
+		_, err = cluster.KubeClient.CoreV1().Services(cluster.Namespace).Update(context.TODO(), svcTarget, v1.UpdateOptions{})
 		assert.Assert(t, err)
 	}
 }
@@ -210,7 +211,7 @@ func DebugAnnotatedResources(t *testing.T, testRunner base.ClusterTestRunner) {
 	i := 0
 	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
 		// Retrieving the deployment
-		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get("nginx", v1.GetOptions{})
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), "nginx", v1.GetOptions{})
 		assert.Assert(t, err)
 		log.Printf("Deployment: %s - Annotations: %s", dep.Name, dep.Annotations)
 		if len(dep.Annotations) > 0 {
@@ -218,7 +219,7 @@ func DebugAnnotatedResources(t *testing.T, testRunner base.ClusterTestRunner) {
 		}
 
 		// Retrieving services
-		svcList, _ := cluster.KubeClient.CoreV1().Services(cluster.Namespace).List(v1.ListOptions{
+		svcList, _ := cluster.KubeClient.CoreV1().Services(cluster.Namespace).List(context.TODO(), v1.ListOptions{
 			LabelSelector: "app=nginx",
 		})
 

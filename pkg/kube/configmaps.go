@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	jsonencoding "encoding/json"
 	"fmt"
 
@@ -23,7 +24,7 @@ func GetConfigMapOwnerReference(config *corev1.ConfigMap) metav1.OwnerReference 
 
 func NewConfigMap(name string, data *map[string]string, labels *map[string]string, annotations *map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {
 	configMaps := kubeclient.CoreV1().ConfigMaps(namespace)
-	existing, err := configMaps.Get(name, metav1.GetOptions{})
+	existing, err := configMaps.Get(context.TODO(), name, metav1.GetOptions{})
 	if err == nil {
 		//TODO:  already exists
 		return existing, nil
@@ -53,7 +54,7 @@ func NewConfigMap(name string, data *map[string]string, labels *map[string]strin
 			}
 		}
 
-		created, err := configMaps.Create(cm)
+		created, err := configMaps.Create(context.TODO(), cm, metav1.CreateOptions{})
 
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create config map: %w", err)
@@ -67,7 +68,7 @@ func NewConfigMap(name string, data *map[string]string, labels *map[string]strin
 }
 
 func GetConfigMap(name string, namespace string, cli kubernetes.Interface) (*corev1.ConfigMap, error) {
-	current, err := cli.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+	current, err := cli.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -76,7 +77,7 @@ func GetConfigMap(name string, namespace string, cli kubernetes.Interface) (*cor
 }
 
 func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, origin string, namespace string, cli kubernetes.Interface) error {
-	current, err := cli.CoreV1().ConfigMaps(namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+	current, err := cli.CoreV1().ConfigMaps(namespace).Get(context.TODO(), types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil {
 		if current.Data == nil {
 			current.Data = make(map[string]string)
@@ -90,7 +91,7 @@ func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, o
 			delete(current.Data, name)
 		}
 
-		_, err = cli.CoreV1().ConfigMaps(namespace).Update(current)
+		_, err = cli.CoreV1().ConfigMaps(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to update skupper-services config map: %s", err)
 		}

@@ -252,7 +252,7 @@ func (s *InitTester) ValidateConsole(cluster *base.ClusterContext) error {
 	// if running against an OpenShift cluster, check for route
 	routeClient := cluster.VanClient.RouteClient
 	if routeClient != nil {
-		route, err := routeClient.Routes(cluster.Namespace).Get(types.ControllerServiceName, v1.GetOptions{})
+		route, err := routeClient.Routes(cluster.Namespace).Get(context.TODO(), types.ControllerServiceName, v1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("error retrieving route: %s - %v", types.ControllerServiceName, err)
 		}
@@ -268,7 +268,7 @@ func (s *InitTester) ValidateConsole(cluster *base.ClusterContext) error {
 func (s *InitTester) ValidateIngress(cluster *base.ClusterContext) error {
 	// If edge mode assert there is no skupper-router service defined
 	if s.RouterMode == string(types.TransportModeEdge) {
-		_, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(types.TransportServiceName, v1.GetOptions{})
+		_, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(context.TODO(), types.TransportServiceName, v1.GetOptions{})
 		if errors.IsNotFound(err) {
 			return nil
 		}
@@ -304,7 +304,7 @@ func (s *InitTester) validateIngressFor(cluster *base.ClusterContext, ingress st
 	}
 
 	// Verifying the transport service
-	svc, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(service, v1.GetOptions{})
+	svc, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(context.TODO(), service, v1.GetOptions{})
 	if err != nil && ingress != "none" {
 		return fmt.Errorf("could not find service: %s - %v", service, err)
 	} else if err == nil {
@@ -323,7 +323,7 @@ func (s *InitTester) validateIngressFor(cluster *base.ClusterContext, ingress st
 	routeClient := cluster.VanClient.RouteClient
 	if routeClient != nil {
 		for _, routeName := range routes {
-			_, err := routeClient.Routes(cluster.Namespace).Get(routeName, v1.GetOptions{})
+			_, err := routeClient.Routes(cluster.Namespace).Get(context.TODO(), routeName, v1.GetOptions{})
 			// route expected at this point
 			if err != nil && ingress == "route" {
 				return fmt.Errorf("expected route not found: %s - %v", routeName, err)
@@ -363,7 +363,7 @@ func (s *InitTester) validateRouterMode(cluster *base.ClusterContext) error {
 
 		for _, routeName := range []string{types.EdgeRouteName, types.InterRouterRouteName} {
 			targetPortName := routeName[strings.Index(routeName, "-")+1:]
-			route, err := routeClient.Routes(cluster.Namespace).Get(routeName, v1.GetOptions{})
+			route, err := routeClient.Routes(cluster.Namespace).Get(context.TODO(), routeName, v1.GetOptions{})
 
 			// route expected at this point
 			if err != nil && s.RouterMode == "interior" {
@@ -396,7 +396,7 @@ func (s *InitTester) validateRouterMode(cluster *base.ClusterContext) error {
 }
 
 func (s *InitTester) ValidateRouterDebugMode(cluster *base.ClusterContext) error {
-	dep, err := cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(types.TransportDeploymentName, v1.GetOptions{})
+	dep, err := cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), types.TransportDeploymentName, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("expected deployment not found: %s - %v", types.TransportDeploymentName, err)
 	}

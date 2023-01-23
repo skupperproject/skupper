@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -77,7 +78,7 @@ func decodeToken(data []byte) (*corev1.Secret, error) {
 
 func createTestToken(cli *client.VanClient, name string, tokentype string, annotations map[string]string) error {
 	token := getTestToken(name, tokentype, annotations)
-	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(token)
+	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(context.TODO(), token, metav1.CreateOptions{})
 	return err
 }
 

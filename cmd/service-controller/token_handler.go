@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -100,7 +101,7 @@ func (c *TokenHandler) removeConnectorFromConfig(ctx context.Context, name strin
 		if err != nil {
 			return err
 		}
-		_, err = c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Update(configmap)
+		_, err = c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Update(ctx, configmap, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -110,7 +111,7 @@ func (c *TokenHandler) removeConnectorFromConfig(ctx context.Context, name strin
 		return err
 	}
 	kube.RemoveSecretVolumeForDeployment(name, deployment, 0)
-	_, err = c.vanClient.KubeClient.AppsV1().Deployments(c.vanClient.Namespace).Update(deployment)
+	_, err = c.vanClient.KubeClient.AppsV1().Deployments(c.vanClient.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package console
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -9,7 +10,7 @@ import (
 )
 
 func IsConsoleEnabled(cluster *base.ClusterContext) bool {
-	svc, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(types.ControllerServiceName, v1.GetOptions{})
+	svc, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(context.TODO(), types.ControllerServiceName, v1.GetOptions{})
 	if err != nil {
 		return false
 	}
@@ -29,7 +30,7 @@ func IsConsoleEnabled(cluster *base.ClusterContext) bool {
 }
 
 func GetInternalCredentials(cluster *base.ClusterContext) (error, string, string) {
-	secret, err := cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get("skupper-console-users", v1.GetOptions{})
+	secret, err := cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(context.TODO(), "skupper-console-users", v1.GetOptions{})
 	if err != nil {
 		return err, "", ""
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
@@ -251,7 +252,7 @@ func (c *PolicyController) validateIncomingLinkStateChanged() {
 	}
 
 	if updated {
-		_, err = c.cli.KubeClient.CoreV1().ConfigMaps(c.cli.GetNamespace()).Update(configmap)
+		_, err = c.cli.KubeClient.CoreV1().ConfigMaps(c.cli.GetNamespace()).Update(context.TODO(), configmap, metav1.UpdateOptions{})
 		if err != nil {
 			event.Recordf(c.name, "[%s] error updating %s ConfigMap: %v", source, configmap.Name, err)
 			return
@@ -273,7 +274,7 @@ func (c *PolicyController) validateOutgoingLinkStateChanged() {
 	}
 	for _, link := range links {
 		// Retrieving state of respective link (enabled/disabled)
-		secret, err := c.cli.KubeClient.CoreV1().Secrets(c.cli.GetNamespace()).Get(link.Name, v1.GetOptions{})
+		secret, err := c.cli.KubeClient.CoreV1().Secrets(c.cli.GetNamespace()).Get(context.TODO(), link.Name, v1.GetOptions{})
 		if err != nil {
 			event.Recordf(c.name, "[validateOutgoingLinkStateChanged] error reading secret %s: %v", link.Name, err)
 			return
@@ -308,7 +309,7 @@ func (c *PolicyController) validateOutgoingLinkStateChanged() {
 		}
 
 		// Update secret
-		_, err = c.cli.KubeClient.CoreV1().Secrets(c.cli.GetNamespace()).Update(secret)
+		_, err = c.cli.KubeClient.CoreV1().Secrets(c.cli.GetNamespace()).Update(context.TODO(), secret, metav1.UpdateOptions{})
 		if err != nil {
 			event.Recordf(c.name, "[validateOutgoingLinkStateChanged] error updating secret %s: %v", link.Name, res.Error())
 			return

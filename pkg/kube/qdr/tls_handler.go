@@ -1,6 +1,7 @@
 package qdr
 
 import (
+	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -105,14 +106,14 @@ func CheckBindingSecrets(services map[string]*service.ServiceBindings, namespace
 	for _, service := range services {
 
 		if service.TlsCredentials != "" {
-			_, err := cli.CoreV1().Secrets(namespace).Get(service.TlsCredentials, metav1.GetOptions{})
+			_, err := cli.CoreV1().Secrets(namespace).Get(context.TODO(), service.TlsCredentials, metav1.GetOptions{})
 			if err != nil {
 				return fmt.Errorf("SslProfile %s for service %s does not exist in this cluster", service.TlsCredentials, service.Address)
 			}
 		}
 
 		if service.TlsCertAuthority != "" {
-			_, err := cli.CoreV1().Secrets(namespace).Get(service.TlsCertAuthority, metav1.GetOptions{})
+			_, err := cli.CoreV1().Secrets(namespace).Get(context.TODO(), service.TlsCertAuthority, metav1.GetOptions{})
 			if err != nil {
 				return fmt.Errorf("SslProfile %s for service %s does not exist in this cluster", service.TlsCertAuthority, service.Address)
 			}
@@ -176,12 +177,12 @@ type TlsManager struct {
 }
 
 func (manager *TlsManager) GetSecret(name string) (*corev1.Secret, error) {
-	return manager.KubeClient.CoreV1().Secrets(manager.Namespace).Get(name, metav1.GetOptions{})
+	return manager.KubeClient.CoreV1().Secrets(manager.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
 func (manager *TlsManager) GetConfigMap() (*corev1.ConfigMap, error) {
 
-	result, err := manager.KubeClient.CoreV1().ConfigMaps(manager.Namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	result, err := manager.KubeClient.CoreV1().ConfigMaps(manager.Namespace).Get(context.TODO(), types.TransportConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -206,5 +207,5 @@ func (manager *TlsManager) RemoveSslProfile(sslProfile string) error {
 }
 
 func (manager *TlsManager) DeleteSecret(secretName string) error {
-	return manager.KubeClient.CoreV1().Secrets(manager.Namespace).Delete(secretName, &metav1.DeleteOptions{})
+	return manager.KubeClient.CoreV1().Secrets(manager.Namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 }

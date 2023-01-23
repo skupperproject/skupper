@@ -1,13 +1,15 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"testing"
-	"time"
 
 	"gotest.tools/assert"
 	apiv1 "k8s.io/api/core/v1"
@@ -91,7 +93,7 @@ func TestWaitForServiceToBeCreated(t *testing.T) {
 			var retryFn func() (*apiv1.Service, error) = nil
 			if tc.retryFn {
 				retryFn = func() (*apiv1.Service, error) {
-					return kubeClient.CoreV1().Services(ns).Get("serviceC", v1.GetOptions{})
+					return kubeClient.CoreV1().Services(ns).Get(context.TODO(), "serviceC", v1.GetOptions{})
 				}
 			}
 			service, err := WaitForServiceToBeCreated(ns, kubeClient, tc.service, retryFn, defaultRetry)

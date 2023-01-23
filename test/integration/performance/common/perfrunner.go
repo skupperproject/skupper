@@ -73,7 +73,7 @@ func runClientJobs(perfTest PerformanceTest) error {
 		stepLog.Printf("- Running client job %s at %s", job.Name, clientCluster.Namespace)
 
 		// Running job
-		_, err := clientCluster.VanClient.KubeClient.BatchV1().Jobs(clientCluster.Namespace).Create(job.Job)
+		_, err := clientCluster.VanClient.KubeClient.BatchV1().Jobs(clientCluster.Namespace).Create(context.TODO(), job.Job, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("error creating client job %s - %v", job.Name, err)
 		}
@@ -179,7 +179,7 @@ func createService(app PerformanceApp) (error, *ServiceInfo, *types.ServiceInter
 		stepLog.Printf("- Creating service %s (port %d) - without Skupper", svc.Address, svc.Port)
 
 		// Create a simple k8s service
-		_, err := serverCluster.VanClient.KubeClient.CoreV1().Services(serverCluster.Namespace).Create(&v1.Service{
+		_, err := serverCluster.VanClient.KubeClient.CoreV1().Services(serverCluster.Namespace).Create(context.TODO(), &v1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   svc.Address,
 				Labels: app.Server.Deployment.Labels,
@@ -190,7 +190,7 @@ func createService(app PerformanceApp) (error, *ServiceInfo, *types.ServiceInter
 				},
 				Selector: app.Server.Deployment.Labels,
 			},
-		})
+		}, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("error creating kubernetes service %s - %v", svc.Address, err), nil, nil
 		}
@@ -229,7 +229,7 @@ func deployServer(app PerformanceApp) error {
 	stepLog.Printf("- Deploying %s at %s", app.Server.Deployment.Name, serverCluster.Namespace)
 
 	// Verify if server is already deployed
-	_, err = serverCluster.VanClient.KubeClient.AppsV1().Deployments(serverCluster.Namespace).Get(app.Server.Deployment.Name, metav1.GetOptions{})
+	_, err = serverCluster.VanClient.KubeClient.AppsV1().Deployments(serverCluster.Namespace).Get(context.TODO(), app.Server.Deployment.Name, metav1.GetOptions{})
 	if err == nil {
 		stepLog.Printf("- %s is already running on namespace %s (ignoring)", app.Server.Deployment.Name, serverCluster.Namespace)
 		return nil
@@ -260,7 +260,7 @@ func deployServer(app PerformanceApp) error {
 	}
 
 	// Deploying server
-	if _, err = serverCluster.VanClient.KubeClient.AppsV1().Deployments(serverCluster.Namespace).Create(app.Server.Deployment); err != nil {
+	if _, err = serverCluster.VanClient.KubeClient.AppsV1().Deployments(serverCluster.Namespace).Create(context.TODO(), app.Server.Deployment, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("error deploying %s - %v", app.Server.Deployment.Name, err)
 	}
 

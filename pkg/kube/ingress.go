@@ -15,6 +15,7 @@ limitations under the License.
 package kube
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -135,7 +136,7 @@ func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthro
 			resolve = true
 		}
 	}
-	updated, err := cli.NetworkingV1beta1().Ingresses(namespace).Create(&ingress)
+	updated, err := cli.NetworkingV1beta1().Ingresses(namespace).Create(context.TODO(), &ingress, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -147,7 +148,7 @@ func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthro
 				fmt.Println()
 			}
 			time.Sleep(time.Second)
-			updated, err = cli.NetworkingV1beta1().Ingresses(namespace).Get(name, metav1.GetOptions{})
+			updated, err = cli.NetworkingV1beta1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -167,7 +168,7 @@ func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthro
 			}
 			updated.Spec.Rules = append(updated.Spec.Rules, route.toRule())
 		}
-		_, err = cli.NetworkingV1beta1().Ingresses(namespace).Update(updated)
+		_, err = cli.NetworkingV1beta1().Ingresses(namespace).Update(context.TODO(), updated, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -181,7 +182,7 @@ func GetIngressRoutes(name string, namespace string, clients Clients) ([]Ingress
 	}
 	cli := clients.GetKubeClient()
 	var routes []IngressRoute
-	ingress, err := cli.NetworkingV1beta1().Ingresses(namespace).Get(name, metav1.GetOptions{})
+	ingress, err := cli.NetworkingV1beta1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return routes, nil
 	} else if err != nil {
@@ -205,7 +206,7 @@ var ingressGVK = schema.GroupVersionKind{
 }
 
 func getIngressRoutesV1(client dynamic.Interface, namespace string, name string) ([]IngressRoute, error) {
-	obj, err := client.Resource(ingressResource).Namespace(namespace).Get(name, metav1.GetOptions{})
+	obj, err := client.Resource(ingressResource).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {
@@ -224,7 +225,7 @@ func appendIngressHostSuffix(desired []IngressRoute, suffix string) []IngressRou
 }
 
 func ensureIngressRoutesV1(client dynamic.Interface, namespace string, name string, routes []IngressRoute, annotations map[string]string, ownerRefs []metav1.OwnerReference, resolve bool) error {
-	obj, err := client.Resource(ingressResource).Namespace(namespace).Get(name, metav1.GetOptions{})
+	obj, err := client.Resource(ingressResource).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		obj = &unstructured.Unstructured{}
 		ingressClassName, ok := annotations["kubernetes.io/ingress.class"]
@@ -243,7 +244,7 @@ func ensureIngressRoutesV1(client dynamic.Interface, namespace string, name stri
 		if err != nil {
 			return err
 		}
-		_, err = client.Resource(ingressResource).Namespace(namespace).Create(obj, metav1.CreateOptions{})
+		_, err = client.Resource(ingressResource).Namespace(namespace).Create(context.TODO(), obj, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -277,7 +278,7 @@ func ensureIngressRoutesV1(client dynamic.Interface, namespace string, name stri
 		update = true
 	}
 	if update {
-		_, err = client.Resource(ingressResource).Namespace(namespace).Update(obj, metav1.UpdateOptions{})
+		_, err = client.Resource(ingressResource).Namespace(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
