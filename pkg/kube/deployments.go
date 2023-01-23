@@ -3,9 +3,9 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/qdr"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -258,7 +258,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 
 }
 
-func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, podSecurityContext *corev1.PodSecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, securityContext *corev1.SecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.ControllerDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -294,10 +294,6 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 			dep.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
 		}
 
-		if podSecurityContext != nil {
-			dep.Spec.Template.Spec.SecurityContext = podSecurityContext
-		}
-
 		setAffinity(&van.Controller, &dep.Spec.Template.Spec)
 		for _, sc := range van.Controller.Sidecars {
 			dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sc)
@@ -306,6 +302,15 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 		dep.Spec.Template.Spec.Volumes = van.Controller.Volumes
 		for i, _ := range van.Controller.VolumeMounts {
 			dep.Spec.Template.Spec.Containers[i].VolumeMounts = van.Controller.VolumeMounts[i]
+		}
+
+		if securityContext != nil {
+			dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+				RunAsNonRoot: securityContext.RunAsNonRoot,
+			}
+			for i, _ := range dep.Spec.Template.Spec.Containers {
+				dep.Spec.Template.Spec.Containers[i].SecurityContext = securityContext
+			}
 		}
 
 		created, err := deployments.Create(dep)
@@ -361,7 +366,7 @@ func setAffinity(spec *types.DeploymentSpec, podspec *corev1.PodSpec) {
 	}
 }
 
-func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, podSecurityContext *corev1.PodSecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, securityContext *corev1.SecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -396,10 +401,6 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 			},
 		}
 
-		if podSecurityContext != nil {
-			dep.Spec.Template.Spec.SecurityContext = podSecurityContext
-		}
-
 		setAffinity(&van.Transport, &dep.Spec.Template.Spec)
 		for _, sc := range van.Transport.Sidecars {
 			dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sc)
@@ -413,6 +414,15 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 		dep.Spec.Template.Spec.Volumes = van.Transport.Volumes
 		for i, _ := range van.Transport.VolumeMounts {
 			dep.Spec.Template.Spec.Containers[i].VolumeMounts = van.Transport.VolumeMounts[i]
+		}
+
+		if securityContext != nil {
+			dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+				RunAsNonRoot: securityContext.RunAsNonRoot,
+			}
+			for i, _ := range dep.Spec.Template.Spec.Containers {
+				dep.Spec.Template.Spec.Containers[i].SecurityContext = securityContext
+			}
 		}
 
 		created, err := deployments.Create(dep)

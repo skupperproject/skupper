@@ -132,6 +132,14 @@ spec:
         application: skupper-site-controller
     spec:
       serviceAccountName: skupper-site-controller
+      # Please ensure that you can use SeccompProfile and do not use
+      # if your project must work on old Kubernetes
+      # versions < 1.19 or on vendors versions which
+      # do NOT support this field by default
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: site-controller
         image: quay.io/skupper/site-controller:master
@@ -141,5 +149,3 @@ spec:
             - ALL
           runAsNonRoot: true
           allowPrivilegeEscalation: false
-          seccompProfile:
-            type: RuntimeDefault
