@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -38,7 +40,7 @@ var skupperclusterpoliciesResource = schema.GroupVersionResource{Group: "skupper
 var skupperclusterpoliciesKind = schema.GroupVersionKind{Group: "skupper.io", Version: "v1alpha1", Kind: "SkupperClusterPolicy"}
 
 // Get takes name of the skupperClusterPolicy, and returns the corresponding skupperClusterPolicy object, and an error if there is any.
-func (c *FakeSkupperClusterPolicies) Get(name string, options v1.GetOptions) (result *v1alpha1.SkupperClusterPolicy, err error) {
+func (c *FakeSkupperClusterPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.SkupperClusterPolicy, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootGetAction(skupperclusterpoliciesResource, name), &v1alpha1.SkupperClusterPolicy{})
 	if obj == nil {
@@ -48,7 +50,7 @@ func (c *FakeSkupperClusterPolicies) Get(name string, options v1.GetOptions) (re
 }
 
 // List takes label and field selectors, and returns the list of SkupperClusterPolicies that match those selectors.
-func (c *FakeSkupperClusterPolicies) List(opts v1.ListOptions) (result *v1alpha1.SkupperClusterPolicyList, err error) {
+func (c *FakeSkupperClusterPolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.SkupperClusterPolicyList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootListAction(skupperclusterpoliciesResource, skupperclusterpoliciesKind, opts), &v1alpha1.SkupperClusterPolicyList{})
 	if obj == nil {
@@ -69,13 +71,13 @@ func (c *FakeSkupperClusterPolicies) List(opts v1.ListOptions) (result *v1alpha1
 }
 
 // Watch returns a watch.Interface that watches the requested skupperClusterPolicies.
-func (c *FakeSkupperClusterPolicies) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeSkupperClusterPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewRootWatchAction(skupperclusterpoliciesResource, opts))
 }
 
 // Create takes the representation of a skupperClusterPolicy and creates it.  Returns the server's representation of the skupperClusterPolicy, and an error, if there is any.
-func (c *FakeSkupperClusterPolicies) Create(skupperClusterPolicy *v1alpha1.SkupperClusterPolicy) (result *v1alpha1.SkupperClusterPolicy, err error) {
+func (c *FakeSkupperClusterPolicies) Create(ctx context.Context, skupperClusterPolicy *v1alpha1.SkupperClusterPolicy, opts v1.CreateOptions) (result *v1alpha1.SkupperClusterPolicy, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootCreateAction(skupperclusterpoliciesResource, skupperClusterPolicy), &v1alpha1.SkupperClusterPolicy{})
 	if obj == nil {
@@ -85,7 +87,7 @@ func (c *FakeSkupperClusterPolicies) Create(skupperClusterPolicy *v1alpha1.Skupp
 }
 
 // Update takes the representation of a skupperClusterPolicy and updates it. Returns the server's representation of the skupperClusterPolicy, and an error, if there is any.
-func (c *FakeSkupperClusterPolicies) Update(skupperClusterPolicy *v1alpha1.SkupperClusterPolicy) (result *v1alpha1.SkupperClusterPolicy, err error) {
+func (c *FakeSkupperClusterPolicies) Update(ctx context.Context, skupperClusterPolicy *v1alpha1.SkupperClusterPolicy, opts v1.UpdateOptions) (result *v1alpha1.SkupperClusterPolicy, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootUpdateAction(skupperclusterpoliciesResource, skupperClusterPolicy), &v1alpha1.SkupperClusterPolicy{})
 	if obj == nil {
@@ -95,22 +97,22 @@ func (c *FakeSkupperClusterPolicies) Update(skupperClusterPolicy *v1alpha1.Skupp
 }
 
 // Delete takes name of the skupperClusterPolicy and deletes it. Returns an error if one occurs.
-func (c *FakeSkupperClusterPolicies) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeSkupperClusterPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewRootDeleteAction(skupperclusterpoliciesResource, name), &v1alpha1.SkupperClusterPolicy{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeSkupperClusterPolicies) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(skupperclusterpoliciesResource, listOptions)
+func (c *FakeSkupperClusterPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewRootDeleteCollectionAction(skupperclusterpoliciesResource, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.SkupperClusterPolicyList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched skupperClusterPolicy.
-func (c *FakeSkupperClusterPolicies) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.SkupperClusterPolicy, err error) {
+func (c *FakeSkupperClusterPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.SkupperClusterPolicy, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootPatchSubresourceAction(skupperclusterpoliciesResource, name, pt, data, subresources...), &v1alpha1.SkupperClusterPolicy{})
 	if obj == nil {

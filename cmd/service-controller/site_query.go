@@ -122,7 +122,7 @@ func (s *SiteQueryServer) getGatewayQueryData() ([]data.SiteQueryData, error) {
 
 func getSiteUrl(vanClient *client.VanClient) (string, error) {
 	if vanClient.RouteClient == nil {
-		service, err := vanClient.KubeClient.CoreV1().Services(vanClient.Namespace).Get(types.TransportServiceName, metav1.GetOptions{})
+		service, err := vanClient.KubeClient.CoreV1().Services(vanClient.Namespace).Get(context.TODO(), types.TransportServiceName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
@@ -134,7 +134,7 @@ func getSiteUrl(vanClient *client.VanClient) (string, error) {
 			}
 		}
 	} else {
-		route, err := vanClient.RouteClient.Routes(vanClient.Namespace).Get("skupper-inter-router", metav1.GetOptions{})
+		route, err := vanClient.RouteClient.Routes(vanClient.Namespace).Get(context.TODO(), "skupper-inter-router", metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {

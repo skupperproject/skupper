@@ -19,7 +19,7 @@ import (
 
 func (cli *VanClient) getConsoleUrl() (string, error) {
 	if cli.RouteClient == nil {
-		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
+		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), types.ControllerServiceName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
@@ -63,7 +63,7 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 			}
 		}
 	} else {
-		route, err := cli.RouteClient.Routes(cli.Namespace).Get(types.ConsoleRouteName, metav1.GetOptions{})
+		route, err := cli.RouteClient.Routes(cli.Namespace).Get(context.TODO(), types.ConsoleRouteName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
@@ -88,7 +88,7 @@ func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace stri
 	if err != nil {
 		return nil, err
 	}
-	current, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	current, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
 		siteConfig, err := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
 		if err == nil && siteConfig != nil {

@@ -35,15 +35,15 @@ func GetLoadBalancerHostOrIP(service *corev1.Service) string {
 }
 
 func DeleteService(name string, namespace string, kubeclient kubernetes.Interface) error {
-	_, err := kubeclient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+	_, err := kubeclient.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err == nil {
-		err = kubeclient.CoreV1().Services(namespace).Delete(name, &metav1.DeleteOptions{})
+		err = kubeclient.CoreV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	}
 	return err
 }
 
 func GetService(name string, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	current, err := kubeclient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+	current, err := kubeclient.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	return current, err
 }
 
@@ -105,7 +105,7 @@ func makeServiceObjectForAddress(address string, ports []int, targetPorts []int,
 }
 
 func createServiceFromObject(service *corev1.Service, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	created, err := kubeclient.CoreV1().Services(namespace).Create(service)
+	created, err := kubeclient.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -156,7 +156,7 @@ func GetPortsForServiceTarget(targetName string, defaultNamespace string, kubecl
 }
 
 func CopyService(src string, dest string, annotations map[string]string, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	original, err := kubeclient.CoreV1().Services(namespace).Get(src, metav1.GetOptions{})
+	original, err := kubeclient.CoreV1().Services(namespace).Get(context.TODO(), src, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func CopyService(src string, dest string, annotations map[string]string, namespa
 		})
 	}
 
-	copied, err := kubeclient.CoreV1().Services(namespace).Create(service)
+	copied, err := kubeclient.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func WaitServiceExists(name string, namespace string, cli kubernetes.Interface, 
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		svc, err = cli.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+		svc, err = cli.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
 		}
@@ -362,7 +362,7 @@ func RemoveServiceAnnotations(name, namespace string, kubeclient kubernetes.Inte
 	for _, annotation := range annotations {
 		delete(svc.ObjectMeta.Annotations, annotation)
 	}
-	return kubeclient.CoreV1().Services(namespace).Update(svc)
+	return kubeclient.CoreV1().Services(namespace).Update(context.TODO(), svc, metav1.UpdateOptions{})
 }
 
 func protocol(protocol string) corev1.Protocol {

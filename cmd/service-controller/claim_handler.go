@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/qdr"
-	corev1 "k8s.io/api/core/v1"
 )
 
 type ClaimHandler struct {
@@ -38,6 +42,6 @@ func newClaimHandler(cli *client.VanClient, siteId string) *SecretController {
 }
 
 func (h *ClaimHandler) updateSecret(claim *corev1.Secret) error {
-	_, err := h.vanClient.KubeClient.CoreV1().Secrets(h.vanClient.Namespace).Update(claim)
+	_, err := h.vanClient.KubeClient.CoreV1().Secrets(h.vanClient.Namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
 	return err
 }

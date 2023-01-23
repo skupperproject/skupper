@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -87,7 +88,7 @@ func CreateTestJob(ns string, kubeClient kubernetes.Interface, name string, comm
 
 	jobsClient := kubeClient.BatchV1().Jobs(namespace)
 
-	job, err := jobsClient.Create(job)
+	job, err := jobsClient.Create(context.TODO(), job, metav1.CreateOptions{})
 
 	if err != nil {
 		return nil, err
@@ -100,7 +101,7 @@ func CreateTestJobWithSecret(ns string, kubeClient kubernetes.Interface, name st
 	namespace := ns
 	testImage := GetTestImage()
 
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(secretname, metav1.GetOptions{})
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretname, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +145,7 @@ func CreateTestJobWithSecret(ns string, kubeClient kubernetes.Interface, name st
 
 	jobsClient := kubeClient.BatchV1().Jobs(namespace)
 
-	job, err = jobsClient.Create(job)
+	job, err = jobsClient.Create(context.TODO(), job, metav1.CreateOptions{})
 
 	if err != nil {
 		return nil, err
@@ -167,7 +168,7 @@ func WaitForJob(ns string, kubeClient kubernetes.Interface, jobName string, time
 		case <-timeoutCh:
 			return nil, fmt.Errorf("Timeout: Job is still active: %s", jobName)
 		case <-tick:
-			job, _ := jobsClient.Get(jobName, metav1.GetOptions{})
+			job, _ := jobsClient.Get(context.TODO(), jobName, metav1.GetOptions{})
 
 			if job.Status.Active > 0 {
 				fmt.Println("Job is still active")

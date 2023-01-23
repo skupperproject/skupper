@@ -39,7 +39,7 @@ func (s *DeleteTester) Run(platform types.Platform, cluster *base.ClusterContext
 	err = utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
 		attempt++
 		log.Printf("validating service deleted - attempt: %d", attempt)
-		_, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(s.Name, v1.GetOptions{})
+		_, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(ctx, s.Name, v1.GetOptions{})
 		if err == nil {
 			log.Printf("service %s still available", s.Name)
 			return false, nil

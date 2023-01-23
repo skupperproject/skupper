@@ -463,7 +463,7 @@ func tearDown(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	_ = pub1Cluster.VanClient.ServiceInterfaceRemove(ctx, service.Address)
 
 	t.Logf("Deleting deployment...")
-	_ = pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace).Delete(Deployment.Name, &metav1.DeleteOptions{})
+	_ = pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace).Delete(context.TODO(), Deployment.Name, metav1.DeleteOptions{})
 }
 
 func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
@@ -476,13 +476,13 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	assert.Assert(t, err)
 
 	fmt.Println("Creating deployment...")
-	result, err := publicDeploymentsClient.Create(Deployment)
+	result, err := publicDeploymentsClient.Create(context.TODO(), Deployment, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
 	fmt.Printf("Listing deployments in namespace %q:\n", pub1Cluster.Namespace)
-	list, err := publicDeploymentsClient.List(metav1.ListOptions{})
+	list, err := publicDeploymentsClient.List(context.TODO(), metav1.ListOptions{})
 	assert.Assert(t, err)
 
 	for _, d := range list.Items {

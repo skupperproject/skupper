@@ -39,7 +39,7 @@ func createClaimRecord(cli *client.VanClient, name string, password []byte, expi
 	if uses > 0 {
 		record.ObjectMeta.Annotations[types.ClaimsRemaining] = strconv.Itoa(uses)
 	}
-	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&record)
+	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(context.TODO(), &record, metav1.CreateOptions{})
 	return err
 }
 
@@ -91,7 +91,7 @@ func TestClaimVerifier(t *testing.T) {
 	assert.Equal(t, code, http.StatusOK, "claim-verifier-test: a")
 	assert.Equal(t, secret, generator.Secret, "claim-verifier-test: a")
 	assert.Equal(t, secret.ObjectMeta.Name, "foo", "claim-verifier-test: a")
-	record, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("a", metav1.GetOptions{})
+	record, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(context.TODO(), "a", metav1.GetOptions{})
 	assert.Check(t, err, "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsRemaining], "1", "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsMade], "1", "claim-verifier-test: a")
@@ -105,7 +105,7 @@ func TestClaimVerifier(t *testing.T) {
 	assert.Equal(t, code, http.StatusOK, "claim-verifier-test: a 2nd attempt")
 	assert.Equal(t, secret, generator.Secret, "claim-verifier-test: a 2nd attempt")
 	assert.Equal(t, secret.ObjectMeta.Name, "foo", "claim-verifier-test: a 2nd attempt")
-	record, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("a", metav1.GetOptions{})
+	record, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(context.TODO(), "a", metav1.GetOptions{})
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsRemaining], "0", "claim-verifier-test: a")
 	assert.Equal(t, record.ObjectMeta.Annotations[types.ClaimsMade], "2", "claim-verifier-test: a")
 

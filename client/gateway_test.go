@@ -611,7 +611,7 @@ func TestGatewayInit(t *testing.T) {
 		assert.Assert(t, observedError)
 		assert.Equal(t, gatewayInspect.Name, tc.actualName)
 
-		secret, observedError := cli.KubeClient.CoreV1().Secrets(namespace).Get(clusterGatewayName(gatewayName), metav1.GetOptions{})
+		secret, observedError := cli.KubeClient.CoreV1().Secrets(namespace).Get(ctx, clusterGatewayName(gatewayName), metav1.GetOptions{})
 		assert.Assert(t, observedError)
 		ct, ok := secret.Labels[types.SkupperTypeQualifier]
 		assert.Assert(t, ok)

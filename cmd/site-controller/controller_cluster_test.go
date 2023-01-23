@@ -226,11 +226,11 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	go publicController.Run(done)
 
 	connTokenReq.ObjectMeta.Name = "req1"
-	_, err = publicCli.KubeClient.CoreV1().Secrets(publicNamespace).Create(connTokenReq)
+	_, err = publicCli.KubeClient.CoreV1().Secrets(publicNamespace).Create(context.TODO(), connTokenReq, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	siteConfig.Data["name"] = publicNamespace
-	_, err = publicCli.KubeClient.CoreV1().ConfigMaps(publicNamespace).Create(siteConfig)
+	_, err = publicCli.KubeClient.CoreV1().ConfigMaps(publicNamespace).Create(context.TODO(), siteConfig, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	err = waitForTransportRunning(publicCli, publicNamespace)
@@ -239,11 +239,11 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	// Note: looking for update even to change from request to token
 	go watchForEvent(publicCli, publicNamespace, "req2", Update, Token, types.TypeTokenQualifier, cont)
 	connTokenReq.ObjectMeta.Name = "req2"
-	_, err = publicCli.KubeClient.CoreV1().Secrets(publicNamespace).Create(connTokenReq)
+	_, err = publicCli.KubeClient.CoreV1().Secrets(publicNamespace).Create(context.TODO(), connTokenReq, metav1.CreateOptions{})
 	assert.Assert(t, err)
 	<-cont
 
-	currentToken, err := publicCli.KubeClient.CoreV1().Secrets(publicNamespace).Get("req2", metav1.GetOptions{})
+	currentToken, err := publicCli.KubeClient.CoreV1().Secrets(publicNamespace).Get(context.TODO(), "req2", metav1.GetOptions{})
 	assert.Assert(t, err)
 
 	connectSecret := &corev1.Secret{
@@ -268,7 +268,7 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	go privateController.Run(done)
 
 	siteConfig.Data["name"] = privateNamespace
-	_, err = privateCli.KubeClient.CoreV1().ConfigMaps(privateNamespace).Create(siteConfig)
+	_, err = privateCli.KubeClient.CoreV1().ConfigMaps(privateNamespace).Create(context.TODO(), siteConfig, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	err = waitForTransportRunning(privateCli, privateNamespace)
@@ -276,7 +276,7 @@ func TestSiteControlleWithCluster(t *testing.T) {
 
 	// Connect private to public
 	go watchForEvent(privateCli, privateNamespace, "connect-2-to-1", Add, Token, types.TypeTokenQualifier, cont)
-	_, err = privateCli.KubeClient.CoreV1().Secrets(privateNamespace).Create(connectSecret)
+	_, err = privateCli.KubeClient.CoreV1().Secrets(privateNamespace).Create(context.TODO(), connectSecret, metav1.CreateOptions{})
 	assert.Assert(t, err)
 	<-cont
 
@@ -285,16 +285,16 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	assert.Assert(t, err)
 
 	// get and modify site-config map for one of the namespaces for coverage
-	site1, err := publicCli.KubeClient.CoreV1().ConfigMaps(publicNamespace).Get("skupper-site", metav1.GetOptions{})
+	site1, err := publicCli.KubeClient.CoreV1().ConfigMaps(publicNamespace).Get(context.TODO(), "skupper-site", metav1.GetOptions{})
 	assert.Assert(t, err)
 	go watchForEvent(publicCli, publicNamespace, "skupper-site", Update, SiteConfig, "", cont)
 	site1.ObjectMeta.Annotations = map[string]string{
 		"update": "true",
 	}
-	_, err = publicCli.KubeClient.CoreV1().ConfigMaps(publicNamespace).Update(site1)
+	_, err = publicCli.KubeClient.CoreV1().ConfigMaps(publicNamespace).Update(context.TODO(), site1, metav1.UpdateOptions{})
 	<-cont
 
-	err = privateCli.KubeClient.CoreV1().Secrets(privateNamespace).Delete("connect-2-to-1", &metav1.DeleteOptions{})
+	err = privateCli.KubeClient.CoreV1().Secrets(privateNamespace).Delete(context.TODO(), "connect-2-to-1", metav1.DeleteOptions{})
 	assert.Assert(t, err)
 
 	// check for disconnect
@@ -309,12 +309,12 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	assert.Assert(t, err)
 
 	go watchForEvent(publicCli, publicNamespace, "skupper-site", Delete, SiteConfig, "!internal.skupper.io/site-controller-ignore", cont)
-	err = publicCli.KubeClient.CoreV1().ConfigMaps(publicNamespace).Delete("skupper-site", &metav1.DeleteOptions{})
+	err = publicCli.KubeClient.CoreV1().ConfigMaps(publicNamespace).Delete(context.TODO(), "skupper-site", metav1.DeleteOptions{})
 	assert.Assert(t, err)
 	<-cont
 
 	go watchForEvent(privateCli, privateNamespace, "skupper-site", Delete, SiteConfig, "!internal.skupper.io/site-controller-ignore", cont)
-	err = privateCli.KubeClient.CoreV1().ConfigMaps(privateNamespace).Delete("skupper-site", &metav1.DeleteOptions{})
+	err = privateCli.KubeClient.CoreV1().ConfigMaps(privateNamespace).Delete(context.TODO(), "skupper-site", metav1.DeleteOptions{})
 	assert.Assert(t, err)
 	<-cont
 

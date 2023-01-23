@@ -1,6 +1,7 @@
 package token
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -170,7 +171,7 @@ func (t *CreateTester) Run(platform types.Platform, cluster *base.ClusterContext
 	claimRecordName := parsedClaimUrl.Path[1:]
 
 	// Retrieving token-claim-record secret
-	tokenClaimRecord, err := cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(claimRecordName, v12.GetOptions{})
+	tokenClaimRecord, err := cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(context.TODO(), claimRecordName, v12.GetOptions{})
 	if err != nil {
 		return
 	}

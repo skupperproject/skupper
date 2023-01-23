@@ -3,6 +3,7 @@ package kube
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io"
 
 	corev1 "k8s.io/api/core/v1"
@@ -14,7 +15,7 @@ import (
 )
 
 func ExecCommandInContainer(command []string, podName string, containerName string, namespace string, clientset kubernetes.Interface, config *restclient.Config) (*bytes.Buffer, error) {
-	pod, err := clientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+	pod, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

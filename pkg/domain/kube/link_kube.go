@@ -44,7 +44,7 @@ func (l *LinkHandlerKube) Delete(name string) error {
 }
 
 func (l *LinkHandlerKube) List() ([]*corev1.Secret, error) {
-	currentSecrets, err := l.cli.CoreV1().Secrets(l.namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	currentSecrets, err := l.cli.CoreV1().Secrets(l.namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve secrets: %w", err)
 	}
@@ -57,7 +57,7 @@ func (l *LinkHandlerKube) List() ([]*corev1.Secret, error) {
 
 func (l *LinkHandlerKube) StatusAll() ([]types.LinkStatus, error) {
 	var ls []types.LinkStatus
-	secrets, err := l.cli.CoreV1().Secrets(l.namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	secrets, err := l.cli.CoreV1().Secrets(l.namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return ls, err
 	}
@@ -70,7 +70,7 @@ func (l *LinkHandlerKube) StatusAll() ([]types.LinkStatus, error) {
 
 func (l *LinkHandlerKube) Status(name string) (types.LinkStatus, error) {
 	var ls types.LinkStatus
-	secret, err := l.cli.CoreV1().Secrets(l.namespace).Get(name, metav1.GetOptions{})
+	secret, err := l.cli.CoreV1().Secrets(l.namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return ls, err
 	}
@@ -102,7 +102,7 @@ func (l *LinkHandlerKube) Detail(link types.LinkStatus) (map[string]string, erro
 
 func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
 	// Checking if the router has been deployed
-	_, err := l.cli.AppsV1().Deployments(l.namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	_, err := l.cli.AppsV1().Deployments(l.namespace).Get(context.TODO(), types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}

@@ -9,5 +9,5 @@ import (
 )
 
 func (cli *VanClient) SiteConfigRemove(ctx context.Context) error {
-	return cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Delete(types.SiteConfigMapName, &metav1.DeleteOptions{})
+	return cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Delete(ctx, types.SiteConfigMapName, metav1.DeleteOptions{})
 }

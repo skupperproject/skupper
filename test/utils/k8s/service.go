@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -60,7 +61,7 @@ func WaitForServiceToBeCreated(ns string, kubeClient kubernetes.Interface, name 
 	}
 
 	_retryFn := func() (*apiv1.Service, error) {
-		return kubeClient.CoreV1().Services(ns).Get(name, metav1.GetOptions{})
+		return kubeClient.CoreV1().Services(ns).Get(context.TODO(), name, metav1.GetOptions{})
 	}
 
 	if retryFn == nil {

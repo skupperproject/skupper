@@ -26,10 +26,13 @@ import (
 )
 
 // SkupperClusterPolicyLister helps list SkupperClusterPolicies.
+// All objects returned here must be treated as read-only.
 type SkupperClusterPolicyLister interface {
 	// List lists all SkupperClusterPolicies in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.SkupperClusterPolicy, err error)
 	// Get retrieves the SkupperClusterPolicy from the index for a given name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.SkupperClusterPolicy, error)
 	SkupperClusterPolicyListerExpansion
 }

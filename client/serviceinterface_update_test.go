@@ -276,11 +276,11 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	deployments := cli.KubeClient.AppsV1().Deployments(namespace)
 	statefulSets := cli.KubeClient.AppsV1().StatefulSets(namespace)
 
-	_, err = deployments.Create(tcpDeployment)
+	_, err = deployments.Create(ctx, tcpDeployment, metav1.CreateOptions{})
 	assert.Assert(t, err)
-	_, err = statefulSets.Create(tcpStatefulSet)
+	_, err = statefulSets.Create(ctx, tcpStatefulSet, metav1.CreateOptions{})
 	assert.Assert(t, err)
-	_, err = deployments.Create(httpDeployment)
+	_, err = deployments.Create(ctx, httpDeployment, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
@@ -316,7 +316,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	}
 
 	// create three service definitions
-	siteCA, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.ServiceCaSecret, metav1.GetOptions{})
+	siteCA, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(ctx, types.ServiceCaSecret, metav1.GetOptions{})
 	assert.Assert(t, err)
 
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
@@ -328,7 +328,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	})
 	assert.Assert(t, err)
 	serviceCert := certs.GenerateSecret("skupper-tcp-go-echo", "tcp-go-echo", "tcp-go-echo", siteCA)
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(ctx, &serviceCert, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	err = cli.ServiceInterfaceCreate(ctx, &types.ServiceInterface{
@@ -352,7 +352,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	})
 	assert.Assert(t, err)
 	serviceCert = certs.GenerateSecret("skupper-tcp-go-echo-ss", "tcp-go-echo-ss", "tcp-go-echo-ss", siteCA)
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(&serviceCert)
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(ctx, &serviceCert, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	// bind services to targets
@@ -449,17 +449,17 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	assert.Assert(t, err)
 	assert.Equal(t, len(items), 0)
 
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-nginx", metav1.GetOptions{})
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(ctx, "skupper-nginx", metav1.GetOptions{})
 	if err != nil {
 		assert.Equal(t, err.Error(), "secrets \"skupper-nginx\" not found")
 	}
 
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-tcp-go-echo", metav1.GetOptions{})
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(ctx, "skupper-tcp-go-echo", metav1.GetOptions{})
 	if err != nil {
 		assert.Equal(t, err.Error(), "secrets \"skupper-tcp-go-echo\" not found")
 	}
 
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get("skupper-tcp-go-echo-ss", metav1.GetOptions{})
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(ctx, "skupper-tcp-go-echo-ss", metav1.GetOptions{})
 	if err != nil {
 		assert.Equal(t, err.Error(), "secrets \"skupper-tcp-go-echo-ss\" not found")
 	}

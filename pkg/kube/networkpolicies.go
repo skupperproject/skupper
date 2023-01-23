@@ -15,6 +15,8 @@ limitations under the License.
 package kube
 
 import (
+	"context"
+
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -69,7 +71,7 @@ func CreateNetworkPolicy(ownerrefs []metav1.OwnerReference, namespace string, cl
 	if ownerrefs != nil {
 		policy.ObjectMeta.OwnerReferences = ownerrefs
 	}
-	_, err := cli.NetworkingV1().NetworkPolicies(namespace).Create(&policy)
+	_, err := cli.NetworkingV1().NetworkPolicies(namespace).Create(context.TODO(), &policy, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

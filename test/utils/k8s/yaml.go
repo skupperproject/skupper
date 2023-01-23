@@ -3,6 +3,7 @@ package k8s
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -99,7 +100,7 @@ func CreateResourcesFromYAML(vanClient *client.VanClient, fileOrUrl string) erro
 			k8sResource = dynClient.Resource(mapping.Resource)
 		}
 		// Creating the dynamic resource
-		_, err = k8sResource.Create(unstructuredObj, v1.CreateOptions{})
+		_, err = k8sResource.Create(context.TODO(), unstructuredObj, v1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("error creating resource [group=%s - kind=%s] - %s", gvk.Group, gvk.Kind, err)
 		}

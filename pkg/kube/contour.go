@@ -1,6 +1,8 @@
 package kube
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -70,7 +72,7 @@ func (p *IngressRoute) writeToContourProxy(obj *unstructured.Unstructured) error
 }
 
 func GetContourProxy(client dynamic.Interface, namespace string, name string) (*IngressRoute, error) {
-	obj, err := client.Resource(httpProxyResource).Namespace(namespace).Get(name, metav1.GetOptions{})
+	obj, err := client.Resource(httpProxyResource).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {
@@ -93,7 +95,7 @@ func CreateContourProxy(client dynamic.Interface, namespace string, name string,
 	if err != nil {
 		return err
 	}
-	_, err = client.Resource(httpProxyResource).Namespace(namespace).Create(&obj, metav1.CreateOptions{})
+	_, err = client.Resource(httpProxyResource).Namespace(namespace).Create(context.TODO(), &obj, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

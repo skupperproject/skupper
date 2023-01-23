@@ -122,12 +122,12 @@ func (cli *VanClient) regenerateClaimsSecret(ctx context.Context, ca *corev1.Sec
 }
 
 func (cli *VanClient) RevokeAccess(ctx context.Context) error {
-	records, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=token-claim-record"})
+	records, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).List(ctx, metav1.ListOptions{LabelSelector: "skupper.io/type=token-claim-record"})
 	if err != nil {
 		return err
 	}
 	for _, record := range records.Items {
-		err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(record.Name, nil)
+		err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(ctx, record.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}

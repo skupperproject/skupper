@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -60,13 +61,13 @@ func NewFilteredSkupperClusterPolicyInformer(client versioned.Interface, resyncP
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV1alpha1().SkupperClusterPolicies().List(options)
+				return client.SkupperV1alpha1().SkupperClusterPolicies().List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV1alpha1().SkupperClusterPolicies().Watch(options)
+				return client.SkupperV1alpha1().SkupperClusterPolicies().Watch(context.TODO(), options)
 			},
 		},
 		&skupperv1alpha1.SkupperClusterPolicy{},

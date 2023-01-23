@@ -159,7 +159,7 @@ func TestTokenHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		token := createToken(test.name, test.annotations)
-		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(token)
+		_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(context.TODO(), token, metav1.CreateOptions{})
 		assert.Check(t, err, name)
 
 		err = handler.handler.Handle(test.name, token)

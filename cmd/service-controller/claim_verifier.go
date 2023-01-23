@@ -47,7 +47,7 @@ func alwaysRetriable(err error) bool {
 }
 
 func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (string, int) {
-	claim, err := server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Get(name, metav1.GetOptions{})
+	claim, err := server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return "No such claim", http.StatusNotFound
 	} else if err != nil {
@@ -98,7 +98,7 @@ func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (stri
 	} else {
 		claim.ObjectMeta.Annotations[types.ClaimsMade] = "1"
 	}
-	_, err = server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Update(claim)
+	_, err = server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
 	if err != nil {
 		event.Recordf(TokenClaimVerification, "Error updating remaining uses: %s", err)
 		return "Internal error", http.StatusServiceUnavailable

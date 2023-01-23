@@ -70,7 +70,7 @@ func TestTokenClaimCreateInterior(t *testing.T) {
 	assert.Assert(t, bytes.Equal(claim.Data[types.ClaimPasswordDataKey], []byte("abcde")), "Invalid password in claim")
 
 	recordName := strings.Join(strings.Split(u.Path, "/"), "")
-	record, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(recordName, metav1.GetOptions{})
+	record, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(ctx, recordName, metav1.GetOptions{})
 	assert.Check(t, err, "Could not get claim record")
 	assert.Assert(t, len(record.ObjectMeta.Annotations) > 0, "Claim record has no annotations")
 	assert.Assert(t, len(record.ObjectMeta.Labels) > 0, "Claim record has no labels")
@@ -80,7 +80,7 @@ func TestTokenClaimCreateInterior(t *testing.T) {
 	assert.Assert(t, bytes.Equal(record.Data[types.ClaimPasswordDataKey], []byte("abcde")), "Invalid password in claim record")
 
 	os.Remove(filename)
-	cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(recordName, nil)
+	cli.KubeClient.CoreV1().Secrets(cli.Namespace).Delete(ctx, recordName, metav1.DeleteOptions{})
 }
 
 func TestTokenClaimCreateEdge(t *testing.T) {
