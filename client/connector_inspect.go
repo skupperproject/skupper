@@ -15,7 +15,7 @@ func (cli *VanClient) ConnectorInspect(ctx context.Context, name string) (*types
 	if err != nil {
 		return nil, err
 	}
-	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(name, metav1.GetOptions{})
+	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

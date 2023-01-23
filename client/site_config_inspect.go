@@ -26,7 +26,7 @@ func (cli *VanClient) SiteConfigInspect(ctx context.Context, input *corev1.Confi
 func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *corev1.ConfigMap, namespace string) (*types.SiteConfig, error) {
 	var siteConfig *corev1.ConfigMap
 	if input == nil {
-		cm, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
+		cm, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, types.SiteConfigMapName, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			return nil, nil
 		} else if err != nil {

@@ -324,7 +324,7 @@ func (c *SiteController) generate(token *corev1.Secret) error {
 		if siteId != "" {
 			token.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteId
 		}
-		_, err = c.vanClient.KubeClient.CoreV1().Secrets(token.ObjectMeta.Namespace).Update(token)
+		_, err = c.vanClient.KubeClient.CoreV1().Secrets(token.ObjectMeta.Namespace).Update(context.TODO(), token, metav1.UpdateOptions{})
 		return err
 	} else {
 		log.Printf("Failed to generate token for request %s: %s", token.ObjectMeta.Name, err)
@@ -359,7 +359,7 @@ func (c *SiteController) checkTokenRequest(key string) error {
 }
 
 func (c *SiteController) getSiteIdForNamespace(namespace string) string {
-	cm, err := c.vanClient.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
+	cm, err := c.vanClient.KubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), types.SiteConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Printf("Could not obtain siteid for namespace %q, assuming not yet initialised", namespace)

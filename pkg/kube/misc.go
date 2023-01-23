@@ -15,6 +15,7 @@ limitations under the License.
 package kube
 
 import (
+	"context"
 	"fmt"
 	"github.com/openshift/client-go/apps/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +31,7 @@ import (
 
 func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface, appscli versioned.Interface) (*types.ServiceInterfaceTarget, error) {
 	if targetType == "deployment" {
-		deployment, err := cli.AppsV1().Deployments(namespace).Get(targetName, metav1.GetOptions{})
+		deployment, err := cli.AppsV1().Deployments(namespace).Get(context.TODO(), targetName, metav1.GetOptions{})
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     deployment.ObjectMeta.Name,
@@ -47,7 +48,7 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
 		}
 	} else if targetType == "statefulset" {
-		statefulset, err := cli.AppsV1().StatefulSets(namespace).Get(targetName, metav1.GetOptions{})
+		statefulset, err := cli.AppsV1().StatefulSets(namespace).Get(context.TODO(), targetName, metav1.GetOptions{})
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     statefulset.ObjectMeta.Name,

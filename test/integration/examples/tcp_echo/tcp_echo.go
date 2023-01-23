@@ -82,7 +82,7 @@ func tearDown(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	_ = pub1Cluster.VanClient.ServiceInterfaceRemove(ctx, service.Address)
 
 	t.Logf("Deleting deployment...")
-	_ = pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace).Delete(Deployment.Name, &metav1.DeleteOptions{})
+	_ = pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace).Delete(ctx, Deployment.Name, metav1.DeleteOptions{})
 }
 
 func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
@@ -90,13 +90,13 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	publicDeploymentsClient := pub1Cluster.VanClient.KubeClient.AppsV1().Deployments(pub1Cluster.Namespace)
 
 	fmt.Println("Creating deployment...")
-	result, err := publicDeploymentsClient.Create(Deployment)
+	result, err := publicDeploymentsClient.Create(ctx, Deployment, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
 	fmt.Printf("Listing deployments in namespace %q:\n", pub1Cluster.Namespace)
-	list, err := publicDeploymentsClient.List(metav1.ListOptions{})
+	list, err := publicDeploymentsClient.List(ctx, metav1.ListOptions{})
 	assert.Assert(t, err)
 
 	for _, d := range list.Items {
@@ -170,7 +170,7 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 			Args:    []string{"-c", "echo Halo | nc tcp-go-echo 9090"},
 		})
 		// Asserting job has been created
-		_, err := cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Create(ncJob)
+		_, err := cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Create(context.TODO(), ncJob, metav1.CreateOptions{})
 		assert.Assert(t, err)
 		// Asserting job completed
 		_, jobErr := k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, ncJob.Name, time.Minute)

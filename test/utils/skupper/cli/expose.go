@@ -92,14 +92,14 @@ func (e *ExposeTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		log.Printf("validating service after expose completed - attempt: %d", attempt)
 
 		log.Printf("validating service %s exists", expectedAddress)
-		_, err = cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(expectedAddress, v1.GetOptions{})
+		_, err = cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(ctx, expectedAddress, v1.GetOptions{})
 		if err != nil {
 			log.Printf("service %s does not exist - %v", expectedAddress, err)
 			return false, nil
 		}
 
 		log.Printf("validating service %s exists in %s config map", expectedAddress, types.ServiceInterfaceConfigMap)
-		cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(types.ServiceInterfaceConfigMap, v1.GetOptions{})
+		cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(ctx, types.ServiceInterfaceConfigMap, v1.GetOptions{})
 		if err != nil {
 			log.Printf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
 			return false, nil

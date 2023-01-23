@@ -19,6 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"time"
 
 	v1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -37,14 +38,14 @@ type SkupperClusterPoliciesGetter interface {
 
 // SkupperClusterPolicyInterface has methods to work with SkupperClusterPolicy resources.
 type SkupperClusterPolicyInterface interface {
-	Create(*v1alpha1.SkupperClusterPolicy) (*v1alpha1.SkupperClusterPolicy, error)
-	Update(*v1alpha1.SkupperClusterPolicy) (*v1alpha1.SkupperClusterPolicy, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1alpha1.SkupperClusterPolicy, error)
-	List(opts v1.ListOptions) (*v1alpha1.SkupperClusterPolicyList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.SkupperClusterPolicy, err error)
+	Create(ctx context.Context, skupperClusterPolicy *v1alpha1.SkupperClusterPolicy, opts v1.CreateOptions) (*v1alpha1.SkupperClusterPolicy, error)
+	Update(ctx context.Context, skupperClusterPolicy *v1alpha1.SkupperClusterPolicy, opts v1.UpdateOptions) (*v1alpha1.SkupperClusterPolicy, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.SkupperClusterPolicy, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.SkupperClusterPolicyList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.SkupperClusterPolicy, err error)
 	SkupperClusterPolicyExpansion
 }
 
@@ -61,19 +62,19 @@ func newSkupperClusterPolicies(c *SkupperV1alpha1Client) *skupperClusterPolicies
 }
 
 // Get takes name of the skupperClusterPolicy, and returns the corresponding skupperClusterPolicy object, and an error if there is any.
-func (c *skupperClusterPolicies) Get(name string, options v1.GetOptions) (result *v1alpha1.SkupperClusterPolicy, err error) {
+func (c *skupperClusterPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.SkupperClusterPolicy, err error) {
 	result = &v1alpha1.SkupperClusterPolicy{}
 	err = c.client.Get().
 		Resource("skupperclusterpolicies").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of SkupperClusterPolicies that match those selectors.
-func (c *skupperClusterPolicies) List(opts v1.ListOptions) (result *v1alpha1.SkupperClusterPolicyList, err error) {
+func (c *skupperClusterPolicies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.SkupperClusterPolicyList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -83,13 +84,13 @@ func (c *skupperClusterPolicies) List(opts v1.ListOptions) (result *v1alpha1.Sku
 		Resource("skupperclusterpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested skupperClusterPolicies.
-func (c *skupperClusterPolicies) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *skupperClusterPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -99,66 +100,69 @@ func (c *skupperClusterPolicies) Watch(opts v1.ListOptions) (watch.Interface, er
 		Resource("skupperclusterpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a skupperClusterPolicy and creates it.  Returns the server's representation of the skupperClusterPolicy, and an error, if there is any.
-func (c *skupperClusterPolicies) Create(skupperClusterPolicy *v1alpha1.SkupperClusterPolicy) (result *v1alpha1.SkupperClusterPolicy, err error) {
+func (c *skupperClusterPolicies) Create(ctx context.Context, skupperClusterPolicy *v1alpha1.SkupperClusterPolicy, opts v1.CreateOptions) (result *v1alpha1.SkupperClusterPolicy, err error) {
 	result = &v1alpha1.SkupperClusterPolicy{}
 	err = c.client.Post().
 		Resource("skupperclusterpolicies").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(skupperClusterPolicy).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a skupperClusterPolicy and updates it. Returns the server's representation of the skupperClusterPolicy, and an error, if there is any.
-func (c *skupperClusterPolicies) Update(skupperClusterPolicy *v1alpha1.SkupperClusterPolicy) (result *v1alpha1.SkupperClusterPolicy, err error) {
+func (c *skupperClusterPolicies) Update(ctx context.Context, skupperClusterPolicy *v1alpha1.SkupperClusterPolicy, opts v1.UpdateOptions) (result *v1alpha1.SkupperClusterPolicy, err error) {
 	result = &v1alpha1.SkupperClusterPolicy{}
 	err = c.client.Put().
 		Resource("skupperclusterpolicies").
 		Name(skupperClusterPolicy.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(skupperClusterPolicy).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the skupperClusterPolicy and deletes it. Returns an error if one occurs.
-func (c *skupperClusterPolicies) Delete(name string, options *v1.DeleteOptions) error {
+func (c *skupperClusterPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Resource("skupperclusterpolicies").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *skupperClusterPolicies) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *skupperClusterPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Resource("skupperclusterpolicies").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched skupperClusterPolicy.
-func (c *skupperClusterPolicies) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.SkupperClusterPolicy, err error) {
+func (c *skupperClusterPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.SkupperClusterPolicy, err error) {
 	result = &v1alpha1.SkupperClusterPolicy{}
 	err = c.client.Patch(pt).
 		Resource("skupperclusterpolicies").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

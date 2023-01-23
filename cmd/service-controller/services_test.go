@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -41,7 +42,7 @@ func createPod(cli kubernetes.Interface, name string, namespace string, labels m
 		},
 		Spec: *spec,
 	}
-	created, err := cli.CoreV1().Pods(namespace).Create(pod)
+	created, err := cli.CoreV1().Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -77,7 +78,7 @@ func createDeployment(cli kubernetes.Interface, name string, namespace string, i
 			},
 		},
 	}
-	created, err := cli.AppsV1().Deployments(namespace).Create(dep)
+	created, err := cli.AppsV1().Deployments(namespace).Create(context.TODO(), dep, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -114,7 +115,7 @@ func createStatefulSet(cli kubernetes.Interface, name string, namespace string, 
 			},
 		},
 	}
-	created, err := cli.AppsV1().StatefulSets(namespace).Create(ss)
+	created, err := cli.AppsV1().StatefulSets(namespace).Create(context.TODO(), ss, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	} else {

@@ -12,7 +12,7 @@ import (
 )
 
 func (cli *VanClient) ServiceInterfaceInspect(ctx context.Context, address string) (*types.ServiceInterface, error) {
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(ctx, types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil {
 		jsonDef := current.Data[address]
 		if jsonDef == "" {

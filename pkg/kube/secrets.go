@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 
 func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
 
-	existing, err := cli.CoreV1().Secrets(namespace).Get(ca.Name, metav1.GetOptions{})
+	existing, err := cli.CoreV1().Secrets(namespace).Get(context.TODO(), ca.Name, metav1.GetOptions{})
 	if err == nil {
 		return existing, nil
 	} else if errors.IsNotFound(err) {
@@ -26,7 +27,7 @@ func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, name
 				*owner,
 			}
 		}
-		_, err := cli.CoreV1().Secrets(namespace).Create(&newCA)
+		_, err := cli.CoreV1().Secrets(namespace).Create(context.TODO(), &newCA, metav1.CreateOptions{})
 		if err == nil {
 			return &newCA, nil
 		} else {
@@ -41,7 +42,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 	var secret corev1.Secret
 
 	if cred.CA != "" {
-		caSecret, err := cli.CoreV1().Secrets(namespace).Get(cred.CA, metav1.GetOptions{})
+		caSecret, err := cli.CoreV1().Secrets(namespace).Get(context.TODO(), cred.CA, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
 		}
@@ -71,7 +72,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 			*owner,
 		}
 	}
-	_, err := cli.CoreV1().Secrets(namespace).Create(&secret)
+	_, err := cli.CoreV1().Secrets(namespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			// TODO : come up with a policy for already-exists errors.
@@ -88,7 +89,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 
 func DeleteSecret(name string, namespace string, cli kubernetes.Interface) error {
 	secrets := cli.CoreV1().Secrets(namespace)
-	err := secrets.Delete(name, &metav1.DeleteOptions{})
+	err := secrets.Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err == nil {
 		return err
 	} else if errors.IsNotFound(err) {
@@ -99,7 +100,7 @@ func DeleteSecret(name string, namespace string, cli kubernetes.Interface) error
 }
 
 func CopySecret(src string, dest string, namespace string, kubeclient kubernetes.Interface) error {
-	original, err := kubeclient.CoreV1().Secrets(namespace).Get(src, metav1.GetOptions{})
+	original, err := kubeclient.CoreV1().Secrets(namespace).Get(context.TODO(), src, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -117,7 +118,7 @@ func CopySecret(src string, dest string, namespace string, kubeclient kubernetes
 		Type: original.Type,
 	}
 
-	_, err = kubeclient.CoreV1().Secrets(namespace).Create(&secret)
+	_, err = kubeclient.CoreV1().Secrets(namespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -126,21 +127,21 @@ func CopySecret(src string, dest string, namespace string, kubeclient kubernetes
 }
 
 func RegenerateCertAuthority(name string, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
-	current, err := cli.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
+	current, err := cli.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	regenerated := certs.GenerateCASecret(name, name)
 	current.Data = regenerated.Data
-	return cli.CoreV1().Secrets(namespace).Update(current)
+	return cli.CoreV1().Secrets(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 }
 
 func RegenerateCredentials(credential types.Credential, namespace string, ca *corev1.Secret, cli kubernetes.Interface) (*corev1.Secret, error) {
-	current, err := cli.CoreV1().Secrets(namespace).Get(credential.Name, metav1.GetOptions{})
+	current, err := cli.CoreV1().Secrets(namespace).Get(context.TODO(), credential.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	regenerated := certs.GenerateSecret(credential.Name, credential.Subject, strings.Join(credential.Hosts, ","), ca)
 	current.Data = regenerated.Data
-	return cli.CoreV1().Secrets(namespace).Update(current)
+	return cli.CoreV1().Secrets(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 }

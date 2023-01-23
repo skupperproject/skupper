@@ -48,18 +48,18 @@ func TestRevokeAccess(t *testing.T) {
 	recordName := strings.Join(strings.Split(u.Path, "/"), "")
 	os.Remove(filename)
 
-	ca1, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
+	ca1, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(context.TODO(), types.SiteCaSecret, metav1.GetOptions{})
 	assert.Check(t, err, "Unable to get CA before revocation")
 
-	cert1, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteServerSecret, metav1.GetOptions{})
+	cert1, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(context.TODO(), types.SiteServerSecret, metav1.GetOptions{})
 	assert.Check(t, err, "Unable to get cert before revocation")
 
 	cli.RevokeAccess(ctx)
 
-	ca2, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteCaSecret, metav1.GetOptions{})
+	ca2, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(context.TODO(), types.SiteCaSecret, metav1.GetOptions{})
 	assert.Check(t, err, "Unable to get CA before revocation")
 
-	cert2, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(types.SiteServerSecret, metav1.GetOptions{})
+	cert2, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(context.TODO(), types.SiteServerSecret, metav1.GetOptions{})
 	assert.Check(t, err, "Unable to get cert before revocation")
 
 	for key, value := range ca1.Data {
@@ -68,7 +68,7 @@ func TestRevokeAccess(t *testing.T) {
 	for key, value := range cert1.Data {
 		assert.Assert(t, !bytes.Equal(cert2.Data[key], value), "Same value for "+key)
 	}
-	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(recordName, metav1.GetOptions{})
+	_, err = cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(context.TODO(), recordName, metav1.GetOptions{})
 	assert.Assert(t, err != nil, "Expected error when retrieving claim record")
 	assert.Assert(t, errors.IsNotFound(err), "claim record still exists")
 }

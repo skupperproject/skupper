@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -225,7 +226,7 @@ func TestCheckServiceFor(t *testing.T) {
 
 	for _, s := range scenarios {
 		t.Run(s.doc, func(t *testing.T) {
-			_, err = kubeClient.CoreV1().Services(NS).Create(s.actual)
+			_, err = kubeClient.CoreV1().Services(NS).Create(context.TODO(), s.actual, metav1.CreateOptions{})
 			assert.Assert(t, err)
 			stopCh := make(chan struct{})
 			event.StartDefaultEventStore(stopCh)
@@ -239,7 +240,7 @@ func TestCheckServiceFor(t *testing.T) {
 			assert.Assert(t, err)
 
 			// validating expected service
-			svc, err := kubeClient.CoreV1().Services(NS).Get(s.expected.Name, metav1.GetOptions{})
+			svc, err := kubeClient.CoreV1().Services(NS).Get(context.TODO(), s.expected.Name, metav1.GetOptions{})
 			assert.Assert(t, err)
 
 			// Comparing services

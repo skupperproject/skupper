@@ -57,14 +57,14 @@ func (e *UnexposeTester) Run(cluster *base.ClusterContext) (stdout string, stder
 		// Service should have been removed
 		expectedAddress := utils.StrDefault(e.Address, e.TargetName)
 		log.Printf("validating service %s has been removed", expectedAddress)
-		_, err = cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(expectedAddress, v1.GetOptions{})
+		_, err = cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(ctx, expectedAddress, v1.GetOptions{})
 		if err == nil {
 			log.Printf("service %s still exists", expectedAddress)
 			return false, nil
 		}
 		// Service removed from config map
 		log.Printf("validating service %s no longer exists in %s config map", expectedAddress, types.ServiceInterfaceConfigMap)
-		cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(types.ServiceInterfaceConfigMap, v1.GetOptions{})
+		cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(ctx, types.ServiceInterfaceConfigMap, v1.GetOptions{})
 		if err != nil {
 			return true, fmt.Errorf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
 		}

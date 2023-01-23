@@ -67,7 +67,7 @@ func FirstReadyPod(list []corev1.Pod) *corev1.Pod {
 
 func GetReadyPod(namespace string, clientset kubernetes.Interface, component string) (*corev1.Pod, error) {
 	selector := "skupper.io/component=" + component
-	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: selector})
+	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	} else if len(pods.Items) == 0 {
@@ -111,7 +111,7 @@ func WaitForPodStatus(namespace string, clientset kubernetes.Interface, podName 
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		pod, err = clientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+		pod, err = clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 		if err != nil {
 			// pod does not exist yet
 			return false, nil
@@ -156,7 +156,7 @@ func GetPodContainerLogsWithOpts(podName string, containerName string, namespace
 		podLogOpts.Container = containerName
 	}
 	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
-	podLogs, err := req.Stream()
+	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
 		return "", err
 	}

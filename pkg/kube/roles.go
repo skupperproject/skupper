@@ -1,6 +1,8 @@
 package kube
 
 import (
+	"context"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -8,7 +10,7 @@ import (
 
 func CreateRole(namespace string, role *rbacv1.Role, kubeclient kubernetes.Interface) (*rbacv1.Role, error) {
 	roles := kubeclient.RbacV1().Roles(namespace)
-	created, err := roles.Create(role)
+	created, err := roles.Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -17,12 +19,12 @@ func CreateRole(namespace string, role *rbacv1.Role, kubeclient kubernetes.Inter
 }
 
 func UpdateRole(namespace string, name string, rules []rbacv1.PolicyRule, kubeclient kubernetes.Interface) error {
-	role, err := kubeclient.RbacV1().Roles(namespace).Get(name, metav1.GetOptions{})
+	role, err := kubeclient.RbacV1().Roles(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	role.Rules = rules
-	_, err = kubeclient.RbacV1().Roles(namespace).Update(role)
+	_, err = kubeclient.RbacV1().Roles(namespace).Update(context.TODO(), role, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -30,7 +32,7 @@ func UpdateRole(namespace string, name string, rules []rbacv1.PolicyRule, kubecl
 }
 
 func CopyRole(src string, dest string, namespace string, kubeclient kubernetes.Interface) error {
-	original, err := kubeclient.RbacV1().Roles(namespace).Get(src, metav1.GetOptions{})
+	original, err := kubeclient.RbacV1().Roles(namespace).Get(context.TODO(), src, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -43,7 +45,7 @@ func CopyRole(src string, dest string, namespace string, kubeclient kubernetes.I
 		},
 		Rules: original.Rules,
 	}
-	_, err = kubeclient.RbacV1().Roles(namespace).Create(role)
+	_, err = kubeclient.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

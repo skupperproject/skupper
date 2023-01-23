@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	jsonencoding "encoding/json"
 	"fmt"
 	"reflect"
@@ -744,7 +745,7 @@ func (m *DefinitionMonitor) restoreServiceDefinitions(name string) error {
 		delete(service.ObjectMeta.Annotations, types.OriginalAssignedQualifier)
 	}
 	if updated {
-		_, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Update(service)
+		_, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 		return err
 	}
 	return nil

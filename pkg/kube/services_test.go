@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -63,10 +64,10 @@ func TestGetPortForServiceTarget(t *testing.T) {
 	svcOnePort := newService("svc-one-port", 8080)
 	svcDotOnePort := newService("svc-one-port.test", 8080)
 	svcThreePorts := newService("svc-three-ports", 8080, 8081, 8082)
-	kubeClient.CoreV1().Services(NS).Create(svcNoPorts)
-	kubeClient.CoreV1().Services(NS).Create(svcOnePort)
-	kubeClient.CoreV1().Services(NS).Create(svcDotOnePort)
-	kubeClient.CoreV1().Services(NS).Create(svcThreePorts)
+	kubeClient.CoreV1().Services(NS).Create(context.TODO(), svcNoPorts, metav1.CreateOptions{})
+	kubeClient.CoreV1().Services(NS).Create(context.TODO(), svcOnePort, metav1.CreateOptions{})
+	kubeClient.CoreV1().Services(NS).Create(context.TODO(), svcDotOnePort, metav1.CreateOptions{})
+	kubeClient.CoreV1().Services(NS).Create(context.TODO(), svcThreePorts, metav1.CreateOptions{})
 
 	testTable := []test{
 		{"svc-no-ports", svcNoPorts.Name, "", map[int]int{}},

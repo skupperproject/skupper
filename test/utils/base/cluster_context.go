@@ -51,7 +51,7 @@ func (cc *ClusterContext) KubectlExec(command string) ([]byte, error) {
 func (cc *ClusterContext) CreateNamespace() error {
 	if ShouldSkipNamespaceSetup() {
 		log.Printf("Skipping namespace creation for %v", cc.Namespace)
-		ns, err := cc.VanClient.KubeClient.CoreV1().Namespaces().Get(cc.Namespace, metav1.GetOptions{})
+		ns, err := cc.VanClient.KubeClient.CoreV1().Namespaces().Get(context.TODO(), cc.Namespace, metav1.GetOptions{})
 		if err == nil {
 			if ns != nil {
 				// As we're skipping the creation of namespaces, we're adopting whatever
@@ -99,7 +99,7 @@ func (cc *ClusterContext) LabelNamespace(label string, value string) (err error)
 
 	payload := fmt.Sprintf(`{"metadata": {"labels": {"%v": "%v"}}}`, label, value)
 
-	_, err = cc.VanClient.KubeClient.CoreV1().Namespaces().Patch(cc.Namespace, types.MergePatchType, []byte(payload))
+	_, err = cc.VanClient.KubeClient.CoreV1().Namespaces().Patch(context.TODO(), cc.Namespace, types.MergePatchType, []byte(payload), metav1.PatchOptions{})
 
 	return
 }
@@ -113,7 +113,7 @@ func (cc *ClusterContext) waitForSkupperServiceToBeCreated(name string, retryFn 
 
 	_retryFn := func() (*apiv1.Service, error) {
 		cc.KubectlExec("get pods -o wide")
-		return cc.VanClient.KubeClient.CoreV1().Services(cc.Namespace).Get(name, metav1.GetOptions{})
+		return cc.VanClient.KubeClient.CoreV1().Services(cc.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	}
 
 	if retryFn == nil {

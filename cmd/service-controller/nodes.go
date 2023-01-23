@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -32,7 +33,7 @@ type NodeWatcher struct {
 }
 
 func NewNodeWatcher(cli *client.VanClient, handler NodeUpdateHandler) *NodeWatcher {
-	_, err := cli.KubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
+	_, err := cli.KubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil
 	}

@@ -30,7 +30,7 @@ func GetDeploymentLabel(name string, key string, namespace string, cli kubernete
 
 func GetPods(selector string, namespace string, cli kubernetes.Interface) ([]corev1.Pod, error) {
 	options := metav1.ListOptions{LabelSelector: selector}
-	podList, err := cli.CoreV1().Pods(namespace).List(options)
+	podList, err := cli.CoreV1().Pods(namespace).List(context.TODO(), options)
 	if err != nil {
 		return nil, err
 	}
@@ -47,16 +47,16 @@ func GetDeploymentOwnerReference(dep *appsv1.Deployment) metav1.OwnerReference {
 }
 
 func DeleteDeployment(name string, namespace string, cli kubernetes.Interface) error {
-	_, err := cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	_, err := cli.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err == nil {
-		err = cli.AppsV1().Deployments(namespace).Delete(name, &metav1.DeleteOptions{})
+		err = cli.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	}
 	return err
 }
 
 // TODO, pass full client object with namespace and clientset
 func GetDeployment(name string, namespace string, cli kubernetes.Interface) (*appsv1.Deployment, error) {
-	existing, err := cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	existing, err := cli.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -79,7 +79,7 @@ func getProxyStatefulSetName(definition types.ServiceInterface) string {
 func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterface, actual *appsv1.StatefulSet, desiredConfig string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	if actual == nil {
 		var err error
-		actual, err = cli.AppsV1().StatefulSets(namespace).Get(getProxyStatefulSetName(desired), metav1.GetOptions{})
+		actual, err = cli.AppsV1().StatefulSets(namespace).Get(context.TODO(), getProxyStatefulSetName(desired), metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			return NewProxyStatefulSet(image, desired, desiredConfig, namespace, cli)
 		} else if err != nil {
@@ -97,7 +97,7 @@ func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterf
 		change = true
 	}
 	if change {
-		return cli.AppsV1().StatefulSets(namespace).Update(actual)
+		return cli.AppsV1().StatefulSets(namespace).Update(context.TODO(), actual, metav1.UpdateOptions{})
 	} else {
 		return actual, nil
 	}
@@ -106,7 +106,7 @@ func CheckProxyStatefulSet(image types.ImageDetails, desired types.ServiceInterf
 func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.ServiceInterface, config string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
 	statefulSets := cli.AppsV1().StatefulSets(namespace)
 	deployments := cli.AppsV1().Deployments(namespace)
-	transportDep, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
+	transportDep, err := deployments.Get(context.TODO(), types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 	}
 	setResourceRequests(&podspec.Containers[0], serviceInterface.Headless)
 
-	created, err := statefulSets.Create(proxyStatefulSet)
+	created, err := statefulSets.Create(context.TODO(), proxyStatefulSet, metav1.CreateOptions{})
 
 	if err != nil {
 		return nil, err
@@ -260,7 +260,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 
 func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, securityContext *corev1.SecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
-	existing, err := deployments.Get(types.ControllerDeploymentName, metav1.GetOptions{})
+	existing, err := deployments.Get(context.TODO(), types.ControllerDeploymentName, metav1.GetOptions{})
 	if err == nil {
 		return existing, nil
 	} else if errors.IsNotFound(err) {
@@ -313,7 +313,7 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 			}
 		}
 
-		created, err := deployments.Create(dep)
+		created, err := deployments.Create(context.TODO(), dep, metav1.CreateOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create controller deployment: %w", err)
 		} else {
@@ -368,7 +368,7 @@ func setAffinity(spec *types.DeploymentSpec, podspec *corev1.PodSpec) {
 
 func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, securityContext *corev1.SecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
-	existing, err := deployments.Get(types.TransportDeploymentName, metav1.GetOptions{})
+	existing, err := deployments.Get(context.TODO(), types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
 		return existing, nil
 	} else if errors.IsNotFound(err) {
@@ -425,7 +425,7 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 			}
 		}
 
-		created, err := deployments.Create(dep)
+		created, err := deployments.Create(context.TODO(), dep, metav1.CreateOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create transport deployment: %w", err)
 		} else {
@@ -471,7 +471,7 @@ func WaitDeploymentReadyReplicas(name string, namespace string, readyReplicas in
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		dep, err = cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+		dep, err = cli.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			// dep does not exist yet
 			return false, nil
@@ -489,7 +489,7 @@ func WaitStatefulSetReadyReplicas(name string, namespace string, readyReplicas i
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		ss, err = cli.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{})
+		ss, err = cli.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			// ss does not exist yet
 			return false, nil
@@ -508,7 +508,7 @@ func WaitDeploymentReady(name string, namespace string, cli kubernetes.Interface
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		dep, err = cli.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+		dep, err = cli.AppsV1().Deployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			// dep does not exist yet
 			return false, nil
@@ -528,7 +528,7 @@ func WaitDaemonSetReady(name string, namespace string, cli kubernetes.Interface,
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		dep, err = cli.AppsV1().DaemonSets(namespace).Get(name, metav1.GetOptions{})
+		dep, err = cli.AppsV1().DaemonSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
 		}

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/server"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -14,7 +15,7 @@ type GetLocalLinks func(*VanClient, string, map[string]string) (map[string]*type
 func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, error) {
 
 	//Checking if the router has been deployed
-	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Skupper is not installed: %s", err)
 	}
@@ -183,7 +184,7 @@ func getSiteNameMap(sites *[]types.SiteInfo) map[string]string {
 func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*types.RemoteLinkInfo, error) {
 
 	//Checking if the router has been deployed
-	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}

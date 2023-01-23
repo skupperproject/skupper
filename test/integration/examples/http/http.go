@@ -510,7 +510,7 @@ func runHeyTesWithParameter(t *testing.T, cluster *base.ClusterContext, numOfWor
 	h1HeyBaseJob.Spec.Template.Name = jobName
 	h1HeyBaseJob.Spec.Template.Spec.Containers[0].Name = jobName
 
-	_, err := jobsClient.Create(h1HeyBaseJob)
+	_, err := jobsClient.Create(context.TODO(), h1HeyBaseJob, metav1.CreateOptions{})
 	assert.Assert(t, err)
 	waitJob(cluster, jobName)
 
@@ -641,7 +641,7 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	// Send a huge load for HTTPD2
 	t.Run("http2load", func(t *testing.T) {
 		jobsClient := pubCluster1.VanClient.KubeClient.BatchV1().Jobs(pubCluster1.Namespace)
-		_, err = jobsClient.Create(h2loadJob)
+		_, err = jobsClient.Create(context.TODO(), h2loadJob, metav1.CreateOptions{})
 		assert.Assert(t, err)
 		waitJob(pubCluster1, "h2load")
 
@@ -664,7 +664,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	createDeploymentInPrivateSite := func(dep *appsv1.Deployment) {
 		t.Helper()
 		fmt.Println("Creating nginx1 deployment...")
-		result, err := privateDeploymentsClient.Create(dep)
+		result, err := privateDeploymentsClient.Create(ctx, dep, metav1.CreateOptions{})
 		assert.Assert(t, err)
 
 		fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
@@ -685,7 +685,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	}
 
 	configMaps := prv1Cluster.VanClient.KubeClient.CoreV1().ConfigMaps(prv1Cluster.Namespace)
-	_, err = configMaps.Create(&indexHTMLConfigMap)
+	_, err = configMaps.Create(ctx, &indexHTMLConfigMap, metav1.CreateOptions{})
 	assert.Assert(t, err)
 
 	// Create the deployment for HTTP2
@@ -716,7 +716,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	assert.Assert(t, err)
 
 	//update tls service with cert files
-	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(nghttp2TlsDepWithCertFiles)
+	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(ctx, nghttp2TlsDepWithCertFiles, metav1.UpdateOptions{})
 	assert.Assert(t, err)
 
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2TcpTlsService, "deployment", "nghttp2tcptls", "tcp", map[int]int{})
@@ -757,6 +757,6 @@ func tearDown(ctx context.Context, r base.ClusterTestRunner) {
 
 	// Deleting deployments
 	depCli := prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace)
-	_ = depCli.Delete(nginxDep.Name, &metav1.DeleteOptions{})
-	_ = depCli.Delete(nghttp2Dep.Name, &metav1.DeleteOptions{})
+	_ = depCli.Delete(ctx, nginxDep.Name, metav1.DeleteOptions{})
+	_ = depCli.Delete(ctx, nghttp2Dep.Name, metav1.DeleteOptions{})
 }

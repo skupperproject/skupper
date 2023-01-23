@@ -54,7 +54,7 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		attempt++
 		log.Printf("validating skupper resources have been removed - attempt: %d", attempt)
 		// site config is gone
-		_, err = cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
+		_, err = cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(ctx, types.SiteConfigMapName, metav1.GetOptions{})
 		if err == nil {
 			log.Printf("skupper-site config map still exists")
 			return false, nil
@@ -68,14 +68,14 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		}
 
 		// router deployment is gone
-		_, err = cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+		_, err = cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
 		if err == nil {
 			log.Printf("%s deployment still exists", types.TransportDeploymentName)
 			return false, nil
 		}
 
 		// controller deployment is gone
-		_, err = cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(types.ControllerDeploymentName, metav1.GetOptions{})
+		_, err = cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(ctx, types.ControllerDeploymentName, metav1.GetOptions{})
 		if err == nil {
 			log.Printf("%s deployment still exists", types.ControllerDeploymentName)
 			return false, nil

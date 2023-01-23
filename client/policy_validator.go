@@ -20,6 +20,7 @@ import (
 	apiv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/discovery"
@@ -109,14 +110,14 @@ func (p *ClusterPolicyValidator) LoadNamespacePolicies() ([]v1alpha12.SkupperClu
 		return policies, nil
 	}
 
-	policyList, err := skupperPolicy.List(v1.ListOptions{})
+	policyList, err := skupperPolicy.List(context.TODO(), v1.ListOptions{})
 	if err != nil {
 		if errors.IsForbidden(err) || !p.CrdDefined() {
 			return policies, nil
 		}
 		return policies, err
 	}
-	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(p.cli.Namespace, v1.GetOptions{})
+	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(context.TODO(), p.cli.Namespace, v1.GetOptions{})
 	for _, pol := range policyList.Items {
 		if len(pol.Name) > 0 && p.appliesToNS(&pol, namespace) {
 			policies = append(policies, pol)
@@ -131,12 +132,12 @@ func (p *ClusterPolicyValidator) AppliesToNS(policyName string) bool {
 	if err != nil {
 		return true
 	}
-	pol, err := skupperPolicy.Get(policyName, v1.GetOptions{})
+	pol, err := skupperPolicy.Get(context.TODO(), policyName, v1.GetOptions{})
 	// If policy not found, revalidate
 	if err != nil {
 		return true
 	}
-	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(p.cli.Namespace, v1.GetOptions{})
+	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(context.TODO(), p.cli.Namespace, v1.GetOptions{})
 	return p.appliesToNS(pol, namespace)
 }
 
@@ -167,7 +168,7 @@ func (p *ClusterPolicyValidator) Enabled() bool {
 
 func (p *ClusterPolicyValidator) HasPermission() bool {
 	authCli, err := authv1.NewForConfig(p.cli.RestConfig)
-	sar, err := authCli.SelfSubjectAccessReviews().Create(&apiv1.SelfSubjectAccessReview{
+	sar, err := authCli.SelfSubjectAccessReviews().Create(context.TODO(), &apiv1.SelfSubjectAccessReview{
 		Spec: apiv1.SelfSubjectAccessReviewSpec{
 			ResourceAttributes: &apiv1.ResourceAttributes{
 				Verb:     "list",
@@ -176,7 +177,7 @@ func (p *ClusterPolicyValidator) HasPermission() bool {
 				Resource: "skupperclusterpolicies",
 			},
 		},
-	})
+	}, metav1.CreateOptions{})
 	return err == nil && sar.Status.Allowed
 }
 

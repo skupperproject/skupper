@@ -10,7 +10,7 @@ import (
 )
 
 func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteConfigSpec) ([]string, error) {
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.SiteConfigMapName, metav1.GetOptions{})
+	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(ctx, types.SiteConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +27,7 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 		updateDebugMode = true
 	}
 	if updateLogging || updateDebugMode {
-		configmap, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(configmap)
+		configmap, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(ctx, configmap, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
 		}

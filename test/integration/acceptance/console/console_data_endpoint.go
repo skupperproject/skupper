@@ -12,6 +12,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	// "os"
 	"testing"
 )
@@ -73,7 +74,7 @@ func CreateFrontendDeployment(t *testing.T, cluster *client.VanClient) {
 	}
 
 	// Deploying resource
-	dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Create(dep)
+	dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Create(context.TODO(), dep, metav1.CreateOptions{})
 	assert.Assert(t, err)
 }
 
@@ -114,7 +115,7 @@ func CreateBackendDeployment(t *testing.T, cluster *client.VanClient) {
 	}
 
 	// Deploying resource
-	dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Create(dep)
+	dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Create(context.TODO(), dep, metav1.CreateOptions{})
 	assert.Assert(t, err)
 }
 
@@ -155,9 +156,9 @@ func TearDown(t *testing.T, r base.ClusterTestRunner) error {
 	privateCluster, _ := r.GetPrivateContext(1)
 
 	// Delete the frontend deployment
-	assert.Assert(t, publicCluster.VanClient.KubeClient.AppsV1().Deployments(publicCluster.Namespace).Delete(frontsvc.Address, &metav1.DeleteOptions{}))
+	assert.Assert(t, publicCluster.VanClient.KubeClient.AppsV1().Deployments(publicCluster.Namespace).Delete(context.TODO(), frontsvc.Address, metav1.DeleteOptions{}))
 	// Delete the backend deployment
-	assert.Assert(t, privateCluster.VanClient.KubeClient.AppsV1().Deployments(privateCluster.Namespace).Delete(backsvc.Address, &metav1.DeleteOptions{}))
+	assert.Assert(t, privateCluster.VanClient.KubeClient.AppsV1().Deployments(privateCluster.Namespace).Delete(context.TODO(), backsvc.Address, metav1.DeleteOptions{}))
 
 	return nil
 }

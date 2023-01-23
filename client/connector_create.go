@@ -25,7 +25,7 @@ import (
 )
 
 func generateConnectorName(namespace string, cli kubernetes.Interface) string {
-	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
+	secrets, err := cli.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{})
 	max := 1
 	if err == nil {
 		connector_name_pattern := regexp.MustCompile("link([0-9]+)+")
@@ -170,7 +170,7 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 				}
 				secret.ObjectMeta.Annotations[types.TokenCost] = strconv.Itoa(int(options.Cost))
 			}
-			_, err = cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Create(&secret)
+			_, err = cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Create(context.TODO(), &secret, metav1.CreateOptions{})
 			if err == nil {
 				return &secret, nil
 			} else if errors.IsAlreadyExists(err) {
@@ -227,7 +227,7 @@ func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string
 	if self == string(generatedBy) {
 		return fmt.Errorf("Can't create connection to self with token")
 	}
-	currentSecrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
+	currentSecrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
 	if err != nil {
 		return fmt.Errorf("Could not retrieve secrets: %w", err)
 	}
@@ -304,7 +304,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		}
 		if updated {
 			current.UpdateConfigMap(configmap)
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(configmap)
+			_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(context.TODO(), configmap, metav1.UpdateOptions{})
 			return err
 		}
 		return nil
@@ -316,7 +316,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 }
 
 func (cli *VanClient) requireSiteVersion(ctx context.Context, namespace string, minimumVersion string) error {
-	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(types.TransportConfigMapName, metav1.GetOptions{})
+	configmap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), types.TransportConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

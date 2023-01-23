@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -49,7 +51,7 @@ func (h *ClaimHandler) handleError(claim *corev1.Secret, text string, failed boo
 		claim.ObjectMeta.Annotations[types.LastFailedAnnotationKey] = time.Now().Format(time.RFC3339)
 	}
 	claim.ObjectMeta.Annotations[types.StatusAnnotationKey] = text
-	_, err := h.vanClient.KubeClient.CoreV1().Secrets(h.vanClient.Namespace).Update(claim)
+	_, err := h.vanClient.KubeClient.CoreV1().Secrets(h.vanClient.Namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
 	if err != nil {
 		event.Recordf(h.name, "Failed to update status for claim %q: %s", claim.ObjectMeta.Name, err)
 	}
@@ -125,7 +127,7 @@ func (h *ClaimHandler) redeemClaim(claim *corev1.Secret) error {
 		claim.ObjectMeta.Labels[key] = value
 	}
 	claim.Data = token.Data
-	_, err = h.vanClient.KubeClient.CoreV1().Secrets(h.vanClient.Namespace).Update(claim)
+	_, err = h.vanClient.KubeClient.CoreV1().Secrets(h.vanClient.Namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("Could not store connection token for claim %q: %s", claim.ObjectMeta.Name, err)
 	}
