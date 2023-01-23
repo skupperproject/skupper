@@ -22,8 +22,8 @@ type UnexposeTester struct {
 	Address    string
 }
 
-func (e *UnexposeTester) Command(cluster *base.ClusterContext) []string {
-	args := SkupperCommonOptions(cluster)
+func (e *UnexposeTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := SkupperCommonOptions(platform, cluster)
 	args = append(args, "unexpose", e.TargetType, e.TargetName)
 
 	// Flags
@@ -33,9 +33,9 @@ func (e *UnexposeTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (e *UnexposeTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (e *UnexposeTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute unexpose command
-	stdout, stderr, err = RunSkupperCli(e.Command(cluster))
+	stdout, stderr, err = RunSkupperCli(e.Command(platform, cluster))
 	if err != nil {
 		return
 	}

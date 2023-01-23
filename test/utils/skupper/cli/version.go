@@ -5,21 +5,23 @@ import (
 	"log"
 	"regexp"
 
+	"github.com/skupperproject/skupper/api/types"
+
 	"github.com/skupperproject/skupper/test/utils/base"
 )
 
 // VersionTester runs `skupper version` and validates its output
 type VersionTester struct{}
 
-func (v *VersionTester) Command(cluster *base.ClusterContext) []string {
-	args := SkupperCommonOptions(cluster)
+func (v *VersionTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := SkupperCommonOptions(platform, cluster)
 	args = append(args, "version")
 	return args
 }
 
-func (v *VersionTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (v *VersionTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute version command
-	stdout, stderr, err = RunSkupperCli(v.Command(cluster))
+	stdout, stderr, err = RunSkupperCli(v.Command(platform, cluster))
 	if err != nil {
 		return
 	}

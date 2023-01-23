@@ -21,8 +21,8 @@ type ForwardTester struct {
 	IsGatewayActive bool
 }
 
-func (f *ForwardTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (f *ForwardTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "gateway", "forward", f.Address)
 	args = append(args, f.Port...)
 
@@ -33,9 +33,9 @@ func (f *ForwardTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (f *ForwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (f *ForwardTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute the gateway forward command
-	stdout, stderr, err = cli.RunSkupperCli(f.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(f.Command(platform, cluster))
 	if err != nil {
 		return
 	}

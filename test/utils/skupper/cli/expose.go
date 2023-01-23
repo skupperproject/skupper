@@ -29,8 +29,8 @@ type ExposeTester struct {
 	PolicyProhibits bool
 }
 
-func (e *ExposeTester) Command(cluster *base.ClusterContext) []string {
-	args := SkupperCommonOptions(cluster)
+func (e *ExposeTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := SkupperCommonOptions(platform, cluster)
 	args = append(args, "expose", e.TargetType, e.TargetName)
 
 	// Flags
@@ -52,9 +52,9 @@ func (e *ExposeTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (e *ExposeTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (e *ExposeTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute expose command
-	stdout, stderr, err = RunSkupperCli(e.Command(cluster))
+	stdout, stderr, err = RunSkupperCli(e.Command(platform, cluster))
 	if err != nil {
 		if e.PolicyProhibits {
 			expect := Expect{

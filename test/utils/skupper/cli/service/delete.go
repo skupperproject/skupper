@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -17,15 +18,15 @@ type DeleteTester struct {
 	Name string
 }
 
-func (s *DeleteTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (s *DeleteTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "service", "delete", s.Name)
 	return args
 }
 
-func (s *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (s *DeleteTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute service delete command
-	stdout, stderr, err = cli.RunSkupperCli(s.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(s.Command(platform, cluster))
 	if err != nil {
 		return
 	}

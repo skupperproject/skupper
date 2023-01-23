@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/skupperproject/skupper/api/types"
+
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -28,12 +30,12 @@ type StatusTester struct {
 	PolicyEnabled          *bool
 }
 
-func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
-	args := SkupperCommonOptions(cluster)
+func (s *StatusTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := SkupperCommonOptions(platform, cluster)
 	return append(args, "status")
 }
 
-func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (s *StatusTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 
 	// The status command needs to be executed multiple times, till expected
 	// results can be observed or until it times out
@@ -49,7 +51,7 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		}
 		attempt++
 
-		stdout, stderr, err = s.run(cluster)
+		stdout, stderr, err = s.run(platform, cluster)
 		log.Printf("Validating 'skupper status' - attempt %d", attempt)
 		if err != nil {
 			log.Printf("error executing status command: %v", err)
@@ -61,9 +63,9 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	return
 }
 
-func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 
-	stdout, stderr, err = RunSkupperCli(s.Command(cluster))
+	stdout, stderr, err = RunSkupperCli(s.Command(platform, cluster))
 	if err != nil {
 		return
 	}

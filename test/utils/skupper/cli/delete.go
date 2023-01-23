@@ -22,15 +22,15 @@ type DeleteTester struct {
 	IgnoreNotInstalled bool
 }
 
-func (d *DeleteTester) Command(cluster *base.ClusterContext) []string {
-	args := SkupperCommonOptions(cluster)
+func (d *DeleteTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := SkupperCommonOptions(platform, cluster)
 	args = append(args, "delete")
 	return args
 }
 
-func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (d *DeleteTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute delete command
-	stdout, stderr, err = RunSkupperCli(d.Command(cluster))
+	stdout, stderr, err = RunSkupperCli(d.Command(platform, cluster))
 	if err != nil {
 		if d.IgnoreNotInstalled && strings.Contains(stderr, "Skupper not installed") {
 			err = nil

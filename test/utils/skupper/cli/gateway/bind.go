@@ -21,17 +21,17 @@ type BindTester struct {
 	IsGatewayActive bool
 }
 
-func (b *BindTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (b *BindTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "gateway", "bind", b.Address, b.Host)
 	args = append(args, b.EgressPort...)
 
 	return args
 }
 
-func (b *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (b *BindTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute the gateway bind command
-	stdout, stderr, err = cli.RunSkupperCli(b.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(b.Command(platform, cluster))
 	if err != nil {
 		return
 	}

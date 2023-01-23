@@ -5,6 +5,8 @@ import (
 	"log"
 	"regexp"
 
+	"github.com/skupperproject/skupper/api/types"
+
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
@@ -15,15 +17,15 @@ type DeleteTester struct {
 	Name string
 }
 
-func (l *DeleteTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (l *DeleteTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "link", "delete", l.Name)
 	return args
 }
 
-func (l *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (l *DeleteTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute link create command
-	stdout, stderr, err = cli.RunSkupperCli(l.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(l.Command(platform, cluster))
 	if err != nil {
 		return
 	}

@@ -14,14 +14,14 @@ import (
 type DeleteTester struct {
 }
 
-func (d *DeleteTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (d *DeleteTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "gateway", "delete")
 
 	return args
 }
 
-func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (d *DeleteTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	ctx := context.Background()
 	preGateways, err := cluster.VanClient.GatewayList(ctx)
 	if err != nil {
@@ -33,7 +33,7 @@ func (d *DeleteTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	}
 
 	// Execute the gateway delete command
-	stdout, stderr, err = cli.RunSkupperCli(d.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(d.Command(platform, cluster))
 	if err != nil {
 		return
 	}
