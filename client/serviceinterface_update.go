@@ -19,7 +19,7 @@ import (
 )
 
 func getRootObject(cli *VanClient) (*metav1.OwnerReference, error) {
-	root, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	root, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(context.TODO(), types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -35,7 +35,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 	}
 	var unretryable error = nil
 	err = retry.RetryOnConflict(defaultRetry, func() error {
-		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 		if err == nil {
 			if overwriteIfExists || current.Data == nil || current.Data[service.Address] == "" {
 				if current.Data == nil {
@@ -45,7 +45,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 				} else {
 					current.Data[service.Address] = string(encoded)
 				}
-				_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+				_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 				if err != nil {
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
 					return err
@@ -74,7 +74,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 					*owner,
 				}
 			}
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(&configMap)
+			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Create(context.TODO(), &configMap, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("Failed to create skupper-services config map: %s", err)
 			} else {
@@ -112,7 +112,7 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 	}
 
 	if service.TlsCredentials != "" && !strings.HasPrefix(service.TlsCredentials, types.SkupperServiceCertPrefix) {
-		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
+		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(context.TODO(), service.TlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Secret %s not available for service %s", service.TlsCredentials, service.Address)
 		}
@@ -130,7 +130,7 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 		}
 	}
 	if service.TlsCertAuthority != "" && service.TlsCertAuthority != types.ServiceClientSecret {
-		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCertAuthority, metav1.GetOptions{})
+		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(context.TODO(), service.TlsCertAuthority, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Secret %s not available for service %s", service.TlsCertAuthority, service.Address)
 		}
@@ -244,12 +244,12 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 }
 
 func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool) (*types.ServiceInterface, error) {
-	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(targetName, metav1.GetOptions{})
+	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(cli.Namespace).Get(context.TODO(), targetName, metav1.GetOptions{})
 	if err == nil {
 		if address != "" && address != statefulset.Spec.ServiceName {
 			return nil, fmt.Errorf("Cannot specify different address from service name for headless service.")
 		}
-		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(statefulset.Spec.ServiceName, metav1.GetOptions{})
+		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), statefulset.Spec.ServiceName, metav1.GetOptions{})
 		if err == nil {
 			def := types.ServiceInterface{
 				Address:  statefulset.Spec.ServiceName,
@@ -294,7 +294,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 }
 
 func removeServiceInterfaceTarget(serviceName string, targetName string, deleteIfNoTargets bool, cli *VanClient) error {
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+	current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 	if err == nil {
 		jsonDef := current.Data[serviceName]
 		if jsonDef == "" {
@@ -334,7 +334,7 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 					current.Data[serviceName] = string(encoded)
 				}
 			}
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("Failed to update skupper-services config map: %v", err.Error())
 			}

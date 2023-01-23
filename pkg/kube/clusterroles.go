@@ -1,6 +1,8 @@
 package kube
 
 import (
+	"context"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -8,7 +10,7 @@ import (
 
 func CreateClusterRole(clusterRole *rbacv1.ClusterRole, kubeclient kubernetes.Interface) (*rbacv1.ClusterRole, error) {
 	clusterRoles := kubeclient.RbacV1().ClusterRoles()
-	created, err := clusterRoles.Create(clusterRole)
+	created, err := clusterRoles.Create(context.TODO(), clusterRole, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -17,12 +19,12 @@ func CreateClusterRole(clusterRole *rbacv1.ClusterRole, kubeclient kubernetes.In
 }
 
 func UpdateClusterRole(name string, rules []rbacv1.PolicyRule, kubeclient kubernetes.Interface) error {
-	clusterRole, err := kubeclient.RbacV1().ClusterRoles().Get(name, metav1.GetOptions{})
+	clusterRole, err := kubeclient.RbacV1().ClusterRoles().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	clusterRole.Rules = rules
-	_, err = kubeclient.RbacV1().ClusterRoles().Update(clusterRole)
+	_, err = kubeclient.RbacV1().ClusterRoles().Update(context.TODO(), clusterRole, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -30,7 +32,7 @@ func UpdateClusterRole(name string, rules []rbacv1.PolicyRule, kubeclient kubern
 }
 
 func CopyClusterRole(src string, dest string, kubeclient kubernetes.Interface) error {
-	original, err := kubeclient.RbacV1().ClusterRoles().Get(src, metav1.GetOptions{})
+	original, err := kubeclient.RbacV1().ClusterRoles().Get(context.TODO(), src, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -43,7 +45,7 @@ func CopyClusterRole(src string, dest string, kubeclient kubernetes.Interface) e
 		},
 		Rules: original.Rules,
 	}
-	_, err = kubeclient.RbacV1().ClusterRoles().Create(clusterRole)
+	_, err = kubeclient.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

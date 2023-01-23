@@ -1,18 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"math"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -366,7 +368,7 @@ func (c *ConfigSync) checkCertFiles(path string) error {
 			secretName = strings.TrimSuffix(profile.Name, "-profile")
 		}
 
-		_, err = c.vanClient.GetKubeClient().CoreV1().Secrets(c.vanClient.Namespace).Get(secretName, metav1.GetOptions{})
+		_, err = c.vanClient.GetKubeClient().CoreV1().Secrets(c.vanClient.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 		if err != nil {
 			continue
 		}
@@ -381,7 +383,7 @@ func (c *ConfigSync) checkCertFiles(path string) error {
 }
 
 func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secretname string) error {
-	secret, err := c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Get(secretname, metav1.GetOptions{})
+	secret, err := c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Get(context.TODO(), secretname, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

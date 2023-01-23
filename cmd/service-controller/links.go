@@ -126,7 +126,7 @@ func getLinkStatus(secret *corev1.Secret, connectors map[string]qdr.ConnectorSta
 
 func (m *LinkManager) getLinks() ([]types.LinkStatus, error) {
 	links := []types.LinkStatus{}
-	secrets, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
+	secrets, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "skupper.io/type in (connection-token, token-claim)"})
 	if err != nil {
 		return links, err
 	}
@@ -144,7 +144,7 @@ func (m *LinkManager) getLinks() ([]types.LinkStatus, error) {
 }
 
 func (m *LinkManager) getLink(name string) (*types.LinkStatus, error) {
-	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
+	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {

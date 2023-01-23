@@ -16,8 +16,8 @@ type GetLocalLinks func(*VanClient, string, map[string]string) (map[string]*type
 
 func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, error) {
 
-	// Checking if the router has been deployed
-	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(types.TransportDeploymentName, metav1.GetOptions{})
+	//Checking if the router has been deployed
+	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Skupper is not installed: %s", err)
 	}

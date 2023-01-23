@@ -89,7 +89,7 @@ func newTokenManager(cli *client.VanClient) *TokenManager {
 
 func (m *TokenManager) getTokens() ([]TokenState, error) {
 	tokens := []TokenState{}
-	secrets, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=token-claim-record"})
+	secrets, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "skupper.io/type=token-claim-record"})
 	if err != nil {
 		return tokens, err
 	}
@@ -100,7 +100,7 @@ func (m *TokenManager) getTokens() ([]TokenState, error) {
 }
 
 func (m *TokenManager) getToken(name string) (*TokenState, error) {
-	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
+	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {
@@ -113,7 +113,7 @@ func (m *TokenManager) getToken(name string) (*TokenState, error) {
 }
 
 func (m *TokenManager) deleteToken(name string) (bool, error) {
-	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
+	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return false, nil
 	} else if err != nil {
@@ -121,7 +121,7 @@ func (m *TokenManager) deleteToken(name string) (bool, error) {
 	} else if !isTokenRecord(secret) {
 		return false, nil
 	}
-	err = m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Delete(name, &metav1.DeleteOptions{})
+	err = m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if errors.IsNotFound(err) {
 		return false, nil
 	} else if err != nil {
@@ -146,7 +146,7 @@ func (m *TokenManager) generateToken(options *TokenOptions) (*corev1.Secret, err
 }
 
 func (m *TokenManager) downloadClaim(name string) (*corev1.Secret, error) {
-	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
+	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {

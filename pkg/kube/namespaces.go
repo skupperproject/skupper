@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -21,11 +22,11 @@ func NewNamespace(name string, cli kubernetes.Interface) (*corev1.Namespace, err
 			Name: name,
 		},
 	}
-	return cli.CoreV1().Namespaces().Create(ns)
+	return cli.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
 }
 
 func DeleteNamespace(name string, cli kubernetes.Interface) error {
-	err := cli.CoreV1().Namespaces().Delete(name, &metav1.DeleteOptions{})
+	err := cli.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err == nil {
 		return err
 	} else if errors.IsNotFound(err) {

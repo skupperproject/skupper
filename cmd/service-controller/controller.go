@@ -371,17 +371,17 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 
 func (c *Controller) DeleteService(svc *corev1.Service) error {
 	event.Recordf(ServiceControllerDeleteEvent, "Deleting service %s", svc.ObjectMeta.Name)
-	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(svc.ObjectMeta.Name, &metav1.DeleteOptions{})
+	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(context.TODO(), svc.ObjectMeta.Name, metav1.DeleteOptions{})
 }
 
 func (c *Controller) UpdateService(svc *corev1.Service) error {
-	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(svc)
+	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{})
 	return err
 }
 
 func (c *Controller) CreateService(svc *corev1.Service) error {
 	setOwnerReferences(&svc.ObjectMeta)
-	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Create(svc)
+	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
 	return err
 }
 
@@ -593,7 +593,7 @@ func (c *Controller) updateBridgeConfig(name string) error {
 		}
 		if update {
 			event.Recordf(ServiceControllerUpdateEvent, "Updating %s", cm.ObjectMeta.Name)
-			_, err = c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Update(cm)
+			_, err = c.vanClient.KubeClient.CoreV1().ConfigMaps(c.vanClient.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("Failed to update %s: %v", name, err.Error())
 			}
@@ -637,7 +637,7 @@ func (c *Controller) updateServiceSync(defs *corev1.ConfigMap) {
 }
 
 func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error {
-	return c.vanClient.KubeClient.AppsV1().StatefulSets(c.vanClient.Namespace).Delete(statefulset.ObjectMeta.Name, &metav1.DeleteOptions{})
+	return c.vanClient.KubeClient.AppsV1().StatefulSets(c.vanClient.Namespace).Delete(context.TODO(), statefulset.ObjectMeta.Name, metav1.DeleteOptions{})
 }
 
 func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, statefulset *appsv1.StatefulSet) error {

@@ -1,6 +1,8 @@
 package kube
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -8,7 +10,7 @@ import (
 
 func CreateServiceAccount(namespace string, sa *corev1.ServiceAccount, cli kubernetes.Interface) (*corev1.ServiceAccount, error) {
 	serviceAccounts := cli.CoreV1().ServiceAccounts(namespace)
-	created, err := serviceAccounts.Create(sa)
+	created, err := serviceAccounts.Create(context.TODO(), sa, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	} else {
@@ -17,7 +19,7 @@ func CreateServiceAccount(namespace string, sa *corev1.ServiceAccount, cli kuber
 }
 
 func CopyServiceAccount(src string, dest string, annotations map[string]string, namespace string, kubeclient kubernetes.Interface) error {
-	original, err := kubeclient.CoreV1().ServiceAccounts(namespace).Get(src, metav1.GetOptions{})
+	original, err := kubeclient.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), src, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -39,7 +41,7 @@ func CopyServiceAccount(src string, dest string, annotations map[string]string, 
 			serviceAccount.ObjectMeta.Annotations[key] = value
 		}
 	}
-	_, err = kubeclient.CoreV1().ServiceAccounts(namespace).Create(serviceAccount)
+	_, err = kubeclient.CoreV1().ServiceAccounts(namespace).Create(context.TODO(), serviceAccount, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

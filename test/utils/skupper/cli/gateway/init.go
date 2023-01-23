@@ -101,7 +101,7 @@ func (i *InitTester) Run(platform types.Platform, cluster *base.ClusterContext) 
 	//
 	// Retrieve ConfigMap with skupper.io/type: gateway-definition (label)
 	//
-	cmList, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).List(v1.ListOptions{
+	cmList, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).List(ctx, v1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", types.SkupperTypeQualifier, "gateway-definition"),
 	})
 	if err != nil {
@@ -123,7 +123,7 @@ func (i *InitTester) Run(platform types.Platform, cluster *base.ClusterContext) 
 	//
 	// Retrieve Secret (token) with same ConfigMap name
 	//
-	_, err = cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(cmName, v1.GetOptions{})
+	_, err = cluster.VanClient.KubeClient.CoreV1().Secrets(cluster.Namespace).Get(ctx, cmName, v1.GetOptions{})
 	if err != nil {
 		return
 	}

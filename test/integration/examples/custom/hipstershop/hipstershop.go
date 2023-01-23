@@ -160,7 +160,7 @@ func DeployResources(t *testing.T, testRunner base.ClusterTestRunner) {
 		t.Logf("Waiting on microservices to be running at %s", cluster.Namespace)
 		err := utils.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
 			// Waiting on pods to be available
-			podList, err := cluster.VanClient.KubeClient.CoreV1().Pods(cluster.Namespace).List(v1.ListOptions{
+			podList, err := cluster.VanClient.KubeClient.CoreV1().Pods(cluster.Namespace).List(context.TODO(), v1.ListOptions{
 				LabelSelector: fmt.Sprintf("app in (%s)", strings.Join(appLabels, ",")),
 			})
 			if err != nil {

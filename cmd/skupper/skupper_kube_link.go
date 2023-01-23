@@ -116,7 +116,7 @@ func (s *SkupperKubeLink) LinkHandler() domain.LinkHandler {
 		return nil
 	}
 	cli := s.kube.Cli.(*client.VanClient)
-	cm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.TransportConfigMapName, v1.GetOptions{})
+	cm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), types.TransportConfigMapName, v1.GetOptions{})
 	if err != nil {
 		return nil
 	}

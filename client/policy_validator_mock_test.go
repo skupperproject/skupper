@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	testing2 "k8s.io/client-go/testing"
@@ -41,12 +43,12 @@ func NewClusterPolicyValidatorMock(ns string, nsLabels map[string]string, polici
 
 	cli, _ := newMockClient(ns, "", "")
 	if nsLabels != nil {
-		cli.KubeClient.CoreV1().Namespaces().Create(&v12.Namespace{
+		cli.KubeClient.CoreV1().Namespaces().Create(context.TODO(), &v12.Namespace{
 			ObjectMeta: v1.ObjectMeta{
 				Name:   ns,
 				Labels: nsLabels,
 			},
-		})
+		}, metav1.CreateOptions{})
 	}
 	return &ClusterPolicyValidator{
 		cli:                    cli,

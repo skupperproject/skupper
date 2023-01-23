@@ -418,7 +418,7 @@ func tailRouterLogs(ctx context.Context, saveLogs *bool) *sync.WaitGroup {
 			Follow:    true,
 			Container: "router",
 		})
-		logsStream, err := req.Stream()
+		logsStream, err := req.Stream(ctx)
 		if err != nil {
 			log.Printf("Error getting router logs on namespace '%s': %v", cli.Namespace, err)
 			return

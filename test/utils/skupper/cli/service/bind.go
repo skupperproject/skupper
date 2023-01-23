@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -73,7 +74,7 @@ func (s *BindTester) Run(platform types.Platform, cluster *base.ClusterContext) 
 	// Verifying the skupper-services config map to ensure a target has been defined
 	log.Println("Validating 'skupper service bind'")
 	log.Printf("validating service %s exists in %s config map", s.ServiceName, types.ServiceInterfaceConfigMap)
-	cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(types.ServiceInterfaceConfigMap, v1.GetOptions{})
+	cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(context.TODO(), types.ServiceInterfaceConfigMap, v1.GetOptions{})
 	if err != nil {
 		err = fmt.Errorf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
 		return

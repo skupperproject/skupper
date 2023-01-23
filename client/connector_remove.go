@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+
 	"github.com/skupperproject/skupper/pkg/qdr"
 
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +20,7 @@ func isToken(secret *corev1.Secret) bool {
 }
 
 func (cli *VanClient) ConnectorRemove(ctx context.Context, options types.ConnectorRemoveOptions) error {
-	secret, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Get(options.Name, metav1.GetOptions{})
+	secret, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Get(ctx, options.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) || (err == nil && !isToken(secret)) {
 		return fmt.Errorf("No such link %q", options.Name)
 	} else if err != nil {
@@ -52,6 +53,6 @@ func (cli *VanClient) removeConnectorRouterConfig(options types.ConnectorRemoveO
 		return err
 	}
 
-	_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(configmap)
+	_, err = cli.KubeClient.CoreV1().ConfigMaps(options.SkupperNamespace).Update(context.TODO(), configmap, metav1.UpdateOptions{})
 	return err
 }

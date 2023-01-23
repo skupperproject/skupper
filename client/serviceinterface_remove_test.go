@@ -199,7 +199,7 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 	assert.Assert(t, err, "Unable to create VAN router")
 
 	// Deploying an http service
-	_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Create(httpDeployment)
+	_, err = cli.KubeClient.AppsV1().Deployments(cli.Namespace).Create(ctx, httpDeployment, metav1.CreateOptions{})
 	assert.Assert(t, err, "Unable to create deployment")
 
 	_, err = kube.WaitDeploymentReady(httpDeployment.Name, cli.Namespace, cli.KubeClient, time.Minute, time.Second)
@@ -219,7 +219,7 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 			Type:     corev1.ServiceTypeClusterIP,
 		},
 	}
-	_, err = cli.KubeClient.CoreV1().Services(cli.Namespace).Create(httpManual)
+	_, err = cli.KubeClient.CoreV1().Services(cli.Namespace).Create(ctx, httpManual, metav1.CreateOptions{})
 	assert.Assert(t, err, "Error creating http-manual service")
 
 	tcs := []testCase{
@@ -297,7 +297,7 @@ func TestServiceInterfaceRemoveAnnotated(t *testing.T) {
 			defer cn()
 
 			t.Logf("Creating annotated service")
-			_, err = cli.KubeClient.CoreV1().Services(cli.Namespace).Create(tc.service)
+			_, err = cli.KubeClient.CoreV1().Services(cli.Namespace).Create(ctx, tc.service, metav1.CreateOptions{})
 			assert.Assert(t, err, "Error creating service %s - %v", tc.service.Name, err)
 
 			t.Logf("Waiting for skupper service named %s to exist", tc.skupperServiceName)

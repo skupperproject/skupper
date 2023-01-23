@@ -615,7 +615,7 @@ func TestDisconnectWithCluster(t *testing.T) {
 						},
 					},
 				}
-				_, err := c.KubeClient.CoreV1().Secrets(namespace).Create(token)
+				_, err := c.KubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), token, metav1.CreateOptions{})
 				assert.Check(t, err)
 			}
 		}
@@ -983,11 +983,11 @@ func TestExposeWithCluster(t *testing.T) {
 		deployments := c.KubeClient.AppsV1().Deployments(namespace)
 		statefulSets := c.KubeClient.AppsV1().StatefulSets(namespace)
 		services := c.KubeClient.CoreV1().Services(namespace)
-		_, err = deployments.Create(tcpDeployment)
+		_, err = deployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
-		_, err = statefulSets.Create(tcpStatefulSet)
+		_, err = statefulSets.Create(context.TODO(), tcpStatefulSet, metav1.CreateOptions{})
 		assert.Assert(t, err)
-		_, err = services.Create(statefulSetService)
+		_, err = services.Create(context.TODO(), statefulSetService, metav1.CreateOptions{})
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
@@ -1148,7 +1148,7 @@ func TestListExposedWithCluster(t *testing.T) {
 
 		// create a target deployment as pre-condition
 		deployments := c.KubeClient.AppsV1().Deployments(namespace)
-		_, err = deployments.Create(tcpDeployment)
+		_, err = deployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
 	}
 
@@ -1352,7 +1352,7 @@ func TestBindWithCluster(t *testing.T) {
 
 		// create a target deployment as pre-condition
 		deployments := c.KubeClient.AppsV1().Deployments(namespace)
-		_, err = deployments.Create(tcpDeployment)
+		_, err = deployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
@@ -1419,7 +1419,7 @@ func TestUnbindWithCluster(t *testing.T) {
 
 		// create a target deployment as pre-condition
 		deployments := c.KubeClient.AppsV1().Deployments(namespace)
-		_, err = deployments.Create(tcpDeployment)
+		_, err = deployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)

@@ -166,7 +166,7 @@ func (m *ServiceManager) deleteService(name string) (bool, error) {
 
 func (m *ServiceManager) getServiceTargets() ([]ServiceTarget, error) {
 	targets := []ServiceTarget{}
-	deployments, err := m.cli.KubeClient.AppsV1().Deployments(m.cli.Namespace).List(metav1.ListOptions{})
+	deployments, err := m.cli.KubeClient.AppsV1().Deployments(m.cli.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return targets, err
 	}
@@ -179,7 +179,7 @@ func (m *ServiceManager) getServiceTargets() ([]ServiceTarget, error) {
 			})
 		}
 	}
-	statefulsets, err := m.cli.KubeClient.AppsV1().StatefulSets(m.cli.Namespace).List(metav1.ListOptions{})
+	statefulsets, err := m.cli.KubeClient.AppsV1().StatefulSets(m.cli.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return targets, err
 	}

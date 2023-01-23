@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -21,7 +22,7 @@ type TestContext struct {
 }
 
 func (s *TestContext) GetService(name string) (*corev1.Service, bool, error) {
-	svc, err := s.client.CoreV1().Services(s.namespace).Get(name, metav1.GetOptions{})
+	svc, err := s.client.CoreV1().Services(s.namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return nil, false, nil
 	} else if err != nil {
@@ -31,16 +32,16 @@ func (s *TestContext) GetService(name string) (*corev1.Service, bool, error) {
 }
 
 func (s *TestContext) DeleteService(svc *corev1.Service) error {
-	return s.client.CoreV1().Services(s.namespace).Delete(svc.ObjectMeta.Name, &metav1.DeleteOptions{})
+	return s.client.CoreV1().Services(s.namespace).Delete(context.TODO(), svc.ObjectMeta.Name, metav1.DeleteOptions{})
 }
 
 func (s *TestContext) CreateService(svc *corev1.Service) error {
-	_, err := s.client.CoreV1().Services(s.namespace).Create(svc)
+	_, err := s.client.CoreV1().Services(s.namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
 	return err
 }
 
 func (s *TestContext) UpdateService(svc *corev1.Service) error {
-	_, err := s.client.CoreV1().Services(s.namespace).Update(svc)
+	_, err := s.client.CoreV1().Services(s.namespace).Update(context.TODO(), svc, metav1.UpdateOptions{})
 	return err
 }
 
@@ -52,7 +53,7 @@ func (s *TestContext) IsOwned(service *corev1.Service) bool {
 }
 
 func (s *TestContext) AllServices() (map[string]corev1.Service, error) {
-	list, err := s.client.CoreV1().Services(s.namespace).List(metav1.ListOptions{})
+	list, err := s.client.CoreV1().Services(s.namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

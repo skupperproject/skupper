@@ -4,6 +4,7 @@ import (
 	"context"
 	jsonencoding "encoding/json"
 	"fmt"
+
 	"github.com/skupperproject/skupper/pkg/kube"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +16,7 @@ import (
 func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string) error {
 	var unretryable error = nil
 	err := retry.RetryOnConflict(defaultRetry, func() error {
-		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.ServiceInterfaceConfigMap, metav1.GetOptions{})
+		current, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(ctx, types.ServiceInterfaceConfigMap, metav1.GetOptions{})
 		if err == nil && current.Data != nil {
 			jsonDef := current.Data[address]
 			if jsonDef == "" {
@@ -28,7 +29,7 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					_, err = kube.RemoveServiceAnnotations(service.Address, cli.Namespace, cli.KubeClient, []string{types.ProxyQualifier})
 				} else {
 					delete(current.Data, address)
-					_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(current)
+					_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(ctx, current, metav1.UpdateOptions{})
 				}
 				if err != nil {
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
