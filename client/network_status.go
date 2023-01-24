@@ -55,7 +55,7 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, err
 			return nil, fmt.Errorf("site %s: unable to get site namespace from service-controller", site.Name)
 		}
 
-		siteConfig, err := cli.SiteConfigInspect(nil, nil)
+		siteConfig, err := cli.SiteConfigInspect(ctx, nil)
 		if err != nil || siteConfig == nil {
 			return nil, fmt.Errorf("skupper-site configuration not available")
 		}
@@ -136,7 +136,7 @@ func (cli *VanClient) getServicesAndTargetsBySiteId(services *[]types.ServiceInf
 			}
 		}
 
-		serviceDetail, err := cli.ServiceInterfaceInspect(nil, service.Address)
+		serviceDetail, err := cli.ServiceInterfaceInspect(context.TODO(), service.Address)
 		if err != nil {
 			return nil, err
 		}
