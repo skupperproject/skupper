@@ -108,6 +108,7 @@ const (
 	Duration               // 44
 	ImageAttr              // 45
 	Group                  // 46
+	StreamIdentity         // 47
 )
 
 var attributeNames = []string{
@@ -158,6 +159,7 @@ var attributeNames = []string{
 	"Duration",        // 44
 	"Image",           // 45
 	"Group",           // 46
+	"StreamIdentity",  // 47
 }
 
 type Payload struct {
