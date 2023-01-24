@@ -7,6 +7,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"io/ioutil"
 	"log"
@@ -154,7 +155,7 @@ func testServices(t *testing.T) {
 			Env:          map[string]string{"ADDRESS": address},
 			Command:      []string{"/app/tcp_echo_test"},
 		})
-		_, err := cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Create(job)
+		_, err := cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Create(context.TODO(), job, v12.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -164,7 +165,7 @@ func testServices(t *testing.T) {
 			testRunner.DumpTestInfo(name)
 			return err
 		}
-		err = cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Delete(job.Name, &v12.DeleteOptions{})
+		err = cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Delete(context.TODO(), job.Name, v12.DeleteOptions{})
 		if err != nil {
 			return err
 		}
