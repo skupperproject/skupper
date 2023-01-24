@@ -4,6 +4,7 @@
 package helloworld
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/token"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TestHelloWorldCLI is a test that runs the hello-world-example
@@ -466,10 +468,10 @@ func deployResources(pub *base.ClusterContext, prv *base.ClusterContext) error {
 	})
 
 	// Creating deployments
-	if _, err := pub.VanClient.KubeClient.AppsV1().Deployments(pub.Namespace).Create(frontend); err != nil {
+	if _, err := pub.VanClient.KubeClient.AppsV1().Deployments(pub.Namespace).Create(context.TODO(), frontend, metav1.CreateOptions{}); err != nil {
 		return err
 	}
-	if _, err := prv.VanClient.KubeClient.AppsV1().Deployments(prv.Namespace).Create(backend); err != nil {
+	if _, err := prv.VanClient.KubeClient.AppsV1().Deployments(prv.Namespace).Create(context.TODO(), backend, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
