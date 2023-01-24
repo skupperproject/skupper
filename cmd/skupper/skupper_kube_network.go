@@ -64,7 +64,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	siteConfig, err := s.kube.Cli.SiteConfigInspect(nil, nil)
+	siteConfig, err := s.kube.Cli.SiteConfigInspect(ctx, nil)
 	if err != nil || siteConfig == nil {
 		fmt.Printf("The site configuration is not available: %s", err)
 		fmt.Println()
