@@ -9,6 +9,7 @@ package hello_policy
 // - Add also different removals and reinstates of policy (actual removal, changed namespace list)
 
 import (
+	gcontext "context"
 	"fmt"
 	"log"
 	"net"
@@ -105,7 +106,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 					// We need to know the actual hosts we'll be connecting to, so we get them from the secret
 					name: "register-hostnames",
 					preHook: func(context map[string]string) error {
-						secret, err := prv.VanClient.KubeClient.CoreV1().Secrets(prv.Namespace).Get("hostnames", v1.GetOptions{})
+						secret, err := prv.VanClient.KubeClient.CoreV1().Secrets(prv.Namespace).Get(gcontext.TODO(), "hostnames", v1.GetOptions{})
 						if err != nil {
 							return err
 						}
