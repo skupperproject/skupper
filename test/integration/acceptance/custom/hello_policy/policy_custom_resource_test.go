@@ -4,6 +4,7 @@
 package hello_policy
 
 import (
+	"context"
 	"log"
 	"regexp"
 
@@ -58,14 +59,14 @@ func removeClusterRole(cluster *base.ClusterContext) (changed bool, err error) {
 	log.Printf("Removing cluster role %v from the CRD definition", types.ControllerServiceAccountName)
 
 	// Is it there?
-	role, err := cluster.VanClient.KubeClient.RbacV1().ClusterRoles().Get(types.ControllerServiceAccountName, metav1.GetOptions{})
+	role, err := cluster.VanClient.KubeClient.RbacV1().ClusterRoles().Get(context.TODO(), types.ControllerServiceAccountName, metav1.GetOptions{})
 	if role == nil && err != nil {
 		log.Print("The role did not exist on the cluster; skipping removal")
 		err = nil
 		return
 	}
-	err = cluster.VanClient.KubeClient.RbacV1().ClusterRoles().Delete(types.ControllerServiceAccountName, nil)
 	if err == nil {
+		err = cluster.VanClient.KubeClient.RbacV1().ClusterRoles().Delete(context.TODO(), types.ControllerServiceAccountName, metav1.DeleteOptions{})
 		changed = true
 	}
 	return
@@ -99,7 +100,7 @@ func removePolicies(cluster *base.ClusterContext, policies ...string) (err error
 
 	for _, item := range policies {
 		log.Printf("- %v", item)
-		item_err := skupperCli.SkupperClusterPolicies().Delete(item, &metav1.DeleteOptions{})
+		item_err := skupperCli.SkupperClusterPolicies().Delete(context.TODO(), item, metav1.DeleteOptions{})
 		if item_err != nil {
 			log.Printf("  removal failed: %v", item_err)
 			if err == nil {
@@ -132,7 +133,7 @@ func listPolicies(cluster *base.ClusterContext) (list *skupperv1.SkupperClusterP
 		return
 	}
 
-	list, err = skupperCli.SkupperClusterPolicies().List(metav1.ListOptions{})
+	list, err = skupperCli.SkupperClusterPolicies().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Print("Failed listing policies")
 		return
@@ -198,17 +199,17 @@ func applyPolicy(name string, spec skupperv1.SkupperClusterPolicySpec, cluster *
 		Spec: spec,
 	}
 
-	existing, err := skupperCli.SkupperClusterPolicies().Get(name, metav1.GetOptions{})
+	existing, err := skupperCli.SkupperClusterPolicies().Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("... as a new policy")
-		_, err = skupperCli.SkupperClusterPolicies().Create(&policy)
+		_, err = skupperCli.SkupperClusterPolicies().Create(context.TODO(), &policy, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
 	} else {
 		log.Printf("... as an update to an existing policy")
 		policy.ObjectMeta.ResourceVersion = existing.ObjectMeta.ResourceVersion
-		_, err := skupperCli.SkupperClusterPolicies().Update(&policy)
+		_, err := skupperCli.SkupperClusterPolicies().Update(context.TODO(), &policy, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
