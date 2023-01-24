@@ -4,6 +4,7 @@
 package hello_policy
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -32,8 +33,9 @@ func seekServiceControllerAndDelete(ctx *base.ClusterContext) {
 	}
 
 	ctx.VanClient.KubeClient.CoreV1().Pods(ctx.Namespace).Delete(
+		context.TODO(),
 		pod.Name,
-		&metav1.DeleteOptions{},
+		metav1.DeleteOptions{},
 	)
 }
 

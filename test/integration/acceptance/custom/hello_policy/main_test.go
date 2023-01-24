@@ -4,6 +4,7 @@
 package hello_policy
 
 import (
+	"context"
 	"log"
 	"os"
 	"reflect"
@@ -19,6 +20,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var testPath = "./tmp/"
@@ -41,7 +43,7 @@ func (kd KubeDeploy) deploy(ctx *base.ClusterContext) (err error) {
 		RestartPolicy: corev1.RestartPolicyAlways,
 	})
 	// Creating deployments
-	if _, err = ctx.VanClient.KubeClient.AppsV1().Deployments(ctx.Namespace).Create(deployment); err != nil {
+	if _, err = ctx.VanClient.KubeClient.AppsV1().Deployments(ctx.Namespace).Create(context.TODO(), deployment, metav1.CreateOptions{}); err != nil {
 		if strings.Contains(err.Error(), `deployments.apps "`+kd.name+`" already exists`) {
 			log.Printf("Ignoring application already deployed: %v", err)
 			err = nil
