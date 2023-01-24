@@ -74,31 +74,31 @@ func (r *BasicTestRunner) TestsHeadlessElements(ctx context.Context, t *testing.
 		t.Logf("Testing: %s\n", "All proxy services got deployed")
 
 		// Check if services exists in both sides
-		_, err = prvCluster.VanClient.KubeClient.CoreV1().Services(prvCluster.Namespace).Get(svcProxyName, metav1.GetOptions{})
+		_, err = prvCluster.VanClient.KubeClient.CoreV1().Services(prvCluster.Namespace).Get(context.TODO(), svcProxyName, metav1.GetOptions{})
 		assert.Assert(t, err)
-		_, err = pubCluster.VanClient.KubeClient.CoreV1().Services(pubCluster.Namespace).Get(appName, metav1.GetOptions{})
+		_, err = pubCluster.VanClient.KubeClient.CoreV1().Services(pubCluster.Namespace).Get(context.TODO(), appName, metav1.GetOptions{})
 		assert.Assert(t, err)
 	})
 
 	t.Run("headless-inspect-svc-name-unique", func(t *testing.T) {
 		t.Logf("Testing: %s\n", "All proxy services use unique service names")
-		stsSvc, err := prvCluster.VanClient.KubeClient.AppsV1().StatefulSets(prvCluster.Namespace).Get(appName, metav1.GetOptions{})
+		stsSvc, err := prvCluster.VanClient.KubeClient.AppsV1().StatefulSets(prvCluster.Namespace).Get(context.TODO(), appName, metav1.GetOptions{})
 		assert.Assert(t, err)
-		stsSvcProxy, err := prvCluster.VanClient.KubeClient.AppsV1().StatefulSets(prvCluster.Namespace).Get(svcProxyName, metav1.GetOptions{})
+		stsSvcProxy, err := prvCluster.VanClient.KubeClient.AppsV1().StatefulSets(prvCluster.Namespace).Get(context.TODO(), svcProxyName, metav1.GetOptions{})
 		assert.Assert(t, err)
 		assert.Assert(t, stsSvc.Spec.ServiceName != stsSvcProxy.Spec.ServiceName)
 	})
 
 	t.Run("headless-inspect-svc-selector-unchanged", func(t *testing.T) {
 		t.Logf("Testing: %s\n", "Original service name kept unchanged")
-		prvSvc, err := prvCluster.VanClient.KubeClient.CoreV1().Services(prvCluster.Namespace).Get(appName, metav1.GetOptions{})
+		prvSvc, err := prvCluster.VanClient.KubeClient.CoreV1().Services(prvCluster.Namespace).Get(context.TODO(), appName, metav1.GetOptions{})
 		assert.Assert(t, err)
 		assert.Assert(t, prvSvc.Spec.Selector["app"] == appName)
 	})
 
 	t.Run("headless-inspect-routerid-unique", func(t *testing.T) {
 		t.Logf("Testing: %s\n", "Routers have unique ids")
-		skpIntConfigMap, err := pubCluster.VanClient.KubeClient.CoreV1().ConfigMaps(pubCluster.Namespace).Get("skupper-site", metav1.GetOptions{})
+		skpIntConfigMap, err := pubCluster.VanClient.KubeClient.CoreV1().ConfigMaps(pubCluster.Namespace).Get(context.TODO(), "skupper-site", metav1.GetOptions{})
 		assert.Assert(t, err)
 		skpSiteID := skpIntConfigMap.ObjectMeta.UID
 
@@ -129,16 +129,16 @@ func (r *BasicTestRunner) TestAccessToPods(ctx context.Context, t *testing.T) {
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, pubCluster, 1))
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, prvCluster, 1))
 
-	podZeroPub, err := pubCluster.VanClient.KubeClient.CoreV1().Pods(pubCluster.Namespace).Get(pod0Name, metav1.GetOptions{})
+	podZeroPub, err := pubCluster.VanClient.KubeClient.CoreV1().Pods(pubCluster.Namespace).Get(context.TODO(), pod0Name, metav1.GetOptions{})
 	assert.Assert(t, err)
-	podOnePub, err := pubCluster.VanClient.KubeClient.CoreV1().Pods(pubCluster.Namespace).Get(pod1Name, metav1.GetOptions{})
+	podOnePub, err := pubCluster.VanClient.KubeClient.CoreV1().Pods(pubCluster.Namespace).Get(context.TODO(), pod1Name, metav1.GetOptions{})
 	assert.Assert(t, err)
 	podZeroPubIP := podZeroPub.Status.PodIP
 	podOnePubIP := podOnePub.Status.PodIP
 
-	podOnePriv, err := pubCluster.VanClient.KubeClient.CoreV1().Pods(prvCluster.Namespace).Get(pod0Name, metav1.GetOptions{})
+	podOnePriv, err := pubCluster.VanClient.KubeClient.CoreV1().Pods(prvCluster.Namespace).Get(context.TODO(), pod0Name, metav1.GetOptions{})
 	assert.Assert(t, err)
-	podTwoPriv, err := pubCluster.VanClient.KubeClient.CoreV1().Pods(prvCluster.Namespace).Get(pod1Name, metav1.GetOptions{})
+	podTwoPriv, err := pubCluster.VanClient.KubeClient.CoreV1().Pods(prvCluster.Namespace).Get(context.TODO(), pod1Name, metav1.GetOptions{})
 	assert.Assert(t, err)
 	podZeroPrivIP := podOnePriv.Status.PodIP
 	podOnePrivIP := podTwoPriv.Status.PodIP
@@ -211,7 +211,7 @@ func createHeadlessStatefulSet(cluster *client.VanClient, annotations map[string
 	}
 
 	// Creating the new service
-	svc, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Create(svc)
+	svc, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func createHeadlessStatefulSet(cluster *client.VanClient, annotations map[string
 	}
 
 	// Deploying resource
-	ss, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(ss)
+	ss, err = cluster.KubeClient.AppsV1().StatefulSets(cluster.Namespace).Create(context.TODO(), ss, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
