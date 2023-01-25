@@ -129,6 +129,9 @@ func (v *vanClientMock) ConnectorList(ctx context.Context) ([]types.LinkStatus, 
 func (v *vanClientMock) ConnectorRemove(ctx context.Context, options types.ConnectorRemoveOptions) error {
 	return nil
 }
+func (v *vanClientMock) ConnectorTokenCreateFromTemplate(ctx context.Context, tokenName string, templateName string) (*corev1.Secret, bool, error) {
+	return nil, false, nil
+}
 func (v *vanClientMock) ConnectorTokenCreate(ctx context.Context, subject string, namespace string) (*corev1.Secret, bool, error) {
 	return nil, false, nil
 }

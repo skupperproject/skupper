@@ -64,6 +64,7 @@ type RouterOptions struct {
 	IngressHost        string
 	ServiceAnnotations map[string]string
 	LoadBalancerIp     string
+	DisableMutualTLS   bool
 }
 
 type ControllerOptions struct {
@@ -304,6 +305,7 @@ type VanClientInterface interface {
 	ConnectorInspect(ctx context.Context, name string) (*LinkStatus, error)
 	ConnectorList(ctx context.Context) ([]LinkStatus, error)
 	ConnectorRemove(ctx context.Context, options ConnectorRemoveOptions) error
+	ConnectorTokenCreateFromTemplate(ctx context.Context, tokenName string, templateName string) (*corev1.Secret, bool, error)
 	ConnectorTokenCreate(ctx context.Context, subject string, namespace string) (*corev1.Secret, bool, error)
 	ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error
 	TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error)

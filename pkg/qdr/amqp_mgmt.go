@@ -1247,19 +1247,25 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 				return err
 			}
 
-			_, err = os.Stat(sslProfile.CaCertFile)
-			if err != nil {
-				return err
+			if sslProfile.CaCertFile != "" {
+				_, err = os.Stat(sslProfile.CaCertFile)
+				if err != nil {
+					return err
+				}
 			}
 
-			_, err = os.Stat(sslProfile.CertFile)
-			if err != nil {
-				return err
+			if sslProfile.CertFile != "" {
+				_, err = os.Stat(sslProfile.CertFile)
+				if err != nil {
+					return err
+				}
 			}
 
-			_, err = os.Stat(sslProfile.PrivateKeyFile)
-			if err != nil {
-				return err
+			if sslProfile.PrivateKeyFile != "" {
+				_, err = os.Stat(sslProfile.PrivateKeyFile)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

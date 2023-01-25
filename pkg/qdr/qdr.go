@@ -132,6 +132,10 @@ func (r *RouterConfig) AddSslProfile(s SslProfile) {
 	r.AddSslProfileWithPath("/etc/skupper-router-certs", s)
 }
 
+func (r *RouterConfig) AddSimpleSslProfile(s SslProfile) {
+	r.AddSimpleSslProfileWithPath("/etc/skupper-router-certs", s)
+}
+
 func (r *RouterConfig) RemoveSslProfile(name string) bool {
 	_, ok := r.SslProfiles[name]
 	if ok {

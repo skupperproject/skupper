@@ -16,7 +16,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 // TODO: should these move to types?
@@ -183,16 +182,78 @@ func configureHostPorts(result *RouterHostPorts, cli *VanClient, namespace strin
 	}
 }
 
+func (cli *VanClient) getSiteId(ctx context.Context, namespace string) (string, error) {
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
+	siteConfig, err := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
+	if err != nil {
+		return "", err
+	}
+	if siteConfig == nil {
+		return "", nil
+	}
+	return siteConfig.Reference.UID, nil
+}
+
+func (cli *VanClient) ConnectorTokenCreateFromTemplate(ctx context.Context, tokenName string, templateName string) (*corev1.Secret, bool, error) {
+	current, err := cli.getRouterConfig(ctx, "")
+	if err != nil {
+		return nil, false, err
+	}
+	if current.IsEdge() {
+		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
+	}
+	template, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(templateName, metav1.GetOptions{})
+	if err != nil {
+		return nil, false, err
+	}
+	var hostPorts RouterHostPorts
+	if !configureHostPorts(&hostPorts, cli, cli.Namespace) {
+		// TODO: return the actual error
+		return nil, false, fmt.Errorf("Could not determine host/ports for token")
+	}
+	// Store our siteID in the token, to prevent later self-connection.
+	siteId, err := cli.getSiteId(ctx, "")
+	if err != nil {
+		return nil, false, err
+	}
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: tokenName,
+			Labels: map[string]string{
+				types.SkupperTypeQualifier: types.TypeToken,
+			},
+			Annotations: map[string]string{
+				types.SiteVersion:   current.GetSiteMetadata().Version,
+				types.TokenTemplate: templateName,
+			},
+		},
+		Data: template.Data,
+	}
+	annotateConnectionToken(secret, "inter-router", hostPorts.InterRouter.Host, hostPorts.InterRouter.Port)
+	annotateConnectionToken(secret, "edge", hostPorts.Edge.Host, hostPorts.Edge.Port)
+	if siteId != "" {
+		secret.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteId
+	}
+	if _, hasCert := template.Data["tls.crt"]; hasCert {
+		if _, hasKey := template.Data["tls.key"]; hasKey {
+			secret.Type = "kubernetes.io/tls"
+		}
+	}
+
+	return secret, hostPorts.LocalOnly, nil
+}
+
 func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, namespace string) (*corev1.Secret, bool, error) {
 	if namespace == "" {
 		namespace = cli.Namespace
 	}
-	// TODO: return error message for all the paths
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli.KubeClient)
-	if err != nil {
-		return nil, false, err
-	}
-	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	current, err := cli.getRouterConfig(ctx, namespace)
 	if err != nil {
 		return nil, false, err
 	}

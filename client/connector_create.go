@@ -81,6 +81,9 @@ func verify(secret *corev1.Secret) error {
 	switch secret.ObjectMeta.Labels[types.SkupperTypeQualifier] {
 	case types.TypeToken:
 		CertTokenDataFields := []string{"tls.key", "tls.crt", "ca.crt"}
+		if secret.ObjectMeta.Annotations != nil && secret.ObjectMeta.Annotations[types.TokenTemplate] != "" {
+			CertTokenDataFields = []string{"ca.crt"}
+		}
 		for _, name := range CertTokenDataFields {
 			if _, ok := secret.Data[name]; !ok {
 				return fmt.Errorf("Expected %s field in secret data", name)
@@ -240,6 +243,10 @@ func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string
 	return nil
 }
 
+func isCertToken(secret *corev1.Secret) bool {
+	return secret.ObjectMeta.Labels != nil && secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeToken
+}
+
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -259,9 +266,15 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		//read annotations to get the host and port to connect to
 		profileName := options.Name + "-profile"
 		if _, ok := current.SslProfiles[profileName]; !ok {
-			current.AddSslProfile(qdr.SslProfile{
-				Name: profileName,
-			})
+			if _, hasClientCert := secret.Data["tls.crt"]; isCertToken(secret) && !hasClientCert {
+				current.AddSimpleSslProfile(qdr.SslProfile{
+					Name: profileName,
+				})
+			} else {
+				current.AddSslProfile(qdr.SslProfile{
+					Name: profileName,
+				})
+			}
 			updated = true
 		}
 		connector := qdr.Connector{
