@@ -62,6 +62,21 @@ func (c *TokenHandler) getTokenCost(token *corev1.Secret) (int32, bool) {
 	return 0, false
 }
 
+func (c *TokenHandler) getTokenConCount(token *corev1.Secret) (int, bool) {
+	if token.ObjectMeta.Annotations == nil {
+		return 0, false
+	}
+	if conCountString, ok := token.ObjectMeta.Annotations[types.TokenConCount]; ok {
+		conCount, err := strconv.Atoi(conCountString)
+		if err != nil {
+			event.Recordf(c.name, "Ignoring invalid conCount annotation %q", conCountString)
+			return 0, false
+		}
+		return int(conCount), true
+	}
+	return 0, false
+}
+
 func (c *TokenHandler) connect(token *corev1.Secret) error {
 	event.Recordf(c.name, "Connecting using token %s", token.ObjectMeta.Name)
 	var options types.ConnectorCreateOptions
@@ -69,6 +84,9 @@ func (c *TokenHandler) connect(token *corev1.Secret) error {
 	options.SkupperNamespace = c.vanClient.Namespace
 	if cost, ok := c.getTokenCost(token); ok {
 		options.Cost = cost
+	}
+	if conCount, ok := c.getTokenConCount(token); ok {
+		options.ConCount = conCount
 	}
 	return c.vanClient.ConnectorCreate(context.Background(), token, options)
 }

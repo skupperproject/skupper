@@ -404,6 +404,7 @@ type Connector struct {
 	VerifyHostname   bool   `json:"verifyHostname,omitempty"`
 	SslProfile       string `json:"sslProfile,omitempty"`
 	LinkCapacity     int32  `json:"linkCapacity,omitempty"`
+	ConCount         int    `json:"dataConnectionCount,omitempty"`
 	MaxFrameSize     int    `json:"maxFrameSize,omitempty"`
 	MaxSessionFrames int    `json:"maxSessionFrames,omitempty"`
 }

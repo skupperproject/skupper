@@ -17,6 +17,7 @@ type ConnectorCreateOptions struct {
 	SkupperNamespace string
 	Name             string
 	Cost             int32
+	ConCount         int
 }
 
 type ConnectorRemoveOptions struct {
@@ -29,6 +30,7 @@ type LinkStatus struct {
 	Name        string
 	Url         string
 	Cost        int
+	ConCount    int
 	Connected   bool
 	Configured  bool
 	Description string

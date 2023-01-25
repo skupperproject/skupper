@@ -171,6 +171,7 @@ const (
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
 	SiteVersion                 string = BaseQualifier + "/site-version"
 	TokenCost                   string = BaseQualifier + "/cost"
+	TokenConCount               string = BaseQualifier + "/con-count"
 	UpdatedAnnotation           string = InternalQualifier + "/updated"
 	AnnotationExcludes          string = BaseQualifier + "/exclude-annotations"
 	LabelExcludes               string = BaseQualifier + "/exclude-labels"
@@ -435,6 +436,7 @@ type Connector struct {
 	VerifyHostname bool   `json:"verifyHostname,omitempty"`
 	SslProfile     string `json:"sslProfile,omitempty"`
 	LinkCapacity   int32  `json:"linkCapacity,omitempty"`
+	ConCount       int    `json:"dataConnectionCount"`
 }
 
 type Credential struct {

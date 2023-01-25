@@ -14,8 +14,6 @@ import (
 	"gotest.tools/assert"
 )
 
-var fp = fmt.Fprintf
-
 type TestCase struct {
 	name               string
 	diagram            []string

@@ -35,6 +35,7 @@ func getLinkStatus(s *corev1.Secret, edge bool, connections []qdr.Connection) ty
 		if connection := kubeqdr.GetInterRouterOrEdgeConnection(link.Url, connections); connection != nil && connection.Active {
 			link.Connected = true
 			link.Cost, _ = strconv.Atoi(s.ObjectMeta.Annotations[types.TokenCost])
+			link.ConCount, _ = strconv.Atoi(s.ObjectMeta.Annotations[types.TokenConCount])
 			link.Created = s.ObjectMeta.CreationTimestamp.String()
 		}
 		if s.ObjectMeta.Labels[types.SkupperDisabledQualifier] == "true" {

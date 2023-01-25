@@ -156,6 +156,53 @@ func TestTokenHandler(t *testing.T) {
 			},
 			expectedConnector: nil,
 		},
+		{ // Set data-connection-count to 3
+			name: "six",
+			annotations: map[string]string{
+				types.TokenConCount: "3",
+				"inter-router-host": "myrouter.com",
+				"inter-router-port": "55671",
+			},
+			expectedConnector: &qdr.Connector{
+				Name:       "six",
+				Host:       "myrouter.com",
+				Port:       "55671",
+				Cost:       0,
+				SslProfile: "six-profile",
+				ConCount:   3,
+			},
+		},
+		{ // Do not set data-connection-count
+			name: "seven",
+			annotations: map[string]string{
+				"inter-router-host": "myrouter.com",
+				"inter-router-port": "55671",
+			},
+			expectedConnector: &qdr.Connector{
+				Name:       "seven",
+				Host:       "myrouter.com",
+				Port:       "55671",
+				Cost:       0,
+				SslProfile: "seven-profile",
+				ConCount:   0,
+			},
+		},
+		{ // Set data-connection-count to a bad value
+			name: "eight",
+			annotations: map[string]string{
+				"inter-router-host": "myrouter.com",
+				"inter-router-port": "55671",
+				types.TokenConCount: "foo",
+			},
+			expectedConnector: &qdr.Connector{
+				Name:       "eight",
+				Host:       "myrouter.com",
+				Port:       "55671",
+				Cost:       0,
+				SslProfile: "eight-profile",
+				ConCount:   0,
+			},
+		},
 	}
 	for _, test := range tests {
 		token := createToken(test.name, test.annotations)
@@ -182,6 +229,7 @@ func TestTokenHandler(t *testing.T) {
 			assert.Equal(t, connector.Host, test.expectedConnector.Host, test.name)
 			assert.Equal(t, connector.Port, test.expectedConnector.Port, test.name)
 			assert.Equal(t, connector.Cost, test.expectedConnector.Cost, test.name)
+			assert.Equal(t, connector.ConCount, test.expectedConnector.ConCount, test.name)
 			assert.Equal(t, connector.SslProfile, test.expectedConnector.SslProfile, test.name)
 
 			//now disconnect:

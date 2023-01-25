@@ -167,6 +167,12 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 				}
 				secret.ObjectMeta.Annotations[types.TokenCost] = strconv.Itoa(int(options.Cost))
 			}
+			if options.ConCount != 0 {
+				if secret.ObjectMeta.Annotations == nil {
+					secret.ObjectMeta.Annotations = map[string]string{}
+				}
+				secret.ObjectMeta.Annotations[types.TokenConCount] = strconv.Itoa(int(options.ConCount))
+			}
 			_, err = cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Create(&secret)
 			if err == nil {
 				return &secret, nil
@@ -268,6 +274,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			Name:       options.Name,
 			Cost:       options.Cost,
 			SslProfile: profileName,
+			ConCount:   options.ConCount,
 		}
 		connector.SetMaxFrameSize(siteConfig.Spec.Router.MaxFrameSize)
 		connector.SetMaxSessionFrames(siteConfig.Spec.Router.MaxSessionFrames)

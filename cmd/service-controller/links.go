@@ -94,6 +94,12 @@ func getLinkFromClaim(s *corev1.Secret) *types.LinkStatus {
 				link.Cost = cost
 			}
 		}
+		if value, ok := s.ObjectMeta.Annotations[types.TokenConCount]; ok {
+			conCount, err := strconv.Atoi(value)
+			if err == nil {
+				link.ConCount = conCount
+			}
+		}
 	}
 	return &link
 }
