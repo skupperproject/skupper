@@ -204,7 +204,7 @@ func decode(msg *amqp.Message) []interface{} {
 						if k.(uint32) < uint32(len(attributeNames)) {
 							m[attributeNames[k.(uint32)]] = v
 						} else {
-							log.Println("Attribute out of range for record conversion: ", k.(uint32))
+							log.Println("Warning: detected flow attribute out of range for record conversion: ", k.(uint32))
 						}
 					}
 				}
