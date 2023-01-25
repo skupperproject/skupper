@@ -3,6 +3,7 @@ package flow
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
@@ -200,8 +201,11 @@ func decode(msg *amqp.Message) []interface{} {
 				m := make(map[string]interface{})
 				if r, ok := record.(map[interface{}]interface{}); ok {
 					for k, v := range r {
-						// to do assert k
-						m[attributeNames[k.(uint32)]] = v
+						if k.(uint32) < uint32(len(attributeNames)) {
+							m[attributeNames[k.(uint32)]] = v
+						} else {
+							log.Println("Warning: detected flow attribute out of range for record conversion: ", k.(uint32))
+						}
 					}
 				}
 				var rt int
