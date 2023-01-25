@@ -204,6 +204,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	if routerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigRouterLoadBalancerIp]; ok {
 		result.Spec.Router.LoadBalancerIp = routerServiceLoadBalancerIp
 	}
+	if value, ok := siteConfig.Data[SiteConfigRouterDisableMutualTLS]; ok {
+		result.Spec.Router.DisableMutualTLS, _ = strconv.ParseBool(value)
+	}
 
 	if controllerCpu, ok := siteConfig.Data[SiteConfigControllerCpuKey]; ok && controllerCpu != "" {
 		result.Spec.Controller.Cpu = controllerCpu

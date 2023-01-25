@@ -59,8 +59,13 @@ func ConfigSyncContainer() *corev1.Container {
 	}
 }
 
+func disableMutualTLS(l *qdr.Listener) {
+	l.SaslMechanisms = ""
+	l.AuthenticatePeer = false
+}
+
 func InteriorListener(options types.SiteConfigSpec) qdr.Listener {
-	return qdr.Listener{
+	l := qdr.Listener{
 		Name:             "interior-listener",
 		Role:             qdr.RoleInterRouter,
 		Port:             types.InterRouterListenerPort,
@@ -70,10 +75,14 @@ func InteriorListener(options types.SiteConfigSpec) qdr.Listener {
 		MaxFrameSize:     options.Router.MaxFrameSize,
 		MaxSessionFrames: options.Router.MaxSessionFrames,
 	}
+	if options.Router.DisableMutualTLS {
+		disableMutualTLS(&l)
+	}
+	return l
 }
 
 func EdgeListener(options types.SiteConfigSpec) qdr.Listener {
-	return qdr.Listener{
+	l := qdr.Listener{
 		Name:             "edge-listener",
 		Role:             qdr.RoleEdge,
 		Port:             types.EdgeListenerPort,
@@ -83,6 +92,10 @@ func EdgeListener(options types.SiteConfigSpec) qdr.Listener {
 		MaxFrameSize:     options.Router.MaxFrameSize,
 		MaxSessionFrames: options.Router.MaxSessionFrames,
 	}
+	if options.Router.DisableMutualTLS {
+		disableMutualTLS(&l)
+	}
+	return l
 }
 
 func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {

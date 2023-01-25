@@ -44,10 +44,13 @@ func getLinkStatus(s *corev1.Secret, edge bool, connections []qdr.Connection) ty
 	return link
 }
 
-func (cli *VanClient) getRouterConfig() (*qdr.RouterConfig, error) {
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
+func (cli *VanClient) getRouterConfig(ctx context.Context, namespace string) (*qdr.RouterConfig, error) {
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
+	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli.KubeClient)
 	if errors.IsNotFound(err) {
-		return nil, fmt.Errorf("Skupper is not installed in %s", cli.Namespace)
+		return nil, fmt.Errorf("Skupper is not installed in %s", namespace)
 	} else if err != nil {
 		return nil, err
 	}
@@ -64,7 +67,7 @@ func (cli *VanClient) ConnectorList(ctx context.Context) ([]types.LinkStatus, er
 	if err != nil {
 		return links, err
 	}
-	current, err := cli.getRouterConfig()
+	current, err := cli.getRouterConfig(ctx, "")
 	if err != nil {
 		return links, err
 	}
@@ -83,7 +86,7 @@ func GetLocalLinkStatus(cli *VanClient, namespace string, siteNameMap map[string
 		return nil, err
 	}
 
-	current, err := cli.getRouterConfig()
+	current, err := cli.getRouterConfig(context.TODO(), namespace)
 	if err != nil {
 		return nil, err
 	}

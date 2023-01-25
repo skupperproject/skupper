@@ -107,7 +107,7 @@ func (cli *VanClient) TokenClaimTemplateCreate(ctx context.Context, name string,
 	if !res.Allowed() {
 		return nil, nil, false, fmt.Errorf("incoming links are not allowed")
 	}
-	current, err := cli.getRouterConfig()
+	current, err := cli.getRouterConfig(ctx, "")
 	if err != nil {
 		return nil, nil, false, err
 	}

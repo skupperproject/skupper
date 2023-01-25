@@ -54,6 +54,7 @@ const (
 	SiteConfigRouterIngressHostKey        string = "router-ingress-host"
 	SiteConfigRouterServiceAnnotationsKey string = "router-service-annotations"
 	SiteConfigRouterLoadBalancerIp        string = "router-load-balancer-ip"
+	SiteConfigRouterDisableMutualTLS      string = "router-disable-mutual-tls"
 
 	// controller options
 	SiteConfigServiceControllerKey            string = "service-controller"
@@ -212,6 +213,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.Router.LoadBalancerIp != "" {
 		siteConfig.Data[SiteConfigRouterLoadBalancerIp] = spec.Router.LoadBalancerIp
+	}
+	if spec.Router.DisableMutualTLS {
+		siteConfig.Data[SiteConfigRouterDisableMutualTLS] = "true"
 	}
 	if spec.Controller.Cpu != "" {
 		if _, err := resource.ParseQuantity(spec.Controller.Cpu); err != nil {

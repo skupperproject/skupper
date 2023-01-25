@@ -11,7 +11,7 @@ import (
 
 // ConnectorInspect VAN connector instance
 func (cli *VanClient) ConnectorInspect(ctx context.Context, name string) (*types.LinkStatus, error) {
-	current, err := cli.getRouterConfig()
+	current, err := cli.getRouterConfig(ctx, "")
 	if err != nil {
 		return nil, err
 	}

@@ -176,6 +176,7 @@ const (
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
 	SiteVersion                 string = BaseQualifier + "/site-version"
 	TokenCost                   string = BaseQualifier + "/cost"
+	TokenTemplate               string = BaseQualifier + "/token-template"
 	UpdatedAnnotation           string = InternalQualifier + "/updated"
 	AnnotationExcludes          string = BaseQualifier + "/exclude-annotations"
 	LabelExcludes               string = BaseQualifier + "/exclude-labels"
