@@ -4,6 +4,7 @@ import (
 	jsonencoding "encoding/json"
 	"fmt"
 	appv1 "github.com/openshift/api/apps/v1"
+	v1 "github.com/openshift/client-go/apps/informers/externalversions/apps/v1"
 	"reflect"
 	"strconv"
 	"strings"
@@ -94,7 +95,8 @@ func newDefinitionMonitor(origin string, cli *client.VanClient, svcDefInformer c
 	monitor.svcDefInformer.AddEventHandler(newEventHandlerFor(monitor.events, "servicedefs", AnnotatedKey, ConfigMapResourceVersionTest))
 	monitor.svcInformer.AddEventHandler(newEventHandlerFor(monitor.events, "services", AnnotatedKey, ServiceResourceVersionTest))
 
-	if cli.AppsClient != nil {
+	if cli.OCAppsClient != nil {
+		monitor.deploymentConfigInformer = v1.NewDeploymentConfigInformer(cli.OCAppsClient, cli.Namespace, time.Second*30, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 		monitor.deploymentConfigInformer.AddEventHandler(newEventHandlerFor(monitor.events, "deploymentconfigs", AnnotatedKey, DeploymentConfigResourceVersionTest))
 	}
 
@@ -123,6 +125,7 @@ func (m *DefinitionMonitor) start(stopCh <-chan struct{}) error {
 	go m.statefulSetInformer.Run(stopCh)
 	go m.daemonSetInformer.Run(stopCh)
 	go m.deploymentInformer.Run(stopCh)
+	go m.deploymentConfigInformer.Run(stopCh)
 	if ok := cache.WaitForCacheSync(stopCh, m.statefulSetInformer.HasSynced, m.daemonSetInformer.HasSynced, m.deploymentInformer.HasSynced); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
@@ -318,7 +321,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeploymentConfig(de
 		}
 		svc.Origin = "annotation"
 
-		if policyRes := m.policy.ValidateExpose("deployment", deploymentConfig.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose("deploymentconfig", deploymentConfig.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deployment/%s cannot be exposed", deploymentConfig.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
