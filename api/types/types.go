@@ -118,6 +118,11 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 	},
 	{
 		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{"apps.openshift.io"},
+		Resources: []string{"deploymentconfigs"},
+	},
+	{
+		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{"networking.k8s.io"},
 		Resources: []string{"ingresses"},
 	},
