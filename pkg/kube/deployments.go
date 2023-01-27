@@ -3,8 +3,8 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/qdr"
 	appv1 "github.com/openshift/api/apps/v1"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/utils"
