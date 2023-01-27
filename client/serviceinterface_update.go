@@ -171,7 +171,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 			return fmt.Errorf("Invalid protocol %s for service with mapping %s", protocol, service.Protocol)
 		}
 		deducePorts := len(service.Ports) == 0 && len(targetPorts) == 0
-		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, cli.Namespace, cli.KubeClient, cli.AppsClient)
+		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, cli.Namespace, cli.KubeClient, cli.OCAppsClient)
 		if err != nil {
 			return err
 		}
@@ -310,7 +310,7 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 }
 
 func (cli *VanClient) ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool) error {
-	if targetType == "deployment" || targetType == "statefulset" || targetType == "service" {
+	if targetType == "deployment" || targetType == "statefulset" || targetType == "service" || targetType == "deploymentconfig" {
 		if address == "" {
 			err := removeServiceInterfaceTarget(targetName, targetName, deleteIfNoTargets, cli)
 			return err

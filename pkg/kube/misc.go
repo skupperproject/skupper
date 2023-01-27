@@ -16,7 +16,7 @@ package kube
 
 import (
 	"fmt"
-	appsv1client "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
+	"github.com/openshift/client-go/apps/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"reflect"
 	"strconv"
@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface, appscli *appsv1client.AppsV1Client) (*types.ServiceInterfaceTarget, error) {
+func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface, appscli versioned.Interface) (*types.ServiceInterfaceTarget, error) {
 	if targetType == "deployment" {
 		deployment, err := cli.AppsV1().Deployments(namespace).Get(targetName, metav1.GetOptions{})
 		if err == nil {
@@ -94,7 +94,7 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			}
 			return &target, nil
 		} else {
-			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
+			return nil, fmt.Errorf("Could not read deploymentconfig %s: %s", targetName, err)
 		}
 	} else {
 		return nil, fmt.Errorf("VAN service interface unsupported target type")
