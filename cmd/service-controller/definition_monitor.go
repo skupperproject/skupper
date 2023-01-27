@@ -125,7 +125,11 @@ func (m *DefinitionMonitor) start(stopCh <-chan struct{}) error {
 	go m.statefulSetInformer.Run(stopCh)
 	go m.daemonSetInformer.Run(stopCh)
 	go m.deploymentInformer.Run(stopCh)
-	go m.deploymentConfigInformer.Run(stopCh)
+
+	if m.deploymentConfigInformer != nil {
+		go m.deploymentConfigInformer.Run(stopCh)
+	}
+
 	if ok := cache.WaitForCacheSync(stopCh, m.statefulSetInformer.HasSynced, m.daemonSetInformer.HasSynced, m.deploymentInformer.HasSynced); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
