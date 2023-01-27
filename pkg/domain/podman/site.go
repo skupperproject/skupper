@@ -277,6 +277,11 @@ func (s *SiteHandler) Create(site domain.Site) error {
 			scripts.GetStartFileName(), scripts.GetStopFileName(), scripts.GetPath())
 	}
 
+	// Validate if lingering is enabled for current user
+	if Username != "root" && !config.IsLingeringEnabled(Username) {
+		fmt.Printf("It is recommended to enable lingering for %s, otherwise Skupper may not start on boot.\n", Username)
+	}
+
 	return nil
 }
 

@@ -127,3 +127,9 @@ func IsSystemdUserEnabled() bool {
 	}
 	return true
 }
+
+func IsLingeringEnabled(user string) bool {
+	lingerFile := fmt.Sprintf("/var/lib/systemd/linger/%s", user)
+	_, err := os.Stat(lingerFile)
+	return err == nil
+}
