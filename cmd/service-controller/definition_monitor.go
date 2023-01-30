@@ -326,7 +326,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeploymentConfig(de
 		svc.Origin = "annotation"
 
 		if policyRes := m.policy.ValidateExpose("deploymentconfig", deploymentConfig.Name); !policyRes.Allowed() {
-			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deployment/%s cannot be exposed", deploymentConfig.ObjectMeta.Name)
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deploymentconfig/%s cannot be exposed", deploymentConfig.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
 		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
@@ -919,7 +919,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 				} else if exists {
 					deploymentConfig, ok := obj.(*appv1.DeploymentConfig)
 					if !ok {
-						return fmt.Errorf("Expected Deployment for %s but got %#v", name, obj)
+						return fmt.Errorf("Expected DeploymentConfig for %s but got %#v", name, obj)
 					}
 
 					desired, ok := m.getServiceDefinitionFromAnnotatedDeploymentConfig(deploymentConfig)
@@ -934,7 +934,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							deleted := []string{}
 							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
 							if err != nil {
-								return fmt.Errorf("failed to update service definition for annotated deployment %s: %s", name, err)
+								return fmt.Errorf("failed to update service definition for annotated deploymentconfig %s: %s", name, err)
 							}
 							m.annotated[desired.Address] = desired
 						}
