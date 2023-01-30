@@ -190,8 +190,8 @@ const (
 	StatusAnnotationKey         string = InternalQualifier + "/status"
 	GatewayQualifier            string = InternalQualifier + "/gateway"
 	IngressOnlyQualifier        string = BaseQualifier + "/ingress-only"
-	TlsCertQualifier            string = BaseQualifier + "tls-cert"
-	TlsTrustQualifier           string = BaseQualifier + "tls-trust"
+	TlsCertQualifier            string = BaseQualifier + "/tls-cert"
+	TlsTrustQualifier           string = BaseQualifier + "/tls-trust"
 )
 
 // standard labels
