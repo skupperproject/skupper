@@ -89,10 +89,12 @@ func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {
 	// remove rule for routes or DeploymentConfigs if they are not defined
 	var rules []rbacv1.PolicyRule
 	for _, rule := range types.ControllerPolicyRule {
-		shouldAvoidRoutesRule := cli.RouteClient == nil && len(rule.APIGroups) > 0 && rule.APIGroups[0] == "route.openshift.io"
-		shouldAvoidDepConfigRule := cli.OCAppsClient == nil && len(rule.APIGroups) > 0 && rule.APIGroups[0] == "apps.openshift.io"
 
-		if shouldAvoidRoutesRule || shouldAvoidDepConfigRule {
+		if cli.RouteClient == nil && len(rule.APIGroups) > 0 && rule.APIGroups[0] == "route.openshift.io" {
+			continue
+		}
+
+		if cli.OCAppsClient == nil && len(rule.APIGroups) > 0 && rule.APIGroups[0] == "apps.openshift.io" {
 			continue
 		}
 
