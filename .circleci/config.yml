@@ -357,6 +357,7 @@ jobs:
       name: go/default
       tag: "1.18"
     steps:
+      - checkout
       - setup_remote_docker
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run: go get github.com/genuinetools/reg
