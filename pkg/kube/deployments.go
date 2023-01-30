@@ -3,7 +3,6 @@ package kube
 import (
 	"context"
 	"fmt"
-	appv1 "github.com/openshift/api/apps/v1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"time"
 
@@ -424,14 +423,6 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 func GetContainerPort(deployment *appsv1.Deployment) map[int]int {
 	if len(deployment.Spec.Template.Spec.Containers) > 0 && len(deployment.Spec.Template.Spec.Containers[0].Ports) > 0 {
 		return GetAllContainerPorts(deployment.Spec.Template.Spec.Containers[0])
-	} else {
-		return map[int]int{}
-	}
-}
-
-func GetContainerPortForDeploymentConfig(deploymentConfig *appv1.DeploymentConfig) map[int]int {
-	if len(deploymentConfig.Spec.Template.Spec.Containers) > 0 && len(deploymentConfig.Spec.Template.Spec.Containers[0].Ports) > 0 {
-		return GetAllContainerPorts(deploymentConfig.Spec.Template.Spec.Containers[0])
 	} else {
 		return map[int]int{}
 	}

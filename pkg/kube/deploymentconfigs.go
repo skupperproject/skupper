@@ -10,3 +10,11 @@ func GetDeploymentConfig(name string, namespace string, appsClient versioned.Int
 	depConfig, err := appsClient.AppsV1().DeploymentConfigs(namespace).Get(name, metav1.GetOptions{})
 	return depConfig, err
 }
+
+func GetContainerPortForDeploymentConfig(deploymentConfig *appv1.DeploymentConfig) map[int]int {
+	if len(deploymentConfig.Spec.Template.Spec.Containers) > 0 && len(deploymentConfig.Spec.Template.Spec.Containers[0].Ports) > 0 {
+		return GetAllContainerPorts(deploymentConfig.Spec.Template.Spec.Containers[0])
+	} else {
+		return map[int]int{}
+	}
+}
