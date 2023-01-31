@@ -58,7 +58,7 @@ func (i *IpLookup) getPodName(ip string) string {
 	return i.lookup[ip]
 }
 
-//support data.NameMapping interface
+// support data.NameMapping interface
 func (i *IpLookup) Lookup(ip string) string {
 	name := i.getPodName(ip)
 	if name == "" {
