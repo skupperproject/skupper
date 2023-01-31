@@ -5,7 +5,6 @@ import (
 	jsonencoding "encoding/json"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/kube/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -35,17 +34,6 @@ func (cli *VanClient) ServiceInterfaceRemove(ctx context.Context, address string
 					// do not encapsulate this error, or it won't pass the errors.IsConflict test
 					return err
 				} else {
-					if len(service.TlsCredentials) > 0 {
-						tlsManager := qdr.TlsManager{KubeClient: cli.KubeClient, Namespace: cli.Namespace}
-						serviceList, err := cli.ServiceInterfaceList(ctx)
-						if err != nil {
-							return err
-						}
-
-						tlsSupport := qdr.TlsServiceSupport{Address: service.Address, Credentials: service.TlsCredentials}
-						tlsManager.DisableTlsSupport(tlsSupport, serviceList)
-					}
-
 					return nil
 				}
 			}
