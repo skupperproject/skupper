@@ -411,7 +411,7 @@ func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget) 
 		return ""
 	}
 
-	return getBySelector("deployment", "statefulset", "deploymentconfig")
+	return getBySelector(DeploymentObjectType, StatefulSetObjectType, DeploymentConfigObjectType)
 }
 
 func NewPolicyController(cli *client.VanClient) *PolicyController {
