@@ -313,7 +313,7 @@ jobs:
   test:
     executor:
       name: go/default
-      tag: "1.18"
+      tag: "1.19"
     steps:
       - checkout
       - run:
@@ -355,7 +355,7 @@ jobs:
   remove_from_registry:
     executor:
       name: go/default
-      tag: "1.18"
+      tag: "1.19"
     steps:
       - checkout
       - setup_remote_docker
@@ -371,7 +371,7 @@ jobs:
   build-all:
     executor:
       name: go/default
-      tag: "1.18"
+      tag: "1.19"
     steps:
       - checkout
       - go/mod-download-cached
@@ -473,7 +473,7 @@ jobs:
   publish-github-release-images:
     executor:
       name: go/default
-      tag: "1.18"
+      tag: "1.19"
     steps:
       - checkout
       - setup_remote_docker
@@ -494,7 +494,7 @@ jobs:
   publish-github-master-images:
     executor:
       name: go/default
-      tag: "1.18"
+      tag: "1.19"
     steps:
       - checkout
       - setup_remote_docker
