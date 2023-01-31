@@ -49,10 +49,8 @@ type ClusterTestRunnerBase struct {
 
 var _ ClusterTestRunner = &ClusterTestRunnerBase{}
 
-//
 // Validate returns an error if cluster needs is not satisfied so that
 // the given test suite needs to be skipped.
-//
 func (c *ClusterTestRunnerBase) Validate(needs ClusterNeeds) error {
 	// If multiple clusters provided, see if it matches the needs
 	if MultipleClusters() {
@@ -71,10 +69,8 @@ func (c *ClusterTestRunnerBase) Validate(needs ClusterNeeds) error {
 	return nil
 }
 
-//
 // Build creates a ClusterContext slice prepared to communicate with all clusters
 // available to the test suite.
-//
 func (c *ClusterTestRunnerBase) Build(needs ClusterNeeds, vanClientProvider VanClientProvider) ([]*ClusterContext, error) {
 
 	// Initializing internal properties

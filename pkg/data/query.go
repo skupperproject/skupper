@@ -11,7 +11,7 @@ type SiteQueryData struct {
 	HttpServices []HttpService `json:"http_services"`
 }
 
-//Used for interacting with 0.4.x sites
+// Used for interacting with 0.4.x sites
 type LegacySiteInfo struct {
 	SiteId    string
 	SiteName  string

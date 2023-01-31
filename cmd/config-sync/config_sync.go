@@ -24,7 +24,7 @@ import (
 )
 
 // Syncs the live router config with the configmap (bridge configuration,
-//secrets for services with TLS enabled, and secrets and connectors for links)
+// secrets for services with TLS enabled, and secrets and connectors for links)
 type ConfigSync struct {
 	informer  cache.SharedIndexInformer
 	events    workqueue.RateLimitingInterface
