@@ -33,46 +33,64 @@ var (
 // The default resources and annotations (if true) that will
 // be added to both cluster1 and cluster2 are:
 // deployment/nginx  ## cluster1
-//   annotations:
-//     skupper.io/proxy: tcp
-//     skupper.io/address: nginx-1-dep-web
-//     skupper.io/port: 8080:8080,9090:8080
-// statefulset/nginx  ## cluster1
-//   annotations:
-//     skupper.io/proxy: tcp
-//     skupper.io/address: nginx-1-ss-web
-// daemonset/nginx  ## cluster1
-//   annotations:
-//     skupper.io/proxy: tcp
-//     skupper.io/address: nginx-1-ds-web
-// service/nginx-1-svc-exp-notarget  ## cluster1
-//   annotations:
-//     skupper.io/proxy: tcp
-// service/nginx-1-svc-target  ## cluster1
-//   annotations:
-//     skupper.io/proxy: http
-//     skupper.io/address: nginx-1-svc-exp-target
-// deployment/nginx  ## cluster2
-//   annotations:
-//     skupper.io/proxy: tcp
-//     skupper.io/address: nginx-2-dep-web
-//     skupper.io/port: 8080:8080,9090:8080
-// statefulset/nginx  ## cluster2
-//   annotations:
-//     skupper.io/proxy: tcp
-//     skupper.io/address: nginx-2-ss-web
-// daemonset/nginx  ## cluster2
-//   annotations:
-//     skupper.io/proxy: tcp
-//     skupper.io/address: nginx-2-ds-web
-// service/nginx-2-svc-exp-notarget  ## cluster2
-//   annotations:
-//     skupper.io/proxy: tcp
-// service/nginx-2-svc-target  ## cluster2
-//   annotations:
-//     skupper.io/proxy: http
-//     skupper.io/address: nginx-1-svc-exp-target
 //
+//	annotations:
+//	  skupper.io/proxy: tcp
+//	  skupper.io/address: nginx-1-dep-web
+//	  skupper.io/port: 8080:8080,9090:8080
+//
+// statefulset/nginx  ## cluster1
+//
+//	annotations:
+//	  skupper.io/proxy: tcp
+//	  skupper.io/address: nginx-1-ss-web
+//
+// daemonset/nginx  ## cluster1
+//
+//	annotations:
+//	  skupper.io/proxy: tcp
+//	  skupper.io/address: nginx-1-ds-web
+//
+// service/nginx-1-svc-exp-notarget  ## cluster1
+//
+//	annotations:
+//	  skupper.io/proxy: tcp
+//
+// service/nginx-1-svc-target  ## cluster1
+//
+//	annotations:
+//	  skupper.io/proxy: http
+//	  skupper.io/address: nginx-1-svc-exp-target
+//
+// deployment/nginx  ## cluster2
+//
+//	annotations:
+//	  skupper.io/proxy: tcp
+//	  skupper.io/address: nginx-2-dep-web
+//	  skupper.io/port: 8080:8080,9090:8080
+//
+// statefulset/nginx  ## cluster2
+//
+//	annotations:
+//	  skupper.io/proxy: tcp
+//	  skupper.io/address: nginx-2-ss-web
+//
+// daemonset/nginx  ## cluster2
+//
+//	annotations:
+//	  skupper.io/proxy: tcp
+//	  skupper.io/address: nginx-2-ds-web
+//
+// service/nginx-2-svc-exp-notarget  ## cluster2
+//
+//	annotations:
+//	  skupper.io/proxy: tcp
+//
+// service/nginx-2-svc-target  ## cluster2
+//
+//	annotations:
+//	  skupper.io/proxy: http
+//	  skupper.io/address: nginx-1-svc-exp-target
 func DeployResources(testRunner base.ClusterTestRunner) error {
 	// Deploys a static set of resources
 	log.Printf("Deploying resources")
