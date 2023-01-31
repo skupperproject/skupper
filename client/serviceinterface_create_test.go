@@ -171,7 +171,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
 			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
 			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-6-addr"},
-			secretsExpected:  []string{types.ServiceClientSecret, types.SiteCaSecret, types.SkupperServiceCertPrefix + "vsic-6-addr"},
+			secretsExpected:  []string{types.ServiceClientSecret, types.SiteCaSecret},
 			timeout:          60.0,
 			tlsCredentials:   types.SkupperServiceCertPrefix + "vsic-6-addr",
 		},
