@@ -103,9 +103,8 @@ func TestHttp2TcpTlsJob(t *testing.T) {
 
 	//Load CA cert
 	caCert, err := ioutil.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.Assert(t, err)
+
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
 
