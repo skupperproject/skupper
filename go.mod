@@ -31,6 +31,8 @@ require (
 	k8s.io/client-go v0.17.0
 )
 
+replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
+
 require (
 	cloud.google.com/go v0.38.0 // indirect
 	github.com/Azure/azure-sdk-for-go v46.0.0+incompatible // indirect
@@ -92,7 +94,7 @@ require (
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.5.0 // indirect
 	google.golang.org/genproto v0.0.0-20210106152847-07624b53cd92 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
