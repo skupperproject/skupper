@@ -2,10 +2,7 @@ package basic
 
 import (
 	"context"
-	"os"
-	"testing"
-	"time"
-
+	"encoding/json"
 	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -14,6 +11,10 @@ import (
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/env"
 	"gotest.tools/assert"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
+	"testing"
+	"time"
 )
 
 const (
@@ -35,6 +36,14 @@ func (r *BasicTestRunner) RunTests(ctx context.Context, t *testing.T) {
 
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, pubCluster, 1))
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, prvCluster, 1))
+}
+
+func (r *BasicTestRunner) AssertAndDumpOnFailure(t assert.TestingT, comparison assert.BoolOrComparison, dumpDirname string, msgAndArgs ...interface{}) {
+
+	if assert.Check(t, comparison, msgAndArgs) == false {
+		r.DumpTestInfo(dumpDirname)
+		t.FailNow()
+	}
 }
 
 func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.SiteConfigSpec, createOptsPrivate types.SiteConfigSpec, tokenType string, testSync bool, t *testing.T) {
@@ -69,10 +78,12 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	err = prv1Cluster.VanClient.RouterCreate(testContext, *siteConfig)
 	assert.Assert(t, err)
 
+	var podStartTimeBefore *v1.Time
 	if testSync == true {
 		// Pick the pod details for config-sync validation
 		podsRouter, _ := kube.GetPods("skupper.io/component=router", prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient)
 		assert.Assert(t, len(podsRouter) > 0)
+		podStartTimeBefore = podsRouter[0].Status.StartTime
 	}
 
 	var connectorCreateOpts = types.ConnectorCreateOptions{
@@ -83,6 +94,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
 	assert.Assert(t, err)
 
+	var podStartTimeAfter *v1.Time
 	if testSync == true {
 		assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, prv1Cluster, 1))
 
@@ -96,9 +108,18 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 
 		podsRouter, _ := kube.GetPods("skupper.io/component=router", prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient)
 		assert.Assert(t, len(podsRouter) > 0)
+
+		// Check if the container has restarted
 		for _, status := range podsRouter[0].Status.ContainerStatuses {
 			assert.Assert(t, status.RestartCount == int32(0))
 		}
+
+		// Check if the whole POD has restarted
+		podStartTimeAfter = podsRouter[0].Status.StartTime
+
+		podStatus, _ := json.Marshal(podsRouter[0].Status)
+		r.AssertAndDumpOnFailure(t, podStartTimeAfter.Equal(podStartTimeBefore), "TestContainerSync", "StartTimeBefore=", podStartTimeBefore,
+			"StartTimeAfter=", podStartTimeAfter, "Router component restarted - POD status:", string(podStatus))
 
 		// Check if the Volume is shared by both containers
 		podContainers, _ := kube.GetReadyPod(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "router")
