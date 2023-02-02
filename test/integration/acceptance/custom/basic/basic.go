@@ -11,6 +11,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/env"
 	"gotest.tools/assert"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"testing"
@@ -76,6 +77,10 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	siteConfig, err = prv1Cluster.VanClient.SiteConfigCreate(context.Background(), createOptsPrivate)
 	assert.Assert(t, err)
 	err = prv1Cluster.VanClient.RouterCreate(testContext, *siteConfig)
+	assert.Assert(t, err)
+
+	routerPod, _ := kube.GetPods("skupper.io/component=router", prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient)
+	_, err = kube.WaitForPodStatus(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, routerPod[0].Name, corev1.PodRunning, 120*time.Second, 5*time.Second)
 	assert.Assert(t, err)
 
 	var podStartTimeBefore *v1.Time
