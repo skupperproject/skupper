@@ -86,17 +86,21 @@ func EdgeListener(options types.SiteConfigSpec) qdr.Listener {
 }
 
 func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {
-	if cli.RouteClient == nil {
-		// remove rule for routes if routes not defined
-		rules := []rbacv1.PolicyRule{}
-		for _, rule := range types.ControllerPolicyRule {
-			if len(rule.APIGroups) > 0 && rule.APIGroups[0] != "route.openshift.io" {
-				rules = append(rules, rule)
-			}
+	// remove rule for routes or DeploymentConfigs if they are not defined
+	var rules []rbacv1.PolicyRule
+	for _, rule := range types.ControllerPolicyRule {
+
+		if cli.RouteClient == nil && len(rule.APIGroups) > 0 && rule.APIGroups[0] == "route.openshift.io" {
+			continue
 		}
-		return rules
+
+		if cli.OCAppsClient == nil && len(rule.APIGroups) > 0 && rule.APIGroups[0] == "apps.openshift.io" {
+			continue
+		}
+
+		rules = append(rules, rule)
 	}
-	return types.ControllerPolicyRule
+	return rules
 }
 
 func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *types.RouterSpec, transport *appsv1.Deployment, siteId string) {

@@ -3,6 +3,8 @@ package main
 import (
 	jsonencoding "encoding/json"
 	"fmt"
+	v12 "github.com/openshift/api/apps/v1"
+	fake2 "github.com/openshift/client-go/apps/clientset/versioned/fake"
 	"reflect"
 	"testing"
 
@@ -193,6 +195,178 @@ func TestGetServiceDefinitionFromAnnotatedDeployment(t *testing.T) {
 			}
 			assert.DeepEqual(t, test.expected.service.Labels, service.Labels)
 			assert.DeepEqual(t, test.expected.service.Annotations, service.Annotations)
+			assert.Equal(t, test.expected.service.Origin, service.Origin)
+			// Validating overall result
+			assert.Equal(t, success, test.expected.success)
+		})
+	}
+
+}
+
+func TestGetServiceDefinitionFromAnnotatedDeploymentConfig(t *testing.T) {
+
+	event.StartDefaultEventStore(nil)
+
+	// Types to compose test table
+	type result struct {
+		service types.ServiceInterface
+		success bool
+	}
+
+	type test struct {
+		name       string
+		deployment *v12.DeploymentConfig
+		expected   result
+	}
+
+	// Mock VanClient
+	const NS = "test"
+	vanClient := &client.VanClient{
+		Namespace:    NS,
+		KubeClient:   fake.NewSimpleClientset(),
+		OCAppsClient: fake2.NewSimpleClientset(),
+	}
+
+	dm := &DefinitionMonitor{
+		vanClient: vanClient,
+		policy:    client.NewClusterPolicyValidator(vanClient),
+	}
+
+	// Help preparing sample deployments to compose test table
+	newDeploymentConfig := func(name string, proxyAnnotationProtocol string, containerPortAnnotation string, addressAnnotation string, containerPort int, labels string, selectors map[string]string) *v12.DeploymentConfig {
+		// Add port to container if > 0
+		containerPorts := []corev1.ContainerPort{}
+		if containerPort > 0 {
+			containerPorts = append(containerPorts, corev1.ContainerPort{
+				Name:          "port",
+				ContainerPort: int32(containerPort),
+			})
+		}
+
+		// Prepare the container
+		depContainers := []corev1.Container{{
+			Name:  "container",
+			Ports: containerPorts,
+		}}
+
+		// Deployment annotations
+		annotations := map[string]string{}
+		if proxyAnnotationProtocol != "" {
+			annotations[types.ProxyQualifier] = proxyAnnotationProtocol
+		}
+		if containerPortAnnotation != "" {
+			annotations[types.PortQualifier] = containerPortAnnotation
+		}
+		if addressAnnotation != "" {
+			annotations[types.AddressQualifier] = addressAnnotation
+		}
+		if labels != "" {
+			annotations[types.ServiceLabels] = labels
+		}
+
+		// Only initialize the selector pointer if a label has been provided
+
+		return &v12.DeploymentConfig{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        name,
+				Namespace:   NS,
+				Annotations: annotations,
+			},
+			Spec: v12.DeploymentConfigSpec{
+				Template: &corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: depContainers,
+					},
+				},
+				Selector: selectors,
+			},
+		}
+
+	}
+
+	// labels to use while preparing the test table
+	labels := "app=app1"
+	selectorWithLabels := map[string]string{"label1": "value1"}
+	selectorWithoutLabels := map[string]string{}
+
+	// test table below is meant to cover getServiceDefinitionFromAnnotatedDeployment()
+	testTable := []test{
+		{"no-proxy-annotation", newDeploymentConfig("dep1", "", "", "", 8080, labels, selectorWithLabels), result{
+			service: types.ServiceInterface{},
+			success: false,
+		}},
+		{"http-port-annotation-no-address", newDeploymentConfig("dep1", "http", "81", "", 8080, labels, selectorWithLabels), result{
+			service: types.ServiceInterface{
+				Address:  "dep1",
+				Protocol: "http",
+				Ports:    []int{81},
+				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: "label1=value1"}},
+				Labels:   map[string]string{"app": "app1"},
+				Origin:   "annotation",
+			},
+			success: true,
+		}},
+		{"http-port-annotation-no-addess-without-selector", newDeploymentConfig("dep1", "http", "81", "", 8080, "", selectorWithoutLabels), result{
+			service: types.ServiceInterface{
+				Address:  "dep1",
+				Protocol: "http",
+				Ports:    []int{81},
+				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: ""}},
+				Origin:   "annotation",
+			},
+			success: true,
+		}},
+		{"http-port-container-no-address", newDeploymentConfig("dep1", "http", "", "", 8080, "", selectorWithLabels), result{
+			service: types.ServiceInterface{
+				Address:  "dep1",
+				Protocol: "http",
+				Ports:    []int{8080},
+				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: "label1=value1"}},
+				Origin:   "annotation",
+			},
+			success: true,
+		}},
+		{"http-no-port-no-address", newDeploymentConfig("dep1", "http", "", "", 0, "", selectorWithLabels), result{
+			service: types.ServiceInterface{
+				Address:  "dep1",
+				Protocol: "http",
+				Ports:    []int{80},
+				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: "label1=value1"}},
+				Origin:   "annotation",
+			},
+			success: true,
+		}},
+		{"http-no-port-with-address", newDeploymentConfig("dep1", "http", "", "address1", 0, labels, selectorWithLabels), result{
+			service: types.ServiceInterface{
+				Address:  "address1",
+				Protocol: "http",
+				Ports:    []int{80},
+				Targets:  []types.ServiceInterfaceTarget{{Name: "dep1", Selector: "label1=value1"}},
+				Labels:   map[string]string{"app": "app1"},
+				Origin:   "annotation",
+			},
+			success: true,
+		}},
+		{"tcp-invalid-port-no-address", newDeploymentConfig("dep1", "tcp", "invalid", "", 0, "", selectorWithLabels), result{
+			service: types.ServiceInterface{},
+			success: false,
+		}},
+	}
+
+	// Iterating through the test table
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			service, success := dm.getServiceDefinitionFromAnnotatedDeploymentConfig(test.deployment)
+			// Validating returned service
+			assert.Assert(t, reflect.DeepEqual(test.expected.service.Ports, service.Ports))
+			assert.Equal(t, test.expected.service.Protocol, service.Protocol)
+			assert.Equal(t, test.expected.service.Address, service.Address)
+			assert.Equal(t, len(test.expected.service.Targets), len(service.Targets))
+			if len(test.expected.service.Targets) > 0 {
+				assert.Equal(t, test.expected.service.Targets[0].Name, service.Targets[0].Name)
+				assert.Equal(t, test.expected.service.Targets[0].Selector, service.Targets[0].Selector)
+			}
+			assert.DeepEqual(t, test.expected.service.Labels, service.Labels)
 			assert.Equal(t, test.expected.service.Origin, service.Origin)
 			// Validating overall result
 			assert.Equal(t, success, test.expected.success)

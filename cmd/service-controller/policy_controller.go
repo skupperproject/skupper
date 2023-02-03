@@ -401,7 +401,7 @@ func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget) 
 	}
 	getBySelector := func(targetTypes ...string) string {
 		for _, targetType := range targetTypes {
-			retTarget, err := kube.GetServiceInterfaceTarget(targetType, target.Name, true, c.cli.Namespace, c.cli.KubeClient)
+			retTarget, err := kube.GetServiceInterfaceTarget(targetType, target.Name, true, c.cli.Namespace, c.cli.KubeClient, c.cli.OCAppsClient)
 			if err == nil {
 				if retTarget.Selector == target.Selector {
 					return targetType
@@ -411,7 +411,7 @@ func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget) 
 		return ""
 	}
 
-	return getBySelector("deployment", "statefulset")
+	return getBySelector(DeploymentObjectType, StatefulSetObjectType, DeploymentConfigObjectType)
 }
 
 func NewPolicyController(cli *client.VanClient) *PolicyController {

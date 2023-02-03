@@ -3,6 +3,8 @@ package main
 import (
 	jsonencoding "encoding/json"
 	"fmt"
+	appv1 "github.com/openshift/api/apps/v1"
+	v1 "github.com/openshift/client-go/apps/informers/externalversions/apps/v1"
 	"reflect"
 	"strconv"
 	"strings"
@@ -29,21 +31,24 @@ import (
 // changes to other entities (currently statefulsets exposed via
 // headless services)
 type DefinitionMonitor struct {
-	origin                string
-	vanClient             *client.VanClient
-	policy                *client.ClusterPolicyValidator
-	statefulSetInformer   cache.SharedIndexInformer
-	daemonSetInformer     cache.SharedIndexInformer
-	deploymentInformer    cache.SharedIndexInformer
-	svcDefInformer        cache.SharedIndexInformer
-	svcInformer           cache.SharedIndexInformer
-	events                workqueue.RateLimitingInterface
-	headless              map[string]types.ServiceInterface
-	annotated             map[string]types.ServiceInterface
-	annotatedDeployments  map[string]string
-	annotatedStatefulSets map[string]string
-	annotatedDaemonSets   map[string]string
-	annotatedServices     map[string]string
+	origin                   string
+	vanClient                *client.VanClient
+	policy                   *client.ClusterPolicyValidator
+	statefulSetInformer      cache.SharedIndexInformer
+	daemonSetInformer        cache.SharedIndexInformer
+	deploymentInformer       cache.SharedIndexInformer
+	deploymentConfigInformer cache.SharedIndexInformer
+	svcDefInformer           cache.SharedIndexInformer
+	svcInformer              cache.SharedIndexInformer
+	events                   workqueue.RateLimitingInterface
+	headless                 map[string]types.ServiceInterface
+	annotated                map[string]types.ServiceInterface
+	annotatedObjects         map[objectKey]string
+}
+
+type objectKey struct {
+	name       string
+	objectType string
 }
 
 const (
@@ -52,21 +57,23 @@ const (
 	DefinitionMonitorError         string = "DefinitionMonitorEvent"
 	DefinitionMonitorDeletionEvent string = "DefinitionMonitorDeletionEvent"
 	DefinitionMonitorUpdateEvent   string = "DefinitionMonitorUpdateEvent"
+	ServiceObjectType              string = "service"
+	DaemonSetObjectType            string = "daemonset"
+	DeploymentObjectType           string = "deployment"
+	DeploymentConfigObjectType     string = "deploymentconfig"
+	StatefulSetObjectType          string = "statefulset"
 )
 
 func newDefinitionMonitor(origin string, cli *client.VanClient, svcDefInformer cache.SharedIndexInformer, svcInformer cache.SharedIndexInformer) *DefinitionMonitor {
 	monitor := &DefinitionMonitor{
-		origin:                origin,
-		vanClient:             cli,
-		policy:                client.NewClusterPolicyValidator(cli),
-		svcDefInformer:        svcDefInformer,
-		svcInformer:           svcInformer,
-		headless:              make(map[string]types.ServiceInterface),
-		annotated:             make(map[string]types.ServiceInterface),
-		annotatedDeployments:  make(map[string]string),
-		annotatedStatefulSets: make(map[string]string),
-		annotatedDaemonSets:   make(map[string]string),
-		annotatedServices:     make(map[string]string),
+		origin:           origin,
+		vanClient:        cli,
+		policy:           client.NewClusterPolicyValidator(cli),
+		svcDefInformer:   svcDefInformer,
+		svcInformer:      svcInformer,
+		headless:         make(map[string]types.ServiceInterface),
+		annotated:        make(map[string]types.ServiceInterface),
+		annotatedObjects: make(map[objectKey]string),
 	}
 	AddStaticPolicyWatcher(monitor.policy)
 	monitor.statefulSetInformer = appsv1informer.NewStatefulSetInformer(
@@ -92,12 +99,23 @@ func newDefinitionMonitor(origin string, cli *client.VanClient, svcDefInformer c
 	monitor.svcDefInformer.AddEventHandler(newEventHandlerFor(monitor.events, "servicedefs", AnnotatedKey, ConfigMapResourceVersionTest))
 	monitor.svcInformer.AddEventHandler(newEventHandlerFor(monitor.events, "services", AnnotatedKey, ServiceResourceVersionTest))
 
+	if cli.OCAppsClient != nil {
+		monitor.deploymentConfigInformer = v1.NewDeploymentConfigInformer(cli.OCAppsClient, cli.Namespace, time.Second*30, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+		monitor.deploymentConfigInformer.AddEventHandler(newEventHandlerFor(monitor.events, "deploymentconfigs", AnnotatedKey, DeploymentConfigResourceVersionTest))
+	}
+
 	return monitor
 }
 
 func DeploymentResourceVersionTest(a interface{}, b interface{}) bool {
 	aa := a.(*appsv1.Deployment)
 	bb := b.(*appsv1.Deployment)
+	return aa.ResourceVersion == bb.ResourceVersion
+}
+
+func DeploymentConfigResourceVersionTest(a interface{}, b interface{}) bool {
+	aa := a.(*appv1.DeploymentConfig)
+	bb := b.(*appv1.DeploymentConfig)
 	return aa.ResourceVersion == bb.ResourceVersion
 }
 
@@ -111,6 +129,11 @@ func (m *DefinitionMonitor) start(stopCh <-chan struct{}) error {
 	go m.statefulSetInformer.Run(stopCh)
 	go m.daemonSetInformer.Run(stopCh)
 	go m.deploymentInformer.Run(stopCh)
+
+	if m.deploymentConfigInformer != nil {
+		go m.deploymentConfigInformer.Run(stopCh)
+	}
+
 	if ok := cache.WaitForCacheSync(stopCh, m.statefulSetInformer.HasSynced, m.daemonSetInformer.HasSynced, m.deploymentInformer.HasSynced); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
@@ -133,6 +156,14 @@ func deducePort(deployment *appsv1.Deployment) map[int]int {
 		return kube.PortLabelStrToMap(port)
 	} else {
 		return kube.GetContainerPort(deployment)
+	}
+}
+
+func deducePortFromDeploymentConfig(deploymentConfig *appv1.DeploymentConfig) map[int]int {
+	if port, ok := deploymentConfig.ObjectMeta.Annotations[types.PortQualifier]; ok {
+		return kube.PortLabelStrToMap(port)
+	} else {
+		return kube.GetContainerPortForDeploymentConfig(deploymentConfig)
 	}
 }
 
@@ -243,8 +274,63 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 		}
 		svc.Origin = "annotation"
 
-		if policyRes := m.policy.ValidateExpose("deployment", deployment.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose(DeploymentObjectType, deployment.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deployment/%s cannot be exposed", deployment.ObjectMeta.Name)
+			return types.ServiceInterface{}, false
+		}
+		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service %s cannot be created", svc.Address)
+			return types.ServiceInterface{}, false
+		}
+
+		return svc, true
+	} else {
+		return svc, false
+	}
+}
+
+func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeploymentConfig(deploymentConfig *appv1.DeploymentConfig) (types.ServiceInterface, bool) {
+	var svc types.ServiceInterface
+	if protocol, ok := deploymentConfig.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
+		port := map[int]int{}
+		if port = deducePortFromDeploymentConfig(deploymentConfig); len(port) > 0 {
+			svc.Ports = []int{}
+			for p, _ := range port {
+				svc.Ports = append(svc.Ports, p)
+			}
+		} else if protocol == "http" {
+			svc.Ports = []int{80}
+		} else {
+			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated deploymentconfig %s; cannot deduce port", deploymentConfig.ObjectMeta.Name)
+			return svc, false
+		}
+		svc.Protocol = protocol
+		if address, ok := deploymentConfig.ObjectMeta.Annotations[types.AddressQualifier]; ok {
+			svc.Address = address
+		} else {
+			svc.Address = deploymentConfig.ObjectMeta.Name
+		}
+
+		selector := ""
+		if deploymentConfig.Spec.Selector != nil {
+			selector = utils.StringifySelector(deploymentConfig.Spec.Selector)
+		}
+		svc.Targets = []types.ServiceInterfaceTarget{
+			{
+				Name:     deploymentConfig.ObjectMeta.Name,
+				Selector: selector,
+			},
+		}
+		if len(port) > 0 {
+			svc.Targets[0].TargetPorts = port
+		}
+		if labels, ok := deploymentConfig.ObjectMeta.Annotations[types.ServiceLabels]; ok {
+			svc.Labels = utils.LabelToMap(labels)
+		}
+		svc.Origin = "annotation"
+
+		if policyRes := m.policy.ValidateExpose(DeploymentConfigObjectType, deploymentConfig.Name); !policyRes.Allowed() {
+			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: deploymentconfig/%s cannot be exposed", deploymentConfig.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
 		if policyRes := m.policy.ValidateImportService(svc.Address); !policyRes.Allowed() {
@@ -342,7 +428,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 		}
 		svc.Origin = "annotation"
 
-		if policyRes := m.policy.ValidateExpose("statefulset", statefulset.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose(StatefulSetObjectType, statefulset.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: statefulset/%s cannot be exposed", statefulset.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
@@ -400,7 +486,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDaemonSet(daemonset
 		}
 		svc.Origin = "annotation"
 
-		if policyRes := m.policy.ValidateExpose("daemonset", daemonset.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose(DaemonSetObjectType, daemonset.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: daemonset/%s cannot be exposed", daemonset.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
@@ -532,7 +618,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 
 		svc.Origin = "annotation"
 
-		if policyRes := m.policy.ValidateExpose("service", service.Name); !policyRes.Allowed() {
+		if policyRes := m.policy.ValidateExpose(ServiceObjectType, service.Name); !policyRes.Allowed() {
 			event.Recordf(DefinitionMonitorIgnored, "Policy validation error: service/%s cannot be exposed", service.ObjectMeta.Name)
 			return types.ServiceInterface{}, false
 		}
@@ -578,24 +664,8 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAddress(address string, ta
 	return nil
 }
 
-func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedDeployment(name string) error {
-	return m.deleteServiceDefinitionForAnnotatedObject(name, "deployment", m.annotatedDeployments)
-}
-
-func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedStatefulSet(name string) error {
-	return m.deleteServiceDefinitionForAnnotatedObject(name, "statefulset", m.annotatedStatefulSets)
-}
-
-func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedDaemonSet(name string) error {
-	return m.deleteServiceDefinitionForAnnotatedObject(name, "daemonset", m.annotatedDaemonSets)
-}
-
-func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedService(name string) error {
-	return m.deleteServiceDefinitionForAnnotatedObject(name, "service", m.annotatedServices)
-}
-
-func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name string, objectType string, index map[string]string) error {
-	address, ok := index[name]
+func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name string, objectType string, index map[objectKey]string) error {
+	address, ok := index[objectKey{name, objectType}]
 	if ok {
 		event.Recordf(DefinitionMonitorDeletionEvent, "Deleting service definition for annotated %s %s", objectType, name)
 		_, unqualified, err := cache.SplitMetaNamespaceKey(name)
@@ -606,7 +676,7 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name strin
 		if err != nil {
 			return err
 		}
-		delete(index, name)
+		delete(index, objectKey{name, objectType})
 	}
 	return nil
 }
@@ -730,22 +800,22 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 								delete(m.headless, desired.Address)
 							}
 						}
-						if address, ok := m.annotatedStatefulSets[name]; ok {
+						if address, ok := m.annotatedObjects[objectKey{name, StatefulSetObjectType}]; ok {
 							if address != desired.Address {
 								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated statefulSet %s. Was %s, now %s", name, address, desired.Address)
-								if err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name); err != nil {
+								if err := m.deleteServiceDefinitionForAnnotatedObject(name, StatefulSetObjectType, m.annotatedObjects); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
-								m.annotatedStatefulSets[name] = desired.Address
+								m.annotatedObjects[objectKey{name, StatefulSetObjectType}] = desired.Address
 							}
 						} else {
-							m.annotatedStatefulSets[name] = desired.Address
+							m.annotatedObjects[objectKey{name, StatefulSetObjectType}] = desired.Address
 						}
 
 					} else {
 						// is this statefulset one that has been exposed with the headless option?
-						if _, ok := m.annotatedStatefulSets[name]; ok {
-							err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name)
+						if _, ok := m.annotatedObjects[objectKey{name, StatefulSetObjectType}]; ok {
+							err := m.deleteServiceDefinitionForAnnotatedObject(name, StatefulSetObjectType, m.annotatedObjects)
 							if err != nil {
 								return fmt.Errorf("Failed to delete service definition on statefulset %s which is no longer annotated: %s", name, err)
 							}
@@ -771,7 +841,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						}
 						kube.UpdateSkupperServices(changed, deleted, m.origin, m.vanClient.Namespace, m.vanClient.KubeClient)
 					} else {
-						err := m.deleteServiceDefinitionForAnnotatedStatefulSet(name)
+						err := m.deleteServiceDefinitionForAnnotatedObject(name, StatefulSetObjectType, m.annotatedObjects)
 						if err != nil {
 							return fmt.Errorf("Failed to delete service definition on statefulset %s which is no longer annotated: %s", name, err)
 						}
@@ -804,29 +874,81 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							}
 							m.annotated[desired.Address] = desired
 						}
-						address, ok := m.annotatedDeployments[name]
+						address, ok := m.annotatedObjects[objectKey{name, DeploymentObjectType}]
 						if ok {
 							if address != desired.Address {
 								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated deployment %s. Was %s, now %s", name, address, desired.Address)
-								if err := m.deleteServiceDefinitionForAnnotatedDeployment(name); err != nil {
+								if err := m.deleteServiceDefinitionForAnnotatedObject(name, DeploymentObjectType, m.annotatedObjects); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
-								m.annotatedDeployments[name] = desired.Address
+								m.annotatedObjects[objectKey{name, DeploymentObjectType}] = desired.Address
 							}
 						} else {
-							m.annotatedDeployments[name] = desired.Address
+							m.annotatedObjects[objectKey{name, DeploymentObjectType}] = desired.Address
 						}
 
 					} else {
-						err := m.deleteServiceDefinitionForAnnotatedDeployment(name)
+						err := m.deleteServiceDefinitionForAnnotatedObject(name, DeploymentObjectType, m.annotatedObjects)
 						if err != nil {
 							return fmt.Errorf("Failed to delete service definition on deployment %s which is no longer annotated: %s", name, err)
 						}
 					}
 				} else {
-					err := m.deleteServiceDefinitionForAnnotatedDeployment(name)
+					err := m.deleteServiceDefinitionForAnnotatedObject(name, DeploymentObjectType, m.annotatedObjects)
 					if err != nil {
 						return fmt.Errorf("Failed to delete service definition on removal of previously annotated deployment %s: %s", name, err)
+					}
+				}
+			case "deploymentconfigs":
+				event.Recordf(DefinitionMonitorEvent, "deploymentconfig event for %s", name)
+				obj, exists, err := m.deploymentConfigInformer.GetStore().GetByKey(name)
+				if err != nil {
+					return fmt.Errorf("Error reading deploymentconfig %s from cache: %s", name, err)
+				} else if exists {
+					deploymentConfig, ok := obj.(*appv1.DeploymentConfig)
+					if !ok {
+						return fmt.Errorf("Expected DeploymentConfig for %s but got %#v", name, obj)
+					}
+
+					desired, ok := m.getServiceDefinitionFromAnnotatedDeploymentConfig(deploymentConfig)
+					if ok {
+						event.Recordf(DefinitionMonitorEvent, "Checking annotated deploymentconfig %s", name)
+						actual, ok := m.annotated[desired.Address]
+						if !ok || updateAnnotatedServiceDefinition(&actual, &desired) {
+							event.Recordf(DefinitionMonitorUpdateEvent, "Updating service definition for annotated deploymentconfig %s to %#v", name, desired)
+							changed := []types.ServiceInterface{
+								desired,
+							}
+							deleted := []string{}
+							err = kube.UpdateSkupperServices(changed, deleted, "annotation", m.vanClient.Namespace, m.vanClient.KubeClient)
+							if err != nil {
+								return fmt.Errorf("failed to update service definition for annotated deploymentconfig %s: %s", name, err)
+							}
+							m.annotated[desired.Address] = desired
+						}
+						address, ok := m.annotatedObjects[objectKey{name, DeploymentConfigObjectType}]
+						if ok {
+							if address != desired.Address {
+								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated deploymentconfig %s. Was %s, now %s", name, address, desired.Address)
+								if err := m.deleteServiceDefinitionForAnnotatedObject(name, DeploymentConfigObjectType, m.annotatedObjects); err != nil {
+									return fmt.Errorf("Failed to delete stale service definition for %s", address)
+								}
+								m.annotatedObjects[objectKey{name, DeploymentConfigObjectType}] = desired.Address
+							}
+						} else {
+							m.annotatedObjects[objectKey{name, DeploymentConfigObjectType}] = desired.Address
+						}
+
+					} else {
+						err := m.deleteServiceDefinitionForAnnotatedObject(name, DeploymentConfigObjectType, m.annotatedObjects)
+						if err != nil {
+							return fmt.Errorf("Failed to delete service definition on deploymentconfig %s which is no longer annotated: %s", name, err)
+						}
+					}
+				} else {
+					err := m.deleteServiceDefinitionForAnnotatedObject(name, DeploymentConfigObjectType, m.annotatedObjects)
+					if err != nil {
+						return fmt.Errorf("Failed to delete service definition on removal of previously annotated deploymentconfig %s: %s", name, err)
 					}
 				}
 			case "daemonsets":
@@ -856,27 +978,27 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							}
 							m.annotated[desired.Address] = desired
 						}
-						address, ok := m.annotatedDaemonSets[name]
+						address, ok := m.annotatedObjects[objectKey{name, DaemonSetObjectType}]
 						if ok {
 							if address != desired.Address {
 								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated daemonset %s. Was %s, now %s", name, address, desired.Address)
-								if err := m.deleteServiceDefinitionForAnnotatedDaemonSet(name); err != nil {
+								if err := m.deleteServiceDefinitionForAnnotatedObject(name, DaemonSetObjectType, m.annotatedObjects); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
-								m.annotatedDaemonSets[name] = desired.Address
+								m.annotatedObjects[objectKey{name, DaemonSetObjectType}] = desired.Address
 							}
 						} else {
-							m.annotatedDaemonSets[name] = desired.Address
+							m.annotatedObjects[objectKey{name, DaemonSetObjectType}] = desired.Address
 						}
 
 					} else {
-						err := m.deleteServiceDefinitionForAnnotatedDaemonSet(name)
+						err := m.deleteServiceDefinitionForAnnotatedObject(name, DaemonSetObjectType, m.annotatedObjects)
 						if err != nil {
 							return fmt.Errorf("Failed to delete service definition on daemonset %s which is no longer annotated: %s", name, err)
 						}
 					}
 				} else {
-					err := m.deleteServiceDefinitionForAnnotatedDaemonSet(name)
+					err := m.deleteServiceDefinitionForAnnotatedObject(name, DaemonSetObjectType, m.annotatedObjects)
 					if err != nil {
 						return fmt.Errorf("Failed to delete service definition on removal of previously annotated daemonset %s: %s", name, err)
 					}
@@ -908,21 +1030,21 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 							}
 							m.annotated[desired.Address] = desired
 						}
-						address, ok := m.annotatedServices[name]
+						address, ok := m.annotatedObjects[objectKey{name, ServiceObjectType}]
 						if ok {
 							if address != desired.Address {
 								event.Recordf(DefinitionMonitorUpdateEvent, "Address changed for annotated service %s. Was %s, now %s", name, address, desired.Address)
-								if err := m.deleteServiceDefinitionForAnnotatedService(name); err != nil {
+								if err := m.deleteServiceDefinitionForAnnotatedObject(name, ServiceObjectType, m.annotatedObjects); err != nil {
 									return fmt.Errorf("Failed to delete stale service definition for %s", address)
 								}
-								m.annotatedServices[name] = desired.Address
+								m.annotatedObjects[objectKey{name, ServiceObjectType}] = desired.Address
 							}
 						} else {
-							m.annotatedServices[name] = desired.Address
+							m.annotatedObjects[objectKey{name, ServiceObjectType}] = desired.Address
 						}
 
 					} else {
-						err := m.deleteServiceDefinitionForAnnotatedService(name)
+						err := m.deleteServiceDefinitionForAnnotatedObject(name, ServiceObjectType, m.annotatedObjects)
 						if err != nil {
 							return fmt.Errorf("Failed to delete service definition on service %s which is no longer annotated: %s", name, err)
 						}
@@ -932,7 +1054,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						}
 					}
 				} else {
-					err := m.deleteServiceDefinitionForAnnotatedService(name)
+					err := m.deleteServiceDefinitionForAnnotatedObject(name, ServiceObjectType, m.annotatedObjects)
 					if err != nil {
 						return fmt.Errorf("Failed to delete service definition on removal of previously annotated service %s: %s", name, err)
 					}
