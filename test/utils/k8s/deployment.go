@@ -9,6 +9,12 @@ import (
 	v13 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type SecretMount struct {
+	Name      string
+	Secret    string
+	MountPath string
+}
+
 type DeploymentOpts struct {
 	Image         string
 	Labels        map[string]string
@@ -17,6 +23,7 @@ type DeploymentOpts struct {
 	Args          []string
 	EnvVars       []v12.EnvVar
 	ResourceReq   v12.ResourceRequirements
+	SecretMounts  []SecretMount
 }
 
 func NewDeployment(name, namespace string, opts DeploymentOpts) (*v1.Deployment, error) {
@@ -33,9 +40,34 @@ func NewDeployment(name, namespace string, opts DeploymentOpts) (*v1.Deployment,
 		return nil, err
 	}
 
+	var volumeMounts []v12.VolumeMount
+	var volumes []v12.Volume
+
+	for _, v := range opts.SecretMounts {
+		volumeMounts = append(volumeMounts, v12.VolumeMount{
+			Name:      v.Name,
+			MountPath: v.MountPath,
+		})
+		volumes = append(volumes, v12.Volume{
+			Name: v.Name,
+			VolumeSource: v12.VolumeSource{
+				Secret: &v12.SecretVolumeSource{
+					SecretName: v.Secret,
+				},
+			},
+		})
+	}
+
 	// Container to use
 	containers := []v12.Container{
-		{Name: name, Image: opts.Image, ImagePullPolicy: v12.PullAlways, Env: opts.EnvVars, Resources: opts.ResourceReq},
+		{
+			Name:            name,
+			Image:           opts.Image,
+			ImagePullPolicy: v12.PullAlways,
+			Env:             opts.EnvVars,
+			Resources:       opts.ResourceReq,
+			VolumeMounts:    volumeMounts,
+		},
 	}
 	// Customize commands and arguments if any informed
 	if len(opts.Command) > 0 {
@@ -60,6 +92,7 @@ func NewDeployment(name, namespace string, opts DeploymentOpts) (*v1.Deployment,
 					Labels: opts.Labels,
 				},
 				Spec: v12.PodSpec{
+					Volumes:       volumes,
 					Containers:    containers,
 					RestartPolicy: opts.RestartPolicy,
 				},
