@@ -2,7 +2,7 @@ version: 2.1
 orbs:
     docker: circleci/docker@1.0.1
     kube-orb: circleci/kubernetes@0.11.0
-    go: circleci/go@1.7.2
+    go: circleci/go@1.7.1
 
 parameters:
   ci_service_controller_image:
