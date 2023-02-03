@@ -68,8 +68,7 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 	// TODO: replace console data with flow api
 	const flowUrl = "https://127.0.0.1:8010/api/v1alpha1"
 	var consoleData data.ConsoleData
-	var sites []flow.SiteRecord
-	var listeners []flow.ListenerRecord
+	var payload flow.Payload
 
 	curlOpts := tools.CurlOpts{
 		Silent:   true,
@@ -87,23 +86,25 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 		return consoleData, err
 	}
 
-	// 4.2.1. Parsing sites response
-	if err = json.Unmarshal([]byte(resp.Body), &sites); err != nil {
+	if err = json.Unmarshal([]byte(resp.Body), &payload); err != nil {
 		if strings.HasPrefix(resp.Body, "Error") {
 			log.Printf(resp.Body)
 			return consoleData, fmt.Errorf(resp.Body)
 		} else {
-			log.Printf("error unmarshalling SiteRecords: %s", err)
+			log.Printf("error unmarshalling Payload: %s", err)
 			log.Printf("invalid response body: %s", resp.Body)
 			return consoleData, err
 		}
 	}
-	for _, site := range sites {
-		consoleData.Sites = append(consoleData.Sites, data.Site{
-			SiteId:    site.Identity,
-			SiteName:  *site.Name,
-			Namespace: *site.NameSpace,
-		})
+
+	if sites, ok := payload.Results.([]flow.SiteRecord); ok {
+		for _, site := range sites {
+			consoleData.Sites = append(consoleData.Sites, data.Site{
+				SiteId:    site.Identity,
+				SiteName:  *site.Name,
+				Namespace: *site.NameSpace,
+			})
+		}
 	}
 
 	// retrieve listener list
@@ -113,22 +114,24 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 		return consoleData, err
 	}
 
-	// 4.2.1. Parsing listeners response
-	if err = json.Unmarshal([]byte(resp.Body), &listeners); err != nil {
+	if err = json.Unmarshal([]byte(resp.Body), &payload); err != nil {
 		if strings.HasPrefix(resp.Body, "Error") {
 			log.Printf(resp.Body)
 			return consoleData, fmt.Errorf(resp.Body)
 		} else {
-			log.Printf("error unmarshalling ListenerRecords: %s", err)
+			log.Printf("error unmarshalling Payload: %s", err)
 			log.Printf("invalid response body: %s", resp.Body)
 			return consoleData, err
 		}
 	}
+
 	uniqueListeners := make(map[string]flow.ListenerRecord)
-	for _, listener := range listeners {
-		if listener.EndTime == 0 {
-			if _, ok := uniqueListeners[*listener.Name]; !ok {
-				uniqueListeners[*listener.Name] = listener
+	if listeners, ok := payload.Results.([]flow.ListenerRecord); ok {
+		for _, listener := range listeners {
+			if listener.EndTime == 0 {
+				if _, ok := uniqueListeners[*listener.Name]; !ok {
+					uniqueListeners[*listener.Name] = listener
+				}
 			}
 		}
 	}
