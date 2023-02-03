@@ -116,7 +116,8 @@ commands:
           name: cleanup previous go installation
           command: sudo rm -rf /usr/local/go
       - docker/install-docker
-      - go/install
+      - go/install:
+          version: "1.19"
       - kube-orb/install-kubectl
       - run: make generate-client
       - run: make
