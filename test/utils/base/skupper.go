@@ -68,6 +68,8 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 	// TODO: replace console data with flow api
 	const flowUrl = "https://127.0.0.1:8010/api/v1alpha1"
 	var consoleData data.ConsoleData
+	var sites []flow.SiteRecord
+	var listeners []flow.ListenerRecord
 	var payload flow.Payload
 
 	curlOpts := tools.CurlOpts{
@@ -78,8 +80,7 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 		Timeout:  10,
 	}
 
-	// runs inside skupper-controller's pod
-	// retriev site list
+	// retrieve site list
 	resp, err := tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", flowUrl+"/sites/", curlOpts)
 	if err != nil {
 		log.Printf("error executing curl: %s", err)
@@ -97,7 +98,8 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 		}
 	}
 
-	if sites, ok := payload.Results.([]flow.SiteRecord); ok {
+	results, err := json.Marshal(payload.Results)
+	if err = json.Unmarshal(results, &sites); err == nil {
 		for _, site := range sites {
 			consoleData.Sites = append(consoleData.Sites, data.Site{
 				SiteId:    site.Identity,
@@ -126,7 +128,8 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 	}
 
 	uniqueListeners := make(map[string]flow.ListenerRecord)
-	if listeners, ok := payload.Results.([]flow.ListenerRecord); ok {
+	results, err = json.Marshal(payload.Results)
+	if err = json.Unmarshal(results, &listeners); err == nil {
 		for _, listener := range listeners {
 			if listener.EndTime == 0 {
 				if _, ok := uniqueListeners[*listener.Name]; !ok {
