@@ -529,17 +529,6 @@ func (base *Base) TimeRangeValid(qp QueryParams) bool {
 	}
 }
 
-// Convert a slice or array of a specific type to array of interface{}
-func ToIntf(s interface{}) []interface{} {
-	v := reflect.ValueOf(s)
-	// There is no need to check, we want to panic if it's not slice or array
-	intf := make([]interface{}, v.Len())
-	for i := 0; i < v.Len(); i++ {
-		intf[i] = v.Index(i).Interface()
-	}
-	return intf
-}
-
 func paginate(offset int, limit int, length int) (int, int) {
 	start := offset
 	if start < 0 {
