@@ -353,7 +353,8 @@ jobs:
     steps:
       - setup_remote_docker
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
-      - run: go install github.com/genuinetools/reg@latest
+      - run: curl -fSL "https://github.com/genuinetools/reg/releases/download/v0.16.1/reg-linux-amd64" -o "reg"
+      - run: chmod +x reg
       - run: reg rm << pipeline.parameters.ci_service_controller_image >>
       - run: reg rm << pipeline.parameters.ci_site_controller_image >>
       - run: reg rm << pipeline.parameters.ci_test_image >>
