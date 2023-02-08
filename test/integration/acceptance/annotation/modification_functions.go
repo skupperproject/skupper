@@ -232,3 +232,41 @@ func DebugAnnotatedResources(t *testing.T, testRunner base.ClusterTestRunner) {
 	}
 	log.Printf("Number of exposed resources found (with %s annotation): %d", types.ProxyQualifier, i)
 }
+
+// AddPorts adds extra ports to already annotated resources
+func AddPorts(t *testing.T, testRunner base.ClusterTestRunner) {
+	pub, _ := testRunner.GetPublicContext(1)
+	prv, _ := testRunner.GetPrivateContext(1)
+
+	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
+		// Retrieving the deployment
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get("nginx", v1.GetOptions{})
+		assert.Assert(t, err)
+
+		// Updating ports (adding 8888:8080 and 9999:8080)
+		dep.Annotations[types.PortQualifier] = fmt.Sprintf("8080:8080,9090:8080,8888:8080,9999:8080")
+
+		// Updating deployment
+		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(dep)
+		assert.Assert(t, err)
+	}
+}
+
+// RemovePorts remove the extra ports from already annotated resources
+func RemovePorts(t *testing.T, testRunner base.ClusterTestRunner) {
+	pub, _ := testRunner.GetPublicContext(1)
+	prv, _ := testRunner.GetPrivateContext(1)
+
+	for _, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
+		// Retrieving the deployment
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get("nginx", v1.GetOptions{})
+		assert.Assert(t, err)
+
+		// Updating ports (adding 8888:8080 and 9999:8080)
+		dep.Annotations[types.PortQualifier] = fmt.Sprintf("8080:8080,9090:8080,8888:8080")
+
+		// Updating deployment
+		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(dep)
+		assert.Assert(t, err)
+	}
+}

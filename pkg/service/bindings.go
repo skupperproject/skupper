@@ -79,6 +79,14 @@ func (s *ServiceBindings) RequiresExternalBridge() bool {
 	return s.external != nil
 }
 
+func (s *ServiceBindings) GetIngressPorts() []int {
+	return s.ingressPorts
+}
+
+func (s *ServiceBindings) SetIngressPorts(ports []int) {
+	s.ingressPorts = ports
+}
+
 func (s *ServiceBindings) FindLocalTarget() *EgressBindings {
 	for _, eb := range s.targets {
 		if eb.hasLocalTarget() {
