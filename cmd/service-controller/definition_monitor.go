@@ -13,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -719,7 +720,11 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name strin
 	return nil
 }
 
-func (m *DefinitionMonitor) restoreServiceDefinitions(service *corev1.Service) error {
+func (m *DefinitionMonitor) restoreServiceDefinitions(name string) error {
+	service, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Get(name, v1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("error retrieving service: %w", err)
+	}
 	updated := false
 	if hasOriginalSelector(*service) {
 		updated = true
@@ -1086,7 +1091,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						if err != nil {
 							return fmt.Errorf("Failed to delete service definition on service %s which is no longer annotated: %s", name, err)
 						}
-						err = m.restoreServiceDefinitions(service)
+						err = m.restoreServiceDefinitions(service.Name)
 						if err != nil {
 							return fmt.Errorf("Failed to restore service definitions on service %s: %s", name, err)
 						}
