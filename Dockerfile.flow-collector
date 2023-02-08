@@ -10,7 +10,6 @@ COPY . .
 
 RUN make
 
-
 FROM node:16.17 AS console-builder
 
 WORKDIR /skupper-console/
@@ -20,6 +19,12 @@ WORKDIR ./skupper-console-main
 RUN yarn install && yarn build
 
 FROM registry.access.redhat.com/ubi8-minimal
+
+# Create user and group and switch to user's context
+RUN microdnf -y install shadow-utils \
+&& microdnf clean all
+RUN useradd --uid 10000 runner
+USER 10000
 
 WORKDIR /app
 COPY --from=builder /go/src/app/flow-collector .

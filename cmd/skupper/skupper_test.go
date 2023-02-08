@@ -275,3 +275,21 @@ func TestSkupperInitTimeoutParseArgs(t *testing.T) {
 	assert.Equal(t, LoadBalancerTimeout, time.Minute*3)
 
 }
+
+func TestSkupperInitRunAsParseArgs(t *testing.T) {
+	cmd := NewCmdInit(NewSkupperTestClient().Site())
+
+	assert.Assert(t, cmd.ParseFlags([]string{}))
+	assert.Equal(t, routerCreateOpts.RunAsUser, int64(0))
+	assert.Equal(t, routerCreateOpts.RunAsGroup, int64(0))
+
+	cmdArgs := []string{"--run-as-user", "1000"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, routerCreateOpts.RunAsUser, int64(1000))
+
+	cmdArgs = []string{"--run-as-group", "2000"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, routerCreateOpts.RunAsGroup, int64(2000))
+}

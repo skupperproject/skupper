@@ -50,10 +50,24 @@ spec:
         app.kubernetes.io/part-of: skupper
     spec:
       serviceAccountName: skupper-vflow-collector
+      # Please ensure that you can use SeccompProfile and do not use
+      # if your project must work on old Kubernetes
+      # versions < 1.19 or on vendors versions which
+      # do NOT support this field by default
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: skupper-vflow-collector
         image: quay.io/skupper/vflow-collector:latest
         imagePullPolicy: Always
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
         env:
         - name: SKUPPER_NAMESPACE
           valueFrom:

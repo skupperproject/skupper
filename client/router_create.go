@@ -1096,7 +1096,19 @@ sasldb_path: /tmp/skrouterd.sasldb
 			}
 		}
 	}
-	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, cli.KubeClient)
+
+	runAsNonRoot := true
+	securityContext := corev1.SecurityContext{
+		RunAsNonRoot: &runAsNonRoot,
+	}
+	if options.Spec.RunAsUser > 0 {
+		securityContext.RunAsUser = &options.Spec.RunAsUser
+	}
+	if options.Spec.RunAsGroup > 0 {
+		securityContext.RunAsGroup = &options.Spec.RunAsGroup
+	}
+
+	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, &securityContext, cli.KubeClient)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
@@ -1262,7 +1274,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 				return err
 			}
 		}
-		_, err = kube.NewControllerDeployment(van, siteOwnerRef, cli.KubeClient)
+		_, err = kube.NewControllerDeployment(van, siteOwnerRef, &securityContext, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}

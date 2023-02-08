@@ -109,6 +109,8 @@ type SiteConfigSpec struct {
 	ConfigSync          ConfigSyncOptions
 	FlowCollector       FlowCollectorOptions
 	Platform            Platform
+	RunAsUser           int64
+	RunAsGroup          int64
 }
 
 const (

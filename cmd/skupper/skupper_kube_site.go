@@ -147,6 +147,8 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
 	cmd.Flags().DurationVar(&routerCreateOpts.SiteTtl, "service-sync-site-ttl", 0, "Time after which stale services, i.e. those whose site has not been heard from, created through service-sync are removed.")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-vflow-collector", "", false, "Enable cross-site vFlow collection for the application network")
+	cmd.Flags().Int64Var(&routerCreateOpts.RunAsUser, "run-as-user", 0, "The UID to run the entrypoint of the container processes")
+	cmd.Flags().Int64Var(&routerCreateOpts.RunAsGroup, "run-as-group", 0, "The GID to run the entrypoint of the container processes")
 
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Cpu, "router-cpu", "", "CPU request for router pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.Memory, "router-memory", "", "Memory request for router pods")
@@ -183,6 +185,10 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 
 	f := cmd.Flag("enable-console")
 	f.Deprecated = "Stand alone console is planned for deprecation. Use vFlow collector console instead via --enable-vflow-collector flag"
+	// hide run-as flags
+	f = cmd.Flag("run-as-user")
+	f.Hidden = true
+	f = cmd.Flag("run-as-group")
 	f.Hidden = true
 
 	f = cmd.Flag("router-disable-mutual-tls")

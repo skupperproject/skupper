@@ -23,6 +23,8 @@ const (
 	SiteConfigIngressHostKey         string = "ingress-host"
 	SiteConfigCreateNetworkPolicyKey string = "create-network-policy"
 	SiteConfigRoutersKey             string = "routers"
+	SiteConfigRunAsUserKey           string = "run-as-user"
+	SiteConfigRunAsGroupKey          string = "run-as-group"
 
 	// console options
 	SiteConfigConsoleKey               string = "console"
@@ -155,6 +157,12 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.CreateNetworkPolicy {
 		siteConfig.Data[SiteConfigCreateNetworkPolicyKey] = "true"
+	}
+	if spec.RunAsUser != 0 {
+		siteConfig.Data[SiteConfigRunAsUserKey] = strconv.FormatInt(spec.RunAsUser, 10)
+	}
+	if spec.RunAsGroup != 0 {
+		siteConfig.Data[SiteConfigRunAsGroupKey] = strconv.FormatInt(spec.RunAsGroup, 10)
 	}
 	if spec.Router.Logging != nil {
 		siteConfig.Data[SiteConfigRouterLoggingKey] = RouterLogConfigToString(spec.Router.Logging)
