@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
 
@@ -16,9 +17,9 @@ type senderDirect struct {
 }
 
 type ApiRequest struct {
-	RecordType int
-	ItemType   int
-	Request    *http.Request
+	RecordType  int
+	HandlerName string
+	Request     *http.Request
 }
 
 type ApiResponse struct {
@@ -118,6 +119,7 @@ func itemToJSON(item interface{}) *string {
 }
 
 func (fc *FlowCollector) serveRecords(request ApiRequest) ApiResponse {
+	request.HandlerName = mux.CurrentRoute(request.Request).GetName()
 	response := ApiResponse{
 		Body:   nil,
 		Status: http.StatusOK,
@@ -147,7 +149,7 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 					log.Println("Unable to convert interface to beacon")
 				} else {
 					if source, ok := c.eventSources[beacon.Identity]; !ok {
-						log.Println("Detected event source: ", beacon.Identity)
+						log.Printf("Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
 						r := newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming)
 						r.start()
 						outgoing := make(chan interface{})
