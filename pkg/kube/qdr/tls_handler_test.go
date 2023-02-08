@@ -321,7 +321,7 @@ func TestCheckBindingSecrets(t *testing.T) {
 				},
 			},
 			mockedSecrets: []string{},
-			expectedError: "SslProfile skupper-tls-client for service service2 does not exist in this cluster",
+			expectedError: "SslProfile skupper-tls-service2 for service service2 does not exist in this cluster",
 		},
 	}
 	for _, test := range tests {
