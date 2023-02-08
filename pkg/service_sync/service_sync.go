@@ -123,8 +123,8 @@ func (c *ServiceSync) localDefinitionsUpdated(definitions map[string]types.Servi
 			Aggregate:                original.Aggregate,
 			EventChannel:             original.EventChannel,
 			Targets:                  []types.ServiceInterfaceTarget{},
-			EnableTls:                original.EnableTls,
 			TlsCredentials:           original.TlsCredentials,
+			TlsCertAuthority:         original.TlsCertAuthority,
 			PublishNotReadyAddresses: original.PublishNotReadyAddresses,
 			BridgeImage:              original.BridgeImage,
 		}

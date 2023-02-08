@@ -196,6 +196,8 @@ const (
 	StatusAnnotationKey         string = InternalQualifier + "/status"
 	GatewayQualifier            string = InternalQualifier + "/gateway"
 	IngressOnlyQualifier        string = BaseQualifier + "/ingress-only"
+	TlsCertQualifier            string = BaseQualifier + "/tls-cert"
+	TlsTrustQualifier           string = BaseQualifier + "/tls-trust"
 )
 
 // standard labels
@@ -490,8 +492,8 @@ type ServiceInterface struct {
 	Annotations              map[string]string        `json:"annotations,omitempty" yaml:"annotations,omitempty"`
 	Targets                  []ServiceInterfaceTarget `json:"targets" yaml:"targets,omitempty"`
 	Origin                   string                   `json:"origin,omitempty" yaml:"origin,omitempty"`
-	EnableTls                bool                     `json:"enableTls,omitempty"`
 	TlsCredentials           string                   `json:"tlsCredentials,omitempty"`
+	TlsCertAuthority         string                   `json:"tlsCertAuthority,omitempty"`
 	PublishNotReadyAddresses bool                     `json:"publishNotReadyAddresses,omitempty"`
 	BridgeImage              string                   `json:"bridgeImage,omitempty"`
 }

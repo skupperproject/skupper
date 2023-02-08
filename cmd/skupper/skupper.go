@@ -105,8 +105,9 @@ type ExposeOptions struct {
 	TargetPorts              []string
 	Headless                 bool
 	ProxyTuning              types.Tuning
-	EnableTls                bool
+	GeneratedCerts           bool
 	TlsCredentials           string
+	TlsCertAuthority         string
 	PublishNotReadyAddresses bool
 	IngressMode              string
 	BridgeImage              string
@@ -223,8 +224,8 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 				Address:                  serviceName,
 				Ports:                    options.Ports,
 				Protocol:                 options.Protocol,
-				EnableTls:                options.EnableTls,
 				TlsCredentials:           options.TlsCredentials,
+				TlsCertAuthority:         options.TlsCertAuthority,
 				PublishNotReadyAddresses: options.PublishNotReadyAddresses,
 				BridgeImage:              options.BridgeImage,
 			}
@@ -239,13 +240,16 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", fmt.Errorf("Service already exposed, cannot reconfigure as headless")
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
 		return "", fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
+	} else if (options.TlsCredentials != "" || options.TlsCertAuthority != "") && options.Protocol == "http" {
 	} else if options.BridgeImage != "" && service.BridgeImage != options.BridgeImage {
 		return "", fmt.Errorf("Service %s already exists with a different bridge image: %s", serviceName, service.BridgeImage)
-	} else if options.EnableTls && options.Protocol == "http" {
-		return "", fmt.Errorf("TLS can not be enabled for service with mapping %s (only available for http2 and tcp protocols)", service.Protocol)
-	} else if options.EnableTls && !service.EnableTls {
+	} else if options.TlsCredentials != "" && service.TlsCredentials == "" {
 		return "", fmt.Errorf("Service already exposed without TLS support")
-	} else if !options.EnableTls && service.EnableTls {
+	} else if options.TlsCertAuthority != "" && service.TlsCertAuthority == "" {
+		return "", fmt.Errorf("Service already exposed without TLS support")
+	} else if options.TlsCredentials == "" && service.TlsCredentials != "" {
+		return "", fmt.Errorf("Service already exposed with TLS support")
+	} else if options.TlsCertAuthority == "" && service.TlsCertAuthority != "" {
 		return "", fmt.Errorf("Service already exposed with TLS support")
 	} else if options.IngressMode != "" && options.IngressMode != string(service.ExposeIngress) {
 		return "", fmt.Errorf("Service already exposed with different ingress mode")
@@ -469,9 +473,16 @@ func NewCmdExpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd.Flags().StringVar(&(exposeOpts.Address), "address", "", "The Skupper address to expose")
 	cmd.Flags().IntSliceVar(&(exposeOpts.Ports), "port", []int{}, "The ports to expose on")
 	cmd.Flags().StringSliceVar(&(exposeOpts.TargetPorts), "target-port", []string{}, "The ports to target on pods")
-	cmd.Flags().BoolVar(&exposeOpts.EnableTls, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 and tcp protocols)")
 	cmd.Flags().StringVar(&(exposeOpts.IngressMode), "enable-ingress-from-target-site", "", "Determines whether access to the Skupper service is enabled in the site the target was exposed through. Always (default) or Never are valid values.")
 	cmd.Flags().StringVar(&exposeOpts.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
+	cmd.Flags().BoolVar(&exposeOpts.GeneratedCerts, "enable-tls", false, "If specified, the service will be exposed over TLS (valid only for http2 and tcp protocols)")
+	cmd.Flags().BoolVar(&exposeOpts.GeneratedCerts, "generate-tls-secrets", false, "If specified, the service will be exposed over TLS (valid only for http2 and tcp protocols)")
+	cmd.Flags().StringVar(&exposeOpts.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to expose the service over TLS (valid only for http2 and tcp protocols)")
+	cmd.Flags().StringVar(&exposeOpts.TlsCertAuthority, "tls-trust", "", "K8s secret name with the CA to expose the service over TLS (valid only for http2 and tcp protocols)")
+
+	f := cmd.Flag("enable-tls")
+	f.Deprecated = "use 'generate-tls-secrets' instead"
+	f.Hidden = true
 
 	skupperCli.ExposeFlags(cmd)
 	return cmd
@@ -599,6 +610,7 @@ func NewCmdService() *cobra.Command {
 
 var serviceToCreate types.ServiceInterface
 var serviceIngressMode string
+var createSvcWithGeneratedTlsCerts bool
 
 func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -626,12 +638,18 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 				serviceToCreate.Ports = append(serviceToCreate.Ports, servicePort)
 			}
 
-			if serviceToCreate.EnableTls {
-				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
+			createServiceOverTlsWithCustomAndGeneratedCerts := createSvcWithGeneratedTlsCerts && serviceToCreate.TlsCredentials != ""
+
+			if createServiceOverTlsWithCustomAndGeneratedCerts {
+				return fmt.Errorf("the option --generate-tls-secrets can not be used with custom certificates")
 			}
 			err := serviceToCreate.SetIngressMode(serviceIngressMode)
 			if err != nil {
 				return err
+			}
+
+			if createSvcWithGeneratedTlsCerts {
+				serviceToCreate.TlsCredentials = types.SkupperServiceCertPrefix + serviceToCreate.Address
 			}
 
 			return skupperClient.Create(cmd, args)
@@ -641,12 +659,18 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd.Flags().StringVar(&serviceToCreate.Aggregate, "aggregate", "", "The aggregation strategy to use. One of 'json' or 'multipart'. If specified requests to this service will be sent to all registered implementations and the responses aggregated.")
 	cmd.Flags().StringVar(&serviceIngressMode, "enable-ingress", "", "Determines whether access to the Skupper service is enabled in this site. Valid values are Always (default) or Never.")
 	cmd.Flags().BoolVar(&serviceToCreate.EventChannel, "event-channel", false, "If specified, this service will be a channel for multicast events.")
-	cmd.Flags().BoolVar(&serviceToCreate.EnableTls, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
+	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "enable-tls", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.Protocol, "mapping", "tcp", "The mapping in use for this service address (currently one of tcp or http)")
+	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "generate-tls-secrets", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
+	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to encrypt the communication using TLS (valid only for http2 and tcp protocols)")
 
 	f := cmd.Flag("mapping")
 	f.Deprecated = "protocol is now the flag to set the mapping"
+	f.Hidden = true
+
+	f = cmd.Flag("enable-tls")
+	f.Deprecated = "use 'generate-tls-secrets' instead"
 	f.Hidden = true
 
 	return cmd
@@ -669,6 +693,7 @@ func NewCmdDeleteService(skupperClient SkupperServiceClient) *cobra.Command {
 var targetPorts []string
 var protocol string
 var publishNotReadyAddresses bool
+var tlsCertAuthority string
 
 func NewCmdBind(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -686,6 +711,8 @@ func NewCmdBind(skupperClient SkupperServiceClient) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
 	cmd.Flags().StringSliceVar(&targetPorts, "target-port", []string{}, "The port the target is listening on (you can also use colon to map source-port to a target-port).")
+	cmd.Flags().StringVar(&tlsCertAuthority, "tls-trust", "", "K8s secret name with the CA to expose the service over TLS (valid only for http2 and tcp protocols)")
+
 	skupperClient.BindFlags(cmd)
 	return cmd
 }

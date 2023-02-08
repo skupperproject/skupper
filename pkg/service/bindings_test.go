@@ -703,7 +703,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:       "tcp",
 				Address:        "test",
 				publicPorts:    []int{8080},
-				tlsCredentials: "skupper-tls-test",
+				TlsCredentials: "xyz",
 			},
 		},
 		{
@@ -1016,7 +1016,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 			assert.Assert(t, reflect.DeepEqual(b.publicPorts, s.expected.publicPorts))
 			assert.Equal(t, b.aggregation, s.expected.aggregation)
 			assert.Equal(t, b.eventChannel, s.expected.eventChannel)
-			assert.Equal(t, b.tlsCredentials, s.expected.tlsCredentials)
+			assert.Equal(t, b.TlsCredentials, s.expected.TlsCredentials)
 			assert.Equal(t, b.PublishNotReadyAddresses, s.expected.PublishNotReadyAddresses)
 			assert.Equal(t, b.headless == nil, s.expected.headless == nil)
 			if s.expected.headless != nil {
@@ -1332,10 +1332,11 @@ func TestRequiredBridges(t *testing.T) {
 			name: "tls",
 			services: []types.ServiceInterface{
 				{
-					Address:        "special",
-					Protocol:       "http2",
-					Ports:          []int{8080},
-					TlsCredentials: "mysecret",
+					Address:          "special",
+					Protocol:         "http2",
+					Ports:            []int{8080},
+					TlsCredentials:   "mysecret",
+					TlsCertAuthority: types.ServiceClientSecret,
 					Targets: []types.ServiceInterfaceTarget{
 						{
 							Name:        "target1",

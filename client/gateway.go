@@ -1699,11 +1699,11 @@ func (cli *VanClient) GatewayExpose(ctx context.Context, gatewayName string, gat
 	}
 	if si == nil {
 		err = cli.ServiceInterfaceCreate(context.Background(), &types.ServiceInterface{
-			Address:        endpoint.Service.Address,
-			Protocol:       endpoint.Service.Protocol,
-			Ports:          endpoint.Service.Ports,
-			EnableTls:      endpoint.Service.EnableTls,
-			TlsCredentials: endpoint.Service.TlsCredentials,
+			Address:          endpoint.Service.Address,
+			Protocol:         endpoint.Service.Protocol,
+			Ports:            endpoint.Service.Ports,
+			TlsCredentials:   endpoint.Service.TlsCredentials,
+			TlsCertAuthority: endpoint.Service.TlsCertAuthority,
 		})
 		if err != nil {
 			return "", fmt.Errorf("Unable to create service: %w", err)

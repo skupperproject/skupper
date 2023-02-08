@@ -45,11 +45,11 @@ var http2service = types.ServiceInterface{
 }
 
 var http2TlsService = types.ServiceInterface{
-	Address:        "nghttp2tls",
-	Protocol:       "http2",
-	Ports:          []int{8443},
-	EnableTls:      true,
-	TlsCredentials: "skupper-tls-nghttp2tls",
+	Address:          "nghttp2tls",
+	Protocol:         "http2",
+	Ports:            []int{8443},
+	TlsCredentials:   "skupper-tls-nghttp2tls",
+	TlsCertAuthority: types.ServiceClientSecret,
 }
 
 var http2TcpTlsService = types.ServiceInterface{

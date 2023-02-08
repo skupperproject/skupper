@@ -4,6 +4,8 @@ import (
 	"context"
 	jsonencoding "encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/kube/qdr"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -88,7 +90,7 @@ func updateServiceInterface(service *types.ServiceInterface, overwriteIfExists b
 	return err
 }
 
-func validateServiceInterface(service *types.ServiceInterface) error {
+func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) error {
 	errs := validation.IsDNS1035Label(service.Address)
 	if len(errs) > 0 {
 		return fmt.Errorf("Invalid service name: %q", errs)
@@ -109,6 +111,34 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 		}
 	}
 
+	if service.TlsCredentials != "" && !strings.HasPrefix(service.TlsCredentials, types.SkupperServiceCertPrefix) {
+		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Secret %s not available for service %s", service.TlsCredentials, service.Address)
+		}
+
+		if _, ok := secret.Data["tls.crt"]; !ok {
+			return fmt.Errorf("tls.crt file is missing in secret %s", service.TlsCredentials)
+		}
+
+		if _, ok := secret.Data["tls.key"]; !ok {
+			return fmt.Errorf("tls.key file is missing in secret %s", service.TlsCredentials)
+		}
+
+		if _, ok := secret.Data["ca.crt"]; !ok {
+			return fmt.Errorf("ca.crt file is missing in secret %s", service.TlsCredentials)
+		}
+	}
+	if service.TlsCertAuthority != "" && service.TlsCertAuthority != types.ServiceClientSecret {
+		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCertAuthority, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Secret %s not available for service %s", service.TlsCertAuthority, service.Address)
+		}
+		if _, ok := secret.Data["ca.crt"]; !ok {
+			return fmt.Errorf("ca.crt file is missing in secret %s", service.TlsCertAuthority)
+		}
+	}
+
 	// TODO: change service.Protocol to service.Mapping
 	for _, port := range service.Ports {
 		if port < 0 || 65535 < port {
@@ -125,11 +155,12 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 		return fmt.Errorf("The aggregate option is currently only valid for http")
 	} else if service.EventChannel && service.Protocol != "http" && service.Protocol != "udp" {
 		return fmt.Errorf("The event-channel option is currently only valid for http")
-	} else if service.EnableTls && service.Protocol == "http" {
+	} else if (service.TlsCredentials != "" || service.TlsCertAuthority != "") && service.Protocol == "http" {
 		return fmt.Errorf("The TLS support is only available for http2 and tcp protocols")
 	} else {
 		return nil
 	}
+
 }
 
 func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
@@ -137,7 +168,7 @@ func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types
 	if err == nil {
 		_, err = cli.ServiceInterfaceInspect(ctx, service.Address)
 		if err == nil {
-			err = validateServiceInterface(service)
+			err = validateServiceInterface(service, cli)
 			if err != nil {
 				return err
 			}
@@ -163,7 +194,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 	}
 	owner, err := getRootObject(cli)
 	if err == nil {
-		err = validateServiceInterface(service)
+		err = validateServiceInterface(service, cli)
 		if err != nil {
 			return err
 		}
@@ -197,6 +228,15 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 			}
 		}
 		service.AddTarget(target)
+
+		tlsSupport := qdr.TlsServiceSupport{Address: service.Address, Credentials: service.TlsCredentials, CertAuthority: service.TlsCertAuthority}
+		tlsManager := &qdr.TlsManager{KubeClient: cli.KubeClient, Namespace: cli.Namespace}
+		err = tlsManager.EnableTlsSupport(tlsSupport)
+
+		if err != nil {
+			return err
+		}
+
 		return updateServiceInterface(service, true, owner, cli)
 	} else if errors.IsNotFound(err) {
 		return fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)

@@ -901,14 +901,16 @@ func getSslProfilesDifference(before *BridgeConfig, desired *BridgeConfig) (Adde
 		newSslConfig[tcpListener.SslProfile] = tcpListener.SslProfile
 	}
 
+	//Auto-generated Skupper certs will be deleted if they are not used in the desired configuration
 	for key, name := range originalSslConfig {
 		_, ok := newSslConfig[key]
 
-		if !ok && name != types.ServiceClientSecret {
+		if !ok && isGeneratedBySkupper(name) {
 			deletedProfiles = append(deletedProfiles, name)
 		}
 	}
 
+	//New profiles associated with http or tcp connectors/listeners will be created in the router
 	for key, name := range newSslConfig {
 		_, ok := originalSslConfig[key]
 
@@ -918,6 +920,10 @@ func getSslProfilesDifference(before *BridgeConfig, desired *BridgeConfig) (Adde
 	}
 
 	return addedProfiles, deletedProfiles
+}
+
+func isGeneratedBySkupper(name string) bool {
+	return strings.HasPrefix(name, types.SkupperServiceCertPrefix) && name != types.ServiceClientSecret
 }
 
 func (a *TcpEndpointDifference) Empty() bool {

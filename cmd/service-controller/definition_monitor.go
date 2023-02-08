@@ -241,6 +241,25 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 			return svc, false
 		}
 		svc.Protocol = protocol
+
+		if tlsCert, ok := deployment.ObjectMeta.Annotations[types.TlsCertQualifier]; ok {
+			if protocol == "http" {
+				event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated deployment %s; cannot enable TLS with http protocol", deployment.ObjectMeta.Name)
+				return svc, false
+			}
+
+			svc.TlsCredentials = tlsCert
+		}
+
+		if tlsTrust, ok := deployment.ObjectMeta.Annotations[types.TlsTrustQualifier]; ok {
+			if protocol == "http" {
+				event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated deployment %s; cannot enable TLS with http protocol", deployment.ObjectMeta.Name)
+				return svc, false
+			}
+
+			svc.TlsCertAuthority = tlsTrust
+		}
+
 		if address, ok := deployment.ObjectMeta.Annotations[types.AddressQualifier]; ok {
 			svc.Address = address
 		} else {
@@ -511,6 +530,25 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedService(service *co
 			}
 		}
 		svc.Protocol = protocol
+
+		if tlsCert, ok := service.ObjectMeta.Annotations[types.TlsCertQualifier]; ok {
+			if protocol == "http" {
+				event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated deployment %s; cannot enable TLS with http protocol", service.ObjectMeta.Name)
+				return svc, false
+			}
+
+			svc.TlsCredentials = tlsCert
+		}
+
+		if tlsTrust, ok := service.ObjectMeta.Annotations[types.TlsTrustQualifier]; ok {
+			if protocol == "http" {
+				event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated deployment %s; cannot enable TLS with http protocol", service.ObjectMeta.Name)
+				return svc, false
+			}
+
+			svc.TlsCertAuthority = tlsTrust
+		}
+
 		if address, ok := service.ObjectMeta.Annotations[types.AddressQualifier]; ok {
 			svc.Address = address
 		} else {

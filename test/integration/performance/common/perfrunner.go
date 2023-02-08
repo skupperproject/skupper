@@ -162,7 +162,10 @@ func createService(app PerformanceApp) (error, *ServiceInfo, *types.ServiceInter
 
 		if app.TlsCredentials != "" {
 			skupperSvc.TlsCredentials = app.TlsCredentials
-			skupperSvc.EnableTls = true
+		}
+
+		if app.TlsCertAuthority != "" {
+			skupperSvc.TlsCertAuthority = app.TlsCertAuthority
 		}
 
 		// Creating service
