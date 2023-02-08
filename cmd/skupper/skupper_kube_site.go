@@ -183,11 +183,8 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
 
-<<<<<<< HEAD
-	f := cmd.Flag("enable-console")
-	f.Deprecated = "Stand alone console is planned for deprecation. Use vFlow collector console instead via --enable-vflow-collector flag"
 	// hide run-as flags
-	f = cmd.Flag("run-as-user")
+	f := cmd.Flag("run-as-user")
 	f.Hidden = true
 	f = cmd.Flag("run-as-group")
 	f.Hidden = true
@@ -195,8 +192,6 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	f = cmd.Flag("router-disable-mutual-tls")
 	f.Hidden = true
 
-=======
->>>>>>> 154de4f (initial time range)
 }
 
 func (s *SkupperKubeSite) Delete(cmd *cobra.Command, args []string) error {
