@@ -266,8 +266,8 @@ func TestCheckBindingSecrets(t *testing.T) {
 				},
 				"service2": {
 					Address:          "service2",
-					TlsCertAuthority: "skupper-tls-service2",
-					TlsCredentials:   "skupper-tls-client",
+					TlsCertAuthority: "skupper-tls-client",
+					TlsCredentials:   "skupper-tls-service2",
 				},
 			},
 			mockedSecrets: []string{"skupper-tls-service2", "skupper-tls-client"},
@@ -282,8 +282,8 @@ func TestCheckBindingSecrets(t *testing.T) {
 				},
 				"service2": {
 					Address:          "service2",
-					TlsCertAuthority: "skupper-tls-service2",
-					TlsCredentials:   "skupper-tls-client",
+					TlsCertAuthority: "skupper-tls-client",
+					TlsCredentials:   "skupper-tls-service2",
 				},
 			},
 			mockedSecrets: []string{"skupper-tls-client"},
@@ -299,8 +299,8 @@ func TestCheckBindingSecrets(t *testing.T) {
 				},
 				"service2": {
 					Address:          "service2",
-					TlsCertAuthority: "skupper-tls-service2",
-					TlsCredentials:   "skupper-tls-client",
+					TlsCertAuthority: "skupper-tls-client",
+					TlsCredentials:   "skupper-tls-service2",
 				},
 			},
 			mockedSecrets: []string{"skupper-tls-service2"},
@@ -316,12 +316,12 @@ func TestCheckBindingSecrets(t *testing.T) {
 				},
 				"service2": {
 					Address:          "service2",
-					TlsCertAuthority: "skupper-tls-service2",
-					TlsCredentials:   "skupper-tls-client",
+					TlsCertAuthority: "skupper-tls-client",
+					TlsCredentials:   "skupper-tls-service2",
 				},
 			},
 			mockedSecrets: []string{},
-			expectedError: "SslProfile skupper-tls-client for service service2 does not exist in this cluster",
+			expectedError: "SslProfile skupper-tls-service2 for service service2 does not exist in this cluster",
 		},
 	}
 	for _, test := range tests {
