@@ -53,11 +53,11 @@ var http2TlsService = types.ServiceInterface{
 }
 
 var http2TcpTlsService = types.ServiceInterface{
-	Address:        "nghttp2tcptls",
-	Protocol:       "tcp",
-	Ports:          []int{8443},
-	EnableTls:      true,
-	TlsCredentials: "skupper-tls-nghttp2tcptls",
+	Address:          "nghttp2tcptls",
+	Protocol:         "tcp",
+	Ports:            []int{8443},
+	TlsCredentials:   "skupper-tls-nghttp2tcptls",
+	TlsCertAuthority: "skupper-service-client",
 }
 
 var nginxDep = &appsv1.Deployment{
