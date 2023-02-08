@@ -3,17 +3,18 @@ package main
 import (
 	jsonencoding "encoding/json"
 	"fmt"
-	appv1 "github.com/openshift/api/apps/v1"
-	v1 "github.com/openshift/client-go/apps/informers/externalversions/apps/v1"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	appv1 "github.com/openshift/api/apps/v1"
+	v1 "github.com/openshift/client-go/apps/informers/externalversions/apps/v1"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -721,7 +722,7 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name strin
 }
 
 func (m *DefinitionMonitor) restoreServiceDefinitions(name string) error {
-	service, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Get(name, v1.GetOptions{})
+	service, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error retrieving service: %w", err)
 	}
