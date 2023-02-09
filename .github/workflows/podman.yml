@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: '1.17'
+          go-version: '1.19'
       - uses: ./.github/actions/podman-latest
       - uses: ./.github/actions/minikube-latest
       - name: Generating podman clients
@@ -21,4 +21,4 @@ jobs:
           make generate-client build-cmd
       - name: Skupper Podman System Tests
         run: |
-          cd skupper && podman unshare go test -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
+          cd skupper && go test -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
