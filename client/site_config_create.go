@@ -32,6 +32,7 @@ const (
 	SiteConfigConsoleUserKey           string = "console-user"
 	SiteConfigConsolePasswordKey       string = "console-password"
 	SiteConfigConsoleIngressKey        string = "console-ingress"
+	SiteConfigRestAPIKey               string = "rest-api"
 
 	// flow collector options
 	SiteConfigFlowCollectorKey            string = "flow-collector"
@@ -126,6 +127,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if !spec.EnableConsole {
 		siteConfig.Data[SiteConfigConsoleKey] = "false"
+	}
+	if spec.EnableRestAPI {
+		siteConfig.Data[SiteConfigRestAPIKey] = "true"
 	}
 	if !spec.EnableFlowCollector {
 		siteConfig.Data[SiteConfigFlowCollectorKey] = "false"

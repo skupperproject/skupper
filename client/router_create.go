@@ -158,6 +158,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	volumes := []corev1.Volume{}
 	mounts := make([][]corev1.VolumeMount, 1)
 
+	consoleUsersMounted := false
 	if options.EnableFlowCollector {
 		mounts = append(mounts, []corev1.VolumeMount{})
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
@@ -169,6 +170,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_USERS", Value: "/etc/console-users"})
 			kube.AppendSharedSecretVolume(&volumes, []*[]corev1.VolumeMount{&mounts[serviceController], &mounts[flowCollector]}, "skupper-console-users", "/etc/console-users/")
+			consoleUsersMounted = true
 		}
 		err := configureDeployment(&van.Collector, &options.FlowCollector.Tuning)
 		if err != nil {
@@ -185,8 +187,22 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	if options.RouterMode != string(types.TransportModeEdge) {
 		kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ClaimsServerSecret, "/etc/service-controller/certs/")
 	}
-	if options.AuthMode != string(types.ConsoleAuthModeOpenshift) && options.EnableFlowCollector {
-		kube.AppendSecretVolume(&volumes, &mounts[flowCollector], types.ConsoleServerSecret, "/etc/service-controller/console/")
+	if options.AuthMode != string(types.ConsoleAuthModeOpenshift) {
+		if options.EnableFlowCollector && options.EnableRestAPI {
+			kube.AppendSharedSecretVolume(&volumes, []*[]corev1.VolumeMount{&mounts[serviceController], &mounts[flowCollector]}, types.ConsoleServerSecret, "/etc/service-controller/console/")
+		} else if options.EnableFlowCollector {
+			kube.AppendSecretVolume(&volumes, &mounts[flowCollector], types.ConsoleServerSecret, "/etc/service-controller/console/")
+		} else if options.EnableRestAPI {
+			kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ConsoleServerSecret, "/etc/service-controller/console/")
+		}
+	}
+	if options.EnableRestAPI {
+		if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+			envVars = append(envVars, corev1.EnvVar{Name: "METRICS_USERS", Value: "/etc/console-users"})
+			if !consoleUsersMounted {
+				kube.AppendSecretVolume(&volumes, &mounts[serviceController], "skupper-console-users", "/etc/console-users/")
+			}
+		}
 	}
 	localClientMounts := []*[]corev1.VolumeMount{}
 	localClientMounts = append(localClientMounts, &mounts[serviceController])
@@ -342,6 +358,25 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			})
 		}
 		controllerPorts = append(controllerPorts, metricsPort)
+	}
+	if options.EnableRestAPI {
+		if !options.EnableFlowCollector {
+			hosts := []string{types.ControllerServiceName + "." + van.Namespace, types.ControllerServiceName}
+			van.ControllerCredentials = append(van.ControllerCredentials, types.Credential{
+				CA:          types.LocalCaSecret,
+				Name:        types.ConsoleServerSecret,
+				Subject:     types.ControllerServiceName,
+				Hosts:       hosts,
+				ConnectJson: false,
+				Post:        false,
+			})
+		}
+		controllerPorts = append(controllerPorts, corev1.ServicePort{
+			Name:       "rest-api",
+			Protocol:   "TCP",
+			Port:       8080,
+			TargetPort: intstr.FromInt(8080),
+		})
 	}
 	if options.RouterMode != string(types.TransportModeEdge) {
 		controllerPorts = append(controllerPorts, corev1.ServicePort{
@@ -849,7 +884,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Post:        post,
 		})
 	}
-	if options.AuthMode == string(types.ConsoleAuthModeInternal) && options.EnableFlowCollector {
+	if options.AuthMode == string(types.ConsoleAuthModeInternal) && (options.EnableFlowCollector || options.EnableRestAPI) {
 		userData := map[string][]byte{}
 		if options.User != "" {
 			userData[options.User] = []byte(options.Password)
@@ -1004,7 +1039,7 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 		return fmt.Errorf("OpenShift cluster not detected for --ingress type route")
 	}
 
-	if options.Spec.EnableFlowCollector {
+	if options.Spec.EnableFlowCollector || options.Spec.EnableRestAPI {
 		if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) || options.Spec.AuthMode == "" {
 			options.Spec.AuthMode = string(types.ConsoleAuthModeInternal)
 			if options.Spec.User == "" {

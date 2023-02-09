@@ -207,11 +207,11 @@ func (server *ConsoleServer) serveEvents() http.Handler {
 	})
 }
 
-func (server *ConsoleServer) serveSites() http.Handler {
+func (server *ConsoleServer) serveSites(jsonByDefault bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		d := server.getData(w)
 		if d != nil {
-			if wantsJsonOutput(r) {
+			if jsonByDefault || wantsJsonOutput(r) {
 				bytes, err := json.MarshalIndent(d.Sites, "", "    ")
 				if err != nil {
 					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
@@ -414,6 +414,7 @@ func (server *ConsoleServer) listen() {
 	r.Handle("/targets/", authenticated(serveTargets(server.services)))
 	r.Handle("/version", authenticated(server.version()))
 	r.Handle("/site", authenticated(server.site()))
+	r.Handle("/sites", authenticated(server.serveSites(true)))
 	r.Handle("/events", authenticated(server.serveEvents()))
 	r.Handle("/policy/expose/{resourceType}/{resourceName}", authenticated(server.policies.expose()))
 	r.Handle("/policy/service/{name}", authenticated(server.policies.service()))
@@ -439,7 +440,7 @@ func (server *ConsoleServer) listenLocal() {
 	r.Handle("/DATA", server)
 	r.Handle("/version", server.version())
 	r.Handle("/events", server.serveEvents())
-	r.Handle("/sites", server.serveSites())
+	r.Handle("/sites", server.serveSites(false))
 	r.Handle("/services", server.serveServices())
 	r.Handle("/servicecheck/{name}", server.checkService())
 	r.Handle("/policy/expose/{resourceType}/{resourceName}", server.policies.expose())

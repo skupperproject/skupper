@@ -92,6 +92,7 @@ type SiteConfigSpec struct {
 	SiteTtl             time.Duration
 	EnableConsole       bool
 	EnableFlowCollector bool
+	EnableRestAPI       bool
 	AuthMode            string
 	User                string
 	Password            string
