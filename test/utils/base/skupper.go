@@ -63,13 +63,14 @@ func WaitSkupperComponentRunning(c *ClusterContext, component string) error {
 }
 
 // GetConsoleData returns the ConsoleData by emulating query to localhost:8080/DATA
-// via vFlow api on service-controller vflow-collector sidecar
+// via flow api on service-controller flow-collector sidecar
 func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.ConsoleData, error) {
-	// TODO: replace console data with vFlow api
-	const vFlowUrl = "https://127.0.0.1:8010/api/v1alpha1"
+	// TODO: replace console data with flow api
+	const flowUrl = "https://127.0.0.1:8010/api/v1alpha1"
 	var consoleData data.ConsoleData
 	var sites []flow.SiteRecord
 	var listeners []flow.ListenerRecord
+	var payload flow.Payload
 
 	curlOpts := tools.CurlOpts{
 		Silent:   true,
@@ -79,56 +80,61 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 		Timeout:  10,
 	}
 
-	// runs inside skupper-controller's pod
-	// retriev site list
-	resp, err := tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", vFlowUrl+"/sites/", curlOpts)
+	// retrieve site list
+	resp, err := tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", flowUrl+"/sites/", curlOpts)
 	if err != nil {
 		log.Printf("error executing curl: %s", err)
 		return consoleData, err
 	}
 
-	// 4.2.1. Parsing sites response
-	if err = json.Unmarshal([]byte(resp.Body), &sites); err != nil {
+	if err = json.Unmarshal([]byte(resp.Body), &payload); err != nil {
 		if strings.HasPrefix(resp.Body, "Error") {
 			log.Printf(resp.Body)
 			return consoleData, fmt.Errorf(resp.Body)
 		} else {
-			log.Printf("error unmarshalling SiteRecords: %s", err)
+			log.Printf("error unmarshalling Payload: %s", err)
 			log.Printf("invalid response body: %s", resp.Body)
 			return consoleData, err
 		}
 	}
-	for _, site := range sites {
-		consoleData.Sites = append(consoleData.Sites, data.Site{
-			SiteId:    site.Identity,
-			SiteName:  *site.Name,
-			Namespace: *site.NameSpace,
-		})
+
+	results, err := json.Marshal(payload.Results)
+	if err = json.Unmarshal(results, &sites); err == nil {
+		for _, site := range sites {
+			consoleData.Sites = append(consoleData.Sites, data.Site{
+				SiteId:    site.Identity,
+				SiteName:  *site.Name,
+				Namespace: *site.NameSpace,
+			})
+		}
 	}
 
 	// retrieve listener list
-	resp, err = tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", vFlowUrl+"/listeners/", curlOpts)
+	resp, err = tools.Curl(cc.VanClient.KubeClient, cc.VanClient.RestConfig, cc.Namespace, "", flowUrl+"/listeners/", curlOpts)
 	if err != nil {
 		log.Printf("error executing curl: %s", err)
 		return consoleData, err
 	}
 
-	// 4.2.1. Parsing listeners response
-	if err = json.Unmarshal([]byte(resp.Body), &listeners); err != nil {
+	if err = json.Unmarshal([]byte(resp.Body), &payload); err != nil {
 		if strings.HasPrefix(resp.Body, "Error") {
 			log.Printf(resp.Body)
 			return consoleData, fmt.Errorf(resp.Body)
 		} else {
-			log.Printf("error unmarshalling ListenerRecords: %s", err)
+			log.Printf("error unmarshalling Payload: %s", err)
 			log.Printf("invalid response body: %s", resp.Body)
 			return consoleData, err
 		}
 	}
+
 	uniqueListeners := make(map[string]flow.ListenerRecord)
-	for _, listener := range listeners {
-		if listener.EndTime == 0 {
-			if _, ok := uniqueListeners[*listener.Name]; !ok {
-				uniqueListeners[*listener.Name] = listener
+	results, err = json.Marshal(payload.Results)
+	if err = json.Unmarshal(results, &listeners); err == nil {
+		for _, listener := range listeners {
+			if listener.EndTime == 0 {
+				if _, ok := uniqueListeners[*listener.Name]; !ok {
+					uniqueListeners[*listener.Name] = listener
+				}
 			}
 		}
 	}

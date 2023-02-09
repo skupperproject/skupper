@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
 
@@ -17,9 +17,9 @@ type senderDirect struct {
 }
 
 type ApiRequest struct {
-	RecordType int
-	ItemType   int
-	Request    *http.Request
+	RecordType  int
+	HandlerName string
+	Request     *http.Request
 }
 
 type ApiResponse struct {
@@ -28,12 +28,9 @@ type ApiResponse struct {
 }
 
 type eventSource struct {
-	Identity    *string       `json:"identity,omitempty"`
-	Beacon      *BeaconRecord `json:"beacon,omitempty"`
-	CurrentTime uint64        `json:"currentTime,omitempty"`
-	Heartbeats  int           `json:"heartbeats,omitempty"`
-	receive     *receiver
-	send        *senderDirect
+	EventSourceRecord
+	receive *receiver
+	send    *senderDirect
 }
 
 type FlowCollector struct {
@@ -122,6 +119,7 @@ func itemToJSON(item interface{}) *string {
 }
 
 func (fc *FlowCollector) serveRecords(request ApiRequest) ApiResponse {
+	request.HandlerName = mux.CurrentRoute(request.Request).GetName()
 	response := ApiResponse{
 		Body:   nil,
 		Status: http.StatusOK,
@@ -130,6 +128,8 @@ func (fc *FlowCollector) serveRecords(request ApiRequest) ApiResponse {
 	result, err := fc.retrieve(request)
 	if err == nil {
 		response.Body = result
+	} else {
+		response.Status = http.StatusInternalServerError
 	}
 	return response
 }
@@ -148,26 +148,37 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 				if !ok {
 					log.Println("Unable to convert interface to beacon")
 				} else {
-					id := strings.TrimPrefix(beacon.Direct, "sfe.")
-					if _, ok := c.eventSources[id]; !ok {
-						log.Println("Detected event source: ", id)
+					if source, ok := c.eventSources[beacon.Identity]; !ok {
+						log.Printf("Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
 						r := newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming)
 						r.start()
 						outgoing := make(chan interface{})
 						s := newSender(c.connectionFactory, beacon.Direct, outgoing)
 						s.start()
-						beacon.Now = uint64(time.Now().UnixNano())
-						c.eventSources[id] = &eventSource{
-							Identity: &id,
-							Beacon:   &beacon,
-							receive:  r,
+						now := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+						c.eventSources[beacon.Identity] = &eventSource{
+							EventSourceRecord: EventSourceRecord{
+								Base: Base{
+									RecType:   recordNames[EventSource],
+									Identity:  beacon.Identity,
+									StartTime: now,
+									EndTime:   0,
+								},
+								Beacon:    &beacon,
+								LastHeard: now,
+								Beacons:   1,
+							},
+							receive: r,
 							send: &senderDirect{
 								sender:    s,
 								outgoing:  outgoing,
 								heartbeat: false,
 							},
 						}
-						c.pendingFlush[beacon.Direct] = c.eventSources[id].send
+						c.pendingFlush[beacon.Direct] = c.eventSources[beacon.Identity].send
+					} else {
+						source.LastHeard = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+						source.Beacons++
 					}
 				}
 			}

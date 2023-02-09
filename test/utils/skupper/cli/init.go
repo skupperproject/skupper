@@ -106,7 +106,7 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 		args = append(args, "--site-name", s.SiteName)
 	}
 	args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
-	args = append(args, fmt.Sprintf("--enable-vflow-collector=%v", s.EnableFlowCollector))
+	args = append(args, fmt.Sprintf("--enable-flow-collector=%v", s.EnableFlowCollector))
 	if s.RunAsUser != "" {
 		args = append(args, "--run-as-user", s.RunAsUser)
 	}

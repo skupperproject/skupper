@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -107,7 +108,7 @@ func authenticate(dir string, user string, password string) bool {
 }
 
 func authenticated(h http.HandlerFunc) http.HandlerFunc {
-	dir := os.Getenv("VFLOW_USERS")
+	dir := os.Getenv("FLOW_USERS")
 
 	if dir != "" {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +128,7 @@ func authenticated(h http.HandlerFunc) http.HandlerFunc {
 
 func main() {
 	// if -version used, report and exit
-	isVersion := flag.Bool("version", false, "Report the version of the Skupper vFlow Collector")
+	isVersion := flag.Bool("version", false, "Report the version of the Skupper Flow Collector")
 	flag.Parse()
 	if *isVersion {
 		fmt.Println(version.Version)
@@ -135,7 +136,7 @@ func main() {
 	}
 
 	// Startup message
-	log.Printf("Skupper vFlow collector controller")
+	log.Printf("Skupper Flow collector controller")
 	log.Printf("Version: %s", version.Version)
 
 	origin := os.Getenv("SKUPPER_SITE_ID")
@@ -167,7 +168,7 @@ func main() {
 
 	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig)
 	if err != nil {
-		log.Fatal("Error getting new vFlow collector ", err.Error())
+		log.Fatal("Error getting new flow collector ", err.Error())
 	}
 
 	var mux = mux.NewRouter().StrictSlash(true)
@@ -335,16 +336,21 @@ func main() {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	mux.PathPrefix("/").Handler(http.FileServer(http.Dir("/app/console/")))
+	siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+	if err == nil && siteConfig.Spec.EnableConsole {
+		mux.PathPrefix("/").Handler(http.FileServer(http.Dir("/app/console/")))
+	} else {
+		log.Println("Skupper console is disabled")
+	}
 
 	addr := ":8010"
-	if os.Getenv("VFLOW_PORT") != "" {
-		addr = ":" + os.Getenv("VFLOW_PORT")
+	if os.Getenv("FLOW_PORT") != "" {
+		addr = ":" + os.Getenv("FLOW_PORT")
 	}
-	if os.Getenv("VFLOW_HOST") != "" {
-		addr = os.Getenv("VFLOW_HOST") + addr
+	if os.Getenv("FLOW_HOST") != "" {
+		addr = os.Getenv("FLOW_HOST") + addr
 	}
-	log.Printf("vFlow collector server listing on %s", addr)
+	log.Printf("Flow collector server listing on %s", addr)
 	s := &http.Server{
 		Addr:    addr,
 		Handler: mux,
@@ -366,7 +372,7 @@ func main() {
 	}()
 
 	if err = c.Run(stopCh); err != nil {
-		log.Fatal("Error running vFlow collector: ", err.Error())
+		log.Fatal("Error running Flow collector: ", err.Error())
 	}
 
 }

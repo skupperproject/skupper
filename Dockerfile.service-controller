@@ -8,14 +8,6 @@ COPY . .
 
 RUN make
 
-FROM node:12.18 AS console-builder
-
-WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/gilligan/archive/master.tar.gz .
-RUN tar -zxf master.tar.gz
-WORKDIR ./gilligan-master
-RUN yarn install && yarn build
-
 FROM registry.access.redhat.com/ubi8-minimal
 
 # Create user and group and switch to user's context
@@ -27,5 +19,4 @@ USER 10000
 WORKDIR /app
 COPY --from=builder /go/src/app/service-controller .
 COPY --from=builder /go/src/app/get /usr/local/bin/get
-COPY --from=console-builder /skupper-console/gilligan-master/build/ console
 CMD ["/app/service-controller"]

@@ -17,8 +17,8 @@ parameters:
     default: quay.io/skupper/config-sync:${CIRCLE_SHA1}
     type: string
 
-  ci_vflow_collector_image:
-    default: quay.io/skupper/vflow-collector:${CIRCLE_SHA1}
+  ci_flow_collector_image:
+    default: quay.io/skupper/flow-collector:${CIRCLE_SHA1}
     type: string
 
   ci_test_image:
@@ -108,7 +108,7 @@ commands:
             echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
             echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
             echo 'export SKUPPER_CONFIG_SYNC_IMAGE=<< pipeline.parameters.ci_config_sync_image >>' >> $BASH_ENV
-            echo 'export SKUPPER_VFLOW_COLLECTOR_IMAGE=<< pipeline.parameters.ci_vflow_collector_image >>' >> $BASH_ENV
+            echo 'export SKUPPER_FLOW_COLLECTOR_IMAGE=<< pipeline.parameters.ci_flow_collector_image >>' >> $BASH_ENV
             echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
             source $BASH_ENV
       - checkout
@@ -116,7 +116,8 @@ commands:
           name: cleanup previous go installation
           command: sudo rm -rf /usr/local/go
       - docker/install-docker
-      - go/install
+      - go/install:
+          version: "1.19"
       - kube-orb/install-kubectl
       - run: make generate-client
       - run: make
@@ -343,7 +344,7 @@ jobs:
             echo 'export SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=<< pipeline.parameters.ci_config_sync_image >>' >> $BASH_ENV
-            echo 'export VFLOW_COLLECTOR_IMAGE=<< pipeline.parameters.ci_vflow_collector_image >>' >> $BASH_ENV
+            echo 'export FLOW_COLLECTOR_IMAGE=<< pipeline.parameters.ci_flow_collector_image >>' >> $BASH_ENV
             echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
             source $BASH_ENV
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
@@ -366,7 +367,7 @@ jobs:
       - run: reg rm << pipeline.parameters.ci_site_controller_image >>
       - run: reg rm << pipeline.parameters.ci_test_image >>
       - run: reg rm << pipeline.parameters.ci_config_sync_image >>
-      - run: reg rm << pipeline.parameters.ci_vflow_collector_image >>
+      - run: reg rm << pipeline.parameters.ci_flow_collector_image >>
 
   build-all:
     executor:
@@ -484,7 +485,7 @@ jobs:
             echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export VFLOW_COLLECTOR_IMAGE=quay.io/skupper/vflow-collector:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
             make -e generate-client
@@ -505,7 +506,7 @@ jobs:
             echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:master' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:master' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:master' >> $BASH_ENV
-            echo 'export VFLOW_COLLECTOR_IMAGE=quay.io/skupper/vflow-collector:master' >> $BASH_ENV
+            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:master' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:master' >> $BASH_ENV
             source $BASH_ENV
             make -e generate-client

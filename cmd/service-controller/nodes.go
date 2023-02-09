@@ -109,7 +109,7 @@ func (nw *NodeWatcher) processNextEvent() bool {
 				// Note: skupper running in multiple ns in same cluster the hosts are the same
 				host.Identity = string(node.ObjectMeta.UID) + "-" + nw.cliNamespace
 				host.Parent = os.Getenv("SKUPPER_SITE_ID")
-				host.StartTime = uint64(node.ObjectMeta.CreationTimestamp.UnixNano())
+				host.StartTime = uint64(node.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
 				host.Name = &node.ObjectMeta.Name
 				host.Arch = &node.Status.NodeInfo.Architecture
 

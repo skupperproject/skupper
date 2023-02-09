@@ -120,7 +120,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	// service-controller container index
 	const (
 		serviceController = iota
-		vFlowCollector
+		flowCollector
 		oauthProxy
 	)
 
@@ -162,17 +162,17 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		mounts = append(mounts, []corev1.VolumeMount{})
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
-			envVars = append(envVars, corev1.EnvVar{Name: "VFLOW_PORT", Value: csp})
-			envVars = append(envVars, corev1.EnvVar{Name: "VFLOW_HOST", Value: "localhost"})
+			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_PORT", Value: csp})
+			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_HOST", Value: "localhost"})
 			mounts = append(mounts, []corev1.VolumeMount{})
 			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.ConsoleServerSecret, "/etc/tls/proxy-certs/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-			envVars = append(envVars, corev1.EnvVar{Name: "VFLOW_USERS", Value: "/etc/console-users"})
-			kube.AppendSharedSecretVolume(&volumes, []*[]corev1.VolumeMount{&mounts[serviceController], &mounts[vFlowCollector]}, "skupper-console-users", "/etc/console-users/")
+			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_USERS", Value: "/etc/console-users"})
+			kube.AppendSharedSecretVolume(&volumes, []*[]corev1.VolumeMount{&mounts[serviceController], &mounts[flowCollector]}, "skupper-console-users", "/etc/console-users/")
 		}
 		err := configureDeployment(&van.Collector, &options.FlowCollector.Tuning)
 		if err != nil {
-			fmt.Println("Error configuring vFlow collector sidecar:", err)
+			fmt.Println("Error configuring flow collector sidecar:", err)
 		}
 		van.Collector.Image = GetFlowCollectorImageDetails()
 		van.Collector.EnvVar = envVars
@@ -186,12 +186,12 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		kube.AppendSecretVolume(&volumes, &mounts[serviceController], types.ClaimsServerSecret, "/etc/service-controller/certs/")
 	}
 	if options.AuthMode != string(types.ConsoleAuthModeOpenshift) && options.EnableFlowCollector {
-		kube.AppendSecretVolume(&volumes, &mounts[vFlowCollector], types.ConsoleServerSecret, "/etc/service-controller/console/")
+		kube.AppendSecretVolume(&volumes, &mounts[flowCollector], types.ConsoleServerSecret, "/etc/service-controller/console/")
 	}
 	localClientMounts := []*[]corev1.VolumeMount{}
 	localClientMounts = append(localClientMounts, &mounts[serviceController])
 	if options.EnableFlowCollector {
-		localClientMounts = append(localClientMounts, &mounts[vFlowCollector])
+		localClientMounts = append(localClientMounts, &mounts[flowCollector])
 	}
 	kube.AppendSharedSecretVolume(&volumes, localClientMounts, types.LocalClientSecret, "/etc/messaging/")
 	van.Controller.EnvVar = envVars

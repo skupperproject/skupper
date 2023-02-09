@@ -24,6 +24,9 @@ func asBeaconMessage(msg *amqp.Message) BeaconRecord {
 	if direct, ok := msg.ApplicationProperties["direct"].(string); ok {
 		result.Direct = direct
 	}
+	if identity, ok := msg.ApplicationProperties["id"].(string); ok {
+		result.Identity = identity
+	}
 	return result
 }
 
@@ -42,7 +45,6 @@ func encodeBeacon(beacon *BeaconRecord) (*amqp.Message, error) {
 	request.ApplicationProperties["sourceType"] = beacon.SourceType
 	request.ApplicationProperties["address"] = beacon.Address
 	request.ApplicationProperties["direct"] = beacon.Direct
-	request.ApplicationProperties["now"] = beacon.Now
 	request.ApplicationProperties["id"] = beacon.Identity
 
 	request.Value = string(encoded)
@@ -148,6 +150,10 @@ func encodeProcess(process *ProcessRecord) (*amqp.Message, error) {
 	if process.GroupName != nil {
 		m[uint32(Group)] = *process.GroupName
 	}
+	if process.ProcessRole != nil {
+		// note mapping ProcessRole to Mode
+		m[uint32(Mode)] = *process.ProcessRole
+	}
 
 	record = append(record, m)
 
@@ -195,7 +201,7 @@ func decode(msg *amqp.Message) []interface{} {
 		result = append(result, asFlushMessage(msg))
 	case "RECORD":
 		if records, ok := msg.Value.([]interface{}); !ok {
-			fmt.Println("Unable to convert message to record list. Message is of type", reflect.TypeOf(msg.Value))
+			log.Println("Unable to convert message to record list. Message is of type", reflect.TypeOf(msg.Value))
 		} else {
 			for _, record := range records {
 				m := make(map[string]interface{})
@@ -411,6 +417,9 @@ func decode(msg *amqp.Message) []interface{} {
 					if v, ok := m["Result"].(string); ok {
 						flow.Result = &v
 					}
+					if v, ok := m["StreamIdentity"].(uint64); ok {
+						flow.StreamIdentity = &v
+					}
 					result = append(result, flow)
 				case Process:
 					process := ProcessRecord{
@@ -436,6 +445,10 @@ func decode(msg *amqp.Message) []interface{} {
 					}
 					if v, ok := m["SourceHost"].(string); ok {
 						process.SourceHost = &v
+					}
+					if v, ok := m["Mode"].(string); ok {
+						// note mapping Mode to ProcessRole
+						process.ProcessRole = &v
 					}
 					result = append(result, process)
 				default:

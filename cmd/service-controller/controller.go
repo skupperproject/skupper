@@ -199,10 +199,10 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
 		return kube.UpdateSkupperServices(changed, deleted, origin, cli.Namespace, cli.KubeClient)
 	}
-	siteCreationTime := uint64(time.Now().UnixNano())
+	siteCreationTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
 	if err == nil {
-		siteCreationTime = uint64(configmap.ObjectMeta.CreationTimestamp.UnixNano())
+		siteCreationTime = uint64(configmap.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
 	}
 	siteConfig, _ := controller.vanClient.SiteConfigInspect(context.TODO(), configmap)
 	var ttl time.Duration

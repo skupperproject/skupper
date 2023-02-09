@@ -33,12 +33,12 @@ const (
 	SiteConfigConsolePasswordKey       string = "console-password"
 	SiteConfigConsoleIngressKey        string = "console-ingress"
 
-	// vFlow collector options
-	SiteConfigFlowCollectorKey            string = "vflow-collector"
-	SiteConfigFlowCollectorCpuKey         string = "vflow-collector-cpu"
-	SiteConfigFlowCollectorMemoryKey      string = "vflow-collector-memory"
-	SiteConfigFlowCollectorCpuLimitKey    string = "vflow-collector-cpu-limit"
-	SiteConfigFlowCollectorMemoryLimitKey string = "vflow-collector-memory-limit"
+	// flow collector options
+	SiteConfigFlowCollectorKey            string = "flow-collector"
+	SiteConfigFlowCollectorCpuKey         string = "flow-collector-cpu"
+	SiteConfigFlowCollectorMemoryKey      string = "flow-collector-memory"
+	SiteConfigFlowCollectorCpuLimitKey    string = "flow-collector-cpu-limit"
+	SiteConfigFlowCollectorMemoryLimitKey string = "flow-collector-memory-limit"
 
 	// router options
 	SiteConfigRouterConsoleKey            string = "router-console"
