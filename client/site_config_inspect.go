@@ -88,6 +88,11 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	} else {
 		result.Spec.EnableFlowCollector = false
 	}
+	if value, ok := siteConfig.Data[SiteConfigRestAPIKey]; ok {
+		result.Spec.EnableRestAPI, _ = strconv.ParseBool(value)
+	} else {
+		result.Spec.EnableRestAPI = result.Spec.EnableConsole
+	}
 	if createNetworkPolicy, ok := siteConfig.Data[SiteConfigCreateNetworkPolicyKey]; ok {
 		result.Spec.CreateNetworkPolicy, _ = strconv.ParseBool(createNetworkPolicy)
 	} else {
