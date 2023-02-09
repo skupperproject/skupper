@@ -524,7 +524,7 @@ var unexposeAddress string
 
 func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>]",
+		Use:    "unexpose",
 		Short:  "Unexpose a set of pods previously exposed through a Skupper address",
 		Args:   skupperCli.ExposeArgs,
 		PreRun: skupperCli.NewClient,
