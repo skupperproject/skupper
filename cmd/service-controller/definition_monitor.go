@@ -723,7 +723,7 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name strin
 }
 
 func (m *DefinitionMonitor) restoreServiceDefinitions(name string) error {
-	service, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Get(name, metav1.GetOptions{})
+	service, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error retrieving service: %w", err)
 	}

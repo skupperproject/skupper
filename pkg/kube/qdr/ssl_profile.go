@@ -64,7 +64,7 @@ func RemoveSslProfile(secretName string, namespace string, cli kubernetes.Interf
 			return err
 		}
 
-		_, err = cli.CoreV1().ConfigMaps(namespace).Update(configmap)
+		_, err = cli.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configmap, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

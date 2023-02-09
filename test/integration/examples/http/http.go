@@ -723,7 +723,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	assert.Assert(t, err)
 
 	//update tls service with cert files
-	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(nghttp2tcpTlsDepWithCertFiles)
+	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(context.TODO(), nghttp2tcpTlsDepWithCertFiles, metav1.UpdateOptions{})
 	assert.Assert(t, err)
 
 	http21service := types.ServiceInterface{

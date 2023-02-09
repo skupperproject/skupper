@@ -4,8 +4,9 @@ import (
 	"context"
 	jsonencoding "encoding/json"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/kube/qdr"
 	"strings"
+
+	"github.com/skupperproject/skupper/pkg/kube/qdr"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -112,7 +113,7 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 	}
 
 	if service.TlsCredentials != "" && !strings.HasPrefix(service.TlsCredentials, types.SkupperServiceCertPrefix) {
-		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCredentials, metav1.GetOptions{})
+		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(context.TODO(), service.TlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Secret %s not available for service %s", service.TlsCredentials, service.Address)
 		}
@@ -130,7 +131,7 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 		}
 	}
 	if service.TlsCertAuthority != "" && service.TlsCertAuthority != types.ServiceClientSecret {
-		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(service.TlsCertAuthority, metav1.GetOptions{})
+		secret, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Get(context.TODO(), service.TlsCertAuthority, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Secret %s not available for service %s", service.TlsCertAuthority, service.Address)
 		}

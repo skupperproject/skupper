@@ -565,7 +565,7 @@ func (s *InitTester) validateControllerCPUMemory(cluster *base.ClusterContext) e
 }
 
 func (s *InitTester) validatePodSecurityContext(cluster *base.ClusterContext) error {
-	dep, err := cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(types.TransportDeploymentName, v1.GetOptions{})
+	dep, err := cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), types.TransportDeploymentName, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("expected deployment not found: %s - %v", types.TransportDeploymentName, err)
 	}

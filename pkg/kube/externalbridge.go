@@ -15,6 +15,7 @@ limitations under the License.
 package kube
 
 import (
+	"context"
 	jsonencoding "encoding/json"
 	"fmt"
 	"os"
@@ -266,12 +267,12 @@ func (i *CachedDeploymentsImpl) GetDeployment(name string) (*appsv1.Deployment, 
 
 func (i *CachedDeploymentsImpl) CreateDeployment(d *appsv1.Deployment) error {
 	d.ObjectMeta.OwnerReferences = i.ownerRefs
-	_, err := i.client.AppsV1().Deployments(i.namespace).Create(d)
+	_, err := i.client.AppsV1().Deployments(i.namespace).Create(context.TODO(), d, metav1.CreateOptions{})
 	return err
 }
 
 func (i *CachedDeploymentsImpl) UpdateDeployment(d *appsv1.Deployment) error {
-	_, err := i.client.AppsV1().Deployments(i.namespace).Update(d)
+	_, err := i.client.AppsV1().Deployments(i.namespace).Update(context.TODO(), d, metav1.UpdateOptions{})
 	return err
 }
 

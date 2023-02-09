@@ -204,7 +204,7 @@ func (cli *VanClient) ConnectorTokenCreateFromTemplate(ctx context.Context, toke
 	if current.IsEdge() {
 		return nil, false, fmt.Errorf("Edge configuration cannot accept connections")
 	}
-	template, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(templateName, metav1.GetOptions{})
+	template, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(ctx, templateName, metav1.GetOptions{})
 	if err != nil {
 		return nil, false, err
 	}
