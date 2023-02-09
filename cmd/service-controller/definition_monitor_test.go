@@ -505,10 +505,10 @@ func TestGetServiceDefinitionFromAnnotatedService(t *testing.T) {
 	// Create fake target services
 	var err error
 	// good path with target service providing port
-	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(context.TODO(), annotatedService("targetsvc", "", "", "", "app=app1", "", nil, "", "", "", "", []int{0}, 8888), metav1.CreateOptions{})
+	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(context.TODO(), annotatedService("targetsvc", "", "", "", "", "app=app1", nil, "", "", "", "", []int{0}, 8888), metav1.CreateOptions{})
 	assert.NilError(t, err)
 	// this is used to test case when protocol is http but target service does not provide a port, so it uses 80
-	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(context.TODO(), annotatedService("targetsvcnoport", "", "", "", "app=app2", "", nil, "", "", "", "", []int{0}), metav1.CreateOptions{})
+	_, err = vanClient.KubeClient.CoreV1().Services(NS).Create(context.TODO(), annotatedService("targetsvcnoport", "", "", "", "", "app=app2", nil, "", "", "", "", []int{0}), metav1.CreateOptions{})
 	assert.NilError(t, err)
 
 	// Mock error when trying to get info for badtargetsvc
