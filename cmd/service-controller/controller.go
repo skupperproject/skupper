@@ -744,7 +744,7 @@ func (c *Controller) processNextEvent() bool {
 							_, ok := cm.Data[k]
 							if !ok {
 								c.deleteServiceBindings(k, v)
-								serviceList, err := c.vanClient.ServiceInterfaceList(nil)
+								serviceList, err := c.vanClient.ServiceInterfaceList(context.TODO())
 								tlsSupport := kubeqdr.TlsServiceSupport{Address: v.Address, Credentials: v.TlsCredentials}
 								err = c.tlsManager.DisableTlsSupport(tlsSupport, serviceList)
 								if err != nil {
@@ -755,7 +755,7 @@ func (c *Controller) processNextEvent() bool {
 					} else if len(c.bindings) > 0 {
 						for k, v := range c.bindings {
 							c.deleteServiceBindings(k, v)
-							serviceList, err := c.vanClient.ServiceInterfaceList(nil)
+							serviceList, err := c.vanClient.ServiceInterfaceList(context.TODO())
 							tlsSupport := kubeqdr.TlsServiceSupport{
 								Address:     v.Address,
 								Credentials: v.TlsCredentials,
