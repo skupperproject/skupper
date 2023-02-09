@@ -3,17 +3,18 @@ package main
 import (
 	jsonencoding "encoding/json"
 	"fmt"
-	appv1 "github.com/openshift/api/apps/v1"
-	v1 "github.com/openshift/client-go/apps/informers/externalversions/apps/v1"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	oappsv1 "github.com/openshift/api/apps/v1"
+	oappsv1informer "github.com/openshift/client-go/apps/informers/externalversions/apps/v1"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -101,7 +102,7 @@ func newDefinitionMonitor(origin string, cli *client.VanClient, svcDefInformer c
 	monitor.svcInformer.AddEventHandler(newEventHandlerFor(monitor.events, "services", AnnotatedKey, ServiceResourceVersionTest))
 
 	if cli.OCAppsClient != nil {
-		monitor.deploymentConfigInformer = v1.NewDeploymentConfigInformer(cli.OCAppsClient, cli.Namespace, time.Second*30, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+		monitor.deploymentConfigInformer = oappsv1informer.NewDeploymentConfigInformer(cli.OCAppsClient, cli.Namespace, time.Second*30, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 		monitor.deploymentConfigInformer.AddEventHandler(newEventHandlerFor(monitor.events, "deploymentconfigs", AnnotatedKey, DeploymentConfigResourceVersionTest))
 	}
 
@@ -115,8 +116,8 @@ func DeploymentResourceVersionTest(a interface{}, b interface{}) bool {
 }
 
 func DeploymentConfigResourceVersionTest(a interface{}, b interface{}) bool {
-	aa := a.(*appv1.DeploymentConfig)
-	bb := b.(*appv1.DeploymentConfig)
+	aa := a.(*oappsv1.DeploymentConfig)
+	bb := b.(*oappsv1.DeploymentConfig)
 	return aa.ResourceVersion == bb.ResourceVersion
 }
 
@@ -160,7 +161,7 @@ func deducePort(deployment *appsv1.Deployment) map[int]int {
 	}
 }
 
-func deducePortFromDeploymentConfig(deploymentConfig *appv1.DeploymentConfig) map[int]int {
+func deducePortFromDeploymentConfig(deploymentConfig *oappsv1.DeploymentConfig) map[int]int {
 	if port, ok := deploymentConfig.ObjectMeta.Annotations[types.PortQualifier]; ok {
 		return kube.PortLabelStrToMap(port)
 	} else {
@@ -309,7 +310,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeployment(deployme
 	}
 }
 
-func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeploymentConfig(deploymentConfig *appv1.DeploymentConfig) (types.ServiceInterface, bool) {
+func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedDeploymentConfig(deploymentConfig *oappsv1.DeploymentConfig) (types.ServiceInterface, bool) {
 	var svc types.ServiceInterface
 	if protocol, ok := deploymentConfig.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
 		port := map[int]int{}
@@ -721,7 +722,7 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name strin
 }
 
 func (m *DefinitionMonitor) restoreServiceDefinitions(name string) error {
-	service, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Get(name, v1.GetOptions{})
+	service, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error retrieving service: %w", err)
 	}
@@ -948,7 +949,7 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 				if err != nil {
 					return fmt.Errorf("Error reading deploymentconfig %s from cache: %s", name, err)
 				} else if exists {
-					deploymentConfig, ok := obj.(*appv1.DeploymentConfig)
+					deploymentConfig, ok := obj.(*oappsv1.DeploymentConfig)
 					if !ok {
 						return fmt.Errorf("Expected DeploymentConfig for %s but got %#v", name, obj)
 					}
