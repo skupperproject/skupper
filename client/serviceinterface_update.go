@@ -4,8 +4,9 @@ import (
 	"context"
 	jsonencoding "encoding/json"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/kube/qdr"
 	"strings"
+
+	"github.com/skupperproject/skupper/pkg/kube/qdr"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
