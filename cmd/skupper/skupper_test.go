@@ -90,7 +90,7 @@ func TestCreateServiceParseArgs(t *testing.T) {
 
 func TestExposeTargetArgs(t *testing.T) {
 	s := &SkupperKubeService{}
-	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>'"
+	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>')"
 	targetError := "target type must be one of: [deployment, statefulset, pods, service, deploymentconfig]"
 
 	e := func(args []string) error {
