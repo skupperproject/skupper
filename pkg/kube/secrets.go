@@ -37,22 +37,17 @@ func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, name
 	}
 }
 
-func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
+func PrepareNewSecret(cred types.Credential, caSecret *corev1.Secret, connectJsonHost string) corev1.Secret {
 	var secret corev1.Secret
 
-	if cred.CA != "" {
-		caSecret, err := cli.CoreV1().Secrets(namespace).Get(cred.CA, metav1.GetOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
-		}
-
+	if caSecret != nil {
 		if cred.Simple {
 			secret = certs.GenerateSimpleSecret(cred.Name, caSecret)
 		} else {
 			secret = certs.GenerateSecret(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), caSecret)
 		}
 		if cred.ConnectJson {
-			secret.Data["connect.json"] = []byte(configs.ConnectJson(types.QualifiedServiceName(cred.Subject, namespace)))
+			secret.Data["connect.json"] = []byte(configs.ConnectJson(connectJsonHost))
 		}
 	} else {
 		secret = corev1.Secret{
@@ -66,12 +61,31 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 			Data: cred.Data,
 		}
 	}
+	return secret
+}
+
+func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) (*corev1.Secret, error) {
+	var secret corev1.Secret
+	var err error
+	var caSecret *corev1.Secret
+	var connectJsonHost string
+
+	if cred.CA != "" {
+		caSecret, err = cli.CoreV1().Secrets(namespace).Get(cred.CA, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("Failed to retrieve CA: %w", err)
+		}
+		connectJsonHost = types.QualifiedServiceName(cred.Subject, namespace)
+	}
+
+	secret = PrepareNewSecret(cred, caSecret, connectJsonHost)
+
 	if owner != nil {
 		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
 			*owner,
 		}
 	}
-	_, err := cli.CoreV1().Secrets(namespace).Create(&secret)
+	_, err = cli.CoreV1().Secrets(namespace).Create(&secret)
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			// TODO : come up with a policy for already-exists errors.

@@ -18,6 +18,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper/client/generated/libpod/models"
 	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 const (
@@ -35,27 +36,40 @@ type PodmanRestClient struct {
 
 func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	var err error
-	var sockFile bool
 
 	if endpoint == "" {
-		endpoint = fmt.Sprintf("%s/podman/podman.sock", config.GetRuntimeDir())
+		endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", config.GetRuntimeDir())
 	}
 
-	var u = &url.URL{
-		Scheme: "http",
-	}
-	if strings.HasPrefix(endpoint, "/") {
+	var u *url.URL
+	isSockFile := strings.HasPrefix(endpoint, "/")
+	if isSockFile || strings.HasPrefix(endpoint, "unix://") {
+		if isSockFile {
+			endpoint = "unix://" + endpoint
+		}
+		isSockFile = true
+		u, err = url.Parse(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		u.Scheme = "http"
 		u.Host = "unix"
-		sockFile = true
 	} else {
 		host := endpoint
-		match, _ := regexp.Match(`http[s]*://`, []byte(host))
+		match, _ := regexp.Match(`(http[s]*|tcp)://`, []byte(host))
 		if !match {
-			host = "http://" + host
+			if !strings.Contains(host, "://") {
+				host = "http://" + host
+			} else {
+				return nil, fmt.Errorf("invalid endpoint: %s", host)
+			}
 		}
 		u, err = url.Parse(host)
 		if err != nil {
 			return nil, err
+		}
+		if u.Scheme == "tcp" {
+			u.Scheme = "http"
 		}
 	}
 
@@ -69,24 +83,32 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	c := runtime.New(hostPort, basePath, []string{u.Scheme})
 	if u.Scheme == "https" {
 		ct := c.Transport.(*http.Transport)
-		if ct.TLSClientConfig != nil {
+		if ct.TLSClientConfig == nil {
 			ct.TLSClientConfig = &tls.Config{}
 		}
 		ct.TLSClientConfig.InsecureSkipVerify = true
+	} else {
+		ct := c.Transport.(*http.Transport)
+		ct.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return net.Dial("tcp", hostPort)
+		}
 	}
-	if sockFile {
-		_, err := os.Stat(endpoint)
+	if isSockFile {
+		_, err := os.Stat(u.RequestURI())
 		if err != nil {
-			return nil, fmt.Errorf("invalid sock file: %v", err)
+			return nil, fmt.Errorf("Podman service is not available on provided endpoint - %w", err)
 		}
 		ct := c.Transport.(*http.Transport)
 		ct.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return net.Dial("unix", endpoint)
+			return net.Dial("unix", u.RequestURI())
 		}
 	}
 
 	cli := &PodmanRestClient{
 		RestClient: c,
+	}
+	if err = cli.Validate(); err != nil {
+		return nil, err
 	}
 	return cli, nil
 }
@@ -135,7 +157,27 @@ func (r *responseReaderBody) Consume(reader io.Reader, i interface{}) error {
 	if err != nil {
 		return fmt.Errorf("error reading response body: %v", err)
 	}
-	*bodyStr = string(data)
+
+	var dataClean []byte
+	for idx, v := range data {
+		// skip 8 first bytes every 8k chunk
+		if idx%(8192+8) < 8 {
+			continue
+		}
+		dataClean = append(dataClean, v)
+	}
+
+	for idx, v := range dataClean {
+		// bad characters ascii 0 or 1 returned sometimes, stripping them off
+		if v < 2 {
+			dataClean = dataClean[:idx]
+			break
+		}
+	}
+
+	// fmt.Println(string(dataClean[len(dataClean)-8 : len(dataClean)]))
+	// fmt.Println(dataClean[len(dataClean)-8 : len(dataClean)])
+	*bodyStr = string(dataClean)
 	return nil
 }
 
@@ -161,4 +203,16 @@ func (r *responseReaderBody) ReadResponse(response runtime2.ClientResponse, cons
 
 func (p *PodmanRestClient) ResponseIDReader(httpClient *runtime2.ClientOperation) {
 	httpClient.Reader = &responseReaderID{}
+}
+
+func (p *PodmanRestClient) Validate() error {
+	version, err := p.Version()
+	if err != nil {
+		return fmt.Errorf("Podman service is not available on provided endpoint (unable to verify version) - %w", err)
+	}
+	apiVersion := utils.ParseVersion(version.Server.APIVersion)
+	if apiVersion.Major < 4 {
+		return fmt.Errorf("podman version must be 4.0.0 or greater, found: %s", version.Server.APIVersion)
+	}
+	return nil
 }

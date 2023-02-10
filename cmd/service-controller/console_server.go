@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/version"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -483,6 +484,7 @@ func getAllSites(routers []qdr.Router) []data.SiteQueryData {
 					Site: data.Site{
 						SiteId:    r.Site.Id,
 						Version:   r.Site.Version,
+						Platform:  r.Site.Platform,
 						Edge:      r.Edge && strings.Contains(r.Id, "skupper-router"),
 						Connected: []string{},
 						Gateway:   false,
@@ -546,6 +548,11 @@ func checkService(agent *qdr.Agent, address string) (*data.ServiceCheck, error) 
 	serviceCheck := data.ServiceCheck{}
 	sites := map[string]data.Site{}
 	for _, site := range allSites {
+		// Non kubernetes sites do not yet have a Service Controller,
+		// this request won't be sent to avoid an unnecessary timeout.
+		if utils.DefaultStr(site.Platform, string(types.PlatformKubernetes)) != string(types.PlatformKubernetes) {
+			continue
+		}
 		if site.Version != "" {
 			sites[site.SiteId] = site.Site
 			serviceCheck.Details = append(serviceCheck.Details, data.ServiceDetail{

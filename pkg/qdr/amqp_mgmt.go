@@ -5,11 +5,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	amqp "github.com/interconnectedcloud/go-amqp"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	amqp "github.com/interconnectedcloud/go-amqp"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type RouterNode struct {
@@ -17,6 +21,10 @@ type RouterNode struct {
 	Name    string `json:"name"`
 	NextHop string `json:"nextHop"`
 	Address string `json:"address"`
+}
+
+func (r *RouterNode) IsSelf() bool {
+	return r.NextHop == "(self)"
 }
 
 type Connection struct {
@@ -48,16 +56,17 @@ type Router struct {
 }
 
 type SiteMetadata struct {
-	Id      string `json:"id,omitempty"`
-	Version string `json:"version,omitempty"`
+	Id       string `json:"id,omitempty"`
+	Version  string `json:"version,omitempty"`
+	Platform string `json:"platform,omitempty"`
 }
 
-func getSiteMetadata(metadata string) SiteMetadata {
+func GetSiteMetadata(metadata string) SiteMetadata {
 	result := SiteMetadata{}
 	err := json.Unmarshal([]byte(metadata), &result)
 	if err != nil {
 		log.Printf("Assuming old format for router metadata %s: %s", metadata, err)
-		//assume old format, where metadata just holds site id
+		// assume old format, where metadata just holds site id
 		result.Id = metadata
 	}
 	return result
@@ -65,8 +74,9 @@ func getSiteMetadata(metadata string) SiteMetadata {
 
 func getSiteMetadataString(siteId string, version string) string {
 	siteDetails := SiteMetadata{
-		Id:      siteId,
-		Version: version,
+		Id:       siteId,
+		Version:  version,
+		Platform: string(config.GetPlatform()),
 	}
 	metadata, _ := json.Marshal(siteDetails)
 	return string(metadata)
@@ -157,7 +167,7 @@ func asRouterNode(record Record) RouterNode {
 func asRouter(record Record) *Router {
 	r := Router{
 		Id:      record.AsString("id"),
-		Site:    getSiteMetadata(record.AsString("metadata")),
+		Site:    GetSiteMetadata(record.AsString("metadata")),
 		Version: record.AsString("version"),
 	}
 	if record.AsString("mode") == "edge" {
@@ -165,14 +175,14 @@ func asRouter(record Record) *Router {
 	} else {
 		r.Edge = false
 	}
-	r.Address = getRouterAgentAddress(r.Id, r.Edge)
+	r.Address = GetRouterAgentAddress(r.Id, r.Edge)
 	return &r
 }
 
-func (node *RouterNode) asRouter() *Router {
+func (node *RouterNode) AsRouter() *Router {
 	return &Router{
 		Id: node.Id,
-		//SiteId ???
+		// SiteId ???
 		Address: node.Address,
 		Edge:    false, /*RouterNode is always an interior*/
 	}
@@ -310,7 +320,7 @@ func stringify(items []interface{}) []string {
 	return s
 }
 
-func getRouterAgentAddress(id string, edge bool) string {
+func GetRouterAgentAddress(id string, edge bool) string {
 	if edge {
 		return "amqp:/_edge/" + id + "/$management"
 	} else {
@@ -318,7 +328,7 @@ func getRouterAgentAddress(id string, edge bool) string {
 	}
 }
 
-func getRouterAddress(id string, edge bool) string {
+func GetRouterAddress(id string, edge bool) string {
 	if edge {
 		return "amqp:/_edge/" + id
 	} else {
@@ -664,18 +674,41 @@ func (a *Agent) GetAllRouters() ([]Router, error) {
 		return nil, err
 	}
 	routers := []Router{}
+	routersFiltered := []Router{}
 	for _, n := range nodes {
-		routers = append(routers, *n.asRouter())
+		routers = append(routers, *n.AsRouter())
 	}
 	edges, err := a.getAllEdgeRouters(getAddressesFor(routers))
 	if err != nil {
 		return nil, err
 	}
-	routers = append(routers, edges...)
+	for _, e := range edges {
+		routers = append(routers, e)
+	}
 	err = a.getSiteIds(routers)
 	if err != nil {
 		return nil, err
 	}
+	isSvcRouter := func(edgeId string) bool {
+		for _, r := range routers {
+			if r.Edge {
+				continue
+			}
+			// podman svc
+			if strings.HasPrefix(edgeId, r.Site.Id+"-") {
+				return true
+			} else if strings.HasSuffix(edgeId, "-"+r.Site.Id) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, r := range routers {
+		if !r.Edge || !isSvcRouter(r.Site.Id) {
+			routersFiltered = append(routersFiltered, r)
+		}
+	}
+	routers = routersFiltered
 	err = a.getConnectedTo(routers)
 	if err != nil {
 		return nil, err
@@ -704,7 +737,7 @@ func (a *Agent) getSiteIds(routers []Router) error {
 	}
 	for i, records := range results {
 		if len(records) == 1 {
-			routers[i].Site = getSiteMetadata(records[0].AsString("metadata"))
+			routers[i].Site = GetSiteMetadata(records[0].AsString("metadata"))
 		} else {
 			return fmt.Errorf("Unexpected number of router records: %d", len(records))
 		}
@@ -1083,7 +1116,7 @@ func (a *Agent) getAllEdgeRouters(agents []string) ([]Router, error) {
 			router := Router{
 				Id:      c.Container,
 				Edge:    true,
-				Address: getRouterAddress(c.Container, true),
+				Address: GetRouterAddress(c.Container, true),
 			}
 			edges = append(edges, router)
 		}
@@ -1102,7 +1135,7 @@ func (a *Agent) getEdgeRouters(agent string) ([]Router, error) {
 			router := Router{
 				Id:      c.Container,
 				Edge:    true,
-				Address: getRouterAddress(c.Container, true),
+				Address: GetRouterAddress(c.Container, true),
 			}
 			edges = append(edges, router)
 		}
@@ -1121,7 +1154,7 @@ func (a *Agent) GetLocalGateways() ([]Router, error) {
 			router := Router{
 				Id:      c.Container,
 				Edge:    true,
-				Address: getRouterAddress(c.Container, true),
+				Address: GetRouterAddress(c.Container, true),
 			}
 			gateways = append(gateways, router)
 		}
@@ -1151,9 +1184,13 @@ func (a *Agent) getInteriorAddressForUplink() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return GetInteriorAddressForUplink(connections)
+}
+
+func GetInteriorAddressForUplink(connections []Connection) (string, error) {
 	for _, c := range connections {
 		if c.Role == "edge" && c.Dir == "out" {
-			return getRouterAgentAddress(c.Container, false), nil
+			return GetRouterAgentAddress(c.Container, false), nil
 		}
 	}
 	return "", fmt.Errorf("Could not find uplink connection")
@@ -1388,4 +1425,30 @@ func (a *Agent) CreateSslProfile(profile SslProfile) error {
 	}
 
 	return nil
+}
+
+func ConnectedSitesInfo(selfId string, routers []Router) types.TransportConnectedSites {
+	var connectedSites types.TransportConnectedSites
+	var self *Router
+	for _, r := range routers {
+		if r.Site.Id == selfId {
+			self = &r
+			break
+		}
+	}
+	if self == nil {
+		return connectedSites
+	}
+	for _, r := range routers {
+		if r.Edge && len(r.ConnectedTo) > 1 {
+			connectedSites.Warnings = append(connectedSites.Warnings, "There are edge uplinks to distinct networks, please verify topology (connected counts may not be accurate).")
+		}
+		if utils.StringSliceContains(r.ConnectedTo, self.Id) {
+			connectedSites.Direct += 1
+		}
+	}
+	connectedSites.Total = len(routers) - 1
+	connectedSites.Direct += len(self.ConnectedTo)
+	connectedSites.Indirect = connectedSites.Total - connectedSites.Direct
+	return connectedSites
 }

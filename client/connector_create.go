@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/url"
 	"reflect"
-	"regexp"
 	"strconv"
 
+	"github.com/skupperproject/skupper/pkg/domain"
+	domainkube "github.com/skupperproject/skupper/pkg/domain/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/util/retry"
 
@@ -24,34 +23,14 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-func generateConnectorName(namespace string, cli kubernetes.Interface) string {
-	secrets, err := cli.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
-	max := 1
-	if err == nil {
-		connector_name_pattern := regexp.MustCompile("link([0-9]+)+")
-		for _, s := range secrets.Items {
-			count := connector_name_pattern.FindStringSubmatch(s.ObjectMeta.Name)
-			if len(count) > 1 {
-				v, _ := strconv.Atoi(count[1])
-				if v >= max {
-					max = v + 1
-				}
-			}
-
-		}
-	} else {
-		log.Fatal("Could not retrieve token secrets:", err)
-	}
-	return "link" + strconv.Itoa(max)
-}
-
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	yaml, err := ioutil.ReadFile(secretFile)
 	if err != nil {
 		fmt.Println("Could not read connection token", err.Error())
 		return nil, err
 	}
-	secret, err := cli.ConnectorCreateSecretFromData(ctx, yaml, options)
+	options.Yaml = yaml
+	secret, err := cli.ConnectorCreateSecretFromData(ctx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -66,49 +45,13 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 	return secret, nil
 }
 
-func verify(secret *corev1.Secret) error {
-	if secret.ObjectMeta.Labels == nil {
-		secret.ObjectMeta.Labels = map[string]string{}
-	}
-	if _, ok := secret.ObjectMeta.Labels[types.SkupperTypeQualifier]; !ok {
-		// deduce type from structire of secret
-		if _, ok = secret.Data["tls.crt"]; ok {
-			secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
-		} else if secret.ObjectMeta.Annotations != nil && secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey] != "" {
-			secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeClaimRequest
-		}
-	}
-	switch secret.ObjectMeta.Labels[types.SkupperTypeQualifier] {
-	case types.TypeToken:
-		CertTokenDataFields := []string{"tls.key", "tls.crt", "ca.crt"}
-		if secret.ObjectMeta.Annotations != nil && secret.ObjectMeta.Annotations[types.TokenTemplate] != "" {
-			CertTokenDataFields = []string{"ca.crt"}
-		}
-		for _, name := range CertTokenDataFields {
-			if _, ok := secret.Data[name]; !ok {
-				return fmt.Errorf("Expected %s field in secret data", name)
-			}
-		}
-	case types.TypeClaimRequest:
-		if _, ok := secret.Data["password"]; !ok {
-			return fmt.Errorf("Expected password field in secret data")
-		}
-		if secret.ObjectMeta.Annotations == nil || secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey] == "" {
-			return fmt.Errorf("Expected %s annotation", types.ClaimUrlAnnotationKey)
-		}
-	default:
-		return fmt.Errorf("Secret is not a valid skupper token")
-	}
-	return nil
-}
-
-func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretData []byte, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
+func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
 	if err == nil {
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
 			scheme.Scheme)
 		var secret corev1.Secret
-		_, _, err = s.Decode(secretData, nil, &secret)
+		_, _, err = s.Decode(options.Yaml, nil, &secret)
 		if err != nil {
 			return nil, fmt.Errorf("Could not parse connection token: %w", err)
 		} else {
@@ -137,16 +80,21 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 				return nil, fmt.Errorf("outgoing link to %s is not allowed", hostname)
 			}
 
+			cfg, err := cli.getRouterConfig(ctx, cli.Namespace)
+			if err != nil {
+				return nil, fmt.Errorf("error reading router config: %w", err)
+			}
+			linkHandler := domainkube.NewLinkHandlerKube(options.SkupperNamespace, siteConfig, cfg, cli.KubeClient, cli.RestConfig)
 			if options.Name == "" {
-				options.Name = generateConnectorName(options.SkupperNamespace, cli.KubeClient)
+				options.Name = domain.GenerateLinkName(linkHandler)
 			}
 			secret.ObjectMeta.Name = options.Name
-			err = verify(&secret)
+			err = domain.VerifyToken(&secret)
 			if err != nil {
 				return nil, err
 			}
 			// Verify if site link can be created
-			err = cli.verifyNotSelfOrDuplicate(secret, siteConfig.Reference.UID, options)
+			err = domain.VerifyNotSelfOrDuplicate(secret, siteConfig.Reference.UID, linkHandler)
 			if err != nil {
 				return nil, err
 			}
@@ -188,17 +136,11 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, secretD
 // with the token or cert provided. If sites are not compatible an error is
 // returned with the appropriate information
 func (cli *VanClient) VerifySecretCompatibility(secret corev1.Secret) error {
-	var secretVersion string
-	if secret.Annotations != nil {
-		secretVersion = secret.Annotations[types.SiteVersion]
+	siteMeta, err := cli.GetSiteMetadata()
+	if err != nil {
+		return err
 	}
-	if err := cli.VerifySiteCompatibility(secretVersion); err != nil {
-		if secretVersion == "" {
-			secretVersion = "undefined"
-		}
-		return fmt.Errorf("%v - remote site version is %s", err, secretVersion)
-	}
-	return nil
+	return domain.VerifySecretCompatibility(siteMeta.Version, secret)
 }
 
 // VerifySiteCompatibility returns nil if current site version is compatible
@@ -208,39 +150,7 @@ func (cli *VanClient) VerifySiteCompatibility(siteVersion string) error {
 	if err != nil {
 		return err
 	}
-	if utils.LessRecentThanVersion(siteVersion, siteMeta.Version) {
-		if !utils.IsValidFor(siteVersion, cli.GetMinimumCompatibleVersion()) {
-			return fmt.Errorf("minimum version required %s", cli.GetMinimumCompatibleVersion())
-		}
-	}
-	return nil
-}
-
-func (cli *VanClient) verifyNotSelfOrDuplicate(secret corev1.Secret, self string, options types.ConnectorCreateOptions) error {
-	if secret.ObjectMeta.Annotations == nil {
-		return fmt.Errorf("The secret has not annotations")
-	}
-	generatedBy, ok := secret.ObjectMeta.Annotations[types.TokenGeneratedBy]
-	if !ok {
-		return fmt.Errorf("Can't find secret origin.")
-	}
-	if self == string(generatedBy) {
-		return fmt.Errorf("Can't create connection to self with token")
-	}
-	currentSecrets, err := cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).List(metav1.ListOptions{LabelSelector: "skupper.io/type=connection-token"})
-	if err != nil {
-		return fmt.Errorf("Could not retrieve secrets: %w", err)
-	}
-	for _, currentSecret := range currentSecrets.Items {
-		currentAuthor, ok := currentSecret.Annotations[types.TokenGeneratedBy]
-		if !ok {
-			return fmt.Errorf("A secret has no author.")
-		}
-		if generatedBy == currentAuthor {
-			return fmt.Errorf("Already connected to \"%s\".", currentAuthor)
-		}
-	}
-	return nil
+	return domain.VerifySiteCompatibility(siteMeta.Version, siteVersion)
 }
 
 func isCertToken(secret *corev1.Secret) bool {
@@ -263,7 +173,7 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 			return err
 		}
 		updated := false
-		//read annotations to get the host and port to connect to
+		// read annotations to get the host and port to connect to
 		profileName := options.Name + "-profile"
 		if _, ok := current.SslProfiles[profileName]; !ok {
 			if _, hasClientCert := secret.Data["tls.crt"]; isCertToken(secret) && !hasClientCert {

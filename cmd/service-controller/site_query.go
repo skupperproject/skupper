@@ -341,6 +341,11 @@ func querySites(agent qdr.RequestResponse, sites []data.SiteQueryData) {
 			Address: getSiteQueryAddress(s.SiteId),
 			Version: version.Version,
 		}
+		// Non kubernetes sites do not yet have a Service Controller,
+		// this request won't be sent to avoid an unnecessary timeout.
+		if utils.DefaultStr(s.Platform, string(types.PlatformKubernetes)) != string(types.PlatformKubernetes) {
+			continue
+		}
 		response, err := agent.Request(&request)
 		if err != nil {
 			event.Recordf(SiteQueryError, "Request to %s failed: %s", s.SiteId, err)
@@ -380,6 +385,11 @@ func queryGateways(agent qdr.RequestResponse, sites []data.SiteQueryData) []data
 			Address: getSiteQueryAddress(s.SiteId),
 			Version: version.Version,
 			Type:    GatewayQuery,
+		}
+		// Non kubernetes sites do not yet have a Service Controller,
+		// this request won't be sent to avoid an unnecessary timeout.
+		if utils.DefaultStr(s.Platform, string(types.PlatformKubernetes)) != string(types.PlatformKubernetes) {
+			continue
 		}
 		response, err := agent.Request(&request)
 		if err != nil {

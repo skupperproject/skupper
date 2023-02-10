@@ -7,11 +7,75 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
 	yaml "gopkg.in/yaml.v3"
 )
+
+type ConfigFileHandler interface {
+	GetFilename() string
+	SetFileName(name string)
+	Save() error
+	Load() error
+	GetData() interface{}
+	SetData(data interface{})
+}
+
+type ConfigFileHandlerCommon struct {
+	filename string
+	data     interface{}
+}
+
+func (l *ConfigFileHandlerCommon) GetFilename() string {
+	return l.filename
+}
+
+func (l *ConfigFileHandlerCommon) SetFileName(name string) {
+	l.filename = name
+}
+
+func (l *ConfigFileHandlerCommon) Save() error {
+	baseDir := filepath.Dir(l.GetFilename())
+	if _, err := os.Stat(baseDir); err != nil {
+		if err = os.MkdirAll(baseDir, 0755); err != nil {
+			return fmt.Errorf("unable to create base directory %s - %q", baseDir, err)
+		}
+	}
+	f, err := os.Create(l.GetFilename())
+	if err != nil {
+		return fmt.Errorf("error creating file %s: %v", l.GetFilename(), err)
+	}
+	defer f.Close()
+	e := yaml.NewEncoder(f)
+	if err = e.Encode(l.GetData()); err != nil {
+		return fmt.Errorf("error saving file: %s: %v", l.GetFilename(), err)
+	}
+	return nil
+}
+
+func (l *ConfigFileHandlerCommon) Load() error {
+	data, err := ioutil.ReadFile(l.GetFilename())
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("error loading %s: %v", l.GetFilename(), err)
+	}
+	if data != nil {
+		decoder := yaml.NewDecoder(bytes.NewReader(data))
+		if err = decoder.Decode(l.data); err != nil && err != io.EOF {
+			return fmt.Errorf("error decoding %s: %v", l.GetFilename(), err)
+		}
+	}
+	return nil
+}
+
+func (l *ConfigFileHandlerCommon) GetData() interface{} {
+	return l.data
+}
+
+func (l *ConfigFileHandlerCommon) SetData(data interface{}) {
+	l.data = data
+}
 
 var (
 	PlatformConfigFile = path.Join(GetDataHome(), "platform.yaml")
@@ -32,6 +96,13 @@ func (p *PlatformInfo) Update(platform types.Platform) error {
 	p.Previous = p.Current
 	p.Current = platform
 
+	// Creating the base dir
+	baseDir := filepath.Dir(PlatformConfigFile)
+	if _, err := os.Stat(baseDir); err != nil {
+		if err = os.MkdirAll(baseDir, 0755); err != nil {
+			return fmt.Errorf("unable to create base directory %s - %q", baseDir, err)
+		}
+	}
 	f, err := os.Create(PlatformConfigFile)
 	if err != nil {
 		return fmt.Errorf("error creating file %s: %v", PlatformConfigFile, err)

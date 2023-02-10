@@ -164,6 +164,7 @@ const (
 	OriginalTargetPortQualifier string = InternalQualifier + "/originalTargetPort"
 	OriginalAssignedQualifier   string = InternalQualifier + "/originalAssignedPort"
 	InternalTypeQualifier       string = InternalQualifier + "/type"
+	InternalMetadataQualifier   string = InternalQualifier + "/metadata"
 	SkupperTypeQualifier        string = BaseQualifier + "/type"
 	TypeProxyQualifier          string = InternalTypeQualifier + "=proxy"
 	SkupperDisabledQualifier    string = InternalQualifier + "/disabled"
@@ -461,6 +462,17 @@ type CertAuthority struct {
 	Name string
 }
 
+type CredentialHandler interface {
+	NewCertAuthority(ca CertAuthority) (*corev1.Secret, error)
+	DeleteCertAuthority(id string) error
+	ListCertAuthorities() ([]CertAuthority, error)
+	NewCredential(cred Credential) (*corev1.Secret, error)
+	DeleteCredential(id string) error
+	ListCredentials() ([]Credential, error)
+	GetCredential(id string) (*Credential, error)
+	GetSecret(name string) (*corev1.Secret, error)
+}
+
 type User struct {
 	Name     string
 	Password string
@@ -471,6 +483,14 @@ type TransportConnectedSites struct {
 	Indirect int
 	Total    int
 	Warnings []string
+}
+
+type ServiceInterfaceHandler interface {
+	Create(service *ServiceInterface) error
+	List() (map[string]*ServiceInterface, error)
+	Get(address string) (*ServiceInterface, error)
+	Update(service *ServiceInterface) error
+	Delete(address string) error
 }
 
 type ServiceIngressMode string

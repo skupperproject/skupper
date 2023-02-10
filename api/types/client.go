@@ -17,6 +17,7 @@ type ConnectorCreateOptions struct {
 	SkupperNamespace string
 	Name             string
 	Cost             int32
+	Yaml             []byte
 }
 
 type ConnectorRemoveOptions struct {
@@ -121,6 +122,7 @@ const (
 	IngressNginxIngressString     string = "nginx-ingress-v1"
 	IngressContourHttpProxyString string = "contour-http-proxy"
 	IngressKubernetes             string = "ingress"
+	IngressPodmanExternal         string = "external"
 	IngressNoneString             string = "none"
 )
 
@@ -141,6 +143,9 @@ func (s *SiteConfigSpec) IsIngressContourHttpProxy() bool {
 }
 func (s *SiteConfigSpec) IsIngressKubernetes() bool {
 	return s.Ingress == IngressKubernetes
+}
+func (s *SiteConfigSpec) IsIngressPodmanHost() bool {
+	return s.Ingress == IngressPodmanExternal
 }
 func (s *SiteConfigSpec) IsIngressNone() bool {
 	return s.Ingress == IngressNoneString
@@ -177,7 +182,7 @@ func (s *SiteConfigSpec) getConsoleIngress() string {
 func ValidIngressOptions(platform Platform) []string {
 	switch platform {
 	case PlatformPodman:
-		return []string{}
+		return []string{IngressPodmanExternal, IngressNoneString}
 	default:
 		return []string{IngressRouteString, IngressLoadBalancerString, IngressNodePortString, IngressNginxIngressString, IngressContourHttpProxyString, IngressKubernetes, IngressNoneString}
 	}
@@ -268,6 +273,7 @@ type SiteInfo struct {
 	Name           string   `json:"site_name,omitempty"`
 	Namespace      string   `json:"namespace,omitempty"`
 	SiteId         string   `json:"site_id,omitempty"`
+	Platform       string   `json:"platform,omitempty"`
 	Url            string   `json:"url,omitempty"`
 	Version        string   `json:"version,omitempty"`
 	Gateway        bool     `json:"gateway,omitempty"`
@@ -303,7 +309,7 @@ type VanClientInterface interface {
 	RouterUpdateVersion(ctx context.Context, hup bool) (bool, error)
 	RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error)
 	ConnectorCreateFromFile(ctx context.Context, secretFile string, options ConnectorCreateOptions) (*corev1.Secret, error)
-	ConnectorCreateSecretFromData(ctx context.Context, secretData []byte, options ConnectorCreateOptions) (*corev1.Secret, error)
+	ConnectorCreateSecretFromData(ctx context.Context, options ConnectorCreateOptions) (*corev1.Secret, error)
 	ConnectorCreate(ctx context.Context, secret *corev1.Secret, options ConnectorCreateOptions) error
 	ConnectorInspect(ctx context.Context, name string) (*LinkStatus, error)
 	ConnectorList(ctx context.Context) ([]LinkStatus, error)

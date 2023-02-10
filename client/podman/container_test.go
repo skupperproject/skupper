@@ -1,14 +1,17 @@
 package podman
 
 import (
+	"context"
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/client/container"
+	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -24,11 +27,14 @@ func RandomName(name string) string {
 
 func TestContainer(t *testing.T) {
 	var err error
-	cli := NewClientOrSkip(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cli, wg := NewClientOrSkip(t, ctx)
+	defer wg.Wait()
+	defer cancel()
 
 	name := RandomName("skupper-test")
 
-	image := client.GetServiceControllerImageName()
+	image := images.GetServiceControllerImageName()
 	env := map[string]string{
 		"VAR1": "VAL1",
 		"VAR2": "VAL2",
@@ -173,15 +179,24 @@ func TestContainer(t *testing.T) {
 	})
 }
 
-func NewClientOrSkip(t *testing.T) *PodmanRestClient {
-	cli, err := NewPodmanClient("", "")
+func NewClientOrSkip(t *testing.T, ctx context.Context) (*PodmanRestClient, *sync.WaitGroup) {
+	var cli *PodmanRestClient
+	var err error
+	endpoint, wg := StartPodmanService(t, ctx, false)
+	err = utils.RetryError(time.Second, 10, func() error {
+		cli, err = NewPodmanClient(endpoint, "")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
 		t.Skipf("podman service is not available")
 	}
 	if _, err := cli.Version(); err != nil {
 		t.Skipf("podman service is not available")
 	}
-	return cli
+	return cli, wg
 }
 
 func ValidateMaps(t *testing.T, originalMap map[string]string, finalMap map[string]string) {

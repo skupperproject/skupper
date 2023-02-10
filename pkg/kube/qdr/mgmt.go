@@ -209,15 +209,6 @@ func getNodesForRouter(routerid, namespace string, clientset kubernetes.Interfac
 	}
 }
 
-func GetInterRouterOrEdgeConnection(host string, connections []qdr.Connection) *qdr.Connection {
-	for _, c := range connections {
-		if (c.Role == "inter-router" || c.Role == "edge") && c.Host == host {
-			return &c
-		}
-	}
-	return nil
-}
-
 func GetConnections(namespace string, clientset kubernetes.Interface, config *restclient.Config) ([]qdr.Connection, error) {
 	return getConnectionsForRouter("", namespace, clientset, config)
 }

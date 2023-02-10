@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/version"
 	"gotest.tools/assert"
@@ -141,6 +142,8 @@ func TestClaimHandler(t *testing.T) {
 		vanClient: cli,
 		siteId:    "site-a",
 	}
+	siteMeta, _ := cli.GetSiteMetadata()
+	handler.redeemer = domain.NewClaimRedeemer(handler.name, handler.siteId, siteMeta.Version, handler.updateSecret, event.Recordf)
 
 	verifier := &MockVerifier{
 		cli: &client.VanClient{
@@ -173,7 +176,7 @@ func TestClaimHandler(t *testing.T) {
 		},
 	}
 	verifier.addSuccessfulResult([]byte("abcdefg"), cert)
-	err = handler.redeemClaim(claim)
+	err = handler.redeemer.RedeemClaim(claim)
 	assert.Check(t, err, name)
 	secret, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Get(name, metav1.GetOptions{})
 	assert.Check(t, err, name)
@@ -200,6 +203,8 @@ func TestInvalidClaims(t *testing.T) {
 		vanClient: cli,
 		siteId:    "site-a",
 	}
+	siteMeta, _ := cli.GetSiteMetadata()
+	handler.redeemer = domain.NewClaimRedeemer(handler.name, handler.siteId, siteMeta.Version, handler.updateSecret, event.Recordf)
 
 	var tests = []struct {
 		secret *corev1.Secret
@@ -285,7 +290,7 @@ func TestInvalidClaims(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		err := handler.redeemClaim(test.secret)
+		err := handler.redeemer.RedeemClaim(test.secret)
 		assert.Check(t, err, test.secret.ObjectMeta.Name)
 		assert.Equal(t, test.secret.ObjectMeta.Annotations[types.StatusAnnotationKey], test.err, test.secret.ObjectMeta.Name)
 	}
@@ -393,6 +398,8 @@ func TestIncompatibleClaims(t *testing.T) {
 				vanClient: cli,
 				siteId:    "site-a",
 			}
+			siteMeta, _ := cli.GetSiteMetadata()
+			handler.redeemer = domain.NewClaimRedeemer(handler.name, handler.siteId, siteMeta.Version, handler.updateSecret, event.Recordf)
 
 			// defining the claim on the site that is going to redeem the claim
 			claim := newTestClaim(name, server.URL, password, test.clientSiteVersion)
@@ -403,7 +410,7 @@ func TestIncompatibleClaims(t *testing.T) {
 			verifier.cli.KubeClient = initFakeClientSet("claim-handler-server-test", test.serverSiteVersion)
 
 			// validating redeemClaim
-			err = handler.redeemClaim(claim)
+			err = handler.redeemer.RedeemClaim(claim)
 			assert.Assert(t, (err == nil) == (test.err == ""))
 			if test.err != "" {
 				assert.ErrorContains(t, err, test.err)

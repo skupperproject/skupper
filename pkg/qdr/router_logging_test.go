@@ -1,10 +1,9 @@
-package client
+package qdr
 
 import (
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 func TestParseRouterLogConfig(t *testing.T) {
@@ -145,13 +144,13 @@ func TestConfigureRouterLogging(t *testing.T) {
 		{"DEFAULT:notice+", false},
 		{"DEFAULT:info+", true},
 	}
-	config := qdr.RouterConfig{}
+	config := RouterConfig{}
 	for _, test := range tests {
 		parsed, err := ParseRouterLogConfig(test.input)
 		if err != nil {
 			t.Errorf("Invalid input: %s", err)
 		} else {
-			actual := configureRouterLogging(&config, parsed)
+			actual := ConfigureRouterLogging(&config, parsed)
 			if actual != test.expected {
 				t.Errorf("Wrong return value; expected %t got %t", test.expected, actual)
 

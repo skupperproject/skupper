@@ -1,4 +1,4 @@
-package client
+package images
 
 import (
 	"os"
@@ -50,7 +50,7 @@ func GetRouterImageDetails() types.ImageDetails {
 	}
 }
 
-func addRouterImageOverrideToEnv(env []corev1.EnvVar) []corev1.EnvVar {
+func AddRouterImageOverrideToEnv(env []corev1.EnvVar) []corev1.EnvVar {
 	result := env
 	image := os.Getenv(RouterImageEnvKey)
 	if image != "" {

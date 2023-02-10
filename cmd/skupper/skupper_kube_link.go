@@ -3,20 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/utils"
-	"io/ioutil"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/domain"
+	"github.com/skupperproject/skupper/pkg/domain/kube"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type SkupperKubeLink struct {
-	kube *SkupperKube
+	kube        *SkupperKube
+	linkHandler *kube.LinkHandlerKube
 }
 
 func (s *SkupperKubeLink) NewClient(cmd *cobra.Command, args []string) {
@@ -36,11 +37,7 @@ func (s *SkupperKubeLink) Create(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 	connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
-	yaml, err := ioutil.ReadFile(args[0])
-	if err != nil {
-		return fmt.Errorf("Could not read connection token: %s", err.Error())
-	}
-	secret, err := cli.ConnectorCreateSecretFromData(context.Background(), yaml, connectorCreateOpts)
+	secret, err := cli.ConnectorCreateSecretFromData(context.Background(), connectorCreateOpts)
 	if err != nil {
 		return fmt.Errorf("Failed to create link: %w", err)
 	} else {
@@ -72,18 +69,10 @@ func (s *SkupperKubeLink) CreateFlags(cmd *cobra.Command) {
 }
 
 func (s *SkupperKubeLink) Delete(cmd *cobra.Command, args []string) error {
-	silenceCobra(cmd)
 	cli := s.kube.Cli
-	connectorRemoveOpts.Name = args[0]
 	connectorRemoveOpts.SkupperNamespace = cli.GetNamespace()
 	connectorRemoveOpts.ForceCurrent = false
-	err := cli.ConnectorRemove(context.Background(), connectorRemoveOpts)
-	if err == nil {
-		fmt.Println("Link '" + args[0] + "' has been removed")
-	} else {
-		return fmt.Errorf("Failed to remove link: %w", err)
-	}
-	return nil
+	return cli.ConnectorRemove(context.Background(), connectorRemoveOpts)
 }
 
 func (s *SkupperKubeLink) DeleteFlags(cmd *cobra.Command) {}
@@ -113,142 +102,28 @@ func (s *SkupperKubeLink) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperKubeLink) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperKubeLink) Status(cmd *cobra.Command, args []string) error {
-	silenceCobra(cmd)
-
-	if remoteInfoTimeout.Seconds() <= 0 {
-		return fmt.Errorf(`invalid timeout value`)
-	}
-
-	if verboseLinkStatus && (len(args) == 0 || args[0] == "all") {
-		fmt.Println("In order to provide detailed information about the link, specify the link name")
-		return nil
-	}
-
-	siteConfig, err := s.kube.Cli.SiteConfigInspect(context.Background(), nil)
-
-	if err != nil {
-		fmt.Println("Site configuration is not currently available")
-	}
-
-	if len(args) == 1 && args[0] != "all" {
-		for i := 0; ; i++ {
-			if i > 0 {
-				time.Sleep(time.Second)
-			}
-			link, err := s.kube.Cli.ConnectorInspect(context.Background(), args[0])
-			if errors.IsNotFound(err) {
-				fmt.Printf("No such link %q", args[0])
-				fmt.Println()
-				break
-			} else if err != nil {
-				fmt.Println(err)
-				break
-			} else if verboseLinkStatus {
-				detailMap := createLinkDetailMap(link, siteConfig)
-				err = client.PrintKeyValueMap(detailMap)
-				if err != nil {
-					fmt.Println(err)
-				}
-				fmt.Println()
-				break
-
-			} else if link.Connected {
-				fmt.Printf("Link %s is active", link.Name)
-				fmt.Println()
-				break
-			} else if i == waitFor {
-				if link.Description != "" {
-					fmt.Printf("Link %s not active (%s)", link.Name, link.Description)
-				} else {
-					fmt.Printf("Link %s not active", link.Name)
-				}
-				fmt.Println()
-				break
-			}
-		}
-	} else {
-		for i := 0; ; i++ {
-			if i > 0 {
-				time.Sleep(time.Second)
-			}
-			links, err := s.kube.Cli.ConnectorList(context.Background())
-			if err != nil {
-				fmt.Println(err)
-				break
-			} else if allConnected(links) || i == waitFor {
-				fmt.Println("\nLinks created from this site:")
-				fmt.Println("-------------------------------")
-
-				if len(links) == 0 {
-					fmt.Println("There are no links configured or active")
-				}
-				for _, link := range links {
-					if link.Connected {
-						fmt.Printf("Link %s is active", link.Name)
-						fmt.Println()
-					} else {
-						if link.Description != "" {
-							fmt.Printf("Link %s not active (%s)", link.Name, link.Description)
-						} else {
-							fmt.Printf("Link %s not active", link.Name)
-						}
-						fmt.Println()
-					}
-				}
-
-				ctx, cancel := context.WithTimeout(context.Background(), remoteInfoTimeout)
-				defer cancel()
-
-				fmt.Println("\nCurrently active links from other sites:")
-				fmt.Println("----------------------------------------")
-
-				var remoteLinks []*types.RemoteLinkInfo
-				err := utils.RetryErrorWithContext(ctx, time.Second, func() error {
-					remoteLinks, err = s.kube.Cli.GetRemoteLinks(ctx, siteConfig)
-					if err != nil {
-						return err
-					}
-					return nil
-				})
-
-				if err != nil {
-					fmt.Println(err)
-					break
-				} else if len(remoteLinks) > 0 {
-					for _, remoteLink := range remoteLinks {
-						fmt.Printf("A link from the namespace %s on site %s(%s) is active ", remoteLink.Namespace, remoteLink.SiteName, remoteLink.SiteId)
-						fmt.Println()
-					}
-				} else {
-					fmt.Println("There are no active links")
-				}
-				break
-			}
-		}
-	}
 	return nil
 }
 
 func (s *SkupperKubeLink) StatusFlags(cmd *cobra.Command) {}
 
-func createLinkDetailMap(link *types.LinkStatus, siteConfig *types.SiteConfig) map[string]string {
-
-	status := "Active"
-
-	if !link.Connected {
-		status = "Not active"
-
-		if len(link.Description) > 0 {
-			status = fmt.Sprintf("%s (%s)", status, link.Description)
-		}
+func (s *SkupperKubeLink) LinkHandler() domain.LinkHandler {
+	if s.linkHandler != nil {
+		return s.linkHandler
 	}
-
-	return map[string]string{
-		"Name:":      link.Name,
-		"Status:":    status,
-		"Namespace:": siteConfig.Spec.SkupperNamespace,
-		"Site:":      siteConfig.Spec.SkupperName + "-" + siteConfig.Reference.UID,
-		"Cost:":      strconv.Itoa(link.Cost),
-		"Created:":   link.Created,
+	site, err := s.kube.Cli.SiteConfigInspect(context.Background(), nil)
+	if err != nil {
+		return nil
 	}
+	cli := s.kube.Cli.(*client.VanClient)
+	cm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(types.TransportConfigMapName, v1.GetOptions{})
+	if err != nil {
+		return nil
+	}
+	router, err := qdr.GetRouterConfigFromConfigMap(cm)
+	if err != nil {
+		return nil
+	}
+	s.linkHandler = kube.NewLinkHandlerKube(cli.Namespace, site, router, cli.KubeClient, cli.RestConfig)
+	return s.linkHandler
 }

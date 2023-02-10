@@ -1,11 +1,10 @@
-package client
+package qdr
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 func RouterLogConfigToString(config []types.RouterLogConfig) string {
@@ -20,7 +19,7 @@ func RouterLogConfigToString(config []types.RouterLogConfig) string {
 	return strings.Join(items, ",")
 }
 
-func configureRouterLogging(routerConfig *qdr.RouterConfig, logConfig []types.RouterLogConfig) bool {
+func ConfigureRouterLogging(routerConfig *RouterConfig, logConfig []types.RouterLogConfig) bool {
 	levels := map[string]string{}
 	for _, l := range logConfig {
 		levels[l.Module] = l.Level

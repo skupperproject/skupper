@@ -112,7 +112,7 @@ func (v *vanClientMock) RouterUpdateVersionInNamespace(ctx context.Context, hup 
 func (v *vanClientMock) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	return nil, nil
 }
-func (v *vanClientMock) ConnectorCreateSecretFromData(ctx context.Context, secretData []byte, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
+func (v *vanClientMock) ConnectorCreateSecretFromData(ctx context.Context, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
 	return nil, nil
 }
 

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -14,8 +15,8 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 	if err != nil {
 		return nil, err
 	}
-	//For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
-	latestLogging := RouterLogConfigToString(config.Router.Logging)
+	// For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
+	latestLogging := qdr.RouterLogConfigToString(config.Router.Logging)
 	updateLogging := false
 	if configmap.Data[SiteConfigRouterLoggingKey] != latestLogging {
 		configmap.Data[SiteConfigRouterLoggingKey] = latestLogging

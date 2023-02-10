@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -440,7 +439,7 @@ func (s *InitTester) ValidateRouterLogging(cluster *base.ClusterContext) error {
 	}
 
 	// Validating log levels
-	parsedLogConfig, err := client.ParseRouterLogConfig(s.RouterLogging)
+	parsedLogConfig, err := qdr.ParseRouterLogConfig(s.RouterLogging)
 	if s.RouterLogging != "" && parsedLogConfig == nil {
 		return fmt.Errorf("router logging is not configured properly (empty) - expected: %s", s.RouterLogging)
 	} else if s.RouterLogging == "" {
