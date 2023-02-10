@@ -118,7 +118,6 @@ func TestPodmanServiceHandler(t *testing.T) {
 					Service:     "192.168.122.1",
 				},
 			},
-			EnableTls:      true,
 			TlsCredentials: "nginx-tls-credentials",
 		},
 	}
