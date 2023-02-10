@@ -36,7 +36,8 @@ func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, conn
 					Identity:  groupIdentity,
 					StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 				},
-				Name: &groupName,
+				Name:             &groupName,
+				ProcessGroupRole: &External,
 			}
 		}
 		processName := *site.Name + "-" + *sourceHost
@@ -62,6 +63,7 @@ func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, conn
 				GroupIdentity: &groupIdentity,
 				HostName:      site.Name,
 				SourceHost:    sourceHost,
+				ProcessRole:   &External,
 			}
 		}
 	}
