@@ -1242,6 +1242,12 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 	}
 
+	///k8s kube config add option
+	err = kube.AddEventRecorderPermissions(van.Namespace, ownerRefs, cli.KubeClient, types.ControllerServiceAccountName)
+	if err != nil {
+		cli.EventRecorder.Enabled = false
+	}
+
 	return nil
 }
 

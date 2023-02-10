@@ -162,10 +162,10 @@ func (m *LinkManager) deleteLink(name string) (bool, error) {
 	secret, _ := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
 	err := m.cli.ConnectorRemove(context.Background(), types.ConnectorRemoveOptions{Name: name, SkupperNamespace: m.cli.Namespace})
 	if err != nil {
-		kube.RecordWarningEvent(m.cli.Namespace, LinkManagement, fmt.Sprintf("Error trying to delete secret %s: %s", secret.Name, err), m.cli.EventRecorder, m.cli.KubeClient)
+		kube.RecordWarningEvent(LinkManagement, fmt.Sprintf("Error trying to delete secret %s: %s", secret.Name, err), m.cli.EventRecorder)
 		return false, err
 	}
-	kube.RecordNormalEvent(m.cli.Namespace, LinkManagement, fmt.Sprintf("Deleted secret %s", secret.Name), m.cli.EventRecorder, m.cli.KubeClient)
+	kube.RecordNormalEvent(LinkManagement, fmt.Sprintf("Deleted secret %s", secret.Name), m.cli.EventRecorder)
 	return true, nil
 }
 
@@ -175,7 +175,7 @@ func (m *LinkManager) createLink(cost int, token []byte) error {
 		return err
 	}
 	message := fmt.Sprintf("Created link %q", secret.ObjectMeta.Name)
-	kube.RecordNormalEvent(m.cli.Namespace, LinkManagement, message, m.cli.EventRecorder, m.cli.KubeClient)
+	kube.RecordNormalEvent(LinkManagement, message, m.cli.EventRecorder)
 
 	return nil
 }

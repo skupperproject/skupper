@@ -5,6 +5,8 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/event"
 	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -12,9 +14,23 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
+const (
+	EventRecorderRoleName        string = "event-recorder"
+	EventRecorderRoleBindingName string = "event-recorder"
+)
+
+var EventRecorderPolicyRule = []rbacv1.PolicyRule{
+	{
+		Verbs:     []string{"watch", "create", "patch"},
+		APIGroups: []string{""},
+		Resources: []string{"events"},
+	},
+}
+
 type SkupperEventRecorder struct {
 	EventRecorder record.EventRecorder
 	Source        *v1.Service
+	Enabled       bool
 }
 
 func NewEventRecorder(namespace string, cli kubernetes.Interface) SkupperEventRecorder {
@@ -33,16 +49,69 @@ func NewEventRecorder(namespace string, cli kubernetes.Interface) SkupperEventRe
 	eventRecorder := SkupperEventRecorder{
 		EventRecorder: kubeEventRecorder,
 		Source:        service,
+		Enabled:       true,
 	}
 	return eventRecorder
 }
 
-func RecordWarningEvent(namespace string, reason string, message string, recorder SkupperEventRecorder, cli kubernetes.Interface) {
+func RecordWarningEvent(reason string, message string, recorder SkupperEventRecorder) {
 	event.Recordf(reason, message)
-	recorder.EventRecorder.Event(recorder.Source, v1.EventTypeWarning, reason, message)
+
+	if recorder.Enabled == true {
+		recorder.EventRecorder.Event(recorder.Source, v1.EventTypeWarning, reason, message)
+	}
 }
 
-func RecordNormalEvent(namespace string, reason string, message string, recorder SkupperEventRecorder, cli kubernetes.Interface) {
+func RecordNormalEvent(reason string, message string, recorder SkupperEventRecorder) {
 	event.Recordf(reason, message)
-	recorder.EventRecorder.Event(recorder.Source, v1.EventTypeNormal, reason, message)
+
+	if recorder.Enabled == true {
+		recorder.EventRecorder.Event(recorder.Source, v1.EventTypeNormal, reason, message)
+	}
+}
+
+func AddEventRecorderPermissions(namespace string, ownerRefs []metav1.OwnerReference, cli kubernetes.Interface, serviceAccountName string) error {
+	role := rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: EventRecorderRoleName,
+		},
+		Rules: EventRecorderPolicyRule,
+	}
+
+	role.ObjectMeta.OwnerReferences = ownerRefs
+
+	_, err := CreateRole(namespace, &role, cli)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	roleBinding := rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: EventRecorderRoleBindingName,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind: "ServiceAccount",
+			Name: serviceAccountName,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			Kind: "Role",
+			Name: EventRecorderRoleName,
+		},
+	}
+
+	roleBinding.ObjectMeta.OwnerReferences = ownerRefs
+	_, err = CreateRoleBinding(NamespaceFile, &roleBinding, cli)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	return nil
 }

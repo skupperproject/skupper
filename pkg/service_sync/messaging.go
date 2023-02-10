@@ -71,7 +71,7 @@ func (c *sender) _send() error {
 	}
 	c.client = client
 	message := fmt.Sprintf("Service sync sender connection to %s established", c.connectionFactory.Url())
-	kube.RecordNormalEvent(c.vanClient.GetNamespace(), ServiceSyncEvent, message, c.vanClient.EventRecorder, c.vanClient.KubeClient)
+	kube.RecordNormalEvent(ServiceSyncEvent, message, c.vanClient.EventRecorder)
 	defer client.Close()
 
 	sender, err := client.Sender(ServiceSyncAddress)
@@ -139,7 +139,7 @@ func (c *receiver) _receive() error {
 	}
 	c.client = client
 	message := fmt.Sprintf("Service sync receiver connection to %s established", c.connectionFactory.Url())
-	kube.RecordNormalEvent(c.vanClient.Namespace, ServiceSyncEvent, message, c.vanClient.EventRecorder, c.vanClient.KubeClient)
+	kube.RecordNormalEvent(ServiceSyncEvent, message, c.vanClient.EventRecorder)
 	defer client.Close()
 
 	receiver, err := client.Receiver(ServiceSyncAddress, 10)

@@ -389,7 +389,7 @@ func (c *PolicyController) validateServiceStateChanged() {
 			// If service is now allowed, but does not exist, remove its definition to let service sync recreate it
 			if len(service.Origin) > 0 && !service.IsAnnotated() && err != nil && errors.IsNotFound(err) {
 				message := fmt.Sprintf("[validateServiceStateChanged] service is now allowed %s", service.Address)
-				kube.RecordNormalEvent(c.cli.Namespace, c.name, message, c.eventRecorder, c.cli.KubeClient)
+				kube.RecordNormalEvent(c.name, message, c.eventRecorder)
 
 				c.cli.ServiceInterfaceRemove(context.Background(), service.Address)
 			}

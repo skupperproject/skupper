@@ -373,7 +373,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 
 func (c *Controller) DeleteService(svc *corev1.Service) error {
 	message := fmt.Sprintf("Deleting service %s", svc.ObjectMeta.Name)
-	kube.RecordNormalEvent(c.vanClient.Namespace, ServiceControllerDeleteEvent, message, c.eventRecorder, c.vanClient.KubeClient)
+	kube.RecordNormalEvent(ServiceControllerDeleteEvent, message, c.eventRecorder)
 
 	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(context.TODO(), svc.ObjectMeta.Name, metav1.DeleteOptions{})
 }
@@ -390,10 +390,10 @@ func (c *Controller) CreateService(svc *corev1.Service) error {
 
 	if err == nil {
 		message := fmt.Sprintf("Creating service %s", svc.ObjectMeta.Name)
-		kube.RecordNormalEvent(c.vanClient.Namespace, reason, message, c.eventRecorder, c.vanClient.KubeClient)
+		kube.RecordNormalEvent(reason, message, c.eventRecorder)
 	} else {
 		message := fmt.Sprintf("Error trying to create service %s: %s", svc.ObjectMeta.Name, err)
-		kube.RecordWarningEvent(c.vanClient.Namespace, reason, message, c.eventRecorder, c.vanClient.KubeClient)
+		kube.RecordWarningEvent(reason, message, c.eventRecorder)
 	}
 
 	return err

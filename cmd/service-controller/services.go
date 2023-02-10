@@ -299,7 +299,7 @@ func serveServices(m *ServiceManager) http.Handler {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
 					message := fmt.Sprintf("Service %s exposed", options.GetServiceName())
-					kube.RecordNormalEvent(m.cli.Namespace, ServiceManagement, message, m.cli.EventRecorder, m.cli.KubeClient)
+					kube.RecordNormalEvent(ServiceManagement, message, m.cli.EventRecorder)
 				}
 			}
 		} else if r.Method == http.MethodDelete {
@@ -311,7 +311,7 @@ func serveServices(m *ServiceManager) http.Handler {
 					http.Error(w, "No such service", http.StatusNotFound)
 				} else {
 					message := fmt.Sprintf("Service %s deleted", name)
-					kube.RecordNormalEvent(m.cli.Namespace, ServiceManagement, message, m.cli.EventRecorder, m.cli.KubeClient)
+					kube.RecordNormalEvent(ServiceManagement, message, m.cli.EventRecorder)
 				}
 			} else {
 				http.Error(w, "Invalid method", http.StatusMethodNotAllowed)

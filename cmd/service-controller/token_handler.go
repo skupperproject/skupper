@@ -66,7 +66,7 @@ func (c *TokenHandler) getTokenCost(token *corev1.Secret) (int32, bool) {
 
 func (c *TokenHandler) connect(token *corev1.Secret) error {
 	message := fmt.Sprintf("Connecting using token %s", token.ObjectMeta.Name)
-	kube.RecordNormalEvent(c.vanClient.Namespace, c.name, message, c.vanClient.EventRecorder, c.vanClient.KubeClient)
+	kube.RecordNormalEvent(c.name, message, c.vanClient.EventRecorder)
 	var options types.ConnectorCreateOptions
 	options.Name = token.ObjectMeta.Name
 	options.SkupperNamespace = c.vanClient.Namespace
@@ -82,7 +82,7 @@ func (c *TokenHandler) disconnect(key string) error {
 		return err
 	}
 	message := fmt.Sprintf(c.name, "Disconnecting connector %s", name)
-	kube.RecordNormalEvent(c.vanClient.Namespace, c.name, message, c.vanClient.EventRecorder, c.vanClient.KubeClient)
+	kube.RecordNormalEvent(c.name, message, c.vanClient.EventRecorder)
 	return c.removeConnectorFromConfig(context.Background(), name)
 }
 
