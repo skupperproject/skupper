@@ -87,7 +87,7 @@ commands:
     parameters:
       re:
         # This is for egrep, so you can do things like "(oom|error)"
-        default: "(out of memory|oom.?kill)"
+        default: "."
         type: string
     steps:
     - run:
@@ -137,7 +137,7 @@ commands:
     description: shows some point-in-time system status
     parameters:
       cluster_dump_re:
-        default: "(oom|error)"
+        default: "."
         type: string
     steps:
     - run:
