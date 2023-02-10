@@ -17,8 +17,7 @@ jobs:
       - uses: ./.github/actions/minikube-latest
       - name: Generating podman clients
         run: |
-          cd skupper
           make generate-client build-cmd
       - name: Skupper Podman System Tests
         run: |
-          cd skupper && go test -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
+          go test -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
