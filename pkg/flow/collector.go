@@ -1,13 +1,18 @@
 package flow
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/skupperproject/skupper/pkg/messaging"
+	"github.com/skupperproject/skupper/pkg/version"
 )
 
 type senderDirect struct {
@@ -34,10 +39,104 @@ type eventSource struct {
 	send            *senderDirect
 }
 
+type collectorMetrics struct {
+	info            *prometheus.GaugeVec
+	collectorOctets prometheus.Counter
+	flows           *prometheus.CounterVec
+	octets          *prometheus.CounterVec
+	httpReqsMethod  *prometheus.CounterVec
+	httpReqsResult  *prometheus.CounterVec
+	activeFlows     *prometheus.GaugeVec
+	lastAccessed    *prometheus.GaugeVec
+	flowLatency     *prometheus.HistogramVec
+	activeReconcile *prometheus.GaugeVec
+}
+
+func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics {
+	m := &collectorMetrics{
+		info: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "skupper_info",
+				Help: "Skupper deployment information",
+			},
+			[]string{"version"}),
+		collectorOctets: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "collector_octets_total",
+				Help: "The total number of record octets received by collector",
+			}),
+		flows: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "flows_total",
+				Help: "Total Flows",
+			},
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+		octets: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "octets_total",
+				Help: "Total Octets",
+			},
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+		httpReqsMethod: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "http_requests_method_total",
+				Help: "How many HTTP requests processed, partitioned by method",
+			},
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "method"}),
+		httpReqsResult: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "http_requests_result_total",
+				Help: "How many HTTP requests processed, partitioned by result code",
+			},
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "code"}),
+		activeFlows: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "active_flows",
+				Help: "Number of flows that are currently active, partititioned by source and destination",
+			},
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+		lastAccessed: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "address_last_time_seconds",
+				Help: "The last time the address was served",
+			},
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+		flowLatency: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name: "flow_latency_microseconds",
+				Help: "The measure latency for the direction of flow",
+				//                 1ms,  2 ms, 5ms,  10ms,  100ms,  1s,      10s
+				Buckets: []float64{1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
+			},
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+		activeReconcile: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "active_reconciles",
+				Help: "Number of active reconcile tasks, partitione by type",
+			},
+			[]string{"reconcileTask"}),
+	}
+	reg.MustRegister(m.info)
+	reg.MustRegister(m.collectorOctets)
+	reg.MustRegister(m.flows)
+	reg.MustRegister(m.octets)
+	reg.MustRegister(m.httpReqsMethod)
+	reg.MustRegister(m.httpReqsResult)
+	reg.MustRegister(m.activeFlows)
+	reg.MustRegister(m.lastAccessed)
+	reg.MustRegister(m.flowLatency)
+	reg.MustRegister(m.activeReconcile)
+	return m
+
+}
+
 type FlowCollector struct {
 	origin                  string
+	Collector               CollectorRecord
 	connectionFactory       messaging.ConnectionFactory
 	recordTtl               time.Duration
+	prometheusReg           prometheus.Registerer
+	metrics                 *collectorMetrics
 	beaconsIncoming         chan []interface{}
 	recordsIncoming         chan []interface{}
 	Request                 chan ApiRequest
@@ -69,7 +168,7 @@ type FlowCollector struct {
 
 func getTtl(ttl time.Duration) time.Duration {
 	if ttl == 0 {
-		return 30 * time.Minute
+		return 15 * time.Minute
 	}
 	if ttl < time.Minute {
 		return time.Minute
@@ -77,11 +176,12 @@ func getTtl(ttl time.Duration) time.Duration {
 	return ttl
 }
 
-func NewFlowCollector(origin string, connectionFactory messaging.ConnectionFactory, recordTtl time.Duration) *FlowCollector {
+func NewFlowCollector(origin string, reg prometheus.Registerer, connectionFactory messaging.ConnectionFactory, recordTtl time.Duration) *FlowCollector {
 	fc := &FlowCollector{
 		origin:                  origin,
 		connectionFactory:       connectionFactory,
 		recordTtl:               getTtl(recordTtl),
+		prometheusReg:           reg,
 		beaconsIncoming:         make(chan []interface{}),
 		recordsIncoming:         make(chan []interface{}),
 		Request:                 make(chan ApiRequest),
@@ -110,6 +210,14 @@ func NewFlowCollector(origin string, connectionFactory messaging.ConnectionFacto
 		processesToReconcile:    make(map[string]*ProcessRecord),
 		aggregatesToReconcile:   make(map[string]*FlowPairRecord),
 	}
+	fc.Collector = CollectorRecord{
+		Base: Base{
+			RecType:   recordNames[Collector],
+			Identity:  uuid.New().String(),
+			Parent:    origin,
+			StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+		},
+	}
 	return fc
 }
 
@@ -137,7 +245,6 @@ func (fc *FlowCollector) serveRecords(request ApiRequest) ApiResponse {
 		Body:   nil,
 		Status: http.StatusOK,
 	}
-
 	result, err := fc.retrieve(request)
 	if err == nil {
 		response.Body = result
@@ -145,6 +252,14 @@ func (fc *FlowCollector) serveRecords(request ApiRequest) ApiResponse {
 		response.Status = http.StatusInternalServerError
 	}
 	return response
+}
+
+func getRealSizeOf(v interface{}) (int, error) {
+	b := new(bytes.Buffer)
+	if err := gob.NewEncoder(b).Encode(v); err != nil {
+		return 0, err
+	}
+	return b.Len(), nil
 }
 
 func (c *FlowCollector) updates(stopCh <-chan struct{}) {
@@ -203,6 +318,8 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 			}
 		case recordUpdates := <-c.recordsIncoming:
 			for _, update := range recordUpdates {
+				size, _ := getRealSizeOf(update)
+				c.metrics.collectorOctets.Add(float64(size))
 				err := c.updateRecord(update)
 				if err != nil {
 					log.Println("Update record error", err.Error())
@@ -232,6 +349,8 @@ func (c *FlowCollector) Start(stopCh <-chan struct{}) {
 }
 
 func (c *FlowCollector) run(stopCh <-chan struct{}) {
+	c.metrics = c.NewMetrics(c.prometheusReg)
+	c.metrics.info.With(prometheus.Labels{"version": version.Version}).Set(1)
 	r := newReceiver(c.connectionFactory, BeaconAddress, c.beaconsIncoming)
 	c.receivers[BeaconAddress] = r
 	r.start()

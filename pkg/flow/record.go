@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -165,6 +166,11 @@ var attributeNames = []string{
 	"StreamIdentity",  // 47
 }
 
+var Internal string = "internal"
+var External string = "external"
+var Incoming string = "incoming"
+var Outgoing string = "outgoing"
+
 type Base struct {
 	RecType   string `json:"recType,omitempty"`
 	Identity  string `json:"identity,omitempty"`
@@ -203,15 +209,11 @@ type EventSourceRecord struct {
 
 type SiteRecord struct {
 	Base
-	Location           *string `json:"location,omitempty"`
-	Provider           *string `json:"provider,omitempty"`
-	Platform           *string `json:"platform,omitempty"`
-	Name               *string `json:"name,omitempty"`
-	NameSpace          *string `json:"nameSpace,omitempty"`
-	OctetsSent         uint64  `json:"octetsSent"`
-	OctetsSentRate     uint64  `json:"octetSentRate"`
-	OctetsReceived     uint64  `json:"octetsReceived"`
-	OctetsReceivedRate uint64  `json:"octetReceivedRate"`
+	Location  *string `json:"location,omitempty"`
+	Provider  *string `json:"provider,omitempty"`
+	Platform  *string `json:"platform,omitempty"`
+	Name      *string `json:"name,omitempty"`
+	NameSpace *string `json:"nameSpace,omitempty"`
 }
 
 type HostRecord struct {
@@ -261,6 +263,7 @@ type ListenerRecord struct {
 	FlowRateL4  *uint64 `json:"flowRateL4,omitempty"`
 	FlowCountL7 *uint64 `json:"flowCountL7,omitempty"`
 	FlowRateL7  *uint64 `json:"flowRateL7,omitempty"`
+	AddressId   *string `json:"addressId,omitempty"`
 }
 
 type ConnectorRecord struct {
@@ -274,50 +277,48 @@ type ConnectorRecord struct {
 	FlowCountL7 *uint64 `json:"flowCountL7,omitempty"`
 	FlowRateL7  *uint64 `json:"flowRateL7,omitempty"`
 	process     *string
+	AddressId   *string `json:"addressId,omitempty"`
+}
+
+type metricKey struct {
+	sourceSite    string
+	sourceProcess string
+	destSite      string
+	destProcess   string
 }
 
 // Van Address represents a service that is attached to the application network
 type VanAddressRecord struct {
 	Base
-	Name           string `json:"name,omitempty"`
-	Protocol       string `json:"protocol,omitempty"`
-	ListenerCount  int    `json:"listenerCount"`
-	ConnectorCount int    `json:"connectorCount"`
-	TotalFlows     int    `json:"totalFlows"`
-	CurrentFlows   int    `json:"currentFlows"`
-	SourceOctets   uint64 `json:"sourceOctets"`
-	DestOctets     uint64 `json:"destOctets"`
+	Name            string `json:"name,omitempty"`
+	Protocol        string `json:"protocol,omitempty"`
+	ListenerCount   int    `json:"listenerCount"`
+	ConnectorCount  int    `json:"connectorCount"`
+	flowCount       map[metricKey]prometheus.Counter
+	octetCount      map[metricKey]prometheus.Counter
+	lastAccessed    map[metricKey]prometheus.Gauge
+	flowLatency     map[metricKey]prometheus.Observer
+	activeFlowCount map[metricKey]prometheus.Gauge
 }
-
-var Internal string = "internal"
-var External string = "external"
 
 type ProcessRecord struct {
 	Base
-	Name               *string `json:"name,omitempty"`
-	ParentName         *string `json:"parentName,omitempty"`
-	ImageName          *string `json:"imageName,omitempty"`
-	Image              *string `json:"image,omitempty"`
-	GroupName          *string `json:"groupName,omitempty"`
-	GroupIdentity      *string `json:"groupIdentity,omitempty"`
-	HostName           *string `json:"hostName,omitempty"`
-	SourceHost         *string `json:"sourceHost,omitempty"`
-	ProcessRole        *string `json:"processRole,omitempty"`
-	OctetsSent         uint64  `json:"octetsSent"`
-	OctetsSentRate     uint64  `json:"octetSentRate"`
-	OctetsReceived     uint64  `json:"octetsReceived"`
-	OctetsReceivedRate uint64  `json:"octetReceivedRate"`
-	connector          *string
+	Name          *string `json:"name,omitempty"`
+	ParentName    *string `json:"parentName,omitempty"`
+	ImageName     *string `json:"imageName,omitempty"`
+	Image         *string `json:"image,omitempty"`
+	GroupName     *string `json:"groupName,omitempty"`
+	GroupIdentity *string `json:"groupIdentity,omitempty"`
+	HostName      *string `json:"hostName,omitempty"`
+	SourceHost    *string `json:"sourceHost,omitempty"`
+	ProcessRole   *string `json:"processRole,omitempty"`
+	connector     *string
 }
 
 type ProcessGroupRecord struct {
 	Base
-	Name               *string `json:"name,omitempty"`
-	ProcessGroupRole   *string `json:"processGroupRole,omitempty"`
-	OctetsSent         uint64  `json:"octetsSent"`
-	OctetsSentRate     uint64  `json:"octetSentRate"`
-	OctetsReceived     uint64  `json:"octetsReceived"`
-	OctetsReceivedRate uint64  `json:"octetReceivedRate"`
+	Name             *string `json:"name,omitempty"`
+	ProcessGroupRole *string `json:"processGroupRole,omitempty"`
 }
 
 type FlowPlace int
@@ -330,25 +331,29 @@ const (
 
 type FlowRecord struct {
 	Base
-	SourceHost     *string   `json:"sourceHost,omitempty"`
-	SourcePort     *string   `json:"sourcePort,omitempty"`
-	CounterFlow    *string   `json:"counterFlow,omitempty"`
-	Trace          *string   `json:"trace,omitempty"`
-	Latency        *uint64   `json:"latency,omitempty"`
-	Octets         *uint64   `json:"octets"`
-	OctetRate      *uint64   `json:"octetRate"`
-	OctetsOut      *uint64   `json:"octetsOut,omitempty"`
-	OctetsUnacked  *uint64   `json:"octetsUnacked,omitempty"`
-	WindowClosures *uint64   `json:"windowClosures,omitempty"`
-	WindowSize     *uint64   `json:"windowSize,omitempty"`
-	Reason         *string   `json:"reason,omitempty"`
-	Method         *string   `json:"method,omitempty"`
-	Result         *string   `json:"result,omitempty"`
-	StreamIdentity *uint64   `json:"streamIdentity,omitempty"`
-	Process        *string   `json:"process,omitempty"`
-	ProcessName    *string   `json:"processName,omitempty"`
-	Protocol       *string   `json:"protocol,omitempty"`
-	Place          FlowPlace `json:"place"`
+	SourceHost       *string   `json:"sourceHost,omitempty"`
+	SourcePort       *string   `json:"sourcePort,omitempty"`
+	CounterFlow      *string   `json:"counterFlow,omitempty"`
+	Trace            *string   `json:"trace,omitempty"`
+	Latency          *uint64   `json:"latency,omitempty"`
+	Octets           *uint64   `json:"octets"`
+	OctetRate        *uint64   `json:"octetRate"`
+	OctetsOut        *uint64   `json:"octetsOut,omitempty"`
+	OctetsUnacked    *uint64   `json:"octetsUnacked,omitempty"`
+	WindowClosures   *uint64   `json:"windowClosures,omitempty"`
+	WindowSize       *uint64   `json:"windowSize,omitempty"`
+	Reason           *string   `json:"reason,omitempty"`
+	Method           *string   `json:"method,omitempty"`
+	Result           *string   `json:"result,omitempty"`
+	StreamIdentity   *uint64   `json:"streamIdentity,omitempty"`
+	Process          *string   `json:"process,omitempty"`
+	ProcessName      *string   `json:"processName,omitempty"`
+	Protocol         *string   `json:"protocol,omitempty"`
+	Place            FlowPlace `json:"place"`
+	lastOctets       uint64
+	octetMetric      prometheus.Counter
+	activeFlowMetric prometheus.Gauge
+	httpReqsMetric   prometheus.Counter
 }
 
 // Note a flowpair does not have a defined parent relationship through Base
@@ -369,22 +374,12 @@ type FlowPairRecord struct {
 
 type FlowAggregateRecord struct {
 	Base
-	PairType                  string  `json:"pairType,omitempty"`
-	RecordCount               uint64  `json:"recordCount,omitempty"`
-	SourceId                  *string `json:"sourceId,omitempty"`
-	SourceName                *string `json:"sourceName,omitempty"`
-	DestinationId             *string `json:"destinationId,omitempty"`
-	DestinationName           *string `json:"destinationName,omitempty"`
-	SourceOctets              uint64  `json:"sourceOctets,omitempty"`
-	SourceOctetRate           uint64  `json:"sourceOctetRate,omitempty"`
-	SourceMinLatency          uint64  `json:"sourceMinLatency,omitempty"`
-	SourceMaxLatency          uint64  `json:"sourceMaxLatency,omitempty"`
-	SourceAverageLatency      uint64  `json:"sourceAverageLatency,omitempty"`
-	DestinationOctets         uint64  `json:"destinationOctets,omitempty"`
-	DestinationOctetRate      uint64  `json:"destinationOctetRate,omitempty"`
-	DestinationMinLatency     uint64  `json:"destinationMinLatency,omitempty"`
-	DestinationMaxLatency     uint64  `json:"destinationMaxLatency,omitempty"`
-	DestinationAverageLatency uint64  `json:"destinationAverageLatency,omitempty"`
+	PairType        string  `json:"pairType,omitempty"`
+	RecordCount     uint64  `json:"recordCount,omitempty"`
+	SourceId        *string `json:"sourceId,omitempty"`
+	SourceName      *string `json:"sourceName,omitempty"`
+	DestinationId   *string `json:"destinationId,omitempty"`
+	DestinationName *string `json:"destinationName,omitempty"`
 }
 
 type ControllerRecord struct {
@@ -413,7 +408,10 @@ type EgressRecord struct {
 
 type CollectorRecord struct {
 	Base
-	//	name, kind, process
+	PrometheusHost       string
+	PrometheusAuthMethod string
+	PrometheusUser       string
+	PrometheusPassword   string
 }
 
 type Payload struct {

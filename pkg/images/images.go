@@ -6,4 +6,6 @@ const (
 	ServiceControllerImageName string = "service-controller:master"
 	ConfigSyncImageName        string = "config-sync:master"
 	FlowCollectorImageName     string = "flow-collector:master"
+	PrometheusImageRegistry    string = "docker.io/prom"
+	PrometheusServerImageName  string = "prometheus"
 )

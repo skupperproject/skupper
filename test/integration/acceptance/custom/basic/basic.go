@@ -3,7 +3,11 @@ package basic
 import (
 	"context"
 	"encoding/json"
-	"github.com/prometheus/common/log"
+	"log"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -13,9 +17,6 @@ import (
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"testing"
-	"time"
 )
 
 const (

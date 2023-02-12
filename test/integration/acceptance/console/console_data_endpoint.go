@@ -2,8 +2,8 @@ package console
 
 import (
 	"context"
+	"log"
 
-	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -120,7 +120,7 @@ func CreateBackendDeployment(t *testing.T, cluster *client.VanClient) {
 }
 
 func Setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
-	log.Warn("Setting up deployments for console_data_endpoint test")
+	log.Println("Setting up deployments for console_data_endpoint test")
 	publicCluster, _ := r.GetPublicContext(1)
 	privateCluster, _ := r.GetPrivateContext(1)
 

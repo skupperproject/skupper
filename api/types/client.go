@@ -84,6 +84,14 @@ type FlowCollectorOptions struct {
 	FlowRecordTtl time.Duration
 }
 
+type PrometheusServerOptions struct {
+	Tuning
+	ExternalServer string
+	AuthMode       string
+	User           string
+	Password       string
+}
+
 type SiteConfigSpec struct {
 	SkupperName              string
 	SkupperNamespace         string
@@ -111,6 +119,7 @@ type SiteConfigSpec struct {
 	Controller               ControllerOptions
 	ConfigSync               ConfigSyncOptions
 	FlowCollector            FlowCollectorOptions
+	PrometheusServer         PrometheusServerOptions
 	Platform                 Platform
 	RunAsUser                int64
 	RunAsGroup               int64
