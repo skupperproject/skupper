@@ -113,7 +113,6 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*VanCli
 	} else {
 		c.Namespace = namespace
 	}
-	c.EventRecorder = kube.NewEventRecorder(c.Namespace, c.KubeClient)
 	c.DynamicClient, err = dynamic.NewForConfig(restconfig)
 	if err != nil {
 		return c, err

@@ -30,10 +30,10 @@ var EventRecorderPolicyRule = []rbacv1.PolicyRule{
 type SkupperEventRecorder struct {
 	EventRecorder record.EventRecorder
 	Source        *v1.Service
-	Enabled       bool
+	Disabled      bool
 }
 
-func NewEventRecorder(namespace string, cli kubernetes.Interface) SkupperEventRecorder {
+func NewEventRecorder(namespace string, cli kubernetes.Interface, disabled bool) SkupperEventRecorder {
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
@@ -49,23 +49,21 @@ func NewEventRecorder(namespace string, cli kubernetes.Interface) SkupperEventRe
 	eventRecorder := SkupperEventRecorder{
 		EventRecorder: kubeEventRecorder,
 		Source:        service,
-		Enabled:       true,
+		Disabled:      disabled,
 	}
 	return eventRecorder
 }
 
 func RecordWarningEvent(reason string, message string, recorder SkupperEventRecorder) {
 	event.Recordf(reason, message)
-
-	if recorder.Enabled == true {
+	if !recorder.Disabled && recorder.EventRecorder != nil && recorder.Source != nil {
 		recorder.EventRecorder.Event(recorder.Source, v1.EventTypeWarning, reason, message)
 	}
 }
 
 func RecordNormalEvent(reason string, message string, recorder SkupperEventRecorder) {
 	event.Recordf(reason, message)
-
-	if recorder.Enabled == true {
+	if !recorder.Disabled && recorder.EventRecorder != nil && recorder.Source != nil {
 		recorder.EventRecorder.Event(recorder.Source, v1.EventTypeNormal, reason, message)
 	}
 }

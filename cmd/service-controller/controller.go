@@ -74,7 +74,6 @@ type Controller struct {
 	policyHandler     *PolicyController
 	nodeWatcher       *NodeWatcher
 	tlsManager        *kubeqdr.TlsManager
-	eventRecorder     kube.SkupperEventRecorder
 }
 
 const (
@@ -176,7 +175,22 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 		disableServiceSync: disableServiceSync,
 	}
 	AddStaticPolicyWatcher(controller.policy)
-	controller.eventRecorder = kube.NewEventRecorder(cli.Namespace, cli.KubeClient)
+
+	siteCreationTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
+	if err == nil {
+		siteCreationTime = uint64(configmap.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
+	}
+	siteConfig, _ := controller.vanClient.SiteConfigInspect(context.TODO(), configmap)
+
+	var ttl time.Duration
+	var disableEvents = true
+	if siteConfig != nil {
+		ttl = siteConfig.Spec.SiteTtl
+		disableEvents = siteConfig.Spec.DisableSkupperEvents
+	}
+
+	controller.vanClient.EventRecorder = kube.NewEventRecorder(cli.Namespace, cli.KubeClient, disableEvents)
 
 	// Organize service definitions
 	controller.byOrigin = make(map[string]map[string]types.ServiceInterface)
@@ -202,16 +216,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
 		return kube.UpdateSkupperServices(changed, deleted, origin, cli.Namespace, cli.KubeClient)
 	}
-	siteCreationTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
-	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
-	if err == nil {
-		siteCreationTime = uint64(configmap.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
-	}
-	siteConfig, _ := controller.vanClient.SiteConfigInspect(context.TODO(), configmap)
-	var ttl time.Duration
-	if siteConfig != nil {
-		ttl = siteConfig.Spec.SiteTtl
-	}
+
 	controller.serviceSync = service_sync.NewServiceSync(origin, ttl, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler, cli)
 
 	controller.flowController = flow.NewFlowController(origin, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig))
@@ -373,7 +378,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 
 func (c *Controller) DeleteService(svc *corev1.Service) error {
 	message := fmt.Sprintf("Deleting service %s", svc.ObjectMeta.Name)
-	kube.RecordNormalEvent(ServiceControllerDeleteEvent, message, c.eventRecorder)
+	kube.RecordNormalEvent(ServiceControllerDeleteEvent, message, c.vanClient.EventRecorder)
 
 	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(context.TODO(), svc.ObjectMeta.Name, metav1.DeleteOptions{})
 }
@@ -390,10 +395,10 @@ func (c *Controller) CreateService(svc *corev1.Service) error {
 
 	if err == nil {
 		message := fmt.Sprintf("Creating service %s", svc.ObjectMeta.Name)
-		kube.RecordNormalEvent(reason, message, c.eventRecorder)
+		kube.RecordNormalEvent(reason, message, c.vanClient.EventRecorder)
 	} else {
 		message := fmt.Sprintf("Error trying to create service %s: %s", svc.ObjectMeta.Name, err)
-		kube.RecordWarningEvent(reason, message, c.eventRecorder)
+		kube.RecordWarningEvent(reason, message, c.vanClient.EventRecorder)
 	}
 
 	return err

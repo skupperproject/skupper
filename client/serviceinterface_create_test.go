@@ -147,7 +147,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			expectedErr:   "",
 			depsExpected:  []string{"skupper-router", "skupper-service-controller"},
 			cmsExpected:   []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
-			rolesExpected: []string{types.ControllerRoleName, types.TransportRoleName},
+			rolesExpected: []string{types.ControllerRoleName, types.TransportRoleName, kube.EventRecorderRoleName},
 			// The list of expected services is slightly different in
 			// the mock environment vs. a real cluster.
 			// It usually takes 10 or 12 seconds for the address service to
@@ -168,7 +168,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			expectedErr:      "",
 			depsExpected:     []string{"skupper-router", "skupper-service-controller"},
 			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
-			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
+			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName, kube.EventRecorderRoleName},
 			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
 			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-6-addr"},
 			secretsExpected:  []string{types.ServiceClientSecret, types.SiteCaSecret},

@@ -144,9 +144,10 @@ func TestCreateDeleteLinks(t *testing.T) {
 	cli := &client.VanClient{
 		Namespace:  testname,
 		KubeClient: fake.NewSimpleClientset(),
-	}
-	cli.EventRecorder = kube.SkupperEventRecorder{
-		EventRecorder: &record.FakeRecorder{},
+		EventRecorder: kube.SkupperEventRecorder{
+			EventRecorder: &record.FakeRecorder{},
+			Disabled:      true,
+		},
 	}
 
 	connectors := &MockConnectorManager{}
