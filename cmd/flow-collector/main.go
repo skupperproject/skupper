@@ -171,7 +171,7 @@ func main() {
 		log.Fatal("Error getting site config", err.Error())
 	}
 
-	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig, siteConfig.Spec.FlowRecordTtl)
+	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig, siteConfig.Spec.FlowCollector.FlowRecordTtl)
 	if err != nil {
 		log.Fatal("Error getting new flow collector ", err.Error())
 	}

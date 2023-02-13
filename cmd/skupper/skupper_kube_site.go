@@ -69,7 +69,7 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	if routerCreateOpts.SiteTtl != 0 && routerCreateOpts.SiteTtl < time.Minute {
 		return fmt.Errorf("The minimum value for service-sync-site-ttl is 1 minute")
 	}
-	if routerCreateOpts.EnableFlowCollector && routerCreateOpts.FlowRecordTtl != 0 && routerCreateOpts.FlowRecordTtl < time.Minute {
+	if routerCreateOpts.EnableFlowCollector && routerCreateOpts.FlowCollector.FlowRecordTtl != 0 && routerCreateOpts.FlowCollector.FlowRecordTtl < time.Minute {
 		return fmt.Errorf("The minimum value for flow-collector-record-ttl is 1 minute")
 	}
 
@@ -128,7 +128,6 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
 	cmd.Flags().DurationVar(&routerCreateOpts.SiteTtl, "service-sync-site-ttl", 0, "Time after which stale services, i.e. those whose site has not been heard from, created through service-sync are removed.")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-flow-collector", "", false, "Enable cross-site flow collection for the application network")
-	cmd.Flags().DurationVar(&routerCreateOpts.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set.")
 	cmd.Flags().Int64Var(&routerCreateOpts.RunAsUser, "run-as-user", 0, "The UID to run the entrypoint of the container processes")
 	cmd.Flags().Int64Var(&routerCreateOpts.RunAsGroup, "run-as-group", 0, "The GID to run the entrypoint of the container processes")
 
@@ -159,6 +158,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.CpuLimit, "config-sync-cpu-limit", "", "CPU limit for config-sync pods")
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
 
+	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 30 minutes.")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Cpu, "flow-collector-cpu", "", "CPU request for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Memory, "flow-collector-memory", "", "Memory request for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector pods")

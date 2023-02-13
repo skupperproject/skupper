@@ -81,6 +81,7 @@ type ConfigSyncOptions struct {
 
 type FlowCollectorOptions struct {
 	Tuning
+	FlowRecordTtl time.Duration
 }
 
 type SiteConfigSpec struct {
@@ -93,9 +94,8 @@ type SiteConfigSpec struct {
 	SiteTtl             time.Duration
 	EnableConsole       bool
 	EnableFlowCollector bool
-	FlowRecordTtl       time.Duration
 	EnableRestAPI       bool
-        AuthMode            string
+	AuthMode            string
 	User                string
 	Password            string
 	Ingress             string

@@ -136,9 +136,6 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if !spec.EnableFlowCollector {
 		siteConfig.Data[SiteConfigFlowCollectorKey] = "false"
 	}
-	if spec.FlowRecordTtl != 0 {
-		siteConfig.Data[SiteConfigFlowCollectorRecordTtlKey] = spec.FlowRecordTtl.String()
-	}
 	if spec.AuthMode != "" {
 		siteConfig.Data[SiteConfigConsoleAuthenticationKey] = spec.AuthMode
 	}
@@ -306,6 +303,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		siteConfig.Data[SiteConfigConfigSyncMemoryLimitKey] = spec.ConfigSync.MemoryLimit
 	}
 
+	if spec.FlowCollector.FlowRecordTtl != 0 {
+		siteConfig.Data[SiteConfigFlowCollectorRecordTtlKey] = spec.FlowCollector.FlowRecordTtl.String()
+	}
 	if spec.FlowCollector.Cpu != "" {
 		if _, err := resource.ParseQuantity(spec.FlowCollector.Cpu); err != nil {
 			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigFlowCollectorCpuKey, spec.FlowCollector.Cpu, err)
