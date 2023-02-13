@@ -36,6 +36,7 @@ type eventSource struct {
 type FlowCollector struct {
 	origin                  string
 	connectionFactory       messaging.ConnectionFactory
+	recordTtl               time.Duration
 	beaconsIncoming         chan []interface{}
 	recordsIncoming         chan []interface{}
 	Request                 chan ApiRequest
@@ -65,10 +66,21 @@ type FlowCollector struct {
 	aggregatesToReconcile   map[string]*FlowPairRecord
 }
 
-func NewFlowCollector(origin string, connectionFactory messaging.ConnectionFactory) *FlowCollector {
+func getTtl(ttl time.Duration) time.Duration {
+	if ttl == 0 {
+		return 30 * time.Minute
+	}
+	if ttl < time.Minute {
+		return time.Minute
+	}
+	return ttl
+}
+
+func NewFlowCollector(origin string, connectionFactory messaging.ConnectionFactory, recordTtl time.Duration) *FlowCollector {
 	fc := &FlowCollector{
 		origin:                  origin,
 		connectionFactory:       connectionFactory,
+		recordTtl:               getTtl(recordTtl),
 		beaconsIncoming:         make(chan []interface{}),
 		recordsIncoming:         make(chan []interface{}),
 		Request:                 make(chan ApiRequest),

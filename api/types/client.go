@@ -81,6 +81,7 @@ type ConfigSyncOptions struct {
 
 type FlowCollectorOptions struct {
 	Tuning
+	FlowRecordTtl time.Duration
 }
 
 type SiteConfigSpec struct {

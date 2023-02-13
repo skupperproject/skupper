@@ -36,7 +36,8 @@ func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, conn
 					Identity:  groupIdentity,
 					StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 				},
-				Name: &groupName,
+				Name:             &groupName,
+				ProcessGroupRole: &External,
 			}
 		}
 		processName := *site.Name + "-" + *sourceHost
@@ -62,6 +63,7 @@ func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, conn
 				GroupIdentity: &groupIdentity,
 				HostName:      site.Name,
 				SourceHost:    sourceHost,
+				ProcessRole:   &External,
 			}
 		}
 	}
@@ -1694,6 +1696,15 @@ func (fc *FlowCollector) reconcileRecords() error {
 			}
 		}
 	}
+
+	age := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - uint64(fc.recordTtl.Microseconds())
+	for flowId, flow := range fc.Flows {
+		if flow.EndTime != 0 && age > flow.EndTime {
+			delete(fc.Flows, flowId)
+			delete(fc.FlowPairs, "fp-"+flowId)
+		}
+	}
+
 	return nil
 }
 

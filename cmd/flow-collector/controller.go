@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"log"
+	"time"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -18,11 +19,11 @@ type Controller struct {
 	flowCollector *flow.FlowCollector
 }
 
-func NewController(origin string, scheme string, host string, port string, tlsConfig *tls.Config) (*Controller, error) {
+func NewController(origin string, scheme string, host string, port string, tlsConfig *tls.Config, recordTtl time.Duration) (*Controller, error) {
 
 	controller := &Controller{
 		origin:        origin,
-		flowCollector: flow.NewFlowCollector(origin, qdr.NewConnectionFactory(scheme+"://"+host+":"+port, tlsConfig)),
+		flowCollector: flow.NewFlowCollector(origin, qdr.NewConnectionFactory(scheme+"://"+host+":"+port, tlsConfig), recordTtl),
 	}
 
 	return controller, nil

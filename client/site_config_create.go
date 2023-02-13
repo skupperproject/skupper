@@ -37,6 +37,7 @@ const (
 
 	// flow collector options
 	SiteConfigFlowCollectorKey            string = "flow-collector"
+	SiteConfigFlowCollectorRecordTtlKey   string = "flow-collector-record-ttl"
 	SiteConfigFlowCollectorCpuKey         string = "flow-collector-cpu"
 	SiteConfigFlowCollectorMemoryKey      string = "flow-collector-memory"
 	SiteConfigFlowCollectorCpuLimitKey    string = "flow-collector-cpu-limit"
@@ -302,6 +303,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		siteConfig.Data[SiteConfigConfigSyncMemoryLimitKey] = spec.ConfigSync.MemoryLimit
 	}
 
+	if spec.FlowCollector.FlowRecordTtl != 0 {
+		siteConfig.Data[SiteConfigFlowCollectorRecordTtlKey] = spec.FlowCollector.FlowRecordTtl.String()
+	}
 	if spec.FlowCollector.Cpu != "" {
 		if _, err := resource.ParseQuantity(spec.FlowCollector.Cpu); err != nil {
 			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigFlowCollectorCpuKey, spec.FlowCollector.Cpu, err)

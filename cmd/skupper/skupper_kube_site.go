@@ -69,6 +69,9 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	if routerCreateOpts.SiteTtl != 0 && routerCreateOpts.SiteTtl < time.Minute {
 		return fmt.Errorf("The minimum value for service-sync-site-ttl is 1 minute")
 	}
+	if routerCreateOpts.EnableFlowCollector && routerCreateOpts.FlowCollector.FlowRecordTtl != 0 && routerCreateOpts.FlowCollector.FlowRecordTtl < time.Minute {
+		return fmt.Errorf("The minimum value for flow-collector-record-ttl is 1 minute")
+	}
 
 	if siteConfig == nil {
 		siteConfig, err = cli.SiteConfigCreate(context.Background(), routerCreateOpts)
@@ -155,6 +158,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.CpuLimit, "config-sync-cpu-limit", "", "CPU limit for config-sync pods")
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
 
+	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 30 minutes.")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Cpu, "flow-collector-cpu", "", "CPU request for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Memory, "flow-collector-memory", "", "Memory request for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector pods")
@@ -167,7 +171,6 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	f.Hidden = true
 	f = cmd.Flag("run-as-group")
 	f.Hidden = true
-
 	f = cmd.Flag("router-disable-mutual-tls")
 	f.Hidden = true
 

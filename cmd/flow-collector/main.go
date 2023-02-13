@@ -166,7 +166,12 @@ func main() {
 		log.Fatal("Error getting connect.json", err.Error())
 	}
 
-	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig)
+	siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+	if err != nil {
+		log.Fatal("Error getting site config", err.Error())
+	}
+
+	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig, siteConfig.Spec.FlowCollector.FlowRecordTtl)
 	if err != nil {
 		log.Fatal("Error getting new flow collector ", err.Error())
 	}
@@ -336,8 +341,7 @@ func main() {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-	if err == nil && siteConfig.Spec.EnableConsole {
+	if siteConfig.Spec.EnableConsole {
 		mux.PathPrefix("/").Handler(http.FileServer(http.Dir("/app/console/")))
 	} else {
 		log.Println("Skupper console is disabled")
