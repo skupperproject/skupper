@@ -524,7 +524,6 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 
 	endTime = time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
 
-	rb := r.(*base.ClusterTestRunnerBase)
 	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
 	if err != nil || job.Status.Succeeded != 1 {
 		logs, _ := k8s.GetJobsLogs(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, true)
