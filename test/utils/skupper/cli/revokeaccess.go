@@ -33,13 +33,13 @@ type RevokeAccessTester struct {
 	claimRecordsDeleted       bool
 }
 
-func (d *RevokeAccessTester) Command(cluster *base.ClusterContext) []string {
-	args := SkupperCommonOptions(cluster)
+func (d *RevokeAccessTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := SkupperCommonOptions(platform, cluster)
 	args = append(args, "revoke-access")
 	return args
 }
 
-func (d *RevokeAccessTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (d *RevokeAccessTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 
 	//
 	// Creating informers to monitor secrets and pods (before revoke-access is issued):
@@ -52,7 +52,7 @@ func (d *RevokeAccessTester) Run(cluster *base.ClusterContext) (stdout string, s
 	doneCh := d.initializeInformers(cluster, stopCh)
 
 	// Execute revoke-access command
-	stdout, stderr, err = RunSkupperCli(d.Command(cluster))
+	stdout, stderr, err = RunSkupperCli(d.Command(platform, cluster))
 	if err != nil {
 		return
 	}

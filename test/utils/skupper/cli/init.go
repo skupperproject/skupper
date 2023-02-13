@@ -46,9 +46,9 @@ type InitTester struct {
 	RunAsGroup            string
 }
 
-func (s *InitTester) Command(cluster *base.ClusterContext) []string {
+func (s *InitTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
 	// Populate common skupper options
-	args := SkupperCommonOptions(cluster)
+	args := SkupperCommonOptions(platform, cluster)
 	args = append(args, "init")
 
 	if s.ConsoleAuth != "" {
@@ -115,8 +115,8 @@ func (s *InitTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (s *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
-	stdout, stderr, err = RunSkupperCli(s.Command(cluster))
+func (s *InitTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+	stdout, stderr, err = RunSkupperCli(s.Command(platform, cluster))
 	if err != nil {
 		return
 	}

@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/skupperproject/skupper/api/types"
+
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
@@ -16,16 +18,16 @@ type UnforwardTester struct {
 	Address string
 }
 
-func (f *UnforwardTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (f *UnforwardTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "gateway", "unforward", f.Address)
 
 	return args
 }
 
-func (f *UnforwardTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (f *UnforwardTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute the gateway unforward command
-	stdout, stderr, err = cli.RunSkupperCli(f.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(f.Command(platform, cluster))
 	if err != nil {
 		return
 	}

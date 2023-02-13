@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
+
 	"github.com/skupperproject/skupper/test/utils/base"
 )
 
@@ -25,10 +27,10 @@ const (
 // it must be able to run the command and validate the results.
 type SkupperCommandTester interface {
 	// Command returns a slice of strings representing the composed arguments
-	Command(cluster *base.ClusterContext) []string
+	Command(platform types.Platform, cluster *base.ClusterContext) []string
 	// Run executed given command using the skupper binary and validates
 	// if execution was successful, returning stdout, stderr and error
-	Run(cluster *base.ClusterContext) (string, string, error)
+	Run(platform types.Platform, cluster *base.ClusterContext) (string, string, error)
 }
 
 type ErrorHookFunction func()
@@ -57,6 +59,7 @@ func (ts *TestScenario) AppendTasks(others ...TestScenario) {
 // SkupperTask defines a set of skupper commands (init, status, expose, ...) that will be
 // executed in the given ClusterContext
 type SkupperTask struct {
+	Platform types.Platform
 	Ctx      *base.ClusterContext
 	Commands []SkupperCommandTester
 }
@@ -69,7 +72,7 @@ func RunScenario(scenario TestScenario) (string, string, error) {
 	var stdout, stderr string
 	for _, task := range scenario.Tasks {
 		for _, cmd := range task.Commands {
-			stdout, stderr, err := cmd.Run(task.Ctx)
+			stdout, stderr, err := cmd.Run(task.Platform, task.Ctx)
 			if err != nil {
 				if scenario.ErrorHook != nil {
 					scenario.ErrorHook()
@@ -179,11 +182,12 @@ func RunSkupperCli(args []string) (string, string, error) {
 
 // SkupperCommonOptions returns a list of all options that are common
 // to all skupper commands
-func SkupperCommonOptions(cluster *base.ClusterContext) []string {
+func SkupperCommonOptions(platform types.Platform, cluster *base.ClusterContext) []string {
 	args := []string{}
 
 	args = append(args, "--namespace", cluster.Namespace)
 	args = append(args, "--kubeconfig", cluster.KubeConfig)
+	args = append(args, "--platform", string(platform))
 
 	return args
 }

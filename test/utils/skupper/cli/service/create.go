@@ -6,6 +6,8 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/skupperproject/skupper/api/types"
+
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -22,8 +24,8 @@ type CreateTester struct {
 	PolicyProhibits bool
 }
 
-func (s *CreateTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (s *CreateTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "service", "create", s.Name, strconv.Itoa(s.Port))
 
 	if s.Mapping != "" {
@@ -33,9 +35,9 @@ func (s *CreateTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (s *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (s *CreateTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute service create command
-	stdout, stderr, err = cli.RunSkupperCli(s.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(s.Command(platform, cluster))
 	if err != nil {
 		if s.PolicyProhibits {
 			err = cli.Expect{

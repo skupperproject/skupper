@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/skupperproject/skupper/api/types"
+
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
@@ -16,16 +18,16 @@ type UnbindTester struct {
 	Address string
 }
 
-func (b *UnbindTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (b *UnbindTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "gateway", "unbind", b.Address)
 
 	return args
 }
 
-func (b *UnbindTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (b *UnbindTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute the gateway unbind command
-	stdout, stderr, err = cli.RunSkupperCli(b.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(b.Command(platform, cluster))
 	if err != nil {
 		return
 	}

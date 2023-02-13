@@ -23,8 +23,8 @@ func (i *InitTester) isService() bool {
 	return i.Type == "" || i.Type == "service"
 }
 
-func (i *InitTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (i *InitTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "gateway", "init")
 
 	if i.Type != "" {
@@ -34,7 +34,7 @@ func (i *InitTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (i *InitTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	//
 	// Retrieve existing list of gateways
 	//
@@ -45,7 +45,7 @@ func (i *InitTester) Run(cluster *base.ClusterContext) (stdout string, stderr st
 	}
 
 	// Execute the gateway init command
-	stdout, stderr, err = cli.RunSkupperCli(i.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(i.Command(platform, cluster))
 	if err != nil {
 		return
 	}

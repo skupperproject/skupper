@@ -46,13 +46,13 @@ type StatusTester struct {
 	StrictInterfaceListCheck bool
 }
 
-func (s *StatusTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (s *StatusTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "service", "status")
 	return args
 }
 
-func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (s *StatusTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// The service status command needs to be executed multiple times, till expected
 	// results can be observed or until it times out
 	ctx, cancelFn := context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
@@ -68,7 +68,7 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		}
 		attempt++
 
-		stdout, stderr, err = s.run(cluster)
+		stdout, stderr, err = s.run(platform, cluster)
 		if err != nil {
 			log.Printf("error executing service status command: %v\nstdout:\n %s\nstderr:\n %s", err, stdout, stderr)
 			return false, nil
@@ -79,9 +79,9 @@ func (s *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	return
 }
 
-func (s *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute service create command
-	stdout, stderr, err = cli.RunSkupperCli(s.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(s.Command(platform, cluster))
 	if err != nil {
 		return
 	}

@@ -46,8 +46,8 @@ type CreateTester struct {
 	PolicyProhibits bool
 }
 
-func (t *CreateTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (t *CreateTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "token", "create", t.FileName)
 
 	if t.Name != "" {
@@ -69,9 +69,9 @@ func (t *CreateTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (t *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (t *CreateTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute token create command
-	stdout, stderr, err = cli.RunSkupperCli(t.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(t.Command(platform, cluster))
 	if err != nil {
 		log.Println("Validating token creation failing by policy")
 		if t.PolicyProhibits && strings.Contains(stderr, "Policy validation error: incoming links are not allowed") {

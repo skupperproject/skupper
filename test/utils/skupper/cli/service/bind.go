@@ -25,8 +25,8 @@ type BindTester struct {
 	PolicyProhibits       bool
 }
 
-func (s *BindTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (s *BindTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "service", "bind", s.ServiceName, s.TargetType, s.TargetName)
 
 	if s.Protocol != "" {
@@ -40,9 +40,9 @@ func (s *BindTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (s *BindTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (s *BindTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute service bind command
-	stdout, stderr, err = cli.RunSkupperCli(s.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(s.Command(platform, cluster))
 	if err != nil {
 		if s.ExpectServiceNotFound {
 			err = cli.Expect{

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
@@ -19,8 +20,8 @@ type CreateTester struct {
 	PolicyProhibits bool
 }
 
-func (l *CreateTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (l *CreateTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "link", "create", l.TokenFile)
 
 	if l.Name != "" {
@@ -34,9 +35,9 @@ func (l *CreateTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (l *CreateTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (l *CreateTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute link create command
-	stdout, stderr, err = cli.RunSkupperCli(l.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(l.Command(platform, cluster))
 	if err != nil {
 		if l.PolicyProhibits {
 			err = cli.Expect{

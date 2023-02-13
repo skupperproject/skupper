@@ -3,15 +3,17 @@ package link
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/utils"
-	"github.com/skupperproject/skupper/test/utils/base"
-	"github.com/skupperproject/skupper/test/utils/constants"
-	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/test/utils/base"
+	"github.com/skupperproject/skupper/test/utils/constants"
+	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 )
 
 // StatusTester runs `skupper link status` based on given attributes
@@ -31,8 +33,8 @@ const (
 	ClaimRefused ClaimFailure = "Claim refused"
 )
 
-func (l *StatusTester) Command(cluster *base.ClusterContext) []string {
-	args := cli.SkupperCommonOptions(cluster)
+func (l *StatusTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
+	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "link", "status")
 
 	if l.Name != "" {
@@ -52,7 +54,7 @@ func (l *StatusTester) Command(cluster *base.ClusterContext) []string {
 	return args
 }
 
-func (l *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (l *StatusTester) Run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// The link status command needs to be executed multiple times, till expected
 	// results can be observed or until it times out
 	ctx, cancelFn := context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
@@ -68,7 +70,7 @@ func (l *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 		}
 		attempt++
 
-		stdout, stderr, err = l.run(cluster)
+		stdout, stderr, err = l.run(platform, cluster)
 		log.Printf("Validating 'skupper link status' - attempt %d", attempt)
 		if err != nil {
 			log.Printf("error executing link status command: %v", err)
@@ -80,9 +82,9 @@ func (l *StatusTester) Run(cluster *base.ClusterContext) (stdout string, stderr 
 	return
 }
 
-func (l *StatusTester) run(cluster *base.ClusterContext) (stdout string, stderr string, err error) {
+func (l *StatusTester) run(platform types.Platform, cluster *base.ClusterContext) (stdout string, stderr string, err error) {
 	// Execute link status command
-	stdout, stderr, err = cli.RunSkupperCli(l.Command(cluster))
+	stdout, stderr, err = cli.RunSkupperCli(l.Command(platform, cluster))
 	if err != nil {
 		return
 	}
