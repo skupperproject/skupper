@@ -89,6 +89,12 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	} else {
 		result.Spec.EnableFlowCollector = false
 	}
+	if value, ok := siteConfig.Data[SiteConfigFlowCollectorRecordTtlKey]; ok {
+		ttl, err := time.ParseDuration(value)
+		if err == nil {
+			result.Spec.FlowRecordTtl = ttl
+		}
+	}
 	if value, ok := siteConfig.Data[SiteConfigRestAPIKey]; ok {
 		result.Spec.EnableRestAPI, _ = strconv.ParseBool(value)
 	} else {

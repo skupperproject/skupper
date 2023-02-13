@@ -1696,6 +1696,15 @@ func (fc *FlowCollector) reconcileRecords() error {
 			}
 		}
 	}
+
+	age := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - uint64(fc.recordTtl.Microseconds())
+	for flowId, flow := range fc.Flows {
+		if flow.EndTime != 0 && age > flow.EndTime {
+			delete(fc.Flows, flowId)
+			delete(fc.FlowPairs, "fp-"+flowId)
+		}
+	}
+
 	return nil
 }
 

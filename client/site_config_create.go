@@ -37,6 +37,7 @@ const (
 
 	// flow collector options
 	SiteConfigFlowCollectorKey            string = "flow-collector"
+	SiteConfigFlowCollectorRecordTtlKey   string = "flow-collector-record-ttl"
 	SiteConfigFlowCollectorCpuKey         string = "flow-collector-cpu"
 	SiteConfigFlowCollectorMemoryKey      string = "flow-collector-memory"
 	SiteConfigFlowCollectorCpuLimitKey    string = "flow-collector-cpu-limit"
@@ -134,6 +135,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if !spec.EnableFlowCollector {
 		siteConfig.Data[SiteConfigFlowCollectorKey] = "false"
+	}
+	if spec.FlowRecordTtl != 0 {
+		siteConfig.Data[SiteConfigFlowCollectorRecordTtlKey] = spec.FlowRecordTtl.String()
 	}
 	if spec.AuthMode != "" {
 		siteConfig.Data[SiteConfigConsoleAuthenticationKey] = spec.AuthMode
