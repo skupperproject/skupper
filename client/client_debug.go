@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -170,6 +171,14 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 				if err == nil {
 					writeTar(pod.Name+"-"+pod.Spec.Containers[container].Name+"-logs.txt", []byte(log), time.Now(), tw)
 				}
+
+				if hasRestartedContainer(pod) {
+					prevLog, err := kube.GetPodContainerLogsWithOpts(pod.Name, pod.Spec.Containers[container].Name, cli.Namespace, cli.KubeClient, v1.PodLogOptions{Previous: true})
+					if err == nil {
+						writeTar(pod.Name+"-"+pod.Spec.Containers[container].Name+"-logs-previous.txt", []byte(prevLog), time.Now(), tw)
+					}
+				}
+
 			}
 		}
 	}
@@ -181,6 +190,15 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 		}
 	}
 	return dumpFile, nil
+}
+
+func hasRestartedContainer(pod v1.Pod) bool {
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if containerStatus.RestartCount > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (cli *VanClient) execInServiceControllerPod(command []string) (*bytes.Buffer, error) {
