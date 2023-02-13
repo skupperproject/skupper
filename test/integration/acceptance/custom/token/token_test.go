@@ -50,6 +50,9 @@ func TestToken(t *testing.T) {
 
 	// teardown once test completes
 	tearDownFn := func() {
+		if t.Failed() {
+			runner.DumpTestInfo(needs.NamespaceId)
+		}
 		log.Println("entering teardown")
 		_ = pub.DeleteNamespace()
 		_ = prv.DeleteNamespace()

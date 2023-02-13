@@ -3,15 +3,16 @@ package headless
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/test/utils/tools"
 	apiv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"log"
-	"strings"
-	"testing"
-	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -340,6 +341,7 @@ func (r *BasicTestRunner) TearDown(ctx context.Context) {
 func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 
 	defer r.TearDown(ctx)
+	defer r.DumpOnFailure(t)
 	pub1Cluster, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 	prv1Cluster, err := r.GetPrivateContext(1)
@@ -389,4 +391,10 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 		t.Logf("Testing: %s\n", testDoc)
 		r.TestAccessToPods(ctx, t)
 	})
+}
+
+func (r *BasicTestRunner) DumpOnFailure(t *testing.T) {
+	if t.Failed() {
+		r.DumpTestInfo(r.Needs.NamespaceId)
+	}
 }

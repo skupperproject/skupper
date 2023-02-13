@@ -527,7 +527,6 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	rb := r.(*base.ClusterTestRunnerBase)
 	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
 	if err != nil || job.Status.Succeeded != 1 {
-		rb.DumpTestInfo(jobName)
 		logs, _ := k8s.GetJobsLogs(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, true)
 		log.Printf("%s job output: %s", jobName, logs)
 	}
@@ -537,7 +536,6 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 
 	job, err = k8s.WaitForJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
 	if err != nil || job.Status.Succeeded != 1 {
-		rb.DumpTestInfo(jobName)
 		logs, _ := k8s.GetJobsLogs(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, true)
 		log.Printf("%s job output: %s", jobName, logs)
 	}
