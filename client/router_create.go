@@ -797,7 +797,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	})
 
 	if !isEdge {
-		routerHosts := []string{types.TransportServiceName + "." + van.Namespace}
+		routerHosts := []string{types.TransportServiceName + "." + van.Namespace, types.TransportServiceName + "." + van.Namespace + ".svc.cluster.local"}
 		controllerHosts := []string{types.ControllerServiceName + "." + van.Namespace}
 		routerIngressHost := options.GetRouterIngressHost()
 		controllerIngressHost := options.GetControllerIngressHost()
