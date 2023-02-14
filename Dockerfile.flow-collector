@@ -13,9 +13,9 @@ RUN make
 FROM node:16.17 AS console-builder
 
 WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
-RUN tar -zxf main.tar.gz
-WORKDIR ./skupper-console-main
+ADD https://github.com/skupperproject/skupper-console/archive/refs/tags/1.3.0.tar.gz .
+RUN tar -zxf 1.3.0.tar.gz
+WORKDIR ./skupper-console-1.3.0
 RUN yarn install && yarn build
 
 FROM registry.access.redhat.com/ubi8-minimal
