@@ -28,5 +28,5 @@ USER 10000
 
 WORKDIR /app
 COPY --from=builder /go/src/app/flow-collector .
-COPY --from=console-builder /skupper-console/skupper-console-main/build/ console
+COPY --from=console-builder /skupper-console/skupper-console-1.3.0/build/ console
 CMD ["/app/flow-collector"]
