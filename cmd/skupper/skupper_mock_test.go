@@ -625,18 +625,9 @@ func TestCmdBind(t *testing.T) {
 		skupperCli.Cli = lcli
 	}
 
-	t.Run("invalidProtocol",
-		func(t *testing.T) {
-			resetCli()
-			protocol = "invalidProtocol"
-			err := cmd.RunE(&cobra.Command{}, args)
-			assert.Error(t, err, "invalidProtocol is not a valid protocol. Choose 'tcp', 'http' or 'http2'.")
-		})
-
 	t.Run("serviceNotFound",
 		func(t *testing.T) {
 			resetCli()
-			protocol = "tcp"
 			args = []string{"TheService", "type", "name"}
 			err := cmd.RunE(&cobra.Command{}, args)
 			assert.Error(t, err, "Service TheService not found")
@@ -645,7 +636,6 @@ func TestCmdBind(t *testing.T) {
 	t.Run("ServiceInterfaceInspect_fails",
 		func(t *testing.T) {
 			resetCli()
-			protocol = "tcp"
 			args = []string{"TheService", "type", "name"}
 			lcli.injectedReturns.serviceInterfaceInspect.err = fmt.Errorf("some error")
 			err := cmd.RunE(&cobra.Command{}, args)
@@ -663,7 +653,6 @@ func TestCmdBind(t *testing.T) {
 	t.Run("Success",
 		func(t *testing.T) {
 			resetCli()
-			protocol = "tcp"
 			targetPorts = []string{"567:567"}
 			expectedTargetPorts := map[int]int{567: 567}
 			args = []string{"TheService", "type", "name"}
@@ -683,7 +672,6 @@ func TestCmdBind(t *testing.T) {
 	t.Run("ServiceInterfaceBindFails",
 		func(t *testing.T) {
 			resetCli()
-			protocol = "tcp"
 			targetPorts = []string{"567"}
 			args = []string{"TheService", "type", "name"}
 			lcli.injectedReturns.serviceInterfaceInspect.serviceInterface = injectedService
