@@ -466,11 +466,6 @@ func ClusterRoles() []*rbacv1.ClusterRole {
 				Resources: []string{"nodes"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
-			{
-				Verbs:     []string{"watch", "create", "patch"},
-				APIGroups: []string{""},
-				Resources: []string{"events"},
-			},
 		},
 	})
 	return clusterRoles
