@@ -269,7 +269,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", err
 	}
 
-	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, targetPorts)
+	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, targetPorts)
 	if errors.IsNotFound(err) {
 		return "", SkupperNotInstalledError(cli.GetNamespace())
 	} else if err != nil {

@@ -242,12 +242,11 @@ func (v *vanClientMock) SkupperCheckService(service string, verbose bool) (*byte
 	return nil, nil
 }
 
-func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPorts map[int]int) error {
+func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, targetPorts map[int]int) error {
 	var calledWith = serviceInterfaceBindCallArgs{
 		service:     service,
 		targetType:  targetType,
 		targetName:  targetName,
-		protocol:    protocol,
 		targetPorts: targetPorts,
 	}
 	v.serviceInterfaceBindCalledWith = append(v.serviceInterfaceBindCalledWith, calledWith)
@@ -538,7 +537,6 @@ func TestExpose_Binding(t *testing.T) {
 		},
 		targetType:  "any",
 		targetName:  "name",
-		protocol:    test_protocol,
 		targetPorts: map[int]int{123: 234},
 	}
 
@@ -661,7 +659,6 @@ func TestCmdBind(t *testing.T) {
 			assert.Assert(t, err)
 			assert.Assert(t, len(lcli.serviceInterfaceBindCalledWith) == 1)
 			c := lcli.serviceInterfaceBindCalledWith[0]
-			assert.Assert(t, c.protocol == "tcp")
 			assert.Assert(t, c.targetType == "type")
 			assert.Assert(t, c.targetName == "name")
 			assert.Assert(t, reflect.DeepEqual(c.targetPorts, expectedTargetPorts))

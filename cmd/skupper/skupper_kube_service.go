@@ -168,7 +168,7 @@ func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 
 	service.TlsCertAuthority = tlsCertAuthority
 
-	err = s.kube.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, service.Protocol, portMapping)
+	err = s.kube.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, portMapping)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

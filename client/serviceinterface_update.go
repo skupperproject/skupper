@@ -183,7 +183,7 @@ func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types
 	}
 }
 
-func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPorts map[int]int) error {
+func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, targetPorts map[int]int) error {
 	policy := NewPolicyValidatorAPI(cli)
 	res, err := policy.Expose(targetType, targetName)
 	if err != nil {
@@ -198,9 +198,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		if err != nil {
 			return err
 		}
-		if protocol != "" && service.Protocol != protocol {
-			return fmt.Errorf("Invalid protocol %s for service with mapping %s", protocol, service.Protocol)
-		}
+
 		deducePorts := len(service.Ports) == 0 && len(targetPorts) == 0
 		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, cli.Namespace, cli.KubeClient, cli.OCAppsClient)
 		if err != nil {
@@ -221,7 +219,7 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 			}
 		}
 		if len(service.Ports) == 0 {
-			if protocol == "http" {
+			if service.Protocol == "http" {
 				service.Ports = append(service.Ports, 80)
 			} else {
 				return fmt.Errorf("Service port required and cannot be deduced.")
