@@ -90,6 +90,7 @@ func RunBasicTopologyTests(m *testing.M, topology BasicTopologySetup) {
 	}
 
 	// Running package level tests
-	m.Run()
-
+	if code := m.Run(); code != 0 {
+		testRunner.DumpTestInfo(namespaceId)
+	}
 }
