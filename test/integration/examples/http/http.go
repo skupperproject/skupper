@@ -493,9 +493,6 @@ func runHeyTesWithParameter(t *testing.T, cluster *base.ClusterContext, numOfWor
 		t.Helper()
 		job, err := k8s.WaitForJob(cc.Namespace, cc.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
 		_, _ = cc.KubectlExec("logs job/" + jobName)
-		if err != nil {
-			cc.DumpTestInfo(jobName)
-		}
 		assert.Assert(t, err)
 		k8s.AssertJob(t, job)
 	}
@@ -607,9 +604,6 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 		t.Helper()
 		job, err := k8s.WaitForJob(cc.Namespace, cc.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
 		_, _ = cc.KubectlExec("logs job/" + jobName)
-		if err != nil {
-			cc.DumpTestInfo(jobName)
-		}
 		assert.Assert(t, err)
 		k8s.AssertJob(t, job)
 	}

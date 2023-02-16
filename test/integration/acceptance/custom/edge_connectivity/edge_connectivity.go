@@ -192,6 +192,13 @@ func (r *EdgeConnectivityTestRunner) Run(ctx context.Context, testcase *TestCase
 
 	r.Setup(ctx, testcase, t)
 	defer r.TearDown(ctx, testcase) // pass in testcase as arg, get rid of current_testcase global.
+	defer r.DumpOnFailure(t, testcase)
 	err := r.RunTests(testcase, ctx, t)
 	assert.Assert(t, err)
+}
+
+func (r *EdgeConnectivityTestRunner) DumpOnFailure(t *testing.T, testcase *TestCase) {
+	if t.Failed() {
+		r.DumpTestInfo("edgecon-" + testcase.name)
+	}
 }

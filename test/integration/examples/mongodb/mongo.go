@@ -61,9 +61,6 @@ func RunTests(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 			quit(1);
 		}'
 	`)
-	if err != nil {
-		r.DumpTestInfo(jobName)
-	}
 	assert.Assert(t, err)
 
 	// Let's wait until the election is settled, for a maximum of 5 min
@@ -89,9 +86,6 @@ func RunTests(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 	jobLogs, _ := k8s.GetJobsLogs(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, true)
 	t.Logf("%s logs:", jobName)
 	t.Logf(jobLogs)
-	if err != nil {
-		r.DumpTestInfo(jobName)
-	}
 	assert.Assert(t, err)
 
 	k8s.AssertJob(t, job)
