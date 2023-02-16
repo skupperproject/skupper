@@ -454,8 +454,17 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 					site.IngressBindEdgePort = siteIng.GetPort()
 				}
 			}
+			switch c := comp.(type) {
+			case *domain.Router:
+				site.RouterOpts.DebugMode = c.Env["QDROUTERD_DEBUG"]
+				site.RouterOpts.Logging = qdr.GetRouterLogging(config)
+			}
 		}
 	}
+
+	// Router options from router config
+	site.RouterOpts.MaxFrameSize = config.Listeners["interior-listener"].MaxFrameSize
+	site.RouterOpts.MaxSessionFrames = config.Listeners["interior-listener"].MaxSessionFrames
 
 	return site, nil
 }
