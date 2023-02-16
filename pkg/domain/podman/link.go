@@ -156,7 +156,11 @@ func (l *LinkHandler) Create(secret *corev1.Secret, name string, cost int) error
 	if err = l.routerManager.CreateConnector(connector); err != nil {
 		return fmt.Errorf("error defining connector %s - %w", connector.Name, err)
 	}
-	return err
+
+	fmt.Printf("Site configured to link to %s:%s (name=%s)\n", hostname, port, name)
+	fmt.Println("Check the status of the link using 'skupper link status'.")
+
+	return nil
 }
 
 func (l *LinkHandler) IsValidLink(name string) error {
