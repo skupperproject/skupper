@@ -117,7 +117,7 @@ func (l *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 	if string(l.Failure) != "" {
 		failureStr = fmt.Sprintf(` \(Failed to redeem claim: %s\)`, l.Failure)
 	}
-	outRegex := regexp.MustCompile(fmt.Sprintf(`Link %s %s active%s`, connName, activePrefix, failureStr))
+	outRegex := regexp.MustCompile(fmt.Sprintf(`Link %s %s connected%s`, connName, activePrefix, failureStr))
 
 	// Ensure stdout matches expected regexp
 	if !outRegex.MatchString(stdout) {
