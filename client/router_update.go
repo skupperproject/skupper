@@ -71,7 +71,7 @@ func (cli *VanClient) isUpdating(namespace string) (bool, string, error) {
 
 func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bool, namespace string) (bool, error) {
 	// Validate if router config file needs to be renamed
-	renamedSkRouter, err := cli.renameRouterConfigFile()
+	renamedSkRouter, err := cli.renameRouterConfigFile(namespace)
 	if err != nil {
 		return false, err
 	}
@@ -557,7 +557,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	}
 
 	if substituteFlowCollector {
-		siteConfig, _ := cli.SiteConfigInspect(ctx, nil)
+		siteConfig, _ := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
 		if siteConfig.Spec.EnableConsole {
 			err = convertSiteConfigToCollectorEnabled(ctx, cli, namespace)
 			if err != nil {
@@ -699,8 +699,11 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	return updateRouter || updateController || updateSite, nil
 }
 
-func (cli *VanClient) renameRouterConfigFile() (bool, error) {
-	cm, err := kube.GetConfigMap(types.TransportConfigMapName, cli.Namespace, cli.KubeClient)
+func (cli *VanClient) renameRouterConfigFile(namespace string) (bool, error) {
+	if namespace == "" {
+		namespace = cli.Namespace
+	}
+	cm, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli.KubeClient)
 	if err != nil {
 		return false, err
 	}
