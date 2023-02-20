@@ -18,7 +18,6 @@ type BindTester struct {
 	ServiceName string
 	TargetType  string
 	TargetName  string
-	Protocol    string
 	TargetPort  int
 
 	ExpectServiceNotFound bool
@@ -28,10 +27,6 @@ type BindTester struct {
 func (s *BindTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
 	args := cli.SkupperCommonOptions(platform, cluster)
 	args = append(args, "service", "bind", s.ServiceName, s.TargetType, s.TargetName)
-
-	if s.Protocol != "" {
-		args = append(args, "--protocol", s.Protocol)
-	}
 
 	if s.TargetPort > 0 {
 		args = append(args, "--target-port", strconv.Itoa(s.TargetPort))

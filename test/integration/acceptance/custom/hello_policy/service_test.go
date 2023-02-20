@@ -255,7 +255,6 @@ func frontendServiceBindTestScenario(pub *base.ClusterContext, prefix string) (s
 						ServiceName: "hello-world-frontend",
 						TargetType:  "deployment",
 						TargetName:  "hello-world-frontend",
-						Protocol:    "http",
 						TargetPort:  8080,
 					},
 					// skupper service status - validate status expecting frontend now has a target
@@ -301,7 +300,6 @@ func backendServiceBindTestScenario(prv *base.ClusterContext, prefix string) (sc
 						ServiceName: "hello-world-backend",
 						TargetType:  "deployment",
 						TargetName:  "hello-world-backend",
-						Protocol:    "http",
 						TargetPort:  8080,
 					},
 					// skupper service status - validate backend service now has a target

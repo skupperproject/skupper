@@ -242,12 +242,11 @@ func (v *vanClientMock) SkupperCheckService(service string, verbose bool) (*byte
 	return nil, nil
 }
 
-func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPorts map[int]int) error {
+func (v *vanClientMock) ServiceInterfaceBind(ctx context.Context, service *types.ServiceInterface, targetType string, targetName string, targetPorts map[int]int) error {
 	var calledWith = serviceInterfaceBindCallArgs{
 		service:     service,
 		targetType:  targetType,
 		targetName:  targetName,
-		protocol:    protocol,
 		targetPorts: targetPorts,
 	}
 	v.serviceInterfaceBindCalledWith = append(v.serviceInterfaceBindCalledWith, calledWith)
@@ -538,7 +537,6 @@ func TestExpose_Binding(t *testing.T) {
 		},
 		targetType:  "any",
 		targetName:  "name",
-		protocol:    test_protocol,
 		targetPorts: map[int]int{123: 234},
 	}
 
@@ -625,18 +623,9 @@ func TestCmdBind(t *testing.T) {
 		skupperCli.Cli = lcli
 	}
 
-	t.Run("invalidProtocol",
-		func(t *testing.T) {
-			resetCli()
-			protocol = "invalidProtocol"
-			err := cmd.RunE(&cobra.Command{}, args)
-			assert.Error(t, err, "invalidProtocol is not a valid protocol. Choose 'tcp', 'http' or 'http2'.")
-		})
-
 	t.Run("serviceNotFound",
 		func(t *testing.T) {
 			resetCli()
-			protocol = "tcp"
 			args = []string{"TheService", "type", "name"}
 			err := cmd.RunE(&cobra.Command{}, args)
 			assert.Error(t, err, "Service TheService not found")
@@ -645,7 +634,6 @@ func TestCmdBind(t *testing.T) {
 	t.Run("ServiceInterfaceInspect_fails",
 		func(t *testing.T) {
 			resetCli()
-			protocol = "tcp"
 			args = []string{"TheService", "type", "name"}
 			lcli.injectedReturns.serviceInterfaceInspect.err = fmt.Errorf("some error")
 			err := cmd.RunE(&cobra.Command{}, args)
@@ -663,7 +651,6 @@ func TestCmdBind(t *testing.T) {
 	t.Run("Success",
 		func(t *testing.T) {
 			resetCli()
-			protocol = "tcp"
 			targetPorts = []string{"567:567"}
 			expectedTargetPorts := map[int]int{567: 567}
 			args = []string{"TheService", "type", "name"}
@@ -672,7 +659,6 @@ func TestCmdBind(t *testing.T) {
 			assert.Assert(t, err)
 			assert.Assert(t, len(lcli.serviceInterfaceBindCalledWith) == 1)
 			c := lcli.serviceInterfaceBindCalledWith[0]
-			assert.Assert(t, c.protocol == "tcp")
 			assert.Assert(t, c.targetType == "type")
 			assert.Assert(t, c.targetName == "name")
 			assert.Assert(t, reflect.DeepEqual(c.targetPorts, expectedTargetPorts))
@@ -683,7 +669,6 @@ func TestCmdBind(t *testing.T) {
 	t.Run("ServiceInterfaceBindFails",
 		func(t *testing.T) {
 			resetCli()
-			protocol = "tcp"
 			targetPorts = []string{"567"}
 			args = []string{"TheService", "type", "name"}
 			lcli.injectedReturns.serviceInterfaceInspect.serviceInterface = injectedService
