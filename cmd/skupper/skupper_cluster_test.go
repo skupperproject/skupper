@@ -1329,14 +1329,6 @@ func TestBindWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "bind-test4",
-			args:            []string{"tcp-go-echo", "deployment", "tcp-go-echo3", "--protocol", "sctp"},
-			expectedCapture: "",
-			expectedOutput:  "",
-			expectedError:   "sctp is not a valid protocol. Choose 'tcp', 'http' or 'http2'",
-			realCluster:     true,
-		},
-		{
-			doc:             "bind-test5",
 			args:            []string{"web", "service", "web", "--publish-not-ready-addresses"},
 			expectedCapture: "",
 			expectedOutput:  "",

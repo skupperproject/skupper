@@ -242,7 +242,6 @@ func bindTestScenario(ctx *base.ClusterContext, kind, target string, works bool)
 						ServiceName:     target,
 						TargetType:      kind,
 						TargetName:      target,
-						Protocol:        "http",
 						TargetPort:      8080,
 						PolicyProhibits: !works,
 					},

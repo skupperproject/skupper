@@ -246,7 +246,6 @@ func TestHelloWorldCLI(t *testing.T) {
 						ServiceName: "hello-world-frontend",
 						TargetType:  "deployment",
 						TargetName:  "hello-world-frontend",
-						Protocol:    "http",
 						TargetPort:  8080,
 					},
 					// skupper service status - validate status expecting frontend now has a target
@@ -265,7 +264,6 @@ func TestHelloWorldCLI(t *testing.T) {
 						ServiceName: "hello-world-backend",
 						TargetType:  "deployment",
 						TargetName:  "hello-world-backend",
-						Protocol:    "http",
 						TargetPort:  8080,
 					},
 					// skupper service status - validate backend service now has a target

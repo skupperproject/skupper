@@ -269,7 +269,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", err
 	}
 
-	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, options.Protocol, targetPorts)
+	err = cli.ServiceInterfaceBind(ctx, service, targetType, targetName, targetPorts)
 	if errors.IsNotFound(err) {
 		return "", SkupperNotInstalledError(cli.GetNamespace())
 	} else if err != nil {
@@ -726,7 +726,6 @@ func NewCmdDeleteService(skupperClient SkupperServiceClient) *cobra.Command {
 }
 
 var targetPorts []string
-var protocol string
 var publishNotReadyAddresses bool
 var tlsCertAuthority string
 
@@ -738,13 +737,11 @@ func NewCmdBind(skupperClient SkupperServiceClient) *cobra.Command {
 		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			if protocol != "" && protocol != "tcp" && protocol != "http" && protocol != "http2" {
-				return fmt.Errorf("%s is not a valid protocol. Choose 'tcp', 'http' or 'http2'.", protocol)
-			}
+
 			return skupperClient.Bind(cmd, args)
 		},
 	}
-	cmd.Flags().StringVar(&protocol, "protocol", "", "The protocol to proxy (tcp, http or http2).")
+
 	cmd.Flags().StringSliceVar(&targetPorts, "target-port", []string{}, "The port the target is listening on (you can also use colon to map source-port to a target-port).")
 	cmd.Flags().StringVar(&tlsCertAuthority, "tls-trust", "", "K8s secret name with the CA to expose the service over TLS (valid only for http2 and tcp protocols)")
 
