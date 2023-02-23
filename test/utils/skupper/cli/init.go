@@ -9,6 +9,10 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client/container"
+	clientpodman "github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/domain"
+	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -44,6 +48,16 @@ type InitTester struct {
 	EnableFlowCollector   bool
 	RunAsUser             string
 	RunAsGroup            string
+	Podman                PodmanInitOptions
+}
+
+type PodmanInitOptions struct {
+	IngressHosts     []string
+	IngressBindIPs   []string
+	BindPort         int
+	BindPortEdge     int
+	ContainerNetwork string
+	Endpoint         string
 }
 
 func (s *InitTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
@@ -104,14 +118,39 @@ func (s *InitTester) Command(platform types.Platform, cluster *base.ClusterConte
 	if s.SiteName != "" {
 		args = append(args, "--site-name", s.SiteName)
 	}
-	args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
-	args = append(args, fmt.Sprintf("--enable-flow-collector=%v", s.EnableFlowCollector))
+	if platform.IsKubernetes() {
+		args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
+		args = append(args, fmt.Sprintf("--enable-flow-collector=%v", s.EnableFlowCollector))
+	}
 	if s.RunAsUser != "" {
 		args = append(args, "--run-as-user", s.RunAsUser)
 	}
 	if s.RunAsGroup != "" {
 		args = append(args, "--run-as-group", s.RunAsGroup)
 	}
+
+	//
+	// podman options
+	//
+	for _, host := range s.Podman.IngressHosts {
+		args = append(args, "--ingress-host", host)
+	}
+	for _, ip := range s.Podman.IngressBindIPs {
+		args = append(args, "--ingress-bind-ip", ip)
+	}
+	if s.Podman.BindPort > 0 {
+		args = append(args, "--bind-port", strconv.Itoa(s.Podman.BindPort))
+	}
+	if s.Podman.BindPortEdge > 0 {
+		args = append(args, "--bind-port-edge", strconv.Itoa(s.Podman.BindPortEdge))
+	}
+	if s.Podman.ContainerNetwork != "" {
+		args = append(args, "--container-network", s.Podman.ContainerNetwork)
+	}
+	if s.Podman.Endpoint != "" {
+		args = append(args, "--podman-endpoint", s.Podman.Endpoint)
+	}
+
 	return args
 }
 
@@ -120,7 +159,16 @@ func (s *InitTester) Run(platform types.Platform, cluster *base.ClusterContext) 
 	if err != nil {
 		return
 	}
+	switch platform {
+	case types.PlatformPodman:
+		err = s.ValidatePodman(stdout, stderr)
+	default:
+		err = s.ValidateKubernetes(cluster, stdout, stderr)
+	}
+	return
+}
 
+func (s *InitTester) ValidateKubernetes(cluster *base.ClusterContext, stdout, stderr string) (err error) {
 	// Validate if init output contains the namespace where skupper was installed
 	log.Println("Validating 'skupper init'")
 	if !strings.Contains(stdout, fmt.Sprintf("Skupper is now installed in namespace '%s'.", cluster.Namespace)) {
@@ -438,6 +486,10 @@ func (s *InitTester) ValidateRouterLogging(cluster *base.ClusterContext) error {
 		return err
 	}
 
+	return s.validateLogging(routerConfig)
+}
+
+func (s *InitTester) validateLogging(routerConfig *qdr.RouterConfig) (err error) {
 	// Validating log levels
 	parsedLogConfig, err := qdr.ParseRouterLogConfig(s.RouterLogging)
 	if s.RouterLogging != "" && parsedLogConfig == nil {
@@ -466,7 +518,6 @@ func (s *InitTester) ValidateRouterLogging(cluster *base.ClusterContext) error {
 				log.Module, log.Level, curModule.Enable)
 		}
 	}
-
 	return nil
 }
 
@@ -592,4 +643,88 @@ func (s *InitTester) validatePodSecurityContext(cluster *base.ClusterContext) er
 		}
 	}
 	return nil
+}
+
+func (s *InitTester) ValidatePodman(stdout string, stderr string) (err error) {
+	var cli *clientpodman.PodmanRestClient
+	var siteHandler domain.SiteHandler
+
+	// Validate if init output contains the username where skupper podman is running
+	log.Println("Validating 'skupper init'")
+	if !strings.Contains(stdout, fmt.Sprintf("Skupper is now installed for user '%s'.", podman.Username)) {
+		err = fmt.Errorf("init output is valid - missing username info")
+	}
+
+	// Site Handler to get status
+	cli, err = clientpodman.NewPodmanClient("", "")
+	if err != nil {
+		return
+	}
+	log.Println("Validate if all components are running")
+	siteHandler, err = podman.NewSitePodmanHandler("")
+	if err != nil {
+		return
+	}
+	var site domain.Site
+	site, err = siteHandler.Get()
+	if err != nil {
+		return
+	}
+	podmanSite := site.(*podman.Site)
+	// hosts/ports bound
+	var siteIngresses []domain.SiteIngress
+	for _, dep := range site.GetDeployments() {
+		for _, cmp := range dep.GetComponents() {
+			var c *container.Container
+			c, err = cli.ContainerInspect(cmp.Name())
+			if err != nil {
+				return
+			}
+			if !c.Running {
+				err = fmt.Errorf("expected component is not running: %s", c.Name)
+				return
+			}
+			siteIngresses = append(siteIngresses, cmp.GetSiteIngresses()...)
+		}
+	}
+
+	// Validating ingress hosts
+	log.Println("Validating ingress hosts")
+	if s.Ingress == "none" && len(podmanSite.IngressHosts) > 1 {
+		return fmt.Errorf("ingress is none but %d ingress hosts have been defined: %v", len(podmanSite.IngressHosts), podmanSite.IngressHosts)
+	} else if s.Ingress == types.IngressPodmanExternal && len(s.Podman.IngressHosts) > 0 {
+		if len(siteIngresses) != len(s.Podman.IngressHosts) {
+			return fmt.Errorf("%d ingress hosts expected, found: %d", len(s.Podman.IngressHosts), len(siteIngresses))
+		}
+	}
+
+	// Validating Router Debug Mode
+	log.Println("Validating router debug mode")
+	if s.RouterDebugMode != "" && s.RouterDebugMode != podmanSite.RouterOpts.DebugMode {
+		return fmt.Errorf("incorrect router debug mode - expected: %s - found: %s", s.RouterDebugMode, podmanSite.RouterOpts.DebugMode)
+	}
+
+	// Validating router logging
+	log.Println("Validating router logging")
+	routerConfigHandler := podman.NewRouterConfigHandlerPodman(cli)
+	routerConfig, err := routerConfigHandler.GetRouterConfig()
+	if err != nil {
+		return fmt.Errorf("error retrieving router config - %w", err)
+	}
+	if err = s.validateLogging(routerConfig); err != nil {
+		return err
+	}
+
+	// Validating site name
+	log.Println("Validating site name")
+	expectedSiteName := s.SiteName
+	if s.SiteName == "" {
+		hostname, _ := os.Hostname()
+		expectedSiteName = hostname + "-" + strings.ToLower(podman.Username)
+	}
+	if expectedSiteName != podmanSite.GetName() {
+		return fmt.Errorf("invalid site name - expected: %s - found: %s", expectedSiteName, podmanSite.GetName())
+	}
+
+	return
 }

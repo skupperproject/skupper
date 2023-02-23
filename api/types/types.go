@@ -239,6 +239,10 @@ const (
 	PlatformPodman              = "podman"
 )
 
+func (p Platform) IsKubernetes() bool {
+	return p == "" || p == PlatformKubernetes
+}
+
 type ConsoleAuthMode string
 
 const (

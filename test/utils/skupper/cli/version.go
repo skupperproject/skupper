@@ -28,7 +28,11 @@ func (v *VersionTester) Run(platform types.Platform, cluster *base.ClusterContex
 
 	// Validate the version for all the components is displayed
 	log.Printf("Validating 'skupper version'")
-	for _, component := range []string{"client", "transport", "controller"} {
+	components := []string{"client", "transport"}
+	if platform.IsKubernetes() {
+		components = append(components, "controller")
+	}
+	for _, component := range components {
 		regex := regexp.MustCompile(fmt.Sprintf(`%s version .* \S`, component))
 		if !regex.MatchString(stdout) {
 			err = fmt.Errorf("missing expected content - regex: %s - stdout: %s", regex.String(), stdout)

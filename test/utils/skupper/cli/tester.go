@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-
+	vanClient "github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 )
 
@@ -32,6 +33,11 @@ type SkupperCommandTester interface {
 	// if execution was successful, returning stdout, stderr and error
 	Run(platform types.Platform, cluster *base.ClusterContext) (string, string, error)
 }
+
+// CommandVerifier used as a pre or post command hook. They don't need to be
+// tied to a skupper CLI execution, but can be used before or after a skupper
+// CLI execution as part of a skupper task.
+type CommandVerifier func(platform types.Platform, cli *vanClient.VanClient) error
 
 type ErrorHookFunction func()
 
@@ -59,9 +65,11 @@ func (ts *TestScenario) AppendTasks(others ...TestScenario) {
 // SkupperTask defines a set of skupper commands (init, status, expose, ...) that will be
 // executed in the given ClusterContext
 type SkupperTask struct {
-	Platform types.Platform
-	Ctx      *base.ClusterContext
-	Commands []SkupperCommandTester
+	Platform      types.Platform
+	Ctx           *base.ClusterContext
+	PreVerifiers  []CommandVerifier
+	Commands      []SkupperCommandTester
+	PostVerifiers []CommandVerifier
 }
 
 // Helper function that runs all tasks for a given scenario against
@@ -70,14 +78,31 @@ type SkupperTask struct {
 func RunScenario(scenario TestScenario) (string, string, error) {
 	log.Printf("Running Skupper Command Tester scenario: %s\n", scenario.Name)
 	var stdout, stderr string
+	var err error
 	for _, task := range scenario.Tasks {
+		var cli *vanClient.VanClient
+		if task.Ctx != nil {
+			cli = task.Ctx.VanClient
+		}
+		for _, preVerify := range task.PreVerifiers {
+			err = preVerify(task.Platform, cli)
+			if err != nil {
+				return "", "", err
+			}
+		}
 		for _, cmd := range task.Commands {
-			stdout, stderr, err := cmd.Run(task.Platform, task.Ctx)
+			stdout, stderr, err = cmd.Run(task.Platform, task.Ctx)
 			if err != nil {
 				if scenario.ErrorHook != nil {
 					scenario.ErrorHook()
 				}
 				return stdout, stderr, err
+			}
+		}
+		for _, postVerify := range task.PostVerifiers {
+			err = postVerify(task.Platform, cli)
+			if err != nil {
+				return "", "", err
 			}
 		}
 	}
@@ -185,9 +210,11 @@ func RunSkupperCli(args []string) (string, string, error) {
 func SkupperCommonOptions(platform types.Platform, cluster *base.ClusterContext) []string {
 	args := []string{}
 
-	args = append(args, "--namespace", cluster.Namespace)
-	args = append(args, "--kubeconfig", cluster.KubeConfig)
-	args = append(args, "--platform", string(platform))
+	if platform.IsKubernetes() {
+		args = append(args, "--namespace", cluster.Namespace)
+		args = append(args, "--kubeconfig", cluster.KubeConfig)
+	}
+	args = append(args, "--platform", utils.DefaultStr(string(platform), string(types.PlatformKubernetes)))
 
 	return args
 }

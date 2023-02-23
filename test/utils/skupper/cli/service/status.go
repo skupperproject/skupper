@@ -44,6 +44,28 @@ type StatusTester struct {
 	// to true, it will also ensure that it is the whole list, and no other
 	// interfaces are listed on the output
 	StrictInterfaceListCheck bool
+
+	// Podman specific expected definitions
+	Podman StatusPodman
+}
+
+type StatusPodman struct {
+	ServiceHostPort map[string]HostPortBinding
+}
+
+func (sp StatusPodman) GetHostPortBinding(address string) (*HostPortBinding, bool) {
+	if sp.ServiceHostPort == nil {
+		return nil, false
+	}
+	if hpb, ok := sp.ServiceHostPort[address]; ok {
+		return &hpb, true
+	}
+	return nil, false
+}
+
+type HostPortBinding struct {
+	HostIp    string
+	HostPorts map[int]int
 }
 
 func (s *StatusTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
@@ -89,6 +111,16 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 	// Iterating through provided service interfaces to validate stdout matches
 	for _, svc := range s.ServiceInterfaces {
 		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\)`, svc.Address, svc.Protocol, svc.Ports[0])
+		if hostPortBinding, ok := s.Podman.GetHostPortBinding(svc.Address); ok {
+			hostIp := utils.DefaultStr(hostPortBinding.HostIp, `\*`)
+			var portMapping string
+			var portMappingPrefix string
+			for svcPort, hostPort := range hostPortBinding.HostPorts {
+				portMapping += fmt.Sprintf("%s%d -> %d", portMappingPrefix, hostPort, svcPort)
+				portMappingPrefix = ", "
+			}
+			serviceEntry += fmt.Sprintf(`\n.*Host ports:\n.*ip: %s - ports: %s`, hostIp, portMapping)
+		}
 		if len(svc.Targets) > 0 && !s.Absent {
 			serviceEntry += `\n.*Targets:`
 		}
@@ -101,10 +133,18 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 		if !s.Absent {
 			// Validating if provided targets are showing up
 			for _, target := range svc.Targets {
-				targetRegex := regexp.MustCompile(fmt.Sprintf("%s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
-				if !targetRegex.MatchString(stdout) {
-					err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
-					return
+				if platform.IsKubernetes() {
+					targetRegex := regexp.MustCompile(fmt.Sprintf("%s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
+					if !targetRegex.MatchString(stdout) {
+						err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
+						return
+					}
+				} else if platform == types.PlatformPodman {
+					targetRegex := regexp.MustCompile(fmt.Sprintf("host: %s - ports:", target.Service))
+					if !targetRegex.MatchString(stdout) {
+						err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
+						return
+					}
 				}
 			}
 			// Confirming that it is not unauthorized
