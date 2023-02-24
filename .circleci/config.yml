@@ -179,6 +179,9 @@ commands:
       - run:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
+      - run:
+          name: Run podman system tests in real cluster
+          command: go test -v -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
       - system_status
       - run:
           name: Archiving test artifacts
