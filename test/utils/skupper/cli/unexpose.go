@@ -17,9 +17,10 @@ import (
 // UnexposeTester runs `skupper unexpose` and validates outcome
 // and asserts service has been effectively removed
 type UnexposeTester struct {
-	TargetType string
-	TargetName string
-	Address    string
+	TargetType            string
+	TargetName            string
+	Address               string
+	SkipRemovalValidation bool
 }
 
 func (e *UnexposeTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
@@ -48,36 +49,38 @@ func (e *UnexposeTester) Run(platform types.Platform, cluster *base.ClusterConte
 		return
 	}
 
-	attempt := 0
-	ctx, fn := context.WithTimeout(context.Background(), commandTimeout)
-	defer fn()
-	err = utils2.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
-		attempt++
-		log.Printf("validating service after unexpose completed - attempt: %d", attempt)
-		// Service should have been removed
-		expectedAddress := utils.StrDefault(e.Address, e.TargetName)
-		log.Printf("validating service %s has been removed", expectedAddress)
-		_, err = cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(expectedAddress, v1.GetOptions{})
-		if err == nil {
-			log.Printf("service %s still exists", expectedAddress)
-			return false, nil
-		}
-		// Service removed from config map
-		log.Printf("validating service %s no longer exists in %s config map", expectedAddress, types.ServiceInterfaceConfigMap)
-		cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(types.ServiceInterfaceConfigMap, v1.GetOptions{})
-		if err != nil {
-			return true, fmt.Errorf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
-		}
+	if !e.SkipRemovalValidation {
+		attempt := 0
+		ctx, fn := context.WithTimeout(context.Background(), commandTimeout)
+		defer fn()
+		err = utils2.RetryWithContext(ctx, constants.DefaultTick, func() (bool, error) {
+			attempt++
+			log.Printf("validating service after unexpose completed - attempt: %d", attempt)
+			// Service should have been removed
+			expectedAddress := utils.StrDefault(e.Address, e.TargetName)
+			log.Printf("validating service %s has been removed", expectedAddress)
+			_, err = cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(expectedAddress, v1.GetOptions{})
+			if err == nil {
+				log.Printf("service %s still exists", expectedAddress)
+				return false, nil
+			}
+			// Service removed from config map
+			log.Printf("validating service %s no longer exists in %s config map", expectedAddress, types.ServiceInterfaceConfigMap)
+			cm, err := cluster.VanClient.KubeClient.CoreV1().ConfigMaps(cluster.Namespace).Get(types.ServiceInterfaceConfigMap, v1.GetOptions{})
+			if err != nil {
+				return true, fmt.Errorf("unable to find %s config map - %v", types.ServiceInterfaceConfigMap, err)
+			}
 
-		// retrieving data
-		_, ok := cm.Data[expectedAddress]
-		if ok {
-			log.Printf("address %s is still defined at %s", expectedAddress, types.ServiceInterfaceConfigMap)
-			return false, nil
-		}
+			// retrieving data
+			_, ok := cm.Data[expectedAddress]
+			if ok {
+				log.Printf("address %s is still defined at %s", expectedAddress, types.ServiceInterfaceConfigMap)
+				return false, nil
+			}
 
-		return true, nil
-	})
+			return true, nil
+		})
+	}
 
 	return
 }

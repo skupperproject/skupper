@@ -19,12 +19,13 @@ import (
 
 // CurlOpts allows specifying arguments to run curl on a pod
 type CurlOpts struct {
-	Silent   bool
-	Insecure bool
-	Username string
-	Password string
-	Timeout  int
-	Verbose  bool
+	Silent    bool
+	Insecure  bool
+	Username  string
+	Password  string
+	Timeout   int
+	ShowError bool
+	Verbose   bool
 }
 
 // ToParams returns curl options serialized as a string slice
@@ -32,6 +33,9 @@ func (c *CurlOpts) ToParams() []string {
 	params := []string{}
 	if c.Silent {
 		params = append(params, "-s")
+	}
+	if c.ShowError {
+		params = append(params, "-S")
 	}
 	if c.Verbose {
 		params = append(params, "-v")

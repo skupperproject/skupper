@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,4 +86,32 @@ func WaitForServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Int
 func WaitForSkupperServiceToBeCreatedAndReadyToUse(ns string, kubeClient kubernetes.Interface, serviceName string) (*apiv1.Service, error) {
 	fmt.Printf("Waiting for skupper service: %s\n", serviceName)
 	return WaitForServiceToBeCreatedAndReadyToUse(ns, kubeClient, serviceName, time.Second*10)
+}
+
+// createService creates a new service at the provided cluster/namespace
+// TODO this is a generic copy of annotation.createService.  If this is to be kept,
+// perhaps that function should call this.  But perhaps this should be refactored into
+// something that uses structures instead of individual arguments?
+func CreateService(cluster *client.VanClient, name string, annotations, labels, selector map[string]string, ports []apiv1.ServicePort) (*apiv1.Service, error) {
+
+	svc := &apiv1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: apiv1.ServiceSpec{
+			Ports:    ports,
+			Selector: selector,
+			Type:     apiv1.ServiceTypeLoadBalancer,
+		},
+	}
+
+	// Creating the new service
+	svc, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Create(svc)
+	if err != nil {
+		return nil, err
+	}
+
+	return svc, nil
 }
