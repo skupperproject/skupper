@@ -28,12 +28,12 @@ parameters:
 executors:
   local_cluster_test_executor:
     machine:
-      image: ubuntu-2004:current
+      image: ubuntu-2204:2022.10.2
     resource_class: large
 
   local_cluster_policy_test_executor:
     machine:
-      image: ubuntu-2004:current
+      image: ubuntu-2204:2022.10.2
     # Policy tests run all in sequence.  So, there is no benefit in adding more
     # CPU or memory.  Within the tests, there is paralellism, but on goroutines,
     # so they'd not use the additional CPUs.  The only thing a running policy
@@ -179,6 +179,9 @@ commands:
       - run:
           name: Run site-controller tests in real cluster
           command: go test -v -count=1 ./cmd/site-controller -use-cluster
+      - run:
+          name: Run podman system tests in real cluster
+          command: go test -v -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
       - system_status
       - run:
           name: Archiving test artifacts
@@ -238,6 +241,27 @@ commands:
             go build -ldflags "-X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}"
             -o dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>
             ./cmd/skupper
+
+  podman-latest:
+    description: "Install latest podman v4 or higher"
+    steps:
+      - run:
+          name: install podman
+          command: |
+            sudo mkdir -p /etc/apt/keyrings
+            curl -fsSL https://download.opensuse.org/repositories/devel:kubic:libcontainers:unstable/xUbuntu_$(lsb_release -rs)/Release.key \
+              | gpg --dearmor \
+              | sudo tee /etc/apt/keyrings/devel_kubic_libcontainers_unstable.gpg > /dev/null
+            echo \
+              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/devel_kubic_libcontainers_unstable.gpg]\
+                https://download.opensuse.org/repositories/devel:kubic:libcontainers:unstable/xUbuntu_$(lsb_release -rs)/ /" \
+              | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:unstable.list > /dev/null
+            sudo apt-get update -qq
+            sudo apt-get -qq -y install podman
+            podman version
+
+            # Starting systemd user service
+            systemctl --user start podman.socket
 
 yaml-templates:
   branch_filters: &run_for_all_branches_and_numeric_tags
@@ -432,6 +456,7 @@ jobs:
       - minikube-install
       - minikube-start-large
       - minikube-start-load-balancer
+      - podman-latest
       - minikube-logs
       - system_monitor
       - run: kubectl cluster-info
