@@ -184,7 +184,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	siteConfig, _ := controller.vanClient.SiteConfigInspect(context.TODO(), configmap)
 
 	var ttl time.Duration
-	var disableEvents = true
+	var disableEvents = false
 	if siteConfig != nil {
 		ttl = siteConfig.Spec.SiteTtl
 		disableEvents = siteConfig.Spec.DisableSkupperEvents
