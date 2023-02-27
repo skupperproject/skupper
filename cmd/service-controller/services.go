@@ -296,6 +296,8 @@ func serveServices(m *ServiceManager) http.Handler {
 			} else {
 				err := m.createService(options)
 				if err != nil {
+					message := fmt.Sprintf("Error while trying to create service %s: %s", options.GetServiceName(), err)
+					kube.RecordWarningEvent(ServiceManagement, message, m.cli.EventRecorder)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
 					message := fmt.Sprintf("Service %s exposed", options.GetServiceName())
