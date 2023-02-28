@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	runtime2 "github.com/go-openapi/runtime"
 	runtime "github.com/go-openapi/runtime/client"
@@ -81,6 +82,22 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 		basePath = DEFAULT_BASE_PATH
 	}
 	c := runtime.New(hostPort, basePath, []string{u.Scheme})
+	// Initializing transport like the http.DefaultTransport
+	// to avoid modifying it directly, as Runtime.Transport is
+	// set to http.DefaultTransport (variable)
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	c.Transport = &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialer.DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 	if u.Scheme == "https" {
 		ct := c.Transport.(*http.Transport)
 		if ct.TLSClientConfig == nil {
