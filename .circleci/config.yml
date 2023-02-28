@@ -321,11 +321,11 @@ yaml-templates:
       tags:
         only: /[0-9].*/
 
-  master_branch_filters: &run_for_master_branch
+  main_branch_filters: &run_for_main_branch
     filters:
       branches:
         ignore: /.*/
-        only: /master/
+        only: /main/
 
   release_filters: &run_for_numeric_tags
     filters:
@@ -380,8 +380,8 @@ workflows:
           context:
             - skupper-org
 
-      - publish-github-master-images:
-          <<: *run_for_master_branch
+      - publish-github-main-images:
+          <<: *run_for_main_branch
           <<: *release_requires
           context:
             - skupper-org
@@ -566,7 +566,7 @@ jobs:
             make -e docker-build
             make -e docker-push
 
-  publish-github-master-images:
+  publish-github-main-images:
     executor:
       name: go/default
       tag: "1.19"
@@ -575,13 +575,13 @@ jobs:
       - setup_remote_docker
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run:
-          name: "Publishing master images"
+          name: "Publishing main images"
           command: |
-            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:master' >> $BASH_ENV
-            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:master' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:master' >> $BASH_ENV
-            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:master' >> $BASH_ENV
-            echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:master' >> $BASH_ENV
+            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:main' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:main' >> $BASH_ENV
+            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:main' >> $BASH_ENV
+            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:main' >> $BASH_ENV
+            echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:main' >> $BASH_ENV
             source $BASH_ENV
             make -e generate-client
             make -e docker-build
