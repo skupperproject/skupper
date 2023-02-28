@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -170,17 +171,20 @@ func WaitForJob(ns string, kubeClient kubernetes.Interface, jobName string, time
 
 			if job.Status.Active > 0 {
 				fmt.Println("Job is still active")
-			} else {
-				if job.Status.Succeeded > 0 {
+			} else if len(job.Status.Conditions) > 0 {
+				if job.Status.Conditions[0].Type == batchv1.JobComplete {
 					fmt.Println("Job Successful!")
 					return job, nil
+				} else if job.Status.Conditions[0].Type == batchv1.JobFailed {
+					statusJson, _ := json.Marshal(job.Status)
+					fmt.Printf("Job failed?, status = %v\n", string(statusJson))
+					return job, fmt.Errorf("Job failed. Status: %s", string(statusJson))
 				}
-				fmt.Printf("Job failed?, status = %v\n", job.Status)
-				return job, fmt.Errorf("Job failed. Status: %v", job.Status)
+			} else {
+				fmt.Println("Waiting on job condition")
 			}
 		}
 	}
-
 }
 
 func AssertJob(t *testing.T, job *batchv1.Job) {
