@@ -654,7 +654,7 @@ func TestCmdBind(t *testing.T) {
 	t.Run("Success",
 		func(t *testing.T) {
 			resetCli()
-			targetPorts = []string{"567:567"}
+			bindOptions.TargetPorts = []string{"567:567"}
 			expectedTargetPorts := map[int]int{567: 567}
 			args = []string{"TheService", "type", "name"}
 			lcli.injectedReturns.serviceInterfaceInspect.serviceInterface = injectedService
@@ -672,7 +672,7 @@ func TestCmdBind(t *testing.T) {
 	t.Run("ServiceInterfaceBindFails",
 		func(t *testing.T) {
 			resetCli()
-			targetPorts = []string{"567"}
+			bindOptions.TargetPorts = []string{"567"}
 			args = []string{"TheService", "type", "name"}
 			lcli.injectedReturns.serviceInterfaceInspect.serviceInterface = injectedService
 			lcli.injectedReturns.serviceInterfaceBind = fmt.Errorf("some error")

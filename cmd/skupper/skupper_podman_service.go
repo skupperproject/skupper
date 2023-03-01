@@ -225,7 +225,7 @@ func (s *SkupperPodmanService) Bind(cmd *cobra.Command, args []string) error {
 	podmanService := service.(*podman.Service)
 
 	// validating ports
-	portMapping, err := parsePortMapping(podmanService.AsServiceInterface(), targetPorts)
+	portMapping, err := parsePortMapping(podmanService.AsServiceInterface(), bindOptions.TargetPorts)
 	if err != nil {
 		return err
 	}

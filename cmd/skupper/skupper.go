@@ -242,7 +242,6 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 				TlsCertAuthority:         options.TlsCertAuthority,
 				PublishNotReadyAddresses: options.PublishNotReadyAddresses,
 				BridgeImage:              options.BridgeImage,
-				Namespace:                options.Namespace,
 			}
 			err := service.SetIngressMode(options.IngressMode)
 			if err != nil {
@@ -707,7 +706,6 @@ func NewCmdCreateService(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd.Flags().BoolVar(&createSvcWithGeneratedTlsCerts, "generate-tls-secrets", false, "If specified, the service communication will be encrypted using TLS")
 	cmd.Flags().StringVar(&serviceToCreate.BridgeImage, "bridge-image", "", "The image to use for a bridge running external to the skupper router")
 	cmd.Flags().StringVar(&serviceToCreate.TlsCredentials, "tls-cert", "", "K8s secret name with custom certificates to encrypt the communication using TLS (valid only for http2 and tcp protocols)")
-	cmd.Flags().StringVar(&serviceToCreate.Namespace, "target-namespace", "", "Expose resources from a specific namespace")
 
 	// platform specific flags
 	skupperClient.CreateFlags(cmd)

@@ -538,7 +538,6 @@ type ServiceInterface struct {
 	TlsCertAuthority         string                   `json:"tlsCertAuthority,omitempty"`
 	PublishNotReadyAddresses bool                     `json:"publishNotReadyAddresses,omitempty"`
 	BridgeImage              string                   `json:"bridgeImage,omitempty"`
-	Namespace                string                   `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 }
 
 func (s *ServiceInterface) IsOfLocalOrigin() bool {
@@ -652,7 +651,7 @@ func (service *ServiceInterface) AddTarget(target *ServiceInterfaceTarget) {
 	modified := false
 	targets := []ServiceInterfaceTarget{}
 	for _, t := range service.Targets {
-		if t.Name == target.Name {
+		if t.Name == target.Name && (t.Namespace == "" || t.Namespace == target.Namespace) {
 			modified = true
 			targets = append(targets, *target)
 		} else {

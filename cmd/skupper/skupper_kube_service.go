@@ -170,7 +170,9 @@ func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 
 	service.PublishNotReadyAddresses = bindOptions.PublishNotReadyAddresses
 
-	err = s.kube.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, bindOptions.Protocol, portMapping, bindOptions.Namespace)
+	service.TlsCertAuthority = bindOptions.tlsCertAuthority
+
+	err = s.kube.Cli.ServiceInterfaceBind(context.Background(), service, targetType, targetName, portMapping, bindOptions.Namespace)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
