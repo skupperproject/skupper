@@ -77,7 +77,7 @@ func TestNewServiceBindings(t *testing.T) {
 				Address:      "test",
 				publicPorts:  []int{8080},
 				ingressPorts: []int{MIN_PORT},
-				targets:      map[string]*EgressBindings{},
+				targets:      map[EgressBindingKey]*EgressBindings{},
 			},
 		},
 		{
@@ -92,7 +92,7 @@ func TestNewServiceBindings(t *testing.T) {
 				Address:      "test-multi-port",
 				publicPorts:  []int{8080, 9090},
 				ingressPorts: []int{MIN_PORT + 1, MIN_PORT + 2},
-				targets:      map[string]*EgressBindings{},
+				targets:      map[EgressBindingKey]*EgressBindings{},
 			},
 		},
 		{
@@ -113,7 +113,7 @@ func TestNewServiceBindings(t *testing.T) {
 				Labels: map[string]string{
 					"app": "test",
 				},
-				targets: map[string]*EgressBindings{},
+				targets: map[EgressBindingKey]*EgressBindings{},
 			},
 		},
 		{
@@ -142,8 +142,11 @@ func TestNewServiceBindings(t *testing.T) {
 				Labels: map[string]string{
 					"app": "test-updated",
 				},
-				targets: map[string]*EgressBindings{
-					"app=test": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "app=test",
+						namespace:  "",
+					}: {
 						name:        "test-target",
 						Selector:    "app=test",
 						service:     "",
@@ -188,8 +191,11 @@ func TestNewServiceBindings(t *testing.T) {
 					Size:        2,
 					TargetPorts: map[int]int{9090: 9090},
 				},
-				targets: map[string]*EgressBindings{
-					"test-svc": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "test-svc",
+						namespace:  "",
+					}: {
 						name:        "test-target",
 						Selector:    "",
 						service:     "test-svc",
@@ -230,14 +236,20 @@ func TestNewServiceBindings(t *testing.T) {
 				Labels: map[string]string{
 					"app": "no-head",
 				},
-				targets: map[string]*EgressBindings{
-					"test-headless": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "test-headless",
+						namespace:  "",
+					}: {
 						name:        "tcp-headless",
 						Selector:    "",
 						service:     "test-headless",
 						egressPorts: map[int]int{8080: 9090},
 					},
-					"app=headless": {
+					{
+						identifier: "app=headless",
+						namespace:  "",
+					}: {
 						name:        "tcp-headless",
 						Selector:    "app=headless",
 						service:     "",
@@ -282,14 +294,20 @@ func TestNewServiceBindings(t *testing.T) {
 				Labels: map[string]string{
 					"app": "no-head",
 				},
-				targets: map[string]*EgressBindings{
-					"test-headless": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "test-headless",
+						namespace:  "",
+					}: {
 						name:        "tcp-headless",
 						Selector:    "",
 						service:     "test-headless",
 						egressPorts: map[int]int{8181: 9191},
 					},
-					"app=headless": {
+					{
+						identifier: "app=headless",
+						namespace:  "",
+					}: {
 						name:        "tcp-headless",
 						Selector:    "app=headless",
 						service:     "",
@@ -324,14 +342,20 @@ func TestNewServiceBindings(t *testing.T) {
 				Labels: map[string]string{
 					"app": "no-head",
 				},
-				targets: map[string]*EgressBindings{
-					"test-headless": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "test-headless",
+						namespace:  "",
+					}: {
 						name:        "tcp-headless",
 						Selector:    "",
 						service:     "test-headless",
 						egressPorts: map[int]int{8181: 9090},
 					},
-					"app=headless": {
+					{
+						identifier: "app=headless",
+						namespace:  "",
+					}: {
 						name:        "tcp-headless",
 						Selector:    "app=headless",
 						service:     "",
@@ -371,7 +395,7 @@ func TestNewServiceBindings(t *testing.T) {
 				Address:                  "test",
 				publicPorts:              []int{8080},
 				ingressPorts:             []int{MIN_PORT},
-				targets:                  map[string]*EgressBindings{},
+				targets:                  map[EgressBindingKey]*EgressBindings{},
 				PublishNotReadyAddresses: true,
 			},
 		},
@@ -408,14 +432,20 @@ func TestNewServiceBindings(t *testing.T) {
 				Labels: map[string]string{
 					"app": "no-head",
 				},
-				targets: map[string]*EgressBindings{
-					"test-headless": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "test-headless",
+						namespace:  "",
+					}: {
 						name:        "http2-headless",
 						Selector:    "",
 						service:     "test-headless",
 						egressPorts: map[int]int{8080: 9090},
 					},
-					"app=headless": {
+					{
+						identifier: "app=headless",
+						namespace:  "",
+					}: {
 						name:        "http2-headless",
 						Selector:    "app=headless",
 						service:     "",
@@ -452,13 +482,15 @@ func TestNewServiceBindings(t *testing.T) {
 				Labels: map[string]string{
 					"app": "new-app",
 				},
-				targets: map[string]*EgressBindings{
-					"app=test": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "app=test",
+						namespace:  "another-namespace",
+					}: {
 						name:        "test-target",
 						Selector:    "app=test",
 						service:     "",
 						egressPorts: map[int]int{9090: 9090},
-						namespace:   "another-namespace",
 					},
 				},
 			},
@@ -494,7 +526,6 @@ func TestNewServiceBindings(t *testing.T) {
 					assert.Assert(t, reflect.DeepEqual(bv.egressPorts, v.egressPorts))
 					assert.Equal(t, bv.Selector, v.Selector)
 					assert.Equal(t, bv.service, v.service)
-					assert.Equal(t, bv.namespace, v.namespace)
 				}
 			}
 			si := b.AsServiceInterface()
@@ -531,7 +562,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "tcp",
 				Address:     "test",
 				publicPorts: []int{8080, 9090},
-				targets:     map[string]*EgressBindings{},
+				targets:     map[EgressBindingKey]*EgressBindings{},
 			},
 		},
 		{
@@ -550,7 +581,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "http",
 				Address:     "test",
 				publicPorts: []int{8080},
-				targets:     map[string]*EgressBindings{},
+				targets:     map[EgressBindingKey]*EgressBindings{},
 			},
 		},
 		{
@@ -570,7 +601,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:       "http",
 				Address:        "test",
 				publicPorts:    []int{8080},
-				targets:        map[string]*EgressBindings{},
+				targets:        map[EgressBindingKey]*EgressBindings{},
 				ingressBinding: newDummyServiceIngress(types.ServiceIngressModeNever),
 			},
 		},
@@ -592,7 +623,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "http",
 				Address:     "test",
 				publicPorts: []int{8080},
-				targets:     map[string]*EgressBindings{},
+				targets:     map[EgressBindingKey]*EgressBindings{},
 				aggregation: "json",
 			},
 		},
@@ -613,7 +644,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:     "http",
 				Address:      "test",
 				publicPorts:  []int{8080},
-				targets:      map[string]*EgressBindings{},
+				targets:      map[EgressBindingKey]*EgressBindings{},
 				eventChannel: true,
 			},
 		},
@@ -637,7 +668,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "http",
 				Address:     "test",
 				publicPorts: []int{8080},
-				targets:     map[string]*EgressBindings{},
+				targets:     map[EgressBindingKey]*EgressBindings{},
 				headless: &types.Headless{
 					Name: "foo",
 					Size: 3,
@@ -671,7 +702,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "http",
 				Address:     "test",
 				publicPorts: []int{8080},
-				targets:     map[string]*EgressBindings{},
+				targets:     map[EgressBindingKey]*EgressBindings{},
 				headless: &types.Headless{
 					Name: "bar",
 					Size: 2,
@@ -701,7 +732,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "tcp",
 				Address:     "test",
 				publicPorts: []int{8080},
-				targets:     map[string]*EgressBindings{},
+				targets:     map[EgressBindingKey]*EgressBindings{},
 			},
 		},
 		{
@@ -754,14 +785,20 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "tcp",
 				Address:     "test",
 				publicPorts: []int{8080},
-				targets: map[string]*EgressBindings{
-					"app=test": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "app=test",
+						namespace:  "",
+					}: {
 						name:        "target1",
 						Selector:    "app=test",
 						service:     "",
 						egressPorts: map[int]int{9090: 9090},
 					},
-					"foo": {
+					{
+						identifier: "foo",
+						namespace:  "",
+					}: {
 						name:        "target2",
 						Selector:    "",
 						service:     "foo",
@@ -814,14 +851,20 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "tcp",
 				Address:     "test",
 				publicPorts: []int{8080},
-				targets: map[string]*EgressBindings{
-					"app=test": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "app=test",
+						namespace:  "",
+					}: {
 						name:        "target1",
 						Selector:    "app=test",
 						service:     "",
 						egressPorts: map[int]int{8080: 9091},
 					},
-					"foo": {
+					{
+						identifier: "foo",
+						namespace:  "",
+					}: {
 						name:        "target2",
 						Selector:    "",
 						service:     "foo",
@@ -886,14 +929,20 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "tcp",
 				Address:     "test",
 				publicPorts: []int{8080},
-				targets: map[string]*EgressBindings{
-					"app=whatever": {
+				targets: map[EgressBindingKey]*EgressBindings{
+					{
+						identifier: "app=whatever",
+						namespace:  "",
+					}: {
 						name:        "target3",
 						Selector:    "app=whatever",
 						service:     "",
 						egressPorts: map[int]int{9090: 9090},
 					},
-					"bar": {
+					{
+						identifier: "bar",
+						namespace:  "",
+					}: {
 						name:        "target4",
 						Selector:    "",
 						service:     "bar",
@@ -921,7 +970,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "tcp",
 				Address:     "test",
 				publicPorts: []int{8080, 9090},
-				targets:     map[string]*EgressBindings{},
+				targets:     map[EgressBindingKey]*EgressBindings{},
 				Labels: map[string]string{
 					"foo": "bar",
 				},
@@ -946,7 +995,7 @@ func TestUpdateServiceBindings(t *testing.T) {
 				protocol:    "tcp",
 				Address:     "test",
 				publicPorts: []int{8080, 9090},
-				targets:     map[string]*EgressBindings{},
+				targets:     map[EgressBindingKey]*EgressBindings{},
 			},
 		},
 		{
@@ -968,95 +1017,6 @@ func TestUpdateServiceBindings(t *testing.T) {
 				Address:                  "test",
 				publicPorts:              []int{8080},
 				PublishNotReadyAddresses: true,
-			},
-		},
-		{
-			name: "add target namespace",
-			initial: types.ServiceInterface{
-				Address:  "test",
-				Protocol: "tcp",
-				Ports:    []int{8080},
-				Targets: []types.ServiceInterfaceTarget{
-					{
-						Name:        "target1",
-						Selector:    "app=test",
-						TargetPorts: map[int]int{8080: 9090},
-						Service:     "",
-					},
-				},
-			},
-			update: types.ServiceInterface{
-				Address:  "test",
-				Protocol: "tcp",
-				Ports:    []int{8080},
-				Targets: []types.ServiceInterfaceTarget{
-					{
-						Name:        "target1",
-						Selector:    "app=test",
-						TargetPorts: map[int]int{8080: 9090},
-						Service:     "",
-						Namespace:   "another-namespace",
-					},
-				},
-			},
-			expected: &ServiceBindings{
-				protocol:    "tcp",
-				Address:     "test",
-				publicPorts: []int{8080},
-				targets: map[string]*EgressBindings{
-					"app=test": {
-						name:        "target1",
-						Selector:    "app=test",
-						service:     "",
-						egressPorts: map[int]int{8080: 9090},
-						namespace:   "another-namespace",
-					},
-				},
-			},
-		},
-		{
-			name: "update target namespace",
-			initial: types.ServiceInterface{
-				Address:  "test",
-				Protocol: "tcp",
-				Ports:    []int{8080},
-				Targets: []types.ServiceInterfaceTarget{
-					{
-						Name:        "target1",
-						Selector:    "app=test",
-						TargetPorts: map[int]int{8080: 9090},
-						Service:     "",
-						Namespace:   "another-namespace",
-					},
-				},
-			},
-			update: types.ServiceInterface{
-				Address:  "test",
-				Protocol: "tcp",
-				Ports:    []int{8080},
-				Targets: []types.ServiceInterfaceTarget{
-					{
-						Name:        "target1",
-						Selector:    "app=test",
-						TargetPorts: map[int]int{8080: 9090},
-						Service:     "",
-						Namespace:   "another-another-namespace",
-					},
-				},
-			},
-			expected: &ServiceBindings{
-				protocol:    "tcp",
-				Address:     "test",
-				publicPorts: []int{8080},
-				targets: map[string]*EgressBindings{
-					"app=test": {
-						name:        "target1",
-						Selector:    "app=test",
-						service:     "",
-						egressPorts: map[int]int{8080: 9090},
-						namespace:   "another-another-namespace",
-					},
-				},
 			},
 		},
 	}
@@ -1088,13 +1048,12 @@ func TestUpdateServiceBindings(t *testing.T) {
 				for k, v := range s.expected.targets {
 					log.Println(b.targets)
 					bv, ok := b.targets[k]
-					assert.Assert(t, ok, "No target for "+k)
+					assert.Assert(t, ok, "No target for "+k.identifier)
 					assert.Equal(t, bv.name, v.name)
 					assert.Equal(t, bv.service, v.service)
 					assert.Assert(t, reflect.DeepEqual(bv.egressPorts, v.egressPorts))
 					assert.Equal(t, bv.Selector, v.Selector)
 					assert.Equal(t, bv.service, v.service)
-					assert.Equal(t, bv.namespace, v.namespace)
 				}
 			}
 		})

@@ -1,15 +1,11 @@
 package client
 
 import (
-<<<<<<< HEAD
-=======
-	"fmt"
 	"hash/crc32"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"os"
 	"sort"
->>>>>>> ecdafd7 (address pr comments)
 	"strings"
+
+	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 func splitWithEscaping(s string, separator, escape byte) []string {
@@ -41,34 +37,6 @@ func asMap(entries []string) map[string]string {
 		}
 	}
 	return result
-}
-<<<<<<< HEAD
-=======
-
-func PrintKeyValueMap(entries map[string]string) error {
-	writer := new(tabwriter.Writer)
-	writer.Init(os.Stdout, 8, 8, 0, '\t', 0)
-	defer writer.Flush()
-
-	keys := make([]string, 0, len(entries))
-	for k := range entries {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	_, err := fmt.Fprint(writer, "")
-	if err != nil {
-		return err
-	}
-
-	for _, key := range keys {
-		_, err := fmt.Fprintf(writer, "\n %s\t%s\t", key, entries[key])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func ContainsAllPolicies(elements []rbacv1.PolicyRule, included []rbacv1.PolicyRule) bool {
@@ -107,4 +75,3 @@ func Contains(elements []uint32, element uint32) bool {
 	}
 	return false
 }
->>>>>>> ecdafd7 (address pr comments)

@@ -89,7 +89,6 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	} else {
 		result.Spec.EnableFlowCollector = false
 	}
-<<<<<<< HEAD
 	if value, ok := siteConfig.Data[SiteConfigFlowCollectorRecordTtlKey]; ok {
 		ttl, err := time.ParseDuration(value)
 		if err == nil {
@@ -100,12 +99,11 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		result.Spec.EnableRestAPI, _ = strconv.ParseBool(value)
 	} else {
 		result.Spec.EnableRestAPI = result.Spec.EnableConsole
-=======
+	}
 	if enableClusterPermissions, ok := siteConfig.Data[SiteConfigClusterPermissionsKey]; ok {
 		result.Spec.EnableClusterPermissions, _ = strconv.ParseBool(enableClusterPermissions)
 	} else {
 		result.Spec.EnableClusterPermissions = false
->>>>>>> fa54ec5 (fix new flag exposure)
 	}
 	if createNetworkPolicy, ok := siteConfig.Data[SiteConfigCreateNetworkPolicyKey]; ok {
 		result.Spec.CreateNetworkPolicy, _ = strconv.ParseBool(createNetworkPolicy)

@@ -489,7 +489,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
-	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "ssl-server", map[int]int{})
+	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "ssl-server", map[int]int{}, "")
 	assert.Assert(t, err)
 }
 

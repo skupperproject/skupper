@@ -2,10 +2,11 @@ package client
 
 import (
 	"context"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"reflect"
 	"testing"
 	"time"
+
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	"github.com/skupperproject/skupper/pkg/certs"
 
@@ -244,6 +245,7 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 
 	var namespace string = "van-serviceinterface-update"
 	var anotherNamespace string = "another-namespace"
+	var oneMoreNamespace string = "another-another-namespace"
 	var cli *VanClient
 	var err error
 	if *clusterRun {
@@ -260,6 +262,9 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 
 	_, err = kube.NewNamespace(anotherNamespace, cli.KubeClient)
 	defer kube.DeleteNamespace(anotherNamespace, cli.KubeClient)
+
+	_, err = kube.NewNamespace(oneMoreNamespace, cli.KubeClient)
+	defer kube.DeleteNamespace(oneMoreNamespace, cli.KubeClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -281,10 +286,13 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 
 	// create three service targets
 	deploymentsNamespace := cli.KubeClient.AppsV1().Deployments(anotherNamespace)
+	deploymentsOneMoreNs := cli.KubeClient.AppsV1().Deployments(oneMoreNamespace)
 	deployments := cli.KubeClient.AppsV1().Deployments(namespace)
 	statefulSets := cli.KubeClient.AppsV1().StatefulSets(namespace)
 
 	_, err = deploymentsNamespace.Create(ctx, tcpDeployment, metav1.CreateOptions{})
+	assert.Assert(t, err)
+	_, err = deploymentsOneMoreNs.Create(ctx, tcpDeployment, metav1.CreateOptions{})
 	assert.Assert(t, err)
 	_, err = deployments.Create(ctx, tcpDeployment, metav1.CreateOptions{})
 	assert.Assert(t, err)
@@ -374,9 +382,6 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 		Aggregate:    "",
 	})
 	assert.Assert(t, err)
-	serviceCert = certs.GenerateSecret("tcp-go-echo-namespace-echo", "tcp-go-echo", "tcp-go-echo", siteCA)
-	_, err = cli.KubeClient.CoreV1().Secrets(anotherNamespace).Create(&serviceCert)
-	assert.Assert(t, err)
 
 	// bind services to targets
 	// TODO: could range on list if target type was not needed for bind
@@ -404,9 +409,13 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 	assert.Assert(t, err)
 	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", map[int]int{9090: 9090}, anotherNamespace)
 	assert.Assert(t, err)
+	err = cli.ServiceInterfaceBind(ctx, si, "deployment", "tcp-go-echo", map[int]int{9090: 9090}, oneMoreNamespace)
+	assert.Assert(t, err)
 	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-namespace")
 	assert.Assert(t, err)
+	assert.Equal(t, len(si.Targets), 2)
 	assert.Equal(t, si.Targets[0].Namespace, anotherNamespace)
+	assert.Equal(t, si.Targets[1].Namespace, oneMoreNamespace)
 
 	items, err := cli.ServiceInterfaceList(ctx)
 	assert.Assert(t, err)
@@ -470,6 +479,17 @@ func TestVanServiceInteraceUpdate(t *testing.T) {
 
 	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo-namespace", false, anotherNamespace)
 	assert.Assert(t, err)
+
+	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-namespace")
+	assert.Assert(t, err)
+	assert.Equal(t, len(si.Targets), 1)
+
+	err = cli.ServiceInterfaceUnbind(ctx, "deployment", "tcp-go-echo", "tcp-go-echo-namespace", false, oneMoreNamespace)
+	assert.Assert(t, err)
+
+	si, err = cli.ServiceInterfaceInspect(ctx, "tcp-go-echo-namespace")
+	assert.Assert(t, err)
+	assert.Equal(t, len(si.Targets), 0)
 
 	// and remove all defined services
 	items, err = cli.ServiceInterfaceList(ctx)
