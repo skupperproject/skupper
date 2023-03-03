@@ -27,6 +27,21 @@ func ConfigureRouterLogging(routerConfig *RouterConfig, logConfig []types.Router
 	return routerConfig.SetLogLevels(levels)
 }
 
+func GetRouterLogging(routerConfig *RouterConfig) []types.RouterLogConfig {
+	var ret []types.RouterLogConfig
+	if routerConfig == nil || len(routerConfig.LogConfig) == 0 {
+		return ret
+	}
+	for module, logConfig := range routerConfig.LogConfig {
+		lc := types.RouterLogConfig{Level: logConfig.Enable}
+		if module != "DEFAULT" || len(routerConfig.LogConfig) > 1 {
+			lc.Module = logConfig.Module
+		}
+		ret = append(ret, lc)
+	}
+	return ret
+}
+
 func ParseRouterLogConfig(config string) ([]types.RouterLogConfig, error) {
 	items := strings.Split(config, ",")
 	parsed := []types.RouterLogConfig{}
