@@ -123,34 +123,37 @@ func (s *SiteHandler) ConfigurePodmanDeployments(site *Site) {
 		Networks:     []string{site.ContainerNetwork},
 	}
 
-	// Defining site ingresses
-	ingressBindIps := site.IngressBindIPs
-	if len(ingressBindIps) == 0 {
-		ingressBindIps = append(ingressBindIps, "")
-	}
-	for _, ingressBindIp := range ingressBindIps {
-		routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressHost{
-			SiteIngressCommon: &domain.SiteIngressCommon{
-				Name: types.InterRouterIngressPrefix,
-				Host: ingressBindIp,
-				Port: site.IngressBindInterRouterPort,
-				Target: &domain.PortCommon{
+	// If ingress mode is none, then ingress hosts will be empty
+	if len(site.IngressHosts) > 0 {
+		// Defining site ingresses
+		ingressBindIps := site.IngressBindIPs
+		if len(ingressBindIps) == 0 {
+			ingressBindIps = append(ingressBindIps, "")
+		}
+		for _, ingressBindIp := range ingressBindIps {
+			routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressHost{
+				SiteIngressCommon: &domain.SiteIngressCommon{
 					Name: types.InterRouterIngressPrefix,
-					Port: int(types.InterRouterListenerPort),
+					Host: ingressBindIp,
+					Port: site.IngressBindInterRouterPort,
+					Target: &domain.PortCommon{
+						Name: types.InterRouterIngressPrefix,
+						Port: int(types.InterRouterListenerPort),
+					},
 				},
-			},
-		})
-		routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressHost{
-			SiteIngressCommon: &domain.SiteIngressCommon{
-				Name: types.EdgeIngressPrefix,
-				Host: ingressBindIp,
-				Port: site.IngressBindEdgePort,
-				Target: &domain.PortCommon{
+			})
+			routerComponent.SiteIngresses = append(routerComponent.SiteIngresses, &SiteIngressHost{
+				SiteIngressCommon: &domain.SiteIngressCommon{
 					Name: types.EdgeIngressPrefix,
-					Port: int(types.EdgeListenerPort),
+					Host: ingressBindIp,
+					Port: site.IngressBindEdgePort,
+					Target: &domain.PortCommon{
+						Name: types.EdgeIngressPrefix,
+						Port: int(types.EdgeListenerPort),
+					},
 				},
-			},
-		})
+			})
+		}
 	}
 	site.Deployments = append(site.Deployments, routerDepl)
 }
