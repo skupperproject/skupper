@@ -631,7 +631,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 			doc:             "list-connectors-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Check whether a link to another Skupper site is active",
+			expectedOutput:  "Check whether a link to another Skupper site is connected",
 			expectedError:   "",
 			realCluster:     false,
 			createConn:      false,
@@ -639,7 +639,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		{
 			doc:             "list-connectors-test2",
 			args:            []string{"--timeout", "1s"}, // added timeout to not wait for remote links which are not relevant for this test
-			expectedCapture: "There are no links configured or active",
+			expectedCapture: "There are no links configured or connected",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -706,14 +706,14 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 			doc:             "check-connection-test1",
 			args:            []string{"--help"},
 			expectedCapture: "",
-			expectedOutput:  "Check whether a link to another Skupper site is active",
+			expectedOutput:  "Check whether a link to another Skupper site is connected",
 			expectedError:   "",
 			realCluster:     false,
 		},
 		{
 			doc:             "check-connection-test2",
 			args:            []string{"all", "--timeout", "1s"}, // added timeout to not wait for remote links which are not relevant for this testq
-			expectedCapture: "There are no links configured or active",
+			expectedCapture: "There are no links configured or connected",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -729,7 +729,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		{
 			doc:             "check-connection-test4",
 			args:            []string{"link1"},
-			expectedCapture: "Link link1 not active",
+			expectedCapture: "Link link1 not connected",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
@@ -738,7 +738,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		{
 			doc:             "check-connection-test5",
 			args:            []string{"all", "--timeout", "1s"},
-			expectedCapture: "Link link1 not active",
+			expectedCapture: "Link link1 not connected",
 			expectedOutput:  "",
 			expectedError:   "",
 			realCluster:     true,
