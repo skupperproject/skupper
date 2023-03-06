@@ -94,7 +94,7 @@ func allConnected(links []types.LinkStatus) bool {
 func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "status [<link-name>]",
-		Short:  "Check whether a link to another Skupper site is active",
+		Short:  "Check whether a link to another Skupper site is connected",
 		Args:   cobra.MaximumNArgs(1),
 		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -136,14 +136,14 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 						break
 
 					} else if link.Connected {
-						fmt.Printf("Link %s is active", link.Name)
+						fmt.Printf("Link %s is connected", link.Name)
 						fmt.Println()
 						break
 					} else if i == waitFor {
 						if link.Description != "" {
-							fmt.Printf("Link %s not active (%s)", link.Name, link.Description)
+							fmt.Printf("Link %s not connected (%s)", link.Name, link.Description)
 						} else {
-							fmt.Printf("Link %s not active", link.Name)
+							fmt.Printf("Link %s not connected", link.Name)
 						}
 						fmt.Println()
 						break
@@ -163,17 +163,17 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 						fmt.Println("-------------------------------")
 
 						if len(links) == 0 {
-							fmt.Println("There are no links configured or active")
+							fmt.Println("There are no links configured or connected")
 						}
 						for _, link := range links {
 							if link.Connected {
-								fmt.Printf("Link %s is active", link.Name)
+								fmt.Printf("Link %s is connected", link.Name)
 								fmt.Println()
 							} else {
 								if link.Description != "" {
-									fmt.Printf("Link %s not active (%s)", link.Name, link.Description)
+									fmt.Printf("Link %s not connected (%s)", link.Name, link.Description)
 								} else {
-									fmt.Printf("Link %s not active", link.Name)
+									fmt.Printf("Link %s not connected", link.Name)
 								}
 								fmt.Println()
 							}
@@ -182,7 +182,7 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 						ctx, cancel := context.WithTimeout(context.Background(), remoteInfoTimeout)
 						defer cancel()
 
-						fmt.Println("\nCurrently active links from other sites:")
+						fmt.Println("\nCurrent links from other sites that are connected:")
 						fmt.Println("----------------------------------------")
 
 						var remoteLinks []*types.RemoteLinkInfo
@@ -203,11 +203,11 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 								if remoteLink.Namespace != "" {
 									nsStr = fmt.Sprintf("the namespace %s on site ", remoteLink.Namespace)
 								}
-								fmt.Printf("A link from %s%s(%s) is active ", nsStr, remoteLink.SiteName, remoteLink.SiteId)
+								fmt.Printf("A link from %s%s(%s) is connected to this site", nsStr, remoteLink.SiteName, remoteLink.SiteId)
 								fmt.Println()
 							}
 						} else {
-							fmt.Println("There are no active links")
+							fmt.Println("There are no connected links")
 						}
 						break
 					}
@@ -216,7 +216,7 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become active")
+	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become connected")
 	cmd.Flags().DurationVar(&remoteInfoTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for retrieving information about remote links")
 	cmd.Flags().BoolVar(&verboseLinkStatus, "verbose", false, "Show detailed information about a link")
 

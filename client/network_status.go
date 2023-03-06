@@ -111,7 +111,7 @@ func GetFormattedLinks(getLocalLinks GetLocalLinks, cli *VanClient, site types.S
 
 				if _, ok := mapLinkStatus[formattedLink]; ok {
 					if !mapLinkStatus[formattedLink].Connected {
-						formattedLink = fmt.Sprintf("%s%s (link not active)%s", lightRed, formattedLink, resetColor)
+						formattedLink = fmt.Sprintf("%s%s (link not connected)%s", lightRed, formattedLink, resetColor)
 					}
 				}
 			}

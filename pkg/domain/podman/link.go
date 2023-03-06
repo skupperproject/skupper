@@ -277,10 +277,10 @@ func (l *LinkHandler) Status(name string) (types.LinkStatus, error) {
 }
 
 func (l *LinkHandler) Detail(link types.LinkStatus) (map[string]string, error) {
-	status := "Active"
+	status := "Connected"
 
 	if !link.Connected {
-		status = "Not active"
+		status = "Not connected"
 
 		if len(link.Description) > 0 {
 			status = fmt.Sprintf("%s (%s)", status, link.Description)

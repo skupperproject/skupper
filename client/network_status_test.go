@@ -99,7 +99,7 @@ func TestGetFormattedLinks(t *testing.T) {
 			},
 			isLocalSite:    true,
 			siteNameMap:    asMap([]string{"link1=site1"}),
-			expectedResult: []string{"\u001B[1;31mlink1-site1 (link not active)\u001B[0m"},
+			expectedResult: []string{"\u001B[1;31mlink1-site1 (link not connected)\u001B[0m"},
 		},
 		{
 			doc: "returns-results-formatted-with-local-data",
