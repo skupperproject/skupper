@@ -28,7 +28,8 @@ const (
 )
 
 var (
-	formats = strfmt.NewFormats()
+	formats        = strfmt.NewFormats()
+	localAddresses = []string{"127.0.0.1", "::1", "0.0.0.0", "::"}
 )
 
 type PodmanRestClient struct {
@@ -72,8 +73,16 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 		if u.Scheme == "tcp" {
 			u.Scheme = "http"
 		}
+		addresses, err := net.LookupHost(u.Hostname())
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve hostname: %s", u.Hostname())
+		}
+		for _, addr := range addresses {
+			if utils.StringSliceContains(localAddresses, addr) {
+				return nil, fmt.Errorf("local addresses cannot be used, got: %s", u.Hostname())
+			}
+		}
 	}
-
 	hostPort := u.Hostname()
 	if u.Port() != "" {
 		hostPort = net.JoinHostPort(u.Hostname(), u.Port())

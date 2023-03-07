@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -91,9 +93,14 @@ func StartPodmanService(t *testing.T, ctx context.Context, tcp bool) (string, *s
 	PodmanSkipValidation(t)
 	var endpoint string
 	if tcp {
+		localIp := localInterfaceIP()
+		if localIp == "" {
+			t.Skipf("tcp validation cannot be done because local ip address could not be determined")
+		}
 		port, err := utils.TcpPortNextFree(1024)
 		assert.Assert(t, err, "no tcp ports available")
-		endpoint = fmt.Sprintf("tcp://0.0.0.0:%d", port)
+
+		endpoint = fmt.Sprintf("tcp://%s:%d", localIp, port)
 	} else {
 		f, err := os.CreateTemp(os.TempDir(), "podman.*.sock")
 		assert.Assert(t, err, "error creating temporary file")
@@ -109,4 +116,36 @@ func StartPodmanService(t *testing.T, ctx context.Context, tcp bool) (string, *s
 		wg.Done()
 	}()
 	return endpoint, wg
+}
+
+// localInterfaceIP returns a local interface IP (v4) address that can be
+// used as a podman tcp endpoint for testing, ignoring localhost addresses
+// as well as eventual container interface addresses.
+func localInterfaceIP() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return ""
+		}
+		for _, a := range addrs {
+			if !strings.Contains(a.String(), ".") {
+				continue
+			}
+			addrNet := strings.Split(a.String(), "/")
+			if len(addrNet) == 0 {
+				continue
+			}
+			addr := addrNet[0]
+			if utils.StringSliceContains(localAddresses, addr) {
+				continue
+			}
+			return addr
+		}
+	}
+	return ""
 }
