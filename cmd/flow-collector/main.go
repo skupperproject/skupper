@@ -16,6 +16,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	clientpodman "github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/pkg/domain/podman"
+	"github.com/skupperproject/skupper/pkg/utils"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -145,15 +149,52 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
-	cli, err := client.NewClient(namespace, "", "")
-	if err != nil {
-		log.Fatal("Error getting van client", err.Error())
-	}
+	platform := config.GetPlatform()
+	var flowRecordTtl time.Duration
+	var enableConsole bool
 
-	log.Println("Waiting for Skupper router component to start")
-	_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
-	if err != nil {
-		log.Fatal("Error waiting for transport deployment to be ready: ", err.Error())
+	// waiting on skupper-router to be available
+	if platform == "" || platform == types.PlatformKubernetes {
+		cli, err := client.NewClient(namespace, "", "")
+		if err != nil {
+			log.Fatal("Error getting van client", err.Error())
+		}
+
+		log.Println("Waiting for Skupper router component to start")
+		_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
+		if err != nil {
+			log.Fatal("Error waiting for transport deployment to be ready: ", err.Error())
+		}
+
+		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+		if err != nil {
+			log.Fatal("Error getting site config", err.Error())
+		}
+
+		flowRecordTtl = siteConfig.Spec.FlowCollector.FlowRecordTtl
+		enableConsole = siteConfig.Spec.EnableConsole
+	} else {
+		cfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
+		if err != nil {
+			log.Fatal("Error reading podman site config", err)
+		}
+		podmanCli, err := clientpodman.NewPodmanClient(cfg.Endpoint, "")
+		if err != nil {
+			log.Fatal("Error creating podman client", err)
+		}
+		err = utils.Retry(time.Second, 120, func() (bool, error) {
+			router, err := podmanCli.ContainerInspect(types.TransportDeploymentName)
+			if err != nil {
+				return false, fmt.Errorf("error retrieving %s container state - %w", types.TransportDeploymentName, err)
+			}
+			if !router.Running {
+				return false, nil
+			}
+			return true, nil
+		})
+		if err != nil {
+			log.Fatalf("unable to determine if %s container is running - %s", types.TransportDeploymentName, err)
+		}
 	}
 
 	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
@@ -166,12 +207,7 @@ func main() {
 		log.Fatal("Error getting connect.json", err.Error())
 	}
 
-	siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-	if err != nil {
-		log.Fatal("Error getting site config", err.Error())
-	}
-
-	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig, siteConfig.Spec.FlowCollector.FlowRecordTtl)
+	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig, flowRecordTtl)
 	if err != nil {
 		log.Fatal("Error getting new flow collector ", err.Error())
 	}
@@ -341,7 +377,7 @@ func main() {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	if siteConfig.Spec.EnableConsole {
+	if enableConsole {
 		mux.PathPrefix("/").Handler(http.FileServer(http.Dir("/app/console/")))
 	} else {
 		log.Println("Skupper console is disabled")

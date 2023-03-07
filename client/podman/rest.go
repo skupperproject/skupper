@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	ENV_PODMAN_ENDPOINT  = "PODMAN_ENDPOINT"
 	DEFAULT_BASE_PATH    = "/v4.0.0"
 	DefaultNetworkDriver = "bridge"
 )
@@ -40,7 +41,8 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	var err error
 
 	if endpoint == "" {
-		endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", config.GetRuntimeDir())
+		defaultEndpoint := fmt.Sprintf("unix://%s/podman/podman.sock", config.GetRuntimeDir())
+		endpoint = utils.DefaultStr(os.Getenv(ENV_PODMAN_ENDPOINT), defaultEndpoint)
 	}
 
 	var u *url.URL
