@@ -213,7 +213,7 @@ func (p *CredentialHandler) NewCredential(cred types.Credential) (*corev1.Secret
 			return nil, fmt.Errorf("error loading CA secret %s - %v", cred.CA, err)
 		}
 	}
-	secret := kube.PrepareNewSecret(cred, caSecret, types.TransportDeploymentName)
+	secret := kube.PrepareNewSecret(cred, caSecret, types.LocalTransportServiceName)
 	_, err = p.SaveSecretAsVolume(&secret, "Credential")
 	return &secret, err
 }
