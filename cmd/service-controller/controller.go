@@ -185,13 +185,13 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	siteConfig, _ := controller.vanClient.SiteConfigInspect(context.TODO(), configmap)
 
 	var ttl time.Duration
-	var disableEvents = false
+	var enableSkupperEvents = true
 	if siteConfig != nil {
 		ttl = siteConfig.Spec.SiteTtl
-		disableEvents = siteConfig.Spec.DisableSkupperEvents
+		enableSkupperEvents = siteConfig.Spec.EnableSkupperEvents
 	}
 
-	if !disableEvents {
+	if enableSkupperEvents {
 		controller.eventHandler = kube.NewSkupperEventRecorder(cli.Namespace, cli.KubeClient)
 	} else {
 		controller.eventHandler = event.NewDefaultEventLogger()
