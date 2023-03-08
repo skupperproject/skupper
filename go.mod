@@ -21,8 +21,8 @@ require (
 	github.com/spf13/cobra v0.0.6
 	github.com/tsenart/vegeta/v12 v12.8.3
 	go.mongodb.org/mongo-driver v1.10.0
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
-	golang.org/x/text v0.3.7
+	golang.org/x/net v0.8.0
+	golang.org/x/text v0.8.0
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -93,8 +93,8 @@ require (
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/term v0.6.0 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
