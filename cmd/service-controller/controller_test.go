@@ -1,7 +1,6 @@
 package main
 
 import (
-	"k8s.io/client-go/tools/record"
 	"context"
 	"reflect"
 	"testing"
@@ -26,10 +25,6 @@ func TestCheckServiceFor(t *testing.T) {
 	vanClient := &client.VanClient{
 		KubeClient: kubeClient,
 		Namespace:  NS,
-		EventRecorder: kube.SkupperEventRecorder{
-			EventRecorder: &record.FakeRecorder{},
-			Disabled:      true,
-		},
 	}
 
 	scenarios := []struct {

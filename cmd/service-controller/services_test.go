@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"io"
 	"io/ioutil"
-	"k8s.io/client-go/tools/record"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -423,9 +421,6 @@ func TestServeServices(t *testing.T) {
 		Namespace:  namespace,
 		KubeClient: fake.NewSimpleClientset(),
 	}
-	cli.EventRecorder = kube.SkupperEventRecorder{
-		EventRecorder: &record.FakeRecorder{},
-	}
 
 	skupperInitWithController(cli, namespace)
 	dep1, err := createDeployment(cli.KubeClient, "dep1", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})
@@ -437,7 +432,7 @@ func TestServeServices(t *testing.T) {
 	assert.Check(t, err, namespace)
 	_, err = createDeployment(cli.KubeClient, "dep3", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}, {Name: "myport2", ContainerPort: 9191}})
 	assert.Check(t, err, namespace)
-	mgr := newServiceManager(cli)
+	mgr := newServiceManager(cli, event.NewDefaultEventLogger())
 	router := mux.NewRouter()
 	handler := serveServices(mgr)
 	router.Handle("/services", handler)
@@ -630,7 +625,7 @@ func TestServeServiceTargets(t *testing.T) {
 	assert.Check(t, err, namespace)
 	_, err = createStatefulSet(cli.KubeClient, "ss1", namespace, "nginx", []corev1.ContainerPort{{Name: "https", ContainerPort: 443}, {Name: "amqps", ContainerPort: 5671}})
 	assert.Check(t, err, namespace)
-	mgr := newServiceManager(cli)
+	mgr := newServiceManager(cli, event.NewDefaultEventLogger())
 	router := mux.NewRouter()
 	handler := serveTargets(mgr)
 	router.Handle("/targets", handler)

@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"io"
-	"k8s.io/client-go/tools/record"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -144,16 +142,13 @@ func TestCreateDeleteLinks(t *testing.T) {
 	cli := &client.VanClient{
 		Namespace:  testname,
 		KubeClient: fake.NewSimpleClientset(),
-		EventRecorder: kube.SkupperEventRecorder{
-			EventRecorder: &record.FakeRecorder{},
-			Disabled:      true,
-		},
 	}
 
 	connectors := &MockConnectorManager{}
 	manager := &LinkManager{
-		cli:        cli,
-		connectors: connectors,
+		cli:          cli,
+		connectors:   connectors,
+		eventHandler: event.NewDefaultEventLogger(),
 	}
 	err := skupperInit(cli, testname)
 	assert.Check(t, err, testname)
