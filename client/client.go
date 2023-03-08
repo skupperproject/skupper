@@ -39,7 +39,6 @@ type VanClient struct {
 	DynamicClient   dynamic.Interface
 	DiscoveryClient *discovery.DiscoveryClient
 	LinkHandler     domain.LinkHandler
-	EventRecorder   kube.SkupperEventRecorder
 }
 
 func (cli *VanClient) GetNamespace() string {

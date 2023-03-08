@@ -55,12 +55,14 @@ type ServiceDefinition struct {
 }
 
 type ServiceManager struct {
-	cli *client.VanClient
+	cli          *client.VanClient
+	eventHandler event.EventHandlerInterface
 }
 
-func newServiceManager(cli *client.VanClient) *ServiceManager {
+func newServiceManager(cli *client.VanClient, logger event.EventHandlerInterface) *ServiceManager {
 	return &ServiceManager{
-		cli: cli,
+		cli:          cli,
+		eventHandler: logger,
 	}
 }
 
@@ -297,11 +299,11 @@ func serveServices(m *ServiceManager) http.Handler {
 				err := m.createService(options)
 				if err != nil {
 					message := fmt.Sprintf("Error while trying to create service %s: %s", options.GetServiceName(), err)
-					kube.RecordWarningEvent(ServiceManagement, message, m.cli.EventRecorder)
+					m.eventHandler.RecordWarningEvent(ServiceManagement, message)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
 					message := fmt.Sprintf("Service %s exposed", options.GetServiceName())
-					kube.RecordNormalEvent(ServiceManagement, message, m.cli.EventRecorder)
+					m.eventHandler.RecordNormalEvent(ServiceManagement, message)
 				}
 			}
 		} else if r.Method == http.MethodDelete {
@@ -313,7 +315,7 @@ func serveServices(m *ServiceManager) http.Handler {
 					http.Error(w, "No such service", http.StatusNotFound)
 				} else {
 					message := fmt.Sprintf("Service %s deleted", name)
-					kube.RecordNormalEvent(ServiceManagement, message, m.cli.EventRecorder)
+					m.eventHandler.RecordNormalEvent(ServiceManagement, message)
 				}
 			} else {
 				http.Error(w, "Invalid method", http.StatusMethodNotAllowed)

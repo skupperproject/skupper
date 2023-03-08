@@ -3,7 +3,6 @@ package kube
 import (
 	"github.com/golang/glog"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/event"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,10 +29,21 @@ var EventRecorderPolicyRule = []rbacv1.PolicyRule{
 type SkupperEventRecorder struct {
 	EventRecorder record.EventRecorder
 	Source        *v1.Service
-	Disabled      bool
 }
 
-func NewEventRecorder(namespace string, cli kubernetes.Interface, disabled bool) SkupperEventRecorder {
+func (logger SkupperEventRecorder) RecordWarningEvent(reason string, message string) {
+	if logger.EventRecorder != nil && logger.Source != nil {
+		logger.EventRecorder.Event(logger.Source, v1.EventTypeWarning, reason, message)
+	}
+}
+
+func (logger SkupperEventRecorder) RecordNormalEvent(reason string, message string) {
+	if logger.EventRecorder != nil && logger.Source != nil {
+		logger.EventRecorder.Event(logger.Source, v1.EventTypeNormal, reason, message)
+	}
+}
+
+func NewSkupperEventRecorder(namespace string, cli kubernetes.Interface) *SkupperEventRecorder {
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
@@ -49,23 +59,8 @@ func NewEventRecorder(namespace string, cli kubernetes.Interface, disabled bool)
 	eventRecorder := SkupperEventRecorder{
 		EventRecorder: kubeEventRecorder,
 		Source:        service,
-		Disabled:      disabled,
 	}
-	return eventRecorder
-}
-
-func RecordWarningEvent(reason string, message string, recorder SkupperEventRecorder) {
-	event.Recordf(reason, message)
-	if !recorder.Disabled && recorder.EventRecorder != nil && recorder.Source != nil {
-		recorder.EventRecorder.Event(recorder.Source, v1.EventTypeWarning, reason, message)
-	}
-}
-
-func RecordNormalEvent(reason string, message string, recorder SkupperEventRecorder) {
-	event.Recordf(reason, message)
-	if !recorder.Disabled && recorder.EventRecorder != nil && recorder.Source != nil {
-		recorder.EventRecorder.Event(recorder.Source, v1.EventTypeNormal, reason, message)
-	}
+	return &eventRecorder
 }
 
 func AddEventRecorderPermissions(namespace string, ownerRefs []metav1.OwnerReference, cli kubernetes.Interface, serviceAccountName string) error {
@@ -106,7 +101,7 @@ func AddEventRecorderPermissions(namespace string, ownerRefs []metav1.OwnerRefer
 	}
 
 	roleBinding.ObjectMeta.OwnerReferences = ownerRefs
-	_, err = CreateRoleBinding(NamespaceFile, &roleBinding, cli)
+	_, err = CreateRoleBinding(namespace, &roleBinding, cli)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}

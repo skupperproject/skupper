@@ -37,13 +37,13 @@ func AddStaticPolicyWatcher(pv *client.ClusterPolicyValidator) {
 }
 
 type PolicyController struct {
-	name          string
-	cli           *client.VanClient
-	validator     *client.ClusterPolicyValidator
-	informer      cache.SharedIndexInformer
-	queue         workqueue.RateLimitingInterface
-	activeMap     map[string]time.Time
-	eventRecorder kube.SkupperEventRecorder
+	name         string
+	cli          *client.VanClient
+	validator    *client.ClusterPolicyValidator
+	informer     cache.SharedIndexInformer
+	queue        workqueue.RateLimitingInterface
+	activeMap    map[string]time.Time
+	eventHandler event.EventHandlerInterface
 }
 
 func (c *PolicyController) loadActiveMap() {
@@ -389,7 +389,7 @@ func (c *PolicyController) validateServiceStateChanged() {
 			// If service is now allowed, but does not exist, remove its definition to let service sync recreate it
 			if len(service.Origin) > 0 && !service.IsAnnotated() && err != nil && errors.IsNotFound(err) {
 				message := fmt.Sprintf("[validateServiceStateChanged] service is now allowed %s", service.Address)
-				kube.RecordNormalEvent(c.name, message, c.eventRecorder)
+				c.eventHandler.RecordNormalEvent(c.name, message)
 
 				c.cli.ServiceInterfaceRemove(context.Background(), service.Address)
 			}
@@ -419,14 +419,14 @@ func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget) 
 	return getBySelector(DeploymentObjectType, StatefulSetObjectType, DeploymentConfigObjectType)
 }
 
-func NewPolicyController(cli *client.VanClient) *PolicyController {
+func NewPolicyController(cli *client.VanClient, eventHandler event.EventHandlerInterface) *PolicyController {
 	controller := &PolicyController{
-		name:          "PolicyController",
-		cli:           cli,
-		validator:     client.NewClusterPolicyValidator(cli),
-		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "PolicyHandler"),
-		activeMap:     map[string]time.Time{},
-		eventRecorder: cli.EventRecorder,
+		name:         "PolicyController",
+		cli:          cli,
+		validator:    client.NewClusterPolicyValidator(cli),
+		queue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "PolicyHandler"),
+		activeMap:    map[string]time.Time{},
+		eventHandler: eventHandler,
 	}
 	return controller
 }

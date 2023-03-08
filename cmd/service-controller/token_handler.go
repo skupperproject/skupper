@@ -17,10 +17,11 @@ import (
 )
 
 type TokenHandler struct {
-	name      string
-	vanClient *client.VanClient
-	siteId    string
-	policy    *client.ClusterPolicyValidator
+	name         string
+	vanClient    *client.VanClient
+	siteId       string
+	policy       *client.ClusterPolicyValidator
+	eventHandler event.EventHandlerInterface
 }
 
 func (h *TokenHandler) Handle(name string, token *corev1.Secret) error {
@@ -38,12 +39,13 @@ func (h *TokenHandler) Handle(name string, token *corev1.Secret) error {
 	}
 }
 
-func newTokenHandler(cli *client.VanClient, siteId string) *SecretController {
+func newTokenHandler(cli *client.VanClient, siteId string, eventHandler event.EventHandlerInterface) *SecretController {
 	handler := &TokenHandler{
-		name:      "TokenHandler",
-		vanClient: cli,
-		siteId:    siteId,
-		policy:    client.NewClusterPolicyValidator(cli),
+		name:         "TokenHandler",
+		vanClient:    cli,
+		siteId:       siteId,
+		policy:       client.NewClusterPolicyValidator(cli),
+		eventHandler: eventHandler,
 	}
 	AddStaticPolicyWatcher(handler.policy)
 	return NewSecretController(handler.name, types.TypeTokenQualifier, cli.KubeClient, cli.Namespace, handler)
@@ -66,7 +68,7 @@ func (c *TokenHandler) getTokenCost(token *corev1.Secret) (int32, bool) {
 
 func (c *TokenHandler) connect(token *corev1.Secret) error {
 	message := fmt.Sprintf("Connecting using token %s", token.ObjectMeta.Name)
-	kube.RecordNormalEvent(c.name, message, c.vanClient.EventRecorder)
+	c.eventHandler.RecordNormalEvent(c.name, message)
 	var options types.ConnectorCreateOptions
 	options.Name = token.ObjectMeta.Name
 	options.SkupperNamespace = c.vanClient.Namespace
@@ -82,7 +84,7 @@ func (c *TokenHandler) disconnect(key string) error {
 		return err
 	}
 	message := fmt.Sprintf(c.name, "Disconnecting connector %s", name)
-	kube.RecordNormalEvent(c.name, message, c.vanClient.EventRecorder)
+	c.eventHandler.RecordNormalEvent(c.name, message)
 	return c.removeConnectorFromConfig(context.Background(), name)
 }
 

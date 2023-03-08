@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -57,15 +56,17 @@ func (m *ConnectorManager) getConnectorStatus() (map[string]qdr.ConnectorStatus,
 }
 
 type LinkManager struct {
-	cli        *client.VanClient
-	agentPool  *qdr.AgentPool
-	connectors Connectors
+	cli          *client.VanClient
+	agentPool    *qdr.AgentPool
+	connectors   Connectors
+	eventHandler event.EventHandlerInterface
 }
 
-func newLinkManager(cli *client.VanClient, pool *qdr.AgentPool) *LinkManager {
+func newLinkManager(cli *client.VanClient, pool *qdr.AgentPool, eventHandler event.EventHandlerInterface) *LinkManager {
 	return &LinkManager{
-		cli:        cli,
-		connectors: newConnectorManager(pool),
+		cli:          cli,
+		connectors:   newConnectorManager(pool),
+		eventHandler: eventHandler,
 	}
 }
 
@@ -162,10 +163,10 @@ func (m *LinkManager) deleteLink(name string) (bool, error) {
 	secret, _ := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
 	err := m.cli.ConnectorRemove(context.Background(), types.ConnectorRemoveOptions{Name: name, SkupperNamespace: m.cli.Namespace})
 	if err != nil {
-		kube.RecordWarningEvent(LinkManagement, fmt.Sprintf("Error trying to delete secret %s: %s", secret.Name, err), m.cli.EventRecorder)
+		m.eventHandler.RecordWarningEvent(LinkManagement, fmt.Sprintf("Error trying to delete secret %s: %s", secret.Name, err))
 		return false, err
 	}
-	kube.RecordNormalEvent(LinkManagement, fmt.Sprintf("Deleted secret %s", secret.Name), m.cli.EventRecorder)
+	m.eventHandler.RecordNormalEvent(LinkManagement, fmt.Sprintf("Deleted secret %s", secret.Name))
 	return true, nil
 }
 
@@ -175,7 +176,7 @@ func (m *LinkManager) createLink(cost int, token []byte) error {
 		return err
 	}
 	message := fmt.Sprintf("Created link %q", secret.ObjectMeta.Name)
-	kube.RecordNormalEvent(LinkManagement, message, m.cli.EventRecorder)
+	m.eventHandler.RecordNormalEvent(LinkManagement, message)
 
 	return nil
 }

@@ -1237,14 +1237,10 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 	}
 
-	var disableEvents = options.Spec.DisableSkupperEvents
 	err = kube.AddEventRecorderPermissions(van.Namespace, ownerRefs, cli.KubeClient, types.ControllerServiceAccountName)
 	if err != nil {
 		log.Printf("Failed to add permissions for the event recorder: %s\n", err)
-		disableEvents = true
 	}
-
-	cli.EventRecorder = kube.NewEventRecorder(van.Namespace, cli.KubeClient, disableEvents)
 
 	return nil
 }

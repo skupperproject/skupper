@@ -1,7 +1,6 @@
 package service_sync
 
 import (
-	vanClient "github.com/skupperproject/skupper/client"
 	"reflect"
 	"strings"
 	"time"
@@ -30,7 +29,7 @@ type ServiceSync struct {
 	localServices     map[string]types.ServiceInterface
 	byName            map[string]types.ServiceInterface
 	heardFrom         map[string]time.Time
-	cli               *vanClient.VanClient
+	eventHandler      event.EventHandlerInterface
 }
 
 type ServiceUpdate struct {
@@ -49,7 +48,7 @@ func getTtl(ttl time.Duration) time.Duration {
 	return ttl
 }
 
-func NewServiceSync(origin string, ttl time.Duration, version string, connectionFactory messaging.ConnectionFactory, handler UpdateHandler, cli *vanClient.VanClient) *ServiceSync {
+func NewServiceSync(origin string, ttl time.Duration, version string, connectionFactory messaging.ConnectionFactory, handler UpdateHandler, eventHandler event.EventHandlerInterface) *ServiceSync {
 	s := &ServiceSync{
 		origin:            origin,
 		version:           version,
@@ -63,7 +62,7 @@ func NewServiceSync(origin string, ttl time.Duration, version string, connection
 		localServices:     map[string]types.ServiceInterface{},
 		byName:            map[string]types.ServiceInterface{},
 		heardFrom:         map[string]time.Time{},
-		cli:               cli,
+		eventHandler:      eventHandler,
 	}
 	return s
 }
@@ -249,9 +248,9 @@ func (c *ServiceSync) Start(stopCh <-chan struct{}) {
 }
 
 func (c *ServiceSync) run(stopCh <-chan struct{}) {
-	s := newSender(c.connectionFactory, c.outgoing, c.cli)
+	s := newSender(c.connectionFactory, c.outgoing, c.eventHandler)
 	s.start()
-	r := newReceiver(c.connectionFactory, c.incoming, c.cli)
+	r := newReceiver(c.connectionFactory, c.incoming, c.eventHandler)
 	r.start()
 	c.update(stopCh)
 	r.stop()

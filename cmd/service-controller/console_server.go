@@ -40,13 +40,13 @@ type ConsoleServer struct {
 	accessRevoker *AccessRevoker
 }
 
-func newConsoleServer(cli *client.VanClient, config *tls.Config) *ConsoleServer {
+func newConsoleServer(cli *client.VanClient, config *tls.Config, eventHandler event.EventHandlerInterface) *ConsoleServer {
 	pool := qdr.NewAgentPool("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", config)
 	return &ConsoleServer{
 		agentPool:     pool,
 		tokens:        newTokenManager(cli),
-		links:         newLinkManager(cli, pool),
-		services:      newServiceManager(cli),
+		links:         newLinkManager(cli, pool, eventHandler),
+		services:      newServiceManager(cli, eventHandler),
 		policies:      newPolicyManager(cli),
 		accessRevoker: newAccessRevoker(cli),
 	}
