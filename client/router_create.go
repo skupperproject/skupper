@@ -1237,9 +1237,11 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 	}
 
-	err = kube.AddEventRecorderPermissions(van.Namespace, ownerRefs, cli.KubeClient, types.ControllerServiceAccountName)
-	if err != nil {
-		log.Printf("Failed to add permissions for the event recorder: %s\n", err)
+	if options.Spec.EnableSkupperEvents {
+		err = kube.AddEventRecorderPermissions(van.Namespace, ownerRefs, cli.KubeClient, types.ControllerServiceAccountName)
+		if err != nil {
+			log.Printf("Failed to add permissions for the event recorder: %s\n", err)
+		}
 	}
 
 	return nil
