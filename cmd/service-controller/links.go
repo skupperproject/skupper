@@ -160,7 +160,7 @@ func (m *LinkManager) getLink(name string) (*types.LinkStatus, error) {
 }
 
 func (m *LinkManager) deleteLink(name string) (bool, error) {
-	secret, _ := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(name, metav1.GetOptions{})
+	secret, _ := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	err := m.cli.ConnectorRemove(context.Background(), types.ConnectorRemoveOptions{Name: name, SkupperNamespace: m.cli.Namespace})
 	if err != nil {
 		m.eventHandler.RecordWarningEvent(LinkManagement, fmt.Sprintf("Error trying to delete secret %s: %s", secret.Name, err))
