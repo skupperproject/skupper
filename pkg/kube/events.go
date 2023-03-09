@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"github.com/golang/glog"
 	"github.com/skupperproject/skupper/api/types"
 	v1 "k8s.io/api/core/v1"
@@ -54,7 +55,7 @@ func NewSkupperEventRecorder(namespace string, cli kubernetes.Interface) *Skuppe
 		scheme.Scheme,
 		v1.EventSource{
 			Component: types.ControllerServiceName})
-	service, _ := cli.CoreV1().Services(namespace).Get(types.ControllerServiceName, metav1.GetOptions{})
+	service, _ := cli.CoreV1().Services(namespace).Get(context.TODO(), types.ControllerServiceName, metav1.GetOptions{})
 
 	eventRecorder := SkupperEventRecorder{
 		EventRecorder: kubeEventRecorder,
