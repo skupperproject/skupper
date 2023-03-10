@@ -155,6 +155,7 @@ const (
 	ClaimsServerSecret       string = "skupper-claims-server"
 	SiteCaSecret             string = "skupper-site-ca"
 	ConsoleServerSecret      string = "skupper-console-certs"
+	ConsoleUsersSecret       string = "skupper-console-users"
 	OauthRouterConsoleSecret string = "skupper-router-console-certs"
 	ServiceCaSecret          string = "skupper-service-ca"
 	ServiceClientSecret      string = "skupper-service-client" // Secret that is used in sslProfiles for all http2 connectors with tls enabled

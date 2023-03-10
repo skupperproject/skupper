@@ -35,6 +35,7 @@ var (
 
 type PodmanRestClient struct {
 	RestClient *runtime.Runtime
+	endpoint   string
 }
 
 func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
@@ -134,11 +135,20 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 
 	cli := &PodmanRestClient{
 		RestClient: c,
+		endpoint:   endpoint,
 	}
 	if err = cli.Validate(); err != nil {
 		return nil, err
 	}
 	return cli, nil
+}
+
+func (p *PodmanRestClient) IsSockEndpoint() bool {
+	return strings.HasPrefix(p.endpoint, "/") || strings.HasPrefix(p.endpoint, "unix://")
+}
+
+func (p *PodmanRestClient) GetEndpoint() string {
+	return p.endpoint
 }
 
 // boolTrue returns a true bool pointer (for false, just use new(bool))

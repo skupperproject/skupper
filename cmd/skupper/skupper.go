@@ -433,6 +433,10 @@ installation that can then be connected to other skupper installations`,
 				}
 			}
 
+			if routerCreateOpts.EnableFlowCollector && routerCreateOpts.FlowCollector.FlowRecordTtl != 0 && routerCreateOpts.FlowCollector.FlowRecordTtl < time.Minute {
+				return fmt.Errorf("The minimum value for flow-collector-record-ttl is 1 minute")
+			}
+
 			return skupperCli.Create(cmd, args)
 		},
 	}

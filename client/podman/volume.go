@@ -59,16 +59,14 @@ func (p *PodmanRestClient) VolumeRemove(id string) error {
 	return nil
 }
 
-func VolumesToMounts(c *container.Container) []*models.Mount {
+func FilesToMounts(c *container.Container) []*models.Mount {
 	var mounts []*models.Mount
-	for _, v := range c.Mounts {
+	for _, fm := range c.FileMounts {
 		m := &models.Mount{
-			ReadOnly:    !v.RW,
-			Source:      v.Source,
-			Target:      v.Destination,
-			Destination: v.Destination,
-			Type:        "volume",
-			Options:     []string{"Z"},
+			Type:        "bind",
+			Source:      fm.Source,
+			Destination: fm.Destination,
+			Options:     fm.Options,
 		}
 		mounts = append(mounts, m)
 	}

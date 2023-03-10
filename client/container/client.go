@@ -61,6 +61,7 @@ type Container struct {
 	Annotations   map[string]string
 	Networks      map[string]ContainerNetworkInfo
 	Mounts        []Volume
+	FileMounts    []FileMount
 	Ports         []Port
 	EntryPoint    []string
 	Command       []string
@@ -105,6 +106,12 @@ func (c *Container) NetworkAliases() map[string][]string {
 		netNames[name] = net.Aliases
 	}
 	return netNames
+}
+
+type FileMount struct {
+	Source      string
+	Destination string
+	Options     []string
 }
 
 type Volume struct {

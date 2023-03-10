@@ -62,14 +62,14 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 		userNs = &models.Namespace{Nsmode: models.NamespaceMode("keep-id")}
 	}
 	spec := &models.SpecGenerator{
-		Annotations: c.Annotations,
-		CNINetworks: c.NetworkNames(),
-		Command:     c.Command,
-		Entrypoint:  c.EntryPoint,
-		Env:         c.Env,
-		Image:       c.Image,
-		Labels:      c.Labels,
-		// Mounts:      VolumesToMounts(c),
+		Annotations:   c.Annotations,
+		CNINetworks:   c.NetworkNames(),
+		Command:       c.Command,
+		Entrypoint:    c.EntryPoint,
+		Env:           c.Env,
+		Image:         c.Image,
+		Labels:        c.Labels,
+		Mounts:        FilesToMounts(c),
 		Volumes:       VolumesToNamedVolumes(c),
 		Name:          c.Name,
 		Pod:           c.Pod,
@@ -78,6 +78,9 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 		User:          containerUser,
 		Userns:        userNs,
 		Idmappings:    idMappings,
+	}
+	if c.Annotations != nil && c.Annotations["io.podman.annotations.label"] == "disable" {
+		spec.SelinuxOpts = append(spec.SelinuxOpts, "disable")
 	}
 
 	// Network info
@@ -292,14 +295,22 @@ func FromInspectContainer(c containers.ContainerInspectLibpodOKBody) *container.
 
 	// Volume mounts
 	for _, m := range c.Mounts {
-		volume := container.Volume{
-			Name:        m.Name,
-			Source:      m.Source,
-			Destination: m.Destination,
-			Mode:        m.Mode,
-			RW:          m.RW,
+		switch m.Type {
+		case "volume":
+			ct.Mounts = append(ct.Mounts, container.Volume{
+				Name:        m.Name,
+				Source:      m.Source,
+				Destination: m.Destination,
+				Mode:        m.Mode,
+				RW:          m.RW,
+			})
+		case "bind":
+			ct.FileMounts = append(ct.FileMounts, container.FileMount{
+				Source:      m.Source,
+				Destination: m.Destination,
+				Options:     m.Options,
+			})
 		}
-		ct.Mounts = append(ct.Mounts, volume)
 	}
 
 	// Container config

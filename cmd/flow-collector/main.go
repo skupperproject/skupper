@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -195,6 +196,8 @@ func main() {
 		if err != nil {
 			log.Fatalf("unable to determine if %s container is running - %s", types.TransportDeploymentName, err)
 		}
+		flowRecordTtl, _ = time.ParseDuration(os.Getenv("FLOW_RECORD_TTL"))
+		enableConsole, _ = strconv.ParseBool(os.Getenv("ENABLE_CONSOLE"))
 	}
 
 	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")

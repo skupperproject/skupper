@@ -3,6 +3,7 @@ package podman
 import (
 	"strconv"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/domain"
 )
@@ -41,12 +42,23 @@ func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, err
 		})
 	}
 
-	// currently only router component is supported
-	component := &domain.Router{
-		Image:         c.Image,
-		Env:           c.Env,
-		Labels:        c.Labels,
-		SiteIngresses: siteIngresses,
+	componentName := c.Labels[types.ComponentAnnotation]
+	var component domain.SkupperComponent
+	switch componentName {
+	case types.TransportDeploymentName:
+		component = &domain.Router{
+			Image:         c.Image,
+			Env:           c.Env,
+			Labels:        c.Labels,
+			SiteIngresses: siteIngresses,
+		}
+	case types.FlowCollectorContainerName:
+		component = &domain.FlowCollector{
+			Image:         c.Image,
+			Env:           c.Env,
+			Labels:        c.Labels,
+			SiteIngresses: siteIngresses,
+		}
 	}
 
 	return component, nil
