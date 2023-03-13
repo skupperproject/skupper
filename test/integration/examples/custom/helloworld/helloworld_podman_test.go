@@ -176,13 +176,13 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					// skupper token create - verify token has been created
 					&token.CreateTester{
 						Name:     "public",
-						FileName: testPath + "public-hello-world-1.token.yaml",
+						FileName: testPath + "public-hello-world-podman-1.token.yaml",
 					},
 				}},
 				{Platform: types.PlatformPodman, Commands: []cli.SkupperCommandTester{
 					// skupper link create - connect to public and verify connection created
 					&link.CreateTester{
-						TokenFile: testPath + "public-hello-world-1.token.yaml",
+						TokenFile: testPath + "public-hello-world-podman-1.token.yaml",
 						Name:      "public",
 						Cost:      1,
 					},
