@@ -294,7 +294,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 	err = base.WaitSkupperRunning(pub1Cluster)
 	assert.Assert(t, err)
 
-	const secretFile = "/tmp/public_basic_1_secret.yaml"
+	const secretFile = "/tmp/public_headless_1_secret.yaml"
 	if tokenType == "claim" {
 		err = pub1Cluster.VanClient.TokenClaimCreateFile(ctx, types.DefaultVanName, []byte(createOptsPublic.Password), 15*time.Minute, 1, secretFile)
 	} else {
