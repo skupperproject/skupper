@@ -7,10 +7,9 @@ import (
 	"time"
 
 	"github.com/prometheus/common/log"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
-
-	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
 )
 
@@ -113,6 +112,9 @@ func (r *EdgeConnectivityTestRunner) Setup(ctx context.Context, testCase *TestCa
 		err = pub1Cluster.VanClient.RouterCreate(testContext, *siteConfig)
 		assert.Assert(t, err)
 
+		// Wait for Skupper to be running
+		assert.Assert(t, base.WaitSkupperRunning(pub1Cluster))
+
 		// Create a connection token for this cluster.
 		// It is only the public clusters that get connected to.
 		// We do this for every public cluster because we are too lazy
@@ -137,6 +139,9 @@ func (r *EdgeConnectivityTestRunner) Setup(ctx context.Context, testCase *TestCa
 	assert.Assert(t, err)
 	err = privateCluster.VanClient.RouterCreate(testContext, *siteConfig)
 	assert.Assert(t, err)
+
+	// Wait for Skupper to be running
+	assert.Assert(t, base.WaitSkupperRunning(privateCluster))
 
 	// Make all public-to-public connections. --------------------------
 	for public_1, public_2 := range testCase.public_public_cnx {
