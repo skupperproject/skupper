@@ -256,7 +256,6 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 		return "", fmt.Errorf("Service already exposed, cannot reconfigure as headless")
 	} else if options.Protocol != "" && service.Protocol != options.Protocol {
 		return "", fmt.Errorf("Invalid protocol %s for service with mapping %s", options.Protocol, service.Protocol)
-	} else if (options.TlsCredentials != "" || options.TlsCertAuthority != "") && options.Protocol == "http" {
 	} else if options.BridgeImage != "" && service.BridgeImage != options.BridgeImage {
 		return "", fmt.Errorf("Service %s already exists with a different bridge image: %s", serviceName, service.BridgeImage)
 	} else if options.TlsCredentials != "" && service.TlsCredentials == "" {
