@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,10 +17,11 @@ import (
 )
 
 type TokenHandler struct {
-	name      string
-	vanClient *client.VanClient
-	siteId    string
-	policy    *client.ClusterPolicyValidator
+	name         string
+	vanClient    *client.VanClient
+	siteId       string
+	policy       *client.ClusterPolicyValidator
+	eventHandler event.EventHandlerInterface
 }
 
 func (h *TokenHandler) Handle(name string, token *corev1.Secret) error {
@@ -37,12 +39,13 @@ func (h *TokenHandler) Handle(name string, token *corev1.Secret) error {
 	}
 }
 
-func newTokenHandler(cli *client.VanClient, siteId string) *SecretController {
+func newTokenHandler(cli *client.VanClient, siteId string, eventHandler event.EventHandlerInterface) *SecretController {
 	handler := &TokenHandler{
-		name:      "TokenHandler",
-		vanClient: cli,
-		siteId:    siteId,
-		policy:    client.NewClusterPolicyValidator(cli),
+		name:         "TokenHandler",
+		vanClient:    cli,
+		siteId:       siteId,
+		policy:       client.NewClusterPolicyValidator(cli),
+		eventHandler: eventHandler,
 	}
 	AddStaticPolicyWatcher(handler.policy)
 	return NewSecretController(handler.name, types.TypeTokenQualifier, cli.KubeClient, cli.Namespace, handler)
@@ -64,7 +67,8 @@ func (c *TokenHandler) getTokenCost(token *corev1.Secret) (int32, bool) {
 }
 
 func (c *TokenHandler) connect(token *corev1.Secret) error {
-	event.Recordf(c.name, "Connecting using token %s", token.ObjectMeta.Name)
+	message := fmt.Sprintf("Connecting using token %s", token.ObjectMeta.Name)
+	c.eventHandler.RecordNormalEvent(c.name, message)
 	var options types.ConnectorCreateOptions
 	options.Name = token.ObjectMeta.Name
 	options.SkupperNamespace = c.vanClient.Namespace
@@ -79,7 +83,8 @@ func (c *TokenHandler) disconnect(key string) error {
 	if err != nil {
 		return err
 	}
-	event.Recordf(c.name, "Disconnecting connector %s", name)
+	message := fmt.Sprintf(c.name, "Disconnecting connector %s", name)
+	c.eventHandler.RecordNormalEvent(c.name, message)
 	return c.removeConnectorFromConfig(context.Background(), name)
 }
 

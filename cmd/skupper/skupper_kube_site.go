@@ -165,6 +165,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "flow-collector-memory-limit", "", "Memory limit for flow collector pods")
 
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
+	cmd.Flags().BoolVar(&routerCreateOpts.EnableSkupperEvents, "enable-skupper-events", true, "Enable sending Skupper events to Kubernetes")
 
 	// hide run-as flags
 	f := cmd.Flag("run-as-user")

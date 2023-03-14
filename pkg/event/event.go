@@ -136,3 +136,24 @@ func Recordf(name string, format string, args ...interface{}) {
 func Query() []EventGroup {
 	return DefaultStore.Query()
 }
+
+type EventHandlerInterface interface {
+	RecordWarningEvent(reason string, message string)
+	RecordNormalEvent(reason string, message string)
+}
+
+type DefaultEventLogger struct {
+	store *EventStore
+}
+
+func NewDefaultEventLogger() *DefaultEventLogger {
+	return &DefaultEventLogger{store: DefaultStore}
+}
+
+func (logger DefaultEventLogger) RecordWarningEvent(reason string, message string) {
+	logger.store.Recordf(reason, message)
+}
+
+func (logger DefaultEventLogger) RecordNormalEvent(reason string, message string) {
+	logger.store.Recordf(reason, message)
+}

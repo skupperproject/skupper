@@ -143,10 +143,12 @@ func TestCreateDeleteLinks(t *testing.T) {
 		Namespace:  testname,
 		KubeClient: fake.NewSimpleClientset(),
 	}
+
 	connectors := &MockConnectorManager{}
 	manager := &LinkManager{
-		cli:        cli,
-		connectors: connectors,
+		cli:          cli,
+		connectors:   connectors,
+		eventHandler: event.NewDefaultEventLogger(),
 	}
 	err := skupperInit(cli, testname)
 	assert.Check(t, err, testname)

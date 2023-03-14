@@ -74,6 +74,7 @@ type Controller struct {
 	policyHandler     *PolicyController
 	nodeWatcher       *NodeWatcher
 	tlsManager        *kubeqdr.TlsManager
+	eventHandler      event.EventHandlerInterface
 }
 
 const (
@@ -176,6 +177,26 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	}
 	AddStaticPolicyWatcher(controller.policy)
 
+	siteCreationTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
+	if err == nil {
+		siteCreationTime = uint64(configmap.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
+	}
+	siteConfig, _ := controller.vanClient.SiteConfigInspect(context.TODO(), configmap)
+
+	var ttl time.Duration
+	var enableSkupperEvents = true
+	if siteConfig != nil {
+		ttl = siteConfig.Spec.SiteTtl
+		enableSkupperEvents = siteConfig.Spec.EnableSkupperEvents
+	}
+
+	if enableSkupperEvents {
+		controller.eventHandler = kube.NewSkupperEventRecorder(cli.Namespace, cli.KubeClient)
+	} else {
+		controller.eventHandler = event.NewDefaultEventLogger()
+	}
+
 	// Organize service definitions
 	controller.byOrigin = make(map[string]map[string]types.ServiceInterface)
 	controller.localServices = make(map[string]types.ServiceInterface)
@@ -188,36 +209,27 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	svcInformer.AddEventHandler(controller.newEventHandler("actual-services", AnnotatedKey, ServiceResourceVersionTest))
 	headlessInformer.AddEventHandler(controller.newEventHandler("statefulset", AnnotatedKey, StatefulSetResourceVersionTest))
 	externalBridges.AddEventHandler(controller.newEventHandler("external-bridges", AnnotatedKey, DeploymentResourceVersionTest))
-	controller.consoleServer = newConsoleServer(cli, tlsConfig)
+	controller.consoleServer = newConsoleServer(cli, tlsConfig, controller.eventHandler)
 	controller.siteQueryServer = newSiteQueryServer(cli, tlsConfig)
 
 	controller.definitionMonitor = newDefinitionMonitor(controller.origin, controller.vanClient, controller.svcDefInformer, controller.svcInformer)
 	if enableClaimVerifier() {
 		controller.claimVerifier = newClaimVerifier(controller.vanClient)
 	}
-	controller.tokenHandler = newTokenHandler(controller.vanClient, origin)
+	controller.tokenHandler = newTokenHandler(controller.vanClient, origin, controller.eventHandler)
 	controller.claimHandler = newClaimHandler(controller.vanClient, origin)
 	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
 		return kube.UpdateSkupperServices(changed, deleted, origin, cli.Namespace, cli.KubeClient)
 	}
-	siteCreationTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
-	configmap, err := kube.GetConfigMap(types.SiteConfigMapName, cli.Namespace, cli.KubeClient)
-	if err == nil {
-		siteCreationTime = uint64(configmap.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
-	}
-	siteConfig, _ := controller.vanClient.SiteConfigInspect(context.TODO(), configmap)
-	var ttl time.Duration
-	if siteConfig != nil {
-		ttl = siteConfig.Spec.SiteTtl
-	}
-	controller.serviceSync = service_sync.NewServiceSync(origin, ttl, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler)
+
+	controller.serviceSync = service_sync.NewServiceSync(origin, ttl, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler, controller.eventHandler)
 
 	controller.flowController = flow.NewFlowController(origin, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig))
 	ipHandler := func(deleted bool, name string, process *flow.ProcessRecord) error {
 		return flow.UpdateProcess(controller.flowController, deleted, name, process)
 	}
 	controller.ipLookup = NewIpLookup(controller.vanClient, ipHandler)
-	controller.policyHandler = NewPolicyController(controller.vanClient)
+	controller.policyHandler = NewPolicyController(controller.vanClient, controller.eventHandler)
 	nwHandler := func(deleted bool, name string, host *flow.HostRecord) error {
 		return flow.UpdateHost(controller.flowController, deleted, name, host)
 	}
@@ -370,7 +382,9 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) DeleteService(svc *corev1.Service) error {
-	event.Recordf(ServiceControllerDeleteEvent, "Deleting service %s", svc.ObjectMeta.Name)
+	message := fmt.Sprintf("Deleting service %s", svc.ObjectMeta.Name)
+	c.eventHandler.RecordNormalEvent(ServiceControllerDeleteEvent, message)
+
 	return c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Delete(context.TODO(), svc.ObjectMeta.Name, metav1.DeleteOptions{})
 }
 
@@ -382,6 +396,16 @@ func (c *Controller) UpdateService(svc *corev1.Service) error {
 func (c *Controller) CreateService(svc *corev1.Service) error {
 	setOwnerReferences(&svc.ObjectMeta)
 	_, err := c.vanClient.KubeClient.CoreV1().Services(c.vanClient.Namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
+	reason := ServiceControllerCreateEvent
+
+	if err == nil {
+		message := fmt.Sprintf("Creating service %s", svc.ObjectMeta.Name)
+		c.eventHandler.RecordNormalEvent(reason, message)
+	} else {
+		message := fmt.Sprintf("Error trying to create service %s: %s", svc.ObjectMeta.Name, err)
+		c.eventHandler.RecordWarningEvent(reason, message)
+	}
+
 	return err
 }
 

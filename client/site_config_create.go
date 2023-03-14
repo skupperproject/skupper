@@ -81,6 +81,8 @@ const (
 	SiteConfigConfigSyncMemoryKey      string = "config-sync-memory"
 	SiteConfigConfigSyncCpuLimitKey    string = "config-sync-cpu-limit"
 	SiteConfigConfigSyncMemoryLimitKey string = "config-sync-memory-limit"
+
+	SiteConfigEnableSkupperEventsKey string = "enable-skupper-events"
 )
 
 func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfigSpec) (*types.SiteConfig, error) {
@@ -329,6 +331,12 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigFlowCollectorMemoryLimitKey, spec.FlowCollector.MemoryLimit, err)
 		}
 		siteConfig.Data[SiteConfigFlowCollectorMemoryLimitKey] = spec.FlowCollector.MemoryLimit
+	}
+
+	if spec.EnableSkupperEvents {
+		siteConfig.Data[SiteConfigEnableSkupperEventsKey] = "true"
+	} else {
+		siteConfig.Data[SiteConfigEnableSkupperEventsKey] = "false"
 	}
 
 	// TODO: allow Replicas to be set through skupper-site configmap?

@@ -114,6 +114,7 @@ type SiteConfigSpec struct {
 	Platform            Platform
 	RunAsUser           int64
 	RunAsGroup          int64
+	EnableSkupperEvents bool
 }
 
 const (

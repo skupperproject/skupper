@@ -421,6 +421,7 @@ func TestServeServices(t *testing.T) {
 		Namespace:  namespace,
 		KubeClient: fake.NewSimpleClientset(),
 	}
+
 	skupperInitWithController(cli, namespace)
 	dep1, err := createDeployment(cli.KubeClient, "dep1", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}})
 	assert.Check(t, err, namespace)
@@ -431,7 +432,7 @@ func TestServeServices(t *testing.T) {
 	assert.Check(t, err, namespace)
 	_, err = createDeployment(cli.KubeClient, "dep3", namespace, "nginx", []corev1.ContainerPort{{Name: "myport", ContainerPort: 8181}, {Name: "myport2", ContainerPort: 9191}})
 	assert.Check(t, err, namespace)
-	mgr := newServiceManager(cli)
+	mgr := newServiceManager(cli, event.NewDefaultEventLogger())
 	router := mux.NewRouter()
 	handler := serveServices(mgr)
 	router.Handle("/services", handler)
@@ -624,7 +625,7 @@ func TestServeServiceTargets(t *testing.T) {
 	assert.Check(t, err, namespace)
 	_, err = createStatefulSet(cli.KubeClient, "ss1", namespace, "nginx", []corev1.ContainerPort{{Name: "https", ContainerPort: 443}, {Name: "amqps", ContainerPort: 5671}})
 	assert.Check(t, err, namespace)
-	mgr := newServiceManager(cli)
+	mgr := newServiceManager(cli, event.NewDefaultEventLogger())
 	router := mux.NewRouter()
 	handler := serveTargets(mgr)
 	router.Handle("/targets", handler)

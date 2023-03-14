@@ -270,6 +270,10 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		result.Spec.ConfigSync.MemoryLimit = configSyncMemoryLimit
 	}
 
+	if value, ok := siteConfig.Data[SiteConfigEnableSkupperEventsKey]; ok {
+		result.Spec.EnableSkupperEvents, _ = strconv.ParseBool(value)
+	}
+
 	annotationExclusions := []string{}
 	labelExclusions := []string{}
 	annotations := map[string]string{}

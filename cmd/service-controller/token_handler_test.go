@@ -80,7 +80,7 @@ func TestTokenHandler(t *testing.T) {
 		KubeClient: fake.NewSimpleClientset(),
 	}
 
-	handler := newTokenHandler(cli, "site-a")
+	handler := newTokenHandler(cli, "site-a", event.NewDefaultEventLogger())
 
 	name := "foo"
 	err := skupperInit(cli, name)

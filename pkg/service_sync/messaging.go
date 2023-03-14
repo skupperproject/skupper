@@ -1,6 +1,7 @@
 package service_sync
 
 import (
+	"fmt"
 	"time"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
@@ -18,6 +19,7 @@ type base struct {
 	updates           chan ServiceUpdate
 	closed            bool
 	client            messaging.Connection
+	eventHandler      event.EventHandlerInterface
 }
 
 func (c *base) stop() {
@@ -38,11 +40,12 @@ func (c *sender) start() {
 	go c.send()
 }
 
-func newSender(connectionFactory messaging.ConnectionFactory, updates chan ServiceUpdate) *sender {
+func newSender(connectionFactory messaging.ConnectionFactory, updates chan ServiceUpdate, eventHandler event.EventHandlerInterface) *sender {
 	return &sender{
 		base: base{
 			connectionFactory: connectionFactory,
 			updates:           updates,
+			eventHandler:      eventHandler,
 		},
 	}
 }
@@ -65,7 +68,8 @@ func (c *sender) _send() error {
 		return err
 	}
 	c.client = client
-	event.Recordf(ServiceSyncEvent, "Service sync sender connection to %s established", c.connectionFactory.Url())
+	message := fmt.Sprintf("Service sync sender connection to %s established", c.connectionFactory.Url())
+	c.eventHandler.RecordNormalEvent(ServiceSyncEvent, message)
 	defer client.Close()
 
 	sender, err := client.Sender(ServiceSyncAddress)
@@ -101,11 +105,12 @@ type receiver struct {
 	base
 }
 
-func newReceiver(connectionFactory messaging.ConnectionFactory, updates chan ServiceUpdate) *receiver {
+func newReceiver(connectionFactory messaging.ConnectionFactory, updates chan ServiceUpdate, eventHandler event.EventHandlerInterface) *receiver {
 	return &receiver{
 		base: base{
 			connectionFactory: connectionFactory,
 			updates:           updates,
+			eventHandler:      eventHandler,
 		},
 	}
 }
@@ -131,7 +136,8 @@ func (c *receiver) _receive() error {
 		return err
 	}
 	c.client = client
-	event.Recordf(ServiceSyncEvent, "Service sync receiver connection to %s established", c.connectionFactory.Url())
+	message := fmt.Sprintf("Service sync receiver connection to %s established", c.connectionFactory.Url())
+	c.eventHandler.RecordNormalEvent(ServiceSyncEvent, message)
 	defer client.Close()
 
 	receiver, err := client.Receiver(ServiceSyncAddress, 10)

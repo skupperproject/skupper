@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/event"
 	"io/ioutil"
 	"net/http"
 
@@ -14,7 +15,6 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -55,12 +55,14 @@ type ServiceDefinition struct {
 }
 
 type ServiceManager struct {
-	cli *client.VanClient
+	cli          *client.VanClient
+	eventHandler event.EventHandlerInterface
 }
 
-func newServiceManager(cli *client.VanClient) *ServiceManager {
+func newServiceManager(cli *client.VanClient, logger event.EventHandlerInterface) *ServiceManager {
 	return &ServiceManager{
-		cli: cli,
+		cli:          cli,
+		eventHandler: logger,
 	}
 }
 
@@ -296,9 +298,12 @@ func serveServices(m *ServiceManager) http.Handler {
 			} else {
 				err := m.createService(options)
 				if err != nil {
+					message := fmt.Sprintf("Error while trying to create service %s: %s", options.GetServiceName(), err)
+					m.eventHandler.RecordWarningEvent(ServiceManagement, message)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
-					event.Recordf("Service %s exposed", options.GetServiceName())
+					message := fmt.Sprintf("Service %s exposed", options.GetServiceName())
+					m.eventHandler.RecordNormalEvent(ServiceManagement, message)
 				}
 			}
 		} else if r.Method == http.MethodDelete {
@@ -309,7 +314,8 @@ func serveServices(m *ServiceManager) http.Handler {
 				} else if !deleted {
 					http.Error(w, "No such service", http.StatusNotFound)
 				} else {
-					event.Recordf("Service %s deleted", name)
+					message := fmt.Sprintf("Service %s deleted", name)
+					m.eventHandler.RecordNormalEvent(ServiceManagement, message)
 				}
 			} else {
 				http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
