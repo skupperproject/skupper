@@ -1,4 +1,6 @@
-FROM golang:1.20 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.20 AS builder
+
+ARG TARGETOS TARGETARCH BUILDARCH
 
 WORKDIR /go/src/app
 
@@ -8,9 +10,11 @@ RUN go mod download
 
 COPY . .
 
-RUN make
+RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH
 
-FROM node:18.18.2 AS console-builder
+FROM --platform=$BUILDPLATFORM $BUILDARCH/node:18.18.2 AS console-builder
+
+ARG BUILDARCH
 
 WORKDIR /skupper-console/
 ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
@@ -18,7 +22,7 @@ RUN tar -zxf main.tar.gz
 WORKDIR ./skupper-console-main
 RUN yarn install && yarn build
 
-FROM registry.access.redhat.com/ubi9-minimal
+FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
 
 # Create user and group and switch to user's context
 RUN microdnf -y install shadow-utils \
