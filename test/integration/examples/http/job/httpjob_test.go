@@ -140,6 +140,47 @@ func TestHttp2TcpTlsJob(t *testing.T) {
 
 }
 
+func TestHttp1TlsJob(t *testing.T) {
+
+	//Load CA cert
+	caCert, err := ioutil.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
+	assert.Assert(t, err)
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	// Setup HTTPS client
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: false,
+		RootCAs:            caCertPool,
+	}
+
+	transport := &http2.Transport{
+		TLSClientConfig:    tlsConfig,
+		DisableCompression: true,
+		AllowHTTP:          true,
+	}
+
+	client := http.Client{
+		Transport: transport,
+	}
+
+	resp, err := client.Get("https://nghttp1tls:8443/")
+
+	assert.Assert(t, err)
+	fmt.Printf("Client Proto: %d\n", resp.ProtoMajor)
+	fmt.Println("Client Header:", resp.Header)
+
+	defer resp.Body.Close()
+	_body, err := ioutil.ReadAll(resp.Body)
+	assert.Assert(t, err)
+
+	body := string(_body)
+	assert.Assert(t, strings.Contains(body, "A simple HTTP Request &amp; Response Service."), body)
+	assert.Assert(t, resp.Status == "200 OK", resp.Status)
+
+}
+
 func testHttpJob(t *testing.T, url string) {
 	fmt.Printf("Running job for url: %s\n", url)
 
