@@ -431,6 +431,7 @@ jobs:
           command: mkdir /tmp/artifacts
       - go/test:
           coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
+          verbose: true
           coverprofile: "/tmp/artifacts/cover.out"
       - run:
           name: Generating HTML coverage report
