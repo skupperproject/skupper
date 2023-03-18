@@ -292,6 +292,8 @@ func (s *SkupperPodmanService) Unbind(cmd *cobra.Command, args []string) error {
 	return s.svcHandler.RemoveEgressResolver(address, *egressResolver)
 }
 
+func (s *SkupperPodmanService) UnbindFlags(cmd *cobra.Command) {}
+
 func (s *SkupperPodmanService) Expose(cmd *cobra.Command, args []string) error {
 	servicePodman := &podman.Service{
 		ServiceCommon: &domain.ServiceCommon{

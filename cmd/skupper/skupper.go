@@ -58,6 +58,7 @@ type SkupperServiceClient interface {
 	Expose(cmd *cobra.Command, args []string) error
 	ExposeArgs(cmd *cobra.Command, args []string) error
 	ExposeFlags(cmd *cobra.Command)
+	UnbindFlags(cmd *cobra.Command)
 	Unexpose(cmd *cobra.Command, args []string) error
 	UnexposeFlags(cmd *cobra.Command) error
 }
@@ -541,7 +542,7 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 		RunE:   skupperCli.Unexpose,
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
-	cmd.Flags().StringVar(&unexposeNamespace, "target-namespace", "", "Target namespace from previously exposed service")
+	cmd.Flags().StringVar(&unexposeNamespace, "target-namespace", "", "Target namespace for exposed service")
 	return cmd
 }
 
@@ -807,7 +808,7 @@ func NewCmdUnbind(skupperClient SkupperServiceClient) *cobra.Command {
 		RunE:   skupperClient.Unbind,
 	}
 
-	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace from previously bound service")
+	skupperClient.UnbindFlags(cmd)
 
 	return cmd
 }
