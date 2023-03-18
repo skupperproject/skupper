@@ -201,6 +201,10 @@ func (s *SkupperKubeService) Unbind(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func (s *SkupperKubeService) UnbindFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace for bound service")
+}
+
 func (s *SkupperKubeService) bindArgs(cmd *cobra.Command, args []string) error {
 	if len(args) < 2 || (!strings.Contains(args[1], "/") && len(args) < 3) {
 		return fmt.Errorf("Service name, target type and target name must all be specified (e.g. 'skupper bind <service-name> <target-type> <target-name>')")
