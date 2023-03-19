@@ -35,6 +35,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		enableController     bool
 		enableFlowCollector  bool
 		enableClusterPerms   bool
+		enableSkupperEvents  bool
 		authMode             string
 		user                 string
 		password             string
@@ -308,7 +309,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		_, err = kube.NewNamespace(c.namespace, cli.KubeClient)
 		assert.Check(t, err, c.doc)
 		defer kube.DeleteNamespace(c.namespace, cli.KubeClient)
-		err = cli.KubeClient.RbacV1().ClusterRoles().Delete(types.ControllerClusterRoleName, &metav1.DeleteOptions{})
+		err = cli.KubeClient.RbacV1().ClusterRoles().Delete(context.TODO(), types.ControllerClusterRoleName, metav1.DeleteOptions{})
 		fieldSelector := fields.OneTermEqualSelector("metadata.name", types.ControllerClusterRoleName).String()
 
 		clusterRoleInformerFactory := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0,
@@ -400,6 +401,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				AuthMode:                 c.authMode,
 				EnableFlowCollector:      c.enableFlowCollector,
 				EnableClusterPermissions: c.enableClusterPerms,
+				EnableSkupperEvents:      c.enableSkupperEvents,
 				User:                     c.user,
 				Password:                 c.password,
 				Ingress:                  getIngress(),

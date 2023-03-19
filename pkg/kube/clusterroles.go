@@ -11,7 +11,7 @@ import (
 )
 
 func CreateOrExtendClusterRole(clusterRole *rbacv1.ClusterRole, kubeclient kubernetes.Interface, enabledExtension bool) error {
-	cRole, err := kubeclient.RbacV1().ClusterRoles().Get(clusterRole.Name, metav1.GetOptions{})
+	cRole, err := kubeclient.RbacV1().ClusterRoles().Get(context.TODO(), clusterRole.Name, metav1.GetOptions{})
 	if err != nil {
 		fmt.Println(err)
 	}
