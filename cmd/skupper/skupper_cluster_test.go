@@ -1003,7 +1003,7 @@ func TestExposeWithCluster(t *testing.T) {
 		assert.Assert(t, err)
 		_, err = services.Create(context.TODO(), statefulSetService, metav1.CreateOptions{})
 		assert.Assert(t, err)
-		_, err = anotherNsDeployments.Create(tcpDeployment)
+		_, err = anotherNsDeployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none", "--enable-cluster-permissions=true"}...)
@@ -1384,7 +1384,7 @@ func TestBindWithCluster(t *testing.T) {
 		_, err = deployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
 		deploymentAnotherNs := c.KubeClient.AppsV1().Deployments(anotherNs)
-		_, err = deploymentAnotherNs.Create(tcpDeployment)
+		_, err = deploymentAnotherNs.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none", "--enable-cluster-permissions=true"}...)
@@ -1468,7 +1468,7 @@ func TestUnbindWithCluster(t *testing.T) {
 		assert.Assert(t, err)
 
 		anotherDeployments := c.KubeClient.AppsV1().Deployments(anotherNs)
-		_, err = anotherDeployments.Create(tcpDeployment)
+		_, err = anotherDeployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
