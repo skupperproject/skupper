@@ -31,7 +31,7 @@ Developing Skupper
 * [Community](https://skupper.io/community/index.html)
 * [Site controller](cmd/site-controller/README.md)
 * [CLI](cmd/skupper/README.md) (This replaces the [Skupper CLI repo](https://github.com/skupperproject/skupper-cli))
-* [Console](/skupperproject/gilligan)
+* [Console (Preview)](https://github.com/skupperproject/skupper-console)
 
 # Licensing
 Skupper uses the [Skupper Router](https://github.com/skupperproject/skupper-router) project and is released under the same [Apache License 2.0](https://github.com/skupperproject/skupper/blob/master/LICENSE).
