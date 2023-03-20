@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/domain/podman"
 
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -71,24 +72,26 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 	}
 
 	// Validating main output
-	if err = s.validateMainContent(cluster, stdout); err != nil {
+	if err = s.validateMainContent(platform, cluster, stdout); err != nil {
 		return
 	}
 
-	// Validating Console Enabled
-	if err = s.validateConsoleEnabled(cluster, stdout); err != nil {
-		return
-	}
+	if platform.IsKubernetes() {
+		// Validating Console Enabled
+		if err = s.validateConsoleEnabled(cluster, stdout); err != nil {
+			return
+		}
 
-	// Validating Console Auth Internal
-	if err = s.validateConsoleAuthInternal(cluster, stdout); err != nil {
-		return
+		// Validating Console Auth Internal
+		if err = s.validateConsoleAuthInternal(cluster, stdout); err != nil {
+			return
+		}
 	}
 
 	return
 }
 
-func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout string) error {
+func (s *StatusTester) validateMainContent(platform types.Platform, cluster *base.ClusterContext, stdout string) error {
 
 	log.Println("Validating main content")
 
@@ -97,14 +100,26 @@ func (s *StatusTester) validateMainContent(cluster *base.ClusterContext, stdout 
 	notExpected := []regexp.Regexp{}
 
 	// Main info
-	mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for namespace \"%s\"", cluster.Namespace))
-	if s.NotEnabled {
-		notEnabledContent := fmt.Sprintf("Skupper is not enabled in namespace '%s'", cluster.Namespace)
-		if !strings.Contains(stdout, notEnabledContent) {
-			return fmt.Errorf("error validating not enabled message - expected: %s - stdout: %s", notEnabledContent, stdout)
+	if platform.IsKubernetes() {
+		mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for namespace \"%s\"", cluster.Namespace))
+		if s.NotEnabled {
+			notEnabledContent := fmt.Sprintf("Skupper is not enabled in namespace '%s'", cluster.Namespace)
+			if !strings.Contains(stdout, notEnabledContent) {
+				return fmt.Errorf("error validating not enabled message - expected: %s - stdout: %s", notEnabledContent, stdout)
+			}
+			// when not enabled, there is nothing else to validate
+			return nil
 		}
-		// when not enabled, there is nothing else to validate
-		return nil
+	} else if platform == types.PlatformPodman {
+		mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for \"%s\"", podman.Username))
+		if s.NotEnabled {
+			notEnabledContent := fmt.Sprintf("Skupper is not enabled for '%s'", podman.Username)
+			if !strings.Contains(stdout, notEnabledContent) {
+				return fmt.Errorf("error validating not enabled message - expected: %s - stdout: %s", notEnabledContent, stdout)
+			}
+			// when not enabled, there is nothing else to validate
+			return nil
+		}
 	}
 
 	// Site name variant

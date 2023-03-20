@@ -19,6 +19,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/service"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli/token"
 	"gotest.tools/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -457,31 +458,38 @@ func TestHelloWorldCLI(t *testing.T) {
 // deployResources Deploys the hello-world-frontend and hello-world-backend
 // pods and validate they are available
 func deployResources(pub *base.ClusterContext, prv *base.ClusterContext) error {
+	var backend *appsv1.Deployment
 	frontend, _ := k8s.NewDeployment("hello-world-frontend", pub.Namespace, k8s.DeploymentOpts{
 		Image:         "quay.io/skupper/hello-world-frontend",
 		Labels:        map[string]string{"app": "hello-world-frontend"},
 		RestartPolicy: v1.RestartPolicyAlways,
 	})
-	backend, _ := k8s.NewDeployment("hello-world-backend", prv.Namespace, k8s.DeploymentOpts{
-		Image:         "quay.io/skupper/hello-world-backend",
-		Labels:        map[string]string{"app": "hello-world-backend"},
-		RestartPolicy: v1.RestartPolicyAlways,
-	})
+	if prv != nil {
+		backend, _ = k8s.NewDeployment("hello-world-backend", prv.Namespace, k8s.DeploymentOpts{
+			Image:         "quay.io/skupper/hello-world-backend",
+			Labels:        map[string]string{"app": "hello-world-backend"},
+			RestartPolicy: v1.RestartPolicyAlways,
+		})
+	}
 
 	// Creating deployments
 	if _, err := pub.VanClient.KubeClient.AppsV1().Deployments(pub.Namespace).Create(context.TODO(), frontend, metav1.CreateOptions{}); err != nil {
 		return err
 	}
-	if _, err := prv.VanClient.KubeClient.AppsV1().Deployments(prv.Namespace).Create(context.TODO(), backend, metav1.CreateOptions{}); err != nil {
-		return err
+	if prv != nil {
+		if _, err := prv.VanClient.KubeClient.AppsV1().Deployments(prv.Namespace).Create(context.TODO(), backend, metav1.CreateOptions{}); err != nil {
+			return err
+		}
 	}
 
 	// Waiting for deployments to be ready
 	if _, err := kube.WaitDeploymentReady("hello-world-frontend", pub.Namespace, pub.VanClient.KubeClient, constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
 		return err
 	}
-	if _, err := kube.WaitDeploymentReady("hello-world-backend", prv.Namespace, prv.VanClient.KubeClient, constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
-		return err
+	if prv != nil {
+		if _, err := kube.WaitDeploymentReady("hello-world-backend", prv.Namespace, prv.VanClient.KubeClient, constants.ImagePullingAndResourceCreationTimeout, constants.DefaultTick); err != nil {
+			return err
+		}
 	}
 
 	return nil

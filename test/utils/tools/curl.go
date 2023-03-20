@@ -106,7 +106,11 @@ func Curl(kubeClient kubernetes.Interface, config *restclient.Config, ns, podNam
 
 	// Executing through the API
 	curlDoneCh := make(chan struct{})
-	timeoutCh := time.After(time.Duration(opts.Timeout) * time.Second)
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = 10
+	}
+	timeoutCh := time.After(time.Duration(timeout) * time.Second)
 	var stderr bytes.Buffer
 
 	go func() {
