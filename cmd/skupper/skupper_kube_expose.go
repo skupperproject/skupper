@@ -138,6 +138,7 @@ func (s *SkupperKubeService) Unexpose(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperKubeService) UnexposeFlags(cmd *cobra.Command) error {
+	cmd.Flags().StringVar(&unexposeNamespace, "target-namespace", "", "Target namespace for exposed resource")
 	cmd.Use = "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>|deploymentconfig <name>]"
 	return nil
 }
