@@ -124,14 +124,14 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 		if err == nil && curSite != nil {
 			fmt.Printf("Skupper has already been initialized for user '" + podman.Username + "'.")
 			fmt.Println()
-			os.Exit(1)
+			os.Exit(0)
 		}
 	} else if cmd.Name() != "version" {
 		// All other commands, but version, must stop now
 		if err != nil {
 			fmt.Printf("Skupper is not enabled for user '%s'", podman.Username)
 			fmt.Println()
-			os.Exit(1)
+			os.Exit(0)
 		}
 	}
 	if curSite != nil {
