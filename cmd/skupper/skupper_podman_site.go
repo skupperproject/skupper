@@ -161,16 +161,7 @@ func (s *SkupperPodmanSite) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
-	siteHandler, err := podman.NewSitePodmanHandler("")
-	if err != nil {
-		return err
-	}
-	site, err := siteHandler.Get()
-	if err != nil {
-		fmt.Printf("Skupper is not enabled for '%s'\n", podman.Username)
-		return nil
-	}
-
+	site := s.podman.curSite
 	routerMgr := podman.NewRouterEntityManagerPodman(s.podman.cli)
 	routers, err := routerMgr.QueryAllRouters()
 	if err != nil {
@@ -250,16 +241,10 @@ func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
-	siteHandler, err := podman.NewSitePodmanHandler("")
-	if err != nil {
-		return fmt.Errorf("Unable to communicate with Skupper - %w", err)
+	site := s.podman.curSite
+	if site == nil {
+		return fmt.Errorf("Skupper is not enabled for user '%s'", podman.Username)
 	}
-
-	site, err := siteHandler.Get()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve site information - %w", err)
-	}
-
 	for _, deploy := range site.GetDeployments() {
 		for _, component := range deploy.GetComponents() {
 			if component.Name() == types.TransportDeploymentName {

@@ -19,6 +19,7 @@ var SkupperPodmanCommands = []string{
 
 type SkupperPodman struct {
 	cli     *clientpodman.PodmanRestClient
+	curSite *podman.Site
 	site    *SkupperPodmanSite
 	token   *SkupperPodmanToken
 	link    *SkupperPodmanLink
@@ -132,6 +133,9 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 			fmt.Println()
 			os.Exit(1)
 		}
+	}
+	if curSite != nil {
+		s.curSite = curSite.(*podman.Site)
 	}
 }
 
