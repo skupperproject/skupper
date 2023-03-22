@@ -79,20 +79,60 @@ func notImplementedExit() {
 }
 
 func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
-	podmanCfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
-	if err != nil {
-		return
+	// endpoint can be provided during init
+	var endpoint string
+	var isInitCmd bool
+	switch cmd.Name() {
+	case "init":
+		// require site not present
+		if len(args) == 1 {
+			endpoint = args[0]
+		}
+		isInitCmd = true
+	default:
+		podmanCfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
+		if err != nil {
+			fmt.Println("error reading current podman endpoint")
+			return
+		}
+		endpoint = podmanCfg.Endpoint
 	}
-	c, err := clientpodman.NewPodmanClient(podmanCfg.Endpoint, "")
+
+	c, err := clientpodman.NewPodmanClient(endpoint, "")
 	if err != nil {
-		if podmanCfg.Endpoint != "" {
-			fmt.Printf("Podman endpoint is not available: %s", podmanCfg.Endpoint)
+		if endpoint != "" {
+			fmt.Printf("Podman endpoint is not available: %s", endpoint)
+			fmt.Println()
 			os.Exit(1)
 		}
 		return
 	}
 	// only if default endpoint is available or correct endpoint is set
 	s.cli = c
+
+	// Ensure that site does not exist on init, but exists for all other commands
+	siteHandler, err := podman.NewSitePodmanHandler(endpoint)
+	if err != nil {
+		fmt.Printf("error verifying existing skupper site - %s", err)
+		fmt.Println()
+		os.Exit(1)
+	}
+	curSite, err := siteHandler.Get()
+	if isInitCmd {
+		// Validating if site is already initialized
+		if err == nil && curSite != nil {
+			fmt.Printf("Skupper has already been initialized for user '" + podman.Username + "'.")
+			fmt.Println()
+			os.Exit(1)
+		}
+	} else if cmd.Name() != "version" {
+		// All other commands, but version, must stop now
+		if err != nil {
+			fmt.Printf("Skupper is not enabled for user '%s'", podman.Username)
+			fmt.Println()
+			os.Exit(1)
+		}
+	}
 }
 
 func (s *SkupperPodman) Platform() types.Platform {

@@ -72,12 +72,6 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Unable to initialize Skupper - %w", err)
 	}
 
-	// Validating if site is already initialized
-	curSite, err := siteHandler.Get()
-	if err == nil && curSite != nil {
-		return fmt.Errorf("Skupper has already been initialized for user '" + podman.Username + "'.")
-	}
-
 	// Validating ingress type
 	if routerCreateOpts.Ingress != types.IngressNoneString {
 		// Validating ingress hosts (required as certificates must have valid hosts)
@@ -238,7 +232,11 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) StatusFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) NewClient(cmd *cobra.Command, args []string) {
-	s.podman.NewClient(cmd, args)
+	var initArgs []string
+	if cmd.Name() == "init" && len(s.flags.PodmanEndpoint) > 0 {
+		initArgs = append(initArgs, s.flags.PodmanEndpoint)
+	}
+	s.podman.NewClient(cmd, initArgs)
 }
 
 func (s *SkupperPodmanSite) Platform() types.Platform {
