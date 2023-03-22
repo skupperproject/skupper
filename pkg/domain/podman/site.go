@@ -483,6 +483,8 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 					site.IngressBindInterRouterPort = siteIng.GetPort()
 				} else if siteIng.GetTarget().GetPort() == int(types.EdgeListenerPort) {
 					site.IngressBindEdgePort = siteIng.GetPort()
+				} else if siteIng.GetTarget().GetPort() == int(types.FlowCollectorDefaultServicePort) {
+					site.IngressBindFlowCollectorPort = siteIng.GetPort()
 				}
 			}
 			switch c := comp.(type) {
@@ -494,7 +496,6 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				site.EnableConsole = enableConsole
 				site.EnableFlowCollector = true
 				site.FlowCollectorRecordTtl, _ = time.ParseDuration(c.Env["FLOW_RECORD_TTL"])
-				site.IngressBindFlowCollectorPort = c.SiteIngresses[0].GetPort()
 				user, password, err := s.getConsoleUserPass()
 				if err != nil {
 					fmt.Println("error retrieving console user and password - %w", err)
@@ -642,26 +643,23 @@ func (s *SiteHandler) prepareFlowCollectorDeployment(site *Site) *SkupperDeploym
 		SELinuxDisable: true,
 	}
 
-	// If ingress mode is none, then ingress hosts will be empty
-	if len(site.IngressHosts) > 0 {
-		// Defining site ingresses
-		ingressBindIps := site.IngressBindIPs
-		if len(ingressBindIps) == 0 {
-			ingressBindIps = append(ingressBindIps, "")
-		}
-		for _, ingressBindIp := range ingressBindIps {
-			flowComponent.SiteIngresses = append(flowComponent.SiteIngresses, &SiteIngressHost{
-				SiteIngressCommon: &domain.SiteIngressCommon{
+	// Defining site ingresses
+	ingressBindIps := site.IngressBindIPs
+	if len(ingressBindIps) == 0 {
+		ingressBindIps = append(ingressBindIps, "")
+	}
+	for _, ingressBindIp := range ingressBindIps {
+		flowComponent.SiteIngresses = append(flowComponent.SiteIngresses, &SiteIngressHost{
+			SiteIngressCommon: &domain.SiteIngressCommon{
+				Name: types.FlowCollectorContainerName,
+				Host: ingressBindIp,
+				Port: site.IngressBindFlowCollectorPort,
+				Target: &domain.PortCommon{
 					Name: types.FlowCollectorContainerName,
-					Host: ingressBindIp,
-					Port: site.IngressBindFlowCollectorPort,
-					Target: &domain.PortCommon{
-						Name: types.FlowCollectorContainerName,
-						Port: int(types.FlowCollectorDefaultServiceTargetPort),
-					},
+					Port: int(types.FlowCollectorDefaultServiceTargetPort),
 				},
-			})
-		}
+			},
+		})
 	}
 
 	return flowDeployment
