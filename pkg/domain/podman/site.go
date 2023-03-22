@@ -28,6 +28,7 @@ type Site struct {
 	PodmanEndpoint               string
 	EnableFlowCollector          bool
 	EnableConsole                bool
+	AuthMode                     string
 	ConsoleUser                  string
 	ConsolePassword              string
 	FlowCollectorRecordTtl       time.Duration
@@ -493,6 +494,12 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				site.RouterOpts.Logging = qdr.GetRouterLogging(config)
 			case *domain.FlowCollector:
 				enableConsole, _ := strconv.ParseBool(c.Env["ENABLE_CONSOLE"])
+				consoleUsers, _ := c.Env["FLOW_USERS"]
+				if consoleUsers != "" {
+					site.AuthMode = types.ConsoleAuthModeInternal
+				} else {
+					site.AuthMode = types.ConsoleAuthModeUnsecured
+				}
 				site.EnableConsole = enableConsole
 				site.EnableFlowCollector = true
 				site.FlowCollectorRecordTtl, _ = time.ParseDuration(c.Env["FLOW_RECORD_TTL"])
@@ -623,12 +630,15 @@ func (s *SiteHandler) prepareFlowCollectorDeployment(site *Site) *SkupperDeploym
 		// TODO ADD Labels
 		Labels: map[string]string{},
 		Env: map[string]string{
-			"FLOW_USERS":       "/etc/console-users",
 			"ENABLE_CONSOLE":   fmt.Sprintf("%v", site.EnableConsole),
 			"FLOW_RECORD_TTL":  site.FlowCollectorRecordTtl.String(),
 			"SKUPPER_PLATFORM": types.PlatformPodman,
 			"PODMAN_ENDPOINT":  endpoint,
 		},
+	}
+	if site.AuthMode != types.ConsoleAuthModeUnsecured {
+		flowComponent.Env["FLOW_USERS"] = "/etc/console-users"
+		site.AuthMode = types.ConsoleAuthModeInternal
 	}
 	flowDeployment := &SkupperDeployment{
 		Name: types.FlowCollectorContainerName,

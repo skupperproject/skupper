@@ -60,6 +60,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		PodmanEndpoint:               s.flags.PodmanEndpoint,
 		EnableFlowCollector:          routerCreateOpts.EnableFlowCollector,
 		EnableConsole:                routerCreateOpts.EnableConsole,
+		AuthMode:                     routerCreateOpts.AuthMode,
 		ConsoleUser:                  routerCreateOpts.User,
 		ConsolePassword:              routerCreateOpts.Password,
 		FlowCollectorRecordTtl:       routerCreateOpts.FlowCollector.FlowRecordTtl,
@@ -129,6 +130,7 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 		"local podman endpoint to use")
 
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console must be used in conjunction with '--enable-flow-collector' flag")
+	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-flow-collector", "", false, "Enable cross-site flow collection for the application network")
