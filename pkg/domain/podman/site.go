@@ -45,7 +45,10 @@ func (s *Site) GetIngressClasses() []string {
 
 func (s *Site) GetConsoleUrl() string {
 	if s.EnableFlowCollector {
-		ipAddr := utils.DefaultStr(s.IngressBindIPs[0], "0.0.0.0")
+		ipAddr := "0.0.0.0"
+		if len(s.IngressBindIPs) > 0 {
+			ipAddr = s.IngressBindIPs[0]
+		}
 		port := s.IngressBindFlowCollectorPort
 		return fmt.Sprintf("https://%s:%d", ipAddr, port)
 	}
