@@ -1,6 +1,7 @@
 package podman
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -59,6 +60,8 @@ func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, err
 			Labels:        c.Labels,
 			SiteIngresses: siteIngresses,
 		}
+	default:
+		return nil, fmt.Errorf("invalid component: %s", componentName)
 	}
 
 	return component, nil
