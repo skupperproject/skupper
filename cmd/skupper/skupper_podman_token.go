@@ -21,7 +21,7 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	secretFile := args[0]
 
 	// Determining ingress host
-	sitePodman := s.podman.curSite
+	sitePodman := s.podman.currentSite
 	if sitePodman.IsEdge() {
 		return fmt.Errorf("Edge configuration cannot accept connections")
 	}

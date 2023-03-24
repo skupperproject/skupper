@@ -18,12 +18,12 @@ var SkupperPodmanCommands = []string{
 }
 
 type SkupperPodman struct {
-	cli     *clientpodman.PodmanRestClient
-	curSite *podman.Site
-	site    *SkupperPodmanSite
-	token   *SkupperPodmanToken
-	link    *SkupperPodmanLink
-	service *SkupperPodmanService
+	cli         *clientpodman.PodmanRestClient
+	currentSite *podman.Site
+	site        *SkupperPodmanSite
+	token       *SkupperPodmanToken
+	link        *SkupperPodmanLink
+	service     *SkupperPodmanService
 }
 
 func (s *SkupperPodman) Site() SkupperSiteClient {
@@ -118,10 +118,10 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 		fmt.Println()
 		os.Exit(1)
 	}
-	curSite, err := siteHandler.Get()
+	currentSite, err := siteHandler.Get()
 	if isInitCmd {
 		// Validating if site is already initialized
-		if err == nil && curSite != nil {
+		if err == nil && currentSite != nil {
 			fmt.Printf("Skupper has already been initialized for user '" + podman.Username + "'.")
 			fmt.Println()
 			os.Exit(0)
@@ -134,8 +134,8 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 			os.Exit(0)
 		}
 	}
-	if curSite != nil {
-		s.curSite = curSite.(*podman.Site)
+	if currentSite != nil {
+		s.currentSite = currentSite.(*podman.Site)
 	}
 }
 

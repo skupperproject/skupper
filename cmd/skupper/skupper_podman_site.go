@@ -161,7 +161,7 @@ func (s *SkupperPodmanSite) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
-	site := s.podman.curSite
+	site := s.podman.currentSite
 	routerMgr := podman.NewRouterEntityManagerPodman(s.podman.cli)
 	routers, err := routerMgr.QueryAllRouters()
 	if err != nil {
@@ -241,7 +241,7 @@ func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
-	site := s.podman.curSite
+	site := s.podman.currentSite
 	if site == nil {
 		return fmt.Errorf("Skupper is not enabled for user '%s'", podman.Username)
 	}
