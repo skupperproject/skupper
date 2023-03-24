@@ -202,7 +202,7 @@ func (s *SkupperKubeService) Unbind(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperKubeService) UnbindFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace for bound service")
+	cmd.Flags().StringVar(&unbindNamespace, "target-namespace", "", "Target namespace for exposed resource")
 }
 
 func (s *SkupperKubeService) bindArgs(cmd *cobra.Command, args []string) error {
