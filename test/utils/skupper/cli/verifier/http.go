@@ -2,6 +2,7 @@ package verifier
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -68,6 +69,8 @@ type HttpVerifier struct {
 	Method       string
 	Header       map[string][]string
 	Data         string
+	User         string
+	Password     string
 	Ctx          context.Context
 	Interval     time.Duration
 	MaxRetries   int
@@ -99,6 +102,14 @@ func (h *HttpVerifier) Request(platform types.Platform, cli *client.VanClient) e
 	}
 	if h.Header != nil {
 		req.Header = h.Header
+	}
+	httpCli.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	if h.User != "" && h.Password != "" {
+		req.SetBasicAuth(h.User, h.Password)
 	}
 	interval := h.Interval
 	if interval == 0 {

@@ -118,6 +118,20 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 		Method:       "GET",
 		ExpectedCode: 200,
 	}
+	localhostConsoleVerifier := &verifier.HttpVerifier{
+		Url:          fmt.Sprintf("https://127.0.0.1:8010/"),
+		Method:       "GET",
+		ExpectedCode: 200,
+		User:         "internal",
+		Password:     "internal",
+	}
+	localhostCollectorVerifier := &verifier.HttpVerifier{
+		Url:          fmt.Sprintf("https://127.0.0.1:8010/api/v1alpha1/routers/"),
+		Method:       "GET",
+		ExpectedCode: 200,
+		User:         "internal",
+		Password:     "internal",
+	}
 
 	// These test scenarios allow defining a set of skupper cli
 	// commands to be executed as a workflow, against specific
@@ -157,17 +171,30 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 				{Platform: types.PlatformPodman, Commands: []cli.SkupperCommandTester{
 					// skupper init - interior mode
 					&cli.InitTester{
-						Ingress:       "none",
-						RouterLogging: "trace",
-						RouterMode:    "interior",
-						SiteName:      "private",
+						Ingress:             "none",
+						RouterLogging:       "trace",
+						RouterMode:          "interior",
+						ConsoleAuth:         "internal",
+						ConsoleUser:         "internal",
+						ConsolePassword:     "internal",
+						EnableConsole:       true,
+						EnableFlowCollector: true,
+						SiteName:            "private",
 					},
 					// skupper status - verify initialized as interior with the appropriate site name
 					&cli.StatusTester{
-						RouterMode: "interior",
-						SiteName:   "private",
+						RouterMode:          "interior",
+						SiteName:            "private",
+						ConsoleEnabled:      true,
+						ConsoleAuthInternal: true,
+						CollectorEnabled:    true,
 					},
-				}},
+				},
+					PostVerifiers: []cli.CommandVerifier{
+						localhostConsoleVerifier.Request,
+						localhostCollectorVerifier.Request,
+					},
+				},
 			},
 		}, {
 			Name: "connect-sites",
@@ -288,10 +315,12 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					},
 					// skupper status - verify two services are now exposed
 					&cli.StatusTester{
-						RouterMode:      "interior",
-						SiteName:        "private",
-						ConnectedSites:  1,
-						ExposedServices: 2,
+						RouterMode:          "interior",
+						SiteName:            "private",
+						ConnectedSites:      1,
+						ExposedServices:     2,
+						ConsoleEnabled:      true,
+						ConsoleAuthInternal: true,
 					},
 				}},
 				// Binding the services
@@ -432,10 +461,12 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					},
 					// skupper status - verify there is no exposed service
 					&cli.StatusTester{
-						RouterMode:      "interior",
-						SiteName:        "private",
-						ConnectedSites:  1,
-						ExposedServices: 1,
+						RouterMode:          "interior",
+						SiteName:            "private",
+						ConnectedSites:      1,
+						ExposedServices:     1,
+						ConsoleEnabled:      true,
+						ConsoleAuthInternal: true,
 					},
 					// skupper service delete - removes exposed service and certify it is removed
 					&service.DeleteTester{
@@ -443,10 +474,12 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					},
 					// skupper status - verify there is no exposed service
 					&cli.StatusTester{
-						RouterMode:      "interior",
-						SiteName:        "private",
-						ConnectedSites:  1,
-						ExposedServices: 0,
+						RouterMode:          "interior",
+						SiteName:            "private",
+						ConnectedSites:      1,
+						ExposedServices:     0,
+						ConsoleEnabled:      true,
+						ConsoleAuthInternal: true,
 					},
 				}},
 			},
@@ -515,10 +548,12 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					},
 					// skupper status - asserts that there are 2 exposed services
 					&cli.StatusTester{
-						RouterMode:      "interior",
-						SiteName:        "private",
-						ConnectedSites:  1,
-						ExposedServices: 2,
+						RouterMode:          "interior",
+						SiteName:            "private",
+						ConnectedSites:      1,
+						ExposedServices:     2,
+						ConsoleEnabled:      true,
+						ConsoleAuthInternal: true,
 					},
 				}},
 			},

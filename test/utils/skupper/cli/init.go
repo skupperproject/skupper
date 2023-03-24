@@ -52,12 +52,13 @@ type InitTester struct {
 }
 
 type PodmanInitOptions struct {
-	IngressHosts     []string
-	IngressBindIPs   []string
-	BindPort         int
-	BindPortEdge     int
-	ContainerNetwork string
-	Endpoint         string
+	IngressHosts          []string
+	IngressBindIPs        []string
+	BindPort              int
+	BindPortEdge          int
+	BindPortFlowCollector int
+	ContainerNetwork      string
+	Endpoint              string
 }
 
 func (s *InitTester) Command(platform types.Platform, cluster *base.ClusterContext) []string {
@@ -118,10 +119,8 @@ func (s *InitTester) Command(platform types.Platform, cluster *base.ClusterConte
 	if s.SiteName != "" {
 		args = append(args, "--site-name", s.SiteName)
 	}
-	if platform.IsKubernetes() {
-		args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
-		args = append(args, fmt.Sprintf("--enable-flow-collector=%v", s.EnableFlowCollector))
-	}
+	args = append(args, fmt.Sprintf("--enable-console=%v", s.EnableConsole))
+	args = append(args, fmt.Sprintf("--enable-flow-collector=%v", s.EnableFlowCollector))
 	if s.RunAsUser != "" {
 		args = append(args, "--run-as-user", s.RunAsUser)
 	}
@@ -143,6 +142,9 @@ func (s *InitTester) Command(platform types.Platform, cluster *base.ClusterConte
 	}
 	if s.Podman.BindPortEdge > 0 {
 		args = append(args, "--bind-port-edge", strconv.Itoa(s.Podman.BindPortEdge))
+	}
+	if s.Podman.BindPortFlowCollector > 0 {
+		args = append(args, "--bind-port-flow-collector", strconv.Itoa(s.Podman.BindPortFlowCollector))
 	}
 	if s.Podman.ContainerNetwork != "" {
 		args = append(args, "--container-network", s.Podman.ContainerNetwork)
@@ -184,7 +186,7 @@ func (s *InitTester) ValidateKubernetes(cluster *base.ClusterContext, stdout, st
 	// Validating the console based on Init Tester flags
 	if s.EnableConsole {
 		log.Println("Validating console")
-		if err = s.ValidateConsole(cluster); err != nil {
+		if err = s.ValidateConsoleKube(cluster); err != nil {
 			return
 		}
 	}
@@ -247,7 +249,7 @@ func (s *InitTester) ValidateKubernetes(cluster *base.ClusterContext, stdout, st
 	return
 }
 
-func (s *InitTester) ValidateConsole(cluster *base.ClusterContext) error {
+func (s *InitTester) ValidateConsoleKube(cluster *base.ClusterContext) error {
 
 	consoleEnabled := console.IsConsoleEnabled(cluster)
 
@@ -726,5 +728,68 @@ func (s *InitTester) ValidatePodman(stdout string, stderr string) (err error) {
 		return fmt.Errorf("invalid site name - expected: %s - found: %s", expectedSiteName, podmanSite.GetName())
 	}
 
+	// Validating bound ports
+	if s.Ingress != types.IngressNoneString {
+		expectedBindPort := utils.DefaultNumber(s.Podman.BindPort, int(types.InterRouterListenerPort))
+		expectedBindPortEdge := utils.DefaultNumber(s.Podman.BindPortEdge, int(types.EdgeListenerPort))
+		if podmanSite.IngressBindInterRouterPort != expectedBindPort {
+			return fmt.Errorf("incorrect bind-port - expected: %d - found: %d", expectedBindPort, podmanSite.IngressBindInterRouterPort)
+		}
+		if podmanSite.IngressBindEdgePort != expectedBindPortEdge {
+			return fmt.Errorf("incorrect bind-port-edge - expected: %d - found: %d", expectedBindPortEdge, podmanSite.IngressBindEdgePort)
+		}
+	}
+	if s.EnableFlowCollector {
+		log.Println("Validating flow-collector")
+		fcFound := false
+		for _, dep := range podmanSite.GetDeployments() {
+			if dep.GetName() == types.FlowCollectorContainerName {
+				fcFound = true
+			}
+		}
+		if !fcFound {
+			return fmt.Errorf("flow collector expected to be present, but not found")
+		}
+		expectedBindPortFc := utils.DefaultNumber(s.Podman.BindPortFlowCollector, int(types.FlowCollectorDefaultServiceTargetPort))
+		if podmanSite.IngressBindFlowCollectorPort != expectedBindPortFc {
+			return fmt.Errorf("incorrect bind-port-flow-collector - expected: %d - found: %d", expectedBindPortFc, podmanSite.IngressBindFlowCollectorPort)
+		}
+		if s.EnableConsole {
+			if err = s.ValidateConsolePodman(podmanSite); err != nil {
+				return
+			}
+		}
+	}
+
 	return
+}
+
+func (s *InitTester) ValidateConsolePodman(site *podman.Site) error {
+
+	if site.EnableConsole != s.EnableConsole {
+		return fmt.Errorf("expected enable console to be %v - found: %v", s.EnableConsole, site.EnableConsole)
+	}
+
+	// Verifying console authentication (just internal and unsecured for now)
+	if s.ConsoleAuth != types.ConsoleAuthModeUnsecured {
+		var user, pass string
+
+		// retrieve password
+		user = site.ConsoleUser
+		pass = site.ConsolePassword
+
+		// validating if user and password match
+		if s.ConsoleUser != "" {
+			if user != s.ConsoleUser {
+				return fmt.Errorf("console username not defined as requested - expected: %s - found: %s", s.ConsoleUser, user)
+			}
+		}
+		if s.ConsolePassword != "" {
+			if pass != s.ConsolePassword {
+				return fmt.Errorf("console password not defined as requested - expected: %s - found: %s", s.ConsoleUser, user)
+			}
+		}
+	}
+
+	return nil
 }
