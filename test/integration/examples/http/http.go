@@ -892,15 +892,16 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(context.TODO(), nghttp2tcpTlsDepWithCertFiles, metav1.UpdateOptions{})
 	assert.Assert(t, err)
 
+	_, err = prv1Cluster.VanClient.KubeClient.CoreV1().ConfigMaps(prv1Cluster.Namespace).Create(context.TODO(), nghttp1TlsConfigMap, metav1.CreateOptions{})
+	assert.Assert(t, err)
+
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http1TlsService)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2TlsService, "deployment", "nghttp1tls", map[int]int{})
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http1TlsService, "deployment", "nghttp1tls", map[int]int{})
 	assert.Assert(t, err)
 
 	//update tls service with cert files
-	_, err = prv1Cluster.VanClient.KubeClient.CoreV1().ConfigMaps(prv1Cluster.Namespace).Create(context.TODO(), nghttp1TlsConfigMap, metav1.CreateOptions{})
-	assert.Assert(t, err)
 	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(context.TODO(), nghttp1TlsDepWithCertFiles, metav1.UpdateOptions{})
 	assert.Assert(t, err)
 
