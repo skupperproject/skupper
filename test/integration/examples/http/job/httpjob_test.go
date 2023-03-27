@@ -155,10 +155,9 @@ func TestHttp1TlsJob(t *testing.T) {
 		RootCAs:            caCertPool,
 	}
 
-	transport := &http2.Transport{
+	transport := &http.Transport{
 		TLSClientConfig:    tlsConfig,
 		DisableCompression: true,
-		AllowHTTP:          true,
 	}
 
 	client := http.Client{
