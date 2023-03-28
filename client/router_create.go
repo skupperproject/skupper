@@ -357,7 +357,8 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 					Kind:       "Route",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: types.ClaimRedemptionRouteName,
+					Name:        types.ClaimRedemptionRouteName,
+					Annotations: options.IngressAnnotations,
 				},
 				Spec: routev1.RouteSpec{
 					Path: "",
@@ -900,7 +901,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				Kind:       "Route",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: types.InterRouterRouteName,
+				Name:        types.InterRouterRouteName,
+				Annotations: options.IngressAnnotations,
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
@@ -924,7 +926,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 				Kind:       "Route",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: types.EdgeRouteName,
+				Name:        types.EdgeRouteName,
+				Annotations: options.IngressAnnotations,
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
