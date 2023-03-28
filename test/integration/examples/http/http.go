@@ -551,6 +551,16 @@ var nghttp1TlsDepWithCertFiles = &appsv1.Deployment{
 						},
 					},
 					{
+						Name: "nghttp1configmap",
+						VolumeSource: apiv1.VolumeSource{
+							ConfigMap: &apiv1.ConfigMapVolumeSource{
+								LocalObjectReference: apiv1.LocalObjectReference{
+									Name: "nghttp1configmap",
+								},
+							},
+						},
+					},
+					{
 						Name: "certs",
 						VolumeSource: apiv1.VolumeSource{
 							Secret: &apiv1.SecretVolumeSource{
@@ -574,13 +584,6 @@ var nghttp1TlsDepWithCertFiles = &appsv1.Deployment{
 							{Name: "index-html", MountPath: "/etc/nginx/html", ReadOnly: true},
 							{Name: "certs", MountPath: "/certs", ReadOnly: true},
 							{Name: "nghttp1configmap", MountPath: "/etc/nginx/nginx.conf", SubPath: "nginx.conf"},
-						},
-						EnvFrom: []apiv1.EnvFromSource{
-							{ConfigMapRef: &apiv1.ConfigMapEnvSource{
-								LocalObjectReference: apiv1.LocalObjectReference{
-									Name: "nghttp1configmap",
-								},
-							}},
 						},
 					},
 				},
