@@ -154,6 +154,8 @@ const (
 	IngressModeQualifier        string = BaseQualifier + "/ingress"
 	CpuRequestAnnotation        string = BaseQualifier + "/cpu-request"
 	MemoryRequestAnnotation     string = BaseQualifier + "/memory-request"
+	CpuLimitAnnotation          string = BaseQualifier + "/cpu-limit"
+	MemoryLimitAnnotation       string = BaseQualifier + "/memory-limit"
 	AffinityAnnotation          string = BaseQualifier + "/affinity"
 	AntiAffinityAnnotation      string = BaseQualifier + "/anti-affinity"
 	NodeSelectorAnnotation      string = BaseQualifier + "/node-selector"

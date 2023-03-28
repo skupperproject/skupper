@@ -390,7 +390,7 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 			if cpu, ok := statefulset.ObjectMeta.Annotations[types.CpuRequestAnnotation]; ok {
 				quantity, err := resource.ParseQuantity(cpu)
 				if err != nil {
-					event.Recordf(DefinitionMonitorError, "Invalid cpu annotation on statefulset %s: %s", statefulset.ObjectMeta.Name, err)
+					event.Recordf(DefinitionMonitorError, "Invalid cpu request annotation on statefulset %s: %s", statefulset.ObjectMeta.Name, err)
 				} else {
 					svc.Headless.CpuRequest = &quantity
 				}
@@ -398,9 +398,25 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 			if memory, ok := statefulset.ObjectMeta.Annotations[types.MemoryRequestAnnotation]; ok {
 				quantity, err := resource.ParseQuantity(memory)
 				if err != nil {
-					event.Recordf(DefinitionMonitorError, "Invalid memory annotation on statefulset %s: %s", statefulset.ObjectMeta.Name, err)
+					event.Recordf(DefinitionMonitorError, "Invalid memory request annotation on statefulset %s: %s", statefulset.ObjectMeta.Name, err)
 				} else {
 					svc.Headless.MemoryRequest = &quantity
+				}
+			}
+			if cpu, ok := statefulset.ObjectMeta.Annotations[types.CpuLimitAnnotation]; ok {
+				quantity, err := resource.ParseQuantity(cpu)
+				if err != nil {
+					event.Recordf(DefinitionMonitorError, "Invalid cpu limit annotation on statefulset %s: %s", statefulset.ObjectMeta.Name, err)
+				} else {
+					svc.Headless.CpuLimit = &quantity
+				}
+			}
+			if memory, ok := statefulset.ObjectMeta.Annotations[types.MemoryLimitAnnotation]; ok {
+				quantity, err := resource.ParseQuantity(memory)
+				if err != nil {
+					event.Recordf(DefinitionMonitorError, "Invalid memory limit annotation on statefulset %s: %s", statefulset.ObjectMeta.Name, err)
+				} else {
+					svc.Headless.MemoryLimit = &quantity
 				}
 			}
 			if affinity, ok := statefulset.ObjectMeta.Annotations[types.AffinityAnnotation]; ok {
