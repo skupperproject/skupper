@@ -25,6 +25,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				AuthMode:         "internal",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
 		{
@@ -42,6 +43,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				AuthMode:         "none",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
 		{
@@ -63,6 +65,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				Password:         "secret",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
 		{
@@ -111,6 +114,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 					MaxFrameSize:     1111,
 					MaxSessionFrames: 2222,
 				},
+				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
 		{
@@ -143,6 +147,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 						NodeSelector: "kubernetes.io/hostname=nodeX",
 					},
 				},
+				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
 		{
@@ -163,6 +168,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				Router: types.RouterOptions{
 					IngressHost: "foo.com",
 				},
+				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
 		{
@@ -180,6 +186,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				AuthMode:         "internal",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
 	}

@@ -171,12 +171,12 @@ func (r *BasicTestRunner) TearDown(ctx context.Context) {
 
 	pub, err := r.GetPublicContext(1)
 	if err != nil {
-		log.Warn(errMsg)
+		log.Println(errMsg)
 	}
 
 	priv, err := r.GetPrivateContext(1)
 	if err != nil {
-		log.Warn(errMsg)
+		log.Println(errMsg)
 	}
 
 	_ = pub.DeleteNamespace()
