@@ -197,8 +197,20 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 	if actual.Origin != "annotation" {
 		return false
 	}
-	if actual.Protocol != desired.Protocol || !reflect.DeepEqual(actual.Ports, desired.Ports) {
+	if actual.Protocol != desired.Protocol {
 		return true
+	}
+	if len(actual.Ports) != len(desired.Ports) {
+		return true
+	}
+	ports := map[int]int{}
+	for _, value := range desired.Ports {
+		ports[value] = value
+	}
+	for _, value := range actual.Ports {
+		if ports[value] != value {
+			return true
+		}
 	}
 	if actual.Headless != desired.Headless {
 		return true

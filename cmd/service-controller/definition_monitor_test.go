@@ -1133,6 +1133,105 @@ func TestUpdateAnnotatedServiceDefinition(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "six",
+			actual: types.ServiceInterface{
+				Address:  "six",
+				Protocol: "tcp",
+				Origin:   "annotation",
+				Ports:    []int{8080, 8081, 8082},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t1",
+						Selector: "foo=bar",
+						TargetPorts: map[int]int{
+							8080: 8080,
+							8081: 8081,
+							8082: 8082,
+						},
+					},
+				},
+			},
+			desired: types.ServiceInterface{
+				Address:  "six",
+				Protocol: "tcp",
+				Ports:    []int{8080, 8082, 8081},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t2",
+						Selector: "foo=baz",
+						TargetPorts: map[int]int{
+							8080: 8080,
+							8081: 8081,
+							8082: 8082,
+						},
+					},
+				},
+			},
+			result: true,
+			targets: []types.ServiceInterfaceTarget{
+				{
+					Name:     "t1",
+					Selector: "foo=bar",
+					TargetPorts: map[int]int{
+						8080: 8080,
+						8081: 8081,
+						8082: 8082,
+					},
+				},
+				{
+					Name:     "t2",
+					Selector: "foo=baz",
+					TargetPorts: map[int]int{
+						8080: 8080,
+						8081: 8081,
+						8082: 8082,
+					},
+				},
+			},
+		},
+		{
+			name: "seven",
+			actual: types.ServiceInterface{
+				Address:  "seven",
+				Protocol: "tcp",
+				Origin:   "annotation",
+				Ports:    []int{8080},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t1",
+						Selector: "foo=bar",
+						TargetPorts: map[int]int{
+							8080: 1024,
+						},
+					},
+				},
+			},
+			desired: types.ServiceInterface{
+				Address:  "seven",
+				Protocol: "tcp",
+				Ports:    []int{8081},
+				Targets: []types.ServiceInterfaceTarget{
+					{
+						Name:     "t1",
+						Selector: "foo=bar",
+						TargetPorts: map[int]int{
+							8081: 1024,
+						},
+					},
+				},
+			},
+			result: true,
+			targets: []types.ServiceInterfaceTarget{
+				{
+					Name:     "t1",
+					Selector: "foo=bar",
+					TargetPorts: map[int]int{
+						8081: 1024,
+					},
+				},
+			},
+		},
 	}
 	event.StartDefaultEventStore(nil)
 	for _, test := range tests {
