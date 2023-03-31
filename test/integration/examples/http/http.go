@@ -901,7 +901,7 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http1TlsService)
 	assert.Assert(t, err)
 
-	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http1TlsService, "deployment", "nghttp1tls", map[int]int{})
+	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http1TlsService, "deployment", "nghttp1tls", map[int]int{}, "")
 	assert.Assert(t, err)
 
 	//update tls service with cert files
