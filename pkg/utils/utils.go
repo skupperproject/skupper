@@ -148,6 +148,7 @@ func GetOrDefault(str string, defaultStr string) string {
 	}
 	return result
 }
+
 type Number interface {
 	int | int32 | int64 | float32 | float64
 }
