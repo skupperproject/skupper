@@ -208,7 +208,7 @@ commands:
           no_output_timeout: 60m
           command: |
             make build-cmd && sudo install skupper /usr/local/bin
-            go test -tags=policy -timeout=60m -v ./test/integration/...
+            go test -tags=policy -timeout=60m -v -p1 ./test/integration/...
       - system_status
       - run:
           name: Archiving policy test artifacts
