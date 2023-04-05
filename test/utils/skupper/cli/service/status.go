@@ -226,7 +226,9 @@ func (s *StatusTester) compareBindings(listedServices []*types.ServiceInterface)
 			structTargetMap[t.Name] = t
 		}
 		for _, t := range listedInterface.Targets {
-			listedTargetMap[t.Name] = t
+			// store just the name, without the qualified ns
+			tName := strings.Split(t.Name, ".")[0]
+			listedTargetMap[tName] = t
 		}
 
 		for tn := range structTargetMap {
@@ -330,7 +332,7 @@ func (s *StatusTester) parseBindings(stdout string) (ifaces []*types.ServiceInte
 			}
 			// Then we get the second item, that should be the name
 			pieces = strings.Split(strings.Trim(pieces[1], " "), " ")
-			if len(pieces) != 2 {
+			if len(pieces) != 3 {
 				err = fmt.Errorf("Parsing failed due to unexpected target output format on line %v: %v", line, text)
 				return
 			}
