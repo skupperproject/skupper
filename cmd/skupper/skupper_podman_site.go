@@ -72,12 +72,6 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Unable to initialize Skupper - %w", err)
 	}
 
-	// Validating if site is already initialized
-	curSite, err := siteHandler.Get()
-	if err == nil && curSite != nil {
-		return fmt.Errorf("Skupper has already been initialized for user '" + podman.Username + "'.")
-	}
-
 	// Validating ingress type
 	if routerCreateOpts.Ingress != types.IngressNoneString {
 		// Validating ingress hosts (required as certificates must have valid hosts)
@@ -167,16 +161,7 @@ func (s *SkupperPodmanSite) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
-	siteHandler, err := podman.NewSitePodmanHandler("")
-	if err != nil {
-		return err
-	}
-	site, err := siteHandler.Get()
-	if err != nil {
-		fmt.Printf("Skupper is not enabled for '%s'\n", podman.Username)
-		return nil
-	}
-
+	site := s.podman.currentSite
 	routerMgr := podman.NewRouterEntityManagerPodman(s.podman.cli)
 	routers, err := routerMgr.QueryAllRouters()
 	if err != nil {
@@ -226,9 +211,8 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 
 	fmt.Println()
 
-	podmanSite := site.(*podman.Site)
-	if podmanSite.EnableFlowCollector {
-		fmt.Println("The site console url is: ", podmanSite.GetConsoleUrl())
+	if site.EnableFlowCollector {
+		fmt.Println("The site console url is: ", site.GetConsoleUrl())
 		fmt.Println("The credentials for internal console-auth mode are held in podman volume: 'skupper-console-users'")
 	}
 
@@ -238,7 +222,11 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) StatusFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) NewClient(cmd *cobra.Command, args []string) {
-	s.podman.NewClient(cmd, args)
+	var initArgs []string
+	if cmd.Name() == "init" && len(s.flags.PodmanEndpoint) > 0 {
+		initArgs = append(initArgs, s.flags.PodmanEndpoint)
+	}
+	s.podman.NewClient(cmd, initArgs)
 }
 
 func (s *SkupperPodmanSite) Platform() types.Platform {
@@ -252,16 +240,10 @@ func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
-	siteHandler, err := podman.NewSitePodmanHandler("")
-	if err != nil {
-		return fmt.Errorf("Unable to communicate with Skupper - %w", err)
+	site := s.podman.currentSite
+	if site == nil {
+		return fmt.Errorf("Skupper is not enabled for user '%s'", podman.Username)
 	}
-
-	site, err := siteHandler.Get()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve site information - %w", err)
-	}
-
 	for _, deploy := range site.GetDeployments() {
 		for _, component := range deploy.GetComponents() {
 			if component.Name() == types.TransportDeploymentName {

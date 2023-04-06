@@ -110,7 +110,7 @@ func (s *StatusTester) validateMainContent(platform types.Platform, cluster *bas
 	} else if platform == types.PlatformPodman {
 		mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for \"%s\"", podman.Username))
 		if s.NotEnabled {
-			notEnabledContent := fmt.Sprintf("Skupper is not enabled for '%s'", podman.Username)
+			notEnabledContent := fmt.Sprintf("Skupper is not enabled for user '%s'", podman.Username)
 			if !strings.Contains(stdout, notEnabledContent) {
 				return fmt.Errorf("error validating not enabled message - expected: %s - stdout: %s", notEnabledContent, stdout)
 			}

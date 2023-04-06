@@ -21,15 +21,7 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	secretFile := args[0]
 
 	// Determining ingress host
-	siteHandler, err := podman.NewSitePodmanHandler("")
-	if err != nil {
-		return fmt.Errorf("error retrieving site information - %w", err)
-	}
-	site, err := siteHandler.Get()
-	if err != nil {
-		return fmt.Errorf("error inspecting site - %w", err)
-	}
-	sitePodman := site.(*podman.Site)
+	sitePodman := s.podman.currentSite
 	if sitePodman.IsEdge() {
 		return fmt.Errorf("Edge configuration cannot accept connections")
 	}
