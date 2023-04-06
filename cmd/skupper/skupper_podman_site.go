@@ -211,9 +211,8 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 
 	fmt.Println()
 
-	podmanSite := site.(*podman.Site)
-	if podmanSite.EnableFlowCollector {
-		fmt.Println("The site console url is: ", podmanSite.GetConsoleUrl())
+	if site.EnableFlowCollector {
+		fmt.Println("The site console url is: ", site.GetConsoleUrl())
 		fmt.Println("The credentials for internal console-auth mode are held in podman volume: 'skupper-console-users'")
 	}
 
