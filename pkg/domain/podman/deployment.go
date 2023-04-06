@@ -3,6 +3,7 @@ package podman
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
@@ -12,10 +13,11 @@ import (
 
 type SkupperDeployment struct {
 	*domain.SkupperDeploymentCommon
-	Name         string
-	Aliases      []string
-	VolumeMounts map[string]string
-	Networks     []string
+	Name           string
+	Aliases        []string
+	VolumeMounts   map[string]string
+	Networks       []string
+	SELinuxDisable bool
 }
 
 func (s *SkupperDeployment) GetName() string {
@@ -69,16 +71,28 @@ func (s *SkupperDeploymentHandler) Deploy(deployment domain.SkupperDeployment) e
 
 		// Defining the mounted volumes
 		mounts := []container.Volume{}
+		fileMounts := []container.FileMount{}
 		for volumeName, destDir := range podmanDeployment.VolumeMounts {
-			var volume *container.Volume
-			volume, err = s.cli.VolumeInspect(volumeName)
-			if err != nil {
-				err = fmt.Errorf("error reading volume %s - %v", volumeName, err)
-				return err
+			fileOrDir := strings.HasPrefix(volumeName, "/")
+			if fileOrDir {
+				var mount *container.FileMount
+				mount = &container.FileMount{
+					Source:      volumeName,
+					Destination: destDir,
+					Options:     []string{"z"},
+				}
+				fileMounts = append(fileMounts, *mount)
+			} else {
+				var volume *container.Volume
+				volume, err = s.cli.VolumeInspect(volumeName)
+				if err != nil {
+					err = fmt.Errorf("error reading volume %s - %v", volumeName, err)
+					return err
+				}
+				volume.Destination = destDir
+				volume.Mode = "z" // shared between containers
+				mounts = append(mounts, *volume)
 			}
-			volume.Destination = destDir
-			volume.Mode = "z" // shared between containers
-			mounts = append(mounts, *volume)
 		}
 
 		// Ports
@@ -102,8 +116,16 @@ func (s *SkupperDeploymentHandler) Deploy(deployment domain.SkupperDeployment) e
 			Labels:        labels,
 			Networks:      networkMap,
 			Mounts:        mounts,
+			FileMounts:    fileMounts,
 			Ports:         ports,
 			RestartPolicy: "always",
+		}
+
+		if podmanDeployment.SELinuxDisable {
+			if c.Annotations == nil {
+				c.Annotations = map[string]string{}
+			}
+			c.Annotations["io.podman.annotations.label"] = "disable"
 		}
 
 		err = s.cli.ContainerCreate(c)

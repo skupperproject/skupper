@@ -19,12 +19,13 @@ type SkupperPodmanSite struct {
 }
 
 type PodmanInitFlags struct {
-	IngressHosts               []string
-	IngressBindIPs             []string
-	IngressBindInterRouterPort int
-	IngressBindEdgePort        int
-	ContainerNetwork           string
-	PodmanEndpoint             string
+	IngressHosts                 []string
+	IngressBindIPs               []string
+	IngressBindInterRouterPort   int
+	IngressBindEdgePort          int
+	IngressBindFlowCollectorPort int
+	ContainerNetwork             string
+	PodmanEndpoint               string
 }
 
 func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
@@ -50,13 +51,20 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 			Mode:     initFlags.routerMode,
 			Platform: types.PlatformPodman,
 		},
-		RouterOpts:                 routerCreateOpts.Router,
-		IngressHosts:               s.flags.IngressHosts,
-		IngressBindIPs:             s.flags.IngressBindIPs,
-		IngressBindInterRouterPort: s.flags.IngressBindInterRouterPort,
-		IngressBindEdgePort:        s.flags.IngressBindEdgePort,
-		ContainerNetwork:           s.flags.ContainerNetwork,
-		PodmanEndpoint:             s.flags.PodmanEndpoint,
+		IngressHosts:                 s.flags.IngressHosts,
+		IngressBindIPs:               s.flags.IngressBindIPs,
+		IngressBindInterRouterPort:   s.flags.IngressBindInterRouterPort,
+		IngressBindEdgePort:          s.flags.IngressBindEdgePort,
+		IngressBindFlowCollectorPort: s.flags.IngressBindFlowCollectorPort,
+		ContainerNetwork:             s.flags.ContainerNetwork,
+		PodmanEndpoint:               s.flags.PodmanEndpoint,
+		EnableFlowCollector:          routerCreateOpts.EnableFlowCollector,
+		EnableConsole:                routerCreateOpts.EnableConsole,
+		AuthMode:                     routerCreateOpts.AuthMode,
+		ConsoleUser:                  routerCreateOpts.User,
+		ConsolePassword:              routerCreateOpts.Password,
+		FlowCollectorRecordTtl:       routerCreateOpts.FlowCollector.FlowRecordTtl,
+		RouterOpts:                   routerCreateOpts.Router,
 	}
 
 	siteHandler, err := podman.NewSitePodmanHandler(site.PodmanEndpoint)
@@ -120,6 +128,17 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 	// --podman-endpoint
 	cmd.Flags().StringVar(&s.flags.PodmanEndpoint, "podman-endpoint", "",
 		"local podman endpoint to use")
+
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console must be used in conjunction with '--enable-flow-collector' flag")
+	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'internal', 'unsecured'")
+	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-flow-collector", "", false, "Enable cross-site flow collection for the application network")
+	// --bind-port-flow-collector
+	cmd.Flags().IntVar(&s.flags.IngressBindFlowCollectorPort, "bind-port-flow-collector", int(types.FlowCollectorDefaultServicePort),
+		"ingress host binding port used for flow-collector and console")
+	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 30 minutes.")
+
 }
 
 func (s *SkupperPodmanSite) Delete(cmd *cobra.Command, args []string) error {
@@ -206,6 +225,13 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
+
+	podmanSite := site.(*podman.Site)
+	if podmanSite.EnableFlowCollector {
+		fmt.Println("The site console url is: ", podmanSite.GetConsoleUrl())
+		fmt.Println("The credentials for internal console-auth mode are held in podman volume: 'skupper-console-users'")
+	}
+
 	return nil
 }
 

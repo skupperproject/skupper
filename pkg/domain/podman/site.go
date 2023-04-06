@@ -2,6 +2,9 @@ package podman
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
@@ -16,13 +19,20 @@ import (
 
 type Site struct {
 	*domain.SiteCommon
-	IngressHosts               []string
-	IngressBindIPs             []string
-	IngressBindInterRouterPort int
-	IngressBindEdgePort        int
-	ContainerNetwork           string
-	PodmanEndpoint             string
-	RouterOpts                 types.RouterOptions
+	IngressHosts                 []string
+	IngressBindIPs               []string
+	IngressBindInterRouterPort   int
+	IngressBindEdgePort          int
+	IngressBindFlowCollectorPort int
+	ContainerNetwork             string
+	PodmanEndpoint               string
+	EnableFlowCollector          bool
+	EnableConsole                bool
+	AuthMode                     string
+	ConsoleUser                  string
+	ConsolePassword              string
+	FlowCollectorRecordTtl       time.Duration
+	RouterOpts                   types.RouterOptions
 }
 
 func (s *Site) GetPlatform() string {
@@ -31,6 +41,18 @@ func (s *Site) GetPlatform() string {
 
 func (s *Site) GetIngressClasses() []string {
 	return []string{"host"}
+}
+
+func (s *Site) GetConsoleUrl() string {
+	if s.EnableFlowCollector {
+		ipAddr := "0.0.0.0"
+		if len(s.IngressBindIPs) > 0 {
+			ipAddr = s.IngressBindIPs[0]
+		}
+		port := s.IngressBindFlowCollectorPort
+		return fmt.Sprintf("https://%s:%d", ipAddr, port)
+	}
+	return ""
 }
 
 type SiteHandler struct {
@@ -91,6 +113,13 @@ func (s *SiteHandler) prepare(site domain.Site) (domain.Site, error) {
 }
 
 func (s *SiteHandler) ConfigurePodmanDeployments(site *Site) {
+	site.Deployments = append(site.Deployments, s.prepareRouterDeployment(site))
+	if site.EnableFlowCollector {
+		site.Deployments = append(site.Deployments, s.prepareFlowCollectorDeployment(site))
+	}
+}
+
+func (s *SiteHandler) prepareRouterDeployment(site *Site) *SkupperDeployment {
 	// Router Deployment
 	volumeMounts := map[string]string{
 		types.LocalServerSecret:      "/etc/skupper-router-certs/skupper-amqps/",
@@ -155,7 +184,8 @@ func (s *SiteHandler) ConfigurePodmanDeployments(site *Site) {
 			})
 		}
 	}
-	site.Deployments = append(site.Deployments, routerDepl)
+
+	return routerDepl
 }
 
 func (s *SiteHandler) Create(site domain.Site) error {
@@ -252,6 +282,11 @@ func (s *SiteHandler) Create(site domain.Site) error {
 				_ = s.cli.VolumeRemove(vol.Name)
 			})
 		}
+	}
+
+	// Create console user
+	if err = s.createConsoleUser(podmanSite); err != nil {
+		return err
 	}
 
 	// Deploy container(s)
@@ -452,12 +487,31 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 					site.IngressBindInterRouterPort = siteIng.GetPort()
 				} else if siteIng.GetTarget().GetPort() == int(types.EdgeListenerPort) {
 					site.IngressBindEdgePort = siteIng.GetPort()
+				} else if siteIng.GetTarget().GetPort() == int(types.FlowCollectorDefaultServicePort) {
+					site.IngressBindFlowCollectorPort = siteIng.GetPort()
 				}
 			}
 			switch c := comp.(type) {
 			case *domain.Router:
 				site.RouterOpts.DebugMode = c.Env["QDROUTERD_DEBUG"]
 				site.RouterOpts.Logging = qdr.GetRouterLogging(config)
+			case *domain.FlowCollector:
+				enableConsole, _ := strconv.ParseBool(c.Env["ENABLE_CONSOLE"])
+				consoleUsers, _ := c.Env["FLOW_USERS"]
+				if consoleUsers != "" {
+					site.AuthMode = types.ConsoleAuthModeInternal
+				} else {
+					site.AuthMode = types.ConsoleAuthModeUnsecured
+				}
+				site.EnableConsole = enableConsole
+				site.EnableFlowCollector = true
+				site.FlowCollectorRecordTtl, _ = time.ParseDuration(c.Env["FLOW_RECORD_TTL"])
+				user, password, err := s.getConsoleUserPass()
+				if err != nil {
+					fmt.Println("error retrieving console user and password - %w", err)
+				}
+				site.ConsoleUser = user
+				site.ConsolePassword = password
 			}
 		}
 	}
@@ -560,4 +614,102 @@ func (s *SiteHandler) RevokeAccess() error {
 		return fmt.Errorf("error starting %s - %w", types.TransportDeploymentName, err)
 	}
 	return nil
+}
+
+func (s *SiteHandler) prepareFlowCollectorDeployment(site *Site) *SkupperDeployment {
+	// Flow Collector Deployment
+	volumeMounts := map[string]string{
+		types.LocalClientSecret:   "/etc/messaging",
+		types.ConsoleUsersSecret:  "/etc/console-users",
+		types.ConsoleServerSecret: "/etc/service-controller/console",
+	}
+	endpoint := site.PodmanEndpoint
+	if s.cli.IsSockEndpoint() {
+		sockFile := strings.TrimPrefix(s.cli.GetEndpoint(), "unix://")
+		endpoint = "/tmp/podman.sock"
+		volumeMounts[sockFile] = endpoint
+	}
+	flowComponent := &domain.FlowCollector{
+		// TODO ADD Labels
+		Labels: map[string]string{},
+		Env: map[string]string{
+			"ENABLE_CONSOLE":   fmt.Sprintf("%v", site.EnableConsole),
+			"FLOW_RECORD_TTL":  site.FlowCollectorRecordTtl.String(),
+			"SKUPPER_PLATFORM": types.PlatformPodman,
+			"PODMAN_ENDPOINT":  endpoint,
+		},
+	}
+	if site.AuthMode != types.ConsoleAuthModeUnsecured {
+		flowComponent.Env["FLOW_USERS"] = "/etc/console-users"
+		site.AuthMode = types.ConsoleAuthModeInternal
+	}
+	flowDeployment := &SkupperDeployment{
+		Name: types.FlowCollectorContainerName,
+		SkupperDeploymentCommon: &domain.SkupperDeploymentCommon{
+			Components: []domain.SkupperComponent{
+				flowComponent,
+			},
+		},
+		Aliases:        []string{types.FlowCollectorContainerName},
+		VolumeMounts:   volumeMounts,
+		Networks:       []string{site.ContainerNetwork},
+		SELinuxDisable: true,
+	}
+
+	// Defining site ingresses
+	ingressBindIps := site.IngressBindIPs
+	if len(ingressBindIps) == 0 {
+		ingressBindIps = append(ingressBindIps, "")
+	}
+	for _, ingressBindIp := range ingressBindIps {
+		flowComponent.SiteIngresses = append(flowComponent.SiteIngresses, &SiteIngressHost{
+			SiteIngressCommon: &domain.SiteIngressCommon{
+				Name: types.FlowCollectorContainerName,
+				Host: ingressBindIp,
+				Port: site.IngressBindFlowCollectorPort,
+				Target: &domain.PortCommon{
+					Name: types.FlowCollectorContainerName,
+					Port: int(types.FlowCollectorDefaultServiceTargetPort),
+				},
+			},
+		})
+	}
+
+	return flowDeployment
+}
+
+func (s *SiteHandler) createConsoleUser(site *Site) error {
+	v, err := s.cli.VolumeInspect(types.ConsoleUsersSecret)
+	if err != nil {
+		return err
+	}
+	user := utils.DefaultStr(site.ConsoleUser, "admin")
+	password := utils.DefaultStr(site.ConsolePassword, utils.RandomId(10))
+	_, err = v.CreateFiles(map[string]string{user: password}, false)
+	if err != nil {
+		return fmt.Errorf("error creating console user - %w", err)
+	}
+	return nil
+}
+
+func (s *SiteHandler) getConsoleUserPass() (string, string, error) {
+	v, err := s.cli.VolumeInspect(types.ConsoleUsersSecret)
+	if err != nil {
+		return "", "", err
+	}
+
+	files, err := v.ListFiles()
+	if err != nil {
+		return "", "", err
+	}
+	if len(files) == 0 {
+		return "", "", fmt.Errorf("console user is not defined")
+	}
+	f := files[0]
+	user := f.Name()
+	pass, err := v.ReadFile(user)
+	if err != nil {
+		return user, "", fmt.Errorf("error reading console password: %w", err)
+	}
+	return user, pass, nil
 }
