@@ -94,6 +94,8 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		if err == nil {
 			result.Spec.FlowCollector.FlowRecordTtl = ttl
 		}
+	} else {
+		result.Spec.FlowCollector.FlowRecordTtl = types.DefaultFlowTimeoutDuration
 	}
 	if value, ok := siteConfig.Data[SiteConfigRestAPIKey]; ok {
 		result.Spec.EnableRestAPI, _ = strconv.ParseBool(value)
@@ -172,6 +174,12 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	}
 	if routerLogging, ok := siteConfig.Data[SiteConfigRouterLoggingKey]; ok && routerLogging != "" {
 		logConf, err := qdr.ParseRouterLogConfig(routerLogging)
+		if err != nil {
+			return &result, err
+		}
+		result.Spec.Router.Logging = logConf
+	} else {
+		logConf, err := qdr.ParseRouterLogConfig("ROUTER_CORE:error+")
 		if err != nil {
 			return &result, err
 		}

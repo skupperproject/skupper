@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
@@ -25,6 +26,8 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				AuthMode:         "internal",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				Router:           types.RouterOptions{Logging: []types.RouterLogConfig{{Module: "ROUTER_CORE", Level: "error+"}}},
+				FlowCollector:    types.FlowCollectorOptions{FlowRecordTtl: types.DefaultFlowTimeoutDuration},
 				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
@@ -43,6 +46,8 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				AuthMode:         "none",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				Router:           types.RouterOptions{Logging: []types.RouterLogConfig{{Module: "ROUTER_CORE", Level: "error+"}}},
+				FlowCollector:    types.FlowCollectorOptions{FlowRecordTtl: types.DefaultFlowTimeoutDuration},
 				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
@@ -65,6 +70,8 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				Password:         "secret",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				Router:           types.RouterOptions{Logging: []types.RouterLogConfig{{Module: "ROUTER_CORE", Level: "error+"}}},
+				FlowCollector:    types.FlowCollectorOptions{FlowRecordTtl: types.DefaultFlowTimeoutDuration},
 				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
@@ -114,6 +121,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 					MaxFrameSize:     1111,
 					MaxSessionFrames: 2222,
 				},
+				FlowCollector:    types.FlowCollectorOptions{FlowRecordTtl: types.DefaultFlowTimeoutDuration},
 				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
@@ -138,6 +146,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				AuthMode:         "internal",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				Router:           types.RouterOptions{Logging: []types.RouterLogConfig{{Module: "ROUTER_CORE", Level: "error+"}}},
 				Controller: types.ControllerOptions{
 					Tuning: types.Tuning{
 						Cpu:          "100m",
@@ -147,6 +156,7 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 						NodeSelector: "kubernetes.io/hostname=nodeX",
 					},
 				},
+				FlowCollector:    types.FlowCollectorOptions{FlowRecordTtl: types.DefaultFlowTimeoutDuration},
 				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
@@ -167,7 +177,9 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				Labels:           map[string]string{},
 				Router: types.RouterOptions{
 					IngressHost: "foo.com",
+					Logging:     []types.RouterLogConfig{{Module: "ROUTER_CORE", Level: "error+"}},
 				},
+				FlowCollector:    types.FlowCollectorOptions{FlowRecordTtl: types.DefaultFlowTimeoutDuration},
 				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
 			},
 		},
@@ -186,7 +198,51 @@ func TestSiteConfigRoundtrip(t *testing.T) {
 				AuthMode:         "internal",
 				Annotations:      map[string]string{},
 				Labels:           map[string]string{},
+				Router:           types.RouterOptions{Logging: []types.RouterLogConfig{{Module: "ROUTER_CORE", Level: "error+"}}},
+				FlowCollector:    types.FlowCollectorOptions{FlowRecordTtl: types.DefaultFlowTimeoutDuration},
 				PrometheusServer: types.PrometheusServerOptions{AuthMode: "tls"},
+			},
+		},
+		{
+			input: types.SiteConfigSpec{
+				Ingress: "none",
+				FlowCollector: types.FlowCollectorOptions{
+					Tuning: types.Tuning{
+						Cpu:    "1",
+						Memory: "2G",
+					},
+					FlowRecordTtl: time.Minute * 30,
+				},
+				PrometheusServer: types.PrometheusServerOptions{
+					Tuning: types.Tuning{
+						Cpu:    "1",
+						Memory: "2G",
+					},
+				},
+			},
+			expected: types.SiteConfigSpec{
+				SkupperName:      "site-config-roundtrip-8",
+				SkupperNamespace: "site-config-roundtrip-8",
+				Ingress:          "none",
+				RouterMode:       "interior",
+				AuthMode:         "internal",
+				Annotations:      map[string]string{},
+				Labels:           map[string]string{},
+				FlowCollector: types.FlowCollectorOptions{
+					Tuning: types.Tuning{
+						Cpu:    "1",
+						Memory: "2G",
+					},
+					FlowRecordTtl: time.Minute * 30,
+				},
+				Router: types.RouterOptions{Logging: []types.RouterLogConfig{{Module: "ROUTER_CORE", Level: "error+"}}},
+				PrometheusServer: types.PrometheusServerOptions{
+					Tuning: types.Tuning{
+						Cpu:    "1",
+						Memory: "2G",
+					},
+					AuthMode: "tls",
+				},
 			},
 		},
 	}

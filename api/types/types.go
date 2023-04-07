@@ -80,7 +80,7 @@ var TransportPrometheusAnnotations = map[string]string{
 	"prometheus.io/scrape": "true",
 }
 
-// Controller constants
+// Controller and Collector constants
 const (
 	ControllerDeploymentName             string = "skupper-service-controller"
 	ControllerComponentName              string = "service-controller"
@@ -260,6 +260,8 @@ const (
 	ConsoleRouteName                       string = "skupper"
 	RouterConsoleServiceName               string = "skupper-router-console"
 )
+
+const DefaultFlowTimeoutDuration = time.Minute * 15
 
 type Platform string
 

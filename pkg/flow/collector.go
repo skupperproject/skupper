@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/messaging"
 	"github.com/skupperproject/skupper/pkg/version"
 )
@@ -168,7 +169,7 @@ type FlowCollector struct {
 
 func getTtl(ttl time.Duration) time.Duration {
 	if ttl == 0 {
-		return 15 * time.Minute
+		return types.DefaultFlowTimeoutDuration
 	}
 	if ttl < time.Minute {
 		return time.Minute

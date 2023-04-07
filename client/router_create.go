@@ -155,7 +155,7 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 		},
 		Rules: cli.getControllerRules(),
 	})
-	van.Controller.Roles = roles
+	van.PrometheusServer.Roles = roles
 
 	roleBindings := []*rbacv1.RoleBinding{}
 	roleBindings = append(roleBindings, &rbacv1.RoleBinding{
