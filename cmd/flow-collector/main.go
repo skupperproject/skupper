@@ -246,18 +246,6 @@ func main() {
 		log.Fatal("Error getting connect.json", err.Error())
 	}
 
-	//	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig, flowRecordTtl)
-	//	siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-	//	if err != nil {
-	//		log.Fatal("Error getting site config", err.Error())
-	//	}
-
-	// Create non-global prometheus registry
-	//	reg := prometheus.NewRegistry()
-	//	c, err := NewController(origin, reg, conn.Scheme, conn.Host, conn.Port, tlsConfig, siteConfig.Spec.FlowCollector.FlowRecordTtl)
-	//	if err != nil {
-	//		log.Fatal("Error getting new flow collector ", err.Error())
-	//	}
 	reg := prometheus.NewRegistry()
 	c, err := NewController(origin, reg, conn.Scheme, conn.Host, conn.Port, tlsConfig, flowRecordTtl)
 	if err != nil {
