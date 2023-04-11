@@ -71,11 +71,9 @@ func (r *RouterEntityManager) QueryConnections(routerId string, edge bool) ([]qd
 	}
 	var connections []qdr.Connection
 	// if the given routerId no longer exists, it is expected to fail
-	if routerId == "" || !strings.HasPrefix(data, "SendException:") {
-		err = json.Unmarshal([]byte(data), &connections)
-		if err != nil {
-			return nil, fmt.Errorf("error retrieving connections - %w", err)
-		}
+	err = json.Unmarshal([]byte(data), &connections)
+	if err != nil && routerId == "" {
+		return nil, fmt.Errorf("error retrieving connections - %w", err)
 	}
 	return connections, nil
 }
@@ -106,13 +104,13 @@ func (r *RouterEntityManager) QueryAllRouters() ([]qdr.Router, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error querying router info from %s - %w", routerToQuery, err)
 		}
-		// routerToQuery no longer exists
-		if routerToQuery != "" && strings.HasPrefix(rJson, "SendException:") {
-			continue
-		}
 		var records []qdr.Record
 		err = json.Unmarshal([]byte(rJson), &records)
 		if err != nil {
+			// routerToQuery no longer exists
+			if routerToQuery != "" {
+				continue
+			}
 			return nil, fmt.Errorf("error decoding router info from %s - %w", routerToQuery, err)
 		}
 		router.Site = qdr.GetSiteMetadata(records[0].AsString("metadata"))
