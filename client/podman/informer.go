@@ -17,12 +17,12 @@ const (
 // Base types
 //
 
-type informerBase struct {
+type informerCommon struct {
 	cli          *PodmanRestClient
 	resyncPeriod time.Duration
 }
 
-func (i *informerBase) SetResyncPeriod(t time.Duration) {
+func (i *informerCommon) SetResyncPeriod(t time.Duration) {
 	i.resyncPeriod = t
 }
 
@@ -31,53 +31,29 @@ type updateNotification[T any] struct {
 	newObj T
 }
 
-type EventHandler[T any] interface {
-	OnAdd(obj T)
-	OnUpdate(oldObj, newObj T)
-	OnDelete(obj T)
-}
-
-type EventHandlerBase[T any] struct {
-	Add    func(obj T)
-	Update func(oldObj, newObj T)
-	Delete func(obj T)
-}
-
-func (e *EventHandlerBase[T]) OnAdd(obj T) {
-	e.Add(obj)
-}
-
-func (e *EventHandlerBase[T]) OnUpdate(oldObj, newObj T) {
-	e.Update(oldObj, newObj)
-}
-
-func (e *EventHandlerBase[T]) OnDelete(obj T) {
-	e.Delete(obj)
-}
-
 //
 // Container informer
 //
 
 func NewContainerInformer(cli *PodmanRestClient) *ContainerInformer {
 	return &ContainerInformer{
-		informerBase: informerBase{
+		informerCommon: informerCommon{
 			cli:          cli,
 			resyncPeriod: resyncPeriod,
 		},
-		containers:    map[string]*container.Container{},
-		eventHandlers: []EventHandler[*container.Container]{},
+		containers: map[string]*container.Container{},
+		informers:  []container.Informer[*container.Container]{},
 	}
 }
 
 type ContainerInformer struct {
-	informerBase
-	containers    map[string]*container.Container
-	eventHandlers []EventHandler[*container.Container]
+	informerCommon
+	containers map[string]*container.Container
+	informers  []container.Informer[*container.Container]
 }
 
-func (c *ContainerInformer) AddEventHandler(e EventHandler[*container.Container]) {
-	c.eventHandlers = append(c.eventHandlers, e)
+func (c *ContainerInformer) AddInformer(i container.Informer[*container.Container]) {
+	c.informers = append(c.informers, i)
 }
 
 func (c *ContainerInformer) Start(stopCh chan struct{}) {
@@ -129,20 +105,20 @@ func (c *ContainerInformer) run() {
 		}
 	}
 
-	// Notifying event handlers
+	// Notifying informers
 	for _, ci := range added {
-		for _, e := range c.eventHandlers {
-			e.OnAdd(ci)
+		for _, i := range c.informers {
+			i.OnAdd(ci)
 		}
 	}
 	for _, ci := range updated {
-		for _, e := range c.eventHandlers {
-			e.OnUpdate(ci.oldObj, ci.newObj)
+		for _, i := range c.informers {
+			i.OnUpdate(ci.oldObj, ci.newObj)
 		}
 	}
 	for _, ci := range deleted {
-		for _, e := range c.eventHandlers {
-			e.OnDelete(ci)
+		for _, i := range c.informers {
+			i.OnDelete(ci)
 		}
 	}
 }

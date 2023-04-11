@@ -73,7 +73,7 @@ func TestContainerInformer(t *testing.T) {
 	for _, s := range scenarios {
 		t.Run(s.name, func(t *testing.T) {
 			var res result
-			ci.AddEventHandler(&EventHandlerBase[*container.Container]{
+			ci.AddInformer(&container.InformerBase[*container.Container]{
 				Add: func(obj *container.Container) {
 					if strings.HasPrefix(obj.Name, namePrefix) {
 						res.created = append(res.created, obj.Name)
