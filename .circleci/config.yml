@@ -164,33 +164,47 @@ commands:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
       - run:
+          name: Creating results directory
+          command: mkdir /tmp/results
+      - run:
           name: Run Integration Tests
           no_output_timeout: 60m
           command: |
             make build-cmd && sudo install skupper /usr/local/bin
             export PUBLIC_1_INGRESS_HOST=`minikube ip`
-            go test -tags=integration,podman -timeout=60m -v ./test/integration/...
+            go test -tags=integration,podman -timeout=60m -v ./test/integration/... | tee /tmp/results/test-integration.out
       - run:
           name: Run client tests in real cluster
-          command: go test -v -count=1 -timeout=20m ./client -use-cluster
+          command: |
+            go test -v -count=1 -timeout=20m ./client -use-cluster | tee /tmp/results/test-client.out
       - run:
           name: Run skupper cli tests in real cluster
-          command: go test -v -count=1 ./cmd/skupper -use-cluster
+          command: |
+            go test -v -count=1 ./cmd/skupper -use-cluster | tee /tmp/results/test-cmd-skupper.out
       - run:
           name: Run site-controller tests in real cluster
-          command: go test -v -count=1 ./cmd/site-controller -use-cluster
+          command: |
+            go test -v -count=1 ./cmd/site-controller -use-cluster | tee /tmp/results/test-cmd-site-controller.out
       - run:
           name: Run podman system tests in real cluster
-          command: go test -v -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster
+          command: |
+            go test -v -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster | tee /tmp/results/test-pkg-domain-podman.out
       - system_status
       - run:
           name: Archiving test artifacts
           command: |
             find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/artifacts -xv
           when: always
+      - run:
+          name: Generate junit reports
+          command: |
+            (cd /tmp/results && for f in *.out; do [[ -f $f ]] && cat $f | ~/go/bin/go-junit-report > ${f/.out/.xml}; done)
+          when: always
       - store_artifacts:
           path: /tmp/artifacts
           destination: test-artifacts
+      - store_test_results:
+          path: /tmp/results
 
   run_cluster_policy_tests:
     description: run all e2e policy tests inside the current KUBECONFIG configured cluster
@@ -204,20 +218,30 @@ commands:
           name: Creating policy artifacts directory
           command: mkdir /tmp/policy-artifacts
       - run:
+          name: Creating policy results directory
+          command: mkdir /tmp/policy-results
+      - run:
           name: Run Policy Integration Tests
           no_output_timeout: 60m
           command: |
             make build-cmd && sudo install skupper /usr/local/bin
-            go test -tags=policy -timeout=60m -v -p 1 ./test/integration/...
+            go test -tags=policy -timeout=60m -v ./test/integration/... | tee /tmp/policy-results/test-policy.out
       - system_status
       - run:
           name: Archiving policy test artifacts
           command: |
             find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/policy-artifacts -xv
           when: always
+      - run:
+          name: Generate policy junit reports
+          command: |
+            (cd /tmp/policy-results && for f in *.out; do [[ -f $f ]] && cat $f | ~/go/bin/go-junit-report > ${f/.out/.xml}; done)
+          when: always
       - store_artifacts:
           path: /tmp/policy-artifacts
           destination: policy-test-artifacts
+      - store_test_results:
+          path: /tmp/policy-results
 
   compile_go_program:
     description: Compile specified platform.
@@ -262,6 +286,14 @@ commands:
 
             # Starting systemd user service
             systemctl --user start podman.socket
+
+  go-junit:
+    description: "Install go-junit-reporter"
+    steps:
+      - run:
+          name: go junit reporter
+          command: |
+            go install github.com/jstemmer/go-junit-report@v1.0.0
 
 yaml-templates:
   branch_filters: &run_for_all_branches_and_numeric_tags
@@ -457,6 +489,7 @@ jobs:
       - minikube-start-large
       - minikube-start-load-balancer
       - podman-latest
+      - go-junit
       - minikube-logs
       - system_monitor
       - run: kubectl cluster-info
@@ -470,6 +503,7 @@ jobs:
       - minikube-start-medium
       - minikube-start-load-balancer
       - minikube-logs
+      - go-junit
       - system_monitor
       - run: kubectl cluster-info
       - run_cluster_policy_tests

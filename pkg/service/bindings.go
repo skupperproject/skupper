@@ -488,6 +488,14 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 			if hostOverride != "" {
 				b.HostOverride = hostOverride
 			}
+
+			if len(tlsCertAuthority) > 0 {
+				verifyHostName := new(bool)
+				*verifyHostName = false
+				b.SslProfile = tlsCertAuthority
+				b.VerifyHostname = verifyHostName
+			}
+
 			bridges.AddHttpConnector(b)
 		case ProtocolHTTP2:
 			httpConnector := qdr.HttpEndpoint{
@@ -543,14 +551,21 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 			if sb.aggregation != "" || sb.eventChannel {
 				endpointAddr = "mc/" + endpointAddr
 			}
-			bridges.AddHttpListener(qdr.HttpEndpoint{
+
+			httpListener := qdr.HttpEndpoint{
 				Name:         endpointName,
 				Port:         strconv.Itoa(iPort),
 				Address:      endpointAddr,
 				SiteId:       siteId,
 				Aggregation:  sb.aggregation,
 				EventChannel: sb.eventChannel,
-			})
+			}
+
+			if len(sb.TlsCredentials) > 0 {
+				httpListener.SslProfile = sb.TlsCredentials
+			}
+
+			bridges.AddHttpListener(httpListener)
 
 		case ProtocolHTTP2:
 			httpListener := qdr.HttpEndpoint{

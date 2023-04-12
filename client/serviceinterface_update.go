@@ -156,8 +156,6 @@ func validateServiceInterface(service *types.ServiceInterface, cli *VanClient) e
 		return fmt.Errorf("The aggregate option is currently only valid for http")
 	} else if service.EventChannel && service.Protocol != "http" && service.Protocol != "udp" {
 		return fmt.Errorf("The event-channel option is currently only valid for http")
-	} else if (service.TlsCredentials != "" || service.TlsCertAuthority != "") && service.Protocol == "http" {
-		return fmt.Errorf("The TLS support is only available for http2 and tcp protocols")
 	} else {
 		return nil
 	}
