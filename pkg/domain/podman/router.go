@@ -70,9 +70,8 @@ func (r *RouterEntityManager) QueryConnections(routerId string, edge bool) ([]qd
 		return nil, fmt.Errorf("error querying connections - %w", err)
 	}
 	var connections []qdr.Connection
-	// if the given routerId no longer exists, it is expected to fail
 	err = json.Unmarshal([]byte(data), &connections)
-	if err != nil && routerId == "" {
+	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections - %w", err)
 	}
 	return connections, nil
@@ -117,7 +116,7 @@ func (r *RouterEntityManager) QueryAllRouters() ([]qdr.Router, error) {
 
 		// retrieving connections
 		conns, err := r.QueryConnections(routerToQuery, router.Edge)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "invalid character") {
 			return nil, fmt.Errorf("error querying router connections from %s - %w", routerToQuery, err)
 		}
 		for _, conn := range conns {
@@ -187,7 +186,7 @@ func (r *RouterEntityManager) QueryEdgeRouters() ([]qdr.Router, error) {
 	}
 	for _, routerNode := range routerNodes {
 		conns, err := r.QueryConnections(routerNode.Id, false)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "invalid character") {
 			return nil, fmt.Errorf("error querying connections from router %s - %w", routerNode.Id, err)
 		}
 		for _, conn := range conns {
