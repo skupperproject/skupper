@@ -29,8 +29,9 @@ type ApiResponse struct {
 
 type eventSource struct {
 	EventSourceRecord
-	receive *receiver
-	send    *senderDirect
+	nonFlowReceiver *receiver
+	flowReceiver    *receiver
+	send            *senderDirect
 }
 
 type FlowCollector struct {
@@ -162,8 +163,13 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 				} else {
 					if source, ok := c.eventSources[beacon.Identity]; !ok {
 						log.Printf("Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
-						r := newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming)
-						r.start()
+						nonFlowReceiver := newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming)
+						nonFlowReceiver.start()
+						var flowReceiver *receiver = nil
+						if beacon.SourceType == recordNames[Router] {
+							flowReceiver = newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming)
+							flowReceiver.start()
+						}
 						outgoing := make(chan interface{})
 						s := newSender(c.connectionFactory, beacon.Direct, outgoing)
 						s.start()
@@ -180,7 +186,8 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 								LastHeard: now,
 								Beacons:   1,
 							},
-							receive: r,
+							nonFlowReceiver: nonFlowReceiver,
+							flowReceiver:    flowReceiver,
 							send: &senderDirect{
 								sender:    s,
 								outgoing:  outgoing,
@@ -232,7 +239,10 @@ func (c *FlowCollector) run(stopCh <-chan struct{}) {
 	<-stopCh
 	for _, eventsource := range c.eventSources {
 		log.Println("Stopping receiver and sender for: ", eventsource.Identity)
-		eventsource.receive.stop()
+		eventsource.nonFlowReceiver.stop()
+		if eventsource.flowReceiver != nil {
+			eventsource.flowReceiver.stop()
+		}
 		eventsource.send.sender.stop()
 	}
 }
