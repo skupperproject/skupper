@@ -83,6 +83,10 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		site.IngressHosts = []string{}
 	}
 
+	if routerCreateOpts.EnableConsole && !routerCreateOpts.EnableFlowCollector {
+		return fmt.Errorf("The --enable-flow-collector option must be used with the --enable-console option")
+	}
+
 	// Initializing
 	err = siteHandler.Create(site)
 	if err != nil {
