@@ -4,14 +4,19 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"gotest.tools/assert"
-	v12 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1informer "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/internalinterfaces"
+	"k8s.io/client-go/tools/cache"
 )
 
 //
@@ -62,7 +67,7 @@ func SwitchProtocols(t *testing.T, testRunner base.ClusterTestRunner) {
 		updateDaemonSet := switchTcpHttp(ds.Annotations)
 
 		// Iterate through services with the annotation and switch
-		var svcUpdateList []v12.Service
+		var svcUpdateList []corev1.Service
 		for _, svc := range svcList.Items {
 			if ok := switchTcpHttp(svc.Annotations); ok {
 				svcUpdateList = append(svcUpdateList, svc)
@@ -269,5 +274,118 @@ func RemovePorts(t *testing.T, testRunner base.ClusterTestRunner) {
 		// Updating deployment
 		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(context.TODO(), dep, v1.UpdateOptions{})
 		assert.Assert(t, err)
+	}
+}
+
+// ChangeAddress target address to use not owned service
+func ChangeAddress(t *testing.T, testRunner base.ClusterTestRunner) {
+	pub, _ := testRunner.GetPublicContext(1)
+	prv, _ := testRunner.GetPrivateContext(1)
+
+	for i, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
+		clusterIdx := i + 1
+
+		// Retrieving the deployment
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), "nginx", v1.GetOptions{})
+		assert.Assert(t, err)
+
+		// Updating address to clash with not owned service
+		dep.Annotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-dep-not-owned", clusterIdx)
+
+		// Updating deployment
+		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(context.TODO(), dep, v1.UpdateOptions{})
+		assert.Assert(t, err)
+	}
+
+	// now validates that the original selector has been restored
+	origSelector := map[string]string{
+		"application":          types.TransportDeploymentName,
+		"skupper.io/component": "router",
+	}
+
+	t.Logf("Waiting till router selectors in the not owned service becomes stable")
+	waitSelectorsStable(t, testRunner, origSelector)
+
+}
+
+// RevertAddress target address to use owned service
+func RevertAddress(t *testing.T, testRunner base.ClusterTestRunner) {
+	pub, _ := testRunner.GetPublicContext(1)
+	prv, _ := testRunner.GetPrivateContext(1)
+
+	for i, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
+		clusterIdx := i + 1
+
+		// Retrieving the deployment
+		dep, err := cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), "nginx", v1.GetOptions{})
+		assert.Assert(t, err)
+
+		// Updating address to clash with not owned service
+		dep.Annotations[types.AddressQualifier] = fmt.Sprintf("nginx-%d-dep-web", clusterIdx)
+
+		// Updating deployment
+		_, err = cluster.KubeClient.AppsV1().Deployments(cluster.Namespace).Update(context.TODO(), dep, v1.UpdateOptions{})
+		assert.Assert(t, err)
+	}
+
+	// now validates that the original selector has been restored
+	origSelector := map[string]string{
+		"app": "nginx",
+	}
+
+	t.Logf("Waiting till restored selectors in the not owned service becomes stable")
+	waitSelectorsStable(t, testRunner, origSelector)
+}
+
+func waitSelectorsStable(t *testing.T, testRunner base.ClusterTestRunner, origSelector map[string]string) {
+	const maxChanges = 5
+	const stableTime = time.Second * 30
+
+	pub, _ := testRunner.GetPublicContext(1)
+	prv, _ := testRunner.GetPrivateContext(1)
+
+	for i, cluster := range []*client.VanClient{pub.VanClient, prv.VanClient} {
+		clusterIdx := i + 1
+
+		serviceName := fmt.Sprintf("nginx-%d-dep-not-owned", clusterIdx)
+
+		changes := 0
+		doneCh := make(chan struct{})
+		svcInformer := corev1informer.NewFilteredServiceInformer(
+			cluster.KubeClient,
+			cluster.Namespace,
+			time.Second*30,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+			internalinterfaces.TweakListOptionsFunc(func(options *v1.ListOptions) {
+				options.FieldSelector = "metadata.name=" + serviceName
+			}))
+		svcInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				oldSvc := oldObj.(*corev1.Service)
+				newSvc := newObj.(*corev1.Service)
+				if !reflect.DeepEqual(newSvc.Spec.Selector, origSelector) {
+					log.Printf("selectors changed - old: %v - new: %v", oldSvc.Spec.Selector, newSvc.Spec.Selector)
+					changes += 1
+				}
+				if changes == maxChanges {
+					close(doneCh)
+				}
+			},
+		})
+		go svcInformer.Run(doneCh)
+
+		ctx, cn := context.WithTimeout(context.Background(), stableTime)
+		defer cn()
+
+		select {
+		case <-doneCh:
+			assert.Assert(t, fmt.Errorf("selectors are unstable - changed %d times", changes))
+		case <-ctx.Done():
+			close(doneCh)
+			svc, err := cluster.KubeClient.CoreV1().Services(cluster.Namespace).Get(context.Background(), serviceName, v1.GetOptions{})
+			assert.Assert(t, err)
+			assert.DeepEqual(t, origSelector, svc.Spec.Selector)
+			log.Printf("selectors are stable!")
+		}
 	}
 }
