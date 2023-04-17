@@ -163,7 +163,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "flow-collector-memory-limit", "", "Memory limit for flow collector pods")
 
-	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.ExternalServer, "external-prometheus-server", "", "", "External prometheus server for metric aggregation. Vallid only when --enable-flow-collector")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.ExternalServer, "external-prometheus-server", "", "", "External prometheus server for metric aggregation. Valid only when --enable-flow-collector")
 	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.AuthMode, "prometheus-auth", "", "", "Authentication mode for skupper prometheus server. One of: 'tls', 'basic', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.User, "prometheus-user", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
 	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.Password, "prometheus-password", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")

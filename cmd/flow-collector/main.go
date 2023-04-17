@@ -180,32 +180,36 @@ func main() {
 
 		flowRecordTtl = siteConfig.Spec.FlowCollector.FlowRecordTtl
 		enableConsole = siteConfig.Spec.EnableConsole
+		prometheusAuthMethod = siteConfig.Spec.PrometheusServer.AuthMode
+		prometheusUser = siteConfig.Spec.PrometheusServer.User
+		prometheusPassword = siteConfig.Spec.PrometheusServer.Password
+		promProtocol := "https://"
+		if prometheusAuthMethod == "basic" {
+			promProtocol = "http://"
+		}
 		if siteConfig.Spec.PrometheusServer.ExternalServer != "" {
-			prometheusHost = "https://" + siteConfig.Spec.PrometheusServer.ExternalServer + ":9090" + "/api/v1"
+			prometheusHost = promProtocol + siteConfig.Spec.PrometheusServer.ExternalServer + ":9090" + "/api/v1"
 			//	} else if siteConfig.Spec.Ingress == types.IngressRouteString {
 		} else if siteConfig.Spec.IsIngressRoute() {
 			route, err := kube.GetRoute(types.PrometheusRouteName, namespace, cli.RouteClient)
 			if err != nil {
 				log.Fatal("Error getting prometheus host", err.Error())
 			}
-			prometheusHost = "https://" + route.Spec.Host + "/api/v1"
+			prometheusHost = promProtocol + route.Spec.Host + "/api/v1"
 		} else if siteConfig.Spec.IsIngressLoadBalancer() {
 			service, err := kube.GetService(types.PrometheusServiceName, namespace, cli.KubeClient)
 			if err == nil {
 				host := kube.GetLoadBalancerHostOrIP(service)
-				prometheusHost = "https://" + host + ":9090" + "/api/v1"
+				prometheusHost = promProtocol + host + ":9090" + "/api/v1"
 			}
 		} else if siteConfig.Spec.IsIngressNginxIngress() || siteConfig.Spec.IsIngressKubernetes() {
 			routes, err := kube.GetIngressRoutes("skupper-prometheus", namespace, cli)
 			if err == nil {
 				host := routes[0].Host
 				port := strconv.Itoa(routes[0].ServicePort)
-				prometheusHost = "https://" + host + ":" + port + "/api/v1"
+				prometheusHost = promProtocol + host + ":" + port + "/api/v1"
 			}
 		}
-		prometheusAuthMethod = siteConfig.Spec.PrometheusServer.AuthMode
-		prometheusUser = siteConfig.Spec.PrometheusServer.User
-		prometheusPassword = siteConfig.Spec.PrometheusServer.Password
 	} else {
 		cfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
 		if err != nil {
