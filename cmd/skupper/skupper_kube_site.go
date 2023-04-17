@@ -71,10 +71,6 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("The minimum value for service-sync-site-ttl is 1 minute")
 	}
 
-	if routerCreateOpts.EnableConsole && !routerCreateOpts.EnableFlowCollector {
-		return fmt.Errorf("The --enable-flow-collector option must be used with the --enable-console option")
-	}
-
 	if siteConfig == nil {
 		siteConfig, err = cli.SiteConfigCreate(context.Background(), routerCreateOpts)
 		if err != nil {
