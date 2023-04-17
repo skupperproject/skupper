@@ -3,10 +3,10 @@ package edgecon
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
-	"github.com/prometheus/common/log"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -183,14 +183,14 @@ func (r *EdgeConnectivityTestRunner) TearDown(ctx context.Context, testcase *Tes
 	for i := 0; i < int(createOptsPublic.Replicas); i++ {
 		pub, err := r.GetPublicContext(i + 1)
 		if err != nil {
-			log.Warn(err.Error())
+			log.Println(err.Error())
 		}
 		pub.DeleteNamespace()
 	}
 
 	priv, err := r.GetPrivateContext(1) // There can be only one.
 	if err != nil {
-		log.Warn(err.Error())
+		log.Println(err.Error())
 	}
 	priv.DeleteNamespace()
 }

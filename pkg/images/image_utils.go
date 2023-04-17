@@ -13,11 +13,14 @@ const (
 	ServiceControllerImageEnvKey      string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
 	ConfigSyncImageEnvKey             string = "SKUPPER_CONFIG_SYNC_IMAGE"
 	FlowCollectorImageEnvKey          string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
+	PrometheusServerImageEnvKey       string = "PROMETHEUS_SERVER_IMAGE"
 	RouterPullPolicyEnvKey            string = "QDROUTERD_IMAGE_PULL_POLICY"
 	ServiceControllerPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
 	ConfigSyncPullPolicyEnvKey        string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
 	FlowCollectorPullPolicyEnvKey     string = "SKUPPER_FLOW_COLLECTOR_IMAGE_PULL_POLICY"
+	PrometheusServerPullPolicyEnvKey  string = "PROMETHEUS_SERVER_IMAGE_PULL_POLICY"
 	SkupperImageRegistryEnvKey        string = "SKUPPER_IMAGE_REGISTRY"
+	PrometheusImageRegistryEnvKey     string = "PROMETHEUS_IMAGE_REGISTRY"
 )
 
 func getPullPolicy(key string) string {
@@ -126,10 +129,39 @@ func GetFlowCollectorImageDetails() types.ImageDetails {
 	}
 }
 
+func GetPrometheusServerImageName() string {
+	image := os.Getenv(PrometheusServerImageEnvKey)
+	if image == "" {
+		imageRegistry := GetPrometheusImageRegistry()
+		return strings.Join([]string{imageRegistry, PrometheusServerImageName}, "/")
+	} else {
+		return image
+	}
+}
+
+func GetPrometheusServerImagePullPolicy() string {
+	return getPullPolicy(PrometheusServerPullPolicyEnvKey)
+}
+
+func GetPrometheusServerImageDetails() types.ImageDetails {
+	return types.ImageDetails{
+		Name:       GetPrometheusServerImageName(),
+		PullPolicy: GetPrometheusServerImagePullPolicy(),
+	}
+}
+
 func GetImageRegistry() string {
 	imageRegistry := os.Getenv(SkupperImageRegistryEnvKey)
 	if imageRegistry == "" {
 		return DefaultImageRegistry
+	}
+	return imageRegistry
+}
+
+func GetPrometheusImageRegistry() string {
+	imageRegistry := os.Getenv(PrometheusImageRegistryEnvKey)
+	if imageRegistry == "" {
+		return PrometheusImageRegistry
 	}
 	return imageRegistry
 }

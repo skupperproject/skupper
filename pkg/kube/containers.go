@@ -193,3 +193,18 @@ func ContainerForFlowCollector(ds types.DeploymentSpec) *corev1.Container {
 	setResourceRequests(&container, &ds)
 	return &container
 }
+
+func ContainerForPrometheusServer(ds types.DeploymentSpec) corev1.Container {
+	// --web.config.file=/path_to/web-config.yaml for tls server config and basic user auth
+
+	container := corev1.Container{
+		Name:            types.PrometheusContainerName,
+		Image:           ds.Image.Name,
+		Args:            []string{"--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus/", "--web.config.file=/etc/prometheus/web-config.yml"},
+		Env:             ds.EnvVar,
+		VolumeMounts:    []corev1.VolumeMount{},
+		ImagePullPolicy: GetPullPolicy(ds.Image.PullPolicy),
+	}
+	setResourceRequests(&container, &ds)
+	return container
+}

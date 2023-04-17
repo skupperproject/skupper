@@ -44,6 +44,16 @@ const (
 	SiteConfigFlowCollectorCpuLimitKey    string = "flow-collector-cpu-limit"
 	SiteConfigFlowCollectorMemoryLimitKey string = "flow-collector-memory-limit"
 
+	// prometheus server options
+	SiteConfigPrometheusExternalServerKey       string = "prometheus-external-server"
+	SiteConfigPrometheusServerAuthenticationKey string = "prometheus-server-authentication"
+	SiteConfigPrometheusServerUserKey           string = "prometheus-server-user"
+	SiteConfigPrometheusServerPasswordKey       string = "prometheus-server-password"
+	SiteConfigPrometheusServerCpuKey            string = "prometheus-server-cpu"
+	SiteConfigPrometheusServerMemoryKey         string = "prometheus-server-memory"
+	SiteConfigPrometheusServerCpuLimitKey       string = "prometheus-server-cpu-limit"
+	SiteConfigPrometheusServerMemoryLimitKey    string = "prometheus-server-memory-limit"
+
 	// router options
 	SiteConfigRouterConsoleKey            string = "router-console"
 	SiteConfigRouterLoggingKey            string = "router-logging"
@@ -102,8 +112,8 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 			SiteConfigRouterModeKey:            string(types.TransportModeInterior),
 			SiteConfigServiceControllerKey:     "true",
 			SiteConfigServiceSyncKey:           "true",
-			SiteConfigConsoleKey:               "true",
-			SiteConfigFlowCollectorKey:         "true",
+			SiteConfigConsoleKey:               "false",
+			SiteConfigFlowCollectorKey:         "false",
 			SiteConfigClusterPermissionsKey:    "false",
 			SiteConfigRouterConsoleKey:         "false",
 			SiteConfigRouterLoggingKey:         "",
@@ -131,14 +141,14 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	if spec.SiteTtl != 0 {
 		siteConfig.Data[SiteConfigServiceSyncSiteTtlKey] = spec.SiteTtl.String()
 	}
-	if !spec.EnableConsole {
-		siteConfig.Data[SiteConfigConsoleKey] = "false"
+	if spec.EnableConsole {
+		siteConfig.Data[SiteConfigConsoleKey] = "true"
 	}
 	if spec.EnableRestAPI {
 		siteConfig.Data[SiteConfigRestAPIKey] = "true"
 	}
-	if !spec.EnableFlowCollector {
-		siteConfig.Data[SiteConfigFlowCollectorKey] = "false"
+	if spec.EnableFlowCollector {
+		siteConfig.Data[SiteConfigFlowCollectorKey] = "true"
 	}
 	if spec.AuthMode != "" {
 		siteConfig.Data[SiteConfigConsoleAuthenticationKey] = spec.AuthMode
@@ -342,6 +352,43 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 		siteConfig.Data[SiteConfigEnableSkupperEventsKey] = "true"
 	} else {
 		siteConfig.Data[SiteConfigEnableSkupperEventsKey] = "false"
+	}
+
+	if spec.PrometheusServer.ExternalServer != "" {
+		siteConfig.Data[SiteConfigPrometheusExternalServerKey] = spec.PrometheusServer.ExternalServer
+	}
+	if spec.PrometheusServer.AuthMode != "" {
+		siteConfig.Data[SiteConfigPrometheusServerAuthenticationKey] = spec.PrometheusServer.AuthMode
+	}
+	if spec.PrometheusServer.User != "" {
+		siteConfig.Data[SiteConfigPrometheusServerUserKey] = spec.PrometheusServer.User
+	}
+	if spec.PrometheusServer.Password != "" {
+		siteConfig.Data[SiteConfigPrometheusServerPasswordKey] = spec.PrometheusServer.Password
+	}
+	if spec.PrometheusServer.Cpu != "" {
+		if _, err := resource.ParseQuantity(spec.PrometheusServer.Cpu); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigPrometheusServerCpuKey, spec.PrometheusServer.Cpu, err)
+		}
+		siteConfig.Data[SiteConfigPrometheusServerCpuKey] = spec.PrometheusServer.Cpu
+	}
+	if spec.PrometheusServer.Memory != "" {
+		if _, err := resource.ParseQuantity(spec.PrometheusServer.Memory); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigPrometheusServerMemoryKey, spec.PrometheusServer.Memory, err)
+		}
+		siteConfig.Data[SiteConfigPrometheusServerMemoryKey] = spec.PrometheusServer.Memory
+	}
+	if spec.PrometheusServer.CpuLimit != "" {
+		if _, err := resource.ParseQuantity(spec.PrometheusServer.CpuLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigPrometheusServerCpuLimitKey, spec.PrometheusServer.CpuLimit, err)
+		}
+		siteConfig.Data[SiteConfigPrometheusServerCpuLimitKey] = spec.PrometheusServer.CpuLimit
+	}
+	if spec.PrometheusServer.MemoryLimit != "" {
+		if _, err := resource.ParseQuantity(spec.PrometheusServer.MemoryLimit); err != nil {
+			return nil, fmt.Errorf("Invalid value for %s %q: %s", SiteConfigPrometheusServerMemoryLimitKey, spec.PrometheusServer.MemoryLimit, err)
+		}
+		siteConfig.Data[SiteConfigPrometheusServerMemoryLimitKey] = spec.PrometheusServer.MemoryLimit
 	}
 
 	// TODO: allow Replicas to be set through skupper-site configmap?

@@ -293,3 +293,23 @@ func TestSkupperInitRunAsParseArgs(t *testing.T) {
 	assert.Assert(t, cmd.ParseFlags(cmdArgs))
 	assert.Equal(t, routerCreateOpts.RunAsGroup, int64(2000))
 }
+
+func TestSkupperInitFlowCollectorParseArgs(t *testing.T) {
+	cmd := NewCmdInit(NewSkupperTestClient().Site())
+
+	assert.Assert(t, cmd.ParseFlags([]string{}))
+	assert.Equal(t, routerCreateOpts.FlowCollector.Cpu, "")
+	assert.Equal(t, routerCreateOpts.FlowCollector.CpuLimit, "")
+	assert.Equal(t, routerCreateOpts.FlowCollector.Memory, "")
+	assert.Equal(t, routerCreateOpts.FlowCollector.MemoryLimit, "")
+	assert.Equal(t, routerCreateOpts.FlowCollector.FlowRecordTtl, time.Second*0)
+
+	cmdArgs := []string{"--flow-collector-record-ttl", "15m", "--flow-collector-cpu", "1", "--flow-collector-memory", "2G", "--flow-collector-cpu-limit", "2", "--flow-collector-memory-limit", "3G"}
+
+	assert.Assert(t, cmd.ParseFlags(cmdArgs))
+	assert.Equal(t, routerCreateOpts.FlowCollector.Cpu, "1")
+	assert.Equal(t, routerCreateOpts.FlowCollector.CpuLimit, "2")
+	assert.Equal(t, routerCreateOpts.FlowCollector.Memory, "2G")
+	assert.Equal(t, routerCreateOpts.FlowCollector.MemoryLimit, "3G")
+	assert.Equal(t, routerCreateOpts.FlowCollector.FlowRecordTtl, time.Minute*15)
+}

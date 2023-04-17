@@ -14,6 +14,12 @@ metadata:
   name: skupper-flow-collector
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -56,11 +62,11 @@ spec:
       # do NOT support this field by default
       securityContext:
         runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
+        #seccompProfile:
+          #type: RuntimeDefault
       containers:
       - name: skupper-flow-collector
-        image: quay.io/skupper/flow-collector:latest
+        image: quay.io/skupper/flow-collector:master
         imagePullPolicy: Always
         securityContext:
           capabilities:

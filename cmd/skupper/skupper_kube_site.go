@@ -157,11 +157,20 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableClusterPermissions, "enable-cluster-permissions", "", false, "Enable cluster wide permissions in order to expose deployments/statefulsets in other namespaces")
 
-	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 30 minutes.")
+	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 15 minutes.")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Cpu, "flow-collector-cpu", "", "CPU request for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Memory, "flow-collector-memory", "", "Memory request for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "flow-collector-memory-limit", "", "Memory limit for flow collector pods")
+
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.ExternalServer, "external-prometheus-server", "", "", "External prometheus server for metric aggregation. Valid only when --enable-flow-collector")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.AuthMode, "prometheus-auth", "", "", "Authentication mode for skupper prometheus server. One of: 'tls', 'basic', 'unsecured'")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.User, "prometheus-user", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.Password, "prometheus-password", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.Cpu, "prometheus-cpu", "", "CPU request for prometheus pods")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.Memory, "prometheus-memory", "", "Memory request for prometheus pods")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.CpuLimit, "prometheus-cpu-limit", "", "CPU limit for prometheus pods")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.MemoryLimit, "prometheus-memory-limit", "", "Memory limit for prometheus pods")
 
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
 	cmd.Flags().BoolVar(&routerCreateOpts.EnableSkupperEvents, "enable-skupper-events", true, "Enable sending Skupper events to Kubernetes")

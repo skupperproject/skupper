@@ -278,32 +278,38 @@ func TestParameters(t *testing.T) {
 
 	testTable := []test{
 		{
-			values: map[string]string{},
+			values: map[string]string{"timeRangeStart": "1234", "timeRangeEnd": "0"},
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
 				SortBy:             "identity.asc",
 				Filter:             "",
+				TimeRangeStart:     uint64(1234),
+				TimeRangeEnd:       uint64(0),
 				TimeRangeOperation: intersects,
 			},
 		},
 		{
-			values: map[string]string{"timeRangeOperation": "contains"},
+			values: map[string]string{"timeRangeStart": "0", "timeRangeEnd": "0", "timeRangeOperation": "contains"},
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
 				SortBy:             "identity.asc",
 				Filter:             "",
+				TimeRangeStart:     uint64(0),
+				TimeRangeEnd:       uint64(0),
 				TimeRangeOperation: contains,
 			},
 		},
 		{
-			values: map[string]string{"timeRangeOperation": "within"},
+			values: map[string]string{"timeRangeStart": "1234", "timeRangeEnd": "0", "timeRangeOperation": "within"},
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
 				SortBy:             "identity.asc",
 				Filter:             "",
+				TimeRangeStart:     uint64(1234),
+				TimeRangeEnd:       uint64(0),
 				TimeRangeOperation: within,
 			},
 		},
@@ -313,6 +319,8 @@ func TestParameters(t *testing.T) {
 				"limit":              "10",
 				"sortBy":             "sourcePort.desc",
 				"filter":             "forwardFlow.protocol.tcp",
+				"timeRangeStart":     "0",
+				"timeRangeEnd":       "4567",
 				"timeRangeOperation": "intersects",
 			},
 			queryParams: QueryParams{
@@ -320,6 +328,8 @@ func TestParameters(t *testing.T) {
 				Limit:              10,
 				SortBy:             "sourcePort.desc",
 				Filter:             "forwardFlow.protocol.tcp",
+				TimeRangeStart:     uint64(0),
+				TimeRangeEnd:       uint64(4567),
 				TimeRangeOperation: intersects,
 			},
 		},
@@ -336,6 +346,8 @@ func TestParameters(t *testing.T) {
 		assert.Equal(t, qp.Offset, test.queryParams.Offset)
 		assert.Equal(t, qp.Limit, test.queryParams.Limit)
 		assert.Equal(t, qp.SortBy, test.queryParams.SortBy)
+		assert.Equal(t, qp.TimeRangeStart, test.queryParams.TimeRangeStart)
+		assert.Equal(t, qp.TimeRangeEnd, test.queryParams.TimeRangeEnd)
 		assert.Equal(t, qp.TimeRangeOperation, test.queryParams.TimeRangeOperation)
 	}
 }
