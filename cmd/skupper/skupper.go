@@ -436,6 +436,10 @@ installation that can then be connected to other skupper installations`,
 				return fmt.Errorf("The minimum value for flow-collector-record-ttl is 1 minute")
 			}
 
+			if routerCreateOpts.EnableConsole && !routerCreateOpts.EnableFlowCollector {
+				return fmt.Errorf("The --enable-flow-collector option must be used with the --enable-console option")
+			}
+
 			return skupperCli.Create(cmd, args)
 		},
 	}
