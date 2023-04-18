@@ -554,7 +554,62 @@ func TestFilterRecord(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		result := filterRecord(flowPair, test.filter)
+		qp := QueryParams{Filter: test.filter}
+		result := filterRecord(flowPair, qp)
+		assert.Equal(t, result, test.result)
+	}
+}
+
+func TestFilterFieldsRecord(t *testing.T) {
+	host := "10.20.30.40"
+	name := "public1"
+	octets := uint64(2030)
+	flow := FlowRecord{
+		SourceHost: &host,
+		Octets:     &octets,
+	}
+	flowPair := FlowPairRecord{
+		Base: Base{
+			Identity: "foo",
+		},
+		SourceSiteName: &name,
+		ForwardFlow:    &flow,
+	}
+
+	type test struct {
+		filterField map[string]string
+		result      bool
+	}
+	testTable := []test{
+		{
+			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40"},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"sourceSiteName": "public1"},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40", "sourceSiteName": "public1"},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40", "sourceSiteName": "public2"},
+			result:      false,
+		},
+		{
+			filterField: map[string]string{},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"sourceSiteName": ""},
+			result:      false,
+		},
+	}
+
+	for _, test := range testTable {
+		qp := QueryParams{FilterFields: test.filterField}
+		result := filterRecord(flowPair, qp)
 		assert.Equal(t, result, test.result)
 	}
 }

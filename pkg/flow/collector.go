@@ -51,6 +51,7 @@ type collectorMetrics struct {
 	lastAccessed    *prometheus.GaugeVec
 	flowLatency     *prometheus.HistogramVec
 	activeReconcile *prometheus.GaugeVec
+	apiQueryLatency *prometheus.HistogramVec
 }
 
 func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics {
@@ -116,6 +117,14 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 				Help: "Number of active reconcile tasks, partitione by type",
 			},
 			[]string{"reconcileTask"}),
+		apiQueryLatency: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name: "api_query_latency_microseconds",
+				Help: "The measure latency for the direction of query to api",
+				//                 10us,100us, 1ms,  2 ms, 5ms,  10ms,  100ms,  1s,      10s
+				Buckets: []float64{10, 100, 1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
+			},
+			[]string{"recordType", "handler"}),
 	}
 	reg.MustRegister(m.info)
 	reg.MustRegister(m.collectorOctets)
@@ -127,6 +136,7 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 	reg.MustRegister(m.lastAccessed)
 	reg.MustRegister(m.flowLatency)
 	reg.MustRegister(m.activeReconcile)
+	reg.MustRegister(m.apiQueryLatency)
 	return m
 
 }
