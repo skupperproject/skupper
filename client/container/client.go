@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 )
@@ -68,9 +69,9 @@ type Container struct {
 	RestartPolicy string
 	RestartCount  int
 	Running       bool
-	CreatedAt     string
-	StartedAt     string
-	ExitedAt      string
+	CreatedAt     time.Time
+	StartedAt     time.Time
+	ExitedAt      time.Time
 	ExitCode      int
 }
 
