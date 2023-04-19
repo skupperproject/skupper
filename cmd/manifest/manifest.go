@@ -33,6 +33,9 @@ func generateManifestFile() error {
 			Name:       images.GetFlowCollectorImageName(),
 			Repository: "https://github.com/skupperproject/skupper",
 		},
+		{
+			Name: images.GetPrometheusServerImageName(),
+		},
 	}
 
 	// Define a struct for the manifest file.
