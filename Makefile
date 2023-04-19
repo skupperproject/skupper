@@ -113,5 +113,5 @@ release/darwin/skupper: cmd/skupper/skupper.go
 release/darwin.zip: release/darwin/skupper
 	zip -j release/darwin.zip release/darwin/skupper
 
-generate-manifest:
+generate-manifest: build-manifest
 	./manifest
