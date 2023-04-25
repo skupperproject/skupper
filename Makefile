@@ -8,7 +8,7 @@ TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
 LDFLAGS := -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
 
-all: build-cmd build-get build-config-sync build-controllers build-tests
+all: build-cmd build-get build-config-sync build-controllers build-tests build-manifest
 
 build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
@@ -38,6 +38,9 @@ build-config-sync:
 	go build -ldflags="${LDFLAGS}"  -o config-sync cmd/config-sync/main.go cmd/config-sync/config_sync.go
 
 build-controllers: build-site-controller build-service-controller build-flow-collector
+
+build-manifest:
+	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
 
 docker-build-test-image:
 	${DOCKER} build -t ${TEST_IMAGE} -f Dockerfile.ci-test .
@@ -88,7 +91,7 @@ test:
 	go test -v -count=1 ./pkg/... ./cmd/... ./client/...
 
 clean:
-	rm -rf skupper service-controller site-controller release get config-sync ${TEST_BINARIES_FOLDER}
+	rm -rf skupper service-controller site-controller release get config-sync manifest ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz
 
@@ -109,3 +112,6 @@ release/darwin/skupper: cmd/skupper/skupper.go
 
 release/darwin.zip: release/darwin/skupper
 	zip -j release/darwin.zip release/darwin/skupper
+
+generate-manifest: build-manifest
+	./manifest
