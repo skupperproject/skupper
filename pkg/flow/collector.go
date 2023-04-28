@@ -143,6 +143,7 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 
 type FlowCollector struct {
 	origin                  string
+	startTime               uint64
 	Collector               CollectorRecord
 	connectionFactory       messaging.ConnectionFactory
 	recordTtl               time.Duration
@@ -169,7 +170,6 @@ type FlowCollector struct {
 	Processes               map[string]*ProcessRecord
 	ProcessGroups           map[string]*ProcessGroupRecord
 	VanAddresses            map[string]*VanAddressRecord
-	routersToSiteReconcile  map[string]string
 	flowsToProcessReconcile map[string]string
 	flowsToPairReconcile    map[string]string
 	connectorsToReconcile   map[string]string
@@ -190,6 +190,7 @@ func getTtl(ttl time.Duration) time.Duration {
 func NewFlowCollector(origin string, reg prometheus.Registerer, connectionFactory messaging.ConnectionFactory, recordTtl time.Duration) *FlowCollector {
 	fc := &FlowCollector{
 		origin:                  origin,
+		startTime:               uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 		connectionFactory:       connectionFactory,
 		recordTtl:               getTtl(recordTtl),
 		prometheusReg:           reg,
@@ -214,7 +215,6 @@ func NewFlowCollector(origin string, reg prometheus.Registerer, connectionFactor
 		VanAddresses:            make(map[string]*VanAddressRecord),
 		Processes:               make(map[string]*ProcessRecord),
 		ProcessGroups:           make(map[string]*ProcessGroupRecord),
-		routersToSiteReconcile:  make(map[string]string),
 		flowsToProcessReconcile: make(map[string]string),
 		flowsToPairReconcile:    make(map[string]string),
 		connectorsToReconcile:   make(map[string]string),
@@ -274,9 +274,9 @@ func getRealSizeOf(v interface{}) (int, error) {
 }
 
 func (c *FlowCollector) updates(stopCh <-chan struct{}) {
-	tickerAge := time.NewTicker(10 * time.Second)
-	defer tickerAge.Stop()
-	tickerReconcile := time.NewTicker(5 * time.Second)
+	tickerFlush := time.NewTicker(1 * time.Second)
+	defer tickerFlush.Stop()
+	tickerReconcile := time.NewTicker(2 * time.Second)
 	defer tickerReconcile.Stop()
 
 	for {
@@ -285,10 +285,10 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 			for _, beaconUpdate := range beaconUpdates {
 				beacon, ok := beaconUpdate.(BeaconRecord)
 				if !ok {
-					log.Println("Unable to convert interface to beacon")
+					log.Println("COLLECTOR: Unable to convert interface to beacon")
 				} else {
 					if source, ok := c.eventSources[beacon.Identity]; !ok {
-						log.Printf("Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
+						log.Printf("COLLECTOR: Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
 						nonFlowReceiver := newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming)
 						nonFlowReceiver.start()
 						var flowReceiver *receiver = nil
@@ -333,7 +333,7 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 				c.metrics.collectorOctets.Add(float64(size))
 				err := c.updateRecord(update)
 				if err != nil {
-					log.Println("Update record error", err.Error())
+					log.Println("COLLECTOR: Update record error", err.Error())
 				}
 			}
 		case request := <-c.Request:
@@ -341,10 +341,10 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 			c.Response <- response
 		case <-tickerReconcile.C:
 			c.reconcileRecords()
-		case <-tickerAge.C:
+		case <-tickerFlush.C:
 			for address, sender := range c.pendingFlush {
 				if sender.heartbeat {
-					log.Println("Sending flush to: ", address)
+					log.Println("COLLECTOR: Sending flush to ", address)
 					sender.outgoing <- &FlushRecord{Address: address}
 					delete(c.pendingFlush, address)
 				}
@@ -368,7 +368,7 @@ func (c *FlowCollector) run(stopCh <-chan struct{}) {
 	c.updates(stopCh)
 	<-stopCh
 	for _, eventsource := range c.eventSources {
-		log.Println("Stopping receiver and sender for: ", eventsource.Identity)
+		log.Println("COLLECTOR: Stopping record processing for ", eventsource.Identity)
 		eventsource.nonFlowReceiver.stop()
 		if eventsource.flowReceiver != nil {
 			eventsource.flowReceiver.stop()

@@ -58,10 +58,10 @@ func (c *sender) send() {
 	for !c.closed {
 		err := c._send()
 		if err != nil {
-			log.Println("Error sending out updates", err.Error())
+			log.Printf("COLLECTOR: Error sending out updates %s", err.Error())
 		}
 	}
-	log.Println("Flow process stopped sending")
+	log.Println("COLLECTOR: Flow process stopped sending")
 }
 
 func (c *sender) _send() error {
@@ -167,7 +167,7 @@ func (r *receiver) receive() {
 	for !r.closed {
 		err := r._receive()
 		if err != nil {
-			log.Println("Error receiving message:", err.Error())
+			log.Println("COLLECTOR: Error receiving message ", err.Error())
 		}
 	}
 }
@@ -189,7 +189,7 @@ func (r *receiver) _receive() error {
 	for {
 		msg, err := receiver.Receive()
 		if err != nil {
-			log.Println("Receiver error: ", err.Error())
+			log.Println("COLLECTOR: Receiver error ", err.Error())
 			return err
 		}
 		receiver.Accept(msg)

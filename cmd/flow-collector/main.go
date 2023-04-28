@@ -98,9 +98,9 @@ func authenticate(dir string, user string, password string) bool {
 	file, err := os.Open(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			log.Printf("Failed to authenticate %s, no such user exists", user)
+			log.Printf("COLLECTOR: Failed to authenticate %s, no such user exists", user)
 		} else {
-			log.Printf("Failed to authenticate %s: %s", user, err)
+			log.Printf("COLLECTOR: Failed to authenticate %s: %s", user, err)
 		}
 		return false
 	}
@@ -108,7 +108,7 @@ func authenticate(dir string, user string, password string) bool {
 
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Printf("Failed to authenticate %s: %s", user, err)
+		log.Printf("COLLECTOR: Failed to authenticate %s: %s", user, err)
 		return false
 	}
 	return string(bytes) == password
@@ -143,8 +143,7 @@ func main() {
 	}
 
 	// Startup message
-	log.Printf("Skupper Flow collector controller")
-	log.Printf("Version: %s", version.Version)
+	log.Printf("COLLECTOR: Starting Skupper Flow collector controller version %s \n", version.Version)
 
 	origin := os.Getenv("SKUPPER_SITE_ID")
 	namespace := os.Getenv("SKUPPER_NAMESPACE")
@@ -164,18 +163,18 @@ func main() {
 	if platform == "" || platform == types.PlatformKubernetes {
 		cli, err := client.NewClient(namespace, "", "")
 		if err != nil {
-			log.Fatal("Error getting van client", err.Error())
+			log.Fatal("COLLECTOR: Error getting van client", err.Error())
 		}
 
-		log.Println("Waiting for Skupper router component to start")
+		log.Println("COLLECTOR: Waiting for Skupper router component to start")
 		_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
 		if err != nil {
-			log.Fatal("Error waiting for transport deployment to be ready: ", err.Error())
+			log.Fatal("COLLECTOR: Error waiting for transport deployment to be ready ", err.Error())
 		}
 
 		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 		if err != nil {
-			log.Fatal("Error getting site config", err.Error())
+			log.Fatal("COLLECTOR: Error getting site config", err.Error())
 		}
 
 		flowRecordTtl = siteConfig.Spec.FlowCollector.FlowRecordTtl
@@ -279,7 +278,7 @@ func main() {
 	if logUri == "true" {
 		api1.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				log.Println(r.RequestURI)
+				log.Printf("COLLECTOR: request uri %s \n", r.RequestURI)
 				next.ServeHTTP(w, r)
 			})
 		})
@@ -433,13 +432,17 @@ func main() {
 	if enableConsole {
 		mux.PathPrefix("/").Handler(http.FileServer(http.Dir("/app/console/")))
 	} else {
-		log.Println("Skupper console is disabled")
+		log.Println("COLLECTOR: Skupper console is disabled")
 	}
 
 	var collectorApi = api1.PathPrefix("/collectors").Subrouter()
 	collectorApi.StrictSlash(true)
 	collectorApi.HandleFunc("/", authenticated(http.HandlerFunc(c.collectorHandler))).Name("list")
 	collectorApi.HandleFunc("/{id}", authenticated(http.HandlerFunc(c.collectorHandler))).Name("item")
+	collectorApi.HandleFunc("/{id}/connectors-to-process", authenticated(http.HandlerFunc(c.collectorHandler))).Name("connectors-to-process")
+	collectorApi.HandleFunc("/{id}/flows-to-pair", authenticated(http.HandlerFunc(c.collectorHandler))).Name("flows-to-pair")
+	collectorApi.HandleFunc("/{id}/flows-to-process", authenticated(http.HandlerFunc(c.collectorHandler))).Name("flows-to-process")
+	collectorApi.HandleFunc("/{id}/pair-to-aggregate", authenticated(http.HandlerFunc(c.collectorHandler))).Name("pair-to-aggregate")
 	collectorApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -451,7 +454,7 @@ func main() {
 	if os.Getenv("FLOW_HOST") != "" {
 		addr = os.Getenv("FLOW_HOST") + addr
 	}
-	log.Printf("Flow collector server listing on %s", addr)
+	log.Printf("COLLECTOR: server listening on %s", addr)
 	s := &http.Server{
 		Addr:    addr,
 		Handler: mux,
