@@ -418,11 +418,11 @@ type Payload struct {
 	Results        interface{} `json:"results"`
 	QueryParams    QueryParams `json:"queryParams"`
 	Status         string      `json:"status"`
-	Timestamp      uint64      `json:"timestamp"`
-	Elapsed        uint64      `json:"elapsed"`
 	Count          int         `json:"count"`
 	TimeRangeCount int         `json:"timeRangeCount"`
 	TotalCount     int         `json:"totalCount"`
+	timestamp      uint64
+	elapsed        uint64
 }
 
 type QueryParams struct {
@@ -430,6 +430,7 @@ type QueryParams struct {
 	Limit              int               `json:"limit"`
 	SortBy             string            `json:"sortBy"`
 	Filter             string            `json:"filter"`
+	FilterFields       map[string]string `json:"filterFields"`
 	TimeRangeStart     uint64            `json:"timeRangeStart"`
 	TimeRangeEnd       uint64            `json:"timeRangeEnd"`
 	TimeRangeOperation TimeRangeRelation `json:"timeRangeOperation"`
@@ -442,48 +443,59 @@ func getQueryParams(url *url.URL) QueryParams {
 		Limit:              -1,
 		SortBy:             "identity.asc",
 		Filter:             "",
+		FilterFields:       make(map[string]string),
 		TimeRangeStart:     now - (15 * oneMinute),
 		TimeRangeEnd:       now,
 		TimeRangeOperation: intersects,
 	}
-	offset, err := strconv.Atoi(url.Query().Get("offset"))
-	if err == nil {
-		qp.Offset = offset
-	}
-	limit, err := strconv.Atoi(url.Query().Get("limit"))
-	if err == nil {
-		qp.Limit = limit
-	}
-	sortBy := url.Query().Get("sortBy")
-	if sortBy != "" {
-		qp.SortBy = sortBy
-	}
-	filter := url.Query().Get("filter")
-	if filter != "" {
-		qp.Filter = filter
-	}
-	timeRangeStart := url.Query().Get("timeRangeStart")
-	if timeRangeStart != "" {
-		v, err := strconv.Atoi(timeRangeStart)
-		if err == nil {
-			qp.TimeRangeStart = uint64(v)
+
+	for k, v := range url.Query() {
+		switch k {
+		case "offset":
+			offset, err := strconv.Atoi(v[0])
+			if err == nil {
+				qp.Offset = offset
+			}
+		case "limit":
+			limit, err := strconv.Atoi(v[0])
+			if err == nil {
+				qp.Limit = limit
+			}
+		case "sortBy":
+			if v[0] != "" {
+				qp.SortBy = v[0]
+			}
+		case "filter":
+			if v[0] != "" {
+				qp.Filter = v[0]
+			}
+		case "timeRangeStart":
+			if v[0] != "" {
+				v, err := strconv.Atoi(v[0])
+				if err == nil {
+					qp.TimeRangeStart = uint64(v)
+				}
+			}
+		case "timeRangeEnd":
+			if v[0] != "" {
+				v, err := strconv.Atoi(v[0])
+				if err == nil {
+					qp.TimeRangeEnd = uint64(v)
+				}
+			}
+		case "timeRangeOperation":
+			timeRangeOperation := v[0]
+			switch timeRangeOperation {
+			case "contains":
+				qp.TimeRangeOperation = contains
+			case "within":
+				qp.TimeRangeOperation = within
+			default:
+				qp.TimeRangeOperation = intersects
+			}
+		default:
+			qp.FilterFields[cases.Title(language.Und, cases.NoLower).String(k)] = v[0]
 		}
-	}
-	timeRangeEnd := url.Query().Get("timeRangeEnd")
-	if timeRangeEnd != "" {
-		v, err := strconv.Atoi(timeRangeEnd)
-		if err == nil {
-			qp.TimeRangeEnd = uint64(v)
-		}
-	}
-	timeRangeOperation := url.Query().Get("timeRangeOperation")
-	switch timeRangeOperation {
-	case "contains":
-		qp.TimeRangeOperation = contains
-	case "within":
-		qp.TimeRangeOperation = within
-	default:
-		qp.TimeRangeOperation = intersects
 	}
 	return qp
 }
@@ -567,6 +579,19 @@ func validateAndReturnFilterQuery(filter string) (string, string, error) {
 	field := cases.Title(language.Und, cases.NoLower).String(parts[0])
 	match := strings.Join(parts[1:], ".")
 	return field, match, nil
+}
+
+func validateAndReturnFilterFieldQuery(filterField string) (string, string, error) {
+	parts := strings.Split(filterField, ".")
+	if len(parts) > 2 {
+		return "", "", fmt.Errorf("Malformed filter field query value parameter")
+	}
+	field := cases.Title(language.Und, cases.NoLower).String(parts[0])
+	subField := ""
+	if len(parts) == 2 {
+		subField = cases.Title(language.Und, cases.NoLower).String(parts[1])
+	}
+	return field, subField, nil
 }
 
 func getField(field string, record interface{}) interface{} {
@@ -672,7 +697,53 @@ func compareFields(x, y interface{}, order string) bool {
 }
 
 // type any = interface{}
-func filterRecord[T any](item T, filter string) bool {
+func filterRecord[T any](item T, qp QueryParams) bool {
+	filter := true
+	if qp.Filter != "" {
+		field, match, err := validateAndReturnFilterQuery(qp.Filter)
+		// todo propagate error or log
+		if err != nil {
+			return false
+		}
+		value := getField(field, item)
+		if value == nil {
+			filter = false
+		} else {
+			x := reflect.ValueOf(value)
+			if x.Kind() == reflect.Struct {
+				if !filterSubRecord(value, match) {
+					filter = false
+				}
+			} else if !matchFieldValue(value, match) {
+				filter = false
+			}
+		}
+	} else if len(qp.FilterFields) > 0 {
+		for field, match := range qp.FilterFields {
+			field, subField, err := validateAndReturnFilterFieldQuery(field)
+			if err != nil {
+				return false
+			}
+			value := getField(field, item)
+			if value == nil {
+				filter = false
+			} else {
+				x := reflect.ValueOf(value)
+				if x.Kind() == reflect.Struct {
+					if !filterSubRecord(value, subField+"."+match) {
+						filter = false
+					}
+				} else if !matchFieldValue(value, match) {
+					filter = false
+				}
+			}
+		}
+	}
+	return filter
+}
+
+// type any = interface{}
+func filterSubRecord[T any](item T, filter string) bool {
 	if filter == "" {
 		return true
 	}
@@ -684,7 +755,7 @@ func filterRecord[T any](item T, filter string) bool {
 	value := getField(field, item)
 	x := reflect.ValueOf(value)
 	if x.Kind() == reflect.Struct {
-		return filterRecord(value, match)
+		return filterSubRecord(value, match)
 	}
 	return matchFieldValue(value, match)
 }
