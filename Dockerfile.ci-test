@@ -9,7 +9,7 @@ RUN go mod download
 COPY . .
 RUN make
 
-FROM registry.access.redhat.com/ubi8-minimal
+FROM registry.access.redhat.com/ubi9-minimal
 
 RUN microdnf install openssl && microdnf clean all
 
