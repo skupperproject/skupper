@@ -11,7 +11,7 @@ RUN make
 
 FROM registry.access.redhat.com/ubi9-minimal
 
-RUN microdnf install openssl && microdnf clean all
+RUN microdnf -y install openssl && microdnf clean all
 
 WORKDIR /app
 COPY --from=builder /go/src/app/test/integration/bin ./
