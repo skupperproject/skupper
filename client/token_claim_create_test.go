@@ -38,19 +38,18 @@ func TestTokenClaimCreateInterior(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "skupper",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "skupper",
+		RouterMode:        string(types.TransportModeInterior),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	filename := "./conn1.yaml"
@@ -59,6 +58,7 @@ func TestTokenClaimCreateInterior(t *testing.T) {
 
 	claim, err := readSecretFromFile(filename)
 	assert.Check(t, err, "Unable to read claim")
+	assert.Assert(t, claim != nil, "Claim is nil")
 	assert.Assert(t, len(claim.ObjectMeta.Annotations) > 0, "Claim has no annotations")
 	assert.Assert(t, len(claim.ObjectMeta.Labels) > 0, "Claim has no labels")
 	assert.Assert(t, len(claim.Data) > 0, "Claim has no data")
@@ -89,19 +89,18 @@ func TestTokenClaimCreateEdge(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "skupper",
-			RouterMode:        string(types.TransportModeEdge),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "skupper",
+		RouterMode:        string(types.TransportModeEdge),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	err = cli.TokenClaimCreateFile(ctx, "conn1", []byte("abcde"), 0, 5, "./link1.yaml")

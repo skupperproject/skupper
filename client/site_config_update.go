@@ -3,11 +3,11 @@ package client
 import (
 	"context"
 
-	"github.com/skupperproject/skupper/pkg/qdr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/site"
 )
 
 func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteConfigSpec) ([]string, error) {
@@ -16,17 +16,8 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 		return nil, err
 	}
 	// For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
-	latestLogging := qdr.RouterLogConfigToString(config.Router.Logging)
-	updateLogging := false
-	if configmap.Data[SiteConfigRouterLoggingKey] != latestLogging {
-		configmap.Data[SiteConfigRouterLoggingKey] = latestLogging
-		updateLogging = true
-	}
-	updateDebugMode := false
-	if configmap.Data[SiteConfigRouterDebugModeKey] != config.Router.DebugMode {
-		configmap.Data[SiteConfigRouterDebugModeKey] = config.Router.DebugMode
-		updateDebugMode = true
-	}
+	updateLogging := site.UpdateLogging(config, configmap)
+	updateDebugMode := site.UpdateDebugMode(config, configmap)
 	if updateLogging || updateDebugMode {
 		configmap, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(ctx, configmap, metav1.UpdateOptions{})
 		if err != nil {
@@ -61,4 +52,5 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 		updates = append(updates, "router debug mode")
 	}
 	return updates, nil
+
 }

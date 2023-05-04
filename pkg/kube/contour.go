@@ -111,3 +111,34 @@ func CreateContourProxies(routes []IngressRoute, owner *metav1.OwnerReference, c
 	}
 	return nil
 }
+
+func UpdateContourProxyService(clients Clients, namespace string, proxyName string, serviceName string) error {
+	dc := clients.GetDiscoveryClient()
+	if dc == nil {
+		return nil
+	}
+	_, err := dc.ServerResourcesForGroupVersion("projectcontour.io/v1")
+	if err != nil {
+		//assume resource is not present, so don't return error
+		return nil
+	}
+	client := clients.GetDynamicClient()
+	obj, err := client.Resource(httpProxyResource).Namespace(namespace).Get(context.TODO(), proxyName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	proxy := IngressRoute{}
+	err = proxy.readFromContourProxy(obj)
+	if err != nil {
+		return err
+	}
+	proxy.ServiceName = serviceName
+	err = proxy.writeToContourProxy(obj)
+	if err != nil {
+		return err
+	}
+	_, err = client.Resource(httpProxyResource).Namespace(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
+	return nil
+}
