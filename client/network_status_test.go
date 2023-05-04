@@ -50,7 +50,7 @@ func TestGetFormattedLinks(t *testing.T) {
 				Links:     []string{"link1"},
 			},
 			isLocalSite:    false,
-			siteNameMap:    asMap([]string{"link2=site2"}),
+			siteNameMap:    map[string]string{"link2": "site2"},
 			expectedResult: []string{"link1-"},
 		},
 		{
@@ -62,7 +62,7 @@ func TestGetFormattedLinks(t *testing.T) {
 				Links:     []string{"link2"},
 			},
 			isLocalSite:    false,
-			siteNameMap:    asMap([]string{"link2=site2"}),
+			siteNameMap:    map[string]string{"link2": "site2"},
 			expectedResult: []string{"link2-site2"},
 		},
 		{
@@ -74,7 +74,7 @@ func TestGetFormattedLinks(t *testing.T) {
 				Links:     []string{"link123456"},
 			},
 			isLocalSite:    false,
-			siteNameMap:    asMap([]string{"link123456=site1"}),
+			siteNameMap:    map[string]string{"link123456": "site1"},
 			expectedResult: []string{"link123-site1"},
 		},
 		{
@@ -86,7 +86,7 @@ func TestGetFormattedLinks(t *testing.T) {
 				Links:     []string{"link1"},
 			},
 			isLocalSite:   true,
-			siteNameMap:   asMap([]string{"link1=site1"}),
+			siteNameMap:   map[string]string{"link1": "site1"},
 			expectedError: "error getting local link status",
 		},
 		{
@@ -98,7 +98,7 @@ func TestGetFormattedLinks(t *testing.T) {
 				Links:     []string{"link1"},
 			},
 			isLocalSite:    true,
-			siteNameMap:    asMap([]string{"link1=site1"}),
+			siteNameMap:    map[string]string{"link1": "site1"},
 			expectedResult: []string{"\u001B[1;31mlink1-site1 (link not connected)\u001B[0m"},
 		},
 		{
@@ -110,7 +110,7 @@ func TestGetFormattedLinks(t *testing.T) {
 				Links:     []string{"link1"},
 			},
 			isLocalSite:    true,
-			siteNameMap:    asMap([]string{"link1=site1"}),
+			siteNameMap:    map[string]string{"link1": "site1"},
 			expectedResult: []string{"link1-site1"},
 		},
 	}

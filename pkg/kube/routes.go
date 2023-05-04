@@ -33,8 +33,25 @@ func CreateRoute(route *routev1.Route, namespace string, rc *routev1client.Route
 }
 
 func UpdateTargetServiceForRoute(routeName string, serviceName string, namespace string, rc *routev1client.RouteV1Client) error {
+	return updateTargetServiceForRoute(true, routeName, serviceName, namespace, rc)
+}
+
+func UpdateTargetServiceForRouteIfExists(routeName string, serviceName string, namespace string, rc *routev1client.RouteV1Client) error {
+	if rc == nil {
+		return nil
+	}
+	return updateTargetServiceForRoute(false, routeName, serviceName, namespace, rc)
+}
+
+func updateTargetServiceForRoute(failIfNotExists bool, routeName string, serviceName string, namespace string, rc *routev1client.RouteV1Client) error {
 	current, err := rc.Routes(namespace).Get(context.TODO(), routeName, metav1.GetOptions{})
-	if err != nil {
+	if errors.IsNotFound(err) {
+		if failIfNotExists {
+			return err
+		} else {
+			return nil
+		}
+	} else if err != nil {
 		return err
 	}
 	current.Spec.To.Name = serviceName

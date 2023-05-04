@@ -21,19 +21,18 @@ func TestRevokeAccess(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "skupper",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "skupper",
+		RouterMode:        string(types.TransportModeInterior),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create router")
 
 	filename := "./link1.yaml"
@@ -41,6 +40,7 @@ func TestRevokeAccess(t *testing.T) {
 	assert.Check(t, err, "Unable to create claim")
 	claim, err := readSecretFromFile(filename)
 	assert.Check(t, err, "Unable to read claim")
+	assert.Assert(t, claim != nil, "read nil from file")
 	urlstring, ok := claim.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey]
 	assert.Assert(t, ok, "Claim has no url")
 	u, err := url.Parse(urlstring)

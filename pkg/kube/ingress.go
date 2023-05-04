@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 )
 
 type IngressRoute struct {
@@ -86,10 +85,30 @@ func addNginxIngressAnnotations(sslPassthrough bool, annotations map[string]stri
 	}
 }
 
-type Clients interface {
-	GetKubeClient() kubernetes.Interface
-	GetDynamicClient() dynamic.Interface
-	GetDiscoveryClient() *discovery.DiscoveryClient
+func UpdateIngressRuleServiceName(ingressName string, hostPrefix string, serviceName string, namespace string, clients Clients) error {
+	if useV1API(clients.GetDiscoveryClient()) {
+		return updateIngressRuleServiceNameV1(clients.GetDynamicClient(), namespace, ingressName, hostPrefix, serviceName)
+	} else {
+		cli := clients.GetKubeClient()
+		current, err := cli.NetworkingV1beta1().Ingresses(namespace).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		for index, rule := range current.Spec.Rules {
+			if strings.HasPrefix(rule.Host, hostPrefix) {
+				rule.IngressRuleValue.HTTP.Paths[0].Backend.ServiceName = serviceName
+				current.Spec.Rules[index] = rule
+				_, err = cli.NetworkingV1beta1().Ingresses(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+		}
+		return nil
+	}
 }
 
 func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthrough bool, ownerRefs []metav1.OwnerReference, namespace string, annotations map[string]string, clients Clients) error {
@@ -281,6 +300,29 @@ func ensureIngressRoutesV1(client dynamic.Interface, namespace string, name stri
 		_, err = client.Resource(ingressResource).Namespace(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func updateIngressRuleServiceNameV1(client dynamic.Interface, namespace string, ingressName string, hostPrefix string, serviceName string) error {
+	obj, err := client.Resource(ingressResource).Namespace(namespace).Get(context.TODO(), ingressName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	routes, err := readIngressRules(obj)
+	for index, route := range routes {
+		if strings.HasPrefix(route.Host, hostPrefix) {
+			route.ServiceName = serviceName
+			routes[index] = route
+			err = writeIngressRules(routes, obj)
+			_, err = client.Resource(ingressResource).Namespace(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 	return nil

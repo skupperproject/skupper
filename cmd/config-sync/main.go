@@ -16,7 +16,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/kube/claims"
 )
 
 var onlyOneSignalHandler = make(chan struct{})
@@ -63,6 +65,12 @@ func main() {
 	cli, err := client.NewClient(namespace, "", "")
 	if err != nil {
 		log.Fatal("Error getting van client: ", err.Error())
+	}
+	event.StartDefaultEventStore(stopCh)
+	if claims.StartClaimVerifier(cli.KubeClient, cli.Namespace, cli, cli) {
+		log.Println("Claim verifier started")
+	} else {
+		log.Println("Claim verifier not enabled")
 	}
 	log.Printf("Creating informer...")
 	informer := corev1informer.NewFilteredConfigMapInformer(

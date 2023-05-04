@@ -1,4 +1,4 @@
-package main
+package claims
 
 import (
 	"bytes"
@@ -16,11 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
 )
 
@@ -28,26 +28,32 @@ const (
 	TokenClaimVerification string = "TokenClaimVerification"
 )
 
+type SiteChecker interface {
+	VerifySiteCompatibility(siteVersion string) error
+}
+
 type TokenGenerator interface {
 	ConnectorTokenCreate(ctx context.Context, subject string, namespace string) (*corev1.Secret, bool, error)
 }
 
 type ClaimVerifier struct {
-	vanClient *client.VanClient
+	client      kubernetes.Interface
+	namespace   string
+	generator   TokenGenerator
+	siteChecker SiteChecker
 }
 
-func newClaimVerifier(client *client.VanClient) *ClaimVerifier {
+func newClaimVerifier(client kubernetes.Interface, namespace string, generator TokenGenerator, siteChecker SiteChecker) *ClaimVerifier {
 	return &ClaimVerifier{
-		vanClient: client,
+		client:      client,
+		namespace:   namespace,
+		generator:   generator,
+		siteChecker: siteChecker,
 	}
 }
 
-func alwaysRetriable(err error) bool {
-	return true
-}
-
 func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (string, int) {
-	claim, err := server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	claim, err := server.client.CoreV1().Secrets(server.namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return "No such claim", http.StatusNotFound
 	} else if err != nil {
@@ -98,7 +104,7 @@ func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (stri
 	} else {
 		claim.ObjectMeta.Annotations[types.ClaimsMade] = "1"
 	}
-	_, err = server.vanClient.KubeClient.CoreV1().Secrets(server.vanClient.Namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
+	_, err = server.client.CoreV1().Secrets(server.namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
 	if err != nil {
 		event.Recordf(TokenClaimVerification, "Error updating remaining uses: %s", err)
 		return "Internal error", http.StatusServiceUnavailable
@@ -117,10 +123,12 @@ func (server *ClaimVerifier) redeemClaim(name string, subject string, data []byt
 		text, code = server.checkAndUpdateClaim(name, data)
 	}
 	if code != http.StatusOK {
+		log.Printf("failed to check and update claim record: %s", text)
 		return nil, text, code
 	}
 	token, _, err := generator.ConnectorTokenCreate(context.TODO(), subject, "")
 	if err != nil {
+		log.Printf("Failed to create token: %s", err.Error())
 		return nil, err.Error(), http.StatusInternalServerError
 	}
 	return token, "ok", http.StatusOK
@@ -146,7 +154,7 @@ func (server *ClaimVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		subject = name
 	}
 	remoteSiteVersion := r.URL.Query().Get("site-version")
-	if err = server.vanClient.VerifySiteCompatibility(remoteSiteVersion); err != nil {
+	if err = server.siteChecker.VerifySiteCompatibility(remoteSiteVersion); err != nil {
 		if remoteSiteVersion == "" {
 			remoteSiteVersion = "undefined"
 		}
@@ -154,7 +162,7 @@ func (server *ClaimVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	token, text, code := server.redeemClaim(name, subject, body, server.vanClient)
+	token, text, code := server.redeemClaim(name, subject, body, server.generator)
 	if token == nil {
 		event.Recordf(TokenClaimVerification, "Claim request for %s failed: %s", name, text)
 		http.Error(w, text, code)
@@ -170,18 +178,34 @@ func (server *ClaimVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	event.Recordf(TokenClaimVerification, "Claim for %s succeeded", name)
 }
 
-func (server *ClaimVerifier) start(stopCh <-chan struct{}) error {
-	go server.listen()
-	return nil
+const (
+	cert string = "/etc/skupper-internal/tls.crt"
+	key  string = "/etc/skupper-internal/tls.key"
+)
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 func enableClaimVerifier() bool {
-	mode := os.Getenv("SKUPPER_ROUTER_MODE")
-	return mode != string(types.TransportModeEdge)
+	return exists(cert) && exists(key)
 }
 
 func (server *ClaimVerifier) listen() {
 	addr := fmt.Sprintf(":%d", types.ClaimRedemptionPort)
 	log.Printf("Claim verifier listening on %s", addr)
-	log.Fatal(http.ListenAndServeTLS(addr, "/etc/service-controller/certs/tls.crt", "/etc/service-controller/certs/tls.key", server))
+	log.Fatal(http.ListenAndServeTLS(addr, cert, key, server))
+}
+
+func StartClaimVerifier(client kubernetes.Interface, namespace string, generator TokenGenerator, siteChecker SiteChecker) bool {
+	if enableClaimVerifier() {
+		verifier := newClaimVerifier(client, namespace, generator, siteChecker)
+		go verifier.listen()
+		return true
+	}
+	return false
 }

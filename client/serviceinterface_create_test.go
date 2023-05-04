@@ -154,8 +154,8 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			// show up, but I am giving it a large timeout here. The result
 			// checker will cut out as soon as it sees a result list of the
 			// right size.
-			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
-			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-5-addr"},
+			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName},
+			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, "vsic-5-addr"},
 			timeout:          60.0,
 		},
 		{
@@ -169,8 +169,8 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			depsExpected:     []string{"skupper-router", "skupper-service-controller"},
 			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
 			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
-			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName},
-			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, "vsic-6-addr"},
+			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName},
+			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, "vsic-6-addr"},
 			secretsExpected:  []string{types.ServiceClientSecret, types.SiteCaSecret},
 			timeout:          60.0,
 			tlsCredentials:   types.SkupperServiceCertPrefix + "vsic-6-addr",
@@ -462,7 +462,7 @@ func TestServiceInterfaceCreateMulti(t *testing.T) {
 	// wait till all services show up
 	ctxSvc, cn := context.WithTimeout(ctx, time.Minute)
 	defer cn()
-	totalServices := serviceCount + 3
+	totalServices := serviceCount + 2
 
 	err = utils.RetryWithContext(ctxSvc, time.Second, func() (bool, error) {
 		return len(svcsFound) == totalServices, nil
