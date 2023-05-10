@@ -81,6 +81,7 @@ func NewCmdLinkDelete(skupperClient SkupperLinkClient) *cobra.Command {
 var waitFor int
 var remoteInfoTimeout time.Duration
 var verboseLinkStatus bool
+var showRemoteLinks bool
 
 func allConnected(links []types.LinkStatus) bool {
 	for _, l := range links {
@@ -160,54 +161,57 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 						break
 					} else if allConnected(links) || i == waitFor {
 						fmt.Println("\nLinks created from this site:")
-						fmt.Println("-------------------------------")
+						fmt.Println()
 
 						if len(links) == 0 {
-							fmt.Println("There are no links configured or connected")
+							fmt.Println("\t There are no links configured or connected")
 						}
 						for _, link := range links {
 							if link.Connected {
-								fmt.Printf("Link %s is connected", link.Name)
+								fmt.Printf("\t Link %s is connected", link.Name)
 								fmt.Println()
 							} else {
 								if link.Description != "" {
-									fmt.Printf("Link %s not connected (%s)", link.Name, link.Description)
+									fmt.Printf("\t Link %s not connected (%s)", link.Name, link.Description)
 								} else {
-									fmt.Printf("Link %s not connected", link.Name)
+									fmt.Printf("\t Link %s not connected", link.Name)
 								}
 								fmt.Println()
 							}
 						}
 
-						ctx, cancel := context.WithTimeout(context.Background(), remoteInfoTimeout)
-						defer cancel()
+						if showRemoteLinks {
 
-						fmt.Println("\nCurrent links from other sites that are connected:")
-						fmt.Println("----------------------------------------")
+							ctx, cancel := context.WithTimeout(context.Background(), remoteInfoTimeout)
+							defer cancel()
 
-						var remoteLinks []*types.RemoteLinkInfo
-						err := utils.RetryErrorWithContext(ctx, time.Second, func() error {
-							remoteLinks, err = linkHandler.RemoteLinks(ctx)
-							if err != nil {
-								return err
-							}
-							return nil
-						})
+							fmt.Println("\nCurrent links from other sites that are connected:")
+							fmt.Println()
 
-						if err != nil {
-							fmt.Println(err)
-							break
-						} else if len(remoteLinks) > 0 {
-							for _, remoteLink := range remoteLinks {
-								var nsStr string
-								if remoteLink.Namespace != "" {
-									nsStr = fmt.Sprintf("the namespace %s on site ", remoteLink.Namespace)
+							var remoteLinks []*types.RemoteLinkInfo
+							err := utils.RetryErrorWithContext(ctx, time.Second, func() error {
+								remoteLinks, err = linkHandler.RemoteLinks(ctx)
+								if err != nil {
+									return err
 								}
-								fmt.Printf("A link from %s%s(%s) is connected to this site", nsStr, remoteLink.SiteName, remoteLink.SiteId)
-								fmt.Println()
+								return nil
+							})
+
+							if err != nil {
+								fmt.Println(err)
+								break
+							} else if len(remoteLinks) > 0 {
+								for _, remoteLink := range remoteLinks {
+									var nsStr string
+									if remoteLink.Namespace != "" {
+										nsStr = fmt.Sprintf("the namespace %s on site ", remoteLink.Namespace)
+									}
+									fmt.Printf("\t A link from %s%s(%s) is connected to this site", nsStr, remoteLink.SiteName, remoteLink.SiteId)
+									fmt.Println()
+								}
+							} else {
+								fmt.Println("\t There are no connected links")
 							}
-						} else {
-							fmt.Println("There are no connected links")
 						}
 						break
 					}
@@ -217,8 +221,9 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become connected")
-	cmd.Flags().DurationVar(&remoteInfoTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for retrieving information about remote links")
 	cmd.Flags().BoolVar(&verboseLinkStatus, "verbose", false, "Show detailed information about a link")
+	cmd.Flags().DurationVar(&remoteInfoTimeout, "timeout", time.Second*5, "Configurable timeout for retrieving information about remote links")
+	cmd.Flags().BoolVar(&showRemoteLinks, "show-remote", false, "Show incoming links from other sites")
 
 	return cmd
 
