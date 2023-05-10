@@ -17,4 +17,4 @@ The default timeout will be reduced from 2 minutes to 5 seconds.
 
 ## Consequences
 
-A new flag called `show-remote` will display remote link information in the `link status` command.
+A new flag will display remote link information in the `link status` command.

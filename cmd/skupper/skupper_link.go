@@ -223,7 +223,7 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become connected")
 	cmd.Flags().BoolVar(&verboseLinkStatus, "verbose", false, "Show detailed information about a link")
 	cmd.Flags().DurationVar(&remoteInfoTimeout, "timeout", time.Second*5, "Configurable timeout for retrieving information about remote links")
-	cmd.Flags().BoolVar(&showRemoteLinks, "show-remote", false, "Show incoming links from other sites")
+	cmd.Flags().BoolVar(&showRemoteLinks, "show-incoming-links", false, "Show incoming links from other sites")
 
 	return cmd
 
