@@ -417,7 +417,7 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 			}, nil
 		}
 		if os.IsTimeout(err) {
-			err = notEnabledErr
+			err = fmt.Errorf("Timed out trying to communicate with the API: %v", err)
 		} else if err != notEnabledErr {
 			err = fmt.Errorf("Unable to communicate with the API: %v", err)
 		}
