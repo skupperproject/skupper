@@ -28,6 +28,10 @@ const (
 	serviceDelete
 )
 
+var (
+	ServiceInterfaceMount = "/etc/skupper-services"
+)
+
 type Service struct {
 	*domain.ServiceCommon
 	ContainerName string
@@ -374,7 +378,15 @@ func (s *ServiceHandler) GetServiceRouterConfig(address string) (*qdr.RouterConf
 	}
 	var configStr string
 	configFile := path.Join(address, types.TransportConfigFile)
-	if configStr, err = vol.ReadFile(configFile); err != nil {
+	if !s.cli.IsRunningInContainer() {
+		configStr, err = vol.ReadFile(configFile)
+	} else {
+		var configData []byte
+		configFile = path.Join("/etc/skupper-router/config/")
+		configData, err = os.ReadFile(configFile)
+		configStr = string(configData)
+	}
+	if err != nil {
 		return nil, fmt.Errorf("error reading config file - %w", err)
 	}
 	var config qdr.RouterConfig
@@ -587,7 +599,12 @@ func (s *ServiceInterfaceHandler) manipulateService(service *types.ServiceInterf
 	if err != nil {
 		return fmt.Errorf("error reading volume %s - %w", types.ServiceInterfaceConfigMap, err)
 	}
-	lockfile := path.Join(vol.Source, SkupperServicesLockfile)
+	var lockfile string
+	if !s.cli.IsRunningInContainer() {
+		lockfile = path.Join(vol.Source, SkupperServicesLockfile)
+	} else {
+		lockfile = path.Join(ServiceInterfaceMount, SkupperServicesLockfile)
+	}
 	unlockFn, err := lockedfile.MutexAt(lockfile).Lock()
 	if err != nil {
 		return fmt.Errorf("unable to lock %s - %w", lockfile, err)
@@ -613,7 +630,14 @@ func (s *ServiceInterfaceHandler) manipulateService(service *types.ServiceInterf
 	if err != nil {
 		return fmt.Errorf("error serializing %s - %w", types.ServiceInterfaceConfigMap, err)
 	}
-	_, err = vol.CreateFile(SkupperServicesFilename, content, true)
+	if !s.cli.IsRunningInContainer() {
+		_, err = vol.CreateFile(SkupperServicesFilename, content, true)
+	} else {
+		var f *os.File
+		if f, err = os.Create(path.Join(ServiceInterfaceMount, SkupperServicesFilename)); err == nil {
+			_, err = f.Write(content)
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("error writing to %s - %w", SkupperServicesFilename, err)
 	}
@@ -631,7 +655,14 @@ func (s *ServiceInterfaceHandler) List() (map[string]*types.ServiceInterface, er
 	if err != nil {
 		return res, fmt.Errorf("cannot read volume %s - %w", types.ServiceInterfaceConfigMap, err)
 	}
-	data, err := servicesVolume.ReadFile(SkupperServicesFilename)
+	var data string
+	if !s.cli.IsRunningInContainer() {
+		data, err = servicesVolume.ReadFile(SkupperServicesFilename)
+	} else {
+		var dataBytes []byte
+		dataBytes, err = os.ReadFile(path.Join(ServiceInterfaceMount, SkupperServicesFilename))
+		data = string(dataBytes)
+	}
 	if err != nil {
 		if os.IsNotExist(err) {
 			return res, nil

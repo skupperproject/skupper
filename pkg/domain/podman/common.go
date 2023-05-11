@@ -18,7 +18,7 @@ const (
 var (
 	Username                = readUsername()
 	SkupperContainerVolumes = []string{"skupper-services", "skupper-local-server", "skupper-internal", "skupper-site-server", SharedTlsCertificates,
-		types.ConsoleServerSecret, types.ConsoleUsersSecret}
+		types.ConsoleServerSecret, types.ConsoleUsersSecret, types.ClaimsServerSecret}
 )
 
 func OwnedBySkupper(resource string, labels map[string]string) error {
