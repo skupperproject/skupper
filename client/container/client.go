@@ -48,8 +48,12 @@ type VersionInfo struct {
 }
 
 type Version struct {
-	Client VersionInfo
-	Server VersionInfo
+	Client   VersionInfo
+	Server   VersionInfo
+	Hostname string
+	Arch     string
+	Kernel   string
+	OS       string
 }
 
 type Container struct {
