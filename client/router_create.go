@@ -29,6 +29,12 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
+func getServingSecretAnnotations(name string) map[string]string {
+	return map[string]string{
+		"service.alpha.openshift.io/serving-cert-secret-name": name,
+	}
+}
+
 func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Container {
 	return &corev1.Container{
 		Image: "openshift/oauth-proxy:latest",
@@ -194,7 +200,7 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 	}
 
 	if options.IsConsoleIngressRoute() {
-		annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.PrometheusServerSecret}
+		annotations = getServingSecretAnnotations(types.PrometheusServerSecret)
 		host := options.GetControllerIngressHost()
 		if host != "" {
 			host = types.PrometheusRouteName + "-" + van.Namespace + "." + host
@@ -477,7 +483,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		}
 
 		if options.IsConsoleIngressRoute() {
-			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret}
+			annotations = getServingSecretAnnotations(types.ConsoleServerSecret)
 			if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 				metricsPort = corev1.ServicePort{
 					Name:       "metrics",
@@ -515,7 +521,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				},
 			})
 		} else if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret}
+			annotations = getServingSecretAnnotations(types.ConsoleServerSecret)
 		} else {
 			controllerHosts := []string{types.ControllerServiceName + "." + van.Namespace}
 			controllerIngressHost := options.GetControllerIngressHost()
@@ -573,7 +579,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Protocol: "TCP",
 			Port:     types.ClaimRedemptionPort,
 		})
-		if options.IsIngressRoute() {
+		if options.IsConsoleIngressRoute() {
 			host := options.GetControllerIngressHost()
 			if host != "" {
 				host = types.ClaimRedemptionRouteName + "-" + van.Namespace + "." + host
@@ -1409,7 +1415,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 				return err
 			}
 		}
-		if options.Spec.IsIngressRoute() {
+		if options.Spec.IsConsoleIngressRoute() {
 			for _, rte := range van.Controller.Routes {
 				rte.ObjectMeta.OwnerReferences = ownerRefs
 				_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
@@ -1419,19 +1425,19 @@ sasldb_path: /tmp/skrouterd.sasldb
 			}
 		}
 		for _, cred := range van.ControllerCredentials {
-			if options.Spec.IsIngressRoute() {
+			if options.Spec.IsConsoleIngressRoute() {
 				rte, err := kube.GetRoute(types.ClaimRedemptionRouteName, van.Namespace, cli.RouteClient)
 				if err == nil {
 					cred.Hosts = append(cred.Hosts, rte.Spec.Host)
 				} else {
 					log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
 				}
-			} else if options.Spec.IsIngressLoadBalancer() {
+			} else if options.Spec.IsConsoleIngressLoadBalancer() {
 				err = cli.appendLoadBalancerHostOrIp(currentContext, types.ControllerServiceName, van.Namespace, &cred)
 				if err != nil {
 					return err
 				}
-			} else if options.Spec.IsIngressNginxIngress() && cred.Post {
+			} else if options.Spec.IsConsoleIngressNginxIngress() && cred.Post {
 				err = cli.appendIngressHost([]string{"claims", "console"}, van.Namespace, &cred)
 				if err != nil {
 					return err
