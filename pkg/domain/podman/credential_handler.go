@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -15,6 +16,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+var credentialMountInContainer = map[string]string{
+	types.ClaimsServerSecret:  "/etc/service-controller/certs/",
+	types.ConsoleServerSecret: "/etc/service-controller/console",
+	types.LocalClientSecret:   "/etc/messaging",
+	types.LocalServerSecret:   "/etc/skupper-router-certs/skupper-amqps/",
+	types.SiteServerSecret:    "/etc/skupper-router-certs/skupper-internal/",
+}
 
 type CredentialHandler struct {
 	cli *podman.PodmanRestClient
@@ -51,7 +60,19 @@ func (p *CredentialHandler) ListCredentials() ([]types.Credential, error) {
 		if kind, ok := v.Labels[types.SkupperTypeQualifier]; !ok || kind != "Credential" {
 			continue
 		}
-		files, err := v.ListFiles()
+		var files []os.DirEntry
+		var mountPoint string
+		var ok bool
+		if !p.cli.IsRunningInContainer() {
+			files, err = v.ListFiles()
+		} else {
+			if mountPoint, ok = credentialMountInContainer[v.Name]; !ok {
+				// ignoring unmapped credential volumes
+				continue
+			} else {
+				files, err = os.ReadDir(mountPoint)
+			}
+		}
 		if err != nil {
 			return nil, fmt.Errorf("error listing credential content - %w", err)
 		}
@@ -65,7 +86,14 @@ func (p *CredentialHandler) ListCredentials() ([]types.Credential, error) {
 			// CA defined
 			if file.Name() == types.ClaimCaCertDataKey {
 				var ca *types.CertAuthority
-				content, err := v.ReadFile(file.Name())
+				var content string
+				var contentData []byte
+				if !p.cli.IsRunningInContainer() {
+					content, err = v.ReadFile(file.Name())
+				} else {
+					contentData, err = os.ReadFile(path.Join(mountPoint, file.Name()))
+					content = string(contentData)
+				}
 				if err != nil {
 					return nil, fmt.Errorf("error validating cert authority - %w", err)
 				}
@@ -76,7 +104,15 @@ func (p *CredentialHandler) ListCredentials() ([]types.Credential, error) {
 			} else if file.Name() == "connect.json" {
 				cred.ConnectJson = true
 			} else if file.Name() == "tls.crt" {
-				dataStr, err := v.ReadFile(file.Name())
+				var dataStr string
+				var data []byte
+				var err error
+				if !p.cli.IsRunningInContainer() {
+					dataStr, err = v.ReadFile(file.Name())
+				} else {
+					data, err = os.ReadFile(path.Join(mountPoint, file.Name()))
+					dataStr = string(data)
+				}
 				if dataStr == "" {
 					empty = true
 					continue
