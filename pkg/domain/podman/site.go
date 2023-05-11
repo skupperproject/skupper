@@ -2,6 +2,8 @@ package podman
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -114,6 +116,7 @@ func (s *SiteHandler) prepare(site domain.Site) (domain.Site, error) {
 
 func (s *SiteHandler) ConfigurePodmanDeployments(site *Site) {
 	site.Deployments = append(site.Deployments, s.prepareRouterDeployment(site))
+	site.Deployments = append(site.Deployments, s.prepareServiceControllerDeployment(site))
 	if site.EnableFlowCollector {
 		site.Deployments = append(site.Deployments, s.prepareFlowCollectorDeployment(site))
 	}
@@ -512,6 +515,7 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				}
 				site.ConsoleUser = user
 				site.ConsolePassword = password
+			case *domain.ServiceController:
 			}
 		}
 	}
@@ -698,7 +702,13 @@ func (s *SiteHandler) getConsoleUserPass() (string, string, error) {
 		return "", "", err
 	}
 
-	files, err := v.ListFiles()
+	var files []os.DirEntry
+
+	if !s.cli.IsRunningInContainer() {
+		files, err = v.ListFiles()
+	} else {
+		files, err = os.ReadDir("/etc/console-users")
+	}
 	if err != nil {
 		return "", "", err
 	}
@@ -707,9 +717,71 @@ func (s *SiteHandler) getConsoleUserPass() (string, string, error) {
 	}
 	f := files[0]
 	user := f.Name()
-	pass, err := v.ReadFile(user)
+	var pass string
+	if !s.cli.IsRunningInContainer() {
+		pass, err = v.ReadFile(user)
+	} else {
+		var passData []byte
+		passData, err = os.ReadFile(path.Join("/etc/console-users", user))
+		pass = string(passData)
+	}
 	if err != nil {
 		return user, "", fmt.Errorf("error reading console password: %w", err)
 	}
 	return user, pass, nil
+}
+
+func (s *SiteHandler) prepareServiceControllerDeployment(site *Site) *SkupperDeployment {
+	// Service Controller Deployment
+	volumeMounts := map[string]string{
+		types.ServiceInterfaceConfigMap: "/etc/skupper-services",
+		types.LocalClientSecret:         "/etc/messaging",
+		types.ConsoleUsersSecret:        "/etc/console-users",
+		types.ClaimsServerSecret:        "/etc/service-controller/certs/",
+		types.ConsoleServerSecret:       "/etc/service-controller/console",
+		types.LocalServerSecret:         "/etc/skupper-router-certs/skupper-amqps/",
+		types.TransportConfigMapName:    "/etc/skupper-router/config/",
+		"skupper-router-certs":          "/etc/skupper-router-certs",
+		types.SiteServerSecret:          "/etc/skupper-router-certs/skupper-internal/",
+	}
+
+	endpoint := site.PodmanEndpoint
+	if s.cli.IsSockEndpoint() {
+		sockFile := strings.TrimPrefix(s.cli.GetEndpoint(), "unix://")
+		endpoint = "/tmp/podman.sock"
+		volumeMounts[sockFile] = endpoint
+	}
+	ctrlComponent := &domain.ServiceController{
+		// TODO ADD Labels
+		Labels: map[string]string{},
+		Env: map[string]string{
+			"SKUPPER_SITE_NAME":   site.GetName(),
+			"SKUPPER_SITE_ID":     site.GetId(),
+			"SKUPPER_ROUTER_MODE": site.GetMode(),
+			"SKUPPER_PLATFORM":    types.PlatformPodman,
+			"PODMAN_ENDPOINT":     endpoint,
+		},
+	}
+	if site.AuthMode != types.ConsoleAuthModeUnsecured {
+		ctrlComponent.Env["FLOW_USERS"] = "/etc/console-users"
+		ctrlComponent.Env["METRICS_USERS"] = "/etc/console-users"
+		site.AuthMode = types.ConsoleAuthModeInternal
+	}
+	ctrlDeployment := &SkupperDeployment{
+		Name: types.ControllerDeploymentName,
+		SkupperDeploymentCommon: &domain.SkupperDeploymentCommon{
+			Components: []domain.SkupperComponent{
+				ctrlComponent,
+			},
+		},
+		Aliases:        []string{types.ControllerServiceName},
+		VolumeMounts:   volumeMounts,
+		Networks:       []string{site.ContainerNetwork},
+		SELinuxDisable: true,
+	}
+
+	// Defining site ingresses
+	// TODO add along with claims and rest support
+
+	return ctrlDeployment
 }

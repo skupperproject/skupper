@@ -92,3 +92,40 @@ func (r *FlowCollector) GetLabels() map[string]string {
 func (r *FlowCollector) GetSiteIngresses() []SiteIngress {
 	return r.SiteIngresses
 }
+
+type ServiceController struct {
+	Image         string
+	Env           map[string]string
+	Labels        map[string]string
+	SiteIngresses []SiteIngress
+}
+
+func (s *ServiceController) Name() string {
+	return types.ControllerDeploymentName
+}
+
+func (s *ServiceController) GetImage() string {
+	return images.GetServiceControllerImageName()
+}
+
+func (s *ServiceController) SetImage(image string) {
+	s.Image = image
+}
+
+func (s *ServiceController) GetEnv() map[string]string {
+	if s.Env == nil {
+		s.Env = map[string]string{}
+	}
+	return s.Env
+}
+
+func (s *ServiceController) GetLabels() map[string]string {
+	if s.Labels == nil {
+		s.Labels = map[string]string{}
+	}
+	return s.Labels
+}
+
+func (s *ServiceController) GetSiteIngresses() []SiteIngress {
+	return s.SiteIngresses
+}

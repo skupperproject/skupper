@@ -113,6 +113,9 @@ func encodeSite(site *SiteRecord) (*amqp.Message, error) {
 	if site.NameSpace != nil {
 		m[uint32(Namespace)] = *site.NameSpace
 	}
+	if site.Platform != nil {
+		m[uint32(Platform)] = *site.Platform
+	}
 
 	record = append(record, m)
 
@@ -181,7 +184,9 @@ func encodeHost(host *HostRecord) (*amqp.Message, error) {
 	if host.Provider != nil {
 		m[uint32(Provider)] = *host.Provider
 	}
-
+	if host.Platform != nil {
+		m[uint32(Platform)] = *host.Platform
+	}
 	record = append(record, m)
 
 	request.Value = record

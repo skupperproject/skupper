@@ -56,7 +56,7 @@ func (c *ContainerInformer) AddInformer(i container.Informer[*container.Containe
 	c.informers = append(c.informers, i)
 }
 
-func (c *ContainerInformer) Start(stopCh chan struct{}) {
+func (c *ContainerInformer) Start(stopCh <-chan struct{}) {
 	go wait.Until(c.run, c.resyncPeriod, stopCh)
 }
 
@@ -100,6 +100,8 @@ func (c *ContainerInformer) run() {
 	// Verifying deleted containers
 	for ciName, ci := range c.containers {
 		if !utils.StringSliceContains(clNames, ciName) {
+			ci.Running = false
+			ci.ExitedAt = time.Now()
 			deleted = append(deleted, ci)
 			delete(c.containers, ciName)
 		}

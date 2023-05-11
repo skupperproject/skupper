@@ -17,6 +17,11 @@ func (p *PodmanRestClient) Version() (*container.Version, error) {
 			Version:    info.Payload.Version.Version,
 			APIVersion: info.Payload.Version.APIVersion,
 		}
+		v.Hostname = info.Payload.Host.Hostname
+		v.Arch = info.Payload.Host.Arch
+		v.Kernel = info.Payload.Host.Kernel
+		v.OS = info.Payload.Host.OS
 	}
+
 	return v, nil
 }
