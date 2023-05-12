@@ -674,6 +674,9 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, s
 	}
 
 	_, err = kube.CheckProxyStatefulSet(images.GetRouterImageDetails(), serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	if err != nil {
+		event.Recordf(ServiceControllerError, "Error creating new proxy stateful set: %s", err)
+	}
 	return err
 }
 
@@ -685,6 +688,9 @@ func (c *Controller) createHeadlessProxyFor(bindings *service.ServiceBindings) e
 	}
 
 	_, err = kube.NewProxyStatefulSet(images.GetRouterImageDetails(), serviceInterface, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	if err != nil {
+		event.Recordf(ServiceControllerError, "Error creating new proxy stateful set: %s", err)
+	}
 	return err
 }
 
