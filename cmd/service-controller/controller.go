@@ -95,14 +95,6 @@ func hasProxyAnnotation(service corev1.Service) bool {
 	}
 }
 
-func getProxyName(name string) string {
-	return name + "-proxy"
-}
-
-func getServiceName(name string) string {
-	return strings.TrimSuffix(name, "-proxy")
-}
-
 func hasSkupperAnnotation(service corev1.Service, annotation string) bool {
 	_, ok := service.ObjectMeta.Annotations[annotation]
 	return ok
