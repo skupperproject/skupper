@@ -92,7 +92,6 @@ func TestHelloWorldCLI(t *testing.T) {
 	} else {
 		// On this block, we just ignore any errors and use the pre-existing value
 		ns_annotations := namespace.GetAnnotations()
-		log.Printf("XXXXXXXXX Annotations: %+v", ns_annotations)
 		if users, ok := ns_annotations["openshift.io/sa.scc.uid-range"]; ok {
 			log.Printf("OpenShift UID range annotation found: %q", users)
 			// format is like 1000860000/10000, where the first number is the
