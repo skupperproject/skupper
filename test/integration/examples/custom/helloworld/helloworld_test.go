@@ -7,6 +7,8 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -80,6 +82,29 @@ func TestHelloWorldCLI(t *testing.T) {
 	// deploying frontend and backend services
 	assert.Assert(t, deployResources(pub, prv))
 
+	var runAsUser = "1000"
+
+	// OpenShift requires container user IDs to exist within a range; we try to satisfy it here.
+	namespace, err := pub.VanClient.KubeClient.CoreV1().Namespaces().Get(context.Background(), pub.Namespace, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Unable to get namespace %q; using pre-defined runAsUser value %v", pub.Namespace, runAsUser)
+		// We do not fail here; we just try the test with the pre-defined value
+	} else {
+		// On this block, we just ignore any errors and use the pre-existing value
+		ns_annotations := namespace.GetAnnotations()
+		if users, ok := ns_annotations["openshift.io/sa.scc.uid-range"]; ok {
+			log.Printf("OpenShift UID range annotation found: %q", users)
+			// format is like 1000860000/10000, where the first number is the
+			// range start, and the second its length
+			split_users := strings.Split(users, "/")
+			if split_users[0] != "" {
+				if _, err := strconv.Atoi(split_users[0]); err == nil {
+					runAsUser = split_users[0]
+				}
+			}
+		}
+	}
+
 	// These test scenarios allow defining a set of skupper cli
 	// commands to be executed as a workflow, against specific
 	// clusters. Each execution is validated accordingly by its
@@ -104,7 +129,7 @@ func TestHelloWorldCLI(t *testing.T) {
 						RouterMode:          "interior",
 						EnableConsole:       false,
 						EnableFlowCollector: true,
-						RunAsUser:           "1000",
+						RunAsUser:           runAsUser,
 						RunAsGroup:          "2000",
 					},
 					// skupper status - verify initialized as interior
