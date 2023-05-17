@@ -95,14 +95,6 @@ func hasProxyAnnotation(service corev1.Service) bool {
 	}
 }
 
-func getProxyName(name string) string {
-	return name + "-proxy"
-}
-
-func getServiceName(name string) string {
-	return strings.TrimSuffix(name, "-proxy")
-}
-
 func hasSkupperAnnotation(service corev1.Service, annotation string) bool {
 	_, ok := service.ObjectMeta.Annotations[annotation]
 	return ok
@@ -674,6 +666,9 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, s
 	}
 
 	_, err = kube.CheckProxyStatefulSet(images.GetRouterImageDetails(), serviceInterface, statefulset, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	if err != nil {
+		event.Recordf(ServiceControllerError, "Error creating new proxy stateful set: %s", err)
+	}
 	return err
 }
 
@@ -685,6 +680,9 @@ func (c *Controller) createHeadlessProxyFor(bindings *service.ServiceBindings) e
 	}
 
 	_, err = kube.NewProxyStatefulSet(images.GetRouterImageDetails(), serviceInterface, config, c.vanClient.Namespace, c.vanClient.KubeClient)
+	if err != nil {
+		event.Recordf(ServiceControllerError, "Error creating new proxy stateful set: %s", err)
+	}
 	return err
 }
 
