@@ -47,16 +47,6 @@ func GetService(name string, namespace string, kubeclient kubernetes.Interface) 
 	return current, err
 }
 
-func NewHeadlessServiceForAddress(address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
-	selector := map[string]string{
-		"internal.skupper.io/service": address,
-	}
-	service := makeServiceObjectForAddress(address, ports, targetPorts, labels, selector, owner)
-	service.Spec.ClusterIP = "None"
-
-	return createServiceFromObject(service, namespace, kubeclient)
-}
-
 func NewHeadlessService(name string, address string, ports []int, targetPorts []int, labels map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.Service, error) {
 	selector := map[string]string{
 		"internal.skupper.io/service": address,

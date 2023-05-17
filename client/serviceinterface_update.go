@@ -248,6 +248,13 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 
 func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool, namespace string) (*types.ServiceInterface, error) {
 	svcNamespace := utils.GetOrDefault(namespace, cli.GetNamespace())
+
+	proxySvcName := targetName + "-proxy"
+	proxyService, err := cli.KubeClient.CoreV1().Services(svcNamespace).Get(context.TODO(), proxySvcName, metav1.GetOptions{})
+	if err == nil && proxyService != nil {
+		return nil, fmt.Errorf("service %s already exists in the cluster, use any other name to expose the statefulset with a headless service", proxySvcName)
+	}
+
 	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(svcNamespace).Get(context.TODO(), targetName, metav1.GetOptions{})
 	if err == nil {
 		if address != "" && address != statefulset.Spec.ServiceName {
@@ -278,6 +285,9 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 						def.Ports = append(def.Ports, int(port.Port))
 						if port.TargetPort.IntValue() != 0 && int(port.Port) != port.TargetPort.IntValue() {
 							// TODO: handle string ports
+							if def.Headless.TargetPorts == nil {
+								def.Headless.TargetPorts = make(map[int]int)
+							}
 							def.Headless.TargetPorts[int(port.Port)] = port.TargetPort.IntValue()
 						}
 					}

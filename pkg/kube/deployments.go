@@ -116,6 +116,11 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 	svcName := serviceInterface.Address
 	if serviceInterface.IsOfLocalOrigin() {
 		svcName += "-proxy"
+		proxyService, err := cli.CoreV1().Services(namespace).Get(context.TODO(), svcName, metav1.GetOptions{})
+		if err == nil && proxyService != nil {
+			return nil, fmt.Errorf("service %s already exists in the cluster, use any other name to expose the statefulset with a headless service", svcName)
+		}
+
 		_, err = NewHeadlessService(svcName, serviceInterface.Address, serviceInterface.Ports, serviceInterface.Ports, serviceInterface.Labels, &ownerRef, namespace, cli)
 		if err != nil {
 			return nil, err
