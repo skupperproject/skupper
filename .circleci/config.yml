@@ -317,7 +317,6 @@ yaml-templates:
   release_requires: &release_requires
     requires:
       - build-all
-      - generate_manifest
       - test
       - main_tests_minikube_local_cluster
       - policy_tests_minikube_local_cluster
