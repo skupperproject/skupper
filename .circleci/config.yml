@@ -350,7 +350,8 @@ workflows:
             - build_and_push_test_images
 
       - generate_manifest:
-          <<: *run_for_all_branches_and_numeric_tags
+          <<: *run_for_numeric_tags
+          <<: *release_requires
 
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
