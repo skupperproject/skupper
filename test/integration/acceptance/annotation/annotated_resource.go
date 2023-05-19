@@ -114,6 +114,10 @@ func DeployResources(testRunner base.ClusterTestRunner) error {
 		populateAnnotations(clusterIdx, depAnnotations, svcNoTargetAnnotations, svcTargetAnnotations,
 			statefulSetAnnotations, daemonSetAnnotations)
 
+		// Create a service without annotations to be taken by Skupper as a deployment will be annotated with this service address
+		if _, err := createService(cluster, fmt.Sprintf("nginx-%d-dep-not-owned", clusterIdx), map[string]string{}); err != nil {
+			return err
+		}
 		// One single deployment will be created (for the nginx http server)
 		if _, err := createDeployment(cluster, depAnnotations); err != nil {
 			return err

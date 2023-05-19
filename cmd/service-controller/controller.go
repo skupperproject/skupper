@@ -112,6 +112,10 @@ func hasOriginalAssigned(service corev1.Service) bool {
 	return hasSkupperAnnotation(service, types.OriginalAssignedQualifier)
 }
 
+func hasOriginalAnnotations(service corev1.Service) bool {
+	return hasOriginalSelector(service) || hasOriginalTargetPort(service) || hasOriginalAssigned(service)
+}
+
 func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, disableServiceSync bool) (*Controller, error) {
 
 	// create informers
@@ -285,7 +289,6 @@ func SimpleKey(category string, obj interface{}) (string, error) {
 func FixedKey(category string, obj interface{}) (string, error) {
 	return category, nil
 }
-
 func splitKey(key string) (string, string) {
 	parts := strings.Split(key, "@")
 	return parts[0], parts[1]
@@ -464,6 +467,9 @@ func (c *Controller) updateActualServices() {
 		if deleteSvc {
 			event.Recordf(ServiceControllerDeleteEvent, "No service binding found for %s", svc.ObjectMeta.Name)
 			c.DeleteService(svc)
+		} else if !isOwned(svc) && hasOriginalAnnotations(*svc) {
+			event.Recordf(ServiceControllerDeleteEvent, "Restoring service definitions for %s", svc.ObjectMeta.Name)
+			restoreServiceDefinitions(c.vanClient, svc.Name)
 		}
 	}
 }
