@@ -168,6 +168,7 @@ var attributeNames = []string{
 
 var Internal string = "internal"
 var External string = "external"
+var Remote string = "remote"
 var Incoming string = "incoming"
 var Outgoing string = "outgoing"
 var Bound string = "bound"

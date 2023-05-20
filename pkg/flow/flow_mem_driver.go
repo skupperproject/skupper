@@ -1984,7 +1984,7 @@ func (fc *FlowCollector) reconcileRecords() error {
 						}
 						delete(fc.flowsToProcessReconcile, flowId)
 					} else {
-						if fc.needForExternalProcess(flow, siteId, connector.StartTime, false) {
+						if fc.needForSiteProcess(flow, siteId, connector.StartTime, false) {
 							delete(fc.flowsToProcessReconcile, flowId)
 						}
 					}
@@ -2002,7 +2002,7 @@ func (fc *FlowCollector) reconcileRecords() error {
 							}
 						}
 						if !found {
-							if fc.needForExternalProcess(flow, siteId, listener.StartTime, true) {
+							if fc.needForSiteProcess(flow, siteId, listener.StartTime, true) {
 								delete(fc.flowsToProcessReconcile, flowId)
 							}
 						}
@@ -2066,7 +2066,7 @@ func (fc *FlowCollector) reconcileRecords() error {
 				}
 				if !found {
 					parts := strings.Split(siteId, "-")
-					processName := "external-site-servers-" + parts[0]
+					processName := "site-servers-" + parts[0]
 					diffTime := connector.StartTime
 					wait := 10 * oneSecond
 					if fc.startTime > connector.StartTime {
@@ -2299,16 +2299,16 @@ func (fc *FlowCollector) createSiteProcess(name string, site SiteRecord) Process
 	process.StartTime = site.StartTime
 	process.Name = &processName
 	process.GroupName = &processGroupName
-	process.ProcessRole = &External
+	process.ProcessRole = &Remote
 	fc.updateRecord(process)
 	return process
 }
 
-func (fc *FlowCollector) needForExternalProcess(flow *FlowRecord, siteId string, startTime uint64, client bool) bool {
+func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, startTime uint64, client bool) bool {
 	parts := strings.Split(siteId, "-")
-	name := "external-site-servers"
+	name := "site-servers"
 	if client {
-		name = "external-site-clients"
+		name = "site-clients"
 	}
 	processName := name + "-" + parts[0]
 	diffTime := startTime
