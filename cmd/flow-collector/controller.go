@@ -33,12 +33,12 @@ func NewController(origin string, reg prometheus.Registerer, scheme string, host
 func (c *Controller) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
-	log.Println("Starting the Skupper flow collector")
+	log.Println("COLLECTOR: Starting the Skupper flow collector")
 
 	c.FlowCollector.Start(stopCh)
 
 	<-stopCh
-	log.Println("Shutting down the Skupper flow collector")
+	log.Println("COLLECTOR: Shutting down the Skupper flow collector")
 
 	return nil
 }

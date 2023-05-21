@@ -168,8 +168,11 @@ var attributeNames = []string{
 
 var Internal string = "internal"
 var External string = "external"
+var Remote string = "remote"
 var Incoming string = "incoming"
 var Outgoing string = "outgoing"
+var Bound string = "bound"
+var Unbound string = "unbound"
 
 type Base struct {
 	RecType   string `json:"recType,omitempty"`
@@ -177,6 +180,7 @@ type Base struct {
 	Parent    string `json:"parent,omitempty"`
 	StartTime uint64 `json:"startTime"`
 	EndTime   uint64 `json:"endTime"`
+	Purged    bool   `json:"purged,omitempty"`
 }
 
 type BeaconRecord struct {
@@ -303,22 +307,24 @@ type VanAddressRecord struct {
 
 type ProcessRecord struct {
 	Base
-	Name          *string `json:"name,omitempty"`
-	ParentName    *string `json:"parentName,omitempty"`
-	ImageName     *string `json:"imageName,omitempty"`
-	Image         *string `json:"image,omitempty"`
-	GroupName     *string `json:"groupName,omitempty"`
-	GroupIdentity *string `json:"groupIdentity,omitempty"`
-	HostName      *string `json:"hostName,omitempty"`
-	SourceHost    *string `json:"sourceHost,omitempty"`
-	ProcessRole   *string `json:"processRole,omitempty"`
-	connector     *string
+	Name           *string `json:"name,omitempty"`
+	ParentName     *string `json:"parentName,omitempty"`
+	ImageName      *string `json:"imageName,omitempty"`
+	Image          *string `json:"image,omitempty"`
+	GroupName      *string `json:"groupName,omitempty"`
+	GroupIdentity  *string `json:"groupIdentity,omitempty"`
+	HostName       *string `json:"hostName,omitempty"`
+	SourceHost     *string `json:"sourceHost,omitempty"`
+	ProcessRole    *string `json:"processRole,omitempty"`
+	ProcessBinding *string `json:"processBinding,omitempty"`
+	connector      *string
 }
 
 type ProcessGroupRecord struct {
 	Base
 	Name             *string `json:"name,omitempty"`
 	ProcessGroupRole *string `json:"processGroupRole,omitempty"`
+	ProcessCount     int     `json:"processCount,omitempty"`
 }
 
 type FlowPlace int
@@ -337,7 +343,6 @@ type FlowRecord struct {
 	Trace            *string   `json:"trace,omitempty"`
 	Latency          *uint64   `json:"latency,omitempty"`
 	Octets           *uint64   `json:"octets"`
-	OctetRate        *uint64   `json:"octetRate"`
 	OctetsOut        *uint64   `json:"octetsOut,omitempty"`
 	OctetsUnacked    *uint64   `json:"octetsUnacked,omitempty"`
 	WindowClosures   *uint64   `json:"windowClosures,omitempty"`
@@ -380,6 +385,7 @@ type FlowAggregateRecord struct {
 	SourceName      *string `json:"sourceName,omitempty"`
 	DestinationId   *string `json:"destinationId,omitempty"`
 	DestinationName *string `json:"destinationName,omitempty"`
+	Protocol        *string `json:"protocol,omitempty"`
 }
 
 type ControllerRecord struct {
@@ -514,6 +520,7 @@ func max(a, b uint64) uint64 {
 	return b
 }
 
+const oneSecond uint64 = 1000000
 const oneMinute uint64 = 60000000
 const oneHour uint64 = 3600000000
 const oneDay uint64 = 86400000000
