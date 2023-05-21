@@ -12,17 +12,37 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, connector bool) error {
-	sourceHost := flow.SourceHost
-	if connector {
-		if connector, ok := c.Connectors[flow.Parent]; ok {
-			sourceHost = connector.DestHost
+func (fc *FlowCollector) inferGatewaySite(siteId string) error {
+	if _, ok := fc.Sites[siteId]; !ok {
+		parts := strings.Split(siteId, "_")
+		if len(parts) > 1 {
+			if parts[0] == "gateway" {
+				if _, ok := fc.Sites[siteId]; !ok {
+					name := parts[1]
+					namespace := parts[0] + "-" + parts[1]
+					site := SiteRecord{
+						Base: Base{
+							RecType:   recordNames[Site],
+							Identity:  siteId,
+							StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+						},
+						Name:      &name,
+						NameSpace: &namespace,
+					}
+					log.Printf("FLOW_LOG: %s\n", prettyPrint(site))
+					fc.Sites[siteId] = &site
+				}
+			}
 		}
 	}
-	if site, ok := c.Sites[siteId]; ok {
-		groupName := *site.NameSpace + "-" + *sourceHost
+	return nil
+}
+
+func (fc *FlowCollector) inferGatewayProcess(siteId string, host string) error {
+	if site, ok := fc.Sites[siteId]; ok {
+		groupName := *site.NameSpace + "-" + host
 		groupIdentity := ""
-		for _, pg := range c.ProcessGroups {
+		for _, pg := range fc.ProcessGroups {
 			if *pg.Name == groupName {
 				groupIdentity = pg.Identity
 				break
@@ -30,7 +50,7 @@ func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, conn
 		}
 		if groupIdentity == "" {
 			groupIdentity = uuid.New().String()
-			c.ProcessGroups[groupIdentity] = &ProcessGroupRecord{
+			fc.ProcessGroups[groupIdentity] = &ProcessGroupRecord{
 				Base: Base{
 					RecType:   recordNames[ProcessGroup],
 					Identity:  groupIdentity,
@@ -40,18 +60,18 @@ func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, conn
 				ProcessGroupRole: &External,
 			}
 		}
-		processName := *site.Name + "-" + *sourceHost
+		processName := *site.Name + "-" + host
 		procFound := false
-		for _, proc := range c.Processes {
+		for _, proc := range fc.Processes {
 			if *proc.Name == processName {
 				procFound = true
 				break
 			}
 		}
 		if !procFound {
-			log.Println("Inferring gateway process for flow: ", *sourceHost)
+			log.Printf("COLLECTOR: Inferring gateway process %s \n", host)
 			procIdentity := uuid.New().String()
-			c.Processes[procIdentity] = &ProcessRecord{
+			fc.Processes[procIdentity] = &ProcessRecord{
 				Base: Base{
 					RecType:   recordNames[Process],
 					Identity:  procIdentity,
@@ -62,7 +82,7 @@ func (c *FlowCollector) inferGatewayProcess(siteId string, flow FlowRecord, conn
 				GroupName:     &groupName,
 				GroupIdentity: &groupIdentity,
 				HostName:      site.Name,
-				SourceHost:    sourceHost,
+				SourceHost:    &host,
 				ProcessRole:   &External,
 			}
 		}
@@ -355,15 +375,20 @@ func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) 
 		delete(revLabels, "addressId")
 		err := fc.setupFlowMetrics(va, sourceFlow, fwdLabels)
 		if err != nil {
-			log.Println("setup metric error", err.Error())
+			log.Println("COLLECTOR: metric setup error", err.Error())
 		}
 		err = fc.setupFlowMetrics(va, destFlow, revLabels)
 		if err != nil {
-			log.Println("setup metric error", err.Error())
+			log.Println("COLLECTOR: metric setup error", err.Error())
 		}
 	}
 
 	return fp, ok
+}
+
+func prettyPrint(i interface{}) string {
+	s, _ := json.Marshal(i)
+	return string(s)
 }
 
 func (fc *FlowCollector) deleteRecord(record interface{}) error {
@@ -371,6 +396,7 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	if record == nil {
 		return fmt.Errorf("No record to delete")
 	}
+	log.Printf("FLOW_LOG: %s\n", prettyPrint(record))
 	switch record.(type) {
 	case SiteRecord:
 		if site, ok := record.(SiteRecord); ok {
@@ -442,6 +468,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if site, ok := record.(SiteRecord); ok {
 			if current, ok := fc.Sites[site.Identity]; !ok {
 				if site.StartTime > 0 && site.EndTime == 0 {
+					log.Printf("FLOW_LOG: %s\n", prettyPrint(site))
 					fc.Sites[site.Identity] = &site
 				}
 			} else {
@@ -463,9 +490,15 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		}
 	case HostRecord:
 		if host, ok := record.(HostRecord); ok {
-			if host.StartTime > 0 && host.EndTime == 0 {
-				if current, ok := fc.Hosts[host.Identity]; !ok {
+			if current, ok := fc.Hosts[host.Identity]; !ok {
+				if host.StartTime > 0 && host.EndTime == 0 {
+					log.Printf("FLOW_LOG: %s \n", prettyPrint(host))
 					fc.Hosts[host.Identity] = &host
+				}
+			} else {
+				if host.EndTime > 0 {
+					current.EndTime = host.EndTime
+					fc.deleteRecord(*current)
 				} else {
 					*current = host
 				}
@@ -475,11 +508,10 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if router, ok := record.(RouterRecord); ok {
 			if current, ok := fc.Routers[router.Identity]; !ok {
 				if router.StartTime > 0 && router.EndTime == 0 {
+					log.Printf("FLOW_LOG: %s \n", prettyPrint(router))
 					fc.Routers[router.Identity] = &router
 					if router.Parent != "" {
-						if _, ok := fc.Sites[router.Parent]; !ok {
-							fc.routersToSiteReconcile[router.Identity] = router.Parent
-						}
+						fc.inferGatewaySite(router.Parent)
 					}
 				}
 			} else {
@@ -489,7 +521,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				} else if router.Parent != "" && current.Parent == "" {
 					current.Parent = router.Parent
 					if _, ok := fc.Sites[current.Parent]; !ok {
-						fc.routersToSiteReconcile[current.Identity] = current.Parent
+						fc.inferGatewaySite(current.Parent)
 					}
 				}
 			}
@@ -498,6 +530,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if link, ok := record.(LinkRecord); ok {
 			if current, ok := fc.Links[link.Identity]; !ok {
 				if link.StartTime > 0 && link.EndTime == 0 {
+					log.Printf("FLOW_LOG: %s \n", prettyPrint(link))
 					fc.Links[link.Identity] = &link
 				}
 			} else {
@@ -511,6 +544,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if listener, ok := record.(ListenerRecord); ok {
 			if current, ok := fc.Listeners[listener.Identity]; !ok {
 				if listener.StartTime > 0 && listener.EndTime == 0 {
+					log.Printf("FLOW_LOG: %s \n", prettyPrint(listener))
 					fc.Listeners[listener.Identity] = &listener
 					if listener.Address != nil {
 						var va *VanAddressRecord
@@ -610,6 +644,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if connector, ok := record.(ConnectorRecord); ok {
 			if current, ok := fc.Connectors[connector.Identity]; !ok {
 				if connector.StartTime > 0 && connector.EndTime == 0 {
+					log.Printf("FLOW_LOG: %s \n", prettyPrint(connector))
 					fc.Connectors[connector.Identity] = &connector
 					if connector.Parent != "" {
 						if connector.Address != nil {
@@ -640,6 +675,10 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							}
 							connector.AddressId = &va.Identity
 						}
+						siteId := fc.getRecordSiteId(connector)
+						if fc.isGatewaySite(siteId) && connector.DestHost != nil {
+							fc.inferGatewayProcess(siteId, *connector.DestHost)
+						}
 					}
 					fc.connectorsToReconcile[connector.Identity] = connector.Identity
 				}
@@ -649,6 +688,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					if current.process != nil {
 						if process, ok := fc.Processes[*current.process]; ok {
 							process.connector = nil
+							process.ProcessBinding = &Unbound
 						}
 					}
 					// Note a new connector can create an address but does not delete it
@@ -657,6 +697,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				} else {
 					if current.Parent == "" && connector.Parent != "" {
 						current.Parent = connector.Parent
+						siteId := fc.getRecordSiteId(current)
+						if fc.isGatewaySite(siteId) && current.DestHost != nil {
+							fc.inferGatewayProcess(siteId, *current.DestHost)
+						}
+
 					}
 					if current.DestHost == nil && connector.DestHost != nil {
 						current.DestHost = connector.DestHost
@@ -710,7 +755,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 			if current, ok := fc.Flows[flow.Identity]; !ok {
 				if flow.StartTime != 0 && flow.EndTime != 0 {
 					if flow.Parent == "" {
-						log.Printf("Incomplete flow record for identity: %s details %+v\n", flow.Identity, flow)
+						log.Printf("COLLECTOR: Incomplete flow record for identity %s details %+v\n", flow.Identity, flow)
 					}
 				}
 				if flow.StartTime != 0 {
@@ -722,17 +767,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							siteId := fc.getRecordSiteId(*listener)
 							// TODO: workaround for gateway
 							if fc.isGatewaySite(siteId) {
-								fc.inferGatewayProcess(siteId, flow, false)
-							}
-						} else if connector, ok := fc.Connectors[flow.Parent]; ok {
-							siteId := fc.getRecordSiteId(*connector)
-							// TODO: workaround for gateway
-							if fc.isGatewaySite(siteId) {
-								fc.inferGatewayProcess(siteId, flow, true)
-								fc.connectorsToReconcile[connector.Identity] = connector.Identity
+								fc.inferGatewayProcess(siteId, *flow.SourceHost)
 							}
 						}
 					}
+					log.Printf("FLOW_LOG: %s \n", prettyPrint(flow))
 					if flow.CounterFlow != nil {
 						fc.flowsToPairReconcile[flow.Identity] = *flow.CounterFlow
 					}
@@ -753,14 +792,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						// TODO: workaround for gateway
 						siteId := fc.getRecordSiteId(*listener)
 						if fc.isGatewaySite(siteId) {
-							fc.inferGatewayProcess(siteId, flow, false)
-						}
-					} else if connector, ok := fc.Connectors[flow.Parent]; ok {
-						// TODO: workaround for gateway
-						siteId := fc.getRecordSiteId(*connector)
-						if fc.isGatewaySite(siteId) {
-							fc.inferGatewayProcess(siteId, flow, true)
-							fc.connectorsToReconcile[connector.Identity] = connector.Identity
+							fc.inferGatewayProcess(siteId, *flow.SourceHost)
 						}
 					}
 				}
@@ -770,9 +802,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						current.octetMetric.Add(float64(*current.Octets - current.lastOctets))
 					}
 					current.lastOctets = *current.Octets
-				}
-				if flow.OctetRate != nil {
-					current.OctetRate = flow.OctetRate
 				}
 				if flow.OctetsOut != nil {
 					current.OctetsOut = flow.OctetsOut
@@ -805,7 +834,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					current.StreamIdentity = flow.StreamIdentity
 				}
 				if flow.CounterFlow != nil && current.CounterFlow == nil {
-					// this should trigger pairing
 					current.CounterFlow = flow.CounterFlow
 				}
 				if flow.EndTime > 0 && current.EndTime == 0 {
@@ -830,6 +858,8 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							process.ParentName = site.Name
 						}
 					}
+					process.ProcessBinding = &Unbound
+					log.Printf("FLOW_LOG: %s \n", prettyPrint(process))
 					fc.Processes[process.Identity] = &process
 				}
 				for _, pg := range fc.ProcessGroups {
@@ -863,7 +893,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							}
 						}
 					}
-
 					if current.GroupIdentity != nil {
 						count := 0
 						for id, p := range fc.Processes {
@@ -886,6 +915,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if processGroup, ok := record.(ProcessGroupRecord); ok {
 			if current, ok := fc.ProcessGroups[processGroup.Identity]; !ok {
 				if processGroup.StartTime > 0 && processGroup.EndTime == 0 {
+					log.Printf("FLOW_LOG: %s \n", prettyPrint(processGroup))
 					fc.ProcessGroups[processGroup.Identity] = &processGroup
 				}
 			} else {
@@ -1463,6 +1493,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "list":
 			processGroups := []ProcessGroupRecord{}
 			for _, processGroup := range fc.ProcessGroups {
+				count := 0
+				for _, process := range fc.Processes {
+					if *process.GroupIdentity == processGroup.Identity {
+						count++
+					}
+				}
+				processGroup.ProcessCount = count
 				p.TotalCount++
 				if filterRecord(*processGroup, p.QueryParams) && processGroup.Base.TimeRangeValid(queryParams) {
 					processGroups = append(processGroups, *processGroup)
@@ -1472,6 +1509,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if processGroup, ok := fc.ProcessGroups[id]; ok {
+					count := 0
+					for _, process := range fc.Processes {
+						if *process.GroupIdentity == processGroup.Identity {
+							count++
+						}
+					}
+					processGroup.ProcessCount = count
 					p.Count = 1
 					p.Results = processGroup
 				}
@@ -1614,6 +1658,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 						sourceId == *aggregate.SourceId && destinationId == "" ||
 						sourceId == "" && destinationId == *aggregate.DestinationId ||
 						sourceId == *aggregate.SourceId && destinationId == *aggregate.DestinationId {
+						// try to associate a protocol to the process pair
+						if process, ok := fc.Processes[*aggregate.DestinationId]; ok {
+							if process.connector != nil {
+								if connector, ok := fc.Connectors[*process.connector]; ok {
+									aggregate.Protocol = connector.Protocol
+								}
+							}
+						}
 						if filterRecord(*aggregate, p.QueryParams) {
 							aggregates = append(aggregates, *aggregate)
 						}
@@ -1625,6 +1677,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			if id, ok := vars["id"]; ok {
 				if flowAggregate, ok := fc.FlowAggregates[id]; ok {
 					if flowAggregate.PairType == recordNames[Process] {
+						if process, ok := fc.Processes[*flowAggregate.DestinationId]; ok {
+							if process.connector != nil {
+								if connector, ok := fc.Connectors[*process.connector]; ok {
+									flowAggregate.Protocol = connector.Protocol
+								}
+							}
+						}
 						p.Count = 1
 						p.Results = flowAggregate
 					}
@@ -1735,9 +1794,43 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "item":
 			p.Count = 1
 			p.Results = &fc.Collector
+		case "connectors-to-process":
+			connectors := []string{}
+			for _, connId := range fc.connectorsToReconcile {
+				if _, ok := fc.Connectors[connId]; ok {
+					p.TotalCount++
+					connectors = append(connectors, connId)
+				}
+			}
+			retrieveError = sortAndSlice(connectors, &p)
+		case "flows-to-pair":
+			flows := []string{}
+			for reverseId, forwardId := range fc.flowsToPairReconcile {
+				p.TotalCount++
+				flows = append(flows, forwardId+"-"+reverseId)
+			}
+			retrieveError = sortAndSlice(flows, &p)
+		case "flows-to-process":
+			flows := []string{}
+			for _, flowId := range fc.flowsToProcessReconcile {
+				if _, ok := fc.Flows[flowId]; ok {
+					p.TotalCount++
+					flows = append(flows, flowId)
+				}
+			}
+			retrieveError = sortAndSlice(flows, &p)
+		case "pair-to-aggregate":
+			flowPairs := []string{}
+			for flowPairId, _ := range fc.aggregatesToReconcile {
+				if _, ok := fc.FlowPairs[flowPairId]; ok {
+					p.TotalCount++
+					flowPairs = append(flowPairs, flowPairId)
+				}
+			}
+			retrieveError = sortAndSlice(flowPairs, &p)
 		}
 	default:
-		log.Println("Unrecognize record request", request.RecordType)
+		log.Println("COLLECTOR: Unrecognize record request", request.RecordType)
 	}
 	if retrieveError != nil {
 		p.Status = retrieveError.Error()
@@ -1749,7 +1842,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 	}
 	data, err := json.MarshalIndent(p, "", " ")
 	if err != nil {
-		log.Println("Error marshalling results", err.Error())
+		log.Println("COLLECTOR: Error marshalling results", err.Error())
 		return nil, err
 	}
 	sd := string(data)
@@ -1872,33 +1965,7 @@ func (fc *FlowCollector) setupFlowMetrics(va *VanAddressRecord, flow *FlowRecord
 }
 
 func (fc *FlowCollector) reconcileRecords() error {
-	m, err := fc.metrics.activeReconcile.GetMetricWith(prometheus.Labels{"reconcileTask": "routersToSite"})
-	if err == nil {
-		m.Set(float64(len(fc.routersToSiteReconcile)))
-	}
-	for routerId, siteId := range fc.routersToSiteReconcile {
-		// TODO: This is temporary workaround until gateway or CE site emits events
-		parts := strings.Split(siteId, "_")
-		if len(parts) > 1 {
-			if parts[0] == "gateway" {
-				if _, ok := fc.Sites[siteId]; !ok {
-					name := parts[1]
-					namespace := parts[0] + "-" + parts[1]
-					fc.Sites[siteId] = &SiteRecord{
-						Base: Base{
-							RecType:   recordNames[Site],
-							Identity:  siteId,
-							StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
-						},
-						Name:      &name,
-						NameSpace: &namespace,
-					}
-				}
-			}
-		}
-		delete(fc.routersToSiteReconcile, routerId)
-	}
-	m, err = fc.metrics.activeReconcile.GetMetricWith(prometheus.Labels{"reconcileTask": "flowsToProcess"})
+	m, err := fc.metrics.activeReconcile.GetMetricWith(prometheus.Labels{"reconcileTask": "flowsToProcess"})
 	if err == nil {
 		m.Set(float64(len(fc.flowsToProcessReconcile)))
 	}
@@ -1916,16 +1983,27 @@ func (fc *FlowCollector) reconcileRecords() error {
 							flow.ProcessName = process.Name
 						}
 						delete(fc.flowsToProcessReconcile, flowId)
+					} else {
+						if fc.needForSiteProcess(flow, siteId, connector.StartTime, false) {
+							delete(fc.flowsToProcessReconcile, flowId)
+						}
 					}
 				} else if listener, ok := fc.Listeners[flow.Parent]; ok {
 					if listener.AddressId != nil {
+						found := false
 						for _, process := range fc.Processes {
 							if siteId == process.Parent && process.SourceHost != nil {
 								if *flow.SourceHost == *process.SourceHost {
 									flow.Process = &process.Identity
 									flow.ProcessName = process.Name
+									found = true
 									delete(fc.flowsToProcessReconcile, flowId)
 								}
+							}
+						}
+						if !found {
+							if fc.needForSiteProcess(flow, siteId, listener.StartTime, true) {
+								delete(fc.flowsToProcessReconcile, flowId)
 							}
 						}
 					}
@@ -1964,33 +2042,45 @@ func (fc *FlowCollector) reconcileRecords() error {
 		m.Set(float64(len(fc.connectorsToReconcile)))
 	}
 	for _, connId := range fc.connectorsToReconcile {
+		t := time.Now()
 		if connector, ok := fc.Connectors[connId]; ok {
 			if connector.EndTime > 0 {
 				delete(fc.connectorsToReconcile, connId)
 			} else if connector.DestHost != nil {
 				siteId := fc.getRecordSiteId(*connector)
-				// TODO: workaround for gateway
-				// maybe the site should indicate it is a gateway
-				parts := strings.Split(siteId, "_")
-				gateway := false
-				if len(parts) > 1 && parts[0] == "gateway" {
-					gateway = true
-				}
+				found := false
 				for _, process := range fc.Processes {
 					if siteId == process.Parent {
-						if gateway {
-							if process.SourceHost != nil && *process.SourceHost == *connector.DestHost {
-								connector.process = &process.Identity
-								process.connector = &connector.Identity
-								log.Printf("Gateway connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
-								delete(fc.connectorsToReconcile, connId)
-							}
-						} else if process.SourceHost != nil {
+						if process.SourceHost != nil {
 							if *connector.DestHost == *process.SourceHost {
 								connector.process = &process.Identity
 								process.connector = &connector.Identity
-								log.Printf("Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
+								process.ProcessBinding = &Bound
+								log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
 								delete(fc.connectorsToReconcile, connId)
+								found = true
+								break
+							}
+						}
+					}
+				}
+				if !found {
+					parts := strings.Split(siteId, "-")
+					processName := "site-servers-" + parts[0]
+					diffTime := connector.StartTime
+					wait := 10 * oneSecond
+					if fc.startTime > connector.StartTime {
+						diffTime = fc.startTime
+						wait = 60 * oneSecond
+					}
+					diff := uint64(t.UnixNano())/uint64(time.Microsecond) - diffTime
+					if diff > wait {
+						for _, process := range fc.Processes {
+							if process.Name != nil && *process.Name == processName {
+								log.Printf("COLLECTOR: Associating connector %s to external process %s\n", connector.Identity, processName)
+								connector.process = &process.Identity
+								delete(fc.connectorsToReconcile, connId)
+								break
 							}
 						}
 					}
@@ -2089,6 +2179,15 @@ func (fc *FlowCollector) reconcileRecords() error {
 		}
 	}
 
+	for _, source := range fc.eventSources {
+		t := time.Now()
+		diff := uint64(t.UnixNano())/uint64(time.Microsecond) - source.EventSourceRecord.LastHeard
+		if diff > 30*oneSecond {
+			log.Printf("COLLECTOR: Purging event source %s of type %s \n", source.Beacon.Identity, source.Beacon.SourceType)
+			fc.purgeEventSource(source.EventSourceRecord)
+		}
+	}
+
 	return nil
 }
 
@@ -2109,4 +2208,135 @@ func (fc *FlowCollector) getAddressMetrics(addr *VanAddressRecord) error {
 	addr.ConnectorCount = connectorCount
 
 	return nil
+}
+
+func (fc *FlowCollector) purgeEventSource(eventSource EventSourceRecord) error {
+	// it would be good to indicate the reason
+	t := time.Now()
+	now := uint64(t.UnixNano()) / uint64(time.Microsecond)
+
+	switch eventSource.Beacon.SourceType {
+	case recordNames[Router]:
+		for _, listener := range fc.Listeners {
+			if listener.Parent == eventSource.Identity {
+				listener.EndTime = now
+				listener.Purged = true
+				fc.updateRecord(*listener)
+			}
+		}
+		for _, connector := range fc.Connectors {
+			if connector.Parent == eventSource.Identity {
+				connector.EndTime = now
+				fc.updateRecord(*connector)
+			}
+		}
+		for _, link := range fc.Links {
+			if link.Parent == eventSource.Identity {
+				link.EndTime = now
+				link.Purged = true
+				fc.updateRecord(*link)
+			}
+		}
+		if router, ok := fc.Routers[eventSource.Identity]; ok {
+			// workaround for gateway site
+			if fc.isGatewaySite(router.Parent) {
+				for _, process := range fc.Processes {
+					if process.Parent == router.Parent {
+						process.EndTime = now
+						process.Purged = true
+						fc.updateRecord(*process)
+					}
+				}
+				if site, ok := fc.Sites[router.Parent]; ok {
+					site.EndTime = now
+					site.Purged = true
+					fc.updateRecord(*site)
+				}
+			}
+			router.EndTime = now
+			router.Purged = true
+			fc.updateRecord(*router)
+		}
+	case recordNames[Controller]:
+		for _, process := range fc.Processes {
+			if process.Parent == eventSource.Identity {
+				process.EndTime = now
+				process.Purged = true
+				fc.updateRecord(*process)
+			}
+		}
+		for _, host := range fc.Hosts {
+			if host.Parent == eventSource.Identity {
+				host.EndTime = now
+				host.Purged = true
+				fc.updateRecord(*host)
+			}
+		}
+		for _, site := range fc.Sites {
+			if site.Identity == eventSource.Identity {
+				site.EndTime = now
+				site.Purged = true
+				fc.updateRecord(*site)
+			}
+		}
+	}
+	eventSource.Purged = true
+	log.Printf("COLLECTOR: %s \n", prettyPrint(eventSource))
+	delete(fc.eventSources, eventSource.Identity)
+
+	return nil
+}
+
+func (fc *FlowCollector) createSiteProcess(name string, site SiteRecord) ProcessRecord {
+	parts := strings.Split(site.Identity, "-")
+	processName := name + "-" + parts[0]
+	processGroupName := name
+	process := ProcessRecord{}
+	process.RecType = recordNames[Process]
+	process.Identity = uuid.New().String()
+	process.Parent = site.Identity
+	process.ParentName = site.Name
+	process.StartTime = site.StartTime
+	process.Name = &processName
+	process.GroupName = &processGroupName
+	process.ProcessRole = &Remote
+	fc.updateRecord(process)
+	return process
+}
+
+func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, startTime uint64, client bool) bool {
+	parts := strings.Split(siteId, "-")
+	name := "site-servers"
+	if client {
+		name = "site-clients"
+	}
+	processName := name + "-" + parts[0]
+	diffTime := startTime
+	wait := 10 * oneSecond
+	if fc.startTime > startTime {
+		diffTime = fc.startTime
+		wait = 60 * oneSecond
+	}
+	diff := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - diffTime
+	found := false
+	if diff > wait && flow.Process == nil {
+		log.Printf("COLLECTOR: Associating flow %s to external process %s\n", flow.Identity, processName)
+		for _, process := range fc.Processes {
+			if process.Name != nil && *process.Name == processName {
+				flow.Process = &process.Identity
+				flow.ProcessName = process.Name
+				found = true
+				break
+			}
+		}
+		if !found {
+			if site, ok := fc.Sites[siteId]; ok {
+				process := fc.createSiteProcess(name, *site)
+				flow.Process = &process.Identity
+				flow.ProcessName = &processName
+				found = true
+			}
+		}
+	}
+	return found
 }

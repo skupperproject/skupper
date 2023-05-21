@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
 
@@ -94,11 +93,13 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 	tickerAge := time.NewTicker(10 * time.Minute)
 	defer tickerAge.Stop()
 
-	beaconTimer := time.NewTicker(15 * time.Second)
+	beaconTimer := time.NewTicker(10 * time.Second)
 	defer beaconTimer.Stop()
 
-	// note this should come from site cm
-	identity := uuid.New().String()
+	heartbeatTimer := time.NewTicker(2 * time.Second)
+	defer heartbeatTimer.Stop()
+
+	identity := c.origin
 
 	beacon := &BeaconRecord{
 		Version:    1,
@@ -135,6 +136,7 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 		select {
 		case <-beaconTimer.C:
 			c.beaconOutgoing <- beacon
+		case <-heartbeatTimer.C:
 			heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 			c.recordOutgoing <- heartbeat
 		case process := <-c.processOutgoing:
