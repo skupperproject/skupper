@@ -348,6 +348,10 @@ workflows:
             - test
             - build_and_push_test_images
 
+      - generate_manifest:
+          <<: *run_for_numeric_tags
+          <<: *release_requires
+
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           <<: *release_requires
@@ -481,6 +485,23 @@ jobs:
           paths:
               - dist
 
+  generate_manifest:
+    executor:
+      name: go/default
+      tag: "1.19"
+    steps:
+      - checkout
+      - run:
+          name: Create and move manifest
+          command: |
+            make generate-manifest
+            mkdir tmp
+            mv manifest.json ./tmp
+      - persist_to_workspace:
+          root: .
+          paths:
+            - tmp
+
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
     steps:
@@ -528,8 +549,7 @@ jobs:
                 tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
               fi
             done
-            make -e generate-manifest
-            cp ${BASEDIR}/manifest.json ${BASEDIR}/archives
+            cp $BASEDIR/tmp/manifest.json ${BASEDIR}/archives
             cd ${BASEDIR}
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
