@@ -34,7 +34,7 @@ func TestContainer(t *testing.T) {
 
 	name := RandomName("skupper-test")
 
-	image := images.GetServiceControllerImageName()
+	image := images.GetServiceControllerPodmanImageName()
 	env := map[string]string{
 		"VAR1": "VAL1",
 		"VAR2": "VAL2",

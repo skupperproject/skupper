@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/certs"
+	podmancontroller "github.com/skupperproject/skupper/pkg/domain/podman/controller"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -39,7 +40,7 @@ func main() {
 		log.Fatal("Error getting tls config", err.Error())
 	}
 
-	controller, err := NewControllerPodman(origin, tlsConfig)
+	controller, err := podmancontroller.NewControllerPodman(origin, tlsConfig)
 	if err != nil {
 		log.Fatal("Error getting new controller", err.Error())
 	}
