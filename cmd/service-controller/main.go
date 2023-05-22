@@ -12,7 +12,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/certs"
-	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -62,43 +61,32 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
+	// todo, get context from env?
+	cli, err := client.NewClient(namespace, "", "")
+	if err != nil {
+		log.Fatal("Error getting van client", err.Error())
+	}
+
 	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
 	if err != nil {
 		log.Fatal("Error getting tls config", err.Error())
 	}
 
-	platform := config.GetPlatform()
-	if platform.IsKubernetes() {
-		// todo, get context from env?
-		cli, err := client.NewClient(namespace, "", "")
-		if err != nil {
-			log.Fatal("Error getting van client", err.Error())
-		}
+	event.StartDefaultEventStore(stopCh)
 
-		event.StartDefaultEventStore(stopCh)
+	controller, err := NewController(cli, origin, tlsConfig, disableServiceSync == "true")
+	if err != nil {
+		log.Fatal("Error getting new controller", err.Error())
+	}
 
-		controller, err := NewController(cli, origin, tlsConfig, disableServiceSync == "true")
-		if err != nil {
-			log.Fatal("Error getting new controller", err.Error())
-		}
+	log.Println("Waiting for Skupper router component to start")
+	_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
+	if err != nil {
+		log.Fatal("Error waiting for transport deployment to be ready: ", err.Error())
+	}
 
-		log.Println("Waiting for Skupper router component to start")
-		_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
-		if err != nil {
-			log.Fatal("Error waiting for transport deployment to be ready: ", err.Error())
-		}
-
-		// start the controller workers
-		if err = controller.Run(stopCh); err != nil {
-			log.Fatal("Error running controller: ", err.Error())
-		}
-	} else if platform == types.PlatformPodman {
-		controller, err := NewControllerPodman(origin, tlsConfig)
-		if err != nil {
-			log.Fatal("Error getting new controller", err.Error())
-		}
-		if err = controller.Run(stopCh); err != nil {
-			log.Fatal("Error running controller:", err.Error())
-		}
+	// start the controller workers
+	if err = controller.Run(stopCh); err != nil {
+		log.Fatal("Error running controller: ", err.Error())
 	}
 }
