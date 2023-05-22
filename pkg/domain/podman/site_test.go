@@ -85,12 +85,12 @@ func TestSiteHandler(t *testing.T) {
 			assert.Equal(t, podmanSite.ContainerNetwork, utils.DefaultStr(scenarioSite.ContainerNetwork, container.ContainerNetworkName))
 			// number of expected ingress hosts
 			expIngHosts := 1 + len(scenarioSite.IngressHosts)
-			expDeployments := 1
+			expDeployments := 2
 			if scenarioSite.EnableFlowCollector {
 				expDeployments += 1
 			}
 			assert.Assert(t, len(podmanSite.IngressHosts) == expIngHosts)
-			assert.Assert(t, len(podmanSite.Deployments) == expDeployments)
+			assert.Equal(t, len(podmanSite.Deployments), expDeployments)
 			for _, dep := range podmanSite.GetDeployments() {
 				assert.Assert(t, len(dep.GetComponents()) > 0, "no components found for %s", dep.GetName())
 				for _, cmp := range dep.GetComponents() {
