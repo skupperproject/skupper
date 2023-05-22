@@ -105,7 +105,7 @@ func (s *ServiceController) Name() string {
 }
 
 func (s *ServiceController) GetImage() string {
-	return images.GetServiceControllerImageName()
+	return images.GetServiceControllerPodmanImageName()
 }
 
 func (s *ServiceController) SetImage(image string) {

@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type SkupperImage struct {
@@ -23,6 +24,10 @@ func generateManifestFile() error {
 		},
 		{
 			Name:       images.GetServiceControllerImageName(),
+			Repository: "https://github.com/skupperproject/skupper",
+		},
+		{
+			Name:       images.GetServiceControllerPodmanImageName(),
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{

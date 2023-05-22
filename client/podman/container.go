@@ -90,7 +90,7 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 		Nsmode: "bridge",
 	}
 	for networkName, network := range c.Networks {
-		// aliases must be populated when dna is enabled for the network
+		// aliases must be populated when dns is enabled for the network
 		if len(network.Aliases) == 0 {
 			network.Aliases = append(network.Aliases, c.Name)
 		}

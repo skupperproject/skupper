@@ -1,5 +1,6 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
+SERVICE_CONTROLLER_PODMAN_IMAGE := quay.io/skupper/service-controller-podman
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
 FLOW_COLLECTOR_IMAGE := quay.io/skupper/flow-collector
@@ -26,7 +27,10 @@ build-get:
 	go build -ldflags="${LDFLAGS}"  -o get ./cmd/get
 
 build-service-controller:
-	go build -ldflags="${LDFLAGS}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/claim_verifier.go cmd/service-controller/token_handler.go cmd/service-controller/secret_controller.go cmd/service-controller/claim_handler.go cmd/service-controller/tokens.go cmd/service-controller/links.go cmd/service-controller/services.go cmd/service-controller/policies.go cmd/service-controller/policy_controller.go cmd/service-controller/revoke_access.go  cmd/service-controller/nodes.go cmd/service-controller/collector_beacons.go
+	go build -ldflags="${LDFLAGS}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/claim_verifier.go cmd/service-controller/token_handler.go cmd/service-controller/secret_controller.go cmd/service-controller/claim_handler.go cmd/service-controller/tokens.go cmd/service-controller/links.go cmd/service-controller/services.go cmd/service-controller/policies.go cmd/service-controller/policy_controller.go cmd/service-controller/revoke_access.go  cmd/service-controller/nodes.go
+
+build-service-controller-podman:
+	go build -ldflags="${LDFLAGS}"  -o service-controller-podman cmd/service-controller-podman/main.go
 
 build-site-controller:
 	go build -ldflags="${LDFLAGS}"  -o site-controller cmd/site-controller/main.go cmd/site-controller/controller.go
@@ -37,7 +41,7 @@ build-flow-collector:
 build-config-sync:
 	go build -ldflags="${LDFLAGS}"  -o config-sync cmd/config-sync/main.go cmd/config-sync/config_sync.go
 
-build-controllers: build-site-controller build-service-controller build-flow-collector
+build-controllers: build-site-controller build-service-controller build-service-controller-podman build-flow-collector
 
 build-manifest:
 	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
@@ -47,6 +51,7 @@ docker-build-test-image:
 
 docker-build: docker-build-test-image
 	${DOCKER} build -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
+	${DOCKER} build -t ${SERVICE_CONTROLLER_PODMAN_IMAGE} -f Dockerfile.service-controller-podman .
 	${DOCKER} build -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
 	${DOCKER} build -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
 	${DOCKER} build -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
@@ -56,6 +61,7 @@ docker-push-test-image:
 
 docker-push: docker-push-test-image
 	${DOCKER} push ${SERVICE_CONTROLLER_IMAGE}
+	${DOCKER} push ${SERVICE_CONTROLLER_PODMAN_IMAGE}
 	${DOCKER} push ${SITE_CONTROLLER_IMAGE}
 	${DOCKER} push ${CONFIG_SYNC_IMAGE}
 	${DOCKER} push ${FLOW_COLLECTOR_IMAGE}
@@ -91,7 +97,7 @@ test:
 	go test -v -count=1 ./pkg/... ./cmd/... ./client/...
 
 clean:
-	rm -rf skupper service-controller site-controller release get config-sync manifest ${TEST_BINARIES_FOLDER}
+	rm -rf skupper service-controller service-controller-podman site-controller release get config-sync manifest ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz
 
