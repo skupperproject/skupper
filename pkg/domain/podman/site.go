@@ -777,7 +777,7 @@ func (s *SiteHandler) prepareServiceControllerDeployment(site *Site) *SkupperDep
 				ctrlComponent,
 			},
 		},
-		Aliases:        []string{types.ControllerServiceName},
+		Aliases:        []string{types.ControllerServiceName, types.ControllerDeploymentName},
 		VolumeMounts:   volumeMounts,
 		Networks:       []string{site.ContainerNetwork},
 		SELinuxDisable: true,
