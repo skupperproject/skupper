@@ -1,4 +1,4 @@
-package main
+package controller
 
 import (
 	"encoding/json"
@@ -23,16 +23,18 @@ import (
 // Podman site beacons
 //
 
-func (c *ControllerPodman) SendPodmanHostRecord(flowController *flow.FlowController, startTime uint64) {
+func SendPodmanHostRecord(cli *clientpodman.PodmanRestClient, site *podman.Site, origin string,
+	flowController *flow.FlowController, startTime uint64) {
+
 	var platform string = types.PlatformPodman
-	versionInfo, err := c.cli.Version()
+	versionInfo, err := cli.Version()
 	if err != nil {
 		log.Fatalf("error retrieving podman host info - %s", err)
 	}
-	siteName := c.site.GetName()
+	siteName := site.GetName()
 	host := &flow.HostRecord{}
-	host.Identity = c.site.GetName()
-	host.Parent = c.origin
+	host.Identity = site.GetName()
+	host.Parent = origin
 	host.StartTime = startTime
 	host.Name = &siteName
 	host.EndTime = 0
@@ -42,7 +44,7 @@ func (c *ControllerPodman) SendPodmanHostRecord(flowController *flow.FlowControl
 	host.OperatingSystem = &versionInfo.OS
 	host.ContainerRuntime = &platform
 	host.KernelVersion = &versionInfo.Kernel
-	err = flow.UpdateHost(flowController, false, c.site.GetName(), host)
+	err = flow.UpdateHost(flowController, false, site.GetName(), host)
 	if err != nil {
 		log.Printf("error providing host information - %s", err)
 	}

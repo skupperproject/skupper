@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type SkupperImage struct {
@@ -15,6 +16,7 @@ type SkupperImage struct {
 }
 
 func generateManifestFile() error {
+
 	// Define a struct for the manifest file.
 	manifest := struct {
 		Images []SkupperImage `json:"images"`
@@ -30,6 +32,11 @@ func generateManifestFile() error {
 				SHA:        images.GetSha(images.GetServiceControllerImageName()),
 				Repository: "https://github.com/skupperproject/skupper",
 			},
+            {
+                Name:       images.GetServiceControllerPodmanImageName(),
+				SHA:        images.GetSha(images.GetServiceControllerPodmanImageName()),
+                Repository: "https://github.com/skupperproject/skupper",
+            },
 			{
 				Name:       images.GetConfigSyncImageName(),
 				SHA:        images.GetSha(images.GetConfigSyncImageName()),

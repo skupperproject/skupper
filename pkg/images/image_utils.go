@@ -11,18 +11,20 @@ import (
 )
 
 const (
-	RouterImageEnvKey                 string = "QDROUTERD_IMAGE"
-	ServiceControllerImageEnvKey      string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
-	ConfigSyncImageEnvKey             string = "SKUPPER_CONFIG_SYNC_IMAGE"
-	FlowCollectorImageEnvKey          string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
-	PrometheusServerImageEnvKey       string = "PROMETHEUS_SERVER_IMAGE"
-	RouterPullPolicyEnvKey            string = "QDROUTERD_IMAGE_PULL_POLICY"
-	ServiceControllerPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
-	ConfigSyncPullPolicyEnvKey        string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
-	FlowCollectorPullPolicyEnvKey     string = "SKUPPER_FLOW_COLLECTOR_IMAGE_PULL_POLICY"
-	PrometheusServerPullPolicyEnvKey  string = "PROMETHEUS_SERVER_IMAGE_PULL_POLICY"
-	SkupperImageRegistryEnvKey        string = "SKUPPER_IMAGE_REGISTRY"
-	PrometheusImageRegistryEnvKey     string = "PROMETHEUS_IMAGE_REGISTRY"
+	RouterImageEnvKey                       string = "QDROUTERD_IMAGE"
+	ServiceControllerImageEnvKey            string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
+	ServiceControllerPodmanImageEnvKey      string = "SKUPPER_SERVICE_CONTROLLER_PODMAN_IMAGE"
+	ConfigSyncImageEnvKey                   string = "SKUPPER_CONFIG_SYNC_IMAGE"
+	FlowCollectorImageEnvKey                string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
+	PrometheusServerImageEnvKey             string = "PROMETHEUS_SERVER_IMAGE"
+	RouterPullPolicyEnvKey                  string = "QDROUTERD_IMAGE_PULL_POLICY"
+	ServiceControllerPullPolicyEnvKey       string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
+	ServiceControllerPodmanPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_PODMAN_IMAGE_PULL_POLICY"
+	ConfigSyncPullPolicyEnvKey              string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
+	FlowCollectorPullPolicyEnvKey           string = "SKUPPER_FLOW_COLLECTOR_IMAGE_PULL_POLICY"
+	PrometheusServerPullPolicyEnvKey        string = "PROMETHEUS_SERVER_IMAGE_PULL_POLICY"
+	SkupperImageRegistryEnvKey              string = "SKUPPER_IMAGE_REGISTRY"
+	PrometheusImageRegistryEnvKey           string = "PROMETHEUS_IMAGE_REGISTRY"
 )
 
 func getPullPolicy(key string) string {
@@ -86,6 +88,27 @@ func GetServiceControllerImageDetails() types.ImageDetails {
 	return types.ImageDetails{
 		Name:       GetServiceControllerImageName(),
 		PullPolicy: GetServiceControllerImagePullPolicy(),
+	}
+}
+
+func GetServiceControllerPodmanImageName() string {
+	image := os.Getenv(ServiceControllerPodmanImageEnvKey)
+	if image == "" {
+		imageRegistry := GetImageRegistry()
+		return strings.Join([]string{imageRegistry, ServiceControllerPodmanImageName}, "/")
+	} else {
+		return image
+	}
+}
+
+func GetServiceControllerPodmanImagePullPolicy() string {
+	return getPullPolicy(ServiceControllerPodmanPullPolicyEnvKey)
+}
+
+func GetServiceControllerPodmanImageDetails() types.ImageDetails {
+	return types.ImageDetails{
+		Name:       GetServiceControllerPodmanImageName(),
+		PullPolicy: GetServiceControllerPodmanImagePullPolicy(),
 	}
 }
 

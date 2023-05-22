@@ -1,4 +1,4 @@
-package main
+package controller
 
 import (
 	"crypto/tls"
@@ -14,6 +14,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
+// ControllerPodman defines the podman site implementation of the service controller.
 type ControllerPodman struct {
 	cli               *clientpodman.PodmanRestClient
 	cfg               *podman.Config
@@ -83,7 +84,7 @@ func (c *ControllerPodman) Run(stopCh <-chan struct{}) error {
 	//
 
 	// HostRecord for podman host is provided only at startup
-	c.SendPodmanHostRecord(flowController, siteCreationTime)
+	SendPodmanHostRecord(c.cli, c.site, c.origin, flowController, siteCreationTime)
 
 	// ProcessRecord container informer
 	c.containerInformer = clientpodman.NewContainerInformer(c.cli)
