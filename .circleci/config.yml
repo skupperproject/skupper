@@ -349,13 +349,8 @@ workflows:
             - build_and_push_test_images
 
       - generate_manifest:
-          requires:
-            - test
-            - build_and_push_test_images
-
-      - test_manifest:
-          requires:
-            - generate_manifest
+          <<: *run_for_numeric_tags
+          <<: *release_requires
 
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
@@ -533,18 +528,6 @@ jobs:
       - system_monitor
       - run: kubectl cluster-info
       - run_cluster_policy_tests
-
-  test_manifest:
-    docker:
-      - image: cibuilds/github:0.10
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: "Create a Draft Release on GitHub"
-          command: |
-            ls tmp
-            ls "$BASEDIR/tmp/"
 
   publish-github-release-artifacts:
     docker:
