@@ -282,6 +282,10 @@ commands:
               | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:unstable.list > /dev/null
             sudo apt-get update -qq
             sudo apt-get -qq -y install podman
+            # systemd user session fix - https://github.com/containers/podman/issues/16529
+            mkdir -p ~/.config/containers/containers.conf.d
+            ( echo '[engine]' ; echo 'cgroup_manager = "cgroupfs"' ) > ~/.config/containers/containers.conf.d/podman-issue-16529.conf
+
             podman version
 
             # Starting systemd user service
