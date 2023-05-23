@@ -139,6 +139,7 @@ spec:
   template:
     metadata:
       labels:
+        app.kubernetes.io/part-of: skupper
         application: skupper-site-controller
     spec:
       serviceAccountName: skupper-site-controller
