@@ -349,8 +349,13 @@ workflows:
             - build_and_push_test_images
 
       - generate_manifest:
-          <<: *run_for_numeric_tags
-          <<: *release_requires
+          requires:
+            - test
+            - build_and_push_test_images
+
+      - test_manifest:
+          requires:
+            - generate_manifest
 
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
@@ -500,7 +505,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - tmp
+            - tmp/manifest.json
 
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
@@ -529,6 +534,18 @@ jobs:
       - run: kubectl cluster-info
       - run_cluster_policy_tests
 
+  test_manifest:
+    docker:
+      - image: cibuilds/github:0.10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Create a Draft Release on GitHub"
+          command: |
+            ls tmp
+            ls "$BASEDIR/tmp/"
+
   publish-github-release-artifacts:
     docker:
       - image: cibuilds/github:0.10
@@ -549,7 +566,8 @@ jobs:
                 tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
               fi
             done
-            cp $BASEDIR/tmp/manifest.json ${BASEDIR}/archives
+            ls tmp
+            cp tmp/manifest.json ${BASEDIR}/archives
             cd ${BASEDIR}
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
