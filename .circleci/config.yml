@@ -355,6 +355,8 @@ workflows:
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           <<: *release_requires
+          requires:
+            - generate_manifest
 
       - publish-github-release-images:
           <<: *run_for_numeric_tags
