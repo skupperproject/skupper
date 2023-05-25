@@ -140,6 +140,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.Router.IngressHost, "router-ingress-host", "", "Host through which node is accessible when using nodeport as ingress.")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.LoadBalancerIp, "router-load-balancer-ip", "", "Load balancer ip that will be used for router service, if supported by cloud provider")
 	cmd.Flags().BoolVarP(&routerCreateOpts.Router.DisableMutualTLS, "router-disable-mutual-tls", "", false, "Disables client authentication through TLS of sites linking to this site")
+	cmd.Flags().StringVarP(&routerCreateOpts.Router.DataConnectionCount, "router-data-connection-count", "", "", "Configures the number of data connections the router will use when linking to other routers")
 
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Cpu, "controller-cpu", "", "CPU request for controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Memory, "controller-memory", "", "Memory request for controller pods")

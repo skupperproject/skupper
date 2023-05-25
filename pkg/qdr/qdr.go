@@ -69,6 +69,7 @@ func InitialConfig(id string, siteId string, version string, edge bool, helloAge
 
 func InitialConfigSkupperRouter(id string, siteId string, version string, edge bool, helloAge int, options types.RouterOptions) RouterConfig {
 	routerConfig := InitialConfig(id, siteId, version, edge, helloAge)
+	routerConfig.Metadata.DataConnectionCount = options.DataConnectionCount
 
 	if options.Logging != nil {
 		ConfigureRouterLogging(&routerConfig, options.Logging)
@@ -411,10 +412,11 @@ const (
 )
 
 type RouterMetadata struct {
-	Id                 string `json:"id,omitempty"`
-	Mode               Mode   `json:"mode,omitempty"`
-	HelloMaxAgeSeconds string `json:"helloMaxAgeSeconds,omitempty"`
-	Metadata           string `json:"metadata,omitempty"`
+	Id                  string `json:"id,omitempty"`
+	Mode                Mode   `json:"mode,omitempty"`
+	HelloMaxAgeSeconds  string `json:"helloMaxAgeSeconds,omitempty"`
+	DataConnectionCount string `json:"dataConnectionCount,omitempty"`
+	Metadata            string `json:"metadata,omitempty"`
 }
 
 type SslProfile struct {
