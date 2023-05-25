@@ -58,14 +58,15 @@ type Tuning struct {
 
 type RouterOptions struct {
 	Tuning
-	Logging            []RouterLogConfig
-	DebugMode          string
-	MaxFrameSize       int
-	MaxSessionFrames   int
-	IngressHost        string
-	ServiceAnnotations map[string]string
-	LoadBalancerIp     string
-	DisableMutualTLS   bool
+	Logging             []RouterLogConfig
+	DebugMode           string
+	MaxFrameSize        int
+	MaxSessionFrames    int
+	DataConnectionCount string
+	IngressHost         string
+	ServiceAnnotations  map[string]string
+	LoadBalancerIp      string
+	DisableMutualTLS    bool
 }
 
 type ControllerOptions struct {

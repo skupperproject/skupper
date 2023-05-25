@@ -55,22 +55,23 @@ const (
 	SiteConfigPrometheusServerMemoryLimitKey    string = "prometheus-server-memory-limit"
 
 	// router options
-	SiteConfigRouterConsoleKey            string = "router-console"
-	SiteConfigRouterLoggingKey            string = "router-logging"
-	SiteConfigRouterDebugModeKey          string = "router-debug-mode"
-	SiteConfigRouterCpuKey                string = "router-cpu"
-	SiteConfigRouterMemoryKey             string = "router-memory"
-	SiteConfigRouterCpuLimitKey           string = "router-cpu-limit"
-	SiteConfigRouterMemoryLimitKey        string = "router-memory-limit"
-	SiteConfigRouterAffinityKey           string = "router-pod-affinity"
-	SiteConfigRouterAntiAffinityKey       string = "router-pod-antiaffinity"
-	SiteConfigRouterNodeSelectorKey       string = "router-node-selector"
-	SiteConfigRouterMaxFrameSizeKey       string = "xp-router-max-frame-size"
-	SiteConfigRouterMaxSessionFramesKey   string = "xp-router-max-session-frames"
-	SiteConfigRouterIngressHostKey        string = "router-ingress-host"
-	SiteConfigRouterServiceAnnotationsKey string = "router-service-annotations"
-	SiteConfigRouterLoadBalancerIp        string = "router-load-balancer-ip"
-	SiteConfigRouterDisableMutualTLS      string = "router-disable-mutual-tls"
+	SiteConfigRouterConsoleKey             string = "router-console"
+	SiteConfigRouterLoggingKey             string = "router-logging"
+	SiteConfigRouterDebugModeKey           string = "router-debug-mode"
+	SiteConfigRouterCpuKey                 string = "router-cpu"
+	SiteConfigRouterMemoryKey              string = "router-memory"
+	SiteConfigRouterCpuLimitKey            string = "router-cpu-limit"
+	SiteConfigRouterMemoryLimitKey         string = "router-memory-limit"
+	SiteConfigRouterAffinityKey            string = "router-pod-affinity"
+	SiteConfigRouterAntiAffinityKey        string = "router-pod-antiaffinity"
+	SiteConfigRouterNodeSelectorKey        string = "router-node-selector"
+	SiteConfigRouterMaxFrameSizeKey        string = "xp-router-max-frame-size"
+	SiteConfigRouterMaxSessionFramesKey    string = "xp-router-max-session-frames"
+	SiteConfigRouterDataConnectionCountKey string = "router-data-connection-count"
+	SiteConfigRouterIngressHostKey         string = "router-ingress-host"
+	SiteConfigRouterServiceAnnotationsKey  string = "router-service-annotations"
+	SiteConfigRouterLoadBalancerIp         string = "router-load-balancer-ip"
+	SiteConfigRouterDisableMutualTLS       string = "router-disable-mutual-tls"
 
 	// controller options
 	SiteConfigServiceControllerKey            string = "service-controller"
@@ -234,6 +235,9 @@ func (cli *VanClient) SiteConfigCreate(ctx context.Context, spec types.SiteConfi
 	}
 	if spec.Router.MaxSessionFrames != types.RouterMaxSessionFramesDefault {
 		siteConfig.Data[SiteConfigRouterMaxSessionFramesKey] = strconv.Itoa(spec.Router.MaxSessionFrames)
+	}
+	if spec.Router.DataConnectionCount != "" {
+		siteConfig.Data[SiteConfigRouterDataConnectionCountKey] = spec.Router.DataConnectionCount
 	}
 	if len(spec.Router.ServiceAnnotations) > 0 {
 		var annotations []string
