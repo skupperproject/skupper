@@ -117,6 +117,7 @@ func (cli *VanClient) annotateConnectorToken(ctx context.Context, namespace stri
 }
 
 func (cli *VanClient) ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error {
+	/*
 	policy := NewPolicyValidatorAPI(cli)
 	res, err := policy.IncomingLink()
 	if err != nil {
@@ -125,6 +126,7 @@ func (cli *VanClient) ConnectorTokenCreateFile(ctx context.Context, subject stri
 	if !res.Allowed {
 		return res.Err()
 	}
+        */
 	secret, localOnly, err := cli.ConnectorTokenCreate(ctx, subject, "")
 	if err == nil {
 		return certs.GenerateSecretFile(secretFile, secret, localOnly)

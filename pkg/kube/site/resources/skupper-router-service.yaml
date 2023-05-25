@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: skupper-router
+  ownerReferences:
+  - apiVersion: v1
+    kind: ConfigMap
+    name: skupper-site
+    uid: {{ .SiteId }}
+spec:
+  ports:
+  - name: inter-router
+    port: 55671
+    protocol: TCP
+    targetPort: 55671
+  - name: edge
+    port: 45671
+    protocol: TCP
+    targetPort: 45671
+  - name: claims
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app.kubernetes.io/name: skupper-router
+    app.kubernetes.io/part-of: skupper
+    application: skupper-router
+    skupper.io/component: router
+  type: {{ .ServiceType }}

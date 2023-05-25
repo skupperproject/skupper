@@ -1,0 +1,120 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skupper-site
+data:
+  console-authentication: internal
+  router-console: "true"
+  name: mysite
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: skupper
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - configmaps
+  - pods
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  resourceNames:
+  - skupper
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: skupper
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: skupper
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: skupper
+subjects:
+- kind: ServiceAccount
+  name: skupper
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-service-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      skupper.io/component: service-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: skupper-service-controller
+        app.kubernetes.io/part-of: skupper
+        skupper.io/component: service-controller
+    spec:
+      containers:
+      - name: service-controller
+        image: quay.io/gordons/service-controller
+      serviceAccount: skupper
+      serviceAccountName: skupper
+

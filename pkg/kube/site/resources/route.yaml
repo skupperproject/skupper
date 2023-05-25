@@ -1,0 +1,20 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .RouteName }}
+  labels:
+    internal.skupper.io/controlled: "true"
+  ownerReferences:
+  - apiVersion: v1
+    kind: ConfigMap
+    name: skupper-site
+    uid: {{ .SiteId }}
+spec:
+  port:
+    targetPort: {{ .PortName }}
+  tls:
+    insecureEdgeTerminationPolicy: None
+    termination: passthrough
+  to:
+    kind: Service
+    name: skupper-router

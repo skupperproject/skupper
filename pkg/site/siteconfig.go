@@ -467,7 +467,7 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 	return siteConfig, nil
 }
 
-func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngress string) (*types.SiteConfig, error) {
+func ReadSiteConfig(siteConfig *corev1.ConfigMap, defaultIngress string) (*types.SiteConfig, error) {
 	var errs []string
 	var result types.SiteConfig
 	result.Spec.SkupperNamespace = siteConfig.Namespace
@@ -475,7 +475,7 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	if skupperName, ok := siteConfig.Data[SiteConfigNameKey]; ok {
 		result.Spec.SkupperName = skupperName
 	} else {
-		result.Spec.SkupperName = namespace
+		result.Spec.SkupperName = siteConfig.Namespace
 	}
 	if routerMode, ok := siteConfig.Data[SiteConfigRouterModeKey]; ok {
 		result.Spec.RouterMode = routerMode

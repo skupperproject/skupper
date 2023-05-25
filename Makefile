@@ -29,6 +29,10 @@ build-cmd: generate-client
 build-get:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o get ./cmd/get
 
+
+build-controller:
+	go build -ldflags="${LDFLAGS}"  -o controller cmd/controller/main.go cmd/controller/controller.go
+
 build-service-controller:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o service-controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/ports.go cmd/service-controller/definition_monitor.go cmd/service-controller/console_server.go cmd/service-controller/site_query.go cmd/service-controller/ip_lookup.go cmd/service-controller/token_handler.go cmd/service-controller/secret_controller.go cmd/service-controller/claim_handler.go cmd/service-controller/tokens.go cmd/service-controller/links.go cmd/service-controller/services.go cmd/service-controller/policies.go cmd/service-controller/policy_controller.go cmd/service-controller/revoke_access.go  cmd/service-controller/nodes.go
 
@@ -44,7 +48,7 @@ build-flow-collector:
 build-config-sync:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o config-sync cmd/config-sync/main.go cmd/config-sync/config_sync.go cmd/config-sync/collector.go
 
-build-controllers: build-site-controller build-service-controller build-controller-podman build-flow-collector
+build-controllers: build-controller build-site-controller build-service-controller build-controller-podman build-flow-collector
 
 build-manifest:
 	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
