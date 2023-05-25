@@ -181,17 +181,6 @@ func ConfigureSiteCredentials(site Site, ingressHosts ...string) {
 		})
 	}
 
-	controllerHosts := []string{types.ControllerDeploymentName, types.ControllerServiceName}
-	controllerHosts = append(controllerHosts, ingressHosts...)
-	credentials = append(credentials, types.Credential{
-		CA:          types.SiteCaSecret,
-		Name:        types.ClaimsServerSecret,
-		Subject:     types.ControllerServiceName,
-		Hosts:       controllerHosts,
-		ConnectJson: false,
-		Post:        false,
-	})
-
 	site.SetCredentials(credentials)
 }
 

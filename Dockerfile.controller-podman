@@ -17,5 +17,5 @@ RUN useradd --uid 10000 runner
 USER 10000
 
 WORKDIR /app
-COPY --from=builder /go/src/app/service-controller-podman .
-CMD ["/app/service-controller-podman"]
+COPY --from=builder /go/src/app/controller-podman .
+CMD ["/app/controller-podman"]

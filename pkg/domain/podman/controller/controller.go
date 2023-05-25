@@ -14,7 +14,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-// ControllerPodman defines the podman site implementation of the service controller.
+// ControllerPodman defines the podman site implementation of the controller.
 type ControllerPodman struct {
 	cli               *clientpodman.PodmanRestClient
 	cfg               *podman.Config

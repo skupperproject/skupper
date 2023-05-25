@@ -60,8 +60,8 @@ func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, err
 			Labels:        c.Labels,
 			SiteIngresses: siteIngresses,
 		}
-	case types.ControllerDeploymentName:
-		component = &domain.ServiceController{
+	case types.ControllerPodmanContainerName:
+		component = &domain.Controller{
 			Image:         c.Image,
 			Env:           c.Env,
 			Labels:        c.Labels,

@@ -93,39 +93,39 @@ func (r *FlowCollector) GetSiteIngresses() []SiteIngress {
 	return r.SiteIngresses
 }
 
-type ServiceController struct {
+type Controller struct {
 	Image         string
 	Env           map[string]string
 	Labels        map[string]string
 	SiteIngresses []SiteIngress
 }
 
-func (s *ServiceController) Name() string {
-	return types.ControllerDeploymentName
+func (s *Controller) Name() string {
+	return types.ControllerPodmanContainerName
 }
 
-func (s *ServiceController) GetImage() string {
-	return images.GetServiceControllerPodmanImageName()
+func (s *Controller) GetImage() string {
+	return images.GetControllerPodmanImageName()
 }
 
-func (s *ServiceController) SetImage(image string) {
+func (s *Controller) SetImage(image string) {
 	s.Image = image
 }
 
-func (s *ServiceController) GetEnv() map[string]string {
+func (s *Controller) GetEnv() map[string]string {
 	if s.Env == nil {
 		s.Env = map[string]string{}
 	}
 	return s.Env
 }
 
-func (s *ServiceController) GetLabels() map[string]string {
+func (s *Controller) GetLabels() map[string]string {
 	if s.Labels == nil {
 		s.Labels = map[string]string{}
 	}
 	return s.Labels
 }
 
-func (s *ServiceController) GetSiteIngresses() []SiteIngress {
+func (s *Controller) GetSiteIngresses() []SiteIngress {
 	return s.SiteIngresses
 }

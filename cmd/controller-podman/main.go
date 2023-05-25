@@ -19,7 +19,7 @@ var shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
 
 func main() {
 	// if -version used, report and exit
-	isVersion := flag.Bool("version", false, "Report the version of the Skupper Service Controller")
+	isVersion := flag.Bool("version", false, "Report the version of the Skupper Controller")
 	flag.Parse()
 	if *isVersion {
 		fmt.Println(version.Version)
@@ -27,7 +27,7 @@ func main() {
 	}
 
 	// Startup message
-	log.Printf("Skupper service controller")
+	log.Printf("Skupper controller")
 	log.Printf("Version: %s", version.Version)
 
 	origin := os.Getenv("SKUPPER_SITE_ID")

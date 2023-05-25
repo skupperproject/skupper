@@ -18,7 +18,6 @@ import (
 )
 
 var credentialMountInContainer = map[string]string{
-	types.ClaimsServerSecret:  "/etc/service-controller/certs/",
 	types.ConsoleServerSecret: "/etc/service-controller/console",
 	types.LocalClientSecret:   "/etc/messaging",
 	types.LocalServerSecret:   "/etc/skupper-router-certs/skupper-amqps/",

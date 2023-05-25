@@ -50,7 +50,7 @@ func (s *Site) GetConsoleUrl() string {
 	if s.EnableFlowCollector {
 		ipAddr := "0.0.0.0"
 		if len(s.IngressBindIPs) > 0 {
-			ipAddr = s.IngressBindIPs[0]
+			ipAddr = utils.DefaultStr(s.IngressBindIPs[0], ipAddr)
 		}
 		port := s.IngressBindFlowCollectorPort
 		return fmt.Sprintf("https://%s:%d", ipAddr, port)
@@ -117,7 +117,7 @@ func (s *SiteHandler) prepare(site domain.Site) (domain.Site, error) {
 
 func (s *SiteHandler) ConfigurePodmanDeployments(site *Site) {
 	site.Deployments = append(site.Deployments, s.prepareRouterDeployment(site))
-	site.Deployments = append(site.Deployments, s.prepareServiceControllerDeployment(site))
+	site.Deployments = append(site.Deployments, s.prepareControllerDeployment(site))
 	if site.EnableFlowCollector {
 		site.Deployments = append(site.Deployments, s.prepareFlowCollectorDeployment(site))
 	}
@@ -518,7 +518,7 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				}
 				site.ConsoleUser = user
 				site.ConsolePassword = password
-			case *domain.ServiceController:
+			case *domain.Controller:
 			}
 		}
 	}
@@ -734,13 +734,12 @@ func (s *SiteHandler) getConsoleUserPass() (string, string, error) {
 	return user, pass, nil
 }
 
-func (s *SiteHandler) prepareServiceControllerDeployment(site *Site) *SkupperDeployment {
+func (s *SiteHandler) prepareControllerDeployment(site *Site) *SkupperDeployment {
 	// Service Controller Deployment
 	volumeMounts := map[string]string{
 		types.ServiceInterfaceConfigMap: "/etc/skupper-services",
 		types.LocalClientSecret:         "/etc/messaging",
 		types.ConsoleUsersSecret:        "/etc/console-users",
-		types.ClaimsServerSecret:        "/etc/service-controller/certs/",
 		types.ConsoleServerSecret:       "/etc/service-controller/console",
 		types.LocalServerSecret:         "/etc/skupper-router-certs/skupper-amqps/",
 		types.TransportConfigMapName:    "/etc/skupper-router/config/",
@@ -754,7 +753,7 @@ func (s *SiteHandler) prepareServiceControllerDeployment(site *Site) *SkupperDep
 		endpoint = "/tmp/podman.sock"
 		volumeMounts[sockFile] = endpoint
 	}
-	ctrlComponent := &domain.ServiceController{
+	ctrlComponent := &domain.Controller{
 		// TODO ADD Labels
 		Labels: map[string]string{},
 		Env: map[string]string{
@@ -771,13 +770,13 @@ func (s *SiteHandler) prepareServiceControllerDeployment(site *Site) *SkupperDep
 		site.AuthMode = types.ConsoleAuthModeInternal
 	}
 	ctrlDeployment := &SkupperDeployment{
-		Name: types.ControllerDeploymentName,
+		Name: types.ControllerPodmanContainerName,
 		SkupperDeploymentCommon: &domain.SkupperDeploymentCommon{
 			Components: []domain.SkupperComponent{
 				ctrlComponent,
 			},
 		},
-		Aliases:        []string{types.ControllerServiceName, types.ControllerDeploymentName},
+		Aliases:        []string{types.ControllerServiceName, types.ControllerPodmanContainerName},
 		VolumeMounts:   volumeMounts,
 		Networks:       []string{site.ContainerNetwork},
 		SELinuxDisable: true,

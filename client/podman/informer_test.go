@@ -66,7 +66,7 @@ func TestContainerInformer(t *testing.T) {
 	}
 
 	// Pulling image
-	image := images.GetServiceControllerPodmanImageName()
+	image := images.GetServiceControllerImageName()
 	assert.Assert(t, cli.ImagePull(image))
 
 	var containersLeft = map[string]bool{}
