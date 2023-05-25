@@ -228,6 +228,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	} else {
 		result.Spec.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
 	}
+	if routerDataConnectionCount, ok := siteConfig.Data[SiteConfigRouterDataConnectionCountKey]; ok && routerDataConnectionCount != "" {
+		result.Spec.Router.DataConnectionCount = routerDataConnectionCount
+	}
 
 	if routerServiceAnnotations, ok := siteConfig.Data[SiteConfigRouterServiceAnnotationsKey]; ok {
 		result.Spec.Router.ServiceAnnotations = asMap(splitWithEscaping(routerServiceAnnotations, ',', '\\'))
