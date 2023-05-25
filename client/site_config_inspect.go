@@ -34,5 +34,5 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 	} else {
 		siteConfig = input
 	}
-	return site.ReadSiteConfig(siteConfig, namespace, cli.GetIngressDefault())
+	return site.ReadSiteConfig(siteConfig, cli.GetIngressDefault())
 }

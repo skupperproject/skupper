@@ -337,7 +337,7 @@ const (
 const (
 	ClaimRedemptionPort      int32  = 8081
 	ClaimRedemptionPortName  string = "claims"
-	ClaimRedemptionRouteName string = "claims"
+	ClaimRedemptionRouteName string = "skupper-claims"
 )
 
 type PrometheusAuthMode string
@@ -565,6 +565,7 @@ type Credential struct {
 	Data        map[string][]byte
 	Simple      bool `default:"false"`
 	Labels      map[string]string
+	Expiration  time.Duration
 }
 
 type CertAuthority struct {

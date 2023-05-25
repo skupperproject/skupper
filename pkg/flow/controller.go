@@ -57,6 +57,13 @@ func NewFlowController(origin string, version string, creationTime uint64, conne
 	return fc
 }
 
+func (c *FlowController) UpdateProcess(deleted bool, name string, process *ProcessRecord) error {
+	if process != nil {
+		process.Parent = c.origin
+	}
+	return UpdateProcess(c, deleted, name, process)
+}
+
 func UpdateProcess(c *FlowController, deleted bool, name string, process *ProcessRecord) error {
 
 	// wait for update where host is assigned
@@ -86,6 +93,13 @@ func UpdateProcess(c *FlowController, deleted bool, name string, process *Proces
 	}
 
 	return nil
+}
+
+func (c *FlowController) UpdateHost(deleted bool, name string, host *HostRecord) error {
+	if host != nil {
+		host.Parent = c.origin
+	}
+	return UpdateHost(c, deleted, name, host)
 }
 
 func UpdateHost(c *FlowController, deleted bool, name string, host *HostRecord) error {
@@ -176,6 +190,7 @@ func (c *FlowController) updateRecords(stopCh <-chan struct{}, siteRecordsIncomi
 			c.recordOutgoing <- process
 		case site, ok := <-siteRecordsIncoming:
 			if !ok {
+				log.Println("incoming site record is not ok; looping")
 				continue
 			}
 			c.recordOutgoing <- site
@@ -249,7 +264,7 @@ func newSiteRecordController(createdAt uint64, version string, policyEvaluator P
 	platform := config.GetPlatform()
 	if platform == "" || platform == types.PlatformKubernetes {
 		platformStr = string(types.PlatformKubernetes)
-		policy = policyEvaluator.Enabled()
+		policy = policyEvaluator != nil && policyEvaluator.Enabled()
 	} else if platform == types.PlatformPodman {
 		platformStr = string(types.PlatformPodman)
 	}
@@ -271,9 +286,10 @@ func (c *siteRecordController) Start(stopCh <-chan struct{}) <-chan *SiteRecord 
 	go func() {
 		updates <- c.Record()
 
-		if c.Platform != string(types.PlatformKubernetes) {
+		if c.Platform != string(types.PlatformKubernetes) || c.policyEvaluator == nil {
 			return
 		}
+		defer close(updates)
 		// watch for changes to  policy enabled
 		pollInterval := c.pollInterval
 		if pollInterval <= 0 {

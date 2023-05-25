@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: skupper-router
+    app.kubernetes.io/part-of: skupper
+    application: skupper-router
+    skupper.io/component: router
+    skupper.io/type: site
+  name: skupper-router
+  ownerReferences:
+  - apiVersion: v1
+    kind: ConfigMap
+    name: skupper-site
+    uid: {{ .SiteId }}
+spec:
+  replicas: {{ .Replicas }}
+  selector:
+    matchLabels:
+      skupper.io/component: router
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "9090"
+        prometheus.io/scrape: "true"
+        skupper.io/config-digest: {{ .ConfigDigest }}
+      labels:
+        app.kubernetes.io/name: skupper-router
+        app.kubernetes.io/part-of: skupper
+        application: skupper-router
+        skupper.io/component: router
+        skupper.io/type: site
+    spec:
+      containers:
+      - env:
+        - name: APPLICATION_NAME
+          value: skupper-router
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: QDROUTERD_AUTO_MESH_DISCOVERY
+          value: QUERY
+        - name: QDROUTERD_CONF
+          value: /etc/skupper-router/config/skrouterd.json
+        - name: QDROUTERD_CONF_TYPE
+          value: json
+        - name: SKUPPER_SITE_ID
+          value: {{ .SiteId }}
+        image: {{ .RouterImage.Name }}
+        imagePullPolicy: {{ .RouterImage.PullPolicy }}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 9090
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: router
+        ports:
+        - containerPort: 5671
+          name: amqps
+          protocol: TCP
+        - containerPort: 9090
+          name: http
+          protocol: TCP
+        - containerPort: 55671
+          name: inter-router
+          protocol: TCP
+        - containerPort: 45671
+          name: edge
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 9090
+            scheme: HTTP
+          initialDelaySeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        volumeMounts:
+        - mountPath: /etc/skupper-router-certs/skupper-amqps/
+          name: skupper-local-server
+        - mountPath: /etc/skupper-router/config/
+          name: router-config
+        - mountPath: /etc/skupper-router-certs/skupper-internal/
+          name: skupper-site-server
+        - mountPath: /etc/skupper-router-certs
+          name: skupper-router-certs
+      - env:
+        - name: SKUPPER_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: SKUPPER_SITE_ID
+          value: {{ .SiteId }}
+        - name: SKUPPER_SITE_NAME
+          value: {{ .SiteName }}
+        image: {{ .ConfigSyncImage.Name }}
+        imagePullPolicy: {{ .ConfigSyncImage.PullPolicy }}
+        name: config-sync
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 9191
+            scheme: HTTP
+          initialDelaySeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        volumeMounts:
+        - mountPath: /etc/skupper-internal/
+          name: claims-cert
+        - mountPath: /etc/skupper-router-certs
+          name: skupper-router-certs
+      serviceAccount: {{ .ServiceAccount }}
+      volumes:
+      - name: skupper-local-server
+        secret:
+          defaultMode: 420
+          secretName: skupper-local-server
+      - configMap:
+          defaultMode: 420
+          name: skupper-internal
+        name: router-config
+      - name: skupper-site-server
+        secret:
+          defaultMode: 420
+          secretName: skupper-site-server
+      - name: claims-cert
+        secret:
+          defaultMode: 420
+          secretName: skupper-site-server
+      - emptyDir: {}
+        name: skupper-router-certs

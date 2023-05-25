@@ -41,7 +41,7 @@ func (s *SiteContext) LoadConfig(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	siteConfig, _ := site.ReadSiteConfig(sconfig, s.namespace, s.defaultIngress())
+	siteConfig, _ := site.ReadSiteConfig(sconfig, s.defaultIngress())
 
 	rconfig, err := s.getConfigMap(ctx, types.TransportConfigMapName)
 	if err != nil {
@@ -65,7 +65,11 @@ func (s *SiteContext) LoadConfig(ctx context.Context) error {
 }
 
 func (s *SiteContext) defaultIngress() string {
-	if s.clients.GetRouteClient() == nil {
+	return defaultIngress(s.clients)
+}
+
+func defaultIngress(clients kube.Clients) string {
+	if clients.GetRouteClient() == nil {
 		return types.IngressLoadBalancerString
 	}
 	return types.IngressRouteString

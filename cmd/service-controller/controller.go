@@ -33,6 +33,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/ports"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/service"
@@ -52,7 +53,7 @@ type Controller struct {
 	// control loop state:
 	events              workqueue.RateLimitingInterface
 	bindings            map[string]*service.ServiceBindings
-	ports               *FreePorts
+	ports               *ports.FreePorts
 	previousDefinitions map[string]string
 
 	// service_sync state:
@@ -168,7 +169,7 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *certs.TlsCon
 		headlessInformer:   headlessInformer,
 		externalBridges:    externalBridges,
 		events:             events,
-		ports:              newFreePorts(),
+		ports:              ports.NewFreePorts(),
 		disableServiceSync: disableServiceSync,
 	}
 	AddStaticPolicyWatcher(controller.policy)
@@ -647,16 +648,16 @@ func (c *Controller) initialiseServiceBindingsMap() (map[string][]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	allocations := c.ports.getPortAllocations(bridges)
+	allocations := getPortAllocations(c.ports, bridges)
 	// TODO: should deduce the ports in use by the router by
 	// reading config rather than hardcoding them here
-	c.ports.inuse(int(types.AmqpDefaultPort))
-	c.ports.inuse(int(types.AmqpsDefaultPort))
-	c.ports.inuse(int(types.EdgeListenerPort))
-	c.ports.inuse(int(types.InterRouterListenerPort))
-	c.ports.inuse(int(types.ConsoleDefaultServicePort))
-	c.ports.inuse(9090) // currently hardcoded in config
-	c.ports.inuse(9191) // currently hardcoded in config
+	c.ports.InUse(int(types.AmqpDefaultPort))
+	c.ports.InUse(int(types.AmqpsDefaultPort))
+	c.ports.InUse(int(types.EdgeListenerPort))
+	c.ports.InUse(int(types.InterRouterListenerPort))
+	c.ports.InUse(int(types.ConsoleDefaultServicePort))
+	c.ports.InUse(9090) // currently hardcoded in config
+	c.ports.InUse(9191) // currently hardcoded in config
 	return allocations, nil
 
 }
@@ -1043,7 +1044,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			}
 			if len(ports) == 0 {
 				for i := 0; i < len(required.Ports); i++ {
-					port, err := c.ports.nextFreePort()
+					port, err := c.ports.NextFreePort()
 					if err != nil {
 						return err
 					}
@@ -1064,7 +1065,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		ports := bindings.GetIngressPorts()
 		if len(ports) < len(required.Ports) {
 			for i := 0; i < len(required.Ports); i++ {
-				port, err := c.ports.nextFreePort()
+				port, err := c.ports.NextFreePort()
 				if err != nil {
 					return err
 				}
@@ -1074,7 +1075,7 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 		} else if len(ports) > len(required.Ports) {
 			// in case updated service exposes less ports than before
 			for i := len(required.Ports); i < len(ports); i++ {
-				c.ports.release(ports[i])
+				c.ports.Release(ports[i])
 			}
 			ports = ports[:len(required.Ports)]
 			bindings.SetIngressPorts(ports)

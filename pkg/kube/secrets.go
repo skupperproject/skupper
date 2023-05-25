@@ -3,7 +3,9 @@ package kube
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,7 +48,7 @@ func PrepareNewSecret(cred types.Credential, caSecret *corev1.Secret, connectJso
 		if cred.Simple {
 			secret = certs.GenerateSimpleSecret(cred.Name, caSecret)
 		} else {
-			secret = certs.GenerateSecret(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), caSecret)
+			secret = certs.GenerateSecretWithExpiration(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), cred.Expiration, caSecret)
 		}
 		if cred.ConnectJson {
 			secret.Data["connect.json"] = []byte(configs.ConnectJson(connectJsonHost))
@@ -103,6 +105,67 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 	return &secret, nil
 }
 
+func isCertCorrect(cred types.Credential, data []byte) bool {
+	cert, err := certs.DecodeCertificate(data)
+	if err != nil {
+		return false
+	}
+	if time.Now().After(cert.NotAfter) {
+		log.Printf("Certificate %s has expired", cred.Name)
+		return false
+	}
+	if cred.Subject != cert.Subject.CommonName {
+		return false
+	}
+	validFor := map[string]string{}
+	for _, host := range cert.DNSNames {
+		validFor[host] = host
+	}
+	for _, ip := range cert.IPAddresses {
+		validFor[ip.String()] = ip.String()
+	}
+	for _, host := range cred.Hosts {
+		if _, ok := validFor[host]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func EnsureSecret(cred types.Credential, owner *metav1.OwnerReference, namespace string, cli kubernetes.Interface) error {
+	ctxt := context.TODO()
+	existing, err := cli.CoreV1().Secrets(namespace).Get(ctxt, cred.Name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		_, err = NewSecret(cred, owner, namespace, cli)
+		return err
+	} else if err != nil {
+		return nil
+	}
+	if cred.Simple {
+		// no cert to check
+		return nil
+	}
+	if certData, ok := existing.Data["tls.crt"]; !ok || !isCertCorrect(cred, certData) {
+		log.Printf("Certificate needs updated for %s", cred.Name)
+		caSecret, err := cli.CoreV1().Secrets(namespace).Get(ctxt, cred.CA, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		secret := certs.GenerateSecretWithExpiration(cred.Name, cred.Subject, strings.Join(cred.Hosts, ","), cred.Expiration, caSecret)
+		existing.Data = secret.Data
+		_, err = cli.CoreV1().Secrets(namespace).Update(ctxt, existing, metav1.UpdateOptions{})
+		if err == nil {
+			log.Printf("Certificate updated for %s", cred.Name)
+		} else {
+			log.Printf("Certificate could not be updated for %s: %s", cred.Name, err)
+		}
+		return err
+	}
+	log.Printf("Certificate is ok for %s", cred.Name)
+
+	return nil
+}
+
 func DeleteSecret(name string, namespace string, cli kubernetes.Interface) error {
 	secrets := cli.CoreV1().Secrets(namespace)
 	err := secrets.Delete(context.TODO(), name, metav1.DeleteOptions{})
@@ -157,7 +220,7 @@ func RegenerateCredentials(credential types.Credential, namespace string, ca *co
 	if err != nil {
 		return nil, err
 	}
-	regenerated := certs.GenerateSecret(credential.Name, credential.Subject, strings.Join(credential.Hosts, ","), ca)
+	regenerated := certs.GenerateSecretWithExpiration(credential.Name, credential.Subject, strings.Join(credential.Hosts, ","), credential.Expiration, ca)
 	current.Data = regenerated.Data
 	return cli.CoreV1().Secrets(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 }

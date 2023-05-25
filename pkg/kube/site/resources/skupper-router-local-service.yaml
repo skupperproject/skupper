@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: skupper-router-local
+  ownerReferences:
+  - apiVersion: v1
+    kind: ConfigMap
+    name: skupper-site
+    uid: {{ .SiteId }}
+spec:
+  ports:
+  - name: amqps
+    port: 5671
+    protocol: TCP
+    targetPort: 5671
+  selector:
+    app.kubernetes.io/name: skupper-router
+    app.kubernetes.io/part-of: skupper
+    application: skupper-router
+    skupper.io/component: router
+  type: ClusterIP

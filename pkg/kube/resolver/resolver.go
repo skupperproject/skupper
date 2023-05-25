@@ -21,8 +21,14 @@ import (
 )
 
 type HostPort struct {
-	Host string
-	Port int32
+	Host string `json:"host,omitempty"`
+	Port int32  `json:"port,omitempty"`
+}
+
+type HostPorts struct {
+	InterRouter HostPort `json:"inter-router,omitempty"`
+	Edge        HostPort `json:"edge,omitempty"`
+	Claims      HostPort `json:"claims,omitempty"`
 }
 
 type Resolver interface {
