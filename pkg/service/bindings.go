@@ -197,6 +197,9 @@ func NewServiceBindings(required types.ServiceInterface, ports []int, bindingCon
 }
 
 func (bindings *ServiceBindings) RealiseIngress() error {
+	if bindings.ingressBinding == nil {
+		return nil
+	}
 	return bindings.ingressBinding.Realise(bindings)
 }
 
