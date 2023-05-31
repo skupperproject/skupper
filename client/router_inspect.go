@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -18,7 +19,12 @@ import (
 )
 
 func (cli *VanClient) getConsoleUrl() (string, error) {
-	if cli.RouteClient == nil {
+	config, err := cli.SiteConfigInspect(context.Background(), nil)
+	if err != nil {
+		return "", err
+	}
+	routeClientIngress := utils.DefaultStr(config.Spec.Ingress, types.IngressRouteString)
+	if cli.RouteClient == nil || routeClientIngress != types.IngressRouteString {
 		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), types.ControllerServiceName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
@@ -32,10 +38,6 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 					if p.Name == "metrics" {
 						port = strconv.Itoa(int(p.NodePort))
 					}
-				}
-				config, err := cli.SiteConfigInspect(context.Background(), nil)
-				if err != nil {
-					return "", err
 				}
 				host := config.Spec.GetControllerIngressHost()
 				if host == "" || port == "" {
