@@ -91,7 +91,7 @@ func hashPrometheusPassword(password string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(password), 14)
 }
 
-func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, van *types.RouterSpec, transport *appsv1.Deployment, siteId string) {
+func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, van *types.RouterSpec) {
 	// prometheus-server container index
 	const (
 		prometheusServer = iota
@@ -1453,102 +1453,20 @@ sasldb_path: /tmp/skrouterd.sasldb
 			return err
 		}
 	}
+
 	if options.Spec.EnableFlowCollector && options.Spec.PrometheusServer.ExternalServer == "" {
 		//	Stand up local prometheus server for metric aggregation
-		cli.GetVanPrometheusServerSpec(options.Spec, van, dep, siteId)
+		cli.GetVanPrometheusServerSpec(options.Spec, van)
 		err := configureDeployment(&van.PrometheusServer, &options.Spec.Controller.Tuning)
 		if err != nil {
-			fmt.Println("Error configuring controller:", err)
+			return err
 		}
-
-		promInfo := PrometheusInfo{
-			BasicAuth:   false,
-			TlsAuth:     false,
-			ServiceName: types.ControllerServiceName,
-			Namespace:   van.Namespace,
-			Port:        strconv.Itoa(int(types.FlowCollectorDefaultServicePort)),
-			User:        "admin",
-			Password:    "admin",
-			Hash:        "",
-		}
-		if options.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeBasic) {
-			promInfo.BasicAuth = true
-			if options.Spec.PrometheusServer.User != "" {
-				promInfo.User = options.Spec.PrometheusServer.User
-			}
-			if options.Spec.PrometheusServer.Password != "" {
-				promInfo.Password = options.Spec.PrometheusServer.Password
-			}
-			hash, _ := hashPrometheusPassword(promInfo.Password)
-			promInfo.Hash = string(hash)
-		} else if options.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeTls) {
-			promInfo.TlsAuth = true
-		}
-		prometheusData := &map[string]string{
-			"prometheus.yml": scrapeConfigForPrometheus(promInfo),
-			"web-config.yml": webConfigForPrometheus(promInfo),
-		}
-		kube.NewConfigMap("prometheus-server-config", prometheusData, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
-
-		for _, sa := range van.PrometheusServer.ServiceAccounts {
-			sa.ObjectMeta.OwnerReferences = ownerRefs
-			_, err = kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return err
-			}
-		}
-		for _, role := range van.PrometheusServer.Roles {
-			role.ObjectMeta.OwnerReferences = ownerRefs
-			_, err = kube.CreateRole(van.Namespace, role, cli.KubeClient)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return err
-			}
-		}
-		for _, roleBinding := range van.PrometheusServer.RoleBindings {
-			roleBinding.ObjectMeta.OwnerReferences = ownerRefs
-			_, err = kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return err
-			}
-		}
-		for _, svc := range van.PrometheusServer.Services {
-			svc.ObjectMeta.OwnerReferences = ownerRefs
-			_, err = kube.CreateService(svc, van.Namespace, cli.KubeClient)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return err
-			}
-		}
-		if options.Spec.IsIngressRoute() {
-			for _, rte := range van.PrometheusServer.Routes {
-				rte.ObjectMeta.OwnerReferences = ownerRefs
-				_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
-				if err != nil && !errors.IsAlreadyExists(err) {
-					return err
-				}
-			}
-		}
-		for _, cred := range van.PrometheusCredentials {
-			if options.Spec.IsIngressLoadBalancer() {
-				err = cli.appendLoadBalancerHostOrIp(currentContext, types.PrometheusServiceName, van.Namespace, &cred)
-				if err != nil {
-					return err
-				}
-			} else if options.Spec.IsIngressNginxIngress() && cred.Post {
-				err = cli.appendIngressHost([]string{"prometheus"}, van.Namespace, &cred)
-				if err != nil {
-					return err
-				}
-			}
-			_, err = kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return err
-			}
-		}
-		_, err = kube.NewPrometheusServerDeployment(van, siteOwnerRef, cli.KubeClient)
-		if err != nil && !errors.IsAlreadyExists(err) {
+		err = cli.createPrometheus(ctx, &options, *van)
+		if err != nil {
 			return err
 		}
 	}
+
 	if options.Spec.CreateNetworkPolicy {
 		err = kube.CreateNetworkPolicy(ownerRefs, van.Namespace, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
@@ -1829,4 +1747,101 @@ basic_auth_users:
 	promConfig.Execute(&buf, info)
 
 	return buf.String()
+}
+
+func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.SiteConfig, van types.RouterSpec) error {
+	promInfo := PrometheusInfo{
+		BasicAuth:   false,
+		TlsAuth:     false,
+		ServiceName: types.ControllerServiceName,
+		Namespace:   van.Namespace,
+		Port:        strconv.Itoa(int(types.FlowCollectorDefaultServicePort)),
+		User:        "admin",
+		Password:    "admin",
+		Hash:        "",
+	}
+	if siteConfig.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeBasic) {
+		promInfo.BasicAuth = true
+		if siteConfig.Spec.PrometheusServer.User != "" {
+			promInfo.User = siteConfig.Spec.PrometheusServer.User
+		}
+		if siteConfig.Spec.PrometheusServer.Password != "" {
+			promInfo.Password = siteConfig.Spec.PrometheusServer.Password
+		}
+		hash, _ := hashPrometheusPassword(promInfo.Password)
+		promInfo.Hash = string(hash)
+	} else if siteConfig.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeTls) {
+		promInfo.TlsAuth = true
+	}
+	prometheusData := &map[string]string{
+		"prometheus.yml": scrapeConfigForPrometheus(promInfo),
+		"web-config.yml": webConfigForPrometheus(promInfo),
+	}
+	siteOwnerRef := asOwnerReference(siteConfig.Reference)
+	var ownerRefs []metav1.OwnerReference
+	if siteOwnerRef != nil {
+		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
+	}
+
+	kube.NewConfigMap("prometheus-server-config", prometheusData, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+
+	for _, sa := range van.PrometheusServer.ServiceAccounts {
+		sa.ObjectMeta.OwnerReferences = ownerRefs
+		_, err := kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	for _, role := range van.PrometheusServer.Roles {
+		role.ObjectMeta.OwnerReferences = ownerRefs
+		_, err := kube.CreateRole(van.Namespace, role, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	for _, roleBinding := range van.PrometheusServer.RoleBindings {
+		roleBinding.ObjectMeta.OwnerReferences = ownerRefs
+		_, err := kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	for _, svc := range van.PrometheusServer.Services {
+		svc.ObjectMeta.OwnerReferences = ownerRefs
+		_, err := kube.CreateService(svc, van.Namespace, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	if siteConfig.Spec.IsIngressRoute() {
+		for _, rte := range van.PrometheusServer.Routes {
+			rte.ObjectMeta.OwnerReferences = ownerRefs
+			_, err := kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				return err
+			}
+		}
+	}
+	for _, cred := range van.PrometheusCredentials {
+		if siteConfig.Spec.IsIngressLoadBalancer() {
+			err := cli.appendLoadBalancerHostOrIp(ctx, types.PrometheusServiceName, van.Namespace, &cred)
+			if err != nil {
+				return err
+			}
+		} else if siteConfig.Spec.IsIngressNginxIngress() && cred.Post {
+			err := cli.appendIngressHost([]string{"prometheus"}, van.Namespace, &cred)
+			if err != nil {
+				return err
+			}
+		}
+		_, err := kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	_, err := kube.NewPrometheusServerDeployment(&van, siteOwnerRef, cli.KubeClient)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
 }
