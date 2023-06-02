@@ -440,6 +440,7 @@ type QueryParams struct {
 	TimeRangeStart     uint64            `json:"timeRangeStart"`
 	TimeRangeEnd       uint64            `json:"timeRangeEnd"`
 	TimeRangeOperation TimeRangeRelation `json:"timeRangeOperation"`
+	State              RecordState       `json:"state"`
 }
 
 func getQueryParams(url *url.URL) QueryParams {
@@ -453,6 +454,7 @@ func getQueryParams(url *url.URL) QueryParams {
 		TimeRangeStart:     now - (15 * oneMinute),
 		TimeRangeEnd:       now,
 		TimeRangeOperation: intersects,
+		State:              all,
 	}
 
 	for k, v := range url.Query() {
@@ -499,6 +501,18 @@ func getQueryParams(url *url.URL) QueryParams {
 			default:
 				qp.TimeRangeOperation = intersects
 			}
+		case "state":
+			recordState := v[0]
+			switch recordState {
+			case "all":
+				qp.State = all
+			case "active":
+				qp.State = active
+			case "terminated":
+				qp.State = terminated
+			default:
+				qp.State = all
+			}
 		default:
 			qp.FilterFields[cases.Title(language.Und, cases.NoLower).String(k)] = v[0]
 		}
@@ -533,16 +547,30 @@ const (
 	within
 )
 
+type RecordState int
+
+const (
+	all RecordState = iota
+	active
+	terminated
+)
+
 func (base *Base) TimeRangeValid(qp QueryParams) bool {
-	switch qp.TimeRangeOperation {
-	case intersects:
-		return !(base.EndTime != 0 && base.EndTime < qp.TimeRangeStart || base.StartTime > qp.TimeRangeEnd)
-	case contains:
-		return base.StartTime <= qp.TimeRangeStart && (base.EndTime == 0 || base.EndTime >= qp.TimeRangeEnd)
-	case within:
-		return base.StartTime >= qp.TimeRangeStart && (base.EndTime != 0 && base.EndTime <= qp.TimeRangeEnd)
-	default:
+	if qp.State == active && base.EndTime != 0 {
 		return false
+	} else if qp.State == terminated && base.EndTime == 0 {
+		return false
+	} else {
+		switch qp.TimeRangeOperation {
+		case intersects:
+			return !(base.EndTime != 0 && base.EndTime < qp.TimeRangeStart || base.StartTime > qp.TimeRangeEnd)
+		case contains:
+			return base.StartTime <= qp.TimeRangeStart && (base.EndTime == 0 || base.EndTime >= qp.TimeRangeEnd)
+		case within:
+			return base.StartTime >= qp.TimeRangeStart && (base.EndTime != 0 && base.EndTime <= qp.TimeRangeEnd)
+		default:
+			return false
+		}
 	}
 }
 

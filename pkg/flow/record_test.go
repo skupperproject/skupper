@@ -270,6 +270,93 @@ func TestTimeRange(t *testing.T) {
 	}
 }
 
+func TestRecordState(t *testing.T) {
+	type test struct {
+		name               string
+		startTime          uint64
+		endTime            uint64
+		queryParams        QueryParams
+		timeRangeStart     uint64
+		timeRangeEnd       uint64
+		timeRangeOperation TimeRangeRelation
+		state              RecordState
+		result             bool
+	}
+
+	testTable := []test{
+		// A[2,3]
+		{
+			name:      "A-all",
+			startTime: 2,
+			endTime:   15,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              all,
+			},
+			result: true,
+		},
+		{
+			name:      "A-active",
+			startTime: 2,
+			endTime:   0,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              active,
+			},
+			result: true,
+		},
+		{
+			name:      "A-not-active",
+			startTime: 2,
+			endTime:   15,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              active,
+			},
+			result: false,
+		},
+		{
+			name:      "A-terminated",
+			startTime: 2,
+			endTime:   3,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              terminated,
+			},
+			result: true,
+		},
+		{
+			name:      "A-not-terminated",
+			startTime: 2,
+			endTime:   0,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              terminated,
+			},
+			result: false,
+		},
+	}
+
+	for _, test := range testTable {
+		base := Base{
+			StartTime: test.startTime,
+			EndTime:   test.endTime,
+		}
+		result := base.TimeRangeValid(test.queryParams)
+		assert.Equal(t, test.result, result, test.name)
+	}
+}
+
 func TestParameters(t *testing.T) {
 	type test struct {
 		values      map[string]string
