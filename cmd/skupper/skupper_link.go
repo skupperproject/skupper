@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/utils"

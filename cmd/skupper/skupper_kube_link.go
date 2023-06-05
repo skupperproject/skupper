@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -11,8 +12,11 @@ import (
 	"github.com/skupperproject/skupper/pkg/domain/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 type SkupperKubeLink struct {
@@ -36,8 +40,23 @@ func (s *SkupperKubeLink) Create(cmd *cobra.Command, args []string) error {
 		fmt.Println("Unable to retrieve site config: ", err.Error())
 		os.Exit(1)
 	}
+	costFlag := cmd.Flag("cost")
+	ys := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
+		scheme.Scheme)
+	var secret = &corev1.Secret{}
+	_, _, err = ys.Decode(connectorCreateOpts.Yaml, nil, secret)
+	if err != nil {
+		return fmt.Errorf("Could not parse connection token: %w", err)
+	}
+	if secret.ObjectMeta.Annotations != nil && !costFlag.Changed {
+		if costStr, ok := secret.ObjectMeta.Annotations[types.TokenCost]; ok {
+			if cost, err := strconv.Atoi(costStr); err == nil {
+				connectorCreateOpts.Cost = int32(cost)
+			}
+		}
+	}
 	connectorCreateOpts.SkupperNamespace = cli.GetNamespace()
-	secret, err := cli.ConnectorCreateSecretFromData(context.Background(), connectorCreateOpts)
+	secret, err = cli.ConnectorCreateSecretFromData(context.Background(), connectorCreateOpts)
 	if err != nil {
 		return fmt.Errorf("Failed to create link: %w", err)
 	} else {

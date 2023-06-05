@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/domain"
@@ -25,8 +26,15 @@ func (s *SkupperPodmanLink) Create(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error decoding token - %w", err)
 	}
-
 	linkHandler := podman.NewLinkHandlerPodman(s.podman.currentSite, s.podman.cli)
+	costFlag := cmd.Flag("cost")
+	if secret.ObjectMeta.Annotations != nil && !costFlag.Changed {
+		if costStr, ok := secret.ObjectMeta.Annotations[types.TokenCost]; ok {
+			if cost, err := strconv.Atoi(costStr); err == nil {
+				connectorCreateOpts.Cost = int32(cost)
+			}
+		}
+	}
 	return linkHandler.Create(&secret, connectorCreateOpts.Name, int(connectorCreateOpts.Cost))
 }
 

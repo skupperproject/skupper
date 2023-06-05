@@ -122,7 +122,7 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, options
 			if err == nil {
 				return &secret, nil
 			} else if errors.IsAlreadyExists(err) {
-				return &secret, fmt.Errorf("The connector secret \"%s\"already exists, please choose a different name", secret.ObjectMeta.Name)
+				return &secret, fmt.Errorf("The connector secret \"%s\" already exists, please choose a different name", secret.ObjectMeta.Name)
 			} else {
 				return nil, fmt.Errorf("Failed to create connector secret: %w", err)
 			}
