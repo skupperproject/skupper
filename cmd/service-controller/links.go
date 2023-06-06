@@ -12,6 +12,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	serializerjson "k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/gorilla/mux"
 
@@ -171,7 +173,15 @@ func (m *LinkManager) deleteLink(name string) (bool, error) {
 }
 
 func (m *LinkManager) createLink(cost int, token []byte) error {
-	secret, err := m.cli.ConnectorCreateSecretFromData(context.Background(), types.ConnectorCreateOptions{Cost: int32(cost), SkupperNamespace: m.cli.Namespace, Yaml: token})
+	ys := serializerjson.NewYAMLSerializer(serializerjson.DefaultMetaFactory, scheme.Scheme,
+		scheme.Scheme)
+	var secret = &corev1.Secret{}
+	_, _, err := ys.Decode(token, nil, secret)
+	if err != nil {
+		return fmt.Errorf("Could not parse connection token: %w", err)
+	}
+
+	secret, err = m.cli.ConnectorCreateSecretFromData(context.Background(), types.ConnectorCreateOptions{Cost: int32(cost), SkupperNamespace: m.cli.Namespace, Secret: secret})
 	if err != nil {
 		return err
 	}

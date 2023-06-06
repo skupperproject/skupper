@@ -1,16 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 type SkupperPodmanLink struct {
@@ -20,22 +14,8 @@ type SkupperPodmanLink struct {
 
 func (s *SkupperPodmanLink) Create(cmd *cobra.Command, args []string) error {
 	// reading secret from file
-	var secret corev1.Secret
-	serializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme, json.SerializerOptions{Yaml: true})
-	_, _, err := serializer.Decode(connectorCreateOpts.Yaml, nil, &secret)
-	if err != nil {
-		return fmt.Errorf("error decoding token - %w", err)
-	}
 	linkHandler := podman.NewLinkHandlerPodman(s.podman.currentSite, s.podman.cli)
-	costFlag := cmd.Flag("cost")
-	if secret.ObjectMeta.Annotations != nil && !costFlag.Changed {
-		if costStr, ok := secret.ObjectMeta.Annotations[types.TokenCost]; ok {
-			if cost, err := strconv.Atoi(costStr); err == nil {
-				connectorCreateOpts.Cost = int32(cost)
-			}
-		}
-	}
-	return linkHandler.Create(&secret, connectorCreateOpts.Name, int(connectorCreateOpts.Cost))
+	return linkHandler.Create(connectorCreateOpts.Secret, connectorCreateOpts.Name, int(connectorCreateOpts.Cost))
 }
 
 func (s *SkupperPodmanLink) CreateFlags(cmd *cobra.Command) {}
