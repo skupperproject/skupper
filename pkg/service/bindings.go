@@ -421,13 +421,18 @@ func (sb *ServiceBindings) Stop() {
 	}
 }
 
-func (sb *ServiceBindings) updateBridgeConfiguration(siteId string, bridges *qdr.BridgeConfig) {
+func (sb *ServiceBindings) updateBridgeConfiguration(siteId string, bridges *qdr.BridgeConfig) error {
 	if sb.headless == nil && !sb.RequiresExternalBridge() {
-		addIngressBridge(sb, siteId, bridges)
+		_, err := addIngressBridge(sb, siteId, bridges)
+		if err != nil {
+			return err
+		}
 		for _, eb := range sb.targets {
 			eb.updateBridgeConfiguration(sb, siteId, bridges)
 		}
 	} // headless proxies are not specified through the main bridge configuration
+
+	return nil
 }
 
 func (eb *EgressBindings) stop() {
@@ -543,6 +548,10 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 }
 
 func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeConfig) (bool, error) {
+	if len(sb.publicPorts) > len(sb.ingressPorts) {
+		return false, fmt.Errorf("there are not enough ingress ports available for service %s", sb.Address)
+	}
+
 	for i := 0; i < len(sb.publicPorts); i++ {
 		pPort := sb.publicPorts[i]
 		iPort := sb.ingressPorts[i]
@@ -601,16 +610,19 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 			bridges.AddTcpListener(tcpListener)
 
 		default:
-			return false, fmt.Errorf("Unrecognised protocol for service %s: %s", sb.Address, sb.protocol)
+			return false, nil
 		}
 	}
 	return true, nil
 }
 
-func RequiredBridges(services map[string]*ServiceBindings, siteId string) *qdr.BridgeConfig {
+func RequiredBridges(services map[string]*ServiceBindings, siteId string) (*qdr.BridgeConfig, error) {
 	bridges := newBridgeConfiguration()
 	for _, service := range services {
-		service.updateBridgeConfiguration(siteId, bridges)
+		err := service.updateBridgeConfiguration(siteId, bridges)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return bridges
+	return bridges, nil
 }
