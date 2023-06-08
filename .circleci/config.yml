@@ -499,8 +499,10 @@ jobs:
                 tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
               fi
             done
-            cat ./skupper-manifest/manifest.json 
             cd ${BASEDIR}
+            cat "${BASEDIR}/skupper-manifest/manifest.json"
+            cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
+            ls -la ${BASEDIR}/archives
             
 
   publish-github-release-images:
