@@ -348,13 +348,10 @@ workflows:
             - test
             - build_and_push_test_images
 
-      - generate_manifest:
-          <<: *run_for_all_branches_and_numeric_tags
-
       - publish-github-release-artifacts:
           <<: *run_for_all_branches_and_numeric_tags
           requires:
-            - generate_manifest
+            - build-all
 
       - publish-github-release-images:
           <<: *run_for_numeric_tags
@@ -480,24 +477,14 @@ jobs:
           goarch: arm64
           platform: linux-arm64
 
-      - persist_to_workspace:
-          root: .
-          paths:
-              - dist
-
-  generate_manifest:
-    executor:
-      name: go/default
-      tag: "1.19"
-    steps:
-      - checkout
       - run: make generate-manifest
       - run: mkdir skupper-manifest
       - run: cp ./manifest.json skupper-manifest
       - persist_to_workspace:
           root: .
           paths:
-            - skupper-manifest
+              - dist
+              - skupper-manifest
 
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
@@ -546,7 +533,7 @@ jobs:
                 tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
               fi
             done
-            cp skupper-manifest/manifest.json ${BASEDIR}/archives
+            cat ./skupper-manifest/manifest.json 
             cd ${BASEDIR}
             
 
