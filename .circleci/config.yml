@@ -349,12 +349,13 @@ workflows:
             - build_and_push_test_images
 
       - generate_manifest:
-          <<: *run_for_numeric_tags
-          <<: *release_requires
+          requires:
+            - build-all
 
       - publish-github-release-artifacts:
-          <<: *run_for_numeric_tags
-          <<: *release_requires
+          requires:
+            - build-all
+            - generate_manifest
 
       - publish-github-release-images:
           <<: *run_for_numeric_tags
@@ -492,15 +493,13 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Create and move manifest
+          name: Create manifest
           command: |
             make generate-manifest
-            mkdir tmp
-            mv manifest.json ./tmp
       - persist_to_workspace:
           root: .
           paths:
-            - tmp/manifest.json
+            - ./manifest.json
 
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
@@ -549,10 +548,10 @@ jobs:
                 tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
               fi
             done
-            ls tmp
-            cp tmp/manifest.json ${BASEDIR}/archives
+            ls 
+            cp manifest.json ${BASEDIR}/archives
             cd ${BASEDIR}
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
+            
 
   publish-github-release-images:
     executor:
