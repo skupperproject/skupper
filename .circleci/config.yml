@@ -493,16 +493,13 @@ jobs:
       tag: "1.19"
     steps:
       - checkout
-      - run:
-          name: Create and move manifest
-          command: |
-            make generate-manifest
-            mkdir tmp
-            mv manifest.json ./tmp
+      - run: make generate-manifest
+      - run: mkdir skupper-manifest
+      - run: cp ./manifest.json skupper-manifest
       - persist_to_workspace:
           root: .
           paths:
-            - tmp/manifest.json
+            - skupper-manifest
 
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
@@ -551,8 +548,7 @@ jobs:
                 tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
               fi
             done
-            ls 
-            cp tmp/manifest.json ${BASEDIR}/archives
+            cp skupper-manifest/manifest.json "${BASEDIR}/archives"
             cd ${BASEDIR}
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
