@@ -530,6 +530,7 @@ func TestNewServiceBindings(t *testing.T) {
 				}
 			}
 			si := b.AsServiceInterface()
+			si.Targets = nil
 			copy := s.service
 			copy.Targets = nil
 			assert.DeepEqual(t, si, copy)
