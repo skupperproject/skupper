@@ -158,6 +158,7 @@ func main() {
 	var prometheusAuthMethod string
 	var prometheusUser string
 	var prometheusPassword string
+	var prometheusUrl string
 
 	// waiting on skupper-router to be available
 	if platform == "" || platform == types.PlatformKubernetes {
@@ -182,32 +183,10 @@ func main() {
 		prometheusAuthMethod = siteConfig.Spec.PrometheusServer.AuthMode
 		prometheusUser = siteConfig.Spec.PrometheusServer.User
 		prometheusPassword = siteConfig.Spec.PrometheusServer.Password
-		promProtocol := "https://"
-		if prometheusAuthMethod == "basic" {
-			promProtocol = "http://"
-		}
-		if siteConfig.Spec.PrometheusServer.ExternalServer != "" {
-			prometheusHost = promProtocol + siteConfig.Spec.PrometheusServer.ExternalServer + ":9090" + "/api/v1"
-			//	} else if siteConfig.Spec.Ingress == types.IngressRouteString {
-		} else if siteConfig.Spec.IsIngressRoute() {
-			route, err := kube.GetRoute(types.PrometheusRouteName, namespace, cli.RouteClient)
-			if err != nil {
-				log.Fatal("Error getting prometheus host", err.Error())
-			}
-			prometheusHost = promProtocol + route.Spec.Host + "/api/v1"
-		} else if siteConfig.Spec.IsIngressLoadBalancer() {
-			service, err := kube.GetService(types.PrometheusServiceName, namespace, cli.KubeClient)
-			if err == nil {
-				host := kube.GetLoadBalancerHostOrIP(service)
-				prometheusHost = promProtocol + host + ":9090" + "/api/v1"
-			}
-		} else if siteConfig.Spec.IsIngressNginxIngress() || siteConfig.Spec.IsIngressKubernetes() {
-			routes, err := kube.GetIngressRoutes("skupper-prometheus", namespace, cli)
-			if err == nil {
-				host := routes[0].Host
-				port := strconv.Itoa(routes[0].ServicePort)
-				prometheusHost = promProtocol + host + ":" + port + "/api/v1"
-			}
+
+		svc, err := kube.GetService(types.PrometheusServiceName, cli.Namespace, cli.KubeClient)
+		if err == nil {
+			prometheusUrl = "http://" + svc.Spec.ClusterIP + ":" + fmt.Sprint(svc.Spec.Ports[0].Port) + "/api/v1/"
 		}
 	} else {
 		cfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
@@ -237,6 +216,7 @@ func main() {
 		prometheusAuthMethod = os.Getenv("PROMETHEUS_AUTH_METHOD")
 		prometheusUser = os.Getenv("PROMETHEUS_USER")
 		prometheusPassword = os.Getenv("PROMETHEUS_PASSWORD")
+		prometheusUrl = os.Getenv("PROMETHEUS_URL")
 	}
 
 	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
@@ -259,6 +239,7 @@ func main() {
 	c.FlowCollector.Collector.PrometheusAuthMethod = prometheusAuthMethod
 	c.FlowCollector.Collector.PrometheusUser = prometheusUser
 	c.FlowCollector.Collector.PrometheusPassword = prometheusPassword
+	c.FlowCollector.Collector.PrometheusUrl = prometheusUrl
 
 	var mux = mux.NewRouter().StrictSlash(true)
 
@@ -283,6 +264,31 @@ func main() {
 			})
 		})
 	}
+
+	var api1Internal = api1.PathPrefix("/internal").Subrouter()
+	api1Internal.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	var promApi = api1Internal.PathPrefix("/prom").Subrouter()
+	promApi.StrictSlash(true)
+	promApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	var promqueryApi = promApi.PathPrefix("/query").Subrouter()
+	promqueryApi.StrictSlash(true)
+	promqueryApi.HandleFunc("/", authenticated(http.HandlerFunc(c.promqueryHandler)))
+	promqueryApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	var promqueryrangeApi = promApi.PathPrefix("/rangequery").Subrouter()
+	promqueryrangeApi.StrictSlash(true)
+	promqueryrangeApi.HandleFunc("/", authenticated(http.HandlerFunc(c.promqueryrangeHandler)))
+	promqueryrangeApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
 
 	var metricsApi = api1.PathPrefix("/metrics").Subrouter()
 	metricsApi.StrictSlash(true)

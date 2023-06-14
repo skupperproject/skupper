@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/skupperproject/skupper/pkg/flow"
@@ -164,5 +166,47 @@ func (c *Controller) collectorHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(response.Status)
 	if response.Body != nil {
 		fmt.Fprintf(w, "%s", *response.Body)
+	}
+}
+
+func (c *Controller) promqueryHandler(w http.ResponseWriter, r *http.Request) {
+	client := http.Client{}
+
+	urlOut := c.FlowCollector.Collector.PrometheusUrl + "query?" + r.URL.RawQuery
+	proxyReq, err := http.NewRequest(r.Method, urlOut, nil)
+	if err != nil {
+		log.Printf("COLLECTOR: prom proxy request error: %s\n", err.Error())
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	proxyResp, err := client.Do(proxyReq)
+	w.WriteHeader(proxyResp.StatusCode)
+	if err != nil {
+		log.Printf("COLLECTOR: Prometheus query error: %s\n", err.Error())
+	} else {
+		data, _ := ioutil.ReadAll(proxyResp.Body)
+		proxyResp.Body.Close()
+		fmt.Fprintf(w, "%s\n", data)
+	}
+}
+
+func (c *Controller) promqueryrangeHandler(w http.ResponseWriter, r *http.Request) {
+	client := http.Client{}
+
+	urlOut := c.FlowCollector.Collector.PrometheusUrl + "query_range?" + r.URL.RawQuery
+	proxyReq, err := http.NewRequest(r.Method, urlOut, nil)
+	if err != nil {
+		log.Printf("COLLECTOR: prom proxy request error: %s \n", err.Error())
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	proxyResp, err := client.Do(proxyReq)
+	w.WriteHeader(proxyResp.StatusCode)
+	if err != nil {
+		log.Printf("COLLECTOR: Prometheus query_range error: %s\n", err.Error())
+	} else {
+		data, _ := ioutil.ReadAll(proxyResp.Body)
+		proxyResp.Body.Close()
+		fmt.Fprintf(w, "%s\n", data)
 	}
 }
