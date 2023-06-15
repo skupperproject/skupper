@@ -418,6 +418,7 @@ type CollectorRecord struct {
 	PrometheusAuthMethod string
 	PrometheusUser       string
 	PrometheusPassword   string
+	PrometheusUrl        string
 }
 
 type Payload struct {

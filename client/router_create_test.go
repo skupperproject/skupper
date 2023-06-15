@@ -116,8 +116,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.ConsoleServerSecret,
 				types.SiteServerSecret,
 				types.ServiceCaSecret,
-				types.ServiceClientSecret,
-				types.PrometheusServerSecret},
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, types.PrometheusServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName, types.PrometheusServiceAccountName},
 			opts: []cmp.Option{
@@ -156,8 +155,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				"skupper-console-users",
 				types.ConsoleServerSecret,
 				types.ServiceCaSecret,
-				types.ServiceClientSecret,
-				types.PrometheusServerSecret},
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, types.PrometheusServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName, types.PrometheusServiceAccountName},
 			opts: []cmp.Option{
@@ -195,8 +193,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.SiteServerSecret,
 				types.ConsoleServerSecret,
 				types.ServiceCaSecret,
-				types.ServiceClientSecret,
-				types.PrometheusServerSecret},
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, types.PrometheusServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName, types.PrometheusServiceAccountName},
 			opts: []cmp.Option{
@@ -231,8 +228,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalServerSecret,
 				types.LocalClientSecret,
 				types.ServiceCaSecret,
-				types.ServiceClientSecret,
-				types.PrometheusServerSecret},
+				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.ControllerServiceName, types.PrometheusServiceName},
 			svcAccountsExpected: []string{types.TransportServiceAccountName, types.ControllerServiceAccountName, types.PrometheusServiceAccountName},
 			opts: []cmp.Option{
