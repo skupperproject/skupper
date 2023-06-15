@@ -1386,7 +1386,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 		err = cli.createPrometheus(ctx, &options, *van)
 		if err != nil {
-                    return err
+			return err
 		}
 	}
 
@@ -1732,32 +1732,6 @@ func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.Si
 	for _, svc := range van.PrometheusServer.Services {
 		svc.ObjectMeta.OwnerReferences = ownerRefs
 		_, err := kube.CreateService(svc, van.Namespace, cli.KubeClient)
-		if err != nil && !errors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if siteConfig.Spec.IsIngressRoute() {
-		for _, rte := range van.PrometheusServer.Routes {
-			rte.ObjectMeta.OwnerReferences = ownerRefs
-			_, err := kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return err
-			}
-		}
-	}
-	for _, cred := range van.PrometheusCredentials {
-		if siteConfig.Spec.IsIngressLoadBalancer() {
-			err := cli.appendLoadBalancerHostOrIp(ctx, types.PrometheusServiceName, van.Namespace, &cred)
-			if err != nil {
-				return err
-			}
-		} else if siteConfig.Spec.IsIngressNginxIngress() && cred.Post {
-			err := cli.appendIngressHost([]string{"prometheus"}, van.Namespace, &cred)
-			if err != nil {
-				return err
-			}
-		}
-		_, err := kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
