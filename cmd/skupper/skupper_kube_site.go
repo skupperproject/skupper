@@ -183,7 +183,15 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	f.Hidden = true
 	f = cmd.Flag("router-disable-mutual-tls")
 	f.Hidden = true
-
+	// hide prometheus flags until external server supported
+	f = cmd.Flag("external-prometheus-server")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-auth")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-user")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-password")
+	f.Hidden = true
 }
 
 func (s *SkupperKubeSite) Delete(cmd *cobra.Command, args []string) error {

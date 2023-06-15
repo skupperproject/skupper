@@ -125,9 +125,6 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 	}
 	kube.AppendConfigVolume(&volumes, &mounts[prometheusServer], "prometheus-config", "prometheus-server-config", "/etc/prometheus")
 	kube.AppendSharedVolume(&volumes, []*[]corev1.VolumeMount{&mounts[prometheusServer]}, "prometheus-storage-volume", "/prometheus")
-	if options.PrometheusServer.AuthMode == string(types.PrometheusAuthModeTls) {
-		kube.AppendSecretVolume(&volumes, &mounts[prometheusServer], types.PrometheusServerSecret, "/etc/tls/certs/")
-	}
 
 	van.PrometheusServer.EnvVar = envVars
 	van.PrometheusServer.Volumes = volumes
@@ -184,14 +181,8 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 	van.PrometheusServer.RoleBindings = roleBindings
 
 	svctype := corev1.ServiceTypeClusterIP
-	if options.IsConsoleIngressLoadBalancer() {
-		svctype = corev1.ServiceTypeLoadBalancer
-	} else if options.IsConsoleIngressNodePort() {
-		svctype = corev1.ServiceTypeNodePort
-	}
 	annotations := map[string]string{}
 	prometheusPorts := []corev1.ServicePort{}
-	routes := []*routev1.Route{}
 	prometheusPort := corev1.ServicePort{
 		Name:       "prometheus",
 		Protocol:   "TCP",
@@ -199,73 +190,7 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 		TargetPort: intstr.FromInt(int(types.PrometheusServerDefaultServiceTargetPort)),
 	}
 
-	if options.IsConsoleIngressRoute() {
-		annotations = getServingSecretAnnotations(types.PrometheusServerSecret)
-		host := options.GetControllerIngressHost()
-		if host != "" {
-			host = types.PrometheusRouteName + "-" + van.Namespace + "." + host
-		}
-
-		route := routev1.Route{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Route",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: types.PrometheusRouteName,
-			},
-			Spec: routev1.RouteSpec{
-				Path: "",
-				Host: host,
-				Port: &routev1.RoutePort{
-					TargetPort: intstr.FromString("prometheus"),
-				},
-				To: routev1.RouteTargetReference{
-					Kind: "Service",
-					Name: types.PrometheusServiceName,
-				},
-			},
-		}
-		if options.PrometheusServer.AuthMode == string(types.PrometheusAuthModeTls) {
-			route.Spec.TLS = &routev1.TLSConfig{
-				Termination:                   routev1.TLSTerminationReencrypt,
-				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
-			}
-		}
-		routes = append(routes, &route)
-	} else {
-		// note: using controller ingress
-		prometheusHosts := []string{types.PrometheusServiceName + "." + van.Namespace}
-		prometheusIngressHost := options.GetControllerIngressHost()
-		post := false // indicates whether credentials need to be revised after creating appropriate ingress resources
-		if options.IsIngressNginxIngress() {
-			if prometheusIngressHost != "" {
-				prometheusHosts = append(prometheusHosts, strings.Join([]string{"prometheus", van.Namespace, prometheusIngressHost}, "."))
-			} else {
-				post = true
-			}
-		} else if options.IsIngressContourHttpProxy() {
-			if prometheusIngressHost != "" {
-				prometheusHosts = append(prometheusHosts, strings.Join([]string{"prometheus", van.Namespace, prometheusIngressHost}, "."))
-			}
-		} else if options.IsIngressLoadBalancer() {
-			post = true
-		} else {
-			if prometheusIngressHost != "" {
-				prometheusHosts = append(prometheusHosts, prometheusIngressHost)
-			}
-		}
-		van.PrometheusCredentials = append(van.PrometheusCredentials, types.Credential{
-			CA:          types.LocalCaSecret,
-			Name:        types.PrometheusServerSecret,
-			Subject:     types.PrometheusServiceName,
-			Hosts:       prometheusHosts,
-			ConnectJson: false,
-			Post:        post,
-		})
-	}
 	prometheusPorts = append(prometheusPorts, prometheusPort)
-
 	svcs := []*corev1.Service{}
 	if len(prometheusPorts) > 0 {
 		svc := &corev1.Service{
@@ -296,9 +221,7 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 			})
 		}
 	}
-
 	van.PrometheusServer.Services = svcs
-	van.PrometheusServer.Routes = routes
 }
 
 func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *types.RouterSpec, transport *appsv1.Deployment, siteId string) {
@@ -1729,18 +1652,18 @@ scrape_configs:
 func webConfigForPrometheus(info PrometheusInfo) string {
 	const webConfig = `
 # TLS configuration.
-{{- if .TlsAuth }}
-tls_server_config:
-  cert_file: /etc/tls/certs/tls.crt
-  key_file: /etc/tls/certs/tls.key
-{{- end}}
+#{{- if .TlsAuth }}
+#tls_server_config:
+#  cert_file: /etc/tls/certs/tls.crt
+#  key_file: /etc/tls/certs/tls.key
+#{{- end}}
 #
 # Usernames and passwords required to connect to Prometheus.
 # Passwords are hashed with bcrypt: https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md#about-bcrypt
-basic_auth_users:
-{{- if .BasicAuth }}
-  {{.User}}: {{.Hash}}
-{{- end}}
+#basic_auth_users:
+#{{- if .BasicAuth }}
+#  {{.User}}: {{.Hash}}
+#{{- end}}
 `
 	var buf bytes.Buffer
 	promConfig := template.Must(template.New("prmConfig").Parse(webConfig))
@@ -1809,32 +1732,6 @@ func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.Si
 	for _, svc := range van.PrometheusServer.Services {
 		svc.ObjectMeta.OwnerReferences = ownerRefs
 		_, err := kube.CreateService(svc, van.Namespace, cli.KubeClient)
-		if err != nil && !errors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if siteConfig.Spec.IsIngressRoute() {
-		for _, rte := range van.PrometheusServer.Routes {
-			rte.ObjectMeta.OwnerReferences = ownerRefs
-			_, err := kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return err
-			}
-		}
-	}
-	for _, cred := range van.PrometheusCredentials {
-		if siteConfig.Spec.IsIngressLoadBalancer() {
-			err := cli.appendLoadBalancerHostOrIp(ctx, types.PrometheusServiceName, van.Namespace, &cred)
-			if err != nil {
-				return err
-			}
-		} else if siteConfig.Spec.IsIngressNginxIngress() && cred.Post {
-			err := cli.appendIngressHost([]string{"prometheus"}, van.Namespace, &cred)
-			if err != nil {
-				return err
-			}
-		}
-		_, err := kube.NewSecret(cred, siteOwnerRef, van.Namespace, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
