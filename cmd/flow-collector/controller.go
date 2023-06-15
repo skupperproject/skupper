@@ -8,6 +8,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/interconnectedcloud/go-amqp"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -16,14 +17,14 @@ type Controller struct {
 	origin        string
 	amqpClient    *amqp.Client
 	amqpSession   *amqp.Session
-	flowCollector *flow.FlowCollector
+	FlowCollector *flow.FlowCollector
 }
 
-func NewController(origin string, scheme string, host string, port string, tlsConfig *tls.Config, recordTtl time.Duration) (*Controller, error) {
+func NewController(origin string, reg prometheus.Registerer, scheme string, host string, port string, tlsConfig *tls.Config, recordTtl time.Duration) (*Controller, error) {
 
 	controller := &Controller{
 		origin:        origin,
-		flowCollector: flow.NewFlowCollector(origin, qdr.NewConnectionFactory(scheme+"://"+host+":"+port, tlsConfig), recordTtl),
+		FlowCollector: flow.NewFlowCollector(origin, reg, qdr.NewConnectionFactory(scheme+"://"+host+":"+port, tlsConfig), recordTtl),
 	}
 
 	return controller, nil
@@ -32,12 +33,12 @@ func NewController(origin string, scheme string, host string, port string, tlsCo
 func (c *Controller) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
-	log.Println("Starting the Skupper flow collector")
+	log.Println("COLLECTOR: Starting the Skupper flow collector")
 
-	c.flowCollector.Start(stopCh)
+	c.FlowCollector.Start(stopCh)
 
 	<-stopCh
-	log.Println("Shutting down the Skupper flow collector")
+	log.Println("COLLECTOR: Shutting down the Skupper flow collector")
 
 	return nil
 }

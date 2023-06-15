@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+
 	"github.com/google/uuid"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -157,6 +158,17 @@ func ConfigureSiteCredentials(site Site, ingressHosts ...string) {
 		Simple:      true,
 	})
 
+	consoleHosts := []string{types.FlowCollectorContainerName}
+	consoleHosts = append(consoleHosts, ingressHosts...)
+	credentials = append(credentials, types.Credential{
+		CA:          types.LocalCaSecret,
+		Name:        types.ConsoleServerSecret,
+		Subject:     types.ControllerServiceName,
+		Hosts:       consoleHosts,
+		ConnectJson: false,
+		Post:        false,
+	})
+
 	if isInterior {
 		hosts := []string{types.TransportServiceName}
 		hosts = append(hosts, ingressHosts...)
@@ -168,6 +180,7 @@ func ConfigureSiteCredentials(site Site, ingressHosts ...string) {
 			ConnectJson: false,
 		})
 	}
+
 	site.SetCredentials(credentials)
 }
 

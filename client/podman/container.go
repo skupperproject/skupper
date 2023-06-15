@@ -5,6 +5,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	"github.com/skupperproject/skupper/api/types"
@@ -62,14 +63,14 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 		userNs = &models.Namespace{Nsmode: models.NamespaceMode("keep-id")}
 	}
 	spec := &models.SpecGenerator{
-		Annotations: c.Annotations,
-		CNINetworks: c.NetworkNames(),
-		Command:     c.Command,
-		Entrypoint:  c.EntryPoint,
-		Env:         c.Env,
-		Image:       c.Image,
-		Labels:      c.Labels,
-		// Mounts:      VolumesToMounts(c),
+		Annotations:   c.Annotations,
+		CNINetworks:   c.NetworkNames(),
+		Command:       c.Command,
+		Entrypoint:    c.EntryPoint,
+		Env:           c.Env,
+		Image:         c.Image,
+		Labels:        c.Labels,
+		Mounts:        FilesToMounts(c),
 		Volumes:       VolumesToNamedVolumes(c),
 		Name:          c.Name,
 		Pod:           c.Pod,
@@ -78,6 +79,9 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 		User:          containerUser,
 		Userns:        userNs,
 		Idmappings:    idMappings,
+	}
+	if c.Annotations != nil && c.Annotations["io.podman.annotations.label"] == "disable" {
+		spec.SelinuxOpts = append(spec.SelinuxOpts, "disable")
 	}
 
 	// Network info
@@ -240,18 +244,21 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 
 func FromListContainer(c models.ListContainer) *container.Container {
 	ct := &container.Container{
-		ID:        c.ID,
-		Name:      c.Names[0],
-		Pod:       c.Pod,
-		Image:     c.Image,
-		Labels:    c.Labels,
-		Command:   c.Command,
-		Running:   !c.Exited,
-		CreatedAt: fmt.Sprint(c.CreatedAt),
-		StartedAt: fmt.Sprint(c.StartedAt),
-		ExitedAt:  fmt.Sprint(c.ExitedAt),
-		ExitCode:  int(c.ExitCode),
+		ID:       c.ID,
+		Name:     c.Names[0],
+		Pod:      c.Pod,
+		Image:    c.Image,
+		Labels:   c.Labels,
+		Command:  c.Command,
+		Running:  !c.Exited,
+		ExitCode: int(c.ExitCode),
 	}
+	// when listing containers dates are returned in unix time
+	createdAt, _ := strconv.ParseInt(c.CreatedAt, 10, 64)
+	ct.CreatedAt = time.Unix(createdAt, 0)
+	ct.StartedAt = time.Unix(c.StartedAt, 0)
+	ct.ExitedAt = time.Unix(c.ExitedAt, 0)
+
 	ct.Networks = map[string]container.ContainerNetworkInfo{}
 	ct.Env = map[string]string{}
 
@@ -282,7 +289,7 @@ func FromInspectContainer(c containers.ContainerInspectLibpodOKBody) *container.
 		ID:           c.ID,
 		Name:         c.Name,
 		RestartCount: int(c.RestartCount),
-		CreatedAt:    c.Created.String(),
+		CreatedAt:    time.Time(c.Created),
 		Pod:          c.Pod,
 	}
 	ct.Networks = map[string]container.ContainerNetworkInfo{}
@@ -292,14 +299,22 @@ func FromInspectContainer(c containers.ContainerInspectLibpodOKBody) *container.
 
 	// Volume mounts
 	for _, m := range c.Mounts {
-		volume := container.Volume{
-			Name:        m.Name,
-			Source:      m.Source,
-			Destination: m.Destination,
-			Mode:        m.Mode,
-			RW:          m.RW,
+		switch m.Type {
+		case "volume":
+			ct.Mounts = append(ct.Mounts, container.Volume{
+				Name:        m.Name,
+				Source:      m.Source,
+				Destination: m.Destination,
+				Mode:        m.Mode,
+				RW:          m.RW,
+			})
+		case "bind":
+			ct.FileMounts = append(ct.FileMounts, container.FileMount{
+				Source:      m.Source,
+				Destination: m.Destination,
+				Options:     m.Options,
+			})
 		}
-		ct.Mounts = append(ct.Mounts, volume)
 	}
 
 	// Container config
@@ -361,8 +376,8 @@ func FromInspectContainer(c containers.ContainerInspectLibpodOKBody) *container.
 	// State info
 	if c.State != nil {
 		ct.Running = c.State.Running
-		ct.StartedAt = c.State.StartedAt.String()
-		ct.ExitedAt = c.State.FinishedAt.String()
+		ct.StartedAt = time.Time(c.State.StartedAt)
+		ct.ExitedAt = time.Time(c.State.FinishedAt)
 		ct.ExitCode = int(c.State.ExitCode)
 	}
 

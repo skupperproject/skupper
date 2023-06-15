@@ -58,14 +58,15 @@ type Tuning struct {
 
 type RouterOptions struct {
 	Tuning
-	Logging            []RouterLogConfig
-	DebugMode          string
-	MaxFrameSize       int
-	MaxSessionFrames   int
-	IngressHost        string
-	ServiceAnnotations map[string]string
-	LoadBalancerIp     string
-	DisableMutualTLS   bool
+	Logging             []RouterLogConfig
+	DebugMode           string
+	MaxFrameSize        int
+	MaxSessionFrames    int
+	DataConnectionCount string
+	IngressHost         string
+	ServiceAnnotations  map[string]string
+	LoadBalancerIp      string
+	DisableMutualTLS    bool
 }
 
 type ControllerOptions struct {
@@ -82,6 +83,14 @@ type ConfigSyncOptions struct {
 type FlowCollectorOptions struct {
 	Tuning
 	FlowRecordTtl time.Duration
+}
+
+type PrometheusServerOptions struct {
+	Tuning
+	ExternalServer string
+	AuthMode       string
+	User           string
+	Password       string
 }
 
 type SiteConfigSpec struct {
@@ -111,6 +120,7 @@ type SiteConfigSpec struct {
 	Controller               ControllerOptions
 	ConfigSync               ConfigSyncOptions
 	FlowCollector            FlowCollectorOptions
+	PrometheusServer         PrometheusServerOptions
 	Platform                 Platform
 	RunAsUser                int64
 	RunAsGroup               int64

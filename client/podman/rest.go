@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	ENV_PODMAN_ENDPOINT  = "PODMAN_ENDPOINT"
 	DEFAULT_BASE_PATH    = "/v4.0.0"
 	DefaultNetworkDriver = "bridge"
 )
@@ -34,13 +35,15 @@ var (
 
 type PodmanRestClient struct {
 	RestClient *runtime.Runtime
+	endpoint   string
 }
 
 func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	var err error
 
 	if endpoint == "" {
-		endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", config.GetRuntimeDir())
+		defaultEndpoint := fmt.Sprintf("unix://%s/podman/podman.sock", config.GetRuntimeDir())
+		endpoint = utils.DefaultStr(os.Getenv(ENV_PODMAN_ENDPOINT), defaultEndpoint)
 	}
 
 	var u *url.URL
@@ -132,11 +135,20 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 
 	cli := &PodmanRestClient{
 		RestClient: c,
+		endpoint:   endpoint,
 	}
 	if err = cli.Validate(); err != nil {
 		return nil, err
 	}
 	return cli, nil
+}
+
+func (p *PodmanRestClient) IsSockEndpoint() bool {
+	return strings.HasPrefix(p.endpoint, "/") || strings.HasPrefix(p.endpoint, "unix://")
+}
+
+func (p *PodmanRestClient) GetEndpoint() string {
+	return p.endpoint
 }
 
 // boolTrue returns a true bool pointer (for false, just use new(bool))

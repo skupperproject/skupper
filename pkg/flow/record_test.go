@@ -270,6 +270,93 @@ func TestTimeRange(t *testing.T) {
 	}
 }
 
+func TestRecordState(t *testing.T) {
+	type test struct {
+		name               string
+		startTime          uint64
+		endTime            uint64
+		queryParams        QueryParams
+		timeRangeStart     uint64
+		timeRangeEnd       uint64
+		timeRangeOperation TimeRangeRelation
+		state              RecordState
+		result             bool
+	}
+
+	testTable := []test{
+		// A[2,3]
+		{
+			name:      "A-all",
+			startTime: 2,
+			endTime:   15,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              all,
+			},
+			result: true,
+		},
+		{
+			name:      "A-active",
+			startTime: 2,
+			endTime:   0,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              active,
+			},
+			result: true,
+		},
+		{
+			name:      "A-not-active",
+			startTime: 2,
+			endTime:   15,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              active,
+			},
+			result: false,
+		},
+		{
+			name:      "A-terminated",
+			startTime: 2,
+			endTime:   3,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              terminated,
+			},
+			result: true,
+		},
+		{
+			name:      "A-not-terminated",
+			startTime: 2,
+			endTime:   0,
+			queryParams: QueryParams{
+				TimeRangeStart:     1,
+				TimeRangeEnd:       20,
+				TimeRangeOperation: intersects,
+				State:              terminated,
+			},
+			result: false,
+		},
+	}
+
+	for _, test := range testTable {
+		base := Base{
+			StartTime: test.startTime,
+			EndTime:   test.endTime,
+		}
+		result := base.TimeRangeValid(test.queryParams)
+		assert.Equal(t, test.result, result, test.name)
+	}
+}
+
 func TestParameters(t *testing.T) {
 	type test struct {
 		values      map[string]string
@@ -278,32 +365,38 @@ func TestParameters(t *testing.T) {
 
 	testTable := []test{
 		{
-			values: map[string]string{},
+			values: map[string]string{"timeRangeStart": "1234", "timeRangeEnd": "0"},
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
 				SortBy:             "identity.asc",
 				Filter:             "",
+				TimeRangeStart:     uint64(1234),
+				TimeRangeEnd:       uint64(0),
 				TimeRangeOperation: intersects,
 			},
 		},
 		{
-			values: map[string]string{"timeRangeOperation": "contains"},
+			values: map[string]string{"timeRangeStart": "0", "timeRangeEnd": "0", "timeRangeOperation": "contains"},
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
 				SortBy:             "identity.asc",
 				Filter:             "",
+				TimeRangeStart:     uint64(0),
+				TimeRangeEnd:       uint64(0),
 				TimeRangeOperation: contains,
 			},
 		},
 		{
-			values: map[string]string{"timeRangeOperation": "within"},
+			values: map[string]string{"timeRangeStart": "1234", "timeRangeEnd": "0", "timeRangeOperation": "within"},
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
 				SortBy:             "identity.asc",
 				Filter:             "",
+				TimeRangeStart:     uint64(1234),
+				TimeRangeEnd:       uint64(0),
 				TimeRangeOperation: within,
 			},
 		},
@@ -313,6 +406,8 @@ func TestParameters(t *testing.T) {
 				"limit":              "10",
 				"sortBy":             "sourcePort.desc",
 				"filter":             "forwardFlow.protocol.tcp",
+				"timeRangeStart":     "0",
+				"timeRangeEnd":       "4567",
 				"timeRangeOperation": "intersects",
 			},
 			queryParams: QueryParams{
@@ -320,6 +415,8 @@ func TestParameters(t *testing.T) {
 				Limit:              10,
 				SortBy:             "sourcePort.desc",
 				Filter:             "forwardFlow.protocol.tcp",
+				TimeRangeStart:     uint64(0),
+				TimeRangeEnd:       uint64(4567),
 				TimeRangeOperation: intersects,
 			},
 		},
@@ -336,6 +433,8 @@ func TestParameters(t *testing.T) {
 		assert.Equal(t, qp.Offset, test.queryParams.Offset)
 		assert.Equal(t, qp.Limit, test.queryParams.Limit)
 		assert.Equal(t, qp.SortBy, test.queryParams.SortBy)
+		assert.Equal(t, qp.TimeRangeStart, test.queryParams.TimeRangeStart)
+		assert.Equal(t, qp.TimeRangeEnd, test.queryParams.TimeRangeEnd)
 		assert.Equal(t, qp.TimeRangeOperation, test.queryParams.TimeRangeOperation)
 	}
 }
@@ -542,7 +641,62 @@ func TestFilterRecord(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		result := filterRecord(flowPair, test.filter)
+		qp := QueryParams{Filter: test.filter}
+		result := filterRecord(flowPair, qp)
+		assert.Equal(t, result, test.result)
+	}
+}
+
+func TestFilterFieldsRecord(t *testing.T) {
+	host := "10.20.30.40"
+	name := "public1"
+	octets := uint64(2030)
+	flow := FlowRecord{
+		SourceHost: &host,
+		Octets:     &octets,
+	}
+	flowPair := FlowPairRecord{
+		Base: Base{
+			Identity: "foo",
+		},
+		SourceSiteName: &name,
+		ForwardFlow:    &flow,
+	}
+
+	type test struct {
+		filterField map[string]string
+		result      bool
+	}
+	testTable := []test{
+		{
+			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40"},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"sourceSiteName": "public1"},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40", "sourceSiteName": "public1"},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40", "sourceSiteName": "public2"},
+			result:      false,
+		},
+		{
+			filterField: map[string]string{},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"sourceSiteName": ""},
+			result:      false,
+		},
+	}
+
+	for _, test := range testTable {
+		qp := QueryParams{FilterFields: test.filterField}
+		result := filterRecord(flowPair, qp)
 		assert.Equal(t, result, test.result)
 	}
 }

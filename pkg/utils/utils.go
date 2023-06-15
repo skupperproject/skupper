@@ -148,3 +148,17 @@ func GetOrDefault(str string, defaultStr string) string {
 	}
 	return result
 }
+
+type Number interface {
+	int | int32 | int64 | float32 | float64
+}
+
+func DefaultNumber[T Number](values ...T) T {
+	if len(values) == 1 {
+		return values[0]
+	}
+	if values[0] > 0 {
+		return values[0]
+	}
+	return DefaultNumber(values[1:]...)
+}

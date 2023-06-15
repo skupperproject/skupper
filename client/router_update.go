@@ -97,6 +97,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	updateRouterPolicyRule := false
 	addCertsSharedVolume := false
 	substituteFlowCollector := false
+	addPrometheusServer := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
 		return false, err
@@ -109,6 +110,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		updateRouterPolicyRule = utils.LessRecentThanVersion(originalVersion, "0.9.0")
 		addCertsSharedVolume = utils.LessRecentThanVersion(originalVersion, "0.9.0")
 		substituteFlowCollector = utils.LessRecentThanVersion(originalVersion, "1.3.0")
+		addPrometheusServer = utils.LessRecentThanVersion(originalVersion, "1.4.0")
 	} else {
 		originalVersion = site.Version
 	}
@@ -128,6 +130,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 			if utils.LessRecentThanVersion(originalVersion, "1.3.0") {
 				substituteFlowCollector = true
+			}
+			if utils.LessRecentThanVersion(originalVersion, "1.4.0") {
+				addPrometheusServer = true
 			}
 
 			err = cli.updateStarted(site.Version, namespace, configmap.ObjectMeta.OwnerReferences)
@@ -582,10 +587,35 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 
+	if addPrometheusServer {
+		siteConfig, _ := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
+		if siteConfig.Spec.EnableFlowCollector && siteConfig.Spec.PrometheusServer.ExternalServer == "" {
+			van := types.RouterSpec{
+				Namespace: namespace,
+			}
+			cli.GetVanPrometheusServerSpec(siteConfig.Spec, &van)
+			err := configureDeployment(&van.PrometheusServer, &siteConfig.Spec.Controller.Tuning)
+			if err != nil {
+				return false, err
+			}
+			err = cli.createPrometheus(ctx, siteConfig, van)
+			if err != nil {
+				return false, err
+			}
+		}
+	}
+
 	desiredControllerImage := images.GetServiceControllerImageName()
 	if controller.Spec.Template.Spec.Containers[0].Image != desiredControllerImage {
 		controller.Spec.Template.Spec.Containers[0].Image = desiredControllerImage
 		updateController = true
+	}
+	desiredCollectorImage := images.GetFlowCollectorImageName()
+	if len(controller.Spec.Template.Spec.Containers) > 1 {
+		if controller.Spec.Template.Spec.Containers[1].Image != desiredCollectorImage {
+			controller.Spec.Template.Spec.Containers[1].Image = desiredCollectorImage
+			updateController = true
+		}
 	}
 	if kube.CheckProbesForControllerContainer(&controller.Spec.Template.Spec.Containers[0]) {
 		updateController = true

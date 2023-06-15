@@ -18,7 +18,7 @@ RUN tar -zxf main.tar.gz
 WORKDIR ./skupper-console-main
 RUN yarn install && yarn build
 
-FROM registry.access.redhat.com/ubi8-minimal
+FROM registry.access.redhat.com/ubi9-minimal
 
 # Create user and group and switch to user's context
 RUN microdnf -y install shadow-utils \

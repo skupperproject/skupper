@@ -11,6 +11,7 @@ import (
 
 	oappsv1 "github.com/openshift/api/apps/v1"
 	oappsv1informer "github.com/openshift/client-go/apps/informers/externalversions/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -197,8 +198,20 @@ func updateAnnotatedServiceDefinition(actual *types.ServiceInterface, desired *t
 	if actual.Origin != "annotation" {
 		return false
 	}
-	if actual.Protocol != desired.Protocol || !reflect.DeepEqual(actual.Ports, desired.Ports) {
+	if actual.Protocol != desired.Protocol {
 		return true
+	}
+	if len(actual.Ports) != len(desired.Ports) {
+		return true
+	}
+	ports := map[int]int{}
+	for _, value := range desired.Ports {
+		ports[value] = value
+	}
+	for _, value := range actual.Ports {
+		if ports[value] != value {
+			return true
+		}
 	}
 	if actual.Headless != desired.Headless {
 		return true
@@ -738,10 +751,13 @@ func (m *DefinitionMonitor) deleteServiceDefinitionForAnnotatedObject(name strin
 	return nil
 }
 
-func (m *DefinitionMonitor) restoreServiceDefinitions(name string) error {
-	service, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
+func restoreServiceDefinitions(cli *client.VanClient, name string) error {
+	service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("error retrieving service: %w", err)
+	}
+	if service == nil {
+		return nil
 	}
 	updated := false
 	if hasOriginalSelector(*service) {
@@ -761,7 +777,7 @@ func (m *DefinitionMonitor) restoreServiceDefinitions(name string) error {
 		delete(service.ObjectMeta.Annotations, types.OriginalAssignedQualifier)
 	}
 	if updated {
-		_, err := m.vanClient.KubeClient.CoreV1().Services(m.vanClient.Namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
+		_, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Update(context.TODO(), service, metav1.UpdateOptions{})
 		return err
 	}
 	return nil
@@ -1105,13 +1121,11 @@ func (m *DefinitionMonitor) processNextEvent() bool {
 						}
 
 					} else {
-						err := m.deleteServiceDefinitionForAnnotatedObject(name, ServiceObjectType, m.annotatedObjects)
-						if err != nil {
-							return fmt.Errorf("Failed to delete service definition on service %s which is no longer annotated: %s", name, err)
-						}
-						err = m.restoreServiceDefinitions(service.Name)
-						if err != nil {
-							return fmt.Errorf("Failed to restore service definitions on service %s: %s", name, err)
+						if _, ok := m.annotatedObjects[objectKey{name, ServiceObjectType}]; ok {
+							err := m.deleteServiceDefinitionForAnnotatedObject(name, ServiceObjectType, m.annotatedObjects)
+							if err != nil {
+								return fmt.Errorf("Failed to delete service definition on service %s which is no longer annotated: %s", name, err)
+							}
 						}
 					}
 				} else {

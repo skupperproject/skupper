@@ -94,6 +94,8 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		if err == nil {
 			result.Spec.FlowCollector.FlowRecordTtl = ttl
 		}
+	} else {
+		result.Spec.FlowCollector.FlowRecordTtl = types.DefaultFlowTimeoutDuration
 	}
 	if value, ok := siteConfig.Data[SiteConfigRestAPIKey]; ok {
 		result.Spec.EnableRestAPI, _ = strconv.ParseBool(value)
@@ -176,6 +178,12 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 			return &result, err
 		}
 		result.Spec.Router.Logging = logConf
+	} else {
+		logConf, err := qdr.ParseRouterLogConfig("ROUTER_CORE:error+")
+		if err != nil {
+			return &result, err
+		}
+		result.Spec.Router.Logging = logConf
 	}
 	if routerCpu, ok := siteConfig.Data[SiteConfigRouterCpuKey]; ok && routerCpu != "" {
 		result.Spec.Router.Cpu = routerCpu
@@ -219,6 +227,9 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		result.Spec.Router.MaxSessionFrames = val
 	} else {
 		result.Spec.Router.MaxSessionFrames = types.RouterMaxSessionFramesDefault
+	}
+	if routerDataConnectionCount, ok := siteConfig.Data[SiteConfigRouterDataConnectionCountKey]; ok && routerDataConnectionCount != "" {
+		result.Spec.Router.DataConnectionCount = routerDataConnectionCount
 	}
 
 	if routerServiceAnnotations, ok := siteConfig.Data[SiteConfigRouterServiceAnnotationsKey]; ok {
@@ -279,6 +290,51 @@ func (cli *VanClient) SiteConfigInspectInNamespace(ctx context.Context, input *c
 		result.Spec.EnableSkupperEvents, _ = strconv.ParseBool(value)
 	}
 
+	if flowCollectorCpu, ok := siteConfig.Data[SiteConfigFlowCollectorCpuKey]; ok && flowCollectorCpu != "" {
+		result.Spec.FlowCollector.Cpu = flowCollectorCpu
+	}
+	if flowCollectorMemory, ok := siteConfig.Data[SiteConfigFlowCollectorMemoryKey]; ok && flowCollectorMemory != "" {
+		result.Spec.FlowCollector.Memory = flowCollectorMemory
+	}
+	if flowCollectorCpuLimit, ok := siteConfig.Data[SiteConfigFlowCollectorCpuLimitKey]; ok && flowCollectorCpuLimit != "" {
+		result.Spec.FlowCollector.CpuLimit = flowCollectorCpuLimit
+	}
+	if flowCollectorMemoryLimit, ok := siteConfig.Data[SiteConfigFlowCollectorMemoryLimitKey]; ok && flowCollectorMemoryLimit != "" {
+		result.Spec.FlowCollector.MemoryLimit = flowCollectorMemoryLimit
+	}
+
+	if externalServer, ok := siteConfig.Data[SiteConfigPrometheusExternalServerKey]; ok {
+		result.Spec.PrometheusServer.ExternalServer = externalServer
+	} else {
+		result.Spec.PrometheusServer.ExternalServer = ""
+	}
+	if authMode, ok := siteConfig.Data[SiteConfigPrometheusServerAuthenticationKey]; ok {
+		result.Spec.PrometheusServer.AuthMode = authMode
+	} else {
+		result.Spec.PrometheusServer.AuthMode = string(types.PrometheusAuthModeTls)
+	}
+	if user, ok := siteConfig.Data[SiteConfigPrometheusServerUserKey]; ok {
+		result.Spec.PrometheusServer.User = user
+	} else {
+		result.Spec.PrometheusServer.User = ""
+	}
+	if password, ok := siteConfig.Data[SiteConfigPrometheusServerPasswordKey]; ok {
+		result.Spec.PrometheusServer.Password = password
+	} else {
+		result.Spec.PrometheusServer.Password = ""
+	}
+	if prometheusCpu, ok := siteConfig.Data[SiteConfigPrometheusServerCpuKey]; ok && prometheusCpu != "" {
+		result.Spec.PrometheusServer.Cpu = prometheusCpu
+	}
+	if prometheusMemory, ok := siteConfig.Data[SiteConfigPrometheusServerMemoryKey]; ok && prometheusMemory != "" {
+		result.Spec.PrometheusServer.Memory = prometheusMemory
+	}
+	if prometheusCpuLimit, ok := siteConfig.Data[SiteConfigPrometheusServerCpuLimitKey]; ok && prometheusCpuLimit != "" {
+		result.Spec.PrometheusServer.CpuLimit = prometheusCpuLimit
+	}
+	if prometheusMemoryLimit, ok := siteConfig.Data[SiteConfigPrometheusServerMemoryLimitKey]; ok && prometheusMemoryLimit != "" {
+		result.Spec.PrometheusServer.MemoryLimit = prometheusMemoryLimit
+	}
 	annotationExclusions := []string{}
 	labelExclusions := []string{}
 	annotations := map[string]string{}

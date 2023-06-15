@@ -201,7 +201,7 @@ func decode(msg *amqp.Message) []interface{} {
 		result = append(result, asFlushMessage(msg))
 	case "RECORD":
 		if records, ok := msg.Value.([]interface{}); !ok {
-			log.Println("Unable to convert message to record list. Message is of type", reflect.TypeOf(msg.Value))
+			log.Printf("COLLECTOR: Unable to convert message of type %d to record list \n", reflect.TypeOf(msg.Value))
 		} else {
 			for _, record := range records {
 				m := make(map[string]interface{})
@@ -210,7 +210,7 @@ func decode(msg *amqp.Message) []interface{} {
 						if k.(uint32) < uint32(len(attributeNames)) {
 							m[attributeNames[k.(uint32)]] = v
 						} else {
-							log.Println("Warning: detected flow attribute out of range for record conversion: ", k.(uint32))
+							log.Printf("COLLECTOR: Detected flow attribute out of range for record conversion %d \n ", k.(uint32))
 						}
 					}
 				}
@@ -392,9 +392,6 @@ func decode(msg *amqp.Message) []interface{} {
 					}
 					if v, ok := m["Octets"].(uint64); ok {
 						flow.Octets = &v
-					}
-					if v, ok := m["OctetRate"].(uint64); ok {
-						flow.OctetRate = &v
 					}
 					if v, ok := m["OctetsOut"].(uint64); ok {
 						flow.OctetsOut = &v

@@ -173,8 +173,12 @@ func (e *ExposeTester) validateTargets(platform types.Platform, svc types.Servic
 	// Validating target name exists
 	found := false
 	for _, target := range svc.Targets {
+		expectedTargetName := e.TargetName
+		if e.TargetType == "service" {
+			expectedTargetName += "." + target.Namespace
+		}
 		if platform.IsKubernetes() {
-			if target.Name == e.TargetName {
+			if target.Name == expectedTargetName {
 				found = true
 				break
 			}

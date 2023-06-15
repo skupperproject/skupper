@@ -12,10 +12,17 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	clientpodman "github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/pkg/domain/podman"
+	"github.com/skupperproject/skupper/pkg/utils"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -91,9 +98,9 @@ func authenticate(dir string, user string, password string) bool {
 	file, err := os.Open(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			log.Printf("Failed to authenticate %s, no such user exists", user)
+			log.Printf("COLLECTOR: Failed to authenticate %s, no such user exists", user)
 		} else {
-			log.Printf("Failed to authenticate %s: %s", user, err)
+			log.Printf("COLLECTOR: Failed to authenticate %s: %s", user, err)
 		}
 		return false
 	}
@@ -101,7 +108,7 @@ func authenticate(dir string, user string, password string) bool {
 
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Printf("Failed to authenticate %s: %s", user, err)
+		log.Printf("COLLECTOR: Failed to authenticate %s: %s", user, err)
 		return false
 	}
 	return string(bytes) == password
@@ -136,8 +143,7 @@ func main() {
 	}
 
 	// Startup message
-	log.Printf("Skupper Flow collector controller")
-	log.Printf("Version: %s", version.Version)
+	log.Printf("COLLECTOR: Starting Skupper Flow collector controller version %s \n", version.Version)
 
 	origin := os.Getenv("SKUPPER_SITE_ID")
 	namespace := os.Getenv("SKUPPER_NAMESPACE")
@@ -145,15 +151,72 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
-	cli, err := client.NewClient(namespace, "", "")
-	if err != nil {
-		log.Fatal("Error getting van client", err.Error())
-	}
+	platform := config.GetPlatform()
+	var flowRecordTtl time.Duration
+	var enableConsole bool
+	var prometheusHost string
+	var prometheusAuthMethod string
+	var prometheusUser string
+	var prometheusPassword string
+	var prometheusUrl string
 
-	log.Println("Waiting for Skupper router component to start")
-	_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
-	if err != nil {
-		log.Fatal("Error waiting for transport deployment to be ready: ", err.Error())
+	// waiting on skupper-router to be available
+	if platform == "" || platform == types.PlatformKubernetes {
+		cli, err := client.NewClient(namespace, "", "")
+		if err != nil {
+			log.Fatal("COLLECTOR: Error getting van client", err.Error())
+		}
+
+		log.Println("COLLECTOR: Waiting for Skupper router component to start")
+		_, err = kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Second*180, time.Second*5)
+		if err != nil {
+			log.Fatal("COLLECTOR: Error waiting for transport deployment to be ready ", err.Error())
+		}
+
+		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+		if err != nil {
+			log.Fatal("COLLECTOR: Error getting site config", err.Error())
+		}
+
+		flowRecordTtl = siteConfig.Spec.FlowCollector.FlowRecordTtl
+		enableConsole = siteConfig.Spec.EnableConsole
+		prometheusAuthMethod = siteConfig.Spec.PrometheusServer.AuthMode
+		prometheusUser = siteConfig.Spec.PrometheusServer.User
+		prometheusPassword = siteConfig.Spec.PrometheusServer.Password
+
+		svc, err := kube.GetService(types.PrometheusServiceName, cli.Namespace, cli.KubeClient)
+		if err == nil {
+			prometheusUrl = "http://" + svc.Spec.ClusterIP + ":" + fmt.Sprint(svc.Spec.Ports[0].Port) + "/api/v1/"
+		}
+	} else {
+		cfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
+		if err != nil {
+			log.Fatal("Error reading podman site config", err)
+		}
+		podmanCli, err := clientpodman.NewPodmanClient(cfg.Endpoint, "")
+		if err != nil {
+			log.Fatal("Error creating podman client", err)
+		}
+		err = utils.Retry(time.Second, 120, func() (bool, error) {
+			router, err := podmanCli.ContainerInspect(types.TransportDeploymentName)
+			if err != nil {
+				return false, fmt.Errorf("error retrieving %s container state - %w", types.TransportDeploymentName, err)
+			}
+			if !router.Running {
+				return false, nil
+			}
+			return true, nil
+		})
+		if err != nil {
+			log.Fatalf("unable to determine if %s container is running - %s", types.TransportDeploymentName, err)
+		}
+		flowRecordTtl, _ = time.ParseDuration(os.Getenv("FLOW_RECORD_TTL"))
+		enableConsole, _ = strconv.ParseBool(os.Getenv("ENABLE_CONSOLE"))
+		prometheusHost = os.Getenv("PROMETHEUS_HOST")
+		prometheusAuthMethod = os.Getenv("PROMETHEUS_AUTH_METHOD")
+		prometheusUser = os.Getenv("PROMETHEUS_USER")
+		prometheusPassword = os.Getenv("PROMETHEUS_PASSWORD")
+		prometheusUrl = os.Getenv("PROMETHEUS_URL")
 	}
 
 	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
@@ -166,15 +229,17 @@ func main() {
 		log.Fatal("Error getting connect.json", err.Error())
 	}
 
-	siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-	if err != nil {
-		log.Fatal("Error getting site config", err.Error())
-	}
-
-	c, err := NewController(origin, conn.Scheme, conn.Host, conn.Port, tlsConfig, siteConfig.Spec.FlowCollector.FlowRecordTtl)
+	reg := prometheus.NewRegistry()
+	c, err := NewController(origin, reg, conn.Scheme, conn.Host, conn.Port, tlsConfig, flowRecordTtl)
 	if err != nil {
 		log.Fatal("Error getting new flow collector ", err.Error())
 	}
+
+	c.FlowCollector.Collector.PrometheusHost = prometheusHost
+	c.FlowCollector.Collector.PrometheusAuthMethod = prometheusAuthMethod
+	c.FlowCollector.Collector.PrometheusUser = prometheusUser
+	c.FlowCollector.Collector.PrometheusPassword = prometheusPassword
+	c.FlowCollector.Collector.PrometheusUrl = prometheusUrl
 
 	var mux = mux.NewRouter().StrictSlash(true)
 
@@ -194,11 +259,40 @@ func main() {
 	if logUri == "true" {
 		api1.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				log.Println(r.RequestURI)
+				log.Printf("COLLECTOR: request uri %s \n", r.RequestURI)
 				next.ServeHTTP(w, r)
 			})
 		})
 	}
+
+	var api1Internal = api1.PathPrefix("/internal").Subrouter()
+	api1Internal.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	var promApi = api1Internal.PathPrefix("/prom").Subrouter()
+	promApi.StrictSlash(true)
+	promApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	var promqueryApi = promApi.PathPrefix("/query").Subrouter()
+	promqueryApi.StrictSlash(true)
+	promqueryApi.HandleFunc("/", authenticated(http.HandlerFunc(c.promqueryHandler)))
+	promqueryApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	var promqueryrangeApi = promApi.PathPrefix("/rangequery").Subrouter()
+	promqueryrangeApi.StrictSlash(true)
+	promqueryrangeApi.HandleFunc("/", authenticated(http.HandlerFunc(c.promqueryrangeHandler)))
+	promqueryrangeApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	var metricsApi = api1.PathPrefix("/metrics").Subrouter()
+	metricsApi.StrictSlash(true)
+	metricsApi.Handle("/", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
 
 	var eventsourceApi = api1.PathPrefix("/eventsources").Subrouter()
 	eventsourceApi.StrictSlash(true)
@@ -341,11 +435,23 @@ func main() {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	if siteConfig.Spec.EnableConsole {
+	if enableConsole {
 		mux.PathPrefix("/").Handler(http.FileServer(http.Dir("/app/console/")))
 	} else {
-		log.Println("Skupper console is disabled")
+		log.Println("COLLECTOR: Skupper console is disabled")
 	}
+
+	var collectorApi = api1.PathPrefix("/collectors").Subrouter()
+	collectorApi.StrictSlash(true)
+	collectorApi.HandleFunc("/", authenticated(http.HandlerFunc(c.collectorHandler))).Name("list")
+	collectorApi.HandleFunc("/{id}", authenticated(http.HandlerFunc(c.collectorHandler))).Name("item")
+	collectorApi.HandleFunc("/{id}/connectors-to-process", authenticated(http.HandlerFunc(c.collectorHandler))).Name("connectors-to-process")
+	collectorApi.HandleFunc("/{id}/flows-to-pair", authenticated(http.HandlerFunc(c.collectorHandler))).Name("flows-to-pair")
+	collectorApi.HandleFunc("/{id}/flows-to-process", authenticated(http.HandlerFunc(c.collectorHandler))).Name("flows-to-process")
+	collectorApi.HandleFunc("/{id}/pair-to-aggregate", authenticated(http.HandlerFunc(c.collectorHandler))).Name("pair-to-aggregate")
+	collectorApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
 
 	addr := ":8010"
 	if os.Getenv("FLOW_PORT") != "" {
@@ -354,7 +460,7 @@ func main() {
 	if os.Getenv("FLOW_HOST") != "" {
 		addr = os.Getenv("FLOW_HOST") + addr
 	}
-	log.Printf("Flow collector server listing on %s", addr)
+	log.Printf("COLLECTOR: server listening on %s", addr)
 	s := &http.Server{
 		Addr:    addr,
 		Handler: mux,

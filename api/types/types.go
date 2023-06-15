@@ -80,7 +80,7 @@ var TransportPrometheusAnnotations = map[string]string{
 	"prometheus.io/scrape": "true",
 }
 
-// Controller constants
+// Controller and Collector constants
 const (
 	ControllerDeploymentName             string = "skupper-service-controller"
 	ControllerComponentName              string = "service-controller"
@@ -93,6 +93,13 @@ const (
 	ControllerConfigPath                 string = "/etc/messaging/"
 	ControllerServiceName                string = "skupper"
 	FlowCollectorContainerName           string = "flow-collector"
+	PrometheusDeploymentName             string = "skupper-prometheus"
+	PrometheusComponentName              string = "prometheus"
+	PrometheusContainerName              string = "prometheus-server"
+	PrometheusServiceAccountName         string = "skupper-prometheus"
+	PrometheusServiceName                string = "skupper-prometheus"
+	PrometheusRoleBindingName            string = "skupper-prometheus"
+	PrometheusRoleName                   string = "skupper-prometheus"
 )
 
 var ControllerPolicyRule = []rbacv1.PolicyRule{
@@ -155,6 +162,8 @@ const (
 	ClaimsServerSecret       string = "skupper-claims-server"
 	SiteCaSecret             string = "skupper-site-ca"
 	ConsoleServerSecret      string = "skupper-console-certs"
+	ConsoleUsersSecret       string = "skupper-console-users"
+	PrometheusServerSecret   string = "skupper-prometheus-certs"
 	OauthRouterConsoleSecret string = "skupper-router-console-certs"
 	ServiceCaSecret          string = "skupper-service-ca"
 	ServiceClientSecret      string = "skupper-service-client" // Secret that is used in sslProfiles for all http2 connectors with tls enabled
@@ -252,6 +261,8 @@ const (
 	RouterConsoleServiceName               string = "skupper-router-console"
 )
 
+const DefaultFlowTimeoutDuration = time.Minute * 15
+
 type Platform string
 
 const (
@@ -275,6 +286,22 @@ const (
 	ClaimRedemptionPort      int32  = 8081
 	ClaimRedemptionPortName  string = "claims"
 	ClaimRedemptionRouteName string = "claims"
+)
+
+type PrometheusAuthMode string
+
+const (
+	PrometheusAuthModeTls       PrometheusAuthMode = "tls"
+	PrometheusAuthModeBasic                        = "basic"
+	PrometheusAuthModeUnsecured                    = "unsecured"
+)
+
+// Prometheus server constants (note: use console auth mode)
+const (
+	PrometheusPortName                       string = "prometheus"
+	PrometheusServerDefaultServicePort       int32  = 9090
+	PrometheusServerDefaultServiceTargetPort int32  = 9090
+	PrometheusRouteName                      string = "skupper-prometheus"
 )
 
 // Assembly constants
@@ -309,11 +336,13 @@ type RouterSpec struct {
 	ConfigSync            DeploymentSpec  `json:"configSync,omitempty"`
 	Controller            DeploymentSpec  `json:"controller,omitempty"`
 	Collector             DeploymentSpec  `json:"collector,omitempty"`
+	PrometheusServer      DeploymentSpec  `json:"prometheusServer,omitempty"`
 	RouterConfig          string          `json:"routerConfig,omitempty"`
 	Users                 []User          `json:"users,omitempty"`
 	CertAuthoritys        []CertAuthority `json:"certAuthoritys,omitempty"`
 	TransportCredentials  []Credential    `json:"transportCredentials,omitempty"`
 	ControllerCredentials []Credential    `json:"controllerCredentials,omitempty"`
+	PrometheusCredentials []Credential    `json:"prometheusCredentials,omitempty"`
 }
 
 type ImageDetails struct {
@@ -340,6 +369,7 @@ type DeploymentSpec struct {
 	ServiceAccounts     []*corev1.ServiceAccount     `json:"serviceAccounts,omitempty"`
 	Services            []*corev1.Service            `json:"services,omitempty"`
 	Sidecars            []*corev1.Container          `json:"sidecars,omitempty"`
+	SecurityContext     *corev1.SecurityContext      `json:"securityContext,omitempty"`
 	Affinity            map[string]string            `json:"affinity,omitempty"`
 	AntiAffinity        map[string]string            `json:"antiAffinity,omitempty"`
 	NodeSelector        map[string]string            `json:"nodeSelector,omitempty"`
@@ -457,6 +487,7 @@ const (
 	ClaimsIngressPrefix      = "skupper-claims"
 	InterRouterIngressPrefix = "skupper-inter-router"
 	EdgeIngressPrefix        = "skupper-edge"
+	PrometheusIngressPrefix  = "skupper-prometheus"
 )
 
 type Connector struct {

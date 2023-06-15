@@ -2,10 +2,11 @@ package podman
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"os"
 	"os/user"
 	"strings"
+
+	"github.com/skupperproject/skupper/pkg/utils"
 
 	"github.com/skupperproject/skupper/api/types"
 )
@@ -16,7 +17,8 @@ const (
 
 var (
 	Username                = readUsername()
-	SkupperContainerVolumes = []string{"skupper-services", "skupper-local-server", "skupper-internal", "skupper-site-server", SharedTlsCertificates}
+	SkupperContainerVolumes = []string{"skupper-services", "skupper-local-server", "skupper-internal", "skupper-site-server", SharedTlsCertificates,
+		types.ConsoleServerSecret, types.ConsoleUsersSecret}
 )
 
 func OwnedBySkupper(resource string, labels map[string]string) error {

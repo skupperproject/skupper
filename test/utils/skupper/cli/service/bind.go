@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	clientpodman "github.com/skupperproject/skupper/client/podman"
@@ -124,7 +125,7 @@ func (s *BindTester) Run(platform types.Platform, cluster *base.ClusterContext) 
 	found := false
 	for _, target := range svc.Targets {
 		if platform.IsKubernetes() {
-			if target.Name == s.TargetName {
+			if target.Name == s.TargetName || strings.HasPrefix(target.Name, s.TargetName+".") {
 				found = true
 				break
 			}

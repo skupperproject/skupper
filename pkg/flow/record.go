@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -165,12 +166,21 @@ var attributeNames = []string{
 	"StreamIdentity",  // 47
 }
 
+var Internal string = "internal"
+var External string = "external"
+var Remote string = "remote"
+var Incoming string = "incoming"
+var Outgoing string = "outgoing"
+var Bound string = "bound"
+var Unbound string = "unbound"
+
 type Base struct {
 	RecType   string `json:"recType,omitempty"`
 	Identity  string `json:"identity,omitempty"`
 	Parent    string `json:"parent,omitempty"`
 	StartTime uint64 `json:"startTime"`
 	EndTime   uint64 `json:"endTime"`
+	Purged    bool   `json:"purged,omitempty"`
 }
 
 type BeaconRecord struct {
@@ -203,15 +213,11 @@ type EventSourceRecord struct {
 
 type SiteRecord struct {
 	Base
-	Location           *string `json:"location,omitempty"`
-	Provider           *string `json:"provider,omitempty"`
-	Platform           *string `json:"platform,omitempty"`
-	Name               *string `json:"name,omitempty"`
-	NameSpace          *string `json:"nameSpace,omitempty"`
-	OctetsSent         uint64  `json:"octetsSent"`
-	OctetsSentRate     uint64  `json:"octetSentRate"`
-	OctetsReceived     uint64  `json:"octetsReceived"`
-	OctetsReceivedRate uint64  `json:"octetReceivedRate"`
+	Location  *string `json:"location,omitempty"`
+	Provider  *string `json:"provider,omitempty"`
+	Platform  *string `json:"platform,omitempty"`
+	Name      *string `json:"name,omitempty"`
+	NameSpace *string `json:"nameSpace,omitempty"`
 }
 
 type HostRecord struct {
@@ -261,6 +267,7 @@ type ListenerRecord struct {
 	FlowRateL4  *uint64 `json:"flowRateL4,omitempty"`
 	FlowCountL7 *uint64 `json:"flowCountL7,omitempty"`
 	FlowRateL7  *uint64 `json:"flowRateL7,omitempty"`
+	AddressId   *string `json:"addressId,omitempty"`
 }
 
 type ConnectorRecord struct {
@@ -274,50 +281,50 @@ type ConnectorRecord struct {
 	FlowCountL7 *uint64 `json:"flowCountL7,omitempty"`
 	FlowRateL7  *uint64 `json:"flowRateL7,omitempty"`
 	process     *string
+	AddressId   *string `json:"addressId,omitempty"`
+}
+
+type metricKey struct {
+	sourceSite    string
+	sourceProcess string
+	destSite      string
+	destProcess   string
 }
 
 // Van Address represents a service that is attached to the application network
 type VanAddressRecord struct {
 	Base
-	Name           string `json:"name,omitempty"`
-	Protocol       string `json:"protocol,omitempty"`
-	ListenerCount  int    `json:"listenerCount"`
-	ConnectorCount int    `json:"connectorCount"`
-	TotalFlows     int    `json:"totalFlows"`
-	CurrentFlows   int    `json:"currentFlows"`
-	SourceOctets   uint64 `json:"sourceOctets"`
-	DestOctets     uint64 `json:"destOctets"`
+	Name            string `json:"name,omitempty"`
+	Protocol        string `json:"protocol,omitempty"`
+	ListenerCount   int    `json:"listenerCount"`
+	ConnectorCount  int    `json:"connectorCount"`
+	flowCount       map[metricKey]prometheus.Counter
+	octetCount      map[metricKey]prometheus.Counter
+	lastAccessed    map[metricKey]prometheus.Gauge
+	flowLatency     map[metricKey]prometheus.Observer
+	activeFlowCount map[metricKey]prometheus.Gauge
 }
-
-var Internal string = "internal"
-var External string = "external"
 
 type ProcessRecord struct {
 	Base
-	Name               *string `json:"name,omitempty"`
-	ParentName         *string `json:"parentName,omitempty"`
-	ImageName          *string `json:"imageName,omitempty"`
-	Image              *string `json:"image,omitempty"`
-	GroupName          *string `json:"groupName,omitempty"`
-	GroupIdentity      *string `json:"groupIdentity,omitempty"`
-	HostName           *string `json:"hostName,omitempty"`
-	SourceHost         *string `json:"sourceHost,omitempty"`
-	ProcessRole        *string `json:"processRole,omitempty"`
-	OctetsSent         uint64  `json:"octetsSent"`
-	OctetsSentRate     uint64  `json:"octetSentRate"`
-	OctetsReceived     uint64  `json:"octetsReceived"`
-	OctetsReceivedRate uint64  `json:"octetReceivedRate"`
-	connector          *string
+	Name           *string `json:"name,omitempty"`
+	ParentName     *string `json:"parentName,omitempty"`
+	ImageName      *string `json:"imageName,omitempty"`
+	Image          *string `json:"image,omitempty"`
+	GroupName      *string `json:"groupName,omitempty"`
+	GroupIdentity  *string `json:"groupIdentity,omitempty"`
+	HostName       *string `json:"hostName,omitempty"`
+	SourceHost     *string `json:"sourceHost,omitempty"`
+	ProcessRole    *string `json:"processRole,omitempty"`
+	ProcessBinding *string `json:"processBinding,omitempty"`
+	connector      *string
 }
 
 type ProcessGroupRecord struct {
 	Base
-	Name               *string `json:"name,omitempty"`
-	ProcessGroupRole   *string `json:"processGroupRole,omitempty"`
-	OctetsSent         uint64  `json:"octetsSent"`
-	OctetsSentRate     uint64  `json:"octetSentRate"`
-	OctetsReceived     uint64  `json:"octetsReceived"`
-	OctetsReceivedRate uint64  `json:"octetReceivedRate"`
+	Name             *string `json:"name,omitempty"`
+	ProcessGroupRole *string `json:"processGroupRole,omitempty"`
+	ProcessCount     int     `json:"processCount,omitempty"`
 }
 
 type FlowPlace int
@@ -330,25 +337,28 @@ const (
 
 type FlowRecord struct {
 	Base
-	SourceHost     *string   `json:"sourceHost,omitempty"`
-	SourcePort     *string   `json:"sourcePort,omitempty"`
-	CounterFlow    *string   `json:"counterFlow,omitempty"`
-	Trace          *string   `json:"trace,omitempty"`
-	Latency        *uint64   `json:"latency,omitempty"`
-	Octets         *uint64   `json:"octets"`
-	OctetRate      *uint64   `json:"octetRate"`
-	OctetsOut      *uint64   `json:"octetsOut,omitempty"`
-	OctetsUnacked  *uint64   `json:"octetsUnacked,omitempty"`
-	WindowClosures *uint64   `json:"windowClosures,omitempty"`
-	WindowSize     *uint64   `json:"windowSize,omitempty"`
-	Reason         *string   `json:"reason,omitempty"`
-	Method         *string   `json:"method,omitempty"`
-	Result         *string   `json:"result,omitempty"`
-	StreamIdentity *uint64   `json:"streamIdentity,omitempty"`
-	Process        *string   `json:"process,omitempty"`
-	ProcessName    *string   `json:"processName,omitempty"`
-	Protocol       *string   `json:"protocol,omitempty"`
-	Place          FlowPlace `json:"place"`
+	SourceHost       *string   `json:"sourceHost,omitempty"`
+	SourcePort       *string   `json:"sourcePort,omitempty"`
+	CounterFlow      *string   `json:"counterFlow,omitempty"`
+	Trace            *string   `json:"trace,omitempty"`
+	Latency          *uint64   `json:"latency,omitempty"`
+	Octets           *uint64   `json:"octets"`
+	OctetsOut        *uint64   `json:"octetsOut,omitempty"`
+	OctetsUnacked    *uint64   `json:"octetsUnacked,omitempty"`
+	WindowClosures   *uint64   `json:"windowClosures,omitempty"`
+	WindowSize       *uint64   `json:"windowSize,omitempty"`
+	Reason           *string   `json:"reason,omitempty"`
+	Method           *string   `json:"method,omitempty"`
+	Result           *string   `json:"result,omitempty"`
+	StreamIdentity   *uint64   `json:"streamIdentity,omitempty"`
+	Process          *string   `json:"process,omitempty"`
+	ProcessName      *string   `json:"processName,omitempty"`
+	Protocol         *string   `json:"protocol,omitempty"`
+	Place            FlowPlace `json:"place"`
+	lastOctets       uint64
+	octetMetric      prometheus.Counter
+	activeFlowMetric prometheus.Gauge
+	httpReqsMetric   prometheus.Counter
 }
 
 // Note a flowpair does not have a defined parent relationship through Base
@@ -369,22 +379,13 @@ type FlowPairRecord struct {
 
 type FlowAggregateRecord struct {
 	Base
-	PairType                  string  `json:"pairType,omitempty"`
-	RecordCount               uint64  `json:"recordCount,omitempty"`
-	SourceId                  *string `json:"sourceId,omitempty"`
-	SourceName                *string `json:"sourceName,omitempty"`
-	DestinationId             *string `json:"destinationId,omitempty"`
-	DestinationName           *string `json:"destinationName,omitempty"`
-	SourceOctets              uint64  `json:"sourceOctets,omitempty"`
-	SourceOctetRate           uint64  `json:"sourceOctetRate,omitempty"`
-	SourceMinLatency          uint64  `json:"sourceMinLatency,omitempty"`
-	SourceMaxLatency          uint64  `json:"sourceMaxLatency,omitempty"`
-	SourceAverageLatency      uint64  `json:"sourceAverageLatency,omitempty"`
-	DestinationOctets         uint64  `json:"destinationOctets,omitempty"`
-	DestinationOctetRate      uint64  `json:"destinationOctetRate,omitempty"`
-	DestinationMinLatency     uint64  `json:"destinationMinLatency,omitempty"`
-	DestinationMaxLatency     uint64  `json:"destinationMaxLatency,omitempty"`
-	DestinationAverageLatency uint64  `json:"destinationAverageLatency,omitempty"`
+	PairType        string  `json:"pairType,omitempty"`
+	RecordCount     uint64  `json:"recordCount,omitempty"`
+	SourceId        *string `json:"sourceId,omitempty"`
+	SourceName      *string `json:"sourceName,omitempty"`
+	DestinationId   *string `json:"destinationId,omitempty"`
+	DestinationName *string `json:"destinationName,omitempty"`
+	Protocol        *string `json:"protocol,omitempty"`
 }
 
 type ControllerRecord struct {
@@ -413,18 +414,22 @@ type EgressRecord struct {
 
 type CollectorRecord struct {
 	Base
-	//	name, kind, process
+	PrometheusHost       string
+	PrometheusAuthMethod string
+	PrometheusUser       string
+	PrometheusPassword   string
+	PrometheusUrl        string
 }
 
 type Payload struct {
 	Results        interface{} `json:"results"`
 	QueryParams    QueryParams `json:"queryParams"`
 	Status         string      `json:"status"`
-	Timestamp      uint64      `json:"timestamp"`
-	Elapsed        uint64      `json:"elapsed"`
 	Count          int         `json:"count"`
 	TimeRangeCount int         `json:"timeRangeCount"`
 	TotalCount     int         `json:"totalCount"`
+	timestamp      uint64
+	elapsed        uint64
 }
 
 type QueryParams struct {
@@ -432,9 +437,11 @@ type QueryParams struct {
 	Limit              int               `json:"limit"`
 	SortBy             string            `json:"sortBy"`
 	Filter             string            `json:"filter"`
+	FilterFields       map[string]string `json:"filterFields"`
 	TimeRangeStart     uint64            `json:"timeRangeStart"`
 	TimeRangeEnd       uint64            `json:"timeRangeEnd"`
 	TimeRangeOperation TimeRangeRelation `json:"timeRangeOperation"`
+	State              RecordState       `json:"state"`
 }
 
 func getQueryParams(url *url.URL) QueryParams {
@@ -444,48 +451,72 @@ func getQueryParams(url *url.URL) QueryParams {
 		Limit:              -1,
 		SortBy:             "identity.asc",
 		Filter:             "",
+		FilterFields:       make(map[string]string),
 		TimeRangeStart:     now - (15 * oneMinute),
 		TimeRangeEnd:       now,
 		TimeRangeOperation: intersects,
+		State:              all,
 	}
-	offset, err := strconv.Atoi(url.Query().Get("offset"))
-	if err == nil {
-		qp.Offset = offset
-	}
-	limit, err := strconv.Atoi(url.Query().Get("limit"))
-	if err == nil {
-		qp.Limit = limit
-	}
-	sortBy := url.Query().Get("sortBy")
-	if sortBy != "" {
-		qp.SortBy = sortBy
-	}
-	filter := url.Query().Get("filter")
-	if filter != "" {
-		qp.Filter = filter
-	}
-	timeRangeStart := url.Query().Get("timeRangeStart")
-	if timeRangeStart != "" {
-		v, err := strconv.Atoi(timeRangeStart)
-		if err == nil {
-			qp.TimeRangeStart = uint64(v)
+
+	for k, v := range url.Query() {
+		switch k {
+		case "offset":
+			offset, err := strconv.Atoi(v[0])
+			if err == nil {
+				qp.Offset = offset
+			}
+		case "limit":
+			limit, err := strconv.Atoi(v[0])
+			if err == nil {
+				qp.Limit = limit
+			}
+		case "sortBy":
+			if v[0] != "" {
+				qp.SortBy = v[0]
+			}
+		case "filter":
+			if v[0] != "" {
+				qp.Filter = v[0]
+			}
+		case "timeRangeStart":
+			if v[0] != "" {
+				v, err := strconv.Atoi(v[0])
+				if err == nil {
+					qp.TimeRangeStart = uint64(v)
+				}
+			}
+		case "timeRangeEnd":
+			if v[0] != "" {
+				v, err := strconv.Atoi(v[0])
+				if err == nil {
+					qp.TimeRangeEnd = uint64(v)
+				}
+			}
+		case "timeRangeOperation":
+			timeRangeOperation := v[0]
+			switch timeRangeOperation {
+			case "contains":
+				qp.TimeRangeOperation = contains
+			case "within":
+				qp.TimeRangeOperation = within
+			default:
+				qp.TimeRangeOperation = intersects
+			}
+		case "state":
+			recordState := v[0]
+			switch recordState {
+			case "all":
+				qp.State = all
+			case "active":
+				qp.State = active
+			case "terminated":
+				qp.State = terminated
+			default:
+				qp.State = all
+			}
+		default:
+			qp.FilterFields[cases.Title(language.Und, cases.NoLower).String(k)] = v[0]
 		}
-	}
-	timeRangeEnd := url.Query().Get("timeRangeEnd")
-	if timeRangeEnd != "" {
-		v, err := strconv.Atoi(timeRangeEnd)
-		if err == nil {
-			qp.TimeRangeEnd = uint64(v)
-		}
-	}
-	timeRangeOperation := url.Query().Get("timeRangeOperation")
-	switch timeRangeOperation {
-	case "contains":
-		qp.TimeRangeOperation = contains
-	case "within":
-		qp.TimeRangeOperation = within
-	default:
-		qp.TimeRangeOperation = intersects
 	}
 	return qp
 }
@@ -504,6 +535,7 @@ func max(a, b uint64) uint64 {
 	return b
 }
 
+const oneSecond uint64 = 1000000
 const oneMinute uint64 = 60000000
 const oneHour uint64 = 3600000000
 const oneDay uint64 = 86400000000
@@ -516,16 +548,30 @@ const (
 	within
 )
 
+type RecordState int
+
+const (
+	all RecordState = iota
+	active
+	terminated
+)
+
 func (base *Base) TimeRangeValid(qp QueryParams) bool {
-	switch qp.TimeRangeOperation {
-	case intersects:
-		return !(base.EndTime != 0 && base.EndTime < qp.TimeRangeStart || base.StartTime > qp.TimeRangeEnd)
-	case contains:
-		return base.StartTime <= qp.TimeRangeStart && (base.EndTime == 0 || base.EndTime >= qp.TimeRangeEnd)
-	case within:
-		return base.StartTime >= qp.TimeRangeStart && (base.EndTime != 0 && base.EndTime <= qp.TimeRangeEnd)
-	default:
+	if qp.State == active && base.EndTime != 0 {
 		return false
+	} else if qp.State == terminated && base.EndTime == 0 {
+		return false
+	} else {
+		switch qp.TimeRangeOperation {
+		case intersects:
+			return !(base.EndTime != 0 && base.EndTime < qp.TimeRangeStart || base.StartTime > qp.TimeRangeEnd)
+		case contains:
+			return base.StartTime <= qp.TimeRangeStart && (base.EndTime == 0 || base.EndTime >= qp.TimeRangeEnd)
+		case within:
+			return base.StartTime >= qp.TimeRangeStart && (base.EndTime != 0 && base.EndTime <= qp.TimeRangeEnd)
+		default:
+			return false
+		}
 	}
 }
 
@@ -569,6 +615,19 @@ func validateAndReturnFilterQuery(filter string) (string, string, error) {
 	field := cases.Title(language.Und, cases.NoLower).String(parts[0])
 	match := strings.Join(parts[1:], ".")
 	return field, match, nil
+}
+
+func validateAndReturnFilterFieldQuery(filterField string) (string, string, error) {
+	parts := strings.Split(filterField, ".")
+	if len(parts) > 2 {
+		return "", "", fmt.Errorf("Malformed filter field query value parameter")
+	}
+	field := cases.Title(language.Und, cases.NoLower).String(parts[0])
+	subField := ""
+	if len(parts) == 2 {
+		subField = cases.Title(language.Und, cases.NoLower).String(parts[1])
+	}
+	return field, subField, nil
 }
 
 func getField(field string, record interface{}) interface{} {
@@ -674,7 +733,53 @@ func compareFields(x, y interface{}, order string) bool {
 }
 
 // type any = interface{}
-func filterRecord[T any](item T, filter string) bool {
+func filterRecord[T any](item T, qp QueryParams) bool {
+	filter := true
+	if qp.Filter != "" {
+		field, match, err := validateAndReturnFilterQuery(qp.Filter)
+		// todo propagate error or log
+		if err != nil {
+			return false
+		}
+		value := getField(field, item)
+		if value == nil {
+			filter = false
+		} else {
+			x := reflect.ValueOf(value)
+			if x.Kind() == reflect.Struct {
+				if !filterSubRecord(value, match) {
+					filter = false
+				}
+			} else if !matchFieldValue(value, match) {
+				filter = false
+			}
+		}
+	} else if len(qp.FilterFields) > 0 {
+		for field, match := range qp.FilterFields {
+			field, subField, err := validateAndReturnFilterFieldQuery(field)
+			if err != nil {
+				return false
+			}
+			value := getField(field, item)
+			if value == nil {
+				filter = false
+			} else {
+				x := reflect.ValueOf(value)
+				if x.Kind() == reflect.Struct {
+					if !filterSubRecord(value, subField+"."+match) {
+						filter = false
+					}
+				} else if !matchFieldValue(value, match) {
+					filter = false
+				}
+			}
+		}
+	}
+	return filter
+}
+
+// type any = interface{}
+func filterSubRecord[T any](item T, filter string) bool {
 	if filter == "" {
 		return true
 	}
@@ -686,7 +791,7 @@ func filterRecord[T any](item T, filter string) bool {
 	value := getField(field, item)
 	x := reflect.ValueOf(value)
 	if x.Kind() == reflect.Struct {
-		return filterRecord(value, match)
+		return filterSubRecord(value, match)
 	}
 	return matchFieldValue(value, match)
 }

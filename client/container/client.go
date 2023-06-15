@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 )
@@ -61,15 +62,16 @@ type Container struct {
 	Annotations   map[string]string
 	Networks      map[string]ContainerNetworkInfo
 	Mounts        []Volume
+	FileMounts    []FileMount
 	Ports         []Port
 	EntryPoint    []string
 	Command       []string
 	RestartPolicy string
 	RestartCount  int
 	Running       bool
-	CreatedAt     string
-	StartedAt     string
-	ExitedAt      string
+	CreatedAt     time.Time
+	StartedAt     time.Time
+	ExitedAt      time.Time
 	ExitCode      int
 }
 
@@ -105,6 +107,12 @@ func (c *Container) NetworkAliases() map[string][]string {
 		netNames[name] = net.Aliases
 	}
 	return netNames
+}
+
+type FileMount struct {
+	Source      string
+	Destination string
+	Options     []string
 }
 
 type Volume struct {

@@ -19,12 +19,13 @@ type SkupperPodmanSite struct {
 }
 
 type PodmanInitFlags struct {
-	IngressHosts               []string
-	IngressBindIPs             []string
-	IngressBindInterRouterPort int
-	IngressBindEdgePort        int
-	ContainerNetwork           string
-	PodmanEndpoint             string
+	IngressHosts                 []string
+	IngressBindIPs               []string
+	IngressBindInterRouterPort   int
+	IngressBindEdgePort          int
+	IngressBindFlowCollectorPort int
+	ContainerNetwork             string
+	PodmanEndpoint               string
 }
 
 func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
@@ -50,24 +51,25 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 			Mode:     initFlags.routerMode,
 			Platform: types.PlatformPodman,
 		},
-		RouterOpts:                 routerCreateOpts.Router,
-		IngressHosts:               s.flags.IngressHosts,
-		IngressBindIPs:             s.flags.IngressBindIPs,
-		IngressBindInterRouterPort: s.flags.IngressBindInterRouterPort,
-		IngressBindEdgePort:        s.flags.IngressBindEdgePort,
-		ContainerNetwork:           s.flags.ContainerNetwork,
-		PodmanEndpoint:             s.flags.PodmanEndpoint,
+		IngressHosts:                 s.flags.IngressHosts,
+		IngressBindIPs:               s.flags.IngressBindIPs,
+		IngressBindInterRouterPort:   s.flags.IngressBindInterRouterPort,
+		IngressBindEdgePort:          s.flags.IngressBindEdgePort,
+		IngressBindFlowCollectorPort: s.flags.IngressBindFlowCollectorPort,
+		ContainerNetwork:             s.flags.ContainerNetwork,
+		PodmanEndpoint:               s.flags.PodmanEndpoint,
+		EnableFlowCollector:          routerCreateOpts.EnableFlowCollector,
+		EnableConsole:                routerCreateOpts.EnableConsole,
+		AuthMode:                     routerCreateOpts.AuthMode,
+		ConsoleUser:                  routerCreateOpts.User,
+		ConsolePassword:              routerCreateOpts.Password,
+		FlowCollectorRecordTtl:       routerCreateOpts.FlowCollector.FlowRecordTtl,
+		RouterOpts:                   routerCreateOpts.Router,
 	}
 
 	siteHandler, err := podman.NewSitePodmanHandler(site.PodmanEndpoint)
 	if err != nil {
 		return fmt.Errorf("Unable to initialize Skupper - %w", err)
-	}
-
-	// Validating if site is already initialized
-	curSite, err := siteHandler.Get()
-	if err == nil && curSite != nil {
-		return fmt.Errorf("Skupper has already been initialized for user '" + podman.Username + "'.")
 	}
 
 	// Validating ingress type
@@ -120,6 +122,17 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 	// --podman-endpoint
 	cmd.Flags().StringVar(&s.flags.PodmanEndpoint, "podman-endpoint", "",
 		"local podman endpoint to use")
+
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console must be used in conjunction with '--enable-flow-collector' flag")
+	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "", "Authentication mode for console(s). One of: 'internal', 'unsecured'")
+	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-flow-collector", "", false, "Enable cross-site flow collection for the application network")
+	// --bind-port-flow-collector
+	cmd.Flags().IntVar(&s.flags.IngressBindFlowCollectorPort, "bind-port-flow-collector", int(types.FlowCollectorDefaultServicePort),
+		"ingress host binding port used for flow-collector and console")
+	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 30 minutes.")
+
 }
 
 func (s *SkupperPodmanSite) Delete(cmd *cobra.Command, args []string) error {
@@ -148,16 +161,7 @@ func (s *SkupperPodmanSite) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
-	siteHandler, err := podman.NewSitePodmanHandler("")
-	if err != nil {
-		return err
-	}
-	site, err := siteHandler.Get()
-	if err != nil {
-		fmt.Printf("Skupper is not enabled for '%s'\n", podman.Username)
-		return nil
-	}
-
+	site := s.podman.currentSite
 	routerMgr := podman.NewRouterEntityManagerPodman(s.podman.cli)
 	routers, err := routerMgr.QueryAllRouters()
 	if err != nil {
@@ -206,13 +210,23 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
+
+	if site.EnableFlowCollector {
+		fmt.Println("The site console url is: ", site.GetConsoleUrl())
+		fmt.Println("The credentials for internal console-auth mode are held in podman volume: 'skupper-console-users'")
+	}
+
 	return nil
 }
 
 func (s *SkupperPodmanSite) StatusFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) NewClient(cmd *cobra.Command, args []string) {
-	s.podman.NewClient(cmd, args)
+	var initArgs []string
+	if cmd.Name() == "init" && len(s.flags.PodmanEndpoint) > 0 {
+		initArgs = append(initArgs, s.flags.PodmanEndpoint)
+	}
+	s.podman.NewClient(cmd, initArgs)
 }
 
 func (s *SkupperPodmanSite) Platform() types.Platform {
@@ -226,16 +240,10 @@ func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
-	siteHandler, err := podman.NewSitePodmanHandler("")
-	if err != nil {
-		return fmt.Errorf("Unable to communicate with Skupper - %w", err)
+	site := s.podman.currentSite
+	if site == nil {
+		return fmt.Errorf("Skupper is not enabled for user '%s'", podman.Username)
 	}
-
-	site, err := siteHandler.Get()
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve site information - %w", err)
-	}
-
 	for _, deploy := range site.GetDeployments() {
 		for _, component := range deploy.GetComponents() {
 			if component.Name() == types.TransportDeploymentName {

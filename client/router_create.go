@@ -1,16 +1,19 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/version"
+	"golang.org/x/crypto/bcrypt"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -25,6 +28,12 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
+
+func getServingSecretAnnotations(name string) map[string]string {
+	return map[string]string{
+		"service.alpha.openshift.io/serving-cert-secret-name": name,
+	}
+}
 
 func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Container {
 	return &corev1.Container{
@@ -78,6 +87,143 @@ func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {
 	return rules
 }
 
+func hashPrometheusPassword(password string) ([]byte, error) {
+	return bcrypt.GenerateFromPassword([]byte(password), 14)
+}
+
+func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, van *types.RouterSpec) {
+	// prometheus-server container index
+	const (
+		prometheusServer = iota
+	)
+
+	van.PrometheusServer.Image = images.GetPrometheusServerImageDetails()
+	van.PrometheusServer.Replicas = 1
+	van.PrometheusServer.LabelSelector = map[string]string{
+		types.ComponentAnnotation: types.PrometheusComponentName,
+	}
+	van.PrometheusServer.Labels = map[string]string{
+		types.AppLabel:    types.PrometheusDeploymentName,
+		types.PartOfLabel: types.AppName,
+	}
+	for key, value := range van.PrometheusServer.LabelSelector {
+		van.PrometheusServer.Labels[key] = value
+	}
+	van.PrometheusServer.Annotations = options.Annotations
+	for key, value := range options.Labels {
+		van.PrometheusServer.Labels[key] = value
+	}
+
+	envVars := []corev1.EnvVar{}
+
+	sidecars := []*corev1.Container{}
+	volumes := []corev1.Volume{}
+	mounts := make([][]corev1.VolumeMount, 1)
+	err := configureDeployment(&van.PrometheusServer, &options.PrometheusServer.Tuning)
+	if err != nil {
+		fmt.Println("Error configuring prometheus server deployment:", err)
+	}
+	kube.AppendConfigVolume(&volumes, &mounts[prometheusServer], "prometheus-config", "prometheus-server-config", "/etc/prometheus")
+	kube.AppendSharedVolume(&volumes, []*[]corev1.VolumeMount{&mounts[prometheusServer]}, "prometheus-storage-volume", "/prometheus")
+
+	van.PrometheusServer.EnvVar = envVars
+	van.PrometheusServer.Volumes = volumes
+	van.PrometheusServer.VolumeMounts = mounts
+	van.PrometheusServer.Sidecars = sidecars
+
+	serviceAccounts := []*corev1.ServiceAccount{}
+	annotation := map[string]string{}
+	serviceAccounts = append(serviceAccounts, &corev1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ServiceAccount",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        types.PrometheusServiceAccountName,
+			Annotations: annotation,
+		},
+	})
+	van.PrometheusServer.ServiceAccounts = serviceAccounts
+
+	van.PrometheusCredentials = []types.Credential{}
+
+	roles := []*rbacv1.Role{}
+	roles = append(roles, &rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: types.PrometheusRoleName,
+		},
+		Rules: cli.getControllerRules(),
+	})
+	van.PrometheusServer.Roles = roles
+
+	roleBindings := []*rbacv1.RoleBinding{}
+	roleBindings = append(roleBindings, &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: types.PrometheusRoleBindingName,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind: "ServiceAccount",
+			Name: types.PrometheusServiceAccountName,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			Kind: "Role",
+			Name: types.PrometheusRoleName,
+		},
+	})
+	van.PrometheusServer.RoleBindings = roleBindings
+
+	svctype := corev1.ServiceTypeClusterIP
+	annotations := map[string]string{}
+	prometheusPorts := []corev1.ServicePort{}
+	prometheusPort := corev1.ServicePort{
+		Name:       "prometheus",
+		Protocol:   "TCP",
+		Port:       types.PrometheusServerDefaultServicePort,
+		TargetPort: intstr.FromInt(int(types.PrometheusServerDefaultServiceTargetPort)),
+	}
+
+	prometheusPorts = append(prometheusPorts, prometheusPort)
+	svcs := []*corev1.Service{}
+	if len(prometheusPorts) > 0 {
+		svc := &corev1.Service{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Service",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        types.PrometheusServiceName,
+				Annotations: annotations,
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: van.PrometheusServer.Labels,
+				Ports:    prometheusPorts,
+				Type:     svctype,
+			},
+		}
+
+		if options.Controller.LoadBalancerIp != "" && svctype == corev1.ServiceTypeLoadBalancer {
+			svc.Spec.LoadBalancerIP = options.Controller.LoadBalancerIp
+		}
+
+		svcs = append(svcs, svc)
+		for _, p := range prometheusPorts {
+			van.PrometheusServer.Ports = append(van.PrometheusServer.Ports, corev1.ContainerPort{
+				Name:          p.Name,
+				ContainerPort: p.Port,
+			})
+		}
+	}
+	van.PrometheusServer.Services = svcs
+}
+
 func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *types.RouterSpec, transport *appsv1.Deployment, siteId string) {
 	// service-controller container index
 	const (
@@ -101,6 +247,16 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.Annotations = options.Annotations
 	for key, value := range options.Labels {
 		van.Controller.Labels[key] = value
+	}
+	runAsNonRoot := true
+	van.Controller.SecurityContext = &corev1.SecurityContext{
+		RunAsNonRoot: &runAsNonRoot,
+	}
+	if options.RunAsUser > 0 {
+		van.Controller.SecurityContext.RunAsUser = &options.RunAsUser
+	}
+	if options.RunAsGroup > 0 {
+		van.Controller.SecurityContext.RunAsGroup = &options.RunAsGroup
 	}
 
 	envVars := []corev1.EnvVar{}
@@ -250,7 +406,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		}
 
 		if options.IsConsoleIngressRoute() {
-			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret}
+			annotations = getServingSecretAnnotations(types.ConsoleServerSecret)
 			if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 				metricsPort = corev1.ServicePort{
 					Name:       "metrics",
@@ -288,7 +444,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				},
 			})
 		} else if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-			annotations = map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": types.ConsoleServerSecret}
+			annotations = getServingSecretAnnotations(types.ConsoleServerSecret)
 		} else {
 			controllerHosts := []string{types.ControllerServiceName + "." + van.Namespace}
 			controllerIngressHost := options.GetControllerIngressHost()
@@ -346,7 +502,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Protocol: "TCP",
 			Port:     types.ClaimRedemptionPort,
 		})
-		if options.IsIngressRoute() {
+		if options.IsConsoleIngressRoute() {
 			host := options.GetControllerIngressHost()
 			if host != "" {
 				host = types.ClaimRedemptionRouteName + "-" + van.Namespace + "." + host
@@ -556,6 +712,16 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Transport.Annotations = types.TransportPrometheusAnnotations
 	for key, value := range options.Annotations {
 		van.Transport.Annotations[key] = value
+	}
+	runAsNonRoot := true
+	van.Transport.SecurityContext = &corev1.SecurityContext{
+		RunAsNonRoot: &runAsNonRoot,
+	}
+	if options.RunAsUser > 0 {
+		van.Transport.SecurityContext.RunAsUser = &options.RunAsUser
+	}
+	if options.RunAsGroup > 0 {
+		van.Transport.SecurityContext.RunAsGroup = &options.RunAsGroup
 	}
 	err := configureDeployment(&van.Transport, &options.Router.Tuning)
 	if err != nil {
@@ -1039,18 +1205,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 	}
 
-	runAsNonRoot := true
-	securityContext := corev1.SecurityContext{
-		RunAsNonRoot: &runAsNonRoot,
-	}
-	if options.Spec.RunAsUser > 0 {
-		securityContext.RunAsUser = &options.Spec.RunAsUser
-	}
-	if options.Spec.RunAsGroup > 0 {
-		securityContext.RunAsGroup = &options.Spec.RunAsGroup
-	}
-
-	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, &securityContext, cli.KubeClient)
+	dep, err := kube.NewTransportDeployment(van, siteOwnerRef, cli.KubeClient)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
@@ -1183,7 +1338,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 				return err
 			}
 		}
-		if options.Spec.IsIngressRoute() {
+		if options.Spec.IsConsoleIngressRoute() {
 			for _, rte := range van.Controller.Routes {
 				rte.ObjectMeta.OwnerReferences = ownerRefs
 				_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
@@ -1193,19 +1348,19 @@ sasldb_path: /tmp/skrouterd.sasldb
 			}
 		}
 		for _, cred := range van.ControllerCredentials {
-			if options.Spec.IsIngressRoute() {
+			if options.Spec.IsConsoleIngressRoute() {
 				rte, err := kube.GetRoute(types.ClaimRedemptionRouteName, van.Namespace, cli.RouteClient)
 				if err == nil {
 					cred.Hosts = append(cred.Hosts, rte.Spec.Host)
 				} else {
 					log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
 				}
-			} else if options.Spec.IsIngressLoadBalancer() {
+			} else if options.Spec.IsConsoleIngressLoadBalancer() {
 				err = cli.appendLoadBalancerHostOrIp(currentContext, types.ControllerServiceName, van.Namespace, &cred)
 				if err != nil {
 					return err
 				}
-			} else if options.Spec.IsIngressNginxIngress() && cred.Post {
+			} else if options.Spec.IsConsoleIngressNginxIngress() && cred.Post {
 				err = cli.appendIngressHost([]string{"claims", "console"}, van.Namespace, &cred)
 				if err != nil {
 					return err
@@ -1216,11 +1371,25 @@ sasldb_path: /tmp/skrouterd.sasldb
 				return err
 			}
 		}
-		_, err = kube.NewControllerDeployment(van, siteOwnerRef, &securityContext, cli.KubeClient)
+		_, err = kube.NewControllerDeployment(van, siteOwnerRef, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
+
+	if options.Spec.EnableFlowCollector && options.Spec.PrometheusServer.ExternalServer == "" {
+		//	Stand up local prometheus server for metric aggregation
+		cli.GetVanPrometheusServerSpec(options.Spec, van)
+		err := configureDeployment(&van.PrometheusServer, &options.Spec.Controller.Tuning)
+		if err != nil {
+			return err
+		}
+		err = cli.createPrometheus(ctx, &options, *van)
+		if err != nil {
+			return err
+		}
+	}
+
 	if options.Spec.CreateNetworkPolicy {
 		err = kube.CreateNetworkPolicy(ownerRefs, van.Namespace, cli.KubeClient)
 		if err != nil && !errors.IsAlreadyExists(err) {
@@ -1440,4 +1609,136 @@ func asOwnerReferences(in types.SiteConfigReference) []metav1.OwnerReference {
 		return nil
 	}
 	return []metav1.OwnerReference{*ref}
+}
+
+type PrometheusInfo struct {
+	BasicAuth   bool
+	TlsAuth     bool
+	ServiceName string
+	Namespace   string
+	Port        string
+	User        string
+	Password    string
+	Hash        string
+}
+
+func scrapeConfigForPrometheus(info PrometheusInfo) string {
+	const prometheusConfig = `
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+rule_files:
+  # - "example-file.yml"
+scrape_configs:
+  - job_name: 'prometheus'
+    metrics_path: "/api/v1alpha1/metrics"
+    scheme: "https"
+    tls_config:
+      insecure_skip_verify: true
+    static_configs:
+    - targets: ["{{.ServiceName}}.{{.Namespace}}.svc.cluster.local:{{.Port}}"]
+`
+	var buf bytes.Buffer
+	promConfig := template.Must(template.New("promConfig").Parse(prometheusConfig))
+	promConfig.Execute(&buf, info)
+
+	return buf.String()
+}
+
+func webConfigForPrometheus(info PrometheusInfo) string {
+	const webConfig = `
+# TLS configuration.
+#{{- if .TlsAuth }}
+#tls_server_config:
+#  cert_file: /etc/tls/certs/tls.crt
+#  key_file: /etc/tls/certs/tls.key
+#{{- end}}
+#
+# Usernames and passwords required to connect to Prometheus.
+# Passwords are hashed with bcrypt: https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md#about-bcrypt
+#basic_auth_users:
+#{{- if .BasicAuth }}
+#  {{.User}}: {{.Hash}}
+#{{- end}}
+`
+	var buf bytes.Buffer
+	promConfig := template.Must(template.New("prmConfig").Parse(webConfig))
+	promConfig.Execute(&buf, info)
+
+	return buf.String()
+}
+
+func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.SiteConfig, van types.RouterSpec) error {
+	promInfo := PrometheusInfo{
+		BasicAuth:   false,
+		TlsAuth:     false,
+		ServiceName: types.ControllerServiceName,
+		Namespace:   van.Namespace,
+		Port:        strconv.Itoa(int(types.FlowCollectorDefaultServicePort)),
+		User:        "admin",
+		Password:    "admin",
+		Hash:        "",
+	}
+	if siteConfig.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeBasic) {
+		promInfo.BasicAuth = true
+		if siteConfig.Spec.PrometheusServer.User != "" {
+			promInfo.User = siteConfig.Spec.PrometheusServer.User
+		}
+		if siteConfig.Spec.PrometheusServer.Password != "" {
+			promInfo.Password = siteConfig.Spec.PrometheusServer.Password
+		}
+		hash, _ := hashPrometheusPassword(promInfo.Password)
+		promInfo.Hash = string(hash)
+	} else if siteConfig.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeTls) {
+		promInfo.TlsAuth = true
+	}
+	prometheusData := &map[string]string{
+		"prometheus.yml": scrapeConfigForPrometheus(promInfo),
+		"web-config.yml": webConfigForPrometheus(promInfo),
+	}
+	siteOwnerRef := asOwnerReference(siteConfig.Reference)
+	var ownerRefs []metav1.OwnerReference
+	if siteOwnerRef != nil {
+		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
+	}
+
+	kube.NewConfigMap("prometheus-server-config", prometheusData, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+
+	for _, sa := range van.PrometheusServer.ServiceAccounts {
+		sa.ObjectMeta.OwnerReferences = ownerRefs
+		_, err := kube.CreateServiceAccount(van.Namespace, sa, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	for _, role := range van.PrometheusServer.Roles {
+		role.ObjectMeta.OwnerReferences = ownerRefs
+		_, err := kube.CreateRole(van.Namespace, role, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	for _, roleBinding := range van.PrometheusServer.RoleBindings {
+		roleBinding.ObjectMeta.OwnerReferences = ownerRefs
+		_, err := kube.CreateRoleBinding(van.Namespace, roleBinding, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	for _, svc := range van.PrometheusServer.Services {
+		svc.ObjectMeta.OwnerReferences = ownerRefs
+		_, err := kube.CreateService(svc, van.Namespace, cli.KubeClient)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	_, err := kube.NewPrometheusServerDeployment(&van, siteOwnerRef, cli.KubeClient)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
 }

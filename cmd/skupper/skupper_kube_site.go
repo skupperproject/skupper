@@ -70,9 +70,6 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	if routerCreateOpts.SiteTtl != 0 && routerCreateOpts.SiteTtl < time.Minute {
 		return fmt.Errorf("The minimum value for service-sync-site-ttl is 1 minute")
 	}
-	if routerCreateOpts.EnableFlowCollector && routerCreateOpts.FlowCollector.FlowRecordTtl != 0 && routerCreateOpts.FlowCollector.FlowRecordTtl < time.Minute {
-		return fmt.Errorf("The minimum value for flow-collector-record-ttl is 1 minute")
-	}
 
 	if siteConfig == nil {
 		siteConfig, err = cli.SiteConfigCreate(context.Background(), routerCreateOpts)
@@ -143,6 +140,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.Router.IngressHost, "router-ingress-host", "", "Host through which node is accessible when using nodeport as ingress.")
 	cmd.Flags().StringVar(&routerCreateOpts.Router.LoadBalancerIp, "router-load-balancer-ip", "", "Load balancer ip that will be used for router service, if supported by cloud provider")
 	cmd.Flags().BoolVarP(&routerCreateOpts.Router.DisableMutualTLS, "router-disable-mutual-tls", "", false, "Disables client authentication through TLS of sites linking to this site")
+	cmd.Flags().StringVarP(&routerCreateOpts.Router.DataConnectionCount, "router-data-connection-count", "", "", "Configures the number of data connections the router will use when linking to other routers")
 
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Cpu, "controller-cpu", "", "CPU request for controller pods")
 	cmd.Flags().StringVar(&routerCreateOpts.Controller.Memory, "controller-memory", "", "Memory request for controller pods")
@@ -160,11 +158,20 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.ConfigSync.MemoryLimit, "config-sync-memory-limit", "", "Memory limit for config-sync pods")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableClusterPermissions, "enable-cluster-permissions", "", false, "Enable cluster wide permissions in order to expose deployments/statefulsets in other namespaces")
 
-	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 30 minutes.")
+	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 15 minutes.")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Cpu, "flow-collector-cpu", "", "CPU request for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.Memory, "flow-collector-memory", "", "Memory request for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "flow-collector-memory-limit", "", "Memory limit for flow collector pods")
+
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.ExternalServer, "external-prometheus-server", "", "", "External prometheus server for metric aggregation. Valid only when --enable-flow-collector")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.AuthMode, "prometheus-auth", "", "", "Authentication mode for skupper prometheus server. One of: 'tls', 'basic', 'unsecured'")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.User, "prometheus-user", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.Password, "prometheus-password", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.Cpu, "prometheus-cpu", "", "CPU request for prometheus pods")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.Memory, "prometheus-memory", "", "Memory request for prometheus pods")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.CpuLimit, "prometheus-cpu-limit", "", "CPU limit for prometheus pods")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.MemoryLimit, "prometheus-memory-limit", "", "Memory limit for prometheus pods")
 
 	cmd.Flags().DurationVar(&LoadBalancerTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for the ingress loadbalancer option.")
 	cmd.Flags().BoolVar(&routerCreateOpts.EnableSkupperEvents, "enable-skupper-events", true, "Enable sending Skupper events to Kubernetes")
@@ -176,7 +183,15 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	f.Hidden = true
 	f = cmd.Flag("router-disable-mutual-tls")
 	f.Hidden = true
-
+	// hide prometheus flags until external server supported
+	f = cmd.Flag("external-prometheus-server")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-auth")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-user")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-password")
+	f.Hidden = true
 }
 
 func (s *SkupperKubeSite) Delete(cmd *cobra.Command, args []string) error {

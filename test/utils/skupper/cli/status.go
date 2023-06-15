@@ -76,16 +76,13 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 		return
 	}
 
-	if platform.IsKubernetes() {
-		// Validating Console Enabled
-		if err = s.validateConsoleEnabled(cluster, stdout); err != nil {
-			return
-		}
+	if err = s.validateConsoleEnabled(platform, cluster, stdout); err != nil {
+		return
+	}
 
-		// Validating Console Auth Internal
-		if err = s.validateConsoleAuthInternal(cluster, stdout); err != nil {
-			return
-		}
+	// Validating Console Auth Internal
+	if err = s.validateConsoleAuthInternal(platform, cluster, stdout); err != nil {
+		return
 	}
 
 	return
@@ -113,7 +110,7 @@ func (s *StatusTester) validateMainContent(platform types.Platform, cluster *bas
 	} else if platform == types.PlatformPodman {
 		mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for \"%s\"", podman.Username))
 		if s.NotEnabled {
-			notEnabledContent := fmt.Sprintf("Skupper is not enabled for '%s'", podman.Username)
+			notEnabledContent := fmt.Sprintf("Skupper is not enabled for user '%s'", podman.Username)
 			if !strings.Contains(stdout, notEnabledContent) {
 				return fmt.Errorf("error validating not enabled message - expected: %s - stdout: %s", notEnabledContent, stdout)
 			}
@@ -171,7 +168,7 @@ func (s *StatusTester) validateMainContent(platform types.Platform, cluster *bas
 	return expect.Check(stdout, "")
 }
 
-func (s *StatusTester) validateConsoleEnabled(cluster *base.ClusterContext, stdout string) error {
+func (s *StatusTester) validateConsoleEnabled(platform types.Platform, cluster *base.ClusterContext, stdout string) error {
 	if !s.ConsoleEnabled {
 		return nil
 	}
@@ -184,13 +181,18 @@ func (s *StatusTester) validateConsoleEnabled(cluster *base.ClusterContext, stdo
 	return nil
 }
 
-func (s *StatusTester) validateConsoleAuthInternal(cluster *base.ClusterContext, stdout string) error {
+func (s *StatusTester) validateConsoleAuthInternal(platform types.Platform, cluster *base.ClusterContext, stdout string) error {
 	if !s.ConsoleEnabled {
 		return nil
 	}
 
 	log.Println("Validating console auth internal info")
-	if !strings.Contains(stdout, "The credentials for internal console-auth mode are held in secret: 'skupper-console-users'") {
+
+	expectedMessage := "The credentials for internal console-auth mode are held in secret: 'skupper-console-users'"
+	if platform == types.PlatformPodman {
+		expectedMessage = "The credentials for internal console-auth mode are held in podman volume: 'skupper-console-users'"
+	}
+	if !strings.Contains(stdout, expectedMessage) {
 		return fmt.Errorf("credentials info for internal console-auth mode is missing")
 	}
 

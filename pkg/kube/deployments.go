@@ -116,6 +116,11 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 	svcName := serviceInterface.Address
 	if serviceInterface.IsOfLocalOrigin() {
 		svcName += "-proxy"
+		proxyService, err := cli.CoreV1().Services(namespace).Get(context.TODO(), svcName, metav1.GetOptions{})
+		if err == nil && proxyService != nil {
+			return nil, fmt.Errorf("service %s already exists in the cluster, use any other name to expose the statefulset with a headless service", svcName)
+		}
+
 		_, err = NewHeadlessService(svcName, serviceInterface.Address, serviceInterface.Ports, serviceInterface.Ports, serviceInterface.Labels, &ownerRef, namespace, cli)
 		if err != nil {
 			return nil, err
@@ -258,7 +263,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 
 }
 
-func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, securityContext *corev1.SecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(context.TODO(), types.ControllerDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -304,12 +309,12 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 			dep.Spec.Template.Spec.Containers[i].VolumeMounts = van.Controller.VolumeMounts[i]
 		}
 
-		if securityContext != nil {
+		if van.Controller.SecurityContext != nil {
 			dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
-				RunAsNonRoot: securityContext.RunAsNonRoot,
+				RunAsNonRoot: van.Controller.SecurityContext.RunAsNonRoot,
 			}
 			for i, _ := range dep.Spec.Template.Spec.Containers {
-				dep.Spec.Template.Spec.Containers[i].SecurityContext = securityContext
+				dep.Spec.Template.Spec.Containers[i].SecurityContext = van.Controller.SecurityContext
 			}
 		}
 
@@ -323,6 +328,74 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 	} else {
 		dep := &appsv1.Deployment{}
 		return dep, fmt.Errorf("Failed to check controller deployment: %w", err)
+	}
+}
+
+func NewPrometheusServerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+	deployments := cli.AppsV1().Deployments(van.Namespace)
+	existing, err := deployments.Get(context.TODO(), types.PrometheusDeploymentName, metav1.GetOptions{})
+	if err == nil {
+		return existing, nil
+	} else if errors.IsNotFound(err) {
+		dep := &appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      types.PrometheusDeploymentName,
+				Namespace: van.Namespace,
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: &van.PrometheusServer.Replicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: van.PrometheusServer.LabelSelector,
+				},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels:      van.PrometheusServer.Labels,
+						Annotations: van.PrometheusServer.Annotations,
+					},
+					Spec: corev1.PodSpec{
+						ServiceAccountName: types.PrometheusServiceAccountName,
+						Containers:         []corev1.Container{ContainerForPrometheusServer(van.PrometheusServer)},
+					},
+				},
+			},
+		}
+		if ownerRef != nil {
+			dep.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+		}
+
+		setAffinity(&van.PrometheusServer, &dep.Spec.Template.Spec)
+		for _, sc := range van.PrometheusServer.Sidecars {
+			dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sc)
+		}
+
+		dep.Spec.Template.Spec.Volumes = van.PrometheusServer.Volumes
+		for i, _ := range van.PrometheusServer.VolumeMounts {
+			dep.Spec.Template.Spec.Containers[i].VolumeMounts = van.PrometheusServer.VolumeMounts[i]
+		}
+
+		if van.PrometheusServer.SecurityContext != nil {
+			dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+				RunAsNonRoot: van.PrometheusServer.SecurityContext.RunAsNonRoot,
+			}
+			for i, _ := range dep.Spec.Template.Spec.Containers {
+				dep.Spec.Template.Spec.Containers[i].SecurityContext = van.PrometheusServer.SecurityContext
+			}
+		}
+
+		created, err := deployments.Create(context.TODO(), dep, metav1.CreateOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create prometheus server deployment: %w", err)
+		} else {
+			return created, nil
+		}
+
+	} else {
+		dep := &appsv1.Deployment{}
+		return dep, fmt.Errorf("Failed to check prometheus server deployment: %w", err)
 	}
 }
 
@@ -366,7 +439,7 @@ func setAffinity(spec *types.DeploymentSpec, podspec *corev1.PodSpec) {
 	}
 }
 
-func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, securityContext *corev1.SecurityContext, cli kubernetes.Interface) (*appsv1.Deployment, error) {
+func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReference, cli kubernetes.Interface) (*appsv1.Deployment, error) {
 	deployments := cli.AppsV1().Deployments(van.Namespace)
 	existing, err := deployments.Get(context.TODO(), types.TransportDeploymentName, metav1.GetOptions{})
 	if err == nil {
@@ -416,12 +489,12 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 			dep.Spec.Template.Spec.Containers[i].VolumeMounts = van.Transport.VolumeMounts[i]
 		}
 
-		if securityContext != nil {
+		if van.Transport.SecurityContext != nil {
 			dep.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
-				RunAsNonRoot: securityContext.RunAsNonRoot,
+				RunAsNonRoot: van.Transport.SecurityContext.RunAsNonRoot,
 			}
 			for i, _ := range dep.Spec.Template.Spec.Containers {
-				dep.Spec.Template.Spec.Containers[i].SecurityContext = securityContext
+				dep.Spec.Template.Spec.Containers[i].SecurityContext = van.Transport.SecurityContext
 			}
 		}
 
