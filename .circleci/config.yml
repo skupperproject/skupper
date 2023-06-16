@@ -331,6 +331,8 @@ workflows:
           <<: *run_for_all_branches_and_numeric_tags
       - build_and_push_test_images:
           <<: *run_for_all_branches_and_numeric_tags
+          context:
+            - skupper-org
 
       - main_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
@@ -351,14 +353,20 @@ workflows:
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           <<: *release_requires
+          context:
+            - skupper-org
 
       - publish-github-release-images:
           <<: *run_for_numeric_tags
           <<: *release_requires
+          context:
+            - skupper-org
 
       - publish-github-master-images:
           <<: *run_for_master_branch
           <<: *release_requires
+          context:
+            - skupper-org
 
       - remove_from_registry: # will not run for tags, by default
           requires:
