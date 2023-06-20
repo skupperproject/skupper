@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 	"testing"
@@ -1403,11 +1404,62 @@ func TestRequiredBridges(t *testing.T) {
 			for _, svc := range s.services {
 				bindings[svc.Address] = NewServiceBindings(svc, svc.Ports, context)
 			}
-			actual := RequiredBridges(bindings, s.siteId)
+			actual, _ := RequiredBridges(bindings, s.siteId)
 			assert.Assert(t, reflect.DeepEqual(actual.TcpListeners, s.expected.TcpListeners), "Expected %v got %v", s.expected.TcpListeners, actual.TcpListeners)
 			assert.Assert(t, reflect.DeepEqual(actual.HttpListeners, s.expected.HttpListeners), "Expected %v got %v", s.expected.HttpListeners, actual.HttpListeners)
 			assert.Assert(t, reflect.DeepEqual(actual.TcpConnectors, s.expected.TcpConnectors), "Expected %v got %v", s.expected.TcpConnectors, actual.TcpConnectors)
 			assert.Assert(t, reflect.DeepEqual(actual.HttpConnectors, s.expected.HttpConnectors), "Expected %v got %v", s.expected.HttpConnectors, actual.HttpConnectors)
+		})
+	}
+}
+
+func TestRequiredBridgesIngresNotAvailable(t *testing.T) {
+	type scenario struct {
+		name     string
+		services []types.ServiceInterface
+		siteId   string
+		expected error
+	}
+
+	scenarios := []scenario{
+		{
+			name: "problem-with-ingress",
+			services: []types.ServiceInterface{
+				{
+					Address:  "testing",
+					Protocol: "http2",
+					Ports:    []int{8080},
+					Targets: []types.ServiceInterfaceTarget{
+						{
+							Name:        "target1",
+							Selector:    "app=foo",
+							TargetPorts: map[int]int{8080: 8888},
+							Service:     "",
+						},
+					},
+				},
+			},
+			siteId:   "test-ingress-issues",
+			expected: fmt.Errorf("there are not enough ingress ports available for service testing"),
+		},
+	}
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			context := &DummyServiceBindingContext{
+				hosts: map[string][]string{
+					"app=foo":    {"foo-pod-1"},
+					"app=bar":    {"bar-pod-1", "bar-pod-2"},
+					"app=broken": {""},
+				},
+			}
+			bindings := map[string]*ServiceBindings{}
+			for _, svc := range s.services {
+				sb := NewServiceBindings(svc, svc.Ports, context)
+				sb.ingressPorts = nil
+				bindings[svc.Address] = sb
+			}
+			_, err := RequiredBridges(bindings, s.siteId)
+			assert.Equal(t, err.Error(), "there are not enough ingress ports available for service testing")
 		})
 	}
 }
