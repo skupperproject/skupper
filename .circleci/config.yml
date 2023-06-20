@@ -127,13 +127,9 @@ commands:
       - run:
           name: push to local registry
           command: |
-            docker tag "quay.io/skupper/service-controller:${CIRCLE_SHA1}" "${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
             docker push "${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
-            docker tag "quay.io/skupper/config-sync:${CIRCLE_SHA1}" "${SKUPPER_CONFIG_SYNC_IMAGE}"
             docker push "${SKUPPER_CONFIG_SYNC_IMAGE}"
-            docker tag "quay.io/skupper/flow-collector:${CIRCLE_SHA1}" "${SKUPPER_FLOW_COLLECTOR_IMAGE}"
             docker push "${SKUPPER_FLOW_COLLECTOR_IMAGE}"
-            docker tag "quay.io/skupper/skupper-tests:${CIRCLE_SHA1}" "${TEST_IMAGE}"
             docker push "${TEST_IMAGE}"
 
   system_monitor:
