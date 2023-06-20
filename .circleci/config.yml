@@ -120,10 +120,10 @@ commands:
       - run:
           name: load docker images
           command: |
-            gunzip /tmp/images/service-controller.gz | docker load quay.io/skupper/service-controller
-            gunzip /tmp/images/config-sync.gz | docker load quay.io/skupper/config-sync
-            gunzip /tmp/images/flow-collector.gz | docker load quay.io/skupper/flow-collector
-            gunzip /tmp/images/test-image.gz | docker save quay.io/skupper/skupper-tests
+            gunzip /tmp/images/service-controller.gz | docker load
+            gunzip /tmp/images/config-sync.gz | docker load
+            gunzip /tmp/images/flow-collector.gz | docker load
+            gunzip /tmp/images/test-image.gz | docker load
       - run:
           name: push to local registry
           command: |
