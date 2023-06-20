@@ -19,7 +19,7 @@ if [ ! -f ./swagger ]; then
         WORKDIR=`pwd`
         ( cd ${REMOTE_SOURCES_DIR:-}/swagger/app && go build -o ${WORKDIR}/swagger ./cmd/swagger/ )
     else
-        download_url="https://github.com/go-swagger/go-swagger/releases/download/v0.30.2/swagger_linux_amd64"
+        download_url="https://github.com/go-swagger/go-swagger/releases/download/v0.30.2/swagger_$(go env GOOS)_$(go env GOARCH)"
         curl -o ./swagger -L'#' "$download_url"
         chmod +x ./swagger
     fi
