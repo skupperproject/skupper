@@ -612,7 +612,10 @@ func (c *Controller) updateBridgeConfig(name string) error {
 		if errWithProfiles != nil {
 			return fmt.Errorf("error checking SSL profiles before adding the bindings: %s", errWithProfiles)
 		}
-		desiredBridges := service.RequiredBridges(c.bindings, c.origin)
+		desiredBridges, err := service.RequiredBridges(c.bindings, c.origin)
+		if err != nil {
+			return fmt.Errorf("Error creating bridges: %s", err)
+		}
 		update, err := desiredBridges.UpdateConfigMap(cm)
 		if err != nil {
 			return fmt.Errorf("Error updating %s: %s", cm.ObjectMeta.Name, err)
@@ -787,7 +790,11 @@ func (c *Controller) processNextEvent() bool {
 							event.Recordf(ServiceControllerError, "Could not parse service definition for %s: %s", k, err)
 							continue
 						}
-						c.updateServiceBindings(si, portAllocations)
+						err = c.updateServiceBindings(si, portAllocations)
+						if err != nil {
+							event.Recordf(ServiceControllerError, "Could not update service bindings correctly for %s: %s", k, err)
+						}
+
 						if bindings, ok := c.bindings[si.Address]; ok {
 							updated = append(updated, bindings)
 						}
