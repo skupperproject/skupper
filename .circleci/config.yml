@@ -44,11 +44,11 @@ commands:
   # resource class when memory issues happen, so we can prepare for the
   # next resource class with plenty of time, when required.
   minikube-start-large:
-    description: Starts the minikube service, with 4 CPU and 6GiB --insecure-registry ${LOCAL_IP}:5000
+    description: Starts the minikube service, with 4 CPU and 6GiB
     steps:
       - run:
           command: >-
-            minikube start --vm-driver=docker --cpus 4 --memory 6144
+            minikube start --vm-driver=docker --cpus 4 --memory 6144  --insecure-registry ${LOCAL_IP}:5000
           name: Start Minikube Cluster
 
   minikube-start-load-balancer:
@@ -111,6 +111,12 @@ commands:
   local_registry_start:
     description: prepare a local registry using pre-built images
     steps:
+      - run:
+          name: defining insecure registry location
+          command: |
+            echo "{\"insecure-registries\": [\"${LOCAL_IP}:5000\"]}" | jq > /tmp/daemon.json
+            sudo cp /tmp/daemon.json /etc/docker/
+            sudo systemctl restart docker
       - run:
           name: create registry container
           command: |
