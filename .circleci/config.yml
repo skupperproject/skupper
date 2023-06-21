@@ -91,11 +91,11 @@ commands:
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
-            echo "export SKUPPER_SERVICE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/service-controller:${CIRCLE_SHA1}" >> $BASH_ENV
-            echo "export SKUPPER_SITE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/site-controller:${CIRCLE_SHA1}" >> $BASH_ENV
-            echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync:${CIRCLE_SHA1}" >> $BASH_ENV
-            echo "export SKUPPER_FLOW_COLLECTOR_IMAGE=${LOCAL_IP}:5000/flow-collector:${CIRCLE_SHA1}" >> $BASH_ENV
-            echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests:${CIRCLE_SHA1}" >> $BASH_ENV
+            echo "export SKUPPER_SERVICE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/service-controller" >> $BASH_ENV
+            echo "export SKUPPER_SITE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/site-controller" >> $BASH_ENV
+            echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
+            echo "export SKUPPER_FLOW_COLLECTOR_IMAGE=${LOCAL_IP}:5000/flow-collector" >> $BASH_ENV
+            echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests" >> $BASH_ENV
             source $BASH_ENV
       - checkout
       - run:
@@ -114,7 +114,7 @@ commands:
       - run:
           name: defining insecure registry location
           command: |
-            echo "{\"insecure-registries\": [\"${LOCAL_IP}:5000\"]}" | jq > /tmp/daemon.json
+            echo "{\"insecure-registries\": [\"0.0.0.0:5000\", \"${LOCAL_IP}:5000\"]}" | jq > /tmp/daemon.json
             sudo cp /tmp/daemon.json /etc/docker/
             sudo systemctl restart docker
       - run:
@@ -126,17 +126,21 @@ commands:
       - run:
           name: load docker images
           command: |
-            gunzip -c /tmp/images/service-controller.gz | docker import - "${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
-            gunzip -c /tmp/images/config-sync.gz | docker import - "${SKUPPER_CONFIG_SYNC_IMAGE}"
-            gunzip -c /tmp/images/flow-collector.gz | docker import - "${SKUPPER_FLOW_COLLECTOR_IMAGE}"
-            gunzip -c /tmp/images/test-image.gz | docker import - "${TEST_IMAGE}"
+            gunzip -c /tmp/images/service-controller.gz | docker import - 0.0.0.0:5000/service-controller
+            gunzip -c /tmp/images/service-controller.gz | docker load
+            gunzip -c /tmp/images/config-sync.gz | docker import - 0.0.0.0:5000/config-sync
+            gunzip -c /tmp/images/config-sync.gz | docker load
+            gunzip -c /tmp/images/flow-collector.gz | docker import - 0.0.0.0:5000/flow-collector
+            gunzip -c /tmp/images/flow-collector.gz | docker load
+            gunzip -c /tmp/images/test-image.gz | docker import - 0.0.0.0:5000/skupper-tests
+            gunzip -c /tmp/images/test-image.gz | docker load
       - run:
           name: push to local registry
           command: |
-            docker push "${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
-            docker push "${SKUPPER_CONFIG_SYNC_IMAGE}"
-            docker push "${SKUPPER_FLOW_COLLECTOR_IMAGE}"
-            docker push "${TEST_IMAGE}"
+            docker push 0.0.0.0:5000/service-controller
+            docker push 0.0.0.0:5000/config-sync
+            docker push 0.0.0.0:5000/flow-collector
+            docker push 0.0.0.0:5000/skupper-tests
 
   system_monitor:
     description: shows continuous system state
@@ -416,10 +420,14 @@ jobs:
           name: persisting images to workspace
           command: |
             mkdir /tmp/images
-            docker save quay.io/skupper/service-controller | gzip > /tmp/images/service-controller.gz
-            docker save quay.io/skupper/config-sync | gzip > /tmp/images/config-sync.gz
-            docker save quay.io/skupper/flow-collector | gzip > /tmp/images/flow-collector.gz
-            docker save quay.io/skupper/skupper-tests | gzip > /tmp/images/test-image.gz
+            docker tag quay.io/skupper/service-controller 0.0.0.0:5000/service-controller
+            docker save 0.0.0.0:5000/service-controller | gzip > /tmp/images/service-controller.gz
+            docker tag quay.io/skupper/config-sync 0.0.0.0:5000/config-sync
+            docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
+            docker tag quay.io/skupper/flow-collector 0.0.0.0:5000/flow-collector
+            docker save 0.0.0.0:5000/flow-collector | gzip > /tmp/images/flow-collector.gz
+            docker tag quay.io/skupper/skupper-tests 0.0.0.0:5000/skupper-tests
+            docker save 0.0.0.0:5000/skupper-tests | gzip > /tmp/images/test-image.gz
       - persist_to_workspace:
           root: /tmp
           paths:
