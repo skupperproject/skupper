@@ -118,7 +118,7 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 		svcName += "-proxy"
 		proxyService, err := cli.CoreV1().Services(namespace).Get(context.TODO(), svcName, metav1.GetOptions{})
 		if err == nil && proxyService != nil {
-			return nil, fmt.Errorf("service %s already exists in the cluster, use any other name to expose the statefulset with a headless service", svcName)
+			return nil, fmt.Errorf("To expose the %s statefulset, Skupper must create a '%s' service, and that service already exists in this namespace. To avoid this problem, rename the statefulset or the existing service.", serviceInterface.Address, svcName)
 		}
 
 		_, err = NewHeadlessService(svcName, serviceInterface.Address, serviceInterface.Ports, serviceInterface.Ports, serviceInterface.Labels, &ownerRef, namespace, cli)
