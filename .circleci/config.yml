@@ -4,27 +4,6 @@ orbs:
     kube-orb: circleci/kubernetes@0.11.0
     go: circleci/go@1.7.1
 
-parameters:
-  ci_service_controller_image:
-    default: quay.io/skupper/service-controller:${CIRCLE_SHA1}
-    type: string
-
-  ci_site_controller_image:
-    default: quay.io/skupper/site-controller:${CIRCLE_SHA1}
-    type: string
-
-  ci_config_sync_image:
-    default: quay.io/skupper/config-sync:${CIRCLE_SHA1}
-    type: string
-
-  ci_flow_collector_image:
-    default: quay.io/skupper/flow-collector:${CIRCLE_SHA1}
-    type: string
-
-  ci_test_image:
-    default: quay.io/skupper/skupper-tests:${CIRCLE_SHA1}
-    type: string
-
 executors:
   local_cluster_test_executor:
     machine:
@@ -57,7 +36,7 @@ commands:
     steps:
       - run:
           command: >-
-            minikube start --vm-driver=docker --cpus 2 --memory 2048
+            minikube start --vm-driver=docker --cpus 2 --memory 2048 --insecure-registry ${LOCAL_IP}:5000
           name: Start Minikube Cluster
 
   # We're using only 6 GiB out of the available 15 GiB of the linux/large
@@ -69,7 +48,7 @@ commands:
     steps:
       - run:
           command: >-
-            minikube start --vm-driver=docker --cpus 4 --memory 6144
+            minikube start --vm-driver=docker --cpus 4 --memory 6144  --insecure-registry ${LOCAL_IP}:5000
           name: Start Minikube Cluster
 
   minikube-start-load-balancer:
@@ -99,17 +78,24 @@ commands:
     description: install right versions of go, docker, kubectl, and also build
     steps:
       - run:
+          name: Saving local ip
+          command: |
+            LOCAL_IP=$(ip addr show | grep inet\ | grep -vE 'lo$|docker' | awk '{print $2}' | awk -F '/' '{print $1}')
+            echo "export LOCAL_IP=${LOCAL_IP}" >> ${BASH_ENV}
+            echo "Local IP: ${LOCAL_IP}"
+            source $BASH_ENV
+      - run:
           name: Export environment variables persistent in execution shell
           command: |
             echo 'export KUBECONFIG=/home/circleci/.kube/config' >> $BASH_ENV
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
-            echo 'export SKUPPER_SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
-            echo 'export SKUPPER_SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
-            echo 'export SKUPPER_CONFIG_SYNC_IMAGE=<< pipeline.parameters.ci_config_sync_image >>' >> $BASH_ENV
-            echo 'export SKUPPER_FLOW_COLLECTOR_IMAGE=<< pipeline.parameters.ci_flow_collector_image >>' >> $BASH_ENV
-            echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
+            echo "export SKUPPER_SERVICE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/service-controller" >> $BASH_ENV
+            echo "export SKUPPER_SITE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/site-controller" >> $BASH_ENV
+            echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
+            echo "export SKUPPER_FLOW_COLLECTOR_IMAGE=${LOCAL_IP}:5000/flow-collector" >> $BASH_ENV
+            echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests" >> $BASH_ENV
             source $BASH_ENV
       - checkout
       - run:
@@ -121,6 +107,40 @@ commands:
       - kube-orb/install-kubectl
       - run: make generate-client
       - run: make
+
+  local_registry_start:
+    description: prepare a local registry using pre-built images
+    steps:
+      - run:
+          name: defining insecure registry location
+          command: |
+            echo "{\"insecure-registries\": [\"0.0.0.0:5000\", \"${LOCAL_IP}:5000\"]}" | jq > /tmp/daemon.json
+            sudo cp /tmp/daemon.json /etc/docker/
+            sudo systemctl restart docker
+      - run:
+          name: create registry container
+          command: |
+            docker run --name registry -d -p 5000:5000 registry
+      - attach_workspace:
+          at: /tmp/
+      - run:
+          name: load docker images
+          command: |
+            gunzip -c /tmp/images/service-controller.gz | docker import - 0.0.0.0:5000/service-controller
+            gunzip -c /tmp/images/service-controller.gz | docker load
+            gunzip -c /tmp/images/config-sync.gz | docker import - 0.0.0.0:5000/config-sync
+            gunzip -c /tmp/images/config-sync.gz | docker load
+            gunzip -c /tmp/images/flow-collector.gz | docker import - 0.0.0.0:5000/flow-collector
+            gunzip -c /tmp/images/flow-collector.gz | docker load
+            gunzip -c /tmp/images/test-image.gz | docker import - 0.0.0.0:5000/skupper-tests
+            gunzip -c /tmp/images/test-image.gz | docker load
+      - run:
+          name: push to local registry
+          command: |
+            docker push 0.0.0.0:5000/service-controller
+            docker push 0.0.0.0:5000/config-sync
+            docker push 0.0.0.0:5000/flow-collector
+            docker push 0.0.0.0:5000/skupper-tests
 
   system_monitor:
     description: shows continuous system state
@@ -329,10 +349,8 @@ workflows:
           <<: *run_for_all_branches_and_numeric_tags
       - test:
           <<: *run_for_all_branches_and_numeric_tags
-      - build_and_push_test_images:
+      - build_and_save_test_images:
           <<: *run_for_all_branches_and_numeric_tags
-          context:
-            - skupper-org
 
       - main_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
@@ -340,7 +358,7 @@ workflows:
             - prepare_for_local_cluster_tests
           requires:
             - test
-            - build_and_push_test_images
+            - build_and_save_test_images
 
       - policy_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
@@ -348,7 +366,7 @@ workflows:
             - prepare_for_local_cluster_tests
           requires:
             - test
-            - build_and_push_test_images
+            - build_and_save_test_images
 
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
@@ -367,12 +385,6 @@ workflows:
           <<: *release_requires
           context:
             - skupper-org
-
-      - remove_from_registry: # will not run for tags, by default
-          requires:
-            - test
-            - policy_tests_minikube_local_cluster
-            - main_tests_minikube_local_cluster
 
 jobs:
   test:
@@ -397,41 +409,29 @@ jobs:
       - go/test:
           coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
 
-  build_and_push_test_images:
+  build_and_save_test_images:
     executor: local_cluster_test_executor
     steps:
       - docker/install-docker
       - checkout
-      - run:
-          name: Export environment variables persistent in execution shell
-          command: |
-            echo 'export SERVICE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_service_controller_image >>' >> $BASH_ENV
-            echo 'export SITE_CONTROLLER_IMAGE=<< pipeline.parameters.ci_site_controller_image >>' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=<< pipeline.parameters.ci_config_sync_image >>' >> $BASH_ENV
-            echo 'export FLOW_COLLECTOR_IMAGE=<< pipeline.parameters.ci_flow_collector_image >>' >> $BASH_ENV
-            echo 'export TEST_IMAGE=<< pipeline.parameters.ci_test_image >>' >> $BASH_ENV
-            source $BASH_ENV
-      - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
-      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run: make -e generate-client
       - run: make -e docker-build
-      - run: make -e docker-push
-
-  remove_from_registry:
-    executor:
-      name: go/default
-      tag: "1.19"
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
-      - run: go get github.com/genuinetools/reg
-      - run: go install github.com/genuinetools/reg
-      - run: reg rm << pipeline.parameters.ci_service_controller_image >>
-      - run: reg rm << pipeline.parameters.ci_site_controller_image >>
-      - run: reg rm << pipeline.parameters.ci_test_image >>
-      - run: reg rm << pipeline.parameters.ci_config_sync_image >>
-      - run: reg rm << pipeline.parameters.ci_flow_collector_image >>
+      - run:
+          name: persisting images to workspace
+          command: |
+            mkdir /tmp/images
+            docker tag quay.io/skupper/service-controller 0.0.0.0:5000/service-controller
+            docker save 0.0.0.0:5000/service-controller | gzip > /tmp/images/service-controller.gz
+            docker tag quay.io/skupper/config-sync 0.0.0.0:5000/config-sync
+            docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
+            docker tag quay.io/skupper/flow-collector 0.0.0.0:5000/flow-collector
+            docker save 0.0.0.0:5000/flow-collector | gzip > /tmp/images/flow-collector.gz
+            docker tag quay.io/skupper/skupper-tests 0.0.0.0:5000/skupper-tests
+            docker save 0.0.0.0:5000/skupper-tests | gzip > /tmp/images/test-image.gz
+      - persist_to_workspace:
+          root: /tmp
+          paths:
+            - images/
 
   build-all:
     executor:
@@ -496,6 +496,7 @@ jobs:
     executor: local_cluster_test_executor
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
+      - local_registry_start
       - minikube-install
       - minikube-start-large
       - minikube-start-load-balancer
@@ -510,6 +511,7 @@ jobs:
     executor: local_cluster_policy_test_executor
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
+      - local_registry_start
       - minikube-install
       - minikube-start-medium
       - minikube-start-load-balancer
