@@ -252,7 +252,7 @@ func (cli *VanClient) GetHeadlessServiceConfiguration(targetName string, protoco
 	proxySvcName := targetName + "-proxy"
 	proxyService, err := cli.KubeClient.CoreV1().Services(svcNamespace).Get(context.TODO(), proxySvcName, metav1.GetOptions{})
 	if err == nil && proxyService != nil {
-		return nil, fmt.Errorf("service %s already exists in the cluster, use any other name to expose the statefulset with a headless service", proxySvcName)
+		return nil, fmt.Errorf("To expose the %s statefulset, Skupper must create a '%s' service, and that service already exists in this namespace. To avoid this problem, rename the statefulset or the existing service.", targetName, proxySvcName)
 	}
 
 	statefulset, err := cli.KubeClient.AppsV1().StatefulSets(svcNamespace).Get(context.TODO(), targetName, metav1.GetOptions{})
