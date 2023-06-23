@@ -91,7 +91,7 @@ var nginxDep = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nginx1",
-						Image:           "nginxinc/nginx-unprivileged:stable-alpine",
+						Image:           "quay.io/dhashimo/nginx-unprivileged:stable-alpine",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -142,7 +142,7 @@ var nghttp2Dep = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp2",
-						Image:           "docker.io/svagi/nghttp2",
+						Image:           "quay.io/dhashimo/nghttp2",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -204,7 +204,7 @@ var nghttp2TlsDep = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp2tls",
-						Image:           "docker.io/svagi/nghttp2",
+						Image:           "quay.io/dhashimo/nghttp2",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -266,7 +266,7 @@ var nghttp2TcpTlsDep = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp2tcptls",
-						Image:           "docker.io/svagi/nghttp2",
+						Image:           "quay.io/dhashimo/nghttp2",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -328,7 +328,7 @@ var nghttp1TlsDep = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp1tls",
-						Image:           "nginxinc/nginx-unprivileged:stable-alpine",
+						Image:           "quay.io/dhashimo/nginx-unprivileged:stable-alpine",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -389,7 +389,7 @@ var nghttp2TlsDepWithCertFiles = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp2tls",
-						Image:           "docker.io/svagi/nghttp2",
+						Image:           "quay.io/dhashimo/nghttp2",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -461,7 +461,7 @@ var nghttp2tcpTlsDepWithCertFiles = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp2tcptls",
-						Image:           "docker.io/svagi/nghttp2",
+						Image:           "quay.io/dhashimo/nghttp2",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -572,7 +572,7 @@ var nghttp1TlsDepWithCertFiles = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp1tls",
-						Image:           "nginxinc/nginx-unprivileged:stable-alpine",
+						Image:           "quay.io/dhashimo/nginx-unprivileged:stable-alpine",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -608,7 +608,7 @@ var h2loadJob = &batchv1.Job{
 				Containers: []apiv1.Container{
 					{
 						Name:  "h2load",
-						Image: "docker.io/svagi/nghttp2",
+						Image: "quay.io/dhashimo/nghttp2",
 						// Command: []string{"h2load", "-n10", "-c10", "-m10", "http://nghttp2:8443"},
 						Command: []string{"h2load", "-n1000", "-c1", "-m1", "http://nghttp2:8443"},
 						Env: []apiv1.EnvVar{

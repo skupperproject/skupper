@@ -426,7 +426,7 @@ func getHttpServerInfo(settings *httpSettings) *common.ServerInfo {
 
 func getHttpDeployment() *appsv1.Deployment {
 	dep, _ := k8s.NewDeployment("http-server", "", k8s.DeploymentOpts{
-		Image:  "nginxinc/nginx-unprivileged:stable-alpine",
+		Image:  "quay.io/dhashimo/nginx-unprivileged:stable-alpine",
 		Labels: map[string]string{"app": "http-server"},
 	})
 	return dep
