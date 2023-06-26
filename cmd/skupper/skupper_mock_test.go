@@ -681,3 +681,68 @@ func TestCmdBind(t *testing.T) {
 			assert.Error(t, err, "some error")
 		})
 }
+
+func TestConsoleAuthArgs(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		error string
+	}{
+		{
+			"console-auth is not internal and it should be",
+			[]string{"--console-auth", "something", "--console-user", "admin"},
+			"the --console-auth option must be set to internal",
+		},
+		{
+			"console-auth is not set",
+			[]string{"--console-password", "something", "--console-user", "admin"},
+			"the --console-auth option must be set to internal",
+		},
+		{
+			"console-auth is unsecured and should be internal",
+			[]string{"--console-password", "something", "--console-user", "admin", "--console-auth", "unsecured"},
+			"the --console-auth option must be set to internal",
+		},
+		{
+			"console-auth is unsecured and should be internal",
+			[]string{"--console-password", "something", "--console-user", "admin", "--console-auth", "unsecured"},
+			"the --console-auth option must be set to internal",
+		},
+		{
+			"enable-console option should be enabled",
+			[]string{"--console-password", "something", "--console-user", "admin", "--console-auth", "internal"},
+			"the console needs to be enabled with --enable-console and --enable-flow-collector in order to set up user and password",
+		},
+	}
+	for _, tc := range tests {
+
+		if *clusterRun {
+
+			skupperCli := NewSkupperTestClient()
+			skupperCli.Cli = &vanClientMock{}
+
+			var lcli *vanClientMock
+
+			resetCli := func() {
+				lcli = &vanClientMock{}
+				skupperCli.Cli = lcli
+			}
+
+			t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+				cmd := NewCmdInit(skupperCli.Site())
+				b := bytes.NewBufferString("")
+				cmd.SetOut(b)
+				cmd.SetArgs(tc.args)
+
+				err := cmd.Execute()
+				if tc.error != "" {
+					assert.Error(t, err, tc.error)
+				}
+
+				b.Reset()
+				resetCli()
+			})
+		}
+	}
+
+}
