@@ -144,8 +144,6 @@ func TestHelloWorldCLI(t *testing.T) {
 					// skupper init - edge mode, no console and unsecured
 					&cli.InitTester{
 						ConsoleAuth:           "unsecured",
-						ConsoleUser:           "admin",
-						ConsolePassword:       "admin",
 						Ingress:               "none",
 						RouterLogging:         "trace",
 						RouterMode:            "edge",
