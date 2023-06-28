@@ -661,8 +661,10 @@ func (c *Controller) deleteServiceBindings(k string, v *service.ServiceBindings)
 }
 
 func (c *Controller) updateServiceSync(defs *corev1.ConfigMap) {
-	definitions := parseServiceDefinitions(defs)
-	c.serviceSync.LocalDefinitionsUpdated(definitions)
+	if !c.disableServiceSync {
+		definitions := parseServiceDefinitions(defs)
+		c.serviceSync.LocalDefinitionsUpdated(definitions)
+	}
 }
 
 func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error {
