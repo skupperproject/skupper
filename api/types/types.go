@@ -399,6 +399,7 @@ type DeploymentSpec struct {
 	MemoryRequest       *resource.Quantity           `json:"memoryRequest,omitempty"`
 	CpuLimit            *resource.Quantity           `json:"cpuLimit,omitempty"`
 	MemoryLimit         *resource.Quantity           `json:"memoryLimit,omitempty"`
+	HostAliases         []corev1.HostAlias           `json:"hostAliases,omitempty"`
 }
 
 func (s *DeploymentSpec) GetCpuRequest() resource.Quantity {

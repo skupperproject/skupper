@@ -58,16 +58,17 @@ type Tuning struct {
 
 type RouterOptions struct {
 	Tuning
-	Logging             []RouterLogConfig
-	DebugMode           string
-	MaxFrameSize        int
-	MaxSessionFrames    int
-	DataConnectionCount string
-	IngressHost         string
-	ServiceAnnotations  map[string]string
-	PodAnnotations      map[string]string
-	LoadBalancerIp      string
-	DisableMutualTLS    bool
+	Logging                     []RouterLogConfig
+	DebugMode                   string
+	MaxFrameSize                int
+	MaxSessionFrames            int
+	DataConnectionCount         string
+	IngressHost                 string
+	ServiceAnnotations          map[string]string
+	PodAnnotations              map[string]string
+	LoadBalancerIp              string
+	DisableMutualTLS            bool
+	ForceRestartsForHostAliases bool
 }
 
 type ControllerOptions struct {
@@ -187,6 +188,9 @@ func (s *SiteConfigSpec) IsConsoleIngressKubernetes() bool {
 }
 func (s *SiteConfigSpec) IsConsoleIngressNone() bool {
 	return s.getConsoleIngress() == IngressNoneString
+}
+func (s *SiteConfigSpec) IsEdge() bool {
+	return s.RouterMode == string(TransportModeEdge)
 }
 func (s *SiteConfigSpec) getConsoleIngress() string {
 	if s.ConsoleIngress == "" {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"strconv"
 	"strings"
 	"text/template"
@@ -22,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -651,6 +653,10 @@ func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) erro
 	}
 }
 
+// func isEdge(options types.SiteConfigSpec) bool {
+// 	return options.RouterMode == string(types.TransportModeEdge)
+// }
+
 func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) *types.RouterSpec {
 	// skupper-router container index
 	// TODO: update after dataplance changes
@@ -716,7 +722,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		fmt.Println("Error configuring router:", err)
 	}
 
-	isEdge := options.RouterMode == string(types.TransportModeEdge)
+	isEdge := options.IsEdge()
 	routerConfig := qdr.InitialConfigSkupperRouter(van.Name+"-${HOSTNAME}", siteId, version.Version, isEdge, 3, options.Router)
 	van.RouterConfig, _ = qdr.MarshalRouterConfig(routerConfig)
 
@@ -1083,6 +1089,63 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	return van
 }
 
+func (cli *VanClient) GetRouterHostAliasesSpecFromTokens(ctx context.Context) ([]corev1.HostAlias, error) {
+	hostAliasesMap := make(map[string]map[string]bool)
+	secrets, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).List(ctx, metav1.ListOptions{LabelSelector: types.SkupperTypeQualifier + "=" + types.TypeToken})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve connection token: %w", err)
+	}
+	if len(secrets.Items) == 0 {
+		return nil, fmt.Errorf("Connection token not found")
+	} else {
+		for _, s := range secrets.Items {
+			if alias, ok := s.ObjectMeta.Annotations["edge-alias"]; ok {
+				if net.ParseIP(alias) == nil {
+					log.Printf("Skipping edge-alias: %s is not a valid textual representation of an IP address\n", alias)
+				} else {
+					name := s.ObjectMeta.Annotations["edge-host"]
+					if msgs := validation.IsDNS1123Subdomain(name); len(msgs) != 0 {
+						log.Printf("Skipping edge-alias: %v\n", msgs)
+					} else {
+						if _, ok := hostAliasesMap[alias][name]; !ok {
+							hostAliasesMap[alias] = make(map[string]bool)
+							hostAliasesMap[alias][name] = true
+						}
+					}
+				}
+			}
+			if alias, ok := s.ObjectMeta.Annotations["inter-router-alias"]; ok {
+				if net.ParseIP(alias) == nil {
+					log.Printf("Skipping inter-router-alias: %s is not a valid textual representation of an IP address", alias)
+				} else {
+					name := s.ObjectMeta.Annotations["inter-router-host"]
+					if msgs := validation.IsDNS1123Subdomain(name); len(msgs) != 0 {
+						log.Printf("Skipping inter-router-alias: %v\n", msgs)
+					} else {
+						if _, ok := hostAliasesMap[alias][name]; !ok {
+							hostAliasesMap[alias] = make(map[string]bool)
+							hostAliasesMap[alias][name] = true
+						}
+					}
+				}
+			}
+		}
+	}
+	hostAliases := []corev1.HostAlias{}
+	for alias, v := range hostAliasesMap {
+		new := corev1.HostAlias{
+			IP:        alias,
+			Hostnames: []string{},
+		}
+		for hn, _ := range v {
+			new.Hostnames = append(new.Hostnames, hn)
+		}
+		hostAliases = append(hostAliases, new)
+	}
+
+	return hostAliases, nil
+}
+
 // RouterCreate instantiates a VAN (router and controller) deployment
 func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig) error {
 	// todo return error
@@ -1120,6 +1183,14 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 	}
 	var err error
+	isEdge := options.Spec.IsEdge()
+	if isEdge {
+		hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx)
+		if err != nil {
+			return err
+		}
+		van.Transport.HostAliases = hostAliases
+	}
 	if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) {
 		config := `
 pwcheck_method: auxprop
