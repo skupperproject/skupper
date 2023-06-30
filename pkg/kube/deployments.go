@@ -477,6 +477,7 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 						Containers: []corev1.Container{
 							ContainerForTransport(van.Transport),
 						},
+						HostAliases: van.Transport.HostAliases,
 					},
 				},
 			},

@@ -10,9 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/version"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1081,6 +1083,56 @@ func (cli *VanClient) RouterUpdateAnnotations(ctx context.Context, settings *cor
 		return updated, err
 	}
 
+	return updated, nil
+}
+
+func sortHostAliases(hostAliases []corev1.HostAlias) []corev1.HostAlias {
+	sort.Slice(hostAliases, func(i, j int) bool {
+		return hostAliases[i].IP < hostAliases[j].IP
+	})
+
+	for _, hn := range hostAliases {
+		sort.Slice(hn.Hostnames, func(i, j int) bool {
+			return hn.Hostnames[i] < hn.Hostnames[j]
+		})
+	}
+	return hostAliases
+}
+
+func hostAliasesEqual(new, old []corev1.HostAlias) bool {
+	if len(new) != len(old) {
+		return false
+	}
+	return cmp.Equal(sortHostAliases(new), sortHostAliases(old))
+}
+
+func (cli *VanClient) updateHostAliasesOnDeployment(ctx context.Context, namespace string, name string, hostAliases []corev1.HostAlias) (bool, error) {
+	deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	if !hostAliasesEqual(hostAliases, deployment.Spec.Template.Spec.HostAliases) {
+		deployment.Spec.Template.Spec.HostAliases = hostAliases
+		_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func (cli *VanClient) RouterUpdateHostAliases(ctx context.Context, token *corev1.Secret) (bool, error) {
+	hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	updated, err := cli.updateHostAliasesOnDeployment(ctx, token.Namespace, types.TransportDeploymentName, hostAliases)
+	if err != nil {
+		return updated, err
+	}
 	return updated, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/version"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -26,6 +27,7 @@ import (
 type SiteController struct {
 	vanClient            *client.VanClient
 	siteInformer         cache.SharedIndexInformer
+	tokenInformer        cache.SharedIndexInformer
 	tokenRequestInformer cache.SharedIndexInformer
 	workqueue            workqueue.RateLimitingInterface
 }
@@ -52,6 +54,14 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 			options.FieldSelector = "metadata.name=skupper-site"
 			options.LabelSelector = "!" + types.SiteControllerIgnore
 		}))
+	tokenInformer := corev1informer.NewFilteredSecretInformer(
+		cli.KubeClient,
+		watchNamespace,
+		time.Second*30,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
+			options.LabelSelector = types.TypeTokenQualifier
+		}))
 	tokenRequestInformer := corev1informer.NewFilteredSecretInformer(
 		cli.KubeClient,
 		watchNamespace,
@@ -65,11 +75,13 @@ func NewSiteController(cli *client.VanClient) (*SiteController, error) {
 	controller := &SiteController{
 		vanClient:            cli,
 		siteInformer:         siteInformer,
+		tokenInformer:        tokenInformer,
 		tokenRequestInformer: tokenRequestInformer,
 		workqueue:            workqueue,
 	}
 
 	siteInformer.AddEventHandler(controller.getHandlerFuncs(SiteConfig, configmapResourceVersionTest))
+	tokenInformer.AddEventHandler(controller.getHandlerFuncs(Token, secretResourceVersionTest))
 	tokenRequestInformer.AddEventHandler(controller.getHandlerFuncs(TokenRequest, secretResourceVersionTest))
 	return controller, nil
 }
@@ -110,6 +122,7 @@ func (c *SiteController) Run(stopCh <-chan struct{}) error {
 
 	log.Println("Starting the Skupper site controller informers")
 	go c.siteInformer.Run(stopCh)
+	go c.tokenInformer.Run(stopCh)
 	go c.tokenRequestInformer.Run(stopCh)
 
 	log.Println("Waiting for informer caches to sync")
@@ -175,6 +188,8 @@ func (c *SiteController) dispatchTrigger(trigger trigger) error {
 	switch trigger.category {
 	case SiteConfig:
 		return c.checkSite(trigger.key)
+	case Token:
+		return c.checkToken(trigger.key)
 	case TokenRequest:
 		return c.checkTokenRequest(trigger.key)
 	default:
@@ -199,6 +214,7 @@ func (c *SiteController) enqueueTrigger(obj interface{}, category triggerType) {
 func (c *SiteController) checkAllForSite() {
 	// Now need to check whether there are any token requests already in place
 	log.Println("Checking token requests...")
+	c.checkAllToken()
 	c.checkAllTokenRequests()
 	log.Println("Done.")
 }
@@ -332,6 +348,15 @@ func (c *SiteController) generate(token *corev1.Secret) error {
 	}
 }
 
+func (c *SiteController) checkAllToken() {
+	// can we rely on the cache here?
+	tokens := c.tokenInformer.GetStore().List()
+	for _, t := range tokens {
+		// service from workqueue
+		c.enqueueTrigger(t, Token)
+	}
+}
+
 func (c *SiteController) checkAllTokenRequests() {
 	// can we rely on the cache here?
 	tokens := c.tokenRequestInformer.GetStore().List()
@@ -339,6 +364,41 @@ func (c *SiteController) checkAllTokenRequests() {
 		// service from workqueue
 		c.enqueueTrigger(t, TokenRequest)
 	}
+}
+
+func (c *SiteController) checkToken(key string) error {
+	log.Printf("Handling token for %s", key)
+	obj, exists, err := c.tokenInformer.GetStore().GetByKey(key)
+	if err != nil {
+		log.Println("Error checking connection-token secret: ", err)
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
+	token := obj.(*corev1.Secret)
+	if !c.isTokenValidInSite(token) {
+		log.Println("Cannot handle token, as site not yet initialised")
+		return nil
+	}
+
+	siteConfig, err := c.vanClient.SiteConfigInspect(context.Background(), nil)
+	if err != nil {
+		log.Printf("siteConfig error %s", key)
+		return err
+	}
+	if siteConfig.Spec.Router.ForceRestartsForHostAliases {
+		updated, _ := c.vanClient.RouterUpdateHostAliases(context.Background(), token)
+		if updated {
+			log.Printf("Router updated and restarted due to changes in token %s", key)
+		} else {
+			log.Printf("Changes in token %s didn't trigger router update", key)
+		}
+	} else {
+		log.Printf("Changes in tokens won't trigger router updates due to %s = false", site.SiteConfigRouterForceRestartsForHostAliases)
+	}
+	return nil
 }
 
 func (c *SiteController) checkTokenRequest(key string) error {
