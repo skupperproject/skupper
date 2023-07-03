@@ -442,15 +442,11 @@ installation that can then be connected to other skupper installations`,
 			}
 
 			if routerCreateOpts.AuthMode != "internal" && (len(routerCreateOpts.User) > 0 || len(routerCreateOpts.Password) > 0) {
-				return fmt.Errorf("the --console-auth option must be set to internal")
+				return fmt.Errorf("for the console to work with this user or password, the --console-auth option must be set to internal")
 			}
 
-			if routerCreateOpts.AuthMode == "internal" && (len(routerCreateOpts.User) == 0 || len(routerCreateOpts.Password) == 0) {
-				return fmt.Errorf("the user and password values need to be configured if the --console-auth is set to internal")
-			}
-
-			if routerCreateOpts.AuthMode == "internal" && len(routerCreateOpts.User) > 0 && len(routerCreateOpts.Password) > 0 && !routerCreateOpts.EnableConsole {
-				return fmt.Errorf("the console needs to be enabled with --enable-console and --enable-flow-collector in order to set up user and password")
+			if routerCreateOpts.AuthMode == "internal" && !routerCreateOpts.EnableConsole {
+				return fmt.Errorf("the console needs to be enabled with --enable-console and --enable-flow-collector in order to set up internal authentication")
 			}
 
 			if len(routerCreateOpts.AuthMode) > 0 && !utils.StringSliceContains(types.ValidAuthOptions(platform), routerCreateOpts.AuthMode) {
