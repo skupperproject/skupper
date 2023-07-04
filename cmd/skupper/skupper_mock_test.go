@@ -691,27 +691,17 @@ func TestConsoleAuthArgs(t *testing.T) {
 		{
 			"console-auth is not internal and it should be",
 			[]string{"--console-auth", "something", "--console-user", "admin"},
-			"the --console-auth option must be set to internal",
+			"for the console to work with this user or password, the --console-auth option must be set to internal",
 		},
 		{
 			"console-auth is not set",
 			[]string{"--console-password", "something", "--console-user", "admin"},
-			"the --console-auth option must be set to internal",
+			"for the console to work with this user or password, the --console-auth option must be set to internal",
 		},
 		{
 			"console-auth is unsecured and should be internal",
 			[]string{"--console-password", "something", "--console-user", "admin", "--console-auth", "unsecured"},
-			"the --console-auth option must be set to internal",
-		},
-		{
-			"console-auth is unsecured and should be internal",
-			[]string{"--console-password", "something", "--console-user", "admin", "--console-auth", "unsecured"},
-			"the --console-auth option must be set to internal",
-		},
-		{
-			"enable-console option should be enabled",
-			[]string{"--console-password", "something", "--console-user", "admin", "--console-auth", "internal"},
-			"the console needs to be enabled with --enable-console and --enable-flow-collector in order to set up user and password",
+			"for the console to work with this user or password, the --console-auth option must be set to internal",
 		},
 	}
 	for _, tc := range tests {
