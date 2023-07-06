@@ -154,10 +154,6 @@ func main() {
 	platform := config.GetPlatform()
 	var flowRecordTtl time.Duration
 	var enableConsole bool
-	var prometheusHost string
-	var prometheusAuthMethod string
-	var prometheusUser string
-	var prometheusPassword string
 	var prometheusUrl string
 
 	// waiting on skupper-router to be available
@@ -180,9 +176,6 @@ func main() {
 
 		flowRecordTtl = siteConfig.Spec.FlowCollector.FlowRecordTtl
 		enableConsole = siteConfig.Spec.EnableConsole
-		prometheusAuthMethod = siteConfig.Spec.PrometheusServer.AuthMode
-		prometheusUser = siteConfig.Spec.PrometheusServer.User
-		prometheusPassword = siteConfig.Spec.PrometheusServer.Password
 
 		svc, err := kube.GetService(types.PrometheusServiceName, cli.Namespace, cli.KubeClient)
 		if err == nil {
@@ -212,10 +205,6 @@ func main() {
 		}
 		flowRecordTtl, _ = time.ParseDuration(os.Getenv("FLOW_RECORD_TTL"))
 		enableConsole, _ = strconv.ParseBool(os.Getenv("ENABLE_CONSOLE"))
-		prometheusHost = os.Getenv("PROMETHEUS_HOST")
-		prometheusAuthMethod = os.Getenv("PROMETHEUS_AUTH_METHOD")
-		prometheusUser = os.Getenv("PROMETHEUS_USER")
-		prometheusPassword = os.Getenv("PROMETHEUS_PASSWORD")
 		prometheusUrl = os.Getenv("PROMETHEUS_URL")
 	}
 
@@ -234,11 +223,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Error getting new flow collector ", err.Error())
 	}
-
-	c.FlowCollector.Collector.PrometheusHost = prometheusHost
-	c.FlowCollector.Collector.PrometheusAuthMethod = prometheusAuthMethod
-	c.FlowCollector.Collector.PrometheusUser = prometheusUser
-	c.FlowCollector.Collector.PrometheusPassword = prometheusPassword
 	c.FlowCollector.Collector.PrometheusUrl = prometheusUrl
 
 	var mux = mux.NewRouter().StrictSlash(true)
