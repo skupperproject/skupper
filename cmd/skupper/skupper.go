@@ -445,10 +445,6 @@ installation that can then be connected to other skupper installations`,
 				return fmt.Errorf("for the console to work with this user or password, the --console-auth option must be set to internal")
 			}
 
-			if len(routerCreateOpts.AuthMode) > 0 && !routerCreateOpts.EnableFlowCollector {
-				fmt.Println("The authentication only applies when --enable-console or --enable-flow-collector are enabled")
-			}
-
 			if len(routerCreateOpts.AuthMode) > 0 && !utils.StringSliceContains(types.ValidAuthOptions(platform), routerCreateOpts.AuthMode) {
 				return fmt.Errorf("the --console-auth option must contain one of these values: %v", types.ValidAuthOptions(platform))
 			}
