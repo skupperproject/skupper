@@ -25,6 +25,7 @@ type Site struct {
 	IngressBindEdgePort          int
 	IngressBindFlowCollectorPort int
 	ContainerNetwork             string
+	EnableIPV6                   bool
 	PodmanEndpoint               string
 	EnableFlowCollector          bool
 	EnableConsole                bool
@@ -374,6 +375,7 @@ func (s *SiteHandler) canCreate(site *Site) error {
 	if net == nil {
 		createdNetwork, err := cli.NetworkCreate(&container.Network{
 			Name:     site.ContainerNetwork,
+			IPV6:     site.EnableIPV6,
 			DNS:      true,
 			Internal: false,
 		})
@@ -420,6 +422,7 @@ func (s *SiteHandler) createNetwork(site *Site) error {
 	}
 	_, err = s.cli.NetworkCreate(&container.Network{
 		Name:     site.ContainerNetwork,
+		IPV6:     site.EnableIPV6,
 		DNS:      true,
 		Internal: false,
 	})
