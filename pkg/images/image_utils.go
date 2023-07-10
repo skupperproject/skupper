@@ -1,7 +1,9 @@
 package images
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -164,4 +166,29 @@ func GetPrometheusImageRegistry() string {
 		return PrometheusImageRegistry
 	}
 	return imageRegistry
+}
+
+func GetSha(imageName string) string {
+	// Pull the image
+	pullCmd := exec.Command("docker", "pull", imageName)
+	if err := pullCmd.Run(); err != nil {
+		fmt.Printf("Error pulling image: %v", err)
+		return err.Error()
+	}
+
+	// Get the image digest
+	digestCmd := exec.Command("docker", "inspect", "--format='{{index .RepoDigests 0}}'", imageName)
+	digestBytes, err := digestCmd.Output()
+	if err != nil {
+		fmt.Printf("Error getting image digest: %v", err)
+		return err.Error()
+	}
+
+	imageWithoutTag := strings.Split(imageName, ":")[0]
+
+	// Extract and print the digest
+	parsedDigest := strings.ReplaceAll(strings.ReplaceAll(string(digestBytes), "'", ""), "\n", "")
+	digest := strings.TrimPrefix(strings.Trim(parsedDigest, "'"), imageWithoutTag+"@")
+
+	return digest
 }
