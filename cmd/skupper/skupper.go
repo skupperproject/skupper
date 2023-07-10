@@ -441,12 +441,12 @@ installation that can then be connected to other skupper installations`,
 				return fmt.Errorf("The --enable-flow-collector option must be used with the --enable-console option")
 			}
 
-			if routerCreateOpts.AuthMode != "internal" && (len(routerCreateOpts.User) > 0 || len(routerCreateOpts.Password) > 0) {
-				return fmt.Errorf("for the console to work with this user or password, the --console-auth option must be set to internal")
-			}
-
 			if len(routerCreateOpts.AuthMode) > 0 && !utils.StringSliceContains(types.ValidAuthOptions(platform), routerCreateOpts.AuthMode) {
 				return fmt.Errorf("the --console-auth option must contain one of these values: %v", types.ValidAuthOptions(platform))
+			}
+
+			if routerCreateOpts.AuthMode != "internal" && (len(routerCreateOpts.User) > 0 || len(routerCreateOpts.Password) > 0) {
+				return fmt.Errorf("for the console to work with this user or password, the --console-auth option must be set to internal")
 			}
 
 			return skupperCli.Create(cmd, args)

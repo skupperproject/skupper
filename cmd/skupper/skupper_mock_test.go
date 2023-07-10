@@ -691,12 +691,7 @@ func TestConsoleAuthArgs(t *testing.T) {
 		{
 			"console-auth is not internal and it should be",
 			[]string{"--console-auth", "something", "--console-user", "admin"},
-			"for the console to work with this user or password, the --console-auth option must be set to internal",
-		},
-		{
-			"console-auth is not set",
-			[]string{"--console-password", "something", "--console-user", "admin"},
-			"for the console to work with this user or password, the --console-auth option must be set to internal",
+			"the --console-auth option must contain one of these values: [internal unsecured openshift]",
 		},
 		{
 			"console-auth is unsecured and should be internal",
