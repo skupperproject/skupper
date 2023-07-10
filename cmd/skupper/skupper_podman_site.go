@@ -122,7 +122,7 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&s.flags.ContainerNetwork, "container-network", container.ContainerNetworkName,
 		"container network name to be used")
 	// --enable-ipv6
-	cmd.Flags().BoolVarP(&s.flags.EnableIPV6, "enable-ipv6", "", true,
+	cmd.Flags().BoolVarP(&s.flags.EnableIPV6, "enable-ipv6", "", false,
 		"Enable IPV6 on the container network to be created (ignored when using an existing container network)")
 	// --podman-endpoint
 	cmd.Flags().StringVar(&s.flags.PodmanEndpoint, "podman-endpoint", "",
