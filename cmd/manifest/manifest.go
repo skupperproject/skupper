@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/images"
+	"github.com/spf13/cobra"
 	"os"
 )
 
@@ -13,8 +14,7 @@ type SkupperImage struct {
 	Repository string `yaml:"repository,omitempty"`
 }
 
-func main() {
-
+func generateManifestFile() error {
 	// Define a struct for the manifest file.
 	manifest := struct {
 		Images []SkupperImage `json:"images"`
@@ -50,19 +50,43 @@ func main() {
 	// Encode the manifest image list as JSON.
 	manifestListJSON, err := json.MarshalIndent(manifest, "", "   ")
 	if err != nil {
-		panic(fmt.Errorf("Error encoding manifest image list: %v\n", err))
+		return fmt.Errorf("Error encoding manifest image list: %v\n", err)
 
 	}
 
 	// Create a new file.
 	file, err := os.Create("manifest.json")
 	if err != nil {
-		panic(fmt.Errorf("Error creating file: %v\n", err))
+		return fmt.Errorf("Error creating file: %v\n", err)
 	}
 
 	// Write the JSON data to the file.
 	_, err = file.Write(manifestListJSON)
 	if err != nil {
-		panic(fmt.Errorf("Error writing to file: %v\n", err))
+		return fmt.Errorf("Error writing to file: %v\n", err)
+	}
+
+	return nil
+}
+
+func main() {
+
+	var command = &cobra.Command{
+		Use: "manifest",
+		Long: "This command produces a manifest detailing the images and corresponding SHAs used in Skupper. " +
+			"To create this manifest file, it requires the installation of Docker.",
+		Short: "generates a manifest.json file",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return generateManifestFile()
+		},
+	}
+
+	if err := command.Execute(); err != nil {
+		_, err := fmt.Fprintln(os.Stderr, err)
+		if err != nil {
+			panic(err)
+		}
+		os.Exit(1)
 	}
 }
