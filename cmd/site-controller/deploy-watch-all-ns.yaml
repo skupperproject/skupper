@@ -15,6 +15,28 @@ metadata:
   name: skupper-site-controller
 rules:
 - apiGroups:
+  - skupper.io
+  resources:
+  - skupperclusterpolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+- apiGroups:
   - ""
   resources:
   - configmaps
@@ -102,6 +124,16 @@ rules:
   - clusterrolebindings
   verbs:
   - create
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
