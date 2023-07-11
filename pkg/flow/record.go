@@ -113,6 +113,7 @@ const (
 	ImageAttr              // 45
 	Group                  // 46
 	StreamIdentity         // 47
+	Version                //48
 )
 
 var attributeNames = []string{
@@ -164,6 +165,7 @@ var attributeNames = []string{
 	"Image",           // 45
 	"Group",           // 46
 	"StreamIdentity",  // 47
+	"Version",         // 48
 }
 
 var Internal string = "internal"
@@ -218,6 +220,7 @@ type SiteRecord struct {
 	Platform  *string `json:"platform,omitempty"`
 	Name      *string `json:"name,omitempty"`
 	NameSpace *string `json:"nameSpace,omitempty"`
+	Version   *string `json:"siteVersion,omitempty"`
 }
 
 type HostRecord struct {
@@ -414,16 +417,11 @@ type EgressRecord struct {
 
 type CollectorRecord struct {
 	Base
-	PrometheusHost       string
-	PrometheusAuthMethod string
-	PrometheusUser       string
-	PrometheusPassword   string
-	PrometheusUrl        string
+	PrometheusUrl string
 }
 
 type Payload struct {
 	Results        interface{} `json:"results"`
-	QueryParams    QueryParams `json:"queryParams"`
 	Status         string      `json:"status"`
 	Count          int         `json:"count"`
 	TimeRangeCount int         `json:"timeRangeCount"`
@@ -796,12 +794,12 @@ func filterSubRecord[T any](item T, filter string) bool {
 	return matchFieldValue(value, match)
 }
 
-func sortAndSlice[T any](list []T, payload *Payload) error {
-	offset := payload.QueryParams.Offset
-	limit := payload.QueryParams.Limit
+func sortAndSlice[T any](list []T, payload *Payload, queryParams QueryParams) error {
+	offset := queryParams.Offset
+	limit := queryParams.Limit
 	start := 0
 	end := 0
-	field, subField, order, err := validateAndReturnSortQuery(payload.QueryParams.SortBy)
+	field, subField, order, err := validateAndReturnSortQuery(queryParams.SortBy)
 	if err != nil {
 		return err
 	}

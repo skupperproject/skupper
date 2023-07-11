@@ -141,6 +141,11 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 
 }
 
+type FlowToPairRecord struct {
+	forwardId string
+	created   uint64
+}
+
 type FlowCollector struct {
 	origin                  string
 	startTime               uint64
@@ -171,7 +176,7 @@ type FlowCollector struct {
 	ProcessGroups           map[string]*ProcessGroupRecord
 	VanAddresses            map[string]*VanAddressRecord
 	flowsToProcessReconcile map[string]string
-	flowsToPairReconcile    map[string]string
+	flowsToPairReconcile    map[string]*FlowToPairRecord
 	connectorsToReconcile   map[string]string
 	processesToReconcile    map[string]*ProcessRecord
 	aggregatesToReconcile   map[string]*FlowPairRecord
@@ -216,7 +221,7 @@ func NewFlowCollector(origin string, reg prometheus.Registerer, connectionFactor
 		Processes:               make(map[string]*ProcessRecord),
 		ProcessGroups:           make(map[string]*ProcessGroupRecord),
 		flowsToProcessReconcile: make(map[string]string),
-		flowsToPairReconcile:    make(map[string]string),
+		flowsToPairReconcile:    make(map[string]*FlowToPairRecord),
 		connectorsToReconcile:   make(map[string]string),
 		processesToReconcile:    make(map[string]*ProcessRecord),
 		aggregatesToReconcile:   make(map[string]*FlowPairRecord),

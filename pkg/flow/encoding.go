@@ -2,7 +2,6 @@ package flow
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"reflect"
 	"strings"
@@ -113,7 +112,9 @@ func encodeSite(site *SiteRecord) (*amqp.Message, error) {
 	if site.NameSpace != nil {
 		m[uint32(Namespace)] = *site.NameSpace
 	}
-
+	if site.Version != nil {
+		m[uint32(Version)] = *site.Version
+	}
 	record = append(record, m)
 
 	request.Value = record
@@ -253,6 +254,9 @@ func decode(msg *amqp.Message) []interface{} {
 					}
 					if v, ok := m["Namespace"].(string); ok {
 						site.NameSpace = &v
+					}
+					if v, ok := m["Version"].(string); ok {
+						site.Version = &v
 					}
 					result = append(result, site)
 				case Host:
@@ -449,12 +453,12 @@ func decode(msg *amqp.Message) []interface{} {
 					}
 					result = append(result, process)
 				default:
-					fmt.Println("Unrecognized record type", rt)
+					log.Println("Unrecognized record type", rt)
 				}
 			}
 		}
 	default:
-		fmt.Println("Unrecognized message subject")
+		log.Println("Unrecognized message subject")
 	}
 	return result
 }

@@ -16,6 +16,7 @@ const (
 type FlowController struct {
 	origin            string
 	creationTime      uint64
+	version           string
 	connectionFactory messaging.ConnectionFactory
 	beaconOutgoing    chan interface{}
 	recordOutgoing    chan interface{}
@@ -27,10 +28,11 @@ type FlowController struct {
 	startTime         int64
 }
 
-func NewFlowController(origin string, creationTime uint64, connectionFactory messaging.ConnectionFactory) *FlowController {
+func NewFlowController(origin string, version string, creationTime uint64, connectionFactory messaging.ConnectionFactory) *FlowController {
 	fc := &FlowController{
 		origin:            origin,
 		creationTime:      creationTime,
+		version:           version,
 		connectionFactory: connectionFactory,
 		beaconOutgoing:    make(chan interface{}),
 		recordOutgoing:    make(chan interface{}),
@@ -125,6 +127,7 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 		},
 		Name:      &name,
 		NameSpace: &nameSpace,
+		Version:   &c.version,
 	}
 
 	c.beaconOutgoing <- beacon

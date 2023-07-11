@@ -391,6 +391,67 @@ func prettyPrint(i interface{}) string {
 	return string(s)
 }
 
+func (fc *FlowCollector) addRecord(record interface{}) error {
+	if record == nil {
+		return fmt.Errorf("No record to add")
+	}
+	log.Printf("FLOW_LOG: %s\n", prettyPrint(record))
+
+	switch record.(type) {
+	case *SiteRecord:
+		if site, ok := record.(*SiteRecord); ok {
+			fc.Sites[site.Identity] = site
+		}
+	case *HostRecord:
+		if host, ok := record.(*HostRecord); ok {
+			fc.Hosts[host.Identity] = host
+		}
+	case *RouterRecord:
+		if router, ok := record.(*RouterRecord); ok {
+			fc.Routers[router.Identity] = router
+		}
+	case *LinkRecord:
+		if link, ok := record.(*LinkRecord); ok {
+			fc.Links[link.Identity] = link
+		}
+	case *ListenerRecord:
+		if listener, ok := record.(*ListenerRecord); ok {
+			fc.Listeners[listener.Identity] = listener
+		}
+	case *ConnectorRecord:
+		if connector, ok := record.(*ConnectorRecord); ok {
+			fc.Connectors[connector.Identity] = connector
+		}
+	case *FlowRecord:
+		if flow, ok := record.(*FlowRecord); ok {
+			fc.Flows[flow.Identity] = flow
+		}
+	case *FlowPairRecord:
+		if flowPair, ok := record.(*FlowPairRecord); ok {
+			fc.FlowPairs[flowPair.Identity] = flowPair
+		}
+	case *ProcessRecord:
+		if process, ok := record.(*ProcessRecord); ok {
+			fc.Processes[process.Identity] = process
+		}
+	case *ProcessGroupRecord:
+		if processGroup, ok := record.(*ProcessGroupRecord); ok {
+			fc.ProcessGroups[processGroup.Identity] = processGroup
+		}
+	case *FlowAggregateRecord:
+		if aggregate, ok := record.(*FlowAggregateRecord); ok {
+			fc.FlowAggregates[aggregate.Identity] = aggregate
+		}
+	case *VanAddressRecord:
+		if va, ok := record.(*VanAddressRecord); ok {
+			fc.VanAddresses[va.Identity] = va
+		}
+	default:
+		return fmt.Errorf("Unknown record type to add")
+	}
+	return nil
+}
+
 func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	// TODO: log the record
 	if record == nil {
@@ -398,52 +459,52 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	}
 	log.Printf("FLOW_LOG: %s\n", prettyPrint(record))
 	switch record.(type) {
-	case SiteRecord:
-		if site, ok := record.(SiteRecord); ok {
+	case *SiteRecord:
+		if site, ok := record.(*SiteRecord); ok {
 			delete(fc.Sites, site.Identity)
 		}
-	case HostRecord:
-		if host, ok := record.(HostRecord); ok {
+	case *HostRecord:
+		if host, ok := record.(*HostRecord); ok {
 			delete(fc.Hosts, host.Identity)
 		}
-	case RouterRecord:
-		if router, ok := record.(RouterRecord); ok {
+	case *RouterRecord:
+		if router, ok := record.(*RouterRecord); ok {
 			delete(fc.Routers, router.Identity)
 		}
-	case LinkRecord:
-		if link, ok := record.(LinkRecord); ok {
+	case *LinkRecord:
+		if link, ok := record.(*LinkRecord); ok {
 			delete(fc.Links, link.Identity)
 		}
-	case ListenerRecord:
-		if listener, ok := record.(ListenerRecord); ok {
+	case *ListenerRecord:
+		if listener, ok := record.(*ListenerRecord); ok {
 			delete(fc.Listeners, listener.Identity)
 		}
-	case ConnectorRecord:
-		if connector, ok := record.(ConnectorRecord); ok {
+	case *ConnectorRecord:
+		if connector, ok := record.(*ConnectorRecord); ok {
 			delete(fc.Connectors, connector.Identity)
 		}
-	case FlowRecord:
-		if flow, ok := record.(FlowRecord); ok {
+	case *FlowRecord:
+		if flow, ok := record.(*FlowRecord); ok {
 			delete(fc.Flows, flow.Identity)
 		}
-	case FlowPairRecord:
-		if flowPair, ok := record.(FlowPairRecord); ok {
+	case *FlowPairRecord:
+		if flowPair, ok := record.(*FlowPairRecord); ok {
 			delete(fc.FlowPairs, flowPair.Identity)
 		}
-	case ProcessRecord:
-		if process, ok := record.(ProcessRecord); ok {
+	case *ProcessRecord:
+		if process, ok := record.(*ProcessRecord); ok {
 			delete(fc.Processes, process.Identity)
 		}
-	case ProcessGroupRecord:
-		if processGroup, ok := record.(ProcessGroupRecord); ok {
+	case *ProcessGroupRecord:
+		if processGroup, ok := record.(*ProcessGroupRecord); ok {
 			delete(fc.ProcessGroups, processGroup.Identity)
 		}
-	case FlowAggregateRecord:
-		if aggregate, ok := record.(FlowAggregateRecord); ok {
+	case *FlowAggregateRecord:
+		if aggregate, ok := record.(*FlowAggregateRecord); ok {
 			delete(fc.FlowAggregates, aggregate.Identity)
 		}
-	case VanAddressRecord:
-		if va, ok := record.(VanAddressRecord); ok {
+	case *VanAddressRecord:
+		if va, ok := record.(*VanAddressRecord); ok {
 			delete(fc.VanAddresses, va.Identity)
 		}
 	default:
@@ -468,8 +529,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if site, ok := record.(SiteRecord); ok {
 			if current, ok := fc.Sites[site.Identity]; !ok {
 				if site.StartTime > 0 && site.EndTime == 0 {
-					log.Printf("FLOW_LOG: %s\n", prettyPrint(site))
-					fc.Sites[site.Identity] = &site
+					fc.addRecord(&site)
 				}
 			} else {
 				if site.EndTime > 0 {
@@ -478,11 +538,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						if aggregate.PairType == recordNames[Site] {
 							if current.Identity == *aggregate.SourceId || current.Identity == *aggregate.DestinationId {
 								aggregate.EndTime = current.EndTime
-								fc.deleteRecord(*aggregate)
+								fc.deleteRecord(aggregate)
 							}
 						}
 					}
-					fc.deleteRecord(*current)
+					fc.deleteRecord(current)
 				} else {
 					*current = site
 				}
@@ -492,13 +552,12 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if host, ok := record.(HostRecord); ok {
 			if current, ok := fc.Hosts[host.Identity]; !ok {
 				if host.StartTime > 0 && host.EndTime == 0 {
-					log.Printf("FLOW_LOG: %s \n", prettyPrint(host))
-					fc.Hosts[host.Identity] = &host
+					fc.addRecord(&host)
 				}
 			} else {
 				if host.EndTime > 0 {
 					current.EndTime = host.EndTime
-					fc.deleteRecord(*current)
+					fc.deleteRecord(current)
 				} else {
 					*current = host
 				}
@@ -508,8 +567,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if router, ok := record.(RouterRecord); ok {
 			if current, ok := fc.Routers[router.Identity]; !ok {
 				if router.StartTime > 0 && router.EndTime == 0 {
-					log.Printf("FLOW_LOG: %s \n", prettyPrint(router))
-					fc.Routers[router.Identity] = &router
+					fc.addRecord(&router)
 					if router.Parent != "" {
 						fc.inferGatewaySite(router.Parent)
 					}
@@ -517,7 +575,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 			} else {
 				if router.EndTime > 0 {
 					current.EndTime = router.EndTime
-					fc.deleteRecord(*current)
+					fc.deleteRecord(current)
 				} else if router.Parent != "" && current.Parent == "" {
 					current.Parent = router.Parent
 					if _, ok := fc.Sites[current.Parent]; !ok {
@@ -530,13 +588,12 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if link, ok := record.(LinkRecord); ok {
 			if current, ok := fc.Links[link.Identity]; !ok {
 				if link.StartTime > 0 && link.EndTime == 0 {
-					log.Printf("FLOW_LOG: %s \n", prettyPrint(link))
-					fc.Links[link.Identity] = &link
+					fc.addRecord(&link)
 				}
 			} else {
 				if link.EndTime > 0 {
 					current.EndTime = link.EndTime
-					fc.deleteRecord(*current)
+					fc.deleteRecord(current)
 				}
 			}
 		}
@@ -544,8 +601,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if listener, ok := record.(ListenerRecord); ok {
 			if current, ok := fc.Listeners[listener.Identity]; !ok {
 				if listener.StartTime > 0 && listener.EndTime == 0 {
-					log.Printf("FLOW_LOG: %s \n", prettyPrint(listener))
-					fc.Listeners[listener.Identity] = &listener
 					if listener.Address != nil {
 						var va *VanAddressRecord
 						for _, y := range fc.VanAddresses {
@@ -557,7 +612,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						if va == nil {
 							va = &VanAddressRecord{
 								Base: Base{
-									RecType:   attributeNames[VanAddress],
+									RecType:   recordNames[Address],
 									Identity:  uuid.New().String(),
 									StartTime: listener.StartTime,
 								},
@@ -569,13 +624,14 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							va.octetCount = make(map[metricKey]prometheus.Counter)
 							va.lastAccessed = make(map[metricKey]prometheus.Gauge)
 							va.flowLatency = make(map[metricKey]prometheus.Observer)
-							fc.VanAddresses[va.Identity] = va
+							fc.addRecord(va)
 						}
 						listener.AddressId = &va.Identity
 					}
+					fc.addRecord(&listener)
 				}
 			} else {
-				if current.EndTime == 0 && listener.EndTime > 0 {
+				if listener.EndTime > 0 {
 					current.EndTime = listener.EndTime
 					if current.AddressId != nil {
 						count := 0
@@ -587,11 +643,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						if count == 0 {
 							if va, ok := fc.VanAddresses[*current.AddressId]; ok {
 								va.EndTime = listener.EndTime
-								fc.deleteRecord(*va)
+								fc.deleteRecord(va)
 							}
 						}
 					}
-					fc.deleteRecord(*current)
+					fc.deleteRecord(current)
 				} else {
 					if current.Parent == "" && listener.Parent != "" {
 						current.Parent = listener.Parent
@@ -621,7 +677,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							t := time.Now()
 							va = &VanAddressRecord{
 								Base: Base{
-									RecType:   attributeNames[VanAddress],
+									RecType:   recordNames[Address],
 									Identity:  uuid.New().String(),
 									StartTime: uint64(t.UnixNano()) / uint64(time.Microsecond),
 								},
@@ -633,9 +689,9 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							va.octetCount = make(map[metricKey]prometheus.Counter)
 							va.lastAccessed = make(map[metricKey]prometheus.Gauge)
 							va.flowLatency = make(map[metricKey]prometheus.Observer)
-							fc.VanAddresses[va.Identity] = va
+							fc.addRecord(va)
 						}
-						listener.AddressId = &va.Identity
+						current.AddressId = &va.Identity
 					}
 				}
 			}
@@ -644,8 +700,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if connector, ok := record.(ConnectorRecord); ok {
 			if current, ok := fc.Connectors[connector.Identity]; !ok {
 				if connector.StartTime > 0 && connector.EndTime == 0 {
-					log.Printf("FLOW_LOG: %s \n", prettyPrint(connector))
-					fc.Connectors[connector.Identity] = &connector
 					if connector.Parent != "" {
 						if connector.Address != nil {
 							var va *VanAddressRecord
@@ -659,7 +713,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 								t := time.Now()
 								va = &VanAddressRecord{
 									Base: Base{
-										RecType:   attributeNames[VanAddress],
+										RecType:   recordNames[Address],
 										Identity:  uuid.New().String(),
 										StartTime: uint64(t.UnixNano()) / uint64(time.Microsecond),
 									},
@@ -672,6 +726,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 								va.lastAccessed = make(map[metricKey]prometheus.Gauge)
 								va.flowLatency = make(map[metricKey]prometheus.Observer)
 								fc.VanAddresses[va.Identity] = va
+								fc.addRecord(va)
 							}
 							connector.AddressId = &va.Identity
 						}
@@ -680,10 +735,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							fc.inferGatewayProcess(siteId, *connector.DestHost)
 						}
 					}
+					fc.addRecord(&connector)
 					fc.connectorsToReconcile[connector.Identity] = connector.Identity
 				}
 			} else {
-				if current.EndTime == 0 && connector.EndTime > 0 {
+				if connector.EndTime > 0 {
 					current.EndTime = connector.EndTime
 					if current.process != nil {
 						if process, ok := fc.Processes[*current.process]; ok {
@@ -693,7 +749,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					}
 					// Note a new connector can create an address but does not delete it
 					// removal of last listener will delete the address
-					fc.deleteRecord(*current)
+					fc.deleteRecord(current)
 				} else {
 					if current.Parent == "" && connector.Parent != "" {
 						current.Parent = connector.Parent
@@ -731,7 +787,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							t := time.Now()
 							va = &VanAddressRecord{
 								Base: Base{
-									RecType:   attributeNames[VanAddress],
+									RecType:   recordNames[Address],
 									Identity:  uuid.New().String(),
 									StartTime: uint64(t.UnixNano()) / uint64(time.Microsecond),
 								},
@@ -743,9 +799,9 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							va.octetCount = make(map[metricKey]prometheus.Counter)
 							va.lastAccessed = make(map[metricKey]prometheus.Gauge)
 							va.flowLatency = make(map[metricKey]prometheus.Observer)
-							fc.VanAddresses[va.Identity] = va
+							fc.addRecord(va)
 						}
-						connector.AddressId = &va.Identity
+						current.AddressId = &va.Identity
 					}
 				}
 			}
@@ -759,7 +815,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					}
 				}
 				if flow.StartTime != 0 {
-					fc.Flows[flow.Identity] = &flow
 					if flow.Parent != "" {
 						flow.Protocol = fc.getFlowProtocol(&flow)
 						flow.Place = fc.getFlowPlace(&flow)
@@ -771,9 +826,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							}
 						}
 					}
-					log.Printf("FLOW_LOG: %s \n", prettyPrint(flow))
+					fc.addRecord(&flow)
 					if flow.CounterFlow != nil {
-						fc.flowsToPairReconcile[flow.Identity] = *flow.CounterFlow
+						fc.flowsToPairReconcile[flow.Identity] = &FlowToPairRecord{
+							forwardId: *flow.CounterFlow,
+							created:   uint64(time.Now().UnixNano()) / uint64(time.Microsecond)}
 					}
 					fc.flowsToProcessReconcile[flow.Identity] = flow.Identity
 				}
@@ -859,8 +916,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						}
 					}
 					process.ProcessBinding = &Unbound
-					log.Printf("FLOW_LOG: %s \n", prettyPrint(process))
-					fc.Processes[process.Identity] = &process
 				}
 				for _, pg := range fc.ProcessGroups {
 					if pg.EndTime == 0 && *process.GroupName == *pg.Name {
@@ -881,6 +936,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					fc.updateRecord(*pg)
 					process.GroupIdentity = &pg.Identity
 				}
+				fc.addRecord(&process)
 			} else {
 				if process.EndTime > 0 {
 					current.EndTime = process.EndTime
@@ -889,7 +945,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						if aggregate.PairType == recordNames[Process] {
 							if current.Identity == *aggregate.SourceId || current.Identity == *aggregate.DestinationId {
 								aggregate.EndTime = current.EndTime
-								fc.deleteRecord(*aggregate)
+								fc.deleteRecord(aggregate)
 							}
 						}
 					}
@@ -907,7 +963,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 							}
 						}
 					}
-					fc.deleteRecord(*current)
+					fc.deleteRecord(current)
 				}
 			}
 		}
@@ -915,8 +971,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		if processGroup, ok := record.(ProcessGroupRecord); ok {
 			if current, ok := fc.ProcessGroups[processGroup.Identity]; !ok {
 				if processGroup.StartTime > 0 && processGroup.EndTime == 0 {
-					log.Printf("FLOW_LOG: %s \n", prettyPrint(processGroup))
-					fc.ProcessGroups[processGroup.Identity] = &processGroup
+					fc.addRecord(&processGroup)
 				}
 			} else {
 				if processGroup.EndTime > 0 {
@@ -926,11 +981,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						if aggregate.PairType == recordNames[ProcessGroup] {
 							if current.Identity == *aggregate.SourceId || current.Identity == *aggregate.DestinationId {
 								aggregate.EndTime = current.EndTime
-								fc.deleteRecord(*aggregate)
+								fc.deleteRecord(aggregate)
 							}
 						}
 					}
-					fc.deleteRecord(*current)
+					fc.deleteRecord(current)
 				}
 			}
 		}
@@ -948,7 +1003,6 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 
 	p := Payload{
 		Results:        nil,
-		QueryParams:    queryParams,
 		Status:         "",
 		Count:          0,
 		TimeRangeCount: 0,
@@ -963,12 +1017,12 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "list":
 			sites := []SiteRecord{}
 			for _, site := range fc.Sites {
-				if filterRecord(*site, p.QueryParams) && site.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*site, queryParams) && site.Base.TimeRangeValid(queryParams) {
 					sites = append(sites, *site)
 				}
 			}
 			p.TotalCount = len(fc.Sites)
-			retrieveError = sortAndSlice(sites, &p)
+			retrieveError = sortAndSlice(sites, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if site, ok := fc.Sites[id]; ok {
@@ -983,14 +1037,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, process := range fc.Processes {
 						if process.Parent == site.Identity {
 							p.TotalCount++
-							if filterRecord(*process, p.QueryParams) && process.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*process, queryParams) && process.Base.TimeRangeValid(queryParams) {
 								processes = append(processes, *process)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(processes, &p)
+			retrieveError = sortAndSlice(processes, &p, queryParams)
 		case "routers":
 			routers := []RouterRecord{}
 			if id, ok := vars["id"]; ok {
@@ -998,14 +1052,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, router := range fc.Routers {
 						if router.Parent == site.Identity {
 							p.TotalCount++
-							if filterRecord(*router, p.QueryParams) && router.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*router, queryParams) && router.Base.TimeRangeValid(queryParams) {
 								routers = append(routers, *router)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(routers, &p)
+			retrieveError = sortAndSlice(routers, &p, queryParams)
 		case "links":
 			links := []LinkRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1013,14 +1067,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, link := range fc.Links {
 						if fc.getRecordSiteId(*link) == site.Identity {
 							p.TotalCount++
-							if filterRecord(*link, p.QueryParams) && link.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*link, queryParams) && link.Base.TimeRangeValid(queryParams) {
 								links = append(links, *link)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(links, &p)
+			retrieveError = sortAndSlice(links, &p, queryParams)
 		case "hosts":
 			hosts := []HostRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1028,26 +1082,26 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, host := range fc.Hosts {
 						if host.Parent == site.Identity {
 							p.TotalCount++
-							if filterRecord(*host, p.QueryParams) && host.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*host, queryParams) && host.Base.TimeRangeValid(queryParams) {
 								hosts = append(hosts, *host)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(hosts, &p)
+			retrieveError = sortAndSlice(hosts, &p, queryParams)
 		}
 	case Host:
 		switch request.HandlerName {
 		case "list":
 			hosts := []HostRecord{}
 			for _, host := range fc.Hosts {
-				if filterRecord(*host, p.QueryParams) && host.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*host, queryParams) && host.Base.TimeRangeValid(queryParams) {
 					hosts = append(hosts, *host)
 				}
 			}
 			p.TotalCount = len(fc.Hosts)
-			retrieveError = sortAndSlice(hosts, &p)
+			retrieveError = sortAndSlice(hosts, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if host, ok := fc.Hosts[id]; ok {
@@ -1061,12 +1115,12 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "list":
 			routers := []RouterRecord{}
 			for _, router := range fc.Routers {
-				if filterRecord(*router, p.QueryParams) && router.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*router, queryParams) && router.Base.TimeRangeValid(queryParams) {
 					routers = append(routers, *router)
 				}
 			}
 			p.TotalCount = len(fc.Routers)
-			retrieveError = sortAndSlice(routers, &p)
+			retrieveError = sortAndSlice(routers, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if router, ok := fc.Routers[id]; ok {
@@ -1083,13 +1137,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 							for _, flow := range fc.Flows {
 								if flow.Parent == connId {
 									p.TotalCount++
-									if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+									if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 										flows = append(flows, *flow)
 									}
 								} else if l4Flow, ok := fc.Flows[flow.Parent]; ok {
 									if l4Flow.Parent == connId {
 										p.TotalCount++
-										if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+										if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 											flows = append(flows, *flow)
 										}
 									}
@@ -1102,13 +1156,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 							for _, flow := range fc.Flows {
 								if flow.Parent == listenerId {
 									p.TotalCount++
-									if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+									if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 										flows = append(flows, *flow)
 									}
 								} else if l4Flow, ok := fc.Flows[flow.Parent]; ok {
 									if l4Flow.Parent == listenerId {
 										p.TotalCount++
-										if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+										if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 											flows = append(flows, *flow)
 										}
 									}
@@ -1118,7 +1172,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					}
 				}
 			}
-			retrieveError = sortAndSlice(flows, &p)
+			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "links":
 			links := []LinkRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1126,14 +1180,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, link := range fc.Links {
 						if link.Parent == router.Identity {
 							p.TotalCount++
-							if filterRecord(*link, p.QueryParams) && link.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*link, queryParams) && link.Base.TimeRangeValid(queryParams) {
 								links = append(links, *link)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(links, &p)
+			retrieveError = sortAndSlice(links, &p, queryParams)
 		case "listeners":
 			listeners := []ListenerRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1141,14 +1195,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, listener := range fc.Listeners {
 						if listener.Parent == router.Identity {
 							p.TotalCount++
-							if filterRecord(*listener, p.QueryParams) && listener.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*listener, queryParams) && listener.Base.TimeRangeValid(queryParams) {
 								listeners = append(listeners, *listener)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(listeners, &p)
+			retrieveError = sortAndSlice(listeners, &p, queryParams)
 		case "connectors":
 			connectors := []ConnectorRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1156,26 +1210,26 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, connector := range fc.Connectors {
 						if connector.Parent == router.Identity {
 							p.TotalCount++
-							if filterRecord(*connector, p.QueryParams) && connector.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*connector, queryParams) && connector.Base.TimeRangeValid(queryParams) {
 								connectors = append(connectors, *connector)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(connectors, &p)
+			retrieveError = sortAndSlice(connectors, &p, queryParams)
 		}
 	case Link:
 		switch request.HandlerName {
 		case "list":
 			links := []LinkRecord{}
 			for _, link := range fc.Links {
-				if filterRecord(*link, p.QueryParams) && link.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*link, queryParams) && link.Base.TimeRangeValid(queryParams) {
 					links = append(links, *link)
 				}
 			}
 			p.TotalCount = len(fc.Links)
-			retrieveError = sortAndSlice(links, &p)
+			retrieveError = sortAndSlice(links, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if link, ok := fc.Links[id]; ok {
@@ -1189,12 +1243,12 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "list":
 			listeners := []ListenerRecord{}
 			for _, listener := range fc.Listeners {
-				if filterRecord(*listener, p.QueryParams) && listener.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*listener, queryParams) && listener.Base.TimeRangeValid(queryParams) {
 					listeners = append(listeners, *listener)
 				}
 			}
 			p.TotalCount = len(fc.Listeners)
-			retrieveError = sortAndSlice(listeners, &p)
+			retrieveError = sortAndSlice(listeners, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if listener, ok := fc.Listeners[id]; ok {
@@ -1209,13 +1263,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, flow := range fc.Flows {
 						if flow.Parent == id {
 							p.TotalCount++
-							if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 								flows = append(flows, *flow)
 							}
 						} else if l4Flow, ok := fc.Flows[flow.Parent]; ok {
 							if l4Flow.Parent == id {
 								p.TotalCount++
-								if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+								if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 									flows = append(flows, *flow)
 								}
 							}
@@ -1223,19 +1277,19 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					}
 				}
 			}
-			retrieveError = sortAndSlice(flows, &p)
+			retrieveError = sortAndSlice(flows, &p, queryParams)
 		}
 	case Connector:
 		switch request.HandlerName {
 		case "list":
 			connectors := []ConnectorRecord{}
 			for _, connector := range fc.Connectors {
-				if filterRecord(*connector, p.QueryParams) && connector.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*connector, queryParams) && connector.Base.TimeRangeValid(queryParams) {
 					connectors = append(connectors, *connector)
 				}
 			}
 			p.TotalCount = len(fc.Connectors)
-			retrieveError = sortAndSlice(connectors, &p)
+			retrieveError = sortAndSlice(connectors, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if connector, ok := fc.Connectors[id]; ok {
@@ -1250,13 +1304,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, flow := range fc.Flows {
 						if flow.Parent == id {
 							p.TotalCount++
-							if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 								flows = append(flows, *flow)
 							}
 						} else if l4Flow, ok := fc.Flows[flow.Parent]; ok {
 							if l4Flow.Parent == id {
 								p.TotalCount++
-								if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+								if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 									flows = append(flows, *flow)
 								}
 							}
@@ -1264,7 +1318,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					}
 				}
 			}
-			retrieveError = sortAndSlice(flows, &p)
+			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "process":
 			if id, ok := vars["id"]; ok {
 				if connector, ok := fc.Connectors[id]; ok {
@@ -1282,13 +1336,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "list":
 			addresses := []VanAddressRecord{}
 			for _, address := range fc.VanAddresses {
-				if filterRecord(*address, p.QueryParams) {
+				if filterRecord(*address, queryParams) {
 					fc.getAddressMetrics(address)
 					addresses = append(addresses, *address)
 				}
 			}
 			p.TotalCount = len(fc.VanAddresses)
-			retrieveError = sortAndSlice(addresses, &p)
+			retrieveError = sortAndSlice(addresses, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if addr, ok := fc.VanAddresses[id]; ok {
@@ -1306,13 +1360,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 							for _, flow := range fc.Flows {
 								if flow.Parent == connId && *connector.Protocol == "tcp" {
 									p.TotalCount++
-									if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+									if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 										flows = append(flows, *flow)
 									}
 								} else if l4Flow, ok := fc.Flows[flow.Parent]; ok {
 									if l4Flow.Parent == connId {
 										p.TotalCount++
-										if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+										if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 											flows = append(flows, *flow)
 										}
 									}
@@ -1325,13 +1379,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 							for _, flow := range fc.Flows {
 								if flow.Parent == listenerId && *listener.Protocol == "tcp" {
 									p.TotalCount++
-									if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+									if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 										flows = append(flows, *flow)
 									}
 								} else if l4Flow, ok := fc.Flows[flow.Parent]; ok {
 									if l4Flow.Parent == listenerId {
 										p.TotalCount++
-										if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+										if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 											flows = append(flows, *flow)
 										}
 									}
@@ -1341,7 +1395,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					}
 				}
 			}
-			retrieveError = sortAndSlice(flows, &p)
+			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "flowpairs":
 			flowPairs := []FlowPairRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1353,7 +1407,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 								if flow.Parent == listenerId && flow.CounterFlow != nil {
 									if flowpair, ok := fc.FlowPairs["fp-"+flowId]; ok {
 										p.TotalCount++
-										if filterRecord(*flowpair, p.QueryParams) && flowpair.Base.TimeRangeValid(queryParams) {
+										if filterRecord(*flowpair, queryParams) && flowpair.Base.TimeRangeValid(queryParams) {
 											flowPairs = append(flowPairs, *flowpair)
 										}
 									}
@@ -1361,7 +1415,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 									if l4Flow.Parent == listenerId {
 										if flowpair, ok := fc.FlowPairs["fp-"+flowId]; ok {
 											p.TotalCount++
-											if filterRecord(*flowpair, p.QueryParams) && flowpair.Base.TimeRangeValid(queryParams) {
+											if filterRecord(*flowpair, queryParams) && flowpair.Base.TimeRangeValid(queryParams) {
 												flowPairs = append(flowPairs, *flowpair)
 											}
 										}
@@ -1372,7 +1426,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					}
 				}
 			}
-			retrieveError = sortAndSlice(flowPairs, &p)
+			retrieveError = sortAndSlice(flowPairs, &p, queryParams)
 		case "processes":
 			processes := []ProcessRecord{}
 			unique := make(map[string]*ProcessRecord)
@@ -1381,7 +1435,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, connector := range fc.Connectors {
 						if *connector.Address == vanaddr.Name && connector.process != nil {
 							if process, ok := fc.Processes[*connector.process]; ok {
-								if filterRecord(*process, p.QueryParams) && process.Base.TimeRangeValid(queryParams) {
+								if filterRecord(*process, queryParams) && process.Base.TimeRangeValid(queryParams) {
 									unique[process.Identity] = process
 								}
 							}
@@ -1393,7 +1447,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 				}
 			}
 			p.TotalCount = len(unique)
-			retrieveError = sortAndSlice(processes, &p)
+			retrieveError = sortAndSlice(processes, &p, queryParams)
 		case "listeners":
 			listeners := []ListenerRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1401,14 +1455,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, listener := range fc.Listeners {
 						if *listener.Address == vanaddr.Name {
 							p.TotalCount++
-							if filterRecord(*listener, p.QueryParams) && listener.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*listener, queryParams) && listener.Base.TimeRangeValid(queryParams) {
 								listeners = append(listeners, *listener)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(listeners, &p)
+			retrieveError = sortAndSlice(listeners, &p, queryParams)
 		case "connectors":
 			connectors := []ConnectorRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1416,26 +1470,26 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, connector := range fc.Connectors {
 						if *connector.Address == vanaddr.Name {
 							p.TotalCount++
-							if filterRecord(*connector, p.QueryParams) && connector.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*connector, queryParams) && connector.Base.TimeRangeValid(queryParams) {
 								connectors = append(connectors, *connector)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(connectors, &p)
+			retrieveError = sortAndSlice(connectors, &p, queryParams)
 		}
 	case Process:
 		switch request.HandlerName {
 		case "list":
 			processes := []ProcessRecord{}
 			for _, process := range fc.Processes {
-				if filterRecord(*process, p.QueryParams) && process.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*process, queryParams) && process.Base.TimeRangeValid(queryParams) {
 					processes = append(processes, *process)
 				}
 			}
 			p.TotalCount = len(fc.Processes)
-			retrieveError = sortAndSlice(processes, &p)
+			retrieveError = sortAndSlice(processes, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if process, ok := fc.Processes[id]; ok {
@@ -1449,13 +1503,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 				for _, flow := range fc.Flows {
 					if flow.Process != nil && *flow.Process == id {
 						p.TotalCount++
-						if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+						if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 							flows = append(flows, *flow)
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(flows, &p)
+			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "addresses":
 			addresses := []VanAddressRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1464,7 +1518,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 						if connector.process != nil && *connector.process == id {
 							for _, address := range fc.VanAddresses {
 								if *connector.Address == address.Name {
-									if filterRecord(*address, p.QueryParams) {
+									if filterRecord(*address, queryParams) {
 										fc.getAddressMetrics(address)
 										addresses = append(addresses, *address)
 									}
@@ -1475,7 +1529,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 				}
 			}
 			p.TotalCount = len(fc.VanAddresses)
-			retrieveError = sortAndSlice(addresses, &p)
+			retrieveError = sortAndSlice(addresses, &p, queryParams)
 		case "connector":
 			if id, ok := vars["id"]; ok {
 				if process, ok := fc.Processes[id]; ok {
@@ -1501,11 +1555,11 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 				}
 				processGroup.ProcessCount = count
 				p.TotalCount++
-				if filterRecord(*processGroup, p.QueryParams) && processGroup.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*processGroup, queryParams) && processGroup.Base.TimeRangeValid(queryParams) {
 					processGroups = append(processGroups, *processGroup)
 				}
 			}
-			retrieveError = sortAndSlice(processGroups, &p)
+			retrieveError = sortAndSlice(processGroups, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if processGroup, ok := fc.ProcessGroups[id]; ok {
@@ -1527,26 +1581,26 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					for _, process := range fc.Processes {
 						if *process.GroupIdentity == processGroup.Identity {
 							p.TotalCount++
-							if filterRecord(*process, p.QueryParams) && process.Base.TimeRangeValid(queryParams) {
+							if filterRecord(*process, queryParams) && process.Base.TimeRangeValid(queryParams) {
 								processes = append(processes, *process)
 							}
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(processes, &p)
+			retrieveError = sortAndSlice(processes, &p, queryParams)
 		}
 	case Flow:
 		switch request.HandlerName {
 		case "list":
 			flows := []FlowRecord{}
 			for _, flow := range fc.Flows {
-				if filterRecord(*flow, p.QueryParams) && flow.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*flow, queryParams) && flow.Base.TimeRangeValid(queryParams) {
 					flows = append(flows, *flow)
 				}
 			}
 			p.TotalCount = len(fc.Flows)
-			retrieveError = sortAndSlice(flows, &p)
+			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if flow, ok := fc.Flows[id]; ok {
@@ -1571,12 +1625,12 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "list":
 			flowPairs := []FlowPairRecord{}
 			for _, flowPair := range fc.FlowPairs {
-				if filterRecord(*flowPair, p.QueryParams) && flowPair.Base.TimeRangeValid(queryParams) {
+				if filterRecord(*flowPair, queryParams) && flowPair.Base.TimeRangeValid(queryParams) {
 					flowPairs = append(flowPairs, *flowPair)
 				}
 			}
 			p.TotalCount = len(fc.FlowPairs)
-			retrieveError = sortAndSlice(flowPairs, &p)
+			retrieveError = sortAndSlice(flowPairs, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if flowPair, ok := fc.FlowPairs[id]; ok {
@@ -1598,13 +1652,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 						sourceId == *aggregate.SourceId && destinationId == "" ||
 						sourceId == "" && destinationId == *aggregate.DestinationId ||
 						sourceId == *aggregate.SourceId && destinationId == *aggregate.DestinationId {
-						if filterRecord(*aggregate, p.QueryParams) {
+						if filterRecord(*aggregate, queryParams) {
 							aggregates = append(aggregates, *aggregate)
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(aggregates, &p)
+			retrieveError = sortAndSlice(aggregates, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if flowAggregate, ok := fc.FlowAggregates[id]; ok {
@@ -1628,13 +1682,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 						sourceId == *aggregate.SourceId && destinationId == "" ||
 						sourceId == "" && destinationId == *aggregate.DestinationId ||
 						sourceId == *aggregate.SourceId && destinationId == *aggregate.DestinationId {
-						if filterRecord(*aggregate, p.QueryParams) {
+						if filterRecord(*aggregate, queryParams) {
 							aggregates = append(aggregates, *aggregate)
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(aggregates, &p)
+			retrieveError = sortAndSlice(aggregates, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if flowAggregate, ok := fc.FlowAggregates[id]; ok {
@@ -1666,13 +1720,13 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 								}
 							}
 						}
-						if filterRecord(*aggregate, p.QueryParams) {
+						if filterRecord(*aggregate, queryParams) {
 							aggregates = append(aggregates, *aggregate)
 						}
 					}
 				}
 			}
-			retrieveError = sortAndSlice(aggregates, &p)
+			retrieveError = sortAndSlice(aggregates, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if flowAggregate, ok := fc.FlowAggregates[id]; ok {
@@ -1707,7 +1761,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					}
 				}
 			}
-			retrieveError = sortAndSlice(aggregates, &p)
+			retrieveError = sortAndSlice(aggregates, &p, queryParams)
 		case "sitepair-item":
 			if id, ok := vars["id"]; ok {
 				if flowAggregate, ok := fc.FlowAggregates[id]; ok {
@@ -1730,7 +1784,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					}
 				}
 			}
-			retrieveError = sortAndSlice(aggregates, &p)
+			retrieveError = sortAndSlice(aggregates, &p, queryParams)
 		case "processpair-item":
 			if id, ok := vars["id"]; ok {
 				if flowAggregate, ok := fc.FlowAggregates[id]; ok {
@@ -1753,7 +1807,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					}
 				}
 			}
-			retrieveError = sortAndSlice(aggregates, &p)
+			retrieveError = sortAndSlice(aggregates, &p, queryParams)
 		case "processgrouppair-item":
 			if id, ok := vars["id"]; ok {
 				if flowAggregate, ok := fc.FlowAggregates[id]; ok {
@@ -1769,12 +1823,12 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "list":
 			eventSources := []EventSourceRecord{}
 			for _, eventSource := range fc.eventSources {
-				if filterRecord(eventSource.EventSourceRecord, p.QueryParams) && eventSource.EventSourceRecord.Base.TimeRangeValid(queryParams) {
+				if filterRecord(eventSource.EventSourceRecord, queryParams) && eventSource.EventSourceRecord.Base.TimeRangeValid(queryParams) {
 					eventSources = append(eventSources, eventSource.EventSourceRecord)
 				}
 			}
 			p.TotalCount = len(fc.eventSources)
-			retrieveError = sortAndSlice(eventSources, &p)
+			retrieveError = sortAndSlice(eventSources, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if eventSource, ok := fc.eventSources[id]; ok {
@@ -1790,7 +1844,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			collectors := []CollectorRecord{}
 			collectors = append(collectors, fc.Collector)
 			p.TotalCount = len(collectors)
-			retrieveError = sortAndSlice(collectors, &p)
+			retrieveError = sortAndSlice(collectors, &p, queryParams)
 		case "item":
 			p.Count = 1
 			p.Results = &fc.Collector
@@ -1802,14 +1856,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					connectors = append(connectors, connId)
 				}
 			}
-			retrieveError = sortAndSlice(connectors, &p)
+			retrieveError = sortAndSlice(connectors, &p, queryParams)
 		case "flows-to-pair":
 			flows := []string{}
-			for reverseId, forwardId := range fc.flowsToPairReconcile {
+			for reverseId, ftpr := range fc.flowsToPairReconcile {
 				p.TotalCount++
-				flows = append(flows, forwardId+"-"+reverseId)
+				flows = append(flows, ftpr.forwardId+"-"+reverseId)
 			}
-			retrieveError = sortAndSlice(flows, &p)
+			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "flows-to-process":
 			flows := []string{}
 			for _, flowId := range fc.flowsToProcessReconcile {
@@ -1818,7 +1872,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					flows = append(flows, flowId)
 				}
 			}
-			retrieveError = sortAndSlice(flows, &p)
+			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "pair-to-aggregate":
 			flowPairs := []string{}
 			for flowPairId, _ := range fc.aggregatesToReconcile {
@@ -1827,7 +1881,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 					flowPairs = append(flowPairs, flowPairId)
 				}
 			}
-			retrieveError = sortAndSlice(flowPairs, &p)
+			retrieveError = sortAndSlice(flowPairs, &p, queryParams)
 		}
 	default:
 		log.Println("COLLECTOR: Unrecognize record request", request.RecordType)
@@ -1965,6 +2019,8 @@ func (fc *FlowCollector) setupFlowMetrics(va *VanAddressRecord, flow *FlowRecord
 }
 
 func (fc *FlowCollector) reconcileRecords() error {
+	age := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - uint64(fc.recordTtl.Microseconds())
+
 	m, err := fc.metrics.activeReconcile.GetMetricWith(prometheus.Labels{"reconcileTask": "flowsToProcess"})
 	if err == nil {
 		m.Set(float64(len(fc.flowsToProcessReconcile)))
@@ -2023,9 +2079,11 @@ func (fc *FlowCollector) reconcileRecords() error {
 	if err == nil {
 		m.Set(float64(len(fc.flowsToPairReconcile)))
 	}
-	for reverseId, forwardId := range fc.flowsToPairReconcile {
-		if reverseFlow, ok := fc.Flows[reverseId]; ok {
-			if forwardFlow, ok := fc.Flows[forwardId]; ok {
+	for reverseId, ftpr := range fc.flowsToPairReconcile {
+		if age > ftpr.created {
+			delete(fc.flowsToPairReconcile, reverseId)
+		} else if reverseFlow, ok := fc.Flows[reverseId]; ok {
+			if forwardFlow, ok := fc.Flows[ftpr.forwardId]; ok {
 				forwardFlow.CounterFlow = &reverseFlow.Identity
 				flowPair, ok := fc.linkFlowPair(forwardFlow)
 				if ok {
@@ -2137,7 +2195,9 @@ func (fc *FlowCollector) reconcileRecords() error {
 						pfa.SourceName = sourceProcess.Name
 					}
 					if destinationProcess, ok := fc.Processes[cfp.Identity]; ok {
-						pfa.DestinationName = destinationProcess.Name
+						if destinationProcess.Name != nil {
+							pfa.DestinationName = destinationProcess.Name
+						}
 					}
 					fc.FlowAggregates[processAggregateId] = pfa
 				}
@@ -2169,12 +2229,11 @@ func (fc *FlowCollector) reconcileRecords() error {
 		}
 	}
 
-	age := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - uint64(fc.recordTtl.Microseconds())
 	for flowId, flow := range fc.Flows {
 		if flow.EndTime != 0 && age > flow.EndTime {
-			fc.deleteRecord(*flow)
+			fc.deleteRecord(flow)
 			if flowPair, ok := fc.FlowPairs["fp-"+flowId]; ok {
-				fc.deleteRecord(*flowPair)
+				fc.deleteRecord(flowPair)
 			}
 		}
 	}
