@@ -15,14 +15,6 @@ metadata:
   name: skupper-site-controller
 rules:
 - apiGroups:
-  - skupper.io
-  resources:
-  - skupperclusterpolicies
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - ""
   resources:
   - nodes
@@ -30,12 +22,6 @@ rules:
   - get
   - list
   - watch
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - get
 - apiGroups:
   - ""
   resources:
@@ -124,6 +110,9 @@ rules:
   - clusterrolebindings
   verbs:
   - create
+# optional permissions
+# clusterroles create, update and bind permissions are needed
+# if you need to expose resources from different namespaces
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -134,6 +123,7 @@ rules:
   - watch
   - create
   - update
+# clusterroles bind permission needed when using skupper policies
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -142,6 +132,22 @@ rules:
   - bind
   resourceNames:
   - skupper-service-controller
+# skupperclusterpolicies and namespaces read permissions are needed
+# if you want to use skupper policies
+- apiGroups:
+    - skupper.io
+  resources:
+    - skupperclusterpolicies
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+    - ""
+  resources:
+    - namespaces
+  verbs:
+    - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
