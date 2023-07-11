@@ -735,51 +735,48 @@ func TestSortAndSlice(t *testing.T) {
 	}
 
 	type test struct {
-		payload  *Payload
-		identity string
-		result   error
+		payload     *Payload
+		queryParams QueryParams
+		identity    string
+		result      error
 	}
 	testTable := []test{
 		{
-			payload: &Payload{
-				QueryParams: QueryParams{
-					Offset: 0,
-					Limit:  10,
-					SortBy: "identity.asc",
-				},
+			payload: &Payload{},
+			queryParams: QueryParams{
+				Offset: 0,
+				Limit:  10,
+				SortBy: "identity.asc",
 			},
 			identity: identity2,
 			result:   nil,
 		},
 		{
-			payload: &Payload{
-				QueryParams: QueryParams{
-					Offset: 0,
-					Limit:  10,
-					SortBy: "identity.desc",
-				},
+			payload: &Payload{},
+			queryParams: QueryParams{
+				Offset: 0,
+				Limit:  10,
+				SortBy: "identity.desc",
 			},
 			identity: identity1,
 			result:   nil,
 		},
 		{
-			payload: &Payload{
-				QueryParams: QueryParams{
-					Offset: 0,
-					Limit:  10,
-					SortBy: "forwardFlow.sourceHost.asc",
-				},
+			payload: &Payload{},
+			queryParams: QueryParams{
+				Offset: 0,
+				Limit:  10,
+				SortBy: "forwardFlow.sourceHost.asc",
 			},
 			identity: identity1,
 			result:   nil,
 		},
 		{
-			payload: &Payload{
-				QueryParams: QueryParams{
-					Offset: 0,
-					Limit:  10,
-					SortBy: "forwardFlow.sourceHost.desc",
-				},
+			payload: &Payload{},
+			queryParams: QueryParams{
+				Offset: 0,
+				Limit:  10,
+				SortBy: "forwardFlow.sourceHost.desc",
 			},
 			identity: identity2,
 			result:   nil,
@@ -788,7 +785,7 @@ func TestSortAndSlice(t *testing.T) {
 
 	for _, test := range testTable {
 		fps := []FlowPairRecord{flowPair1, flowPair2}
-		ok := sortAndSlice(fps, test.payload)
+		ok := sortAndSlice(fps, test.payload, test.queryParams)
 		assert.Equal(t, test.result, ok)
 		assert.Equal(t, fps[0].Identity, test.identity)
 	}
