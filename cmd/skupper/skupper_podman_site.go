@@ -25,6 +25,7 @@ type PodmanInitFlags struct {
 	IngressBindEdgePort          int
 	IngressBindFlowCollectorPort int
 	ContainerNetwork             string
+	EnableIPV6                   bool
 	PodmanEndpoint               string
 }
 
@@ -57,6 +58,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		IngressBindEdgePort:          s.flags.IngressBindEdgePort,
 		IngressBindFlowCollectorPort: s.flags.IngressBindFlowCollectorPort,
 		ContainerNetwork:             s.flags.ContainerNetwork,
+		EnableIPV6:                   s.flags.EnableIPV6,
 		PodmanEndpoint:               s.flags.PodmanEndpoint,
 		EnableFlowCollector:          routerCreateOpts.EnableFlowCollector,
 		EnableConsole:                routerCreateOpts.EnableConsole,
@@ -119,6 +121,9 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 	// --container-network
 	cmd.Flags().StringVar(&s.flags.ContainerNetwork, "container-network", container.ContainerNetworkName,
 		"container network name to be used")
+	// --enable-ipv6
+	cmd.Flags().BoolVarP(&s.flags.EnableIPV6, "enable-ipv6", "", false,
+		"Enable IPV6 on the container network to be created (ignored when using an existing container network)")
 	// --podman-endpoint
 	cmd.Flags().StringVar(&s.flags.PodmanEndpoint, "podman-endpoint", "",
 		"local podman endpoint to use")

@@ -284,6 +284,7 @@ type Network struct {
 	Name      string
 	Subnets   []*Subnet
 	Driver    string
+	IPV6      bool
 	DNS       bool
 	Internal  bool
 	Labels    map[string]string

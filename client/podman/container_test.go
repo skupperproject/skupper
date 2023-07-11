@@ -58,6 +58,25 @@ func TestContainer(t *testing.T) {
 	mountDestination := "/opt/volume"
 
 	// Creating network
+	t.Run("network-create-ipv6", func(t *testing.T) {
+		network, err := cli.NetworkCreate(&container.Network{
+			Name:     name,
+			IPV6:     true,
+			DNS:      false,
+			Internal: true,
+			Labels:   labels,
+		})
+		assert.Assert(t, err, "error creating network")
+		assert.Equal(t, name, network.Name)
+		assert.Equal(t, true, network.IPV6)
+		assert.Equal(t, false, network.DNS)
+		assert.Equal(t, true, network.Internal)
+		ValidateMaps(t, labels, network.Labels)
+		assert.Assert(t, network.Labels["application"] == types.AppName)
+	})
+	t.Run("network-remove", func(t *testing.T) {
+		assert.Assert(t, cli.NetworkRemove(name), "error removing network")
+	})
 	t.Run("network-create", func(t *testing.T) {
 		network, err := cli.NetworkCreate(&container.Network{
 			Name:     name,
@@ -67,6 +86,7 @@ func TestContainer(t *testing.T) {
 		})
 		assert.Assert(t, err, "error creating network")
 		assert.Equal(t, name, network.Name)
+		assert.Equal(t, false, network.IPV6)
 		assert.Equal(t, true, network.DNS)
 		assert.Equal(t, false, network.Internal)
 		ValidateMaps(t, labels, network.Labels)
