@@ -18,14 +18,14 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-func (cli *VanClient) getConsoleUrl() (string, error) {
-	config, err := cli.SiteConfigInspect(context.Background(), nil)
+func (cli *VanClient) getConsoleUrl(namespace string) (string, error) {
+	config, err := cli.SiteConfigInspectInNamespace(context.Background(), nil, namespace)
 	if err != nil {
 		return "", err
 	}
 	routeClientIngress := utils.DefaultStr(config.Spec.Ingress, types.IngressRouteString)
 	if cli.RouteClient == nil || routeClientIngress != types.IngressRouteString {
-		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), types.ControllerServiceName, metav1.GetOptions{})
+		service, err := cli.KubeClient.CoreV1().Services(namespace).Get(context.TODO(), types.ControllerServiceName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
@@ -45,14 +45,14 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 				}
 				return "https://" + host + ":" + port, nil
 			} else {
-				proxy, err := kube.GetContourProxy(cli.DynamicClient, cli.Namespace, "skupper-console")
+				proxy, err := kube.GetContourProxy(cli.DynamicClient, namespace, "skupper-console")
 				if err != nil {
 					return "", err
 				}
 				if proxy != nil {
 					return "https://" + proxy.Host, nil
 				}
-				routes, err := kube.GetIngressRoutes(types.IngressName, cli.Namespace, cli)
+				routes, err := kube.GetIngressRoutes(types.IngressName, namespace, cli)
 				if err != nil {
 					return "", err
 				}
@@ -65,7 +65,7 @@ func (cli *VanClient) getConsoleUrl() (string, error) {
 			}
 		}
 	} else {
-		route, err := cli.RouteClient.Routes(cli.Namespace).Get(context.TODO(), types.ConsoleRouteName, metav1.GetOptions{})
+		route, err := cli.RouteClient.Routes(namespace).Get(context.TODO(), types.ConsoleRouteName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
@@ -116,7 +116,7 @@ func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace stri
 		} else {
 			vir.ExposedServices = len(vsis)
 		}
-		url, err := cli.getConsoleUrl()
+		url, err := cli.getConsoleUrl(namespace)
 		if url != "" {
 			vir.ConsoleUrl = url
 		}
