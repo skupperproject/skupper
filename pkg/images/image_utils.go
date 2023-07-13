@@ -168,6 +168,11 @@ func GetPrometheusImageRegistry() string {
 	return imageRegistry
 }
 
+func GetSiteControllerImageName() string {
+	imageRegistry := GetImageRegistry()
+	return strings.Join([]string{imageRegistry, SiteControllerImageName}, "/")
+}
+
 func GetSha(imageName string) string {
 	// Pull the image
 	pullCmd := exec.Command("docker", "pull", imageName)

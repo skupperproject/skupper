@@ -41,6 +41,11 @@ func generateManifestFile() error {
 				Repository: "https://github.com/skupperproject/skupper",
 			},
 			{
+				Name:       images.GetSiteControllerImageName(),
+				SHA:        images.GetSha(images.GetSiteControllerImageName()),
+				Repository: "https://github.com/skupperproject/skupper",
+			},
+			{
 				Name: images.GetPrometheusServerImageName(),
 				SHA:  images.GetSha(images.GetPrometheusServerImageName()),
 			},
