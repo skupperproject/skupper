@@ -131,6 +131,11 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 	labels := map[string]string{
 		"internal.skupper.io/type": "proxy",
 	}
+	if len(transportDep.ObjectMeta.Labels) > 0 {
+		for k, v := range transportDep.ObjectMeta.Labels {
+			labels[k] = v
+		}
+	}
 	if len(serviceInterface.Labels) > 0 {
 		for k, v := range serviceInterface.Labels {
 			labels[k] = v
@@ -275,6 +280,7 @@ func NewControllerDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerRefere
 				Kind:       "Deployment",
 			},
 			ObjectMeta: metav1.ObjectMeta{
+				Labels:    van.Controller.Labels,
 				Name:      types.ControllerDeploymentName,
 				Namespace: van.Namespace,
 			},
@@ -343,6 +349,7 @@ func NewPrometheusServerDeployment(van *types.RouterSpec, ownerRef *metav1.Owner
 				Kind:       "Deployment",
 			},
 			ObjectMeta: metav1.ObjectMeta{
+				Labels:    van.PrometheusServer.Labels,
 				Name:      types.PrometheusDeploymentName,
 				Namespace: van.Namespace,
 			},
@@ -451,6 +458,7 @@ func NewTransportDeployment(van *types.RouterSpec, ownerRef *metav1.OwnerReferen
 				Kind:       "Deployment",
 			},
 			ObjectMeta: metav1.ObjectMeta{
+				Labels:    van.Transport.Labels,
 				Name:      types.TransportDeploymentName,
 				Namespace: van.Namespace,
 			},
