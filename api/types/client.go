@@ -201,6 +201,15 @@ func ValidIngressOptions(platform Platform) []string {
 	}
 }
 
+func ValidAuthOptions(platform Platform) []string {
+	switch platform {
+	case PlatformPodman:
+		return []string{"internal", "unsecured"}
+	default:
+		return []string{"internal", "unsecured", "openshift"}
+	}
+}
+
 func isValidIngress(platform Platform, ingress string) bool {
 	if ingress == "" {
 		return true
