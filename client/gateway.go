@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/user"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
@@ -737,6 +738,14 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 	siteId, _ := getGatewaySiteId(gatewayDir)
 	adminUrl, _ := getRouterUrl(gatewayDir)
 	adminPort := strings.Split(adminUrl, ":")
+
+	networkingFlag := "--network"
+	networkingValue := "host"
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		networkingFlag = "-p"
+		networkingValue = adminPort[len(adminPort)-1] + ":" + adminPort[len(adminPort)-1]
+	}
+
 	containerCmd := gatewayType
 	containerCmdArgs := []string{
 		"run",
@@ -745,8 +754,8 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 		"-d",
 		"--name",
 		gatewayName,
-		"-p",
-		adminPort[len(adminPort)-1] + ":" + adminPort[len(adminPort)-1],
+		networkingFlag,
+		networkingValue,
 		"-e",
 		"SKUPPER_SITE_ID=gateway" + "_" + gatewayName + "_" + siteId,
 		"-e",
