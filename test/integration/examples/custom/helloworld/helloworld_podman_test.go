@@ -155,7 +155,7 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 						ConsoleUser:         "internal",
 						ConsolePassword:     "internal",
 						RouterMode:          "interior",
-						EnableConsole:       false,
+						EnableConsole:       true,
 						EnableFlowCollector: true,
 						RunAsUser:           "1000",
 						RunAsGroup:          "2000",
@@ -163,7 +163,7 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					// skupper status - verify initialized as interior
 					&cli.StatusTester{
 						RouterMode:          "interior",
-						ConsoleEnabled:      false,
+						ConsoleEnabled:      true,
 						CollectorEnabled:    true,
 						ConsoleAuthInternal: true,
 					},

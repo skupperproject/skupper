@@ -127,7 +127,7 @@ func TestHelloWorldCLI(t *testing.T) {
 						ConsoleUser:         "internal",
 						ConsolePassword:     "internal",
 						RouterMode:          "interior",
-						EnableConsole:       false,
+						EnableConsole:       true,
 						EnableFlowCollector: true,
 						RunAsUser:           runAsUser,
 						RunAsGroup:          "2000",
@@ -135,7 +135,7 @@ func TestHelloWorldCLI(t *testing.T) {
 					// skupper status - verify initialized as interior
 					&cli.StatusTester{
 						RouterMode:          "interior",
-						ConsoleEnabled:      false,
+						ConsoleEnabled:      true,
 						CollectorEnabled:    true,
 						ConsoleAuthInternal: true,
 					},
@@ -144,8 +144,6 @@ func TestHelloWorldCLI(t *testing.T) {
 					// skupper init - edge mode, no console and unsecured
 					&cli.InitTester{
 						ConsoleAuth:           "unsecured",
-						ConsoleUser:           "admin",
-						ConsolePassword:       "admin",
 						Ingress:               "none",
 						RouterLogging:         "trace",
 						RouterMode:            "edge",
