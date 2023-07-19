@@ -483,6 +483,7 @@ jobs:
           goos: linux
           goarch: arm64
           platform: linux-arm64
+      - setup_remote_docker
       - run: make generate-manifest
       - run: mkdir skupper-manifest
       - run: cp ./manifest.json skupper-manifest
