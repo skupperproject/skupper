@@ -50,8 +50,6 @@ func skupperInitEdgeTestScenario(ctx *base.ClusterContext, prefix string, withPo
 				// skupper init - edge mode, no console and unsecured
 				&cli.InitTester{
 					ConsoleAuth:           "unsecured",
-					ConsoleUser:           "admin",
-					ConsolePassword:       "admin",
 					Ingress:               "none",
 					RouterLogging:         "trace",
 					RouterMode:            "edge",
