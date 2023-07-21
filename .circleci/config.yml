@@ -378,7 +378,7 @@ workflows:
           <<: *run_for_numeric_tags
           <<: *release_requires
           requires:
-            - publish-github-releases-images
+            - publish-github-release-images
           context:
             - skupper-org
 
