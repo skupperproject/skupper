@@ -126,6 +126,8 @@ type BindOptions struct {
 	PublishNotReadyAddresses bool
 	tlsCertAuthority         string
 	Namespace                string
+	Headless                 bool
+	ProxyTuning              types.Tuning
 }
 
 func SkupperNotInstalledError(namespace string) error {
