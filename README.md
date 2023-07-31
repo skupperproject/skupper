@@ -34,4 +34,4 @@ Developing Skupper
 * [Console (Preview)](https://github.com/skupperproject/skupper-console)
 
 # Licensing
-Skupper uses the [Skupper Router](https://github.com/skupperproject/skupper-router) project and is released under the same [Apache License 2.0](https://github.com/skupperproject/skupper/blob/master/LICENSE).
+Skupper uses the [Skupper Router](https://github.com/skupperproject/skupper-router) project and is released under the same [Apache License 2.0](https://github.com/skupperproject/skupper/blob/main/LICENSE).
