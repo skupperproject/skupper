@@ -350,7 +350,7 @@ workflows:
       - test:
           <<: *run_for_main_branch
       - build_and_save_test_images:
-          <<: *run_for_all_branches_and_numeric_tags
+          <<: *run_for_main_branch
 
       - main_tests_minikube_local_cluster:
           <<: *run_for_main_branch
@@ -431,13 +431,13 @@ jobs:
           name: persisting images to workspace
           command: |
             mkdir /tmp/images
-            docker tag quay.io/nluaces/service-controller 0.0.0.0:5000/service-controller
+            docker tag quay.io/skupper/service-controller 0.0.0.0:5000/service-controller
             docker save 0.0.0.0:5000/service-controller | gzip > /tmp/images/service-controller.gz
-            docker tag quay.io/nluaces/config-sync 0.0.0.0:5000/config-sync
+            docker tag quay.io/skupper/config-sync 0.0.0.0:5000/config-sync
             docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
-            docker tag quay.io/nluaces/flow-collector 0.0.0.0:5000/flow-collector
+            docker tag quay.io/skupper/flow-collector 0.0.0.0:5000/flow-collector
             docker save 0.0.0.0:5000/flow-collector | gzip > /tmp/images/flow-collector.gz
-            docker tag quay.io/nluaces/skupper-tests 0.0.0.0:5000/skupper-tests
+            docker tag quay.io/skupper/skupper-tests 0.0.0.0:5000/skupper-tests
             docker save 0.0.0.0:5000/skupper-tests | gzip > /tmp/images/test-image.gz
       - persist_to_workspace:
           root: /tmp
@@ -567,6 +567,7 @@ jobs:
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             cat "${BASEDIR}/skupper-manifest/manifest.json"
+            ls ${BASEDIR}/archives/
 
   publish-github-release-images:
     executor:
