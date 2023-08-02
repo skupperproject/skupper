@@ -348,12 +348,12 @@ workflows:
       - build-all:
           <<: *run_for_all_branches_and_numeric_tags
       - test:
-          <<: *run_for_all_branches_and_numeric_tags
+          <<: *run_for_main_branch
       - build_and_save_test_images:
           <<: *run_for_all_branches_and_numeric_tags
 
       - main_tests_minikube_local_cluster:
-          <<: *run_for_all_branches_and_numeric_tags
+          <<: *run_for_main_branch
           pre-steps:
             - prepare_for_local_cluster_tests
           requires:
@@ -361,7 +361,7 @@ workflows:
             - build_and_save_test_images
 
       - policy_tests_minikube_local_cluster:
-          <<: *run_for_all_branches_and_numeric_tags
+          <<: *run_for_main_branch
           pre-steps:
             - prepare_for_local_cluster_tests
           requires:
