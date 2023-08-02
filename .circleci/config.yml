@@ -369,15 +369,24 @@ workflows:
             - build_and_save_test_images
 
       - publish-github-release-images:
-          <<: *run_for_numeric_tags
+          <<: *run_for_all_branches_and_numeric_tags
           <<: *release_requires
           context:
             - skupper-org
 
-      - publish-github-release-artifacts:
-          <<: *run_for_numeric_tags
+      - generate-manifest:
+          <<: *run_for_all_branches_and_numeric_tags
           <<: *release_requires
           requires:
+            - publish-github-release-images
+          context:
+            - skupper-org
+
+      - publish-github-release-artifacts:
+          <<: *run_for_all_branches_and_numeric_tags
+          <<: *release_requires
+          requires:
+            - generate-manifest
             - publish-github-release-images
           context:
             - skupper-org
@@ -485,15 +494,10 @@ jobs:
           goos: linux
           goarch: arm64
           platform: linux-arm64
-      - setup_remote_docker
-      - run: make generate-manifest
-      - run: mkdir skupper-manifest
-      - run: cp ./manifest.json skupper-manifest
       - persist_to_workspace:
           root: .
           paths:
             - dist
-            - skupper-manifest
 
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
@@ -524,6 +528,22 @@ jobs:
       - run: kubectl cluster-info
       - run_cluster_policy_tests
 
+  generate-manifest:
+    executor:
+      name: go/default
+      tag: "1.19"
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - setup_remote_docker
+      - run: make generate-manifest
+      - run: mkdir skupper-manifest
+      - run: cp ./manifest.json skupper-manifest
+      - persist_to_workspace:
+          root: .
+          paths:
+            - skupper-manifest
+
   publish-github-release-artifacts:
     docker:
       - image: cibuilds/github:0.10
@@ -546,7 +566,7 @@ jobs:
             done
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
+            cat "${BASEDIR}/skupper-manifest/manifest.json"
 
   publish-github-release-images:
     executor:
@@ -559,11 +579,11 @@ jobs:
       - run:
           name:
           command: |
-            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/nluaces/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=quay.io/nluaces/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export CONFIG_SYNC_IMAGE=quay.io/nluaces/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/nluaces/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export TEST_IMAGE=quay.io/nluaces/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
             make -e generate-client
             make -e docker-build
