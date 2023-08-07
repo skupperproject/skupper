@@ -3,7 +3,6 @@ package flow
 import (
 	"bytes"
 	"encoding/gob"
-	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -35,9 +34,8 @@ type ApiResponse struct {
 
 type eventSource struct {
 	EventSourceRecord
-	nonFlowReceiver *receiver
-	flowReceiver    *receiver
-	send            *senderDirect
+	receivers []*receiver
+	send      *senderDirect
 }
 
 type collectorMetrics struct {
@@ -146,8 +144,26 @@ type FlowToPairRecord struct {
 	created   uint64
 }
 
+type CollectorMode int
+
+const (
+	Lite CollectorMode = iota
+	Full
+)
+
+type FlowCollectorSpec struct {
+	Mode              CollectorMode
+	Namespace         string
+	Origin            string
+	PromReg           prometheus.Registerer
+	ConnectionFactory messaging.ConnectionFactory
+	FlowRecordTtl     time.Duration
+}
+
 type FlowCollector struct {
+	mode                    CollectorMode
 	origin                  string
+	namespace               string
 	startTime               uint64
 	Collector               CollectorRecord
 	connectionFactory       messaging.ConnectionFactory
@@ -159,7 +175,7 @@ type FlowCollector struct {
 	Request                 chan ApiRequest
 	Response                chan ApiResponse
 	eventSources            map[string]*eventSource
-	receivers               map[string]*receiver
+	beaconReceiver          *receiver
 	senders                 map[string]*senderDirect
 	pendingFlush            map[string]*senderDirect
 	Beacons                 map[string]*BeaconRecord
@@ -193,19 +209,20 @@ func getTtl(ttl time.Duration) time.Duration {
 	return ttl
 }
 
-func NewFlowCollector(origin string, reg prometheus.Registerer, connectionFactory messaging.ConnectionFactory, recordTtl time.Duration) *FlowCollector {
+func NewFlowCollector(spec FlowCollectorSpec) *FlowCollector {
 	fc := &FlowCollector{
-		origin:                  origin,
+		mode:                    spec.Mode,
+		namespace:               spec.Namespace,
+		origin:                  spec.Origin,
 		startTime:               uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
-		connectionFactory:       connectionFactory,
-		recordTtl:               getTtl(recordTtl),
-		prometheusReg:           reg,
+		connectionFactory:       spec.ConnectionFactory,
+		recordTtl:               getTtl(spec.FlowRecordTtl),
+		prometheusReg:           spec.PromReg,
 		beaconsIncoming:         make(chan []interface{}),
 		recordsIncoming:         make(chan []interface{}),
 		Request:                 make(chan ApiRequest),
 		Response:                make(chan ApiResponse),
 		eventSources:            make(map[string]*eventSource),
-		receivers:               make(map[string]*receiver),
 		senders:                 make(map[string]*senderDirect),
 		pendingFlush:            make(map[string]*senderDirect),
 		Beacons:                 make(map[string]*BeaconRecord),
@@ -232,29 +249,11 @@ func NewFlowCollector(origin string, reg prometheus.Registerer, connectionFactor
 		Base: Base{
 			RecType:   recordNames[Collector],
 			Identity:  uuid.New().String(),
-			Parent:    origin,
+			Parent:    spec.Origin,
 			StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 		},
 	}
 	return fc
-}
-
-func listToJSON(list []interface{}) *string {
-	data, err := json.MarshalIndent(list, "", " ")
-	if err == nil {
-		sd := string(data)
-		return &sd
-	}
-	return nil
-}
-
-func itemToJSON(item interface{}) *string {
-	data, err := json.Marshal(item)
-	if err == nil {
-		sd := string(data)
-		return &sd
-	}
-	return nil
 }
 
 func (fc *FlowCollector) serveRecords(request ApiRequest) ApiResponse {
@@ -285,6 +284,8 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 	defer tickerFlush.Stop()
 	tickerReconcile := time.NewTicker(2 * time.Second)
 	defer tickerReconcile.Stop()
+	tickerAge := time.NewTicker(5 * time.Second)
+	defer tickerAge.Stop()
 
 	for {
 		select {
@@ -295,13 +296,16 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 					log.Println("COLLECTOR: Unable to convert interface to beacon")
 				} else {
 					if source, ok := c.eventSources[beacon.Identity]; !ok {
+						var receivers []*receiver
 						log.Printf("COLLECTOR: Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
-						nonFlowReceiver := newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming)
-						nonFlowReceiver.start()
-						var flowReceiver *receiver = nil
+						receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming))
 						if beacon.SourceType == recordNames[Router] {
-							flowReceiver = newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming)
-							flowReceiver.start()
+							switch c.mode {
+							case Full:
+								receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming))
+							case Lite:
+								receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".logs", c.recordsIncoming))
+							}
 						}
 						outgoing := make(chan interface{})
 						s := newSender(c.connectionFactory, beacon.Direct, outgoing)
@@ -319,13 +323,15 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 								LastHeard: now,
 								Beacons:   1,
 							},
-							nonFlowReceiver: nonFlowReceiver,
-							flowReceiver:    flowReceiver,
+							receivers: receivers,
 							send: &senderDirect{
 								sender:    s,
 								outgoing:  outgoing,
 								heartbeat: false,
 							},
+						}
+						for _, receiver := range receivers {
+							receiver.start()
 						}
 						c.pendingFlush[beacon.Direct] = c.eventSources[beacon.Identity].send
 					} else {
@@ -337,7 +343,9 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 		case recordUpdates := <-c.recordsIncoming:
 			for _, update := range recordUpdates {
 				size, _ := getRealSizeOf(update)
-				c.metrics.collectorOctets.Add(float64(size))
+				if c.mode == Full {
+					c.metrics.collectorOctets.Add(float64(size))
+				}
 				err := c.updateRecord(update)
 				if err != nil {
 					log.Println("COLLECTOR: Update record error", err.Error())
@@ -347,7 +355,10 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 			response := c.serveRecords(request)
 			c.Response <- response
 		case <-tickerReconcile.C:
-			c.reconcileRecords()
+			if c.mode == Full {
+				c.reconcileFlowRecords()
+			}
+			c.reconcileConnectorRecords()
 		case <-tickerFlush.C:
 			for address, sender := range c.pendingFlush {
 				if sender.heartbeat {
@@ -356,6 +367,8 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 					delete(c.pendingFlush, address)
 				}
 			}
+		case <-tickerAge.C:
+			c.ageAndPurgeRecords()
 		case <-stopCh:
 			return
 		}
@@ -367,19 +380,19 @@ func (c *FlowCollector) Start(stopCh <-chan struct{}) {
 }
 
 func (c *FlowCollector) run(stopCh <-chan struct{}) {
-	c.metrics = c.NewMetrics(c.prometheusReg)
-	c.metrics.info.With(prometheus.Labels{"version": version.Version}).Set(1)
-	r := newReceiver(c.connectionFactory, BeaconAddress, c.beaconsIncoming)
-	c.receivers[BeaconAddress] = r
-	r.start()
+	if c.mode == Full {
+		c.metrics = c.NewMetrics(c.prometheusReg)
+		c.metrics.info.With(prometheus.Labels{"version": version.Version}).Set(1)
+	}
+	c.beaconReceiver = newReceiver(c.connectionFactory, BeaconAddress, c.beaconsIncoming)
+	c.beaconReceiver.start()
 	c.updates(stopCh)
 	<-stopCh
 	for _, eventsource := range c.eventSources {
-		log.Println("COLLECTOR: Stopping record processing for ", eventsource.Identity)
-		eventsource.nonFlowReceiver.stop()
-		if eventsource.flowReceiver != nil {
-			eventsource.flowReceiver.stop()
+		for _, receiver := range eventsource.receivers {
+			receiver.stop()
 		}
 		eventsource.send.sender.stop()
 	}
+	c.beaconReceiver.stop()
 }

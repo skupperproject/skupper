@@ -285,7 +285,13 @@ func TestRecordGraph(t *testing.T) {
 
 	reg := prometheus.NewRegistry()
 	u, _ := time.ParseDuration("5m")
-	fc := NewFlowCollector("origin", reg, nil, u)
+	fc := NewFlowCollector(FlowCollectorSpec{
+		Mode:              Full,
+		Origin:            "origin",
+		PromReg:           reg,
+		ConnectionFactory: nil,
+		FlowRecordTtl:     u,
+	})
 	fc.metrics = fc.NewMetrics(fc.prometheusReg)
 	for _, s := range sites {
 		err := fc.updateRecord(s)
@@ -374,16 +380,9 @@ func TestRecordGraph(t *testing.T) {
 			assert.Equal(t, *trace, "skupper-site@skupper-site")
 		}
 	}
-	//	for _, f := range fc.Flows {
-	//		if f.CounterFlow != nil {
-	//			// note until we call reconcile
-	//			fp, ok := fc.linkFlowPair(f)
-	//			assert.Assert(t, ok)
-	//			fc.FlowPairs[fp.Identity] = fp
-	//		}
-	//	}
 
-	fc.reconcileRecords()
+	fc.reconcileConnectorRecords()
+	fc.reconcileFlowRecords()
 
 	type test struct {
 		recordType   int

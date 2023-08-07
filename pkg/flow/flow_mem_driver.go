@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,6 +12,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/pkg/kube"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 )
 
 func (fc *FlowCollector) inferGatewaySite(siteId string) error {
@@ -173,6 +181,46 @@ func (c *FlowCollector) getRecordSiteId(record interface{}) string {
 		return ""
 	}
 	return ""
+}
+
+func (fc *FlowCollector) getRoutersForSite(site *SiteRecord) []*RouterRecord {
+	var routers []*RouterRecord
+	for _, router := range fc.Routers {
+		if router.Parent == site.Identity {
+			routers = append(routers, router)
+		}
+	}
+	return routers
+}
+
+func (fc *FlowCollector) getLinksForRouter(router *RouterRecord) []*LinkRecord {
+	var links []*LinkRecord
+	for _, link := range fc.Links {
+		if link.Parent == router.Identity {
+			links = append(links, link)
+		}
+	}
+	return links
+}
+
+func (fc *FlowCollector) getListenersForRouter(router *RouterRecord) []*ListenerRecord {
+	var listeners []*ListenerRecord
+	for _, listener := range fc.Listeners {
+		if listener.Parent == router.Identity {
+			listeners = append(listeners, listener)
+		}
+	}
+	return listeners
+}
+
+func (fc *FlowCollector) getConnectorsForRouter(router *RouterRecord) []*ConnectorRecord {
+	var connectors []*ConnectorRecord
+	for _, connector := range fc.Connectors {
+		if connector.Parent == router.Identity {
+			connectors = append(connectors, connector)
+		}
+	}
+	return connectors
 }
 
 func (fc *FlowCollector) getFlowProtocol(flow *FlowRecord) *string {
@@ -405,6 +453,58 @@ func prettyPrint(i interface{}) string {
 	return string(s)
 }
 
+var defaultRetry = wait.Backoff{
+	Steps:    100,
+	Duration: 10 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
+}
+
+func (fc *FlowCollector) updateSiteStatus() error {
+	var err error
+	siteData := map[string]string{}
+	platform := config.GetPlatform()
+	if platform == "" || platform == types.PlatformKubernetes {
+		cli, err := client.NewClient(fc.namespace, "", "")
+		if err != nil {
+			log.Fatal("Error getting van client: ", err.Error())
+		}
+
+		configMap, err := kube.GetConfigMap(types.SiteStatusConfigMapName, cli.Namespace, cli.KubeClient)
+		for _, site := range fc.Sites {
+			var routerStatus []RouterStatus
+			routers := fc.getRoutersForSite(site)
+			for _, router := range routers {
+				links := fc.getLinksForRouter(router)
+				listeners := fc.getListenersForRouter(router)
+				connectors := fc.getConnectorsForRouter(router)
+				routerStatus = append(routerStatus, RouterStatus{
+					Router:     router,
+					Links:      links,
+					Listeners:  listeners,
+					Connectors: connectors,
+				})
+			}
+			siteStatus := SiteStatus{
+				Site:         site,
+				RouterStatus: routerStatus,
+			}
+			siteData[site.Identity] = prettyPrint(siteStatus)
+		}
+		configMap.Data = siteData
+
+		err = retry.RetryOnConflict(defaultRetry, func() error {
+			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			} else {
+				return nil
+			}
+		})
+	}
+	return err
+}
+
 func (fc *FlowCollector) addRecord(record interface{}) error {
 	if record == nil {
 		return fmt.Errorf("No record to add")
@@ -462,6 +562,9 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 		}
 	default:
 		return fmt.Errorf("Unknown record type to add")
+	}
+	if fc.mode == Lite {
+		fc.updateSiteStatus()
 	}
 	return nil
 }
@@ -524,6 +627,9 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 		}
 	default:
 		return fmt.Errorf("Unknown record type to delete")
+	}
+	if fc.mode == Lite {
+		fc.updateSiteStatus()
 	}
 	return nil
 }
@@ -598,6 +704,10 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					}
 				}
 			}
+		}
+	case LogEventRecord:
+		if logEvent, ok := record.(LogEventRecord); ok {
+			log.Printf("LOG_EVENT: %s \n", prettyPrint(logEvent))
 		}
 	case LinkRecord:
 		if link, ok := record.(LinkRecord); ok {
@@ -1353,7 +1463,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			addresses := []VanAddressRecord{}
 			for _, address := range fc.VanAddresses {
 				if filterRecord(*address, queryParams) {
-					fc.getAddressMetrics(address)
+					fc.getAddressAdaptorCounts(address)
 					addresses = append(addresses, *address)
 				}
 			}
@@ -1362,7 +1472,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if address, ok := fc.VanAddresses[id]; ok {
-					fc.getAddressMetrics(address)
+					fc.getAddressAdaptorCounts(address)
 					p.Count = 1
 					p.Results = address
 				}
@@ -1522,6 +1632,14 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			processes := []ProcessRecord{}
 			for _, process := range fc.Processes {
 				if filterRecord(*process, queryParams) && process.Base.TimeRangeValid(queryParams) {
+					if process.connector != nil {
+						if connector, ok := fc.Connectors[*process.connector]; ok {
+							if connector.Address != nil && connector.AddressId != nil {
+								addrDetails := *connector.Address + "@" + *connector.AddressId
+								process.Addresses = append(process.Addresses, &addrDetails)
+							}
+						}
+					}
 					processes = append(processes, *process)
 				}
 			}
@@ -1556,7 +1674,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 							for _, address := range fc.VanAddresses {
 								if *connector.Address == address.Name {
 									if filterRecord(*address, queryParams) {
-										fc.getAddressMetrics(address)
+										fc.getAddressAdaptorCounts(address)
 										addresses = append(addresses, *address)
 									}
 								}
@@ -2055,7 +2173,7 @@ func (fc *FlowCollector) setupFlowMetrics(va *VanAddressRecord, flow *FlowRecord
 	return nil
 }
 
-func (fc *FlowCollector) reconcileRecords() error {
+func (fc *FlowCollector) reconcileFlowRecords() error {
 	age := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - uint64(fc.recordTtl.Microseconds())
 
 	m, err := fc.metrics.activeReconcile.GetMetricWith(prometheus.Labels{"reconcileTask": "flowsToProcess"})
@@ -2132,68 +2250,6 @@ func (fc *FlowCollector) reconcileRecords() error {
 					delete(fc.flowsToPairReconcile, reverseId)
 				}
 			}
-		}
-	}
-	m, err = fc.metrics.activeReconcile.GetMetricWith(prometheus.Labels{"reconcileTask": "connectorToProcess"})
-	if err == nil {
-		m.Set(float64(len(fc.connectorsToReconcile)))
-	}
-	for _, connId := range fc.connectorsToReconcile {
-		t := time.Now()
-		if connector, ok := fc.Connectors[connId]; ok {
-			if connector.EndTime > 0 {
-				delete(fc.connectorsToReconcile, connId)
-			} else if connector.DestHost != nil {
-				siteId := fc.getRecordSiteId(*connector)
-				var matchHost *string
-				found := false
-				if net.ParseIP(*connector.DestHost) == nil {
-					addrs, err := net.LookupHost(*connector.DestHost)
-					if err == nil && len(addrs) > 0 {
-						matchHost = &addrs[0]
-					}
-				} else {
-					matchHost = connector.DestHost
-				}
-				for _, process := range fc.Processes {
-					if siteId == process.Parent {
-						if process.SourceHost != nil {
-							if *matchHost == *process.SourceHost {
-								connector.ProcessId = &process.Identity
-								process.connector = &connector.Identity
-								process.ProcessBinding = &Bound
-								log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
-								delete(fc.connectorsToReconcile, connId)
-								found = true
-								break
-							}
-						}
-					}
-				}
-				if !found {
-					parts := strings.Split(siteId, "-")
-					processName := "site-servers-" + parts[0]
-					diffTime := connector.StartTime
-					wait := 10 * oneSecond
-					if fc.startTime > connector.StartTime {
-						diffTime = fc.startTime
-						wait = 60 * oneSecond
-					}
-					diff := uint64(t.UnixNano())/uint64(time.Microsecond) - diffTime
-					if diff > wait {
-						for _, process := range fc.Processes {
-							if process.Name != nil && *process.Name == processName {
-								log.Printf("COLLECTOR: Associating connector %s to external process %s\n", connector.Identity, processName)
-								connector.ProcessId = &process.Identity
-								delete(fc.connectorsToReconcile, connId)
-								break
-							}
-						}
-					}
-				}
-			}
-		} else {
-			delete(fc.connectorsToReconcile, connId)
 		}
 	}
 	m, err = fc.metrics.activeReconcile.GetMetricWith(prometheus.Labels{"reconcileTask": "pairToAggregate"})
@@ -2276,6 +2332,67 @@ func (fc *FlowCollector) reconcileRecords() error {
 			}
 		}
 	}
+	return nil
+}
+
+func (fc *FlowCollector) reconcileConnectorRecords() error {
+	for _, connId := range fc.connectorsToReconcile {
+		t := time.Now()
+		if connector, ok := fc.Connectors[connId]; ok {
+			if connector.EndTime > 0 {
+				delete(fc.connectorsToReconcile, connId)
+			} else if connector.DestHost != nil {
+				siteId := fc.getRecordSiteId(*connector)
+				found := false
+				for _, process := range fc.Processes {
+					if siteId == process.Parent {
+						if process.SourceHost != nil {
+							if *connector.DestHost == *process.SourceHost {
+								connector.process = &process.Identity
+								connector.Target = process.Name
+								process.connector = &connector.Identity
+								process.ProcessBinding = &Bound
+								// update site status with the connector target
+								fc.updateSiteStatus()
+								log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
+								delete(fc.connectorsToReconcile, connId)
+								found = true
+								break
+							}
+						}
+					}
+				}
+				if !found {
+					parts := strings.Split(siteId, "-")
+					processName := "site-servers-" + parts[0]
+					diffTime := connector.StartTime
+					wait := 30 * oneSecond
+					if fc.startTime > connector.StartTime {
+						diffTime = fc.startTime
+						wait = 120 * oneSecond
+					}
+					diff := uint64(t.UnixNano())/uint64(time.Microsecond) - diffTime
+					if diff > wait {
+						for _, process := range fc.Processes {
+							if process.Name != nil && *process.Name == processName {
+								log.Printf("COLLECTOR: Associating connector %s to external process %s\n", connector.Identity, processName)
+								connector.process = &process.Identity
+								delete(fc.connectorsToReconcile, connId)
+								break
+							}
+						}
+					}
+				}
+			}
+		} else {
+			delete(fc.connectorsToReconcile, connId)
+		}
+	}
+	return nil
+}
+
+func (fc *FlowCollector) ageAndPurgeRecords() error {
+	age := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - uint64(fc.recordTtl.Microseconds())
 
 	for flowId, flow := range fc.Flows {
 		if flow.EndTime != 0 && age > flow.EndTime {
@@ -2306,7 +2423,7 @@ func (fc *FlowCollector) reconcileRecords() error {
 	return nil
 }
 
-func (fc *FlowCollector) getAddressMetrics(addr *VanAddressRecord) error {
+func (fc *FlowCollector) getAddressAdaptorCounts(addr *VanAddressRecord) error {
 	listenerCount := 0
 	connectorCount := 0
 	for _, listener := range fc.Listeners {
@@ -2395,7 +2512,15 @@ func (fc *FlowCollector) purgeEventSource(eventSource EventSourceRecord) error {
 			}
 		}
 	}
+	for id, es := range fc.eventSources {
+		if id == eventSource.Identity {
+			for _, receiver := range es.receivers {
+				receiver.stop()
+			}
+		}
+	}
 	eventSource.Purged = true
+	eventSource.EndTime = now
 	log.Printf("COLLECTOR: %s \n", prettyPrint(eventSource))
 	delete(fc.eventSources, eventSource.Identity)
 
@@ -2427,10 +2552,10 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 	}
 	processName := name + "-" + parts[0]
 	diffTime := startTime
-	wait := 10 * oneSecond
+	wait := 30 * oneSecond
 	if fc.startTime > startTime {
 		diffTime = fc.startTime
-		wait = 60 * oneSecond
+		wait = 120 * oneSecond
 	}
 	diff := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - diffTime
 	found := false

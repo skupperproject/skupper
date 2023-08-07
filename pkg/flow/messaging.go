@@ -167,7 +167,7 @@ func (r *receiver) receive() {
 	for !r.closed {
 		err := r._receive()
 		if err != nil {
-			log.Println("COLLECTOR: Error receiving message ", err.Error())
+			log.Printf("COLLECTOR: Receiver %s %s\n", r.address, err.Error())
 		}
 	}
 }
@@ -189,7 +189,6 @@ func (r *receiver) _receive() error {
 	for {
 		msg, err := receiver.Receive()
 		if err != nil {
-			log.Println("COLLECTOR: Receiver error ", err.Error())
 			return err
 		}
 		receiver.Accept(msg)

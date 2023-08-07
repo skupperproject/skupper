@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
@@ -120,7 +122,20 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 
 	name := os.Getenv("SKUPPER_SITE_NAME")
 	nameSpace := os.Getenv("SKUPPER_NAMESPACE")
-	platform := string(config.GetPlatform())
+	policy := Disabled
+	var platformStr string
+	platform := config.GetPlatform()
+	if platform == "" || platform == types.PlatformKubernetes {
+		platformStr = "kubernetes"
+		cli, err := client.NewClient(nameSpace, "", "")
+		if err == nil {
+			p := client.NewPolicyValidatorAPI(cli)
+			r, err := p.IncomingLink()
+			if err == nil && r.Enabled {
+				policy = Enabled
+			}
+		}
+	}
 	site := &SiteRecord{
 		Base: Base{
 			RecType:   recordNames[Site],
@@ -129,8 +144,9 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 		},
 		Name:      &name,
 		NameSpace: &nameSpace,
+		Platform:  &platformStr,
 		Version:   &c.version,
-		Platform:  &platform,
+		Policy:    &policy,
 	}
 
 	c.beaconOutgoing <- beacon

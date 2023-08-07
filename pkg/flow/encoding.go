@@ -112,13 +112,15 @@ func encodeSite(site *SiteRecord) (*amqp.Message, error) {
 	if site.NameSpace != nil {
 		m[uint32(Namespace)] = *site.NameSpace
 	}
-	if site.Version != nil {
-		m[uint32(Version)] = *site.Version
-	}
 	if site.Platform != nil {
 		m[uint32(Platform)] = *site.Platform
 	}
-
+	if site.Version != nil {
+		m[uint32(Version)] = *site.Version
+	}
+	if site.Policy != nil {
+		m[uint32(Policy)] = *site.Policy
+	}
 	record = append(record, m)
 
 	request.Value = record
@@ -264,6 +266,9 @@ func decode(msg *amqp.Message) []interface{} {
 					if v, ok := m["Version"].(string); ok {
 						site.Version = &v
 					}
+					if v, ok := m["Policy"].(string); ok {
+						site.Policy = &v
+					}
 					result = append(result, site)
 				case Host:
 					host := HostRecord{
@@ -380,7 +385,27 @@ func decode(msg *amqp.Message) []interface{} {
 					if v, ok := m["FlowRateL7"].(uint64); ok {
 						connector.FlowRateL7 = &v
 					}
+					if v, ok := m["Target"].(string); ok {
+						connector.Target = &v
+					}
 					result = append(result, connector)
+				case LogEvent:
+					logEvent := LogEventRecord{
+						Base: base,
+					}
+					if v, ok := m["LogSeverity"].(uint64); ok {
+						logEvent.LogSeverity = &v
+					}
+					if v, ok := m["LogText"].(string); ok {
+						logEvent.LogText = &v
+					}
+					if v, ok := m["SourceFile"].(string); ok {
+						logEvent.SourceFile = &v
+					}
+					if v, ok := m["SourceLine"].(uint64); ok {
+						logEvent.SourceLine = &v
+					}
+					result = append(result, logEvent)
 				case Flow:
 					flow := FlowRecord{
 						Base: base,
