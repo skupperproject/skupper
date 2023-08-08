@@ -12,6 +12,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/version"
 )
 
 // ControllerPodman defines the podman site implementation of the controller.
@@ -75,7 +76,7 @@ func (c *ControllerPodman) Run(stopCh <-chan struct{}) error {
 	c.site = sitePodman
 
 	siteCreationTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
-	flowController := flow.NewFlowController(c.origin, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", c.tlsConfig))
+	flowController := flow.NewFlowController(c.origin, version.Version, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", c.tlsConfig))
 	flowController.Start(stopCh)
 	log.Println("Started flow-controller")
 

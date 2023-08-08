@@ -30,11 +30,11 @@ func generateManifestFile() error {
 				SHA:        images.GetSha(images.GetServiceControllerImageName()),
 				Repository: "https://github.com/skupperproject/skupper",
 			},
-            {
-                Name:       images.GetControllerPodmanImageName(),
+			{
+				Name:       images.GetControllerPodmanImageName(),
 				SHA:        images.GetSha(images.GetControllerPodmanImageName()),
-                Repository: "https://github.com/skupperproject/skupper",
-            },
+				Repository: "https://github.com/skupperproject/skupper",
+			},
 			{
 				Name:       images.GetConfigSyncImageName(),
 				SHA:        images.GetSha(images.GetConfigSyncImageName()),
