@@ -129,6 +129,8 @@ commands:
           command: |
             gunzip -c /tmp/images/service-controller.gz | docker import - 0.0.0.0:5000/service-controller
             gunzip -c /tmp/images/service-controller.gz | docker load
+            gunzip -c /tmp/images/controller-podman.gz | docker import - 0.0.0.0:5000/controller-podman
+            gunzip -c /tmp/images/controller-podman.gz | docker load
             gunzip -c /tmp/images/config-sync.gz | docker import - 0.0.0.0:5000/config-sync
             gunzip -c /tmp/images/config-sync.gz | docker load
             gunzip -c /tmp/images/flow-collector.gz | docker import - 0.0.0.0:5000/flow-collector
