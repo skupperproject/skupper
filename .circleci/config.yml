@@ -141,6 +141,7 @@ commands:
           name: push to local registry
           command: |
             docker push 0.0.0.0:5000/service-controller
+            docker push 0.0.0.0:5000/controller-podman
             docker push 0.0.0.0:5000/config-sync
             docker push 0.0.0.0:5000/flow-collector
             docker push 0.0.0.0:5000/skupper-tests
