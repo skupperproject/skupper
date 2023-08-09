@@ -7,13 +7,15 @@ import (
 )
 
 func TestServicePrinter(t *testing.T) {
-	tests := []struct {
+	type test struct {
 		name          string
 		list          *list
 		expectedJson  string
 		expectedYaml  string
 		expectedError error
-	}{
+	}
+
+	tests := []test{
 		{
 			name:          "test 1 - empty list",
 			list:          &list{},
@@ -36,6 +38,12 @@ func TestServicePrinter(t *testing.T) {
 			list:         getTest4List(),
 			expectedJson: getTest4JsonResult(),
 			expectedYaml: getTest4YamlResult(),
+		},
+		{
+			name:         "test 5 - service not authorized",
+			list:         getTest5List(),
+			expectedJson: getTest5JsonResult(),
+			expectedYaml: getTest5YamlResult(),
 		},
 	}
 	for _, tc := range tests {
@@ -109,6 +117,15 @@ func getTest4List() *list {
 	targets2.NewChild("name=service2 namespace=namespace2")
 
 	l.NewChild("service3 (http port 4040)")
+
+	return l
+}
+
+func getTest5List() *list {
+
+	l := NewList()
+	l.Item("Services exposed through Skupper:")
+	l.NewChild("service (http2 port 5001) - not authorized")
 
 	return l
 }
@@ -207,6 +224,19 @@ func getTest4JsonResult() string {
 ]`
 }
 
+func getTest5JsonResult() string {
+	return `[
+  {
+    "address": "service",
+    "protocol": "http2",
+    "port": [
+      "5001"
+    ],
+    "authorized": "false"
+  }
+]`
+}
+
 func getTest2YamlResult() string {
 	return `- address: service
   protocol: http2
@@ -258,5 +288,14 @@ func getTest4YamlResult() string {
   protocol: http
   port:
   - "4040"
+`
+}
+
+func getTest5YamlResult() string {
+	return `- address: service
+  protocol: http2
+  port:
+  - "5001"
+  authorized: "false"
 `
 }

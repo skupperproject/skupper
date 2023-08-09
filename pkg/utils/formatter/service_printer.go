@@ -14,11 +14,12 @@ type ServiceStatusPrinter struct {
 }
 
 type Service struct {
-	Address  string              `json:"address,omitempty" yaml:"address,omitempty"`
-	Protocol string              `json:"protocol,omitempty" yaml:"protocol,omitempty"`
-	Port     []string            `json:"port,omitempty" yaml:"port,omitempty"`
-	Targets  []map[string]string `json:"targets,omitempty" yaml:"targets,omitempty"`
-	Labels   []map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Address    string              `json:"address,omitempty" yaml:"address,omitempty"`
+	Protocol   string              `json:"protocol,omitempty" yaml:"protocol,omitempty"`
+	Port       []string            `json:"port,omitempty" yaml:"port,omitempty"`
+	Authorized string              `json:"authorized,omitempty" yaml:"authorized,omitempty"`
+	Targets    []map[string]string `json:"targets,omitempty" yaml:"targets,omitempty"`
+	Labels     []map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
 }
 
 func (p *ServiceStatusPrinter) PrintJsonFormat() (string, error) {
@@ -55,11 +56,21 @@ func (p *ServiceStatusPrinter) ChangeFormat(list *list) {
 	var printServices []Service
 
 	for _, svc := range list.children {
-		svcDetails := strings.Split(svc.item, " ")
 
 		var address string
 		var protocol string
 		var ports []string
+		var authorized string
+		notAuthorizedSuffix := " - not authorized"
+
+		item := svc.item
+
+		if strings.Contains(svc.item, notAuthorizedSuffix) {
+			authorized = "false"
+			item = strings.TrimSuffix(item, notAuthorizedSuffix)
+		}
+
+		svcDetails := strings.Split(item, " ")
 
 		for index, value := range svcDetails {
 			switch index {
@@ -75,9 +86,10 @@ func (p *ServiceStatusPrinter) ChangeFormat(list *list) {
 		}
 
 		pService := Service{
-			Address:  address,
-			Protocol: protocol,
-			Port:     ports,
+			Address:    address,
+			Protocol:   protocol,
+			Port:       ports,
+			Authorized: authorized,
 		}
 
 		for _, child := range svc.children {
