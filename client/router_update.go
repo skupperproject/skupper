@@ -27,6 +27,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
@@ -98,6 +99,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	addCertsSharedVolume := false
 	substituteFlowCollector := false
 	addPrometheusServer := false
+	moveClaims := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
 		return false, err
@@ -111,6 +113,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		addCertsSharedVolume = utils.LessRecentThanVersion(originalVersion, "0.9.0")
 		substituteFlowCollector = utils.LessRecentThanVersion(originalVersion, "1.3.0")
 		addPrometheusServer = utils.LessRecentThanVersion(originalVersion, "1.4.0")
+		moveClaims = utils.LessRecentThanVersion(originalVersion, "1.5.0")
 	} else {
 		originalVersion = site.Version
 	}
@@ -133,6 +136,9 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 			if utils.LessRecentThanVersion(originalVersion, "1.4.0") {
 				addPrometheusServer = true
+			}
+			if utils.LessRecentThanVersion(originalVersion, "1.5.0") {
+				moveClaims = true
 			}
 
 			err = cli.updateStarted(site.Version, namespace, configmap.ObjectMeta.OwnerReferences)
@@ -455,6 +461,35 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		kube.AppendSharedVolume(&router.Spec.Template.Spec.Volumes, []*[]corev1.VolumeMount{&router.Spec.Template.Spec.Containers[0].VolumeMounts, &router.Spec.Template.Spec.Containers[1].VolumeMounts}, "skupper-router-certs", "/etc/skupper-router-certs")
 		updateRouter = true
 	}
+	if addClaimsSupport {
+		err = kube.UpdateRole(namespace, types.TransportRoleName, types.TransportPolicyRule, cli.KubeClient)
+		if err != nil {
+			return false, err
+		}
+		if !config.IsEdge() {
+			if usingRoutes {
+				err = cli.createClaimsRedemptionRoute(ctx, namespace)
+				if err != nil {
+					return false, err
+				}
+			}
+		}
+	}
+	if moveClaims {
+		if err := cli.moveClaimsToRouterService(ctx, namespace); err != nil {
+			return false, err
+		}
+		latest, err := kube.WaitDeploymentReady(types.TransportDeploymentName, namespace, cli.KubeClient, time.Minute, time.Second)
+		if err != nil {
+			return false, err
+		}
+		if latest.ObjectMeta.ResourceVersion != router.ObjectMeta.ResourceVersion {
+			latest.Spec = router.Spec
+			router = latest
+		}
+		kube.AppendSecretVolumeWithVolumeName(&router.Spec.Template.Spec.Volumes, &router.Spec.Template.Spec.Containers[1].VolumeMounts, types.SiteServerSecret, "claims-cert", "/etc/skupper-internal/")
+		updateRouter = true
+	}
 
 	if updateRouter || updateSite || hup {
 		if !updateRouter {
@@ -486,34 +521,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		// -oauth proxy sidecar
 		updateOauthProxyServiceAccount(&controller.Spec.Template.Spec, types.ControllerServiceAccountName)
 		updateController = true
-	}
-	if addClaimsSupport {
-		err = kube.UpdateRole(namespace, types.ControllerRoleName, types.ControllerPolicyRule, cli.KubeClient)
-		if err != nil {
-			return false, err
-		}
-		if !config.IsEdge() {
-			err = cli.addClaimsPortsToControllerService(ctx, namespace)
-			if err != nil {
-				return false, err
-			}
-			if usingRoutes {
-				err = cli.createClaimsRedemptionRoute(ctx, namespace)
-				if err != nil {
-					return false, err
-				}
-			}
-			var owner *metav1.OwnerReference
-			if len(controller.ObjectMeta.OwnerReferences) > 0 {
-				owner = &controller.ObjectMeta.OwnerReferences[0]
-			}
-			err = cli.createClaimsServerSecret(ctx, namespace, owner, usingRoutes)
-			if err != nil {
-				return false, err
-			}
-			kube.AppendSecretVolume(&controller.Spec.Template.Spec.Volumes, &controller.Spec.Template.Spec.Containers[0].VolumeMounts, types.ClaimsServerSecret, "/etc/service-controller/certs/")
-			updateController = true
-		}
 	}
 	if addMultiportServices {
 		// disabling the controller
@@ -1128,10 +1135,19 @@ func (cli *VanClient) getTransportHosts(namespace string) ([]string, error) {
 	return hosts, nil
 }
 
-func (cli *VanClient) addClaimsPortsToControllerService(ctx context.Context, namespace string) error {
-	svc, err := cli.KubeClient.CoreV1().Services(namespace).Get(ctx, types.ControllerServiceName, metav1.GetOptions{})
+func (cli *VanClient) addClaimsPortsToRouterService(ctx context.Context, namespace string) error {
+	svc, err := cli.KubeClient.CoreV1().Services(namespace).Get(ctx, types.TransportServiceName, metav1.GetOptions{})
 	if err != nil {
 		return err
+	}
+	found := false
+	for _, port := range svc.Spec.Ports {
+		if port.Name == types.ClaimRedemptionPortName {
+			found = true
+		}
+	}
+	if found {
+		return nil
 	}
 	svc.Spec.Ports = append(svc.Spec.Ports, corev1.ServicePort{
 		Name:     types.ClaimRedemptionPortName,
@@ -1145,29 +1161,69 @@ func (cli *VanClient) addClaimsPortsToControllerService(ctx context.Context, nam
 	return nil
 }
 
-func (cli *VanClient) createClaimsServerSecret(ctx context.Context, namespace string, owner *metav1.OwnerReference, usingRoutes bool) error {
-	cred := types.Credential{
-		CA:          types.SiteCaSecret,
-		Name:        types.ClaimsServerSecret,
-		Subject:     types.ControllerServiceName,
-		Hosts:       []string{types.ControllerServiceName + "." + namespace},
-		ConnectJson: false,
+func (cli *VanClient) removeClaimsPortsFromControllerService(ctx context.Context, namespace string) error {
+	svc, err := cli.KubeClient.CoreV1().Services(namespace).Get(ctx, types.ControllerServiceName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return err
 	}
-	if usingRoutes {
-		rte, err := kube.GetRoute(types.ClaimRedemptionRouteName, namespace, cli.RouteClient)
-		if err == nil {
-			cred.Hosts = append(cred.Hosts, rte.Spec.Host)
+	found := false
+	var ports []corev1.ServicePort
+	for _, port := range svc.Spec.Ports {
+		if port.Name == types.ClaimRedemptionPortName {
+			found = true
 		} else {
-			log.Printf("Failed to retrieve route %q: %s", types.ClaimRedemptionRouteName, err.Error())
+			ports = append(ports, port)
+		}
+	}
+	if !found {
+		return nil
+	}
+	if len(ports) > 0 {
+		svc.Spec.Ports = ports
+		_, err = cli.KubeClient.CoreV1().Services(namespace).Update(ctx, svc, metav1.UpdateOptions{})
+		if err != nil {
+			return err
 		}
 	} else {
-		err := cli.appendLoadBalancerHostOrIp(ctx, types.ControllerServiceName, namespace, &cred)
+		err = cli.KubeClient.CoreV1().Services(namespace).Delete(ctx, types.ControllerServiceName, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
 	}
-	_, err := kube.NewSecret(cred, owner, namespace, cli.KubeClient)
-	if err != nil && !errors.IsAlreadyExists(err) {
+	return nil
+}
+
+func (cli *VanClient) updateIngressResources(ctx context.Context, namespace string) error {
+	if err := kube.UpdateTargetServiceForRouteIfExists(types.ClaimRedemptionRouteName, types.TransportServiceName, namespace, cli.RouteClient); err != nil {
+		return err
+	}
+	if err := kube.UpdateIngressRuleServiceName(types.IngressName, "claims", types.TransportServiceName, namespace, cli); err != nil {
+		return err
+	}
+	if err := kube.UpdateContourProxyService(cli, namespace, types.ClaimsIngressPrefix, types.TransportServiceName); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cli *VanClient) moveClaimsToRouterService(ctx context.Context, namespace string) error {
+	if err := cli.addClaimsPortsToRouterService(ctx, namespace); err != nil {
+		return err
+	}
+	if err := cli.removeClaimsPortsFromControllerService(ctx, namespace); err != nil {
+		return err
+	}
+	if err := cli.updateIngressResources(ctx, namespace); err != nil {
+		return err
+	}
+	ca, err := cli.KubeClient.CoreV1().Secrets(namespace).Get(ctx, types.SiteCaSecret, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	err = cli.regenerateSiteSecret(ctx, ca)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -1189,7 +1245,7 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 			},
 			To: routev1.RouteTargetReference{
 				Kind: "Service",
-				Name: types.ControllerServiceName,
+				Name: types.TransportServiceName,
 			},
 			TLS: &routev1.TLSConfig{
 				Termination:                   routev1.TLSTerminationPassthrough,
@@ -1241,8 +1297,7 @@ func convertSiteConfigToCollectorEnabled(ctx context.Context, cli *VanClient, na
 	if err != nil {
 		return err
 	}
-	configmap.Data[SiteConfigConsoleKey] = "true"
-	configmap.Data[SiteConfigFlowCollectorKey] = "true"
+	site.UpdateForCollectorEnabled(configmap)
 	_, err = cli.KubeClient.CoreV1().ConfigMaps(namespace).Update(ctx, configmap, metav1.UpdateOptions{})
 	return err
 }

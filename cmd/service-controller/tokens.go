@@ -15,6 +15,8 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/event"
+	"github.com/skupperproject/skupper/pkg/kube/claims"
+	"github.com/skupperproject/skupper/pkg/kube/site"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
@@ -146,17 +148,11 @@ func (m *TokenManager) generateToken(options *TokenOptions) (*corev1.Secret, err
 }
 
 func (m *TokenManager) downloadClaim(name string) (*corev1.Secret, error) {
-	secret, err := m.cli.KubeClient.CoreV1().Secrets(m.cli.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		return nil, nil
-	} else if err != nil {
+	siteContext, err := site.GetSiteContext(m.cli, m.cli.Namespace, context.TODO())
+	if err != nil {
 		return nil, err
-	} else if !isTokenRecord(secret) {
-		return nil, nil
 	}
-	password := secret.Data[types.ClaimPasswordDataKey]
-	claim, _, _, err := m.cli.TokenClaimTemplateCreate(context.Background(), name, password, name)
-	return claim, err
+	return claims.NewClaimFactory(m.cli, m.cli.Namespace, siteContext, context.TODO()).RecreateTokenClaim(name)
 }
 
 func (o *TokenOptions) setExpiration(value string) error {

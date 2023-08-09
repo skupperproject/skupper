@@ -205,7 +205,7 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 
 	// Create router config
 	siteName := fmt.Sprintf("%s-%s", site.GetName(), service.GetAddress())
-	siteId := fmt.Sprintf("%s-%s", site.GetId(), service.GetAddress())
+	siteId := fmt.Sprintf("%s", site.GetId())
 
 	// Adjust logging level
 	svcRouterConfig := qdr.InitialConfig(siteName, siteId, version.Version, true, 3)

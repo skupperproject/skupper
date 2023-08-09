@@ -95,7 +95,7 @@ func TestServiceInterfaceDeleteMulti(t *testing.T) {
 	// wait till all services show up
 	ctxSvc, cn := context.WithTimeout(ctx, time.Minute)
 	defer cn()
-	totalServices := serviceCount + 3
+	totalServices := serviceCount + 2
 
 	err = utils.RetryWithContext(ctxSvc, time.Second, func() (bool, error) {
 		return len(svcsFound) == totalServices, nil

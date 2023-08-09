@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
 
@@ -119,6 +120,7 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 
 	name := os.Getenv("SKUPPER_SITE_NAME")
 	nameSpace := os.Getenv("SKUPPER_NAMESPACE")
+	platform := string(config.GetPlatform())
 	site := &SiteRecord{
 		Base: Base{
 			RecType:   recordNames[Site],
@@ -128,6 +130,7 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 		Name:      &name,
 		NameSpace: &nameSpace,
 		Version:   &c.version,
+		Platform:  &platform,
 	}
 
 	c.beaconOutgoing <- beacon

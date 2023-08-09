@@ -15,19 +15,18 @@ func TestConnectorCreateTokenInterior(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "skupper",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "skupper",
+		RouterMode:        string(types.TransportModeInterior),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	err = cli.ConnectorTokenCreateFile(ctx, "link1", "./link1.yaml")
@@ -42,19 +41,18 @@ func TestConnectorCreateTokenEdge(t *testing.T) {
 
 	cli, err := newMockClient("skupper", "", "")
 
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "skupper",
-			RouterMode:        string(types.TransportModeEdge),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "skupper",
+		RouterMode:        string(types.TransportModeEdge),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	err = cli.ConnectorTokenCreateFile(ctx, "link1", "/tmp/link1.yaml")

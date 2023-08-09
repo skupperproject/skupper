@@ -5,6 +5,7 @@
 *.so
 *.dylib
 /service-controller
+/controller-podman
 /site-controller
 /skupper
 /get

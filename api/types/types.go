@@ -73,6 +73,28 @@ var TransportPolicyRule = []rbacv1.PolicyRule{
 		APIGroups: []string{""},
 		Resources: []string{"secrets", "pods", "configmaps"},
 	},
+	//needed for redeeming token claims
+	{
+		Verbs:     []string{"update", "delete"},
+		APIGroups: []string{""},
+		Resources: []string{"secrets"},
+	},
+	//needed for determining token urls
+	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{""},
+		Resources: []string{"services"},
+	},
+	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{"route.openshift.io"},
+		Resources: []string{"routes"},
+	},
+	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{"networking.k8s.io"},
+		Resources: []string{"ingresses"},
+	},
 }
 
 var TransportPrometheusAnnotations = map[string]string{
@@ -92,6 +114,7 @@ const (
 	ControllerClusterRoleName            string = "skupper-service-controller"
 	ControllerConfigPath                 string = "/etc/messaging/"
 	ControllerServiceName                string = "skupper"
+	ControllerPodmanContainerName        string = "skupper-controller-podman"
 	FlowCollectorContainerName           string = "flow-collector"
 	PrometheusDeploymentName             string = "skupper-prometheus"
 	PrometheusComponentName              string = "prometheus"
@@ -159,7 +182,6 @@ const (
 	LocalServerSecret        string = "skupper-local-server"
 	LocalCaSecret            string = "skupper-local-ca"
 	SiteServerSecret         string = "skupper-site-server"
-	ClaimsServerSecret       string = "skupper-claims-server"
 	SiteCaSecret             string = "skupper-site-ca"
 	ConsoleServerSecret      string = "skupper-console-certs"
 	ConsoleUsersSecret       string = "skupper-console-users"

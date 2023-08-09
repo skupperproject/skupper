@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	expectUpdatedSecrets    = []string{types.SiteCaSecret, types.SiteServerSecret, types.ClaimsServerSecret}
-	expectUpdatedComponents = []string{types.RouterComponent, types.ControllerComponentName}
+	expectUpdatedSecrets    = []string{types.SiteCaSecret, types.SiteServerSecret}
+	expectUpdatedComponents = []string{types.RouterComponent}
 )
 
 const (
@@ -45,7 +45,7 @@ func (d *RevokeAccessTester) Run(platform types.Platform, cluster *base.ClusterC
 	// Creating informers to monitor secrets and pods (before revoke-access is issued):
 	// - Removal of those labeled as 'skupper.io/type=token-claim-record'
 	// - Updates to: skupper-site-ca secret, skupper-site-server, skupper-claims-server
-	// - router and service-controller pods restarted (after deployment updated)
+	// - router pod restarted (after deployment updated)
 	//
 	stopCh := make(chan struct{})
 	defer close(stopCh)

@@ -13,11 +13,13 @@ import (
 const (
 	RouterImageEnvKey                 string = "QDROUTERD_IMAGE"
 	ServiceControllerImageEnvKey      string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
+	ControllerPodmanImageEnvKey       string = "SKUPPER_CONTROLLER_PODMAN_IMAGE"
 	ConfigSyncImageEnvKey             string = "SKUPPER_CONFIG_SYNC_IMAGE"
 	FlowCollectorImageEnvKey          string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
 	PrometheusServerImageEnvKey       string = "PROMETHEUS_SERVER_IMAGE"
 	RouterPullPolicyEnvKey            string = "QDROUTERD_IMAGE_PULL_POLICY"
 	ServiceControllerPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
+	ControllerPodmanPullPolicyEnvKey  string = "SKUPPER_CONTROLLER_PODMAN_IMAGE_PULL_POLICY"
 	ConfigSyncPullPolicyEnvKey        string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
 	FlowCollectorPullPolicyEnvKey     string = "SKUPPER_FLOW_COLLECTOR_IMAGE_PULL_POLICY"
 	PrometheusServerPullPolicyEnvKey  string = "PROMETHEUS_SERVER_IMAGE_PULL_POLICY"
@@ -86,6 +88,27 @@ func GetServiceControllerImageDetails() types.ImageDetails {
 	return types.ImageDetails{
 		Name:       GetServiceControllerImageName(),
 		PullPolicy: GetServiceControllerImagePullPolicy(),
+	}
+}
+
+func GetControllerPodmanImageName() string {
+	image := os.Getenv(ControllerPodmanImageEnvKey)
+	if image == "" {
+		imageRegistry := GetImageRegistry()
+		return strings.Join([]string{imageRegistry, ControllerPodmanImageName}, "/")
+	} else {
+		return image
+	}
+}
+
+func GetControllerPodmanImagePullPolicy() string {
+	return getPullPolicy(ControllerPodmanPullPolicyEnvKey)
+}
+
+func GetControllerPodmanImageDetails() types.ImageDetails {
+	return types.ImageDetails{
+		Name:       GetControllerPodmanImageName(),
+		PullPolicy: GetControllerPodmanImagePullPolicy(),
 	}
 }
 

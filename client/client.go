@@ -57,6 +57,10 @@ func (cli *VanClient) GetDiscoveryClient() *discovery.DiscoveryClient {
 	return cli.DiscoveryClient
 }
 
+func (cli *VanClient) GetRouteClient() *routev1client.RouteV1Client {
+	return cli.RouteClient
+}
+
 func (cli *VanClient) GetVersion(component string, name string) string {
 	return kube.GetComponentVersion(cli.Namespace, cli.KubeClient, component, name)
 }

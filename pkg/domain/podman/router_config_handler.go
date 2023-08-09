@@ -2,6 +2,8 @@ package podman
 
 import (
 	"fmt"
+	"os"
+	"path"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
@@ -21,16 +23,29 @@ func NewRouterConfigHandlerPodman(cli *podman.PodmanRestClient) *RouterConfigHan
 }
 
 func (r *RouterConfigHandler) GetRouterConfig() (*qdr.RouterConfig, error) {
-	var configVolume *container.Volume
-	configVolume, err := r.cli.VolumeInspect(types.TransportConfigMapName)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving volume %s - %v", types.TransportConfigMapName, err)
+	var err error
+	var routerConfigStr string
+
+	if !r.cli.IsRunningInContainer() {
+		var configVolume *container.Volume
+		configVolume, err = r.cli.VolumeInspect(types.TransportConfigMapName)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving volume %s - %v", types.TransportConfigMapName, err)
+		}
+		routerConfigStr, err = configVolume.ReadFile(types.TransportConfigFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading config file %s from volume %s - %v",
+				types.TransportConfigFile, types.TransportConfigMapName, err)
+		}
+	} else {
+		configFileName := path.Join("/etc/skupper-router/config", types.TransportConfigFile)
+		configData, err := os.ReadFile(configFileName)
+		if err != nil {
+			return nil, fmt.Errorf("error loading %s - %s", configFileName, err)
+		}
+		routerConfigStr = string(configData)
 	}
-	routerConfigStr, err := configVolume.ReadFile(types.TransportConfigFile)
-	if err != nil {
-		return nil, fmt.Errorf("error reading config file %s from volume %s - %v",
-			types.TransportConfigFile, types.TransportConfigMapName, err)
-	}
+
 	routerConfig, err := qdr.UnmarshalRouterConfig(routerConfigStr)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing config file %s from volume %s - %v",

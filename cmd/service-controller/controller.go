@@ -68,7 +68,6 @@ type Controller struct {
 	definitionMonitor *DefinitionMonitor
 	consoleServer     *ConsoleServer
 	siteQueryServer   *SiteQueryServer
-	claimVerifier     *ClaimVerifier
 	tokenHandler      *SecretController
 	claimHandler      *SecretController
 	serviceSync       *service_sync.ServiceSync
@@ -212,9 +211,6 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 	controller.siteQueryServer = newSiteQueryServer(cli, tlsConfig)
 
 	controller.definitionMonitor = newDefinitionMonitor(controller.origin, controller.vanClient, controller.svcDefInformer, controller.svcInformer)
-	if enableClaimVerifier() {
-		controller.claimVerifier = newClaimVerifier(controller.vanClient)
-	}
 	controller.tokenHandler = newTokenHandler(controller.vanClient, origin, controller.eventHandler)
 	controller.claimHandler = newClaimHandler(controller.vanClient, origin)
 	handler := func(changed []types.ServiceInterface, deleted []string, origin string) error {
@@ -361,9 +357,6 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 		c.nodeWatcher.start(stopCh)
 	}
 	c.consoleServer.start(stopCh)
-	if c.claimVerifier != nil {
-		c.claimVerifier.start(stopCh)
-	}
 	c.tokenHandler.start(stopCh)
 	c.claimHandler.start(stopCh)
 	c.policyHandler.start(stopCh)

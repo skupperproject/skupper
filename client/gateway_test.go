@@ -42,19 +42,18 @@ func TestGatewayExportConfigAndGenerateBundle(t *testing.T) {
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
 	// Create a router.
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-gateway-export-config-",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "test-gateway-export-config-",
+		RouterMode:        string(types.TransportModeInterior),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	gatewayName, observedError := cli.GatewayInit(ctx, "exportconfig", gatewayType, "")
@@ -203,19 +202,18 @@ func TestGatewayForward(t *testing.T) {
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
 	// Create a router.
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-gateway-forward-",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "test-gateway-forward-",
+		RouterMode:        string(types.TransportModeInterior),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	// setup listener to cause port collition
@@ -336,19 +334,18 @@ func TestGatewayBind(t *testing.T) {
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
 	// Create a router.
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-gateway-bind-",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "test-gateway-bind-",
+		RouterMode:        string(types.TransportModeInterior),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	// Create the VAN Service Interfaces.
@@ -471,19 +468,18 @@ func TestGatewayExpose(t *testing.T) {
 	defer kube.DeleteNamespace(namespace, cli.KubeClient)
 
 	// Create a router.
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-gateway-expose-",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "test-gateway-expose-",
+		RouterMode:        string(types.TransportModeInterior),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	gatewayName, observedError := cli.GatewayExpose(ctx, namespace, gatewayType, types.GatewayEndpoint{
@@ -579,19 +575,18 @@ func TestGatewayInit(t *testing.T) {
 	assert.Check(t, strings.Contains(observedError.Error(), "Skupper is not enabled"))
 
 	// Create a router.
-	err = cli.RouterCreate(ctx, types.SiteConfig{
-		Spec: types.SiteConfigSpec{
-			SkupperName:       "test-gateway-init-remove",
-			RouterMode:        string(types.TransportModeInterior),
-			EnableController:  true,
-			EnableServiceSync: true,
-			EnableConsole:     false,
-			AuthMode:          "",
-			User:              "",
-			Password:          "",
-			Ingress:           types.IngressNoneString,
-		},
+	config, err := cli.SiteConfigCreate(ctx, types.SiteConfigSpec{
+		SkupperName:       "test-gateway-init-remove",
+		RouterMode:        string(types.TransportModeInterior),
+		EnableController:  true,
+		EnableServiceSync: true,
+		EnableConsole:     false,
+		AuthMode:          "",
+		User:              "",
+		Password:          "",
+		Ingress:           types.IngressNoneString,
 	})
+	err = cli.RouterCreate(ctx, *config)
 	assert.Check(t, err, "Unable to create VAN router")
 
 	// Init loop

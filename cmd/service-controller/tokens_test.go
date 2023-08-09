@@ -7,10 +7,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -269,4 +272,32 @@ func TestDownloadClaim(t *testing.T) {
 			assert.Assert(t, bytes.Equal(token.Data[types.ClaimPasswordDataKey], test.password), name)
 		}
 	}
+}
+
+// TODO: duplicated from pkg/claims/claim_verifier_test.go, avoid duplication
+func createClaimRecord(cli *client.VanClient, name string, password []byte, expiration *time.Time, uses int) error {
+	record := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				types.SkupperTypeQualifier: types.TypeClaimRecord,
+			},
+			Annotations: map[string]string{},
+		},
+		Data: map[string][]byte{
+			types.ClaimPasswordDataKey: password,
+		},
+	}
+	if expiration != nil {
+		record.ObjectMeta.Annotations[types.ClaimExpiration] = expiration.Format(time.RFC3339)
+	}
+	if uses > 0 {
+		record.ObjectMeta.Annotations[types.ClaimsRemaining] = strconv.Itoa(uses)
+	}
+	_, err := cli.KubeClient.CoreV1().Secrets(cli.Namespace).Create(context.TODO(), &record, metav1.CreateOptions{})
+	return err
 }
