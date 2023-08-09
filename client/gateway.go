@@ -738,12 +738,18 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 	siteId, _ := getGatewaySiteId(gatewayDir)
 	adminUrl, _ := getRouterUrl(gatewayDir)
 	adminPort := strings.Split(adminUrl, ":")
+	isNonLinux := runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 
 	networkingFlag := "--network"
 	networkingValue := "host"
-	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+
+	volumeFlag := gatewayDir + ":" + containerDir + ":Z"
+
+	if isNonLinux {
 		networkingFlag = "-p"
 		networkingValue = adminPort[len(adminPort)-1] + ":" + adminPort[len(adminPort)-1]
+
+		volumeFlag = gatewayDir + ":" + containerDir
 	}
 
 	containerCmd := gatewayType
@@ -763,7 +769,7 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 		"-e",
 		"QDROUTERD_CONF=" + containerDir + "/config/skrouterd.json",
 		"-v",
-		gatewayDir + ":" + containerDir + ":Z",
+		volumeFlag,
 		images.GetRouterImageName(),
 	}
 
