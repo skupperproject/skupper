@@ -92,3 +92,40 @@ func (r *FlowCollector) GetLabels() map[string]string {
 func (r *FlowCollector) GetSiteIngresses() []SiteIngress {
 	return r.SiteIngresses
 }
+
+type Controller struct {
+	Image         string
+	Env           map[string]string
+	Labels        map[string]string
+	SiteIngresses []SiteIngress
+}
+
+func (s *Controller) Name() string {
+	return types.ControllerPodmanContainerName
+}
+
+func (s *Controller) GetImage() string {
+	return images.GetControllerPodmanImageName()
+}
+
+func (s *Controller) SetImage(image string) {
+	s.Image = image
+}
+
+func (s *Controller) GetEnv() map[string]string {
+	if s.Env == nil {
+		s.Env = map[string]string{}
+	}
+	return s.Env
+}
+
+func (s *Controller) GetLabels() map[string]string {
+	if s.Labels == nil {
+		s.Labels = map[string]string{}
+	}
+	return s.Labels
+}
+
+func (s *Controller) GetSiteIngresses() []SiteIngress {
+	return s.SiteIngresses
+}

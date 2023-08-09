@@ -151,6 +151,12 @@ func (p *PodmanRestClient) GetEndpoint() string {
 	return p.endpoint
 }
 
+func (p *PodmanRestClient) IsRunningInContainer() bool {
+	// See: https://docs.podman.io/en/latest/markdown/podman-run.1.html
+	_, err := os.Stat("/run/.containerenv")
+	return err == nil
+}
+
 // boolTrue returns a true bool pointer (for false, just use new(bool))
 func boolTrue() *bool {
 	b := true

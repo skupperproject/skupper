@@ -114,6 +114,7 @@ const (
 	ControllerClusterRoleName            string = "skupper-service-controller"
 	ControllerConfigPath                 string = "/etc/messaging/"
 	ControllerServiceName                string = "skupper"
+	ControllerPodmanContainerName        string = "skupper-controller-podman"
 	FlowCollectorContainerName           string = "flow-collector"
 	PrometheusDeploymentName             string = "skupper-prometheus"
 	PrometheusComponentName              string = "prometheus"
