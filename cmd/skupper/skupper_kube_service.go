@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -50,6 +51,11 @@ func (s *SkupperKubeService) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperKubeService) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
+
+	if len(serviceStatusOutput) > 0 && !utils.StringSliceContains(types.GetSupportedOutputTypes(), serviceStatusOutput) {
+		return fmt.Errorf("output format not supported: %s", serviceStatusOutput)
+	}
+
 	cli := s.kube.Cli
 	vsis, err := s.kube.Cli.ServiceInterfaceList(context.Background())
 	if err == nil {
@@ -116,7 +122,30 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 					}
 				}
 			}
-			l.Print()
+
+			switch serviceStatusOutput {
+			case "json":
+				printStatus := formatter.ServiceStatusPrinter{OriginalData: l}
+				result, err := printStatus.PrintJsonFormat()
+
+				if err != nil {
+					return err
+				}
+
+				fmt.Println(result)
+
+			case "yaml":
+				printStatus := formatter.ServiceStatusPrinter{OriginalData: l}
+				result, err := printStatus.PrintYamlFormat()
+
+				if err != nil {
+					return err
+				}
+
+				fmt.Println(result)
+			default:
+				l.Print()
+			}
 		}
 	} else {
 		return fmt.Errorf("Could not retrieve services: %w", err)

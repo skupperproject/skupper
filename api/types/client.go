@@ -210,6 +210,10 @@ func ValidAuthOptions(platform Platform) []string {
 	}
 }
 
+func GetSupportedOutputTypes() []string {
+	return []string{"json", "yaml"}
+}
+
 func isValidIngress(platform Platform, ingress string) bool {
 	if ingress == "" {
 		return true

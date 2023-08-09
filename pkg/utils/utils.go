@@ -50,8 +50,12 @@ func StringifySelector(labels map[string]string) string {
 // LabelToMap expects label string to be a comma separated
 // list of key and value pairs delimited by equals.
 func LabelToMap(label string) map[string]string {
+	return LabelToMapWithSep(label, ",")
+}
+
+func LabelToMapWithSep(label string, sep string) map[string]string {
 	m := map[string]string{}
-	labels := strings.Split(label, ",")
+	labels := strings.Split(label, sep)
 	for _, l := range labels {
 		if !strings.Contains(l, "=") {
 			continue

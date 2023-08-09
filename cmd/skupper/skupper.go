@@ -562,6 +562,7 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 }
 
 var showLabels bool
+var serviceStatusOutput string
 
 func NewCmdServiceStatus(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -575,6 +576,7 @@ func NewCmdServiceStatus(skupperClient SkupperServiceClient) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&showLabels, "show-labels", false, "show service labels")
+	cmd.Flags().StringVarP(&serviceStatusOutput, "output", "o", "", "Output format. Valid values: json, yaml")
 	return cmd
 }
 
