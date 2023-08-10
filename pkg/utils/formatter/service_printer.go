@@ -23,7 +23,7 @@ type Service struct {
 }
 
 func (p *ServiceStatusPrinter) PrintJsonFormat() (string, error) {
-	p.ChangeFormat(p.OriginalData)
+	p.ChangeFormat()
 
 	if p.Services == nil {
 		return "", fmt.Errorf("error before marshalling: empty list")
@@ -38,7 +38,7 @@ func (p *ServiceStatusPrinter) PrintJsonFormat() (string, error) {
 }
 
 func (p *ServiceStatusPrinter) PrintYamlFormat() (string, error) {
-	p.ChangeFormat(p.OriginalData)
+	p.ChangeFormat()
 
 	if p.Services == nil {
 		return "", fmt.Errorf("error before marshalling: empty list")
@@ -52,10 +52,10 @@ func (p *ServiceStatusPrinter) PrintYamlFormat() (string, error) {
 	return string(yamlData), nil
 }
 
-func (p *ServiceStatusPrinter) ChangeFormat(list *list) {
+func (p *ServiceStatusPrinter) ChangeFormat() {
 	var printServices []Service
 
-	for _, svc := range list.children {
+	for _, svc := range p.OriginalData.children {
 
 		var address string
 		var protocol string

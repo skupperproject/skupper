@@ -17,6 +17,7 @@ func NewCmdNetwork() *cobra.Command {
 
 var selectedSite string
 var networkStatusTimeout time.Duration
+var networkStatusOutput string
 
 func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -29,6 +30,7 @@ func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 
 	cmd.Flags().StringVarP(&selectedSite, "site", "s", "all", "Site identifier")
 	cmd.Flags().DurationVar(&networkStatusTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for retrieving remote information")
+	cmd.Flags().StringVarP(&networkStatusOutput, "output", "o", "", "Output format. Valid values: json, yaml")
 
 	return cmd
 

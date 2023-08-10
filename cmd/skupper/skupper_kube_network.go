@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/client"
 	"strings"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
@@ -87,73 +87,101 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	if sites != nil && len(sites) > 0 {
-		siteList := formatter.NewList()
-		siteList.Item("Sites:")
-		for _, site := range sites {
 
-			if site.Name != selectedSite && selectedSite != "all" {
-				continue
-			}
-
-			location := "remote"
-			siteVersion := site.Version
-			detailsMap := map[string]string{"name": site.Name, "namespace": site.Namespace, "URL": site.Url, "version": siteVersion}
-
-			if len(site.MinimumVersion) > 0 {
-				siteVersion = fmt.Sprintf("%s (minimum version required %s)", site.Version, site.MinimumVersion)
-			}
-
-			if site.SiteId == currentSite {
-				location = "local"
-				detailsMap["mode"] = vir.Status.Mode
-			}
-
-			newItem := fmt.Sprintf("[%s] %s - %s ", location, site.SiteId[:7], site.Name)
-
-			newItem = newItem + fmt.Sprintln()
-
-			if len(site.Links) > 0 {
-				detailsMap["sites linked to"] = fmt.Sprint(strings.Join(site.Links, ", "))
-			}
-
-			serviceLevel := siteList.NewChildWithDetail(newItem, detailsMap)
-			if len(site.Services) > 0 {
-				services := serviceLevel.NewChild("Services:")
-				var addresses []string
-				svcAuth := map[string]bool{}
-				for _, svc := range site.Services {
-					addresses = append(addresses, svc.Name)
-					svcAuth[svc.Name] = true
-				}
-				if vc, ok := s.kube.Cli.(*client.VanClient); ok && site.Namespace == s.kube.Cli.GetNamespace() {
-					policy := client.NewPolicyValidatorAPI(vc)
-					res, _ := policy.Services(addresses...)
-					for addr, auth := range res {
-						svcAuth[addr] = auth.Allowed
-					}
-				}
-				for _, svc := range site.Services {
-					authSuffix := ""
-					if !svcAuth[svc.Name] {
-						authSuffix = " - not authorized"
-					}
-					svcItem := "name: " + svc.Name + authSuffix + fmt.Sprintln()
-					detailsSvc := map[string]string{"protocol": svc.Protocol, "address": svc.Address}
-					targetLevel := services.NewChildWithDetail(svcItem, detailsSvc)
-
-					if len(svc.Targets) > 0 {
-						targets := targetLevel.NewChild("Targets:")
-						for _, target := range svc.Targets {
-							targets.NewChild("name: " + target.Name)
-
-						}
-					}
-
-				}
-			}
+		if len(networkStatusOutput) > 0 && !utils.StringSliceContains(types.GetSupportedOutputTypes(), networkStatusOutput) {
+			return fmt.Errorf("output format not supported: %s", serviceStatusOutput)
 		}
 
-		siteList.Print()
+		switch networkStatusOutput {
+		case "json":
+			printStatus := formatter.NetworkStatusPrinter{OriginalData: sites}
+			result, err := printStatus.PrintJsonFormat()
+
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(result)
+
+		case "yaml":
+			printStatus := formatter.NetworkStatusPrinter{OriginalData: sites}
+			result, err := printStatus.PrintYamlFormat()
+
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(result)
+
+		default:
+			siteList := formatter.NewList()
+			siteList.Item("Sites:")
+			for _, site := range sites {
+
+				if site.Name != selectedSite && selectedSite != "all" {
+					continue
+				}
+
+				location := "remote"
+				siteVersion := site.Version
+				detailsMap := map[string]string{"name": site.Name, "namespace": site.Namespace, "URL": site.Url, "version": siteVersion}
+
+				if len(site.MinimumVersion) > 0 {
+					siteVersion = fmt.Sprintf("%s (minimum version required %s)", site.Version, site.MinimumVersion)
+				}
+
+				if site.SiteId == currentSite {
+					location = "local"
+					detailsMap["mode"] = vir.Status.Mode
+				}
+
+				newItem := fmt.Sprintf("[%s] %s - %s ", location, site.SiteId[:7], site.Name)
+
+				newItem = newItem + fmt.Sprintln()
+
+				if len(site.Links) > 0 {
+					detailsMap["sites linked to"] = fmt.Sprint(strings.Join(site.Links, ", "))
+				}
+
+				serviceLevel := siteList.NewChildWithDetail(newItem, detailsMap)
+				if len(site.Services) > 0 {
+					services := serviceLevel.NewChild("Services:")
+					var addresses []string
+					svcAuth := map[string]bool{}
+					for _, svc := range site.Services {
+						addresses = append(addresses, svc.Name)
+						svcAuth[svc.Name] = true
+					}
+					if vc, ok := s.kube.Cli.(*client.VanClient); ok && site.Namespace == s.kube.Cli.GetNamespace() {
+						policy := client.NewPolicyValidatorAPI(vc)
+						res, _ := policy.Services(addresses...)
+						for addr, auth := range res {
+							svcAuth[addr] = auth.Allowed
+						}
+					}
+					for _, svc := range site.Services {
+						authSuffix := ""
+						if !svcAuth[svc.Name] {
+							authSuffix = " - not authorized"
+						}
+						svcItem := "name: " + svc.Name + authSuffix + fmt.Sprintln()
+						detailsSvc := map[string]string{"protocol": svc.Protocol, "address": svc.Address}
+						targetLevel := services.NewChildWithDetail(svcItem, detailsSvc)
+
+						if len(svc.Targets) > 0 {
+							targets := targetLevel.NewChild("Targets:")
+							for _, target := range svc.Targets {
+								targets.NewChild("name: " + target.Name)
+
+							}
+						}
+
+					}
+				}
+			}
+			siteList.Print()
+		}
+
 	}
 
 	return nil
