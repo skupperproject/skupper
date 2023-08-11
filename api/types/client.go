@@ -65,6 +65,7 @@ type RouterOptions struct {
 	DataConnectionCount string
 	IngressHost         string
 	ServiceAnnotations  map[string]string
+	PodAnnotations      map[string]string
 	LoadBalancerIp      string
 	DisableMutualTLS    bool
 }
@@ -73,6 +74,7 @@ type ControllerOptions struct {
 	Tuning
 	IngressHost        string
 	ServiceAnnotations map[string]string
+	PodAnnotations     map[string]string
 	LoadBalancerIp     string
 }
 
@@ -91,6 +93,7 @@ type PrometheusServerOptions struct {
 	AuthMode       string
 	User           string
 	Password       string
+	PodAnnotations map[string]string
 }
 
 type SiteConfigSpec struct {

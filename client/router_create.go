@@ -121,7 +121,13 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 	for key, value := range van.PrometheusServer.LabelSelector {
 		van.PrometheusServer.Labels[key] = value
 	}
-	van.PrometheusServer.Annotations = options.Annotations
+	van.PrometheusServer.Annotations = map[string]string{}
+	for key, value := range options.Annotations {
+		van.PrometheusServer.Annotations[key] = value
+	}
+	for key, value := range options.PrometheusServer.PodAnnotations {
+		van.PrometheusServer.Annotations[key] = value
+	}
 	for key, value := range options.Labels {
 		van.PrometheusServer.Labels[key] = value
 	}
@@ -256,7 +262,13 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	for key, value := range van.Controller.LabelSelector {
 		van.Controller.Labels[key] = value
 	}
-	van.Controller.Annotations = options.Annotations
+	van.Controller.Annotations = map[string]string{}
+	for key, value := range options.Annotations {
+		van.Controller.Annotations[key] = value
+	}
+	for key, value := range options.Controller.PodAnnotations {
+		van.Controller.Annotations[key] = value
+	}
 	for key, value := range options.Labels {
 		van.Controller.Labels[key] = value
 	}
@@ -682,6 +694,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.Transport.Annotations = types.TransportPrometheusAnnotations
 	for key, value := range options.Annotations {
+		van.Transport.Annotations[key] = value
+	}
+	for key, value := range options.Router.PodAnnotations {
 		van.Transport.Annotations[key] = value
 	}
 	runAsNonRoot := true

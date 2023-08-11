@@ -83,10 +83,13 @@ func (s *SkupperKube) Options(rootCmd *cobra.Command) {
 }
 
 type kubeInit struct {
-	annotations                  []string
-	ingressAnnotations           []string
-	routerServiceAnnotations     []string
-	controllerServiceAnnotations []string
+	annotations                    []string
+	ingressAnnotations             []string
+	routerServiceAnnotations       []string
+	routerPodAnnotations           []string
+	controllerServiceAnnotations   []string
+	controllerPodAnnotations       []string
+	prometheusServerPodAnnotations []string
 }
 
 func (s *SkupperKube) NewClient(cmd *cobra.Command, args []string) {

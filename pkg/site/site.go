@@ -53,6 +53,7 @@ const (
 	SiteConfigPrometheusServerMemoryKey         string = "prometheus-server-memory"
 	SiteConfigPrometheusServerCpuLimitKey       string = "prometheus-server-cpu-limit"
 	SiteConfigPrometheusServerMemoryLimitKey    string = "prometheus-server-memory-limit"
+	SiteConfigPrometheusServerPodAnnotationsKey string = "prometheus-server-pod-annotations"
 
 	// router options
 	SiteConfigRouterConsoleKey             string = "router-console"
@@ -70,6 +71,7 @@ const (
 	SiteConfigRouterDataConnectionCountKey string = "router-data-connection-count"
 	SiteConfigRouterIngressHostKey         string = "router-ingress-host"
 	SiteConfigRouterServiceAnnotationsKey  string = "router-service-annotations"
+	SiteConfigRouterPodAnnotationsKey      string = "router-pod-annotations"
 	SiteConfigRouterLoadBalancerIp         string = "router-load-balancer-ip"
 	SiteConfigRouterDisableMutualTLS       string = "router-disable-mutual-tls"
 
@@ -86,6 +88,7 @@ const (
 	SiteConfigControllerNodeSelectorKey       string = "controller-node-selector"
 	SiteConfigControllerIngressHostKey        string = "controller-ingress-host"
 	SiteConfigControllerServiceAnnotationsKey string = "controller-service-annotations"
+	SiteConfigControllerPodAnnotationsKey     string = "controller-pod-annotations"
 	SiteConfigControllerLoadBalancerIp        string = "controller-load-balancer-ip"
 
 	// config-sync options
@@ -257,6 +260,13 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 		}
 		siteConfig.Data[SiteConfigRouterServiceAnnotationsKey] = strings.Join(annotations, ",")
 	}
+	if len(spec.Router.PodAnnotations) > 0 {
+		var annotations []string
+		for key, value := range spec.Router.PodAnnotations {
+			annotations = append(annotations, key+"="+value)
+		}
+		siteConfig.Data[SiteConfigRouterPodAnnotationsKey] = strings.Join(annotations, ",")
+	}
 	if spec.Router.LoadBalancerIp != "" {
 		siteConfig.Data[SiteConfigRouterLoadBalancerIp] = spec.Router.LoadBalancerIp
 	}
@@ -309,6 +319,13 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 			annotations = append(annotations, key+"="+value)
 		}
 		siteConfig.Data[SiteConfigControllerServiceAnnotationsKey] = strings.Join(annotations, ",")
+	}
+	if len(spec.Controller.PodAnnotations) > 0 {
+		var annotations []string
+		for key, value := range spec.Controller.PodAnnotations {
+			annotations = append(annotations, key+"="+value)
+		}
+		siteConfig.Data[SiteConfigControllerPodAnnotationsKey] = strings.Join(annotations, ",")
 	}
 	if spec.Controller.LoadBalancerIp != "" {
 		siteConfig.Data[SiteConfigControllerLoadBalancerIp] = spec.Controller.LoadBalancerIp
@@ -420,6 +437,13 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 		} else {
 			siteConfig.Data[SiteConfigPrometheusServerMemoryLimitKey] = spec.PrometheusServer.MemoryLimit
 		}
+	}
+	if len(spec.PrometheusServer.PodAnnotations) > 0 {
+		var annotations []string
+		for key, value := range spec.PrometheusServer.PodAnnotations {
+			annotations = append(annotations, key+"="+value)
+		}
+		siteConfig.Data[SiteConfigPrometheusServerPodAnnotationsKey] = strings.Join(annotations, ",")
 	}
 
 	// TODO: allow Replicas to be set through skupper-site configmap?
@@ -646,6 +670,9 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	if routerServiceAnnotations, ok := siteConfig.Data[SiteConfigRouterServiceAnnotationsKey]; ok {
 		result.Spec.Router.ServiceAnnotations = asMap(splitWithEscaping(routerServiceAnnotations, ',', '\\'))
 	}
+	if routerPodAnnotations, ok := siteConfig.Data[SiteConfigRouterPodAnnotationsKey]; ok {
+		result.Spec.Router.PodAnnotations = asMap(splitWithEscaping(routerPodAnnotations, ',', '\\'))
+	}
 	if routerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigRouterLoadBalancerIp]; ok {
 		result.Spec.Router.LoadBalancerIp = routerServiceLoadBalancerIp
 	}
@@ -679,6 +706,9 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	}
 	if controllerServiceAnnotations, ok := siteConfig.Data[SiteConfigControllerServiceAnnotationsKey]; ok {
 		result.Spec.Controller.ServiceAnnotations = asMap(splitWithEscaping(controllerServiceAnnotations, ',', '\\'))
+	}
+	if controllerPodAnnotations, ok := siteConfig.Data[SiteConfigControllerPodAnnotationsKey]; ok {
+		result.Spec.Controller.PodAnnotations = asMap(splitWithEscaping(controllerPodAnnotations, ',', '\\'))
 	}
 	if controllerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigControllerLoadBalancerIp]; ok {
 		result.Spec.Controller.LoadBalancerIp = controllerServiceLoadBalancerIp
@@ -746,6 +776,10 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	if prometheusMemoryLimit, ok := siteConfig.Data[SiteConfigPrometheusServerMemoryLimitKey]; ok && prometheusMemoryLimit != "" {
 		result.Spec.PrometheusServer.MemoryLimit = prometheusMemoryLimit
 	}
+	if prometheusPodAnnotations, ok := siteConfig.Data[SiteConfigPrometheusServerPodAnnotationsKey]; ok {
+		result.Spec.PrometheusServer.PodAnnotations = asMap(splitWithEscaping(prometheusPodAnnotations, ',', '\\'))
+	}
+
 	annotationExclusions := []string{}
 	labelExclusions := []string{}
 	annotations := map[string]string{}
