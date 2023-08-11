@@ -1041,10 +1041,19 @@ func (cli *VanClient) RouterUpdateAnnotations(ctx context.Context, settings *cor
 	if err != nil {
 		return false, err
 	}
-	updated, err := cli.updateAnnotationsOnDeployment(ctx, settings.ObjectMeta.Namespace, types.ControllerDeploymentName, siteConfig.Spec.Annotations)
+
+	controllerAnnotations := map[string]string{}
+	for key, value := range siteConfig.Spec.Annotations {
+		controllerAnnotations[key] = value
+	}
+	for key, value := range siteConfig.Spec.Controller.PodAnnotations {
+		controllerAnnotations[key] = value
+	}
+	updated, err := cli.updateAnnotationsOnDeployment(ctx, settings.ObjectMeta.Namespace, types.ControllerDeploymentName, controllerAnnotations)
 	if err != nil {
 		return updated, err
 	}
+
 	transportAnnotations := map[string]string{}
 	for key, value := range types.TransportPrometheusAnnotations {
 		transportAnnotations[key] = value
@@ -1052,10 +1061,26 @@ func (cli *VanClient) RouterUpdateAnnotations(ctx context.Context, settings *cor
 	for key, value := range siteConfig.Spec.Annotations {
 		transportAnnotations[key] = value
 	}
+	for key, value := range siteConfig.Spec.Router.PodAnnotations {
+		transportAnnotations[key] = value
+	}
 	updated, err = cli.updateAnnotationsOnDeployment(ctx, settings.ObjectMeta.Namespace, types.TransportDeploymentName, transportAnnotations)
 	if err != nil {
 		return updated, err
 	}
+
+	prometheusAnnotations := map[string]string{}
+	for key, value := range siteConfig.Spec.Annotations {
+		prometheusAnnotations[key] = value
+	}
+	for key, value := range siteConfig.Spec.PrometheusServer.PodAnnotations {
+		prometheusAnnotations[key] = value
+	}
+	updated, err = cli.updateAnnotationsOnDeployment(ctx, settings.ObjectMeta.Namespace, types.PrometheusDeploymentName, prometheusAnnotations)
+	if err != nil {
+		return updated, err
+	}
+
 	return updated, nil
 }
 
