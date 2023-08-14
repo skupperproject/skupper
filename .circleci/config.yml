@@ -378,10 +378,19 @@ workflows:
           context:
             - skupper-org
 
+      - generate-manifest:
+          <<: *run_for_numeric_tags
+          <<: *release_requires
+          requires:
+            - publish-github-release-images
+          context:
+            - skupper-org
+
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           <<: *release_requires
           requires:
+            - generate-manifest
             - publish-github-release-images
           context:
             - skupper-org
@@ -491,15 +500,10 @@ jobs:
           goos: linux
           goarch: arm64
           platform: linux-arm64
-      - setup_remote_docker
-      - run: make generate-manifest
-      - run: mkdir skupper-manifest
-      - run: cp ./manifest.json skupper-manifest
       - persist_to_workspace:
           root: .
           paths:
             - dist
-            - skupper-manifest
 
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
@@ -529,6 +533,22 @@ jobs:
       - system_monitor
       - run: kubectl cluster-info
       - run_cluster_policy_tests
+
+  generate-manifest:
+    executor:
+      name: go/default
+      tag: "1.19"
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - setup_remote_docker
+      - run: make generate-manifest
+      - run: mkdir skupper-manifest
+      - run: cp ./manifest.json skupper-manifest
+      - persist_to_workspace:
+          root: .
+          paths:
+            - skupper-manifest
 
   publish-github-release-artifacts:
     docker:
