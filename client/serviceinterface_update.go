@@ -331,9 +331,8 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 			for _, t := range service.Targets {
 				targetFound := t.Name == targetName
 				unqualifiedServiceFound := t.Name == "" && targetName == serviceName && t.Service == targetName
-				qualifiedServiceFound := t.Service == fmt.Sprintf("%s.%s", targetName, namespace)
 				namespaceMatches := t.Namespace == "" || t.Namespace == namespace
-				if (targetFound || unqualifiedServiceFound || qualifiedServiceFound) && namespaceMatches {
+				if (targetFound || unqualifiedServiceFound) && namespaceMatches {
 					modified = true
 				} else {
 					targets = append(targets, t)

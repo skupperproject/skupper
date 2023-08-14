@@ -396,11 +396,16 @@ func (sb *ServiceBindings) addServiceTarget(name string, service string, port ma
 		identifier: service,
 		namespace:  namespace,
 	}
+	targetService := service
+	// on annotated services, namespace is not yet available
+	if namespace != "" {
+		targetService = fmt.Sprintf("%s.%s", service, namespace)
+	}
 	sb.targets[*key] = &EgressBindings{
 		name:        name,
-		service:     service,
+		service:     targetService,
 		egressPorts: port,
-		resolver:    NewNullTargetResolver([]string{service}),
+		resolver:    NewNullTargetResolver([]string{targetService}),
 	}
 	return nil
 }
