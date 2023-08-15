@@ -766,7 +766,7 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 		assert.Assert(t, err)
 	}
 
-	waitJob := func(cc *base.ClusterContext, jobName string) {
+	waitJob := func(cc *base.ClusterContext, jobName string, t *testing.T) {
 		t.Helper()
 		job, err := k8s.WaitForJob(cc.Namespace, cc.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
 		_, _ = cc.KubectlExec("logs job/" + jobName)
@@ -777,31 +777,31 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	// Send GET requests via HTTPD1
 	t.Run("http1", func(t *testing.T) {
 		runJob(pubCluster1, "http1", "TestHttpJob")
-		waitJob(pubCluster1, "http1")
+		waitJob(pubCluster1, "http1", t)
 	})
 
 	// Send GET requests via HTTPD2
 	t.Run("http2", func(t *testing.T) {
 		runJob(pubCluster1, "http2", "TestHttp2Job")
-		waitJob(pubCluster1, "http2")
+		waitJob(pubCluster1, "http2", t)
 	})
 
 	// Send GET requests via HTTP2 over TLS
 	t.Run("http2tls", func(t *testing.T) {
 		runJob(pubCluster1, "http2tls", "TestHttp2TlsJob")
-		waitJob(pubCluster1, "http2tls")
+		waitJob(pubCluster1, "http2tls", t)
 	})
 
 	// Send GET requests via HTTP2 over TLS on a service exposed with TCP protocol
 	t.Run("http2tcptls", func(t *testing.T) {
 		runJob(pubCluster1, "http2tcptls", "TestHttp2TcpTlsJob")
-		waitJob(pubCluster1, "http2tcptls")
+		waitJob(pubCluster1, "http2tcptls", t)
 	})
 
 	// Send GET requests via HTTP1 over TLS
 	t.Run("http1tls", func(t *testing.T) {
 		runJob(pubCluster1, "http1tls", "TestHttp1TlsJob")
-		waitJob(pubCluster1, "http1tls")
+		waitJob(pubCluster1, "http1tls", t)
 	})
 
 	// Send a huge load for HTTPD2
@@ -809,7 +809,7 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 		jobsClient := pubCluster1.VanClient.KubeClient.BatchV1().Jobs(pubCluster1.Namespace)
 		_, err = jobsClient.Create(context.TODO(), h2loadJob, metav1.CreateOptions{})
 		assert.Assert(t, err)
-		waitJob(pubCluster1, "h2load")
+		waitJob(pubCluster1, "h2load", t)
 
 		_output, err := pubCluster1.KubectlExec("logs job/" + "h2load")
 		assert.Assert(t, err)
@@ -886,6 +886,9 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 
 	//update tls service with cert files
 	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(ctx, nghttp2TlsDepWithCertFiles, metav1.UpdateOptions{})
+	assert.Assert(t, err)
+
+	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http2TcpTlsService)
 	assert.Assert(t, err)
 
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2TcpTlsService, "deployment", "nghttp2tcptls", map[int]int{}, "")

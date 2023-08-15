@@ -242,27 +242,30 @@ func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) e
 
 	publicSiteConfig, err := pub1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpecPub)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating pub1 site: %w", err)
 	}
 
 	err = pub1Cluster.VanClient.RouterCreate(testContext, *publicSiteConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating pub1 router: %w", err)
 	}
 
 	secretFile := "/tmp/" + r.Needs.NamespaceId + "_public_secret.yaml"
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating token: %w", err)
 	}
 
 	// Configure private cluster.
 	routerCreateSpecPrv.SkupperNamespace = prv1Cluster.Namespace
 	privateSiteConfig, err := prv1Cluster.VanClient.SiteConfigCreate(context.Background(), routerCreateSpecPrv)
+	if err != nil {
+		return fmt.Errorf("error creating prv1 site: %w", err)
+	}
 
 	err = prv1Cluster.VanClient.RouterCreate(testContext, *privateSiteConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating prv1 router: %w", err)
 	}
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
@@ -270,8 +273,10 @@ func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) e
 		Name:             "public",
 		Cost:             0,
 	}
-	_, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts)
-	return err
+	if _, err = prv1Cluster.VanClient.ConnectorCreateFromFile(ctx, secretFile, connectorCreateOpts); err != nil {
+		return fmt.Errorf("failed to create connection: %w", err)
+	}
+	return nil
 
 }
 
