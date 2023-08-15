@@ -354,6 +354,9 @@ func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) 
 		ForwardFlow:       sourceFlow,
 		CounterFlow:       destFlow,
 	}
+	if sourceFlow.EndTime != 0 {
+		fp.Duration = sourceFlow.EndTime - sourceFlow.StartTime
+	}
 	if sourceSite, ok := fc.Sites[sourceSiteId]; ok {
 		fp.SourceSiteName = sourceSite.Name
 	} else {
@@ -453,7 +456,6 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 }
 
 func (fc *FlowCollector) deleteRecord(record interface{}) error {
-	// TODO: log the record
 	if record == nil {
 		return fmt.Errorf("No record to delete")
 	}
@@ -901,6 +903,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					if fc.getFlowPlace(current) == clientSide {
 						if flowpair, ok := fc.FlowPairs["fp-"+current.Identity]; ok {
 							flowpair.EndTime = current.EndTime
+							flowpair.Duration = flowpair.EndTime - flowpair.StartTime
 						}
 					}
 				}
@@ -1345,10 +1348,10 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			retrieveError = sortAndSlice(addresses, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
-				if addr, ok := fc.VanAddresses[id]; ok {
-					fc.getAddressMetrics(addr)
+				if address, ok := fc.VanAddresses[id]; ok {
+					fc.getAddressMetrics(address)
 					p.Count = 1
-					p.Results = addr
+					p.Results = address
 				}
 			}
 		case "flows":
