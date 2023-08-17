@@ -16,6 +16,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/version"
+	yaml "gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
@@ -36,6 +37,7 @@ type Site struct {
 	ConsolePassword              string
 	FlowCollectorRecordTtl       time.Duration
 	RouterOpts                   types.RouterOptions
+	PrometheusOpts               types.PrometheusServerOptions
 }
 
 func (s *Site) GetPlatform() string {
@@ -120,6 +122,7 @@ func (s *SiteHandler) ConfigurePodmanDeployments(site *Site) {
 	site.Deployments = append(site.Deployments, s.prepareControllerDeployment(site))
 	if site.EnableFlowCollector {
 		site.Deployments = append(site.Deployments, s.prepareFlowCollectorDeployment(site))
+		site.Deployments = append(site.Deployments, s.preparePrometheusDeployment(site))
 	}
 }
 
@@ -293,6 +296,11 @@ func (s *SiteHandler) Create(site domain.Site) error {
 		return err
 	}
 
+	// Create prometheus config
+	if err = s.createPrometheusConfigFiles(podmanSite); err != nil {
+		return err
+	}
+
 	// Deploy container(s)
 	deployHandler := NewSkupperDeploymentHandlerPodman(s.cli)
 	for _, depl := range podmanSite.GetDeployments() {
@@ -333,7 +341,6 @@ func (s *SiteHandler) canCreate(site *Site) error {
 	if s.cli == nil {
 		cli, err := podman.NewPodmanClient(site.PodmanEndpoint, "")
 		if err != nil {
-			// TODO try to start podman's user service instance?
 			return fmt.Errorf("unable to communicate with podman service through %s - %v", site.PodmanEndpoint, err)
 		}
 		s.cli = cli
@@ -514,11 +521,16 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				site.FlowCollectorRecordTtl, _ = time.ParseDuration(c.Env["FLOW_RECORD_TTL"])
 				user, password, err := s.getConsoleUserPass()
 				if err != nil {
-					fmt.Println("error retrieving console user and password - %w", err)
+					fmt.Println("error retrieving console user and password -", err)
 				}
 				site.ConsoleUser = user
 				site.ConsolePassword = password
 			case *domain.Controller:
+			case *domain.Prometheus:
+				site.PrometheusOpts, err = s.getPrometheusServerOptions()
+				if err != nil {
+					fmt.Println("error retrieving prometheus options -", err)
+				}
 			}
 		}
 	}
@@ -786,4 +798,102 @@ func (s *SiteHandler) prepareControllerDeployment(site *Site) *SkupperDeployment
 	// TODO add along with claims and rest support
 
 	return ctrlDeployment
+}
+
+func (s *SiteHandler) preparePrometheusDeployment(site *Site) domain.SkupperDeployment {
+	// Prometheus Server Deployment
+	volumeMounts := map[string]string{
+		"prometheus-server-config":  "/etc/prometheus",
+		"prometheus-storage-volume": "/prometheus",
+	}
+	prometheusComponent := &domain.Prometheus{
+		// TODO ADD Labels
+		Labels: map[string]string{},
+	}
+	prometheusDeployment := &SkupperDeployment{
+		Name: types.PrometheusDeploymentName,
+		SkupperDeploymentCommon: &domain.SkupperDeploymentCommon{
+			Components: []domain.SkupperComponent{
+				prometheusComponent,
+			},
+		},
+		Aliases:        []string{types.PrometheusDeploymentName},
+		VolumeMounts:   volumeMounts,
+		Networks:       []string{site.ContainerNetwork},
+		SELinuxDisable: true,
+	}
+	return prometheusDeployment
+}
+
+func (s *SiteHandler) getPrometheusServerOptions() (types.PrometheusServerOptions, error) {
+	var prometheusConfig types.PrometheusServerOptions
+	v, err := s.cli.VolumeInspect("prometheus-server-config")
+	if err != nil {
+		return prometheusConfig, err
+	}
+	prometheusConfigStr, err := v.ReadFile("skupper-prometheus.yml")
+	if err != nil {
+		return prometheusConfig, fmt.Errorf("error reading skupper-prometheus.yml - %s", err)
+	}
+	err = yaml.Unmarshal([]byte(prometheusConfigStr), &prometheusConfig)
+	if err != nil {
+		return prometheusConfig, fmt.Errorf("error parsing prometheus options - %s", err)
+	}
+	return prometheusConfig, nil
+}
+
+func (s *SiteHandler) savePrometheusServerConfigFile(name string, data interface{}) error {
+	v, err := s.cli.VolumeInspect("prometheus-server-config")
+	if err != nil {
+		return err
+	}
+	var dataStr string
+	var ok bool
+	if dataStr, ok = data.(string); !ok {
+		var yamlData []byte
+		yamlData, err = yaml.Marshal(data)
+		if err != nil {
+			return fmt.Errorf("error serializing prometheus options - %s", err)
+		}
+		dataStr = string(yamlData)
+	}
+	_, err = v.CreateFile(name, []byte(dataStr), true)
+	return err
+}
+
+func (s *SiteHandler) createPrometheusConfigFiles(site *Site) error {
+	promInfo := config.PrometheusInfo{
+		BasicAuth:   false,
+		TlsAuth:     false,
+		ServiceName: types.FlowCollectorContainerName,
+		Port:        strconv.Itoa(int(types.FlowCollectorDefaultServicePort)),
+		User:        utils.DefaultStr(site.PrometheusOpts.User, "admin"),
+		Password:    utils.DefaultStr(site.PrometheusOpts.Password, "admin"),
+		Hash:        "",
+	}
+
+	if site.PrometheusOpts.AuthMode == string(types.PrometheusAuthModeBasic) {
+		promInfo.BasicAuth = true
+		promInfo.User = site.PrometheusOpts.User
+		promInfo.Password = site.PrometheusOpts.Password
+		hash, _ := config.HashPrometheusPassword(promInfo.Password)
+		promInfo.Hash = string(hash)
+	} else if site.PrometheusOpts.AuthMode == string(types.PrometheusAuthModeTls) {
+		promInfo.TlsAuth = true
+	}
+
+	prometheusConfigFiles := map[string]interface{}{
+		"skupper-prometheus.yml": site.PrometheusOpts,
+		"prometheus.yml":         config.ScrapeConfigForPrometheus(promInfo),
+		"web-config.yml":         config.ScrapeWebConfigForPrometheus(promInfo),
+	}
+
+	var err error
+	for name, data := range prometheusConfigFiles {
+		err = s.savePrometheusServerConfigFile(name, data)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

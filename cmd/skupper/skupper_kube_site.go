@@ -173,10 +173,6 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector pods")
 	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "flow-collector-memory-limit", "", "Memory limit for flow collector pods")
 
-	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.ExternalServer, "external-prometheus-server", "", "", "External prometheus server for metric aggregation. Valid only when --enable-flow-collector")
-	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.AuthMode, "prometheus-auth", "", "", "Authentication mode for skupper prometheus server. One of: 'tls', 'basic', 'unsecured'")
-	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.User, "prometheus-user", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
-	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.Password, "prometheus-password", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
 	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.Cpu, "prometheus-cpu", "", "CPU request for prometheus pods")
 	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.Memory, "prometheus-memory", "", "Memory request for prometheus pods")
 	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.CpuLimit, "prometheus-cpu-limit", "", "CPU limit for prometheus pods")
@@ -191,15 +187,6 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	f = cmd.Flag("run-as-group")
 	f.Hidden = true
 	f = cmd.Flag("router-disable-mutual-tls")
-	f.Hidden = true
-	// hide prometheus flags until external server supported
-	f = cmd.Flag("external-prometheus-server")
-	f.Hidden = true
-	f = cmd.Flag("prometheus-auth")
-	f.Hidden = true
-	f = cmd.Flag("prometheus-user")
-	f.Hidden = true
-	f = cmd.Flag("prometheus-password")
 	f.Hidden = true
 }
 

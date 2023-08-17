@@ -464,6 +464,21 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerLogging, "router-logging", "", "", "Logging settings for router. 'trace', 'debug', 'info' (default), 'notice', 'warning', and 'error' are valid values.")
 	cmd.Flags().StringVarP(&routerCreateOpts.Router.DebugMode, "router-debug-mode", "", "", "Enable debug mode for router ('asan' or 'gdb' are valid values)")
 
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.ExternalServer, "external-prometheus-server", "", "", "External prometheus server for metric aggregation. Valid only when --enable-flow-collector")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.AuthMode, "prometheus-auth", "", "", "Authentication mode for skupper prometheus server. One of: 'tls', 'basic', 'unsecured'")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.User, "prometheus-user", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
+	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.Password, "prometheus-password", "", "", "Skupper prometheus user. Valid only when --prometheus-auth=basic")
+
+	// hide prometheus flags until external server supported
+	f := cmd.Flag("external-prometheus-server")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-auth")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-user")
+	f.Hidden = true
+	f = cmd.Flag("prometheus-password")
+	f.Hidden = true
+
 	cmd.Flags().SortFlags = false
 
 	// platform specific flags

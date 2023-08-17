@@ -129,3 +129,40 @@ func (s *Controller) GetLabels() map[string]string {
 func (s *Controller) GetSiteIngresses() []SiteIngress {
 	return s.SiteIngresses
 }
+
+type Prometheus struct {
+	Image         string
+	Env           map[string]string
+	Labels        map[string]string
+	SiteIngresses []SiteIngress
+}
+
+func (s *Prometheus) Name() string {
+	return types.PrometheusDeploymentName
+}
+
+func (s *Prometheus) GetImage() string {
+	return images.GetPrometheusServerImageName()
+}
+
+func (s *Prometheus) SetImage(image string) {
+	s.Image = image
+}
+
+func (s *Prometheus) GetEnv() map[string]string {
+	if s.Env == nil {
+		s.Env = map[string]string{}
+	}
+	return s.Env
+}
+
+func (s *Prometheus) GetLabels() map[string]string {
+	if s.Labels == nil {
+		s.Labels = map[string]string{}
+	}
+	return s.Labels
+}
+
+func (s *Prometheus) GetSiteIngresses() []SiteIngress {
+	return s.SiteIngresses
+}

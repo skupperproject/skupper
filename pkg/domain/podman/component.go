@@ -67,6 +67,13 @@ func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, err
 			Labels:        c.Labels,
 			SiteIngresses: siteIngresses,
 		}
+	case types.PrometheusDeploymentName:
+		component = &domain.Prometheus{
+			Image:         c.Image,
+			Env:           c.Env,
+			Labels:        c.Labels,
+			SiteIngresses: siteIngresses,
+		}
 	default:
 		return nil, fmt.Errorf("invalid component: %s", componentName)
 	}
