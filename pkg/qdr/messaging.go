@@ -9,16 +9,24 @@ import (
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
 
+type TlsConfigRetriever interface {
+	GetTlsConfig() (*tls.Config, error)
+}
+
 type ConnectionFactory struct {
 	url    string
-	config *tls.Config
+	config TlsConfigRetriever
 }
 
 func (f *ConnectionFactory) Connect() (messaging.Connection, error) {
 	if f.config == nil {
 		return dial(f.url, amqp.ConnMaxFrameSize(4294967295))
 	} else {
-		return dial(f.url, amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(f.config))
+		tlsConfig, err := f.config.GetTlsConfig()
+		if err != nil {
+			return nil, err
+		}
+		return dial(f.url, amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(tlsConfig))
 	}
 }
 
@@ -39,7 +47,7 @@ func (f *ConnectionFactory) Url() string {
 	return f.url
 }
 
-func NewConnectionFactory(url string, config *tls.Config) *ConnectionFactory {
+func NewConnectionFactory(url string, config TlsConfigRetriever) *ConnectionFactory {
 	return &ConnectionFactory{
 		url:    url,
 		config: config,

@@ -35,10 +35,7 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
-	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
-	if err != nil {
-		log.Fatal("Error getting tls config", err.Error())
-	}
+	tlsConfig := certs.GetTlsConfigRetriever(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
 
 	controller, err := podmancontroller.NewControllerPodman(origin, tlsConfig)
 	if err != nil {

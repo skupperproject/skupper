@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	jsonencoding "encoding/json"
 	"fmt"
 	"log"
@@ -30,6 +29,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -57,7 +57,6 @@ type Controller struct {
 
 	// service_sync state:
 	disableServiceSync bool
-	tlsConfig          *tls.Config
 	amqpClient         *amqp.Client
 	amqpSession        *amqp.Session
 	byOrigin           map[string]map[string]types.ServiceInterface
@@ -116,7 +115,7 @@ func hasOriginalAnnotations(service corev1.Service) bool {
 	return hasOriginalSelector(service) || hasOriginalTargetPort(service) || hasOriginalAssigned(service)
 }
 
-func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, disableServiceSync bool) (*Controller, error) {
+func NewController(cli *client.VanClient, origin string, tlsConfig *certs.TlsConfigRetriever, disableServiceSync bool) (*Controller, error) {
 
 	// create informers
 	svcInformer := corev1informer.NewServiceInformer(
@@ -163,7 +162,6 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *tls.Config, 
 		vanClient:          cli,
 		policy:             client.NewClusterPolicyValidator(cli),
 		origin:             origin,
-		tlsConfig:          tlsConfig,
 		bridgeDefInformer:  bridgeDefInformer,
 		svcDefInformer:     svcDefInformer,
 		svcInformer:        svcInformer,

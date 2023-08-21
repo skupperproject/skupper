@@ -208,10 +208,7 @@ func main() {
 		prometheusUrl = os.Getenv("PROMETHEUS_URL")
 	}
 
-	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
-	if err != nil {
-		log.Fatal("Error getting tls config", err.Error())
-	}
+	tlsConfig := certs.GetTlsConfigRetriever(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
 
 	conn, err := getConnectInfo(types.ControllerConfigPath + "connect.json")
 	if err != nil {
