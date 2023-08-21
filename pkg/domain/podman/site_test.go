@@ -6,6 +6,7 @@ package podman
 import (
 	"testing"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -41,6 +42,12 @@ func TestSiteHandler(t *testing.T) {
 			AuthMode:            "internal",
 			ConsoleUser:         "internal",
 			ConsolePassword:     "internal",
+			PrometheusOpts: types.PrometheusServerOptions{
+				ExternalServer: "http://10.0.0.1:8080/v1",
+				AuthMode:       "internal",
+				User:           "admin",
+				Password:       "admin",
+			},
 		},
 	}, {
 		name: "flow-collector-internal-auth-ingress-none",
@@ -87,7 +94,7 @@ func TestSiteHandler(t *testing.T) {
 			expIngHosts := 1 + len(scenarioSite.IngressHosts)
 			expDeployments := 2
 			if scenarioSite.EnableFlowCollector {
-				expDeployments += 1
+				expDeployments += 2
 			}
 			assert.Assert(t, len(podmanSite.IngressHosts) == expIngHosts)
 			assert.Equal(t, len(podmanSite.Deployments), expDeployments)
@@ -101,6 +108,10 @@ func TestSiteHandler(t *testing.T) {
 			}
 			assert.Assert(t, len(podmanSite.Credentials) > 0)
 			assert.Assert(t, len(podmanSite.CertAuthorities) > 0)
+			assert.Equal(t, scenarioSite.PrometheusOpts.ExternalServer, podmanSite.PrometheusOpts.ExternalServer)
+			assert.Equal(t, scenarioSite.PrometheusOpts.AuthMode, podmanSite.PrometheusOpts.AuthMode)
+			assert.Equal(t, scenarioSite.PrometheusOpts.User, podmanSite.PrometheusOpts.User)
+			assert.Equal(t, scenarioSite.PrometheusOpts.Password, podmanSite.PrometheusOpts.Password)
 		})
 	}
 }
