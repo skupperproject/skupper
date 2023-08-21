@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/data"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -32,17 +32,15 @@ const (
 
 type SiteQueryServer struct {
 	client    *client.VanClient
-	tlsConfig *tls.Config
 	agentPool *qdr.AgentPool
 	server    *qdr.RequestServer
 	iplookup  *IpLookup
 	siteInfo  data.Site
 }
 
-func newSiteQueryServer(cli *client.VanClient, config *tls.Config) *SiteQueryServer {
+func newSiteQueryServer(cli *client.VanClient, config *certs.TlsConfigRetriever) *SiteQueryServer {
 	sqs := SiteQueryServer{
 		client:    cli,
-		tlsConfig: config,
 		agentPool: qdr.NewAgentPool("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", config),
 		iplookup:  NewIpLookup(cli, nil),
 	}

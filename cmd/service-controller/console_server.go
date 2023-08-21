@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/data"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/qdr"
@@ -40,7 +40,7 @@ type ConsoleServer struct {
 	accessRevoker *AccessRevoker
 }
 
-func newConsoleServer(cli *client.VanClient, config *tls.Config, eventHandler event.EventHandlerInterface) *ConsoleServer {
+func newConsoleServer(cli *client.VanClient, config *certs.TlsConfigRetriever, eventHandler event.EventHandlerInterface) *ConsoleServer {
 	pool := qdr.NewAgentPool("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", config)
 	return &ConsoleServer{
 		agentPool:     pool,

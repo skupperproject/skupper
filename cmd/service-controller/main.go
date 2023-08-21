@@ -67,10 +67,7 @@ func main() {
 		log.Fatal("Error getting van client", err.Error())
 	}
 
-	tlsConfig, err := certs.GetTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
-	if err != nil {
-		log.Fatal("Error getting tls config", err.Error())
-	}
+	tlsConfig := certs.GetTlsConfigRetriever(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
 
 	event.StartDefaultEventStore(stopCh)
 

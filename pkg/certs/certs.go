@@ -86,14 +86,17 @@ func getCAFromSecret(secret *corev1.Secret) CertificateAuthority {
 	}
 }
 
-func generateSecret(name string, subject string, hosts string, ca *CertificateAuthority) corev1.Secret {
+func generateSecret(name string, subject string, hosts string, ca *CertificateAuthority, expiration time.Duration) corev1.Secret {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		log.Fatalf("failed to generate private key: %s", err)
 	}
 
 	notBefore := time.Now()
-	notAfter := notBefore.Add(5 * 365 * 24 * time.Hour) // TODO: make configurable?
+	if expiration == 0 {
+		expiration = 5 * 365 * 24 * time.Hour
+	}
+	notAfter := notBefore.Add(expiration)
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -211,64 +214,16 @@ func CertDataToSecret(name string, certData CertificateData, annotations map[str
 }
 
 func GenerateSecret(name string, subject string, hosts string, ca *corev1.Secret) corev1.Secret {
+	return GenerateSecretWithExpiration(name, subject, hosts, 0, ca)
+}
+
+func GenerateSecretWithExpiration(name string, subject string, hosts string, expiration time.Duration, ca *corev1.Secret) corev1.Secret {
 	caCert := getCAFromSecret(ca)
-	return generateSecret(name, subject, hosts, &caCert)
+	return generateSecret(name, subject, hosts, &caCert, expiration)
 }
 
 func GenerateCASecret(name string, subject string) corev1.Secret {
-	return generateSecret(name, subject, "", nil)
-}
-
-func GenerateCertificateData(name string, subject string, hosts string, caData CertificateData) CertificateData {
-	caSecret := CertDataToSecret("temp", caData, nil)
-	secret := GenerateSecret(name, subject, hosts, &caSecret)
-	return SecretToCertData(secret)
-}
-
-func GenerateCACertificateData(name string, subject string) CertificateData {
-	secret := GenerateCASecret(name, subject)
-	return SecretToCertData(secret)
-}
-
-func PutCertificateData(name string, secretFile string, certData CertificateData, annotations map[string]string) {
-	secret := CertDataToSecret(name, certData, annotations)
-
-	// generate a yaml and save it to the specified path
-	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-	out, err := os.Create(secretFile)
-	if err != nil {
-		log.Fatal("Could not write to file " + secretFile + ": " + err.Error())
-	}
-	err = s.Encode(&secret, out)
-	if err != nil {
-		log.Fatal("Could not write out generated secret: " + err.Error())
-	} else {
-		// TODO: valid token, local cluster? extra
-		fmt.Printf("Connection token written to %s", secretFile)
-		fmt.Println()
-	}
-}
-
-func GetSecretContent(secretFile string) (map[string][]byte, error) {
-	yaml, err := ioutil.ReadFile(secretFile)
-	if err != nil {
-		return nil, fmt.Errorf("Could not read connection token: %w", err)
-	}
-	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
-		scheme.Scheme)
-	var secret corev1.Secret
-	_, _, err = s.Decode(yaml, nil, &secret)
-	if err != nil {
-		return nil, fmt.Errorf("Could not parse connection token: %w", err)
-	}
-	content := make(map[string][]byte)
-	for k, v := range secret.Data {
-		content[k] = v
-	}
-	for k, v := range secret.ObjectMeta.Annotations {
-		content[k] = []byte(v)
-	}
-	return content, nil
+	return generateSecret(name, subject, "", nil, 0)
 }
 
 func GenerateSimpleSecret(name string, ca *corev1.Secret) corev1.Secret {
@@ -304,6 +259,14 @@ func GenerateSecretFile(secretFile string, secret *corev1.Secret, localOnly bool
 	return nil
 }
 
+func DecodeCertificate(data []byte) (*x509.Certificate, error) {
+	b, _ := pem.Decode(data)
+	if b == nil {
+		return nil, fmt.Errorf("Could not decode PEM block from data")
+	}
+	return x509.ParseCertificate(b.Bytes)
+}
+
 func GetTlsCrtHostnames(tlscrtData []byte) (subject string, hostnames []string, err error) {
 	b, _ := pem.Decode(tlscrtData)
 	if b == nil {
@@ -320,7 +283,31 @@ func GetTlsCrtHostnames(tlscrtData []byte) (subject string, hostnames []string, 
 	return subject, hostnames, nil
 }
 
-func GetTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
+type TlsConfigRetriever struct {
+	Cert   string
+	Key    string
+	Ca     string
+	Verify bool
+}
+
+func (paths *TlsConfigRetriever) GetTlsConfig() (*tls.Config, error) {
+	tlsConfig, err := getTlsConfig(paths.Verify, paths.Cert, paths.Key, paths.Ca)
+	if err != nil {
+		return nil, err
+	}
+	return tlsConfig, nil
+}
+
+func GetTlsConfigRetriever(verify bool, cert, key, ca string) *TlsConfigRetriever {
+	return &TlsConfigRetriever{
+		Cert:   cert,
+		Key:    key,
+		Ca:     ca,
+		Verify: verify,
+	}
+}
+
+func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 	var config tls.Config
 	config.InsecureSkipVerify = true
 	if verify {

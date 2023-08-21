@@ -2,7 +2,6 @@ package qdr
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -190,11 +189,11 @@ func (node *RouterNode) AsRouter() *Router {
 
 type AgentPool struct {
 	url    string
-	config *tls.Config
+	config TlsConfigRetriever
 	pool   chan *Agent
 }
 
-func NewAgentPool(url string, config *tls.Config) *AgentPool {
+func NewAgentPool(url string, config TlsConfigRetriever) *AgentPool {
 	return &AgentPool{
 		url:    url,
 		config: config,
@@ -223,7 +222,7 @@ func (p *AgentPool) Put(a *Agent) {
 	}
 }
 
-func Connect(url string, config *tls.Config) (*Agent, error) {
+func Connect(url string, config TlsConfigRetriever) (*Agent, error) {
 	factory := ConnectionFactory{
 		url:    url,
 		config: config,

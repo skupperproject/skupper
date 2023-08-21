@@ -1,13 +1,13 @@
 package controller
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	clientpodman "github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/qdr"
@@ -19,14 +19,14 @@ import (
 type ControllerPodman struct {
 	cli               *clientpodman.PodmanRestClient
 	cfg               *podman.Config
-	tlsConfig         *tls.Config
+	tlsConfig         *certs.TlsConfigRetriever
 	origin            string
 	containerInformer *clientpodman.ContainerInformer
 	servicesWatcher   *ServiceTargetWatcher
 	site              *podman.Site
 }
 
-func NewControllerPodman(origin string, tlsConfig *tls.Config) (*ControllerPodman, error) {
+func NewControllerPodman(origin string, tlsConfig *certs.TlsConfigRetriever) (*ControllerPodman, error) {
 	cfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error reading podman site config - %s", err)

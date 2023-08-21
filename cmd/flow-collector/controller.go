@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"log"
 	"time"
 
@@ -9,6 +8,7 @@ import (
 
 	"github.com/interconnectedcloud/go-amqp"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -20,7 +20,7 @@ type Controller struct {
 	FlowCollector *flow.FlowCollector
 }
 
-func NewController(origin string, reg prometheus.Registerer, scheme string, host string, port string, tlsConfig *tls.Config, recordTtl time.Duration) (*Controller, error) {
+func NewController(origin string, reg prometheus.Registerer, scheme string, host string, port string, tlsConfig *certs.TlsConfigRetriever, recordTtl time.Duration) (*Controller, error) {
 
 	controller := &Controller{
 		origin:        origin,
