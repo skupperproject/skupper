@@ -72,7 +72,12 @@ func (r *RouterEntityManager) QueryConnections(routerId string, edge bool) ([]qd
 	var connections []qdr.Connection
 	err = json.Unmarshal([]byte(data), &connections)
 	if err != nil {
-		return nil, err
+		if strings.Contains(data, "SendException: RELEASED") {
+			fmt.Printf("Warning: unable to retrieve connections from router %q, as it is no longer available", routerId)
+			fmt.Println()
+		} else {
+			return nil, fmt.Errorf("error retrieving connections - %w - output: %q", err, data)
+		}
 	}
 	return connections, nil
 }
