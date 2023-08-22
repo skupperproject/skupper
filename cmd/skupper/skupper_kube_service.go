@@ -154,6 +154,10 @@ func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
 	}
 
+	if bindOptions.Namespace != "" && targetType == "service" {
+		return targetTypeServiceTargetNamespaceError()
+	}
+
 	service, err := s.kube.Cli.ServiceInterfaceInspect(context.Background(), args[0])
 
 	if err != nil {
@@ -193,6 +197,10 @@ func (s *SkupperKubeService) Unbind(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 
 	targetType, targetName := parseTargetTypeAndName(args[1:])
+
+	if unbindNamespace != "" && targetType == "service" {
+		return targetTypeServiceTargetNamespaceError()
+	}
 
 	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, args[0], false, unbindNamespace)
 	if err != nil {

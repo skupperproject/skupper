@@ -197,12 +197,12 @@ func (cli *VanClient) ServiceInterfaceBind(ctx context.Context, service *types.S
 		if err != nil {
 			return err
 		}
-		err = validateCrossNamespacePermissions(cli, namespace)
+		_, svcNamespace := kube.GetServiceName(targetName, utils.GetOrDefault(namespace, cli.GetNamespace()))
+		err = validateCrossNamespacePermissions(cli, svcNamespace)
 		if err != nil {
 			return err
 		}
 		deducePorts := len(service.Ports) == 0 && len(targetPorts) == 0
-		svcNamespace := utils.GetOrDefault(namespace, cli.GetNamespace())
 		target, err := kube.GetServiceInterfaceTarget(targetType, targetName, deducePorts, svcNamespace, cli.KubeClient, cli.OCAppsClient)
 		if err != nil {
 			return err
