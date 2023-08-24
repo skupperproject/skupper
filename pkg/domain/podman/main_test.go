@@ -32,7 +32,7 @@ var (
 const (
 	ENV_PODMAN_ENDPOINT = "SKUPPER_TEST_PODMAN_ENDPOINT"
 	NS                  = "podman-system-test"
-	NGINX_IMAGE         = "docker.io/nginxinc/nginx-unprivileged:stable-alpine"
+	NGINX_IMAGE         = "quay.io/skupper/nginx-unprivileged:stable-alpine"
 )
 
 // newBasicSite returns a new instance of a basic Site instance

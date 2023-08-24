@@ -218,7 +218,7 @@ func getRedisJobs(settings *redisSettings) []common.JobInfo {
 	var jobs []common.JobInfo
 	var testCount int
 	var found bool
-	image := "redis"
+	image := "quay.io/skupper/redis"
 	for _, clients := range settings.clients {
 		testNameCount := map[string]int{}
 		for _, testName := range settings.tests {
@@ -283,7 +283,7 @@ func getRedisServerInfo(settings *redisSettings) *common.ServerInfo {
 
 func getRedisDeployment() *appsv1.Deployment {
 	dep, _ := k8s.NewDeployment("redis-server", "", k8s.DeploymentOpts{
-		Image:  "redis",
+		Image:  "quay.io/skupper/redis",
 		Labels: map[string]string{"app": "redis-server"},
 	})
 	return dep
