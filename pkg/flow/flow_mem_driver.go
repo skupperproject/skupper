@@ -300,7 +300,7 @@ func (fc *FlowCollector) annotateFlowTrace(flow *FlowRecord) *string {
 }
 
 func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) {
-	var sourceSiteId, destSiteId string = "", ""
+	var sourceSiteId, destSiteId, sourceSiteName, destSiteName string = "", "", "sourceSite", "destSite"
 	var sourceFlow, destFlow *FlowRecord = nil, nil
 	var ok bool
 
@@ -330,14 +330,20 @@ func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) 
 	}
 
 	sourceSiteId = fc.getRecordSiteId(*sourceFlow)
+	if sourceSite, ok := fc.Sites[sourceSiteId]; ok {
+		sourceSiteName = *sourceSite.Name
+	}
 	destSiteId = fc.getRecordSiteId(*destFlow)
-	fwdLabels["sourceSite"] = sourceSiteId
-	fwdLabels["destSite"] = destSiteId
+	if destSite, ok := fc.Sites[destSiteId]; ok {
+		destSiteName = *destSite.Name
+	}
+	fwdLabels["sourceSite"] = sourceSiteName + "@_@" + sourceSiteId
+	fwdLabels["destSite"] = destSiteName + "@_@" + destSiteId
 	fwdLabels["sourceProcess"] = *sourceFlow.ProcessName
 	fwdLabels["destProcess"] = *destFlow.ProcessName
 	delete(fwdLabels, "process")
-	revLabels["sourceSite"] = destSiteId
-	revLabels["destSite"] = sourceSiteId
+	revLabels["sourceSite"] = destSiteName + "@_@" + destSiteId
+	revLabels["destSite"] = sourceSiteName + "@_@" + sourceSiteId
 	revLabels["sourceProcess"] = *destFlow.ProcessName
 	revLabels["destProcess"] = *sourceFlow.ProcessName
 	delete(revLabels, "process")

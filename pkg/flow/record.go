@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -663,8 +662,7 @@ func matchFieldValue(x interface{}, y string) bool {
 	if x != nil && y != "" {
 		switch x.(type) {
 		case string:
-			matched, _ := regexp.MatchString(y, x.(string))
-			return matched
+			return strings.HasPrefix(x.(string), y)
 		case uint64:
 			i, err := strconv.ParseInt(y, 10, 64)
 			if err == nil {

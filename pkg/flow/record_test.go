@@ -677,19 +677,15 @@ func TestFilterFieldsRecord(t *testing.T) {
 			result:      true,
 		},
 		{
-			filterField: map[string]string{"sourceSiteName": "^pub"},
+			filterField: map[string]string{"sourceSiteName": "pub"},
 			result:      true,
 		},
 		{
-			filterField: map[string]string{"sourceSiteName": "c1$"},
-			result:      true,
-		},
-		{
-			filterField: map[string]string{"sourceSiteName": "^xpub"},
+			filterField: map[string]string{"sourceSiteName": "ic1"},
 			result:      false,
 		},
 		{
-			filterField: map[string]string{"sourceSiteName": "xc1$"},
+			filterField: map[string]string{"sourceSiteName": "xpublic1"},
 			result:      false,
 		},
 		{
