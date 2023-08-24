@@ -106,7 +106,6 @@ commands:
       - go/install:
           version: "1.19"
       - kube-orb/install-kubectl
-      - run: make generate-client
       - run: make
 
   local_registry_start:
@@ -417,7 +416,6 @@ jobs:
                 exit 1
               fi
       - go/mod-download-cached
-      - run: make generate-client
       - run: make
       - run: make package
       - run: make clean
@@ -429,7 +427,6 @@ jobs:
     steps:
       - docker/install-docker
       - checkout
-      - run: make -e generate-client
       - run: make -e docker-build
       - run:
           name: persisting images to workspace
@@ -592,7 +589,6 @@ jobs:
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
-            make -e generate-client
             make -e docker-build
             make -e docker-push
 
@@ -614,6 +610,5 @@ jobs:
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:main' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:main' >> $BASH_ENV
             source $BASH_ENV
-            make -e generate-client
             make -e docker-build
             make -e docker-push

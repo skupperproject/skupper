@@ -9,7 +9,7 @@ TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
 LDFLAGS := -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
 
-all: build-cmd build-get build-config-sync build-controllers build-tests build-manifest
+all: generate-client build-cmd build-get build-config-sync build-controllers build-tests build-manifest
 
 build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
@@ -20,7 +20,7 @@ build-tests:
 	go test -c -tags=job -v ./test/integration/examples/custom/hipstershop/job -o ${TEST_BINARIES_FOLDER}/grpcclient_test
 	go test -c -tags=job -v ./test/integration/examples/tls_t/job -o ${TEST_BINARIES_FOLDER}/tls_test
 
-build-cmd:
+build-cmd: generate-client
 	go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
 
 build-get:
@@ -49,7 +49,7 @@ build-manifest:
 docker-build-test-image:
 	${DOCKER} build -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
-docker-build: docker-build-test-image
+docker-build: generate-client docker-build-test-image
 	${DOCKER} build -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
 	${DOCKER} build -t ${CONTROLLER_PODMAN_IMAGE} -f Dockerfile.controller-podman .
 	${DOCKER} build -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
