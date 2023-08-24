@@ -58,7 +58,8 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 	assert.Assert(t, err)
 
 	// Validating if podman site exists
-	prvSiteHandler, _ := podman.NewSitePodmanHandler("")
+	prvSiteHandler, err := podman.NewSitePodmanHandler("")
+	assert.Assert(t, err)
 	prvSite, _ := prvSiteHandler.Get()
 	assert.Assert(t, prvSite == nil, "podman site already exists")
 
