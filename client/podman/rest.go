@@ -42,7 +42,7 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	var err error
 
 	if endpoint == "" {
-		defaultEndpoint := fmt.Sprintf("unix://%s/podman/podman.sock", config.GetRuntimeDir())
+		defaultEndpoint := GetDefaultPodmanEndpoint()
 		endpoint = utils.DefaultStr(os.Getenv(ENV_PODMAN_ENDPOINT), defaultEndpoint)
 	}
 
@@ -141,6 +141,10 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 		return nil, err
 	}
 	return cli, nil
+}
+
+func GetDefaultPodmanEndpoint() string {
+	return fmt.Sprintf("unix://%s/podman/podman.sock", config.GetRuntimeDir())
 }
 
 func (p *PodmanRestClient) IsSockEndpoint() bool {

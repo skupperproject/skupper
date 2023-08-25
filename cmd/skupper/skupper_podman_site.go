@@ -294,7 +294,9 @@ func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
 	site := s.podman.currentSite
 	if site == nil {
-		return fmt.Errorf("Skupper is not enabled for user '%s'", podman.Username)
+		fmt.Printf("Skupper is not enabled for user '%s'", podman.Username)
+		fmt.Println()
+		return nil
 	}
 	for _, deploy := range site.GetDeployments() {
 		for _, component := range deploy.GetComponents() {
