@@ -1,0 +1,9 @@
+FROM alpine:latest
+
+LABEL description="A supporting test image containing nghttp2 (client, server and load tester), for Skupper testing.  By default, this image does not start any nghttp2 project; the user needs to overwrite CMD with the command they want"
+LABEL maintainer="Skupper project"
+LABEL origin=https://github.com/skupperproject/skupper/blob/main/test/images
+
+RUN apk add --no-cache nghttp2
+
+CMD ["ls"]

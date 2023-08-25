@@ -177,7 +177,7 @@ func getAmqpClientInfo(settings *amqpSettings) *common.ClientInfo {
 
 func getAmqpJobs(settings *amqpSettings) []common.JobInfo {
 	var jobs []common.JobInfo
-	image := "ssorj/quiver"
+	image := "quay.io/ssorj/quiver"
 	jobName := fmt.Sprintf("quiver")
 	labels := map[string]string{"job": jobName}
 	job := &batchv1.Job{

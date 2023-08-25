@@ -130,7 +130,7 @@ var httpDeployment *appsv1.Deployment = &appsv1.Deployment{
 				Containers: []corev1.Container{
 					{
 						Name:            "nginx",
-						Image:           "nginxinc/nginx-unprivileged",
+						Image:           "quay.io/skupper/nginx-unprivileged",
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Ports: []corev1.ContainerPort{
 							{
