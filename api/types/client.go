@@ -296,7 +296,58 @@ type GatewayInspectResponse struct {
 	Listeners  map[string]GatewayEndpoint
 }
 
+type SiteStatusInfo struct {
+	Site         SiteInfo           `json:"site"`
+	RouterStatus []RouterStatusInfo `json:"routerStatus"`
+}
+
 type SiteInfo struct {
+	Identity       string `json:"identity,omitempty"`
+	Name           string `json:"site_name,omitempty"`
+	Namespace      string `json:"namespace,omitempty"`
+	Platform       string `json:"platform,omitempty"`
+	Version        string `json:"version,omitempty"`
+	MinimumVersion string `json:"minimum_version,omitempty"`
+}
+
+type RouterStatusInfo struct {
+	Router     RouterInfo      `json:"router"`
+	Links      []LinkInfo      `json:"links"`
+	Listeners  []ListenerInfo  `json:"listeners"`
+	Connectors []ConnectorInfo `json:"connectors"`
+}
+
+type RouterInfo struct {
+	Name         string `json:"name,omitempty"`
+	Namespace    string `json:"namespace,omitempty"`
+	Mode         string `json:"mode,omitempty"`
+	ImageName    string `json:"imageName,omitempty"`
+	ImageVersion string `json:"imageVersion,omitempty"`
+	Hostname     string `json:"hostname,omitempty"`
+}
+
+type LinkInfo struct {
+	Mode      string `json:"mode,omitempty"`
+	Name      string `json:"name,omitempty"`
+	LinkCost  uint64 `json:"linkCost,omitempty"`
+	Direction string `json:"direction,omitempty"`
+}
+
+type ListenerInfo struct {
+	Name     string `json:"name,omitempty"`
+	DestHost string `json:"destHost,omitempty"`
+	DestPort string `json:"destPort,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+	Address  string `json:"address,omitempty"`
+}
+
+type ConnectorInfo struct {
+	DestPort string `json:"destPort,omitempty"`
+	Address  string `json:"address,omitempty"`
+	Process  string `json:"process,omitempty"`
+}
+
+type SiteInfoForLinks struct {
 	Name           string   `json:"site_name,omitempty"`
 	Namespace      string   `json:"namespace,omitempty"`
 	SiteId         string   `json:"site_id,omitempty"`
@@ -306,20 +357,6 @@ type SiteInfo struct {
 	Gateway        bool     `json:"gateway,omitempty"`
 	MinimumVersion string   `json:"minimum_version,omitempty"`
 	Links          []string `json:"connected,omitempty"`
-	Services       []ServiceInfo
-}
-
-type ServiceInfo struct {
-	Name     string `json:"name,omitempty"`
-	Protocol string `json:"protocol,omitempty"`
-	Address  string `json:"address,omitempty"`
-	Targets  []TargetInfo
-}
-
-type TargetInfo struct {
-	Name   string `json:"name,omitempty"`
-	Target string `json:"target,omitempty"`
-	SiteId string `json:"site_id,omitempty"`
 }
 
 type RemoteLinkInfo struct {
@@ -378,6 +415,6 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
-	NetworkStatus(ctx context.Context) ([]*SiteInfo, error)
+	NetworkStatus(ctx context.Context) (*[]SiteStatusInfo, error)
 	GetRemoteLinks(ctx context.Context, siteConfig *SiteConfig) ([]*RemoteLinkInfo, error)
 }

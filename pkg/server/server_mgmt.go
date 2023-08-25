@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func GetSiteInfo(ctx context.Context, namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.SiteInfo, error) {
+func GetSiteInfo(ctx context.Context, namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.SiteInfoForLinks, error) {
 
 	var timeout time.Duration
 	deadline, ok := ctx.Deadline()
@@ -37,32 +37,7 @@ func GetSiteInfo(ctx context.Context, namespace string, clientset kubernetes.Int
 		return nil, err
 	} else {
 		bufferResult := execResult.(*bytes.Buffer)
-		var results []types.SiteInfo
-		err = json.Unmarshal(bufferResult.Bytes(), &results)
-
-		if err != nil {
-			return nil, fmt.Errorf("error when unmarshalling response from service controller: %s", string(bufferResult.Bytes()))
-		} else {
-			return &results, nil
-		}
-	}
-}
-
-func GetServiceInfo(namespace string, clientset kubernetes.Interface, config *restclient.Config) (*[]types.ServiceInfo, error) {
-	command := getQueryServiceController("services")
-	execResult, err := utils.TryUntil(3*time.Second, func() utils.Result {
-		res, err := serviceControllerExec(command, namespace, clientset, config)
-		return utils.Result{
-			Value: res,
-			Error: err,
-		}
-	})
-
-	if err != nil {
-		return nil, err
-	} else {
-		bufferResult := execResult.(*bytes.Buffer)
-		var results []types.ServiceInfo
+		var results []types.SiteInfoForLinks
 		err = json.Unmarshal(bufferResult.Bytes(), &results)
 
 		if err != nil {

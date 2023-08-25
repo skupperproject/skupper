@@ -2,19 +2,16 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/domain/kube"
-	"github.com/skupperproject/skupper/pkg/server"
-	"github.com/skupperproject/skupper/pkg/utils"
-	"github.com/skupperproject/skupper/pkg/version"
+	k8s "github.com/skupperproject/skupper/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type GetLocalLinks func(*VanClient, string, map[string]string) (map[string]*types.LinkStatus, error)
-
-func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, error) {
+func (cli *VanClient) NetworkStatus(ctx context.Context) (*[]types.SiteStatusInfo, error) {
 
 	//Checking if the router has been deployed
 	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
@@ -22,166 +19,17 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, err
 		return nil, fmt.Errorf("Skupper is not installed: %s", err)
 	}
 
-	sites, err := server.GetSiteInfo(ctx, cli.Namespace, cli.KubeClient, cli.RestConfig)
-
+	configmap, err := k8s.GetConfigMap(types.SiteStatusConfigMapName, cli.Namespace, cli.KubeClient)
 	if err != nil {
 		return nil, err
 	}
 
-	if sites == nil {
-		return nil, fmt.Errorf("could not retrieve information about the sites from the service controller")
-	}
-
-	versionCheckedSites := cli.checkSiteVersion(sites)
-	siteNameMap := getSiteNameMap(sites)
-
-	services, err := server.GetServiceInfo(cli.Namespace, cli.KubeClient, cli.RestConfig)
-
+	sites, err := GetSitesInfoFromConfigMap(configmap)
 	if err != nil {
 		return nil, err
 	}
 
-	var listSites []*types.SiteInfo
-
-	for _, site := range versionCheckedSites {
-
-		platform := utils.DefaultStr(site.Platform, string(types.PlatformKubernetes))
-		if site.Gateway || platform != string(types.PlatformKubernetes) {
-			// TODO: Define how gateways and non-k8s sites have to be shown
-			continue
-		}
-
-		if len(site.Namespace) == 0 {
-			return nil, fmt.Errorf("site %s: unable to get site namespace from service-controller", site.Name)
-		}
-
-		siteConfig, err := cli.SiteConfigInspect(ctx, nil)
-		if err != nil || siteConfig == nil {
-			return nil, fmt.Errorf("skupper-site configuration not available")
-		}
-
-		currentSite := siteConfig.Reference.UID
-
-		listLinks, err := GetFormattedLinks(GetLocalLinkStatus, cli, site, siteNameMap, site.SiteId == currentSite)
-		if err != nil {
-			return nil, err
-		}
-
-		listServicesAndTargets, err := cli.getServicesAndTargetsBySiteId(services, site.SiteId)
-		if err != nil {
-			return nil, err
-		}
-
-		newSite := types.SiteInfo{Name: site.Name, Namespace: site.Namespace, SiteId: site.SiteId, Url: site.Url, Version: site.Version, MinimumVersion: site.MinimumVersion, Links: listLinks, Services: listServicesAndTargets}
-
-		listSites = append(listSites, &newSite)
-
-	}
-	return listSites, nil
-}
-
-func GetFormattedLinks(getLocalLinks GetLocalLinks, cli *VanClient, site types.SiteInfo, siteNameMap map[string]string, isLocalSite bool) ([]string, error) {
-	lightRed := "\033[1;31m"
-	resetColor := "\033[0m"
-	var listLinks []string
-
-	if siteNameMap == nil || len(siteNameMap) == 0 {
-		return nil, fmt.Errorf("the site name map used to format the links has no values or it is not initialized")
-	}
-
-	if len(site.Namespace) == 0 {
-		return nil, fmt.Errorf("unspecified namespace in SiteInfo")
-	}
-
-	for _, link := range site.Links {
-		if len(link) > 0 {
-
-			trimmedLink := link
-			if len(link) > 7 {
-				trimmedLink = link[:7]
-			}
-
-			formattedLink := trimmedLink + "-" + siteNameMap[link]
-
-			if isLocalSite {
-				mapLinkStatus, err := getLocalLinks(cli, site.Namespace, siteNameMap)
-				if err != nil {
-					return nil, err
-				}
-
-				if _, ok := mapLinkStatus[formattedLink]; ok {
-					if !mapLinkStatus[formattedLink].Connected {
-						formattedLink = fmt.Sprintf("%s%s (link not connected)%s", lightRed, formattedLink, resetColor)
-					}
-				}
-			}
-			listLinks = append(listLinks, formattedLink)
-		}
-	}
-
-	return listLinks, nil
-}
-
-func (cli *VanClient) getServicesAndTargetsBySiteId(services *[]types.ServiceInfo, siteId string) ([]types.ServiceInfo, error) {
-	var listServices []types.ServiceInfo
-
-	for _, service := range *services {
-		var listTargets []types.TargetInfo
-
-		if len(service.Targets) > 0 {
-			for _, target := range service.Targets {
-				if target.SiteId == siteId {
-					listTargets = append(listTargets, target)
-				}
-			}
-		}
-
-		serviceDetail, err := cli.ServiceInterfaceInspect(context.TODO(), service.Address)
-		if err != nil {
-			return nil, err
-		}
-
-		serviceHost := service.Address + ":"
-
-		if serviceDetail != nil {
-			for _, port := range serviceDetail.Ports {
-				serviceHost += fmt.Sprintf(" %d", port)
-			}
-		}
-
-		newService := types.ServiceInfo{Name: service.Address, Protocol: service.Protocol, Address: serviceHost, Targets: listTargets}
-		listServices = append(listServices, newService)
-	}
-
-	return listServices, nil
-}
-
-func (cli *VanClient) checkSiteVersion(sites *[]types.SiteInfo) []types.SiteInfo {
-
-	var listSites []types.SiteInfo
-
-	localSiteVersion := cli.GetVersion(types.SiteVersion, types.SiteVersion)
-
-	for _, site := range *sites {
-		if utils.LessRecentThanVersion(site.Version, localSiteVersion) {
-			if utils.IsValidFor(site.Version, version.MinimumCompatibleVersion) {
-				site.MinimumVersion = version.MinimumCompatibleVersion
-			}
-		}
-
-		listSites = append(listSites, site)
-	}
-	return listSites
-}
-
-func getSiteNameMap(sites *[]types.SiteInfo) map[string]string {
-
-	siteNameMap := make(map[string]string)
-	for _, site := range *sites {
-		siteNameMap[site.SiteId] = site.Name
-	}
-
-	return siteNameMap
+	return &sites, nil
 }
 
 func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*types.RemoteLinkInfo, error) {
@@ -191,4 +39,35 @@ func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.Site
 	}
 	linkHander := kube.NewLinkHandlerKube(cli.Namespace, siteConfig, cfg, cli.KubeClient, cli.RestConfig)
 	return linkHander.RemoteLinks(ctx)
+}
+
+func GetSitesInfoFromConfigMap(configmap *corev1.ConfigMap) ([]types.SiteStatusInfo, error) {
+	if configmap.Data == nil {
+		return nil, nil
+	} else {
+
+		siteStatusFlowRecords, err := UnmarshalSiteStatus(configmap.Data)
+		if err != nil {
+			return nil, err
+		}
+
+		return siteStatusFlowRecords, nil
+	}
+}
+
+func UnmarshalSiteStatus(data map[string]string) ([]types.SiteStatusInfo, error) {
+
+	var allSites []types.SiteStatusInfo
+	for _, site := range data {
+		var siteStatus types.SiteStatusInfo
+		err := json.Unmarshal([]byte(site), &siteStatus)
+
+		if err != nil {
+			return nil, err
+		}
+
+		allSites = append(allSites, siteStatus)
+	}
+
+	return allSites, nil
 }
