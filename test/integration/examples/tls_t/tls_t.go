@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -495,8 +496,6 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 
 func runTests(t *testing.T, r base.ClusterTestRunner) {
 
-	endTime := time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
-
 	pub1Cluster, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
@@ -522,24 +521,26 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	_, err = k8s.CreateTestJobWithSecret(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, jobCmd, "skupper-tls-ssl-server")
 	assert.Assert(t, err)
 
-	endTime = time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
+	endTime := time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
+
+	slashN := regexp.MustCompile("\n")
 
 	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
-	if err != nil || job.Status.Succeeded != 1 {
+	if err != nil || job.Status.Succeeded != 1 || testing.Verbose() {
 		logs, _ := k8s.GetJobsLogs(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, true)
-		log.Printf("%s job output: %s", jobName, logs)
+		log.Printf("%s pub job output: \n%s", jobName, slashN.ReplaceAllString(logs, "\n\t"))
+		pub1Cluster.KubectlExec("logs --prefix=true job/" + jobName)
 	}
 	assert.Assert(t, err)
-	pub1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
 	job, err = k8s.WaitForJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
-	if err != nil || job.Status.Succeeded != 1 {
+	if err != nil || job.Status.Succeeded != 1 || testing.Verbose() {
 		logs, _ := k8s.GetJobsLogs(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, true)
-		log.Printf("%s job output: %s", jobName, logs)
+		log.Printf("%s prv job output: \n%s", jobName, slashN.ReplaceAllString(logs, "\n\t"))
+		prv1Cluster.KubectlExec("logs --prefix=true job/" + jobName)
 	}
 	assert.Assert(t, err)
-	prv1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
 }
@@ -552,8 +553,8 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 // complete.
 // 'seek', if given, is a string to be searched for on the initial flush.  If
 // given and not found, return an error.
-func flushStdOut(outputCh <-chan string, seek string) error {
-	log.Printf("Flushing stdout")
+func flushStdOut(outputCh <-chan string, seek string, name string) error {
+	log.Printf("%v: Flushing stdout", name)
 
 	var found bool
 
@@ -573,13 +574,13 @@ outer:
 		select {
 		case line, ok = <-outputCh:
 		case <-timeoutCh:
-			log.Printf("Flush complete")
+			log.Printf("%v: Flush complete", name)
 			break outer
 		}
 		if !ok {
 			return fmt.Errorf("command output finished during initial stdout flush")
 		}
-		log.Printf("  %v", line)
+		log.Printf("%v:  %v", name, line)
 		if strings.Contains(line, seek) {
 			found = true
 		}
@@ -600,9 +601,9 @@ outer:
 // s_client can be given in `options`.  If provided, the initial
 // output will be searched for the `seek` string.  If that is not
 // found, the function fails.
-func SendReceive(addr string, options []string, seek string) error {
+func SendReceive(addr string, options []string, seek string, name string) error {
 	defer func() {
-		log.Println("SendReceive completed")
+		log.Printf("%v: SendReceive completed", name)
 	}()
 	cmdArgs := []string{
 		"s_client",
@@ -631,8 +632,8 @@ func SendReceive(addr string, options []string, seek string) error {
 
 		strEcho := "Halo\n"
 
-		log.Println("Starting openssl s_client...")
-		log.Printf("Executing command openssl %v", cmdArgs)
+		log.Printf("%v: Starting openssl s_client...", name)
+		log.Printf("%v: Executing command openssl %v", name, cmdArgs)
 		cmd := exec.Command("openssl", cmdArgs...)
 		// We're not processing stderr, so just send it to the main stderr;
 		// we'll get it on the logs, then.
@@ -656,14 +657,14 @@ func SendReceive(addr string, options []string, seek string) error {
 			doneCh <- fmt.Errorf("error starting command: %w", err)
 		}
 		defer func() {
-			log.Printf("Closing stdin pipe...")
+			log.Printf("%v: Closing stdin pipe...", name)
 			pipeIn.Close()
-			log.Printf("Waiting for the command to complete...")
+			log.Printf("%v: Waiting for the command to complete...", name)
 			err := cmd.Wait()
 			if err != nil {
-				log.Printf("After wait, the command returned an error: %v", err)
+				log.Printf("%v: After wait, the command returned an error: %v", name, err)
 			}
-			log.Printf("...done")
+			log.Printf("%v: ...done", name)
 		}()
 
 		pReader := bufio.NewReader(pipeOut)
@@ -673,37 +674,37 @@ func SendReceive(addr string, options []string, seek string) error {
 				line, err := pReader.ReadString('\n')
 				outputCh <- line
 				if err == io.EOF {
-					log.Printf("Read EOF")
+					log.Printf("%v: Read EOF", name)
 					close(outputCh)
 					return
 				}
 				if err != nil {
-					log.Printf("non-EOF error reading command output: %v", err)
+					log.Printf("%v: non-EOF error reading command output: %v", name, err)
 					close(outputCh)
 					return
 				}
 			}
 		}()
 
-		err = flushStdOut(outputCh, seek)
+		err = flushStdOut(outputCh, seek, name)
 		if err != nil {
 			doneCh <- err
 			return
 		}
 
-		log.Println("Sending data")
+		log.Printf("%v: Sending data", name)
 		_, err = pipeIn.Write([]byte(strEcho))
 		if err != nil {
 			doneCh <- fmt.Errorf("write to server failed: %w", err)
 			return
 		}
 
-		log.Println("Receiving reply")
+		log.Printf("%v: Receiving reply", name)
 
 		reply := <-outputCh
 
-		log.Printf("Sent to server = %q", strEcho)
-		log.Printf("Reply from server = %q", string(reply))
+		log.Printf("%v: Sent to server = %q", name, strEcho)
+		log.Printf("%v: Reply from server = %q", name, string(reply))
 
 		if len(reply) == len(strEcho) {
 			// We're using openssl s_server -rev, so we have to revert
@@ -713,12 +714,12 @@ func SendReceive(addr string, options []string, seek string) error {
 				r := reply[i_r]
 
 				if r != c {
-					doneCh <- fmt.Errorf("response from server different than expected: %s (%d/%q != %d/%q)", string(reply), i_r, r, i_c, c)
+					doneCh <- fmt.Errorf("response from server different than expected: %q (%d/%q != %d/%q)", string(reply), i_r, r, i_c, c)
 				}
 			}
 		} else {
 
-			doneCh <- fmt.Errorf("response length from server different than expected: %s", string(reply))
+			doneCh <- fmt.Errorf("response length from server different than expected: %q", string(reply))
 		}
 
 		doneCh <- nil
@@ -733,7 +734,7 @@ func SendReceive(addr string, options []string, seek string) error {
 		err = fmt.Errorf("timed out waiting for SendReceive function to finish")
 	}
 
-	log.Print("Flushing stdout after test")
+	log.Printf("%v: Flushing stdout after test", name)
 	// Otherwise, output gets mixed with the next test
 	for {
 		select {
@@ -742,12 +743,12 @@ func SendReceive(addr string, options []string, seek string) error {
 				// We're done here, so we just return whatever err we got before
 				return err
 			}
-			log.Printf("  %v", line)
+			log.Printf("%v:  %v", name, line)
 		case <-timeoutCh:
 			if err != nil {
-				log.Printf("timed out waiting for SendReceive, but received an error befor: %v", err)
+				log.Printf("%v: timed out waiting for SendReceive, but received an error before: %v", name, err)
 			}
-			return fmt.Errorf("timed out waiting for SendReceive function to finish")
+			return fmt.Errorf("%v: timed out waiting for SendReceive function to finish", name)
 		}
 	}
 }
