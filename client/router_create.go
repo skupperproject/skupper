@@ -651,10 +651,6 @@ func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) erro
 	}
 }
 
-// func isEdge(options types.SiteConfigSpec) bool {
-// 	return options.RouterMode == string(types.TransportModeEdge)
-// }
-
 func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) *types.RouterSpec {
 	// skupper-router container index
 	// TODO: update after dataplance changes
@@ -1094,7 +1090,7 @@ func (cli *VanClient) GetRouterHostAliasesSpecFromTokens(ctx context.Context) ([
 		return nil, fmt.Errorf("Failed to retrieve connection token: %w", err)
 	}
 	if len(secrets.Items) == 0 {
-		return nil, fmt.Errorf("Connection token not found")
+		return nil, nil
 	} else {
 		for _, s := range secrets.Items {
 			if alias, ok := s.ObjectMeta.Annotations["edge-alias"]; ok {
@@ -1181,14 +1177,11 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 	}
 	var err error
-	isEdge := options.Spec.IsEdge()
-	if isEdge {
-		hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx)
-		if err != nil {
-			return err
-		}
-		van.Transport.HostAliases = hostAliases
+	hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx)
+	if err != nil {
+		return err
 	}
+	van.Transport.HostAliases = hostAliases
 	if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) {
 		config := `
 pwcheck_method: auxprop
