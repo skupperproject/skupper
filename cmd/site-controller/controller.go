@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/version"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -383,20 +382,11 @@ func (c *SiteController) checkToken(key string) error {
 		return nil
 	}
 
-	siteConfig, err := c.vanClient.SiteConfigInspect(context.Background(), nil)
-	if err != nil {
-		log.Printf("siteConfig error %s", key)
-		return err
-	}
-	if siteConfig.Spec.Router.ForceRestartsForHostAliases {
-		updated, _ := c.vanClient.RouterUpdateHostAliases(context.Background(), token)
-		if updated {
-			log.Printf("Router updated and restarted due to changes in token %s", key)
-		} else {
-			log.Printf("Changes in token %s didn't trigger router update", key)
-		}
+	updated, _ := c.vanClient.RouterUpdateHostAliases(context.Background(), token)
+	if updated {
+		log.Printf("Router updated and restarted due to changes in token %s", key)
 	} else {
-		log.Printf("Changes in tokens won't trigger router updates due to %s = false", site.SiteConfigRouterForceRestartsForHostAliases)
+		log.Printf("Changes in token %s didn't trigger router update", key)
 	}
 	return nil
 }
