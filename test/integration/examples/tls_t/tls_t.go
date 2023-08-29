@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -35,6 +36,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -490,6 +492,35 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 		fmt.Printf(" * %s (%d replicas)\n", d.Name, *d.Spec.Replicas)
 	}
 
+	// The check below is required while https://github.com/skupperproject/skupper/issues/1208
+	// is not fixed; both the ServiceInterfaceCreate above and ServiceInterfaceBind below may
+	// create the secret, and sometimes they race on it, making the test flaky.
+	err = utils.Retry(
+		time.Second*3,
+		20,
+		func() (bool, error) {
+			_, err := pub1Cluster.VanClient.KubeClient.CoreV1().Secrets(pub1Cluster.Namespace).Get(
+				context.Background(),
+				"skupper-tls-ssl-server",
+				metav1.GetOptions{},
+			)
+			if err == nil {
+				return true, nil
+			}
+			if errors.IsNotFound(err) {
+				fmt.Println("TLS Secret not yet created.  See #1208")
+				return false, nil
+			}
+			return false, err
+		},
+	)
+	if err != nil {
+		fmt.Printf("Secret retrieval failed: %v\n", err)
+		// We do not stop for this, as this test is just to avoid flakiness on the
+		// test; if whatever failed above is reason for an actual test failure,
+		// it will fail on the continuation of the actual test, below
+	}
+
 	err = pub1Cluster.VanClient.ServiceInterfaceBind(ctx, &service, "deployment", "ssl-server", map[int]int{}, "")
 	assert.Assert(t, err)
 }
@@ -741,6 +772,8 @@ func SendReceive(addr string, options []string, seek string, name string) error 
 	case err = <-doneCh:
 	case <-timeoutCh:
 		err = fmt.Errorf("timed out waiting for SendReceive function to finish")
+		// If we got a timeout, we renew the timer for the stdout flushing below
+		timeoutCh = time.After(time.Minute / 2)
 	}
 
 	log.Printf("%v: Flushing stdout after test", name)
@@ -755,9 +788,11 @@ func SendReceive(addr string, options []string, seek string, name string) error 
 			log.Printf("%v:  %v", name, line)
 		case <-timeoutCh:
 			if err != nil {
-				log.Printf("%v: timed out waiting for SendReceive, but received an error before: %v", name, err)
+				return fmt.Errorf("%v: timed out on post-test stdout flush, but received an error before: %w", name, err)
 			}
-			return fmt.Errorf("%v: timed out waiting for SendReceive function to finish", name)
+			// We do not consider this as an error, as it is post-test, but worthy to note
+			log.Printf("%v: timed out on post-test stdout flush", name)
+			return nil
 		}
 	}
 }
