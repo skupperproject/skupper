@@ -69,8 +69,6 @@ ConfigMaps allow you to manage a Skupper site using a ConfigMap named `skupper-s
 
 `data:router-load-balancer-ip` - Load balancer ip that will be used for router service, if supported by cloud provider
 
-`data:router-force-restarts-for-host-aliases` - Disables router restarts if tokens' host aliases change
-
 `data:service-controller` - (true/false) Run the service controller.
 
 `data:service-sync` - (**true**/false) Only relevant if the service controller is running. Determine if the service  controller participates in service synchronization.
