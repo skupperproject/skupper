@@ -563,17 +563,24 @@ func flushStdOut(outputCh <-chan string, seek string, name string) error {
 	}
 
 	var count int
+	var timeoutCh <-chan time.Time
+	// Wait up to 5 seconds for the first line...
+	firstReadTimeout := time.After(time.Second * 5)
 
 outer:
 	for {
 		count++
-		timeoutCh := time.After(time.Second)
 		var line string
 		var ok bool
 
 		select {
+		case <-firstReadTimeout:
+			return fmt.Errorf("no command output before initial timeout")
 		case line, ok = <-outputCh:
+			// If any lines read, ignore initial timeout; we'll do a per-line max 1 second below
+			firstReadTimeout = nil
 		case <-timeoutCh:
+			// We read at least one line, and the inter-line timeout expired.  Let's call it done
 			log.Printf("%v: Flush complete", name)
 			break outer
 		}
@@ -584,6 +591,8 @@ outer:
 		if strings.Contains(line, seek) {
 			found = true
 		}
+		// If we got to this point, wait up to one second for the next line
+		timeoutCh = time.After(time.Second)
 	}
 
 	if !found {
