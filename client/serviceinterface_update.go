@@ -329,11 +329,10 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 			modified := false
 			targets := []types.ServiceInterfaceTarget{}
 			for _, t := range service.Targets {
-				targetName, namespace = kube.GetServiceName(targetName, namespace)
-				targetFound := t.Name == targetName
-				unqualifiedServiceFound := t.Name == "" && targetName == serviceName && t.Service == targetName
+				targetFound := t.Name == targetName && t.Service == ""
+				targetServiceFound := t.Service == targetName
 				namespaceMatches := t.Namespace == "" || t.Namespace == namespace
-				if (targetFound || unqualifiedServiceFound) && namespaceMatches {
+				if (targetFound || targetServiceFound) && namespaceMatches {
 					modified = true
 				} else {
 					targets = append(targets, t)
