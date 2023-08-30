@@ -76,7 +76,7 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 			// decided to keep namespace empty when target type is a service
 			Namespace: "",
 		}
-		if deducePort {
+		if deducePort && !strings.Contains(targetName, ".") {
 			ports, err := GetPortsForServiceTarget(targetName, namespace, cli)
 			if err != nil {
 				return nil, err
