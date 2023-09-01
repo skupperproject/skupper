@@ -72,7 +72,7 @@ func (r *RouterEntityManager) QueryConnections(routerId string, edge bool) ([]qd
 	var connections []qdr.Connection
 	err = json.Unmarshal([]byte(data), &connections)
 	if err != nil {
-		if strings.Contains(data, "SendException: RELEASED") {
+		if strings.Contains(data, "SendException: RELEASED") || strings.Contains(data, "Timeout: ") {
 			fmt.Printf("Warning: unable to retrieve connections from router %q, as it is no longer available", routerId)
 			fmt.Println()
 		} else {
@@ -111,17 +111,16 @@ func (r *RouterEntityManager) QueryAllRouters() ([]qdr.Router, error) {
 		var records []qdr.Record
 		err = json.Unmarshal([]byte(rJson), &records)
 		if err != nil {
-			// routerToQuery no longer exists
-			if routerToQuery != "" {
+			if strings.Contains(rJson, "SendException: RELEASED") || strings.Contains(rJson, "Timeout: ") {
 				continue
 			}
-			return nil, fmt.Errorf("error decoding router info from %s - %w", routerToQuery, err)
+			return nil, fmt.Errorf("error decoding router info from %s - %w - %s", routerToQuery, err, rJson)
 		}
 		router.Site = qdr.GetSiteMetadata(records[0].AsString("metadata"))
 
 		// retrieving connections
 		conns, err := r.QueryConnections(routerToQuery, router.Edge)
-		if err != nil && err.(*json.SyntaxError) == nil {
+		if err != nil {
 			return nil, fmt.Errorf("error querying router connections from %s - %w", routerToQuery, err)
 		}
 		for _, conn := range conns {
@@ -191,7 +190,7 @@ func (r *RouterEntityManager) QueryEdgeRouters() ([]qdr.Router, error) {
 	}
 	for _, routerNode := range routerNodes {
 		conns, err := r.QueryConnections(routerNode.Id, false)
-		if err != nil && err.(*json.SyntaxError) == nil {
+		if err != nil {
 			return nil, fmt.Errorf("error querying connections from router %s - %w", routerNode.Id, err)
 		}
 		for _, conn := range conns {
