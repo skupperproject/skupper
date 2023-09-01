@@ -249,6 +249,7 @@ func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) e
 	if err != nil {
 		return fmt.Errorf("error creating pub1 router: %w", err)
 	}
+	WaitSkupperRunning(pub1Cluster)
 
 	secretFile := "/tmp/" + r.Needs.NamespaceId + "_public_secret.yaml"
 	err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
@@ -267,6 +268,7 @@ func ConnectSimplePublicPrivate(ctx context.Context, r *ClusterTestRunnerBase) e
 	if err != nil {
 		return fmt.Errorf("error creating prv1 router: %w", err)
 	}
+	WaitSkupperRunning(prv1Cluster)
 
 	var connectorCreateOpts types.ConnectorCreateOptions = types.ConnectorCreateOptions{
 		SkupperNamespace: prv1Cluster.Namespace,
