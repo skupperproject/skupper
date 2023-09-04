@@ -7,6 +7,8 @@ import (
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
+	"strconv"
+	"strings"
 )
 
 type SkupperKubeNetwork struct {
@@ -75,10 +77,23 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 			if len(siteStatus.RouterStatus) > 0 {
 				routers := siteLevel.NewChild("Routers:")
 				for _, routerStatus := range siteStatus.RouterStatus {
-					routerItem := fmt.Sprintf("name: %s", routerStatus.Router.Name)
+					routerItem := fmt.Sprintf("name: %s\n", routerStatus.Router.Name)
 					detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 
 					routerLevel := routers.NewChildWithDetail(routerItem, detailsRouter)
+
+					if len(routerStatus.Links) > 0 {
+						links := routerLevel.NewChild("Links:")
+
+						for _, link := range routerStatus.Links {
+							// avoid showing the links between routers of the same site
+							if !strings.Contains(link.Name, routerStatus.Router.Namespace) {
+								linkItem := fmt.Sprintf("name:  %s\n", link.Name)
+								detailsLink := map[string]string{"direction": link.Direction, "cost": strconv.FormatUint(link.LinkCost, 10)}
+								links.NewChildWithDetail(linkItem, detailsLink)
+							}
+						}
+					}
 					if len(routerStatus.Listeners) > 0 {
 						services := routerLevel.NewChild("Services:")
 						var addresses []string
@@ -106,8 +121,9 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 							if len(routerStatus.Connectors) > 0 {
 								targets := serviceLevel.NewChild("Targets:")
 								for _, target := range routerStatus.Connectors {
-									targets.NewChild("name: " + target.Address)
-
+									if target.Address == svc.Address {
+										targets.NewChild("name: " + target.Address)
+									}
 								}
 							}
 
@@ -116,7 +132,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}
-		//TODO: links are missing
+
 		network.Print()
 	}
 

@@ -303,11 +303,11 @@ type SiteStatusInfo struct {
 
 type SiteInfo struct {
 	Identity       string `json:"identity,omitempty"`
-	Name           string `json:"site_name,omitempty"`
+	Name           string `json:"siteName,omitempty"`
 	Namespace      string `json:"namespace,omitempty"`
 	Platform       string `json:"platform,omitempty"`
-	Version        string `json:"version,omitempty"`
-	MinimumVersion string `json:"minimum_version,omitempty"`
+	Version        string `json:"siteVersion,omitempty"`
+	MinimumVersion string `json:"minimumVersion,omitempty"`
 }
 
 type RouterStatusInfo struct {
