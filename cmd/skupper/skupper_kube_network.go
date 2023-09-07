@@ -77,7 +77,8 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 			if len(siteStatus.RouterStatus) > 0 {
 				routers := siteLevel.NewChild("Routers:")
 				for _, routerStatus := range siteStatus.RouterStatus {
-					routerItem := fmt.Sprintf("name: %s\n", routerStatus.Router.Name)
+					routerId := strings.Split(routerStatus.Router.Name, "/")
+					routerItem := fmt.Sprintf("name: %s\n", routerId[1])
 					detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 
 					routerLevel := routers.NewChildWithDetail(routerItem, detailsRouter)
@@ -118,15 +119,24 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 							detailsSvc := map[string]string{"protocol": svc.Protocol, "address": svc.Address}
 							serviceLevel := services.NewChildWithDetail(svcItem, detailsSvc)
 
-							if len(routerStatus.Connectors) > 0 {
-								targets := serviceLevel.NewChild("Targets:")
-								for _, target := range routerStatus.Connectors {
-									if target.Address == svc.Address {
-										targets.NewChild("name: " + target.Address)
-									}
+							var associatedTargets []types.ConnectorInfo
+
+							for _, target := range routerStatus.Connectors {
+
+								if target.Address == svc.Address {
+									associatedTargets = append(associatedTargets, target)
 								}
+
 							}
 
+							if len(associatedTargets) > 0 {
+								targets := serviceLevel.NewChild("Targets:")
+
+								for _, associated := range associatedTargets {
+									targets.NewChild(associated.Target)
+								}
+
+							}
 						}
 					}
 				}

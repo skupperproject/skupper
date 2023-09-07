@@ -345,6 +345,7 @@ type ConnectorInfo struct {
 	DestPort string `json:"destPort,omitempty"`
 	Address  string `json:"address,omitempty"`
 	Process  string `json:"process,omitempty"`
+	Target   string `json:"target,omitempty"`
 }
 
 type SiteInfoForLinks struct {
