@@ -26,11 +26,7 @@ func (s *SkupperKubeNetwork) Platform() types.Platform {
 func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 
-	if networkStatusTimeout.Seconds() <= 0 {
-		return fmt.Errorf(`invalid timeout value`)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), networkStatusTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), types.DefaultFlowTimeoutDuration)
 	defer cancel()
 
 	siteConfig, err := s.kube.Cli.SiteConfigInspect(ctx, nil)
@@ -51,10 +47,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 		network := formatter.NewList()
 		network.Item("Sites:")
 		for _, siteStatus := range *sitesStatus {
-
-			if siteStatus.Site.Name != selectedSite && selectedSite != "all" {
-				continue
-			}
+			//TODO filter by service name.
 
 			location := "remote"
 
