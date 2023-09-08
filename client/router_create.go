@@ -36,9 +36,11 @@ func getServingSecretAnnotations(name string) map[string]string {
 }
 
 func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Container {
+	image := images.GetOauthProxyImageDetails()
 	return &corev1.Container{
-		Image: "openshift/oauth-proxy:latest",
-		Name:  "oauth-proxy",
+		Image:           image.Name,
+		ImagePullPolicy: kube.GetPullPolicy(image.PullPolicy),
+		Name:            "oauth-proxy",
 		Args: []string{
 			"--https-address=:" + strconv.Itoa(int(types.ConsoleOpenShiftOauthServiceTargetPort)),
 			"--provider=openshift",

@@ -9,4 +9,6 @@ const (
 	SiteControllerImageName    string = "site-controller:1.4.2"
 	PrometheusImageRegistry    string = "quay.io/prometheus"
 	PrometheusServerImageName  string = "prometheus:v2.42.0"
+	OauthProxyImageRegistry    string = "quay.io/openshift"
+	OauthProxyImageName        string = "origin-oauth-proxy:4.14.0"
 )
