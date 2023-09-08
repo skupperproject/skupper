@@ -558,6 +558,8 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 		RunE:   skupperCli.Unexpose,
 	}
 	cmd.Flags().StringVar(&unexposeAddress, "address", "", "Skupper address the target was exposed as")
+
+	skupperCli.UnexposeFlags(cmd)
 	return cmd
 }
 

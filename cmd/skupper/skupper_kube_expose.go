@@ -84,6 +84,9 @@ func (s *SkupperKubeService) Expose(cmd *cobra.Command, args []string) error {
 	if exposeOpts.PublishNotReadyAddresses && targetType == "service" {
 		return fmt.Errorf("--publish-not-ready-addresses option is only valid for headless services and deployments")
 	}
+	if exposeOpts.Namespace != "" && targetType == "service" {
+		return targetTypeServiceTargetNamespaceError()
+	}
 
 	addr, err := expose(s.kube.Cli, context.Background(), targetType, targetName, exposeOpts)
 	if err == nil {
@@ -127,6 +130,10 @@ func (s *SkupperKubeService) ExposeFlags(cmd *cobra.Command) {
 func (s *SkupperKubeService) Unexpose(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 	targetType, targetName := parseTargetTypeAndName(args)
+
+	if unexposeNamespace != "" && targetType == "service" {
+		return targetTypeServiceTargetNamespaceError()
+	}
 
 	err := s.kube.Cli.ServiceInterfaceUnbind(context.Background(), targetType, targetName, unexposeAddress, true, unexposeNamespace)
 	if err == nil {

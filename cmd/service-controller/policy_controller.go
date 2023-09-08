@@ -354,7 +354,7 @@ func (c *PolicyController) validateExposeStateChanged() {
 			}
 			if !res.Allowed() {
 				// resource is no longer allowed, unbinding
-				event.Recordf(c.name, "[validateExposeStateChanged] exposed resource is no longer authorized - unbinding service %s: %v", service.Address, err)
+				event.Recordf(c.name, "[validateExposeStateChanged] exposed resource is no longer authorized - unbinding target %s/%s for service %s", targetType, target.Name, service.Address)
 				err = c.cli.ServiceInterfaceUnbind(context.Background(), "deployment", target.Name, service.Address, false, svcNamespace)
 				if err != nil {
 					event.Recordf(c.name, "[validateExposeStateChanged] error unbinding service %s: %v", service.Address, err)

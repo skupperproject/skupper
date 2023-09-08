@@ -332,7 +332,8 @@ func (s *StatusTester) parseBindings(stdout string) (ifaces []*types.ServiceInte
 			}
 			// Then we get the second item, that should be the name
 			pieces = strings.Split(strings.Trim(pieces[1], " "), " ")
-			if len(pieces) != 3 {
+			// namespace is not displayed for target type service
+			if len(pieces) < 2 || len(pieces) > 3 {
 				err = fmt.Errorf("Parsing failed due to unexpected target output format on line %v: %v", line, text)
 				return
 			}

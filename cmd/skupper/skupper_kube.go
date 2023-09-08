@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/spf13/cobra"
 )
@@ -102,4 +104,8 @@ func (s *SkupperKube) NewClient(cmd *cobra.Command, args []string) {
 		exitOnError = false
 	}
 	s.Cli = NewClientHandleError(s.Namespace, s.KubeContext, s.KubeConfigPath, exitOnError)
+}
+
+func targetTypeServiceTargetNamespaceError() error {
+	return fmt.Errorf("--target-namespace cannot be used when target type is service (qualify the target service name instead)")
 }

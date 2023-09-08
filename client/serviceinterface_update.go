@@ -329,7 +329,9 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 			modified := false
 			targets := []types.ServiceInterfaceTarget{}
 			for _, t := range service.Targets {
-				if (t.Name == targetName || (t.Name == "" && targetName == serviceName)) && (t.Namespace == "" || t.Namespace == namespace) {
+				targetFound := (t.Name == targetName && t.Service == "") && t.Namespace == namespace
+				targetServiceFound := t.Service == targetName && t.Namespace == ""
+				if targetFound || targetServiceFound {
 					modified = true
 				} else {
 					targets = append(targets, t)

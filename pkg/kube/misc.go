@@ -17,11 +17,12 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/openshift/client-go/apps/clientset/versioned"
-	"k8s.io/client-go/kubernetes"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/openshift/client-go/apps/clientset/versioned"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -69,14 +70,13 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 	} else if targetType == "pods" {
 		return nil, fmt.Errorf("VAN service interfaces for pods not yet implemented")
 	} else if targetType == "service" {
-		var svcName, svcNamespace string = GetServiceName(targetName, namespace)
-		var formattedName = fmt.Sprintf("%s.%s", svcName, svcNamespace)
 		target := types.ServiceInterfaceTarget{
-			Name:      formattedName,
-			Service:   formattedName,
-			Namespace: namespace,
+			Name:    targetName,
+			Service: targetName,
+			// decided to keep namespace empty when target type is a service
+			Namespace: "",
 		}
-		if deducePort {
+		if deducePort && !strings.Contains(targetName, ".") {
 			ports, err := GetPortsForServiceTarget(targetName, namespace, cli)
 			if err != nil {
 				return nil, err
