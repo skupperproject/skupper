@@ -17,14 +17,17 @@ const (
 	ConfigSyncImageEnvKey             string = "SKUPPER_CONFIG_SYNC_IMAGE"
 	FlowCollectorImageEnvKey          string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
 	PrometheusServerImageEnvKey       string = "PROMETHEUS_SERVER_IMAGE"
+	OauthProxyImageEnvKey             string = "OAUTH_PROXY_IMAGE"
 	RouterPullPolicyEnvKey            string = "QDROUTERD_IMAGE_PULL_POLICY"
 	ServiceControllerPullPolicyEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE_PULL_POLICY"
 	ControllerPodmanPullPolicyEnvKey  string = "SKUPPER_CONTROLLER_PODMAN_IMAGE_PULL_POLICY"
 	ConfigSyncPullPolicyEnvKey        string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
 	FlowCollectorPullPolicyEnvKey     string = "SKUPPER_FLOW_COLLECTOR_IMAGE_PULL_POLICY"
 	PrometheusServerPullPolicyEnvKey  string = "PROMETHEUS_SERVER_IMAGE_PULL_POLICY"
+	OauthProxyPullPolicyEnvKey        string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
 	SkupperImageRegistryEnvKey        string = "SKUPPER_IMAGE_REGISTRY"
 	PrometheusImageRegistryEnvKey     string = "PROMETHEUS_IMAGE_REGISTRY"
+	OauthProxyRegistryEnvKey          string = "OAUTH_PROXY_IMAGE_REGISTRY"
 )
 
 func getPullPolicy(key string) string {
@@ -219,4 +222,33 @@ func GetSha(imageName string) string {
 	digest := strings.TrimPrefix(strings.Trim(parsedDigest, "'"), imageWithoutTag+"@")
 
 	return digest
+}
+
+func GetOauthProxyImageName() string {
+	image := os.Getenv(OauthProxyImageEnvKey)
+	if image == "" {
+		imageRegistry := GetOauthProxyImageRegistry()
+		return strings.Join([]string{imageRegistry, OauthProxyImageName}, "/")
+	} else {
+		return image
+	}
+}
+
+func GetOauthProxyImagePullPolicy() string {
+	return getPullPolicy(OauthProxyPullPolicyEnvKey)
+}
+
+func GetOauthProxyImageDetails() types.ImageDetails {
+	return types.ImageDetails{
+		Name:       GetOauthProxyImageName(),
+		PullPolicy: GetOauthProxyImagePullPolicy(),
+	}
+}
+
+func GetOauthProxyImageRegistry() string {
+	imageRegistry := os.Getenv(OauthProxyRegistryEnvKey)
+	if imageRegistry == "" {
+		return OauthProxyImageRegistry
+	}
+	return imageRegistry
 }

@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type SkupperImage struct {
@@ -53,6 +54,10 @@ func generateManifestFile() error {
 			{
 				Name: images.GetPrometheusServerImageName(),
 				SHA:  images.GetSha(images.GetPrometheusServerImageName()),
+			},
+			{
+				Name: images.GetOauthProxyImageName(),
+				SHA:  images.GetSha(images.GetOauthProxyImageName()),
 			},
 		},
 	}
