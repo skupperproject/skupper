@@ -72,7 +72,12 @@ func (r *RouterEntityManager) QueryConnections(routerId string, edge bool) ([]qd
 	var connections []qdr.Connection
 	err = json.Unmarshal([]byte(data), &connections)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving connections - %w", err)
+		if r.isInvalidResponseFromStaleRouter(data) {
+			fmt.Printf("Warning: unable to retrieve connections from router %q, as it is no longer available", routerId)
+			fmt.Println()
+		} else {
+			return nil, fmt.Errorf("error retrieving connections - %w - output: %q", err, data)
+		}
 	}
 	return connections, nil
 }
@@ -106,7 +111,10 @@ func (r *RouterEntityManager) QueryAllRouters() ([]qdr.Router, error) {
 		var records []qdr.Record
 		err = json.Unmarshal([]byte(rJson), &records)
 		if err != nil {
-			return nil, fmt.Errorf("error decoding router info from %s - %w", routerToQuery, err)
+			if r.isInvalidResponseFromStaleRouter(rJson) {
+				continue
+			}
+			return nil, fmt.Errorf("error decoding router info from %s - %w - %s", routerToQuery, err, rJson)
 		}
 		router.Site = qdr.GetSiteMetadata(records[0].AsString("metadata"))
 
@@ -143,6 +151,14 @@ func (r *RouterEntityManager) QueryAllRouters() ([]qdr.Router, error) {
 		routersTmp = append(routersTmp, router)
 	}
 	return routersTmp, nil
+}
+
+// isInvalidResponseFromStaleRouter returns true if response is not a valid JSON
+// message returned by the management API, because the given router is stale as it
+// is still showing up as an existing router.node entity, but the connection is
+// no longer active.
+func (r *RouterEntityManager) isInvalidResponseFromStaleRouter(jsonOutput string) bool {
+	return strings.Contains(jsonOutput, "SendException: RELEASED") || strings.Contains(jsonOutput, "Timeout: ")
 }
 
 func (r *RouterEntityManager) QueryRouterNodes() ([]qdr.RouterNode, error) {
