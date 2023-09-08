@@ -668,7 +668,26 @@ func (c *Controller) updateServiceSync(defs *corev1.ConfigMap) {
 }
 
 func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error {
-	return c.vanClient.KubeClient.AppsV1().StatefulSets(c.vanClient.Namespace).Delete(context.TODO(), statefulset.ObjectMeta.Name, metav1.DeleteOptions{})
+	err := c.vanClient.KubeClient.AppsV1().StatefulSets(c.vanClient.Namespace).Delete(context.TODO(), statefulset.ObjectMeta.Name, metav1.DeleteOptions{})
+	if err != nil {
+		c.eventHandler.RecordWarningEvent(ServiceControllerDeleteEvent, fmt.Sprintf("Error deleting headless proxy %q: %s", statefulset.Name, err))
+		return err
+	}
+	c.eventHandler.RecordNormalEvent(ServiceControllerDeleteEvent, fmt.Sprintf("Deleted headless proxy %q", statefulset.Name))
+	svcName := statefulset.Spec.ServiceName
+	svc, found, err := c.GetService(svcName)
+	if !found {
+		c.eventHandler.RecordWarningEvent(ServiceControllerDeleteEvent, fmt.Sprintf("Headless proxy service %q not found", svcName))
+	} else if err != nil {
+		c.eventHandler.RecordWarningEvent(ServiceControllerDeleteEvent, fmt.Sprintf("Error retrieving headless proxy service %q: %s", svcName, err))
+	} else if c.IsOwned(svc) {
+		if err = kube.DeleteService(svcName, c.vanClient.Namespace, c.vanClient.KubeClient); err != nil {
+			c.eventHandler.RecordWarningEvent(ServiceControllerDeleteEvent, fmt.Sprintf("Error deleting headless proxy service %q: %s", statefulset.Name, err))
+			return err
+		}
+		c.eventHandler.RecordNormalEvent(ServiceControllerDeleteEvent, fmt.Sprintf("Deleted headless proxy service %q", statefulset.Name))
+	}
+	return nil
 }
 
 func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, statefulset *appsv1.StatefulSet) error {
