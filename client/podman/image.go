@@ -70,7 +70,7 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 	params.OS = stringP("")
 	params.Variant = stringP("")
 	params.Policy = stringP("always")
-	params.XRegistryAuth = GetXRegistryAuth(id)
+	params.XRegistryAuth = getXRegistryAuth(id)
 
 	// Need to do that as the default response reader is being closed too soon
 	op := &runtime.ClientOperation{
@@ -107,7 +107,7 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 	return nil
 }
 
-func GetXRegistryAuth(image string) *string {
+func getXRegistryAuth(image string) *string {
 	authFile := os.Getenv("REGISTRY_AUTH_FILE")
 	// use the default
 	if authFile == "" {
