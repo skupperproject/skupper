@@ -12,7 +12,7 @@ func NewCmdNetwork() *cobra.Command {
 	return cmd
 }
 
-var selectedService string
+var verboseNetworkStatus bool
 
 func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -23,7 +23,7 @@ func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 		RunE:   skupperClient.Status,
 	}
 
-	cmd.Flags().StringVarP(&selectedService, "service", "s", "", "Service name")
+	cmd.Flags().BoolVarP(&verboseNetworkStatus, "verbose", "v", false, "More detailed output")
 
 	return cmd
 

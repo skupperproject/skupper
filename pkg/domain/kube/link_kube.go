@@ -3,12 +3,13 @@ package kube
 import (
 	"context"
 	"fmt"
+	k8s "github.com/skupperproject/skupper/pkg/kube"
 	"strconv"
 
+	"encoding/json"
 	"github.com/skupperproject/skupper/api/types"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
 	"github.com/skupperproject/skupper/pkg/qdr"
-	"github.com/skupperproject/skupper/pkg/server"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -102,33 +103,74 @@ func (l *LinkHandlerKube) Detail(link types.LinkStatus) (map[string]string, erro
 
 func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
 	// Checking if the router has been deployed
-	_, err := l.cli.AppsV1().Deployments(l.namespace).Get(context.TODO(), types.TransportDeploymentName, metav1.GetOptions{})
+	_, err := k8s.GetDeployment(types.TransportDeploymentName, l.namespace, l.cli)
 	if err != nil {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}
 
 	currentSiteId := l.site.Reference.UID
 
-	sites, err := server.GetSiteInfo(ctx, l.namespace, l.cli, l.restConfig)
+	configmap, err := k8s.GetConfigMap(types.SiteStatusConfigMapName, l.namespace, l.cli)
+	if err != nil {
+		return nil, err
+	}
 
+	sites, err := UnmarshalSiteStatus(&configmap.Data)
 	if err != nil {
 		return nil, err
 	}
 
 	var remoteLinks []*types.RemoteLinkInfo
 
-	for _, site := range *sites {
+	currentSite := sites[currentSiteId]
 
-		if site.SiteId == currentSiteId {
-			continue
-		}
+	if currentSite != nil {
+		for _, router := range currentSite.RouterStatus {
+			for _, link := range router.Links {
+				if link.Direction == "incoming" {
 
-		for _, link := range site.Links {
-			if link == currentSiteId {
-				newRemoteLink := types.RemoteLinkInfo{SiteName: site.Name, Namespace: site.Namespace, SiteId: site.SiteId}
-				remoteLinks = append(remoteLinks, &newRemoteLink)
+					remoteSite, err := GetSiteByRouterName(link.Name, sites)
+
+					if err != nil {
+						return nil, fmt.Errorf("there was an issue getting information from the network: config map %s is incomplete", types.SiteStatusConfigMapName)
+					}
+
+					newRemoteLink := types.RemoteLinkInfo{SiteName: remoteSite.Site.Name, Namespace: remoteSite.Site.Namespace, SiteId: remoteSite.Site.Identity, LinkName: link.Name}
+					remoteLinks = append(remoteLinks, &newRemoteLink)
+				}
 			}
 		}
 	}
+
 	return remoteLinks, nil
+}
+
+func UnmarshalSiteStatus(data *map[string]string) (map[string]*types.SiteStatusInfo, error) {
+
+	allSites := make(map[string]*types.SiteStatusInfo)
+
+	for _, site := range *data {
+		var siteStatus types.SiteStatusInfo
+		err := json.Unmarshal([]byte(site), &siteStatus)
+
+		if err != nil {
+			return nil, err
+		}
+
+		allSites[siteStatus.Site.Identity] = &siteStatus
+
+	}
+
+	return allSites, nil
+}
+
+func GetSiteByRouterName(routerName string, allSites map[string]*types.SiteStatusInfo) (*types.SiteStatusInfo, error) {
+	for _, site := range allSites {
+		for _, router := range site.RouterStatus {
+			if router.Router.Name == routerName {
+				return site, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("router not found")
 }

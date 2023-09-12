@@ -361,9 +361,10 @@ type SiteInfoForLinks struct {
 }
 
 type RemoteLinkInfo struct {
-	SiteName  string `json:"site_name,omitempty"`
+	SiteName  string `json:"siteName,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
-	SiteId    string `json:"site_id,omitempty"`
+	SiteId    string `json:"siteId,omitempty"`
+	LinkName  string `json:"linkName,omitempty"`
 }
 
 type VanClientInterface interface {
