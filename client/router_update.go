@@ -1124,7 +1124,7 @@ func (cli *VanClient) updateHostAliasesOnDeployment(ctx context.Context, namespa
 }
 
 func (cli *VanClient) RouterUpdateHostAliases(ctx context.Context, token *corev1.Secret) (bool, error) {
-	hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx)
+	hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx, token.ObjectMeta.Namespace)
 	if err != nil {
 		return false, err
 	}
