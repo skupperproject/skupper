@@ -1085,9 +1085,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	return van
 }
 
-func (cli *VanClient) GetRouterHostAliasesSpecFromTokens(ctx context.Context) ([]corev1.HostAlias, error) {
+func (cli *VanClient) GetRouterHostAliasesSpecFromTokens(ctx context.Context, namespace string) ([]corev1.HostAlias, error) {
 	hostAliasesMap := make(map[string]map[string]bool)
-	secrets, err := cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).List(ctx, metav1.ListOptions{LabelSelector: types.SkupperTypeQualifier + "=" + types.TypeToken})
+	secrets, err := cli.KubeClient.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: types.SkupperTypeQualifier + "=" + types.TypeToken})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve connection token: %w", err)
 	}
@@ -1179,7 +1179,7 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 	}
 	var err error
-	hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx)
+	hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx, cli.GetNamespace())
 	if err != nil {
 		return err
 	}
