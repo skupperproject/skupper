@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
 	"strconv"
@@ -44,92 +43,65 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	if sitesStatus != nil && len(*sitesStatus) > 0 {
+		mapRouterSite := getRouterSiteMap(sitesStatus)
+
 		network := formatter.NewList()
 		network.Item("Sites:")
+
 		for _, siteStatus := range *sitesStatus {
-			//TODO filter by service name.
+			if len(siteNameNetoworkStatus) == 0 || siteNameNetoworkStatus == siteStatus.Site.Name {
 
-			location := "remote"
+				siteVersion := siteStatus.Site.Version
+				if len(siteStatus.Site.MinimumVersion) > 0 {
+					siteVersion = fmt.Sprintf("%s (minimum version required %s)", siteStatus.Site.Version, siteStatus.Site.MinimumVersion)
+				}
 
-			siteVersion := siteStatus.Site.Version
-			if len(siteStatus.Site.MinimumVersion) > 0 {
-				siteVersion = fmt.Sprintf("%s (minimum version required %s)", siteStatus.Site.Version, siteStatus.Site.MinimumVersion)
-			}
+				detailsMap := map[string]string{"site name": siteStatus.Site.Name, "namespace": siteStatus.Site.Namespace, "version": siteVersion}
 
-			detailsMap := map[string]string{"name": siteStatus.Site.Name, "namespace": siteStatus.Site.Namespace, "version": siteVersion}
+				location := "remote"
+				if siteStatus.Site.Identity == currentSite {
+					location = "local"
+				}
 
-			if siteStatus.Site.Identity == currentSite {
-				location = "local"
-			}
+				newItem := fmt.Sprintf("[%s] %s-%s ", location, siteStatus.Site.Namespace, siteStatus.Site.Identity)
+				newItem = newItem + fmt.Sprintln()
 
-			newItem := fmt.Sprintf("[%s] %s - %s ", location, siteStatus.Site.Identity[:7], siteStatus.Site.Name)
-			newItem = newItem + fmt.Sprintln()
+				siteLevel := network.NewChildWithDetail(newItem, detailsMap)
 
-			siteLevel := network.NewChildWithDetail(newItem, detailsMap)
+				if len(siteStatus.RouterStatus) > 0 {
 
-			if len(siteStatus.RouterStatus) > 0 {
-				routers := siteLevel.NewChild("Routers:")
-				for _, routerStatus := range siteStatus.RouterStatus {
-					routerId := strings.Split(routerStatus.Router.Name, "/")
-					routerItem := fmt.Sprintf("name: %s\n", routerId[1])
-					detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
+					//to get the generic information about the links of a site, we can get the first router, because in case of multiple routers the information will be the same.
+					mapSiteLink := getSiteLinkMap(&siteStatus.RouterStatus[0], mapRouterSite)
 
-					routerLevel := routers.NewChildWithDetail(routerItem, detailsRouter)
-
-					if len(routerStatus.Links) > 0 {
-						links := routerLevel.NewChild("Links:")
-
-						for _, link := range routerStatus.Links {
-							// avoid showing the links between routers of the same site
-							if !strings.Contains(link.Name, routerStatus.Router.Namespace) {
-								linkItem := fmt.Sprintf("name:  %s\n", link.Name)
-								detailsLink := map[string]string{"direction": link.Direction, "cost": strconv.FormatUint(link.LinkCost, 10)}
-								links.NewChildWithDetail(linkItem, detailsLink)
-							}
+					if len(mapSiteLink) > 0 {
+						siteLinks := siteLevel.NewChild("Linked with:")
+						for key, value := range mapSiteLink {
+							siteLinks.NewChildWithDetail(fmt.Sprintln(key), map[string]string{"direction": value.Direction})
 						}
 					}
-					if len(routerStatus.Listeners) > 0 {
-						services := routerLevel.NewChild("Services:")
-						var addresses []string
-						svcAuth := map[string]bool{}
-						for _, svc := range routerStatus.Listeners {
-							addresses = append(addresses, svc.Name)
-							svcAuth[svc.Name] = true
-						}
-						if vc, ok := s.kube.Cli.(*client.VanClient); ok && siteStatus.Site.Namespace == s.kube.Cli.GetNamespace() {
-							policy := client.NewPolicyValidatorAPI(vc)
-							res, _ := policy.Services(addresses...)
-							for addr, auth := range res {
-								svcAuth[addr] = auth.Allowed
-							}
-						}
-						for _, svc := range routerStatus.Listeners {
-							authSuffix := ""
-							if !svcAuth[svc.Name] {
-								authSuffix = " - not authorized"
-							}
-							svcItem := "name: " + svc.Name + authSuffix + fmt.Sprintln()
-							detailsSvc := map[string]string{"protocol": svc.Protocol, "address": svc.Address}
-							serviceLevel := services.NewChildWithDetail(svcItem, detailsSvc)
 
-							var associatedTargets []types.ConnectorInfo
+					if verboseNetworkStatus {
+						routers := siteLevel.NewChild("Routers:")
+						for _, routerStatus := range siteStatus.RouterStatus {
+							routerId := strings.Split(routerStatus.Router.Name, "/")
+							routerItem := fmt.Sprintf("name: %s\n", routerId[1])
+							detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 
-							for _, target := range routerStatus.Connectors {
+							routerLevel := routers.NewChildWithDetail(routerItem, detailsRouter)
 
-								if target.Address == svc.Address {
-									associatedTargets = append(associatedTargets, target)
+							if len(routerStatus.Links) > 0 {
+								links := routerLevel.NewChild("Links:")
+
+								for _, link := range routerStatus.Links {
+									// avoid showing the links between routers of the same site
+									if !strings.Contains(link.Name, routerStatus.Router.Namespace) {
+										linkItem := fmt.Sprintf("name:  %s\n", link.Name)
+										detailsLink := map[string]string{"direction": link.Direction, "cost": strconv.FormatUint(link.LinkCost, 10)}
+										links.NewChildWithDetail(linkItem, detailsLink)
+									}
 								}
-
 							}
 
-							if len(associatedTargets) > 0 {
-								targets := serviceLevel.NewChild("Targets:")
-
-								for _, associated := range associatedTargets {
-									targets.NewChild(associated.Target)
-								}
-
-							}
 						}
 					}
 				}
@@ -143,3 +115,37 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperKubeNetwork) StatusFlags(cmd *cobra.Command) {}
+
+func getRouterSiteMap(sitesStatus *[]types.SiteStatusInfo) map[string]string {
+	mapRouterSite := make(map[string]string)
+	for _, siteStatus := range *sitesStatus {
+		if len(siteStatus.RouterStatus) > 0 {
+			for _, routerStatus := range siteStatus.RouterStatus {
+
+				// the name of the router has a "0/" as a prefix that it is needed to remove
+				routerName := strings.Split(routerStatus.Router.Name, "/")
+				mapRouterSite[routerName[1]] = strings.Join([]string{siteStatus.Site.Namespace, siteStatus.Site.Identity}, "-")
+			}
+		}
+	}
+
+	return mapRouterSite
+}
+
+func getSiteLinkMap(router *types.RouterStatusInfo, mapRouterSite map[string]string) map[string]*types.LinkInfo {
+
+	siteLinkMap := make(map[string]*types.LinkInfo)
+	if len(router.Links) > 0 {
+		for _, link := range router.Links {
+			// the links between routers of the same site are not shown. those links have the same namespace in their names.
+			if !strings.Contains(link.Name, router.Router.Namespace) {
+				//the attribute "Name" in the link matches the name of the router from the site that is linked with.
+				siteIdentifier := mapRouterSite[link.Name]
+				siteLinkMap[siteIdentifier] = &link
+			}
+		}
+
+	}
+
+	return siteLinkMap
+}

@@ -303,7 +303,7 @@ type SiteStatusInfo struct {
 
 type SiteInfo struct {
 	Identity       string `json:"identity,omitempty"`
-	Name           string `json:"siteName,omitempty"`
+	Name           string `json:"name,omitempty"`
 	Namespace      string `json:"namespace,omitempty"`
 	Platform       string `json:"platform,omitempty"`
 	Version        string `json:"siteVersion,omitempty"`

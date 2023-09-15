@@ -5,6 +5,7 @@ import (
 	"fmt"
 	k8s "github.com/skupperproject/skupper/pkg/kube"
 	"strconv"
+	"strings"
 
 	"encoding/json"
 	"github.com/skupperproject/skupper/api/types"
@@ -123,15 +124,16 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 	var remoteLinks []*types.RemoteLinkInfo
 
 	currentSite := sites[currentSiteId]
+	mapRouterSite := getRouterSiteMap(sites)
 
 	if currentSite != nil {
 		for _, router := range currentSite.RouterStatus {
 			for _, link := range router.Links {
 				if link.Direction == "incoming" {
 
-					remoteSite, err := GetSiteByRouterName(link.Name, sites)
+					remoteSite := mapRouterSite[link.Name]
 
-					if err != nil {
+					if remoteSite == nil {
 						return nil, fmt.Errorf("there was an issue getting information from the network: config map %s is incomplete", types.SiteStatusConfigMapName)
 					}
 
@@ -164,13 +166,18 @@ func UnmarshalSiteStatus(data *map[string]string) (map[string]*types.SiteStatusI
 	return allSites, nil
 }
 
-func GetSiteByRouterName(routerName string, allSites map[string]*types.SiteStatusInfo) (*types.SiteStatusInfo, error) {
-	for _, site := range allSites {
-		for _, router := range site.RouterStatus {
-			if router.Router.Name == routerName {
-				return site, nil
+func getRouterSiteMap(sitesStatus map[string]*types.SiteStatusInfo) map[string]*types.SiteStatusInfo {
+	mapRouterSite := make(map[string]*types.SiteStatusInfo)
+	for _, siteStatus := range sitesStatus {
+		if len(siteStatus.RouterStatus) > 0 {
+			for _, routerStatus := range siteStatus.RouterStatus {
+
+				// the name of the router has a "0/" as a prefix that it is needed to remove
+				routerName := strings.Split(routerStatus.Router.Name, "/")
+				mapRouterSite[routerName[1]] = siteStatus
 			}
 		}
 	}
-	return nil, fmt.Errorf("router not found")
+
+	return mapRouterSite
 }

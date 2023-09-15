@@ -13,6 +13,7 @@ func NewCmdNetwork() *cobra.Command {
 }
 
 var verboseNetworkStatus bool
+var siteNameNetoworkStatus string
 
 func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -23,8 +24,8 @@ func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 		RunE:   skupperClient.Status,
 	}
 
-	cmd.Flags().BoolVarP(&verboseNetworkStatus, "verbose", "v", false, "More detailed output")
-
+	cmd.Flags().BoolVarP(&verboseNetworkStatus, "verbose", "v", false, "More detailed output about the network topology")
+	cmd.Flags().StringVarP(&siteNameNetoworkStatus, "site", "s", "", "Filter by a specific site name")
 	return cmd
 
 }
