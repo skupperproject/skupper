@@ -147,8 +147,8 @@ type FlowToPairRecord struct {
 type CollectorMode int
 
 const (
-	Lite CollectorMode = iota
-	Full
+	RecordStatus CollectorMode = iota
+	RecordMetrics
 )
 
 type FlowCollectorSpec struct {
@@ -171,12 +171,12 @@ type FlowCollector struct {
 	prometheusReg           prometheus.Registerer
 	metrics                 *collectorMetrics
 	beaconsIncoming         chan []interface{}
+	heartbeatsIncoming      chan []interface{}
 	recordsIncoming         chan []interface{}
 	Request                 chan ApiRequest
 	Response                chan ApiResponse
 	eventSources            map[string]*eventSource
 	beaconReceiver          *receiver
-	senders                 map[string]*senderDirect
 	pendingFlush            map[string]*senderDirect
 	Beacons                 map[string]*BeaconRecord
 	Sites                   map[string]*SiteRecord
@@ -218,12 +218,12 @@ func NewFlowCollector(spec FlowCollectorSpec) *FlowCollector {
 		connectionFactory:       spec.ConnectionFactory,
 		recordTtl:               getTtl(spec.FlowRecordTtl),
 		prometheusReg:           spec.PromReg,
-		beaconsIncoming:         make(chan []interface{}),
-		recordsIncoming:         make(chan []interface{}),
+		beaconsIncoming:         make(chan []interface{}, 10),
+		heartbeatsIncoming:      make(chan []interface{}, 10),
+		recordsIncoming:         make(chan []interface{}, 10),
 		Request:                 make(chan ApiRequest),
 		Response:                make(chan ApiResponse),
 		eventSources:            make(map[string]*eventSource),
-		senders:                 make(map[string]*senderDirect),
 		pendingFlush:            make(map[string]*senderDirect),
 		Beacons:                 make(map[string]*BeaconRecord),
 		Sites:                   make(map[string]*SiteRecord),
@@ -301,14 +301,16 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 						receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming))
 						if beacon.SourceType == recordNames[Router] {
 							switch c.mode {
-							case Full:
+							case RecordMetrics:
 								receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming))
-							case Lite:
+							case RecordStatus:
 								receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".logs", c.recordsIncoming))
 							}
+						} else if beacon.SourceType == recordNames[Controller] {
+							receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".heartbeats", c.heartbeatsIncoming))
 						}
 						outgoing := make(chan interface{})
-						s := newSender(c.connectionFactory, beacon.Direct, outgoing)
+						s := newSender(c.connectionFactory, beacon.Direct, false, outgoing)
 						s.start()
 						now := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 						c.eventSources[beacon.Identity] = &eventSource{
@@ -340,10 +342,22 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 					}
 				}
 			}
+		case heartbeatUpdates := <-c.heartbeatsIncoming:
+			for _, heartbeatUpdate := range heartbeatUpdates {
+				heartbeat, ok := heartbeatUpdate.(HeartbeatRecord)
+				if !ok {
+					log.Println("COLLECTOR: Unable to convert interface to heartbeat")
+				} else {
+					err := c.updateRecord(heartbeat)
+					if err != nil {
+						log.Println("COLLECTOR: heartbeat record error", err.Error())
+					}
+				}
+			}
 		case recordUpdates := <-c.recordsIncoming:
 			for _, update := range recordUpdates {
 				size, _ := getRealSizeOf(update)
-				if c.mode == Full {
+				if c.mode == RecordMetrics {
 					c.metrics.collectorOctets.Add(float64(size))
 				}
 				err := c.updateRecord(update)
@@ -355,7 +369,7 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 			response := c.serveRecords(request)
 			c.Response <- response
 		case <-tickerReconcile.C:
-			if c.mode == Full {
+			if c.mode == RecordMetrics {
 				c.reconcileFlowRecords()
 			}
 			c.reconcileConnectorRecords()
@@ -375,18 +389,139 @@ func (c *FlowCollector) updates(stopCh <-chan struct{}) {
 	}
 }
 
+func (c *FlowCollector) beaconUpdates(stopCh <-chan struct{}) {
+	for {
+		select {
+		case beaconUpdates := <-c.beaconsIncoming:
+			for _, beaconUpdate := range beaconUpdates {
+				beacon, ok := beaconUpdate.(BeaconRecord)
+				if !ok {
+					log.Println("COLLECTOR: Unable to convert interface to beacon")
+				} else {
+					if source, ok := c.eventSources[beacon.Identity]; !ok {
+						var receivers []*receiver
+						log.Printf("COLLECTOR: Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
+						receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming))
+						if beacon.SourceType == recordNames[Router] {
+							switch c.mode {
+							case RecordMetrics:
+								receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming))
+							case RecordStatus:
+								receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".logs", c.recordsIncoming))
+							}
+						} else if beacon.SourceType == recordNames[Controller] {
+							receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".heartbeats", c.heartbeatsIncoming))
+						}
+						outgoing := make(chan interface{})
+						s := newSender(c.connectionFactory, beacon.Direct, false, outgoing)
+						s.start()
+						now := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+						c.eventSources[beacon.Identity] = &eventSource{
+							EventSourceRecord: EventSourceRecord{
+								Base: Base{
+									RecType:   recordNames[EventSource],
+									Identity:  beacon.Identity,
+									StartTime: now,
+									EndTime:   0,
+								},
+								Beacon:    &beacon,
+								LastHeard: now,
+								Beacons:   1,
+							},
+							receivers: receivers,
+							send: &senderDirect{
+								sender:    s,
+								outgoing:  outgoing,
+								heartbeat: false,
+							},
+						}
+						for _, receiver := range receivers {
+							receiver.start()
+						}
+						c.pendingFlush[beacon.Direct] = c.eventSources[beacon.Identity].send
+					} else {
+						source.LastHeard = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+						source.Beacons++
+					}
+				}
+			}
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
+	tickerFlush := time.NewTicker(1 * time.Second)
+	defer tickerFlush.Stop()
+	tickerReconcile := time.NewTicker(2 * time.Second)
+	defer tickerReconcile.Stop()
+	tickerAge := time.NewTicker(5 * time.Second)
+	defer tickerAge.Stop()
+
+	for {
+		select {
+		case heartbeatUpdates := <-c.heartbeatsIncoming:
+			for _, heartbeatUpdate := range heartbeatUpdates {
+				heartbeat, ok := heartbeatUpdate.(HeartbeatRecord)
+				if !ok {
+					log.Println("COLLECTOR: Unable to convert interface to heartbeat")
+				} else {
+					err := c.updateRecord(heartbeat)
+					if err != nil {
+						log.Println("COLLECTOR: heartbeat record error", err.Error())
+					}
+				}
+			}
+		case recordUpdates := <-c.recordsIncoming:
+			for _, update := range recordUpdates {
+				size, _ := getRealSizeOf(update)
+				if c.mode == RecordMetrics {
+					c.metrics.collectorOctets.Add(float64(size))
+				}
+				err := c.updateRecord(update)
+				if err != nil {
+					log.Println("COLLECTOR: Update record error", err.Error())
+				}
+			}
+		case request := <-c.Request:
+			response := c.serveRecords(request)
+			c.Response <- response
+		case <-tickerFlush.C:
+			for address, sender := range c.pendingFlush {
+				if sender.heartbeat {
+					log.Println("COLLECTOR: Sending flush to ", address)
+					sender.outgoing <- &FlushRecord{Address: address}
+					delete(c.pendingFlush, address)
+				}
+			}
+		case <-tickerReconcile.C:
+			if c.mode == RecordMetrics {
+				c.reconcileFlowRecords()
+			}
+			c.reconcileConnectorRecords()
+		case <-tickerAge.C:
+			c.ageAndPurgeRecords()
+		case <-stopCh:
+			return
+		}
+	}
+}
+
 func (c *FlowCollector) Start(stopCh <-chan struct{}) {
 	go c.run(stopCh)
 }
 
 func (c *FlowCollector) run(stopCh <-chan struct{}) {
-	if c.mode == Full {
+	if c.mode == RecordMetrics {
 		c.metrics = c.NewMetrics(c.prometheusReg)
 		c.metrics.info.With(prometheus.Labels{"version": version.Version}).Set(1)
 	}
 	c.beaconReceiver = newReceiver(c.connectionFactory, BeaconAddress, c.beaconsIncoming)
 	c.beaconReceiver.start()
-	c.updates(stopCh)
+
+	go c.beaconUpdates(stopCh)
+	go c.recordUpdates(stopCh)
 	<-stopCh
 	for _, eventsource := range c.eventSources {
 		for _, receiver := range eventsource.receivers {

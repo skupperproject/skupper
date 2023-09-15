@@ -9,10 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/flow"
-	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/version"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,8 +51,7 @@ func main() {
 	}
 
 	// Startup message
-	log.Printf("Config Sync")
-	log.Printf("Version: %s", version.Version)
+	log.Printf("CONFIG_SYNC: Version: %s", version.Version)
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
@@ -66,13 +61,12 @@ func main() {
 		log.Fatal("Error determining namespace: ", err.Error())
 	}
 
-	log.Printf("Creating kube client...")
 	cli, err := client.NewClient(namespace, "", "")
 	if err != nil {
 		log.Fatal("Error getting van client: ", err.Error())
 	}
 
-	log.Println("Waiting for Skupper router to be ready")
+	log.Println("CONFIG_SYNC: Waiting for Skupper router to be ready")
 	pods, err := kube.GetPods("skupper.io/component=router", namespace, cli.KubeClient)
 	for _, pod := range pods {
 		_, err := kube.WaitForPodStatus(namespace, cli.KubeClient, pod.Name, corev1.PodRunning, time.Second*180, time.Second*5)
@@ -83,12 +77,12 @@ func main() {
 
 	event.StartDefaultEventStore(stopCh)
 	if claims.StartClaimVerifier(cli.KubeClient, cli.Namespace, cli, cli) {
-		log.Println("Claim verifier started")
+		log.Println("CONFIG_SYNC: Claim verifier started")
 	} else {
-		log.Println("Claim verifier not enabled")
+		log.Println("CONFIG_SYNC: Claim verifier not enabled")
 	}
 
-	log.Printf("Creating informer...")
+	log.Printf("CONFIG_SYNC: Creating ConfigMap informer...")
 	informer := corev1informer.NewFilteredConfigMapInformer(
 		cli.KubeClient,
 		cli.Namespace,
@@ -98,39 +92,18 @@ func main() {
 			options.FieldSelector = "metadata.name=skupper-internal"
 		}))
 	go informer.Run(stopCh)
-	log.Printf("Waiting for informer to sync...")
+	log.Printf("CONFIG_SYNC: Waiting for informer to sync...")
 	if ok := cache.WaitForCacheSync(stopCh, informer.HasSynced); !ok {
 		log.Fatal("Failed to wait for caches to sync")
 	}
 
 	configSync := newConfigSync(informer, cli)
-	log.Println("Starting sync loop...")
+	log.Println("CONFIG_SYNC: Starting sync controller loop...")
 	configSync.start(stopCh)
 
-	siteData := map[string]string{}
-	platform := config.GetPlatform()
-	if platform == "" || platform == types.PlatformKubernetes {
-		current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
-		if err != nil {
-			log.Fatal("Failed to get transport deployment", err.Error())
-		}
-		owner := kube.GetDeploymentOwnerReference(current)
-		_, err = kube.NewConfigMap(types.SiteStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.KubeClient)
-		if err != nil {
-			log.Fatal("Failed to create site status config map ", err.Error())
-		}
-	}
-	fc := flow.NewFlowCollector(flow.FlowCollectorSpec{
-		Mode:              flow.Lite,
-		Namespace:         cli.Namespace,
-		Origin:            os.Getenv("SKUPPER_SITE_ID"),
-		PromReg:           nil,
-		ConnectionFactory: qdr.NewConnectionFactory("amqp://localhost:5672", nil),
-		FlowRecordTtl:     time.Minute * 15})
-	log.Println("Starting site status collector...")
-	fc.Start(stopCh)
+	go startCollector(cli)
 
 	<-stopCh
-	log.Println("Shutting down...")
+	log.Println("CONFIG_SYNC: Shutting down...")
 	configSync.stop()
 }

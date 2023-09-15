@@ -100,6 +100,7 @@ func encodeSite(site *SiteRecord) (*amqp.Message, error) {
 	var request amqp.Message
 	var properties amqp.MessageProperties
 	properties.Subject = "RECORD"
+	properties.To = RecordPrefix + site.Identity
 	request.Properties = &properties
 
 	m := make(map[interface{}]interface{})
@@ -133,6 +134,7 @@ func encodeProcess(process *ProcessRecord) (*amqp.Message, error) {
 	var request amqp.Message
 	var properties amqp.MessageProperties
 	properties.Subject = "RECORD"
+	properties.To = RecordPrefix + process.Parent
 	request.Properties = &properties
 
 	m := make(map[interface{}]interface{})
@@ -174,6 +176,7 @@ func encodeHost(host *HostRecord) (*amqp.Message, error) {
 	var request amqp.Message
 	var properties amqp.MessageProperties
 	properties.Subject = "RECORD"
+	properties.To = RecordPrefix + host.Parent
 	request.Properties = &properties
 
 	m := make(map[interface{}]interface{})
@@ -200,6 +203,8 @@ func encodeHost(host *HostRecord) (*amqp.Message, error) {
 
 func decode(msg *amqp.Message) []interface{} {
 	var result []interface{}
+
+	source := strings.TrimPrefix(msg.Properties.To, RecordPrefix)
 
 	switch msg.Properties.Subject {
 	case "BEACON":
@@ -229,6 +234,7 @@ func decode(msg *amqp.Message) []interface{} {
 				}
 				base := Base{
 					RecType: recordNames[rt],
+					Source:  source,
 				}
 				if v, ok := m["Identity"].(string); ok {
 					base.Identity = v

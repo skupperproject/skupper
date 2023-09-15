@@ -20,7 +20,7 @@ func NewController(origin string, reg prometheus.Registerer, scheme string, host
 
 	controller := &Controller{
 		FlowCollector: flow.NewFlowCollector(flow.FlowCollectorSpec{
-			Mode:              flow.Full,
+			Mode:              flow.RecordMetrics,
 			Origin:            origin,
 			PromReg:           reg,
 			ConnectionFactory: qdr.NewConnectionFactory(scheme+"://"+host+":"+port, tlsConfig),

@@ -286,7 +286,7 @@ func TestRecordGraph(t *testing.T) {
 	reg := prometheus.NewRegistry()
 	u, _ := time.ParseDuration("5m")
 	fc := NewFlowCollector(FlowCollectorSpec{
-		Mode:              Full,
+		Mode:              RecordMetrics,
 		Origin:            "origin",
 		PromReg:           reg,
 		ConnectionFactory: nil,

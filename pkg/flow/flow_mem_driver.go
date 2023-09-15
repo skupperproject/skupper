@@ -223,6 +223,32 @@ func (fc *FlowCollector) getConnectorsForRouter(router *RouterRecord) []*Connect
 	return connectors
 }
 
+func (fc *FlowCollector) getRouterForFlow(flow *FlowRecord) *RouterRecord {
+	if connector, ok := fc.Connectors[flow.Parent]; ok {
+		if router, ok := fc.Routers[connector.Parent]; ok {
+			return router
+		}
+	}
+	if listener, ok := fc.Listeners[flow.Parent]; ok {
+		if router, ok := fc.Routers[listener.Parent]; ok {
+			return router
+		}
+	}
+	if l4Flow, ok := fc.Flows[flow.Parent]; ok {
+		if connector, ok := fc.Connectors[l4Flow.Parent]; ok {
+			if router, ok := fc.Routers[connector.Parent]; ok {
+				return router
+			}
+		}
+		if listener, ok := fc.Listeners[l4Flow.Parent]; ok {
+			if router, ok := fc.Routers[listener.Parent]; ok {
+				return router
+			}
+		}
+	}
+	return nil
+}
+
 func (fc *FlowCollector) getFlowProtocol(flow *FlowRecord) *string {
 	if listener, ok := fc.Listeners[flow.Parent]; ok {
 		return listener.Protocol
@@ -460,9 +486,9 @@ var defaultRetry = wait.Backoff{
 	Jitter:   0.1,
 }
 
-func (fc *FlowCollector) updateSiteStatus() error {
+func (fc *FlowCollector) updateVanStatus() error {
 	var err error
-	siteData := map[string]string{}
+	vanData := map[string]string{}
 	platform := config.GetPlatform()
 	if platform == "" || platform == types.PlatformKubernetes {
 		cli, err := client.NewClient(fc.namespace, "", "")
@@ -470,7 +496,15 @@ func (fc *FlowCollector) updateSiteStatus() error {
 			log.Fatal("Error getting van client: ", err.Error())
 		}
 
-		configMap, err := kube.GetConfigMap(types.SiteStatusConfigMapName, cli.Namespace, cli.KubeClient)
+		configMap, err := kube.GetConfigMap(types.VanStatusConfigMapName, cli.Namespace, cli.KubeClient)
+
+		var sites []*SiteStatus
+		var addresses []*VanAddressRecord
+
+		for _, address := range fc.VanAddresses {
+			fc.getAddressAdaptorCounts(address)
+			addresses = append(addresses, address)
+		}
 		for _, site := range fc.Sites {
 			var routerStatus []RouterStatus
 			routers := fc.getRoutersForSite(site)
@@ -485,13 +519,18 @@ func (fc *FlowCollector) updateSiteStatus() error {
 					Connectors: connectors,
 				})
 			}
-			siteStatus := SiteStatus{
+			siteStatus := &SiteStatus{
 				Site:         site,
 				RouterStatus: routerStatus,
 			}
-			siteData[site.Identity] = prettyPrint(siteStatus)
+			sites = append(sites, siteStatus)
 		}
-		configMap.Data = siteData
+		vanStatus := VanStatus{
+			Addresses: addresses,
+			Sites:     sites,
+		}
+		vanData["VanStatus"] = prettyPrint(vanStatus)
+		configMap.Data = vanData
 
 		err = retry.RetryOnConflict(defaultRetry, func() error {
 			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
@@ -563,8 +602,8 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 	default:
 		return fmt.Errorf("Unknown record type to add")
 	}
-	if fc.mode == Lite {
-		fc.updateSiteStatus()
+	if fc.mode == RecordStatus {
+		fc.updateVanStatus()
 	}
 	return nil
 }
@@ -628,8 +667,16 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	default:
 		return fmt.Errorf("Unknown record type to delete")
 	}
-	if fc.mode == Lite {
-		fc.updateSiteStatus()
+	if fc.mode == RecordStatus {
+		fc.updateVanStatus()
+	}
+	return nil
+}
+
+func (fc *FlowCollector) updateLastHeard(source string) error {
+	if eventsource, ok := fc.eventSources[source]; ok {
+		eventsource.LastHeard = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+		eventsource.Messages++
 	}
 	return nil
 }
@@ -639,7 +686,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 	case HeartbeatRecord:
 		if heartbeat, ok := record.(HeartbeatRecord); ok {
 			if eventsource, ok := fc.eventSources[heartbeat.Identity]; ok {
-				eventsource.LastHeard = heartbeat.Now
+				eventsource.LastHeard = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 				eventsource.Heartbeats++
 			}
 			if pending, ok := fc.pendingFlush[heartbeat.Source]; ok {
@@ -668,6 +715,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					*current = site
 				}
 			}
+			fc.updateLastHeard(site.Source)
 		}
 	case HostRecord:
 		if host, ok := record.(HostRecord); ok {
@@ -683,6 +731,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					*current = host
 				}
 			}
+			fc.updateLastHeard(host.Source)
 		}
 	case RouterRecord:
 		if router, ok := record.(RouterRecord); ok {
@@ -704,6 +753,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					}
 				}
 			}
+			fc.updateLastHeard(router.Source)
 		}
 	case LogEventRecord:
 		if logEvent, ok := record.(LogEventRecord); ok {
@@ -721,6 +771,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					fc.deleteRecord(current)
 				}
 			}
+			fc.updateLastHeard(link.Source)
 		}
 	case ListenerRecord:
 		if listener, ok := record.(ListenerRecord); ok {
@@ -820,6 +871,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					}
 				}
 			}
+			fc.updateLastHeard(listener.Source)
 		}
 	case ConnectorRecord:
 		if connector, ok := record.(ConnectorRecord); ok {
@@ -930,6 +982,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					}
 				}
 			}
+			fc.updateLastHeard(connector.Source)
 		}
 	case FlowRecord:
 		if flow, ok := record.(FlowRecord); ok {
@@ -1092,6 +1145,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					fc.deleteRecord(current)
 				}
 			}
+			fc.updateLastHeard(process.Source)
 		}
 	case ProcessGroupRecord:
 		if processGroup, ok := record.(ProcessGroupRecord); ok {
@@ -1114,6 +1168,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					fc.deleteRecord(current)
 				}
 			}
+			fc.updateLastHeard(processGroup.Source)
 		}
 	default:
 		return fmt.Errorf("Unrecognized record type %T", record)
@@ -2353,7 +2408,7 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 								process.connector = &connector.Identity
 								process.ProcessBinding = &Bound
 								// update site status with the connector target
-								fc.updateSiteStatus()
+								fc.updateVanStatus()
 								log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
 								delete(fc.connectorsToReconcile, connId)
 								found = true
@@ -2395,7 +2450,8 @@ func (fc *FlowCollector) ageAndPurgeRecords() error {
 	age := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - uint64(fc.recordTtl.Microseconds())
 
 	for flowId, flow := range fc.Flows {
-		if flow.EndTime != 0 && age > flow.EndTime {
+		router := fc.getRouterForFlow(flow)
+		if flow.EndTime != 0 && age > flow.EndTime || router == nil {
 			fc.deleteRecord(flow)
 			if flowPair, ok := fc.FlowPairs["fp-"+flowId]; ok {
 				fc.deleteRecord(flowPair)
@@ -2406,7 +2462,7 @@ func (fc *FlowCollector) ageAndPurgeRecords() error {
 	t := time.Now()
 	for _, source := range fc.eventSources {
 		diff := uint64(t.UnixNano())/uint64(time.Microsecond) - source.EventSourceRecord.LastHeard
-		if diff > 30*oneSecond {
+		if diff > 60*oneSecond {
 			log.Printf("COLLECTOR: Purging event source %s of type %s \n", source.Beacon.Identity, source.Beacon.SourceType)
 			fc.purgeEventSource(source.EventSourceRecord)
 		}
@@ -2517,6 +2573,7 @@ func (fc *FlowCollector) purgeEventSource(eventSource EventSourceRecord) error {
 			for _, receiver := range es.receivers {
 				receiver.stop()
 			}
+			es.send.sender.stop()
 		}
 	}
 	eventSource.Purged = true
@@ -2545,6 +2602,9 @@ func (fc *FlowCollector) createSiteProcess(name string, site SiteRecord) Process
 }
 
 func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, startTime uint64, client bool) bool {
+	if fc.getFlowPlace(flow) == unknown {
+		return false
+	}
 	parts := strings.Split(siteId, "-")
 	name := "site-servers"
 	if client {
@@ -2552,7 +2612,7 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 	}
 	processName := name + "-" + parts[0]
 	diffTime := startTime
-	wait := 30 * oneSecond
+	wait := 120 * oneSecond
 	if fc.startTime > startTime {
 		diffTime = fc.startTime
 		wait = 120 * oneSecond

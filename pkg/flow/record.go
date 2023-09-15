@@ -199,6 +199,7 @@ type Base struct {
 	StartTime uint64 `json:"startTime"`
 	EndTime   uint64 `json:"endTime"`
 	Purged    bool   `json:"purged,omitempty"`
+	Source    string `json:"source,omitempty"`
 }
 
 type BeaconRecord struct {
@@ -227,6 +228,7 @@ type EventSourceRecord struct {
 	LastHeard  uint64        `json:"lastHeard,omitempty"`
 	Heartbeats int           `json:"heartbeats,omitempty"`
 	Beacons    int           `json:"beacons,omitempty"`
+	Messages   int           `json:"messages,omitempty"`
 }
 
 type SiteRecord struct {
@@ -435,17 +437,14 @@ type ImageRecord struct {
 	// signature, url/rep, id??
 }
 
-type IngressRecord struct {
-	Base
-}
-
-type EgressRecord struct {
-	Base
-}
-
 type CollectorRecord struct {
 	Base
 	PrometheusUrl string
+}
+
+type VanStatus struct {
+	Addresses []*VanAddressRecord `json:"addresses"`
+	Sites     []*SiteStatus       `json:"siteStatus"`
 }
 
 type SiteStatus struct {
