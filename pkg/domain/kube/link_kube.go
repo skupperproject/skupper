@@ -111,34 +111,35 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 
 	currentSiteId := l.site.Reference.UID
 
-	configmap, err := k8s.GetConfigMap(types.SiteStatusConfigMapName, l.namespace, l.cli)
+	configmap, err := k8s.GetConfigMap(types.VanStatusConfigMapName, l.namespace, l.cli)
 	if err != nil {
 		return nil, err
 	}
 
-	sites, err := UnmarshalSiteStatus(&configmap.Data)
+	sites, err := UnmarshalSiteStatus(configmap.Data)
 	if err != nil {
 		return nil, err
 	}
 
 	var remoteLinks []*types.RemoteLinkInfo
 
-	currentSite := sites[currentSiteId]
-	mapRouterSite := getRouterSiteMap(sites)
+	mapRouterSite := CreateRouterSiteMap(sites)
+	currentSite, ok := sites[currentSiteId]
 
-	if currentSite != nil {
+	if ok {
 		for _, router := range currentSite.RouterStatus {
 			for _, link := range router.Links {
 				if link.Direction == "incoming" {
-
-					remoteSite := mapRouterSite[link.Name]
-
-					if remoteSite == nil {
-						return nil, fmt.Errorf("there was an issue getting information from the network: config map %s is incomplete", types.SiteStatusConfigMapName)
+					remoteSite, ok := mapRouterSite[link.Name]
+					if !ok {
+						return nil, fmt.Errorf("remote site not found in config map %s", types.VanStatusConfigMapName)
 					}
 
-					newRemoteLink := types.RemoteLinkInfo{SiteName: remoteSite.Site.Name, Namespace: remoteSite.Site.Namespace, SiteId: remoteSite.Site.Identity, LinkName: link.Name}
-					remoteLinks = append(remoteLinks, &newRemoteLink)
+					// links between routers of the same site will not be shown
+					if remoteSite.Site.Identity != currentSite.Site.Identity {
+						newRemoteLink := types.RemoteLinkInfo{SiteName: remoteSite.Site.Name, Namespace: remoteSite.Site.Namespace, SiteId: remoteSite.Site.Identity, LinkName: link.Name}
+						remoteLinks = append(remoteLinks, &newRemoteLink)
+					}
 				}
 			}
 		}
@@ -147,31 +148,29 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 	return remoteLinks, nil
 }
 
-func UnmarshalSiteStatus(data *map[string]string) (map[string]*types.SiteStatusInfo, error) {
+func UnmarshalSiteStatus(data map[string]string) (map[string]types.SiteStatusInfo, error) {
 
-	allSites := make(map[string]*types.SiteStatusInfo)
+	var vanStatus types.VanStatusInfo
 
-	for _, site := range *data {
-		var siteStatus types.SiteStatusInfo
-		err := json.Unmarshal([]byte(site), &siteStatus)
+	err := json.Unmarshal([]byte(data["VanStatus"]), &vanStatus)
 
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
+	}
 
-		allSites[siteStatus.Site.Identity] = &siteStatus
-
+	allSites := make(map[string]types.SiteStatusInfo)
+	for _, site := range vanStatus.SiteStatus {
+		allSites[site.Site.Identity] = site
 	}
 
 	return allSites, nil
 }
 
-func getRouterSiteMap(sitesStatus map[string]*types.SiteStatusInfo) map[string]*types.SiteStatusInfo {
-	mapRouterSite := make(map[string]*types.SiteStatusInfo)
+func CreateRouterSiteMap(sitesStatus map[string]types.SiteStatusInfo) map[string]types.SiteStatusInfo {
+	mapRouterSite := make(map[string]types.SiteStatusInfo)
 	for _, siteStatus := range sitesStatus {
 		if len(siteStatus.RouterStatus) > 0 {
 			for _, routerStatus := range siteStatus.RouterStatus {
-
 				// the name of the router has a "0/" as a prefix that it is needed to remove
 				routerName := strings.Split(routerStatus.Router.Name, "/")
 				mapRouterSite[routerName[1]] = siteStatus

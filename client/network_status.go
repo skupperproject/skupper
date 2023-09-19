@@ -19,7 +19,7 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) (*[]types.SiteStatusInf
 		return nil, fmt.Errorf("Skupper is not installed: %s", err)
 	}
 
-	configmap, err := k8s.GetConfigMap(types.SiteStatusConfigMapName, cli.Namespace, cli.KubeClient)
+	configmap, err := k8s.GetConfigMap(types.VanStatusConfigMapName, cli.Namespace, cli.KubeClient)
 	if err != nil {
 		return nil, err
 	}
@@ -57,17 +57,12 @@ func GetSitesInfoFromConfigMap(configmap *corev1.ConfigMap) ([]types.SiteStatusI
 
 func UnmarshalSiteStatus(data map[string]string) ([]types.SiteStatusInfo, error) {
 
-	var allSites []types.SiteStatusInfo
-	for _, site := range data {
-		var siteStatus types.SiteStatusInfo
-		err := json.Unmarshal([]byte(site), &siteStatus)
+	var vanStatus types.VanStatusInfo
 
-		if err != nil {
-			return nil, err
-		}
-
-		allSites = append(allSites, siteStatus)
+	err := json.Unmarshal([]byte(data["VanStatus"]), &vanStatus)
+	if err != nil {
+		return nil, err
 	}
 
-	return allSites, nil
+	return vanStatus.SiteStatus, nil
 }

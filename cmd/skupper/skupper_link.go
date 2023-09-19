@@ -206,8 +206,8 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 
 						if len(remoteLinks) > 0 {
 							for _, remoteLink := range remoteLinks {
-								// todo: add the link name (connector name) when ready in the configmap
-								fmt.Printf("\t Incoming link %s from the namespace %s on site %s", "NAME", remoteLink.Namespace, remoteLink.SiteId)
+								//todo: add the link name (connector name) when ready in the configmap
+								fmt.Printf("\t Incoming link from the namespace %s on site %s", remoteLink.Namespace, remoteLink.SiteId)
 								fmt.Println()
 							}
 						} else {

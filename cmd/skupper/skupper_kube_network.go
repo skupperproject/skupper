@@ -23,6 +23,10 @@ func (s *SkupperKubeNetwork) Platform() types.Platform {
 }
 
 func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
+
+	if !verboseNetworkStatus && zeroCostNetworkstatus {
+		return fmt.Errorf("showing links with zero cost requires the verbose option")
+	}
 	silenceCobra(cmd)
 
 	ctx, cancel := context.WithTimeout(context.Background(), types.DefaultFlowTimeoutDuration)
@@ -37,19 +41,18 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 	currentSite := siteConfig.Reference.UID
 
 	sitesStatus, errStatus := s.kube.Cli.NetworkStatus(ctx)
-
 	if errStatus != nil {
 		return errStatus
 	}
 
 	if sitesStatus != nil && len(*sitesStatus) > 0 {
-		mapRouterSite := getRouterSiteMap(sitesStatus)
+		mapRouterSite := CreateRouterSiteMap(sitesStatus)
 
 		network := formatter.NewList()
 		network.Item("Sites:")
 
 		for _, siteStatus := range *sitesStatus {
-			if len(siteNameNetoworkStatus) == 0 || siteNameNetoworkStatus == siteStatus.Site.Name {
+			if len(siteNetworkStatus) == 0 || siteNetworkStatus == siteStatus.Site.Name {
 
 				siteVersion := siteStatus.Site.Version
 				if len(siteStatus.Site.MinimumVersion) > 0 {
@@ -71,7 +74,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 				if len(siteStatus.RouterStatus) > 0 {
 
 					//to get the generic information about the links of a site, we can get the first router, because in case of multiple routers the information will be the same.
-					mapSiteLink := getSiteLinkMap(&siteStatus.RouterStatus[0], mapRouterSite)
+					mapSiteLink := CreateSiteLinkMap(&siteStatus.RouterStatus[0], &siteStatus.Site, mapRouterSite)
 
 					if len(mapSiteLink) > 0 {
 						siteLinks := siteLevel.NewChild("Linked with:")
@@ -89,16 +92,15 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
 							routerLevel := routers.NewChildWithDetail(routerItem, detailsRouter)
 
-							if len(routerStatus.Links) > 0 {
-								links := routerLevel.NewChild("Links:")
+							printableLinks := FilterLinks(routerStatus, siteStatus.Site, mapRouterSite)
 
-								for _, link := range routerStatus.Links {
-									// avoid showing the links between routers of the same site
-									if !strings.Contains(link.Name, routerStatus.Router.Namespace) {
-										linkItem := fmt.Sprintf("name:  %s\n", link.Name)
-										detailsLink := map[string]string{"direction": link.Direction, "cost": strconv.FormatUint(link.LinkCost, 10)}
-										links.NewChildWithDetail(linkItem, detailsLink)
-									}
+							if len(printableLinks) > 0 {
+								links := routerLevel.NewChild("Links:")
+								for _, link := range printableLinks {
+									linkItem := fmt.Sprintf("name:  %s\n", link.Name)
+									detailsLink := map[string]string{"direction": link.Direction, "cost": strconv.FormatUint(link.LinkCost, 10)}
+									links.NewChildWithDetail(linkItem, detailsLink)
+
 								}
 							}
 
@@ -116,7 +118,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKubeNetwork) StatusFlags(cmd *cobra.Command) {}
 
-func getRouterSiteMap(sitesStatus *[]types.SiteStatusInfo) map[string]string {
+func CreateRouterSiteMap(sitesStatus *[]types.SiteStatusInfo) map[string]string {
 	mapRouterSite := make(map[string]string)
 	for _, siteStatus := range *sitesStatus {
 		if len(siteStatus.RouterStatus) > 0 {
@@ -132,20 +134,41 @@ func getRouterSiteMap(sitesStatus *[]types.SiteStatusInfo) map[string]string {
 	return mapRouterSite
 }
 
-func getSiteLinkMap(router *types.RouterStatusInfo, mapRouterSite map[string]string) map[string]*types.LinkInfo {
+func CreateSiteLinkMap(router *types.RouterStatusInfo, site *types.SiteInfo, mapRouterSite map[string]string) map[string]types.LinkInfo {
 
-	siteLinkMap := make(map[string]*types.LinkInfo)
+	siteLinkMap := make(map[string]types.LinkInfo)
 	if len(router.Links) > 0 {
 		for _, link := range router.Links {
-			// the links between routers of the same site are not shown. those links have the same namespace in their names.
-			if !strings.Contains(link.Name, router.Router.Namespace) {
+			// the links between routers of the same site are not shown.
+			if !LinkBelongsToSameSite(link.Name, site.Namespace, site.Identity, mapRouterSite) {
 				//the attribute "Name" in the link matches the name of the router from the site that is linked with.
 				siteIdentifier := mapRouterSite[link.Name]
-				siteLinkMap[siteIdentifier] = &link
+				siteLinkMap[siteIdentifier] = link
 			}
 		}
 
 	}
 
 	return siteLinkMap
+}
+
+func LinkBelongsToSameSite(linkName string, namespace string, siteId string, routerSiteMap map[string]string) bool {
+
+	return strings.EqualFold(routerSiteMap[linkName], strings.Join([]string{namespace, siteId}, "-"))
+
+}
+
+func FilterLinks(router types.RouterStatusInfo, site types.SiteInfo, mapRouterSite map[string]string) []types.LinkInfo {
+	var filteredLinks []types.LinkInfo
+	for _, link := range router.Links {
+		// avoid showing the links between routers of the same site
+		if !LinkBelongsToSameSite(link.Name, site.Namespace, site.Identity, mapRouterSite) {
+			//avoid showing links with cost zero by default
+			if link.LinkCost != 0 || zeroCostNetworkstatus {
+				filteredLinks = append(filteredLinks, link)
+			}
+		}
+	}
+
+	return filteredLinks
 }

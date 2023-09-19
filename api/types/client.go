@@ -296,6 +296,21 @@ type GatewayInspectResponse struct {
 	Listeners  map[string]GatewayEndpoint
 }
 
+type VanStatusInfo struct {
+	Addresses  []AddressInfo    `json:"addresses"`
+	SiteStatus []SiteStatusInfo `json:"siteStatus"`
+}
+
+type AddressInfo struct {
+	RecType        string `json:"recType,omitempty"`
+	Identity       string `json:"identity,omitempty"`
+	StartTime      uint64 `json:"startTime"`
+	EndTime        uint64 `json:"endTime"`
+	Protocol       string `json:"protocol,omitempty"`
+	ListenerCount  int    `json:"listenerCount"`
+	ConnectorCount int    `json:"connectorCount"`
+}
+
 type SiteStatusInfo struct {
 	Site         SiteInfo           `json:"site"`
 	RouterStatus []RouterStatusInfo `json:"routerStatus"`
