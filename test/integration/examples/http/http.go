@@ -6,8 +6,10 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -16,6 +18,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -650,6 +653,73 @@ var h1HeyBaseJob = &batchv1.Job{
 	},
 }
 
+// This is required to avoid test flakiness while #1208 is not fixed.  It will wait for the
+// secret to be created up to a maximum time.
+//
+// It returns nothing and ignores any errors that occur, leaving any inconsistencies to be
+// detected later on by other code
+func waitSecret(cctx *base.ClusterContext, secretName string) {
+	// The check below is required while https://github.com/skupperproject/skupper/issues/1208
+	// is not fixed; both the ServiceInterfaceCreate above and ServiceInterfaceBind below may
+	// create the secret, and sometimes they race on it, making the test flaky.
+	err := utils.Retry(
+		time.Second*3,
+		20,
+		func() (bool, error) {
+			_, err := cctx.VanClient.KubeClient.CoreV1().Secrets(cctx.Namespace).Get(
+				context.Background(),
+				secretName,
+				metav1.GetOptions{},
+			)
+			if err == nil {
+				return true, nil
+			}
+			if errors.IsNotFound(err) {
+				fmt.Printf("TLS Secret %q not yet created.  See #1208\n", secretName)
+				return false, nil
+			}
+			return false, err
+		},
+	)
+	if err != nil {
+		fmt.Printf("Secret retrieval failed: %v\n", err)
+		// We do not stop for this, as this test is just to avoid flakiness on the
+		// test; if whatever failed above is reason for an actual test failure,
+		// it will fail on the continuation of the actual test, below
+	}
+}
+
+// Updating a deployment may cause Skupper to trigger an asynchronous operation that updates
+// the configmap skupper-internal.  That may happen at the same time as another synchronous
+// operation down the road, causing it to fail (see #1153).
+//
+// This function executes the requested operation, but it first gets the ResourceVersion of
+// the configmap, and then waits until it changes, or a maximum wait time is reached.
+func updateDeployment(cctx *base.ClusterContext, ctx context.Context, deploy *appsv1.Deployment) error {
+	orig, err := cctx.VanClient.KubeClient.CoreV1().ConfigMaps(cctx.Namespace).Get(ctx, "skupper-internal", metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	_, err = cctx.VanClient.KubeClient.AppsV1().Deployments(cctx.Namespace).Update(ctx, deploy, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	err = utils.Retry(
+		time.Millisecond*600,
+		100,
+		func() (bool, error) {
+			cm, err := cctx.VanClient.KubeClient.CoreV1().ConfigMaps(cctx.Namespace).Get(ctx, "skupper-internal", metav1.GetOptions{})
+			if err != nil {
+				fmt.Printf("Failed getting config map skupper-internal; ignoring (%s)\n", err)
+			}
+			changed := cm.ResourceVersion != orig.ResourceVersion
+			return changed, nil
+		},
+	)
+
+	return err
+}
+
 func runHeyTesWithParameter(t *testing.T, cluster *base.ClusterContext, numOfWorkers string, durationOfTests string, jobName string, targetURL string) {
 
 	waitJob := func(cc *base.ClusterContext, jobName string) {
@@ -866,6 +936,8 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	// Create the deployment for HTTP1 with TLS enabled
 	createDeploymentInPrivateSite(nghttp1TlsDep)
 
+	fmt.Println("Creating and binding skupper service interfaces...")
+
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &service)
 	assert.Assert(t, err)
 
@@ -881,21 +953,25 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http2TlsService)
 	assert.Assert(t, err)
 
+	waitSecret(prv1Cluster, http2TlsService.TlsCredentials)
+
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2TlsService, "deployment", "nghttp2tls", map[int]int{}, "")
 	assert.Assert(t, err)
 
 	//update tls service with cert files
-	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(ctx, nghttp2TlsDepWithCertFiles, metav1.UpdateOptions{})
+	err = updateDeployment(prv1Cluster, ctx, nghttp2TlsDepWithCertFiles)
 	assert.Assert(t, err)
 
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http2TcpTlsService)
 	assert.Assert(t, err)
 
+	waitSecret(prv1Cluster, http2TcpTlsService.TlsCredentials)
+
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http2TcpTlsService, "deployment", "nghttp2tcptls", map[int]int{}, "")
 	assert.Assert(t, err)
 
 	//update tls service with cert files
-	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(context.TODO(), nghttp2tcpTlsDepWithCertFiles, metav1.UpdateOptions{})
+	err = updateDeployment(prv1Cluster, ctx, nghttp2tcpTlsDepWithCertFiles)
 	assert.Assert(t, err)
 
 	_, err = prv1Cluster.VanClient.KubeClient.CoreV1().ConfigMaps(prv1Cluster.Namespace).Create(context.TODO(), nghttp1TlsConfigMap, metav1.CreateOptions{})
@@ -904,11 +980,13 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 	err = prv1Cluster.VanClient.ServiceInterfaceCreate(ctx, &http1TlsService)
 	assert.Assert(t, err)
 
+	waitSecret(prv1Cluster, http1TlsService.TlsCredentials)
+
 	err = prv1Cluster.VanClient.ServiceInterfaceBind(ctx, &http1TlsService, "deployment", "nghttp1tls", map[int]int{}, "")
 	assert.Assert(t, err)
 
 	//update tls service with cert files
-	_, err = prv1Cluster.VanClient.KubeClient.AppsV1().Deployments(prv1Cluster.Namespace).Update(context.TODO(), nghttp1TlsDepWithCertFiles, metav1.UpdateOptions{})
+	err = updateDeployment(prv1Cluster, ctx, nghttp1TlsDepWithCertFiles)
 	assert.Assert(t, err)
 
 	http21service := types.ServiceInterface{
