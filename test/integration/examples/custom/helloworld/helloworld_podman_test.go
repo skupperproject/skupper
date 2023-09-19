@@ -157,7 +157,7 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 						RouterMode:          "interior",
 						EnableConsole:       true,
 						EnableFlowCollector: true,
-						RunAsUser:           "1000",
+						RunAsUser:           getRunAsUserOrDefault("1000", pub),
 						RunAsGroup:          "2000",
 					},
 					// skupper status - verify initialized as interior
