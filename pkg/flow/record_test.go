@@ -677,6 +677,18 @@ func TestFilterFieldsRecord(t *testing.T) {
 			result:      true,
 		},
 		{
+			filterField: map[string]string{"sourceSiteName": "pub"},
+			result:      true,
+		},
+		{
+			filterField: map[string]string{"sourceSiteName": "ic1"},
+			result:      false,
+		},
+		{
+			filterField: map[string]string{"sourceSiteName": "xpublic1"},
+			result:      false,
+		},
+		{
 			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40", "sourceSiteName": "public1"},
 			result:      true,
 		},

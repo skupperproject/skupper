@@ -300,7 +300,7 @@ func (fc *FlowCollector) annotateFlowTrace(flow *FlowRecord) *string {
 }
 
 func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) {
-	var sourceSiteId, destSiteId string = "", ""
+	var sourceSiteId, destSiteId, sourceSiteName, destSiteName string = "", "", "sourceSite", "destSite"
 	var sourceFlow, destFlow *FlowRecord = nil, nil
 	var ok bool
 
@@ -330,14 +330,20 @@ func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) 
 	}
 
 	sourceSiteId = fc.getRecordSiteId(*sourceFlow)
+	if sourceSite, ok := fc.Sites[sourceSiteId]; ok {
+		sourceSiteName = *sourceSite.Name
+	}
 	destSiteId = fc.getRecordSiteId(*destFlow)
-	fwdLabels["sourceSite"] = sourceSiteId
-	fwdLabels["destSite"] = destSiteId
+	if destSite, ok := fc.Sites[destSiteId]; ok {
+		destSiteName = *destSite.Name
+	}
+	fwdLabels["sourceSite"] = sourceSiteName + "@_@" + sourceSiteId
+	fwdLabels["destSite"] = destSiteName + "@_@" + destSiteId
 	fwdLabels["sourceProcess"] = *sourceFlow.ProcessName
 	fwdLabels["destProcess"] = *destFlow.ProcessName
 	delete(fwdLabels, "process")
-	revLabels["sourceSite"] = destSiteId
-	revLabels["destSite"] = sourceSiteId
+	revLabels["sourceSite"] = destSiteName + "@_@" + destSiteId
+	revLabels["destSite"] = sourceSiteName + "@_@" + sourceSiteId
 	revLabels["sourceProcess"] = *destFlow.ProcessName
 	revLabels["destProcess"] = *sourceFlow.ProcessName
 	delete(revLabels, "process")
@@ -353,6 +359,9 @@ func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) 
 		DestinationSiteId: destSiteId,
 		ForwardFlow:       sourceFlow,
 		CounterFlow:       destFlow,
+	}
+	if sourceFlow.EndTime != 0 {
+		fp.Duration = sourceFlow.EndTime - sourceFlow.StartTime
 	}
 	if sourceSite, ok := fc.Sites[sourceSiteId]; ok {
 		fp.SourceSiteName = sourceSite.Name
@@ -453,7 +462,6 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 }
 
 func (fc *FlowCollector) deleteRecord(record interface{}) error {
-	// TODO: log the record
 	if record == nil {
 		return fmt.Errorf("No record to delete")
 	}
@@ -901,6 +909,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					if fc.getFlowPlace(current) == clientSide {
 						if flowpair, ok := fc.FlowPairs["fp-"+current.Identity]; ok {
 							flowpair.EndTime = current.EndTime
+							flowpair.Duration = flowpair.EndTime - flowpair.StartTime
 						}
 					}
 				}
@@ -1345,10 +1354,10 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			retrieveError = sortAndSlice(addresses, &p, queryParams)
 		case "item":
 			if id, ok := vars["id"]; ok {
-				if addr, ok := fc.VanAddresses[id]; ok {
-					fc.getAddressMetrics(addr)
+				if address, ok := fc.VanAddresses[id]; ok {
+					fc.getAddressMetrics(address)
 					p.Count = 1
-					p.Results = addr
+					p.Results = address
 				}
 			}
 		case "flows":

@@ -367,6 +367,7 @@ type FlowRecord struct {
 // Note a flowpair does not have a defined parent relationship through Base
 type FlowPairRecord struct {
 	Base
+	Duration                uint64      `json:"duration"`
 	Protocol                *string     `json:"protocol,omitempty"`
 	SourceSiteId            string      `json:"sourceSiteId,omitempty"`
 	SourceSiteName          *string     `json:"sourceSiteName,omitempty"`
@@ -661,7 +662,7 @@ func matchFieldValue(x interface{}, y string) bool {
 	if x != nil && y != "" {
 		switch x.(type) {
 		case string:
-			return x.(string) == y
+			return strings.HasPrefix(x.(string), y)
 		case uint64:
 			i, err := strconv.ParseInt(y, 10, 64)
 			if err == nil {
