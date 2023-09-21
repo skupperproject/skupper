@@ -21,6 +21,8 @@ type Client interface {
 	ContainerList() ([]*Container, error)
 	ContainerInspect(id string) (*Container, error)
 	ContainerCreate(container *Container) error
+	ContainerUpdate(name string, fn func(newContainer *Container)) (*Container, error)
+	ContainerRename(currentName, newName string) error
 	ContainerRemove(id string) error
 	ContainerExec(id string, command []string) (string, error)
 	ContainerLogs(id string) (string, error)

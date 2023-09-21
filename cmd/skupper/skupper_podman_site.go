@@ -9,6 +9,7 @@ import (
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	podman "github.com/skupperproject/skupper/pkg/domain/podman"
+	"github.com/skupperproject/skupper/pkg/domain/podman/update"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/spf13/cobra"
 )
@@ -16,6 +17,7 @@ import (
 type SkupperPodmanSite struct {
 	podman *SkupperPodman
 	flags  PodmanInitFlags
+	up     *domain.UpdateProcessor
 }
 
 type PodmanInitFlags struct {
@@ -240,10 +242,22 @@ func (s *SkupperPodmanSite) Platform() types.Platform {
 }
 
 func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
-	return notImplementedErr
+	/*
+	  Registering tasks to be analyzed against current site version
+	*/
+	// updates images for all skupper containers
+	s.up.RegisterTasks(update.NewContainerImagesTask(s.podman.cli))
+	// updates site version number (always the last one)
+	s.up.RegisterTasks(update.NewVersionUpdateTask(s.podman.cli))
+	// process eligible tasks
+	return s.up.Process(s.podman.currentSite.Version)
 }
 
-func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {}
+func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {
+	s.up = &domain.UpdateProcessor{}
+	cmd.Flags().BoolVar(&s.up.DryRun, "dry-run", false, "only prints the tasks to be performed, but does not run any action")
+	cmd.Flags().BoolVar(&s.up.Verbose, "verbose", false, "displays tasks and post tasks being executed")
+}
 
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {
 	site := s.podman.currentSite

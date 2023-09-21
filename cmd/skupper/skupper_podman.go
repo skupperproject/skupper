@@ -14,7 +14,7 @@ var notImplementedErr = fmt.Errorf("Not implemented")
 
 var SkupperPodmanCommands = []string{
 	"switch", "init", "delete", "status", "version", "token", "link",
-	"service", "expose", "unexpose", "revoke-access",
+	"service", "expose", "unexpose", "revoke-access", "update",
 }
 
 type SkupperPodman struct {
