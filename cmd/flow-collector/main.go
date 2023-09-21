@@ -347,6 +347,7 @@ func main() {
 	addressApi.HandleFunc("/", authenticated(http.HandlerFunc(c.addressHandler))).Name("list")
 	addressApi.HandleFunc("/{id}", authenticated(http.HandlerFunc(c.addressHandler))).Name("item")
 	addressApi.HandleFunc("/{id}/processes", authenticated(http.HandlerFunc(c.addressHandler))).Name("processes")
+	addressApi.HandleFunc("/{id}/processpairs", authenticated(http.HandlerFunc(c.addressHandler))).Name("processpairs")
 	addressApi.HandleFunc("/{id}/flows", authenticated(http.HandlerFunc(c.addressHandler))).Name("flows")
 	addressApi.HandleFunc("/{id}/flowpairs", authenticated(http.HandlerFunc(c.addressHandler))).Name("flowpairs")
 	addressApi.HandleFunc("/{id}/listeners", authenticated(http.HandlerFunc(c.addressHandler))).Name("listeners")

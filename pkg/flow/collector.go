@@ -169,6 +169,7 @@ type FlowCollector struct {
 	Links                   map[string]*LinkRecord
 	Listeners               map[string]*ListenerRecord
 	Connectors              map[string]*ConnectorRecord
+	recentConnectors        map[string]*ConnectorRecord
 	Flows                   map[string]*FlowRecord
 	FlowPairs               map[string]*FlowPairRecord
 	FlowAggregates          map[string]*FlowAggregateRecord
@@ -214,6 +215,7 @@ func NewFlowCollector(origin string, reg prometheus.Registerer, connectionFactor
 		Links:                   make(map[string]*LinkRecord),
 		Listeners:               make(map[string]*ListenerRecord),
 		Connectors:              make(map[string]*ConnectorRecord),
+		recentConnectors:        make(map[string]*ConnectorRecord),
 		Flows:                   make(map[string]*FlowRecord),
 		FlowPairs:               make(map[string]*FlowPairRecord),
 		FlowAggregates:          make(map[string]*FlowAggregateRecord),
