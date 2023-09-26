@@ -240,10 +240,14 @@ func (fc *FlowCollector) getFlowPlace(flow *FlowRecord) FlowPlace {
 		return clientSide
 	} else if _, ok := fc.Connectors[flow.Parent]; ok {
 		return serverSide
+	} else if _, ok := fc.recentConnectors[flow.Parent]; ok {
+		return serverSide
 	} else if l4Flow, ok := fc.Flows[flow.Parent]; ok {
 		if _, ok := fc.Listeners[l4Flow.Parent]; ok {
 			return clientSide
 		} else if _, ok := fc.Connectors[l4Flow.Parent]; ok {
+			return serverSide
+		} else if _, ok := fc.recentConnectors[l4Flow.Parent]; ok {
 			return serverSide
 		}
 	}
@@ -489,6 +493,8 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 		}
 	case *ConnectorRecord:
 		if connector, ok := record.(*ConnectorRecord); ok {
+			// keep around for flows that will be terminated
+			fc.recentConnectors[connector.Identity] = connector
 			delete(fc.Connectors, connector.Identity)
 		}
 	case *FlowRecord:
@@ -1457,6 +1463,27 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			}
 			p.TotalCount = len(unique)
 			retrieveError = sortAndSlice(processes, &p, queryParams)
+		case "processpairs":
+			processPairs := []FlowAggregateRecord{}
+			if id, ok := vars["id"]; ok {
+				if vanaddr, ok := fc.VanAddresses[id]; ok {
+					for _, connector := range fc.Connectors {
+						if *connector.Address == vanaddr.Name && connector.process != nil {
+							for _, aggregate := range fc.FlowAggregates {
+								if aggregate.PairType == recordNames[Process] {
+									if *connector.process == *aggregate.DestinationId {
+										p.TotalCount++
+										if filterRecord(*aggregate, queryParams) {
+											processPairs = append(processPairs, *aggregate)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			retrieveError = sortAndSlice(processPairs, &p, queryParams)
 		case "listeners":
 			listeners := []ListenerRecord{}
 			if id, ok := vars["id"]; ok {
@@ -1937,7 +1964,7 @@ func (fc *FlowCollector) setupFlowMetrics(va *VanAddressRecord, flow *FlowRecord
 		return fmt.Errorf("Metric label missing source site key")
 	}
 	if key.sourceProcess, ok = metricLabel["sourceProcess"]; !ok {
-		return fmt.Errorf("Metric label soruce process key")
+		return fmt.Errorf("Metric label missing source process key")
 	}
 	if key.destSite, ok = metricLabel["destSite"]; !ok {
 		return fmt.Errorf("Metric label missing dest site key")
@@ -2042,6 +2069,7 @@ func (fc *FlowCollector) reconcileRecords() error {
 			}
 			if flow.SourceHost != nil {
 				if connector, ok := fc.Connectors[flow.Parent]; ok {
+					flow.Place = serverSide
 					if connector.process != nil && connector.AddressId != nil {
 						flow.Process = connector.process
 						if process, ok := fc.Processes[*flow.Process]; ok {
@@ -2054,6 +2082,7 @@ func (fc *FlowCollector) reconcileRecords() error {
 						}
 					}
 				} else if listener, ok := fc.Listeners[flow.Parent]; ok {
+					flow.Place = clientSide
 					if listener.AddressId != nil {
 						found := false
 						for _, process := range fc.Processes {
@@ -2247,12 +2276,20 @@ func (fc *FlowCollector) reconcileRecords() error {
 		}
 	}
 
+	t := time.Now()
 	for _, source := range fc.eventSources {
-		t := time.Now()
 		diff := uint64(t.UnixNano())/uint64(time.Microsecond) - source.EventSourceRecord.LastHeard
 		if diff > 30*oneSecond {
 			log.Printf("COLLECTOR: Purging event source %s of type %s \n", source.Beacon.Identity, source.Beacon.SourceType)
 			fc.purgeEventSource(source.EventSourceRecord)
+		}
+	}
+
+	// recentConnectors for flows after the fact
+	for _, connector := range fc.recentConnectors {
+		diff := uint64(t.UnixNano())/uint64(time.Microsecond) - connector.EndTime
+		if diff > 120*oneSecond {
+			delete(fc.recentConnectors, connector.Identity)
 		}
 	}
 
