@@ -323,6 +323,7 @@ type SiteInfo struct {
 	Platform       string `json:"platform,omitempty"`
 	Version        string `json:"siteVersion,omitempty"`
 	MinimumVersion string `json:"minimumVersion,omitempty"`
+	Policy         string `json:"policy,omitempty"`
 }
 
 type RouterStatusInfo struct {
@@ -432,6 +433,6 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
-	NetworkStatus(ctx context.Context) (*[]SiteStatusInfo, error)
+	NetworkStatus(ctx context.Context) (*VanStatusInfo, error)
 	GetRemoteLinks(ctx context.Context, siteConfig *SiteConfig) ([]*RemoteLinkInfo, error)
 }

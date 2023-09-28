@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *VanClient) NetworkStatus(ctx context.Context) (*[]types.SiteStatusInfo, error) {
+func (cli *VanClient) NetworkStatus(ctx context.Context) (*types.VanStatusInfo, error) {
 
 	//Checking if the router has been deployed
 	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
@@ -24,12 +24,12 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) (*[]types.SiteStatusInf
 		return nil, err
 	}
 
-	sites, err := GetSitesInfoFromConfigMap(configmap)
+	vanInfo, err := GetVanInfoFromConfigMap(configmap)
 	if err != nil {
 		return nil, err
 	}
 
-	return &sites, nil
+	return vanInfo, nil
 }
 
 func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*types.RemoteLinkInfo, error) {
@@ -41,28 +41,28 @@ func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.Site
 	return linkHander.RemoteLinks(ctx)
 }
 
-func GetSitesInfoFromConfigMap(configmap *corev1.ConfigMap) ([]types.SiteStatusInfo, error) {
+func GetVanInfoFromConfigMap(configmap *corev1.ConfigMap) (*types.VanStatusInfo, error) {
 	if configmap.Data == nil {
 		return nil, nil
 	} else {
 
-		siteStatusFlowRecords, err := UnmarshalSiteStatus(configmap.Data)
+		vanStatusRecord, err := UnmarshalVanStatus(configmap.Data)
 		if err != nil {
 			return nil, err
 		}
 
-		return siteStatusFlowRecords, nil
+		return vanStatusRecord, nil
 	}
 }
 
-func UnmarshalSiteStatus(data map[string]string) ([]types.SiteStatusInfo, error) {
+func UnmarshalVanStatus(data map[string]string) (*types.VanStatusInfo, error) {
 
-	var vanStatus types.VanStatusInfo
+	var vanStatus *types.VanStatusInfo
 
 	err := json.Unmarshal([]byte(data["VanStatus"]), &vanStatus)
 	if err != nil {
 		return nil, err
 	}
 
-	return vanStatus.SiteStatus, nil
+	return vanStatus, nil
 }

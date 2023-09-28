@@ -299,7 +299,7 @@ func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
 	return nil
 }
 
-func (v *vanClientMock) NetworkStatus(ctx context.Context) (*[]types.SiteStatusInfo, error) {
+func (v *vanClientMock) NetworkStatus(ctx context.Context) (*types.VanStatusInfo, error) {
 	return nil, nil
 }
 

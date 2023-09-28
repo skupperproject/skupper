@@ -24,9 +24,6 @@ func (s *SkupperKubeNetwork) Platform() types.Platform {
 
 func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
-	if !verboseNetworkStatus && zeroCostNetworkstatus {
-		return fmt.Errorf("showing links with zero cost requires the verbose option")
-	}
 	silenceCobra(cmd)
 
 	ctx, cancel := context.WithTimeout(context.Background(), types.DefaultFlowTimeoutDuration)
@@ -40,18 +37,20 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 	}
 	currentSite := siteConfig.Reference.UID
 
-	sitesStatus, errStatus := s.kube.Cli.NetworkStatus(ctx)
+	vanStatus, errStatus := s.kube.Cli.NetworkStatus(ctx)
 	if errStatus != nil {
 		return errStatus
 	}
 
-	if sitesStatus != nil && len(*sitesStatus) > 0 {
+	sitesStatus := vanStatus.SiteStatus
+
+	if sitesStatus != nil && len(sitesStatus) > 0 {
 		mapRouterSite := CreateRouterSiteMap(sitesStatus)
 
 		network := formatter.NewList()
 		network.Item("Sites:")
 
-		for _, siteStatus := range *sitesStatus {
+		for _, siteStatus := range sitesStatus {
 			if len(siteNetworkStatus) == 0 || siteNetworkStatus == siteStatus.Site.Name {
 
 				siteVersion := siteStatus.Site.Version
@@ -66,7 +65,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 					location = "local"
 				}
 
-				newItem := fmt.Sprintf("[%s] %s-%s ", location, siteStatus.Site.Namespace, siteStatus.Site.Identity)
+				newItem := fmt.Sprintf("[%s] %s(%s) ", location, siteStatus.Site.Identity, siteStatus.Site.Namespace)
 				newItem = newItem + fmt.Sprintln()
 
 				siteLevel := network.NewChildWithDetail(newItem, detailsMap)
@@ -77,7 +76,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 					mapSiteLink := CreateSiteLinkMap(&siteStatus.RouterStatus[0], &siteStatus.Site, mapRouterSite)
 
 					if len(mapSiteLink) > 0 {
-						siteLinks := siteLevel.NewChild("Linked with:")
+						siteLinks := siteLevel.NewChild("Linked sites:")
 						for key, value := range mapSiteLink {
 							siteLinks.NewChildWithDetail(fmt.Sprintln(key), map[string]string{"direction": value.Direction})
 						}
@@ -98,7 +97,10 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 								links := routerLevel.NewChild("Links:")
 								for _, link := range printableLinks {
 									linkItem := fmt.Sprintf("name:  %s\n", link.Name)
-									detailsLink := map[string]string{"direction": link.Direction, "cost": strconv.FormatUint(link.LinkCost, 10)}
+									detailsLink := map[string]string{"direction": link.Direction}
+									if link.LinkCost > 0 {
+										detailsLink["cost"] = strconv.FormatUint(link.LinkCost, 10)
+									}
 									links.NewChildWithDetail(linkItem, detailsLink)
 
 								}
@@ -118,15 +120,14 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKubeNetwork) StatusFlags(cmd *cobra.Command) {}
 
-func CreateRouterSiteMap(sitesStatus *[]types.SiteStatusInfo) map[string]string {
+func CreateRouterSiteMap(sitesStatus []types.SiteStatusInfo) map[string]string {
 	mapRouterSite := make(map[string]string)
-	for _, siteStatus := range *sitesStatus {
+	for _, siteStatus := range sitesStatus {
 		if len(siteStatus.RouterStatus) > 0 {
 			for _, routerStatus := range siteStatus.RouterStatus {
-
 				// the name of the router has a "0/" as a prefix that it is needed to remove
 				routerName := strings.Split(routerStatus.Router.Name, "/")
-				mapRouterSite[routerName[1]] = strings.Join([]string{siteStatus.Site.Namespace, siteStatus.Site.Identity}, "-")
+				mapRouterSite[routerName[1]] = siteStatus.Site.Identity + "(" + siteStatus.Site.Namespace + ")"
 			}
 		}
 	}
@@ -154,7 +155,7 @@ func CreateSiteLinkMap(router *types.RouterStatusInfo, site *types.SiteInfo, map
 
 func LinkBelongsToSameSite(linkName string, namespace string, siteId string, routerSiteMap map[string]string) bool {
 
-	return strings.EqualFold(routerSiteMap[linkName], strings.Join([]string{namespace, siteId}, "-"))
+	return strings.EqualFold(routerSiteMap[linkName], siteId+"("+namespace+")")
 
 }
 
@@ -163,10 +164,7 @@ func FilterLinks(router types.RouterStatusInfo, site types.SiteInfo, mapRouterSi
 	for _, link := range router.Links {
 		// avoid showing the links between routers of the same site
 		if !LinkBelongsToSameSite(link.Name, site.Namespace, site.Identity, mapRouterSite) {
-			//avoid showing links with cost zero by default
-			if link.LinkCost != 0 || zeroCostNetworkstatus {
-				filteredLinks = append(filteredLinks, link)
-			}
+			filteredLinks = append(filteredLinks, link)
 		}
 	}
 

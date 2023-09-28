@@ -515,6 +515,7 @@ func NewCmdUpdate(skupperCli SkupperSiteClient) *cobra.Command {
 }
 
 var clientIdentity string
+var verboseStatus bool
 
 func NewCmdStatus(skupperCli SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -524,6 +525,7 @@ func NewCmdStatus(skupperCli SkupperSiteClient) *cobra.Command {
 		PreRun: skupperCli.NewClient,
 		RunE:   skupperCli.Status,
 	}
+	cmd.Flags().BoolVarP(&verboseStatus, "verbose", "v", false, "Detailed information about Skupper status")
 	return cmd
 }
 

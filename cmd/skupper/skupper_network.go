@@ -14,7 +14,6 @@ func NewCmdNetwork() *cobra.Command {
 
 var verboseNetworkStatus bool
 var siteNetworkStatus string
-var zeroCostNetworkstatus bool
 
 func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -27,7 +26,6 @@ func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 
 	cmd.Flags().BoolVarP(&verboseNetworkStatus, "verbose", "v", false, "More detailed output about the network topology")
 	cmd.Flags().StringVarP(&siteNetworkStatus, "site", "s", "", "Filter by a specific site name")
-	cmd.Flags().BoolVarP(&zeroCostNetworkstatus, "show-zero-cost", "z", false, "Show links with zero cost in the verbose mode")
 	return cmd
 
 }

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/spf13/cobra"
 )
 
@@ -221,69 +220,89 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 	cli := s.kube.Cli
 	vir, err := cli.RouterInspect(context.Background())
-	if err == nil {
-		ns := cli.GetNamespace()
-		var modedesc string = " in interior mode"
-		if vir.Status.Mode == string(types.TransportModeEdge) {
-			modedesc = " in edge mode"
-		}
-		sitename := ""
-		if vir.Status.SiteName != "" && vir.Status.SiteName != ns {
-			sitename = fmt.Sprintf(" with site name %q", vir.Status.SiteName)
-		}
-		policyStr := ""
-		if vanClient, ok := cli.(*client.VanClient); ok {
-			p := client.NewPolicyValidatorAPI(vanClient)
-			r, err := p.IncomingLink()
-			if err == nil && r.Enabled {
-				policyStr = " (with policies)"
+	if err != nil {
+		return err
+	}
+
+	vanStatus, errStatus := cli.NetworkStatus(context.Background())
+	if errStatus != nil {
+		return errStatus
+	}
+
+	siteConfig, err := s.kube.Cli.SiteConfigInspect(context.Background(), nil)
+	if err != nil || siteConfig == nil {
+		fmt.Printf("The site configuration is not available: %s", err)
+		fmt.Println()
+		return nil
+	}
+	var currentSite *types.SiteStatusInfo
+
+	if vanStatus != nil {
+		for _, site := range vanStatus.SiteStatus {
+			if site.Site.Identity == siteConfig.Reference.UID {
+				*currentSite = site
+				break
 			}
 		}
-		fmt.Printf("Skupper is enabled for namespace %q%s%s%s.", ns, sitename, modedesc, policyStr)
+	}
+
+	if currentSite != nil {
+
+		statusDataOutput := StatusData{
+			enabledIn: PlatformSupport{"namespace", currentSite.Site.Namespace},
+			mode:      currentSite.RouterStatus[0].Router.Mode,
+			siteName:  currentSite.Site.Name,
+			policies:  currentSite.Site.Policy,
+		}
+
 		if vir.Status.TransportReadyReplicas == 0 {
-			fmt.Printf(" Status pending...")
+			status := "pending"
+			statusDataOutput.status = &status
+
 		} else {
 			if len(vir.Status.ConnectedSites.Warnings) > 0 {
+				var warnings []string
 				for _, w := range vir.Status.ConnectedSites.Warnings {
-					fmt.Printf("Warning: %s", w)
-					fmt.Println()
+					warnings = append(warnings, w)
 				}
+
+				statusDataOutput.warnings = warnings
 			}
-			if vir.Status.ConnectedSites.Total == 0 {
-				fmt.Printf(" It is not connected to any other sites.")
-			} else if vir.Status.ConnectedSites.Total == 1 {
-				fmt.Printf(" It is connected to 1 other site.")
-			} else if vir.Status.ConnectedSites.Total == vir.Status.ConnectedSites.Direct {
-				fmt.Printf(" It is connected to %d other sites.", vir.Status.ConnectedSites.Total)
-			} else {
-				fmt.Printf(" It is connected to %d other sites (%d indirectly).", vir.Status.ConnectedSites.Total, vir.Status.ConnectedSites.Indirect)
-			}
+
+			statusDataOutput.totalConnections = vir.Status.ConnectedSites.Total
+			statusDataOutput.directConnections = vir.Status.ConnectedSites.Direct
+			statusDataOutput.indirectConnections = vir.Status.ConnectedSites.Indirect
+
 		}
-		if vir.ExposedServices == 0 {
-			fmt.Printf(" It has no exposed services.")
-		} else if vir.ExposedServices == 1 {
-			fmt.Printf(" It has 1 exposed service.")
-		} else {
-			fmt.Printf(" It has %d exposed services.", vir.ExposedServices)
-		}
-		fmt.Println()
+
+		statusDataOutput.exposedServices = len(vanStatus.Addresses)
+
 		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 		if err != nil {
 			return err
 		} else {
 			if siteConfig.Spec.EnableFlowCollector && vir.ConsoleUrl != "" {
-				fmt.Println("The site console url is: ", vir.ConsoleUrl)
+				statusDataOutput.consoleUrl = vir.ConsoleUrl
 				if siteConfig.Spec.AuthMode == "internal" {
-					fmt.Println("The credentials for internal console-auth mode are held in secret: 'skupper-console-users'")
+					statusDataOutput.credentials = PlatformSupport{"secret", "'skupper-console-users'"}
 				}
 			}
 		}
-	} else {
-		if vir == nil {
-			fmt.Printf("Skupper is not enabled in namespace '%s'\n", cli.GetNamespace())
-		} else {
-			return fmt.Errorf("Unable to retrieve skupper status: %w", err)
+
+		if err == nil && verboseStatus {
+			err := PrintVerboseStatus(statusDataOutput)
+			if err != nil {
+				return err
+			}
+
+		} else if err == nil {
+			err := PrintStatus(statusDataOutput)
+			if err != nil {
+				return err
+			}
 		}
+	} else {
+		return fmt.Errorf("unable to retrieve skupper status")
 	}
 	return nil
 }
