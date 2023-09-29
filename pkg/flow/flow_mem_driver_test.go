@@ -180,9 +180,9 @@ func TestRecordGraph(t *testing.T) {
 				Parent:    "router:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			Address:  &address3,
-			Protocol: &protocol,
-			process:  &connectorProcess1,
+			Address:   &address3,
+			Protocol:  &protocol,
+			ProcessId: &connectorProcess1,
 		},
 		{
 			Base: Base{
@@ -200,9 +200,9 @@ func TestRecordGraph(t *testing.T) {
 				Parent:    "router:1",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			Protocol: &protocol,
-			Address:  &address4,
-			process:  &connectorProcess2,
+			Protocol:  &protocol,
+			Address:   &address4,
+			ProcessId: &connectorProcess2,
 		},
 	}
 	flows := []FlowRecord{
