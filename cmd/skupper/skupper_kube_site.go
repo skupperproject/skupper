@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/network"
 	"reflect"
 	"strings"
 	"time"
@@ -223,9 +224,13 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	vanStatus, errStatus := cli.NetworkStatus(context.Background())
+	currentStatus, errStatus := cli.NetworkStatus(context.Background())
 	if errStatus != nil {
 		return errStatus
+	}
+
+	statusManager := network.SkupperStatus{
+		VanStatus: currentStatus,
 	}
 
 	siteConfig, err := s.kube.Cli.SiteConfigInspect(context.Background(), nil)
@@ -234,16 +239,7 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 		return nil
 	}
-	var currentSite *types.SiteStatusInfo
-
-	if vanStatus != nil {
-		for _, site := range vanStatus.SiteStatus {
-			if site.Site.Identity == siteConfig.Reference.UID {
-				currentSite = &site
-				break
-			}
-		}
-	}
+	var currentSite = statusManager.GetSiteById(siteConfig.Reference.UID)
 
 	if currentSite != nil {
 
@@ -263,16 +259,17 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 			statusDataOutput.warnings = warnings
 		}
 
-		mapRouterSite := CreateRouterSiteMap(vanStatus.SiteStatus)
-		mapSiteLink := CreateSiteLinkMap(&currentSite.RouterStatus[0], &currentSite.Site, mapRouterSite)
+		mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&currentSite.RouterStatus[0], &currentSite.Site)
 
-		totalConnections := len(vanStatus.SiteStatus)
+		totalSites := len(currentStatus.SiteStatus)
+		// the current site does not count as a connection
+		connections := totalSites - 1
 		directConnections := len(mapSiteLink)
-		statusDataOutput.totalConnections = totalConnections
+		statusDataOutput.totalConnections = connections
 		statusDataOutput.directConnections = directConnections
-		statusDataOutput.indirectConnections = totalConnections - directConnections
+		statusDataOutput.indirectConnections = connections - directConnections
 
-		statusDataOutput.exposedServices = len(vanStatus.Addresses)
+		statusDataOutput.exposedServices = len(currentStatus.Addresses)
 
 		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 		if err != nil {

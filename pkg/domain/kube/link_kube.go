@@ -3,18 +3,16 @@ package kube
 import (
 	"context"
 	"fmt"
-	k8s "github.com/skupperproject/skupper/pkg/kube"
-	"strconv"
-	"strings"
-
-	"encoding/json"
 	"github.com/skupperproject/skupper/api/types"
+	k8s "github.com/skupperproject/skupper/pkg/kube"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
+	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"strconv"
 )
 
 type LinkHandlerKube struct {
@@ -116,17 +114,25 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 		return nil, err
 	}
 
-	sites, err := UnmarshalSiteStatus(configmap.Data)
+	currentStatus, err := network.UnmarshalSkupperStatus(configmap.Data)
 	if err != nil {
 		return nil, err
 	}
 
 	var remoteLinks []*types.RemoteLinkInfo
 
-	mapRouterSite := CreateRouterSiteMap(sites)
-	currentSite, ok := sites[currentSiteId]
+	statusManager := network.SkupperStatus{VanStatus: currentStatus}
 
-	if ok {
+	mapRouterSite := statusManager.GetRouterSiteMap()
+
+	var currentSite types.SiteStatusInfo
+	for _, s := range currentStatus.SiteStatus {
+		if s.Site.Identity == currentSiteId {
+			currentSite = s
+		}
+	}
+
+	if len(currentSite.Site.Identity) > 0 {
 		for _, router := range currentSite.RouterStatus {
 			for _, link := range router.Links {
 				if link.Direction == "incoming" {
@@ -146,37 +152,4 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 	}
 
 	return remoteLinks, nil
-}
-
-func UnmarshalSiteStatus(data map[string]string) (map[string]types.SiteStatusInfo, error) {
-
-	var vanStatus types.VanStatusInfo
-
-	err := json.Unmarshal([]byte(data["VanStatus"]), &vanStatus)
-
-	if err != nil {
-		return nil, err
-	}
-
-	allSites := make(map[string]types.SiteStatusInfo)
-	for _, site := range vanStatus.SiteStatus {
-		allSites[site.Site.Identity] = site
-	}
-
-	return allSites, nil
-}
-
-func CreateRouterSiteMap(sitesStatus map[string]types.SiteStatusInfo) map[string]types.SiteStatusInfo {
-	mapRouterSite := make(map[string]types.SiteStatusInfo)
-	for _, siteStatus := range sitesStatus {
-		if len(siteStatus.RouterStatus) > 0 {
-			for _, routerStatus := range siteStatus.RouterStatus {
-				// the name of the router has a "0/" as a prefix that it is needed to remove
-				routerName := strings.Split(routerStatus.Router.Name, "/")
-				mapRouterSite[routerName[1]] = siteStatus
-			}
-		}
-	}
-
-	return mapRouterSite
 }

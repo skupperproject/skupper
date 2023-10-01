@@ -40,7 +40,7 @@ func PrintStatus(data StatusData) error {
 	}
 	policyStr := ""
 
-	if len(data.policies) > 0 {
+	if data.policies == "enabled" {
 		policyStr = " (with policies)"
 	}
 
@@ -87,9 +87,12 @@ func PrintStatus(data StatusData) error {
 func PrintVerboseStatus(data StatusData) error {
 	writer := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
 	fmt.Fprintf(writer, "%s:\t %s \n", data.enabledIn.supportType, data.enabledIn.supportName)
-	fmt.Fprintf(writer, "%s:\t %s \n", "mode", data.mode)
+	routerMode := "interior"
+	if len(data.mode) > 0 {
+		routerMode = data.mode
+	}
+	fmt.Fprintf(writer, "%s:\t %s \n", "mode", routerMode)
 	fmt.Fprintf(writer, "%s:\t %s \n", "site name", data.siteName)
-
 	fmt.Fprintf(writer, "%s:\t %s \n", "policies", data.policies)
 
 	if data.status != nil {

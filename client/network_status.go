@@ -2,12 +2,11 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/domain/kube"
 	k8s "github.com/skupperproject/skupper/pkg/kube"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/skupperproject/skupper/pkg/network"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,7 +23,7 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) (*types.VanStatusInfo, 
 		return nil, err
 	}
 
-	vanInfo, err := GetVanInfoFromConfigMap(configmap)
+	vanInfo, err := network.UnmarshalSkupperStatus(configmap.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -39,30 +38,4 @@ func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.Site
 	}
 	linkHander := kube.NewLinkHandlerKube(cli.Namespace, siteConfig, cfg, cli.KubeClient, cli.RestConfig)
 	return linkHander.RemoteLinks(ctx)
-}
-
-func GetVanInfoFromConfigMap(configmap *corev1.ConfigMap) (*types.VanStatusInfo, error) {
-	if configmap.Data == nil {
-		return nil, nil
-	} else {
-
-		vanStatusRecord, err := UnmarshalVanStatus(configmap.Data)
-		if err != nil {
-			return nil, err
-		}
-
-		return vanStatusRecord, nil
-	}
-}
-
-func UnmarshalVanStatus(data map[string]string) (*types.VanStatusInfo, error) {
-
-	var vanStatus *types.VanStatusInfo
-
-	err := json.Unmarshal([]byte(data["VanStatus"]), &vanStatus)
-	if err != nil {
-		return nil, err
-	}
-
-	return vanStatus, nil
 }
