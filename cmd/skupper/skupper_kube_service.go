@@ -124,7 +124,9 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (s *SkupperKubeService) StatusFlags(cmd *cobra.Command) {}
+func (s *SkupperKubeService) StatusFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVarP(&verboseServiceStatus, "verbose", "v", false, "more detailed output")
+}
 
 func (s *SkupperKubeService) Label(cmd *cobra.Command, args []string) error {
 	name := args[0]

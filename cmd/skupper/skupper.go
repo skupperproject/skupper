@@ -578,6 +578,7 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 }
 
 var showLabels bool
+var verboseServiceStatus bool
 
 func NewCmdServiceStatus(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{

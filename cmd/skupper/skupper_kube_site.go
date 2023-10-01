@@ -207,7 +207,6 @@ func (s *SkupperKubeSite) Delete(cmd *cobra.Command, args []string) error {
 	}
 	return nil
 }
-
 func (s *SkupperKubeSite) DeleteFlags(cmd *cobra.Command) {}
 
 func (s *SkupperKubeSite) List(cmd *cobra.Command, args []string) error {
@@ -240,7 +239,7 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 	if vanStatus != nil {
 		for _, site := range vanStatus.SiteStatus {
 			if site.Site.Identity == siteConfig.Reference.UID {
-				*currentSite = site
+				currentSite = &site
 				break
 			}
 		}
@@ -255,25 +254,23 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 			policies:  currentSite.Site.Policy,
 		}
 
-		if vir.Status.TransportReadyReplicas == 0 {
-			status := "pending"
-			statusDataOutput.status = &status
-
-		} else {
-			if len(vir.Status.ConnectedSites.Warnings) > 0 {
-				var warnings []string
-				for _, w := range vir.Status.ConnectedSites.Warnings {
-					warnings = append(warnings, w)
-				}
-
-				statusDataOutput.warnings = warnings
+		if len(vir.Status.ConnectedSites.Warnings) > 0 {
+			var warnings []string
+			for _, w := range vir.Status.ConnectedSites.Warnings {
+				warnings = append(warnings, w)
 			}
 
-			statusDataOutput.totalConnections = vir.Status.ConnectedSites.Total
-			statusDataOutput.directConnections = vir.Status.ConnectedSites.Direct
-			statusDataOutput.indirectConnections = vir.Status.ConnectedSites.Indirect
-
+			statusDataOutput.warnings = warnings
 		}
+
+		mapRouterSite := CreateRouterSiteMap(vanStatus.SiteStatus)
+		mapSiteLink := CreateSiteLinkMap(&currentSite.RouterStatus[0], &currentSite.Site, mapRouterSite)
+
+		totalConnections := len(vanStatus.SiteStatus)
+		directConnections := len(mapSiteLink)
+		statusDataOutput.totalConnections = totalConnections
+		statusDataOutput.directConnections = directConnections
+		statusDataOutput.indirectConnections = totalConnections - directConnections
 
 		statusDataOutput.exposedServices = len(vanStatus.Addresses)
 

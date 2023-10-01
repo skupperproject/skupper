@@ -304,6 +304,7 @@ type VanStatusInfo struct {
 type AddressInfo struct {
 	RecType        string `json:"recType,omitempty"`
 	Identity       string `json:"identity,omitempty"`
+	Name           string `json:"name,omitempty"`
 	StartTime      uint64 `json:"startTime"`
 	EndTime        uint64 `json:"endTime"`
 	Protocol       string `json:"protocol,omitempty"`

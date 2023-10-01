@@ -44,7 +44,7 @@ func PrintStatus(data StatusData) error {
 		policyStr = " (with policies)"
 	}
 
-	fmt.Printf("Skupper is enabled for %q%s%s%s.", data.enabledIn, sitename, modedesc, policyStr)
+	fmt.Printf("Skupper is enabled for %q%s%s%s.", data.enabledIn.supportType, sitename, modedesc, policyStr)
 	if data.status != nil {
 		fmt.Printf(" Status pending...")
 	} else {
