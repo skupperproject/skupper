@@ -592,6 +592,7 @@ func NewCmdServiceStatus(skupperClient SkupperServiceClient) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&showLabels, "show-labels", false, "show service labels")
+	skupperClient.StatusFlags(cmd)
 	return cmd
 }
 

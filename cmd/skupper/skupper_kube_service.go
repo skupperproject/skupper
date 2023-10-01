@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/network"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
 )
@@ -51,76 +51,67 @@ func (s *SkupperKubeService) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	cli := s.kube.Cli
+	vanStatus, err := cli.NetworkStatus(context.Background())
+	if err != nil {
+		return fmt.Errorf("Could not retrieve services: %w", err)
+	}
 	vsis, err := s.kube.Cli.ServiceInterfaceList(context.Background())
+	mapServiceSites := network.GetMapServiceSites(vanStatus)
+	mapSiteTargets := network.GetMapSiteTargets(vanStatus)
+
+	var mapServiceLabels map[string]map[string]string
 	if err == nil {
-		if len(vsis) == 0 {
-			fmt.Println("No services defined")
-		} else {
-			l := formatter.NewList()
-			l.Item("Services exposed through Skupper:")
-			addresses := []string{}
-			for _, si := range vsis {
-				addresses = append(addresses, si.Address)
-			}
-			svcAuth := map[string]bool{}
-			for _, addr := range addresses {
-				svcAuth[addr] = true
-			}
-			if vc, ok := cli.(*client.VanClient); ok {
-				policy := client.NewPolicyValidatorAPI(vc)
-				res, _ := policy.Services(addresses...)
-				for addr, auth := range res {
-					svcAuth[addr] = auth.Allowed
+		mapServiceLabels = network.GetMapServiceLabels(vsis)
+	}
+
+	if len(vanStatus.Addresses) == 0 {
+		fmt.Println("No services defined")
+	} else {
+		l := formatter.NewList()
+		l.Item("Services exposed through Skupper:")
+		var addresses []string
+		for _, si := range vanStatus.Addresses {
+			addresses = append(addresses, si.Name)
+		}
+
+		for _, si := range vanStatus.Addresses {
+			svc := l.NewChild(fmt.Sprintf("%s (%s)", si.Name, si.Protocol))
+
+			if verboseServiceStatus {
+				sites := svc.NewChild("Sites:")
+
+				if mapServiceSites[si.Name] != nil {
+					for _, site := range mapServiceSites[si.Name] {
+						item := site.Site.Identity + "(" + site.Site.Namespace + ")\n"
+						theSite := sites.NewChildWithDetail(item, map[string]string{"policy": site.Site.Policy})
+
+						if si.ConnectorCount > 0 {
+							t := mapSiteTargets[site.Site.Identity][si.Name]
+
+							if len(t.Address) > 0 {
+								targets := theSite.NewChild("Targets:")
+								var name string
+								if t.Target != "" {
+									name = fmt.Sprintf("name=%s", t.Target)
+								}
+								targetInfo := fmt.Sprintf("%s %s", t.Address, name)
+								targets.NewChild(targetInfo)
+							}
+						}
+					}
 				}
 			}
 
-			for _, si := range vsis {
-				portStr := "port"
-				if len(si.Ports) > 1 {
-					portStr = "ports"
-				}
-				for _, port := range si.Ports {
-					portStr += fmt.Sprintf(" %d", port)
-				}
-				authSuffix := ""
-				if !svcAuth[si.Address] {
-					authSuffix = " - not authorized"
-				}
-				svc := l.NewChild(fmt.Sprintf("%s (%s %s)%s", si.Address, si.Protocol, portStr, authSuffix))
-				if len(si.Targets) > 0 {
-					targets := svc.NewChild("Targets:")
-					for _, t := range si.Targets {
-						var name string
-						var namespace string
-						if t.Name != "" {
-							name = fmt.Sprintf("name=%s", t.Name)
-						}
-						if t.Namespace != "" {
-							namespace = fmt.Sprintf("namespace=%s", t.Namespace)
-						}
-						targetInfo := ""
-						if t.Selector != "" {
-							targetInfo = fmt.Sprintf("%s %s %s", t.Selector, name, namespace)
-						} else if t.Service != "" {
-							targetInfo = fmt.Sprintf("%s %s %s", t.Service, name, namespace)
-						} else {
-							targetInfo = fmt.Sprintf("%s (no selector)", name)
-						}
-						targets.NewChild(targetInfo)
-					}
-				}
-				if showLabels && len(si.Labels) > 0 {
-					labels := svc.NewChild("Labels:")
-					for k, v := range si.Labels {
-						labels.NewChild(fmt.Sprintf("%s=%s", k, v))
-					}
+			if showLabels && len(mapServiceLabels[si.Name]) > 0 {
+				labels := svc.NewChild("Labels:")
+				for k, v := range mapServiceLabels[si.Name] {
+					labels.NewChild(fmt.Sprintf("%s=%s", k, v))
 				}
 			}
-			l.Print()
 		}
-	} else {
-		return fmt.Errorf("Could not retrieve services: %w", err)
+		l.Print()
 	}
+
 	return nil
 }
 
