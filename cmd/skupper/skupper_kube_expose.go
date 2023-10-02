@@ -149,3 +149,16 @@ func (s *SkupperKubeService) UnexposeFlags(cmd *cobra.Command) error {
 	cmd.Use = "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>|deploymentconfig <name>]"
 	return nil
 }
+
+func (s *SkupperKubeService) UnExposeArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
+		return fmt.Errorf("target and name must be specified (e.g. 'skupper unexpose deployment <name>')")
+	}
+	if len(args) > 2 {
+		return fmt.Errorf("illegal argument: %s", args[2])
+	}
+	if len(args) > 1 && strings.Contains(args[0], "/") {
+		return fmt.Errorf("extra argument: %s", args[1])
+	}
+	return s.verifyTargetTypeFromArgs(args)
+}

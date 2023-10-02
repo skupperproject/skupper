@@ -61,6 +61,7 @@ type SkupperServiceClient interface {
 	UnbindFlags(cmd *cobra.Command)
 	Unexpose(cmd *cobra.Command, args []string) error
 	UnexposeFlags(cmd *cobra.Command) error
+	UnExposeArgs(cmd *cobra.Command, args []string) error
 }
 
 type SkupperDebugClient interface {
@@ -553,7 +554,7 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "unexpose",
 		Short:  "Unexpose a set of pods previously exposed through a Skupper address",
-		Args:   skupperCli.ExposeArgs,
+		Args:   skupperCli.UnExposeArgs,
 		PreRun: skupperCli.NewClient,
 		RunE:   skupperCli.Unexpose,
 	}
