@@ -12,17 +12,6 @@ type SkupperStatus struct {
 	VanStatus *types.VanStatusInfo
 }
 
-type StatusManager interface {
-	GetServiceSitesMap() map[string][]types.SiteStatusInfo
-	GetServiceLabelsMap(services []*types.ServiceInterface) map[string]map[string]string
-	GetSiteTargetsMap() map[string]map[string]types.ConnectorInfo
-	GetRouterSiteMap() map[string]types.SiteStatusInfo
-	GetSiteById(siteId string) *types.SiteStatusInfo
-	GetSiteLinkMapPerRouter(router *types.RouterStatusInfo, site *types.SiteInfo) map[string]types.LinkInfo
-	LinkBelongsToSameSite(linkName string, namespace string, siteId string, routerSiteMap map[string]string) bool
-	RemoveLinksFromSameSite(router types.RouterStatusInfo, site types.SiteInfo) []types.LinkInfo
-}
-
 func (s *SkupperStatus) GetServiceSitesMap() map[string][]types.SiteStatusInfo {
 
 	mapServiceSites := make(map[string][]types.SiteStatusInfo)
