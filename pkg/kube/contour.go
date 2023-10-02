@@ -86,11 +86,12 @@ func GetContourProxy(client dynamic.Interface, namespace string, name string) (*
 	return &proxy, nil
 }
 
-func CreateContourProxy(client dynamic.Interface, namespace string, name string, def IngressRoute, owner *metav1.OwnerReference) error {
+func CreateContourProxy(client dynamic.Interface, namespace string, name string, def IngressRoute, labels map[string]string, owner *metav1.OwnerReference) error {
 	obj := unstructured.Unstructured{}
 	obj.SetGroupVersionKind(httpProxyGVK)
 	obj.SetName(name)
 	obj.SetOwnerReferences([]metav1.OwnerReference{*owner})
+	obj.SetLabels(labels)
 	err := def.writeToContourProxy(&obj)
 	if err != nil {
 		return err
@@ -102,9 +103,9 @@ func CreateContourProxy(client dynamic.Interface, namespace string, name string,
 	return nil
 }
 
-func CreateContourProxies(routes []IngressRoute, owner *metav1.OwnerReference, client dynamic.Interface, namespace string) error {
+func CreateContourProxies(routes []IngressRoute, labels map[string]string, owner *metav1.OwnerReference, client dynamic.Interface, namespace string) error {
 	for _, route := range routes {
-		err := CreateContourProxy(client, namespace, route.Name, route, owner)
+		err := CreateContourProxy(client, namespace, route.Name, route, labels, owner)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}

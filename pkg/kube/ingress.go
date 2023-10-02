@@ -111,7 +111,7 @@ func UpdateIngressRuleServiceName(ingressName string, hostPrefix string, service
 	}
 }
 
-func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthrough bool, ownerRefs []metav1.OwnerReference, namespace string, annotations map[string]string, clients Clients) error {
+func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthrough bool, ownerRefs []metav1.OwnerReference, namespace string, annotations map[string]string, labels map[string]string, clients Clients) error {
 	if useV1API(clients.GetDiscoveryClient()) {
 		if isNginx {
 			if annotations == nil {
@@ -125,13 +125,14 @@ func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthro
 				resolve = true
 			}
 		}
-		return ensureIngressRoutesV1(clients.GetDynamicClient(), namespace, name, routes, annotations, ownerRefs, resolve)
+		return ensureIngressRoutesV1(clients.GetDynamicClient(), namespace, name, routes, annotations, labels, ownerRefs, resolve)
 	}
 	cli := clients.GetKubeClient()
 	ingress := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Annotations: map[string]string{},
+			Labels:      labels,
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{},
@@ -243,7 +244,7 @@ func appendIngressHostSuffix(desired []IngressRoute, suffix string) []IngressRou
 	return updated
 }
 
-func ensureIngressRoutesV1(client dynamic.Interface, namespace string, name string, routes []IngressRoute, annotations map[string]string, ownerRefs []metav1.OwnerReference, resolve bool) error {
+func ensureIngressRoutesV1(client dynamic.Interface, namespace string, name string, routes []IngressRoute, annotations map[string]string, labels map[string]string, ownerRefs []metav1.OwnerReference, resolve bool) error {
 	obj, err := client.Resource(ingressResource).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		obj = &unstructured.Unstructured{}
@@ -255,6 +256,7 @@ func ensureIngressRoutesV1(client dynamic.Interface, namespace string, name stri
 		obj.SetName(name)
 		obj.SetOwnerReferences(ownerRefs)
 		obj.SetAnnotations(annotations)
+		obj.SetLabels(labels)
 		err := writeIngressRules(routes, obj)
 		if err != nil {
 			return err
