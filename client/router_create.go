@@ -159,6 +159,7 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        types.PrometheusServiceAccountName,
 			Annotations: annotation,
+			Labels:      options.Labels,
 		},
 	})
 	van.PrometheusServer.ServiceAccounts = serviceAccounts
@@ -172,7 +173,8 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.PrometheusRoleName,
+			Name:   types.PrometheusRoleName,
+			Labels: options.Labels,
 		},
 		Rules: cli.getControllerRules(),
 	})
@@ -185,7 +187,8 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.PrometheusRoleBindingName,
+			Name:   types.PrometheusRoleBindingName,
+			Labels: options.Labels,
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind: "ServiceAccount",
@@ -219,6 +222,7 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        types.PrometheusServiceName,
 				Annotations: annotations,
+				Labels:      options.Labels,
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: van.PrometheusServer.Labels,
@@ -369,6 +373,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        types.ControllerServiceAccountName,
 			Annotations: annotation,
+			Labels:      options.Labels,
 		},
 	})
 	van.Controller.ServiceAccounts = serviceAccounts
@@ -380,7 +385,8 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.ControllerRoleName,
+			Name:   types.ControllerRoleName,
+			Labels: options.Labels,
 		},
 		Rules: cli.getControllerRules(),
 	})
@@ -393,7 +399,8 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.ControllerRoleBindingName,
+			Name:   types.ControllerRoleBindingName,
+			Labels: options.Labels,
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind: "ServiceAccount",
@@ -446,7 +453,8 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 					Kind:       "Route",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: types.ConsoleRouteName,
+					Name:   types.ConsoleRouteName,
+					Labels: options.Labels,
 				},
 				Spec: routev1.RouteSpec{
 					Path: "",
@@ -494,6 +502,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				Hosts:       controllerHosts,
 				ConnectJson: false,
 				Post:        post,
+				Labels:      options.Labels,
 			})
 		}
 		controllerPorts = append(controllerPorts, metricsPort)
@@ -508,6 +517,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 				Hosts:       hosts,
 				ConnectJson: false,
 				Post:        false,
+				Labels:      options.Labels,
 			})
 		}
 		controllerPorts = append(controllerPorts, corev1.ServicePort{
@@ -532,6 +542,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        types.ControllerServiceName,
 				Annotations: annotations,
+				Labels:      options.Labels,
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: van.Controller.Labels,
@@ -803,7 +814,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.TransportRoleName,
+			Name:   types.TransportRoleName,
+			Labels: options.Labels,
 		},
 		Rules: cli.adjustRules(types.TransportPolicyRule),
 	})
@@ -816,7 +828,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.TransportRoleBindingName,
+			Name:   types.TransportRoleBindingName,
+			Labels: options.Labels,
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind: "ServiceAccount",
@@ -844,21 +857,27 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        types.TransportServiceAccountName,
 			Annotations: annotation,
+			Labels:      options.Labels,
 		},
 	})
 	van.Transport.ServiceAccounts = serviceAccounts
 
 	cas := []types.CertAuthority{}
 	cas = append(cas, types.CertAuthority{
-		Name: types.LocalCaSecret,
+		Name:   types.LocalCaSecret,
+		Labels: options.Labels,
 	})
 	if !isEdge {
 		cas = append(cas, types.CertAuthority{
-			Name: types.SiteCaSecret,
+			Name:   types.SiteCaSecret,
+			Labels: options.Labels,
 		})
 	}
 
-	cas = append(cas, types.CertAuthority{Name: types.ServiceCaSecret})
+	cas = append(cas, types.CertAuthority{
+		Name:   types.ServiceCaSecret,
+		Labels: options.Labels,
+	})
 
 	van.CertAuthoritys = cas
 
@@ -870,6 +889,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Hosts:       []string{types.LocalTransportServiceName, types.LocalTransportServiceName + "." + van.Namespace + ".svc.cluster.local"},
 		ConnectJson: false,
 		Post:        false,
+		Labels:      options.Labels,
 	})
 	credentials = append(credentials, types.Credential{
 		CA:          types.LocalCaSecret,
@@ -878,6 +898,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Hosts:       []string{},
 		ConnectJson: true,
 		Post:        false,
+		Labels:      options.Labels,
 	})
 
 	credentials = append(credentials, types.Credential{
@@ -887,6 +908,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		ConnectJson: false,
 		Post:        false,
 		Simple:      true,
+		Labels:      options.Labels,
 	})
 
 	if !isEdge {
@@ -897,6 +919,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Hosts:       []string{types.TransportServiceName + "." + van.Namespace, types.TransportServiceName + "." + van.Namespace + ".svc.cluster.local"},
 			ConnectJson: false,
 			Post:        true,
+			Labels:      options.Labels,
 		})
 	}
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) && (options.EnableFlowCollector || options.EnableRestAPI) {
@@ -911,6 +934,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			ConnectJson: false,
 			Data:        userData,
 			Post:        false,
+			Labels:      options.Labels,
 		})
 	}
 	van.TransportCredentials = credentials
@@ -925,6 +949,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        types.LocalTransportServiceName,
 			Annotations: map[string]string{},
+			Labels:      options.Labels,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: van.Transport.Labels,
@@ -955,6 +980,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        types.TransportServiceName,
 				Annotations: options.Router.ServiceAnnotations,
+				Labels:      options.Labels,
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: van.Transport.Labels,
@@ -1008,6 +1034,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        types.InterRouterRouteName,
 				Annotations: options.IngressAnnotations,
+				Labels:      options.Labels,
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
@@ -1033,6 +1060,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        types.EdgeRouteName,
 				Annotations: options.IngressAnnotations,
+				Labels:      options.Labels,
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
@@ -1058,6 +1086,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        types.ClaimRedemptionRouteName,
 				Annotations: options.IngressAnnotations,
+				Labels:      options.Labels,
 			},
 			Spec: routev1.RouteSpec{
 				Path: "",
@@ -1127,7 +1156,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 		saslData := &map[string]string{
 			"skrouterd.conf": config,
 		}
-		kube.NewConfigMap("skupper-sasl-config", saslData, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+		kube.NewConfigMap("skupper-sasl-config", saslData, &options.Spec.Labels, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 	}
 	for _, sa := range van.Transport.ServiceAccounts {
 		sa.ObjectMeta.OwnerReferences = ownerRefs
@@ -1186,9 +1215,9 @@ sasldb_path: /tmp/skrouterd.sasldb
 		return err
 	}
 
-	kube.NewConfigMap(types.ServiceInterfaceConfigMap, nil, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap(types.ServiceInterfaceConfigMap, nil, &options.Spec.Labels, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 	initialConfig := qdr.AsConfigMapData(van.RouterConfig)
-	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap(types.TransportConfigMapName, &initialConfig, &options.Spec.Labels, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	currentContext, cn := getCurrentContextOrDefault(ctx)
 	if cn != nil {
@@ -1495,7 +1524,7 @@ func (cli *VanClient) createIngress(site types.SiteConfig) error {
 		})
 	}
 
-	return kube.CreateIngress(types.IngressName, routes, site.Spec.IsIngressNginxIngress(), true, asOwnerReferences(site.Reference), namespace, site.Spec.IngressAnnotations, cli)
+	return kube.CreateIngress(types.IngressName, routes, site.Spec.IsIngressNginxIngress(), true, asOwnerReferences(site.Reference), namespace, site.Spec.IngressAnnotations, site.Spec.Labels, cli)
 }
 
 func (cli *VanClient) createContourProxies(site types.SiteConfig) error {
@@ -1533,7 +1562,7 @@ func (cli *VanClient) createContourProxies(site types.SiteConfig) error {
 			ServicePort: int(types.ClaimRedemptionPort),
 		})
 	}
-	return kube.CreateContourProxies(routes, asOwnerReference(site.Reference), cli.DynamicClient, namespace)
+	return kube.CreateContourProxies(routes, site.Spec.Labels, asOwnerReference(site.Reference), cli.DynamicClient, namespace)
 }
 
 func asOwnerReference(ref types.SiteConfigReference) *metav1.OwnerReference {
@@ -1672,7 +1701,7 @@ func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.Si
 		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 	}
 
-	kube.NewConfigMap("prometheus-server-config", prometheusData, nil, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
+	kube.NewConfigMap("prometheus-server-config", prometheusData, &siteConfig.Spec.Labels, nil, siteOwnerRef, van.Namespace, cli.KubeClient)
 
 	for _, sa := range van.PrometheusServer.ServiceAccounts {
 		sa.ObjectMeta.OwnerReferences = ownerRefs

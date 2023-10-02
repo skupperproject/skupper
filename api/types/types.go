@@ -533,10 +533,12 @@ type Credential struct {
 	Post        bool
 	Data        map[string][]byte
 	Simple      bool `default:"false"`
+	Labels      map[string]string
 }
 
 type CertAuthority struct {
-	Name string
+	Name   string
+	Labels map[string]string
 }
 
 type CredentialHandler interface {

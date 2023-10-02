@@ -22,6 +22,7 @@ func NewCertAuthority(ca types.CertAuthority, owner *metav1.OwnerReference, name
 		return existing, nil
 	} else if errors.IsNotFound(err) {
 		newCA := certs.GenerateCASecret(ca.Name, ca.Name)
+		newCA.Labels = ca.Labels
 		if owner != nil {
 			newCA.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
 				*owner,
@@ -80,6 +81,7 @@ func NewSecret(cred types.Credential, owner *metav1.OwnerReference, namespace st
 	}
 
 	secret = PrepareNewSecret(cred, caSecret, connectJsonHost)
+	secret.ObjectMeta.Labels = cred.Labels
 
 	if owner != nil {
 		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
