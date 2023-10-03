@@ -2207,21 +2207,26 @@ func (fc *FlowCollector) setupFlowMetrics(va *VanAddressRecord, flow *FlowRecord
 	}
 
 	if direction, ok := metricLabel["direction"]; ok {
-		if direction == Incoming && flow.Method != nil {
-			metricLabel["method"] = *flow.Method
-			httpReqsMethod, err := fc.metrics.httpReqsMethod.GetMetricWith(metricLabel)
-			if err != nil {
-				return err
-			} else {
-				httpReqsMethod.Inc()
+		if direction == Incoming {
+			if flow.Method != nil {
+				metricLabel["method"] = *flow.Method
+				httpReqsMethod, err := fc.metrics.httpReqsMethod.GetMetricWith(metricLabel)
+				if err != nil {
+					return err
+				} else {
+					httpReqsMethod.Inc()
+				}
+				delete(metricLabel, "method")
 			}
-		} else if direction == Outgoing && flow.Result != nil {
-			metricLabel["code"] = *flow.Result
-			httpReqsResult, err := fc.metrics.httpReqsResult.GetMetricWith(metricLabel)
-			if err != nil {
-				return err
-			} else {
-				httpReqsResult.Inc()
+			if flow.Result != nil {
+				metricLabel["code"] = *flow.Result
+				httpReqsResult, err := fc.metrics.httpReqsResult.GetMetricWith(metricLabel)
+				if err != nil {
+					return err
+				} else {
+					httpReqsResult.Inc()
+				}
+				delete(metricLabel, "code")
 			}
 		}
 	}
