@@ -496,7 +496,7 @@ func (fc *FlowCollector) updateVanStatus() error {
 			log.Fatal("Error getting van client: ", err.Error())
 		}
 
-		configMap, err := kube.GetConfigMap(types.VanStatusConfigMapName, cli.Namespace, cli.KubeClient)
+		configMap, err := kube.GetConfigMap(types.NetworkStatusConfigMapName, cli.Namespace, cli.KubeClient)
 
 		var sites []*SiteStatus
 		var addresses []*VanAddressRecord
@@ -2085,7 +2085,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "pair-to-aggregate":
 			flowPairs := []string{}
-			for flowPairId, _ := range fc.aggregatesToReconcile {
+			for flowPairId := range fc.aggregatesToReconcile {
 				if _, ok := fc.FlowPairs[flowPairId]; ok {
 					p.TotalCount++
 					flowPairs = append(flowPairs, flowPairId)

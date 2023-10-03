@@ -42,7 +42,7 @@ func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) *flow.FlowColl
 		}
 		owner := kube.GetDeploymentOwnerReference(current)
 
-		existing, err := kube.NewConfigMap(types.VanStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.KubeClient)
+		existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.KubeClient)
 		if err != nil && existing == nil {
 			log.Fatal("Failed to create site status config map ", err.Error())
 		}

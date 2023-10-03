@@ -28,13 +28,13 @@ import (
 
 const (
 	// NamespaceDefault means the VAN is in the  skupper namespace which is applied when not specified by clients
-	NamespaceDefault       string = "skupper"
-	DefaultVanName         string = "skupper"
-	DefaultSiteName        string = "skupper-site"
-	ClusterLocalPostfix    string = ".svc.cluster.local"
-	SiteConfigMapName      string = "skupper-site"
-	VanStatusConfigMapName string = "skupper-van-status"
-	SiteLeaderLockName     string = "skupper-site-leader"
+	NamespaceDefault           string = "skupper"
+	DefaultVanName             string = "skupper"
+	DefaultSiteName            string = "skupper-site"
+	ClusterLocalPostfix        string = ".svc.cluster.local"
+	SiteConfigMapName          string = "skupper-site"
+	NetworkStatusConfigMapName string = "skupper-network-status"
+	SiteLeaderLockName         string = "skupper-site-leader"
 )
 
 const DefaultTimeoutDuration = time.Second * 120

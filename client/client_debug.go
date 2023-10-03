@@ -86,7 +86,7 @@ func (cli *VanClient) writeConfigMap(name string, tw *tar.Writer) error {
 }
 
 func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error) {
-	configMaps := []string{types.SiteConfigMapName, types.ServiceInterfaceConfigMap, types.TransportConfigMapName, "skupper-sasl-config"}
+	configMaps := []string{types.SiteConfigMapName, types.ServiceInterfaceConfigMap, types.TransportConfigMapName, "skupper-sasl-config", types.NetworkStatusConfigMapName, types.SiteLeaderLockName}
 	deployments := []string{"skupper-site-controller", "skupper-router", "skupper-service-controller"}
 	qdstatFlags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
 
