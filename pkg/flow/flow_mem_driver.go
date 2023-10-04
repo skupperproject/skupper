@@ -486,9 +486,9 @@ var defaultRetry = wait.Backoff{
 	Jitter:   0.1,
 }
 
-func (fc *FlowCollector) updateVanStatus() error {
+func (fc *FlowCollector) updateNetworkStatus() error {
 	var err error
-	vanData := map[string]string{}
+	networkData := map[string]string{}
 	platform := config.GetPlatform()
 	if platform == "" || platform == types.PlatformKubernetes {
 		cli, err := client.NewClient(fc.namespace, "", "")
@@ -525,12 +525,12 @@ func (fc *FlowCollector) updateVanStatus() error {
 			}
 			sites = append(sites, siteStatus)
 		}
-		vanStatus := VanStatus{
+		networkStatus := NetworkStatus{
 			Addresses: addresses,
 			Sites:     sites,
 		}
-		vanData["VanStatus"] = prettyPrint(vanStatus)
-		configMap.Data = vanData
+		networkData["NetworkStatus"] = prettyPrint(networkStatus)
+		configMap.Data = networkData
 
 		err = retry.RetryOnConflict(defaultRetry, func() error {
 			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
@@ -603,7 +603,7 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 		return fmt.Errorf("Unknown record type to add")
 	}
 	if fc.mode == RecordStatus {
-		fc.updateVanStatus()
+		fc.updateNetworkStatus()
 	}
 	return nil
 }
@@ -668,7 +668,7 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 		return fmt.Errorf("Unknown record type to delete")
 	}
 	if fc.mode == RecordStatus {
-		fc.updateVanStatus()
+		fc.updateNetworkStatus()
 	}
 	return nil
 }
@@ -2357,10 +2357,20 @@ func (fc *FlowCollector) reconcileFlowRecords() error {
 					}
 					if sourceProcess, ok := fc.Processes[ffp.Identity]; ok {
 						pfa.SourceName = sourceProcess.Name
+						sourceSiteId := fc.getRecordSiteId(*sourceProcess)
+						if sourceSite, ok := fc.Sites[sourceSiteId]; ok {
+							pfa.SourceSiteId = &sourceSiteId
+							pfa.SourceSiteName = sourceSite.Name
+						}
 					}
 					if destinationProcess, ok := fc.Processes[cfp.Identity]; ok {
 						if destinationProcess.Name != nil {
 							pfa.DestinationName = destinationProcess.Name
+						}
+						destinationSiteId := fc.getRecordSiteId(*destinationProcess)
+						if destinationSite, ok := fc.Sites[destinationSiteId]; ok {
+							pfa.DestinationSiteId = &destinationSiteId
+							pfa.DestinationSiteName = destinationSite.Name
 						}
 					}
 					fc.FlowAggregates[processAggregateId] = pfa
@@ -2413,7 +2423,7 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 								process.connector = &connector.Identity
 								process.ProcessBinding = &Bound
 								// update site status with the connector target
-								fc.updateVanStatus()
+								fc.updateNetworkStatus()
 								log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
 								delete(fc.connectorsToReconcile, connId)
 								found = true

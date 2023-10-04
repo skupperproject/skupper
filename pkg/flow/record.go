@@ -412,13 +412,17 @@ type FlowPairRecord struct {
 
 type FlowAggregateRecord struct {
 	Base
-	PairType        string  `json:"pairType,omitempty"`
-	RecordCount     uint64  `json:"recordCount,omitempty"`
-	SourceId        *string `json:"sourceId,omitempty"`
-	SourceName      *string `json:"sourceName,omitempty"`
-	DestinationId   *string `json:"destinationId,omitempty"`
-	DestinationName *string `json:"destinationName,omitempty"`
-	Protocol        *string `json:"protocol,omitempty"`
+	PairType            string  `json:"pairType,omitempty"`
+	RecordCount         uint64  `json:"recordCount,omitempty"`
+	SourceId            *string `json:"sourceId,omitempty"`
+	SourceName          *string `json:"sourceName,omitempty"`
+	DestinationId       *string `json:"destinationId,omitempty"`
+	DestinationName     *string `json:"destinationName,omitempty"`
+	SourceSiteId        *string `json:"sourceSiteId,omitempty"`
+	SourceSiteName      *string `json:"sourceSiteName,omitempty"`
+	DestinationSiteId   *string `json:"destinationSiteId,omitempty"`
+	DestinationSiteName *string `json:"destinationSiteName,omitempty"`
+	Protocol            *string `json:"protocol,omitempty"`
 }
 
 type ControllerRecord struct {
@@ -442,7 +446,7 @@ type CollectorRecord struct {
 	PrometheusUrl string
 }
 
-type VanStatus struct {
+type NetworkStatus struct {
 	Addresses []*VanAddressRecord `json:"addresses"`
 	Sites     []*SiteStatus       `json:"siteStatus"`
 }

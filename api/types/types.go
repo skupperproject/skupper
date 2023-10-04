@@ -71,9 +71,15 @@ const (
 
 var TransportPolicyRule = []rbacv1.PolicyRule{
 	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{""},
+		Resources: []string{"secrets", "pods"},
+	},
+	//needed for collector routine
+	{
 		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
 		APIGroups: []string{""},
-		Resources: []string{"secrets", "pods", "configmaps"},
+		Resources: []string{"configmaps"},
 	},
 	//needed for redeeming token claims
 	{
