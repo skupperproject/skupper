@@ -216,13 +216,6 @@ func (c *PolicyController) validateIncomingLinkStateChanged() {
 		return
 	}
 
-	// Changed to allowed
-	if allowed {
-		event.Recordf(c.name, "[%s] allowing links", source)
-	} else {
-		event.Recordf(c.name, "[%s] blocking links", source)
-	}
-
 	siteConfig, err := c.cli.SiteConfigInspect(context.Background(), nil)
 	if err != nil {
 		event.Recordf(c.name, "[%s] error retrieving site config: %v", source, err)
@@ -240,8 +233,10 @@ func (c *PolicyController) validateIncomingLinkStateChanged() {
 
 		// Changed to allowed
 		if allowed {
+			event.Recordf(c.name, "[%s] allowing links", source)
 			current.AddListener(listenerFn(siteConfig.Spec.Router))
 		} else {
+			event.Recordf(c.name, "[%s] blocking links", source)
 			delete(current.Listeners, listenerName)
 		}
 	}
