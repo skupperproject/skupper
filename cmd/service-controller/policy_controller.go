@@ -80,6 +80,11 @@ func (c *PolicyController) OnDelete(obj interface{}) {
 	c.enqueue(obj)
 }
 
+func (c *PolicyController) logRecord(msg string) {
+	log.Println(msg)
+	event.Record(c.name, msg)
+}
+
 func (c *PolicyController) start(stopCh <-chan struct{}) error {
 	go func() {
 		period := time.NewTicker(time.Second)
@@ -92,7 +97,7 @@ func (c *PolicyController) start(stopCh <-chan struct{}) error {
 			c.createInformer()
 			go c.informer.Run(crdCh)
 			if ok := cache.WaitForCacheSync(crdCh, c.informer.HasSynced); !ok {
-				event.Recordf(c.name, "Error waiting for cache to sync")
+				c.logRecord("Error waiting for cache to sync")
 				close(crdCh)
 				return false
 			}
@@ -101,9 +106,9 @@ func (c *PolicyController) start(stopCh <-chan struct{}) error {
 		}
 		for {
 			if !enabled && c.validator.Enabled() {
-				log.Println("Skupper policy is enabled")
+				c.logRecord("Skupper policy is enabled")
 				if !c.validator.HasPermission() {
-					log.Printf("-> No permission to read SkupperClusterPolicies")
+					c.logRecord("-> No permission to read SkupperClusterPolicies")
 				} else {
 					if informerRunning = startInformer(); !informerRunning {
 						continue
@@ -114,7 +119,7 @@ func (c *PolicyController) start(stopCh <-chan struct{}) error {
 				enabled = true
 			} else if !c.validator.Enabled() && !disabledReported {
 				disabledReported = true
-				log.Printf("Skupper policy is disabled")
+				c.logRecord("Skupper policy is disabled")
 			}
 
 			select {
@@ -123,20 +128,20 @@ func (c *PolicyController) start(stopCh <-chan struct{}) error {
 					if informerRunning {
 						close(crdCh)
 					}
-					log.Println("Skupper policy has been disabled")
+					c.logRecord("Skupper policy has been disabled")
 					// reverts what has been denied by policies
 					c.validateStateChanged()
 					enabled = false
 				} else if enabled && !informerRunning && c.validator.HasPermission() {
 					// permission has been granted, running informer
 					informerRunning = startInformer()
-					log.Println("Permission to read SkupperClusterPolicies has been granted")
+					c.logRecord("Permission to read SkupperClusterPolicies has been granted")
 				} else if enabled && informerRunning && !c.validator.HasPermission() {
 					// permission revoked, stopping informer
 					close(crdCh)
 					informerRunning = false
 					c.validateStateChanged()
-					log.Println("Permission to read SkupperClusterPolicies has been revoked")
+					c.logRecord("Permission to read SkupperClusterPolicies has been revoked")
 				}
 			case <-stopCh:
 				if enabled {
@@ -375,7 +380,9 @@ func (c *PolicyController) validateServiceStateChanged() {
 		}
 		if !res.Allowed() {
 			err = c.cli.ServiceInterfaceRemove(context.Background(), service.Address)
-			if err != nil {
+			if err == nil {
+				event.Recordf(c.name, "[validateServiceStateChanged] removing service definition %s", service.Address)
+			} else if !strings.Contains(err.Error(), "not defined") {
 				event.Recordf(c.name, "[validateServiceStateChanged] error removing service definition %s: %v", service.Address, err)
 				return
 			}
