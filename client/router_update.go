@@ -464,10 +464,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		updateRouter = true
 	}
 	if addClaimsSupport {
-		err = kube.UpdateRole(namespace, types.TransportRoleName, types.TransportPolicyRule, cli.KubeClient)
-		if err != nil {
-			return false, err
-		}
 		if !config.IsEdge() {
 			if usingRoutes {
 				err = cli.createClaimsRedemptionRoute(ctx, namespace)
@@ -478,6 +474,10 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 	}
 	if moveClaims {
+		err = kube.UpdateRole(namespace, types.TransportRoleName, types.TransportPolicyRule, cli.KubeClient)
+		if err != nil {
+			return false, err
+		}
 		if err := cli.moveClaimsToRouterService(ctx, namespace); err != nil {
 			return false, err
 		}
@@ -1299,7 +1299,7 @@ func (cli *VanClient) moveClaimsToRouterService(ctx context.Context, namespace s
 	if err != nil {
 		return err
 	}
-	err = cli.regenerateSiteSecret(ctx, ca)
+	err = cli.regenerateSiteSecret(ctx, ca, namespace)
 	if err != nil {
 		return err
 	}
