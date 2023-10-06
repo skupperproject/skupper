@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/event"
 )
 
 const (
@@ -53,10 +52,12 @@ func newClaimVerifier(client kubernetes.Interface, namespace string, generator T
 }
 
 func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (string, int) {
+	log.Printf("Checking claim %s", name)
 	claim, err := server.client.CoreV1().Secrets(server.namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return "No such claim", http.StatusNotFound
 	} else if err != nil {
+		log.Printf("Error retrieving claim: %s", err)
 		return err.Error(), http.StatusInternalServerError
 	}
 	if claim.ObjectMeta.Labels == nil || claim.ObjectMeta.Labels[types.SkupperTypeQualifier] != types.TypeClaimRecord {
@@ -66,10 +67,10 @@ func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (stri
 		if expirationString, ok := claim.ObjectMeta.Annotations[types.ClaimExpiration]; ok {
 			expiration, err := time.Parse(time.RFC3339, expirationString)
 			if err != nil {
-				event.Recordf(TokenClaimVerification, "Cannot determine expiration: %s", err)
+				log.Printf("Cannot determine expiration: %s", err)
 				return "Corrupted claim", http.StatusInternalServerError
 			} else if expiration.Before(time.Now()) {
-				event.Recordf(TokenClaimVerification, "Claim %s expired", name)
+				log.Printf("Claim %s expired", name)
 				return "No such claim", http.StatusNotFound
 			}
 		}
@@ -83,11 +84,11 @@ func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (stri
 	if uses, ok := claim.ObjectMeta.Annotations[types.ClaimsRemaining]; ok {
 		remainingUses, err := strconv.Atoi(uses)
 		if err != nil {
-			event.Recordf(TokenClaimVerification, "Cannot determine remaining uses: %s", err)
+			log.Printf("Cannot determine remaining uses: %s", err)
 			return "Corrupted claim", http.StatusInternalServerError
 		}
 		if remainingUses == 0 {
-			event.Recordf(TokenClaimVerification, "Claim %s already used", name)
+			log.Printf("Claim %s already used", name)
 			return "No such claim", http.StatusNotFound
 		}
 		remainingUses -= 1
@@ -96,7 +97,7 @@ func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (stri
 	if value, ok := claim.ObjectMeta.Annotations[types.ClaimsMade]; ok {
 		made, err := strconv.Atoi(value)
 		if err != nil {
-			event.Recordf(TokenClaimVerification, "Cannot determine claims made: %s", err)
+			log.Printf("Cannot determine claims made: %s", err)
 			return "Corrupted claim", http.StatusInternalServerError
 		}
 		made += 1
@@ -106,7 +107,7 @@ func (server *ClaimVerifier) checkAndUpdateClaim(name string, data []byte) (stri
 	}
 	_, err = server.client.CoreV1().Secrets(server.namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
 	if err != nil {
-		event.Recordf(TokenClaimVerification, "Error updating remaining uses: %s", err)
+		log.Printf("Error updating remaining uses: %s", err)
 		return "Internal error", http.StatusServiceUnavailable
 	}
 	return "ok", http.StatusOK
@@ -137,14 +138,14 @@ func (server *ClaimVerifier) redeemClaim(name string, subject string, data []byt
 
 func (server *ClaimVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		event.Recordf(TokenClaimVerification, "Bad method %s", r.Method)
+		log.Printf("Bad method %s", r.Method)
 		http.Error(w, "Only POST is supported", http.StatusMethodNotAllowed)
 		return
 	}
 	name := strings.Join(strings.Split(r.URL.Path, "/"), "")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		event.Record(TokenClaimVerification, err.Error())
+		log.Printf("Error reading body: %s", err.Error())
 		http.Error(w, "Request body not valid", http.StatusBadRequest)
 		return
 	}
@@ -158,24 +159,24 @@ func (server *ClaimVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if remoteSiteVersion == "" {
 			remoteSiteVersion = "undefined"
 		}
-		event.Recordf(TokenClaimVerification, "%s - remote site version is %s", err.Error(), remoteSiteVersion)
+		log.Printf("%s - remote site version is %s", err.Error(), remoteSiteVersion)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	token, text, code := server.redeemClaim(name, subject, body, server.generator)
 	if token == nil {
-		event.Recordf(TokenClaimVerification, "Claim request for %s failed: %s", name, text)
+		log.Printf("Claim request for %s failed: %s", name, text)
 		http.Error(w, text, code)
 		return
 	}
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 	err = s.Encode(token, w)
 	if err != nil {
-		event.Record(TokenClaimVerification, err.Error())
+		log.Printf("Error encoding token: %s", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	event.Recordf(TokenClaimVerification, "Claim for %s succeeded", name)
+	log.Printf("Claim for %s succeeded", name)
 }
 
 const (

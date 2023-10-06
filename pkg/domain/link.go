@@ -110,10 +110,14 @@ func (c *ClaimRedeemer) RedeemClaim(claim *corev1.Secret) error {
 	request.URL.RawQuery = query.Encode()
 	response, err := client.Do(request)
 	if err != nil {
+		fmt.Printf("Claim request failed on invoke: %s", err)
+		fmt.Println()
 		return c.handleError(claim, err.Error(), false)
 	}
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
+		fmt.Printf("Claim request failed on reading body: %s", err)
+		fmt.Println()
 		return c.handleError(claim, err.Error(), false)
 	}
 	if response.StatusCode != http.StatusOK {

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,18 +36,21 @@ func (cli *VanClient) appendControllerIngressHost(cred *types.Credential) bool {
 	return false
 }
 
-func (cli *VanClient) regenerateSiteSecret(ctx context.Context, ca *corev1.Secret) error {
+func (cli *VanClient) regenerateSiteSecret(ctx context.Context, ca *corev1.Secret, namespace string) error {
 	siteServerSecret := types.Credential{
 		Name:    types.SiteServerSecret,
 		Subject: types.TransportServiceName,
-		Hosts:   []string{types.TransportServiceName + "." + cli.Namespace},
+		Hosts:   []string{types.TransportServiceName + "." + namespace},
 	}
 
-	siteconfig, err := cli.SiteConfigInspect(ctx, nil)
+	siteconfig, err := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
 	if err != nil {
 		return err
 	}
-	rslvr, err := resolver.NewResolver(cli, cli.Namespace, &siteconfig.Spec)
+	if siteconfig == nil {
+		return fmt.Errorf("No site found in %s", namespace)
+	}
+	rslvr, err := resolver.NewResolver(cli, namespace, &siteconfig.Spec)
 	if err != nil {
 		return err
 	}
@@ -55,11 +59,11 @@ func (cli *VanClient) regenerateSiteSecret(ctx context.Context, ca *corev1.Secre
 		return err
 	}
 	siteServerSecret.Hosts = append(siteServerSecret.Hosts, hosts...)
-	_, err = kube.RegenerateCredentials(siteServerSecret, cli.Namespace, ca, cli.KubeClient)
+	_, err = kube.RegenerateCredentials(siteServerSecret, namespace, ca, cli.KubeClient)
 	if err != nil {
 		return err
 	}
-	return cli.restartRouter(cli.Namespace)
+	return cli.restartRouter(namespace)
 }
 
 func (cli *VanClient) RevokeAccess(ctx context.Context) error {
@@ -78,5 +82,5 @@ func (cli *VanClient) RevokeAccess(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return cli.regenerateSiteSecret(ctx, ca)
+	return cli.regenerateSiteSecret(ctx, ca, cli.Namespace)
 }
