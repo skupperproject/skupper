@@ -12,6 +12,7 @@ import (
 	podman "github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/domain/podman/update"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -85,8 +86,9 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 			var ingressHosts []string
 			// Get hostname of the machine
 			hostname, err := os.Hostname()
-			if err != nil {
-				// Get all unicast IP addresses on the machine
+			if err == nil {
+				ingressHosts = append(ingressHosts, hostname)
+			} else {
 				addresses, err := net.InterfaceAddrs()
 				if err != nil {
 					return fmt.Errorf("Cannot get a default ingress host")
@@ -100,12 +102,14 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 						// Try a reverse lookup of a valid IPv4 address
 						fqdns, err := net.LookupAddr(ipv4ValidAddress)
 						if err == nil {
-							ingressHosts = append(ingressHosts, fqdns...)
+							for _, fqdn := range fqdns {
+								if !utils.StringSliceContains(ingressHosts, fqdn) {
+									ingressHosts = append(ingressHosts, fqdn)
+								}
+							}
 						}
 					}
 				}
-			} else {
-				ingressHosts = append(ingressHosts, hostname)
 			}
 			site.IngressHosts = append(site.IngressHosts, ingressHosts...)
 		}
