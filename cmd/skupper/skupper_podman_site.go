@@ -82,24 +82,30 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	if routerCreateOpts.Ingress != types.IngressNoneString {
 		// Validating ingress hosts (required as certificates must have valid hosts)
 		if len(site.IngressHosts) == 0 {
-			// Get all unicast IP addresses on the machine
-			addresses, err := net.InterfaceAddrs()
-			if err != nil {
-				return fmt.Errorf("Cannot get a default ingress host")
-			}
 			var ingressHosts []string
-			for _, address := range addresses {
-				ipnet, ok := address.(*net.IPNet)
-				if ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
-					ipv4ValidAddress := ipnet.IP.String()
-					// Try a reverse lookup of a valid IPv4 address
-					fqdns, err := net.LookupAddr(ipv4ValidAddress)
-					if err != nil {
+			// Get hostname of the machine
+			hostname, err := os.Hostname()
+			if err != nil {
+				// Get all unicast IP addresses on the machine
+				addresses, err := net.InterfaceAddrs()
+				if err != nil {
+					return fmt.Errorf("Cannot get a default ingress host")
+				}
+				for _, address := range addresses {
+					ipnet, ok := address.(*net.IPNet)
+					if ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
+						ipv4ValidAddress := ipnet.IP.String()
 						ingressHosts = append(ingressHosts, ipv4ValidAddress)
-					} else {
-						ingressHosts = append(ingressHosts, fqdns...)
+
+						// Try a reverse lookup of a valid IPv4 address
+						fqdns, err := net.LookupAddr(ipv4ValidAddress)
+						if err == nil {
+							ingressHosts = append(ingressHosts, fqdns...)
+						}
 					}
 				}
+			} else {
+				ingressHosts = append(ingressHosts, hostname)
 			}
 			site.IngressHosts = append(site.IngressHosts, ingressHosts...)
 		}
