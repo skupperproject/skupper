@@ -85,20 +85,18 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		if len(site.IngressHosts) == 0 {
 			var ingressHosts []string
 			// Get hostname of the machine
-			hostname, err := os.Hostname()
-			if err == nil {
+			hostname, hostnameErr := os.Hostname()
+			if hostnameErr == nil {
 				ingressHosts = append(ingressHosts, hostname)
-			} else {
-				addresses, err := net.InterfaceAddrs()
-				if err != nil {
-					return fmt.Errorf("Cannot get a default ingress host")
-				}
+			}
+			// Get all system's unicast interface addresses
+			addresses, addressesErr := net.InterfaceAddrs()
+			if addressesErr == nil {
 				for _, address := range addresses {
 					ipnet, ok := address.(*net.IPNet)
 					if ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
 						ipv4ValidAddress := ipnet.IP.String()
 						ingressHosts = append(ingressHosts, ipv4ValidAddress)
-
 						// Try a reverse lookup of a valid IPv4 address
 						fqdns, err := net.LookupAddr(ipv4ValidAddress)
 						if err == nil {
@@ -110,6 +108,9 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 						}
 					}
 				}
+			}
+			if addressesErr != nil && hostnameErr != nil {
+				return fmt.Errorf("Cannot get a default ingress host")
 			}
 			site.IngressHosts = append(site.IngressHosts, ingressHosts...)
 		}
