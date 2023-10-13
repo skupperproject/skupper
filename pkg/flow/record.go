@@ -283,7 +283,7 @@ type ConnectorRecord struct {
 	FlowRateL4  *uint64 `json:"flowRateL4,omitempty"`
 	FlowCountL7 *uint64 `json:"flowCountL7,omitempty"`
 	FlowRateL7  *uint64 `json:"flowRateL7,omitempty"`
-	process     *string
+	ProcessId   *string `json:"processId,omitempty"`
 	AddressId   *string `json:"addressId,omitempty"`
 }
 

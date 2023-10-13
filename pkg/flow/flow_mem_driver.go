@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"strings"
 	"time"
 
@@ -755,8 +756,8 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 			} else {
 				if connector.EndTime > 0 {
 					current.EndTime = connector.EndTime
-					if current.process != nil {
-						if process, ok := fc.Processes[*current.process]; ok {
+					if current.ProcessId != nil {
+						if process, ok := fc.Processes[*current.ProcessId]; ok {
 							process.connector = nil
 							process.ProcessBinding = &Unbound
 						}
@@ -1337,8 +1338,8 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "process":
 			if id, ok := vars["id"]; ok {
 				if connector, ok := fc.Connectors[id]; ok {
-					if connector.process != nil {
-						if process, ok := fc.Processes[*connector.process]; ok {
+					if connector.ProcessId != nil {
+						if process, ok := fc.Processes[*connector.ProcessId]; ok {
 							p.Count = 1
 							p.Results = *process
 						}
@@ -1448,8 +1449,8 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			if id, ok := vars["id"]; ok {
 				if vanaddr, ok := fc.VanAddresses[id]; ok {
 					for _, connector := range fc.Connectors {
-						if *connector.Address == vanaddr.Name && connector.process != nil {
-							if process, ok := fc.Processes[*connector.process]; ok {
+						if *connector.Address == vanaddr.Name && connector.ProcessId != nil {
+							if process, ok := fc.Processes[*connector.ProcessId]; ok {
 								if filterRecord(*process, queryParams) && process.Base.TimeRangeValid(queryParams) {
 									unique[process.Identity] = process
 								}
@@ -1468,10 +1469,10 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			if id, ok := vars["id"]; ok {
 				if vanaddr, ok := fc.VanAddresses[id]; ok {
 					for _, connector := range fc.Connectors {
-						if *connector.Address == vanaddr.Name && connector.process != nil {
+						if *connector.Address == vanaddr.Name && connector.ProcessId != nil {
 							for _, aggregate := range fc.FlowAggregates {
 								if aggregate.PairType == recordNames[Process] {
-									if *connector.process == *aggregate.DestinationId {
+									if *connector.ProcessId == *aggregate.DestinationId {
 										p.TotalCount++
 										if filterRecord(*aggregate, queryParams) {
 											processPairs = append(processPairs, *aggregate)
@@ -1551,7 +1552,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			if id, ok := vars["id"]; ok {
 				if _, ok := fc.Processes[id]; ok {
 					for _, connector := range fc.Connectors {
-						if connector.process != nil && *connector.process == id {
+						if connector.ProcessId != nil && *connector.ProcessId == id {
 							for _, address := range fc.VanAddresses {
 								if *connector.Address == address.Name {
 									if filterRecord(*address, queryParams) {
@@ -2070,8 +2071,8 @@ func (fc *FlowCollector) reconcileRecords() error {
 			if flow.SourceHost != nil {
 				if connector, ok := fc.Connectors[flow.Parent]; ok {
 					flow.Place = serverSide
-					if connector.process != nil && connector.AddressId != nil {
-						flow.Process = connector.process
+					if connector.ProcessId != nil && connector.AddressId != nil {
+						flow.Process = connector.ProcessId
 						if process, ok := fc.Processes[*flow.Process]; ok {
 							flow.ProcessName = process.Name
 						}
@@ -2144,12 +2145,21 @@ func (fc *FlowCollector) reconcileRecords() error {
 				delete(fc.connectorsToReconcile, connId)
 			} else if connector.DestHost != nil {
 				siteId := fc.getRecordSiteId(*connector)
+				var matchHost *string
 				found := false
+				if net.ParseIP(*connector.DestHost) == nil {
+					addrs, err := net.LookupHost(*connector.DestHost)
+					if err == nil && len(addrs) > 0 {
+						matchHost = &addrs[0]
+					}
+				} else {
+					matchHost = connector.DestHost
+				}
 				for _, process := range fc.Processes {
 					if siteId == process.Parent {
 						if process.SourceHost != nil {
-							if *connector.DestHost == *process.SourceHost {
-								connector.process = &process.Identity
+							if *matchHost == *process.SourceHost {
+								connector.ProcessId = &process.Identity
 								process.connector = &connector.Identity
 								process.ProcessBinding = &Bound
 								log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
@@ -2174,7 +2184,7 @@ func (fc *FlowCollector) reconcileRecords() error {
 						for _, process := range fc.Processes {
 							if process.Name != nil && *process.Name == processName {
 								log.Printf("COLLECTOR: Associating connector %s to external process %s\n", connector.Identity, processName)
-								connector.process = &process.Identity
+								connector.ProcessId = &process.Identity
 								delete(fc.connectorsToReconcile, connId)
 								break
 							}

@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/qdr"
@@ -129,7 +130,10 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 
 	replicas := int32(serviceInterface.Headless.Size)
 	labels := map[string]string{
-		"internal.skupper.io/type": "proxy",
+		"internal.skupper.io/type":  "proxy",
+		"app.kubernetes.io/name":    "skupper-router",
+		"app.kubernetes.io/part-of": "skupper",
+		"skupper.io/component":      "router",
 	}
 	if len(transportDep.ObjectMeta.Labels) > 0 {
 		for k, v := range transportDep.ObjectMeta.Labels {
@@ -168,6 +172,9 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"internal.skupper.io/service": serviceInterface.Address,
+						"app.kubernetes.io/name":      "skupper-router",
+						"app.kubernetes.io/part-of":   "skupper",
+						"skupper.io/component":        "router",
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -187,7 +194,11 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 									Value: "json",
 								},
 								{
-									Name: "NAMESPACE",
+									Name:  "SKUPPER_SITE_ID",
+									Value: os.Getenv("SKUPPER_SITE_ID"),
+								},
+								{
+									Name: "POD_NAMESPACE",
 									ValueFrom: &corev1.EnvVarSource{
 										FieldRef: &corev1.ObjectFieldSelector{
 											FieldPath: "metadata.namespace",
