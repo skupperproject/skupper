@@ -194,10 +194,6 @@ func NewProxyStatefulSet(image types.ImageDetails, serviceInterface types.Servic
 									Value: "json",
 								},
 								{
-									Name:  "APPLICATION_NAME",
-									Value: "skupper-router",
-								},
-								{
 									Name:  "SKUPPER_SITE_ID",
 									Value: os.Getenv("SKUPPER_SITE_ID"),
 								},
