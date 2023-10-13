@@ -497,6 +497,10 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 		}
 
 		configMap, err := kube.GetConfigMap(types.NetworkStatusConfigMapName, cli.Namespace, cli.KubeClient)
+		if err != nil {
+			log.Println("Error getting network status config map", err.Error())
+			return nil
+		}
 
 		var sites []*SiteStatus
 		var addresses []*VanAddressRecord
@@ -2218,16 +2222,17 @@ func (fc *FlowCollector) setupFlowMetrics(va *VanAddressRecord, flow *FlowRecord
 				}
 				delete(metricLabel, "method")
 			}
-			if flow.Result != nil {
-				metricLabel["code"] = *flow.Result
-				httpReqsResult, err := fc.metrics.httpReqsResult.GetMetricWith(metricLabel)
-				if err != nil {
-					return err
-				} else {
-					httpReqsResult.Inc()
-				}
-				delete(metricLabel, "code")
+		}
+		// note: observed code to be present in both forward in reverse flows (e.g. directions)
+		if flow.Result != nil {
+			metricLabel["code"] = *flow.Result
+			httpReqsResult, err := fc.metrics.httpReqsResult.GetMetricWith(metricLabel)
+			if err != nil {
+				return err
+			} else {
+				httpReqsResult.Inc()
 			}
+			delete(metricLabel, "code")
 		}
 	}
 	return nil
