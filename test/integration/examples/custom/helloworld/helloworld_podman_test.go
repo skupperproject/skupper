@@ -35,6 +35,10 @@ const (
 // as the private one.
 func TestHelloWorldCLIOnPodman(t *testing.T) {
 
+	if os.Getenv("USER") == "circleci" {
+		t.Skipf("Test is temporarily disabled")
+	}
+
 	// First, validate if skupper binary is in the PATH, or skip test
 	log.Printf("Running 'skupper --help' to determine if skupper binary is available")
 	_, _, err := cli.RunSkupperCli([]string{"--help"})

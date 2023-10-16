@@ -156,7 +156,10 @@ commands:
         name: vmstat info
         command: vmstat -w -t 10
         background: true
-
+    - run:
+        name: journalctl monitoring
+        command: journalctl -p 3 -xb -f
+        background: true
   system_status:
     description: shows some point-in-time system status
     parameters:
@@ -195,6 +198,7 @@ commands:
           command: |
             make build-cmd && sudo install skupper /usr/local/bin
             export PUBLIC_1_INGRESS_HOST=`minikube ip`
+            export SKUPPER_TEST_CLI_MAX_STATUS_ATTEMPTS=10
             go test -tags=integration,podman -timeout=60m -v ./test/integration/... | tee /tmp/results/test-integration.out
       - run:
           name: Run client tests in real cluster
@@ -306,6 +310,10 @@ commands:
             sudo apt-get update -qq
             sudo apt-get -qq -y install podman
             podman version
+
+            # Bypassing CircleCI issue with user session (see: https://github.com/containers/podman/issues/16529)
+            mkdir -p ~/.config/containers/containers.conf.d
+            ( echo '[engine]' ; echo 'cgroup_manager = "cgroupfs"' ) >> ~/.config/containers/containers.conf.d/podman-issue-16529.conf
 
             # Starting systemd user service
             systemctl --user start podman.socket
