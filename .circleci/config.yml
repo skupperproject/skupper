@@ -158,7 +158,7 @@ commands:
         background: true
     - run:
         name: journalctl monitoring
-        command: journalctl -p 3 -xb -f
+        command: journalctl -p 7 -b -f
         background: true
   system_status:
     description: shows some point-in-time system status
@@ -313,7 +313,7 @@ commands:
 
             # Bypassing CircleCI issue with user session (see: https://github.com/containers/podman/issues/16529)
             mkdir -p ~/.config/containers/containers.conf.d
-            ( echo '[containers]' ; echo 'cgroups = "disabled"' ) > ~/.config/containers/containers.conf.d/podman-issue-16529.conf
+            ( echo '[containers]' ; echo 'cgroups = "disabled"' ) > ~/.config/containers/containers.conf.d/podman-circleci-issue.conf
 
             # Starting systemd user service
             systemctl --user start podman.socket

@@ -3,10 +3,14 @@
 package helloworld
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
@@ -34,10 +38,9 @@ const (
 // It uses the kubernetes cluster as a public cluster and a podman site
 // as the private one.
 func TestHelloWorldCLIOnPodman(t *testing.T) {
-
-	if os.Getenv("USER") == "circleci" {
-		t.Skipf("Test is temporarily disabled")
-	}
+	stopCh := make(chan interface{}, 1)
+	go restartOnLinkDisconnected(stopCh, t)
+	defer close(stopCh)
 
 	// First, validate if skupper binary is in the PATH, or skip test
 	log.Printf("Running 'skupper --help' to determine if skupper binary is available")
@@ -677,6 +680,35 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 	// Running the scenarios
 	cli.RunScenarios(t, scenarios)
 
+}
+
+// restartOnLinkDisconnected On CircleCI external network connectivity
+// is being lost this routine will restart the skupper-podman user service
+// to bypass this issue.
+// TODO: this can be removed once CI is fixed
+func restartOnLinkDisconnected(stopCh chan interface{}, t *testing.T) {
+	if os.Getenv("USER") != "circleci" {
+		return
+	}
+	// Preparing the command to run
+	tick := time.NewTicker(time.Second * 5)
+	defer tick.Stop()
+	for {
+		select {
+		case <-tick.C:
+			stdout := new(bytes.Buffer)
+			cmd := exec.Command("skupper", "--platform=podman", "link", "status")
+			cmd.Stdout = stdout
+			_ = cmd.Run()
+			if strings.Contains(stdout.String(), " not connected") {
+				t.Logf("[Link Disconnected] - Restarting skupper-podman (user) service")
+				restartCmd := exec.Command("systemctl", "--user", "restart", "skupper-podman")
+				_ = restartCmd.Run()
+			}
+		case <-stopCh:
+			return
+		}
+	}
 }
 
 // deployPodmanResources runs the hello-world-backend as a podman container
