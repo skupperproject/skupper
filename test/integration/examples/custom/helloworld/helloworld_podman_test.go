@@ -177,7 +177,7 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					// skupper init - interior mode
 					&cli.InitTester{
 						Ingress:             "none",
-						RouterLogging:       "trace",
+						RouterLogging:       "info",
 						RouterMode:          "interior",
 						ConsoleAuth:         "internal",
 						ConsoleUser:         "internal",
