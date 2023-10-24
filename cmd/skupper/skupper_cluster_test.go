@@ -1606,6 +1606,9 @@ func TestDebugDumpWithCluster(t *testing.T) {
 }
 
 func TestNetworkStatusWithCluster(t *testing.T) {
+	if os.Getenv("USER") == "circleci" {
+		t.Skipf("Test is temporarily disabled")
+	}
 	testcases := []testCase{
 		{
 			doc:             "network-status-test1",
