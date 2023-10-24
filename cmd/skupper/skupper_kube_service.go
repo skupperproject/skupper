@@ -197,6 +197,11 @@ func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 	if targetType == "statefulset" {
 
 		if bindOptions.Headless {
+			err := s.kube.Cli.ServiceInterfaceRemove(context.Background(), service.Address)
+			if err != nil {
+				return err
+			}
+
 			service, err = s.kube.Cli.GetHeadlessServiceConfiguration(targetName, service.Protocol, service.Address, service.Ports, bindOptions.PublishNotReadyAddresses, bindOptions.Namespace)
 			if err != nil {
 				return err
