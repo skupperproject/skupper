@@ -94,6 +94,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, fmt.Errorf("Site (%s) is newer than library (%s); cannot update", site.Version, version.Version)
 	}
 	renameFor050 := false
+	updateSecretsFor102 := false
 	addClaimsSupport := false
 	addMultiportServices := false
 	addClusterPolicy := false
@@ -116,6 +117,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		substituteFlowCollector = utils.LessRecentThanVersion(originalVersion, "1.3.0")
 		addPrometheusServer = utils.LessRecentThanVersion(originalVersion, "1.4.0")
 		moveClaims = utils.LessRecentThanVersion(originalVersion, "1.5.0")
+		updateSecretsFor102 = utils.LessRecentThanVersion(originalVersion, "1.0.2")
 	} else {
 		originalVersion = site.Version
 	}
@@ -135,6 +137,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 			if utils.LessRecentThanVersion(originalVersion, "1.3.0") {
 				substituteFlowCollector = true
+				updateSecretsFor102 = utils.LessRecentThanVersion(originalVersion, "1.0.2")
 			}
 			if utils.LessRecentThanVersion(originalVersion, "1.4.0") {
 				addPrometheusServer = true
@@ -168,7 +171,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	usingRoutes := false
 	consoleUsesLoadbalancer := false
 	routerExposedAsIp := false
-	if renameFor050 {
+	if renameFor050 || updateSecretsFor102 {
 		// create new resources (as copies of old ones)
 		// services
 		_, err = kube.CopyService("skupper-messaging", types.LocalTransportServiceName, map[string]string{}, namespace, cli.KubeClient)
@@ -407,7 +410,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, err
 	}
 	updateRouter := false
-	if renameFor050 {
+	if renameFor050 || updateSecretsFor102 {
 		// update deployment
 		// - serviceaccount
 		router.Spec.Template.Spec.ServiceAccountName = types.TransportServiceAccountName
@@ -513,7 +516,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, err
 	}
 	updateController := false
-	if renameFor050 {
+	if renameFor050 || updateSecretsFor102 {
 		// update deployment
 		// - serviceaccount
 		controller.Spec.Template.Spec.ServiceAccountName = types.ControllerServiceAccountName
@@ -659,7 +662,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 		}
 	}
-	if renameFor050 {
+	if renameFor050 || updateSecretsFor102 {
 		// delete old resources
 		if cli.RouteClient != nil {
 			err = cli.RouteClient.Routes(namespace).Delete(context.TODO(), "skupper-controller", metav1.DeleteOptions{})
