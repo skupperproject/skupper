@@ -23,6 +23,19 @@ func (cli *VanClient) checkNotEdgeAndGetVersion(ctx context.Context, namespace s
 	return current.GetSiteMetadata().Version, nil
 }
 
+func (cli *VanClient) getSiteConfig(ctx context.Context, namespace string) (*types.SiteConfig, error) {
+	// get the host and port for inter-router and edge
+	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	if siteConfig == nil {
+		return nil, fmt.Errorf("No site config found in %s", namespace)
+	}
+	return siteConfig, nil
+
+}
+
 func (cli *VanClient) ConnectorTokenCreateFromTemplate(ctx context.Context, tokenName string, templateName string) (*corev1.Secret, bool, error) {
 	version, err := cli.checkNotEdgeAndGetVersion(ctx, cli.Namespace)
 	if err != nil {
@@ -82,12 +95,9 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 
 func (cli *VanClient) annotateConnectorToken(ctx context.Context, namespace string, token *corev1.Secret, version string) (bool, error) {
 	// get the host and port for inter-router and edge
-	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+	siteConfig, err := cli.getSiteConfig(ctx, namespace)
 	if err != nil {
 		return false, err
-	}
-	if siteConfig == nil {
-		return false, fmt.Errorf("No site config found in %s", namespace)
 	}
 	rslvr, err := resolver.NewResolver(cli, namespace, &siteConfig.Spec)
 	if err != nil {
@@ -110,9 +120,7 @@ func (cli *VanClient) annotateConnectorToken(ctx context.Context, namespace stri
 	}
 	token.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
 	// Store our siteID in the token, to prevent later self-connection.
-	if siteConfig != nil {
-		token.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteConfig.Reference.UID
-	}
+	token.ObjectMeta.Annotations[types.TokenGeneratedBy] = siteConfig.Reference.UID
 	return rslvr.IsLocalAccessOnly(), nil
 }
 
@@ -125,7 +133,11 @@ func (cli *VanClient) ConnectorTokenCreateFile(ctx context.Context, subject stri
 	if !res.Allowed {
 		return res.Err()
 	}
-	secret, localOnly, err := cli.ConnectorTokenCreate(ctx, subject, "")
+	siteConfig, err := cli.getSiteConfig(ctx, cli.Namespace)
+	if err != nil {
+		return err
+	}
+	secret, localOnly, err := cli.ConnectorTokenCreate(ctx, fmt.Sprintf("%s-%s", subject, siteConfig.Reference.UID), "")
 	if err == nil {
 		return certs.GenerateSecretFile(secretFile, secret, localOnly)
 	} else {
