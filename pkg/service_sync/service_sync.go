@@ -267,7 +267,7 @@ func getAddresses(services []types.ServiceInterface) []string {
 }
 
 func equivalentServiceDefinition(a *types.ServiceInterface, b *types.ServiceInterface) bool {
-	if a.Protocol != b.Protocol || !reflect.DeepEqual(a.Ports, b.Ports) || a.EventChannel != b.EventChannel || a.Aggregate != b.Aggregate || !reflect.DeepEqual(a.Labels, b.Labels) || !reflect.DeepEqual(a.Annotations, b.Annotations) {
+	if a.Protocol != b.Protocol || !reflect.DeepEqual(a.Ports, b.Ports) || a.EventChannel != b.EventChannel || a.Aggregate != b.Aggregate || !reflect.DeepEqual(a.Labels, b.Labels) || !reflect.DeepEqual(a.Annotations, b.Annotations) || a.TlsCredentials != b.TlsCredentials || a.TlsCertAuthority != b.TlsCertAuthority || a.PublishNotReadyAddresses != b.PublishNotReadyAddresses {
 		return false
 	}
 	if a.Headless == nil && b.Headless == nil {

@@ -158,12 +158,60 @@ func (s *SkupperKubeService) Bind(cmd *cobra.Command, args []string) error {
 		return targetTypeServiceTargetNamespaceError()
 	}
 
+	if bindOptions.Headless && targetType != "statefulset" {
+		return fmt.Errorf("--headless option is only valid for statefulsets")
+	}
+
+	if !bindOptions.Headless {
+		if bindOptions.ProxyTuning.Cpu != "" {
+			return fmt.Errorf("--proxy-cpu option is only valid for binding statefulsets using headless services")
+		}
+		if bindOptions.ProxyTuning.Memory != "" {
+			return fmt.Errorf("--proxy-memory option is only valid for binding statefulsets using headless services")
+		}
+		if bindOptions.ProxyTuning.CpuLimit != "" {
+			return fmt.Errorf("--proxy-cpu-limit option is only valid for binding statefulsets using headless services")
+		}
+		if bindOptions.ProxyTuning.MemoryLimit != "" {
+			return fmt.Errorf("--proxy-memory-limit option is only valid for binding statefulsets using headless services")
+		}
+		if bindOptions.ProxyTuning.Affinity != "" {
+			return fmt.Errorf("--proxy-pod-affinity option is only valid for binding statefulsets using headless services")
+		}
+		if bindOptions.ProxyTuning.AntiAffinity != "" {
+			return fmt.Errorf("--proxy-pod-antiaffinity option is only valid for binding statefulsets using headless services")
+		}
+		if bindOptions.ProxyTuning.NodeSelector != "" {
+			return fmt.Errorf("--proxy-node-selector option is only valid for binding statefulsets using headless services")
+		}
+	}
+
 	service, err := s.kube.Cli.ServiceInterfaceInspect(context.Background(), args[0])
 
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	} else if service == nil {
 		return fmt.Errorf("Service %s not found", args[0])
+	}
+
+	if targetType == "statefulset" {
+
+		if bindOptions.Headless {
+			err := s.kube.Cli.ServiceInterfaceRemove(context.Background(), service.Address)
+			if err != nil {
+				return err
+			}
+
+			service, err = s.kube.Cli.GetHeadlessServiceConfiguration(targetName, service.Protocol, service.Address, service.Ports, bindOptions.PublishNotReadyAddresses, bindOptions.Namespace)
+			if err != nil {
+				return err
+			}
+
+			err = configureHeadlessProxy(service.Headless, &bindOptions.ProxyTuning)
+
+			return s.kube.Cli.ServiceInterfaceUpdate(context.Background(), service)
+		}
+
 	}
 
 	// validating ports
@@ -191,6 +239,14 @@ func (s *SkupperKubeService) BindArgs(cmd *cobra.Command, args []string) error {
 func (s *SkupperKubeService) BindFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&bindOptions.PublishNotReadyAddresses, "publish-not-ready-addresses", false, "If specified, skupper will not wait for pods to be ready")
 	cmd.Flags().StringVar(&bindOptions.Namespace, "target-namespace", "", "Expose resources from a specific namespace")
+	cmd.Flags().BoolVar(&bindOptions.Headless, "headless", false, "Bind through a headless service (valid only for a statefulset target)")
+	cmd.Flags().StringVar(&bindOptions.ProxyTuning.Cpu, "proxy-cpu", "", "CPU request for router pods")
+	cmd.Flags().StringVar(&bindOptions.ProxyTuning.Memory, "proxy-memory", "", "Memory request for router pods")
+	cmd.Flags().StringVar(&bindOptions.ProxyTuning.CpuLimit, "proxy-cpu-limit", "", "CPU limit for router pods")
+	cmd.Flags().StringVar(&bindOptions.ProxyTuning.MemoryLimit, "proxy-memory-limit", "", "Memory limit for router pods")
+	cmd.Flags().StringVar(&bindOptions.ProxyTuning.NodeSelector, "proxy-node-selector", "", "Node selector to control placement of router pods")
+	cmd.Flags().StringVar(&bindOptions.ProxyTuning.Affinity, "proxy-pod-affinity", "", "Pod affinity label matches to control placement of router pods")
+	cmd.Flags().StringVar(&bindOptions.ProxyTuning.AntiAffinity, "proxy-pod-antiaffinity", "", "Pod antiaffinity label matches to control placement of router pods")
 }
 
 func (s *SkupperKubeService) Unbind(cmd *cobra.Command, args []string) error {
