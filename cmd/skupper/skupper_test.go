@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/spf13/cobra"
 	"os"
 	"testing"
 	"time"
@@ -93,8 +94,11 @@ func TestExposeTargetArgs(t *testing.T) {
 	genericError := "expose target and name must be specified (e.g. 'skupper expose deployment <name>')"
 	targetError := "target type must be one of: [deployment, statefulset, pods, service, deploymentconfig]"
 
+	cmd := cobra.Command{
+		Use: "expose",
+	}
 	e := func(args []string) error {
-		return s.ExposeArgs(nil, args)
+		return s.ExposeArgs(&cmd, args)
 	}
 
 	assert.Error(t, e([]string{}), genericError)
