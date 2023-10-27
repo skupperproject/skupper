@@ -9,6 +9,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/service"
+	"github.com/skupperproject/skupper/pkg/site"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -144,6 +145,12 @@ func generateNewSecret(support TlsServiceSupport, tlsManager *TlsManager) (*core
 		return nil, err
 	}
 
+	siteConfig, err := tlsManager.getConfigMap(types.SiteConfigMapName)
+	if err != nil {
+		return nil, err
+	}
+	_, labels := site.GetSiteAnnotationsAndLabels(siteConfig)
+
 	serviceCredential := types.Credential{
 		CA:          types.ServiceCaSecret,
 		Name:        support.Credentials,
@@ -151,6 +158,7 @@ func generateNewSecret(support TlsServiceSupport, tlsManager *TlsManager) (*core
 		Hosts:       []string{support.Address},
 		ConnectJson: false,
 		Post:        false,
+		Labels:      labels,
 	}
 
 	ownerReference := metav1.OwnerReference{
@@ -182,8 +190,11 @@ func (manager *TlsManager) GetSecret(name string) (*corev1.Secret, error) {
 }
 
 func (manager *TlsManager) GetConfigMap() (*corev1.ConfigMap, error) {
+	return manager.getConfigMap(types.TransportConfigMapName)
+}
 
-	result, err := manager.KubeClient.CoreV1().ConfigMaps(manager.Namespace).Get(context.TODO(), types.TransportConfigMapName, metav1.GetOptions{})
+func (manager *TlsManager) getConfigMap(name string) (*corev1.ConfigMap, error) {
+	result, err := manager.KubeClient.CoreV1().ConfigMaps(manager.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

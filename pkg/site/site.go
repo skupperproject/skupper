@@ -780,6 +780,16 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 		result.Spec.PrometheusServer.PodAnnotations = asMap(splitWithEscaping(prometheusPodAnnotations, ',', '\\'))
 	}
 
+	annotations, labels := GetSiteAnnotationsAndLabels(siteConfig)
+	result.Spec.Annotations = annotations
+	result.Spec.Labels = labels
+	if len(errs) > 0 {
+		return &result, fmt.Errorf(strings.Join(errs, ", "))
+	}
+	return &result, nil
+}
+
+func GetSiteAnnotationsAndLabels(siteConfig *corev1.ConfigMap) (map[string]string, map[string]string) {
 	annotationExclusions := []string{}
 	labelExclusions := []string{}
 	annotations := map[string]string{}
@@ -795,7 +805,6 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	for _, key := range annotationExclusions {
 		delete(annotations, key)
 	}
-	result.Spec.Annotations = annotations
 	labels := map[string]string{}
 	for key, value := range siteConfig.ObjectMeta.Labels {
 		if key != types.SiteControllerIgnore {
@@ -805,11 +814,7 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	for _, key := range labelExclusions {
 		delete(labels, key)
 	}
-	result.Spec.Labels = labels
-	if len(errs) > 0 {
-		return &result, fmt.Errorf(strings.Join(errs, ", "))
-	}
-	return &result, nil
+	return annotations, labels
 }
 
 func UpdateLogging(config types.SiteConfigSpec, configmap *corev1.ConfigMap) bool {
