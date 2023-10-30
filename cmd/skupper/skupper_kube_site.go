@@ -221,7 +221,7 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 	cli := s.kube.Cli
 	vir, err := cli.RouterInspect(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("skupper is not enabled in namespace %s", cli.GetNamespace())
 	}
 
 	currentStatus, errStatus := cli.NetworkStatus(context.Background())
