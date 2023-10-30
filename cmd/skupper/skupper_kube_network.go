@@ -27,7 +27,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
 	silenceCobra(cmd)
 
-	ctx, cancel := context.WithTimeout(context.Background(), types.DefaultFlowTimeoutDuration)
+	ctx, cancel := context.WithTimeout(context.Background(), types.DefaultTimeoutDuration)
 	defer cancel()
 
 	siteConfig, err := s.kube.Cli.SiteConfigInspect(ctx, nil)
