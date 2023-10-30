@@ -1,7 +1,10 @@
 package podman
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/go-openapi/runtime"
@@ -67,6 +70,7 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 	params.OS = stringP("")
 	params.Variant = stringP("")
 	params.Policy = stringP("always")
+	params.XRegistryAuth = getXRegistryAuth(id)
 
 	// Need to do that as the default response reader is being closed too soon
 	op := &runtime.ClientOperation{
@@ -81,9 +85,79 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
-	_, err := p.RestClient.Submit(op)
+	res, err := p.RestClient.Submit(op)
 	if err != nil {
 		return fmt.Errorf("error pulling image %s: %v", id, err)
+	}
+	// eventually err is nil but auth problems are reported as json after a string msg
+	if resStr, ok := res.(string); ok {
+		resStrClean := strings.TrimLeftFunc(resStr, func(r rune) bool {
+			if r == '{' {
+				return false
+			}
+			return true
+		})
+		var jsonRes map[string]interface{}
+		if err = json.Unmarshal([]byte(resStrClean), &jsonRes); err == nil {
+			if errMsg, ok := jsonRes["error"]; ok && errMsg != "" {
+				return fmt.Errorf("unable to pull image %s: %v", id, errMsg)
+			}
+		}
+	}
+	return nil
+}
+
+func getXRegistryAuth(image string) *string {
+	authFile := os.Getenv("REGISTRY_AUTH_FILE")
+	// use the default
+	if authFile == "" {
+		return nil
+	}
+	data, err := os.ReadFile(authFile)
+	if err != nil {
+		fmt.Printf("Unable to read REGISTRY_AUTH_FILE - %s", err)
+		fmt.Println()
+		return nil
+	}
+	var jsonData map[string]interface{}
+	if err = json.Unmarshal(data, &jsonData); err != nil {
+		fmt.Printf("Unable to parse REGISTRY_AUTH_FILE - %s", err)
+		fmt.Println()
+		return nil
+	}
+	if auths, ok := jsonData["auths"]; ok {
+		authsMap, ok := auths.(map[string]interface{})
+		if !ok {
+			return nil
+		}
+		imageServer := strings.Split(image, "/")[0]
+		if serverData, ok := authsMap[imageServer]; ok {
+			if serverDataMap, ok := serverData.(map[string]interface{}); ok {
+				authInfo, ok := serverDataMap["auth"]
+				if !ok {
+					return nil
+				}
+				authInfoStr := authInfo.(string)
+				credentialsBytes, err := base64.StdEncoding.DecodeString(authInfoStr)
+				if err != nil {
+					fmt.Printf("Unable to decode base64 auth info for %s - %s", imageServer, err)
+					fmt.Println()
+					return nil
+				}
+				credentials := strings.Split(string(credentialsBytes), ":")
+				if len(credentials) != 2 {
+					return nil
+				}
+				registryAuthMap := map[string]map[string]string{}
+				registryAuthMap[imageServer] = map[string]string{
+					"username": credentials[0],
+					"password": credentials[1],
+				}
+				registryAuthMapJson, _ := json.Marshal(registryAuthMap)
+				registryAuthMapB64 := base64.StdEncoding.EncodeToString(registryAuthMapJson)
+				return &registryAuthMapB64
+			}
+		}
 	}
 	return nil
 }
