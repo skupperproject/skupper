@@ -205,7 +205,7 @@ func main() {
 		}
 		flowRecordTtl, _ = time.ParseDuration(os.Getenv("FLOW_RECORD_TTL"))
 		enableConsole, _ = strconv.ParseBool(os.Getenv("ENABLE_CONSOLE"))
-		prometheusUrl = os.Getenv("PROMETHEUS_URL")
+		prometheusUrl = "http://skupper-prometheus:9090/api/v1/"
 	}
 
 	tlsConfig := certs.GetTlsConfigRetriever(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")

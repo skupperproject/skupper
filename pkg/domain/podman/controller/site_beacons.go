@@ -270,7 +270,8 @@ func (p *ContainerProcessInformer) containerToProcess(cc *container.Container) *
 	if ipAddress != "" {
 		pp.SourceHost = &ipAddress
 	}
-	if container.IsOwnedBySkupper(cc.Labels) {
+	_, isServiceContainer := cc.Labels[types.AddressQualifier]
+	if container.IsOwnedBySkupper(cc.Labels) && !isServiceContainer {
 		pp.ProcessRole = &flow.Internal
 	} else {
 		pp.ProcessRole = &flow.External

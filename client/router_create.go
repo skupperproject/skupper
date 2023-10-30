@@ -1,20 +1,18 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
 	"net"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/version"
-	"golang.org/x/crypto/bcrypt"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -101,10 +99,6 @@ func removeRules(original []rbacv1.PolicyRule, apigroups []string) []rbacv1.Poli
 		rules = append(rules, rule)
 	}
 	return rules
-}
-
-func hashPrometheusPassword(password string) ([]byte, error) {
-	return bcrypt.GenerateFromPassword([]byte(password), 14)
 }
 
 func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, van *types.RouterSpec) {
@@ -1643,69 +1637,8 @@ func asOwnerReferences(in types.SiteConfigReference) []metav1.OwnerReference {
 	return []metav1.OwnerReference{*ref}
 }
 
-type PrometheusInfo struct {
-	BasicAuth   bool
-	TlsAuth     bool
-	ServiceName string
-	Namespace   string
-	Port        string
-	User        string
-	Password    string
-	Hash        string
-}
-
-func scrapeConfigForPrometheus(info PrometheusInfo) string {
-	const prometheusConfig = `
-global:
-  scrape_interval:     15s
-  evaluation_interval: 15s
-alerting:
-  alertmanagers:
-  - static_configs:
-    - targets:
-rule_files:
-  # - "example-file.yml"
-scrape_configs:
-  - job_name: 'prometheus'
-    metrics_path: "/api/v1alpha1/metrics"
-    scheme: "https"
-    tls_config:
-      insecure_skip_verify: true
-    static_configs:
-    - targets: ["{{.ServiceName}}.{{.Namespace}}.svc.cluster.local:{{.Port}}"]
-`
-	var buf bytes.Buffer
-	promConfig := template.Must(template.New("promConfig").Parse(prometheusConfig))
-	promConfig.Execute(&buf, info)
-
-	return buf.String()
-}
-
-func webConfigForPrometheus(info PrometheusInfo) string {
-	const webConfig = `
-# TLS configuration.
-#{{- if .TlsAuth }}
-#tls_server_config:
-#  cert_file: /etc/tls/certs/tls.crt
-#  key_file: /etc/tls/certs/tls.key
-#{{- end}}
-#
-# Usernames and passwords required to connect to Prometheus.
-# Passwords are hashed with bcrypt: https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md#about-bcrypt
-#basic_auth_users:
-#{{- if .BasicAuth }}
-#  {{.User}}: {{.Hash}}
-#{{- end}}
-`
-	var buf bytes.Buffer
-	promConfig := template.Must(template.New("prmConfig").Parse(webConfig))
-	promConfig.Execute(&buf, info)
-
-	return buf.String()
-}
-
 func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.SiteConfig, van types.RouterSpec) error {
-	promInfo := PrometheusInfo{
+	promInfo := config.PrometheusInfo{
 		BasicAuth:   false,
 		TlsAuth:     false,
 		ServiceName: types.ControllerServiceName,
@@ -1723,14 +1656,14 @@ func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.Si
 		if siteConfig.Spec.PrometheusServer.Password != "" {
 			promInfo.Password = siteConfig.Spec.PrometheusServer.Password
 		}
-		hash, _ := hashPrometheusPassword(promInfo.Password)
+		hash, _ := config.HashPrometheusPassword(promInfo.Password)
 		promInfo.Hash = string(hash)
 	} else if siteConfig.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeTls) {
 		promInfo.TlsAuth = true
 	}
 	prometheusData := &map[string]string{
-		"prometheus.yml": scrapeConfigForPrometheus(promInfo),
-		"web-config.yml": webConfigForPrometheus(promInfo),
+		"prometheus.yml": config.ScrapeConfigForPrometheus(promInfo),
+		"web-config.yml": config.ScrapeWebConfigForPrometheus(promInfo),
 	}
 	siteOwnerRef := asOwnerReference(siteConfig.Reference)
 	var ownerRefs []metav1.OwnerReference

@@ -67,6 +67,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		ConsolePassword:              routerCreateOpts.Password,
 		FlowCollectorRecordTtl:       routerCreateOpts.FlowCollector.FlowRecordTtl,
 		RouterOpts:                   routerCreateOpts.Router,
+		PrometheusOpts:               routerCreateOpts.PrometheusServer,
 	}
 
 	siteHandler, err := podman.NewSitePodmanHandler(site.PodmanEndpoint)

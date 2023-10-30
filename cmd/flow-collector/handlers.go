@@ -180,10 +180,10 @@ func (c *Controller) promqueryHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	proxyResp, err := client.Do(proxyReq)
-	w.WriteHeader(proxyResp.StatusCode)
 	if err != nil {
 		log.Printf("COLLECTOR: Prometheus query error: %s\n", err.Error())
 	} else {
+		w.WriteHeader(proxyResp.StatusCode)
 		data, _ := ioutil.ReadAll(proxyResp.Body)
 		proxyResp.Body.Close()
 		fmt.Fprintf(w, "%s\n", data)
