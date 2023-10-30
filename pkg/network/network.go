@@ -3,18 +3,16 @@ package network
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/skupperproject/skupper/api/types"
-	"strconv"
 	"strings"
 )
 
 type SkupperStatus struct {
-	NetworkStatus *types.NetworkStatusInfo
+	NetworkStatus *NetworkStatusInfo
 }
 
-func (s *SkupperStatus) GetServiceSitesMap() map[string][]types.SiteStatusInfo {
+func (s *SkupperStatus) GetServiceSitesMap() map[string][]SiteStatusInfo {
 
-	mapServiceSites := make(map[string][]types.SiteStatusInfo)
+	mapServiceSites := make(map[string][]SiteStatusInfo)
 
 	for _, site := range s.NetworkStatus.SiteStatus {
 
@@ -25,7 +23,7 @@ func (s *SkupperStatus) GetServiceSitesMap() map[string][]types.SiteStatusInfo {
 				serviceSites = append(serviceSites, site)
 				mapServiceSites[listener.Name] = serviceSites
 			} else {
-				mapServiceSites[listener.Name] = []types.SiteStatusInfo{site}
+				mapServiceSites[listener.Name] = []SiteStatusInfo{site}
 			}
 		}
 	}
@@ -33,32 +31,15 @@ func (s *SkupperStatus) GetServiceSitesMap() map[string][]types.SiteStatusInfo {
 	return mapServiceSites
 }
 
-func (s *SkupperStatus) GetServiceLabelsMap(services []*types.ServiceInterface) map[string]map[string]string {
+func (s *SkupperStatus) GetSiteTargetsMap() map[string]map[string]ConnectorInfo {
 
-	mapServiceLabels := make(map[string]map[string]string)
-
-	for _, svc := range services {
-		if svc.Labels != nil {
-			for _, port := range svc.Ports {
-				serviceName := svc.Address + ":" + strconv.Itoa(port)
-				mapServiceLabels[serviceName] = svc.Labels
-			}
-		}
-
-	}
-
-	return mapServiceLabels
-}
-
-func (s *SkupperStatus) GetSiteTargetsMap() map[string]map[string]types.ConnectorInfo {
-
-	mapSiteTargets := make(map[string]map[string]types.ConnectorInfo)
+	mapSiteTargets := make(map[string]map[string]ConnectorInfo)
 
 	for _, site := range s.NetworkStatus.SiteStatus {
 
 		for _, connector := range site.RouterStatus[0].Connectors {
 			if mapSiteTargets[site.Site.Identity] == nil {
-				mapSiteTargets[site.Site.Identity] = make(map[string]types.ConnectorInfo)
+				mapSiteTargets[site.Site.Identity] = make(map[string]ConnectorInfo)
 			}
 			mapSiteTargets[site.Site.Identity][connector.Address] = connector
 		}
@@ -67,8 +48,8 @@ func (s *SkupperStatus) GetSiteTargetsMap() map[string]map[string]types.Connecto
 	return mapSiteTargets
 }
 
-func (s *SkupperStatus) GetRouterSiteMap() map[string]types.SiteStatusInfo {
-	mapRouterSite := make(map[string]types.SiteStatusInfo)
+func (s *SkupperStatus) GetRouterSiteMap() map[string]SiteStatusInfo {
+	mapRouterSite := make(map[string]SiteStatusInfo)
 	for _, siteStatus := range s.NetworkStatus.SiteStatus {
 		if len(siteStatus.RouterStatus) > 0 {
 			for _, routerStatus := range siteStatus.RouterStatus {
@@ -82,7 +63,7 @@ func (s *SkupperStatus) GetRouterSiteMap() map[string]types.SiteStatusInfo {
 	return mapRouterSite
 }
 
-func (s *SkupperStatus) GetSiteById(siteId string) *types.SiteStatusInfo {
+func (s *SkupperStatus) GetSiteById(siteId string) *SiteStatusInfo {
 
 	for _, siteStatus := range s.NetworkStatus.SiteStatus {
 		if siteStatus.Site.Identity == siteId {
@@ -93,10 +74,10 @@ func (s *SkupperStatus) GetSiteById(siteId string) *types.SiteStatusInfo {
 	return nil
 }
 
-func (s *SkupperStatus) GetSiteLinkMapPerRouter(router *types.RouterStatusInfo, site *types.SiteInfo) map[string]types.LinkInfo {
+func (s *SkupperStatus) GetSiteLinkMapPerRouter(router *RouterStatusInfo, site *SiteInfo) map[string]LinkInfo {
 
 	routerSiteMap := s.GetRouterSiteMap()
-	siteLinkMap := make(map[string]types.LinkInfo)
+	siteLinkMap := make(map[string]LinkInfo)
 	if len(router.Links) > 0 {
 		for _, link := range router.Links {
 			// the links between routers of the same site are not shown.
@@ -113,15 +94,15 @@ func (s *SkupperStatus) GetSiteLinkMapPerRouter(router *types.RouterStatusInfo, 
 	return siteLinkMap
 }
 
-func (s *SkupperStatus) LinkBelongsToSameSite(linkName string, siteId string, routerSiteMap map[string]types.SiteStatusInfo) bool {
+func (s *SkupperStatus) LinkBelongsToSameSite(linkName string, siteId string, routerSiteMap map[string]SiteStatusInfo) bool {
 
 	return strings.EqualFold(routerSiteMap[linkName].Site.Identity, siteId)
 
 }
 
-func (s *SkupperStatus) RemoveLinksFromSameSite(router types.RouterStatusInfo, site types.SiteInfo) []types.LinkInfo {
+func (s *SkupperStatus) RemoveLinksFromSameSite(router RouterStatusInfo, site SiteInfo) []LinkInfo {
 	routerSiteMap := s.GetRouterSiteMap()
-	var filteredLinks []types.LinkInfo
+	var filteredLinks []LinkInfo
 	for _, link := range router.Links {
 		// avoid showing the links between routers of the same site
 		if !s.LinkBelongsToSameSite(link.Name, site.Identity, routerSiteMap) {
@@ -132,9 +113,9 @@ func (s *SkupperStatus) RemoveLinksFromSameSite(router types.RouterStatusInfo, s
 	return filteredLinks
 }
 
-func UnmarshalSkupperStatus(data map[string]string) (*types.NetworkStatusInfo, error) {
+func UnmarshalSkupperStatus(data map[string]string) (*NetworkStatusInfo, error) {
 
-	var networkStatusInfo *types.NetworkStatusInfo
+	var networkStatusInfo *NetworkStatusInfo
 
 	err := json.Unmarshal([]byte(data["NetworkStatus"]), &networkStatusInfo)
 

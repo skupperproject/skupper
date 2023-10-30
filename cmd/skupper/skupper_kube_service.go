@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/network"
+	"strconv"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -65,7 +66,7 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 
 	var mapServiceLabels map[string]map[string]string
 	if err == nil {
-		mapServiceLabels = statusManager.GetServiceLabelsMap(vsis)
+		mapServiceLabels = getServiceLabelsMap(vsis)
 	}
 
 	if len(currentNetworkStatus.Addresses) == 0 {
@@ -277,4 +278,21 @@ func (s *SkupperKubeService) bindArgs(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("extra argument: %s", args[2])
 	}
 	return s.verifyTargetTypeFromArgs(args[1:])
+}
+
+func getServiceLabelsMap(services []*types.ServiceInterface) map[string]map[string]string {
+
+	mapServiceLabels := make(map[string]map[string]string)
+
+	for _, svc := range services {
+		if svc.Labels != nil {
+			for _, port := range svc.Ports {
+				serviceName := svc.Address + ":" + strconv.Itoa(port)
+				mapServiceLabels[serviceName] = svc.Labels
+			}
+		}
+
+	}
+
+	return mapServiceLabels
 }

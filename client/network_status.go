@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *VanClient) NetworkStatus(ctx context.Context) (*types.NetworkStatusInfo, error) {
+func (cli *VanClient) NetworkStatus(ctx context.Context) (*network.NetworkStatusInfo, error) {
 
 	//Checking if the router has been deployed
 	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
@@ -31,7 +31,7 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) (*types.NetworkStatusIn
 	return vanInfo, nil
 }
 
-func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*types.RemoteLinkInfo, error) {
+func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*network.RemoteLinkInfo, error) {
 	cfg, err := cli.getRouterConfig(ctx, cli.Namespace)
 	if err != nil {
 		return nil, err

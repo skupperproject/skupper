@@ -100,7 +100,7 @@ func (l *LinkHandlerKube) Detail(link types.LinkStatus) (map[string]string, erro
 	}, nil
 }
 
-func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
+func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*network.RemoteLinkInfo, error) {
 	// Checking if the router has been deployed
 	_, err := k8s.GetDeployment(types.TransportDeploymentName, l.namespace, l.cli)
 	if err != nil {
@@ -119,13 +119,13 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 		return nil, err
 	}
 
-	var remoteLinks []*types.RemoteLinkInfo
+	var remoteLinks []*network.RemoteLinkInfo
 
 	statusManager := network.SkupperStatus{NetworkStatus: currentStatus}
 
 	mapRouterSite := statusManager.GetRouterSiteMap()
 
-	var currentSite types.SiteStatusInfo
+	var currentSite network.SiteStatusInfo
 	for _, s := range currentStatus.SiteStatus {
 		if s.Site.Identity == currentSiteId {
 			currentSite = s
@@ -143,7 +143,7 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 
 					// links between routers of the same site will not be shown
 					if remoteSite.Site.Identity != currentSite.Site.Identity {
-						newRemoteLink := types.RemoteLinkInfo{SiteName: remoteSite.Site.Name, Namespace: remoteSite.Site.Namespace, SiteId: remoteSite.Site.Identity, LinkName: link.Name}
+						newRemoteLink := network.RemoteLinkInfo{SiteName: remoteSite.Site.Name, Namespace: remoteSite.Site.Namespace, SiteId: remoteSite.Site.Identity, LinkName: link.Name}
 						remoteLinks = append(remoteLinks, &newRemoteLink)
 					}
 				}
