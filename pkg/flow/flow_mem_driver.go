@@ -493,7 +493,7 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 	if platform == "" || platform == types.PlatformKubernetes {
 		cli, err := client.NewClient(fc.namespace, "", "")
 		if err != nil {
-			log.Fatal("Error getting van client: ", err.Error())
+			return err
 		}
 
 		var sites []*SiteStatus
