@@ -16,14 +16,16 @@ func (s *SkupperStatus) GetServiceSitesMap() map[string][]SiteStatusInfo {
 
 	for _, site := range s.NetworkStatus.SiteStatus {
 
-		for _, listener := range site.RouterStatus[0].Listeners {
-			if mapServiceSites[listener.Name] != nil {
-				serviceSites := mapServiceSites[listener.Name]
+		if len(site.RouterStatus) > 0 {
+			for _, listener := range site.RouterStatus[0].Listeners {
+				if mapServiceSites[listener.Name] != nil {
+					serviceSites := mapServiceSites[listener.Name]
 
-				serviceSites = append(serviceSites, site)
-				mapServiceSites[listener.Name] = serviceSites
-			} else {
-				mapServiceSites[listener.Name] = []SiteStatusInfo{site}
+					serviceSites = append(serviceSites, site)
+					mapServiceSites[listener.Name] = serviceSites
+				} else {
+					mapServiceSites[listener.Name] = []SiteStatusInfo{site}
+				}
 			}
 		}
 	}
@@ -37,11 +39,13 @@ func (s *SkupperStatus) GetSiteTargetsMap() map[string]map[string]ConnectorInfo 
 
 	for _, site := range s.NetworkStatus.SiteStatus {
 
-		for _, connector := range site.RouterStatus[0].Connectors {
-			if mapSiteTargets[site.Site.Identity] == nil {
-				mapSiteTargets[site.Site.Identity] = make(map[string]ConnectorInfo)
+		if len(site.RouterStatus) > 0 {
+			for _, connector := range site.RouterStatus[0].Connectors {
+				if mapSiteTargets[site.Site.Identity] == nil {
+					mapSiteTargets[site.Site.Identity] = make(map[string]ConnectorInfo)
+				}
+				mapSiteTargets[site.Site.Identity][connector.Address] = connector
 			}
-			mapSiteTargets[site.Site.Identity][connector.Address] = connector
 		}
 	}
 
