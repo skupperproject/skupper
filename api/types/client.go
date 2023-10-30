@@ -17,7 +17,7 @@ type ConnectorCreateOptions struct {
 	SkupperNamespace string
 	Name             string
 	Cost             int32
-	Yaml             []byte
+	Secret           *corev1.Secret
 }
 
 type ConnectorRemoveOptions struct {

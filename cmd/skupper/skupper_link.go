@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-
+	"strconv"
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/spf13/cobra"
@@ -44,7 +47,23 @@ func NewCmdLinkCreate(skupperClient SkupperLinkClient, flag string) *cobra.Comma
 			if err != nil {
 				return fmt.Errorf("Could not read connection token: %s", err.Error())
 			}
-			connectorCreateOpts.Yaml = yaml
+			costFlag := cmd.Flag("cost")
+			ys := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
+				scheme.Scheme)
+			var secret = &corev1.Secret{}
+			_, _, err = ys.Decode(yaml, nil, secret)
+			if err != nil {
+				return fmt.Errorf("Could not parse connection token: %w", err)
+			}
+			connectorCreateOpts.Secret = secret
+			if secret.ObjectMeta.Annotations != nil && !costFlag.Changed {
+				if costStr, ok := secret.ObjectMeta.Annotations[types.TokenCost]; ok {
+					if cost, err := strconv.Atoi(costStr); err == nil {
+						connectorCreateOpts.Cost = int32(cost)
+					}
+				}
+			}
+
 			return skupperClient.Create(cmd, args)
 		},
 	}
