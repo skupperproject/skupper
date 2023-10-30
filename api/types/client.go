@@ -296,7 +296,7 @@ type GatewayInspectResponse struct {
 	Listeners  map[string]GatewayEndpoint
 }
 
-type VanStatusInfo struct {
+type NetworkStatusInfo struct {
 	Addresses  []AddressInfo    `json:"addresses"`
 	SiteStatus []SiteStatusInfo `json:"siteStatus"`
 }
@@ -434,6 +434,6 @@ type VanClientInterface interface {
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
 	RevokeAccess(ctx context.Context) error
-	NetworkStatus(ctx context.Context) (*VanStatusInfo, error)
+	NetworkStatus(ctx context.Context) (*NetworkStatusInfo, error)
 	GetRemoteLinks(ctx context.Context, siteConfig *SiteConfig) ([]*RemoteLinkInfo, error)
 }

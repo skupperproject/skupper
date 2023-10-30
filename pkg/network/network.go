@@ -9,14 +9,14 @@ import (
 )
 
 type SkupperStatus struct {
-	VanStatus *types.VanStatusInfo
+	NetworkStatus *types.NetworkStatusInfo
 }
 
 func (s *SkupperStatus) GetServiceSitesMap() map[string][]types.SiteStatusInfo {
 
 	mapServiceSites := make(map[string][]types.SiteStatusInfo)
 
-	for _, site := range s.VanStatus.SiteStatus {
+	for _, site := range s.NetworkStatus.SiteStatus {
 
 		for _, listener := range site.RouterStatus[0].Listeners {
 			if mapServiceSites[listener.Name] != nil {
@@ -54,7 +54,7 @@ func (s *SkupperStatus) GetSiteTargetsMap() map[string]map[string]types.Connecto
 
 	mapSiteTargets := make(map[string]map[string]types.ConnectorInfo)
 
-	for _, site := range s.VanStatus.SiteStatus {
+	for _, site := range s.NetworkStatus.SiteStatus {
 
 		for _, connector := range site.RouterStatus[0].Connectors {
 			if mapSiteTargets[site.Site.Identity] == nil {
@@ -69,7 +69,7 @@ func (s *SkupperStatus) GetSiteTargetsMap() map[string]map[string]types.Connecto
 
 func (s *SkupperStatus) GetRouterSiteMap() map[string]types.SiteStatusInfo {
 	mapRouterSite := make(map[string]types.SiteStatusInfo)
-	for _, siteStatus := range s.VanStatus.SiteStatus {
+	for _, siteStatus := range s.NetworkStatus.SiteStatus {
 		if len(siteStatus.RouterStatus) > 0 {
 			for _, routerStatus := range siteStatus.RouterStatus {
 				// the name of the router has a "0/" as a prefix that it is needed to remove
@@ -84,7 +84,7 @@ func (s *SkupperStatus) GetRouterSiteMap() map[string]types.SiteStatusInfo {
 
 func (s *SkupperStatus) GetSiteById(siteId string) *types.SiteStatusInfo {
 
-	for _, siteStatus := range s.VanStatus.SiteStatus {
+	for _, siteStatus := range s.NetworkStatus.SiteStatus {
 		if siteStatus.Site.Identity == siteId {
 			return &siteStatus
 		}
@@ -132,15 +132,15 @@ func (s *SkupperStatus) RemoveLinksFromSameSite(router types.RouterStatusInfo, s
 	return filteredLinks
 }
 
-func UnmarshalSkupperStatus(data map[string]string) (*types.VanStatusInfo, error) {
+func UnmarshalSkupperStatus(data map[string]string) (*types.NetworkStatusInfo, error) {
 
-	var vanStatus *types.VanStatusInfo
+	var networkStatusInfo *types.NetworkStatusInfo
 
-	err := json.Unmarshal([]byte(data["VanStatus"]), &vanStatus)
+	err := json.Unmarshal([]byte(data["NetworkStatus"]), &networkStatusInfo)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return vanStatus, nil
+	return networkStatusInfo, nil
 }

@@ -109,7 +109,7 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 
 	currentSiteId := l.site.Reference.UID
 
-	configmap, err := k8s.GetConfigMap(types.VanStatusConfigMapName, l.namespace, l.cli)
+	configmap, err := k8s.GetConfigMap(types.NetworkStatusConfigMapName, l.namespace, l.cli)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 
 	var remoteLinks []*types.RemoteLinkInfo
 
-	statusManager := network.SkupperStatus{VanStatus: currentStatus}
+	statusManager := network.SkupperStatus{NetworkStatus: currentStatus}
 
 	mapRouterSite := statusManager.GetRouterSiteMap()
 
@@ -138,7 +138,7 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkI
 				if link.Direction == "incoming" {
 					remoteSite, ok := mapRouterSite[link.Name]
 					if !ok {
-						return nil, fmt.Errorf("remote site not found in config map %s", types.VanStatusConfigMapName)
+						return nil, fmt.Errorf("remote site not found in config map %s", types.NetworkStatusConfigMapName)
 					}
 
 					// links between routers of the same site will not be shown

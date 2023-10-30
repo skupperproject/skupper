@@ -38,13 +38,13 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 	}
 	currentSite := siteConfig.Reference.UID
 
-	currentVanStatus, errStatus := s.kube.Cli.NetworkStatus(ctx)
+	currentNetworkStatus, errStatus := s.kube.Cli.NetworkStatus(ctx)
 	if errStatus != nil {
 		return errStatus
 	}
 
-	sitesStatus := currentVanStatus.SiteStatus
-	statusManager := network.SkupperStatus{VanStatus: currentVanStatus}
+	sitesStatus := currentNetworkStatus.SiteStatus
+	statusManager := network.SkupperStatus{NetworkStatus: currentNetworkStatus}
 
 	if sitesStatus != nil && len(sitesStatus) > 0 {
 

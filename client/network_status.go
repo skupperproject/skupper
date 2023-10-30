@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *VanClient) NetworkStatus(ctx context.Context) (*types.VanStatusInfo, error) {
+func (cli *VanClient) NetworkStatus(ctx context.Context) (*types.NetworkStatusInfo, error) {
 
 	//Checking if the router has been deployed
 	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
@@ -18,7 +18,7 @@ func (cli *VanClient) NetworkStatus(ctx context.Context) (*types.VanStatusInfo, 
 		return nil, fmt.Errorf("Skupper is not installed: %s", err)
 	}
 
-	configmap, err := k8s.GetConfigMap(types.VanStatusConfigMapName, cli.Namespace, cli.KubeClient)
+	configmap, err := k8s.GetConfigMap(types.NetworkStatusConfigMapName, cli.Namespace, cli.KubeClient)
 	if err != nil {
 		return nil, err
 	}

@@ -230,7 +230,7 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	statusManager := network.SkupperStatus{
-		VanStatus: currentStatus,
+		NetworkStatus: currentStatus,
 	}
 
 	siteConfig, err := s.kube.Cli.SiteConfigInspect(context.Background(), nil)

@@ -51,13 +51,13 @@ func (s *SkupperKubeService) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	cli := s.kube.Cli
-	currentVanStatus, err := cli.NetworkStatus(context.Background())
+	currentNetworkStatus, err := cli.NetworkStatus(context.Background())
 	if err != nil {
 		return fmt.Errorf("Could not retrieve services: %w", err)
 	}
 	vsis, err := s.kube.Cli.ServiceInterfaceList(context.Background())
 	statusManager := network.SkupperStatus{
-		VanStatus: currentVanStatus,
+		NetworkStatus: currentNetworkStatus,
 	}
 
 	mapServiceSites := statusManager.GetServiceSitesMap()
@@ -68,17 +68,17 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 		mapServiceLabels = statusManager.GetServiceLabelsMap(vsis)
 	}
 
-	if len(currentVanStatus.Addresses) == 0 {
+	if len(currentNetworkStatus.Addresses) == 0 {
 		fmt.Println("No services defined")
 	} else {
 		l := formatter.NewList()
 		l.Item("Services exposed through Skupper:")
 		var addresses []string
-		for _, si := range currentVanStatus.Addresses {
+		for _, si := range currentNetworkStatus.Addresses {
 			addresses = append(addresses, si.Name)
 		}
 
-		for _, si := range currentVanStatus.Addresses {
+		for _, si := range currentNetworkStatus.Addresses {
 			svc := l.NewChild(fmt.Sprintf("%s (%s)", si.Name, si.Protocol))
 
 			if verboseServiceStatus {
