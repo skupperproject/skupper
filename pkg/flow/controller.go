@@ -45,7 +45,7 @@ func NewFlowController(origin string, version string, creationTime uint64, conne
 		processOutgoing:   make(chan *ProcessRecord, 10),
 		processRecords:    make(map[string]*ProcessRecord),
 		hostRecords:       make(map[string]*HostRecord),
-		hostOutgoing:      make(chan *HostRecord),
+		hostOutgoing:      make(chan *HostRecord, 10),
 		startTime:         time.Now().Unix(),
 	}
 	return fc
@@ -88,9 +88,12 @@ func UpdateHost(c *FlowController, deleted bool, name string, host *HostRecord) 
 		if _, ok := c.hostRecords[host.Identity]; !ok {
 			c.hostRecords[host.Identity] = host
 		}
-	}
-	if host != nil {
 		c.hostOutgoing <- host
+	} else {
+		if existing, ok := c.hostRecords[host.Identity]; ok {
+			existing.EndTime = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+		}
+		delete(c.hostRecords, host.Identity)
 	}
 
 	return nil
@@ -151,7 +154,7 @@ func (c *FlowController) updateRecords(stopCh <-chan struct{}) {
 	var platformStr string
 	platform := config.GetPlatform()
 	if platform == "" || platform == types.PlatformKubernetes {
-		platformStr = "kubernetes"
+		platformStr = string(types.PlatformKubernetes)
 		cli, err := client.NewClient(nameSpace, "", "")
 		if err == nil {
 			cpv := client.NewClusterPolicyValidator(cli)
@@ -159,6 +162,8 @@ func (c *FlowController) updateRecords(stopCh <-chan struct{}) {
 				policy = Enabled
 			}
 		}
+	} else if platform == types.PlatformPodman {
+		platformStr = string(types.PlatformPodman)
 	}
 	site := &SiteRecord{
 		Base: Base{

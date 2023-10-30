@@ -496,12 +496,6 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 			log.Fatal("Error getting van client: ", err.Error())
 		}
 
-		configMap, err := kube.GetConfigMap(types.NetworkStatusConfigMapName, cli.Namespace, cli.KubeClient)
-		if err != nil {
-			log.Println("Error getting network status config map", err.Error())
-			return nil
-		}
-
 		var sites []*SiteStatus
 		var addresses []*VanAddressRecord
 
@@ -534,9 +528,15 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 			Sites:     sites,
 		}
 		networkData["NetworkStatus"] = prettyPrint(networkStatus)
-		configMap.Data = networkData
 
 		err = retry.RetryOnConflict(defaultRetry, func() error {
+			configMap, err := kube.GetConfigMap(types.NetworkStatusConfigMapName, cli.Namespace, cli.KubeClient)
+			if err != nil {
+				return err
+			}
+
+			configMap.Data = networkData
+
 			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
 			if err != nil {
 				return err
@@ -692,6 +692,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 			if eventsource, ok := fc.eventSources[heartbeat.Identity]; ok {
 				eventsource.LastHeard = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 				eventsource.Heartbeats++
+				eventsource.Messages++
 			}
 			if pending, ok := fc.pendingFlush[heartbeat.Source]; ok {
 				pending.heartbeat = true
@@ -1692,6 +1693,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			for _, process := range fc.Processes {
 				if filterRecord(*process, queryParams) && process.Base.TimeRangeValid(queryParams) {
 					if process.connector != nil {
+						process.Addresses = nil
 						if connector, ok := fc.Connectors[*process.connector]; ok {
 							if connector.Address != nil && connector.AddressId != nil {
 								addrDetails := *connector.Address + "@" + *connector.AddressId
@@ -2418,16 +2420,24 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 				delete(fc.connectorsToReconcile, connId)
 			} else if connector.DestHost != nil {
 				siteId := fc.getRecordSiteId(*connector)
+				var matchHost *string
 				found := false
+				if net.ParseIP(*connector.DestHost) == nil {
+					addrs, err := net.LookupHost(*connector.DestHost)
+					if err == nil && len(addrs) > 0 {
+						matchHost = &addrs[0]
+					}
+				} else {
+					matchHost = connector.DestHost
+				}
 				for _, process := range fc.Processes {
 					if siteId == process.Parent {
 						if process.SourceHost != nil {
-							if *connector.DestHost == *process.SourceHost {
-								connector.process = &process.Identity
+							if *matchHost == *process.SourceHost {
+								connector.ProcessId = &process.Identity
 								connector.Target = process.Name
 								process.connector = &connector.Identity
 								process.ProcessBinding = &Bound
-								// update site status with the connector target
 								fc.updateNetworkStatus()
 								log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
 								delete(fc.connectorsToReconcile, connId)
@@ -2451,7 +2461,7 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 						for _, process := range fc.Processes {
 							if process.Name != nil && *process.Name == processName {
 								log.Printf("COLLECTOR: Associating connector %s to external process %s\n", connector.Identity, processName)
-								connector.process = &process.Identity
+								connector.ProcessId = &process.Identity
 								delete(fc.connectorsToReconcile, connId)
 								break
 							}
