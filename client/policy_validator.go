@@ -130,11 +130,13 @@ func (p *ClusterPolicyValidator) AppliesToNS(policyName string) bool {
 	skupperPolicy, err := p.getSkupperPolicy()
 	// If unable to determine, revalidate
 	if err != nil {
+		recordPolicyValidatorEvent("unable to get policy client instance: %s - revalidating all policies", err)
 		return true
 	}
 	pol, err := skupperPolicy.Get(context.TODO(), policyName, v1.GetOptions{})
 	// If policy not found, revalidate
 	if err != nil {
+		recordPolicyValidatorEvent("unable to get policy %s: %s - revalidating all policies", policyName, err)
 		return true
 	}
 	namespace, _ := p.cli.KubeClient.CoreV1().Namespaces().Get(context.TODO(), p.cli.Namespace, v1.GetOptions{})
@@ -421,9 +423,7 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 		} else if err != notEnabledErr {
 			err = fmt.Errorf("Unable to communicate with the API: %v", err)
 		}
-		if event.DefaultStore != nil {
-			event.Recordf("PolicyAPIError", err.Error())
-		}
+		recordPolicyValidatorEvent(err.Error())
 		return &PolicyAPIResult{
 			Allowed: false,
 			Enabled: false,
@@ -493,4 +493,10 @@ func (p *PolicyAPIClient) IncomingLink() (*PolicyAPIResult, error) {
 
 func (p *PolicyAPIClient) OutgoingLink(hostname string) (*PolicyAPIResult, error) {
 	return p.execGet("outgoinglink", hostname)
+}
+
+func recordPolicyValidatorEvent(format string, args ...interface{}) {
+	if event.DefaultStore != nil {
+		event.Recordf("PolicyAPIError", format, args...)
+	}
 }
