@@ -306,7 +306,9 @@ func (s *SkupperKubeSite) Update(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (s *SkupperKubeSite) UpdateFlags(cmd *cobra.Command) {}
+func (s *SkupperKubeSite) UpdateFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVarP(&forceHup, "force-restart", "", false, "Restart skupper daemons even if image tag is not updated")
+}
 
 func (s *SkupperKubeSite) Version(cmd *cobra.Command, args []string) error {
 	cli := s.kube.Cli

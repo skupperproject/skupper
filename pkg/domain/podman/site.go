@@ -65,6 +65,13 @@ type SiteHandler struct {
 	endpoint string
 }
 
+func NewSitePodmanHandlerFromCli(cli *podman.PodmanRestClient) *SiteHandler {
+	return &SiteHandler{
+		cli:      cli,
+		endpoint: cli.GetEndpoint(),
+	}
+}
+
 func NewSitePodmanHandler(endpoint string) (*SiteHandler, error) {
 	if endpoint == "" {
 		podmanCfg, err := NewPodmanConfigFileHandler().GetConfig()

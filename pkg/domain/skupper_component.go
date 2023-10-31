@@ -3,6 +3,7 @@ package domain
 import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/images"
+	"github.com/skupperproject/skupper/test/utils"
 )
 
 type SkupperComponent interface {
@@ -31,7 +32,7 @@ func (r *Router) Name() string {
 }
 
 func (r *Router) GetImage() string {
-	return images.GetRouterImageName()
+	return utils.StrDefault(images.GetRouterImageName(), r.Image)
 }
 
 func (r *Router) SetImage(image string) {
@@ -68,7 +69,7 @@ func (r *FlowCollector) Name() string {
 }
 
 func (r *FlowCollector) GetImage() string {
-	return images.GetFlowCollectorImageName()
+	return utils.StrDefault(images.GetFlowCollectorImageName(), r.Image)
 }
 
 func (r *FlowCollector) SetImage(image string) {
@@ -105,7 +106,7 @@ func (s *Controller) Name() string {
 }
 
 func (s *Controller) GetImage() string {
-	return images.GetControllerPodmanImageName()
+	return utils.StrDefault(images.GetControllerPodmanImageName(), s.Image)
 }
 
 func (s *Controller) SetImage(image string) {

@@ -515,7 +515,7 @@ func NewCmdUpdate(skupperCli SkupperSiteClient) *cobra.Command {
 		PreRun: skupperCli.NewClient,
 		RunE:   skupperCli.Update,
 	}
-	cmd.Flags().BoolVarP(&forceHup, "force-restart", "", false, "Restart skupper daemons even if image tag is not updated")
+	skupperCli.UpdateFlags(cmd)
 	return cmd
 }
 

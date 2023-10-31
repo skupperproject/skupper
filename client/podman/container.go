@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/runtime"
+	runtimeclient "github.com/go-openapi/runtime/client"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/containers"
@@ -132,6 +133,140 @@ func (p *PodmanRestClient) ContainerCreate(container *container.Container) error
 	return nil
 }
 
+// ContainerUpdate replaces the container (by name) with an identical copy
+// with an applied Customization (required).
+// To achieve that, it follows this procedure:
+// - Create a new container
+// - Stop current container
+// - Rename current container
+// - Rename the new container (replacing the original one)
+// - Starts the new container
+// - Removes the original container
+//
+// In case of failures during this process, the original container is restored.
+func (p *PodmanRestClient) ContainerUpdate(name string, fn func(newContainer *container.Container)) (*container.Container, error) {
+	if fn == nil {
+		return nil, fmt.Errorf("at least one customization is needed")
+	}
+
+	datetime := time.Now().Format("20060102150405")
+	c, err := p.ContainerInspect(name)
+	if err != nil {
+		return nil, err
+	}
+
+	newContainerName := fmt.Sprintf("%s-new-%s", c.Name, datetime)
+	cc := &container.Container{
+		Name:          newContainerName,
+		Image:         c.Image,
+		Env:           c.Env,
+		Labels:        c.Labels,
+		Annotations:   c.Annotations,
+		Networks:      c.Networks,
+		Mounts:        c.Mounts,
+		FileMounts:    c.FileMounts,
+		Ports:         c.Ports,
+		EntryPoint:    c.EntryPoint,
+		Command:       c.Command,
+		RestartPolicy: c.RestartPolicy,
+	}
+
+	// apply new container customization
+	fn(cc)
+	if cc.Name != newContainerName {
+		return nil, fmt.Errorf("container name cannot be changed")
+	}
+
+	// creating a new container
+	err = p.ContainerCreate(cc)
+	if err != nil {
+		return cc, err
+	}
+
+	// rollback this one in case of failures below
+	defer func() {
+		if err != nil {
+			_ = p.ContainerStop(cc.Name)
+			_ = p.ContainerRemove(cc.Name)
+		}
+	}()
+
+	// stopping current container
+	err = p.ContainerStop(name)
+	if err != nil {
+		return cc, err
+	}
+
+	// restarting current container
+	defer func() {
+		if err != nil {
+			_ = p.ContainerStart(name)
+		}
+	}()
+
+	// renaming current container to a backup name
+	backupName := fmt.Sprintf("%s-%s", name, datetime)
+	err = p.ContainerRename(name, backupName)
+	if err != nil {
+		return cc, err
+	}
+
+	// restoring original container
+	defer func() {
+		if err != nil {
+			_ = p.ContainerRename(backupName, name)
+		}
+	}()
+
+	// renaming new container to current name
+	err = p.ContainerRename(cc.Name, name)
+	if err != nil {
+		return cc, err
+	}
+
+	defer func() {
+		if err != nil {
+			_ = p.ContainerRename(name, newContainerName)
+		}
+	}()
+
+	// starting new container
+	err = p.ContainerStart(name)
+	if err != nil {
+		return cc, err
+	} else {
+		if removeErr := p.ContainerRemove(backupName); removeErr != nil {
+			fmt.Printf("Unable to remove backup container: %s - %s", backupName, err)
+			fmt.Println()
+		}
+	}
+
+	return cc, nil
+}
+
+// ContainerUpdateImage updates the image used by the given container (name).
+func (p *PodmanRestClient) ContainerUpdateImage(name string, newImage string) (*container.Container, error) {
+	err := p.ImagePull(newImage)
+	if err != nil {
+		return nil, fmt.Errorf("error pulling image %q: %s", newImage, err)
+	}
+	return p.ContainerUpdate(name, func(newContainer *container.Container) {
+		newContainer.Image = newImage
+	})
+}
+
+func (p *PodmanRestClient) ContainerRename(currentName, newName string) error {
+	cli := containers.New(p.RestClient, formats)
+	params := containers.NewContainerRenameLibpodParams()
+	params.PathName = currentName
+	params.QueryName = newName
+	_, err := cli.ContainerRenameLibpod(params)
+	if err != nil {
+		return fmt.Errorf("error renaming container %s to %s: %v", currentName, newName, err)
+	}
+	return nil
+}
+
 func (p *PodmanRestClient) ContainerRemove(name string) error {
 	cli := containers.New(p.RestClient, formats)
 	params := containers.NewContainerDeleteLibpodParams()
@@ -229,7 +364,10 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 		Client:             params.HTTPClient,
 	}
 
-	p.RestClient.Consumers["*/*"] = &responseReaderBody{}
+	restClient, ok := p.RestClient.(*runtimeclient.Runtime)
+	if ok {
+		restClient.Consumers["*/*"] = &responseReaderBody{}
+	}
 	result, err = p.RestClient.Submit(startOp)
 	if err != nil {
 		return "", fmt.Errorf("error starting execution: %v", err)

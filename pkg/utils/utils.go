@@ -18,6 +18,7 @@ import (
 	"crypto/rand"
 	"io"
 	"os"
+	"os/user"
 	"regexp"
 	"strings"
 )
@@ -161,4 +162,12 @@ func DefaultNumber[T Number](values ...T) T {
 		return values[0]
 	}
 	return DefaultNumber(values[1:]...)
+}
+
+func ReadUsername() string {
+	u, err := user.Current()
+	if err != nil {
+		return DefaultStr(os.Getenv("USER"), os.Getenv("USERNAME"))
+	}
+	return strings.Join(strings.Fields(u.Username), "")
 }

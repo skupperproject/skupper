@@ -2,6 +2,7 @@ package podman
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -9,8 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-openapi/runtime"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
+	"github.com/skupperproject/skupper/client/generated/libpod/client/containers"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
@@ -139,7 +142,7 @@ func TestContainer(t *testing.T) {
 	})
 
 	// Listing containers
-	t.Run("container-inspect", func(t *testing.T) {
+	containerInspectTest := func(t *testing.T) {
 		c, err := cli.ContainerInspect(name)
 		assert.Assert(t, err, "error inspecting container")
 
@@ -161,7 +164,8 @@ func TestContainer(t *testing.T) {
 		assert.Equal(t, sourcePort, p.Host)
 		assert.Equal(t, hostIP, p.HostIP)
 		assert.Equal(t, targetPort, p.Target)
-	})
+	}
+	t.Run("container-inspect", containerInspectTest)
 
 	t.Run("container-exec", func(t *testing.T) {
 		out, err := cli.ContainerExec(name, strings.Split("ls -1 /app", " "))
@@ -185,6 +189,16 @@ func TestContainer(t *testing.T) {
 		assert.Equal(t, 1, len(c.NetworkNames()))
 		assert.Equal(t, name, c.NetworkNames()[0])
 	})
+
+	// Updating container image
+	image = strings.ReplaceAll(image, ":main", ":latest")
+	t.Run("container-update-image", func(t *testing.T) {
+		c, err := cli.ContainerUpdateImage(name, image)
+		assert.Assert(t, err)
+		assert.Equal(t, c.Image, image)
+		containerInspectTest(t)
+	})
+	t.Run("container-inspect-after-image-update", containerInspectTest)
 
 	// Cleaning up
 	t.Run("cleanup", func(t *testing.T) {
@@ -229,4 +243,145 @@ func ValidateStrings(t *testing.T, original []string, final []string) {
 	for _, v := range original {
 		assert.Assert(t, utils.StringSliceContains(final, v), "string not found %s", v)
 	}
+}
+
+func TestContainerUpdateMock(t *testing.T) {
+	image := images.GetServiceControllerImageName()
+	cli := NewPodmanClientMock(mockContainers(image))
+
+	// starting the container
+	assert.Assert(t, cli.ContainerStart("my-container"))
+
+	// retrieving container
+	cc, err := cli.ContainerInspect("my-container")
+	assert.Assert(t, err)
+	startedAt := cc.StartedAt
+
+	newImage := strings.Replace(image, ":main", ":updated", -1)
+	_, err = cli.ContainerUpdateImage("my-container", newImage)
+	assert.Assert(t, err)
+
+	// validating that the container has the new image and has been restarted
+	cc, err = cli.ContainerInspect("my-container")
+	assert.Assert(t, err)
+	assert.Assert(t, time.Now().After(startedAt))
+	assert.Equal(t, cc.Image, newImage)
+
+	// assert that there is no other container left
+	cl, err := cli.ContainerList()
+	assert.Assert(t, err)
+	assert.Equal(t, len(cl), 1)
+}
+
+func TestContainerUpdateErrorMock(t *testing.T) {
+	image := images.GetServiceControllerImageName()
+	newImage := strings.Replace(image, ":main", ":updated", -1)
+	cli := NewPodmanClientMock(mockContainers(image))
+	mock := cli.RestClient.(*RestClientMock)
+
+	tests := []struct {
+		name      string
+		errorHook func(operation *runtime.ClientOperation) error
+	}{{
+		// must stop and remove the new container
+		name: "error-stopping-old-container",
+		errorHook: func(operation *runtime.ClientOperation) error {
+			if operation.ID == "ContainerStopLibpod" {
+				params := operation.Params.(*containers.ContainerStopLibpodParams)
+				// returns error when stopping the current container
+				if params.Name == "my-container" {
+					return fmt.Errorf("error stopping %q", params.Name)
+				}
+			}
+			return nil
+		},
+	}, {
+		// must start the old container, stop and remove the new one
+		name: "error-renaming-old-container",
+		errorHook: func(operation *runtime.ClientOperation) error {
+			if operation.ID == "ContainerRenameLibpod" {
+				params := operation.Params.(*containers.ContainerRenameLibpodParams)
+				curName := params.PathName
+				newName := params.QueryName
+				// returns error when renaming current container to a backup name
+				if curName == "my-container" {
+					return fmt.Errorf("error renaming container %q to %q", curName, newName)
+				}
+			}
+			return nil
+		},
+	}, {
+		// must rename old container back, start the old container, stop and remove the new one
+		name: "error-renaming-new-container-as-old-container",
+		errorHook: func(operation *runtime.ClientOperation) error {
+			if operation.ID == "ContainerRenameLibpod" {
+				params := operation.Params.(*containers.ContainerRenameLibpodParams)
+				curName := params.PathName
+				newName := params.QueryName
+				// return error when renaming new container to original name
+				if strings.Contains(curName, "-new-") && newName == "my-container" {
+					return fmt.Errorf("error renaming container %q to %q", curName, newName)
+				}
+			}
+			return nil
+		},
+	}, {
+		// must rename old container back, start the old container, stop and remove the new one
+		name: "error-starting-new-container",
+		errorHook: func(operation *runtime.ClientOperation) error {
+			if operation.ID == "ContainerStartLibpod" {
+				params := operation.Params.(*containers.ContainerStartLibpodParams)
+				hasBackupContainer := true
+				for _, c := range mock.Containers {
+					if strings.Contains(c.Name, "-new-") {
+						hasBackupContainer = false
+						break
+					}
+				}
+				// only returns error when starting the updated container
+				if len(mock.Containers) == 2 && hasBackupContainer && params.Name == "my-container" {
+					return fmt.Errorf("error starting %q", params.Name)
+				}
+			}
+			return nil
+		},
+	}}
+
+	// iterate through test scenarios
+	for _, test := range tests {
+		mock.Containers = mockContainers(image)
+		mock.ErrorHook = test.errorHook
+		t.Run(test.name, func(t *testing.T) {
+			_, err := cli.ContainerUpdate("my-container", func(newContainer *container.Container) {
+				newContainer.Image = newImage
+			})
+			assert.Assert(t, err != nil)
+			assert.Equal(t, 1, len(mock.Containers))
+			assert.Equal(t, "my-container", mock.Containers[0].Name)
+			assert.Equal(t, true, mock.Containers[0].Running)
+		})
+	}
+}
+
+func mockContainers(image string) []*container.Container {
+	return []*container.Container{{
+		ID:    "abcd",
+		Name:  "my-container",
+		Image: image,
+		Env:   map[string]string{"var1": "val1", "var2": "val2"},
+		Networks: map[string]container.ContainerNetworkInfo{
+			"skupper": container.ContainerNetworkInfo{
+				ID:        "skupper",
+				IPAddress: "172.17.0.10",
+				Gateway:   "172.17.0.1",
+				Aliases:   []string{"skupper", "service-controller"},
+			},
+		},
+		Ports: []container.Port{
+			{Host: "8888", HostIP: "10.0.0.1", Target: "8080", Protocol: "tcp"},
+		},
+		Running:   true,
+		CreatedAt: time.Now(),
+		StartedAt: time.Now(),
+	}}
 }

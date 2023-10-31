@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	runtime2 "github.com/go-openapi/runtime"
-	runtime "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/runtime"
+	runtimeclient "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper/client/generated/libpod/models"
 	"github.com/skupperproject/skupper/pkg/config"
@@ -34,7 +34,7 @@ var (
 )
 
 type PodmanRestClient struct {
-	RestClient *runtime.Runtime
+	RestClient runtime.ClientTransport
 	endpoint   string
 }
 
@@ -93,7 +93,7 @@ func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	if basePath == "" {
 		basePath = DEFAULT_BASE_PATH
 	}
-	c := runtime.New(hostPort, basePath, []string{u.Scheme})
+	c := runtimeclient.New(hostPort, basePath, []string{u.Scheme})
 	// Initializing transport like the http.DefaultTransport
 	// to avoid modifying it directly, as Runtime.Transport is
 	// set to http.DefaultTransport (variable)
@@ -170,7 +170,7 @@ func stringP(val string) *string {
 type responseReaderID struct {
 }
 
-func (r *responseReaderID) ReadResponse(response runtime2.ClientResponse, consumer runtime2.Consumer) (interface{}, error) {
+func (r *responseReaderID) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
 	case 200, 201:
 		resp := &models.IDResponse{}
@@ -225,7 +225,7 @@ func (r *responseReaderBody) Consume(reader io.Reader, i interface{}) error {
 	return nil
 }
 
-func (r *responseReaderBody) ReadResponse(response runtime2.ClientResponse, consumer runtime2.Consumer) (interface{}, error) {
+func (r *responseReaderBody) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
 	case 200, 201:
 		bodyStr := ""
@@ -245,7 +245,7 @@ func (r *responseReaderBody) ReadResponse(response runtime2.ClientResponse, cons
 	}
 }
 
-func (p *PodmanRestClient) ResponseIDReader(httpClient *runtime2.ClientOperation) {
+func (p *PodmanRestClient) ResponseIDReader(httpClient *runtime.ClientOperation) {
 	httpClient.Reader = &responseReaderID{}
 }
 

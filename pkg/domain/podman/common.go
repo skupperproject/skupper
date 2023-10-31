@@ -2,9 +2,6 @@ package podman
 
 import (
 	"fmt"
-	"os"
-	"os/user"
-	"strings"
 
 	"github.com/skupperproject/skupper/pkg/utils"
 
@@ -16,7 +13,7 @@ const (
 )
 
 var (
-	Username                = readUsername()
+	Username                = utils.ReadUsername()
 	SkupperContainerVolumes = []string{"skupper-services", "skupper-local-server", "skupper-internal", "skupper-site-server", SharedTlsCertificates,
 		types.ConsoleServerSecret, types.ConsoleUsersSecret, "prometheus-server-config", "prometheus-storage-volume"}
 )
@@ -30,12 +27,4 @@ func OwnedBySkupper(resource string, labels map[string]string) error {
 		return notOwnedErr
 	}
 	return nil
-}
-
-func readUsername() string {
-	u, err := user.Current()
-	if err != nil {
-		return utils.DefaultStr(os.Getenv("USER"), os.Getenv("USERNAME"))
-	}
-	return strings.Join(strings.Fields(u.Username), "")
 }
