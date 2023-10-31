@@ -85,6 +85,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		user             string
 		depsExpected     []string
 		cmsExpected      []string
+		cmsExtraExpected []string
 		rolesExpected    []string
 		svcsExpected     []string
 		realSvcsExpected []string
@@ -138,16 +139,17 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		// of VAN service interface creation.
 		// I.e., certain deployments and services should be created.
 		{
-			namespace:     "vsic-5",
-			doc:           "Check basic deployments.",
-			init:          true,
-			addr:          "vsic-5-addr",
-			proto:         "tcp",
-			ports:         []int{1999, 2000},
-			expectedErr:   "",
-			depsExpected:  []string{"skupper-router", "skupper-service-controller"},
-			cmsExpected:   []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
-			rolesExpected: []string{types.ControllerRoleName, types.TransportRoleName},
+			namespace:        "vsic-5",
+			doc:              "Check basic deployments.",
+			init:             true,
+			addr:             "vsic-5-addr",
+			proto:            "tcp",
+			ports:            []int{1999, 2000},
+			expectedErr:      "",
+			depsExpected:     []string{"skupper-router", "skupper-service-controller"},
+			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
+			cmsExtraExpected: []string{types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
+			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
 			// The list of expected services is slightly different in
 			// the mock environment vs. a real cluster.
 			// It usually takes 10 or 12 seconds for the address service to
@@ -168,6 +170,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			expectedErr:      "",
 			depsExpected:     []string{"skupper-router", "skupper-service-controller"},
 			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
+			cmsExtraExpected: []string{types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
 			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
 			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName},
 			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, "vsic-6-addr"},
@@ -314,6 +317,11 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		}
 
 		// Check all the lists of expected entities.
+		if isCluster {
+			for _, cm := range testcase.cmsExtraExpected {
+				testcase.cmsExpected = append(testcase.cmsExpected, cm)
+			}
+		}
 		check_result(t, testcase.namespace, testcase.timeout, "dependencies", testcase.depsExpected, &depsFound, testcase.doc)
 		check_result(t, testcase.namespace, testcase.timeout, "config maps", testcase.cmsExpected, &cmsFound, testcase.doc)
 		check_result(t, testcase.namespace, testcase.timeout, "roles", testcase.rolesExpected, &rolesFound, testcase.doc)
