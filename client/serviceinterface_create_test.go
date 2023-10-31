@@ -146,7 +146,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			ports:         []int{1999, 2000},
 			expectedErr:   "",
 			depsExpected:  []string{"skupper-router", "skupper-service-controller"},
-			cmsExpected:   []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap, types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
+			cmsExpected:   []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
 			rolesExpected: []string{types.ControllerRoleName, types.TransportRoleName},
 			// The list of expected services is slightly different in
 			// the mock environment vs. a real cluster.
@@ -167,7 +167,7 @@ func TestServiceInterfaceCreate(t *testing.T) {
 			ports:            []int{3000},
 			expectedErr:      "",
 			depsExpected:     []string{"skupper-router", "skupper-service-controller"},
-			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap, types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
+			cmsExpected:      []string{types.TransportConfigMapName, types.ServiceInterfaceConfigMap},
 			rolesExpected:    []string{types.ControllerRoleName, types.TransportRoleName},
 			svcsExpected:     []string{types.LocalTransportServiceName, types.TransportServiceName},
 			realSvcsExpected: []string{types.LocalTransportServiceName, types.TransportServiceName, "vsic-6-addr"},
