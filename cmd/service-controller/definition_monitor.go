@@ -5,7 +5,6 @@ import (
 	jsonencoding "encoding/json"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -768,9 +767,26 @@ func restoreServiceDefinitions(cli *client.VanClient, name string) error {
 	}
 	if hasOriginalTargetPort(*service) {
 		updated = true
-		originalTargetPort, _ := strconv.Atoi(service.ObjectMeta.Annotations[types.OriginalTargetPortQualifier])
+		originalTargetPortMap := kube.GetOriginalTargetPorts(service)
+		restoredPorts := make([]corev1.ServicePort, 0, len(originalTargetPortMap))
+		for _, port := range service.Spec.Ports {
+			originalTargetPort, exists := originalTargetPortMap[int(port.Port)]
+			if exists {
+				port.TargetPort = intstr.FromInt(originalTargetPort)
+				restoredPorts = append(restoredPorts, port)
+				delete(originalTargetPortMap, int(port.Port))
+			}
+		}
+		for iPort, tPort := range originalTargetPortMap {
+			restoredPorts = append(restoredPorts, corev1.ServicePort{
+				Name:       fmt.Sprintf("port%d", iPort),
+				Protocol:   "TCP",
+				Port:       int32(iPort),
+				TargetPort: intstr.FromInt(tPort),
+			})
+		}
 		delete(service.ObjectMeta.Annotations, types.OriginalTargetPortQualifier)
-		service.Spec.Ports[0].TargetPort = intstr.FromInt(originalTargetPort)
+		service.Spec.Ports = restoredPorts
 	}
 	if hasOriginalAssigned(*service) {
 		updated = true
