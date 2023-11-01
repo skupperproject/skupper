@@ -241,7 +241,7 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Printf("Skupper is enabled for namespace %q%s%s%s.", ns, sitename, modedesc, policyStr)
 		if vir.Status.TransportReadyReplicas == 0 {
-			fmt.Printf(" Status pending...")
+			fmt.Printf(" Status \"pending\"...")
 		} else {
 			if len(vir.Status.ConnectedSites.Warnings) > 0 {
 				for _, w := range vir.Status.ConnectedSites.Warnings {
