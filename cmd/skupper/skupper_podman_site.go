@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	podman "github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/domain/podman/update"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -81,7 +83,36 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 	if routerCreateOpts.Ingress != types.IngressNoneString {
 		// Validating ingress hosts (required as certificates must have valid hosts)
 		if len(site.IngressHosts) == 0 {
-			return fmt.Errorf("At least one ingress host is required")
+			var ingressHosts []string
+			// Get hostname of the machine
+			hostname, hostnameErr := os.Hostname()
+			if hostnameErr == nil {
+				ingressHosts = append(ingressHosts, hostname)
+			}
+			// Get all system's unicast interface addresses
+			addresses, addressesErr := net.InterfaceAddrs()
+			if addressesErr == nil {
+				for _, address := range addresses {
+					ipnet, ok := address.(*net.IPNet)
+					if ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
+						ipv4ValidAddress := ipnet.IP.String()
+						ingressHosts = append(ingressHosts, ipv4ValidAddress)
+						// Try a reverse lookup of a valid IPv4 address
+						fqdns, err := net.LookupAddr(ipv4ValidAddress)
+						if err == nil {
+							for _, fqdn := range fqdns {
+								if !utils.StringSliceContains(ingressHosts, fqdn) {
+									ingressHosts = append(ingressHosts, fqdn)
+								}
+							}
+						}
+					}
+				}
+			}
+			if addressesErr != nil && hostnameErr != nil {
+				return fmt.Errorf("Cannot get a default ingress host")
+			}
+			site.IngressHosts = append(site.IngressHosts, ingressHosts...)
 		}
 	} else {
 		// If none is set, do not allow any ingress host (ignore those provided via CLI)
