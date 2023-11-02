@@ -10,7 +10,7 @@ COPY . .
 
 RUN make
 
-FROM node:16.17 AS console-builder
+FROM node:18.18.2 AS console-builder
 
 WORKDIR /skupper-console/
 ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
