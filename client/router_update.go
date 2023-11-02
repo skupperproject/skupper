@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/utils/configs"
 	"io/ioutil"
 	"log"
 	"net"
@@ -171,7 +172,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	usingRoutes := false
 	consoleUsesLoadbalancer := false
 	routerExposedAsIp := false
-	if renameFor050 || updateSecretsFor102 {
+	if renameFor050 {
 		// create new resources (as copies of old ones)
 		// services
 		_, err = kube.CopyService("skupper-messaging", types.LocalTransportServiceName, map[string]string{}, namespace, cli.KubeClient)
@@ -410,7 +411,44 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, err
 	}
 	updateRouter := false
-	if renameFor050 || updateSecretsFor102 {
+
+	if updateSecretsFor102 {
+
+		secret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), types.LocalClientSecret, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		if strings.EqualFold(string(secret.Data["connect.json"]), configs.ConnectJson(types.QualifiedServiceName(types.LocalClientSecret, namespace))) {
+
+			err = kube.DeleteSecret(types.LocalClientSecret, namespace, cli.KubeClient)
+			if err != nil {
+				return false, err
+			}
+
+			credential := types.Credential{
+				CA:          types.LocalCaSecret,
+				Name:        types.LocalClientSecret,
+				Subject:     types.LocalTransportServiceName,
+				Hosts:       []string{},
+				ConnectJson: true,
+			}
+
+			var owner *metav1.OwnerReference
+			if len(configmap.ObjectMeta.OwnerReferences) > 0 {
+				owner = &configmap.ObjectMeta.OwnerReferences[0]
+			}
+
+			_, err = kube.NewSecret(credential, owner, namespace, cli.KubeClient)
+			if err != nil {
+				return false, err
+			}
+
+			updateRouter = true
+		}
+	}
+
+	if renameFor050 {
 		// update deployment
 		// - serviceaccount
 		router.Spec.Template.Spec.ServiceAccountName = types.TransportServiceAccountName
@@ -516,7 +554,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, err
 	}
 	updateController := false
-	if renameFor050 || updateSecretsFor102 {
+	if renameFor050 {
 		// update deployment
 		// - serviceaccount
 		controller.Spec.Template.Spec.ServiceAccountName = types.ControllerServiceAccountName
@@ -662,7 +700,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 		}
 	}
-	if renameFor050 || updateSecretsFor102 {
+	if renameFor050 {
 		// delete old resources
 		if cli.RouteClient != nil {
 			err = cli.RouteClient.Routes(namespace).Delete(context.TODO(), "skupper-controller", metav1.DeleteOptions{})
