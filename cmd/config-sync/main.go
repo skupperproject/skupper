@@ -67,12 +67,9 @@ func main() {
 	}
 
 	log.Println("CONFIG_SYNC: Waiting for Skupper router to be ready")
-	pods, err := kube.GetPods("skupper.io/component=router", namespace, cli.KubeClient)
-	for _, pod := range pods {
-		_, err := kube.WaitForPodStatus(namespace, cli.KubeClient, pod.Name, corev1.PodRunning, time.Second*180, time.Second*5)
-		if err != nil {
-			log.Fatal("Error waiting for router pods to be ready ", err.Error())
-		}
+	_, err = kube.WaitForPodsSelectorStatus(namespace, cli.KubeClient, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
+	if err != nil {
+		log.Fatal("Error waiting for router pods to be ready ", err.Error())
 	}
 
 	event.StartDefaultEventStore(stopCh)
