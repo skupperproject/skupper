@@ -750,12 +750,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		Name:  "SKUPPER_SITE_ID",
 		Value: siteId,
 	})
-	if options.Router.DebugMode != "" {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "QDROUTERD_DEBUG",
-			Value: options.Router.DebugMode,
-		})
-	}
 	van.Transport.EnvVar = envVars
 
 	ports := []corev1.ContainerPort{}

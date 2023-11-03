@@ -59,7 +59,6 @@ type Tuning struct {
 type RouterOptions struct {
 	Tuning
 	Logging             []RouterLogConfig
-	DebugMode           string
 	MaxFrameSize        int
 	MaxSessionFrames    int
 	DataConnectionCount string

@@ -37,8 +37,6 @@ ConfigMaps allow you to manage a Skupper site using a ConfigMap named `skupper-s
 
 `data:router-console` - (true/false) Set up a Dispatch Router console (not recommended).
 
-`data:router-debug-mode` - (true/**false**) Enable debug mode for router ('asan' or 'gdb' are valid values)
-
 `data:router-logging` - Logging settings for router (e.g. trace,debug,info,notice,warning,error)
 
 `data:router-mode` - (interior/edge) Skupper router-mode

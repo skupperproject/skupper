@@ -996,32 +996,6 @@ func (cli *VanClient) RouterUpdateLogging(ctx context.Context, settings *corev1.
 	return false, nil
 }
 
-func (cli *VanClient) RouterUpdateDebugMode(ctx context.Context, settings *corev1.ConfigMap) (bool, error) {
-	siteConfig, err := cli.SiteConfigInspect(ctx, settings)
-	if err != nil {
-		return false, err
-	}
-	router, err := cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Get(context.TODO(), types.TransportDeploymentName, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	current := kube.GetEnvVarForDeployment(router, "QDROUTERD_DEBUG")
-	if current == siteConfig.Spec.Router.DebugMode {
-		return false, nil
-	}
-	if siteConfig.Spec.Router.DebugMode == "" {
-		kube.DeleteEnvVarForDeployment(router, "QDROUTERD_DEBUG")
-	} else {
-		kube.SetEnvVarForDeployment(router, "QDROUTERD_DEBUG", siteConfig.Spec.Router.DebugMode)
-	}
-	_, err = cli.KubeClient.AppsV1().Deployments(settings.ObjectMeta.Namespace).Update(context.TODO(), router, metav1.UpdateOptions{})
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-
-}
-
 func (cli *VanClient) updateAnnotationsOnDeployment(ctx context.Context, namespace string, name string, annotations map[string]string) (bool, error) {
 	deployment, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {

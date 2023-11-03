@@ -1,7 +1,6 @@
 package constants
 
 import (
-	"os"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -30,9 +29,6 @@ func DefaultRouterOptions(spec *types.RouterOptions) types.RouterOptions {
 		spec = &types.RouterOptions{}
 	}
 
-	if os.Getenv("SKUPPER_TEST_SKIP_DEBUG") == "" {
-		spec.DebugMode = "gdb"
-	}
 	if spec.Logging == nil {
 		spec.Logging = []types.RouterLogConfig{}
 	}

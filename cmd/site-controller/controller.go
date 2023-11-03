@@ -239,23 +239,13 @@ func (c *SiteController) checkSite(key string) error {
 			if err != nil {
 				log.Println("Error checking router logging configuration:", err)
 			}
-			updatedDebugMode, err := c.vanClient.RouterUpdateDebugMode(context.Background(), configmap)
-			if err != nil {
-				log.Println("Error updating router debug mode:", err)
-			}
 			if updatedLogging {
-				if updatedDebugMode {
-					log.Println("Updated router logging and debug mode for", key)
+				err = c.vanClient.RouterRestart(context.Background(), configmap.ObjectMeta.Namespace)
+				if err != nil {
+					log.Println("Error restarting router:", err)
 				} else {
-					err = c.vanClient.RouterRestart(context.Background(), configmap.ObjectMeta.Namespace)
-					if err != nil {
-						log.Println("Error restarting router:", err)
-					} else {
-						log.Println("Updated router logging for", key)
-					}
+					log.Println("Updated router logging for", key)
 				}
-			} else if updatedDebugMode {
-				log.Println("Updated debug mode for", key)
 			}
 			updatedAnnotations, err := c.vanClient.RouterUpdateAnnotations(context.Background(), configmap)
 			if err != nil {

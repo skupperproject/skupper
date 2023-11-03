@@ -32,7 +32,6 @@ type InitTester struct {
 	ConsolePassword       string
 	Ingress               string
 	ConsoleIngress        string
-	RouterDebugMode       string
 	RouterLogging         string
 	RouterMode            string
 	RouterCPU             string
@@ -81,10 +80,6 @@ func (s *InitTester) Command(platform types.Platform, cluster *base.ClusterConte
 	if s.ConsoleIngress != "" {
 		args = append(args, "--console-ingress", s.ConsoleIngress)
 	}
-	if s.RouterDebugMode == "" && os.Getenv(base.ENV_SKIP_DEBUG) == "" {
-		s.RouterDebugMode = "gdb"
-	}
-	args = append(args, "--router-debug-mode", s.RouterDebugMode)
 	if s.RouterLogging == "" {
 		s.RouterLogging = "trace"
 	}
@@ -203,12 +198,6 @@ func (s *InitTester) ValidateKubernetes(cluster *base.ClusterContext, stdout, st
 		if err = s.ValidateConsoleIngress(cluster); err != nil {
 			return
 		}
-	}
-
-	// Validating Router Debug Mode
-	log.Println("Validating router debug mode")
-	if err = s.ValidateRouterDebugMode(cluster); err != nil {
-		return
 	}
 
 	// Validating router logging
@@ -445,33 +434,6 @@ func (s *InitTester) validateRouterMode(cluster *base.ClusterContext) error {
 	return nil
 }
 
-func (s *InitTester) ValidateRouterDebugMode(cluster *base.ClusterContext) error {
-	dep, err := cluster.VanClient.KubeClient.AppsV1().Deployments(cluster.Namespace).Get(context.TODO(), types.TransportDeploymentName, v1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("expected deployment not found: %s - %v", types.TransportDeploymentName, err)
-	}
-	if s.RouterDebugMode == "" {
-		return nil
-	}
-	found := false
-	for _, container := range dep.Spec.Template.Spec.Containers {
-		if container.Name == "router" {
-			for _, envVar := range container.Env {
-				if envVar.Name == "QDROUTERD_DEBUG" {
-					found = true
-					if envVar.Value != s.RouterDebugMode {
-						return fmt.Errorf("incorrect debug mode defined - expected: %s - found: %s", s.RouterDebugMode, envVar.Value)
-					}
-				}
-			}
-		}
-	}
-	if !found {
-		return fmt.Errorf("%s deployment is missing the QDROUTERD_DEBUG environment variable", types.TransportDeploymentName)
-	}
-	return nil
-}
-
 func (s *InitTester) ValidateRouterLogging(cluster *base.ClusterContext) error {
 
 	// Loading config map
@@ -698,12 +660,6 @@ func (s *InitTester) ValidatePodman(stdout string, stderr string) (err error) {
 		if len(siteIngresses) != len(s.Podman.IngressHosts) {
 			return fmt.Errorf("%d ingress hosts expected, found: %d", len(s.Podman.IngressHosts), len(siteIngresses))
 		}
-	}
-
-	// Validating Router Debug Mode
-	log.Println("Validating router debug mode")
-	if s.RouterDebugMode != "" && s.RouterDebugMode != podmanSite.RouterOpts.DebugMode {
-		return fmt.Errorf("incorrect router debug mode - expected: %s - found: %s", s.RouterDebugMode, podmanSite.RouterOpts.DebugMode)
 	}
 
 	// Validating router logging

@@ -58,7 +58,6 @@ const (
 	// router options
 	SiteConfigRouterConsoleKey             string = "router-console"
 	SiteConfigRouterLoggingKey             string = "router-logging"
-	SiteConfigRouterDebugModeKey           string = "router-debug-mode"
 	SiteConfigRouterCpuKey                 string = "router-cpu"
 	SiteConfigRouterMemoryKey              string = "router-memory"
 	SiteConfigRouterCpuLimitKey            string = "router-cpu-limit"
@@ -200,9 +199,6 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 	}
 	if spec.Router.Logging != nil {
 		siteConfig.Data[SiteConfigRouterLoggingKey] = qdr.RouterLogConfigToString(spec.Router.Logging)
-	}
-	if spec.Router.DebugMode != "" {
-		siteConfig.Data[SiteConfigRouterDebugModeKey] = spec.Router.DebugMode
 	}
 	if spec.Router.Cpu != "" {
 		if _, err := resource.ParseQuantity(spec.Router.Cpu); err != nil {
@@ -600,9 +596,6 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	result.Reference.Name = siteConfig.ObjectMeta.Name
 	result.Reference.Kind = siteConfig.TypeMeta.Kind
 	result.Reference.APIVersion = siteConfig.TypeMeta.APIVersion
-	if routerDebugMode, ok := siteConfig.Data[SiteConfigRouterDebugModeKey]; ok && routerDebugMode != "" {
-		result.Spec.Router.DebugMode = routerDebugMode
-	}
 	if routerLogging, ok := siteConfig.Data[SiteConfigRouterLoggingKey]; ok && routerLogging != "" {
 		logConf, err := qdr.ParseRouterLogConfig(routerLogging)
 		if err != nil {
@@ -821,14 +814,6 @@ func UpdateLogging(config types.SiteConfigSpec, configmap *corev1.ConfigMap) boo
 	latestLogging := qdr.RouterLogConfigToString(config.Router.Logging)
 	if configmap.Data[SiteConfigRouterLoggingKey] != latestLogging {
 		configmap.Data[SiteConfigRouterLoggingKey] = latestLogging
-		return true
-	}
-	return false
-}
-
-func UpdateDebugMode(config types.SiteConfigSpec, configmap *corev1.ConfigMap) bool {
-	if configmap.Data[SiteConfigRouterDebugModeKey] != config.Router.DebugMode {
-		configmap.Data[SiteConfigRouterDebugModeKey] = config.Router.DebugMode
 		return true
 	}
 	return false
