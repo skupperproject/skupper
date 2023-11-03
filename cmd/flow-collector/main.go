@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -445,7 +446,7 @@ func main() {
 	log.Printf("COLLECTOR: server listening on %s", addr)
 	s := &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: handlers.CompressHandler(mux),
 	}
 
 	go func() {
