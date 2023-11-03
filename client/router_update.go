@@ -138,7 +138,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 			if utils.LessRecentThanVersion(originalVersion, "1.3.0") {
 				substituteFlowCollector = true
-				updateSecretsFor102 = utils.LessRecentThanVersion(originalVersion, "1.0.2")
 			}
 			if utils.LessRecentThanVersion(originalVersion, "1.4.0") {
 				addPrometheusServer = true
