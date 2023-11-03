@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/utils/configs"
 	"io/ioutil"
 	"log"
 	"net"
@@ -94,6 +95,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, fmt.Errorf("Site (%s) is newer than library (%s); cannot update", site.Version, version.Version)
 	}
 	renameFor050 := false
+	updateSecretsFor102 := false
 	addClaimsSupport := false
 	addMultiportServices := false
 	addClusterPolicy := false
@@ -116,6 +118,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		substituteFlowCollector = utils.LessRecentThanVersion(originalVersion, "1.3.0")
 		addPrometheusServer = utils.LessRecentThanVersion(originalVersion, "1.4.0")
 		moveClaims = utils.LessRecentThanVersion(originalVersion, "1.5.0")
+		updateSecretsFor102 = utils.LessRecentThanVersion(originalVersion, "1.0.2")
 	} else {
 		originalVersion = site.Version
 	}
@@ -407,6 +410,43 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		return false, err
 	}
 	updateRouter := false
+
+	if updateSecretsFor102 {
+
+		secret, err := cli.KubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), types.LocalClientSecret, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		if strings.EqualFold(string(secret.Data["connect.json"]), configs.ConnectJson(types.QualifiedServiceName(types.LocalClientSecret, namespace))) {
+
+			err = kube.DeleteSecret(types.LocalClientSecret, namespace, cli.KubeClient)
+			if err != nil {
+				return false, err
+			}
+
+			credential := types.Credential{
+				CA:          types.LocalCaSecret,
+				Name:        types.LocalClientSecret,
+				Subject:     types.LocalTransportServiceName,
+				Hosts:       []string{},
+				ConnectJson: true,
+			}
+
+			var owner *metav1.OwnerReference
+			if len(configmap.ObjectMeta.OwnerReferences) > 0 {
+				owner = &configmap.ObjectMeta.OwnerReferences[0]
+			}
+
+			_, err = kube.NewSecret(credential, owner, namespace, cli.KubeClient)
+			if err != nil {
+				return false, err
+			}
+
+			updateRouter = true
+		}
+	}
+
 	if renameFor050 {
 		// update deployment
 		// - serviceaccount
