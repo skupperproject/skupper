@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/version"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1informer "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/informers/internalinterfaces"
@@ -50,8 +51,7 @@ func main() {
 	}
 
 	// Startup message
-	log.Printf("Config Sync")
-	log.Printf("Version: %s", version.Version)
+	log.Printf("CONFIG_SYNC: Version: %s", version.Version)
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
@@ -61,18 +61,25 @@ func main() {
 		log.Fatal("Error determining namespace: ", err.Error())
 	}
 
-	log.Printf("Creating kube client...")
 	cli, err := client.NewClient(namespace, "", "")
 	if err != nil {
 		log.Fatal("Error getting van client: ", err.Error())
 	}
+
+	log.Println("CONFIG_SYNC: Waiting for Skupper router to be ready")
+	_, err = kube.WaitForPodsSelectorStatus(namespace, cli.KubeClient, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
+	if err != nil {
+		log.Fatal("Error waiting for router pods to be ready ", err.Error())
+	}
+
 	event.StartDefaultEventStore(stopCh)
 	if claims.StartClaimVerifier(cli.KubeClient, cli.Namespace, cli, cli) {
-		log.Println("Claim verifier started")
+		log.Println("CONFIG_SYNC: Claim verifier started")
 	} else {
-		log.Println("Claim verifier not enabled")
+		log.Println("CONFIG_SYNC: Claim verifier not enabled")
 	}
-	log.Printf("Creating informer...")
+
+	log.Printf("CONFIG_SYNC: Creating ConfigMap informer...")
 	informer := corev1informer.NewFilteredConfigMapInformer(
 		cli.KubeClient,
 		cli.Namespace,
@@ -82,15 +89,18 @@ func main() {
 			options.FieldSelector = "metadata.name=skupper-internal"
 		}))
 	go informer.Run(stopCh)
-	log.Printf("Waiting for informer to sync...")
+	log.Printf("CONFIG_SYNC: Waiting for informer to sync...")
 	if ok := cache.WaitForCacheSync(stopCh, informer.HasSynced); !ok {
 		log.Fatal("Failed to wait for caches to sync")
 	}
-	configSync := newConfigSync(informer, cli)
-	log.Println("Starting sync loop...")
-	configSync.start(stopCh)
-	<-stopCh
-	log.Println("Shutting down...")
-	configSync.stop()
 
+	configSync := newConfigSync(informer, cli)
+	log.Println("CONFIG_SYNC: Starting sync controller loop...")
+	configSync.start(stopCh)
+
+	go startCollector(cli)
+
+	<-stopCh
+	log.Println("CONFIG_SYNC: Shutting down...")
+	configSync.stop()
 }

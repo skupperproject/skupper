@@ -24,6 +24,9 @@ func TestRecordDecoding(t *testing.T) {
 				Identity:     uuid.New().String(),
 				Name:         "skupper-site",
 				Namespace:    "van-namespace",
+				Platform:     "kubernetes",
+				Version:      "1.0.0",
+				Policy:       "Disabled",
 			},
 		},
 		{
@@ -70,7 +73,19 @@ func TestRecordDecoding(t *testing.T) {
 				DestHost:     "172.21.122.169",
 				DestPort:     "9090",
 				Protocol:     "tcp",
-				VanAddress:   " tcp-go-echo",
+				VanAddress:   "tcp-go-echo",
+				Target:       "some-container-name",
+			},
+		},
+		{
+			name:  "logevent",
+			stype: reflect.TypeOf(LogEventRecord{}),
+			fields: map[int]interface{}{
+				TypeOfRecord: uint32(LogEvent),
+				LogSeverity:  uint64(99),
+				LogText:      "Something to know",
+				SourceFile:   "client.c",
+				SourceLine:   uint64(1010),
 			},
 		},
 		{
@@ -137,6 +152,9 @@ func TestRecordDecoding(t *testing.T) {
 				assert.Equal(t, site.Identity, s.fields[Identity])
 				assert.Equal(t, *site.Name, s.fields[Name])
 				assert.Equal(t, *site.NameSpace, s.fields[Namespace])
+				assert.Equal(t, *site.Platform, s.fields[Platform])
+				assert.Equal(t, *site.Version, s.fields[Version])
+				assert.Equal(t, *site.Policy, s.fields[Policy])
 			case RouterRecord:
 				router, ok := record.(RouterRecord)
 				assert.Assert(t, ok)
@@ -168,6 +186,14 @@ func TestRecordDecoding(t *testing.T) {
 				assert.Equal(t, *connector.DestPort, s.fields[DestPort])
 				assert.Equal(t, *connector.Protocol, s.fields[Protocol])
 				assert.Equal(t, *connector.Address, s.fields[VanAddress])
+				assert.Equal(t, *connector.Target, s.fields[Target])
+			case LogEventRecord:
+				logevent, ok := record.(LogEventRecord)
+				assert.Assert(t, ok)
+				assert.Equal(t, *logevent.LogSeverity, s.fields[LogSeverity])
+				assert.Equal(t, *logevent.LogText, s.fields[LogText])
+				assert.Equal(t, *logevent.SourceFile, s.fields[SourceFile])
+				assert.Equal(t, *logevent.SourceLine, s.fields[SourceLine])
 			case FlowRecord:
 				flow, ok := record.(FlowRecord)
 				assert.Assert(t, ok)

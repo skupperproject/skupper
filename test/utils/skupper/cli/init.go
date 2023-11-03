@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
@@ -19,7 +20,7 @@ import (
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/console"
-	v12 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -359,9 +360,9 @@ func (s *InitTester) validateIngressFor(cluster *base.ClusterContext, ingress st
 		return fmt.Errorf("could not find service: %s - %v", service, err)
 	} else if err == nil {
 		// validating service type
-		var expectedType v12.ServiceType = v12.ServiceTypeClusterIP
+		var expectedType corev1.ServiceType = corev1.ServiceTypeClusterIP
 		if ingress == "loadbalancer" {
-			expectedType = v12.ServiceTypeLoadBalancer
+			expectedType = corev1.ServiceTypeLoadBalancer
 		}
 		if svc.Spec.Type != expectedType {
 			return fmt.Errorf("invalid service type for service: %s - expected: %s - found: %s",
@@ -544,37 +545,48 @@ func (s *InitTester) validateRouterCPUMemory(cluster *base.ClusterContext) error
 
 	// retrieving the router pods
 	routerSelector := fmt.Sprintf("%s=%s", types.ComponentAnnotation, types.TransportComponentName)
-	pods, err := kube.GetPods(routerSelector, cluster.Namespace, cluster.VanClient.KubeClient)
-	if err != nil {
-		return err
-	}
 
-	// looping through pods
-	for _, pod := range pods {
-		for _, container := range pod.Spec.Containers {
-			if container.Name == "router" {
-				if !expectResources {
-					// If not expecting requests, but something is defined throw an error
-					if len(container.Resources.Requests) > 0 {
-						return fmt.Errorf("resources not requested but defined in the router (pod: %s, container: %s) - requests: %v",
-							pod.Name, container.Name, container.Resources.Requests)
-					}
-				} else {
-					// If requests have been specified, assert the correct values have been defined
-					cpu := container.Resources.Requests.Cpu().String()
-					mem := container.Resources.Requests.Memory().String()
+	ctx, cn := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cn()
+	err := utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
+		pods, err := kube.WaitForPodsSelectorStatus(cluster.Namespace, cluster.VanClient.KubeClient, routerSelector, corev1.PodRunning, time.Second*180, time.Second*5)
+		if err != nil {
+			return false, nil
+		}
 
-					if s.RouterCPU != cpu {
-						return fmt.Errorf("--router-cpu defined as: [%s] but container has: [%s]", s.RouterCPU, cpu)
-					}
-					if s.RouterMemory != mem {
-						return fmt.Errorf("--router-memory defined as: [%s] but container has: [%s]", s.RouterMemory, mem)
+		// looping through pods
+		for _, pod := range pods {
+			for _, cs := range pod.Status.ContainerStatuses {
+				if !cs.Ready {
+					return false, nil
+				}
+			}
+			for _, container := range pod.Spec.Containers {
+				if container.Name == "router" {
+					if !expectResources {
+						// If not expecting requests, but something is defined throw an error
+						if len(container.Resources.Requests) > 0 {
+							return true, fmt.Errorf("resources not requested but defined in the router (pod: %s, container: %s) - requests: %v",
+								pod.Name, container.Name, container.Resources.Requests)
+						}
+					} else {
+						// If requests have been specified, assert the correct values have been defined
+						cpu := container.Resources.Requests.Cpu().String()
+						mem := container.Resources.Requests.Memory().String()
+
+						if s.RouterCPU != cpu {
+							return true, fmt.Errorf("--router-cpu defined as: [%s] but container has: [%s] - pod: %s.%s", s.RouterCPU, cpu, pod.Namespace, pod.Name)
+						}
+						if s.RouterMemory != mem {
+							return true, fmt.Errorf("--router-memory defined as: [%s] but container has: [%s] - pod: %s.%s", s.RouterMemory, mem, pod.Namespace, pod.Name)
+						}
 					}
 				}
 			}
 		}
-	}
-	return nil
+		return true, nil
+	})
+	return err
 }
 
 func (s *InitTester) validateControllerCPUMemory(cluster *base.ClusterContext) error {

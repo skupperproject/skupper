@@ -42,6 +42,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		clusterLocal         bool
 		depsExpected         []string
 		cmsExpected          []string
+		cmsExtraExpected     []string
 		rolesExpected        []string
 		roleBindingsExpected []string
 		clusterRolesExpected []string
@@ -67,6 +68,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			clusterLocal:         true,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
+			cmsExtraExpected:     []string{types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
 			clusterRolesExpected: []string{types.ControllerClusterRoleName},
 			clusterRoleResources: sets.NewString("skupperclusterpolicies", "nodes", "namespaces"),
@@ -103,6 +105,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			clusterLocal:         false,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router", "skupper-prometheus"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
+			cmsExtraExpected:     []string{types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName, types.PrometheusRoleName},
 			clusterRolesExpected: []string{types.ControllerClusterRoleName},
 			clusterRoleResources: sets.NewString("skupperclusterpolicies", "nodes", "namespaces"),
@@ -140,6 +143,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			clusterLocal:         false,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router", "skupper-prometheus"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName, "skupper-sasl-config"},
+			cmsExtraExpected:     []string{types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName, types.PrometheusRoleName},
 			clusterRolesExpected: []string{types.ControllerClusterRoleName},
 			clusterRoleResources: sets.NewString("skupperclusterpolicies", "nodes", "namespaces"),
@@ -178,6 +182,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			clusterLocal:         false,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router", "skupper-prometheus"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
+			cmsExtraExpected:     []string{types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName, types.PrometheusRoleName},
 			clusterRolesExpected: []string{types.ControllerClusterRoleName},
 			clusterRoleResources: sets.NewString("skupperclusterpolicies", "nodes", "namespaces"),
@@ -215,6 +220,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			clusterLocal:         false,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router", "skupper-prometheus"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
+			cmsExtraExpected:     []string{types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName, types.PrometheusRoleName},
 			clusterRolesExpected: []string{types.ControllerClusterRoleName},
 			clusterRoleResources: sets.NewString("skupperclusterpolicies", "nodes", "namespaces"),
@@ -250,6 +256,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 			clusterLocal:         true,
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
+			cmsExtraExpected:     []string{types.NetworkStatusConfigMapName, types.SiteLeaderLockName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
 			clusterRolesExpected: []string{types.ControllerClusterRoleName},
 			clusterRoleResources: sets.NewString("ingresses", "skupperclusterpolicies", "namespaces", "services", "configmaps", "pods", "nodes", "secrets", "deployments", "statefulsets", "daemonsets"),
@@ -406,9 +413,14 @@ func TestRouterCreateDefaults(t *testing.T) {
 			},
 		})
 
-		// TODO: make more deterministic
-		time.Sleep(time.Second * 1)
+		// TODO: make more deterministic, allow for leader election
+		time.Sleep(time.Second * 10)
 		assert.Check(t, err, c.doc)
+		if isCluster {
+			for _, cm := range c.cmsExtraExpected {
+				c.cmsExpected = append(c.cmsExpected, cm)
+			}
+		}
 		if diff := cmp.Diff(c.depsExpected, depsFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" deployments mismatch (-want +got):\n%s", diff)
 		}

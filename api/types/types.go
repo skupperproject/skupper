@@ -28,11 +28,13 @@ import (
 
 const (
 	// NamespaceDefault means the VAN is in the  skupper namespace which is applied when not specified by clients
-	NamespaceDefault    string = "skupper"
-	DefaultVanName      string = "skupper"
-	DefaultSiteName     string = "skupper-site"
-	ClusterLocalPostfix string = ".svc.cluster.local"
-	SiteConfigMapName   string = "skupper-site"
+	NamespaceDefault           string = "skupper"
+	DefaultVanName             string = "skupper"
+	DefaultSiteName            string = "skupper-site"
+	ClusterLocalPostfix        string = ".svc.cluster.local"
+	SiteConfigMapName          string = "skupper-site"
+	NetworkStatusConfigMapName string = "skupper-network-status"
+	SiteLeaderLockName         string = "skupper-site-leader"
 )
 
 const DefaultTimeoutDuration = time.Second * 120
@@ -71,7 +73,13 @@ var TransportPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{""},
-		Resources: []string{"secrets", "pods", "configmaps"},
+		Resources: []string{"secrets", "pods"},
+	},
+	//needed for collector routine
+	{
+		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
+		APIGroups: []string{""},
+		Resources: []string{"configmaps"},
 	},
 	//needed for redeeming token claims
 	{
@@ -84,6 +92,11 @@ var TransportPolicyRule = []rbacv1.PolicyRule{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{""},
 		Resources: []string{"services"},
+	},
+	{
+		Verbs:     []string{"get"},
+		APIGroups: []string{"apps"},
+		Resources: []string{"deployments"},
 	},
 	{
 		Verbs:     []string{"get", "list", "watch"},

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
@@ -20,6 +22,7 @@ type FlowController struct {
 	version           string
 	connectionFactory messaging.ConnectionFactory
 	beaconOutgoing    chan interface{}
+	heartbeatOutgoing chan interface{}
 	recordOutgoing    chan interface{}
 	flushIncoming     chan []interface{}
 	processOutgoing   chan *ProcessRecord
@@ -35,13 +38,14 @@ func NewFlowController(origin string, version string, creationTime uint64, conne
 		creationTime:      creationTime,
 		version:           version,
 		connectionFactory: connectionFactory,
-		beaconOutgoing:    make(chan interface{}),
-		recordOutgoing:    make(chan interface{}),
-		flushIncoming:     make(chan []interface{}),
-		processOutgoing:   make(chan *ProcessRecord),
+		beaconOutgoing:    make(chan interface{}, 10),
+		heartbeatOutgoing: make(chan interface{}, 10),
+		recordOutgoing:    make(chan interface{}, 10),
+		flushIncoming:     make(chan []interface{}, 10),
+		processOutgoing:   make(chan *ProcessRecord, 10),
 		processRecords:    make(map[string]*ProcessRecord),
 		hostRecords:       make(map[string]*HostRecord),
-		hostOutgoing:      make(chan *HostRecord),
+		hostOutgoing:      make(chan *HostRecord, 10),
 		startTime:         time.Now().Unix(),
 	}
 	return fc
@@ -84,15 +88,18 @@ func UpdateHost(c *FlowController, deleted bool, name string, host *HostRecord) 
 		if _, ok := c.hostRecords[host.Identity]; !ok {
 			c.hostRecords[host.Identity] = host
 		}
-	}
-	if host != nil {
 		c.hostOutgoing <- host
+	} else {
+		if existing, ok := c.hostRecords[host.Identity]; ok {
+			existing.EndTime = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+		}
+		delete(c.hostRecords, host.Identity)
 	}
 
 	return nil
 }
 
-func (c *FlowController) updates(stopCh <-chan struct{}) {
+func (c *FlowController) updateBeaconAndHeartbeats(stopCh <-chan struct{}) {
 	tickerAge := time.NewTicker(10 * time.Minute)
 	defer tickerAge.Stop()
 
@@ -118,9 +125,46 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 		Source:   "sfe." + c.origin,
 	}
 
+	c.beaconOutgoing <- beacon
+	heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+	c.heartbeatOutgoing <- heartbeat
+
+	for {
+		select {
+		case <-beaconTimer.C:
+			c.beaconOutgoing <- beacon
+		case <-heartbeatTimer.C:
+			heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+			c.heartbeatOutgoing <- heartbeat
+		case <-tickerAge.C:
+		case <-stopCh:
+			return
+
+		}
+	}
+}
+
+func (c *FlowController) updateRecords(stopCh <-chan struct{}) {
+	tickerAge := time.NewTicker(10 * time.Minute)
+	defer tickerAge.Stop()
+
 	name := os.Getenv("SKUPPER_SITE_NAME")
 	nameSpace := os.Getenv("SKUPPER_NAMESPACE")
-	platform := string(config.GetPlatform())
+	policy := Disabled
+	var platformStr string
+	platform := config.GetPlatform()
+	if platform == "" || platform == types.PlatformKubernetes {
+		platformStr = string(types.PlatformKubernetes)
+		cli, err := client.NewClient(nameSpace, "", "")
+		if err == nil {
+			cpv := client.NewClusterPolicyValidator(cli)
+			if cpv.Enabled() {
+				policy = Enabled
+			}
+		}
+	} else if platform == types.PlatformPodman {
+		platformStr = string(types.PlatformPodman)
+	}
 	site := &SiteRecord{
 		Base: Base{
 			RecType:   recordNames[Site],
@@ -129,22 +173,15 @@ func (c *FlowController) updates(stopCh <-chan struct{}) {
 		},
 		Name:      &name,
 		NameSpace: &nameSpace,
+		Platform:  &platformStr,
 		Version:   &c.version,
-		Platform:  &platform,
+		Policy:    &policy,
 	}
 
-	c.beaconOutgoing <- beacon
-	heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
-	c.recordOutgoing <- heartbeat
 	c.recordOutgoing <- site
 
 	for {
 		select {
-		case <-beaconTimer.C:
-			c.beaconOutgoing <- beacon
-		case <-heartbeatTimer.C:
-			heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
-			c.recordOutgoing <- heartbeat
 		case process := <-c.processOutgoing:
 			c.recordOutgoing <- process
 		case host := <-c.hostOutgoing:
@@ -176,18 +213,22 @@ func (c *FlowController) Start(stopCh <-chan struct{}) {
 }
 
 func (c *FlowController) run(stopCh <-chan struct{}) {
-	beaconSender := newSender(c.connectionFactory, BeaconAddress, c.beaconOutgoing)
-	recordSender := newSender(c.connectionFactory, RecordPrefix+c.origin, c.recordOutgoing)
+	beaconSender := newSender(c.connectionFactory, BeaconAddress, true, c.beaconOutgoing)
+	heartbeatSender := newSender(c.connectionFactory, RecordPrefix+c.origin+".heartbeats", true, c.heartbeatOutgoing)
+	recordSender := newSender(c.connectionFactory, RecordPrefix+c.origin, false, c.recordOutgoing)
 	flushReceiver := newReceiver(c.connectionFactory, DirectPrefix+c.origin, c.flushIncoming)
 
 	beaconSender.start()
+	heartbeatSender.start()
 	recordSender.start()
 	flushReceiver.start()
 
-	go c.updates(stopCh)
+	go c.updateBeaconAndHeartbeats(stopCh)
+	go c.updateRecords(stopCh)
 	<-stopCh
 
 	beaconSender.stop()
+	heartbeatSender.start()
 	recordSender.stop()
 	flushReceiver.stop()
 }

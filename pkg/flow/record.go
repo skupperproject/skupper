@@ -30,13 +30,14 @@ const (
 	Collector               // 11
 	ProcessGroup            // 12
 	Host                    // 13
-	FlowPair                // 14 (generated)
-	FlowAggregate           // 15
-	EventSource             // 16
-	SitePair                // 17
-	ProcessGroupPair        // 18
-	ProcessPair             // 19
-	Address                 // 20
+	LogEvent                // 14
+	FlowPair                // 15 (generated)
+	FlowAggregate           // 16
+	EventSource             // 17
+	SitePair                // 18
+	ProcessGroupPair        // 19
+	ProcessPair             // 20
+	Address                 // 21
 )
 
 var recordNames = []string{
@@ -52,6 +53,7 @@ var recordNames = []string{
 	"INGRESS",
 	"EGRESS",
 	"COLLECTOR",
+	"LOGEVENT",
 	"PROCESS_GROUP",
 	"HOST",
 	"FLOWPAIR",
@@ -113,7 +115,13 @@ const (
 	ImageAttr              // 45
 	Group                  // 46
 	StreamIdentity         // 47
-	Version                //48
+	LogSeverity            // 48
+	LogText                // 49
+	SourceFile             // 50
+	SourceLine             // 51
+	Version                // 52
+	Policy                 // 53
+	Target                 // 54
 )
 
 var attributeNames = []string{
@@ -165,7 +173,13 @@ var attributeNames = []string{
 	"Image",           // 45
 	"Group",           // 46
 	"StreamIdentity",  // 47
-	"Version",         // 48
+	"LogSeverity",     // 48
+	"LogText",         // 49
+	"SourceFile",      // 50
+	"SourceLine",      // 51
+	"Version",         // 52
+	"Policy",          // 53
+	"Target",          // 54
 }
 
 var Internal string = "internal"
@@ -175,6 +189,8 @@ var Incoming string = "incoming"
 var Outgoing string = "outgoing"
 var Bound string = "bound"
 var Unbound string = "unbound"
+var Enabled string = "enabled"
+var Disabled string = "disabled"
 
 type Base struct {
 	RecType   string `json:"recType,omitempty"`
@@ -183,6 +199,7 @@ type Base struct {
 	StartTime uint64 `json:"startTime"`
 	EndTime   uint64 `json:"endTime"`
 	Purged    bool   `json:"purged,omitempty"`
+	Source    string `json:"source,omitempty"`
 }
 
 type BeaconRecord struct {
@@ -211,6 +228,7 @@ type EventSourceRecord struct {
 	LastHeard  uint64        `json:"lastHeard,omitempty"`
 	Heartbeats int           `json:"heartbeats,omitempty"`
 	Beacons    int           `json:"beacons,omitempty"`
+	Messages   int           `json:"messages,omitempty"`
 }
 
 type SiteRecord struct {
@@ -221,6 +239,7 @@ type SiteRecord struct {
 	Name      *string `json:"name,omitempty"`
 	NameSpace *string `json:"nameSpace,omitempty"`
 	Version   *string `json:"siteVersion,omitempty"`
+	Policy    *string `json:"policy,omitempty"`
 }
 
 type HostRecord struct {
@@ -283,8 +302,17 @@ type ConnectorRecord struct {
 	FlowRateL4  *uint64 `json:"flowRateL4,omitempty"`
 	FlowCountL7 *uint64 `json:"flowCountL7,omitempty"`
 	FlowRateL7  *uint64 `json:"flowRateL7,omitempty"`
+	Target      *string `json:"target,omitempty"`
 	ProcessId   *string `json:"processId,omitempty"`
 	AddressId   *string `json:"addressId,omitempty"`
+}
+
+type LogEventRecord struct {
+	Base
+	LogSeverity *uint64 `json:"severity,omitempty"`
+	LogText     *string `json:"logText,omitempty"`
+	SourceFile  *string `json:"fileName,omitempty"`
+	SourceLine  *uint64 `json:"lineNumber,omitempty"`
 }
 
 type metricKey struct {
@@ -310,16 +338,17 @@ type VanAddressRecord struct {
 
 type ProcessRecord struct {
 	Base
-	Name           *string `json:"name,omitempty"`
-	ParentName     *string `json:"parentName,omitempty"`
-	ImageName      *string `json:"imageName,omitempty"`
-	Image          *string `json:"image,omitempty"`
-	GroupName      *string `json:"groupName,omitempty"`
-	GroupIdentity  *string `json:"groupIdentity,omitempty"`
-	HostName       *string `json:"hostName,omitempty"`
-	SourceHost     *string `json:"sourceHost,omitempty"`
-	ProcessRole    *string `json:"processRole,omitempty"`
-	ProcessBinding *string `json:"processBinding,omitempty"`
+	Name           *string   `json:"name,omitempty"`
+	ParentName     *string   `json:"parentName,omitempty"`
+	ImageName      *string   `json:"imageName,omitempty"`
+	Image          *string   `json:"image,omitempty"`
+	GroupName      *string   `json:"groupName,omitempty"`
+	GroupIdentity  *string   `json:"groupIdentity,omitempty"`
+	HostName       *string   `json:"hostName,omitempty"`
+	SourceHost     *string   `json:"sourceHost,omitempty"`
+	ProcessRole    *string   `json:"processRole,omitempty"`
+	ProcessBinding *string   `json:"processBinding,omitempty"`
+	Addresses      []*string `json:"addresses,omitempty"`
 	connector      *string
 }
 
@@ -383,13 +412,17 @@ type FlowPairRecord struct {
 
 type FlowAggregateRecord struct {
 	Base
-	PairType        string  `json:"pairType,omitempty"`
-	RecordCount     uint64  `json:"recordCount,omitempty"`
-	SourceId        *string `json:"sourceId,omitempty"`
-	SourceName      *string `json:"sourceName,omitempty"`
-	DestinationId   *string `json:"destinationId,omitempty"`
-	DestinationName *string `json:"destinationName,omitempty"`
-	Protocol        *string `json:"protocol,omitempty"`
+	PairType            string  `json:"pairType,omitempty"`
+	RecordCount         uint64  `json:"recordCount,omitempty"`
+	SourceId            *string `json:"sourceId,omitempty"`
+	SourceName          *string `json:"sourceName,omitempty"`
+	DestinationId       *string `json:"destinationId,omitempty"`
+	DestinationName     *string `json:"destinationName,omitempty"`
+	SourceSiteId        *string `json:"sourceSiteId,omitempty"`
+	SourceSiteName      *string `json:"sourceSiteName,omitempty"`
+	DestinationSiteId   *string `json:"destinationSiteId,omitempty"`
+	DestinationSiteName *string `json:"destinationSiteName,omitempty"`
+	Protocol            *string `json:"protocol,omitempty"`
 }
 
 type ControllerRecord struct {
@@ -408,17 +441,26 @@ type ImageRecord struct {
 	// signature, url/rep, id??
 }
 
-type IngressRecord struct {
-	Base
-}
-
-type EgressRecord struct {
-	Base
-}
-
 type CollectorRecord struct {
 	Base
 	PrometheusUrl string
+}
+
+type NetworkStatus struct {
+	Addresses []*VanAddressRecord `json:"addresses"`
+	Sites     []*SiteStatus       `json:"siteStatus"`
+}
+
+type SiteStatus struct {
+	Site         *SiteRecord    `json:"site"`
+	RouterStatus []RouterStatus `json:"routerStatus"`
+}
+
+type RouterStatus struct {
+	Router     *RouterRecord      `json:"router"`
+	Links      []*LinkRecord      `json:"links"`
+	Listeners  []*ListenerRecord  `json:"listeners"`
+	Connectors []*ConnectorRecord `json:"connectors"`
 }
 
 type Payload struct {

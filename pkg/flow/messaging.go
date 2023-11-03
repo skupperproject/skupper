@@ -33,8 +33,9 @@ func (c *base) stop() {
 
 type sender struct {
 	base
-	ticker  *time.Ticker
-	request *amqp.Message
+	sendSettled bool
+	ticker      *time.Ticker
+	request     *amqp.Message
 }
 
 func (c *sender) start() {
@@ -42,13 +43,14 @@ func (c *sender) start() {
 	go c.send()
 }
 
-func newSender(connectionFactory messaging.ConnectionFactory, address string, update chan interface{}) *sender {
+func newSender(connectionFactory messaging.ConnectionFactory, address string, sendSettled bool, update chan interface{}) *sender {
 	return &sender{
 		base: base{
 			connectionFactory: connectionFactory,
 			outgoing:          update,
 			address:           address,
 		},
+		sendSettled: sendSettled,
 	}
 }
 
@@ -70,6 +72,7 @@ func (c *sender) _send() error {
 		return err
 	}
 	c.client = client
+	log.Printf("COLLECTOR: Connection for sender %s to %s established\n", c.address, c.connectionFactory.Url())
 	defer client.Close()
 
 	sender, err := client.Sender(c.address)
@@ -133,6 +136,7 @@ func (c *sender) _send() error {
 		case <-c.ticker.C:
 		}
 		if c.request != nil {
+			c.request.SendSettled = c.sendSettled
 			err = sender.Send(c.request)
 			if err != nil {
 				return err
@@ -167,7 +171,7 @@ func (r *receiver) receive() {
 	for !r.closed {
 		err := r._receive()
 		if err != nil {
-			log.Println("COLLECTOR: Error receiving message ", err.Error())
+			log.Printf("COLLECTOR: Receiver %s %s\n", r.address, err.Error())
 		}
 	}
 }
@@ -178,9 +182,10 @@ func (r *receiver) _receive() error {
 		return err
 	}
 	r.client = client
+	log.Printf("COLLECTOR: Connection for receiver %s to %s established\n", r.address, r.connectionFactory.Url())
 	defer client.Close()
 
-	receiver, err := client.Receiver(r.address, 10)
+	receiver, err := client.Receiver(r.address, 250)
 	if err != nil {
 		return err
 	}
@@ -189,7 +194,6 @@ func (r *receiver) _receive() error {
 	for {
 		msg, err := receiver.Receive()
 		if err != nil {
-			log.Println("COLLECTOR: Receiver error ", err.Error())
 			return err
 		}
 		receiver.Accept(msg)
