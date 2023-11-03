@@ -96,16 +96,7 @@ func (s *SkupperKubeService) Expose(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperKubeService) ExposeArgs(cmd *cobra.Command, args []string) error {
-	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
-		return fmt.Errorf("expose target and name must be specified (e.g. 'skupper expose deployment <name>')")
-	}
-	if len(args) > 2 {
-		return fmt.Errorf("illegal argument: %s", args[2])
-	}
-	if len(args) > 1 && strings.Contains(args[0], "/") {
-		return fmt.Errorf("extra argument: %s", args[1])
-	}
-	return s.verifyTargetTypeFromArgs(args)
+	return s.checkCommonExposeArgs(cmd.Name(), args)
 }
 
 func (s *SkupperKubeService) ExposeFlags(cmd *cobra.Command) {
@@ -148,4 +139,21 @@ func (s *SkupperKubeService) UnexposeFlags(cmd *cobra.Command) error {
 	cmd.Flags().StringVar(&unexposeNamespace, "target-namespace", "", "Target namespace for exposed resource")
 	cmd.Use = "unexpose [deployment <name>|pods <selector>|statefulset <statefulsetname>|service <name>|deploymentconfig <name>]"
 	return nil
+}
+
+func (s *SkupperKubeService) UnexposeArgs(cmd *cobra.Command, args []string) error {
+	return s.checkCommonExposeArgs(cmd.Name(), args)
+}
+
+func (s *SkupperKubeService) checkCommonExposeArgs(command string, args []string) error {
+	if len(args) < 1 || (!strings.Contains(args[0], "/") && len(args) < 2) {
+		return fmt.Errorf("%s target and name must be specified (e.g. 'skupper %s deployment <name>')", command, command)
+	}
+	if len(args) > 2 {
+		return fmt.Errorf("illegal argument: %s", args[2])
+	}
+	if len(args) > 1 && strings.Contains(args[0], "/") {
+		return fmt.Errorf("extra argument: %s", args[1])
+	}
+	return s.verifyTargetTypeFromArgs(args)
 }

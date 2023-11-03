@@ -1039,7 +1039,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 			args:            []string{},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "expose target and name must be specified (e.g. 'skupper expose deployment <name>')",
+			expectedError:   "target and name must be specified (e.g. 'skupper unexpose deployment <name>')",
 			realCluster:     false,
 		},
 		{
@@ -1047,7 +1047,7 @@ func TestUnexposeWithCluster(t *testing.T) {
 			args:            []string{"deployment"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "expose target and name must be specified (e.g. 'skupper expose deployment <name>')",
+			expectedError:   "target and name must be specified (e.g. 'skupper unexpose deployment <name>')",
 			realCluster:     false,
 		},
 		{

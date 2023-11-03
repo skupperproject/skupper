@@ -346,36 +346,7 @@ func (s *SkupperPodmanService) Expose(cmd *cobra.Command, args []string) error {
 }
 
 func (s *SkupperPodmanService) ExposeArgs(cmd *cobra.Command, args []string) error {
-	address, err := cmd.Flags().GetString("address")
-	if err != nil || address == "" {
-		return fmt.Errorf("--address is required")
-	}
-	if exposeOpts.Address != "" && len(exposeOpts.Ports) == 0 {
-		return fmt.Errorf("--port is required")
-	}
-	if len(args) < 2 {
-		return fmt.Errorf("Target type and target value must all be specified (e.g. 'skupper expose <target-type> <target-value>')")
-	}
-	if len(args) > 2 {
-		return fmt.Errorf("illegal argument: %s", args[2])
-	}
-	if !utils.StringSliceContains(ValidBindTypes, args[0]) {
-		return fmt.Errorf("invalid target type: %s - valid target types are: %s", args[0], ValidBindTypes)
-	}
-	switch args[0] {
-	case BindTypeHost:
-		host := args[1]
-		if args[1] == "" {
-			return fmt.Errorf("a hostname or IP is required")
-		}
-		if net.ParseIP(host) == nil {
-			parsedUrl, err := url.Parse("http://" + host)
-			if err != nil || parsedUrl.Hostname() != host {
-				return fmt.Errorf("invalid hostname or ip")
-			}
-		}
-	}
-	return nil
+	return s.checkCommonExposeArgs(cmd, args)
 }
 
 func (s *SkupperPodmanService) ExposeFlags(cmd *cobra.Command) {
@@ -421,5 +392,42 @@ func (s *SkupperPodmanService) Unexpose(cmd *cobra.Command, args []string) error
 
 func (s *SkupperPodmanService) UnexposeFlags(cmd *cobra.Command) error {
 	cmd.Use = "unexpose [host hostOrIP]"
+	return nil
+}
+
+func (s *SkupperPodmanService) UnexposeArgs(cmd *cobra.Command, args []string) error {
+	return s.checkCommonExposeArgs(cmd, args)
+}
+
+func (s *SkupperPodmanService) checkCommonExposeArgs(cmd *cobra.Command, args []string) error {
+	address, err := cmd.Flags().GetString("address")
+	if err != nil || address == "" {
+		return fmt.Errorf("--address is required")
+	}
+	if exposeOpts.Address != "" && len(exposeOpts.Ports) == 0 {
+		return fmt.Errorf("--port is required")
+	}
+	if len(args) < 2 {
+		return fmt.Errorf("Target type and target value must all be specified (e.g. 'skupper %s <target-type> <target-value>')", cmd.Name())
+	}
+	if len(args) > 2 {
+		return fmt.Errorf("illegal argument: %s", args[2])
+	}
+	if !utils.StringSliceContains(ValidBindTypes, args[0]) {
+		return fmt.Errorf("invalid target type: %s - valid target types are: %s", args[0], ValidBindTypes)
+	}
+	switch args[0] {
+	case BindTypeHost:
+		host := args[1]
+		if args[1] == "" {
+			return fmt.Errorf("a hostname or IP is required")
+		}
+		if net.ParseIP(host) == nil {
+			parsedUrl, err := url.Parse("http://" + host)
+			if err != nil || parsedUrl.Hostname() != host {
+				return fmt.Errorf("invalid hostname or ip")
+			}
+		}
+	}
 	return nil
 }
