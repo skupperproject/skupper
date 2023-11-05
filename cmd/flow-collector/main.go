@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -45,6 +46,11 @@ type connectJson struct {
 	Host   string    `json:"host,omitempty"`
 	Port   string    `json:"port,omitempty"`
 	Tls    tlsConfig `json:"tls,omitempty"`
+}
+
+type UserResponse struct {
+	Username string `json:"username"`
+	AuthMode string `json:"authType"`
 }
 
 var onlyOneSignalHandler = make(chan struct{})
@@ -134,6 +140,60 @@ func authenticated(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func getOpenshiftUser(r *http.Request) UserResponse {
+	userResponse := UserResponse{
+		Username: "",
+		AuthMode: string(types.ConsoleAuthModeOpenshift),
+	}
+
+	if cookie, err := r.Cookie("_oauth_proxy"); err == nil && cookie != nil {
+		if cookieDecoded, _ := base64.StdEncoding.DecodeString(cookie.Value); cookieDecoded != nil {
+			userResponse.Username = string(cookieDecoded)
+		}
+	}
+
+	return userResponse
+}
+
+func getInternalUser(r *http.Request) UserResponse {
+	userResponse := UserResponse{
+		Username: "",
+		AuthMode: string(types.ConsoleAuthModeInternal),
+	}
+
+	user, _, ok := r.BasicAuth()
+
+	if ok {
+		userResponse.Username = user
+	}
+
+	return userResponse
+}
+
+func getUnsecuredUser(r *http.Request) UserResponse {
+	return UserResponse{
+		Username: "",
+		AuthMode: string(types.ConsoleAuthModeUnsecured)}
+}
+
+func openshiftLogout(w http.ResponseWriter, r *http.Request) {
+	// Create a new cookie with MaxAge set to -1 to delete the existing cookie.
+	cookie := http.Cookie{
+		Name:   "_oauth_proxy", // openshift cookie name
+		Path:   "/",
+		MaxAge: -1,
+		Domain: r.Host,
+	}
+
+	http.SetCookie(w, &cookie)
+	http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
+}
+
+func internalLogout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("WWW-Authenticate", "Basic realm=skupper")
+	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+}
+
 func main() {
 	// if -version used, report and exit
 	isVersion := flag.Bool("version", false, "Report the version of the Skupper Flow Collector")
@@ -156,6 +216,7 @@ func main() {
 	var flowRecordTtl time.Duration
 	var enableConsole bool
 	var prometheusUrl string
+	var authMode string
 
 	// waiting on skupper-router to be available
 	if platform == "" || platform == types.PlatformKubernetes {
@@ -177,6 +238,7 @@ func main() {
 
 		flowRecordTtl = siteConfig.Spec.FlowCollector.FlowRecordTtl
 		enableConsole = siteConfig.Spec.EnableConsole
+		authMode = siteConfig.Spec.AuthMode
 
 		svc, err := kube.GetService(types.PrometheusServiceName, cli.Namespace, cli.KubeClient)
 		if err == nil {
@@ -222,6 +284,16 @@ func main() {
 		log.Fatal("Error getting new flow collector ", err.Error())
 	}
 	c.FlowCollector.Collector.PrometheusUrl = prometheusUrl
+
+	// map the authentication mode with the function to get the user
+	userMap := make(map[string]func(*http.Request) UserResponse)
+	userMap[string(types.ConsoleAuthModeOpenshift)] = getOpenshiftUser
+	userMap[string(types.ConsoleAuthModeInternal)] = getInternalUser
+	userMap[string(types.ConsoleAuthModeUnsecured)] = getUnsecuredUser
+
+	logoutMap := make(map[string]func(http.ResponseWriter, *http.Request))
+	logoutMap[string(types.ConsoleAuthModeOpenshift)] = openshiftLogout
+	logoutMap[string(types.ConsoleAuthModeInternal)] = internalLogout
 
 	var mux = mux.NewRouter().StrictSlash(true)
 
@@ -283,6 +355,33 @@ func main() {
 	eventsourceApi.NotFoundHandler = authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
+
+	var userApi = api1.PathPrefix("/user").Subrouter()
+	userApi.StrictSlash(true)
+	userApi.HandleFunc("/", authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler, exists := userMap[authMode]
+		statusCode := http.StatusNoContent
+
+		if exists {
+			userResponse := handler(r)
+			if response, err := json.Marshal(userResponse); err == nil {
+				statusCode = http.StatusOK
+				fmt.Fprintf(w, "%s", response)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(statusCode)
+	})))
+
+	var userLogout = api1.PathPrefix("/logout").Subrouter()
+	userLogout.StrictSlash(true)
+	userLogout.HandleFunc("/", authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler, exists := logoutMap[authMode]
+		if exists {
+			handler(w, r)
+		}
+	})))
 
 	var siteApi = api1.PathPrefix("/sites").Subrouter()
 	siteApi.StrictSlash(true)
