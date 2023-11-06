@@ -29,9 +29,9 @@ type StatusData struct {
 
 func PrintStatus(data StatusData) error {
 
-	enabledIn := data.enabledIn.supportName
+	enabledIn := fmt.Sprintf("%q", data.enabledIn.supportName)
 	if data.enabledIn.supportType == "kubernetes" {
-		enabledIn = fmt.Sprintf("namespace %q", enabledIn)
+		enabledIn = fmt.Sprintf("namespace %q", data.enabledIn.supportName)
 	}
 
 	siteName := ""
