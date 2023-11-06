@@ -243,9 +243,14 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 
 	if currentSite != nil {
 
+		routerMode := ""
+		if len(currentSite.RouterStatus) > 0 {
+			routerMode = currentSite.RouterStatus[0].Router.Mode
+		}
+
 		statusDataOutput := StatusData{
 			enabledIn: PlatformSupport{"namespace", currentSite.Site.Namespace},
-			mode:      currentSite.RouterStatus[0].Router.Mode,
+			mode:      routerMode,
 			siteName:  currentSite.Site.Name,
 			policies:  currentSite.Site.Policy,
 		}
