@@ -186,10 +186,22 @@ func openshiftLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &cookie)
-	http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
 }
 
-func internalLogout(w http.ResponseWriter, r *http.Request) {
+func internalLogout(w http.ResponseWriter, r *http.Request, validNonces map[string]bool) {
+	queryParams := r.URL.Query()
+	nonce := queryParams.Get("nonce")
+
+	// When I logout, the browser open the prompt again and , if the credentials are correct, it calls the logout again.
+	// We track the second call using the nonce set from the client app to avoid loop of unauthenticated calls.
+	if _, exists := validNonces[nonce]; exists {
+		delete(validNonces, nonce)
+		fmt.Fprintf(w, "%s", "Logged out")
+
+		return
+	}
+
+	validNonces[nonce] = true
 	w.Header().Set("WWW-Authenticate", "Basic realm=skupper")
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 }
@@ -217,6 +229,8 @@ func main() {
 	var enableConsole bool
 	var prometheusUrl string
 	var authMode string
+	//collecting valid nonces for internal auth mode
+	var validNonces = make(map[string]bool)
 
 	// waiting on skupper-router to be available
 	if platform == "" || platform == types.PlatformKubernetes {
@@ -269,6 +283,13 @@ func main() {
 		flowRecordTtl, _ = time.ParseDuration(os.Getenv("FLOW_RECORD_TTL"))
 		enableConsole, _ = strconv.ParseBool(os.Getenv("ENABLE_CONSOLE"))
 		prometheusUrl = "http://skupper-prometheus:9090/api/v1/"
+
+		flowUsers := os.Getenv("FLOW_USERS")
+		// Podman support only unsecured auth mode and internal auth mode
+		authMode = types.ConsoleAuthModeUnsecured
+		if flowUsers != "" {
+			authMode = types.ConsoleAuthModeInternal
+		}
 	}
 
 	tlsConfig := certs.GetTlsConfigRetriever(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
@@ -293,7 +314,9 @@ func main() {
 
 	logoutMap := make(map[string]func(http.ResponseWriter, *http.Request))
 	logoutMap[string(types.ConsoleAuthModeOpenshift)] = openshiftLogout
-	logoutMap[string(types.ConsoleAuthModeInternal)] = internalLogout
+	logoutMap[string(types.ConsoleAuthModeInternal)] = func(w http.ResponseWriter, r *http.Request) {
+		internalLogout(w, r, validNonces)
+	}
 
 	var mux = mux.NewRouter().StrictSlash(true)
 
