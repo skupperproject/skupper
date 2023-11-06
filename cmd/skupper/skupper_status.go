@@ -29,10 +29,14 @@ type StatusData struct {
 
 func PrintStatus(data StatusData) error {
 
-	namespace := data.enabledIn.supportName
-	sitename := ""
+	enabledIn := data.enabledIn.supportName
+	if data.enabledIn.supportType == "kubernetes" {
+		enabledIn = fmt.Sprintf("namespace %q", enabledIn)
+	}
+
+	siteName := ""
 	if data.siteName != "" && data.siteName != data.enabledIn.supportName {
-		sitename = sitename + fmt.Sprintf(" with site name %q", data.siteName)
+		siteName = siteName + fmt.Sprintf(" with site name %q", data.siteName)
 	}
 	policyStr := ""
 
@@ -40,7 +44,7 @@ func PrintStatus(data StatusData) error {
 		policyStr = " (with policies)"
 	}
 
-	fmt.Printf("Skupper is enabled for namespace %q%s%s.", namespace, sitename, policyStr)
+	fmt.Printf("Skupper is enabled for %s%s%s.", enabledIn, siteName, policyStr)
 	if data.status != nil {
 		fmt.Printf(" Status pending...")
 	} else {

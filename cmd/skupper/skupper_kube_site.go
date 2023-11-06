@@ -247,59 +247,61 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		routerMode := ""
 		if len(currentSite.RouterStatus) > 0 {
 			routerMode = currentSite.RouterStatus[0].Router.Mode
-		}
 
-		statusDataOutput := StatusData{
-			enabledIn: PlatformSupport{"namespace", currentSite.Site.Namespace},
-			mode:      routerMode,
-			siteName:  currentSite.Site.Name,
-			policies:  currentSite.Site.Policy,
-		}
-
-		if len(vir.Status.ConnectedSites.Warnings) > 0 {
-			var warnings []string
-			for _, w := range vir.Status.ConnectedSites.Warnings {
-				warnings = append(warnings, w)
+			statusDataOutput := StatusData{
+				enabledIn: PlatformSupport{"kubernetes", currentSite.Site.Namespace},
+				mode:      routerMode,
+				siteName:  currentSite.Site.Name,
+				policies:  currentSite.Site.Policy,
 			}
 
-			statusDataOutput.warnings = warnings
-		}
+			if len(vir.Status.ConnectedSites.Warnings) > 0 {
+				var warnings []string
+				for _, w := range vir.Status.ConnectedSites.Warnings {
+					warnings = append(warnings, w)
+				}
 
-		mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&currentSite.RouterStatus[0], &currentSite.Site)
+				statusDataOutput.warnings = warnings
+			}
 
-		totalSites := len(currentStatus.SiteStatus)
-		// the current site does not count as a connection
-		connections := totalSites - 1
-		directConnections := len(mapSiteLink)
-		statusDataOutput.totalConnections = connections
-		statusDataOutput.directConnections = directConnections
-		statusDataOutput.indirectConnections = connections - directConnections
+			mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&currentSite.RouterStatus[0], &currentSite.Site)
 
-		statusDataOutput.exposedServices = len(currentStatus.Addresses)
+			totalSites := len(currentStatus.SiteStatus)
+			// the current site does not count as a connection
+			connections := totalSites - 1
+			directConnections := len(mapSiteLink)
+			statusDataOutput.totalConnections = connections
+			statusDataOutput.directConnections = directConnections
+			statusDataOutput.indirectConnections = connections - directConnections
 
-		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-		if err != nil {
-			return err
-		} else {
-			if siteConfig.Spec.EnableFlowCollector && vir.ConsoleUrl != "" {
-				statusDataOutput.consoleUrl = vir.ConsoleUrl
-				if siteConfig.Spec.AuthMode == "internal" {
-					statusDataOutput.credentials = PlatformSupport{"secret", "'skupper-console-users'"}
+			statusDataOutput.exposedServices = len(currentStatus.Addresses)
+
+			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+			if err != nil {
+				return err
+			} else {
+				if siteConfig.Spec.EnableFlowCollector && vir.ConsoleUrl != "" {
+					statusDataOutput.consoleUrl = vir.ConsoleUrl
+					if siteConfig.Spec.AuthMode == "internal" {
+						statusDataOutput.credentials = PlatformSupport{"secret", "'skupper-console-users'"}
+					}
 				}
 			}
-		}
 
-		if err == nil && verboseStatus {
-			err := PrintVerboseStatus(statusDataOutput)
-			if err != nil {
-				return err
-			}
+			if err == nil && verboseStatus {
+				err := PrintVerboseStatus(statusDataOutput)
+				if err != nil {
+					return err
+				}
 
-		} else if err == nil {
-			err := PrintStatus(statusDataOutput)
-			if err != nil {
-				return err
+			} else if err == nil {
+				err := PrintStatus(statusDataOutput)
+				if err != nil {
+					return err
+				}
 			}
+		} else {
+			return fmt.Errorf("unable to retrieve skupper status")
 		}
 	} else {
 		return fmt.Errorf("unable to retrieve skupper status")
