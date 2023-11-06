@@ -11,7 +11,6 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
-	utils2 "github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
@@ -110,7 +109,7 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 
 	// Iterating through provided service interfaces to validate stdout matches
 	for _, svc := range s.ServiceInterfaces {
-		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\)`, svc.Address, svc.Protocol, svc.Ports[0])
+		serviceEntry := fmt.Sprintf(`.*%s:%d \(%s\)`, svc.Address, svc.Ports[0], svc.Protocol)
 		if hostPortBinding, ok := s.Podman.GetHostPortBinding(svc.Address); ok {
 			hostIp := utils.DefaultStr(hostPortBinding.HostIp, `\*`)
 			var portMapping string
@@ -121,9 +120,7 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 			}
 			serviceEntry += fmt.Sprintf(`\n.*Host ports:\n.*ip: %s - ports: %s`, hostIp, portMapping)
 		}
-		if len(svc.Targets) > 0 && !s.Absent {
-			serviceEntry += `\n.*Targets:`
-		}
+
 		r := regexp.MustCompile(serviceEntry)
 		if r.MatchString(stdout) == s.Absent {
 			err = fmt.Errorf("expected:\n%s\nAbsent: %t\nfound:\n%s\n", serviceEntry, s.Absent, stdout)
@@ -131,22 +128,6 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 		}
 
 		if !s.Absent {
-			// Validating if provided targets are showing up
-			for _, target := range svc.Targets {
-				if platform.IsKubernetes() {
-					targetRegex := regexp.MustCompile(fmt.Sprintf("%s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
-					if !targetRegex.MatchString(stdout) {
-						err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
-						return
-					}
-				} else if platform == types.PlatformPodman {
-					targetRegex := regexp.MustCompile(fmt.Sprintf("host: %s - ports:", target.Service))
-					if !targetRegex.MatchString(stdout) {
-						err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
-						return
-					}
-				}
-			}
 			// Confirming that it is not unauthorized
 			if s.CheckAuthorization {
 				authCheck := serviceEntry + " - not authorized"
@@ -291,18 +272,18 @@ func (s *StatusTester) parseBindings(stdout string) (ifaces []*types.ServiceInte
 		if strings.HasPrefix(text, "├") || strings.HasPrefix(text, "╰") {
 			// First level definition: service
 			pieces := strings.Split(text, " ")
-			if pieces[3] != "port" {
-				err = fmt.Errorf("Parsing failed due to unexpected service output on line %v: %v", line, text)
-				return
-			}
-			port, converr := strconv.Atoi(pieces[4][:len(pieces[4])-1])
+			protocol := strings.TrimRight(strings.TrimLeft(pieces[2], "("), ")")
+
+			address := strings.Split(pieces[1], ":")
+
+			port, converr := strconv.Atoi(address[2])
 			if err != nil {
 				err = fmt.Errorf("Failed to parse service port: %w", converr)
 				return
 			}
 			iface = &types.ServiceInterface{
-				Address:  pieces[1],
-				Protocol: pieces[2][1:],
+				Address:  address[1],
+				Protocol: protocol,
 				Ports:    []int{port},
 				Targets:  []types.ServiceInterfaceTarget{},
 			}
