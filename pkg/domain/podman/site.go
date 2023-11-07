@@ -151,7 +151,6 @@ func (s *SiteHandler) prepareRouterDeployment(site *Site) *SkupperDeployment {
 			"QDROUTERD_CONF":      "/etc/skupper-router/config/" + types.TransportConfigFile,
 			"QDROUTERD_CONF_TYPE": "json",
 			"SKUPPER_SITE_ID":     site.Id,
-			"QDROUTERD_DEBUG":     site.RouterOpts.DebugMode,
 		},
 	}
 	routerDepl := &SkupperDeployment{
@@ -513,7 +512,6 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 			}
 			switch c := comp.(type) {
 			case *domain.Router:
-				site.RouterOpts.DebugMode = c.Env["QDROUTERD_DEBUG"]
 				site.RouterOpts.Logging = qdr.GetRouterLogging(config)
 			case *domain.FlowCollector:
 				enableConsole, _ := strconv.ParseBool(c.Env["ENABLE_CONSOLE"])

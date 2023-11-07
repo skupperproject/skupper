@@ -430,11 +430,6 @@ installation that can then be connected to other skupper installations`,
 				}
 				routerCreateOpts.Router.Logging = logConfig
 			}
-			if routerCreateOpts.Router.DebugMode != "" {
-				if routerCreateOpts.Router.DebugMode != "asan" && routerCreateOpts.Router.DebugMode != "gdb" {
-					return fmt.Errorf("Bad value for --router-debug-mode: %s (use 'asan' or 'gdb')", routerCreateOpts.Router.DebugMode)
-				}
-			}
 
 			if routerCreateOpts.EnableFlowCollector && routerCreateOpts.FlowCollector.FlowRecordTtl != 0 && routerCreateOpts.FlowCollector.FlowRecordTtl < time.Minute {
 				return fmt.Errorf("The minimum value for flow-collector-record-ttl is 1 minute")
@@ -463,7 +458,6 @@ installation that can then be connected to other skupper installations`,
 
 	cmd.Flags().StringSliceVar(&initFlags.labels, "labels", []string{}, "Labels to add to resources created by skupper")
 	cmd.Flags().StringVarP(&routerLogging, "router-logging", "", "", "Logging settings for router. 'trace', 'debug', 'info' (default), 'notice', 'warning', and 'error' are valid values.")
-	cmd.Flags().StringVarP(&routerCreateOpts.Router.DebugMode, "router-debug-mode", "", "", "Enable debug mode for router ('asan' or 'gdb' are valid values)")
 
 	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.ExternalServer, "external-prometheus-server", "", "", "External prometheus server for metric aggregation. Valid only when --enable-flow-collector")
 	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.AuthMode, "prometheus-auth", "", "", "Authentication mode for skupper prometheus server. One of: 'tls', 'basic', 'unsecured'")

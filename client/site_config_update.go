@@ -15,10 +15,9 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 	if err != nil {
 		return nil, err
 	}
-	// For now, only update router-logging and/or router-debug-mode (TODO: update of other options)
+	// For now, only update router-logging (TODO: update of other options)
 	updateLogging := site.UpdateLogging(config, configmap)
-	updateDebugMode := site.UpdateDebugMode(config, configmap)
-	if updateLogging || updateDebugMode {
+	if updateLogging {
 		configmap, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(ctx, configmap, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
@@ -26,7 +25,7 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 	}
 	updates := []string{}
 	if updateLogging {
-		updated, err := cli.RouterUpdateLogging(ctx, configmap, !updateDebugMode)
+		updated, err := cli.RouterUpdateLogging(ctx, configmap, true)
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
@@ -37,19 +36,6 @@ func (cli *VanClient) SiteConfigUpdate(ctx context.Context, config types.SiteCon
 			return nil, nil
 		}
 		updates = append(updates, "router logging")
-	}
-	if updateDebugMode {
-		updated, err := cli.RouterUpdateDebugMode(ctx, configmap)
-		if errors.IsNotFound(err) {
-			return nil, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		if !updated {
-			return nil, nil
-		}
-		updates = append(updates, "router debug mode")
 	}
 	return updates, nil
 

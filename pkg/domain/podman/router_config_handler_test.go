@@ -28,7 +28,6 @@ func TestPodmanRouterConfigHandler(t *testing.T) {
 				Level:  "trace+",
 			},
 		},
-		DebugMode:        "gdb",
 		MaxFrameSize:     types.RouterMaxFrameSizeDefault,
 		MaxSessionFrames: types.RouterMaxSessionFramesDefault,
 		IngressHost:      "127.0.0.1",

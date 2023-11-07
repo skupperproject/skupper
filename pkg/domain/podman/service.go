@@ -255,7 +255,6 @@ func (s *ServiceHandler) createService(servicePodman *Service) error {
 			"QDROUTERD_CONF":      "/etc/skupper-router/config/" + configFile,
 			"QDROUTERD_CONF_TYPE": "json",
 			"SKUPPER_SITE_ID":     svcRouterConfig.GetSiteMetadata().Id,
-			"QDROUTERD_DEBUG":     routerContainer.Env["QDROUTERD_DEBUG"],
 		},
 		Labels: map[string]string{
 			types.AddressQualifier: servicePodman.GetAddress(),
