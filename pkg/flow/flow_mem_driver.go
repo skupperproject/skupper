@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sort"
 	"strings"
 	"time"
 
@@ -523,6 +524,9 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 			}
 			sites = append(sites, siteStatus)
 		}
+		sort.SliceStable(addresses, func(i, j int) bool {
+			return addresses[i].Name < addresses[j].Name
+		})
 		networkStatus := NetworkStatus{
 			Addresses: addresses,
 			Sites:     sites,
