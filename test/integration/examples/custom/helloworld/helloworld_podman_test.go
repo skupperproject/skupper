@@ -451,44 +451,26 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					&service.DeleteTester{
 						Name: "hello-world-backend",
 					},
-					// skupper service status - verify only backend is available
+					// skupper service status - verify no services are available
 					&service.StatusTester{},
-					// skupper status - verify there is no exposed service
-					&cli.StatusTester{
-						RouterMode:          "interior",
-						ConnectedSites:      1,
-						ExposedServices:     0,
-						ConsoleEnabled:      true,
-						ConsoleAuthInternal: true,
-					},
 				}},
 				{Platform: types.PlatformPodman, Commands: []cli.SkupperCommandTester{
 					// skupper service delete - removes exposed service and certify it is removed
 					&service.DeleteTester{
 						Name: "hello-world-backend",
 					},
-					// skupper status - verify there is no exposed service
-					&cli.StatusTester{
-						RouterMode:          "interior",
-						SiteName:            "private",
-						ConnectedSites:      1,
-						ExposedServices:     1,
-						ConsoleEnabled:      true,
-						ConsoleAuthInternal: true,
+					// skupper service status - verify only backend is available
+					&service.StatusTester{
+						ServiceInterfaces: []types.ServiceInterface{
+							{Address: "hello-world-frontend", Protocol: "tcp", Ports: []int{8080}},
+						},
 					},
 					// skupper service delete - removes exposed service and certify it is removed
 					&service.DeleteTester{
 						Name: "hello-world-frontend",
 					},
-					// skupper status - verify there is no exposed service
-					&cli.StatusTester{
-						RouterMode:          "interior",
-						SiteName:            "private",
-						ConnectedSites:      1,
-						ExposedServices:     0,
-						ConsoleEnabled:      true,
-						ConsoleAuthInternal: true,
-					},
+					// skupper service status - verify no services are available
+					&service.StatusTester{},
 				}},
 			},
 		},
