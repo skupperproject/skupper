@@ -638,6 +638,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "list-connectors-test2",
+			args:            []string{},
 			expectedCapture: "There are no links configured or connected",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -646,6 +647,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "list-connectors-test3",
+			args:            []string{},
 			expectedCapture: "Link",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -711,7 +713,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test2",
-			args:            []string{"all"}, // added timeout to not wait for remote links which are not relevant for this testq
+			args:            []string{},
 			expectedCapture: "There are no links configured or connected",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -736,7 +738,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test5",
-			args:            []string{"all"},
+			args:            []string{},
 			expectedCapture: "Link link1 not connected",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -753,7 +755,9 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 	testClient.NewClient(nil, nil)
 	cli := testClient.Cli
 
-	if c, ok := cli.(*client.VanClient); ok {
+	c, ok := cli.(*client.VanClient)
+
+	if ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
@@ -765,6 +769,9 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 			continue
 		}
 
+		_, err := kube.WaitConfigMapCreated(types.NetworkStatusConfigMapName, cli.GetNamespace(), c.KubeClient, time.Second*60, time.Second*5)
+		assert.Check(t, err)
+
 		if tc.createConn {
 			cmd := NewCmdLinkCreate(testClient.Link(), "link")
 			silenceCobra(cmd)
@@ -773,7 +780,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 
 		cmd := NewCmdLinkStatus(testClient.Link())
 		silenceCobra(cmd)
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 3)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
@@ -807,12 +814,16 @@ func TestStatusWithCluster(t *testing.T) {
 	testClient.NewClient(nil, nil)
 	cli := testClient.Cli
 
-	if c, ok := cli.(*client.VanClient); ok {
+	c, ok := cli.(*client.VanClient)
+	if ok {
 		_, err := kube.NewNamespace(namespace, c.KubeClient)
 		assert.Check(t, err)
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
+
+	_, err := kube.WaitConfigMapCreated(types.NetworkStatusConfigMapName, cli.GetNamespace(), c.KubeClient, time.Second*60, time.Second*5)
+	assert.Check(t, err)
 
 	time.Sleep(3 * time.Second)
 
