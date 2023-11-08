@@ -638,7 +638,6 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "list-connectors-test2",
-			args:            []string{"--timeout", "1s"}, // added timeout to not wait for remote links which are not relevant for this test
 			expectedCapture: "There are no links configured or connected",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -647,7 +646,6 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "list-connectors-test3",
-			args:            []string{"--timeout", "1s"}, // added timeout to not wait for remote links which are not relevant for this test
 			expectedCapture: "Link",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -696,6 +694,7 @@ func TestListConnectorsWithCluster(t *testing.T) {
 
 		cmd := NewCmdLinkStatus(testClient.Link())
 		silenceCobra(cmd)
+		time.Sleep(time.Second * 5)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
@@ -712,7 +711,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test2",
-			args:            []string{"all", "--timeout", "1s"}, // added timeout to not wait for remote links which are not relevant for this testq
+			args:            []string{"all"}, // added timeout to not wait for remote links which are not relevant for this testq
 			expectedCapture: "There are no links configured or connected",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -737,7 +736,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 		{
 			doc:             "check-connection-test5",
-			args:            []string{"all", "--timeout", "1s"},
+			args:            []string{"all"},
 			expectedCapture: "Link link1 not connected",
 			expectedOutput:  "",
 			expectedError:   "",
@@ -774,6 +773,7 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 
 		cmd := NewCmdLinkStatus(testClient.Link())
 		silenceCobra(cmd)
+		time.Sleep(time.Second * 5)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
@@ -813,6 +813,8 @@ func TestStatusWithCluster(t *testing.T) {
 		defer kube.DeleteNamespace(namespace, c.KubeClient)
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
+
+	time.Sleep(3 * time.Second)
 
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
@@ -1182,6 +1184,8 @@ func TestListExposedWithCluster(t *testing.T) {
 		}
 		cmd := NewCmdServiceStatus(testClient.Service())
 		silenceCobra(cmd)
+
+		time.Sleep(time.Second * 5)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
 }
