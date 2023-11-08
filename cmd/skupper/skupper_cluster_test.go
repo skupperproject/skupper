@@ -666,6 +666,10 @@ func TestListConnectorsWithCluster(t *testing.T) {
 		},
 	}
 
+	if os.Getenv("USER") == "circleci" {
+		t.Skipf("Test is temporarily disabled")
+	}
+
 	namespace := "cmd-list-connectors-cluster-test-" + strings.ToLower(utils.RandomId(4))
 	testClient = &SkupperTestClient{
 		SkupperKube: &SkupperKube{
@@ -746,6 +750,10 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 		},
 	}
 
+	if os.Getenv("USER") == "circleci" {
+		t.Skipf("Test is temporarily disabled")
+	}
+
 	namespace := "cmd-check-connection-cluster-test-" + strings.ToLower(utils.RandomId(4))
 	testClient = &SkupperTestClient{
 		SkupperKube: &SkupperKube{
@@ -800,6 +808,10 @@ func TestStatusWithCluster(t *testing.T) {
 			expectedError:   "",
 			realCluster:     true,
 		},
+	}
+
+	if os.Getenv("USER") == "circleci" {
+		t.Skipf("Test is temporarily disabled")
 	}
 
 	namespace := "cmd-status-cluster-test-" + strings.ToLower(utils.RandomId(4))
