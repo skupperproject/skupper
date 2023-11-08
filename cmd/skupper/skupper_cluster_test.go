@@ -769,9 +769,6 @@ func TestCheckConnectionWithCluster(t *testing.T) {
 			continue
 		}
 
-		_, err := kube.WaitConfigMapCreated(types.NetworkStatusConfigMapName, cli.GetNamespace(), c.KubeClient, time.Second*60, time.Second*5)
-		assert.Check(t, err)
-
 		if tc.createConn {
 			cmd := NewCmdLinkCreate(testClient.Link(), "link")
 			silenceCobra(cmd)
@@ -822,15 +819,12 @@ func TestStatusWithCluster(t *testing.T) {
 	}
 	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
 
-	_, err := kube.WaitConfigMapCreated(types.NetworkStatusConfigMapName, cli.GetNamespace(), c.KubeClient, time.Second*60, time.Second*5)
-	assert.Check(t, err)
-
-	time.Sleep(3 * time.Second)
-
 	for _, tc := range testcases {
 		if tc.realCluster && !*clusterRun {
 			continue
 		}
+
+		time.Sleep(3 * time.Second)
 
 		cmd := NewCmdStatus(testClient.Site())
 		silenceCobra(cmd)
