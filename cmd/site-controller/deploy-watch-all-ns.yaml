@@ -111,6 +111,7 @@ rules:
   - clusterrolebindings
   verbs:
   - create
+  - delete
 # optional permissions
 # clusterroles create, update and bind permissions are needed
 # if you need to expose resources from different namespaces
@@ -124,6 +125,7 @@ rules:
   - watch
   - create
   - update
+  - delete
 # clusterroles bind permission needed when using skupper policies
 - apiGroups:
   - rbac.authorization.k8s.io
