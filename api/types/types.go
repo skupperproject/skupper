@@ -157,7 +157,7 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{"route.openshift.io"},
-		Resources: []string{"routes"},
+		Resources: []string{"routes", "routes/custom-host"},
 	},
 	{
 		Verbs:     []string{"get", "list", "watch"},
