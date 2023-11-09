@@ -427,8 +427,18 @@ jobs:
       - run: make
       - run: make package
       - run: make clean
+      - run:
+          name: Creating artifacts directory
+          command: mkdir /tmp/artifacts
       - go/test:
           coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
+          coverprofile: "/tmp/artifacts/cover.out"
+      - run:
+          name: Generating HTML coverage report
+          command: go tool cover -html /tmp/artifacts/cover.out -o /tmp/artifacts/cover.html
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: test-artifacts
 
   build_and_save_test_images:
     executor: local_cluster_test_executor
