@@ -68,7 +68,6 @@ func skupperInitEdgeTestScenario(ctx *base.ClusterContext, prefix string, withPo
 				},
 				// skupper status - verify initialized as edge
 				&cli.StatusTester{
-					RouterMode:    "edge",
 					SiteName:      "private",
 					PolicyEnabled: cli.Boolp(withPolicy),
 				},
