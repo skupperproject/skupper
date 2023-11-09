@@ -3,27 +3,11 @@ package kube
 import (
 	"context"
 
-	"fmt"
-
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
-
-func CreateOrExtendClusterRole(clusterRole *rbacv1.ClusterRole, kubeclient kubernetes.Interface, enabledExtension bool) error {
-	cRole, err := kubeclient.RbacV1().ClusterRoles().Get(context.TODO(), clusterRole.Name, metav1.GetOptions{})
-	if err != nil {
-		fmt.Println(err)
-	}
-	if cRole != nil && len(cRole.Rules) > 0 {
-		if enabledExtension {
-			err = UpdateClusterRole(clusterRole.Name, clusterRole.Rules, kubeclient)
-		}
-	} else {
-		_, err = CreateClusterRole(clusterRole, kubeclient)
-	}
-	return err
-}
 
 func CreateClusterRole(clusterRole *rbacv1.ClusterRole, kubeclient kubernetes.Interface) (*rbacv1.ClusterRole, error) {
 	clusterRoles := kubeclient.RbacV1().ClusterRoles()
@@ -46,6 +30,17 @@ func UpdateClusterRole(name string, rules []rbacv1.PolicyRule, kubeclient kubern
 		return err
 	}
 	return nil
+}
+
+func DeleteClusterRole(name string, kubeclient kubernetes.Interface) (bool, error) {
+	err := kubeclient.RbacV1().ClusterRoles().Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if errors.IsNotFound(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	} else {
+		return true, nil
+	}
 }
 
 func CopyClusterRole(src string, dest string, kubeclient kubernetes.Interface) error {

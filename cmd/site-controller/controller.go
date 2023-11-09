@@ -21,6 +21,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type SiteController struct {
@@ -104,9 +105,32 @@ func (c *SiteController) getHandlerFuncs(category triggerType, test resourceVers
 	}
 }
 
+func (c *SiteController) updateControllerClusterRoles() {
+	old := "skupper-service-controller"
+	if deleted, err := kube.DeleteClusterRole(old, c.vanClient.KubeClient); deleted || err != nil {
+		if err != nil {
+			log.Printf("Unable to delete old cluster role %q: %s", old, err)
+		} else {
+			log.Printf("Deleted old cluster role %q", old)
+		}
+	}
+	for _, clusterRole := range c.vanClient.ClusterRoles(isClusterPermissionAllowed()) {
+		_, err := kube.CreateClusterRole(clusterRole, c.vanClient.KubeClient)
+		if errors.IsAlreadyExists(err) {
+			log.Printf("Cluster role %q already exists", clusterRole.Name)
+		} else if err != nil {
+			log.Printf("Unable to create new cluster role %q: %s", clusterRole.Name, err)
+		} else {
+			log.Printf("Cluster role %q created", clusterRole.Name)
+		}
+	}
+}
+
 func (c *SiteController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
+
+	c.updateControllerClusterRoles()
 
 	log.Println("Starting the Skupper site controller informers")
 	go c.siteInformer.Run(stopCh)
@@ -203,6 +227,8 @@ func (c *SiteController) checkAllForSite() {
 	log.Println("Done.")
 }
 
+const clusterPermissionEnvVarName string = "CLUSTER_PERMISSIONS_ALLOWED"
+
 func (c *SiteController) checkSite(key string) error {
 	// get site namespace
 	siteNamespace, _, err := cache.SplitMetaNamespaceKey(key)
@@ -254,6 +280,13 @@ func (c *SiteController) checkSite(key string) error {
 			log.Println("Initialising skupper site ...")
 			siteConfig, _ := c.vanClient.SiteConfigInspect(context.Background(), configmap)
 			siteConfig.Spec.SkupperNamespace = siteNamespace
+			if siteConfig.Spec.EnableClusterPermissions && !isClusterPermissionAllowed() {
+				siteConfig.Spec.EnableClusterPermissions = false
+				log.Printf("Ignoring request for cluster permissions for %q; site will not be able to target workloads in other namespaces.", siteNamespace)
+				if os.Getenv(clusterPermissionEnvVarName) == "" {
+					log.Printf("To enable cluster permissions, set env var %s to 'true'", clusterPermissionEnvVarName)
+				}
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), types.DefaultTimeoutDuration)
 			defer cancel()
 			err = c.vanClient.RouterCreate(ctx, *siteConfig)
@@ -270,6 +303,11 @@ func (c *SiteController) checkSite(key string) error {
 		}
 	}
 	return nil
+}
+
+func isClusterPermissionAllowed() bool {
+	enabled, _ := strconv.ParseBool(os.Getenv(clusterPermissionEnvVarName))
+	return enabled
 }
 
 func getTokenCost(token *corev1.Secret) (int32, bool) {
