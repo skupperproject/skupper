@@ -64,7 +64,8 @@ func printList(l *list, level int, last map[int]bool) {
 	}
 	fmt.Printf(l.item)
 	if l.details != nil && len(l.details.details) > 0 {
-		printDetails(l.details.details, level, last)
+		itHasChildren := len(l.children) > 0
+		printDetails(l.details.details, level, last, itHasChildren)
 	}
 	fmt.Println()
 	if len(l.children) > 0 {
@@ -79,7 +80,7 @@ func printList(l *list, level int, last map[int]bool) {
 	}
 }
 
-func printDetails(detailsMap map[string]string, level int, last map[int]bool) {
+func printDetails(detailsMap map[string]string, level int, last map[int]bool, itHasChildren bool) {
 
 	keys := make([]string, 0)
 	for k := range detailsMap {
@@ -100,7 +101,12 @@ func printDetails(detailsMap map[string]string, level int, last map[int]bool) {
 				fmt.Printf("   ")
 			}
 		}
-		detail := key + ": " + detailsMap[key]
+
+		prefix := ""
+		if itHasChildren {
+			prefix = "│ "
+		}
+		detail := prefix + key + ": " + detailsMap[key]
 
 		if index < len(keys)-1 {
 			fmt.Println(detail)

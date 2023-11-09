@@ -4,6 +4,8 @@ import (
 	"context"
 	jsonencoding "encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/utils"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -100,4 +102,22 @@ func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, o
 	}
 
 	return nil
+}
+
+func WaitConfigMapCreated(name string, namespace string, cli kubernetes.Interface, timeout, interval time.Duration) (*corev1.ConfigMap, error) {
+	var cm *corev1.ConfigMap
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
+		cm, err = cli.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			// cm does not exist yet
+			return false, nil
+		}
+		return cm != nil, nil
+	})
+
+	return cm, err
 }

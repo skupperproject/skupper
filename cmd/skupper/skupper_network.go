@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/spf13/cobra"
-	"time"
 )
 
 func NewCmdNetwork() *cobra.Command {
@@ -15,8 +12,8 @@ func NewCmdNetwork() *cobra.Command {
 	return cmd
 }
 
-var selectedSite string
-var networkStatusTimeout time.Duration
+var verboseNetworkStatus bool
+var siteNetworkStatus string
 
 func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -27,84 +24,8 @@ func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 		RunE:   skupperClient.Status,
 	}
 
-	cmd.Flags().StringVarP(&selectedSite, "site", "s", "all", "Site identifier")
-	cmd.Flags().DurationVar(&networkStatusTimeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for retrieving remote information")
-
+	cmd.Flags().BoolVarP(&verboseNetworkStatus, "verbose", "v", false, "More detailed output about the network topology")
+	cmd.Flags().StringVarP(&siteNetworkStatus, "site", "s", "", "Filter by a specific site name")
 	return cmd
 
-}
-
-func printLocalStatus(readyreplicas int32, warnings []string, totalConnectedSites int, directConnectedSites int, exposedServices int) {
-
-	if readyreplicas == 0 {
-		fmt.Printf(" Status pending...")
-	} else {
-		if len(warnings) > 0 {
-			for _, w := range warnings {
-				fmt.Printf("Warning: %s", w)
-				fmt.Println()
-			}
-		}
-		if totalConnectedSites == 0 {
-			fmt.Printf(" It is not connected to any other sites.")
-		} else if totalConnectedSites == 1 {
-			fmt.Printf(" It is connected to 1 other site.")
-		} else if totalConnectedSites == directConnectedSites {
-			fmt.Printf(" It is connected to %d other sites.", totalConnectedSites)
-		} else {
-			fmt.Printf(" It is connected to %d other sites (%d indirectly).", totalConnectedSites, directConnectedSites)
-		}
-	}
-	fmt.Printf(" Number of exposed services: %d", exposedServices)
-	fmt.Println()
-}
-
-func getLocalSiteInfo(serviceInterfaces []*types.ServiceInterface, siteId string, siteName string, namespace string, version string) []*types.SiteInfo {
-
-	var localServices []types.ServiceInfo
-
-	if len(serviceInterfaces) > 0 {
-		for _, service := range serviceInterfaces {
-
-			var localTargets []types.TargetInfo
-			if len(service.Targets) > 0 {
-				for _, target := range service.Targets {
-					targetInfo := types.TargetInfo{
-						Name:   target.Name,
-						SiteId: siteId,
-					}
-
-					localTargets = append(localTargets, targetInfo)
-				}
-			}
-			var portStr string
-			if len(service.Ports) > 0 {
-				for _, port := range service.Ports {
-					portStr += fmt.Sprintf(" %d", port)
-				}
-			}
-
-			serviceInfo := types.ServiceInfo{
-				Name:     service.Address,
-				Address:  service.Address + ":" + portStr,
-				Protocol: service.Protocol,
-				Targets:  localTargets,
-			}
-
-			localServices = append(localServices, serviceInfo)
-		}
-	}
-
-	localSiteInfo := types.SiteInfo{
-		Name:      siteName,
-		Namespace: namespace,
-		SiteId:    siteId,
-		Version:   version,
-		Services:  localServices,
-	}
-
-	var sites []*types.SiteInfo
-	sites = append(sites, &localSiteInfo)
-
-	return sites
 }

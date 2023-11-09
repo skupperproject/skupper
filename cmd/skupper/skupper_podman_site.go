@@ -209,50 +209,51 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	connectedSites := qdr.ConnectedSitesInfo(site.GetId(), routers)
 
 	// Preparing output
-	sitename := ""
+	statusOutput := StatusData{}
+
 	if site.GetName() != "" && site.GetName() != podman.Username {
-		sitename = fmt.Sprintf(" with site name %q", site.GetName())
-	}
-	var modedesc string = " in interior mode"
-	if site.GetMode() == string(types.TransportModeEdge) {
-		modedesc = " in edge mode"
+		statusOutput.siteName = site.GetName()
 	}
 
-	fmt.Printf("Skupper is enabled for %q%s%s.", podman.Username, sitename, modedesc)
+	statusOutput.mode = site.GetMode()
+	statusOutput.enabledIn = PlatformSupport{"podman", podman.Username}
+
 	if len(connectedSites.Warnings) > 0 {
+		var warnings []string
 		for _, w := range connectedSites.Warnings {
-			fmt.Printf("Warning: %s", w)
-			fmt.Println()
+			warnings = append(warnings, w)
 		}
+
+		statusOutput.warnings = warnings
 	}
-	if connectedSites.Total == 0 {
-		fmt.Printf(" It is not connected to any other sites.")
-	} else if connectedSites.Total == 1 {
-		fmt.Printf(" It is connected to 1 other site.")
-	} else if connectedSites.Total == connectedSites.Direct {
-		fmt.Printf(" It is connected to %d other sites.", connectedSites.Total)
-	} else {
-		fmt.Printf(" It is connected to %d other sites (%d indirectly).", connectedSites.Total, connectedSites.Indirect)
-	}
+
+	statusOutput.totalConnections = connectedSites.Total
+	statusOutput.directConnections = connectedSites.Direct
+	statusOutput.indirectConnections = connectedSites.Indirect
 
 	svcIfaceHandler := podman.NewServiceInterfaceHandlerPodman(s.podman.cli)
 	list, err := svcIfaceHandler.List()
 	if err != nil {
 		return fmt.Errorf("error retrieving service list - %w", err)
 	}
-	if len(list) == 0 {
-		fmt.Printf(" It has no exposed services.")
-	} else if len(list) == 1 {
-		fmt.Printf(" It has 1 exposed service.")
-	} else {
-		fmt.Printf(" It has %d exposed services.", len(list))
-	}
 
-	fmt.Println()
+	statusOutput.exposedServices = len(list)
 
 	if site.EnableFlowCollector {
-		fmt.Println("The site console url is: ", site.GetConsoleUrl())
-		fmt.Println("The credentials for internal console-auth mode are held in podman volume: 'skupper-console-users'")
+		statusOutput.consoleUrl = site.GetConsoleUrl()
+		statusOutput.credentials = PlatformSupport{"podman volume", "'skupper-console-users'"}
+	}
+
+	if verboseStatus {
+		err := PrintVerboseStatus(statusOutput)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := PrintStatus(statusOutput)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

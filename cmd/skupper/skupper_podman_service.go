@@ -151,41 +151,39 @@ func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 
 			for _, svc := range services {
 				svcPodman := svc.(*podman.Service)
-				portStr := "port"
-				if len(svcPodman.GetPorts()) > 1 {
-					portStr = "ports"
-				}
+
 				for _, port := range svcPodman.GetPorts() {
-					portStr += fmt.Sprintf(" %d", port)
-				}
-				svc := l.NewChild(fmt.Sprintf("%s (%s %s)", svcPodman.GetAddress(), svcPodman.GetProtocol(), portStr))
-				// ingressInfo := ""
-				containerPorts := svcPodman.ContainerPorts()
-				if len(containerPorts) > 0 {
-					ingress := svc.NewChild("Host ports:")
-					ingressInfo := fmt.Sprintf("ip: %s - ports: ", utils.DefaultStr(svcPodman.Ingress.GetHost(), "*"))
-					for i, portInfo := range containerPorts {
-						if i > 0 {
-							ingressInfo += ", "
+					portStr := strconv.Itoa(port)
+
+					svc := l.NewChild(fmt.Sprintf("%s:%s (%s)", svcPodman.GetAddress(), portStr, svcPodman.GetProtocol()))
+					// ingressInfo := ""
+					containerPorts := svcPodman.ContainerPorts()
+					if len(containerPorts) > 0 {
+						ingress := svc.NewChild("Host ports:")
+						ingressInfo := fmt.Sprintf("ip: %s - ports: ", utils.DefaultStr(svcPodman.Ingress.GetHost(), "*"))
+						for i, portInfo := range containerPorts {
+							if i > 0 {
+								ingressInfo += ", "
+							}
+							ingressInfo += fmt.Sprintf("%s -> %s", portInfo.Host, portInfo.Target)
 						}
-						ingressInfo += fmt.Sprintf("%s -> %s", portInfo.Host, portInfo.Target)
+						ingress.NewChild(ingressInfo)
 					}
-					ingress.NewChild(ingressInfo)
-				}
-				if len(svcPodman.GetEgressResolvers()) > 0 {
-					targets := svc.NewChild("Targets:")
-					for _, t := range svcPodman.GetEgressResolvers() {
-						targetInfo := ""
-						if resolverHost, ok := t.(*domain.EgressResolverHost); ok {
-							targetInfo = fmt.Sprintf("host: %s - ports: %v", resolverHost.Host, resolverHost.Ports)
+					if len(svcPodman.GetEgressResolvers()) > 0 {
+						targets := svc.NewChild("Targets:")
+						for _, t := range svcPodman.GetEgressResolvers() {
+							targetInfo := ""
+							if resolverHost, ok := t.(*domain.EgressResolverHost); ok {
+								targetInfo = fmt.Sprintf("host: %s - ports: %v", resolverHost.Host, resolverHost.Ports)
+							}
+							targets.NewChild(targetInfo)
 						}
-						targets.NewChild(targetInfo)
 					}
-				}
-				if showLabels && len(svcPodman.GetLabels()) > 0 {
-					labels := svc.NewChild("Labels:")
-					for k, v := range svcPodman.GetLabels() {
-						labels.NewChild(fmt.Sprintf("%s=%s", k, v))
+					if showLabels && len(svcPodman.GetLabels()) > 0 {
+						labels := svc.NewChild("Labels:")
+						for k, v := range svcPodman.GetLabels() {
+							labels.NewChild(fmt.Sprintf("%s=%s", k, v))
+						}
 					}
 				}
 			}

@@ -4,7 +4,7 @@ Date: 2023-05-10
 
 ## Status
 
-Accepted
+Superceded by [5. showing incoming liks by default](0005-showing-incoming-links-by-default.md)
 
 ## Context
 

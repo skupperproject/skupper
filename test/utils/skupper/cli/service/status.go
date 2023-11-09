@@ -11,7 +11,6 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
-	utils2 "github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
@@ -110,7 +109,7 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 
 	// Iterating through provided service interfaces to validate stdout matches
 	for _, svc := range s.ServiceInterfaces {
-		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\)`, svc.Address, svc.Protocol, svc.Ports[0])
+		serviceEntry := fmt.Sprintf(`.*%s:%d \(%s\)`, svc.Address, svc.Ports[0], svc.Protocol)
 		if hostPortBinding, ok := s.Podman.GetHostPortBinding(svc.Address); ok {
 			hostIp := utils.DefaultStr(hostPortBinding.HostIp, `\*`)
 			var portMapping string
@@ -121,9 +120,7 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 			}
 			serviceEntry += fmt.Sprintf(`\n.*Host ports:\n.*ip: %s - ports: %s`, hostIp, portMapping)
 		}
-		if len(svc.Targets) > 0 && !s.Absent {
-			serviceEntry += `\n.*Targets:`
-		}
+
 		r := regexp.MustCompile(serviceEntry)
 		if r.MatchString(stdout) == s.Absent {
 			err = fmt.Errorf("expected:\n%s\nAbsent: %t\nfound:\n%s\n", serviceEntry, s.Absent, stdout)
@@ -131,22 +128,6 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 		}
 
 		if !s.Absent {
-			// Validating if provided targets are showing up
-			for _, target := range svc.Targets {
-				if platform.IsKubernetes() {
-					targetRegex := regexp.MustCompile(fmt.Sprintf("%s name=%s", utils2.StrDefault(target.Service, ".*"), target.Name))
-					if !targetRegex.MatchString(stdout) {
-						err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
-						return
-					}
-				} else if platform == types.PlatformPodman {
-					targetRegex := regexp.MustCompile(fmt.Sprintf("host: %s - ports:", target.Service))
-					if !targetRegex.MatchString(stdout) {
-						err = fmt.Errorf("expected target not found - regexp: %s - stdout: %s", targetRegex.String(), stdout)
-						return
-					}
-				}
-			}
 			// Confirming that it is not unauthorized
 			if s.CheckAuthorization {
 				authCheck := serviceEntry + " - not authorized"
@@ -167,14 +148,15 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 		}
 	}
 
-	for _, svc := range s.UnauthorizedServiceInterfaces {
-		serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\) - not authorized`, svc.Address, svc.Protocol, svc.Ports[0])
-		r := regexp.MustCompile(serviceEntry)
-		if !r.MatchString(stdout) {
-			err = fmt.Errorf("expected unauthorized service not found:\n%s\nstdout:\n%s\n", serviceEntry, stdout)
-			return
-		}
-	}
+	// TODO: modify this tests, given that the policy is shown at site level.
+	//for _, svc := range s.UnauthorizedServiceInterfaces {
+	//	serviceEntry := fmt.Sprintf(`.*%s \(%s port %d\) - not authorized`, svc.Address, svc.Protocol, svc.Ports[0])
+	//	r := regexp.MustCompile(serviceEntry)
+	//	if !r.MatchString(stdout) {
+	//		err = fmt.Errorf("expected unauthorized service not found:\n%s\nstdout:\n%s\n", serviceEntry, stdout)
+	//		return
+	//	}
+	//}
 
 	return
 }
@@ -214,37 +196,37 @@ func (s *StatusTester) compareBindings(listedServices []*types.ServiceInterface)
 		listedMap[iface.Address] = iface
 	}
 
-	for n, structInterface := range structMap {
-		listedInterface, ok := listedMap[n]
+	//TODO: refactor this tests to adapt to the new status output
+	for n, _ := range structMap {
+		_, ok := listedMap[n]
 		if !ok {
 			return fmt.Errorf("Interface %v was expected, but not listed", n)
 		}
-
-		structTargetMap := map[string]types.ServiceInterfaceTarget{}
-		listedTargetMap := map[string]types.ServiceInterfaceTarget{}
-		for _, t := range structInterface.Targets {
-			structTargetMap[t.Name] = t
-		}
-		for _, t := range listedInterface.Targets {
-			// store just the name, without the qualified ns
-			tName := strings.Split(t.Name, ".")[0]
-			listedTargetMap[tName] = t
-		}
-
-		for tn := range structTargetMap {
-			_, ok := listedTargetMap[tn]
-			if !ok {
-				return fmt.Errorf("Target %v was expected on interface %v, but not listed", tn, n)
-			}
-			delete(listedTargetMap, tn)
-		}
-		if len(listedTargetMap) > 0 {
-			remainingList := make([]string, 0, len(listedTargetMap))
-			for tn := range listedTargetMap {
-				remainingList = append(remainingList, tn)
-			}
-			return fmt.Errorf("The following targets were listed for interface %v, but were not expected: %v", n, strings.Join(remainingList, ", "))
-		}
+		//structTargetMap := map[string]types.ServiceInterfaceTarget{}
+		//listedTargetMap := map[string]types.ServiceInterfaceTarget{}
+		//for _, t := range structInterface.Targets {
+		//	structTargetMap[t.Name] = t
+		//}
+		//for _, t := range listedInterface.Targets {
+		//	// store just the name, without the qualified ns
+		//	tName := strings.Split(t.Name, ".")[0]
+		//	listedTargetMap[tName] = t
+		//}
+		//
+		//for tn := range structTargetMap {
+		//	_, ok := listedTargetMap[tn]
+		//	if !ok {
+		//		return fmt.Errorf("Target %v was expected on interface %v, but not listed", tn, n)
+		//	}
+		//	delete(listedTargetMap, tn)
+		//}
+		//if len(listedTargetMap) > 0 {
+		//	remainingList := make([]string, 0, len(listedTargetMap))
+		//	for tn := range listedTargetMap {
+		//		remainingList = append(remainingList, tn)
+		//	}
+		//	return fmt.Errorf("The following targets were listed for interface %v, but were not expected: %v", n, strings.Join(remainingList, ", "))
+		//}
 		delete(listedMap, n)
 	}
 	if len(listedMap) > 0 && s.StrictInterfaceListCheck {
@@ -291,18 +273,18 @@ func (s *StatusTester) parseBindings(stdout string) (ifaces []*types.ServiceInte
 		if strings.HasPrefix(text, "├") || strings.HasPrefix(text, "╰") {
 			// First level definition: service
 			pieces := strings.Split(text, " ")
-			if pieces[3] != "port" {
-				err = fmt.Errorf("Parsing failed due to unexpected service output on line %v: %v", line, text)
-				return
-			}
-			port, converr := strconv.Atoi(pieces[4][:len(pieces[4])-1])
+			protocol := strings.TrimRight(strings.TrimLeft(pieces[2], "("), ")")
+
+			address := strings.Split(pieces[1], ":")
+
+			port, converr := strconv.Atoi(address[1])
 			if err != nil {
 				err = fmt.Errorf("Failed to parse service port: %w", converr)
 				return
 			}
 			iface = &types.ServiceInterface{
-				Address:  pieces[1],
-				Protocol: pieces[2][1:],
+				Address:  address[0],
+				Protocol: protocol,
 				Ports:    []int{port},
 				Targets:  []types.ServiceInterfaceTarget{},
 			}

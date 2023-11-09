@@ -3,16 +3,16 @@ package kube
 import (
 	"context"
 	"fmt"
-	"strconv"
-
 	"github.com/skupperproject/skupper/api/types"
+	k8s "github.com/skupperproject/skupper/pkg/kube"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
+	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/qdr"
-	"github.com/skupperproject/skupper/pkg/server"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"strconv"
 )
 
 type LinkHandlerKube struct {
@@ -100,35 +100,56 @@ func (l *LinkHandlerKube) Detail(link types.LinkStatus) (map[string]string, erro
 	}, nil
 }
 
-func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
+func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*network.RemoteLinkInfo, error) {
 	// Checking if the router has been deployed
-	_, err := l.cli.AppsV1().Deployments(l.namespace).Get(context.TODO(), types.TransportDeploymentName, metav1.GetOptions{})
+	_, err := k8s.GetDeployment(types.TransportDeploymentName, l.namespace, l.cli)
 	if err != nil {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}
 
 	currentSiteId := l.site.Reference.UID
 
-	sites, err := server.GetSiteInfo(ctx, l.namespace, l.cli, l.restConfig)
-
+	configmap, err := k8s.GetConfigMap(types.NetworkStatusConfigMapName, l.namespace, l.cli)
 	if err != nil {
 		return nil, err
 	}
 
-	var remoteLinks []*types.RemoteLinkInfo
+	currentStatus, err := network.UnmarshalSkupperStatus(configmap.Data)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, site := range *sites {
+	var remoteLinks []*network.RemoteLinkInfo
 
-		if site.SiteId == currentSiteId {
-			continue
+	statusManager := network.SkupperStatus{NetworkStatus: currentStatus}
+
+	mapRouterSite := statusManager.GetRouterSiteMap()
+
+	var currentSite network.SiteStatusInfo
+	for _, s := range currentStatus.SiteStatus {
+		if s.Site.Identity == currentSiteId {
+			currentSite = s
 		}
+	}
 
-		for _, link := range site.Links {
-			if link == currentSiteId {
-				newRemoteLink := types.RemoteLinkInfo{SiteName: site.Name, Namespace: site.Namespace, SiteId: site.SiteId}
-				remoteLinks = append(remoteLinks, &newRemoteLink)
+	if len(currentSite.Site.Identity) > 0 {
+		for _, router := range currentSite.RouterStatus {
+			for _, link := range router.Links {
+				if link.Direction == "incoming" {
+					remoteSite, ok := mapRouterSite[link.Name]
+					if !ok {
+						return nil, fmt.Errorf("remote site not found in config map %s", types.NetworkStatusConfigMapName)
+					}
+
+					// links between routers of the same site will not be shown
+					if remoteSite.Site.Identity != currentSite.Site.Identity {
+						newRemoteLink := network.RemoteLinkInfo{SiteName: remoteSite.Site.Name, Namespace: remoteSite.Site.Namespace, SiteId: remoteSite.Site.Identity, LinkName: link.Name}
+						remoteLinks = append(remoteLinks, &newRemoteLink)
+					}
+				}
 			}
 		}
 	}
+
 	return remoteLinks, nil
 }

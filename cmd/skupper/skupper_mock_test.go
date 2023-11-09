@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/network"
 	"reflect"
 	"strings"
 	"testing"
@@ -299,11 +300,11 @@ func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
 	return nil
 }
 
-func (v *vanClientMock) NetworkStatus(ctx context.Context) ([]*types.SiteInfo, error) {
+func (v *vanClientMock) NetworkStatus(ctx context.Context) (*network.NetworkStatusInfo, error) {
 	return nil, nil
 }
 
-func (v *vanClientMock) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*types.RemoteLinkInfo, error) {
+func (v *vanClientMock) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*network.RemoteLinkInfo, error) {
 	return nil, nil
 }
 

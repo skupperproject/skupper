@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -98,9 +97,7 @@ func NewCmdLinkDelete(skupperClient SkupperLinkClient) *cobra.Command {
 }
 
 var waitFor int
-var remoteInfoTimeout time.Duration
 var verboseLinkStatus bool
-var showRemoteLinks bool
 
 func allConnected(links []types.LinkStatus) bool {
 	for _, l := range links {
@@ -123,9 +120,6 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 			linkHandler := skupperClient.LinkHandler()
 			if linkHandler == nil {
 				return fmt.Errorf("unable to retrieve links")
-			}
-			if remoteInfoTimeout.Seconds() <= 0 {
-				return fmt.Errorf(`invalid timeout value`)
 			}
 
 			if verboseLinkStatus && (len(args) == 0 || args[0] == "all") {
@@ -199,50 +193,41 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 							}
 						}
 
-						if showRemoteLinks {
+						ctx, cancel := context.WithTimeout(context.Background(), types.DefaultTimeoutDuration)
+						defer cancel()
 
-							ctx, cancel := context.WithTimeout(context.Background(), remoteInfoTimeout)
-							defer cancel()
+						fmt.Println("\nCurrent links from other sites that are connected:")
+						fmt.Println()
 
-							fmt.Println("\nCurrent links from other sites that are connected:")
-							fmt.Println()
-
-							var remoteLinks []*types.RemoteLinkInfo
-							err := utils.RetryErrorWithContext(ctx, time.Second, func() error {
-								remoteLinks, err = linkHandler.RemoteLinks(ctx)
-								if err != nil {
-									return err
-								}
-								return nil
-							})
-
-							if err != nil {
-								fmt.Println(err)
-								break
-							} else if len(remoteLinks) > 0 {
-								for _, remoteLink := range remoteLinks {
-									var nsStr string
-									if remoteLink.Namespace != "" {
-										nsStr = fmt.Sprintf("the namespace %s on site ", remoteLink.Namespace)
-									}
-									fmt.Printf("\t A link from %s%s(%s) is connected to this site", nsStr, remoteLink.SiteName, remoteLink.SiteId)
-									fmt.Println()
-								}
-							} else {
-								fmt.Println("\t There are no connected links")
-							}
+						remoteLinks, err := linkHandler.RemoteLinks(ctx)
+						if err != nil {
+							return err
 						}
-						break
+
+						if len(remoteLinks) > 0 {
+							for _, remoteLink := range remoteLinks {
+								//todo: add the link name (connector name) when ready in the configmap
+								remoteNamespace := ""
+								if len(remoteLink.Namespace) > 0 {
+									remoteNamespace = fmt.Sprintf("on namespace %s", remoteLink.Namespace)
+
+								}
+								fmt.Printf("\t Incoming link from site %s %s", remoteLink.SiteId, remoteNamespace)
+								fmt.Println()
+							}
+						} else {
+							fmt.Println("\t There are no connected links")
+						}
 					}
+					break
 				}
 			}
+
 			return nil
 		},
 	}
 	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become connected")
 	cmd.Flags().BoolVar(&verboseLinkStatus, "verbose", false, "Show detailed information about a link")
-	cmd.Flags().DurationVar(&remoteInfoTimeout, "timeout", time.Second*5, "Configurable timeout for retrieving information about remote links")
-	cmd.Flags().BoolVar(&showRemoteLinks, "show-incoming-links", false, "Show incoming links from other sites")
 
 	return cmd
 

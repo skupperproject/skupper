@@ -3,6 +3,7 @@ package podman
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/network"
 	"path"
 	"strconv"
 	"strings"
@@ -296,8 +297,8 @@ func (l *LinkHandler) Detail(link types.LinkStatus) (map[string]string, error) {
 	}, nil
 }
 
-func (l *LinkHandler) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo, error) {
-	var remoteLinks []*types.RemoteLinkInfo
+func (l *LinkHandler) RemoteLinks(ctx context.Context) ([]*network.RemoteLinkInfo, error) {
+	var remoteLinks []*network.RemoteLinkInfo
 	if l.site.GetMode() == string(types.TransportModeEdge) {
 		return remoteLinks, nil
 	}
@@ -310,7 +311,7 @@ func (l *LinkHandler) RemoteLinks(ctx context.Context) ([]*types.RemoteLinkInfo,
 			continue
 		}
 		if utils.StringSliceContains(router.ConnectedTo, l.site.Name) {
-			remoteLinks = append(remoteLinks, &types.RemoteLinkInfo{
+			remoteLinks = append(remoteLinks, &network.RemoteLinkInfo{
 				SiteName: router.Id,
 				SiteId:   router.Site.Id,
 			})

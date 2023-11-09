@@ -515,6 +515,7 @@ func NewCmdUpdate(skupperCli SkupperSiteClient) *cobra.Command {
 }
 
 var clientIdentity string
+var verboseStatus bool
 
 func NewCmdStatus(skupperCli SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -524,6 +525,7 @@ func NewCmdStatus(skupperCli SkupperSiteClient) *cobra.Command {
 		PreRun: skupperCli.NewClient,
 		RunE:   skupperCli.Status,
 	}
+	cmd.Flags().BoolVarP(&verboseStatus, "verbose", "v", false, "Detailed information about Skupper status")
 	return cmd
 }
 
@@ -576,6 +578,7 @@ func NewCmdUnexpose(skupperCli SkupperServiceClient) *cobra.Command {
 }
 
 var showLabels bool
+var verboseServiceStatus bool
 
 func NewCmdServiceStatus(skupperClient SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
@@ -589,6 +592,7 @@ func NewCmdServiceStatus(skupperClient SkupperServiceClient) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&showLabels, "show-labels", false, "show service labels")
+	skupperClient.StatusFlags(cmd)
 	return cmd
 }
 

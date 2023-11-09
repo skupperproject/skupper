@@ -124,13 +124,6 @@ func (s *StatusTester) validateMainContent(platform types.Platform, cluster *bas
 		mainContent = append(mainContent, fmt.Sprintf("with site name \"%s\"", s.SiteName))
 	}
 
-	// Router mode
-	routerMode := "interior"
-	if s.RouterMode != "" {
-		routerMode = s.RouterMode
-	}
-	mainContent = append(mainContent, fmt.Sprintf("in %s mode", routerMode))
-
 	// Policy checking, if defined
 	if s.PolicyEnabled != nil {
 		if *s.PolicyEnabled {

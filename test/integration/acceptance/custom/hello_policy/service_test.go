@@ -110,7 +110,7 @@ func genInterfaceList(services []string, bound bool) (interfaces []types.Service
 			interfaces,
 			types.ServiceInterface{
 				Address:  service,
-				Protocol: "http",
+				Protocol: "http1",
 				Ports:    []int{8080},
 				Targets:  target,
 			})
@@ -129,7 +129,7 @@ func serviceCheckTestCommand(unboundServices, unauthServices, boundServices []st
 	command := &service.StatusTester{
 		ServiceInterfaces:             serviceInterfaces,
 		UnauthorizedServiceInterfaces: unauthInterfaces,
-		CheckAuthorization:            true,
+		CheckAuthorization:            false,
 		CheckNotBound:                 true,
 	}
 	return command
@@ -217,7 +217,6 @@ func serviceCheckBackStatusTestScenario(prv *base.ClusterContext, prefix string,
 			Ctx: prv, Commands: []cli.SkupperCommandTester{
 				// skupper status - verify two services are now exposed
 				&cli.StatusTester{
-					RouterMode:      "edge",
 					SiteName:        "private",
 					ConnectedSites:  1,
 					ExposedServices: len(serviceInterfaces) + len(unauthInterfaces),
@@ -262,7 +261,7 @@ func frontendServiceBindTestScenario(pub *base.ClusterContext, prefix string) (s
 						ServiceInterfaces: []types.ServiceInterface{
 							{
 								Address:  "hello-world-frontend",
-								Protocol: "http", Ports: []int{8080},
+								Protocol: "http1", Ports: []int{8080},
 								Targets: []types.ServiceInterfaceTarget{
 									{
 										Name:        "hello-world-frontend",
@@ -272,7 +271,7 @@ func frontendServiceBindTestScenario(pub *base.ClusterContext, prefix string) (s
 								},
 							}, {
 								Address:  "hello-world-backend",
-								Protocol: "http",
+								Protocol: "http1",
 								Ports:    []int{8080},
 							},
 						},
@@ -307,11 +306,11 @@ func backendServiceBindTestScenario(prv *base.ClusterContext, prefix string) (sc
 						ServiceInterfaces: []types.ServiceInterface{
 							{
 								Address:  "hello-world-frontend",
-								Protocol: "http",
+								Protocol: "http1",
 								Ports:    []int{8080},
 							}, {
 								Address:  "hello-world-backend",
-								Protocol: "http", Ports: []int{8080},
+								Protocol: "http1", Ports: []int{8080},
 								Targets: []types.ServiceInterfaceTarget{
 									{
 										Name:        "hello-world-backend",

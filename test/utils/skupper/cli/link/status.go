@@ -3,17 +3,15 @@ package link
 import (
 	"context"
 	"fmt"
-	"log"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
+	"log"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 // StatusTester runs `skupper link status` based on given attributes
@@ -23,7 +21,6 @@ type StatusTester struct {
 	Wait    int
 	Active  bool
 	Failure ClaimFailure
-	Timeout time.Duration
 }
 
 type ClaimFailure string
@@ -44,13 +41,6 @@ func (l *StatusTester) Command(platform types.Platform, cluster *base.ClusterCon
 	if l.Wait > 0 {
 		args = append(args, "--wait", strconv.Itoa(l.Wait))
 	}
-
-	if l.Timeout > time.Second {
-		args = append(args, "--timeout", l.Timeout.String())
-	} else {
-		args = append(args, "--timeout", "1s")
-	}
-
 	return args
 }
 

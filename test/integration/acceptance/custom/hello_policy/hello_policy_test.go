@@ -81,7 +81,6 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 			{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 				// skupper status - verify sites are connected
 				&cli.StatusTester{
-					RouterMode:          "interior",
 					ConnectedSites:      1,
 					ConsoleEnabled:      true,
 					ConsoleAuthInternal: true,
@@ -90,7 +89,6 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 			{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 				// skupper status - verify sites are connected
 				&cli.StatusTester{
-					RouterMode:     "edge",
 					SiteName:       "private",
 					ConnectedSites: 1,
 				},
@@ -123,12 +121,11 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				// skupper service status - verify frontend service is exposed
 				&service.StatusTester{
 					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
+						{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}},
 					},
 				},
 				// skupper status - verify frontend service is exposed
 				&cli.StatusTester{
-					RouterMode:          "interior",
 					ConnectedSites:      1,
 					ExposedServices:     1,
 					ConsoleEnabled:      true,
@@ -145,13 +142,12 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				// skupper service status - validate status of the two created services without targets
 				&service.StatusTester{
 					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
-						{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
+						{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}},
+						{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}},
 					},
 				},
 				// skupper status - verify two services are now exposed
 				&cli.StatusTester{
-					RouterMode:      "edge",
 					SiteName:        "private",
 					ConnectedSites:  1,
 					ExposedServices: 2,
@@ -169,10 +165,10 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				// skupper service status - validate status expecting frontend now has a target
 				&service.StatusTester{
 					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
+						{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
 							{Name: "hello-world-frontend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-frontend"},
 						}},
-						{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
+						{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}},
 					},
 				},
 			}},
@@ -187,8 +183,8 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				// skupper service status - validate backend service now has a target
 				&service.StatusTester{
 					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
-						{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
+						{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}},
+						{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
 							{Name: "hello-world-backend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-backend"},
 						}},
 					},
@@ -211,8 +207,8 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				// skupper service status - validates no more target for frontend service
 				&service.StatusTester{
 					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
-						{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
+						{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}},
+						{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}},
 					},
 				},
 			}},
@@ -226,8 +222,8 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				// skupper service status - validates no more target for frontend service
 				&service.StatusTester{
 					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
-						{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
+						{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}},
+						{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}},
 					},
 				},
 			}},
@@ -239,7 +235,7 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				// skupper service status - verify only backend is available
 				&service.StatusTester{
 					ServiceInterfaces: []types.ServiceInterface{
-						{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
+						{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}},
 					},
 				},
 			}},
@@ -250,7 +246,6 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				},
 				// skupper status - verify there is no exposed service
 				&cli.StatusTester{
-					RouterMode:      "edge",
 					SiteName:        "private",
 					ConnectedSites:  1,
 					ExposedServices: 0,
@@ -274,7 +269,6 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				},
 				// skupper status - asserts that 1 service is exposed
 				&cli.StatusTester{
-					RouterMode:          "interior",
 					ConnectedSites:      1,
 					ExposedServices:     1,
 					ConsoleEnabled:      true,
@@ -293,7 +287,6 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				},
 				// skupper status - asserts that there are 2 exposed services
 				&cli.StatusTester{
-					RouterMode:      "edge",
 					SiteName:        "private",
 					ConnectedSites:  1,
 					ExposedServices: 2,
@@ -314,7 +307,6 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				},
 				// skupper status - verify only 1 service is exposed
 				&cli.StatusTester{
-					RouterMode:          "interior",
 					ConnectedSites:      1,
 					ExposedServices:     1,
 					ConsoleEnabled:      true,
@@ -330,7 +322,6 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				},
 				// skupper status - verify there is no exposed services
 				&cli.StatusTester{
-					RouterMode:      "edge",
 					SiteName:        "private",
 					ConnectedSites:  1,
 					ExposedServices: 0,
@@ -374,20 +365,16 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 				{Ctx: pub1, Commands: []cli.SkupperCommandTester{
 					// skupper status - verify sites are connected
 					&cli.StatusTester{
-						RouterMode:          "interior",
 						ConnectedSites:      0,
 						ConsoleEnabled:      true,
 						ConsoleAuthInternal: true,
-						PolicyEnabled:       cli.Boolp(true),
 					},
 				}},
 				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 					// skupper status - verify sites are connected
 					&cli.StatusTester{
-						RouterMode:     "edge",
 						SiteName:       "private",
 						ConnectedSites: 0,
-						PolicyEnabled:  cli.Boolp(true),
 					},
 					// skupper link status - testing all links
 					&link.StatusTester{
@@ -409,36 +396,32 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 					// skupper service status - verify frontend service is exposed
 					&service.StatusTester{
 						ServiceInterfaces: []types.ServiceInterface{
-							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
+							{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}},
 						},
 						Absent: true,
 					},
 					// skupper status - verify frontend service is exposed
 					&cli.StatusTester{
-						RouterMode:          "interior",
 						ConnectedSites:      0,
 						ExposedServices:     0,
 						ConsoleEnabled:      true,
 						ConsoleAuthInternal: true,
-						PolicyEnabled:       cli.Boolp(true),
 					},
 				}},
 				{Ctx: pub2, Commands: []cli.SkupperCommandTester{
 					// skupper service status - validate status of the two created services without targets
 					&service.StatusTester{
 						ServiceInterfaces: []types.ServiceInterface{
-							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
-							{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
+							{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}},
+							{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}},
 						},
 						Absent: true,
 					},
 					// skupper status - verify two services are now exposed
 					&cli.StatusTester{
-						RouterMode:      "edge",
 						SiteName:        "private",
 						ConnectedSites:  0,
 						ExposedServices: 0,
-						PolicyEnabled:   cli.Boolp(true),
 					},
 				}},
 				// Binding the services
@@ -454,10 +437,10 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 					// skupper service status - validate status expecting frontend now has a target
 					&service.StatusTester{
 						ServiceInterfaces: []types.ServiceInterface{
-							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
+							{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
 								{Name: "hello-world-frontend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-frontend"},
 							}},
-							{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}},
+							{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}},
 						},
 						Absent: true,
 					},
@@ -474,8 +457,8 @@ func testHelloPolicy(t *testing.T, pub1, pub2 *base.ClusterContext) {
 					// skupper service status - validate backend service now has a target
 					&service.StatusTester{
 						ServiceInterfaces: []types.ServiceInterface{
-							{Address: "hello-world-frontend", Protocol: "http", Ports: []int{8080}},
-							{Address: "hello-world-backend", Protocol: "http", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
+							{Address: "hello-world-frontend", Protocol: "http1", Ports: []int{8080}},
+							{Address: "hello-world-backend", Protocol: "http1", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
 								{Name: "hello-world-backend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-backend"},
 							}},
 						},
