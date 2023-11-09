@@ -388,7 +388,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.RoleBindings = roleBindings
 
 	van.Controller.ClusterRoles = cli.ClusterRoles(options.EnableClusterPermissions)
-	van.Controller.ClusterRoleBindings = ClusterRoleBindings(van.Namespace)
+	van.Controller.ClusterRoleBindings = ClusterRoleBindings(van.Namespace, options.EnableClusterPermissions)
 
 	svctype := corev1.ServiceTypeClusterIP
 	if options.IsConsoleIngressLoadBalancer() {
@@ -576,7 +576,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	van.Controller.Routes = routes
 }
 
-func ClusterRoleBindings(namespace string) []*rbacv1.ClusterRoleBinding {
+func ClusterRoleBindings(namespace string, enableClusterPermissions bool) []*rbacv1.ClusterRoleBinding {
 	clusterRoleBindings := []*rbacv1.ClusterRoleBinding{}
 	clusterRoleBindings = append(clusterRoleBindings, &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -584,7 +584,7 @@ func ClusterRoleBindings(namespace string) []*rbacv1.ClusterRoleBinding {
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf(types.ControllerClusterRoleBindingNsFormat, namespace),
+			Name: fmt.Sprintf("%s-%s", types.ControllerClusterRoleName, namespace),
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      "ServiceAccount",
@@ -596,15 +596,31 @@ func ClusterRoleBindings(namespace string) []*rbacv1.ClusterRoleBinding {
 			Name: types.ControllerClusterRoleName,
 		},
 	})
+	if enableClusterPermissions {
+		clusterRoleBindings = append(clusterRoleBindings, &rbacv1.ClusterRoleBinding{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "ClusterRoleBinding",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("%s-%s", types.ControllerExtendedClusterRoleName, namespace),
+			},
+			Subjects: []rbacv1.Subject{{
+				Kind:      "ServiceAccount",
+				Name:      types.ControllerServiceAccountName,
+				Namespace: namespace,
+			}},
+			RoleRef: rbacv1.RoleRef{
+				Kind: "ClusterRole",
+				Name: types.ControllerExtendedClusterRoleName,
+			},
+		})
+	}
 	return clusterRoleBindings
 }
 
 func (cli *VanClient) ClusterRoles(enablePermissions bool) []*rbacv1.ClusterRole {
-	controllerRules := []rbacv1.PolicyRule{}
-	if enablePermissions {
-		controllerRules = cli.getControllerRules()
-	}
-	clusterRoles := []*rbacv1.ClusterRole{}
+	var clusterRoles []*rbacv1.ClusterRole
 	clusterRoles = append(clusterRoles, &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -613,8 +629,20 @@ func (cli *VanClient) ClusterRoles(enablePermissions bool) []*rbacv1.ClusterRole
 		ObjectMeta: metav1.ObjectMeta{
 			Name: types.ControllerClusterRoleName,
 		},
-		Rules: append(types.ClusterControllerPolicyRules, controllerRules...),
+		Rules: types.ClusterControllerPolicyRules,
 	})
+	if enablePermissions {
+		clusterRoles = append(clusterRoles, &rbacv1.ClusterRole{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "ClusterRole",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: types.ControllerExtendedClusterRoleName,
+			},
+			Rules: types.ClusterControllerExtendedPolicyRules,
+		})
+	}
 	return clusterRoles
 }
 
@@ -1319,9 +1347,8 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 		policyValidator := NewClusterPolicyValidator(cli)
 		for _, clusterRole := range van.Controller.ClusterRoles {
-			clusterRole.ObjectMeta.OwnerReferences = ownerRefs
 			// optional (in case of failure, cluster admin can add necessary cluster roles manually)
-			kube.CreateOrExtendClusterRole(clusterRole, cli.KubeClient, options.Spec.EnableClusterPermissions)
+			kube.CreateClusterRole(clusterRole, cli.KubeClient)
 		}
 		for _, clusterRoleBinding := range van.Controller.ClusterRoleBindings {
 			clusterRoleBinding.ObjectMeta.OwnerReferences = ownerRefs

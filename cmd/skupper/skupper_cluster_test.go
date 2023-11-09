@@ -1471,7 +1471,7 @@ func TestUnbindWithCluster(t *testing.T) {
 		_, err = anotherDeployments.Create(context.TODO(), tcpDeployment, metav1.CreateOptions{})
 		assert.Assert(t, err)
 	}
-	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none"}...)
+	skupperInit(t, []string{"--router-mode=edge", "--console-ingress=none", "--enable-cluster-permissions=true"}...)
 
 	if *clusterRun {
 		createCmd := NewCmdCreateService(testClient.Service())

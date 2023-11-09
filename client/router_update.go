@@ -529,27 +529,36 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 		updateController = true
 	}
+	// check if old cluster role & role binding exists
+	if deleted, _ := kube.DeleteClusterRole("skupper-service-controller", cli.KubeClient); deleted {
+		addClusterPolicy = true
+	}
+	if deleted, _ := kube.DeleteClusterRoleBinding(fmt.Sprintf("skupper-service-controller-%s", namespace), cli.KubeClient); deleted {
+		addClusterPolicy = true
+	}
 	// Add ClusterRoleBinding to allow reading SkupperClusterPolicies (otherwise policy will be disabled)
 	if addClusterPolicy {
-		siteConfig, _ := cli.SiteConfigInspect(ctx, nil)
-		siteOwnerRef := asOwnerReference(siteConfig.Reference)
-		var ownerRefs []metav1.OwnerReference
-		if siteOwnerRef != nil {
-			ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
-		}
-		policyValidator := NewClusterPolicyValidator(cli)
+		siteConfig, _ := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
+		if siteConfig != nil {
+			siteOwnerRef := asOwnerReference(siteConfig.Reference)
+			var ownerRefs []metav1.OwnerReference
+			if siteOwnerRef != nil {
+				ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
+			}
+			policyValidator := NewClusterPolicyValidator(cli)
 
-		for _, clusterRole := range cli.ClusterRoles(siteConfig.Spec.EnableClusterPermissions) {
-			// optional (in case of failure, cluster admin can add necessary cluster roles manually)
-			kube.CreateOrExtendClusterRole(clusterRole, cli.KubeClient, siteConfig.Spec.EnableClusterPermissions)
-		}
-		for _, clusterRoleBinding := range ClusterRoleBindings(namespace) {
-			clusterRoleBinding.ObjectMeta.OwnerReferences = ownerRefs
-			_, err = kube.CreateClusterRoleBinding(clusterRoleBinding, cli.KubeClient)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				if policyValidator.Enabled() {
-					log.Printf("unable to define cluster role binding - %v", err)
-					break
+			for _, clusterRole := range cli.ClusterRoles(siteConfig.Spec.EnableClusterPermissions) {
+				// optional (in case of failure, cluster admin can add necessary cluster roles manually)
+				kube.CreateClusterRole(clusterRole, cli.KubeClient)
+			}
+			for _, clusterRoleBinding := range ClusterRoleBindings(namespace, siteConfig.Spec.EnableClusterPermissions) {
+				clusterRoleBinding.ObjectMeta.OwnerReferences = ownerRefs
+				_, err = kube.CreateClusterRoleBinding(clusterRoleBinding, cli.KubeClient)
+				if err != nil && !errors.IsAlreadyExists(err) {
+					if policyValidator.Enabled() {
+						log.Printf("unable to define cluster role binding - %v", err)
+						break
+					}
 				}
 			}
 		}
