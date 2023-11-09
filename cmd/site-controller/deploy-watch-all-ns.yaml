@@ -63,6 +63,7 @@ rules:
   - watch
   - create
   - delete
+  - update
 - apiGroups:
     - apps.openshift.io
   resources:
