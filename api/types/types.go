@@ -89,7 +89,8 @@ const (
 	ControllerRoleBindingName            string = "skupper-service-controller"
 	ControllerClusterRoleBindingNsFormat string = "skupper-service-controller-%s"
 	ControllerRoleName                   string = "skupper-service-controller"
-	ControllerClusterRoleName            string = "skupper-service-controller"
+	ControllerClusterRoleName            string = "skupper-service-controller-basic"
+	ControllerExtendedClusterRoleName    string = "skupper-service-controller-extended"
 	ControllerConfigPath                 string = "/etc/messaging/"
 	ControllerServiceName                string = "skupper"
 	FlowCollectorContainerName           string = "flow-collector"
@@ -150,6 +151,14 @@ var ClusterControllerPolicyRules = []rbacv1.PolicyRule{
 		APIGroups: []string{""},
 		Resources: []string{"nodes"},
 		Verbs:     []string{"get", "list", "watch"},
+	},
+}
+
+var ClusterControllerExtendedPolicyRules = []rbacv1.PolicyRule{
+	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{""},
+		Resources: []string{"pods"},
 	},
 }
 

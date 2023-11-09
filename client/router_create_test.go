@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/google/go-cmp/cmp"
@@ -255,8 +254,8 @@ func TestRouterCreateDefaults(t *testing.T) {
 			depsExpected:         []string{"skupper-service-controller", "skupper-router"},
 			cmsExpected:          []string{types.ServiceInterfaceConfigMap, types.TransportConfigMapName},
 			rolesExpected:        []string{types.TransportRoleName, types.ControllerRoleName},
-			clusterRolesExpected: []string{types.ControllerClusterRoleName},
-			clusterRoleResources: sets.NewString("ingresses", "skupperclusterpolicies", "namespaces", "services", "configmaps", "pods", "nodes", "secrets", "deployments", "statefulsets", "daemonsets"),
+			clusterRolesExpected: []string{types.ControllerClusterRoleName, types.ControllerExtendedClusterRoleName},
+			clusterRoleResources: sets.NewString("skupperclusterpolicies", "nodes", "namespaces", "pods"),
 			roleBindingsExpected: []string{types.TransportRoleBindingName, types.ControllerRoleBindingName},
 			secretsExpected: []string{types.LocalCaSecret,
 				types.SiteCaSecret,
@@ -310,10 +309,9 @@ func TestRouterCreateDefaults(t *testing.T) {
 		assert.Check(t, err, c.doc)
 		defer kube.DeleteNamespace(c.namespace, cli.KubeClient)
 		err = cli.KubeClient.RbacV1().ClusterRoles().Delete(context.TODO(), types.ControllerClusterRoleName, metav1.DeleteOptions{})
-		fieldSelector := fields.OneTermEqualSelector("metadata.name", types.ControllerClusterRoleName).String()
-
+		err = cli.KubeClient.RbacV1().ClusterRoles().Delete(context.TODO(), types.ControllerExtendedClusterRoleName, metav1.DeleteOptions{})
 		clusterRoleInformerFactory := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0,
-			informers.WithTweakListOptions(func(opts *metav1.ListOptions) { opts.FieldSelector = fieldSelector }))
+			informers.WithTweakListOptions(func(opts *metav1.ListOptions) {}))
 		informerFactory := informers.NewSharedInformerFactoryWithOptions(cli.KubeClient, 0, informers.WithNamespace(c.namespace))
 		depInformer := informerFactory.Apps().V1().Deployments().Informer()
 		depInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
@@ -340,9 +338,11 @@ func TestRouterCreateDefaults(t *testing.T) {
 		clusterRoleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				clusterRole := obj.(*rbacv1.ClusterRole)
-				clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
-				for _, p := range clusterRole.Rules {
-					clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+				if strings.HasPrefix(clusterRole.Name, "skupper") {
+					clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
+					for _, p := range clusterRole.Rules {
+						clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+					}
 				}
 			},
 		})
