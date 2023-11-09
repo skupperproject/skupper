@@ -36,19 +36,35 @@ func AppendConfigVolume(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, 
 	})
 }
 
-func AppendSecretVolume(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, name string, path string) {
+func AppendSecretVolumeWithVolumeName(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, secretName string, volumeName string, path string) {
+	for vi, v := range *volumes {
+		if v.Name == volumeName {
+			*volumes = append((*volumes)[:vi], (*volumes)[vi+1:]...)
+			break
+		}
+	}
 	*volumes = append(*volumes, corev1.Volume{
-		Name: name,
+		Name: volumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: name,
+				SecretName: secretName,
 			},
 		},
 	})
+	for mi, m := range *mounts {
+		if m.Name == volumeName || m.MountPath == path {
+			*mounts = append((*mounts)[:mi], (*mounts)[mi+1:]...)
+			break
+		}
+	}
 	*mounts = append(*mounts, corev1.VolumeMount{
-		Name:      name,
+		Name:      volumeName,
 		MountPath: path,
 	})
+}
+
+func AppendSecretVolume(volumes *[]corev1.Volume, mounts *[]corev1.VolumeMount, name string, path string) {
+	AppendSecretVolumeWithVolumeName(volumes, mounts, name, name, path)
 }
 
 func AppendSharedSecretVolume(volumes *[]corev1.Volume, mounts []*[]corev1.VolumeMount, name string, path string) {

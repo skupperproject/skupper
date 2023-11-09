@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils/configs"
+
+	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/version"
 	appsv1 "k8s.io/api/apps/v1"
@@ -626,6 +629,31 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			updateController = true
 		}
 	}
+	desiredOauthProxyImage := images.GetOauthProxyImageName()
+	for i, container := range controller.Spec.Template.Spec.Containers {
+		if container.Name == "oauth-proxy" {
+			if controller.Spec.Template.Spec.Containers[i].Image != desiredOauthProxyImage {
+				controller.Spec.Template.Spec.Containers[i].Image = desiredOauthProxyImage
+				updateController = true
+			}
+		}
+	}
+	prometheus, err := cli.KubeClient.AppsV1().Deployments(namespace).Get(context.TODO(), types.PrometheusDeploymentName, metav1.GetOptions{})
+	updatePrometheus := false
+	if err == nil {
+		desiredPrometheusImage := images.GetPrometheusServerImageName()
+		if desiredPrometheusImage != prometheus.Spec.Template.Spec.Containers[0].Image {
+			prometheus.Spec.Template.Spec.Containers[0].Image = desiredPrometheusImage
+			touch(prometheus)
+			_, err = cli.KubeClient.AppsV1().Deployments(namespace).Update(context.TODO(), prometheus, metav1.UpdateOptions{})
+			if err != nil {
+				return false, err
+			}
+			updatePrometheus = true
+		}
+	} else if !errors.IsNotFound(err) {
+		return false, err
+	}
 	if kube.CheckProbesForControllerContainer(&controller.Spec.Template.Spec.Containers[0]) {
 		updateController = true
 	}
@@ -736,7 +764,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			return true, err
 		}
 	}
-	return updateRouter || updateController || updateSite, nil
+	return updateRouter || updateController || updateSite || updatePrometheus, nil
 }
 
 func (cli *VanClient) renameRouterConfigFile(namespace string) (bool, error) {
