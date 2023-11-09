@@ -366,13 +366,11 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 
 func validateCrossNamespacePermissions(cli *VanClient, targetNamespace string) error {
 	if len(targetNamespace) > 0 && targetNamespace != cli.GetNamespace() {
-		clusterRole, err := cli.KubeClient.RbacV1().ClusterRoles().Get(context.TODO(), types.ControllerClusterRoleName, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("Failed fetching cluster roles: %s", err)
-		}
-		policyRules := append(types.ClusterControllerPolicyRules, cli.getControllerRules()...)
-		if !ContainsAllPolicies(policyRules, clusterRole.Rules) {
+		_, err := cli.KubeClient.RbacV1().ClusterRoleBindings().Get(context.TODO(), fmt.Sprintf("%s-%s", types.ControllerExtendedClusterRoleName, cli.GetNamespace()), metav1.GetOptions{})
+		if errors.IsNotFound(err) {
 			return fmt.Errorf("Current site does not included needed permissions to expose targets in other namespaces")
+		} else if err != nil {
+			return fmt.Errorf("Failed fetching cluster role bindings: %s", err)
 		}
 		return nil
 	}
