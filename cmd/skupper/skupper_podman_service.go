@@ -348,7 +348,14 @@ func (s *SkupperPodmanService) ExposeArgs(cmd *cobra.Command, args []string) err
 }
 
 func (s *SkupperPodmanService) ExposeFlags(cmd *cobra.Command) {
-	cmd.Use = "expose [host hostOrIP]"
+	cmd.Use = "expose [host <hostname|ip>]"
+	cmd.Example = `
+        # exposing a local network IP
+        skupper expose host 10.0.0.1 --address my-service --port 8080
+
+        # exposing a podman container connected to the same podman network
+        skupper expose host my-container --address my-service --port 8080`
+
 	s.createFlags.Labels = map[string]string{}
 	s.exposeFlags.PodmanServiceCreateFlags = &PodmanServiceCreateFlags{}
 	cmd.Flags().StringVar(&s.exposeFlags.ContainerName, "container-name", "", "Use a different container name")
@@ -389,7 +396,13 @@ func (s *SkupperPodmanService) Unexpose(cmd *cobra.Command, args []string) error
 }
 
 func (s *SkupperPodmanService) UnexposeFlags(cmd *cobra.Command) error {
-	cmd.Use = "unexpose [host hostOrIP]"
+	cmd.Use = "unexpose [host <hostname|ip>]"
+	cmd.Example = `
+        # unexposing a local network IP
+        skupper unexpose host 10.0.0.1 --address my-service
+
+        # unexposing a podman container connected to the same podman network
+        skupper unexpose host my-container --address my-service`
 	return nil
 }
 
