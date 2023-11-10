@@ -76,6 +76,24 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 
 	siteHandler, err := podman.NewSitePodmanHandler(site.PodmanEndpoint)
 	if err != nil {
+		recommendation := `
+Recommendation:
+
+	Make sure you have an active podman endpoint available.
+	On most systems you can execute:
+
+		systemctl --user enable --now podman.socket
+
+	Alternatively you could also create your own service that runs:
+
+		podman system service --time=0 <URI>
+
+	You can get concrete examples through:
+
+		podman help system service
+
+`
+		cmd.SetUsageTemplate(recommendation + cmd.UsageString())
 		return fmt.Errorf("Unable to initialize Skupper - %w", err)
 	}
 
