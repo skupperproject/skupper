@@ -76,6 +76,7 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 
 	siteHandler, err := podman.NewSitePodmanHandler(site.PodmanEndpoint)
 	if err != nil {
+		initErr := fmt.Errorf("Unable to initialize Skupper - %w", err)
 		recommendation := `
 Recommendation:
 
@@ -90,11 +91,13 @@ Recommendation:
 
 	You can get concrete examples through:
 
-		podman help system service
+		podman help system service`
 
-`
-		cmd.SetUsageTemplate(recommendation + cmd.UsageString())
-		return fmt.Errorf("Unable to initialize Skupper - %w", err)
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+		fmt.Println("Error:", initErr)
+		fmt.Println(recommendation)
+		return initErr
 	}
 
 	// Validating ingress type
