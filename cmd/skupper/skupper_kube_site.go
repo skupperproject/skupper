@@ -301,10 +301,12 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 				}
 			}
 		} else {
-			return fmt.Errorf("unable to retrieve skupper status")
+			fmt.Println("Status pending...")
+			return nil
 		}
 	} else {
-		return fmt.Errorf("unable to retrieve skupper status")
+		fmt.Println("Status pending...")
+		return nil
 	}
 	return nil
 }
