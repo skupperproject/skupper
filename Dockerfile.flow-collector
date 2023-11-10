@@ -13,9 +13,9 @@ RUN make
 FROM node:18.18.2 AS console-builder
 
 WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
+ADD https://github.com/skupperproject/skupper-console/archive/refs/tags/1.5.0.tar.gz .
 RUN tar -zxf main.tar.gz
-WORKDIR ./skupper-console-main
+WORKDIR ./skupper-console-1.5.0
 RUN yarn install && yarn build
 
 FROM registry.access.redhat.com/ubi9-minimal
@@ -28,5 +28,5 @@ USER 10000
 
 WORKDIR /app
 COPY --from=builder /go/src/app/flow-collector .
-COPY --from=console-builder /skupper-console/skupper-console-main/build/ console
+COPY --from=console-builder /skupper-console/skupper-console-1.5.0/build/ console
 CMD ["/app/flow-collector"]
