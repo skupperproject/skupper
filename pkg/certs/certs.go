@@ -175,13 +175,10 @@ func generateSimpleSecretWithCA(name string, ca *CertificateAuthority) corev1.Se
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Type: "kubernetes.io/tls",
 		Data: map[string][]byte{},
 	}
 
 	secret.Data["ca.crt"] = ca.CrtData
-	secret.Data["tls.crt"] = []byte{}
-	secret.Data["tls.key"] = []byte{}
 
 	return secret
 }
