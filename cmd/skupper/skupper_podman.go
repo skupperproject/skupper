@@ -7,6 +7,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	clientpodman "github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
+	"github.com/skupperproject/skupper/test/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -83,6 +84,7 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 	// endpoint can be provided during init
 	var endpoint string
 	var isInitCmd bool
+	exitOnError := true
 	switch cmd.Name() {
 	case "init":
 		// require site not present
@@ -90,6 +92,8 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 			endpoint = args[0]
 		}
 		isInitCmd = true
+	case "version":
+		exitOnError = false
 	default:
 		podmanCfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
 		if err != nil {
@@ -101,8 +105,9 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 
 	c, err := clientpodman.NewPodmanClient(endpoint, "")
 	if err != nil {
-		if endpoint != "" {
-			fmt.Printf("Podman endpoint is not available: %s", endpoint)
+		if exitOnError {
+			fmt.Printf("Podman endpoint is not available: %s",
+				utils.StrDefault(endpoint, clientpodman.GetDefaultPodmanEndpoint()))
 			fmt.Println()
 			os.Exit(1)
 		}
