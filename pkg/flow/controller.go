@@ -99,15 +99,12 @@ func UpdateHost(c *FlowController, deleted bool, name string, host *HostRecord) 
 	return nil
 }
 
-func (c *FlowController) updateBeaconAndHeartbeats(stopCh <-chan struct{}) {
+func (c *FlowController) updateBeacon(stopCh <-chan struct{}) {
 	tickerAge := time.NewTicker(10 * time.Minute)
 	defer tickerAge.Stop()
 
 	beaconTimer := time.NewTicker(10 * time.Second)
 	defer beaconTimer.Stop()
-
-	heartbeatTimer := time.NewTicker(2 * time.Second)
-	defer heartbeatTimer.Stop()
 
 	identity := c.origin
 
@@ -119,20 +116,38 @@ func (c *FlowController) updateBeaconAndHeartbeats(stopCh <-chan struct{}) {
 		Identity:   identity,
 	}
 
+	c.beaconOutgoing <- beacon
+
+	for {
+		select {
+		case <-beaconTimer.C:
+			c.beaconOutgoing <- beacon
+		case <-tickerAge.C:
+		case <-stopCh:
+			return
+
+		}
+	}
+}
+
+func (c *FlowController) updateHeartbeats(stopCh <-chan struct{}) {
+	tickerAge := time.NewTicker(10 * time.Minute)
+	defer tickerAge.Stop()
+
+	heartbeatTimer := time.NewTicker(2 * time.Second)
+	defer heartbeatTimer.Stop()
+
 	heartbeat := &HeartbeatRecord{
 		Version:  1,
 		Identity: os.Getenv("SKUPPER_SITE_ID"),
 		Source:   "sfe." + c.origin,
 	}
 
-	c.beaconOutgoing <- beacon
 	heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 	c.heartbeatOutgoing <- heartbeat
 
 	for {
 		select {
-		case <-beaconTimer.C:
-			c.beaconOutgoing <- beacon
 		case <-heartbeatTimer.C:
 			heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 			c.heartbeatOutgoing <- heartbeat
@@ -223,12 +238,13 @@ func (c *FlowController) run(stopCh <-chan struct{}) {
 	recordSender.start()
 	flushReceiver.start()
 
-	go c.updateBeaconAndHeartbeats(stopCh)
+	go c.updateBeacon(stopCh)
+	go c.updateHeartbeats(stopCh)
 	go c.updateRecords(stopCh)
 	<-stopCh
 
 	beaconSender.stop()
-	heartbeatSender.start()
+	heartbeatSender.stop()
 	recordSender.stop()
 	flushReceiver.stop()
 }
