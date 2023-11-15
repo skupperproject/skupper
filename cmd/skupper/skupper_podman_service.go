@@ -350,6 +350,9 @@ func (s *SkupperPodmanService) ExposeArgs(cmd *cobra.Command, args []string) err
 func (s *SkupperPodmanService) ExposeFlags(cmd *cobra.Command) {
 	cmd.Use = "expose [host <hostname|ip>]"
 	cmd.Example = `
+	    # exposing a service running on the local machine
+        skupper expose host localhost --address my-service --port 8080
+
         # exposing a local network IP
         skupper expose host 10.0.0.1 --address my-service --port 8080
 
