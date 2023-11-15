@@ -13,9 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/utils/configs"
-
-	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/version"
 	appsv1 "k8s.io/api/apps/v1"
