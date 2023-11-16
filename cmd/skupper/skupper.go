@@ -534,7 +534,7 @@ var exposeOpts ExposeOptions
 func NewCmdExpose(skupperCli SkupperServiceClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "expose",
-		Short:  "Expose one or more network services",
+		Short:  "Expose a set of pods through a Skupper address",
 		Args:   skupperCli.ExposeArgs,
 		PreRun: skupperCli.NewClient,
 		RunE:   skupperCli.Expose,
