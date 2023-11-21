@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/version"
 	"github.com/spf13/cobra"
 )
@@ -46,6 +47,21 @@ func (s *SkupperKubeDebug) Events(cmd *cobra.Command, args []string) error {
 func (s *SkupperKubeDebug) Service(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 	output, err := s.kube.Cli.SkupperCheckService(args[0], verbose)
+	if err != nil {
+		return err
+	}
+	os.Stdout.Write(output.Bytes())
+	return nil
+}
+
+func (s *SkupperKubeDebug) Policies(cmd *cobra.Command, args []string) error {
+	silenceCobra(cmd)
+	cpv := client.NewClusterPolicyValidator(s.kube.Cli.(*client.VanClient))
+	if !cpv.Enabled() {
+		fmt.Println("Skupper cluster policies are disabled")
+		return nil
+	}
+	output, err := s.kube.Cli.SkupperPolicies(verbose)
 	if err != nil {
 		return err
 	}
