@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/schollz/progressbar/v3"
 	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"reflect"
 	"strings"
 	"time"
@@ -102,6 +104,29 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		}
 		return err
 	}
+
+	networkStatusBar := progressbar.NewOptions(120,
+		progressbar.OptionSetDescription("Configuring network status config map..."),
+		progressbar.OptionFullWidth())
+
+	err = utils.RetryError(time.Second, 120, func() error {
+		networkStatusBar.Add(3)
+		statusInfo, statusError := cli.NetworkStatus(ctx)
+		if statusError != nil {
+			return statusError
+		} else if len(statusInfo.SiteStatus) == 0 || len(statusInfo.SiteStatus[0].RouterStatus) == 0 {
+			return fmt.Errorf("network status not loaded yet")
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	} else {
+		networkStatusBar.Finish()
+		fmt.Println()
+	}
+
 	fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
 
 	return nil

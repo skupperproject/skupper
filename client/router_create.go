@@ -1502,28 +1502,6 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 	}
 
-	networkStatusBar := progressbar.NewOptions(120,
-		progressbar.OptionSetDescription("Configuring network status config map..."),
-		progressbar.OptionFullWidth())
-
-	err = utils.RetryError(time.Second, 120, func() error {
-		networkStatusBar.Add(3)
-		statusInfo, statusError := cli.NetworkStatus(ctx)
-		if statusError != nil {
-			return statusError
-		} else if len(statusInfo.SiteStatus) == 0 || len(statusInfo.SiteStatus[0].RouterStatus) == 0 {
-			return fmt.Errorf("network status not loaded yet")
-		}
-		return nil
-	})
-
-	if err != nil {
-		return err
-	} else {
-		networkStatusBar.Finish()
-		fmt.Println()
-	}
-
 	return nil
 }
 
