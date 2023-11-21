@@ -298,6 +298,12 @@ commands:
             go build -ldflags "-X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}"
             -o dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>
             ./cmd/skupper
+      - run:
+          name: Audit << parameters.platform >>
+          command: >-
+            sha512sum dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>;
+            file dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>;
+            go version -m dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>;
 
   podman-latest:
     description: "Install latest podman v4 or higher"
