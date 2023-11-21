@@ -5,6 +5,12 @@ orbs:
     go: circleci/go@1.7.1
 
 executors:
+  go_cimg:
+    docker:
+      - image: cimg/go:1.20
+    environment:
+      CGO_ENABLED: 0
+
   local_cluster_test_executor:
     machine:
       image: ubuntu-2204:2022.10.2
@@ -411,8 +417,7 @@ workflows:
 jobs:
   test:
     executor:
-      name: go/default
-      tag: "1.20"
+      name: go_cimg
     steps:
       - checkout
       - run:
@@ -467,8 +472,7 @@ jobs:
 
   build-all:
     executor:
-      name: go/default
-      tag: "1.20"
+      name: go_cimg
     steps:
       - checkout
       - go/mod-download-cached
@@ -551,8 +555,7 @@ jobs:
 
   generate-manifest:
     executor:
-      name: go/default
-      tag: "1.20"
+      name: go_cimg
     steps:
       - checkout
       - go/mod-download-cached
@@ -591,8 +594,7 @@ jobs:
 
   publish-github-release-images:
     executor:
-      name: go/default
-      tag: "1.20"
+      name: go_cimg
     steps:
       - checkout
       - setup_remote_docker
@@ -612,8 +614,7 @@ jobs:
 
   publish-github-main-images:
     executor:
-      name: go/default
-      tag: "1.20"
+      name: go_cimg
     steps:
       - checkout
       - setup_remote_docker
