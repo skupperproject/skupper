@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
 
+	"github.com/schollz/progressbar/v3"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/resolver"
@@ -1331,15 +1332,23 @@ sasldb_path: /tmp/skrouterd.sasldb
 					return err
 				}
 
+				var bar *progressbar.ProgressBar
 				if len(hosts) == 0 {
+					waitingFor := "Waiting to try and resolve SANs for router..."
+
 					if options.Spec.IsIngressLoadBalancer() {
-						fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", time.Until(deadline).Milliseconds()/1000)
-					} else {
-						fmt.Printf("Waiting %d seconds to try and resolve SANs for router...\n", time.Until(deadline).Milliseconds()/1000)
+						waitingFor = "Waiting for LoadBalancer IP or hostname..."
 					}
+
+					bar = progressbar.NewOptions(int(time.Until(deadline).Milliseconds()/1000),
+						progressbar.OptionSetDescription(waitingFor),
+						progressbar.OptionFullWidth())
 				}
 
 				for len(hosts) == 0 && !deadlineExceeded {
+					if bar != nil {
+						bar.Add(10)
+					}
 					select {
 					case <-ctx.Done():
 						fmt.Println("context deadline exceeded")
@@ -1361,6 +1370,11 @@ sasldb_path: /tmp/skrouterd.sasldb
 						return fmt.Errorf("Failed to resolve SANs for %s", cred.Name)
 					}
 				} else {
+					if bar != nil {
+						bar.Finish()
+					}
+
+					fmt.Println()
 					for _, host := range hosts {
 						cred.Hosts = append(cred.Hosts, host)
 						if len(host) < 64 {
@@ -1488,6 +1502,28 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 	}
 
+	networkStatusBar := progressbar.NewOptions(120,
+		progressbar.OptionSetDescription("Configuring network status config map..."),
+		progressbar.OptionFullWidth())
+
+	err = utils.RetryError(time.Second, 120, func() error {
+		networkStatusBar.Add(3)
+		statusInfo, statusError := cli.NetworkStatus(ctx)
+		if statusError != nil {
+			return statusError
+		} else if len(statusInfo.SiteStatus) == 0 || len(statusInfo.SiteStatus[0].RouterStatus) == 0 {
+			return fmt.Errorf("network status not loaded yet")
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	} else {
+		networkStatusBar.Finish()
+		fmt.Println()
+	}
+
 	return nil
 }
 
@@ -1518,16 +1554,21 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceNam
 
 	ctx, _ = getCurrentContextOrDefault(ctx)
 	deadline, _ := ctx.Deadline()
-	fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", time.Until(deadline).Milliseconds()/1000)
 	deadlineExceeded := false
 
+	bar := progressbar.NewOptions(int(time.Until(deadline).Milliseconds()/1000),
+		progressbar.OptionSetDescription("Waiting for LoadBalancer IP or hostname..."),
+		progressbar.OptionFullWidth())
+
 	for host == "" && !deadlineExceeded {
+		bar.Add(10)
 		select {
 		case <-ctx.Done():
 			fmt.Println("context deadline exceeded")
 			deadlineExceeded = true
 			break
 		default:
+			bar.Add(1)
 			time.Sleep(time.Second)
 			service, err = kube.GetService(serviceName, namespace, cli.KubeClient)
 			host = kube.GetLoadBalancerHostOrIP(service)
@@ -1537,6 +1578,7 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceNam
 	if host == "" {
 		return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", serviceName)
 	} else {
+		bar.Finish()
 		cred.Hosts = append(cred.Hosts, host)
 		if len(host) < 64 {
 			cred.Subject = host
