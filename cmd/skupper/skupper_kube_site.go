@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/schollz/progressbar/v3"
+	"github.com/briandowns/spinner"
 	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"reflect"
@@ -105,12 +105,12 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	networkStatusBar := progressbar.NewOptions(120,
-		progressbar.OptionSetDescription("Configuring network status config map..."),
-		progressbar.OptionFullWidth())
+	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+
+	spin.Prefix = "Configuring network status config map..."
 
 	err = utils.RetryError(time.Second, 120, func() error {
-		networkStatusBar.Add(3)
+		spin.Start()
 		statusInfo, statusError := cli.NetworkStatus(ctx)
 		if statusError != nil {
 			return statusError
@@ -120,11 +120,10 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		return nil
 	})
 
+	spin.Stop()
+
 	if err != nil {
 		return err
-	} else {
-		networkStatusBar.Finish()
-		fmt.Println()
 	}
 
 	fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")

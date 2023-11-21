@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/briandowns/spinner"
 	"log"
 	"net"
 	"strconv"
@@ -23,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/schollz/progressbar/v3"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/resolver"
@@ -1306,7 +1306,6 @@ sasldb_path: /tmp/skrouterd.sasldb
 	if cn != nil {
 		defer cn()
 	}
-	deadline, _ := currentContext.Deadline()
 
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
 		if options.Spec.IsIngressNginxIngress() || options.Spec.IsIngressKubernetes() {
@@ -1332,7 +1331,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 					return err
 				}
 
-				var bar *progressbar.ProgressBar
+				var spin *spinner.Spinner
 				if len(hosts) == 0 {
 					waitingFor := "Waiting to try and resolve SANs for router..."
 
@@ -1340,15 +1339,12 @@ sasldb_path: /tmp/skrouterd.sasldb
 						waitingFor = "Waiting for LoadBalancer IP or hostname..."
 					}
 
-					bar = progressbar.NewOptions(int(time.Until(deadline).Milliseconds()/1000),
-						progressbar.OptionSetDescription(waitingFor),
-						progressbar.OptionFullWidth())
+					spin = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+					spin.Prefix = waitingFor
 				}
 
 				for len(hosts) == 0 && !deadlineExceeded {
-					if bar != nil {
-						bar.Add(10)
-					}
+					spin.Start()
 					select {
 					case <-ctx.Done():
 						fmt.Println("context deadline exceeded")
@@ -1363,6 +1359,10 @@ sasldb_path: /tmp/skrouterd.sasldb
 					}
 				}
 
+				if spin != nil {
+					spin.Stop()
+				}
+
 				if len(hosts) == 0 {
 					if options.Spec.IsIngressLoadBalancer() {
 						return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", types.TransportServiceName)
@@ -1370,11 +1370,6 @@ sasldb_path: /tmp/skrouterd.sasldb
 						return fmt.Errorf("Failed to resolve SANs for %s", cred.Name)
 					}
 				} else {
-					if bar != nil {
-						bar.Finish()
-					}
-
-					fmt.Println()
 					for _, host := range hosts {
 						cred.Hosts = append(cred.Hosts, host)
 						if len(host) < 64 {
@@ -1531,32 +1526,30 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceNam
 	host := kube.GetLoadBalancerHostOrIP(service)
 
 	ctx, _ = getCurrentContextOrDefault(ctx)
-	deadline, _ := ctx.Deadline()
 	deadlineExceeded := false
+	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 
-	bar := progressbar.NewOptions(int(time.Until(deadline).Milliseconds()/1000),
-		progressbar.OptionSetDescription("Waiting for LoadBalancer IP or hostname..."),
-		progressbar.OptionFullWidth())
+	spin.Prefix = "\"Waiting for LoadBalancer IP or hostname..."
 
 	for host == "" && !deadlineExceeded {
-		bar.Add(10)
+		spin.Start()
 		select {
 		case <-ctx.Done():
 			fmt.Println("context deadline exceeded")
 			deadlineExceeded = true
 			break
 		default:
-			bar.Add(1)
 			time.Sleep(time.Second)
 			service, err = kube.GetService(serviceName, namespace, cli.KubeClient)
 			host = kube.GetLoadBalancerHostOrIP(service)
 		}
 	}
 
+	spin.Stop()
+
 	if host == "" {
 		return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", serviceName)
 	} else {
-		bar.Finish()
 		cred.Hosts = append(cred.Hosts, host)
 		if len(host) < 64 {
 			cred.Subject = host
