@@ -64,7 +64,8 @@ func TestUpdateBeaconAndHeartbeats(t *testing.T) {
 	fc := NewFlowController("mySite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil)
 	assert.Assert(t, fc != nil)
 	stopCh := make(chan struct{})
-	go fc.updateBeaconAndHeartbeats(stopCh)
+	go fc.updateBeacon(stopCh)
+	go fc.updateHeartbeats(stopCh)
 	beaconUpdate := <-fc.beaconOutgoing
 	assert.Assert(t, beaconUpdate != nil)
 	beacon, ok := beaconUpdate.(*BeaconRecord)
