@@ -360,6 +360,7 @@ yaml-templates:
   release_requires: &release_requires
     requires:
       - build-all
+      - test-skupper-binary
       - test
       - main_tests_minikube_local_cluster
       - policy_tests_minikube_local_cluster
@@ -681,7 +682,7 @@ jobs:
       - run:
           name: "Create a Pre-Release on GitHub"
           command: |
-            VERSION="main"
+            VERSION="main-release"
             BASEDIR=`pwd`
             mkdir "${BASEDIR}/archives"
             for p in `ls dist` ; do
