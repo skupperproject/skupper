@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/briandowns/spinner"
 	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"reflect"
@@ -105,22 +104,39 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-
-	spin.Prefix = "Configuring network status config map..."
-
-	err = utils.RetryError(time.Second, 120, func() error {
-		spin.Start()
-		statusInfo, statusError := cli.NetworkStatus(ctx)
-		if statusError != nil {
-			return statusError
-		} else if len(statusInfo.SiteStatus) == 0 || len(statusInfo.SiteStatus[0].RouterStatus) == 0 {
-			return fmt.Errorf("network status not loaded yet")
+	err = utils.NewSpinner("Waiting for site leader election...", 50, func() error {
+		exists := cli.CheckNetworkStatusConfigMap(context.TODO(), types.SiteLeaderLockName)
+		if !exists {
+			return fmt.Errorf("%s configmap not created yet", types.SiteLeaderLockName)
 		}
 		return nil
 	})
 
-	spin.Stop()
+	if err != nil {
+		return err
+	}
+
+	err = utils.NewSpinner("Waiting for skupper network status config map...", 50, func() error {
+		exists := cli.CheckNetworkStatusConfigMap(context.TODO(), types.NetworkStatusConfigMapName)
+		if !exists {
+			return fmt.Errorf("%s configmap not created yet", types.NetworkStatusConfigMapName)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	err = utils.NewSpinner("Configuring data in skupper network status config map...", 50, func() error {
+		statusInfo, statusError := cli.NetworkStatus(ctx)
+		if statusError != nil {
+			return statusError
+		} else if statusInfo == nil || len(statusInfo.SiteStatus) == 0 || len(statusInfo.SiteStatus[0].RouterStatus) == 0 {
+			return fmt.Errorf("network status not loaded yet")
+		}
+		return nil
+	})
 
 	if err != nil {
 		return err
@@ -277,15 +293,6 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 				mode:      routerMode,
 				siteName:  currentSite.Site.Name,
 				policies:  currentSite.Site.Policy,
-			}
-
-			if len(vir.Status.ConnectedSites.Warnings) > 0 {
-				var warnings []string
-				for _, w := range vir.Status.ConnectedSites.Warnings {
-					warnings = append(warnings, w)
-				}
-
-				statusDataOutput.warnings = warnings
 			}
 
 			mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&currentSite.RouterStatus[0], &currentSite.Site)

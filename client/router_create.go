@@ -1341,6 +1341,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 
 					spin = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 					spin.Prefix = waitingFor
+					spin.FinalMSG = waitingFor + "\n"
 				}
 
 				for len(hosts) == 0 && !deadlineExceeded {
@@ -1529,7 +1530,9 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceNam
 	deadlineExceeded := false
 	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 
-	spin.Prefix = "\"Waiting for LoadBalancer IP or hostname..."
+	message := "Waiting for LoadBalancer IP or hostname..."
+	spin.Prefix = message
+	spin.FinalMSG = message + "\n"
 
 	for host == "" && !deadlineExceeded {
 		spin.Start()

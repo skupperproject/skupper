@@ -7,13 +7,12 @@ import (
 	"github.com/skupperproject/skupper/pkg/domain/kube"
 	k8s "github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/network"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (cli *VanClient) NetworkStatus(ctx context.Context) (*network.NetworkStatusInfo, error) {
 
 	//Checking if the router has been deployed
-	_, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(ctx, types.TransportDeploymentName, metav1.GetOptions{})
+	_, err := k8s.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
 	if err != nil {
 		return nil, fmt.Errorf("Skupper is not installed: %s", err)
 	}
@@ -38,4 +37,15 @@ func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.Site
 	}
 	linkHander := kube.NewLinkHandlerKube(cli.Namespace, siteConfig, cfg, cli.KubeClient, cli.RestConfig)
 	return linkHander.RemoteLinks(ctx)
+}
+
+func (cli *VanClient) CheckNetworkStatusConfigMap(ctx context.Context, name string) bool {
+	configmap, err := k8s.GetConfigMap(name, cli.Namespace, cli.KubeClient)
+	if err != nil {
+		return false
+	} else if configmap == nil {
+		return false
+	}
+
+	return true
 }
