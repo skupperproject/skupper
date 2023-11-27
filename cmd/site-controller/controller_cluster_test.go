@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
-	k8stesting "k8s.io/client-go/testing"
 	"os"
 	"strings"
 	"testing"
@@ -23,7 +20,6 @@ import (
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
 var siteConfig *corev1.ConfigMap = &corev1.ConfigMap{
@@ -204,7 +200,6 @@ func TestSiteControlleWithCluster(t *testing.T) {
 
 	publicNamespace := "site-controller-cluster-test-" + strings.ToLower(utils.RandomId(4))
 	publicCli, err := client.NewClient(publicNamespace, kubeContext, kubeConfigPath)
-	setUpMockups(publicCli.KubeClient)
 	assert.Assert(t, err)
 
 	_, err = kube.NewNamespace(publicNamespace, publicCli.KubeClient)
@@ -213,7 +208,6 @@ func TestSiteControlleWithCluster(t *testing.T) {
 
 	privateNamespace := "site-controller-cluster-test-" + strings.ToLower(utils.RandomId(4))
 	privateCli, err := client.NewClient(privateNamespace, kubeContext, kubeConfigPath)
-	setUpMockups(privateCli.KubeClient)
 	assert.Assert(t, err)
 
 	_, err = kube.NewNamespace(privateNamespace, privateCli.KubeClient)
@@ -323,84 +317,5 @@ func TestSiteControlleWithCluster(t *testing.T) {
 	err = privateCli.KubeClient.CoreV1().ConfigMaps(privateNamespace).Delete(context.TODO(), "skupper-site", metav1.DeleteOptions{})
 	assert.Assert(t, err)
 	<-cont
-
-}
-
-func setUpMockups(cli kubernetes.Interface) {
-
-	cli.(*fake.Clientset).Fake.PrependReactor("get", "configmaps", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		configMapName := action.(k8stesting.GetAction).GetName()
-
-		if configMapName == "skupper-site-leader" {
-			configMap := corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: types.SiteLeaderLockName,
-				},
-				Data: map[string]string{},
-			}
-			return true, &configMap, nil
-		} else if configMapName == "skupper-network-status" {
-			configMap := corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: types.ServiceInterfaceConfigMap,
-				},
-				Data: map[string]string{
-					"NetworkStatus": `
-{
-  "addresses": null,
-  "siteStatus": [
-    {
-      "site": {
-        "recType": "SITE",
-        "identity": "0c32be16-c586-47ee-bbc0-1c9ef8cda0d5",
-        "startTime": 1700583152000000,
-        "endTime": 0,
-        "source": "0c32be16-c586-47ee-bbc0-1c9ef8cda0d5",
-        "platform": "kubernetes",
-        "name": "public1",
-        "nameSpace": "public1",
-        "siteVersion": "285bd9f",
-        "policy": "disabled"
-      },
-      "routerStatus": [
-        {
-          "router": {
-            "recType": "ROUTER",
-            "identity": "tw6zq:0",
-            "parent": "0c32be16-c586-47ee-bbc0-1c9ef8cda0d5",
-            "startTime": 1700583162641974,
-            "endTime": 0,
-            "source": "tw6zq:0",
-            "name": "0/public1-skupper-router-77bcc658bc-tw6zq",
-            "namespace": "public1",
-            "imageName": "skupper-router",
-            "imageVersion": "latest",
-            "hostname": "skupper-router-77bcc658bc-tw6zq",
-            "buildVersion": "0.0.0+2e63964b8e793231ba23d668333c5bd6bcf6255f-main"
-          },
-          "links": null,
-          "listeners": null,
-          "connectors": null
-        }
-      ]
-    }
-  ]
-}
-`,
-				},
-			}
-			return true, &configMap, nil
-		} else {
-			return false, nil, nil
-		}
-	})
 
 }
