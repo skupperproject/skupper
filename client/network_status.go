@@ -38,14 +38,3 @@ func (cli *VanClient) GetRemoteLinks(ctx context.Context, siteConfig *types.Site
 	linkHander := kube.NewLinkHandlerKube(cli.Namespace, siteConfig, cfg, cli.KubeClient, cli.RestConfig)
 	return linkHander.RemoteLinks(ctx)
 }
-
-func (cli *VanClient) CheckNetworkStatusConfigMap(ctx context.Context, name string) bool {
-	configmap, err := k8s.GetConfigMap(name, cli.Namespace, cli.KubeClient)
-	if err != nil {
-		return false
-	} else if configmap == nil {
-		return false
-	}
-
-	return true
-}

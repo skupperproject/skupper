@@ -318,10 +318,6 @@ func (v *vanClientMock) GetRemoteLinks(ctx context.Context, siteConfig *types.Si
 	return nil, nil
 }
 
-func (cli *vanClientMock) CheckNetworkStatusConfigMap(ctx context.Context, name string) bool {
-	return true
-}
-
 func TestCmdUnexposeRun(t *testing.T) {
 	skupperClient := NewSkupperTestClient()
 	cmd := NewCmdUnexpose(skupperClient.Service())

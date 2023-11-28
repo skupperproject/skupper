@@ -1701,19 +1701,7 @@ func setUpMockups(cli kubernetes.Interface) {
 	cli.(*fake.Clientset).Fake.PrependReactor("get", "configmaps", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		configMapName := action.(k8stesting.GetAction).GetName()
 
-		if configMapName == "skupper-site-leader" {
-			configMap := corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: types.SiteLeaderLockName,
-				},
-				Data: map[string]string{},
-			}
-			return true, &configMap, nil
-		} else if configMapName == "skupper-network-status" {
+		if configMapName == "skupper-network-status" {
 			configMap := corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "v1",

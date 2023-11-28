@@ -104,31 +104,7 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = utils.NewSpinner("Waiting for site leader election...", 50, func() error {
-		exists := cli.CheckNetworkStatusConfigMap(context.TODO(), types.SiteLeaderLockName)
-		if !exists {
-			return fmt.Errorf("%s configmap not created yet", types.SiteLeaderLockName)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	err = utils.NewSpinner("Waiting for skupper network status config map...", 50, func() error {
-		exists := cli.CheckNetworkStatusConfigMap(context.TODO(), types.NetworkStatusConfigMapName)
-		if !exists {
-			return fmt.Errorf("%s configmap not created yet", types.NetworkStatusConfigMapName)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	err = utils.NewSpinner("Configuring data in skupper network status config map...", 50, func() error {
+	err = utils.NewSpinner("Waiting for status...", 50, func() error {
 		statusInfo, statusError := cli.NetworkStatus(ctx)
 		if statusError != nil {
 			return statusError
