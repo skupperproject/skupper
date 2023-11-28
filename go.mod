@@ -10,9 +10,10 @@ require (
 	github.com/go-openapi/strfmt v0.21.3
 	github.com/go-openapi/swag v0.21.1
 	github.com/go-openapi/validate v0.22.0
-	github.com/golang/glog v1.0.0
-	github.com/google/go-cmp v0.5.8
-	github.com/google/uuid v1.1.2
+	github.com/golang/glog v1.1.0
+	github.com/google/go-cmp v0.5.9
+	github.com/google/uuid v1.3.0
+	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/interconnectedcloud/go-amqp v0.12.6-0.20200506124159-f51e540008b5
 	github.com/openshift/api v0.0.0-20210428205234-a8389931bee7
@@ -23,11 +24,11 @@ require (
 	github.com/spf13/cobra v0.0.6
 	github.com/tsenart/vegeta/v12 v12.8.3
 	go.mongodb.org/mongo-driver v1.10.0
-	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
-	golang.org/x/net v0.8.0
-	golang.org/x/text v0.8.0
-	google.golang.org/grpc v1.35.0
-	google.golang.org/protobuf v1.28.1
+	golang.org/x/crypto v0.14.0
+	golang.org/x/net v0.17.0
+	golang.org/x/text v0.13.0
+	google.golang.org/grpc v1.56.3
+	google.golang.org/protobuf v1.30.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.20.0
@@ -38,7 +39,8 @@ require (
 replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 
 require (
-	cloud.google.com/go v0.65.0 // indirect
+	cloud.google.com/go/compute v1.19.1 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Azure/azure-sdk-for-go v46.0.0+incompatible // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.1 // indirect
@@ -52,7 +54,7 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
@@ -67,11 +69,10 @@ require (
 	github.com/go-openapi/spec v0.20.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.4.1 // indirect
-	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -98,13 +99,13 @@ require (
 	github.com/xdg-go/scram v1.1.1 // indirect
 	github.com/xdg-go/stringprep v1.0.3 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
-	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b // indirect
+	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
-	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/term v0.6.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
-	google.golang.org/appengine v1.6.6 // indirect
-	google.golang.org/genproto v0.0.0-20210106152847-07624b53cd92 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/klog/v2 v2.4.0 // indirect
