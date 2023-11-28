@@ -318,6 +318,10 @@ func (v *vanClientMock) GetRemoteLinks(ctx context.Context, siteConfig *types.Si
 	return nil, nil
 }
 
+func (v *vanClientMock) GetConsoleUrl(namespace string) (string, error) {
+	return "", nil
+}
+
 func TestCmdUnexposeRun(t *testing.T) {
 	skupperClient := NewSkupperTestClient()
 	cmd := NewCmdUnexpose(skupperClient.Service())

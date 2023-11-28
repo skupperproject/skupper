@@ -235,11 +235,6 @@ func (s *SkupperKubeSite) ListFlags(cmd *cobra.Command) {}
 func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 	cli := s.kube.Cli
-	vir, err := cli.RouterInspect(context.Background())
-	if err != nil {
-		fmt.Printf("Skupper is not enabled in namespace '%s'", cli.GetNamespace())
-		return nil
-	}
 
 	currentStatus, errStatus := cli.NetworkStatus(context.Background())
 	if errStatus != nil {
@@ -283,12 +278,14 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 
 			statusDataOutput.exposedServices = len(currentStatus.Addresses)
 
+			consoleUrl, _ := cli.GetConsoleUrl(cli.GetNamespace())
+
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 			if err != nil {
 				return err
 			} else {
-				if siteConfig.Spec.EnableFlowCollector && vir.ConsoleUrl != "" {
-					statusDataOutput.consoleUrl = vir.ConsoleUrl
+				if siteConfig.Spec.EnableFlowCollector && consoleUrl != "" {
+					statusDataOutput.consoleUrl = consoleUrl
 					if siteConfig.Spec.AuthMode == "internal" {
 						statusDataOutput.credentials = PlatformSupport{"secret", "'skupper-console-users'"}
 					}
