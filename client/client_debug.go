@@ -226,3 +226,7 @@ func (cli *VanClient) SkupperEvents(verbose bool) (*bytes.Buffer, error) {
 func (cli *VanClient) SkupperCheckService(service string, verbose bool) (*bytes.Buffer, error) {
 	return cli.execInServiceControllerPod(addOutputFlag([]string{"get", "servicecheck", service}, verbose))
 }
+
+func (cli *VanClient) SkupperPolicies(verbose bool) (*bytes.Buffer, error) {
+	return cli.execInServiceControllerPod(addOutputFlag([]string{"get", "policies", "list"}, verbose))
+}
