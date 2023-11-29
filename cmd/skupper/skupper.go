@@ -68,6 +68,7 @@ type SkupperDebugClient interface {
 	Dump(cmd *cobra.Command, args []string) error
 	Events(cmd *cobra.Command, args []string) error
 	Service(cmd *cobra.Command, args []string) error
+	Policies(cmd *cobra.Command, args []string) error
 	SkupperClientCommon
 }
 
@@ -910,6 +911,18 @@ func NewCmdDebugService(skupperClient SkupperDebugClient) *cobra.Command {
 	return cmd
 }
 
+func NewCmdDebugPolicies(skupperClient SkupperDebugClient) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "policies",
+		Short:  "List active SkupperClusterPolicies",
+		Args:   cobra.NoArgs,
+		PreRun: skupperClient.NewClient,
+		RunE:   skupperClient.Policies,
+	}
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "More detailed output (in json)")
+	return cmd
+}
+
 func NewCmdRevokeaccess(skupperClient SkupperSiteClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "revoke-access",
@@ -1031,6 +1044,7 @@ func init() {
 	cmdDebugDump := NewCmdDebugDump(skupperCli.Debug())
 	cmdDebugEvents := NewCmdDebugEvents(skupperCli.Debug())
 	cmdDebugService := NewCmdDebugService(skupperCli.Debug())
+	cmdDebugPolicies := NewCmdDebugPolicies(skupperCli.Debug())
 
 	// Gateway command is only valid on Kubernetes sites
 	cmdGateway := NewCmdGateway()
@@ -1076,6 +1090,7 @@ func init() {
 	cmdDebug.AddCommand(cmdDebugDump)
 	cmdDebug.AddCommand(cmdDebugEvents)
 	cmdDebug.AddCommand(cmdDebugService)
+	cmdDebug.AddCommand(cmdDebugPolicies)
 
 	cmdLink := NewCmdLink()
 	cmdLink.AddCommand(NewCmdLinkCreate(skupperCli.Link(), ""))

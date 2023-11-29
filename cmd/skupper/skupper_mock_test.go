@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/network"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/network"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/api/types"
@@ -238,6 +239,10 @@ func (v *vanClientMock) SkupperDump(ctx context.Context, tarName string, version
 }
 
 func (v *vanClientMock) SkupperEvents(verbose bool) (*bytes.Buffer, error) {
+	return nil, nil
+}
+
+func (v *vanClientMock) SkupperPolicies(verbose bool) (*bytes.Buffer, error) {
 	return nil, nil
 }
 

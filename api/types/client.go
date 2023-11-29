@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/network"
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/network"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -343,6 +344,7 @@ type VanClientInterface interface {
 	SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error)
 	SkupperEvents(verbose bool) (*bytes.Buffer, error)
 	SkupperCheckService(service string, verbose bool) (*bytes.Buffer, error)
+	SkupperPolicies(verbose bool) (*bytes.Buffer, error)
 	GetNamespace() string
 	GetVersion(component string, name string) string
 	GetIngressDefault() string
