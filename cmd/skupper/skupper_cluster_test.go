@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	k8stesting "k8s.io/client-go/testing"
 	"os"
 	"regexp"
 	"strings"
@@ -101,6 +104,9 @@ func (s *SkupperTestClient) NewClient(cmd *cobra.Command, args []string) {
 		s.Cli = NewClient(s.Namespace, s.KubeContext, s.KubeConfigPath)
 	} else {
 		s.Cli = newMockClient(s.Namespace)
+		if c, ok := s.Cli.(*client.VanClient); ok {
+			setUpMockups(c.KubeClient)
+		}
 	}
 	s.common = s
 }
@@ -1688,4 +1694,71 @@ func TestDebugDumpWithCluster(t *testing.T) {
 		silenceCobra(cmd)
 		testCommand(t, cmd, tc.doc, tc.expectedError, tc.expectedCapture, tc.expectedOutput, tc.outputRegExp, tc.args...)
 	}
+}
+
+func setUpMockups(cli kubernetes.Interface) {
+
+	cli.(*fake.Clientset).Fake.PrependReactor("get", "configmaps", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		configMapName := action.(k8stesting.GetAction).GetName()
+
+		if configMapName == "skupper-network-status" {
+			configMap := corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: types.NetworkStatusConfigMapName,
+				},
+				Data: map[string]string{
+					"NetworkStatus": `
+{
+  "addresses": null,
+  "siteStatus": [
+    {
+      "site": {
+        "recType": "SITE",
+        "identity": "0c32be16-c586-47ee-bbc0-1c9ef8cda0d5",
+        "startTime": 1700583152000000,
+        "endTime": 0,
+        "source": "0c32be16-c586-47ee-bbc0-1c9ef8cda0d5",
+        "platform": "kubernetes",
+        "name": "public1",
+        "nameSpace": "public1",
+        "siteVersion": "285bd9f",
+        "policy": "disabled"
+      },
+      "routerStatus": [
+        {
+          "router": {
+            "recType": "ROUTER",
+            "identity": "tw6zq:0",
+            "parent": "0c32be16-c586-47ee-bbc0-1c9ef8cda0d5",
+            "startTime": 1700583162641974,
+            "endTime": 0,
+            "source": "tw6zq:0",
+            "name": "0/public1-skupper-router-77bcc658bc-tw6zq",
+            "namespace": "public1",
+            "imageName": "skupper-router",
+            "imageVersion": "latest",
+            "hostname": "skupper-router-77bcc658bc-tw6zq",
+            "buildVersion": "0.0.0+2e63964b8e793231ba23d668333c5bd6bcf6255f-main"
+          },
+          "links": null,
+          "listeners": null,
+          "connectors": null
+        }
+      ]
+    }
+  ]
+}
+`,
+				},
+			}
+			return true, &configMap, nil
+		} else {
+			return false, nil, nil
+		}
+	})
+
 }

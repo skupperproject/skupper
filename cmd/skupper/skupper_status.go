@@ -77,10 +77,10 @@ func PrintStatus(data StatusData) error {
 		fmt.Println("The site console url is: ", data.consoleUrl)
 		if len(data.credentials.supportName) > 0 {
 			fmt.Printf("The credentials for internal console-auth mode are held in %s: %s", data.credentials.supportType, data.credentials.supportName)
-			fmt.Println()
 		}
 	}
 
+	fmt.Println()
 	return nil
 }
 

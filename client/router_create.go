@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/briandowns/spinner"
 	"log"
 	"net"
 	"strconv"
@@ -1305,7 +1306,6 @@ sasldb_path: /tmp/skrouterd.sasldb
 	if cn != nil {
 		defer cn()
 	}
-	deadline, _ := currentContext.Deadline()
 
 	if options.Spec.RouterMode == string(types.TransportModeInterior) {
 		if options.Spec.IsIngressNginxIngress() || options.Spec.IsIngressKubernetes() {
@@ -1331,15 +1331,21 @@ sasldb_path: /tmp/skrouterd.sasldb
 					return err
 				}
 
+				var spin *spinner.Spinner
 				if len(hosts) == 0 {
+					waitingFor := "Waiting to try and resolve SANs for router..."
+
 					if options.Spec.IsIngressLoadBalancer() {
-						fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", time.Until(deadline).Milliseconds()/1000)
-					} else {
-						fmt.Printf("Waiting %d seconds to try and resolve SANs for router...\n", time.Until(deadline).Milliseconds()/1000)
+						waitingFor = "Waiting for LoadBalancer IP or hostname..."
 					}
+
+					spin = spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+					spin.Prefix = waitingFor
+					spin.FinalMSG = waitingFor + "\n"
 				}
 
 				for len(hosts) == 0 && !deadlineExceeded {
+					spin.Start()
 					select {
 					case <-ctx.Done():
 						fmt.Println("context deadline exceeded")
@@ -1352,6 +1358,10 @@ sasldb_path: /tmp/skrouterd.sasldb
 							return err
 						}
 					}
+				}
+
+				if spin != nil {
+					spin.Stop()
 				}
 
 				if len(hosts) == 0 {
@@ -1517,11 +1527,15 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceNam
 	host := kube.GetLoadBalancerHostOrIP(service)
 
 	ctx, _ = getCurrentContextOrDefault(ctx)
-	deadline, _ := ctx.Deadline()
-	fmt.Printf("Waiting %d seconds for LoadBalancer IP or hostname...\n", time.Until(deadline).Milliseconds()/1000)
 	deadlineExceeded := false
+	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+
+	message := "Waiting for LoadBalancer IP or hostname..."
+	spin.Prefix = message
+	spin.FinalMSG = message + "\n"
 
 	for host == "" && !deadlineExceeded {
+		spin.Start()
 		select {
 		case <-ctx.Done():
 			fmt.Println("context deadline exceeded")
@@ -1533,6 +1547,8 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceNam
 			host = kube.GetLoadBalancerHostOrIP(service)
 		}
 	}
+
+	spin.Stop()
 
 	if host == "" {
 		return fmt.Errorf("Failed to get LoadBalancer IP or Hostname for service %s", serviceName)

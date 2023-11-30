@@ -18,7 +18,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-func (cli *VanClient) getConsoleUrl(namespace string) (string, error) {
+func (cli *VanClient) GetConsoleUrl(namespace string) (string, error) {
 	config, err := cli.SiteConfigInspectInNamespace(context.Background(), nil, namespace)
 	if err != nil {
 		return "", err
@@ -116,7 +116,7 @@ func (cli *VanClient) RouterInspectNamespace(ctx context.Context, namespace stri
 		} else {
 			vir.ExposedServices = len(vsis)
 		}
-		url, err := cli.getConsoleUrl(namespace)
+		url, err := cli.GetConsoleUrl(namespace)
 		if url != "" {
 			vir.ConsoleUrl = url
 		}

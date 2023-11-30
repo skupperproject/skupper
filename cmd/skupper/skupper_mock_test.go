@@ -306,11 +306,25 @@ func (v *vanClientMock) RevokeAccess(ctx context.Context) error {
 }
 
 func (v *vanClientMock) NetworkStatus(ctx context.Context) (*network.NetworkStatusInfo, error) {
-	return nil, nil
+
+	routerStatus := network.RouterStatusInfo{
+		Router: network.RouterInfo{Name: "router", Namespace: "default"},
+	}
+
+	siteStatus := network.SiteStatusInfo{RouterStatus: []network.RouterStatusInfo{routerStatus}}
+
+	result := network.NetworkStatusInfo{
+		SiteStatus: []network.SiteStatusInfo{siteStatus},
+	}
+	return &result, nil
 }
 
 func (v *vanClientMock) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*network.RemoteLinkInfo, error) {
 	return nil, nil
+}
+
+func (v *vanClientMock) GetConsoleUrl(namespace string) (string, error) {
+	return "", nil
 }
 
 func TestCmdUnexposeRun(t *testing.T) {
