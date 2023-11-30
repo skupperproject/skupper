@@ -351,4 +351,5 @@ type VanClientInterface interface {
 	RevokeAccess(ctx context.Context) error
 	NetworkStatus(ctx context.Context) (*network.NetworkStatusInfo, error)
 	GetRemoteLinks(ctx context.Context, siteConfig *SiteConfig) ([]*network.RemoteLinkInfo, error)
+	GetConsoleUrl(namespace string) (string, error)
 }

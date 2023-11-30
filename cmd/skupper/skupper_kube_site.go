@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"reflect"
 	"strings"
 	"time"
@@ -102,6 +103,21 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 		}
 		return err
 	}
+
+	err = utils.NewSpinner("Waiting for status...", 50, func() error {
+		statusInfo, statusError := cli.NetworkStatus(ctx)
+		if statusError != nil {
+			return statusError
+		} else if statusInfo == nil || len(statusInfo.SiteStatus) == 0 || len(statusInfo.SiteStatus[0].RouterStatus) == 0 {
+			return fmt.Errorf("network status not loaded yet")
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
 	fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
 
 	return nil
@@ -219,14 +235,12 @@ func (s *SkupperKubeSite) ListFlags(cmd *cobra.Command) {}
 func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 	cli := s.kube.Cli
-	vir, err := cli.RouterInspect(context.Background())
-	if err != nil {
-		fmt.Printf("Skupper is not enabled in namespace '%s'", cli.GetNamespace())
-		return nil
-	}
 
 	currentStatus, errStatus := cli.NetworkStatus(context.Background())
-	if errStatus != nil {
+	if errStatus != nil && strings.HasPrefix(errStatus.Error(), "Skupper is not installed") {
+		fmt.Printf("Skupper is not enabled in namespace '%s'", cli.GetNamespace())
+		return nil
+	} else if errStatus != nil {
 		return errStatus
 	}
 
@@ -255,15 +269,6 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 				policies:  currentSite.Site.Policy,
 			}
 
-			if len(vir.Status.ConnectedSites.Warnings) > 0 {
-				var warnings []string
-				for _, w := range vir.Status.ConnectedSites.Warnings {
-					warnings = append(warnings, w)
-				}
-
-				statusDataOutput.warnings = warnings
-			}
-
 			mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&currentSite.RouterStatus[0], &currentSite.Site)
 
 			totalSites := len(currentStatus.SiteStatus)
@@ -276,12 +281,14 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 
 			statusDataOutput.exposedServices = len(currentStatus.Addresses)
 
+			consoleUrl, _ := cli.GetConsoleUrl(cli.GetNamespace())
+
 			siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
 			if err != nil {
 				return err
 			} else {
-				if siteConfig.Spec.EnableFlowCollector && vir.ConsoleUrl != "" {
-					statusDataOutput.consoleUrl = vir.ConsoleUrl
+				if siteConfig.Spec.EnableFlowCollector && consoleUrl != "" {
+					statusDataOutput.consoleUrl = consoleUrl
 					if siteConfig.Spec.AuthMode == "internal" {
 						statusDataOutput.credentials = PlatformSupport{"secret", "'skupper-console-users'"}
 					}
@@ -301,10 +308,12 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 				}
 			}
 		} else {
-			return fmt.Errorf("unable to retrieve skupper status")
+			fmt.Println("Status pending...")
+			return nil
 		}
 	} else {
-		return fmt.Errorf("unable to retrieve skupper status")
+		fmt.Println("Status pending...")
+		return nil
 	}
 	return nil
 }
