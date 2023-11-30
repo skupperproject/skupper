@@ -360,6 +360,7 @@ yaml-templates:
   release_requires: &release_requires
     requires:
       - build-all
+      - test-skupper-binary
       - test
       - main_tests_minikube_local_cluster
       - policy_tests_minikube_local_cluster
@@ -370,6 +371,17 @@ workflows:
     jobs:
       - build-all:
           <<: *run_for_all_branches_and_numeric_tags
+      - test-skupper-binary:
+          <<: *run_for_all_branches_and_numeric_tags
+          matrix:
+            parameters:
+              image:
+                - quay.io/centos/centos:stream8
+                - quay.io/centos/centos:stream9
+                - quay.io/fedora/fedora:38
+                - quay.io/fedora/fedora:39
+          requires:
+            - build-all
       - test:
           <<: *run_for_all_branches_and_numeric_tags
       - build_and_save_test_images:
@@ -411,6 +423,13 @@ workflows:
           requires:
             - generate-manifest
             - publish-github-release-images
+          context:
+            - skupper-org
+
+      - publish-github-main-artifacts:
+          <<: *run_for_main_branch
+          requires:
+            - publish-github-main-images
           context:
             - skupper-org
 
@@ -530,6 +549,22 @@ jobs:
           paths:
             - dist
 
+  test-skupper-binary:
+    description: Run skupper command in a specific image
+    parameters:
+      image:
+        type: string
+    docker:
+      - image: << parameters.image >>
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Run the skupper binary"
+          command: |
+            cd dist/linux-amd64
+            ./skupper version
+
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
     steps:
@@ -637,3 +672,26 @@ jobs:
             source $BASH_ENV
             make -e docker-build
             make -e docker-push
+
+  publish-github-main-artifacts:
+    docker:
+      - image: cibuilds/github:0.10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Create a Pre-Release on GitHub"
+          command: |
+            VERSION="main-release"
+            BASEDIR=`pwd`
+            mkdir "${BASEDIR}/archives"
+            for p in `ls dist` ; do
+              cd "$BASEDIR/dist/$p"
+              if [[ $p == windows* ]] ; then
+                zip -q "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.zip" *
+              else
+                tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
+              fi
+            done
+            cd ${BASEDIR}
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
