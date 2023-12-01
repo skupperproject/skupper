@@ -8,11 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/domain"
+	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -428,6 +430,11 @@ func (s *SiteHandler) canCreate(site *Site) error {
 		return fmt.Errorf("You cannot use a remote podman endpoint - %w", err)
 	}
 
+	// Validating router container runs without errors
+	err = s.runTempContainer()
+	if err != nil {
+		return fmt.Errorf("site cannot be created: %s", err)
+	}
 	return nil
 }
 
@@ -899,6 +906,44 @@ func (s *SiteHandler) createPrometheusConfigFiles(site *Site) error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *SiteHandler) runTempContainer() error {
+	cli := s.cli
+	err := cli.ImagePull(images.GetRouterImageName())
+	if err != nil {
+		return err
+	}
+	tempName := fmt.Sprintf("skupper-temp-%s", uuid.NewString()[:5])
+	err = cli.ContainerCreate(
+		&container.Container{
+			Name:          tempName,
+			Image:         images.GetRouterImageName(),
+			RestartPolicy: "no",
+			Command:       []string{"skrouterd", "-version"},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("unable to validate container creation: %s", err)
+	}
+	defer func() {
+		_ = cli.ContainerRemove(tempName)
+	}()
+	if err = cli.ContainerStart(tempName); err != nil {
+		return fmt.Errorf("error starting validation container: %s", err)
+	}
+	ci, err := cli.ContainerInspect(tempName)
+	if err != nil {
+		return fmt.Errorf("error inspecting validation container: %s", err)
+	}
+	if ci.ExitCode != 0 {
+		logs, err := cli.ContainerLogs(tempName)
+		if err != nil {
+			return fmt.Errorf("error executing validation container (unable to read logs) - exit code: %d", ci.ExitCode)
+		}
+		return fmt.Errorf("unable to run %s - reason: %s", ci.Image, logs)
 	}
 	return nil
 }
