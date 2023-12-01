@@ -28,7 +28,6 @@ func (s *SkupperKubeSite) Platform() types.Platform {
 
 func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	cli := s.kube.Cli
-
 	silenceCobra(cmd)
 	ns := cli.GetNamespace()
 
@@ -115,7 +114,7 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	})
 
 	if err != nil {
-		return err
+		fmt.Println("Skupper status is not loaded yet.")
 	}
 
 	fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
