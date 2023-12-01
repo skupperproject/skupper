@@ -114,7 +114,7 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	})
 
 	if err != nil {
-		fmt.Println("Skupper status is not loaded yet, it will be available in a few seconds")
+		fmt.Println("Skupper status is not loaded yet.")
 	}
 
 	fmt.Println("Skupper is now installed in namespace '" + ns + "'.  Use 'skupper status' to get more information.")
