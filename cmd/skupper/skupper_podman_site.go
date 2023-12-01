@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/pkg/domain"
@@ -152,7 +153,8 @@ Recommendation:
 
 func getUserDefaultPodmanName() (string, error) {
 	hostname, _ := os.Hostname()
-	return hostname + "-" + strings.ToLower(podman.Username), nil
+	defaultName := fmt.Sprintf("%s-%s-%s", hostname, strings.ToLower(podman.Username), uuid.NewString()[:5])
+	return defaultName, nil
 }
 
 func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
