@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
 )
 
 func TestUpdateProcess(t *testing.T) {
-	fc := NewFlowController("mysite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil)
+	fc := NewFlowController("mysite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil, WithPolicyDisabled)
 	assert.Assert(t, fc != nil)
 	procName := "tcp-go-echo"
 	sourceIP := "10.0.0.1"
@@ -37,7 +38,7 @@ func TestUpdateProcess(t *testing.T) {
 }
 
 func TestUpdateHost(t *testing.T) {
-	fc := NewFlowController("mysite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil)
+	fc := NewFlowController("mysite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil, WithPolicyDisabled)
 	assert.Assert(t, fc != nil)
 	hostName := "bastion-server"
 	host := &HostRecord{
@@ -61,7 +62,7 @@ func TestUpdateHost(t *testing.T) {
 
 func TestUpdateBeaconAndHeartbeats(t *testing.T) {
 	_ = os.Setenv("SKUPPER_SITE_ID", "mySite")
-	fc := NewFlowController("mySite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil)
+	fc := NewFlowController("mySite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil, WithPolicyDisabled)
 	assert.Assert(t, fc != nil)
 	stopCh := make(chan struct{})
 	go fc.updateBeacon(stopCh)
@@ -90,10 +91,11 @@ func TestUpdateBeaconAndHeartbeats(t *testing.T) {
 func TestUpdateRecords(t *testing.T) {
 	_ = os.Setenv("SKUPPER_SITE_ID", "mySite")
 	_ = os.Setenv("SKUPPER_NAMESPACE", "myNamespace")
-	fc := NewFlowController("mySite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil)
+	fc := NewFlowController("mySite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil, WithPolicyDisabled)
 	assert.Assert(t, fc != nil)
 	stopCh := make(chan struct{})
-	go fc.updateRecords(stopCh)
+
+	go fc.updateRecords(stopCh, fc.siteController.Start(stopCh))
 
 	recordUpdate := <-fc.recordOutgoing
 	assert.Assert(t, recordUpdate != nil)
@@ -147,4 +149,147 @@ func TestUpdateRecords(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	close(stopCh)
 
+}
+
+func TestSiteController(t *testing.T) {
+	alwaysOnEval := policyEnabledConst(true)
+	flipFlopEval := stubPolicyEvaluator{
+		Next: make(chan bool, 8),
+	}
+	testCases := []struct {
+		controller        *siteController
+		expectedOut       []func(t *testing.T, record *SiteRecord, ok bool)
+		waitTimeout       time.Duration
+		expectWaitTimeout bool
+	}{
+		{
+			controller: &siteController{
+				Identity:        "basic-podman",
+				Name:            "basic",
+				Platform:        string(types.PlatformPodman),
+				CreatedAt:       1_111_111,
+				policyEvaluator: WithPolicyDisabled,
+			},
+			expectedOut: []func(*testing.T, *SiteRecord, bool){
+				func(t *testing.T, rec *SiteRecord, ok bool) {
+					assert.Equal(t, rec.Identity, "basic-podman")
+					assert.Equal(t, *rec.Name, "basic")
+					assert.Equal(t, *rec.Platform, string(types.PlatformPodman))
+					assert.Equal(t, rec.StartTime, uint64(1_111_111))
+					assert.Equal(t, *rec.Policy, Disabled)
+				},
+				func(t *testing.T, rec *SiteRecord, ok bool) {
+					assert.Equal(t, ok, false) // expect closed
+				},
+			},
+			waitTimeout: time.Millisecond * 500,
+		},
+		{
+			controller: &siteController{
+				Identity:        "basic-kube",
+				Name:            "basic",
+				Platform:        string(types.PlatformKubernetes),
+				CreatedAt:       1_111_111,
+				PolicyEnabled:   true,
+				policyEvaluator: alwaysOnEval,
+				pollInterval:    time.Millisecond * 5,
+			},
+			expectedOut: []func(*testing.T, *SiteRecord, bool){
+				func(t *testing.T, rec *SiteRecord, ok bool) {
+					assert.Equal(t, rec.Identity, "basic-kube")
+					assert.Equal(t, *rec.Name, "basic")
+					assert.Equal(t, *rec.Platform, string(types.PlatformKubernetes))
+					assert.Equal(t, rec.StartTime, uint64(1_111_111))
+					assert.Equal(t, *rec.Policy, Enabled)
+				},
+			},
+			waitTimeout:       time.Millisecond * 250,
+			expectWaitTimeout: true,
+		},
+		{
+			controller: &siteController{
+				Identity:        "policy-updates-kube",
+				Name:            "basic",
+				Platform:        string(types.PlatformKubernetes),
+				CreatedAt:       1_111_111,
+				policyEvaluator: flipFlopEval,
+				pollInterval:    time.Millisecond * 5,
+			},
+			expectedOut: []func(*testing.T, *SiteRecord, bool){
+				func(t *testing.T, rec *SiteRecord, ok bool) {
+					assert.Equal(t, rec.Identity, "policy-updates-kube")
+					assert.Equal(t, *rec.Name, "basic")
+					assert.Equal(t, *rec.Platform, string(types.PlatformKubernetes))
+					assert.Equal(t, rec.StartTime, uint64(1_111_111))
+					assert.Equal(t, *rec.Policy, Disabled)
+					// queue two updates to policy enabled
+					flipFlopEval.Next <- false
+					flipFlopEval.Next <- true
+					flipFlopEval.Next <- false
+				},
+				func(t *testing.T, rec *SiteRecord, ok bool) { // closed
+					assert.DeepEqual(t, *rec, SiteRecord{
+						Base: Base{
+							RecType:  recordNames[Site],
+							Identity: "policy-updates-kube",
+						},
+						Policy: &Enabled,
+					})
+				},
+				func(t *testing.T, rec *SiteRecord, ok bool) { // closed
+					assert.DeepEqual(t, rec, &SiteRecord{
+						Base: Base{
+							RecType:  recordNames[Site],
+							Identity: "policy-updates-kube",
+						},
+						Policy: &Disabled,
+					})
+				},
+			},
+			waitTimeout: time.Millisecond * 500,
+		},
+	}
+
+	for _, testCase := range testCases {
+		tc := testCase
+		t.Run(tc.controller.Identity, func(t *testing.T) {
+			t.Parallel()
+			end := make(chan struct{})
+			defer close(end)
+
+			out := tc.controller.Start(end)
+			for i, expect := range tc.expectedOut {
+				select {
+				case actual, ok := <-out:
+					expect(t, actual, ok)
+				case <-time.After(tc.waitTimeout):
+					t.Fatalf("test case timed out waiting for output %d", i)
+				}
+			}
+			if tc.expectWaitTimeout {
+				select {
+				case actual := <-out:
+					t.Errorf("unexpected update at end of test: %v", actual)
+				case <-time.After(tc.waitTimeout):
+					// okay
+				}
+			}
+		})
+	}
+}
+
+type stubPolicyEvaluator struct {
+	IsEnabled bool
+	Next      chan bool
+}
+
+func (s stubPolicyEvaluator) Enabled() bool {
+	select {
+	case next, ok := <-s.Next:
+		if ok {
+			s.IsEnabled = next
+		}
+	default:
+	}
+	return s.IsEnabled
 }
