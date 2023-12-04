@@ -227,7 +227,7 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&waitFor, "wait", 0, "The number of seconds to wait for links to become connected")
-	cmd.Flags().BoolVar(&verboseLinkStatus, "verbose", false, "Show detailed information about a link")
+	cmd.Flags().BoolVarP(&verboseLinkStatus, "verbose", "v", false, "Show detailed information about a link")
 
 	return cmd
 

@@ -404,7 +404,7 @@ func tailRouterLogs(ctx context.Context, saveLogs *bool) *sync.WaitGroup {
 		var err error
 		log.Printf("Waiting for router pod to be running")
 		err = pkgutils.RetryWithContext(ctx, time.Second*5, func() (bool, error) {
-			pod, err = kube.GetReadyPod(cli.Namespace, cli.KubeClient, "router")
+			pod, err = kube.GetReadyPod(cli.Namespace, cli.KubeClient, "router", "skupper-router")
 			if pod != nil && err == nil {
 				return true, nil
 			}

@@ -26,7 +26,7 @@ import (
 //
 // The pod name comes from kube.GetReadyPod for service-controller
 func seekServiceControllerAndDelete(ctx *base.ClusterContext) {
-	pod, err := kube.GetReadyPod(ctx.Namespace, ctx.VanClient.KubeClient, "service-controller")
+	pod, err := kube.GetReadyPod(ctx.Namespace, ctx.VanClient.KubeClient, "service-controller", "")
 	if err != nil {
 		log.Printf("Ignoring pod listing error '%v'", err)
 		return
