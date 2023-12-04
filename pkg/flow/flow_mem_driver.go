@@ -2436,18 +2436,24 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 				}
 				for _, process := range fc.Processes {
 					if siteId == process.Parent {
-						if process.SourceHost != nil {
+						if process.SourceHost != nil && matchHost != nil {
 							if *matchHost == *process.SourceHost {
-								connector.ProcessId = &process.Identity
-								connector.Target = process.Name
-								process.connector = &connector.Identity
-								process.ProcessBinding = &Bound
-								fc.updateNetworkStatus()
-								log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
-								delete(fc.connectorsToReconcile, connId)
 								found = true
-								break
 							}
+						} else if process.HostName != nil {
+							if *process.HostName == *connector.DestHost {
+								found = true
+							}
+						}
+						if found {
+							connector.ProcessId = &process.Identity
+							connector.Target = process.Name
+							process.connector = &connector.Identity
+							process.ProcessBinding = &Bound
+							fc.updateNetworkStatus()
+							log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
+							delete(fc.connectorsToReconcile, connId)
+							break
 						}
 					}
 				}
