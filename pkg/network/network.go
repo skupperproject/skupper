@@ -73,7 +73,11 @@ func (s *SkupperStatus) GetRouterSiteMap() map[string]SiteStatusInfo {
 			for _, routerStatus := range siteStatus.RouterStatus {
 				// the name of the router has a "0/" as a prefix that it is needed to remove
 				routerName := strings.Split(routerStatus.Router.Name, "/")
-				mapRouterSite[routerName[1]] = siteStatus
+
+				// Remove routers that belong to statefulsets for headless services
+				if strings.HasPrefix(routerName[1], siteStatus.Site.Namespace) {
+					mapRouterSite[routerName[1]] = siteStatus
+				}
 			}
 		}
 	}
@@ -93,7 +97,6 @@ func (s *SkupperStatus) GetSiteById(siteId string) *SiteStatusInfo {
 }
 
 func (s *SkupperStatus) GetSiteLinkMapPerRouter(router *RouterStatusInfo, site *SiteInfo) map[string]LinkInfo {
-
 	routerSiteMap := s.GetRouterSiteMap()
 	siteLinkMap := make(map[string]LinkInfo)
 	if len(router.Links) > 0 {

@@ -73,8 +73,17 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
 				if len(siteStatus.RouterStatus) > 0 {
 
-					//to get the generic information about the links of a site, we can get the first router, because in case of multiple routers the information will be the same.
-					mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&siteStatus.RouterStatus[0], &siteStatus.Site)
+					validRouterIndex := 0
+					for index, router := range siteStatus.RouterStatus {
+						// Ignore routers that belong to statefulsets for headless services and any other router
+						routerId := strings.Split(router.Router.Name, "/")
+						if strings.HasPrefix(routerId[1], router.Router.Namespace) {
+							validRouterIndex = index
+							break
+						}
+					}
+
+					mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&siteStatus.RouterStatus[validRouterIndex], &siteStatus.Site)
 
 					if len(mapSiteLink) > 0 {
 						siteLinks := siteLevel.NewChild("Linked sites:")
@@ -87,26 +96,29 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 						routers := siteLevel.NewChild("Routers:")
 						for _, routerStatus := range siteStatus.RouterStatus {
 							routerId := strings.Split(routerStatus.Router.Name, "/")
-							routerItem := fmt.Sprintf("name: %s\n", routerId[1])
-							detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 
-							routerLevel := routers.NewChildWithDetail(routerItem, detailsRouter)
+							// skip routers that belong to headless services
+							if strings.HasPrefix(routerId[1], siteStatus.Site.Namespace) {
+								routerItem := fmt.Sprintf("name: %s\n", routerId[1])
+								detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 
-							printableLinks := statusManager.RemoveLinksFromSameSite(routerStatus, siteStatus.Site)
+								routerLevel := routers.NewChildWithDetail(routerItem, detailsRouter)
 
-							if len(printableLinks) > 0 {
-								links := routerLevel.NewChild("Links:")
-								for _, link := range printableLinks {
-									linkItem := fmt.Sprintf("name:  %s\n", link.Name)
-									detailsLink := map[string]string{"direction": link.Direction}
-									if link.LinkCost > 0 {
-										detailsLink["cost"] = strconv.FormatUint(link.LinkCost, 10)
+								printableLinks := statusManager.RemoveLinksFromSameSite(routerStatus, siteStatus.Site)
+
+								if len(printableLinks) > 0 {
+									links := routerLevel.NewChild("Links:")
+									for _, link := range printableLinks {
+										linkItem := fmt.Sprintf("name:  %s\n", link.Name)
+										detailsLink := map[string]string{"direction": link.Direction}
+										if link.LinkCost > 0 {
+											detailsLink["cost"] = strconv.FormatUint(link.LinkCost, 10)
+										}
+										links.NewChildWithDetail(linkItem, detailsLink)
+
 									}
-									links.NewChildWithDetail(linkItem, detailsLink)
-
 								}
 							}
-
 						}
 					}
 				}
