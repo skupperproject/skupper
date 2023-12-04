@@ -62,7 +62,7 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	mapServiceSites := statusManager.GetServiceSitesMap()
-	mapSiteTargets := statusManager.GetSiteTargetsMap()
+	mapSiteTarget := statusManager.GetSiteTargetMap()
 
 	var mapServiceLabels map[string]map[string]string
 	if err == nil {
@@ -74,10 +74,6 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	} else {
 		l := formatter.NewList()
 		l.Item("Services exposed through Skupper:")
-		var addresses []string
-		for _, si := range currentNetworkStatus.Addresses {
-			addresses = append(addresses, si.Name)
-		}
 
 		for _, si := range currentNetworkStatus.Addresses {
 			svc := l.NewChild(fmt.Sprintf("%s (%s)", si.Name, si.Protocol))
@@ -91,7 +87,7 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 						theSite := sites.NewChildWithDetail(item, map[string]string{"policy": site.Site.Policy})
 
 						if si.ConnectorCount > 0 {
-							t := mapSiteTargets[site.Site.Identity][si.Name]
+							t := mapSiteTarget[site.Site.Identity][si.Name]
 
 							if len(t.Address) > 0 {
 								targets := theSite.NewChild("Targets:")

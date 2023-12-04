@@ -53,7 +53,7 @@ func TestGetSiteTargetsMap(t *testing.T) {
 	expectedSite2 := "429c2780-003d-44cc-9a91-4139885c7d20"
 	expectedService := "backend:8080"
 
-	result := skupperStatus.GetSiteTargetsMap()
+	result := skupperStatus.GetSiteTargetMap()
 
 	assert.Check(t, result[expectedSite2] == nil)
 	assert.Check(t, result[expectedSite1][expectedService].Address == expectedService)
