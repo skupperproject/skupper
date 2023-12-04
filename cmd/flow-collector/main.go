@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -14,10 +15,10 @@ import (
 	"os/signal"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -46,6 +47,11 @@ type connectJson struct {
 	Host   string    `json:"host,omitempty"`
 	Port   string    `json:"port,omitempty"`
 	Tls    tlsConfig `json:"tls,omitempty"`
+}
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	Writer *gzip.Writer
 }
 
 type UserResponse struct {
@@ -138,6 +144,25 @@ func authenticated(h http.HandlerFunc) http.HandlerFunc {
 	} else {
 		return h
 	}
+}
+
+func enableGzipMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			w.Header().Set("Content-Encoding", "gzip")
+
+			gz := gzip.NewWriter(w)
+			defer gz.Close()
+
+			next.ServeHTTP(&gzipResponseWriter{ResponseWriter: w, Writer: gz}, r)
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
+func (grw *gzipResponseWriter) Write(b []byte) (int, error) {
+	return grw.Writer.Write(b)
 }
 
 func getOpenshiftUser(r *http.Request) UserResponse {
@@ -383,18 +408,15 @@ func main() {
 	userApi.StrictSlash(true)
 	userApi.HandleFunc("/", authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handler, exists := userMap[authMode]
-		statusCode := http.StatusNoContent
 
 		if exists {
 			userResponse := handler(r)
 			if response, err := json.Marshal(userResponse); err == nil {
-				statusCode = http.StatusOK
 				fmt.Fprintf(w, "%s", response)
 			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(statusCode)
 	})))
 
 	var userLogout = api1.PathPrefix("/logout").Subrouter()
@@ -568,7 +590,7 @@ func main() {
 	log.Printf("COLLECTOR: server listening on %s", addr)
 	s := &http.Server{
 		Addr:    addr,
-		Handler: handlers.CompressHandler(mux),
+		Handler: enableGzipMiddleware(mux),
 	}
 
 	go func() {
