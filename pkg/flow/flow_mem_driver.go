@@ -690,6 +690,7 @@ func (fc *FlowCollector) updateLastHeard(source string) error {
 }
 
 func (fc *FlowCollector) updateRecord(record interface{}) error {
+	var updatesNetworkStatus bool
 	switch record.(type) {
 	case HeartbeatRecord:
 		if heartbeat, ok := record.(HeartbeatRecord); ok {
@@ -721,7 +722,10 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					}
 					fc.deleteRecord(current)
 				} else {
-					*current = site
+					updatesNetworkStatus = true
+					if site.Policy != nil {
+						current.Policy = site.Policy
+					}
 				}
 			}
 			fc.updateLastHeard(site.Source)
@@ -1181,6 +1185,10 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		}
 	default:
 		return fmt.Errorf("Unrecognized record type %T", record)
+	}
+
+	if updatesNetworkStatus && fc.mode == RecordStatus {
+		fc.updateNetworkStatus()
 	}
 	return nil
 }

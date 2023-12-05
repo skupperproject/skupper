@@ -76,7 +76,7 @@ func (c *ControllerPodman) Run(stopCh <-chan struct{}) error {
 	c.site = sitePodman
 
 	siteCreationTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
-	flowController := flow.NewFlowController(c.origin, version.Version, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", c.tlsConfig))
+	flowController := flow.NewFlowController(c.origin, version.Version, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", c.tlsConfig), flow.WithPolicyDisabled)
 	flowController.Start(stopCh)
 	log.Println("Started flow-controller")
 

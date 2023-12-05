@@ -4,10 +4,10 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
@@ -17,36 +17,40 @@ const (
 )
 
 type FlowController struct {
-	origin            string
-	creationTime      uint64
-	version           string
-	connectionFactory messaging.ConnectionFactory
-	beaconOutgoing    chan interface{}
-	heartbeatOutgoing chan interface{}
-	recordOutgoing    chan interface{}
-	flushIncoming     chan []interface{}
-	processOutgoing   chan *ProcessRecord
-	processRecords    map[string]*ProcessRecord
-	hostRecords       map[string]*HostRecord
-	hostOutgoing      chan *HostRecord
-	startTime         int64
+	origin               string
+	connectionFactory    messaging.ConnectionFactory
+	beaconOutgoing       chan interface{}
+	heartbeatOutgoing    chan interface{}
+	recordOutgoing       chan interface{}
+	flushIncoming        chan []interface{}
+	processOutgoing      chan *ProcessRecord
+	processRecords       map[string]*ProcessRecord
+	hostRecords          map[string]*HostRecord
+	hostOutgoing         chan *HostRecord
+	siteRecordController siteRecordController
+	startTime            int64
 }
 
-func NewFlowController(origin string, version string, creationTime uint64, connectionFactory messaging.ConnectionFactory) *FlowController {
+type PolicyEvaluator interface {
+	Enabled() bool
+}
+
+const WithPolicyDisabled = policyEnabledConst(false)
+
+func NewFlowController(origin string, version string, creationTime uint64, connectionFactory messaging.ConnectionFactory, policyEvaluator PolicyEvaluator) *FlowController {
 	fc := &FlowController{
-		origin:            origin,
-		creationTime:      creationTime,
-		version:           version,
-		connectionFactory: connectionFactory,
-		beaconOutgoing:    make(chan interface{}, 10),
-		heartbeatOutgoing: make(chan interface{}, 10),
-		recordOutgoing:    make(chan interface{}, 10),
-		flushIncoming:     make(chan []interface{}, 10),
-		processOutgoing:   make(chan *ProcessRecord, 10),
-		processRecords:    make(map[string]*ProcessRecord),
-		hostRecords:       make(map[string]*HostRecord),
-		hostOutgoing:      make(chan *HostRecord, 10),
-		startTime:         time.Now().Unix(),
+		origin:               origin,
+		connectionFactory:    connectionFactory,
+		beaconOutgoing:       make(chan interface{}, 10),
+		heartbeatOutgoing:    make(chan interface{}, 10),
+		recordOutgoing:       make(chan interface{}, 10),
+		flushIncoming:        make(chan []interface{}, 10),
+		processOutgoing:      make(chan *ProcessRecord, 10),
+		processRecords:       make(map[string]*ProcessRecord),
+		hostRecords:          make(map[string]*HostRecord),
+		hostOutgoing:         make(chan *HostRecord, 10),
+		siteRecordController: newSiteRecordController(creationTime, version, policyEvaluator),
+		startTime:            time.Now().Unix(),
 	}
 	return fc
 }
@@ -159,46 +163,18 @@ func (c *FlowController) updateHeartbeats(stopCh <-chan struct{}) {
 	}
 }
 
-func (c *FlowController) updateRecords(stopCh <-chan struct{}) {
+func (c *FlowController) updateRecords(stopCh <-chan struct{}, siteRecordsIncoming <-chan *SiteRecord) {
 	tickerAge := time.NewTicker(10 * time.Minute)
 	defer tickerAge.Stop()
-
-	name := os.Getenv("SKUPPER_SITE_NAME")
-	nameSpace := os.Getenv("SKUPPER_NAMESPACE")
-	policy := Disabled
-	var platformStr string
-	platform := config.GetPlatform()
-	if platform == "" || platform == types.PlatformKubernetes {
-		platformStr = string(types.PlatformKubernetes)
-		cli, err := client.NewClient(nameSpace, "", "")
-		if err == nil {
-			cpv := client.NewClusterPolicyValidator(cli)
-			if cpv.Enabled() {
-				policy = Enabled
-			}
-		}
-	} else if platform == types.PlatformPodman {
-		platformStr = string(types.PlatformPodman)
-	}
-	site := &SiteRecord{
-		Base: Base{
-			RecType:   recordNames[Site],
-			Identity:  os.Getenv("SKUPPER_SITE_ID"),
-			StartTime: c.creationTime,
-		},
-		Name:      &name,
-		NameSpace: &nameSpace,
-		Platform:  &platformStr,
-		Version:   &c.version,
-		Policy:    &policy,
-	}
-
-	c.recordOutgoing <- site
-
 	for {
 		select {
 		case process := <-c.processOutgoing:
 			c.recordOutgoing <- process
+		case site, ok := <-siteRecordsIncoming:
+			if !ok {
+				continue
+			}
+			c.recordOutgoing <- site
 		case host := <-c.hostOutgoing:
 			c.recordOutgoing <- host
 		case flushUpdates := <-c.flushIncoming:
@@ -208,7 +184,7 @@ func (c *FlowController) updateRecords(stopCh <-chan struct{}) {
 					log.Println("Unable to convert interface to flush")
 				}
 			}
-			c.recordOutgoing <- site
+			c.recordOutgoing <- c.siteRecordController.Record()
 			for _, process := range c.processRecords {
 				c.recordOutgoing <- process
 			}
@@ -240,7 +216,7 @@ func (c *FlowController) run(stopCh <-chan struct{}) {
 
 	go c.updateBeacon(stopCh)
 	go c.updateHeartbeats(stopCh)
-	go c.updateRecords(stopCh)
+	go c.updateRecords(stopCh, c.siteRecordController.Start(stopCh))
 	<-stopCh
 
 	beaconSender.stop()
@@ -248,3 +224,117 @@ func (c *FlowController) run(stopCh <-chan struct{}) {
 	recordSender.stop()
 	flushReceiver.stop()
 }
+
+type siteRecordController struct {
+	mu            sync.Mutex
+	Identity      string
+	CreatedAt     uint64
+	Version       string
+	Name          string
+	Namespace     string
+	Platform      string
+	PolicyEnabled bool
+
+	policyEvaluator PolicyEvaluator
+	pollInterval    time.Duration
+}
+
+func newSiteRecordController(createdAt uint64, version string, policyEvaluator PolicyEvaluator) siteRecordController {
+	var policy bool
+	var platformStr string
+	platform := config.GetPlatform()
+	if platform == "" || platform == types.PlatformKubernetes {
+		platformStr = string(types.PlatformKubernetes)
+		policy = policyEvaluator.Enabled()
+	} else if platform == types.PlatformPodman {
+		platformStr = string(types.PlatformPodman)
+	}
+	return siteRecordController{
+		Identity:        os.Getenv("SKUPPER_SITE_ID"),
+		CreatedAt:       createdAt,
+		Version:         version,
+		Name:            os.Getenv("SKUPPER_SITE_NAME"),
+		Namespace:       os.Getenv("SKUPPER_NAMESPACE"),
+		Platform:        platformStr,
+		PolicyEnabled:   policy,
+		policyEvaluator: policyEvaluator,
+	}
+}
+
+func (c *siteRecordController) Start(stopCh <-chan struct{}) <-chan *SiteRecord {
+	updates := make(chan *SiteRecord, 1)
+
+	go func() {
+		defer close(updates)
+		updates <- c.Record()
+
+		if c.Platform != string(types.PlatformKubernetes) {
+			return
+		}
+		// watch for changes to  policy enabled
+		pollInterval := c.pollInterval
+		if pollInterval <= 0 {
+			pollInterval = time.Second * 30
+		}
+		ticker := time.NewTicker(pollInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-ticker.C:
+				if update := c.updatePolicy(); update != nil {
+					updates <- update
+				}
+			}
+		}
+	}()
+	return updates
+}
+
+func (c *siteRecordController) updatePolicy() *SiteRecord {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	enabled := c.policyEvaluator.Enabled()
+	if enabled == c.PolicyEnabled {
+		return nil
+	}
+	c.PolicyEnabled = enabled
+	policy := Disabled
+	if enabled {
+		policy = Enabled
+	}
+	return &SiteRecord{
+		Base: Base{
+			RecType:  recordNames[Site],
+			Identity: c.Identity,
+		},
+		Policy: &policy,
+	}
+
+}
+
+func (c *siteRecordController) Record() *SiteRecord {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	policy := Disabled
+	if c.PolicyEnabled {
+		policy = Enabled
+	}
+	return &SiteRecord{
+		Base: Base{
+			RecType:   recordNames[Site],
+			Identity:  c.Identity,
+			StartTime: c.CreatedAt,
+		},
+		Name:      &c.Name,
+		NameSpace: &c.Namespace,
+		Platform:  &c.Platform,
+		Version:   &c.Version,
+		Policy:    &policy,
+	}
+}
+
+type policyEnabledConst bool
+
+func (c policyEnabledConst) Enabled() bool { return bool(c) }
