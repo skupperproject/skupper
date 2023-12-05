@@ -17,18 +17,18 @@ const (
 )
 
 type FlowController struct {
-	origin            string
-	connectionFactory messaging.ConnectionFactory
-	beaconOutgoing    chan interface{}
-	heartbeatOutgoing chan interface{}
-	recordOutgoing    chan interface{}
-	flushIncoming     chan []interface{}
-	processOutgoing   chan *ProcessRecord
-	processRecords    map[string]*ProcessRecord
-	hostRecords       map[string]*HostRecord
-	hostOutgoing      chan *HostRecord
-	siteController    siteController
-	startTime         int64
+	origin               string
+	connectionFactory    messaging.ConnectionFactory
+	beaconOutgoing       chan interface{}
+	heartbeatOutgoing    chan interface{}
+	recordOutgoing       chan interface{}
+	flushIncoming        chan []interface{}
+	processOutgoing      chan *ProcessRecord
+	processRecords       map[string]*ProcessRecord
+	hostRecords          map[string]*HostRecord
+	hostOutgoing         chan *HostRecord
+	siteRecordController siteRecordController
+	startTime            int64
 }
 
 type PolicyEvaluator interface {
@@ -39,18 +39,18 @@ const WithPolicyDisabled = policyEnabledConst(false)
 
 func NewFlowController(origin string, version string, creationTime uint64, connectionFactory messaging.ConnectionFactory, policyEvaluator PolicyEvaluator) *FlowController {
 	fc := &FlowController{
-		origin:            origin,
-		connectionFactory: connectionFactory,
-		beaconOutgoing:    make(chan interface{}, 10),
-		heartbeatOutgoing: make(chan interface{}, 10),
-		recordOutgoing:    make(chan interface{}, 10),
-		flushIncoming:     make(chan []interface{}, 10),
-		processOutgoing:   make(chan *ProcessRecord, 10),
-		processRecords:    make(map[string]*ProcessRecord),
-		hostRecords:       make(map[string]*HostRecord),
-		hostOutgoing:      make(chan *HostRecord, 10),
-		siteController:    newSiteController(creationTime, version, policyEvaluator),
-		startTime:         time.Now().Unix(),
+		origin:               origin,
+		connectionFactory:    connectionFactory,
+		beaconOutgoing:       make(chan interface{}, 10),
+		heartbeatOutgoing:    make(chan interface{}, 10),
+		recordOutgoing:       make(chan interface{}, 10),
+		flushIncoming:        make(chan []interface{}, 10),
+		processOutgoing:      make(chan *ProcessRecord, 10),
+		processRecords:       make(map[string]*ProcessRecord),
+		hostRecords:          make(map[string]*HostRecord),
+		hostOutgoing:         make(chan *HostRecord, 10),
+		siteRecordController: newSiteRecordController(creationTime, version, policyEvaluator),
+		startTime:            time.Now().Unix(),
 	}
 	return fc
 }
@@ -184,7 +184,7 @@ func (c *FlowController) updateRecords(stopCh <-chan struct{}, siteRecordsIncomi
 					log.Println("Unable to convert interface to flush")
 				}
 			}
-			c.recordOutgoing <- c.siteController.Record()
+			c.recordOutgoing <- c.siteRecordController.Record()
 			for _, process := range c.processRecords {
 				c.recordOutgoing <- process
 			}
@@ -216,7 +216,7 @@ func (c *FlowController) run(stopCh <-chan struct{}) {
 
 	go c.updateBeacon(stopCh)
 	go c.updateHeartbeats(stopCh)
-	go c.updateRecords(stopCh, c.siteController.Start(stopCh))
+	go c.updateRecords(stopCh, c.siteRecordController.Start(stopCh))
 	<-stopCh
 
 	beaconSender.stop()
@@ -225,7 +225,7 @@ func (c *FlowController) run(stopCh <-chan struct{}) {
 	flushReceiver.stop()
 }
 
-type siteController struct {
+type siteRecordController struct {
 	mu            sync.Mutex
 	Identity      string
 	CreatedAt     uint64
@@ -239,7 +239,7 @@ type siteController struct {
 	pollInterval    time.Duration
 }
 
-func newSiteController(createdAt uint64, version string, policyEvaluator PolicyEvaluator) siteController {
+func newSiteRecordController(createdAt uint64, version string, policyEvaluator PolicyEvaluator) siteRecordController {
 	var policy bool
 	var platformStr string
 	platform := config.GetPlatform()
@@ -249,20 +249,19 @@ func newSiteController(createdAt uint64, version string, policyEvaluator PolicyE
 	} else if platform == types.PlatformPodman {
 		platformStr = string(types.PlatformPodman)
 	}
-	return siteController{
-		Identity:      os.Getenv("SKUPPER_SITE_ID"),
-		CreatedAt:     createdAt,
-		Version:       version,
-		Name:          os.Getenv("SKUPPER_SITE_NAME"),
-		Namespace:     os.Getenv("SKUPPER_NAMESPACE"),
-		Platform:      platformStr,
-		PolicyEnabled: policy,
-
+	return siteRecordController{
+		Identity:        os.Getenv("SKUPPER_SITE_ID"),
+		CreatedAt:       createdAt,
+		Version:         version,
+		Name:            os.Getenv("SKUPPER_SITE_NAME"),
+		Namespace:       os.Getenv("SKUPPER_NAMESPACE"),
+		Platform:        platformStr,
+		PolicyEnabled:   policy,
 		policyEvaluator: policyEvaluator,
 	}
 }
 
-func (c *siteController) Start(stopCh <-chan struct{}) <-chan *SiteRecord {
+func (c *siteRecordController) Start(stopCh <-chan struct{}) <-chan *SiteRecord {
 	updates := make(chan *SiteRecord, 1)
 
 	go func() {
@@ -293,7 +292,7 @@ func (c *siteController) Start(stopCh <-chan struct{}) <-chan *SiteRecord {
 	return updates
 }
 
-func (c *siteController) updatePolicy() *SiteRecord {
+func (c *siteRecordController) updatePolicy() *SiteRecord {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	enabled := c.policyEvaluator.Enabled()
@@ -315,7 +314,7 @@ func (c *siteController) updatePolicy() *SiteRecord {
 
 }
 
-func (c *siteController) Record() *SiteRecord {
+func (c *siteRecordController) Record() *SiteRecord {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	policy := Disabled

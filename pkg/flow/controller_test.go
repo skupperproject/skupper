@@ -95,7 +95,7 @@ func TestUpdateRecords(t *testing.T) {
 	assert.Assert(t, fc != nil)
 	stopCh := make(chan struct{})
 
-	go fc.updateRecords(stopCh, fc.siteController.Start(stopCh))
+	go fc.updateRecords(stopCh, fc.siteRecordController.Start(stopCh))
 
 	recordUpdate := <-fc.recordOutgoing
 	assert.Assert(t, recordUpdate != nil)
@@ -157,13 +157,13 @@ func TestSiteController(t *testing.T) {
 		Next: make(chan bool, 8),
 	}
 	testCases := []struct {
-		controller        *siteController
+		controller        *siteRecordController
 		expectedOut       []func(t *testing.T, record *SiteRecord, ok bool)
 		waitTimeout       time.Duration
 		expectWaitTimeout bool
 	}{
 		{
-			controller: &siteController{
+			controller: &siteRecordController{
 				Identity:        "basic-podman",
 				Name:            "basic",
 				Platform:        string(types.PlatformPodman),
@@ -185,7 +185,7 @@ func TestSiteController(t *testing.T) {
 			waitTimeout: time.Millisecond * 500,
 		},
 		{
-			controller: &siteController{
+			controller: &siteRecordController{
 				Identity:        "basic-kube",
 				Name:            "basic",
 				Platform:        string(types.PlatformKubernetes),
@@ -207,7 +207,7 @@ func TestSiteController(t *testing.T) {
 			expectWaitTimeout: true,
 		},
 		{
-			controller: &siteController{
+			controller: &siteRecordController{
 				Identity:        "policy-updates-kube",
 				Name:            "basic",
 				Platform:        string(types.PlatformKubernetes),
