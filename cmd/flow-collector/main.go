@@ -384,14 +384,21 @@ func main() {
 	userApi.HandleFunc("/", authenticated(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handler, exists := userMap[authMode]
 
-		if exists {
-			userResponse := handler(r)
-			if response, err := json.Marshal(userResponse); err == nil {
-				fmt.Fprintf(w, "%s", response)
-			}
+		if !exists {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		response, err := json.Marshal(handler(r))
+
+		if err != nil {
+			log.Printf("Error /user response: %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		w.Write(response)
 	})))
 
 	var userLogout = api1.PathPrefix("/logout").Subrouter()
