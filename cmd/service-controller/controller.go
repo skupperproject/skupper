@@ -217,7 +217,9 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *certs.TlsCon
 
 	controller.serviceSync = service_sync.NewServiceSync(origin, ttl, version.Version, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig), handler, controller.eventHandler)
 
-	controller.flowController = flow.NewFlowController(origin, version.Version, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig))
+	controller.flowController = flow.NewFlowController(origin, version.Version, siteCreationTime,
+		qdr.NewConnectionFactory("amqps://"+types.QualifiedServiceName(types.LocalTransportServiceName, cli.Namespace)+":5671", tlsConfig),
+		client.NewClusterPolicyValidator(cli))
 	ipHandler := func(deleted bool, name string, process *flow.ProcessRecord) error {
 		return flow.UpdateProcess(controller.flowController, deleted, name, process)
 	}
