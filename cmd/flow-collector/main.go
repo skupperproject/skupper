@@ -1,7 +1,6 @@
 package main
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -15,10 +14,10 @@ import (
 	"os/signal"
 	"path"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -47,11 +46,6 @@ type connectJson struct {
 	Host   string    `json:"host,omitempty"`
 	Port   string    `json:"port,omitempty"`
 	Tls    tlsConfig `json:"tls,omitempty"`
-}
-
-type gzipResponseWriter struct {
-	http.ResponseWriter
-	Writer *gzip.Writer
 }
 
 type UserResponse struct {
@@ -144,25 +138,6 @@ func authenticated(h http.HandlerFunc) http.HandlerFunc {
 	} else {
 		return h
 	}
-}
-
-func enableGzipMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			w.Header().Set("Content-Encoding", "gzip")
-
-			gz := gzip.NewWriter(w)
-			defer gz.Close()
-
-			next.ServeHTTP(&gzipResponseWriter{ResponseWriter: w, Writer: gz}, r)
-		} else {
-			next.ServeHTTP(w, r)
-		}
-	})
-}
-
-func (grw *gzipResponseWriter) Write(b []byte) (int, error) {
-	return grw.Writer.Write(b)
 }
 
 func getOpenshiftUser(r *http.Request) UserResponse {
@@ -590,7 +565,7 @@ func main() {
 	log.Printf("COLLECTOR: server listening on %s", addr)
 	s := &http.Server{
 		Addr:    addr,
-		Handler: enableGzipMiddleware(mux),
+		Handler: handlers.CompressHandler(mux),
 	}
 
 	go func() {
