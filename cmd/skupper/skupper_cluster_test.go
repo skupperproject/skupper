@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	k8stesting "k8s.io/client-go/testing"
@@ -150,7 +150,7 @@ func testCommand(t *testing.T, cmd *cobra.Command, testName string, expectedErro
 	cmdOutput, err := executeCommand(cmd, args...)
 
 	w.Close()
-	stdOutput, _ := ioutil.ReadAll(r)
+	stdOutput, _ := io.ReadAll(r)
 	os.Stdout = rescueStdout
 
 	lines := strings.Split(string(stdOutput), "\n")

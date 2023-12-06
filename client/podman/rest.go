@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -201,7 +200,7 @@ func (r *responseReaderBody) Consume(reader io.Reader, i interface{}) error {
 	if !ok {
 		return fmt.Errorf("error parsing body")
 	}
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return fmt.Errorf("error reading response body: %v", err)
 	}

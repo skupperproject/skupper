@@ -4,7 +4,6 @@
 package podman
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -48,7 +47,7 @@ func TestPodmanTokenCertHandler(t *testing.T) {
 	assert.Assert(t, err)
 
 	// loading secret from file
-	yaml, err := ioutil.ReadFile(tokenFile.Name())
+	yaml, err := os.ReadFile(tokenFile.Name())
 	assert.Assert(t, err)
 
 	// reading yaml as secret

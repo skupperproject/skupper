@@ -3,7 +3,6 @@ package container
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -170,7 +169,7 @@ func (v *Volume) ReadFile(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data, err := ioutil.ReadFile(path.Join(vDir.Name(), name))
+	data, err := os.ReadFile(path.Join(vDir.Name(), name))
 	if err != nil {
 		return "", err
 	}

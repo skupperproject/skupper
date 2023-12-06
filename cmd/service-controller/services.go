@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/event"
-	"io/ioutil"
+	"io"
 	"net/http"
+
+	"github.com/skupperproject/skupper/pkg/event"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -252,7 +253,7 @@ func (o *ServiceOptions) DeducePort() bool {
 
 func getServiceOptions(r *http.Request) (*ServiceOptions, error) {
 	options := &ServiceOptions{}
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return options, err
 	}

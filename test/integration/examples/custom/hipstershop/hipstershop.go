@@ -3,8 +3,8 @@ package hipstershop
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"testing"
 
@@ -101,7 +101,7 @@ func CreateVAN(t *testing.T, testRunner base.ClusterTestRunner) {
 	assert.Assert(t, err, "error creating router on private1 cluster")
 
 	// Creating a local directory for storing the token
-	tokenPath, err := ioutil.TempDir("", "token")
+	tokenPath, err := os.MkdirTemp("", "token")
 	assert.Assert(t, err, "error creating temporary directory for tokens")
 	cleanUpDirs = append(cleanUpDirs, tokenPath)
 

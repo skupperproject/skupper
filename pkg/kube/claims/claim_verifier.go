@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -143,7 +143,7 @@ func (server *ClaimVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.Join(strings.Split(r.URL.Path, "/"), "")
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading body: %s", err.Error())
 		http.Error(w, "Request body not valid", http.StatusBadRequest)
