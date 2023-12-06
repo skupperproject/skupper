@@ -142,6 +142,7 @@ Recommendation:
 	}
 
 	// Initializing
+	cmd.SilenceUsage = true
 	err = siteHandler.Create(site)
 	if err != nil {
 		return fmt.Errorf("Error initializing Skupper - %w", err)
@@ -198,13 +199,10 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 }
 
 func (s *SkupperPodmanSite) Delete(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
 	siteHandler, err := podman.NewSitePodmanHandler("")
 	if err != nil {
 		return fmt.Errorf("Unable to delete Skupper - %w", err)
-	}
-	curSite, err := siteHandler.Get()
-	if err != nil || curSite == nil {
-		return err
 	}
 	err = siteHandler.Delete()
 	if err != nil {
