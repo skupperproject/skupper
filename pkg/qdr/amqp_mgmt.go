@@ -360,7 +360,7 @@ func (a *Agent) request(operation string, typename string, name string, attribut
 	response, err := a.receiver.Receive(ctx)
 	if err != nil {
 		a.Close()
-		return fmt.Errorf("Failed to receive reponse: %s", err)
+		return fmt.Errorf("Failed to receive response: %s", err)
 	}
 	response.Accept()
 	if status, ok := AsInt(response.ApplicationProperties["statusCode"]); !ok && !isOk(status) {
@@ -475,7 +475,7 @@ func (a *Agent) QueryByAgentAddress(typename string, attributes []string, agent 
 	response, err := a.receiver.Receive(ctx)
 	if err != nil {
 		a.Close()
-		return nil, fmt.Errorf("Failed to receive reponse: %s", err)
+		return nil, fmt.Errorf("Failed to receive response: %s", err)
 	}
 	response.Accept()
 	if status, ok := AsInt(response.ApplicationProperties["statusCode"]); ok && isOk(status) {
@@ -573,7 +573,7 @@ func (a *Agent) BatchQuery(queries []Query) ([][]Record, error) {
 		response, err := a.receiver.Receive(ctx)
 		if err != nil {
 			a.Close()
-			return nil, fmt.Errorf("Failed to receive reponse: %s", err)
+			return nil, fmt.Errorf("Failed to receive response: %s", err)
 		}
 		response.Accept()
 		responseIndex, ok := response.Properties.CorrelationID.(uint64)
@@ -1369,7 +1369,7 @@ func (a *Agent) Request(request *Request) (*Response, error) {
 	responseMsg, err := a.receiver.Receive(ctx)
 	if err != nil {
 		a.Close()
-		return nil, fmt.Errorf("Failed to receive reponse: %s", err)
+		return nil, fmt.Errorf("Failed to receive response: %s", err)
 	}
 	responseMsg.Accept()
 

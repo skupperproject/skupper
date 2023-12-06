@@ -33,7 +33,7 @@
 # may still consume Dockerhub pull requests in the process.
 #
 # As with any Makefile, you can configure the execution by setting variables
-# on the make invokation:
+# on the make invocation:
 #
 #   make MAIN_REPO=quay.io/dhashimo docker.io/ssorj/quiver
 #

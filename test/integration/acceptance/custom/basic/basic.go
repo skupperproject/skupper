@@ -21,7 +21,7 @@ import (
 
 const (
 	SkipReasonIngressNone           = "this test only runs against a single cluster (ingress=none)"
-	SkipReasonNodePortNoIngressHost = "this test can only be executed if PUBLIC_1_INGRESS_HOST environment varialbe is set (ingress=nodeport)"
+	SkipReasonNodePortNoIngressHost = "this test can only be executed if PUBLIC_1_INGRESS_HOST environment variable is set (ingress=nodeport)"
 )
 
 type BasicTestRunner struct {

@@ -129,7 +129,7 @@ For some existing resources, when they are disallowed, they're removed for good.
 Of others, however, they're only disabled.  Check that behavior by allowing and
 disallowing the policy items a few times.
 
-## The assynchronous nature of the policy engine
+## The asynchronous nature of the policy engine
 
 The policy engine works in a declarative manner: the service controllers in
 each namespace monitor for policy changes and recalculate the local policy when
@@ -266,7 +266,7 @@ Describe features of the product that may help writing test cases.
 * `get events`
 * `get policies`
 
-## service controler pod logs
+## service controller pod logs
 
 ## service sync
 

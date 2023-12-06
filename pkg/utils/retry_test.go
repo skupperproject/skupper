@@ -23,7 +23,7 @@ import (
 //
 // Or:
 //
-// - If function produces an error, fail immediatelly with that error
+// - If function produces an error, fail immediately with that error
 // - Else, if ok is true, return nil and succeed
 // - Otherwise:
 //   - if before maximum retry: retry

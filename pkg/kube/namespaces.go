@@ -30,9 +30,9 @@ func DeleteNamespace(name string, cli kubernetes.Interface) error {
 	if err == nil {
 		return err
 	} else if errors.IsNotFound(err) {
-		return fmt.Errorf("Namepace %s does not exist.", name)
+		return fmt.Errorf("Namespace %s does not exist.", name)
 	} else {
-		return fmt.Errorf("Failed to delete namesspace: %w", err)
+		return fmt.Errorf("Failed to delete namespace: %w", err)
 	}
 }
 

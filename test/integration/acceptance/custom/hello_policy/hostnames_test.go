@@ -346,7 +346,7 @@ func testHostnamesPolicy(t *testing.T, pub, prv *base.ClusterContext) {
 		linkStatusTestScenario(prv, "", "hostnames", false),
 	}
 
-	// status testing, tied to router hostname (link being establised)
+	// status testing, tied to router hostname (link being established)
 	statusTestTable := []policyTestCase{}
 
 	for _, t := range tests {

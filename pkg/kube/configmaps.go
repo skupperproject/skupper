@@ -98,7 +98,7 @@ func UpdateSkupperServices(changed []types.ServiceInterface, deleted []string, o
 			return fmt.Errorf("Failed to update skupper-services config map: %s", err)
 		}
 	} else {
-		return fmt.Errorf("Could not retrive service definitions from configmap 'skupper-services', Error: %v", err)
+		return fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services', Error: %v", err)
 	}
 
 	return nil

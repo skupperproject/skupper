@@ -88,7 +88,7 @@ func (c *ConfigSync) stop() {
 func (c *ConfigSync) runConfigSync() {
 	err := c.checkCertFiles(SHARED_TLS_DIRECTORY)
 	if err != nil {
-		log.Printf("An error has ocurred when checking certification files for the router: %s", err)
+		log.Printf("An error has occurred when checking certification files for the router: %s", err)
 	}
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
