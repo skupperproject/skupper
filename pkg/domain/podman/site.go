@@ -293,6 +293,8 @@ func (s *SiteHandler) Create(site domain.Site) error {
 			if err != nil {
 				return err
 			}
+		}
+		if OwnedBySkupper("volume", vol.Labels) == nil {
 			cleanupFns = append(cleanupFns, func() {
 				_ = s.cli.VolumeRemove(vol.Name)
 			})
@@ -557,6 +559,14 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 func (s *SiteHandler) Delete() error {
 	site, err := s.Get()
 	if err != nil {
+		// removing eventual resources from an incomplete initialization
+		removed, removeErr := s.removePodmanResources()
+		if removed && removeErr == nil {
+			return nil
+		}
+		if removeErr != nil {
+			return fmt.Errorf("error cleaning up resources from failed initialization: %s - %s", removeErr, err)
+		}
 		return err
 	}
 	podmanSite := site.(*Site)
@@ -566,10 +576,6 @@ func (s *SiteHandler) Delete() error {
 	if err != nil {
 		return fmt.Errorf("error retrieving deployments - %w", err)
 	}
-	volumeList, err := s.cli.VolumeList()
-	if err != nil {
-		return fmt.Errorf("error retrieving volume list - %w", err)
-	}
 
 	// Stopping and removing containers
 	for _, dep := range deploys {
@@ -578,26 +584,14 @@ func (s *SiteHandler) Delete() error {
 			return fmt.Errorf("error removing deployment %s - %w", dep.GetName(), err)
 		}
 	}
-	containers, err := s.cli.ContainerList()
+
+	_, err = s.removePodmanResources()
 	if err != nil {
-		return fmt.Errorf("error listing containers - %w", err)
-	}
-	for _, c := range containers {
-		if OwnedBySkupper("container", c.Labels) == nil {
-			_ = s.cli.ContainerStop(c.Name)
-			_ = s.cli.ContainerRemove(c.Name)
-		}
+		return err
 	}
 
 	// Removing networks
 	_ = s.cli.NetworkRemove(podmanSite.ContainerNetwork)
-
-	// Removing volumes
-	for _, v := range volumeList {
-		if app, ok := v.GetLabels()["application"]; ok && app == types.AppName {
-			_ = s.cli.VolumeRemove(v.Name)
-		}
-	}
 
 	// Removing startup files and service
 	scripts := config.GetStartupScripts(types.PlatformPodman)
@@ -607,6 +601,36 @@ func (s *SiteHandler) Delete() error {
 		fmt.Printf("Unable to remove systemd service - %v\n", err)
 	}
 	return nil
+}
+
+func (s *SiteHandler) removePodmanResources() (bool, error) {
+	var removed bool
+
+	// removing containers owned by Skupper
+	containers, err := s.cli.ContainerList()
+	if err != nil {
+		return removed, fmt.Errorf("error listing containers - %w", err)
+	}
+	for _, c := range containers {
+		if OwnedBySkupper("container", c.Labels) == nil {
+			_ = s.cli.ContainerStop(c.Name)
+			_ = s.cli.ContainerRemove(c.Name)
+			removed = true
+		}
+	}
+
+	// Removing volumes
+	volumeList, err := s.cli.VolumeList()
+	if err != nil {
+		return removed, fmt.Errorf("error retrieving volume list - %w", err)
+	}
+	for _, v := range volumeList {
+		if app, ok := v.GetLabels()["application"]; ok && app == types.AppName {
+			_ = s.cli.VolumeRemove(v.Name)
+			removed = true
+		}
+	}
+	return removed, nil
 }
 
 func (s *SiteHandler) Update() error {

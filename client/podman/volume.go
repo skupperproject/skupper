@@ -52,6 +52,7 @@ func (p *PodmanRestClient) VolumeRemove(id string) error {
 	cli := volumes.New(p.RestClient, formats)
 	params := volumes.NewVolumeDeleteLibpodParams()
 	params.Name = id
+	params.Force = boolTrue()
 	_, err = cli.VolumeDeleteLibpod(params)
 	if err != nil {
 		return err
