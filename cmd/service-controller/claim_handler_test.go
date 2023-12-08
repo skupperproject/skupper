@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -53,7 +53,7 @@ func (server *MockVerifier) addFailedResult(code int, message string) {
 
 func (server *MockVerifier) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(server.Results) > server.Current {
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {

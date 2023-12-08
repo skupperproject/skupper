@@ -7,7 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -59,7 +59,7 @@ var shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
 func getConnectInfo(file string) (connectJson, error) {
 	cj := connectJson{}
 
-	jsonFile, err := ioutil.ReadFile(file)
+	jsonFile, err := os.ReadFile(file)
 	if err != nil {
 		return cj, err
 	}
@@ -113,7 +113,7 @@ func authenticate(dir string, user string, password string) bool {
 	}
 	defer file.Close()
 
-	bytes, err := ioutil.ReadAll(file)
+	bytes, err := io.ReadAll(file)
 	if err != nil {
 		log.Printf("COLLECTOR: Failed to authenticate %s: %s", user, err)
 		return false

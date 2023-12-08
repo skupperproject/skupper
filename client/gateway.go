@@ -10,7 +10,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -286,7 +285,7 @@ func getConfigHome() string {
 }
 
 func getGatewaySiteId(gatewayDir string) (string, error) {
-	siteId, err := ioutil.ReadFile(gatewayDir + "/config/siteid.txt")
+	siteId, err := os.ReadFile(gatewayDir + "/config/siteid.txt")
 	if err != nil {
 		return "", fmt.Errorf("Failed to read site id: %w", err)
 	}
@@ -294,7 +293,7 @@ func getGatewaySiteId(gatewayDir string) (string, error) {
 }
 
 func getRouterId(gatewayDir string) (string, error) {
-	routerId, err := ioutil.ReadFile(gatewayDir + "/config/routerid.txt")
+	routerId, err := os.ReadFile(gatewayDir + "/config/routerid.txt")
 	if err != nil {
 		return "", fmt.Errorf("Failed to read router id: %w", err)
 	}
@@ -302,7 +301,7 @@ func getRouterId(gatewayDir string) (string, error) {
 }
 
 func getRouterUrl(gatewayDir string) (string, error) {
-	url, err := ioutil.ReadFile(gatewayDir + "/config/url.txt")
+	url, err := os.ReadFile(gatewayDir + "/config/url.txt")
 	if err != nil {
 		return "", fmt.Errorf("Failed to read router url: %w", err)
 	}
@@ -333,9 +332,9 @@ func getRouterVersion(gatewayName string, gatewayType string) (string, error) {
 }
 
 func getMachineID() (string, error) {
-	id, err := ioutil.ReadFile("/var/lib/dbus/machine-id")
+	id, err := os.ReadFile("/var/lib/dbus/machine-id")
 	if err != nil {
-		id, err = ioutil.ReadFile("/etc/machine-id")
+		id, err = os.ReadFile("/etc/machine-id")
 	}
 	if err != nil {
 		return "", err
@@ -471,12 +470,12 @@ func setupLocalDir(localDir string) error {
 
 func startGatewayUserService(gatewayName, unitDir, localDir string) error {
 
-	unitFile, err := ioutil.ReadFile(localDir + "/user/" + gatewayName + ".service")
+	unitFile, err := os.ReadFile(localDir + "/user/" + gatewayName + ".service")
 	if err != nil {
 		return fmt.Errorf("Unable to read service file: %w", err)
 	}
 
-	err = ioutil.WriteFile(unitDir+"/"+gatewayName+".service", unitFile, 0644)
+	err = os.WriteFile(unitDir+"/"+gatewayName+".service", unitFile, 0644)
 	if err != nil {
 		return fmt.Errorf("Unable to write user unit file: %w", err)
 	}
@@ -548,7 +547,7 @@ func updateLocalGatewayConfig(gatewayDir string, gatewayType string, gatewayConf
 	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
 	qdrConfig.Execute(&buf, instance)
 
-	err = ioutil.WriteFile(gatewayDir+"/config/skrouterd.json", buf.Bytes(), 0644)
+	err = os.WriteFile(gatewayDir+"/config/skrouterd.json", buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write config file: %w", err)
 	}
@@ -575,7 +574,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 	}
 
 	for _, cert := range certs {
-		err = ioutil.WriteFile(gatewayDir+"/skupper-router-certs/conn1-profile/"+cert, secret.Data[cert], 0644)
+		err = os.WriteFile(gatewayDir+"/skupper-router-certs/conn1-profile/"+cert, secret.Data[cert], 0644)
 		if err != nil {
 			return fmt.Errorf("Failed to write cert file: %w", err)
 		}
@@ -602,14 +601,14 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 
 	// store the url for instance queries
 	url := fmt.Sprintf("amqp://127.0.0.1:%s", strconv.Itoa(amqpPort))
-	err = ioutil.WriteFile(gatewayDir+"/config/url.txt", []byte(url), 0644)
+	err = os.WriteFile(gatewayDir+"/config/url.txt", []byte(url), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write instance url file: %w", err)
 	}
 
 	// generate a router id and store it for subsequent template updates
 	routerId := newUUID()
-	err = ioutil.WriteFile(gatewayDir+"/config/routerid.txt", []byte(routerId), 0644)
+	err = os.WriteFile(gatewayDir+"/config/routerid.txt", []byte(routerId), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write instance id file: %w", err)
 	}
@@ -620,7 +619,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 		return fmt.Errorf("Failed to retrieve site id: %w", err)
 	}
 	if siteConfig != nil {
-		err = ioutil.WriteFile(gatewayDir+"/config/siteid.txt", []byte(siteConfig.Reference.UID), 0644)
+		err = os.WriteFile(gatewayDir+"/config/siteid.txt", []byte(siteConfig.Reference.UID), 0644)
 		if err != nil {
 			return fmt.Errorf("Failed to write site id file: %w", err)
 		}
@@ -664,7 +663,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 	qdrConfig := template.Must(template.New("qdrConfig").Parse(mc))
 	qdrConfig.Execute(&buf, instance)
 
-	err = ioutil.WriteFile(gatewayDir+"/config/skrouterd.json", buf.Bytes(), 0644)
+	err = os.WriteFile(gatewayDir+"/config/skrouterd.json", buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write config file: %w", err)
 	}
@@ -693,7 +692,7 @@ func (cli *VanClient) gatewayStartService(ctx context.Context, gatewayName strin
 		ConfigPath:      gatewayDir,
 		GatewayName:     gatewayName,
 	})
-	err = ioutil.WriteFile(gatewayDir+"/user/"+gatewayName+".service", []byte(qdrUserUnit), 0644)
+	err = os.WriteFile(gatewayDir+"/user/"+gatewayName+".service", []byte(qdrUserUnit), 0644)
 	if err != nil {
 		return fmt.Errorf("Failed to write unit file: %w", err)
 	}
@@ -926,7 +925,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 
 	if configFile != "" {
 		// grab the bindings and forwards from the config file
-		yamlFile, err := ioutil.ReadFile(configFile)
+		yamlFile, err := os.ReadFile(configFile)
 		if err != nil {
 			return "", fmt.Errorf("Failed to read gateway config file: %w", err)
 		}
@@ -1138,7 +1137,7 @@ func (cli *VanClient) GatewayInit(ctx context.Context, gatewayName string, gatew
 	}
 
 	if configFile != "" && gatewayType != GatewayMockType {
-		yamlFile, err := ioutil.ReadFile(configFile)
+		yamlFile, err := os.ReadFile(configFile)
 		if err != nil {
 			return "", fmt.Errorf("Failed to read gateway config file: %w", err)
 		}
@@ -2055,7 +2054,7 @@ func (cli *VanClient) GatewayExportConfig(ctx context.Context, targetGatewayName
 		return exportFile, fmt.Errorf("Failed to marshal export config: %w", err)
 	}
 
-	err = ioutil.WriteFile(exportFile, mcData, 0644)
+	err = os.WriteFile(exportFile, mcData, 0644)
 	if err != nil {
 		return exportFile, fmt.Errorf("Failed to write export config file: %w", err)
 	}
@@ -2071,7 +2070,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 		return "", fmt.Errorf("Skupper is not enabled in namespace '%s'", cli.Namespace)
 	}
 
-	yamlFile, err := ioutil.ReadFile(configFile)
+	yamlFile, err := os.ReadFile(configFile)
 	if err != nil {
 		return "", fmt.Errorf("Failed to read gateway config file: %w", err)
 	}

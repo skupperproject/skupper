@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -56,7 +55,7 @@ func (l *ConfigFileHandlerCommon) Save() error {
 }
 
 func (l *ConfigFileHandlerCommon) Load() error {
-	data, err := ioutil.ReadFile(l.GetFilename())
+	data, err := os.ReadFile(l.GetFilename())
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("error loading %s: %v", l.GetFilename(), err)
 	}
@@ -116,7 +115,7 @@ func (p *PlatformInfo) Update(platform types.Platform) error {
 }
 
 func (p *PlatformInfo) Load() error {
-	data, err := ioutil.ReadFile(PlatformConfigFile)
+	data, err := os.ReadFile(PlatformConfigFile)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("error loading %s: %v", PlatformConfigFile, err)
 	}

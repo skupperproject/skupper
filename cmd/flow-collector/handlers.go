@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
@@ -184,7 +184,7 @@ func (c *Controller) promqueryHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("COLLECTOR: Prometheus query error: %s\n", err.Error())
 	} else {
 		w.WriteHeader(proxyResp.StatusCode)
-		data, _ := ioutil.ReadAll(proxyResp.Body)
+		data, _ := io.ReadAll(proxyResp.Body)
 		proxyResp.Body.Close()
 		fmt.Fprintf(w, "%s\n", data)
 	}
@@ -205,7 +205,7 @@ func (c *Controller) promqueryrangeHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		log.Printf("COLLECTOR: Prometheus query_range error: %s\n", err.Error())
 	} else {
-		data, _ := ioutil.ReadAll(proxyResp.Body)
+		data, _ := io.ReadAll(proxyResp.Body)
 		proxyResp.Body.Close()
 		fmt.Fprintf(w, "%s\n", data)
 	}

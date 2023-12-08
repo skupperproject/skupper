@@ -3,7 +3,6 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -365,7 +364,7 @@ func TestPlatformInfo_Update(t *testing.T) {
 
 			// loading file
 			if tt.want != nil {
-				data, _ := ioutil.ReadFile(tempFile)
+				data, _ := os.ReadFile(tempFile)
 				decoder := yaml.NewDecoder(bytes.NewReader(data))
 				current := &PlatformInfo{}
 				_ = decoder.Decode(current)

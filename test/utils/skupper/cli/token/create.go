@@ -3,7 +3,6 @@ package token
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -114,7 +113,7 @@ func (t *CreateTester) Run(platform types.Platform, cluster *base.ClusterContext
 	// Loading secret
 	var secret v1.Secret
 	var secretFile []byte
-	secretFile, err = ioutil.ReadFile(t.FileName)
+	secretFile, err = os.ReadFile(t.FileName)
 	if err != nil {
 		err = fmt.Errorf("unable to read token file - %v", err)
 		return

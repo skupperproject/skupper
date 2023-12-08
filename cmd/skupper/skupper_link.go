@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"time"
 
@@ -42,7 +42,7 @@ func NewCmdLinkCreate(skupperClient SkupperLinkClient, flag string) *cobra.Comma
 		PreRun: skupperClient.NewClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// loading secret from file
-			yaml, err := ioutil.ReadFile(args[0])
+			yaml, err := os.ReadFile(args[0])
 			if err != nil {
 				return fmt.Errorf("Could not read connection token: %s", err.Error())
 			}

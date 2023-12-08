@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -447,7 +446,7 @@ func TestServeServices(t *testing.T) {
 		res := httptest.NewRecorder()
 
 		router.ServeHTTP(res, req)
-		responseBody, _ := ioutil.ReadAll(res.Body)
+		responseBody, _ := io.ReadAll(res.Body)
 		assert.Equal(t, res.Code, test.expectedCode, name+" "+string(responseBody))
 		if test.checker != nil {
 			assert.Check(t, test.checker.Check(responseBody), name)
@@ -638,7 +637,7 @@ func TestServeServiceTargets(t *testing.T) {
 		res := httptest.NewRecorder()
 
 		router.ServeHTTP(res, req)
-		responseBody, _ := ioutil.ReadAll(res.Body)
+		responseBody, _ := io.ReadAll(res.Body)
 		assert.Equal(t, res.Code, test.expectedCode, name+" "+string(responseBody))
 		if test.checker != nil {
 			assert.Check(t, test.checker.Check(responseBody), name)

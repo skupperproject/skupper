@@ -4,7 +4,7 @@ package job
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -38,10 +38,9 @@ func tryProductPage() ([]byte, error) {
 		return nil, fmt.Errorf("unexpedted http response status: %v", resp.Status)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 	return body, nil
 }
-
