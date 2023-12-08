@@ -136,6 +136,12 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 		if err != nil {
 			fmt.Printf("Skupper is not enabled for user '%s'", podman.Username)
 			fmt.Println()
+			if siteHandler.AnyResourceLeft() {
+				fmt.Println("Reason:", err)
+				fmt.Println()
+				fmt.Println("There are podman resources missing or left from an earlier installation")
+				fmt.Println("To clean them up, run: skupper delete")
+			}
 			os.Exit(0)
 		}
 	}

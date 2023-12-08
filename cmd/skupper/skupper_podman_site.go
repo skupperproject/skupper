@@ -204,6 +204,11 @@ func (s *SkupperPodmanSite) Delete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to delete Skupper - %w", err)
 	}
+	if s.podman.currentSite == nil && !siteHandler.AnyResourceLeft() {
+		fmt.Printf("Skupper is not enabled for user '%s'", podman.Username)
+		fmt.Println()
+		return nil
+	}
 	err = siteHandler.Delete()
 	if err != nil {
 		return err
