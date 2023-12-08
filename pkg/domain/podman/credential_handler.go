@@ -3,7 +3,6 @@ package podman
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -171,7 +170,7 @@ func (p *CredentialHandler) LoadVolumeAsSecret(vol *container.Volume) (*corev1.S
 		if file.IsDir() {
 			continue
 		}
-		data, err := ioutil.ReadFile(path.Join(vol.Source, file.Name()))
+		data, err := os.ReadFile(path.Join(vol.Source, file.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("error reading file %s for secret %s - %v", file.Name(), vol.Name, err)
 		}

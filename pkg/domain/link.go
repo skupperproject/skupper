@@ -6,14 +6,15 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/network"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/network"
 
 	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
@@ -115,7 +116,7 @@ func (c *ClaimRedeemer) RedeemClaim(claim *corev1.Secret) error {
 		fmt.Println()
 		return c.handleError(claim, err.Error(), false)
 	}
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		fmt.Printf("Claim request failed on reading body: %s", err)
 		fmt.Println()

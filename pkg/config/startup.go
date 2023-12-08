@@ -3,7 +3,6 @@ package config
 import (
 	_ "embed"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -38,12 +37,12 @@ func GetStartupScripts(platform types.Platform) *StartupScripts {
 
 func (s *StartupScripts) Create() error {
 	startFileName := path.Join(GetDataHome(), s.GetStartFileName())
-	err := ioutil.WriteFile(startFileName, []byte(s.StartScript), 0755)
+	err := os.WriteFile(startFileName, []byte(s.StartScript), 0755)
 	if err != nil {
 		return err
 	}
 	stopFileName := path.Join(GetDataHome(), s.GetStopFileName())
-	err = ioutil.WriteFile(stopFileName, []byte(s.StopScript), 0755)
+	err = os.WriteFile(stopFileName, []byte(s.StopScript), 0755)
 	if err != nil {
 		return err
 	}

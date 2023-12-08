@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -65,7 +65,7 @@ func authenticate(dir string, user string, password string) bool {
 	}
 	defer file.Close()
 
-	bytes, err := ioutil.ReadAll(file)
+	bytes, err := io.ReadAll(file)
 	if err != nil {
 		event.Recordf(HttpAuthFailure, "Failed to authenticate %s: %s", user, err)
 		return false

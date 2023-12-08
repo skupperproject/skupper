@@ -9,7 +9,6 @@ import (
 	"compress/gzip"
 	"context"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -43,14 +42,12 @@ func TestGateway(t *testing.T) {
 	t.Run("local-gateway-podman", testLocalGatewayPodman)
 }
 
-//
 // testLocalGateway uses localhost to run a TCP Echo server
 // bound to a dynamic port and expose it through a local
 // gateway into the skupper network, against two connected
 // clusters. It also forwards local requests to a cluster
 // port reaching out tcp-echo-cluster service using a
 // dynamic port
-//
 func testLocalGatewayService(t *testing.T) {
 	testLocalGateway(t, "")
 }
@@ -210,7 +207,7 @@ func installGateway(tarball string) error {
 	tarReader := tar.NewReader(tarStream)
 
 	// uncompress all files under temp directory
-	dir, err := ioutil.TempDir("", "gateway")
+	dir, err := os.MkdirTemp("", "gateway")
 	if err != nil {
 		return err
 	}

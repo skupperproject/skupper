@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -403,7 +402,7 @@ func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secre
 
 	_, err = os.Stat(certFile)
 	if secret.Data["tls.crt"] != nil && os.IsNotExist(err) {
-		err = ioutil.WriteFile(certFile, secret.Data["tls.crt"], 0777)
+		err = os.WriteFile(certFile, secret.Data["tls.crt"], 0777)
 		if err != nil {
 			return err
 		}
@@ -411,7 +410,7 @@ func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secre
 
 	_, err = os.Stat(keyFile)
 	if secret.Data["tls.key"] != nil && os.IsNotExist(err) {
-		err = ioutil.WriteFile(keyFile, secret.Data["tls.key"], 0777)
+		err = os.WriteFile(keyFile, secret.Data["tls.key"], 0777)
 		if err != nil {
 			return err
 		}
@@ -419,7 +418,7 @@ func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secre
 
 	_, err = os.Stat(caCertFile)
 	if secret.Data["ca.crt"] != nil && os.IsNotExist(err) {
-		err = ioutil.WriteFile(caCertFile, secret.Data["ca.crt"], 0777)
+		err = os.WriteFile(caCertFile, secret.Data["ca.crt"], 0777)
 		if err != nil {
 			return err
 		}

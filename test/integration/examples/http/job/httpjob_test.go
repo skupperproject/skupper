@@ -6,15 +6,17 @@ package job
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"crypto/x509"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/tsenart/vegeta/v12/lib"
 	"golang.org/x/net/http2"
@@ -49,7 +51,7 @@ func TestHttp2Job(t *testing.T) {
 	fmt.Println("Client Header:", resp.Header)
 
 	defer resp.Body.Close()
-	_body, err := ioutil.ReadAll(resp.Body)
+	_body, err := io.ReadAll(resp.Body)
 	assert.Assert(t, err)
 
 	body := string(_body)
@@ -60,7 +62,7 @@ func TestHttp2Job(t *testing.T) {
 func TestHttp2TlsJob(t *testing.T) {
 
 	//Load CA cert
-	caCert, err := ioutil.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
+	caCert, err := os.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,7 +92,7 @@ func TestHttp2TlsJob(t *testing.T) {
 	fmt.Println("Client Header:", resp.Header)
 
 	defer resp.Body.Close()
-	_body, err := ioutil.ReadAll(resp.Body)
+	_body, err := io.ReadAll(resp.Body)
 	assert.Assert(t, err)
 
 	body := string(_body)
@@ -102,7 +104,7 @@ func TestHttp2TlsJob(t *testing.T) {
 func TestHttp2TcpTlsJob(t *testing.T) {
 
 	//Load CA cert
-	caCert, err := ioutil.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
+	caCert, err := os.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
 	assert.Assert(t, err)
 
 	caCertPool := x509.NewCertPool()
@@ -131,7 +133,7 @@ func TestHttp2TcpTlsJob(t *testing.T) {
 	fmt.Println("Client Header:", resp.Header)
 
 	defer resp.Body.Close()
-	_body, err := ioutil.ReadAll(resp.Body)
+	_body, err := io.ReadAll(resp.Body)
 	assert.Assert(t, err)
 
 	body := string(_body)
@@ -143,7 +145,7 @@ func TestHttp2TcpTlsJob(t *testing.T) {
 func TestHttp1TlsJob(t *testing.T) {
 
 	//Load CA cert
-	caCert, err := ioutil.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
+	caCert, err := os.ReadFile("/tmp/certs/skupper-service-client/ca.crt")
 	assert.Assert(t, err)
 
 	caCertPool := x509.NewCertPool()
@@ -171,7 +173,7 @@ func TestHttp1TlsJob(t *testing.T) {
 	fmt.Println("Client Header:", resp.Header)
 
 	defer resp.Body.Close()
-	_body, err := ioutil.ReadAll(resp.Body)
+	_body, err := io.ReadAll(resp.Body)
 	assert.Assert(t, err)
 
 	body := string(_body)

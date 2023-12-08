@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -262,7 +261,7 @@ func TestDownloadClaim(t *testing.T) {
 		router.ServeHTTP(res, req)
 		assert.Equal(t, res.Code, test.expectedCode, name)
 		if res.Code == http.StatusOK {
-			body, err := ioutil.ReadAll(res.Body)
+			body, err := io.ReadAll(res.Body)
 			assert.Check(t, err, testname)
 			s := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme, json.SerializerOptions{})
 			var token corev1.Secret

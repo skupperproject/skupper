@@ -3,7 +3,6 @@ package kube
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
@@ -45,7 +44,7 @@ func CurrentNamespace() (string, error) {
 	}
 	_, err := os.Stat(NamespaceFile)
 	if err == nil {
-		raw, err := ioutil.ReadFile(NamespaceFile)
+		raw, err := os.ReadFile(NamespaceFile)
 		if err != nil {
 			return namespace, err
 		}

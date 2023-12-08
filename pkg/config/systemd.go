@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -55,7 +54,7 @@ func (s *systemdServiceInfo) Create() error {
 
 	// Saving systemd user service
 	serviceName := s.getServiceName()
-	err = ioutil.WriteFile(s.getServiceFile(), buf.Bytes(), 0644)
+	err = os.WriteFile(s.getServiceFile(), buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("Unable to write user unit file: %w", err)
 	}

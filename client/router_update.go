@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -910,17 +909,17 @@ func updateGatewayMultiport(ctx context.Context, cli *VanClient) error {
 			}
 			// generate a router id and store it for subsequent template updates
 			routerId := newUUID()
-			err = ioutil.WriteFile(newGatewayDir+"/config/routerid.txt", []byte(routerId), 0644)
+			err = os.WriteFile(newGatewayDir+"/config/routerid.txt", []byte(routerId), 0644)
 			if err != nil {
 				return err
 			}
 			updateFileContent := func(fileName, oldPath, newPath string) error {
-				content, err := ioutil.ReadFile(fileName)
+				content, err := os.ReadFile(fileName)
 				if err != nil {
 					return err
 				}
 				updatedContent := strings.ReplaceAll(string(content), oldPath, newPath)
-				err = ioutil.WriteFile(fileName, []byte(updatedContent), 0)
+				err = os.WriteFile(fileName, []byte(updatedContent), 0)
 				if err != nil {
 					return err
 				}

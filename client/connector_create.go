@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 
@@ -24,7 +24,7 @@ import (
 )
 
 func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile string, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
-	yaml, err := ioutil.ReadFile(secretFile)
+	yaml, err := os.ReadFile(secretFile)
 	if err != nil {
 		fmt.Println("Could not read connection token", err.Error())
 		return nil, err

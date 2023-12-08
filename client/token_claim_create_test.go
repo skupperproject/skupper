@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"strings"
@@ -19,7 +18,7 @@ import (
 )
 
 func readSecretFromFile(filename string) (*corev1.Secret, error) {
-	yaml, err := ioutil.ReadFile(filename)
+	yaml, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

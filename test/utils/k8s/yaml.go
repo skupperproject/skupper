@@ -6,8 +6,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 
 	"github.com/skupperproject/skupper/client"
@@ -36,7 +36,7 @@ func CreateResourcesFromYAML(vanClient *client.VanClient, fileOrUrl string) erro
 		}
 	} else {
 		// Read YAML file
-		yamlData, err = ioutil.ReadFile(fileOrUrl)
+		yamlData, err = os.ReadFile(fileOrUrl)
 		if err != nil {
 			return fmt.Errorf("error reading yaml file: %s", err)
 		}
@@ -118,7 +118,7 @@ func readYAMLFromUrl(url string) ([]byte, error) {
 		return nil, fmt.Errorf("error loading yaml from url [%s]: %s", url, err)
 	}
 	defer resp.Body.Close()
-	yamlData, err = ioutil.ReadAll(resp.Body)
+	yamlData, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading yaml from url [%s]: %s", url, err)
 	}

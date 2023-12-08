@@ -22,7 +22,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"net"
@@ -309,7 +308,7 @@ func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 	config.InsecureSkipVerify = true
 	if verify {
 		certPool := x509.NewCertPool()
-		file, err := ioutil.ReadFile(ca)
+		file, err := os.ReadFile(ca)
 		if err != nil {
 			return nil, err
 		}
