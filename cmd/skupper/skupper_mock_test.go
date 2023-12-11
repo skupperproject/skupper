@@ -319,10 +319,6 @@ func (v *vanClientMock) NetworkStatus(ctx context.Context) (*network.NetworkStat
 	return &result, nil
 }
 
-func (v *vanClientMock) GetRemoteLinks(ctx context.Context, siteConfig *types.SiteConfig) ([]*network.RemoteLinkInfo, error) {
-	return nil, nil
-}
-
 func (v *vanClientMock) GetConsoleUrl(namespace string) (string, error) {
 	return "", nil
 }
