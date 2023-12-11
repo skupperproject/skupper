@@ -596,7 +596,9 @@ func main() {
 	if *isProf {
 		// serve only over localhost loopback
 		go func() {
-			log.Fatalf("failure running default http server for net/http/pprof: %s", http.ListenAndServe("localhost:9970", nil))
+			if err := http.ListenAndServe("localhost:9970", nil); err != nil {
+				log.Fatalf("failure running default http server for net/http/pprof: %s", err)
+			}
 		}()
 	}
 
