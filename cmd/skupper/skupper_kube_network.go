@@ -73,17 +73,12 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
 				if len(siteStatus.RouterStatus) > 0 {
 
-					validRouterIndex := 0
-					for index, router := range siteStatus.RouterStatus {
-						// Ignore routers that belong to statefulsets for headless services and any other router
-						routerId := strings.Split(router.Router.Name, "/")
-						if strings.HasPrefix(routerId[1], router.Router.Namespace) {
-							validRouterIndex = index
-							break
-						}
+					err, index := statusManager.GetRouterIndex(&siteStatus)
+					if err != nil {
+						return err
 					}
 
-					mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&siteStatus.RouterStatus[validRouterIndex], &siteStatus.Site)
+					mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&siteStatus.RouterStatus[index], &siteStatus.Site)
 
 					if len(mapSiteLink) > 0 {
 						siteLinks := siteLevel.NewChild("Linked sites:")
@@ -98,7 +93,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 							routerId := strings.Split(routerStatus.Router.Name, "/")
 
 							// skip routers that belong to headless services
-							if strings.HasPrefix(routerId[1], siteStatus.Site.Namespace) {
+							if strings.HasPrefix(routerId[1], siteStatus.Site.Name) {
 								routerItem := fmt.Sprintf("name: %s\n", routerId[1])
 								detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 

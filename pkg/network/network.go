@@ -19,12 +19,8 @@ func (s *SkupperStatus) GetServiceSitesMap() map[string][]SiteStatusInfo {
 		if len(site.RouterStatus) > 0 {
 			for _, router := range site.RouterStatus {
 				for _, listener := range router.Listeners {
-					if len(mapServiceSites[listener.Address]) == 0 {
-						mapServiceSites[listener.Address] = []SiteStatusInfo{site}
-					} else if mapServiceSites[listener.Address] != nil && !sliceContainsSite(mapServiceSites[listener.Address], site) {
-						serviceSites := mapServiceSites[listener.Address]
-						serviceSites = append(serviceSites, site)
-						mapServiceSites[listener.Address] = serviceSites
+					if len(mapServiceSites[listener.Address]) == 0 || !sliceContainsSite(mapServiceSites[listener.Address], site) {
+						mapServiceSites[listener.Address] = append(mapServiceSites[listener.Address], site)
 					}
 				}
 
@@ -33,8 +29,8 @@ func (s *SkupperStatus) GetServiceSitesMap() map[string][]SiteStatusInfo {
 				   listeners for the statefulstet.
 				*/
 				for _, connector := range router.Connectors {
-					if len(mapServiceSites[connector.Address]) == 0 {
-						mapServiceSites[connector.Address] = []SiteStatusInfo{site}
+					if len(mapServiceSites[connector.Address]) == 0 || !sliceContainsSite(mapServiceSites[connector.Address], site) {
+						mapServiceSites[connector.Address] = append(mapServiceSites[connector.Address], site)
 					}
 				}
 			}
@@ -75,7 +71,7 @@ func (s *SkupperStatus) GetRouterSiteMap() map[string]SiteStatusInfo {
 				routerName := strings.Split(routerStatus.Router.Name, "/")
 
 				// Remove routers that belong to statefulsets for headless services
-				if strings.HasPrefix(routerName[1], siteStatus.Site.Namespace) {
+				if strings.HasPrefix(routerName[1], siteStatus.Site.Name) {
 					mapRouterSite[routerName[1]] = siteStatus
 				}
 			}
@@ -119,6 +115,20 @@ func (s *SkupperStatus) LinkBelongsToSameSite(linkName string, siteId string, ro
 
 	return strings.EqualFold(routerSiteMap[linkName].Site.Identity, siteId)
 
+}
+
+func (s *SkupperStatus) GetRouterIndex(site *SiteStatusInfo) (error, int) {
+
+	for index, router := range site.RouterStatus {
+		// Ignore routers that belong to statefulsets for headless services and any other router
+		routerId := strings.Split(router.Router.Name, "/")
+		if strings.HasPrefix(routerId[1], site.Site.Name) {
+			return nil, index
+
+		}
+	}
+
+	return fmt.Errorf("not valid router found"), -1
 }
 
 func (s *SkupperStatus) RemoveLinksFromSameSite(router RouterStatusInfo, site SiteInfo) []LinkInfo {
