@@ -349,7 +349,11 @@ func (s *SkupperPodmanService) ExposeArgs(cmd *cobra.Command, args []string) err
 
 func (s *SkupperPodmanService) ExposeFlags(cmd *cobra.Command) {
 	cmd.Use = "expose [host <hostname|ip>]"
+	cmd.Short = "Expose one or more network services"
 	cmd.Example = `
+        # exposing a service running on the local machine
+        skupper expose host host.containers.internal --address my-service --port 8080
+
         # exposing a local network IP
         skupper expose host 10.0.0.1 --address my-service --port 8080
 
@@ -397,7 +401,11 @@ func (s *SkupperPodmanService) Unexpose(cmd *cobra.Command, args []string) error
 
 func (s *SkupperPodmanService) UnexposeFlags(cmd *cobra.Command) error {
 	cmd.Use = "unexpose [host <hostname|ip>]"
+	cmd.Short = "Unexpose one or more network services"
 	cmd.Example = `
+        # unexposing a service running on the local machine
+        skupper unexpose host host.containers.internal --address my-service
+
         # unexposing a local network IP
         skupper unexpose host 10.0.0.1 --address my-service
 
