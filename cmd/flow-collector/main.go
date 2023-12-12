@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path"
@@ -207,9 +208,12 @@ func internalLogout(w http.ResponseWriter, r *http.Request, validNonces map[stri
 }
 
 func main() {
+	flags := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	// if -version used, report and exit
-	isVersion := flag.Bool("version", false, "Report the version of the Skupper Flow Collector")
-	flag.Parse()
+	isVersion := flags.Bool("version", false, "Report the version of the Skupper Flow Collector")
+	isProf := flags.Bool("profile", false, "Exposes the runtime profiling facilities from net/http/pprof on http://localhost:9970")
+
+	flags.Parse(os.Args[1:])
 	if *isVersion {
 		fmt.Println(version.Version)
 		os.Exit(0)
@@ -589,6 +593,14 @@ func main() {
 			}
 		}
 	}()
+	if *isProf {
+		// serve only over localhost loopback
+		go func() {
+			if err := http.ListenAndServe("localhost:9970", nil); err != nil {
+				log.Fatalf("failure running default http server for net/http/pprof: %s", err)
+			}
+		}()
+	}
 
 	if err = c.Run(stopCh); err != nil {
 		log.Fatal("Error running Flow collector: ", err.Error())
