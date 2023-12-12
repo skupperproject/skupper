@@ -577,7 +577,7 @@ func TestExpose_Binding(t *testing.T) {
 
 		})
 
-	t.Run("service exists and Bind is successfull",
+	t.Run("service exists and Bind is successful",
 		func(t *testing.T) {
 			cli := &vanClientMock{}
 			aService := &types.ServiceInterface{

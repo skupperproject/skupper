@@ -33,7 +33,7 @@ Feature: Skupper service creation and binding
      and removing the policy that allowed 'hello-world-.*'
     Then the services are unaffected
     # make-policies-specific-to-namespace
-    When changing these policies to apply only to the namespaces where the services are respectivelly deployed
+    When changing these policies to apply only to the namespaces where the services are respectively deployed
     Then the services are unaffected, but they disappear from the list on the other namespace
     # policies-list-both-services
     When adding both specific services (hello-world-{backend,fronted}) to the list on both namespace-specific policies

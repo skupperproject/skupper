@@ -2870,7 +2870,7 @@ definitions:
         type: array
       ExtraHosts:
         description: |-
-          ExtraHosts contains hosts that will be aded to the container's
+          ExtraHosts contains hosts that will be added to the container's
           etc/hosts.
         items:
           type: string

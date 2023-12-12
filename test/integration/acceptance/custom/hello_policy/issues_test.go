@@ -105,7 +105,7 @@ func testLinkIssue753(t *testing.T, pub, prv *base.ClusterContext) {
 								// originally, we looked only for "command terminated with exit code".  However, the fix for
 								// #753 on #782 just added a better explanation of what's going on ("skupper-service-controller not ready"),
 								// while keeping the actual error with exit code for helping on investigations.  So, now we check that,
-								// if a policy error ocurred with a command exit code, we don't report just that: we expect that
+								// if a policy error occurred with a command exit code, we don't report just that: we expect that
 								// something else be given as an explanation to the error, like #782
 								if strings.Contains(err.Error(), "Policy validation error: command terminated with exit code") {
 									return fmt.Errorf("Error matched: '%w'", err)
@@ -257,7 +257,7 @@ func testLinkIssue789(t *testing.T, pub, prv *base.ClusterContext) {
 
 }
 
-// If a service is up and running, then we remove all policies and immediatelly reallow them: will
+// If a service is up and running, then we remove all policies and immediately reallow them: will
 // the services be removed?
 //
 // The result may depend on cluster load and other factors, so we run it multiple times (runs+1)
@@ -328,7 +328,7 @@ func removeReallowRemove(pub, prv *base.ClusterContext, runs int) (allTestSteps 
 	return
 }
 
-// If a service is up and running, then we remove all policies and immediatelly reallow them: will
+// If a service is up and running, then we remove all policies and immediately reallow them: will
 // the services be removed?
 //
 // The result may depend on cluster load and other factors, so we run it multiple times (runs+1)
@@ -406,7 +406,7 @@ func removeReallowKeep(pub, prv *base.ClusterContext, runs int) (allTestSteps []
 	return
 }
 
-// Can a service be created immediatelly after a policy allowing it?  If not,
+// Can a service be created immediately after a policy allowing it?  If not,
 // do we get a proper error message for that?
 //
 // This is testing for https://github.com/skupperproject/skupper/issues/728

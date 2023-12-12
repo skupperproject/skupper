@@ -198,7 +198,7 @@ var ClusterControllerExtendedPolicyRules = []rbacv1.PolicyRule{
 	},
 }
 
-// Certifcates/Secrets constants
+// Certificates/Secrets constants
 const (
 	LocalClientSecret        string = "skupper-local-client"
 	LocalServerSecret        string = "skupper-local-server"

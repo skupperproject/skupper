@@ -30,7 +30,7 @@ type CheckedFunc func() error
 // For example, if interval is 3s, f takes 1s, another f will be called 2s later.
 // However, if f takes longer than interval, it will be delayed.
 //
-// If an error is received from f, fail immediatelly and return that error (no
+// If an error is received from f, fail immediately and return that error (no
 // further retries).
 //
 // Keep in mind that the second argument is for max _retries_.  So, with a value
@@ -57,8 +57,8 @@ func Retry(interval time.Duration, maxRetries int, f ConditionFunc) error {
 	}
 }
 
-// This is similar to Retry(), but it will not fail immediatelly on errors, and
-// if the retries are exausted and f() still failing, it will return f()'s error
+// This is similar to Retry(), but it will not fail immediately on errors, and
+// if the retries are exhausted and f() still failing, it will return f()'s error
 func RetryError(interval time.Duration, maxRetries int, f CheckedFunc) error {
 	if maxRetries <= 0 {
 		return fmt.Errorf("maxRetries (%d) should be > 0", maxRetries)

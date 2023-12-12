@@ -25,7 +25,7 @@ Feature: AllowIncomingLink
       and a policy that allows all outgoing hosts for links on the private namespace
      When creating a token
       and using the token to create a link
-     Then the creation works successfuly
+     Then the creation works successfully
       and GET allowIncomingLinks == true
      When removing the policy that allows IncomingLinks on public namespace
      Then the link goes down
@@ -42,7 +42,7 @@ Feature: AllowIncomingLink
       and creating a token
      When removing the policy that allows IncomingLinks on public namespace
       and using the token to create a link
-     Then the link creation suceeds
+     Then the link creation succeeds
       But the link is shown as inactive
       and GET allowIncomingLinks == false
       and link removal works fine

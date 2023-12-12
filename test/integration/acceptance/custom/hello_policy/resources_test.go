@@ -37,7 +37,7 @@ type resourceDetails struct {
 	testAllowed             []string
 	testDisallowed          []string
 	survivors               []string // these should come from the previous test untouched
-	zombies                 []string // they were gone somehow; they musn't come back
+	zombies                 []string // they were gone somehow; they mustn't come back
 	namespaces              []string // if empty,  uses the context's namespace
 }
 
