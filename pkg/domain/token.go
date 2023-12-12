@@ -27,7 +27,7 @@ func VerifyToken(secret *v1.Secret) error {
 		secret.ObjectMeta.Labels = map[string]string{}
 	}
 	if _, ok := secret.ObjectMeta.Labels[types.SkupperTypeQualifier]; !ok {
-		// deduce type from structire of secret
+		// deduce type from structure of secret
 		if _, ok = secret.Data["tls.crt"]; ok {
 			secret.ObjectMeta.Labels[types.SkupperTypeQualifier] = types.TypeToken
 		} else if secret.ObjectMeta.Annotations != nil && secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey] != "" {

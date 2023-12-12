@@ -28,7 +28,7 @@ func TestHttpJob(t *testing.T) {
 }
 
 func TestHttp2Job(t *testing.T) {
-	//TODO: enable this if we add suport for "Upgrade" in skupper http2
+	//TODO: enable this if we add support for "Upgrade" in skupper http2
 	//testHttpJob(t, "http://nghttp2:8443/")
 
 	//https://www.mailgun.com/blog/http-2-cleartext-h2c-client-example-go/
@@ -199,7 +199,7 @@ func testHttpJob(t *testing.T, url string) {
 	}
 	metrics.Close()
 
-	//this is too verbose, anyway mantaining for now until we add more
+	//this is too verbose, anyway maintaining for now until we add more
 	//assertions
 	spew.Dump(metrics)
 

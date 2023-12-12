@@ -626,7 +626,7 @@ func (c *Controller) updateBridgeConfig(name string) error {
 
 func (c *Controller) initialiseServiceBindingsMap() (map[string][]int, error) {
 	c.bindings = map[string]*service.ServiceBindings{}
-	// on first initiliasing the service bindings map, need to get any
+	// on first initialising the service bindings map, need to get any
 	// port allocations from bridge config
 	bridges, err := c.getInitialBridgeConfig()
 	if err != nil {
@@ -795,7 +795,7 @@ func (c *Controller) processNextEvent() bool {
 				c.updateServiceSync(cm)
 				var updated []*service.ServiceBindings
 				if len(cm.Data) > 0 {
-					// filter out any entires that have not changed since the last change event
+					// filter out any entries that have not changed since the last change event
 					entries := c.changedServiceDefinitions(cm.Data)
 					for k, v := range entries {
 						si := types.ServiceInterface{}

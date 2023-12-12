@@ -106,7 +106,7 @@ func (r policyTestRunner) run(t *testing.T, pub, prv *base.ClusterContext) {
 	}
 }
 
-// A function to programatically control the skipping of policyTestCase
+// A function to programmatically control the skipping of policyTestCase
 // and policyTestStep.  An empty response means no skip; a non-empty
 // response is used as the reason for skipping.
 type skipFunction func() string
@@ -174,10 +174,10 @@ type hookFunction func(map[string]string) error
 // When you have more than one policy and you're not updating all, it may be
 // good to document it on the struct.  Something like this:
 //
-//   pubPolicy: []skupperv1.SkupperClusterPolicySpec{
-//     allowIncomingLinkPolicy(pub.Namespace, true),
-//     // second policy is not being changed on this test
-//  },
+// pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+//   allowIncomingLinkPolicy(pub.Namespace, true),
+//   // second policy is not being changed on this test
+// },
 //
 // To remove a policy, set it as having a sole namespace named REMOVE.  To keep
 // a policy while updating or removing another one that follows it, set it with
@@ -219,7 +219,7 @@ type policyTestStep struct {
 
 	// if provided, skipFunction will be run and its result checked.  If not empty,
 	// the test will be skipped with the return string as the input to t.Skip().
-	// This allows to programatically skip some of the steps, based on environmental
+	// This allows to programmatically skip some of the steps, based on environmental
 	// information.
 	skip skipFunction
 }

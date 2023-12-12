@@ -169,7 +169,7 @@ func runScenarios(t *testing.T, scenarios []TestScenario, parallel bool) {
 
 	if parallel {
 		// Group parallel scenarios within a subtest named 'parallel'
-		// This helps better undestand the logs and is required for the
+		// This helps better understand the logs and is required for the
 		// scenario set to finish only once all parallel scenarios have.
 		t.Run("parallel", work)
 	} else {
@@ -236,7 +236,7 @@ func SkupperCommonOptions(platform types.Platform, cluster *base.ClusterContext)
 // expressions you're looking for.
 //
 // StdOutReNot and StdErrReNot behave like the previous ones, but ensure
-// that the patters are not there in the checked string
+// that the patterns are not there in the checked string
 type Expect struct {
 	StdOut      []string
 	StdErr      []string

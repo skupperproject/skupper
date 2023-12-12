@@ -591,7 +591,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 
 	amqpPort, err := GetFreePort()
 	if err != nil {
-		return fmt.Errorf("Could not aquire free port: %w", err)
+		return fmt.Errorf("Could not acquire free port: %w", err)
 	}
 	gatewayConfig.Listeners["amqp"] = qdr.Listener{
 		Name: "amqp",

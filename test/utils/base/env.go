@@ -121,7 +121,7 @@ func PostPolicyChangeSleep() {
 }
 
 // This checks whether the current attempt sent as an argument
-// is greather than the environment variable ENV_MAX_STATUS_ATTEMPTS
+// is greater than the environment variable ENV_MAX_STATUS_ATTEMPTS
 //
 // If the variable is not set or is malformed, this will always
 // return false (meaning that the status commands will only fail once

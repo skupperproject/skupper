@@ -158,7 +158,7 @@ func serviceCheckTestScenario(pub *base.ClusterContext, prefix string, unboundSe
 // skupper service status + skupper status
 //
 // All services that are to be exposed on the VAN need to be declared on either
-// boundServices or unauthServices, as their lenghths are summed in order to provide
+// boundServices or unauthServices, as their lengths are summed in order to provide
 // the StatusTester with its ExposedServices field.
 //
 // TODO: On callers, replace this single call by two calls?  This way, these could be
@@ -202,7 +202,7 @@ func serviceCheckFrontStatusTestScenario(pub *base.ClusterContext, prefix string
 // skupper service status + skupper status
 //
 // All services that are to be exposed on the VAN need to be declared on either
-// boundServices or unauthServices, as their lenghths are summed in order to provide
+// boundServices or unauthServices, as their lengths are summed in order to provide
 // the StatusTester with its ExposedServices field.
 //
 // TODO: On callers, replace this single call by two calls?  This way, these could be

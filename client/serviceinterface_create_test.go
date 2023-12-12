@@ -34,7 +34,7 @@ func check_result(t *testing.T, name string, timeoutSeconds float64, resultType 
 	}
 	// Sometimes it requires a little time for the requested entities to be
 	// created and for the informers to tell us about them.
-	// So -- count down by tenths of a second until the alotted timeout expires,
+	// So -- count down by tenths of a second until the allotted timeout expires,
 	// or until we have at least the correct number of results.
 	for {
 		if timeoutSeconds <= 0 {

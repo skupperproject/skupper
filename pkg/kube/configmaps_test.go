@@ -216,7 +216,7 @@ func TestUpdateSkupperServices(t *testing.T) {
 		{
 			name:               "skupper-services-not-found",
 			hasSkupperServices: false,
-			expectedErr:        fmt.Errorf("Could not retrive service definitions from configmap 'skupper-services', Error: "),
+			expectedErr:        fmt.Errorf("Could not retrieve service definitions from configmap 'skupper-services', Error: "),
 		},
 		// data is empty and no change
 		{

@@ -92,7 +92,7 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 		activeFlows: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "active_flows",
-				Help: "Number of flows that are currently active, partititioned by source and destination",
+				Help: "Number of flows that are currently active, partitioned by source and destination",
 			},
 			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
 		lastAccessed: prometheus.NewGaugeVec(

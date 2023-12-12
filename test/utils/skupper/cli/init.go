@@ -26,7 +26,7 @@ import (
 )
 
 // InitTester runs `skupper init` and validates output, console,
-// as well as skupper resources that should be availble in the cluster.
+// as well as skupper resources that should be available in the cluster.
 type InitTester struct {
 	ConsoleAuth           string
 	ConsoleUser           string
@@ -297,7 +297,7 @@ func (s *InitTester) ValidateConsoleKube(cluster *base.ClusterContext) error {
 			return fmt.Errorf("error retrieving route: %s - %v", types.ControllerServiceName, err)
 		}
 		if route.Spec.To.Kind != "Service" || route.Spec.To.Name != types.ControllerServiceName {
-			return fmt.Errorf("console route is not targetting the correct service - expected: Service/%s - found: %s/%s",
+			return fmt.Errorf("console route is not targeting the correct service - expected: Service/%s - found: %s/%s",
 				types.ControllerServiceName, route.Spec.To.Kind, route.Spec.To.Name)
 		}
 	}
@@ -422,11 +422,11 @@ func (s *InitTester) validateRouterMode(cluster *base.ClusterContext) error {
 
 			// Verify routes
 			if route.Spec.To.Kind != "Service" || route.Spec.To.Name != types.TransportServiceName {
-				return fmt.Errorf("controller route is not targetting the correct service - expected: Service/%s - found: %s/%s",
+				return fmt.Errorf("controller route is not targeting the correct service - expected: Service/%s - found: %s/%s",
 					types.TransportServiceName, route.Spec.To.Kind, route.Spec.To.Name)
 			}
 			if route.Spec.Port.String() != targetPortName {
-				return fmt.Errorf("controller route is not targetting the correct service - expected: Service/%s - found: %s/%s",
+				return fmt.Errorf("controller route is not targeting the correct service - expected: Service/%s - found: %s/%s",
 					types.TransportServiceName, route.Spec.To.Kind, route.Spec.To.Name)
 			}
 		}
