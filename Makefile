@@ -157,6 +157,12 @@ ifneq (,$(DAPPER_HOST_ARCH))
 
 include $(SHIPYARD_DIR)/Makefile.clusters
 
+deploy-example-hello-world: SETTINGS=.example.hello-world.yml
+deploy-example-hello-world: build-cmd clusters
+	./scripts/$@.sh
+
+.PHONY: deploy-example-hello-world
+
 else
 
 # Not running in Shipyard's container
@@ -168,6 +174,7 @@ endif
 	@curl -sfLO $(SHIPYARD_URL)/$@
 
 ONLY_SHIPYARD_GOALS = true
+SHIPYARD_GOALS = deploy-example-hello-world
 include Makefile.shipyard
 
 endif
