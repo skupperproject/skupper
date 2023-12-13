@@ -74,6 +74,12 @@ func NewSitePodmanHandlerFromCli(cli *podman.PodmanRestClient) *SiteHandler {
 	}
 }
 
+type SiteHandlerFactory func(endpoint string) (domain.SiteHandler, error)
+
+func NewSiteHandler(endpoint string) (domain.SiteHandler, error) {
+	return NewSitePodmanHandler(endpoint)
+}
+
 func NewSitePodmanHandler(endpoint string) (*SiteHandler, error) {
 	if endpoint == "" {
 		podmanCfg, err := NewPodmanConfigFileHandler().GetConfig()
