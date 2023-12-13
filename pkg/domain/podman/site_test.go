@@ -5,6 +5,7 @@ package podman
 
 import (
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
@@ -101,9 +102,17 @@ func TestSiteHandler(t *testing.T) {
 			for _, dep := range podmanSite.GetDeployments() {
 				assert.Assert(t, len(dep.GetComponents()) > 0, "no components found for %s", dep.GetName())
 				for _, cmp := range dep.GetComponents() {
-					cmpContainer, err := siteHandler.cli.ContainerInspect(cmp.Name())
+					var cmpContainer *container.Container
+					err = utils.Retry(time.Second*6, 10, func() (bool, error) {
+						cmpContainer, err = siteHandler.cli.ContainerInspect(cmp.Name())
+						if err != nil {
+							return true, err
+						}
+						return cmpContainer.Running, nil
+					})
 					assert.Assert(t, err, "error retrieving container info")
-					assert.Assert(t, cmpContainer.Running)
+					assert.Assert(t, cmpContainer.Running, "component %s is not running - exit code: %d "+
+						"- restarts: %d", cmpContainer.Name, cmpContainer.ExitCode, cmpContainer.RestartCount)
 				}
 			}
 			assert.Assert(t, len(podmanSite.Credentials) > 0)
