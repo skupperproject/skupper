@@ -340,7 +340,7 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 	}
 	result, err := p.RestClient.Submit(execOp)
 	if err != nil {
-		return "", fmt.Errorf("error executing command: %v", err)
+		return "", fmt.Errorf("error executing command on %s: %v", id, err)
 	}
 	resp, ok := result.(*models.IDResponse)
 	if !ok {

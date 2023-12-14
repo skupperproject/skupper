@@ -293,6 +293,8 @@ func (s *SiteHandler) Create(site domain.Site) error {
 			if err != nil {
 				return err
 			}
+		}
+		if OwnedBySkupper("volume", vol.Labels) == nil {
 			cleanupFns = append(cleanupFns, func() {
 				_ = s.cli.VolumeRemove(vol.Name)
 			})
@@ -363,8 +365,8 @@ func (s *SiteHandler) canCreate(site *Site) error {
 	// TODO improve on container and network already exists
 	// Validating any of the required deployment exists
 	for _, skupperDepl := range site.Deployments {
-		container, err := cli.ContainerInspect(skupperDepl.GetName())
-		if err == nil && container != nil {
+		containerInspect, err := cli.ContainerInspect(skupperDepl.GetName())
+		if err == nil && containerInspect != nil {
 			return fmt.Errorf("%s container already defined", skupperDepl.GetName())
 		}
 	}
@@ -463,16 +465,16 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 
 	// getting router config
 	configHandler := NewRouterConfigHandlerPodman(s.cli)
-	config, err := configHandler.GetRouterConfig()
+	routerConfig, err := configHandler.GetRouterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("Skupper is not enabled for user '%s'", Username)
+		return nil, err
 	}
 
 	// Setting basic site info
-	site.Name = config.Metadata.Id
-	site.Mode = string(config.Metadata.Mode)
-	site.Id = config.GetSiteMetadata().Id
-	site.Version = config.GetSiteMetadata().Version
+	site.Name = routerConfig.Metadata.Id
+	site.Mode = string(routerConfig.Metadata.Mode)
+	site.Id = routerConfig.GetSiteMetadata().Id
+	site.Version = routerConfig.GetSiteMetadata().Version
 	site.Platform = types.PlatformPodman
 
 	// Reading cert authorities
@@ -481,12 +483,18 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading certificate authorities - %w", err)
 	}
+	if len(cas) == 0 {
+		return nil, fmt.Errorf("skupper certificate authorities not found")
+	}
 	site.CertAuthorities = cas
 
 	// Reading credentials
 	creds, err := credHandler.ListCredentials()
 	if err != nil {
 		return nil, fmt.Errorf("error reading credentials - %w", err)
+	}
+	if len(creds) == 0 {
+		return nil, fmt.Errorf("skupper credentials not found")
 	}
 	site.Credentials = creds
 	for _, cred := range creds {
@@ -501,8 +509,13 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving deployments - %w", err)
 	}
+	if len(deps) == 0 {
+		return nil, fmt.Errorf("skupper containers not found")
+	}
 	site.Deployments = deps
 
+	routerFound := false
+	ctrlFound := false
 	for _, dep := range site.GetDeployments() {
 		for _, comp := range dep.GetComponents() {
 			depPodman := dep.(*SkupperDeployment)
@@ -519,7 +532,9 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 			}
 			switch c := comp.(type) {
 			case *domain.Router:
-				site.RouterOpts.Logging = qdr.GetRouterLogging(config)
+				routerFound = true
+				c.GetSiteIngresses()
+				site.RouterOpts.Logging = qdr.GetRouterLogging(routerConfig)
 			case *domain.FlowCollector:
 				enableConsole, _ := strconv.ParseBool(c.Env["ENABLE_CONSOLE"])
 				consoleUsers, _ := c.Env["FLOW_USERS"]
@@ -538,6 +553,7 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				site.ConsoleUser = user
 				site.ConsolePassword = password
 			case *domain.Controller:
+				ctrlFound = true
 			case *domain.Prometheus:
 				site.PrometheusOpts, err = s.getPrometheusServerOptions()
 				if err != nil {
@@ -546,10 +562,16 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 			}
 		}
 	}
+	if !routerFound {
+		return nil, fmt.Errorf("%s component not found", types.TransportDeploymentName)
+	}
+	if !ctrlFound {
+		return nil, fmt.Errorf("%s component not found", types.ControllerPodmanContainerName)
+	}
 
 	// Router options from router config
-	site.RouterOpts.MaxFrameSize = config.Listeners["interior-listener"].MaxFrameSize
-	site.RouterOpts.MaxSessionFrames = config.Listeners["interior-listener"].MaxSessionFrames
+	site.RouterOpts.MaxFrameSize = routerConfig.Listeners["interior-listener"].MaxFrameSize
+	site.RouterOpts.MaxSessionFrames = routerConfig.Listeners["interior-listener"].MaxSessionFrames
 
 	return site, nil
 }
@@ -557,7 +579,15 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 func (s *SiteHandler) Delete() error {
 	site, err := s.Get()
 	if err != nil {
-		return err
+		// removing eventual resources from an incomplete initialization
+		if s.AnyResourceLeft() {
+			removeErr := s.removePodmanResources()
+			if removeErr != nil {
+				return fmt.Errorf("error cleaning up resources: %s - %s", removeErr, err)
+			}
+			return nil
+		}
+		return nil
 	}
 	podmanSite := site.(*Site)
 
@@ -565,10 +595,6 @@ func (s *SiteHandler) Delete() error {
 	deploys, err := deployHandler.List()
 	if err != nil {
 		return fmt.Errorf("error retrieving deployments - %w", err)
-	}
-	volumeList, err := s.cli.VolumeList()
-	if err != nil {
-		return fmt.Errorf("error retrieving volume list - %w", err)
 	}
 
 	// Stopping and removing containers
@@ -578,6 +604,20 @@ func (s *SiteHandler) Delete() error {
 			return fmt.Errorf("error removing deployment %s - %w", dep.GetName(), err)
 		}
 	}
+
+	// Removing any eventual container/volume left
+	if err = s.removePodmanResources(); err != nil {
+		return err
+	}
+
+	// Removing networks
+	_ = s.cli.NetworkRemove(podmanSite.ContainerNetwork)
+
+	return nil
+}
+
+func (s *SiteHandler) removePodmanResources() error {
+	// removing containers owned by Skupper
 	containers, err := s.cli.ContainerList()
 	if err != nil {
 		return fmt.Errorf("error listing containers - %w", err)
@@ -585,17 +625,22 @@ func (s *SiteHandler) Delete() error {
 	for _, c := range containers {
 		if OwnedBySkupper("container", c.Labels) == nil {
 			_ = s.cli.ContainerStop(c.Name)
-			_ = s.cli.ContainerRemove(c.Name)
+			if err = s.cli.ContainerRemove(c.Name); err != nil {
+				return err
+			}
 		}
 	}
 
-	// Removing networks
-	_ = s.cli.NetworkRemove(podmanSite.ContainerNetwork)
-
 	// Removing volumes
+	volumeList, err := s.cli.VolumeList()
+	if err != nil {
+		return fmt.Errorf("error retrieving volume list - %w", err)
+	}
 	for _, v := range volumeList {
 		if app, ok := v.GetLabels()["application"]; ok && app == types.AppName {
-			_ = s.cli.VolumeRemove(v.Name)
+			if err = s.cli.VolumeRemove(v.Name); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -606,7 +651,24 @@ func (s *SiteHandler) Delete() error {
 	if err = systemd.Remove(); err != nil {
 		fmt.Printf("Unable to remove systemd service - %v\n", err)
 	}
+
 	return nil
+}
+
+func (s *SiteHandler) AnyResourceLeft() bool {
+	containers, _ := s.cli.ContainerList()
+	for _, c := range containers {
+		if OwnedBySkupper("container", c.Labels) == nil {
+			return true
+		}
+	}
+	volumeList, _ := s.cli.VolumeList()
+	for _, v := range volumeList {
+		if OwnedBySkupper("volume", v.GetLabels()) == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SiteHandler) Update() error {

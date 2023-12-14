@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/podman"
 	domainpodman "github.com/skupperproject/skupper/pkg/domain/podman"
@@ -273,21 +274,25 @@ func mockContainers() []*container.Container {
 func mockVolumes() (map[string]*container.Volume, map[string]map[string]string) {
 	var volumes = map[string]*container.Volume{}
 	var volumesFiles = map[string]map[string]string{}
-	addSkupperVolume := func(name string) {
-		volumes[name] = &container.Volume{Name: name, Labels: map[string]string{"application": "skupper"}}
+	addSkupperVolume := func(name string, typeLabel ...string) {
+		labels := map[string]string{"application": "skupper"}
+		if len(typeLabel) == 1 {
+			labels[types.SkupperTypeQualifier] = typeLabel[0]
+		}
+		volumes[name] = &container.Volume{Name: name, Labels: labels}
 	}
-	addSkupperVolume("skupper-console-certs")
+	addSkupperVolume("skupper-console-certs", "Credential")
 	addSkupperVolume("skupper-console-users")
 	addSkupperVolume("skupper-internal")
-	addSkupperVolume("skupper-local-ca")
-	addSkupperVolume("skupper-local-client")
-	addSkupperVolume("skupper-local-server")
+	addSkupperVolume("skupper-local-ca", "CertAuthority")
+	addSkupperVolume("skupper-local-client", "Credential")
+	addSkupperVolume("skupper-local-server", "Credential")
 	addSkupperVolume("skupper-router-certs")
-	addSkupperVolume("skupper-service-ca")
-	addSkupperVolume("skupper-service-client")
+	addSkupperVolume("skupper-service-ca", "CertAuthority")
+	addSkupperVolume("skupper-service-client", "Credential")
 	addSkupperVolume("skupper-services")
-	addSkupperVolume("skupper-site-ca")
-	addSkupperVolume("skupper-site-server")
+	addSkupperVolume("skupper-site-ca", "CertAuthority")
+	addSkupperVolume("skupper-site-server", "Credential")
 
 	// volumes content
 	volumesFiles["skupper-internal"] = map[string]string{
