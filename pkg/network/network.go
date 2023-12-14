@@ -71,7 +71,7 @@ func (s *SkupperStatus) GetRouterSiteMap() map[string]SiteStatusInfo {
 				routerName := strings.Split(routerStatus.Router.Name, "/")
 
 				// Remove routers that belong to statefulsets for headless services
-				if strings.HasPrefix(routerName[1], siteStatus.Site.Name) {
+				if len(routerName) > 1 && strings.HasPrefix(routerName[1], siteStatus.Site.Name) {
 					mapRouterSite[routerName[1]] = siteStatus
 				}
 			}
@@ -122,7 +122,8 @@ func (s *SkupperStatus) GetRouterIndex(site *SiteStatusInfo) (error, int) {
 	for index, router := range site.RouterStatus {
 		// Ignore routers that belong to statefulsets for headless services and any other router
 		routerId := strings.Split(router.Router.Name, "/")
-		if strings.HasPrefix(routerId[1], site.Site.Name) {
+
+		if len(routerId) > 1 && strings.HasPrefix(routerId[1], site.Site.Name) {
 			return nil, index
 
 		}

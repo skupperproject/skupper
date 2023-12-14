@@ -93,7 +93,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 							routerId := strings.Split(routerStatus.Router.Name, "/")
 
 							// skip routers that belong to headless services
-							if strings.HasPrefix(routerId[1], siteStatus.Site.Name) {
+							if len(routerId) > 1 && strings.HasPrefix(routerId[1], siteStatus.Site.Name) {
 								routerItem := fmt.Sprintf("name: %s\n", routerId[1])
 								detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 
@@ -110,7 +110,6 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 											detailsLink["cost"] = strconv.FormatUint(link.LinkCost, 10)
 										}
 										links.NewChildWithDetail(linkItem, detailsLink)
-
 									}
 								}
 							}
