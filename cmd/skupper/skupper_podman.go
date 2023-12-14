@@ -7,7 +7,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	clientpodman "github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
-	"github.com/skupperproject/skupper/test/utils"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -107,7 +107,7 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 	if err != nil {
 		if exitOnError {
 			fmt.Printf("Podman endpoint is not available: %s",
-				utils.StrDefault(endpoint, clientpodman.GetDefaultPodmanEndpoint()))
+				utils.DefaultStr(endpoint, clientpodman.GetDefaultPodmanEndpoint()))
 			fmt.Println()
 			os.Exit(1)
 		}
@@ -131,11 +131,17 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 			fmt.Println()
 			os.Exit(0)
 		}
-	} else if cmd.Name() != "version" {
-		// All other commands, but version, must stop now
+	} else if !utils.StringSliceContains([]string{"version", "delete"}, cmd.Name()) {
+		// All other commands, but version and delete, must stop now
 		if err != nil {
 			fmt.Printf("Skupper is not enabled for user '%s'", podman.Username)
 			fmt.Println()
+			if siteHandler.AnyResourceLeft() {
+				fmt.Println("Reason:", err)
+				fmt.Println()
+				fmt.Println("There are podman resources missing or left from an earlier installation")
+				fmt.Println("To clean them up, run: skupper delete")
+			}
 			os.Exit(0)
 		}
 	}

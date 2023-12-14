@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/containers"
+	"github.com/skupperproject/skupper/client/generated/libpod/client/networks"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes"
 	"github.com/skupperproject/skupper/client/generated/libpod/models"
 )
@@ -35,8 +36,9 @@ func NewPodmanClientMock(containers []*container.Container) *PodmanRestClient {
 // performed by the mock implementation.
 type RestClientMock struct {
 	Containers   []*container.Container
-	volumes      map[string]*container.Volume
-	volumesFiles map[string]map[string]string
+	networks     map[string]*container.Network
+	Volumes      map[string]*container.Volume
+	VolumesFiles map[string]map[string]string
 	volumesDir   string
 	ErrorHook    func(operation *runtime.ClientOperation) error
 }
@@ -47,8 +49,8 @@ func (r *RestClientMock) MockVolumeFiles(volumes map[string]*container.Volume, v
 	if err != nil {
 		return err
 	}
-	r.volumes = volumes
-	r.volumesFiles = volumesFiles
+	r.Volumes = volumes
+	r.VolumesFiles = volumesFiles
 
 	prepareVolumeDir := func(volumeName string, volume *container.Volume) error {
 		volumeDir := path.Join(r.volumesDir, volumeName)
@@ -59,20 +61,20 @@ func (r *RestClientMock) MockVolumeFiles(volumes map[string]*container.Volume, v
 		return nil
 	}
 	// creating temp directory for volume
-	for volumeName, volume := range r.volumes {
+	for volumeName, volume := range r.Volumes {
 		if err = prepareVolumeDir(volumeName, volume); err != nil {
 			return err
 		}
 	}
 	// creating volume files
-	for volumeName, volumeFiles := range r.volumesFiles {
-		volume, ok := r.volumes[volumeName]
+	for volumeName, volumeFiles := range r.VolumesFiles {
+		volume, ok := r.Volumes[volumeName]
 		// if volume not defined earlier, create it
 		if !ok {
 			v := &container.Volume{
 				Name: volumeName,
 			}
-			r.volumes[volumeName] = v
+			r.Volumes[volumeName] = v
 			if err = prepareVolumeDir(volumeName, v); err != nil {
 				return err
 			}
@@ -115,6 +117,10 @@ func (r *RestClientMock) Submit(operation *runtime.ClientOperation) (interface{}
 		res, err = r.HandleVolumeInspect(operation, r.ErrorHook)
 	case "VolumeListLibpod":
 		res, err = r.HandleVolumeList(operation, r.ErrorHook)
+	case "VolumeDeleteLibpod":
+		res, err = r.HandleVolumeDelete(operation, r.ErrorHook)
+	case "NetworkInspectLibpod":
+		res, err = r.HandleNetworkInspect(operation, r.ErrorHook)
 	}
 	return res, err
 }
@@ -446,7 +452,7 @@ func (r *RestClientMock) HandleVolumeInspect(operation *runtime.ClientOperation,
 		}
 	}
 	params := operation.Params.(*volumes.VolumeInspectLibpodParams)
-	v, ok := r.volumes[params.Name]
+	v, ok := r.Volumes[params.Name]
 	if !ok {
 		return res, fmt.Errorf("no volume with name %q", params.Name)
 	}
@@ -465,12 +471,66 @@ func (r *RestClientMock) HandleVolumeList(operation *runtime.ClientOperation, ho
 			return res, err
 		}
 	}
-	for vName, v := range r.volumes {
+	for vName, v := range r.Volumes {
 		res.Payload = append(res.Payload, &models.VolumeConfigResponse{
 			Labels:     v.Labels,
 			Mountpoint: v.Source,
 			Name:       vName,
 		})
 	}
+	return res, nil
+}
+
+func (r *RestClientMock) HandleVolumeDelete(operation *runtime.ClientOperation, hook func(operation *runtime.ClientOperation) error) (interface{}, error) {
+	var res = &volumes.VolumeDeleteLibpodNoContent{}
+	if hook != nil {
+		if err := hook(operation); err != nil {
+			return res, err
+		}
+	}
+	params := operation.Params.(*volumes.VolumeDeleteLibpodParams)
+	v, ok := r.Volumes[params.Name]
+	if !ok {
+		return res, fmt.Errorf("no volume with name %q", params.Name)
+	}
+	delete(r.Volumes, v.Name)
+	return res, nil
+}
+
+func (r *RestClientMock) HandleNetworkInspect(operation *runtime.ClientOperation, hook func(operation *runtime.ClientOperation) error) (interface{}, error) {
+	var res = &networks.NetworkInspectLibpodOK{}
+	if hook != nil {
+		if err := hook(operation); err != nil {
+			return res, err
+		}
+	}
+	params := operation.Params.(*networks.NetworkInspectLibpodParams)
+	n, ok := r.networks[params.Name]
+	if !ok {
+		return res, fmt.Errorf("no network with name %q", params.Name)
+	}
+
+	subnets := []*models.Subnet{}
+	for _, sn := range n.Subnets {
+		subnets = append(subnets, &models.Subnet{
+			Gateway: sn.Gateway,
+			Subnet:  sn.Subnet,
+		})
+	}
+
+	created, _ := strfmt.ParseDateTime(n.CreatedAt)
+	res.Payload = &models.Network{
+		Created:     created,
+		DNSEnabled:  n.DNS,
+		Driver:      n.Driver,
+		ID:          n.ID,
+		IPV6Enabled: n.IPV6,
+		Internal:    n.Internal,
+		Labels:      n.Labels,
+		Name:        n.Name,
+		Options:     n.Options,
+		Subnets:     subnets,
+	}
+
 	return res, nil
 }
