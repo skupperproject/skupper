@@ -265,7 +265,6 @@ func (c *siteRecordController) Start(stopCh <-chan struct{}) <-chan *SiteRecord 
 	updates := make(chan *SiteRecord, 1)
 
 	go func() {
-		defer close(updates)
 		updates <- c.Record()
 
 		if c.Platform != string(types.PlatformKubernetes) {

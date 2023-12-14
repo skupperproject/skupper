@@ -178,9 +178,6 @@ func TestSiteController(t *testing.T) {
 					assert.Equal(t, rec.StartTime, uint64(1_111_111))
 					assert.Equal(t, *rec.Policy, Disabled)
 				},
-				func(t *testing.T, rec *SiteRecord, ok bool) {
-					assert.Equal(t, ok, false) // expect closed
-				},
 			},
 			waitTimeout: time.Millisecond * 500,
 		},
