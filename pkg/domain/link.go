@@ -205,7 +205,6 @@ func GenerateLinkName(linkHandler LinkHandler) string {
 					max = v + 1
 				}
 			}
-
 		}
 	} else {
 		log.Fatal("Could not retrieve token secrets:", err)

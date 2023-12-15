@@ -49,8 +49,9 @@ func (l *LinkHandlerKube) List() ([]*corev1.Secret, error) {
 		return nil, fmt.Errorf("Could not retrieve secrets: %w", err)
 	}
 	var secrets []*corev1.Secret
-	for _, s := range currentSecrets.Items {
-		secrets = append(secrets, &s)
+
+	for i, _ := range currentSecrets.Items {
+		secrets = append(secrets, &currentSecrets.Items[i])
 	}
 	return secrets, nil
 }
