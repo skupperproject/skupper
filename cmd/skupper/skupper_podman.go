@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -19,13 +20,19 @@ var SkupperPodmanCommands = []string{
 }
 
 type SkupperPodman struct {
-	cli         *clientpodman.PodmanRestClient
-	currentSite *podman.Site
-	site        *SkupperPodmanSite
-	token       *SkupperPodmanToken
-	link        *SkupperPodmanLink
-	service     *SkupperPodmanService
+	cliFactory         clientpodman.RestClientFactory
+	cli                *clientpodman.PodmanRestClient
+	currentSite        *podman.Site
+	siteHandlerFactory podman.SiteHandlerFactory
+	site               *SkupperPodmanSite
+	token              *SkupperPodmanToken
+	link               *SkupperPodmanLink
+	service            *SkupperPodmanService
+	exit               exitHandler
+	output             io.Writer
 }
+
+type exitHandler func(code int)
 
 func (s *SkupperPodman) Site() SkupperSiteClient {
 	if s.site != nil {
@@ -85,6 +92,10 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 	var endpoint string
 	var isInitCmd bool
 	exitOnError := true
+	if s.output == nil {
+		s.output = os.Stdout
+	}
+	out := s.output
 	switch cmd.Name() {
 	case "init":
 		// require site not present
@@ -97,19 +108,40 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 	default:
 		podmanCfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
 		if err != nil {
-			fmt.Println("error reading current podman endpoint")
+			fmt.Fprintln(out, "error reading current podman endpoint")
 			return
 		}
 		endpoint = podmanCfg.Endpoint
 	}
-
-	c, err := clientpodman.NewPodmanClient(endpoint, "")
+	if s.cliFactory == nil {
+		s.cliFactory = clientpodman.NewPodmanClient
+	}
+	if s.exit == nil {
+		s.exit = os.Exit
+	}
+	c, err := s.cliFactory(endpoint, "")
 	if err != nil {
 		if exitOnError {
-			fmt.Printf("Podman endpoint is not available: %s",
+			fmt.Fprintf(out, "Podman endpoint is not available: %s",
 				utils.DefaultStr(endpoint, clientpodman.GetDefaultPodmanEndpoint()))
-			fmt.Println()
-			os.Exit(1)
+			fmt.Fprintln(out)
+			recommendation := `
+Recommendation:
+
+	Make sure you have an active podman endpoint available.
+	On most systems you can execute:
+
+		systemctl --user enable --now podman.socket
+
+	Alternatively you could also create your own service that runs:
+
+		podman system service --time=0 <URI>
+
+	You can get concrete examples through:
+
+		podman help system service`
+			fmt.Fprintln(out, recommendation)
+			s.exit(1)
 		}
 		return
 	}
@@ -117,32 +149,39 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 	s.cli = c
 
 	// Ensure that site does not exist on init, but exists for all other commands
-	siteHandler, err := podman.NewSitePodmanHandler(endpoint)
+	if s.siteHandlerFactory == nil {
+		s.siteHandlerFactory = podman.NewSiteHandler
+	}
+	siteHandler, err := s.siteHandlerFactory(endpoint)
 	if err != nil {
-		fmt.Printf("error verifying existing skupper site - %s", err)
-		fmt.Println()
-		os.Exit(1)
+		fmt.Fprintf(out, "error verifying existing skupper site - %s", err)
+		fmt.Fprintln(out)
+		s.exit(1)
+		return
 	}
 	currentSite, err := siteHandler.Get()
 	if isInitCmd {
 		// Validating if site is already initialized
 		if err == nil && currentSite != nil {
-			fmt.Printf("Skupper has already been initialized for user '" + podman.Username + "'.")
-			fmt.Println()
-			os.Exit(0)
+			fmt.Fprintf(out, "Skupper has already been initialized for user '"+podman.Username+"'.")
+			fmt.Fprintln(out)
+			s.exit(0)
+			return
 		}
 	} else if !utils.StringSliceContains([]string{"version", "delete"}, cmd.Name()) {
 		// All other commands, but version and delete, must stop now
 		if err != nil {
-			fmt.Printf("Skupper is not enabled for user '%s'", podman.Username)
-			fmt.Println()
-			if siteHandler.AnyResourceLeft() {
-				fmt.Println("Reason:", err)
-				fmt.Println()
-				fmt.Println("There are podman resources missing or left from an earlier installation")
-				fmt.Println("To clean them up, run: skupper delete")
+			fmt.Fprintf(out, "Skupper is not enabled for user '%s'", podman.Username)
+			fmt.Fprintln(out)
+			siteHandlerPodman, ok := siteHandler.(*podman.SiteHandler)
+			if ok && siteHandlerPodman.AnyResourceLeft() {
+				fmt.Fprintln(out, "Reason:", err)
+				fmt.Fprintln(out)
+				fmt.Fprintln(out, "There are podman resources missing or left from an earlier installation")
+				fmt.Fprintln(out, "To clean them up, run: skupper delete")
 			}
-			os.Exit(0)
+			s.exit(0)
+			return
 		}
 	}
 	if currentSite != nil {

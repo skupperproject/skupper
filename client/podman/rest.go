@@ -37,6 +37,8 @@ type PodmanRestClient struct {
 	endpoint   string
 }
 
+type RestClientFactory func(endpoint, basePath string) (*PodmanRestClient, error)
+
 func NewPodmanClient(endpoint, basePath string) (*PodmanRestClient, error) {
 	var err error
 
