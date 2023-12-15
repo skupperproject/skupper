@@ -2628,6 +2628,7 @@ func (fc *FlowCollector) purgeEventSource(eventSource EventSourceRecord) error {
 	eventSource.EndTime = now
 	log.Printf("COLLECTOR: %s \n", prettyPrint(eventSource))
 	delete(fc.eventSources, eventSource.Identity)
+	fc.eventSourceEvictions <- eventSource.Identity
 
 	return nil
 }
