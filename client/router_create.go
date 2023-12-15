@@ -3,12 +3,13 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/briandowns/spinner"
 	"log"
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/briandowns/spinner"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/skupperproject/skupper/pkg/config"
@@ -73,15 +74,17 @@ func ConfigSyncContainer() *corev1.Container {
 	}
 }
 
-func (cli *VanClient) getControllerRules() []rbacv1.PolicyRule {
-	return cli.adjustRules(types.ControllerPolicyRule)
+func (cli *VanClient) getControllerRules(options types.SiteConfigSpec) []rbacv1.PolicyRule {
+	return cli.adjustRules(options, types.ControllerPolicyRule)
 }
 
-func (cli *VanClient) adjustRules(original []rbacv1.PolicyRule) []rbacv1.PolicyRule {
+func (cli *VanClient) adjustRules(options types.SiteConfigSpec, original []rbacv1.PolicyRule) []rbacv1.PolicyRule {
 	// remove rule for routes or DeploymentConfigs if they are not defined
 	var apigroups []string
 	if cli.RouteClient == nil {
 		apigroups = append(apigroups, "route.openshift.io")
+	} else if options.IsIngressRoute() && options.IngressHost != "" {
+		original = append(original, types.ControllerRouteIngressPolicyRule...)
 	}
 	if cli.OCAppsClient == nil {
 		apigroups = append(apigroups, "apps.openshift.io")
@@ -175,7 +178,7 @@ func (cli *VanClient) GetVanPrometheusServerSpec(options types.SiteConfigSpec, v
 			Name:   types.PrometheusRoleName,
 			Labels: options.Labels,
 		},
-		Rules: cli.getControllerRules(),
+		Rules: cli.getControllerRules(options),
 	})
 	van.PrometheusServer.Roles = roles
 
@@ -387,7 +390,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			Name:   types.ControllerRoleName,
 			Labels: options.Labels,
 		},
-		Rules: cli.getControllerRules(),
+		Rules: cli.getControllerRules(options),
 	})
 	van.Controller.Roles = roles
 
@@ -838,7 +841,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Name:   types.TransportRoleName,
 			Labels: options.Labels,
 		},
-		Rules: cli.adjustRules(types.TransportPolicyRule),
+		Rules: cli.adjustRules(options, types.TransportPolicyRule),
 	})
 	van.Transport.Roles = roles
 
