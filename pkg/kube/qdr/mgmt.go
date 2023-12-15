@@ -290,7 +290,7 @@ func getLocalRouterId(namespace string, clientset kubernetes.Interface, config *
 }
 
 func router_exec(command []string, namespace string, clientset kubernetes.Interface, config *restclient.Config) (*bytes.Buffer, error) {
-	pod, err := kube.GetReadyPod(namespace, clientset, "router")
+	pod, err := kube.GetReadyPod(namespace, clientset, "router", "skupper-router")
 	if err != nil {
 		return nil, err
 	}

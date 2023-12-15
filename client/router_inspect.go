@@ -162,7 +162,7 @@ func getSelf(sites []data.Site, siteId string) *data.Site {
 }
 
 func (cli *VanClient) exec(command []string, namespace string) (*bytes.Buffer, error) {
-	pod, err := kube.GetReadyPod(namespace, cli.KubeClient, "service-controller")
+	pod, err := kube.GetReadyPod(namespace, cli.KubeClient, "service-controller", "")
 	if err != nil {
 		return nil, err
 	}

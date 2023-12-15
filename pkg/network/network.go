@@ -17,39 +17,49 @@ func (s *SkupperStatus) GetServiceSitesMap() map[string][]SiteStatusInfo {
 	for _, site := range s.NetworkStatus.SiteStatus {
 
 		if len(site.RouterStatus) > 0 {
-			for _, listener := range site.RouterStatus[0].Listeners {
-				if mapServiceSites[listener.Name] != nil {
-					serviceSites := mapServiceSites[listener.Name]
+			for _, router := range site.RouterStatus {
+				for _, listener := range router.Listeners {
+					if len(mapServiceSites[listener.Address]) == 0 || !sliceContainsSite(mapServiceSites[listener.Address], site) {
+						mapServiceSites[listener.Address] = append(mapServiceSites[listener.Address], site)
+					}
+				}
 
-					serviceSites = append(serviceSites, site)
-					mapServiceSites[listener.Name] = serviceSites
-				} else {
-					mapServiceSites[listener.Name] = []SiteStatusInfo{site}
+				/* Checking for headless services:
+				   the service can be available in the same site where the headless service was exposed, but in that site there is no
+				   listeners for the statefulstet.
+				*/
+				for _, connector := range router.Connectors {
+					if len(mapServiceSites[connector.Address]) == 0 || !sliceContainsSite(mapServiceSites[connector.Address], site) {
+						mapServiceSites[connector.Address] = append(mapServiceSites[connector.Address], site)
+					}
 				}
 			}
+
 		}
 	}
 
 	return mapServiceSites
 }
 
-func (s *SkupperStatus) GetSiteTargetsMap() map[string]map[string]ConnectorInfo {
+func (s *SkupperStatus) GetSiteTargetMap() map[string]map[string]ConnectorInfo {
 
-	mapSiteTargets := make(map[string]map[string]ConnectorInfo)
+	mapSiteTarget := make(map[string]map[string]ConnectorInfo)
 
 	for _, site := range s.NetworkStatus.SiteStatus {
 
 		if len(site.RouterStatus) > 0 {
-			for _, connector := range site.RouterStatus[0].Connectors {
-				if mapSiteTargets[site.Site.Identity] == nil {
-					mapSiteTargets[site.Site.Identity] = make(map[string]ConnectorInfo)
+			for _, router := range site.RouterStatus {
+				for _, connector := range router.Connectors {
+					if mapSiteTarget[site.Site.Identity] == nil {
+						mapSiteTarget[site.Site.Identity] = make(map[string]ConnectorInfo)
+					}
+					mapSiteTarget[site.Site.Identity][connector.Address] = connector
 				}
-				mapSiteTargets[site.Site.Identity][connector.Address] = connector
 			}
 		}
 	}
 
-	return mapSiteTargets
+	return mapSiteTarget
 }
 
 func (s *SkupperStatus) GetRouterSiteMap() map[string]SiteStatusInfo {
@@ -59,7 +69,11 @@ func (s *SkupperStatus) GetRouterSiteMap() map[string]SiteStatusInfo {
 			for _, routerStatus := range siteStatus.RouterStatus {
 				// the name of the router has a "0/" as a prefix that it is needed to remove
 				routerName := strings.Split(routerStatus.Router.Name, "/")
-				mapRouterSite[routerName[1]] = siteStatus
+
+				// Remove routers that belong to statefulsets for headless services
+				if len(routerName) > 1 && strings.HasPrefix(routerName[1], siteStatus.Site.Name) {
+					mapRouterSite[routerName[1]] = siteStatus
+				}
 			}
 		}
 	}
@@ -79,7 +93,6 @@ func (s *SkupperStatus) GetSiteById(siteId string) *SiteStatusInfo {
 }
 
 func (s *SkupperStatus) GetSiteLinkMapPerRouter(router *RouterStatusInfo, site *SiteInfo) map[string]LinkInfo {
-
 	routerSiteMap := s.GetRouterSiteMap()
 	siteLinkMap := make(map[string]LinkInfo)
 	if len(router.Links) > 0 {
@@ -102,6 +115,21 @@ func (s *SkupperStatus) LinkBelongsToSameSite(linkName string, siteId string, ro
 
 	return strings.EqualFold(routerSiteMap[linkName].Site.Identity, siteId)
 
+}
+
+func (s *SkupperStatus) GetRouterIndex(site *SiteStatusInfo) (error, int) {
+
+	for index, router := range site.RouterStatus {
+		// Ignore routers that belong to statefulsets for headless services and any other router
+		routerId := strings.Split(router.Router.Name, "/")
+
+		if len(routerId) > 1 && strings.HasPrefix(routerId[1], site.Site.Name) {
+			return nil, index
+
+		}
+	}
+
+	return fmt.Errorf("not valid router found"), -1
 }
 
 func (s *SkupperStatus) RemoveLinksFromSameSite(router RouterStatusInfo, site SiteInfo) []LinkInfo {
@@ -128,4 +156,14 @@ func UnmarshalSkupperStatus(data map[string]string) (*NetworkStatusInfo, error) 
 	}
 
 	return networkStatusInfo, nil
+}
+
+func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
+	for _, s := range sites {
+		if site.Site.Identity == s.Site.Identity {
+			return true
+		}
+	}
+
+	return false
 }

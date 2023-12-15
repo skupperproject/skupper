@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/labels"
 	"strings"
 	"time"
 
@@ -65,9 +66,17 @@ func FirstReadyPod(list []corev1.Pod) *corev1.Pod {
 	return nil
 }
 
-func GetReadyPod(namespace string, clientset kubernetes.Interface, component string) (*corev1.Pod, error) {
-	selector := "skupper.io/component=" + component
-	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: selector})
+func GetReadyPod(namespace string, clientset kubernetes.Interface, component string, application string) (*corev1.Pod, error) {
+	matchLabels := map[string]string{"skupper.io/component": component}
+
+	if application != "" {
+		matchLabels["application"] = application
+	}
+
+	labelSelector := metav1.LabelSelector{MatchLabels: matchLabels}
+	listOptions := metav1.ListOptions{LabelSelector: labels.Set(labelSelector.MatchLabels).String()}
+
+	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
 	if err != nil {
 		return nil, err
 	} else if len(pods.Items) == 0 {
@@ -96,7 +105,11 @@ func GetImageVersion(pod *corev1.Pod, container string) string {
 }
 
 func GetComponentVersion(namespace string, clientset kubernetes.Interface, component string, container string) string {
-	pod, err := GetReadyPod(namespace, clientset, component)
+	application := ""
+	if component == "router" {
+		application = "skupper-router"
+	}
+	pod, err := GetReadyPod(namespace, clientset, component, application)
 	if err == nil {
 		return GetImageVersion(pod, container)
 	} else {

@@ -128,7 +128,7 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 			"StartTimeAfter=", podStartTimeAfter, "Router component restarted - POD status:", string(podStatus))
 
 		// Check if the Volume is shared by both containers
-		podContainers, _ := kube.GetReadyPod(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "router")
+		podContainers, _ := kube.GetReadyPod(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, "router", "skupper-router")
 		for _, container := range podContainers.Spec.Containers {
 			foundCertVol := false
 			for _, contVolume := range container.VolumeMounts {
