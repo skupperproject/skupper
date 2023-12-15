@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -414,9 +415,18 @@ func (c *FlowCollector) run(stopCh <-chan struct{}) {
 	c.beaconReceiver = newReceiver(c.connectionFactory, BeaconAddress, c.beaconsIncoming)
 	c.beaconReceiver.start()
 
-	go c.beaconUpdates(stopCh)
-	go c.recordUpdates(stopCh)
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		c.beaconUpdates(stopCh)
+	}()
+	go func() {
+		defer wg.Done()
+		c.recordUpdates(stopCh)
+	}()
 	<-stopCh
+	wg.Wait()
 	for _, eventsource := range c.eventSources {
 		for _, receiver := range eventsource.receivers {
 			receiver.stop()
