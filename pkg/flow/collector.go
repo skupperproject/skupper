@@ -162,31 +162,22 @@ type FlowCollectorSpec struct {
 }
 
 type FlowCollector struct {
-	mode              CollectorMode
-	origin            string
-	namespace         string
-	startTime         uint64
-	Collector         CollectorRecord
-	connectionFactory messaging.ConnectionFactory
-	recordTtl         time.Duration
-	prometheusReg     prometheus.Registerer
-	metrics           *collectorMetrics
-	beaconReceiver    *receiver
-
-	// beacon loop coordination
-	beaconsIncoming      chan []interface{}
-	eventSourceEvictions chan string
-	// record update loop coordination
-	heartbeatsIncoming    chan []interface{}
-	recordsIncoming       chan []interface{}
-	Request               chan ApiRequest
-	Response              chan ApiResponse
-	eventSourceIncoming   chan *eventSource
-	eventSourcesLastHeard chan lastHeardNotification
-	pendingFlushIncoming  chan pendingFlush
-
-	// record update loop state
+	mode                    CollectorMode
+	origin                  string
+	namespace               string
+	startTime               uint64
+	Collector               CollectorRecord
+	connectionFactory       messaging.ConnectionFactory
+	recordTtl               time.Duration
+	prometheusReg           prometheus.Registerer
+	metrics                 *collectorMetrics
+	beaconsIncoming         chan []interface{}
+	heartbeatsIncoming      chan []interface{}
+	recordsIncoming         chan []interface{}
+	Request                 chan ApiRequest
+	Response                chan ApiResponse
 	eventSources            map[string]*eventSource
+	beaconReceiver          *receiver
 	pendingFlush            map[string]*senderDirect
 	Beacons                 map[string]*BeaconRecord
 	Sites                   map[string]*SiteRecord
@@ -234,10 +225,6 @@ func NewFlowCollector(spec FlowCollectorSpec) *FlowCollector {
 		Request:                 make(chan ApiRequest),
 		Response:                make(chan ApiResponse),
 		eventSources:            make(map[string]*eventSource),
-		eventSourceIncoming:     make(chan *eventSource, 10),
-		eventSourcesLastHeard:   make(chan lastHeardNotification, 10),
-		eventSourceEvictions:    make(chan string, 10),
-		pendingFlushIncoming:    make(chan pendingFlush, 10),
 		pendingFlush:            make(map[string]*senderDirect),
 		Beacons:                 make(map[string]*BeaconRecord),
 		Sites:                   make(map[string]*SiteRecord),
@@ -294,110 +281,69 @@ func getRealSizeOf(v interface{}) (int, error) {
 }
 
 func (c *FlowCollector) beaconUpdates(stopCh <-chan struct{}) {
-	eventSourceCache := make(map[string]struct{})
 	for {
 		select {
-		case evictIdentity := <-c.eventSourceEvictions:
-			if _, ok := eventSourceCache[evictIdentity]; !ok {
-				log.Printf("COLLECTOR: unexpected event source eviction for %s\n", evictIdentity)
-			}
-			delete(eventSourceCache, evictIdentity)
 		case beaconUpdates := <-c.beaconsIncoming:
 			for _, beaconUpdate := range beaconUpdates {
 				beacon, ok := beaconUpdate.(BeaconRecord)
 				if !ok {
 					log.Println("COLLECTOR: Unable to convert interface to beacon")
-					continue
-				}
-				// beacon for a known source. publish lastHeardNotification so
-				// the collector can update its state
-				if _, ok := eventSourceCache[beacon.Identity]; ok {
-					c.eventSourcesLastHeard <- lastHeardNotification{
-						Identity: beacon.Identity,
-						T:        uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+				} else {
+					if source, ok := c.eventSources[beacon.Identity]; !ok {
+						var receivers []*receiver
+						log.Printf("COLLECTOR: Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
+						receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming))
+						if beacon.SourceType == recordNames[Router] {
+							switch c.mode {
+							case RecordMetrics:
+								receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming))
+							case RecordStatus:
+								receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".logs", c.recordsIncoming))
+							}
+						} else if beacon.SourceType == recordNames[Controller] {
+							receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".heartbeats", c.heartbeatsIncoming))
+						}
+						outgoing := make(chan interface{})
+						s := newSender(c.connectionFactory, beacon.Direct, false, outgoing)
+						if c.connectionFactory != nil {
+							s.start()
+						}
+						now := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+						c.eventSources[beacon.Identity] = &eventSource{
+							EventSourceRecord: EventSourceRecord{
+								Base: Base{
+									RecType:   recordNames[EventSource],
+									Identity:  beacon.Identity,
+									StartTime: now,
+									EndTime:   0,
+								},
+								Beacon:    &beacon,
+								LastHeard: now,
+								Beacons:   1,
+							},
+							receivers: receivers,
+							send: &senderDirect{
+								sender:    s,
+								outgoing:  outgoing,
+								heartbeat: false,
+							},
+						}
+						if c.connectionFactory != nil {
+							for _, receiver := range receivers {
+								receiver.start()
+							}
+						}
+						c.pendingFlush[beacon.Direct] = c.eventSources[beacon.Identity].send
+					} else {
+						source.LastHeard = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+						source.Beacons++
 					}
-					continue
-				}
-
-				// beacon from an unknown source. set up connections for the
-				// new event source and publish the event source for the
-				// collector to start using.
-				var receivers []*receiver
-				log.Printf("COLLECTOR: Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
-				receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming))
-				if beacon.SourceType == recordNames[Router] {
-					switch c.mode {
-					case RecordMetrics:
-						receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming))
-					case RecordStatus:
-						receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".logs", c.recordsIncoming))
-					}
-				} else if beacon.SourceType == recordNames[Controller] {
-					receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".heartbeats", c.heartbeatsIncoming))
-				}
-				outgoing := make(chan interface{})
-				s := newSender(c.connectionFactory, beacon.Direct, false, outgoing)
-				if c.connectionFactory != nil {
-					s.start()
-				}
-				now := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
-
-				eventSourceSender := &senderDirect{
-					sender:    s,
-					outgoing:  outgoing,
-					heartbeat: false,
-				}
-				source := &eventSource{
-					EventSourceRecord: EventSourceRecord{
-						Base: Base{
-							RecType:   recordNames[EventSource],
-							Identity:  beacon.Identity,
-							StartTime: now,
-							EndTime:   0,
-						},
-						Beacon:    &beacon,
-						LastHeard: now,
-						Beacons:   1,
-					},
-					send:      eventSourceSender,
-					receivers: receivers,
-				}
-				select {
-				case c.eventSourceIncoming <- source:
-				case <-stopCh: // guards against deadlock on shutdown
-					return
-				}
-				eventSourceCache[beacon.Identity] = struct{}{}
-				if c.connectionFactory != nil {
-					for _, receiver := range receivers {
-						receiver.start()
-					}
-				}
-				flush := pendingFlush{
-					Address: beacon.Direct,
-					Sender:  eventSourceSender,
-				}
-				select {
-				case c.pendingFlushIncoming <- flush:
-				case <-stopCh: // guards against deadlock on shutdown
-					return
 				}
 			}
 		case <-stopCh:
 			return
 		}
 	}
-}
-
-type pendingFlush struct {
-	// Address to send FLUSH message to
-	Address string
-	// Sender for the flush message
-	Sender *senderDirect
-}
-type lastHeardNotification struct {
-	Identity string
-	T        uint64
 }
 
 func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
@@ -442,17 +388,6 @@ func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
 					log.Println("COLLECTOR: Sending flush to ", address)
 					sender.outgoing <- &FlushRecord{Address: address}
 					delete(c.pendingFlush, address)
-				}
-			}
-		case flush := <-c.pendingFlushIncoming:
-			c.pendingFlush[flush.Address] = flush.Sender
-		case source := <-c.eventSourceIncoming:
-			c.eventSources[source.Identity] = source
-		case lastHeard := <-c.eventSourcesLastHeard:
-			if source, ok := c.eventSources[lastHeard.Identity]; ok {
-				source.Beacons++
-				if source.LastHeard < lastHeard.T {
-					source.LastHeard = lastHeard.T
 				}
 			}
 		case <-tickerReconcile.C:
