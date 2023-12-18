@@ -131,7 +131,7 @@ func TestStartupShutdown(t *testing.T) {
 		Controllers int
 	}{
 		{
-			Name:        "simple metrics",
+			Name:        "RecordMetrics basic",
 			Controllers: 0,
 			Spec: FlowCollectorSpec{
 				Mode:              RecordMetrics,
@@ -141,7 +141,7 @@ func TestStartupShutdown(t *testing.T) {
 				FlowRecordTtl:     5 * time.Minute,
 			},
 		}, {
-			Name:        "metrics with controllers",
+			Name:        "RecordMetrics four controllers",
 			Controllers: 4,
 			Spec: FlowCollectorSpec{
 				Mode:              RecordMetrics,
@@ -151,8 +151,18 @@ func TestStartupShutdown(t *testing.T) {
 				FlowRecordTtl:     5 * time.Minute,
 			},
 		}, {
-			Name:        "status mode",
-			Controllers: 1,
+			Name:        "RecordStatus basic",
+			Controllers: 0,
+			Spec: FlowCollectorSpec{
+				Mode:              RecordStatus,
+				Origin:            "origin",
+				PromReg:           prometheus.NewRegistry(),
+				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),
+				FlowRecordTtl:     5 * time.Minute,
+			},
+		}, {
+			Name:        "RecordStatus many controllers",
+			Controllers: 128,
 			Spec: FlowCollectorSpec{
 				Mode:              RecordStatus,
 				Origin:            "origin",
@@ -197,13 +207,10 @@ func TestStartupShutdown(t *testing.T) {
 					msg, err := receiver.Receive()
 					assert.Assert(t, err)
 					assert.Equal(t, msg.Properties.Subject, "FLUSH")
-					t.Log("flush")
 				}(r)
 			}
-			t.Log("awaiting flushes")
 			allFlushed.Wait()
 			close(done)
-			t.Log("awaiting shutdown")
 
 			// last thing FlowCollector does on stop is close the beaconReceiver
 			// make sure that is done

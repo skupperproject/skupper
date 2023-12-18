@@ -145,10 +145,7 @@ func TestUpdateRecords(t *testing.T) {
 	var flushes []interface{}
 	flushes = append(flushes, flush)
 	fc.flushIncoming <- flushes
-
-	time.Sleep(5 * time.Second)
 	close(stopCh)
-
 }
 
 func TestSiteController(t *testing.T) {
