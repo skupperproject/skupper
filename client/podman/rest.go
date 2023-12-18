@@ -206,14 +206,17 @@ func (r *responseReaderBody) Consume(reader io.Reader, i interface{}) error {
 	if err != nil {
 		return fmt.Errorf("error reading response body: %v", err)
 	}
-
 	var dataClean []byte
-	for idx, v := range data {
-		// skip 8 first bytes every 8k chunk
-		if idx%(8192+8) < 8 {
-			continue
+	if data[0] != '{' {
+		for idx, v := range data {
+			// skip 8 first bytes every 8k chunk
+			if idx%(8192+8) < 8 {
+				continue
+			}
+			dataClean = append(dataClean, v)
 		}
-		dataClean = append(dataClean, v)
+	} else {
+		dataClean = data
 	}
 
 	for idx, v := range dataClean {
