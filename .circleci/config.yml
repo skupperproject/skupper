@@ -13,12 +13,12 @@ executors:
 
   local_cluster_test_executor:
     machine:
-      image: ubuntu-2204:2022.10.2
+      image: ubuntu-2204:2023.10.1
     resource_class: large
 
   local_cluster_policy_test_executor:
     machine:
-      image: ubuntu-2204:2022.10.2
+      image: ubuntu-2204:2023.10.1
     # Policy tests run all in sequence.  So, there is no benefit in adding more
     # CPU or memory.  Within the tests, there is paralellism, but on goroutines,
     # so they'd not use the additional CPUs.  The only thing a running policy
