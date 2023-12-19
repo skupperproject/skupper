@@ -12,9 +12,8 @@ executors:
       CGO_ENABLED: 0
 
   local_cluster_test_executor_ck:
-    machine:
-      docker:
-        - image: docker.io/ctkruse/testing:cirunner
+    docker:
+      - image: docker.io/ctkruse/testing:cirunner
     resource_class: large
 
   local_cluster_test_executor:
@@ -126,7 +125,7 @@ commands:
       - run:
           name: defining insecure registry location
           command: |
-            cat << EOF | sudo tee /etc/containers/registries.conf
+            cat \<< EOF | sudo tee /etc/containers/registries.conf
             [registries.insecure]
             registries = ['localhost:5000']
             EOF
@@ -616,7 +615,6 @@ jobs:
       - local_registry_start_ck
       - minikube-start-large
       - minikube-start-load-balancer
-      - podman-latest
       - go-junit
       - minikube-logs
       - system_monitor
