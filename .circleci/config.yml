@@ -11,6 +11,12 @@ executors:
     environment:
       CGO_ENABLED: 0
 
+  local_cluster_test_executor_ck:
+    machine:
+      docker:
+        - image: docker.io/ctkruse/testing:cirunner
+    resource_class: large
+
   local_cluster_test_executor:
     machine:
       image: ubuntu-2204:2022.10.2
@@ -113,6 +119,44 @@ commands:
           version: "1.20"
       - kube-orb/install-kubectl
       - run: make
+
+  local_registry_start_ck:
+    description: prepare a local registry using pre-built images
+    steps:
+      - run:
+          name: defining insecure registry location
+          command: |
+            cat << EOF | sudo tee /etc/containers/registries.conf
+            [registries.insecure]
+            registries = ['localhost:5000']
+            EOF
+      - run:
+          name: create registry container
+          command: |
+            podman run --name registry -d -p 5000:5000 registry
+      - attach_workspace:
+          at: /tmp/
+      - run:
+          name: load docker images
+          command: |
+            gunzip -c /tmp/images/service-controller.gz | podman import - 0.0.0.0:5000/service-controller
+            gunzip -c /tmp/images/service-controller.gz | podman load
+            gunzip -c /tmp/images/controller-podman.gz | podman import - 0.0.0.0:5000/controller-podman
+            gunzip -c /tmp/images/controller-podman.gz | podman load
+            gunzip -c /tmp/images/config-sync.gz | podman import - 0.0.0.0:5000/config-sync
+            gunzip -c /tmp/images/config-sync.gz | podman load
+            gunzip -c /tmp/images/flow-collector.gz | podman import - 0.0.0.0:5000/flow-collector
+            gunzip -c /tmp/images/flow-collector.gz | podman load
+            gunzip -c /tmp/images/test-image.gz | podman import - 0.0.0.0:5000/skupper-tests
+            gunzip -c /tmp/images/test-image.gz | podman load
+      - run:
+          name: push to local registry
+          command: |
+            podman push 0.0.0.0:5000/service-controller
+            podman push 0.0.0.0:5000/controller-podman
+            podman push 0.0.0.0:5000/config-sync
+            podman push 0.0.0.0:5000/flow-collector
+            podman push 0.0.0.0:5000/skupper-tests
 
   local_registry_start:
     description: prepare a local registry using pre-built images
@@ -566,11 +610,10 @@ jobs:
             ./skupper version
 
   main_tests_minikube_local_cluster:
-    executor: local_cluster_test_executor
+    executor: local_cluster_test_executor_ck
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
-      - local_registry_start
-      - minikube-install
+      - local_registry_start_ck
       - minikube-start-large
       - minikube-start-load-balancer
       - podman-latest
