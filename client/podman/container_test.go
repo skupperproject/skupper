@@ -1,9 +1,11 @@
 package podman
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"sync"
@@ -114,6 +116,10 @@ func TestContainer(t *testing.T) {
 	// Pulling image
 	t.Run("image-pull", func(t *testing.T) {
 		assert.Assert(t, cli.ImagePull(image))
+		invalidImage := strings.Replace(images.GetSiteControllerImageName(), ":main", ":invalid", 1)
+		invalidImageErr := cli.ImagePull(invalidImage)
+		assert.Assert(t, invalidImageErr != nil)
+		assert.Assert(t, strings.Contains(invalidImageErr.Error(), "Recommendation:"))
 	})
 
 	// Creating container
@@ -168,9 +174,15 @@ func TestContainer(t *testing.T) {
 	t.Run("container-inspect", containerInspectTest)
 
 	t.Run("container-exec", func(t *testing.T) {
-		out, err := cli.ContainerExec(name, strings.Split("ls -1 /app", " "))
+		out, err := cli.ContainerExec(name, strings.Split("cat /etc/services", " "))
 		assert.Assert(t, err)
-		assert.Assert(t, strings.Contains(out, "service-controller"))
+		assert.Assert(t, len(out) > 1)
+		cmd := exec.CommandContext(ctx, "podman", strings.Split(fmt.Sprintf("exec %s cat /etc/services", name), " ")...)
+		stdout := &bytes.Buffer{}
+		cmd.Stdout = stdout
+		assert.Assert(t, cmd.Run())
+		assert.Assert(t, len(stdout.String()) > 1)
+		assert.Equal(t, out, stdout.String())
 	})
 
 	// Disconnecting container from network
@@ -199,6 +211,31 @@ func TestContainer(t *testing.T) {
 		containerInspectTest(t)
 	})
 	t.Run("container-inspect-after-image-update", containerInspectTest)
+
+	t.Run("container-logs", func(t *testing.T) {
+		clogsName := RandomName("skupper-test")
+		assert.Assert(t, cli.ImagePull(images.GetRouterImageName()))
+		err = cli.ContainerCreate(&container.Container{
+			Name:        clogsName,
+			Image:       images.GetRouterImageName(),
+			Env:         env,
+			Labels:      labels,
+			Annotations: annotations,
+		})
+		assert.Assert(t, cli.ContainerStart(clogsName))
+		time.Sleep(time.Second * 5)
+		assert.Assert(t, cli.ContainerStop(clogsName))
+		logs, err := cli.ContainerLogs(clogsName)
+		assert.Assert(t, err)
+		assert.Assert(t, len(logs) > 1)
+		cmd := exec.CommandContext(ctx, "podman", strings.Split(fmt.Sprintf("logs %s", clogsName), " ")...)
+		stderr := &bytes.Buffer{}
+		cmd.Stderr = stderr
+		assert.Assert(t, cmd.Run())
+		assert.Assert(t, len(stderr.String()) > 1)
+		assert.Equal(t, logs, stderr.String())
+		assert.Assert(t, cli.ContainerRemove(clogsName))
+	})
 
 	// Cleaning up
 	t.Run("cleanup", func(t *testing.T) {
