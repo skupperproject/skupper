@@ -85,6 +85,33 @@ commands:
         command: minikube logs -f | egrep -i "<<parameters.re>>"
         background: true
 
+  prepare_for_local_cluster_tests_ck:
+    description: install right versions of go, docker, kubectl, and also build
+    steps:
+      - run:
+          name: Saving local ip
+          command: |
+            LOCAL_IP=$(ip addr show | grep inet\ | grep -vE 'lo$|docker' | awk '{print $2}' | awk -F '/' '{print $1}')
+            echo "export LOCAL_IP=${LOCAL_IP}" >> ${BASH_ENV}
+            echo "Local IP: ${LOCAL_IP}"
+            source $BASH_ENV
+      - run:
+          name: Export environment variables persistent in execution shell
+          command: |
+            echo 'export KUBECONFIG=/home/circleci/.kube/config' >> $BASH_ENV
+            echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
+            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
+            echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
+            echo "export SKUPPER_SERVICE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/service-controller" >> $BASH_ENV
+            echo "export SKUPPER_CONTROLLER_PODMAN_IMAGE=${LOCAL_IP}:5000/controller-podman" >> $BASH_ENV
+            echo "export SKUPPER_SITE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/site-controller" >> $BASH_ENV
+            echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
+            echo "export SKUPPER_FLOW_COLLECTOR_IMAGE=${LOCAL_IP}:5000/flow-collector" >> $BASH_ENV
+            echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests" >> $BASH_ENV
+            source $BASH_ENV
+      - checkout
+      - kube-orb/install-kubectl
+      - run: make
   prepare_for_local_cluster_tests:
     description: install right versions of go, docker, kubectl, and also build
     steps:
@@ -432,7 +459,7 @@ workflows:
       - main_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
           pre-steps:
-            - prepare_for_local_cluster_tests
+            - prepare_for_local_cluster_tests_ck
           requires:
             - test
             - build_and_save_test_images
