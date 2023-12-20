@@ -84,6 +84,7 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 	params.XRegistryAuth = getXRegistryAuth(id)
 
 	// Need to do that as the default response reader is being closed too soon
+	reader := &responseReaderJSONErrorBody{}
 	op := &runtime.ClientOperation{
 		ID:                 "ImagePullLibpod",
 		Method:             "POST",
@@ -92,7 +93,7 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 		ConsumesMediaTypes: []string{"application/json", "application/x-tar"},
 		Schemes:            []string{"http", "https"},
 		Params:             params,
-		Reader:             &responseReaderBody{},
+		Reader:             reader,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}

@@ -194,10 +194,46 @@ func (r *responseReaderID) ReadResponse(response runtime.ClientResponse, consume
 	}
 }
 
-type responseReaderBody struct {
+type responseReaderByteStreamBody struct {
 }
 
-func (r *responseReaderBody) Consume(reader io.Reader, i interface{}) error {
+func (r *responseReaderByteStreamBody) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+	return ReadResponse(response, r)
+}
+
+func (r *responseReaderByteStreamBody) Consume(reader io.Reader, i interface{}) error {
+	consumeErr := runtime.TextConsumer().Consume(reader, i)
+	bodyStr, ok := i.(*string)
+	if !ok {
+		return fmt.Errorf("error parsing body")
+	}
+	body := *bodyStr
+	// remove next 8 bytes if control character found (0 or 1)
+	ignore := 0
+	if body[0] < 2 {
+		body = strings.Map(func(r rune) rune {
+			if r < 2 && ignore == 0 {
+				ignore = 8
+			}
+			if ignore > 0 {
+				ignore -= 1
+				return -1
+			}
+			return r
+		}, body)
+	}
+	*bodyStr = body
+	return consumeErr
+}
+
+type responseReaderOctetStreamBody struct {
+}
+
+func (r *responseReaderOctetStreamBody) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+	return ReadResponse(response, r)
+}
+
+func (r *responseReaderOctetStreamBody) Consume(reader io.Reader, i interface{}) error {
 	bodyStr, ok := i.(*string)
 	if !ok {
 		return fmt.Errorf("error parsing body")
@@ -206,17 +242,18 @@ func (r *responseReaderBody) Consume(reader io.Reader, i interface{}) error {
 	if err != nil {
 		return fmt.Errorf("error reading response body: %v", err)
 	}
+
 	var dataClean []byte
-	if data[0] != '{' {
-		for idx, v := range data {
-			// skip 8 first bytes every 8k chunk
-			if idx%(8192+8) < 8 {
-				continue
-			}
-			dataClean = append(dataClean, v)
+	idx := 0
+	for _, v := range data {
+		// skip 8 first bytes on each line
+		if idx < 8 {
+			idx++
+			continue
+		} else if v == '\n' {
+			idx = 0
 		}
-	} else {
-		dataClean = data
+		dataClean = append(dataClean, v)
 	}
 
 	for idx, v := range dataClean {
@@ -227,17 +264,39 @@ func (r *responseReaderBody) Consume(reader io.Reader, i interface{}) error {
 		}
 	}
 
-	// fmt.Println(string(dataClean[len(dataClean)-8 : len(dataClean)]))
-	// fmt.Println(dataClean[len(dataClean)-8 : len(dataClean)])
 	*bodyStr = string(dataClean)
 	return nil
 }
 
-func (r *responseReaderBody) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+type responseReaderJSONErrorBody struct {
+}
+
+func (r *responseReaderJSONErrorBody) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+	return ReadResponse(response, r)
+}
+
+func (r *responseReaderJSONErrorBody) Consume(reader io.Reader, i interface{}) error {
+	bodyStr, ok := i.(*string)
+	if !ok {
+		return fmt.Errorf("error parsing body")
+	}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("error reading response body: %v", err)
+	}
+
+	// identify error messages in multiline response
+	errorRegexp := regexp.MustCompile(`(?s).*({"error":\s*"[^"]+"}).*(?s)`)
+	*bodyStr = errorRegexp.ReplaceAllString(string(data), `$1`)
+	return nil
+}
+
+func ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
 	case 200, 201:
+		var err error
 		bodyStr := ""
-		err := r.Consume(response.Body(), &bodyStr)
+		err = consumer.Consume(response.Body(), &bodyStr)
 		if err != nil {
 			return nil, err
 		}

@@ -321,7 +321,7 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 	params := exec.NewContainerExecLibpodParams()
 	params.Name = id
 	params.Control = exec.ContainerExecLibpodBody{
-		AttachStderr: true,
+		AttachStderr: false,
 		AttachStdout: true,
 		Cmd:          command,
 	}
@@ -351,6 +351,7 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 	startParams := exec.NewExecStartLibpodParams()
 	startParams.ID = resp.ID
 
+	reader := &responseReaderByteStreamBody{}
 	startOp := &runtime.ClientOperation{
 		ID:                 "ExecStartLibpod",
 		Method:             "POST",
@@ -359,14 +360,14 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 		ConsumesMediaTypes: []string{"application/json", "application/x-tar"},
 		Schemes:            []string{"http", "https"},
 		Params:             startParams,
-		Reader:             &responseReaderBody{},
+		Reader:             reader,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
 
 	restClient, ok := p.RestClient.(*runtimeclient.Runtime)
 	if ok {
-		restClient.Consumers["*/*"] = &responseReaderBody{}
+		restClient.Consumers["*/*"] = reader
 	}
 	result, err = p.RestClient.Submit(startOp)
 	if err != nil {
@@ -378,11 +379,6 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 	}
 	return out, nil
 }
-
-/*
-	ContainerExec(id string, command []string) (string, string, error)
-	ContainerLogs(id string) (string, error)
-*/
 
 func FromListContainer(c models.ListContainer) *container.Container {
 	ct := &container.Container{
@@ -531,6 +527,7 @@ func (p *PodmanRestClient) ContainerLogs(id string) (string, error) {
 	params.Name = id
 	params.Stdout = boolTrue()
 	params.Stderr = boolTrue()
+	reader := &responseReaderOctetStreamBody{}
 	op := &runtime.ClientOperation{
 		ID:                 "ContainerLogsLibpod",
 		Method:             "GET",
@@ -539,7 +536,7 @@ func (p *PodmanRestClient) ContainerLogs(id string) (string, error) {
 		ConsumesMediaTypes: []string{"application/json", "application/x-tar"},
 		Schemes:            []string{"http", "https"},
 		Params:             params,
-		Reader:             &responseReaderBody{},
+		Reader:             reader,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
