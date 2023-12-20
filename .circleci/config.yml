@@ -13,7 +13,7 @@ executors:
 
   local_cluster_test_executor_ck:
     docker:
-      - image: docker.io/ctkruse/testing:cirunner
+      - image: docker.io/ctkruse/testing:cirunner-ii
     resource_class: large
 
   local_cluster_test_executor:
@@ -113,7 +113,6 @@ commands:
       - run:
           name: cleanup previous go installation
           command: sudo rm -rf /usr/local/go
-      - docker/install-docker
       - go/install:
           version: "1.20"
       - kube-orb/install-kubectl
