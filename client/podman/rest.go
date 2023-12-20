@@ -3,6 +3,7 @@ package podman
 import (
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -195,10 +196,46 @@ func (r *responseReaderID) ReadResponse(response runtime.ClientResponse, consume
 }
 
 type responseReaderByteStreamBody struct {
+	output map[byte][]byte
+}
+
+func (r *responseReaderByteStreamBody) Stdout() string {
+	if r.output == nil {
+		return ""
+	}
+	return string(r.output[1])
+}
+
+func (r *responseReaderByteStreamBody) Stderr() string {
+	if r.output == nil {
+		return ""
+	}
+	return string(r.output[2])
 }
 
 func (r *responseReaderByteStreamBody) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	return ReadResponse(response, r)
+}
+
+func (r *responseReaderByteStreamBody) readStreams(offset *uint64, data []byte) {
+	if *offset == 0 {
+		r.output = map[byte][]byte{0: []byte{}, 1: []byte{}, 2: []byte{}}
+	}
+	if *offset == uint64(len(data)) {
+		return
+	}
+	header := data[*offset : *offset+8]
+	// stream can be: 0 = stdin, 1 = stdout, 2 = stderr
+	streamId := header[0]
+	// frame size to read
+	size := binary.BigEndian.Uint32(header[4:])
+	// skip to start of frame
+	*offset += 8
+	// frame content
+	frame := data[*offset : *offset+uint64(size)]
+	r.output[streamId] = append(r.output[streamId], frame...)
+	*offset += uint64(size)
+	r.readStreams(offset, data)
 }
 
 func (r *responseReaderByteStreamBody) Consume(reader io.Reader, i interface{}) error {
@@ -208,21 +245,49 @@ func (r *responseReaderByteStreamBody) Consume(reader io.Reader, i interface{}) 
 		return fmt.Errorf("error parsing body")
 	}
 	body := *bodyStr
+
+	//  Source: https://github.com/docker/engine/blob/8955d8da8951695a98eb7e15bead19d402c6eb27/api/swagger.yaml#L6818C4-L6818C4
+	//	### Stream format
+	//
+	//	When the TTY setting is disabled in [`POST /containers/create`](#operation/ContainerCreate),
+	//	the stream over the hijacked connected is multiplexed to separate out
+	//	`stdout` and `stderr`. The stream consists of a series of frames, each
+	//	containing a header and a payload.
+	//
+	//		The header contains the information which the stream writes (`stdout` or
+	//	`stderr`). It also contains the size of the associated frame encoded in
+	//	the last four bytes (`uint32`).
+	//
+	//		It is encoded on the first eight bytes like this:
+	//
+	//	```go
+	//        header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+	//        ```
+	//
+	//	`STREAM_TYPE` can be:
+	//
+	//	- 0: `stdin` (is written on `stdout`)
+	//	- 1: `stdout`
+	//	- 2: `stderr`
+	//
+	//	`SIZE1, SIZE2, SIZE3, SIZE4` are the four bytes of the `uint32` size
+	//	encoded as big endian.
+	//
+	//		Following the header is the payload, which is the specified number of
+	//	bytes of `STREAM_TYPE`.
+	//
+	//		The simplest way to implement this protocol is the following:
+	//
+	//	1. Read 8 bytes.
+	//	2. Choose `stdout` or `stderr` depending on the first byte.
+	//	3. Extract the frame size from the last four bytes.
+	//	4. Read the extracted size and output it on the correct output.
+	//	5. Goto 1.
+	offset := uint64(0)
+	r.readStreams(&offset, []byte(body))
+
 	// remove next 8 bytes if control character found (0 or 1)
-	ignore := 0
-	if body[0] < 2 {
-		body = strings.Map(func(r rune) rune {
-			if r < 2 && ignore == 0 {
-				ignore = 8
-			}
-			if ignore > 0 {
-				ignore -= 1
-				return -1
-			}
-			return r
-		}, body)
-	}
-	*bodyStr = body
+	*bodyStr = string(r.output[1]) + string(r.output[2])
 	return consumeErr
 }
 

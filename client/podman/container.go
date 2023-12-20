@@ -321,7 +321,7 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 	params := exec.NewContainerExecLibpodParams()
 	params.Name = id
 	params.Control = exec.ContainerExecLibpodBody{
-		AttachStderr: false,
+		AttachStderr: true,
 		AttachStdout: true,
 		Cmd:          command,
 	}
@@ -373,6 +373,7 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 	if err != nil {
 		return "", fmt.Errorf("error starting execution: %v", err)
 	}
+	// stdout and stderr are also available under reader.Stdout() and reader.Stderr()
 	out, ok := result.(string)
 	if !ok {
 		return "", fmt.Errorf("error parsing response")
