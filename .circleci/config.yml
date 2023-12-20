@@ -99,7 +99,6 @@ commands:
           name: Export environment variables persistent in execution shell
           command: |
             echo 'export KUBECONFIG=/home/circleci/.kube/config' >> $BASH_ENV
-            echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
             echo "export SKUPPER_SERVICE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/service-controller" >> $BASH_ENV
