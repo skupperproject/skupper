@@ -84,7 +84,7 @@ func (cli *VanClient) adjustRules(options types.SiteConfigSpec, original []rbacv
 	if cli.RouteClient == nil {
 		apigroups = append(apigroups, "route.openshift.io")
 	} else if options.IsIngressRoute() && options.IngressHost != "" {
-		original = append(original, types.ControllerRouteIngressPolicyRule...)
+		original = append(original, types.ControllerRoutesCustomHostPolicyRule...)
 	}
 	if cli.OCAppsClient == nil {
 		apigroups = append(apigroups, "apps.openshift.io")

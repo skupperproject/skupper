@@ -172,7 +172,7 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 	},
 }
 
-var ControllerRouteIngressPolicyRule = []rbacv1.PolicyRule{
+var ControllerRoutesCustomHostPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{"route.openshift.io"},
