@@ -4,6 +4,7 @@
 package update
 
 import (
+	"context"
 	_ "embed"
 	"flag"
 	"os"
@@ -74,7 +75,7 @@ func TestContainerImagesTask(t *testing.T) {
 			imagesTask.version = test.version
 			t.Logf("New version: %s - current mock site version: %s", test.version, site.GetVersion())
 			assert.Assert(t, imagesTask.AppliesTo(site.GetVersion()) == test.changed)
-			res := imagesTask.Run()
+			res := imagesTask.Run(context.Background())
 			assert.Assert(t, len(res.Errors) == 0)
 			assert.Assert(t, res.Changed() == test.changed)
 			expectedChanges := 4
@@ -151,7 +152,7 @@ func TestVersionUpdateTask(t *testing.T) {
 
 			// mocking task execution
 			if test.changed {
-				res := versionUpdTask.Run()
+				res := versionUpdTask.Run(context.Background())
 				assert.Assert(t, len(res.Errors) == 0)
 				assert.Assert(t, res.Changed() == test.changed)
 				assert.Assert(t, 1 == len(res.GetChanges()))

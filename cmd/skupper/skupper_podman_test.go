@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -153,7 +154,7 @@ type siteHandlerMock struct {
 	getHook func() (domain.Site, error)
 }
 
-func (sh *siteHandlerMock) Create(s domain.Site) error {
+func (sh *siteHandlerMock) Create(ctx context.Context, s domain.Site) error {
 	return fmt.Errorf("not implemented")
 }
 

@@ -21,7 +21,7 @@ func TestLinkHandlerPodman(t *testing.T) {
 	// Create a basic podman site
 	siteHandler, err := NewSitePodmanHandler(getEndpoint())
 	assert.Assert(t, err)
-	assert.Assert(t, siteHandler.Create(newBasicSite()))
+	assert.Assert(t, siteHandler.Create(context.Background(), newBasicSite()))
 	defer func() {
 		assert.Assert(t, siteHandler.Delete())
 	}()

@@ -1,12 +1,14 @@
 package domain
 
+import "context"
+
 type SkupperDeployment interface {
 	GetName() string
 	GetComponents() []SkupperComponent
 }
 
 type SkupperDeploymentHandler interface {
-	Deploy(deployment SkupperDeployment) error
+	Deploy(ctx context.Context, deployment SkupperDeployment) error
 	List() ([]SkupperDeployment, error)
 	Undeploy(name string) error
 }

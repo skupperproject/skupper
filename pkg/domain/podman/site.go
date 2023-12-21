@@ -1,6 +1,7 @@
 package podman
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -98,7 +99,7 @@ func NewSitePodmanHandler(endpoint string) (*SiteHandler, error) {
 	}, nil
 }
 
-func (s *SiteHandler) prepare(site domain.Site) (domain.Site, error) {
+func (s *SiteHandler) prepare(ctx context.Context, site domain.Site) (domain.Site, error) {
 	podmanSite, ok := site.(*Site)
 
 	if !ok {
@@ -125,7 +126,7 @@ func (s *SiteHandler) prepare(site domain.Site) (domain.Site, error) {
 	domain.ConfigureSiteCredentials(podmanSite, podmanSite.IngressHosts...)
 	s.ConfigurePodmanDeployments(podmanSite)
 
-	if err := s.canCreate(podmanSite); err != nil {
+	if err := s.canCreate(ctx, podmanSite); err != nil {
 		return nil, err
 	}
 
@@ -209,13 +210,13 @@ func (s *SiteHandler) prepareRouterDeployment(site *Site) *SkupperDeployment {
 	return routerDepl
 }
 
-func (s *SiteHandler) Create(site domain.Site) error {
+func (s *SiteHandler) Create(ctx context.Context, site domain.Site) error {
 	var err error
 	var cleanupFns []func()
 
 	var preparedSite domain.Site
 	podmanSite := site.(*Site)
-	preparedSite, err = s.prepare(podmanSite)
+	preparedSite, err = s.prepare(ctx, podmanSite)
 	if err != nil {
 		return err
 	}
@@ -320,7 +321,7 @@ func (s *SiteHandler) Create(site domain.Site) error {
 	// Deploy container(s)
 	deployHandler := NewSkupperDeploymentHandlerPodman(s.cli)
 	for _, depl := range podmanSite.GetDeployments() {
-		err = deployHandler.Deploy(depl)
+		err = deployHandler.Deploy(ctx, depl)
 		if err != nil {
 			return err
 		}
@@ -351,7 +352,7 @@ func (s *SiteHandler) Create(site domain.Site) error {
 	return nil
 }
 
-func (s *SiteHandler) canCreate(site *Site) error {
+func (s *SiteHandler) canCreate(ctx context.Context, site *Site) error {
 
 	// Validating podman endpoint
 	if s.cli == nil {
@@ -439,7 +440,7 @@ func (s *SiteHandler) canCreate(site *Site) error {
 	}
 
 	// Validating router container runs without errors
-	err = s.runTempContainer()
+	err = s.runTempContainer(ctx)
 	if err != nil {
 		return fmt.Errorf("site cannot be created: %s", err)
 	}
@@ -978,9 +979,9 @@ func (s *SiteHandler) createPrometheusConfigFiles(site *Site) error {
 	return nil
 }
 
-func (s *SiteHandler) runTempContainer() error {
+func (s *SiteHandler) runTempContainer(ctx context.Context) error {
 	cli := s.cli
-	err := cli.ImagePull(images.GetRouterImageName())
+	err := cli.ImagePull(ctx, images.GetRouterImageName())
 	if err != nil {
 		return err
 	}

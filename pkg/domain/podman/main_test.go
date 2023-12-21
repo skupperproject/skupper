@@ -52,7 +52,7 @@ func createBasicSite() error {
 	if err != nil {
 		return err
 	}
-	return siteHandler.Create(newBasicSite())
+	return siteHandler.Create(context.Background(), newBasicSite())
 }
 
 func teardownBasicSite() error {
@@ -139,7 +139,7 @@ func configureSiteAndCreateRouter(ctx context.Context, cli *client.VanClient, na
 }
 
 func runNginxContainer() error {
-	if err := cli.ImagePull(NGINX_IMAGE); err != nil {
+	if err := cli.ImagePull(context.Background(), NGINX_IMAGE); err != nil {
 		return err
 	}
 	c := container.Container{

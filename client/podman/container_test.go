@@ -120,6 +120,14 @@ func TestContainer(t *testing.T) {
 		invalidImageErr := cli.ImagePull(invalidImage)
 		assert.Assert(t, invalidImageErr != nil)
 		assert.Assert(t, strings.Contains(invalidImageErr.Error(), "Recommendation:"))
+		assert.Assert(t, cli.ImagePull(ctx, image))
+	})
+	t.Run("image-pull-timeout", func(t *testing.T) {
+		expCtx, expCn := context.WithTimeout(context.Background(), time.Millisecond)
+		time.Sleep(time.Millisecond)
+		defer expCn()
+		expErr := cli.ImagePull(expCtx, image)
+		assert.ErrorContains(t, expErr, "context deadline exceeded")
 	})
 
 	// Creating container
@@ -205,7 +213,7 @@ func TestContainer(t *testing.T) {
 	// Updating container image
 	image = strings.ReplaceAll(image, ":main", ":latest")
 	t.Run("container-update-image", func(t *testing.T) {
-		c, err := cli.ContainerUpdateImage(name, image)
+		c, err := cli.ContainerUpdateImage(ctx, name, image)
 		assert.Assert(t, err)
 		assert.Equal(t, c.Image, image)
 		containerInspectTest(t)
@@ -295,7 +303,7 @@ func TestContainerUpdateMock(t *testing.T) {
 	startedAt := cc.StartedAt
 
 	newImage := strings.Replace(image, ":main", ":updated", -1)
-	_, err = cli.ContainerUpdateImage("my-container", newImage)
+	_, err = cli.ContainerUpdateImage(context.Background(), "my-container", newImage)
 	assert.Assert(t, err)
 
 	// validating that the container has the new image and has been restarted
