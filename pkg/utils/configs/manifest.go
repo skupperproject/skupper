@@ -9,9 +9,9 @@ import (
 )
 
 type SkupperImage struct {
-	Name       string `yaml:"name"`
-	SHA        string `yaml:"sha,omitempty"`
-	Repository string `yaml:"repository,omitempty"`
+	Name       string `json:"name"`
+	SHA        string `json:"sha,omitempty"`
+	Repository string `json:"repository,omitempty"`
 }
 
 type Manifest struct {
