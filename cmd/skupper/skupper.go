@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/utils/configs"
 	"os"
 	"reflect"
 	"strconv"
@@ -866,6 +867,21 @@ func NewCmdVersion(skupperClient SkupperSiteClient) *cobra.Command {
 	return cmd
 }
 
+func NewCmdVersionManifest() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "manifest",
+		Short: "Report the version of the Skupper images by default and the value of the environment variables",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			silenceCobra(cmd)
+
+			manifestManager := configs.ManifestManager{}
+			return manifestManager.CreateFile(manifestManager.GetDefaultManifestWithEnv())
+		},
+	}
+	return cmd
+}
+
 func NewCmdDebug() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "debug dump <file>, debug events or debug service <service-name>",
@@ -1040,7 +1056,10 @@ func init() {
 	cmdStatusService := NewCmdServiceStatus(skupperCli.Service())
 	cmdLabelsService := NewCmdServiceLabel(skupperCli.Service())
 
+	cmdVersionManifest := NewCmdVersionManifest()
 	cmdVersion := NewCmdVersion(skupperCli.Site())
+	cmdVersion.AddCommand(cmdVersionManifest)
+
 	cmdDebugDump := NewCmdDebugDump(skupperCli.Debug())
 	cmdDebugEvents := NewCmdDebugEvents(skupperCli.Debug())
 	cmdDebugService := NewCmdDebugService(skupperCli.Debug())
