@@ -2,7 +2,7 @@ package flow
 
 import (
 	"log"
-	"time"
+	"sync"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
 	"github.com/skupperproject/skupper/pkg/event"
@@ -16,36 +16,31 @@ const (
 )
 
 type base struct {
+	stopOnce          sync.Once
+	done              chan struct{}
 	connectionFactory messaging.ConnectionFactory
-	closed            bool
-	client            messaging.Connection
 	incoming          chan []interface{}
 	outgoing          chan interface{}
 	address           string
 }
 
 func (c *base) stop() {
-	c.closed = true
-	if c.client != nil {
-		c.client.Close()
-	}
+	c.stopOnce.Do(func() { close(c.done) })
 }
 
 type sender struct {
 	base
 	sendSettled bool
-	ticker      *time.Ticker
-	request     *amqp.Message
 }
 
 func (c *sender) start() {
-	c.closed = false
 	go c.send()
 }
 
 func newSender(connectionFactory messaging.ConnectionFactory, address string, sendSettled bool, update chan interface{}) *sender {
 	return &sender{
 		base: base{
+			done:              make(chan struct{}),
 			connectionFactory: connectionFactory,
 			outgoing:          update,
 			address:           address,
@@ -55,15 +50,18 @@ func newSender(connectionFactory messaging.ConnectionFactory, address string, se
 }
 
 func (c *sender) send() {
-	c.ticker = time.NewTicker(5 * time.Second)
-	defer c.ticker.Stop()
-	for !c.closed {
-		err := c._send()
-		if err != nil {
-			log.Printf("COLLECTOR: Error sending out updates %s", err.Error())
+	for {
+		select {
+		case <-c.done:
+			log.Println("COLLECTOR: Flow process stopped sending")
+			return
+		default:
+			if err := c._send(); err != nil {
+				log.Printf("COLLECTOR: Error sending out updates %s", err.Error())
+			}
 		}
+
 	}
-	log.Println("COLLECTOR: Flow process stopped sending")
 }
 
 func (c *sender) _send() error {
@@ -71,7 +69,6 @@ func (c *sender) _send() error {
 	if err != nil {
 		return err
 	}
-	c.client = client
 	log.Printf("COLLECTOR: Connection for sender %s to %s established\n", c.address, c.connectionFactory.Url())
 	defer client.Close()
 
@@ -82,15 +79,18 @@ func (c *sender) _send() error {
 
 	defer sender.Close()
 
+	var request *amqp.Message
 	for {
 		select {
+		case <-c.done:
+			return nil
 		case update := <-c.outgoing:
 			if beacon, ok := update.(*BeaconRecord); ok {
 				msg, err := encodeBeacon(beacon)
 				if err != nil {
 					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
 				} else {
-					c.request = msg
+					request = msg
 				}
 			}
 			if heartbeat, ok := update.(*HeartbeatRecord); ok {
@@ -98,7 +98,7 @@ func (c *sender) _send() error {
 				if err != nil {
 					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
 				} else {
-					c.request = msg
+					request = msg
 				}
 			}
 			if fr, ok := update.(*FlushRecord); ok {
@@ -106,7 +106,7 @@ func (c *sender) _send() error {
 				if err != nil {
 					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
 				} else {
-					c.request = msg
+					request = msg
 				}
 			}
 			if site, ok := update.(*SiteRecord); ok {
@@ -114,7 +114,7 @@ func (c *sender) _send() error {
 				if err != nil {
 					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
 				} else {
-					c.request = msg
+					request = msg
 				}
 			}
 			if process, ok := update.(*ProcessRecord); ok {
@@ -122,7 +122,7 @@ func (c *sender) _send() error {
 				if err != nil {
 					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
 				} else {
-					c.request = msg
+					request = msg
 				}
 			}
 			if host, ok := update.(*HostRecord); ok {
@@ -130,22 +130,19 @@ func (c *sender) _send() error {
 				if err != nil {
 					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
 				} else {
-					c.request = msg
+					request = msg
 				}
 			}
-		case <-c.ticker.C:
 		}
-		if c.request != nil {
-			c.request.SendSettled = c.sendSettled
-			err = sender.Send(c.request)
+		if request != nil {
+			request.SendSettled = c.sendSettled
+			err = sender.Send(request)
 			if err != nil {
 				return err
-			} else {
-				c.request = nil
 			}
+			request = nil
 		}
 	}
-	return nil
 }
 
 type receiver struct {
@@ -155,6 +152,7 @@ type receiver struct {
 func newReceiver(connectionFactory messaging.ConnectionFactory, address string, updates chan []interface{}) *receiver {
 	return &receiver{
 		base: base{
+			done:              make(chan struct{}),
 			connectionFactory: connectionFactory,
 			incoming:          updates,
 			address:           address,
@@ -163,15 +161,18 @@ func newReceiver(connectionFactory messaging.ConnectionFactory, address string, 
 }
 
 func (r *receiver) start() {
-	r.closed = false
 	go r.receive()
 }
 
 func (r *receiver) receive() {
-	for !r.closed {
-		err := r._receive()
-		if err != nil {
-			log.Printf("COLLECTOR: Receiver %s %s\n", r.address, err.Error())
+	for {
+		select {
+		case <-r.done:
+			return
+		default:
+			if err := r._receive(); err != nil {
+				log.Printf("COLLECTOR: Receiver %s %s\n", r.address, err.Error())
+			}
 		}
 	}
 }
@@ -181,7 +182,6 @@ func (r *receiver) _receive() error {
 	if err != nil {
 		return err
 	}
-	r.client = client
 	log.Printf("COLLECTOR: Connection for receiver %s to %s established\n", r.address, r.connectionFactory.Url())
 	defer client.Close()
 
@@ -192,6 +192,11 @@ func (r *receiver) _receive() error {
 	defer receiver.Close()
 
 	for {
+		select {
+		case <-r.done:
+			return nil
+		default:
+		}
 		msg, err := receiver.Receive()
 		if err != nil {
 			return err
@@ -200,5 +205,4 @@ func (r *receiver) _receive() error {
 		results := decode(msg)
 		r.incoming <- results
 	}
-	return nil
 }
