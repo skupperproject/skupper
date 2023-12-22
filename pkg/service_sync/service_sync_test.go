@@ -1,17 +1,19 @@
 package service_sync
 
 import (
-	vanClient "github.com/skupperproject/skupper/client"
-	"k8s.io/client-go/kubernetes/fake"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	vanClient "github.com/skupperproject/skupper/client"
+	"k8s.io/client-go/kubernetes/fake"
+
 	"gotest.tools/assert"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/event"
+	"github.com/skupperproject/skupper/pkg/messaging"
 )
 
 type updateRecord struct {
@@ -126,14 +128,14 @@ func TestServiceSync(t *testing.T) {
 		event.StartDefaultEventStore(stopper)
 		t.Run(s.name, func(t *testing.T) {
 			//hook up two instances of service sync
-			factory := NewMockConnectionFactory("test-channel")
+			factory := messaging.NewMockConnectionFactory(t, "test-channel")
 			updates1 := newUpdateChannel()
 			updates2 := newUpdateChannel()
 			site1 := NewServiceSync("foo", 0, "v1", factory, updates1.handler, event.NewDefaultEventLogger())
 			site2 := NewServiceSync("bar", 0, "v1", factory, updates2.handler, event.NewDefaultEventLogger())
 			site1.Start(stopper)
 			site2.Start(stopper)
-			factory.topics.newTopic(ServiceSyncAddress).waitForReceivers(2)
+			factory.Broker.AwaitReceivers(ServiceSyncAddress, 2)
 			site1.LocalDefinitionsUpdated(s.site1.definitions)
 			site2.LocalDefinitionsUpdated(s.site2.definitions)
 			site1Done := false
@@ -184,7 +186,7 @@ func TestRemoveStaleDefinitions(t *testing.T) {
 	event.StartDefaultEventStore(stopper)
 
 	updates := newUpdateCollector()
-	factory := NewMockConnectionFactory("test-channel")
+	factory := messaging.NewMockConnectionFactory(t, "test-channel")
 	site := NewServiceSync("foo", 0, "v1", factory, updates.handler, event.NewDefaultEventLogger())
 
 	defs := map[string]types.ServiceInterface{
@@ -231,7 +233,7 @@ func TestUpdateRemoteDefinitions(t *testing.T) {
 	event.StartDefaultEventStore(stopper)
 
 	updates := newUpdateCollector()
-	factory := NewMockConnectionFactory("test-channel")
+	factory := messaging.NewMockConnectionFactory(t, "test-channel")
 	site := NewServiceSync("foo", 0, "v1", factory, updates.handler, event.NewDefaultEventLogger())
 
 	defs := map[string]types.ServiceInterface{
@@ -295,7 +297,7 @@ func TestLocalDefinitionsUpdated(t *testing.T) {
 	event.StartDefaultEventStore(stopper)
 
 	updates := newUpdateCollector()
-	factory := NewMockConnectionFactory("test-channel")
+	factory := messaging.NewMockConnectionFactory(t, "test-channel")
 	site := NewServiceSync("foo", 0, "v1", factory, updates.handler, event.NewDefaultEventLogger())
 
 	defs := map[string]types.ServiceInterface{
