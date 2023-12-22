@@ -3,6 +3,7 @@ package utils
 import (
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type Version struct {
@@ -96,4 +97,20 @@ func IsValidFor(actual string, minimum string) bool {
 	va := ParseVersion(actual)
 	vb := ParseVersion(minimum)
 	return va.IsUndefined() || !va.LessRecentThan(vb)
+}
+
+func GetVersionFromImageTag(imageTag string) string {
+	versionTag := ""
+
+	imageTagSlices := strings.Split(imageTag, " ")
+
+	if len(imageTagSlices) > 0 {
+		tagSlices := strings.Split(imageTagSlices[0], ":")
+
+		if len(tagSlices) > 1 {
+			versionTag = tagSlices[1]
+		}
+	}
+
+	return versionTag
 }

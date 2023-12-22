@@ -8,6 +8,7 @@ import (
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
 	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -106,6 +107,11 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*network.RemoteLin
 	_, err := k8s.GetDeployment(types.TransportDeploymentName, l.namespace, l.cli)
 	if err != nil {
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
+	}
+
+	configSyncVersion := utils.GetVersionFromImageTag(k8s.GetComponentVersion(l.namespace, l.cli, types.TransportContainerName, types.ConfigSyncContainerName))
+	if !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
+		return nil, fmt.Errorf("Site version is %s, but CLI requires %s", configSyncVersion, network.MINIMUM_VERSION)
 	}
 
 	currentSiteId := l.site.Reference.UID

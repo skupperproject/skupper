@@ -235,6 +235,13 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
 	cli := s.kube.Cli
 
+	configSyncVersion := utils.GetVersionFromImageTag(cli.GetVersion(types.TransportContainerName, types.ConfigSyncContainerName))
+	if !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
+		fmt.Printf("Site version is %s, but CLI requires %s", configSyncVersion, network.MINIMUM_VERSION)
+		fmt.Println()
+		return nil
+	}
+
 	currentStatus, errStatus := cli.NetworkStatus(context.Background())
 	if errStatus != nil && strings.HasPrefix(errStatus.Error(), "Skupper is not installed") {
 		fmt.Printf("Skupper is not enabled in namespace '%s'", cli.GetNamespace())
@@ -253,6 +260,7 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 		return nil
 	}
+
 	var currentSite = statusManager.GetSiteById(siteConfig.Reference.UID)
 
 	if currentSite != nil {

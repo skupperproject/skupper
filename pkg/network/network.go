@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const MINIMUM_VERSION string = "1.5.0"
+
 type SkupperStatus struct {
 	NetworkStatus *NetworkStatusInfo
 }

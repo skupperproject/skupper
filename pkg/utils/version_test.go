@@ -171,3 +171,22 @@ func TestIsValidFor(t *testing.T) {
 		}
 	}
 }
+
+func TestGetVersionFromImageTag(t *testing.T) {
+	var tests = []struct {
+		imageTag string
+		expected string
+	}{
+		{"quay.io/skupper/config-sync:1.4.4 (sha256:3b7e81fc45bd)", "1.4.4"},
+		{"quay.io/skupper/config-sync:1.4.4", "1.4.4"},
+		{"quay.io/skupper/config-sync (sha256:3b7e81fc45bd)", ""},
+		{"", ""},
+		{"quay.io/skupper/config-sync:1.4.4-prerelease", "1.4.4-prerelease"},
+		{"1.5.1", ""},
+	}
+	for _, test := range tests {
+		if actual := GetVersionFromImageTag(test.imageTag); actual != test.expected {
+			t.Errorf("Expected GetVersionFromImageTag(%s) to be %s, got %s", test.imageTag, test.expected, actual)
+		}
+	}
+}
