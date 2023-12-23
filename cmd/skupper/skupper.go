@@ -513,6 +513,8 @@ func NewCmdUpdate(skupperCli SkupperSiteClient) *cobra.Command {
 		RunE:   skupperCli.Update,
 	}
 	skupperCli.UpdateFlags(cmd)
+
+	cmd.OutOrStdout()
 	return cmd
 }
 

@@ -1345,7 +1345,9 @@ sasldb_path: /tmp/skrouterd.sasldb
 				}
 
 				for len(hosts) == 0 && !deadlineExceeded {
-					spin.Start()
+					if utils.IsRunningInForegroundOrDefault() {
+						spin.Start()
+					}
 					select {
 					case <-ctx.Done():
 						fmt.Println("context deadline exceeded")
@@ -1535,7 +1537,9 @@ func (cli *VanClient) appendLoadBalancerHostOrIp(ctx context.Context, serviceNam
 	spin.FinalMSG = message + "\n"
 
 	for host == "" && !deadlineExceeded {
-		spin.Start()
+		if utils.IsRunningInForegroundOrDefault() {
+			spin.Start()
+		}
 		select {
 		case <-ctx.Done():
 			fmt.Println("context deadline exceeded")
