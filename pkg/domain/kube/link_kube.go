@@ -110,7 +110,7 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*network.RemoteLin
 	}
 
 	configSyncVersion := utils.GetVersionFromImageTag(k8s.GetComponentVersion(l.namespace, l.cli, types.TransportContainerName, types.ConfigSyncContainerName))
-	if !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
+	if configSyncVersion != "" && !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
 		return nil, fmt.Errorf("Site version is %s, but CLI requires %s", configSyncVersion, network.MINIMUM_VERSION)
 	}
 

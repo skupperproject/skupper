@@ -236,7 +236,7 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 	cli := s.kube.Cli
 
 	configSyncVersion := utils.GetVersionFromImageTag(cli.GetVersion(types.TransportContainerName, types.ConfigSyncContainerName))
-	if !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
+	if configSyncVersion != "" && !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
 		fmt.Printf("Site version is %s, but CLI requires %s", configSyncVersion, network.MINIMUM_VERSION)
 		fmt.Println()
 		return nil
