@@ -158,7 +158,7 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 	{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{"route.openshift.io"},
-		Resources: []string{"routes", "routes/custom-host"},
+		Resources: []string{"routes"},
 	},
 	{
 		Verbs:     []string{"get", "list", "watch"},
@@ -169,6 +169,14 @@ var ControllerPolicyRule = []rbacv1.PolicyRule{
 		Verbs:     []string{"get", "list", "watch"},
 		APIGroups: []string{"networking.k8s.io"},
 		Resources: []string{"ingresses"},
+	},
+}
+
+var ControllerRoutesCustomHostPolicyRule = []rbacv1.PolicyRule{
+	{
+		Verbs:     []string{"get", "list", "watch"},
+		APIGroups: []string{"route.openshift.io"},
+		Resources: []string{"routes/custom-host"},
 	},
 }
 
