@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/version"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -19,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -1141,5 +1143,52 @@ func TestLabelandAnnotationOptions(t *testing.T) {
 				assert.Equal(t, deployment.Spec.Template.Annotations[key], value, namespace)
 			}
 		}
+	}
+}
+
+func TestAddPsa(t *testing.T) {
+	testcases := []struct {
+		major    string
+		minor    string
+		expected bool
+	}{
+		{
+			major:    "1",
+			minor:    "11",
+			expected: false,
+		},
+		{
+			major:    "1",
+			minor:    "23",
+			expected: false,
+		},
+		{
+			major:    "1",
+			minor:    "24",
+			expected: true,
+		},
+		{
+			major:    "1",
+			minor:    "25",
+			expected: true,
+		},
+		{
+			major:    "2",
+			minor:    "11",
+			expected: false,
+		},
+	}
+
+	cli, err := newMockClient("test-psa", "", "")
+	assert.Check(t, err, "test-psa")
+
+	for _, c := range testcases {
+		cli.KubeClient.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{
+			Major: c.major,
+			Minor: c.minor,
+		}
+		sv, err := cli.KubeClient.Discovery().ServerVersion()
+		assert.Check(t, err)
+		assert.Equal(t, addPsa(sv), c.expected, c.major+"."+c.minor)
 	}
 }

@@ -24,6 +24,7 @@ import (
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
+	apiversion "k8s.io/apimachinery/pkg/version"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -71,6 +72,15 @@ func ConfigSyncContainer() *corev1.Container {
 		Image:           images.GetConfigSyncImageName(),
 		ImagePullPolicy: kube.GetPullPolicy(images.GetConfigSyncImagePullPolicy()),
 		Name:            "config-sync",
+	}
+}
+
+func addPsa(vi *apiversion.Info) bool {
+	// for kubernetes versions 1.24+
+	if vi.Major == "1" && strings.Compare(vi.Minor, "24") >= 0 {
+		return true
+	} else {
+		return false
 	}
 }
 
@@ -288,7 +298,17 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 	if options.RunAsGroup > 0 {
 		van.Controller.SecurityContext.RunAsGroup = &options.RunAsGroup
 	}
-
+	vi, err := cli.KubeClient.Discovery().ServerVersion()
+	if err == nil && addPsa(vi) {
+		ape := false
+		van.Controller.SecurityContext.AllowPrivilegeEscalation = &ape
+		van.Controller.SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		}
+		van.Controller.SecurityContext.Capabilities = &corev1.Capabilities{
+			Drop: []corev1.Capability{"ALL"},
+		}
+	}
 	envVars := []corev1.EnvVar{}
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_NAMESPACE", Value: van.Namespace})
 	envVars = append(envVars, corev1.EnvVar{Name: "SKUPPER_SITE_NAME", Value: van.Name})
@@ -750,7 +770,18 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	if options.RunAsGroup > 0 {
 		van.Transport.SecurityContext.RunAsGroup = &options.RunAsGroup
 	}
-	err := configureDeployment(&van.Transport, &options.Router.Tuning)
+	vi, err := cli.KubeClient.Discovery().ServerVersion()
+	if err == nil && addPsa(vi) {
+		ape := false
+		van.Transport.SecurityContext.AllowPrivilegeEscalation = &ape
+		van.Transport.SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		}
+		van.Transport.SecurityContext.Capabilities = &corev1.Capabilities{
+			Drop: []corev1.Capability{"ALL"},
+		}
+	}
+	err = configureDeployment(&van.Transport, &options.Router.Tuning)
 	if err != nil {
 		fmt.Println("Error configuring router:", err)
 	}

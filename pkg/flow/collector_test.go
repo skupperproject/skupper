@@ -1,12 +1,15 @@
 package flow
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/skupperproject/skupper/pkg/messaging"
 	"gotest.tools/assert"
 )
 
@@ -59,54 +62,197 @@ func TestUpdates(t *testing.T) {
 }
 
 func TestRecordUpdates(t *testing.T) {
-	reg := prometheus.NewRegistry()
-	u, _ := time.ParseDuration("5m")
+	factory := messaging.NewMockConnectionFactory(t, "mockamqp://local")
 	fc := NewFlowCollector(FlowCollectorSpec{
 		Mode:              RecordMetrics,
 		Origin:            "origin",
-		PromReg:           reg,
-		ConnectionFactory: nil,
-		FlowRecordTtl:     u,
+		PromReg:           prometheus.NewRegistry(),
+		ConnectionFactory: factory,
+		FlowRecordTtl:     time.Minute * 5,
 	})
-	fc.metrics = fc.NewMetrics(fc.prometheusReg)
 
-	assert.Assert(t, fc != nil)
 	stopCh := make(chan struct{})
-	go fc.beaconUpdates(stopCh)
-	go fc.recordUpdates(stopCh)
+	fc.Start(stopCh)
+	factory.Broker.AwaitReceivers(BeaconAddress, 1)
+
+	conn, err := factory.Connect()
+	assert.Assert(t, err)
+	beaconSender, err := conn.Sender(BeaconAddress)
+	assert.Assert(t, err)
+	flushReceiver, err := conn.Receiver("sfe.1234", 32)
+	assert.Assert(t, err)
 
 	beacon := BeaconRecord{
 		Version:    1,
-		SourceType: "CONTROLLER",
+		SourceType: "ROUTER",
 		Address:    RecordPrefix + "1234",
 		Direct:     "sfe.1234",
 		Identity:   "1234",
 	}
-
-	var beacons []interface{}
-	beacons = append(beacons, beacon)
-	fc.beaconsIncoming <- beacons
-	time.Sleep(1 * time.Second)
-	eventSource, ok := fc.eventSources["1234"]
-	assert.Assert(t, ok)
-	assert.Equal(t, eventSource.Beacons, 1)
-	fc.beaconsIncoming <- beacons
-	time.Sleep(1 * time.Second)
-	assert.Equal(t, eventSource.Beacons, 2)
+	msgBeacon, err := encodeBeacon(&beacon)
+	assert.Assert(t, err)
+	assert.Assert(t, beaconSender.Send(msgBeacon))
+	assert.Assert(t, beaconSender.Send(msgBeacon))
 
 	heartbeat := HeartbeatRecord{
 		Version:  1,
 		Identity: "1234",
 		Source:   "sfe.1234",
 	}
+	msgHB, err := encodeHeartbeat(&heartbeat)
+	assert.Assert(t, err)
 
-	var heartbeats []interface{}
-	heartbeats = append(heartbeats, heartbeat)
-	fc.heartbeatsIncoming <- heartbeats
-	time.Sleep(1 * time.Second)
-	assert.Equal(t, eventSource.Heartbeats, 1)
+	factory.Broker.AwaitReceivers("mc/sfe.1234", 1)
+	heartBeatSender, err := conn.Sender("mc/sfe.1234")
+	heartBeatSender.Send(msgHB)
 
-	time.Sleep(1 * time.Second)
+	// we don't have a safe way to access the internal state of the collector
+	// without stopping it (or standing up a stub http mux). Instead, we'll
+	// wait for a flush record so we know that the internal state is settled
+	// before stopping it and cracking things open.
+	msg, err := flushReceiver.Receive()
+	assert.Assert(t, err)
+	assert.Equal(t, msg.Properties.Subject, "FLUSH")
 
 	close(stopCh)
+	<-fc.beaconReceiver.done // only way to tell the flow collector is done
+
+	eventSource, ok := fc.eventSources["1234"]
+	t.Log(fc.eventSources)
+	assert.Assert(t, ok)
+	assert.Equal(t, eventSource.Beacons, 2)
+	assert.Equal(t, eventSource.Heartbeats, 1)
+}
+
+func TestStartupShutdown(t *testing.T) {
+	scenarios := []struct {
+		Name        string
+		Spec        FlowCollectorSpec
+		Controllers int
+	}{
+		{
+			Name:        "RecordMetrics basic",
+			Controllers: 0,
+			Spec: FlowCollectorSpec{
+				Mode:              RecordMetrics,
+				Origin:            "origin",
+				PromReg:           prometheus.NewRegistry(),
+				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),
+				FlowRecordTtl:     5 * time.Minute,
+			},
+		}, {
+			Name:        "RecordMetrics four controllers",
+			Controllers: 4,
+			Spec: FlowCollectorSpec{
+				Mode:              RecordMetrics,
+				Origin:            "origin",
+				PromReg:           prometheus.NewRegistry(),
+				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),
+				FlowRecordTtl:     5 * time.Minute,
+			},
+		}, {
+			Name:        "RecordStatus basic",
+			Controllers: 0,
+			Spec: FlowCollectorSpec{
+				Mode:              RecordStatus,
+				Origin:            "origin",
+				PromReg:           prometheus.NewRegistry(),
+				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),
+				FlowRecordTtl:     5 * time.Minute,
+			},
+		}, {
+			Name:        "RecordStatus many controllers",
+			Controllers: 128,
+			Spec: FlowCollectorSpec{
+				Mode:              RecordStatus,
+				Origin:            "origin",
+				PromReg:           prometheus.NewRegistry(),
+				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),
+				FlowRecordTtl:     5 * time.Minute,
+			},
+		},
+	}
+	for _, _testspec := range scenarios {
+		s := _testspec
+		t.Run(s.Name, func(t *testing.T) {
+			t.Parallel()
+			fc := NewFlowCollector(s.Spec)
+
+			done := make(chan struct{})
+
+			conn, err := s.Spec.ConnectionFactory.Connect()
+			assert.Assert(t, err)
+
+			flushReceivers := []messaging.Receiver{}
+			for site := 1; site < s.Controllers; site++ {
+
+				r, err := conn.Receiver(fmt.Sprintf("sfe.%d", site), 128)
+				assert.Assert(t, err)
+				flushReceivers = append(flushReceivers, r)
+
+				// simulated controller - beacons+heartbeats
+				go runMockCollector(t, strconv.Itoa(site), conn, done)
+			}
+			// start flow collector
+			fc.Start(done)
+			mockFactory := s.Spec.ConnectionFactory.(*messaging.MockConnectionFactory)
+			mockFactory.Broker.AwaitReceivers(BeaconAddress, 1)
+
+			// wait for flushes
+			var allFlushed sync.WaitGroup
+			for _, r := range flushReceivers {
+				allFlushed.Add(1)
+				go func(receiver messaging.Receiver) {
+					defer allFlushed.Done()
+					msg, err := receiver.Receive()
+					assert.Assert(t, err)
+					assert.Equal(t, msg.Properties.Subject, "FLUSH")
+				}(r)
+			}
+			allFlushed.Wait()
+			close(done)
+
+			// last thing FlowCollector does on stop is close the beaconReceiver
+			// make sure that is done
+			<-fc.beaconReceiver.done
+
+		})
+	}
+}
+func runMockCollector(t *testing.T, siteID string, conn messaging.Connection, done chan struct{}) {
+	ticker := time.NewTicker(time.Second / 15)
+	defer ticker.Stop()
+	mcAddr := fmt.Sprintf("mc/sfe.%s", siteID)
+	directAddr := fmt.Sprintf("sfe.%s", siteID)
+	heartSender, err := conn.Sender(mcAddr + ".heartbeats")
+	assert.Assert(t, err)
+	beaconSender, err := conn.Sender(BeaconAddress)
+	assert.Assert(t, err)
+	beacon := BeaconRecord{
+		Version:    1,
+		SourceType: "CONTROLLER",
+		Address:    mcAddr,
+		Direct:     directAddr,
+		Identity:   siteID,
+	}
+	msgBeacon, err := encodeBeacon(&beacon)
+	assert.Assert(t, err)
+	heartbeat := HeartbeatRecord{
+		Version:  1,
+		Identity: siteID,
+		Source:   directAddr,
+	}
+	assert.Assert(t, err)
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			assert.Assert(t, beaconSender.Send(msgBeacon))
+			heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+			msgHeart, err := encodeHeartbeat(&heartbeat)
+			assert.Assert(t, err)
+			assert.Assert(t, heartSender.Send(msgHeart))
+		}
+	}
 }
