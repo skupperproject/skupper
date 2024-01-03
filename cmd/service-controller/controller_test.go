@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	v1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubetypes "k8s.io/apimachinery/pkg/types"
+	k8stesting "k8s.io/client-go/testing"
 	"reflect"
 	"testing"
 
@@ -26,6 +30,8 @@ func TestCheckServiceFor(t *testing.T) {
 		KubeClient: kubeClient,
 		Namespace:  NS,
 	}
+
+	setUpObjectReferenceMock(vanClient)
 
 	scenarios := []struct {
 		doc      string
@@ -271,6 +277,28 @@ func TestCheckServiceFor(t *testing.T) {
 					assert.DeepEqual(t, curSelectorMap, expSelectorMap)
 				}
 			}
+		})
+	}
+}
+
+func setUpObjectReferenceMock(cli *client.VanClient) {
+	if cli != nil {
+		cli.KubeClient.(*fake.Clientset).Fake.PrependReactor("get", "deployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+			deploymentName := action.(k8stesting.GetAction).GetName()
+
+			if deploymentName == "skupper-service-controller" {
+
+				deployment := v1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "skupper-service-controller",
+						UID:       kubetypes.UID(utils.RandomId(6)),
+						Namespace: "fake",
+					},
+				}
+
+				return true, &deployment, nil
+			}
+			return false, nil, nil
 		})
 	}
 }
