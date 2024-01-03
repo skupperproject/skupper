@@ -29,7 +29,7 @@ var EventRecorderPolicyRule = []rbacv1.PolicyRule{
 
 type SkupperEventRecorder struct {
 	EventRecorder record.EventRecorder
-	Source        *v1.Service
+	Source        *v1.ObjectReference
 }
 
 func (logger SkupperEventRecorder) RecordWarningEvent(reason string, message string) {
@@ -55,11 +55,18 @@ func NewSkupperEventRecorder(namespace string, cli kubernetes.Interface) *Skuppe
 		scheme.Scheme,
 		v1.EventSource{
 			Component: types.ControllerDeploymentName})
-	service, _ := cli.CoreV1().Services(namespace).Get(context.TODO(), types.ControllerDeploymentName, metav1.GetOptions{})
+	deployment, _ := cli.AppsV1().Deployments(namespace).Get(context.TODO(), types.ControllerDeploymentName, metav1.GetOptions{})
+
+	objectRef := &v1.ObjectReference{
+		Kind:      "deployment",
+		Name:      deployment.Name,
+		UID:       deployment.UID,
+		Namespace: deployment.Namespace,
+	}
 
 	eventRecorder := SkupperEventRecorder{
 		EventRecorder: kubeEventRecorder,
-		Source:        service,
+		Source:        objectRef,
 	}
 	return &eventRecorder
 }
