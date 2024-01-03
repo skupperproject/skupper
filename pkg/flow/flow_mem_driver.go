@@ -1108,27 +1108,27 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 						}
 					}
 					process.ProcessBinding = &Unbound
-				}
-				for _, pg := range fc.ProcessGroups {
-					if pg.EndTime == 0 && *process.GroupName == *pg.Name {
+					for _, pg := range fc.ProcessGroups {
+						if pg.EndTime == 0 && *process.GroupName == *pg.Name {
+							process.GroupIdentity = &pg.Identity
+							break
+						}
+					}
+					if process.GroupIdentity == nil && process.GroupName != nil {
+						pg := &ProcessGroupRecord{
+							Base: Base{
+								RecType:   recordNames[ProcessGroup],
+								Identity:  uuid.New().String(),
+								StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+							},
+							Name:             process.GroupName,
+							ProcessGroupRole: process.ProcessRole,
+						}
+						fc.updateRecord(*pg)
 						process.GroupIdentity = &pg.Identity
-						break
 					}
+					fc.addRecord(&process)
 				}
-				if process.GroupIdentity == nil && process.GroupName != nil {
-					pg := &ProcessGroupRecord{
-						Base: Base{
-							RecType:   recordNames[ProcessGroup],
-							Identity:  uuid.New().String(),
-							StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
-						},
-						Name:             process.GroupName,
-						ProcessGroupRole: process.ProcessRole,
-					}
-					fc.updateRecord(*pg)
-					process.GroupIdentity = &pg.Identity
-				}
-				fc.addRecord(&process)
 			} else {
 				if process.EndTime > 0 {
 					current.EndTime = process.EndTime
