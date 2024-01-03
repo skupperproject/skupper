@@ -54,7 +54,7 @@ func (s *SkupperKubeService) ListFlags(cmd *cobra.Command) {}
 func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	cli := s.kube.Cli
 
-	configSyncVersion := utils.GetVersionFromImageTag(cli.GetVersion(types.TransportContainerName, types.ConfigSyncContainerName))
+	configSyncVersion := utils.GetVersionTag(cli.GetVersion(types.TransportContainerName, types.ConfigSyncContainerName))
 	if configSyncVersion != "" && !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
 		fmt.Printf("Site version is %s, but CLI requires %s", configSyncVersion, network.MINIMUM_VERSION)
 		fmt.Println()

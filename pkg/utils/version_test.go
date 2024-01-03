@@ -185,8 +185,8 @@ func TestGetVersionFromImageTag(t *testing.T) {
 		{"1.5.1", ""},
 	}
 	for _, test := range tests {
-		if actual := GetVersionFromImageTag(test.imageTag); actual != test.expected {
-			t.Errorf("Expected GetVersionFromImageTag(%s) to be %s, got %s", test.imageTag, test.expected, actual)
+		if actual := GetVersionTag(test.imageTag); actual != test.expected {
+			t.Errorf("Expected GetVersionTag(%s) to be %s, got %s", test.imageTag, test.expected, actual)
 		}
 	}
 }

@@ -109,7 +109,7 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*network.RemoteLin
 		return nil, fmt.Errorf("skupper is not installed: %s", err)
 	}
 
-	configSyncVersion := utils.GetVersionFromImageTag(k8s.GetComponentVersion(l.namespace, l.cli, types.TransportContainerName, types.ConfigSyncContainerName))
+	configSyncVersion := utils.GetVersionTag(k8s.GetComponentVersion(l.namespace, l.cli, types.TransportContainerName, types.ConfigSyncContainerName))
 	if configSyncVersion != "" && !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
 		return nil, fmt.Errorf("Site version is %s, but CLI requires %s", configSyncVersion, network.MINIMUM_VERSION)
 	}

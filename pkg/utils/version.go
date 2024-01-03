@@ -99,16 +99,15 @@ func IsValidFor(actual string, minimum string) bool {
 	return va.IsUndefined() || !va.LessRecentThan(vb)
 }
 
-func GetVersionFromImageTag(imageTag string) string {
+func GetVersionTag(imageDescriptor string) string {
 	versionTag := ""
+	imageDescriptorSlices := strings.Split(imageDescriptor, " ")
 
-	imageTagSlices := strings.Split(imageTag, " ")
+	if len(imageDescriptorSlices) > 0 {
+		imageSlices := strings.Split(imageDescriptorSlices[0], ":")
 
-	if len(imageTagSlices) > 0 {
-		tagSlices := strings.Split(imageTagSlices[0], ":")
-
-		if len(tagSlices) > 1 {
-			versionTag = tagSlices[1]
+		if len(imageSlices) > 1 {
+			versionTag = imageSlices[1]
 		}
 	}
 
