@@ -54,8 +54,8 @@ func NewSkupperEventRecorder(namespace string, cli kubernetes.Interface) *Skuppe
 	kubeEventRecorder := eventBroadcaster.NewRecorder(
 		scheme.Scheme,
 		v1.EventSource{
-			Component: types.ControllerServiceName})
-	service, _ := cli.CoreV1().Services(namespace).Get(context.TODO(), types.ControllerServiceName, metav1.GetOptions{})
+			Component: types.ControllerDeploymentName})
+	service, _ := cli.CoreV1().Services(namespace).Get(context.TODO(), types.ControllerDeploymentName, metav1.GetOptions{})
 
 	eventRecorder := SkupperEventRecorder{
 		EventRecorder: kubeEventRecorder,
