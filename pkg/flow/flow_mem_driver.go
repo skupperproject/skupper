@@ -548,6 +548,10 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 				return nil
 			}
 		})
+		if !fc.networkStatusUp && len(networkStatus.Sites) > 0 && len(networkStatus.Sites[0].RouterStatus) > 0 {
+			fc.networkStatusUp = true
+			log.Printf("COLLECTOR: Initial Network status update written after %s\n", time.Since(fc.begin))
+		}
 	}
 	return err
 }

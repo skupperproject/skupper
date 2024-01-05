@@ -197,6 +197,9 @@ type FlowCollector struct {
 	connectorsToReconcile   map[string]string
 	processesToReconcile    map[string]*ProcessRecord
 	aggregatesToReconcile   map[string]*FlowPairRecord
+
+	begin           time.Time
+	networkStatusUp bool
 }
 
 func getTtl(ttl time.Duration) time.Duration {
@@ -398,6 +401,7 @@ func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
 }
 
 func (c *FlowCollector) Start(stopCh <-chan struct{}) {
+	c.begin = time.Now()
 	go c.run(stopCh)
 }
 

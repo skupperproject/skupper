@@ -66,6 +66,7 @@ func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) *flow.FlowColl
 }
 
 func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id string, cli *client.VanClient) {
+	begin := time.Now()
 	var stopCh chan struct{}
 	podname, _ := os.Hostname()
 	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
@@ -76,7 +77,7 @@ func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id
 		RetryPeriod:     2 * time.Second,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(c context.Context) {
-				log.Printf("COLLECTOR: Leader %s starting site collection \n", podname)
+				log.Printf("COLLECTOR: Leader %s starting site collection after %s\n", podname, time.Since(begin))
 				stopCh = make(chan struct{})
 				siteCollector(stopCh, cli)
 			},
