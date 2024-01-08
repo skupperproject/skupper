@@ -188,7 +188,22 @@ func NewController(cli *client.VanClient, origin string, tlsConfig *certs.TlsCon
 	}
 
 	if enableSkupperEvents {
-		controller.eventHandler = kube.NewSkupperEventRecorder(cli.Namespace, cli.KubeClient)
+		deployment, err := kube.GetDeployment(types.ControllerDeploymentName, cli.Namespace, cli.KubeClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve %s deployment information: %s", types.ControllerDeploymentName, err.Error())
+		}
+
+		if deployment == nil {
+			return nil, fmt.Errorf("failed to retrieve %s deployment information", types.ControllerDeploymentName)
+		}
+
+		objectRef := &corev1.ObjectReference{
+			Kind:      "deployment",
+			Name:      deployment.Name,
+			UID:       deployment.UID,
+			Namespace: deployment.Namespace,
+		}
+		controller.eventHandler = kube.NewSkupperEventRecorder(cli.Namespace, cli.KubeClient, objectRef)
 	} else {
 		controller.eventHandler = event.NewDefaultEventLogger()
 	}

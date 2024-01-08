@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"context"
 	"github.com/golang/glog"
 	"github.com/skupperproject/skupper/api/types"
 	v1 "k8s.io/api/core/v1"
@@ -29,7 +28,7 @@ var EventRecorderPolicyRule = []rbacv1.PolicyRule{
 
 type SkupperEventRecorder struct {
 	EventRecorder record.EventRecorder
-	Source        *v1.Service
+	Source        *v1.ObjectReference
 }
 
 func (logger SkupperEventRecorder) RecordWarningEvent(reason string, message string) {
@@ -44,7 +43,7 @@ func (logger SkupperEventRecorder) RecordNormalEvent(reason string, message stri
 	}
 }
 
-func NewSkupperEventRecorder(namespace string, cli kubernetes.Interface) *SkupperEventRecorder {
+func NewSkupperEventRecorder(namespace string, cli kubernetes.Interface, objectRef *v1.ObjectReference) *SkupperEventRecorder {
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
@@ -54,12 +53,11 @@ func NewSkupperEventRecorder(namespace string, cli kubernetes.Interface) *Skuppe
 	kubeEventRecorder := eventBroadcaster.NewRecorder(
 		scheme.Scheme,
 		v1.EventSource{
-			Component: types.ControllerServiceName})
-	service, _ := cli.CoreV1().Services(namespace).Get(context.TODO(), types.ControllerServiceName, metav1.GetOptions{})
+			Component: types.ControllerDeploymentName})
 
 	eventRecorder := SkupperEventRecorder{
 		EventRecorder: kubeEventRecorder,
-		Source:        service,
+		Source:        objectRef,
 	}
 	return &eventRecorder
 }
