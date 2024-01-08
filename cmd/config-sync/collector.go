@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -52,14 +53,28 @@ func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) *flow.FlowColl
 			log.Println("Update lock error", err.Error())
 		}
 
+		var siteID string
+		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
+		if err != nil {
+			log.Println("COLLECTOR: Error getting site config", err.Error())
+		} else {
+			siteID = siteConfig.Reference.UID
+		}
+
 		fc = flow.NewFlowCollector(flow.FlowCollectorSpec{
 			Mode:              flow.RecordStatus,
 			Namespace:         cli.Namespace,
-			Origin:            os.Getenv("SKUPPER_SITE_ID"),
+			Origin:            siteID,
 			PromReg:           nil,
 			ConnectionFactory: qdr.NewConnectionFactory("amqp://localhost:5672", nil),
 			FlowRecordTtl:     time.Minute * 15})
-
+		podname, _ := os.Hostname()
+		var prospectRouterID string
+		if len(podname) >= 5 {
+			prospectRouterID = fmt.Sprintf("%s:0", podname[len(podname)-5:])
+		}
+		log.Printf("COLLECTOR: Starting collector primed with expected beacon for %s and %s\n", prospectRouterID, siteID)
+		fc.PrimeSiteBeacons(siteID, prospectRouterID)
 		fc.Start(stopCh)
 	}
 	return fc
