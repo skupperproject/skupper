@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"strconv"
 	"strings"
 
@@ -52,10 +53,19 @@ func (s *SkupperKubeService) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	cli := s.kube.Cli
+
+	configSyncVersion := utils.GetVersionTag(cli.GetVersion(types.TransportContainerName, types.ConfigSyncContainerName))
+	if configSyncVersion != "" && !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
+		fmt.Printf(network.MINIMUM_VERSION_MESSAGE, configSyncVersion, network.MINIMUM_VERSION)
+		fmt.Println()
+		return nil
+	}
+
 	currentNetworkStatus, err := cli.NetworkStatus(context.Background())
 	if err != nil {
 		return fmt.Errorf("Could not retrieve services: %w", err)
 	}
+
 	vsis, err := s.kube.Cli.ServiceInterfaceList(context.Background())
 	statusManager := network.SkupperStatus{
 		NetworkStatus: currentNetworkStatus,

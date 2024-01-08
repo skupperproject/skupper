@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
 	"strconv"
@@ -36,6 +37,14 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 		return nil
 	}
+
+	configSyncVersion := utils.GetVersionTag(s.kube.Cli.GetVersion(types.TransportContainerName, types.ConfigSyncContainerName))
+	if configSyncVersion != "" && !utils.IsValidFor(configSyncVersion, network.MINIMUM_VERSION) {
+		fmt.Printf(network.MINIMUM_VERSION_MESSAGE, configSyncVersion, network.MINIMUM_VERSION)
+		fmt.Println()
+		return nil
+	}
+
 	currentSite := siteConfig.Reference.UID
 
 	currentNetworkStatus, errStatus := s.kube.Cli.NetworkStatus(ctx)
