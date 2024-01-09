@@ -72,6 +72,9 @@ func main() {
 		log.Fatal("Error waiting for router pods to be ready ", err.Error())
 	}
 
+	log.Println("CONFIG_SYNC: Starting collector...")
+	go startCollector(cli)
+
 	event.StartDefaultEventStore(stopCh)
 	if claims.StartClaimVerifier(cli.KubeClient, cli.Namespace, cli, cli) {
 		log.Println("CONFIG_SYNC: Claim verifier started")
@@ -97,8 +100,6 @@ func main() {
 	configSync := newConfigSync(informer, cli)
 	log.Println("CONFIG_SYNC: Starting sync controller loop...")
 	configSync.start(stopCh)
-
-	go startCollector(cli)
 
 	<-stopCh
 	log.Println("CONFIG_SYNC: Shutting down...")
