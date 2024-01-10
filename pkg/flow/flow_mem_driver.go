@@ -1708,7 +1708,7 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 						process.Addresses = nil
 						if connector, ok := fc.Connectors[*process.connector]; ok {
 							if connector.Address != nil && connector.AddressId != nil {
-								addrDetails := *connector.Address + "@" + *connector.AddressId
+								addrDetails := *connector.Address + "@" + *connector.AddressId + "@" + *connector.Protocol
 								process.Addresses = append(process.Addresses, &addrDetails)
 							}
 						}
