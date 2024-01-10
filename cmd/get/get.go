@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/cleanhttp"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -15,18 +16,17 @@ import (
 func get(path string, output string) error {
 	var resp *http.Response
 	var err error
-
+	client := cleanhttp.DefaultClient()
+	client.Timeout = time.Second * 10
 	err = utils.Retry(time.Second, 30, func() (bool, error) {
 		url := "http://localhost:8181/" + path
 		if output == "json" {
 			url += "?output=json"
 		}
-		resp, err = http.Get(url)
+
+		resp, err = client.Get(url)
 		if err != nil {
-			if strings.Contains(err.Error(), "connect: connection refused") {
-				return false, nil
-			}
-			return true, err
+			return false, nil
 		}
 		return true, nil
 	})
