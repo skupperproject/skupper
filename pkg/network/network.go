@@ -123,10 +123,7 @@ func (s *SkupperStatus) LinkBelongsToSameSite(linkName string, siteId string, ro
 func (s *SkupperStatus) GetRouterIndex(site *SiteStatusInfo) (error, int) {
 
 	for index, router := range site.RouterStatus {
-		// Ignore routers that belong to statefulsets for headless services and any other router
-		routerId := strings.Split(router.Router.Name, "/")
-
-		if len(routerId) > 1 && strings.HasPrefix(routerId[1], site.Site.Name) {
+		if PrintableRouter(router, site.Site.Name) {
 			return nil, index
 
 		}
@@ -159,6 +156,16 @@ func UnmarshalSkupperStatus(data map[string]string) (*NetworkStatusInfo, error) 
 	}
 
 	return networkStatusInfo, nil
+}
+
+func PrintableRouter(router RouterStatusInfo, siteName string) bool {
+	// Ignore routers that belong to statefulsets for headless services and any other router
+	routerId := strings.Split(router.Router.Name, "/")
+
+	isARegularSite := len(routerId) > 1 && strings.HasPrefix(routerId[1], siteName)
+	isAGateway := len(routerId) > 1 && strings.HasPrefix(routerId[1], "skupper-gateway")
+
+	return isARegularSite || isAGateway
 }
 
 func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
