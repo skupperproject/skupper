@@ -32,52 +32,58 @@ func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, c
 	return err
 }
 
-func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) *flow.FlowCollector {
+func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) {
 	var fc *flow.FlowCollector
 	siteData := map[string]string{}
 	platform := config.GetPlatform()
-	if platform == "" || platform == types.PlatformKubernetes {
-		current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
-		if err != nil {
-			log.Fatal("Failed to get transport deployment", err.Error())
-		}
-		owner := kube.GetDeploymentOwnerReference(current)
-
-		existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.KubeClient)
-		if err != nil && existing == nil {
-			log.Fatal("Failed to create site status config map ", err.Error())
-		}
-
-		err = updateLockOwner(types.SiteLeaderLockName, cli.Namespace, &owner, cli)
-		if err != nil {
-			log.Println("Update lock error", err.Error())
-		}
-
-		var siteID string
-		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-		if err != nil {
-			log.Println("COLLECTOR: Error getting site config", err.Error())
-		} else {
-			siteID = siteConfig.Reference.UID
-		}
-
-		fc = flow.NewFlowCollector(flow.FlowCollectorSpec{
-			Mode:              flow.RecordStatus,
-			Namespace:         cli.Namespace,
-			Origin:            siteID,
-			PromReg:           nil,
-			ConnectionFactory: qdr.NewConnectionFactory("amqp://localhost:5672", nil),
-			FlowRecordTtl:     time.Minute * 15})
-		podname, _ := os.Hostname()
-		var prospectRouterID string
-		if len(podname) >= 5 {
-			prospectRouterID = fmt.Sprintf("%s:0", podname[len(podname)-5:])
-		}
-		log.Printf("COLLECTOR: Starting collector primed with expected beacon for %s and %s\n", prospectRouterID, siteID)
-		fc.PrimeSiteBeacons(siteID, prospectRouterID)
-		fc.Start(stopCh)
+	if platform != types.PlatformKubernetes {
+		return
 	}
-	return fc
+	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+	if err != nil {
+		log.Fatal("Failed to get transport deployment", err.Error())
+	}
+	owner := kube.GetDeploymentOwnerReference(current)
+
+	existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.KubeClient)
+	if err != nil && existing == nil {
+		log.Fatal("Failed to create site status config map ", err.Error())
+	}
+
+	err = updateLockOwner(types.SiteLeaderLockName, cli.Namespace, &owner, cli)
+	if err != nil {
+		log.Println("Update lock error", err.Error())
+	}
+
+	fc = flow.NewFlowCollector(flow.FlowCollectorSpec{
+		Mode:              flow.RecordStatus,
+		Namespace:         cli.Namespace,
+		PromReg:           nil,
+		ConnectionFactory: qdr.NewConnectionFactory("amqp://localhost:5672", nil),
+		FlowRecordTtl:     time.Minute * 15})
+
+	go primeBeacons(fc, cli)
+	log.Println("COLLECTOR: Starting flow collector")
+	fc.Start(stopCh)
+}
+
+// primeBeacons attempts to guess the router and service-controller vanflow IDs
+// to pass to the flow collector in order to accelerate startup time.
+func primeBeacons(fc *flow.FlowCollector, cli *client.VanClient) {
+	podname, _ := os.Hostname()
+	var prospectRouterID string
+	if len(podname) >= 5 {
+		prospectRouterID = fmt.Sprintf("%s:0", podname[len(podname)-5:])
+	}
+	var siteID string
+	cm, err := kube.WaitConfigMapCreated(types.SiteConfigMapName, cli.Namespace, cli.KubeClient, 5*time.Second, 250*time.Millisecond)
+	if err != nil {
+		log.Printf("COLLECTOR: failed to get skupper-site ConfigMap. Proceeding without Site ID. %s\n", err)
+	} else if cm != nil {
+		siteID = string(cm.ObjectMeta.UID)
+	}
+	log.Printf("COLLECTOR: Priming site with expected beacons for '%s' and '%s'\n", prospectRouterID, siteID)
+	fc.PrimeSiteBeacons(siteID, prospectRouterID)
 }
 
 func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id string, cli *client.VanClient) {
