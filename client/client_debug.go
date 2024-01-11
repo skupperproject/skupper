@@ -9,11 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -51,43 +51,20 @@ func writeTar(name string, data []byte, ts time.Time, tw *tar.Writer) error {
 	return nil
 }
 
-func (cli *VanClient) writeDeployment(name string, tw *tar.Writer) error {
+func writeObject(rto runtime.Object, path string, ext string, tw *tar.Writer) error {
 	var b bytes.Buffer
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-
-	deployment, err := kube.GetDeployment(name, cli.Namespace, cli.KubeClient)
-	if errors.IsNotFound(err) {
-		return nil
-	} else if err != nil {
+	if err := s.Encode(rto, &b); err != nil {
 		return err
 	}
-	if err = s.Encode(deployment, &b); err != nil {
-		return err
-	}
-
-	return writeTar(name+"-deployment.yaml", b.Bytes(), time.Now(), tw)
-}
-
-func (cli *VanClient) writeConfigMap(name string, tw *tar.Writer) error {
-	var b bytes.Buffer
-	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-
-	cm, err := kube.GetConfigMap(name, cli.Namespace, cli.KubeClient)
-	if errors.IsNotFound(err) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-	if err = s.Encode(cm, &b); err != nil {
-		return err
-	}
-
-	return writeTar(name+"-configmap.yaml", b.Bytes(), time.Now(), tw)
+	return writeTar(path+ext, b.Bytes(), time.Now(), tw)
 }
 
 func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error) {
 	configMaps := []string{types.SiteConfigMapName, types.ServiceInterfaceConfigMap, types.TransportConfigMapName, "skupper-sasl-config", types.NetworkStatusConfigMapName, types.SiteLeaderLockName}
 	deployments := []string{"skupper-site-controller", "skupper-router", "skupper-service-controller"}
+	services := []string{"skupper", "skupper-router", "skupper-router-local", "skupper-prometheus"}
+	routes := []string{"claims", "skupper", "skupper-edge", "skupper-inter-router"}
 	qdstatFlags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
 
 	dumpFile := tarName
@@ -110,47 +87,77 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 
 	kv, err := runCommand("kubectl", "version", "--short", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
 	if err == nil {
-		writeTar("k8s-versions.txt", kv, time.Now(), tw)
+		writeTar("/skupper-info/k8s-versions.txt", kv, time.Now(), tw)
+	}
+
+	events, err := runCommand("kubectl", "events", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
+	if err == nil {
+		writeTar("/skupper-info/events.txt", events, time.Now(), tw)
+	}
+
+	endpoints, err := runCommand("kubectl", "get", "endpoints", "-o", "yaml", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
+	if err == nil {
+		writeTar("/skupper-info/endpoints.yaml", endpoints, time.Now(), tw)
 	}
 
 	if cli.RouteClient != nil {
 		ocv, err := runCommand("oc", "version", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
 		if err == nil {
-			writeTar("oc-versions.txt", ocv, time.Now(), tw)
+			writeTar("/skupper-info/oc-versions.txt", ocv, time.Now(), tw)
 		}
 	}
 
-	var cversions []string
-	vir, err := cli.RouterInspect(context.Background())
+	_, err = runCommand("skupper", "version", "manifest")
 	if err == nil {
-		cversions = append(cversions, fmt.Sprintf("%-30s %s", "client version", version))
-		cversions = append(cversions, fmt.Sprintf("%-30s %s", "transport version", vir.TransportVersion))
-		cversions = append(cversions, fmt.Sprintf("%-30s %s\n", "controller version", vir.ControllerVersion))
-		writeTar("skupper-versions.txt", []byte(strings.Join(cversions, "\n")), time.Now(), tw)
+		manifest, err := os.ReadFile("./manifest.json")
+		if err == nil {
+			writeTar("/skupper-info/manifest.json", manifest, time.Now(), tw)
+			os.Remove("./manifest.json")
+		}
 	}
 
 	for i := range deployments {
-		err := cli.writeDeployment(deployments[i], tw)
+		deployment, err := cli.KubeClient.AppsV1().Deployments(cli.Namespace).Get(context.TODO(), deployments[i], metav1.GetOptions{})
+		if err != nil {
+			continue
+		}
+		err = writeObject(deployment, "/deployments/"+deployment.Name, ".yaml", tw)
 		if err != nil {
 			return dumpFile, err
 		}
 
-		component := kube.GetDeploymentLabel(deployments[i], "skupper.io/component", cli.Namespace, cli.KubeClient)
-
-		podList, err := kube.GetPods("skupper.io/component="+component, cli.Namespace, cli.KubeClient)
-		if errors.IsNotFound(err) {
+		component, ok := deployment.Spec.Template.Labels["skupper.io/component"]
+		if !ok {
 			continue
-		} else if err != nil {
-			return dumpFile, err
 		}
-		for _, pod := range podList {
+
+		podList, err := cli.KubeClient.CoreV1().Pods(cli.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "skupper.io/component=" + component})
+		if err != nil {
+			continue
+		}
+
+		for _, pod := range podList.Items {
+			pod, err := cli.KubeClient.CoreV1().Pods(cli.Namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+			if err != nil {
+				continue
+			} else {
+				err := writeObject(pod, "/pods/"+pod.Name+"/pod", ".yaml", tw)
+				if err != nil {
+					return dumpFile, err
+				}
+			}
+			top, err := runCommand("kubectl", "top", "pod", pod.Name, "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
+			if err == nil {
+				writeTar("/pods/"+pod.Name+"/top-pod.txt", top, time.Now(), tw)
+			}
+
 			for container := range pod.Spec.Containers {
 				if pod.Spec.Containers[container].Name == "router" {
 					// while we are here collect qdstats, logs will show these operations
 					for x := range qdstatFlags {
 						qdr, err := kube.ExecCommandInContainer([]string{"skstat", qdstatFlags[x]}, pod.Name, "router", cli.Namespace, cli.KubeClient, cli.RestConfig)
 						if err == nil {
-							writeTar(pod.Name+"-skstat"+qdstatFlags[x]+".txt", qdr.Bytes(), time.Now(), tw)
+							writeTar("/pods/"+pod.Name+"/skstat/skstat-"+qdstatFlags[x]+".txt", qdr.Bytes(), time.Now(), tw)
 						} else {
 							continue
 
@@ -159,23 +166,23 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 				} else if pod.Spec.Containers[container].Name == "service-controller" {
 					events, err := kube.ExecCommandInContainer([]string{"get", "events"}, pod.Name, "service-controller", cli.Namespace, cli.KubeClient, cli.RestConfig)
 					if err == nil {
-						writeTar(pod.Name+"-events.txt", events.Bytes(), time.Now(), tw)
+						writeTar("/pods/"+pod.Name+"/events/"+pod.Spec.Containers[container].Name+"-events.txt", events.Bytes(), time.Now(), tw)
 					}
 					policies, err := kube.ExecCommandInContainer([]string{"get", "policies", "list"}, pod.Name, "service-controller", cli.Namespace, cli.KubeClient, cli.RestConfig)
 					if err == nil {
-						writeTar(pod.Name+"-policies.txt", policies.Bytes(), time.Now(), tw)
+						writeTar("/pods/"+pod.Name+"/policies/"+pod.Spec.Containers[container].Name+"-policies.txt", policies.Bytes(), time.Now(), tw)
 					}
 				}
 
 				log, err := kube.GetPodContainerLogs(pod.Name, pod.Spec.Containers[container].Name, cli.Namespace, cli.KubeClient)
 				if err == nil {
-					writeTar(pod.Name+"-"+pod.Spec.Containers[container].Name+"-logs.txt", []byte(log), time.Now(), tw)
+					writeTar("/pods/"+pod.Name+"/logs/"+pod.Spec.Containers[container].Name+"-logs.txt", []byte(log), time.Now(), tw)
 				}
 
-				if hasRestartedContainer(pod) {
+				if hasRestartedContainer(*pod) {
 					prevLog, err := kube.GetPodContainerLogsWithOpts(pod.Name, pod.Spec.Containers[container].Name, cli.Namespace, cli.KubeClient, v1.PodLogOptions{Previous: true})
 					if err == nil {
-						writeTar(pod.Name+"-"+pod.Spec.Containers[container].Name+"-logs-previous.txt", []byte(prevLog), time.Now(), tw)
+						writeTar("/pods/"+pod.Name+"/logs/"+pod.Spec.Containers[container].Name+"-logs-previous.txt", []byte(prevLog), time.Now(), tw)
 					}
 				}
 
@@ -184,11 +191,31 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 	}
 
 	for i := range configMaps {
-		err := cli.writeConfigMap(configMaps[i], tw)
+		cm, _ := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), configMaps[i], metav1.GetOptions{})
+		err := writeObject(cm, "/configmaps/"+cm.Name, ".yaml", tw)
 		if err != nil {
 			return dumpFile, err
 		}
 	}
+
+	for i := range services {
+		service, _ := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), services[i], metav1.GetOptions{})
+		err := writeObject(service, "/services/"+service.Name, ".yaml", tw)
+		if err != nil {
+			return dumpFile, err
+		}
+	}
+
+	if cli.RouteClient != nil {
+		for i := range routes {
+			route, _ := cli.RouteClient.Routes(cli.Namespace).Get(context.TODO(), routes[i], metav1.GetOptions{})
+			err := writeObject(route, "/routes/"+route.Name, ".yaml", tw)
+			if err != nil {
+				return dumpFile, err
+			}
+		}
+	}
+
 	return dumpFile, nil
 }
 
