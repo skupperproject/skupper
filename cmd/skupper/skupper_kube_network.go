@@ -63,19 +63,25 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 		for _, siteStatus := range sitesStatus {
 			if len(siteNetworkStatus) == 0 || siteNetworkStatus == siteStatus.Site.Name {
 
-				siteVersion := siteStatus.Site.Version
+				siteVersion := "-"
+				if len(siteStatus.Site.Version) > 0 {
+					siteVersion = siteStatus.Site.Version
+				}
+
 				if len(siteStatus.Site.MinimumVersion) > 0 {
 					siteVersion = fmt.Sprintf("%s (minimum version required %s)", siteStatus.Site.Version, siteStatus.Site.MinimumVersion)
 				}
 
 				detailsMap := map[string]string{"site name": siteStatus.Site.Name, "namespace": siteStatus.Site.Namespace, "version": siteVersion}
 
-				location := "remote"
+				location := "[remote]"
 				if siteStatus.Site.Identity == currentSite {
-					location = "local"
+					location = "[local]"
+				} else if strings.HasPrefix(siteStatus.Site.Identity, "gateway") {
+					location = ""
 				}
 
-				newItem := fmt.Sprintf("[%s] %s(%s) ", location, siteStatus.Site.Identity, siteStatus.Site.Namespace)
+				newItem := fmt.Sprintf("%s %s(%s) ", location, siteStatus.Site.Identity, siteStatus.Site.Namespace)
 				newItem = newItem + fmt.Sprintln()
 
 				siteLevel := networkList.NewChildWithDetail(newItem, detailsMap)
@@ -102,7 +108,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 							routerId := strings.Split(routerStatus.Router.Name, "/")
 
 							// skip routers that belong to headless services
-							if len(routerId) > 1 && strings.HasPrefix(routerId[1], siteStatus.Site.Name) {
+							if network.PrintableRouter(routerStatus, siteStatus.Site.Name) {
 								routerItem := fmt.Sprintf("name: %s\n", routerId[1])
 								detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 

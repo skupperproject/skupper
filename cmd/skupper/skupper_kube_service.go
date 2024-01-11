@@ -94,7 +94,11 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 				if mapServiceSites[si.Name] != nil {
 					for _, site := range mapServiceSites[si.Name] {
 						item := site.Site.Identity + "(" + site.Site.Namespace + ")\n"
-						theSite := sites.NewChildWithDetail(item, map[string]string{"policy": site.Site.Policy})
+						policy := "-"
+						if len(site.Site.Policy) > 0 {
+							policy = site.Site.Policy
+						}
+						theSite := sites.NewChildWithDetail(item, map[string]string{"policy": policy})
 
 						if si.ConnectorCount > 0 {
 							t := mapSiteTarget[site.Site.Identity][si.Name]
