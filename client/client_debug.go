@@ -85,9 +85,9 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
 
-	kv, err := runCommand("kubectl", "version", "--short", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
+	kv, err := runCommand("kubectl", "version", "-o", "yaml", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
 	if err == nil {
-		writeTar("/skupper-info/k8s-versions.txt", kv, time.Now(), tw)
+		writeTar("/skupper-info/k8s-versions.yaml", kv, time.Now(), tw)
 	}
 
 	events, err := runCommand("kubectl", "events", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
@@ -101,9 +101,9 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 	}
 
 	if cli.RouteClient != nil {
-		ocv, err := runCommand("oc", "version", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
+		ocv, err := runCommand("oc", "version", "-o", "yaml", "--kubeconfig="+kubeConfigPath, "--context="+kubeConfigContext)
 		if err == nil {
-			writeTar("/skupper-info/oc-versions.txt", ocv, time.Now(), tw)
+			writeTar("/skupper-info/oc-versions.yaml", ocv, time.Now(), tw)
 		}
 	}
 
