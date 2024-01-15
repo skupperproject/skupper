@@ -62,7 +62,7 @@ func writeObject(rto runtime.Object, path string, ext string, tw *tar.Writer) er
 
 func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version string, kubeConfigPath string, kubeConfigContext string) (string, error) {
 	configMaps := []string{types.SiteConfigMapName, types.ServiceInterfaceConfigMap, types.TransportConfigMapName, "skupper-sasl-config", types.NetworkStatusConfigMapName, types.SiteLeaderLockName}
-	deployments := []string{"skupper-site-controller", "skupper-router", "skupper-service-controller"}
+	deployments := []string{"skupper-site-controller", "skupper-router", "skupper-service-controller", "skupper-prometheus"}
 	services := []string{"skupper", "skupper-router", "skupper-router-local", "skupper-prometheus"}
 	routes := []string{"claims", "skupper", "skupper-edge", "skupper-inter-router"}
 	qdstatFlags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
@@ -157,7 +157,7 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 					for x := range qdstatFlags {
 						qdr, err := kube.ExecCommandInContainer([]string{"skstat", qdstatFlags[x]}, pod.Name, "router", cli.Namespace, cli.KubeClient, cli.RestConfig)
 						if err == nil {
-							writeTar("/pods/"+pod.Name+"/skstat/skstat-"+qdstatFlags[x]+".txt", qdr.Bytes(), time.Now(), tw)
+							writeTar("/pods/"+pod.Name+"/skstat/skstat"+qdstatFlags[x]+".txt", qdr.Bytes(), time.Now(), tw)
 						} else {
 							continue
 
