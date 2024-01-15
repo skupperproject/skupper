@@ -12,6 +12,17 @@ import (
 	"github.com/skupperproject/skupper/client/generated/libpod/client/images"
 )
 
+const (
+	imagePullRecommendation = `
+If the image is being pulled from an authenticated registry,
+make sure to log in first, using:
+
+    podman login <registry-url>
+
+In case you are using a custom authentication file, you should
+set the REGISTRY_AUTH_FILE environment variable.`
+)
+
 func (p *PodmanRestClient) ImageList() ([]*container.Image, error) {
 	cli := images.New(p.RestClient, formats)
 	param := images.NewImageListLibpodParams()
@@ -73,6 +84,7 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 	params.XRegistryAuth = getXRegistryAuth(id)
 
 	// Need to do that as the default response reader is being closed too soon
+	reader := &responseReaderJSONErrorBody{}
 	op := &runtime.ClientOperation{
 		ID:                 "ImagePullLibpod",
 		Method:             "POST",
@@ -81,13 +93,16 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 		ConsumesMediaTypes: []string{"application/json", "application/x-tar"},
 		Schemes:            []string{"http", "https"},
 		Params:             params,
-		Reader:             &responseReaderBody{},
+		Reader:             reader,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
 	res, err := p.RestClient.Submit(op)
 	if err != nil {
-		return fmt.Errorf("error pulling image %s: %v", id, err)
+		return &Error{
+			Err:            fmt.Errorf("error pulling image %s: %v", id, err),
+			Recommendation: imagePullRecommendation,
+		}
 	}
 	// eventually err is nil but auth problems are reported as json after a string msg
 	if resStr, ok := res.(string); ok {
@@ -100,7 +115,10 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 		var jsonRes map[string]interface{}
 		if err = json.Unmarshal([]byte(resStrClean), &jsonRes); err == nil {
 			if errMsg, ok := jsonRes["error"]; ok && errMsg != "" {
-				return fmt.Errorf("unable to pull image %s: %v", id, errMsg)
+				return &Error{
+					Err:            fmt.Errorf("unable to pull image %s: %v", id, errMsg),
+					Recommendation: imagePullRecommendation,
+				}
 			}
 		}
 	}
@@ -160,4 +178,13 @@ func getXRegistryAuth(image string) *string {
 		}
 	}
 	return nil
+}
+
+type Error struct {
+	Recommendation string
+	Err            error
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s\n\nRecommendation: %s\n", e.Err, e.Recommendation)
 }
