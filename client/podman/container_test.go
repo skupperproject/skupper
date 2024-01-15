@@ -115,12 +115,11 @@ func TestContainer(t *testing.T) {
 
 	// Pulling image
 	t.Run("image-pull", func(t *testing.T) {
-		assert.Assert(t, cli.ImagePull(image))
+		assert.Assert(t, cli.ImagePull(ctx, image))
 		invalidImage := strings.Replace(images.GetSiteControllerImageName(), ":main", ":invalid", 1)
-		invalidImageErr := cli.ImagePull(invalidImage)
+		invalidImageErr := cli.ImagePull(ctx, invalidImage)
 		assert.Assert(t, invalidImageErr != nil)
 		assert.Assert(t, strings.Contains(invalidImageErr.Error(), "Recommendation:"))
-		assert.Assert(t, cli.ImagePull(ctx, image))
 	})
 	t.Run("image-pull-timeout", func(t *testing.T) {
 		expCtx, expCn := context.WithTimeout(context.Background(), time.Millisecond)
@@ -222,7 +221,7 @@ func TestContainer(t *testing.T) {
 
 	t.Run("container-logs", func(t *testing.T) {
 		clogsName := RandomName("skupper-test")
-		assert.Assert(t, cli.ImagePull(images.GetRouterImageName()))
+		assert.Assert(t, cli.ImagePull(ctx, images.GetRouterImageName()))
 		err = cli.ContainerCreate(&container.Container{
 			Name:        clogsName,
 			Image:       images.GetRouterImageName(),
