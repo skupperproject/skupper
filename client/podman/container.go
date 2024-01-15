@@ -351,7 +351,7 @@ func (p *PodmanRestClient) ContainerExec(id string, command []string) (string, e
 	startParams := exec.NewExecStartLibpodParams()
 	startParams.ID = resp.ID
 
-	reader := &responseReaderByteStreamBody{}
+	reader := &multiplexedBodyReader{}
 	startOp := &runtime.ClientOperation{
 		ID:                 "ExecStartLibpod",
 		Method:             "POST",

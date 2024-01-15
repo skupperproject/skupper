@@ -195,29 +195,29 @@ func (r *responseReaderID) ReadResponse(response runtime.ClientResponse, consume
 	}
 }
 
-type responseReaderByteStreamBody struct {
+type multiplexedBodyReader struct {
 	output map[byte][]byte
 }
 
-func (r *responseReaderByteStreamBody) Stdout() string {
+func (r *multiplexedBodyReader) Stdout() string {
 	if r.output == nil {
 		return ""
 	}
 	return string(r.output[1])
 }
 
-func (r *responseReaderByteStreamBody) Stderr() string {
+func (r *multiplexedBodyReader) Stderr() string {
 	if r.output == nil {
 		return ""
 	}
 	return string(r.output[2])
 }
 
-func (r *responseReaderByteStreamBody) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (r *multiplexedBodyReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	return ReadResponse(response, r)
 }
 
-func (r *responseReaderByteStreamBody) readStreams(offset *uint64, data []byte) {
+func (r *multiplexedBodyReader) readStreams(offset *uint64, data []byte) {
 	if *offset == 0 {
 		r.output = map[byte][]byte{0: []byte{}, 1: []byte{}, 2: []byte{}}
 	}
@@ -238,7 +238,7 @@ func (r *responseReaderByteStreamBody) readStreams(offset *uint64, data []byte) 
 	r.readStreams(offset, data)
 }
 
-func (r *responseReaderByteStreamBody) Consume(reader io.Reader, i interface{}) error {
+func (r *multiplexedBodyReader) Consume(reader io.Reader, i interface{}) error {
 	consumeErr := runtime.TextConsumer().Consume(reader, i)
 	bodyStr, ok := i.(*string)
 	if !ok {
