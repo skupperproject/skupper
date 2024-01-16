@@ -191,27 +191,33 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 	}
 
 	for i := range configMaps {
-		cm, _ := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), configMaps[i], metav1.GetOptions{})
-		err := writeObject(cm, "/configmaps/"+cm.Name, ".yaml", tw)
-		if err != nil {
-			return dumpFile, err
+		cm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), configMaps[i], metav1.GetOptions{})
+		if err == nil {
+			err := writeObject(cm, "/configmaps/"+cm.Name, ".yaml", tw)
+			if err != nil {
+				return dumpFile, err
+			}
 		}
 	}
 
 	for i := range services {
-		service, _ := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), services[i], metav1.GetOptions{})
-		err := writeObject(service, "/services/"+service.Name, ".yaml", tw)
-		if err != nil {
-			return dumpFile, err
+		service, err := cli.KubeClient.CoreV1().Services(cli.Namespace).Get(context.TODO(), services[i], metav1.GetOptions{})
+		if err == nil {
+			err := writeObject(service, "/services/"+service.Name, ".yaml", tw)
+			if err != nil {
+				return dumpFile, err
+			}
 		}
 	}
 
 	if cli.RouteClient != nil {
 		for i := range routes {
-			route, _ := cli.RouteClient.Routes(cli.Namespace).Get(context.TODO(), routes[i], metav1.GetOptions{})
-			err := writeObject(route, "/routes/"+route.Name, ".yaml", tw)
-			if err != nil {
-				return dumpFile, err
+			route, err := cli.RouteClient.Routes(cli.Namespace).Get(context.TODO(), routes[i], metav1.GetOptions{})
+			if err == nil {
+				err := writeObject(route, "/routes/"+route.Name, ".yaml", tw)
+				if err != nil {
+					return dumpFile, err
+				}
 			}
 		}
 	}
