@@ -87,19 +87,21 @@ func UpdateProcess(c *FlowController, deleted bool, name string, process *Proces
 }
 
 func UpdateHost(c *FlowController, deleted bool, name string, host *HostRecord) error {
-	if !deleted && host != nil {
+	if deleted {
+		for id, host := range c.hostRecords {
+			if *host.Name == name {
+				host.EndTime = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+				delete(c.hostRecords, id)
+				break
+			}
+		}
+	} else if host != nil {
 		host.RecType = recordNames[Host]
 		if _, ok := c.hostRecords[host.Identity]; !ok {
 			c.hostRecords[host.Identity] = host
 		}
 		c.hostOutgoing <- host
-	} else {
-		if existing, ok := c.hostRecords[host.Identity]; ok {
-			existing.EndTime = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
-		}
-		delete(c.hostRecords, host.Identity)
 	}
-
 	return nil
 }
 

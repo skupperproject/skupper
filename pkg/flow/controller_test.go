@@ -55,7 +55,7 @@ func TestUpdateHost(t *testing.T) {
 	hostUpdate := <-fc.hostOutgoing
 	assert.Assert(t, hostUpdate != nil)
 	assert.Equal(t, hostUpdate.Parent, "mysite")
-	err = UpdateHost(fc, true, "bastion-server", host)
+	err = UpdateHost(fc, true, "bastion-server", nil)
 	assert.Assert(t, err)
 	assert.Equal(t, len(fc.hostRecords), 0)
 }
