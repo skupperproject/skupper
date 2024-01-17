@@ -1,6 +1,7 @@
 package podman
 
 import (
+	"context"
 	"fmt"
 	"os/user"
 	"strconv"
@@ -245,8 +246,8 @@ func (p *PodmanRestClient) ContainerUpdate(name string, fn func(newContainer *co
 }
 
 // ContainerUpdateImage updates the image used by the given container (name).
-func (p *PodmanRestClient) ContainerUpdateImage(name string, newImage string) (*container.Container, error) {
-	err := p.ImagePull(newImage)
+func (p *PodmanRestClient) ContainerUpdateImage(ctx context.Context, name string, newImage string) (*container.Container, error) {
+	err := p.ImagePull(ctx, newImage)
 	if err != nil {
 		return nil, fmt.Errorf("error pulling image %q: %s", newImage, err)
 	}

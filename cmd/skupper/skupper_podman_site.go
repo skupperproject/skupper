@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/api/types"
@@ -32,6 +34,7 @@ type PodmanInitFlags struct {
 	ContainerNetwork             string
 	EnableIPV6                   bool
 	PodmanEndpoint               string
+	Timeout                      time.Duration
 }
 
 func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
@@ -127,7 +130,9 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 
 	// Initializing
 	cmd.SilenceUsage = true
-	err = siteHandler.Create(site)
+	ctx, cn := context.WithTimeout(context.Background(), s.flags.Timeout)
+	defer cn()
+	err = siteHandler.Create(ctx, site)
 	if err != nil {
 		return fmt.Errorf("Error initializing Skupper - %w", err)
 	}
@@ -179,6 +184,8 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().IntVar(&s.flags.IngressBindFlowCollectorPort, "bind-port-flow-collector", int(types.FlowCollectorDefaultServicePort),
 		"ingress host binding port used for flow-collector and console")
 	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 30 minutes.")
+
+	cmd.Flags().DurationVar(&s.flags.Timeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for site initialization")
 
 }
 
@@ -292,13 +299,16 @@ func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
 	// updates site version number (always the last one)
 	s.up.RegisterTasks(update.NewVersionUpdateTask(s.podman.cli))
 	// process eligible tasks
-	return s.up.Process(s.podman.currentSite.Version)
+	ctx, cn := context.WithTimeout(context.Background(), s.up.Timeout)
+	defer cn()
+	return s.up.Process(ctx, s.podman.currentSite.Version)
 }
 
 func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {
 	s.up = &domain.UpdateProcessor{}
 	cmd.Flags().BoolVar(&s.up.DryRun, "dry-run", false, "only prints the tasks to be performed, but does not run any action")
 	cmd.Flags().BoolVar(&s.up.Verbose, "verbose", false, "displays tasks and post tasks being executed")
+	cmd.Flags().DurationVar(&s.up.Timeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for site update")
 }
 
 func (s *SkupperPodmanSite) Version(cmd *cobra.Command, args []string) error {

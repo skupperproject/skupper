@@ -4,6 +4,7 @@ package helloworld
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -702,7 +703,7 @@ func deployPodmanResources() error {
 		// podman network exists, but DNS is not enabled
 		return fmt.Errorf("podman network %s already exists, but DNS is not enabled", PodmanNetwork)
 	}
-	err = podmanCli.ImagePull("quay.io/skupper/hello-world-backend")
+	err = podmanCli.ImagePull(context.Background(), "quay.io/skupper/hello-world-backend")
 	if err != nil {
 		return err
 	}
