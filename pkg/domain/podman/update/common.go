@@ -1,6 +1,7 @@
 package update
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -41,7 +42,7 @@ func (v *VersionUpdateTask) Priority() domain.UpdatePriority {
 	return domain.PriorityLast
 }
 
-func (v *VersionUpdateTask) Run() *domain.UpdateResult {
+func (v *VersionUpdateTask) Run(context.Context) *domain.UpdateResult {
 	var res = &domain.UpdateResult{}
 	ch := podman.NewRouterConfigHandlerPodman(v.cli)
 	cfg, err := ch.GetRouterConfig()
@@ -89,7 +90,7 @@ func (u *ContainerImagesTask) Priority() domain.UpdatePriority {
 	return domain.PriorityNormal
 }
 
-func (u *ContainerImagesTask) Run() *domain.UpdateResult {
+func (u *ContainerImagesTask) Run(ctx context.Context) *domain.UpdateResult {
 	var result = &domain.UpdateResult{}
 	sh := podman.NewSitePodmanHandlerFromCli(u.cli)
 	site, err := sh.Get()
@@ -112,7 +113,7 @@ func (u *ContainerImagesTask) Run() *domain.UpdateResult {
 				image = images.GetPrometheusServerImageName()
 			}
 			if image != cmp.GetImage() {
-				_, err = u.cli.ContainerUpdateImage(cmp.Name(), image)
+				_, err = u.cli.ContainerUpdateImage(ctx, cmp.Name(), image)
 				if err != nil {
 					result.AddErrors(fmt.Errorf("error updating container: %s - image: %s - %s",
 						cmp.Name(), image, err))
@@ -123,7 +124,7 @@ func (u *ContainerImagesTask) Run() *domain.UpdateResult {
 		}
 	}
 	// updating service containers
-	updSvcResult := u.updateServiceContainers()
+	updSvcResult := u.updateServiceContainers(ctx)
 	if len(updSvcResult.Errors) > 0 {
 		result.AddErrors(updSvcResult.Errors...)
 		return result
@@ -134,7 +135,7 @@ func (u *ContainerImagesTask) Run() *domain.UpdateResult {
 	return result
 }
 
-func (u *ContainerImagesTask) updateServiceContainers() domain.UpdateResult {
+func (u *ContainerImagesTask) updateServiceContainers(ctx context.Context) domain.UpdateResult {
 	var result domain.UpdateResult
 	sh := podman.NewServiceHandlerPodman(u.cli)
 	services, err := sh.List()
@@ -151,7 +152,7 @@ func (u *ContainerImagesTask) updateServiceContainers() domain.UpdateResult {
 			return result
 		}
 		if c.Image != images.GetRouterImageName() {
-			_, err = u.cli.ContainerUpdateImage(svcPodman.ContainerName, images.GetRouterImageName())
+			_, err = u.cli.ContainerUpdateImage(ctx, svcPodman.ContainerName, images.GetRouterImageName())
 			if err != nil {
 				result.AddErrors(fmt.Errorf("error updating service container image for %s: %s",
 					svcPodman.ContainerName, err))

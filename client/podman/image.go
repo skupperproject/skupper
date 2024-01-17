@@ -1,6 +1,7 @@
 package podman
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -71,7 +72,7 @@ func (p *PodmanRestClient) ImageInspect(id string) (*container.Image, error) {
 	return img, nil
 }
 
-func (p *PodmanRestClient) ImagePull(id string) error {
+func (p *PodmanRestClient) ImagePull(ctx context.Context, id string) error {
 	params := images.NewImagePullLibpodParams()
 	params.Reference = &id
 	params.TLSVerify = new(bool)
@@ -94,7 +95,7 @@ func (p *PodmanRestClient) ImagePull(id string) error {
 		Schemes:            []string{"http", "https"},
 		Params:             params,
 		Reader:             reader,
-		Context:            params.Context,
+		Context:            ctx,
 		Client:             params.HTTPClient,
 	}
 	res, err := p.RestClient.Submit(op)

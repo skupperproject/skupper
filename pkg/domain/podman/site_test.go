@@ -4,6 +4,7 @@
 package podman
 
 import (
+	"context"
 	_ "embed"
 	"strings"
 	"testing"
@@ -79,7 +80,7 @@ func TestSiteHandler(t *testing.T) {
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			t.Logf("creating site")
-			err = siteHandler.Create(scenario.site)
+			err = siteHandler.Create(context.Background(), scenario.site)
 			assert.Assert(t, err)
 
 			// remove site
@@ -177,7 +178,7 @@ func TestSiteHandlerDeleteBrokenSite(t *testing.T) {
 	}
 
 	// Create a podman site
-	err = siteHandler.Create(site)
+	err = siteHandler.Create(context.Background(), site)
 	assert.Assert(t, err)
 
 	// remove site

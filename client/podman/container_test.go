@@ -115,11 +115,18 @@ func TestContainer(t *testing.T) {
 
 	// Pulling image
 	t.Run("image-pull", func(t *testing.T) {
-		assert.Assert(t, cli.ImagePull(image))
+		assert.Assert(t, cli.ImagePull(ctx, image))
 		invalidImage := strings.Replace(images.GetSiteControllerImageName(), ":main", ":invalid", 1)
-		invalidImageErr := cli.ImagePull(invalidImage)
+		invalidImageErr := cli.ImagePull(ctx, invalidImage)
 		assert.Assert(t, invalidImageErr != nil)
 		assert.Assert(t, strings.Contains(invalidImageErr.Error(), "Recommendation:"))
+	})
+	t.Run("image-pull-timeout", func(t *testing.T) {
+		expCtx, expCn := context.WithTimeout(context.Background(), time.Millisecond)
+		time.Sleep(time.Millisecond)
+		defer expCn()
+		expErr := cli.ImagePull(expCtx, image)
+		assert.ErrorContains(t, expErr, "context deadline exceeded")
 	})
 
 	// Creating container
@@ -205,7 +212,7 @@ func TestContainer(t *testing.T) {
 	// Updating container image
 	image = strings.ReplaceAll(image, ":main", ":latest")
 	t.Run("container-update-image", func(t *testing.T) {
-		c, err := cli.ContainerUpdateImage(name, image)
+		c, err := cli.ContainerUpdateImage(ctx, name, image)
 		assert.Assert(t, err)
 		assert.Equal(t, c.Image, image)
 		containerInspectTest(t)
@@ -214,7 +221,7 @@ func TestContainer(t *testing.T) {
 
 	t.Run("container-logs", func(t *testing.T) {
 		clogsName := RandomName("skupper-test")
-		assert.Assert(t, cli.ImagePull(images.GetRouterImageName()))
+		assert.Assert(t, cli.ImagePull(ctx, images.GetRouterImageName()))
 		err = cli.ContainerCreate(&container.Container{
 			Name:        clogsName,
 			Image:       images.GetRouterImageName(),
@@ -295,7 +302,7 @@ func TestContainerUpdateMock(t *testing.T) {
 	startedAt := cc.StartedAt
 
 	newImage := strings.Replace(image, ":main", ":updated", -1)
-	_, err = cli.ContainerUpdateImage("my-container", newImage)
+	_, err = cli.ContainerUpdateImage(context.Background(), "my-container", newImage)
 	assert.Assert(t, err)
 
 	// validating that the container has the new image and has been restarted

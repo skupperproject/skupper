@@ -1,9 +1,11 @@
 package domain
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/skupperproject/skupper/pkg/utils"
 )
@@ -60,7 +62,7 @@ type UpdateTask interface {
 	// Priority determines how tasks will be sorted by the UpdateProcessor
 	Priority() UpdatePriority
 	// Run method is where the update task is done
-	Run() *UpdateResult
+	Run(ctx context.Context) *UpdateResult
 }
 
 type UpdateProcessor struct {
@@ -69,6 +71,7 @@ type UpdateProcessor struct {
 	changes   []string
 	Verbose   bool
 	DryRun    bool
+	Timeout   time.Duration
 }
 
 func (p *UpdateProcessor) Println(a ...any) {
@@ -106,14 +109,14 @@ func (p *UpdateProcessor) registerPostTasks(tasks ...UpdateTask) {
 	}
 }
 
-func (p *UpdateProcessor) Process(siteVersion string) error {
-	err := p.process(siteVersion, p.tasks)
+func (p *UpdateProcessor) Process(ctx context.Context, siteVersion string) error {
+	err := p.process(ctx, siteVersion, p.tasks)
 	if err != nil {
 		return err
 	}
 	if len(p.postTasks) > 0 {
 		p.Println("Post update tasks")
-		return p.process(siteVersion, p.postTasks)
+		return p.process(ctx, siteVersion, p.postTasks)
 	}
 	if len(p.changes) > 0 {
 		fmt.Println("Skupper is now updated for '" + utils.ReadUsername() + "'.")
@@ -123,7 +126,7 @@ func (p *UpdateProcessor) Process(siteVersion string) error {
 	return nil
 }
 
-func (p *UpdateProcessor) process(siteVersion string, tasks []UpdateTask) error {
+func (p *UpdateProcessor) process(ctx context.Context, siteVersion string, tasks []UpdateTask) error {
 	var validTasks []UpdateTask
 	title := "Task"
 	postTasks := false
@@ -170,7 +173,7 @@ func (p *UpdateProcessor) process(siteVersion string, tasks []UpdateTask) error 
 			title, i+1, totalTasks, version, task.Priority(), task.Info())
 		var result *UpdateResult
 		if !p.DryRun {
-			result = task.Run()
+			result = task.Run(ctx)
 			if result == nil {
 				result = &UpdateResult{}
 			}

@@ -67,7 +67,7 @@ func TestContainerInformer(t *testing.T) {
 
 	// Pulling image
 	image := images.GetServiceControllerImageName()
-	assert.Assert(t, cli.ImagePull(image))
+	assert.Assert(t, cli.ImagePull(ctx, image))
 
 	var containersLeft = map[string]bool{}
 	for _, s := range scenarios {

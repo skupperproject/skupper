@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -27,7 +28,7 @@ type Site interface {
 }
 
 type SiteHandler interface {
-	Create(s Site) error
+	Create(ctx context.Context, s Site) error
 	Get() (Site, error)
 	Delete() error
 	Update() error

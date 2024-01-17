@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -406,7 +407,7 @@ func TestUpdateProcessor(t *testing.T) {
 				Verbose: true,
 			}
 			up.RegisterTasks(scenario.tasks...)
-			err := up.Process(scenario.curVersion)
+			err := up.Process(context.Background(), scenario.curVersion)
 			assert.Equal(t, err != nil, scenario.expectError, fmt.Sprintf("error expected == %v but got err == %v", scenario.expectError, err))
 			assert.DeepEqual(t, scenario.expectedChanges, up.changes)
 		})
@@ -447,6 +448,6 @@ func (u *mockUpdateTask) Priority() UpdatePriority {
 	return u.priority
 }
 
-func (u *mockUpdateTask) Run() *UpdateResult {
+func (u *mockUpdateTask) Run(context.Context) *UpdateResult {
 	return u.result
 }

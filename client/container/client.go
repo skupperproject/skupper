@@ -1,6 +1,7 @@
 package container
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -30,7 +31,7 @@ type Client interface {
 	ContainerRestart(id string) error
 	ImageList() ([]*Image, error)
 	ImageInspect(id string) (*Image, error)
-	ImagePull(id string) error
+	ImagePull(ctx context.Context, id string) error
 	NetworkList() ([]*Network, error)
 	NetworkInspect(id string) (*Network, error)
 	NetworkCreate(network *Network) (*Network, error)

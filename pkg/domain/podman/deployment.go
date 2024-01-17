@@ -1,6 +1,7 @@
 package podman
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -35,7 +36,7 @@ func NewSkupperDeploymentHandlerPodman(cli *podman.PodmanRestClient) *SkupperDep
 }
 
 // Deploy deploys each component as a container
-func (s *SkupperDeploymentHandler) Deploy(deployment domain.SkupperDeployment) error {
+func (s *SkupperDeploymentHandler) Deploy(ctx context.Context, deployment domain.SkupperDeployment) error {
 	var err error
 	var cleanupContainers []string
 
@@ -56,7 +57,7 @@ func (s *SkupperDeploymentHandler) Deploy(deployment domain.SkupperDeployment) e
 	for _, component := range deployment.GetComponents() {
 
 		// Pulling image first
-		err = s.cli.ImagePull(component.GetImage())
+		err = s.cli.ImagePull(ctx, component.GetImage())
 		if err != nil {
 			return err
 		}
