@@ -4,6 +4,7 @@
 
 Skupper enables cloud communication by enabling you to create a Virtual Application Network.
 
+
 This application layer network decouples addressing from the underlying network infrastructure.
 This enables secure communication without a VPN.
 
