@@ -18,17 +18,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 )
 
-func GetDeploymentLabel(name string, key string, namespace string, cli kubernetes.Interface) string {
-	deployment, err := GetDeployment(name, namespace, cli)
-	if err != nil {
-		return ""
-	}
-	if value, ok := deployment.Spec.Template.Labels[key]; ok {
-		return value
-	}
-	return ""
-}
-
 func GetPods(selector string, namespace string, cli kubernetes.Interface) ([]corev1.Pod, error) {
 	options := metav1.ListOptions{LabelSelector: selector}
 	podList, err := cli.CoreV1().Pods(namespace).List(context.TODO(), options)
