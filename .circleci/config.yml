@@ -110,9 +110,8 @@ commands:
           command: sudo rm -rf /usr/local/go
       - docker/install-docker
       - go/install:
-          version: "1.19"
+          version: "1.20"
       - kube-orb/install-kubectl
-      - run: make generate-client
       - run: make
 
   local_registry_start:
@@ -163,7 +162,10 @@ commands:
         name: vmstat info
         command: vmstat -w -t 10
         background: true
-
+    - run:
+        name: journalctl monitoring
+        command: journalctl -p 7 -b -f
+        background: true
   system_status:
     description: shows some point-in-time system status
     parameters:
@@ -202,6 +204,7 @@ commands:
           command: |
             make build-cmd && sudo install skupper /usr/local/bin
             export PUBLIC_1_INGRESS_HOST=`minikube ip`
+            export SKUPPER_TEST_CLI_MAX_STATUS_ATTEMPTS=20
             go test -tags=integration,podman -timeout=60m -v ./test/integration/... | tee /tmp/results/test-integration.out
       - run:
           name: Run client tests in real cluster
@@ -295,6 +298,12 @@ commands:
             go build -ldflags "-X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}"
             -o dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>
             ./cmd/skupper
+      - run:
+          name: Audit << parameters.platform >>
+          command: >-
+            sha512sum dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>;
+            file dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>;
+            go version -m dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>;
 
   podman-latest:
     description: "Install latest podman v4 or higher"
@@ -313,6 +322,14 @@ commands:
             sudo apt-get update -qq
             sudo apt-get -qq -y install podman
             podman version
+            
+            # temporary fix for https://github.com/containers/podman/issues/21024
+            wget https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_22.04/amd64/conmon_2.1.2~0_amd64.deb -O /tmp/conmon_2.1.2.deb
+            sudo apt install /tmp/conmon_2.1.2.deb
+
+            # Bypassing CircleCI issue with user session (see: https://github.com/containers/podman/issues/16529)
+            mkdir -p ~/.config/containers/containers.conf.d
+            ( echo '[containers]' ; echo 'cgroups = "disabled"' ) > ~/.config/containers/containers.conf.d/podman-circleci-issue.conf
 
             # Starting systemd user service
             systemctl --user start podman.socket
@@ -347,6 +364,7 @@ yaml-templates:
   release_requires: &release_requires
     requires:
       - build-all
+      - test-skupper-binary
       - test
       - main_tests_minikube_local_cluster
       - policy_tests_minikube_local_cluster
@@ -357,6 +375,17 @@ workflows:
     jobs:
       - build-all:
           <<: *run_for_all_branches_and_numeric_tags
+      - test-skupper-binary:
+          <<: *run_for_all_branches_and_numeric_tags
+          matrix:
+            parameters:
+              image:
+                - quay.io/centos/centos:stream8
+                - quay.io/centos/centos:stream9
+                - quay.io/fedora/fedora:38
+                - quay.io/fedora/fedora:39
+          requires:
+            - build-all
       - test:
           <<: *run_for_all_branches_and_numeric_tags
       - build_and_save_test_images:
@@ -401,6 +430,13 @@ workflows:
           context:
             - skupper-org
 
+      - publish-github-main-artifacts:
+          <<: *run_for_main_branch
+          requires:
+            - publish-github-main-images
+          context:
+            - skupper-org
+
       - publish-github-main-images:
           <<: *run_for_main_branch
           <<: *release_requires
@@ -410,8 +446,7 @@ workflows:
 jobs:
   test:
     executor:
-      name: go/default
-      tag: "1.19"
+      name: go_cimg
     steps:
       - checkout
       - run:
