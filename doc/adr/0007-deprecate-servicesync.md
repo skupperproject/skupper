@@ -31,9 +31,14 @@ ServiceSync would not be adequate as it is.
 
 ServiceSync will not be supported for automatic propoagation of
 ingress bindings between sites that have migrated to use explicit
-resources for each ingress.
+resources for each ingress binding.
 
 ## Consequences
+
+This will require extra declarations to be made by user at the sites
+at which they want to consume services. However this also gives much
+more flexibility not only in the location of the ingress bindings, but
+also in their configuration.
 
 Upgrading a network that currently relies on ServiceSync may be more
 awkward if this decision is accepted. It would be possible to
