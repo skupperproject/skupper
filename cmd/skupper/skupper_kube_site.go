@@ -341,7 +341,7 @@ func (s *SkupperKubeSite) Update(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if updated {
-		fmt.Println("Skupper is now updated in '" + cli.GetNamespace() + "'.")
+		fmt.Println("Skupper update in progress for '" + cli.GetNamespace() + "'.")
 	} else {
 		fmt.Println("No update required in '" + cli.GetNamespace() + "'.")
 	}
