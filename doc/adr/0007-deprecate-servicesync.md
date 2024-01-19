@@ -29,9 +29,9 @@ ServiceSync would not be adequate as it is.
 
 ## Decision
 
-ServiceSync will not be supported for automatic propoagation of
-ingress bindings between sites that have migrated to use explicit
-resources for each ingress binding.
+ServiceSync will be removed for automatic propoagation of ingress
+bindings between sites that have migrated to use explicit resources
+for each ingress binding.
 
 ## Consequences
 
