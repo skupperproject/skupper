@@ -46,3 +46,6 @@ alleviate some of that by for example providing a legacy support
 process that would turn the new model into the expected sequences for
 the old ServiceSync protocol. What level of effort is appropriate for
 easing upgrade will be decided through separate ADRs.
+
+This change would also impact existing examples, both under the
+skupperproject organisation and elsewhere.
