@@ -15,7 +15,7 @@ service is invoked (ingress binding) and what processes that
 invocation may be routed to (egress binding).
 
 The Deployments or StatefulSets that are to be annotated may
-themselves by the generated output of other controllers. In this case
+themselves be the generated output of other controllers. In this case
 it is not always possible to ensure that they are annotated correctly
 for Skupper.
 
@@ -59,3 +59,7 @@ needed, or allowing the hostname used for the ingress to vary by site.
 
 However a change to the model for service bindings will make upgrade
 and backward compatibility more of a challenge.
+
+The change in model will need to be clearly documented and explained
+to users, along with the recommended path for migration to this new
+model.
