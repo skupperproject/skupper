@@ -63,3 +63,6 @@ and backward compatibility more of a challenge.
 The change in model will need to be clearly documented and explained
 to users, along with the recommended path for migration to this new
 model.
+
+The change would also impact existing examples, both under the
+skupperproject organisation and elsewhere.
