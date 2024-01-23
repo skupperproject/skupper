@@ -48,6 +48,11 @@ configuration for both ingress- and egress- bindings.
 
 ## Consequences
 
+Support for the existing annotations, such as skupper.io/proxy, will
+be removed. It may be separately decided to provide legacy support in
+some fashion that would derive the new explicit bindings from
+annotated resources.
+
 It is expected that a model made explicit in the resources used will
 be easier for users to understand and internalise, making it more
 likely that they are successful in their use of skupper and reducing
