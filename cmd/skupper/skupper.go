@@ -1127,7 +1127,6 @@ func init() {
 	cmdNetwork.AddCommand(NewCmdNetworkStatus(skupperCli.Network()))
 
 	cmdSwitch := NewCmdSwitch()
-	cmdSwitch.Hidden = true
 
 	addCommands(skupperCli, rootCmd,
 		cmdInit,
