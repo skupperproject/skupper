@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -359,13 +360,13 @@ func TestRecordState(t *testing.T) {
 
 func TestParameters(t *testing.T) {
 	type test struct {
-		values      map[string]string
+		url         string
 		queryParams QueryParams
 	}
 
 	testTable := []test{
 		{
-			values: map[string]string{"timeRangeStart": "1234", "timeRangeEnd": "0"},
+			url: "http://host?timeRangeStart=1234&timeRangeEnd=0",
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
@@ -377,7 +378,7 @@ func TestParameters(t *testing.T) {
 			},
 		},
 		{
-			values: map[string]string{"timeRangeStart": "0", "timeRangeEnd": "0", "timeRangeOperation": "contains"},
+			url: "http://host?timeRangeStart=0&timeRangeEnd=0&timeRangeOperation=contains",
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
@@ -389,7 +390,7 @@ func TestParameters(t *testing.T) {
 			},
 		},
 		{
-			values: map[string]string{"timeRangeStart": "1234", "timeRangeEnd": "0", "timeRangeOperation": "within"},
+			url: "http://host?timeRangeStart=1234&timeRangeEnd=0&timeRangeOperation=within",
 			queryParams: QueryParams{
 				Offset:             -1,
 				Limit:              -1,
@@ -401,15 +402,7 @@ func TestParameters(t *testing.T) {
 			},
 		},
 		{
-			values: map[string]string{
-				"offset":             "10",
-				"limit":              "10",
-				"sortBy":             "sourcePort.desc",
-				"filter":             "forwardFlow.protocol.tcp",
-				"timeRangeStart":     "0",
-				"timeRangeEnd":       "4567",
-				"timeRangeOperation": "intersects",
-			},
+			url: "http://host?timeRangeStart=0&timeRangeEnd=4567&timeRangeOperation=intersects&offset=10&limit=10&sortBy=sourcePort.desc&filter=forwardFlow.protocol.tcp",
 			queryParams: QueryParams{
 				Offset:             10,
 				Limit:              10,
@@ -420,22 +413,30 @@ func TestParameters(t *testing.T) {
 				TimeRangeOperation: intersects,
 			},
 		},
+		{
+			url: "http://host?processRole=external&processRole=internal&timeRangeStart=0&timeRangeEnd=0&limit=0&offset=0",
+			queryParams: QueryParams{
+				SortBy: "identity.asc",
+				FilterFields: map[string][]string{
+					"processRole": {"external", "internal"},
+				},
+			},
+		},
 	}
 
 	for _, test := range testTable {
-		req, _ := http.NewRequest("GET", "/", nil)
-		q := req.URL.Query()
-		for k, v := range test.values {
-			q.Add(k, v)
-		}
-		req.URL.RawQuery = q.Encode()
-		qp := getQueryParams(req.URL)
-		assert.Equal(t, qp.Offset, test.queryParams.Offset)
-		assert.Equal(t, qp.Limit, test.queryParams.Limit)
-		assert.Equal(t, qp.SortBy, test.queryParams.SortBy)
-		assert.Equal(t, qp.TimeRangeStart, test.queryParams.TimeRangeStart)
-		assert.Equal(t, qp.TimeRangeEnd, test.queryParams.TimeRangeEnd)
-		assert.Equal(t, qp.TimeRangeOperation, test.queryParams.TimeRangeOperation)
+		t.Run(test.url, func(t *testing.T) {
+			req, _ := http.NewRequest("GET", test.url, nil)
+			q := req.URL.Query()
+			req.URL.RawQuery = q.Encode()
+			qp := getQueryParams(req.URL)
+			assert.Equal(t, qp.Offset, test.queryParams.Offset)
+			assert.Equal(t, qp.Limit, test.queryParams.Limit)
+			assert.Equal(t, qp.SortBy, test.queryParams.SortBy)
+			assert.Equal(t, qp.TimeRangeStart, test.queryParams.TimeRangeStart)
+			assert.Equal(t, qp.TimeRangeEnd, test.queryParams.TimeRangeEnd)
+			assert.Equal(t, qp.TimeRangeOperation, test.queryParams.TimeRangeOperation)
+		})
 	}
 }
 
@@ -488,27 +489,27 @@ func TestPagination(t *testing.T) {
 
 func TestMatchField(t *testing.T) {
 	field1 := "foo"
-	field1Value := "foo"
+	field1Value := []string{"foo"}
 	field2 := uint64(12345678)
-	field2Value := "12345678"
+	field2Value := []string{"12345678"}
 	field3 := int32(87654321)
-	field3Value := "87654321"
+	field3Value := []string{"87654321"}
 	field4 := int64(12345678)
-	field4Value := "12345678"
+	field4Value := []string{"12345678"}
 	field5 := int(12345678)
-	field5Value := "12345678"
+	field5Value := []string{"12345678"}
 
-	match := matchFieldValue(field1, field1Value)
+	match := matchFieldValues(field1, field1Value)
 	assert.Equal(t, match, true)
-	match = matchFieldValue(field2, field2Value)
+	match = matchFieldValues(field2, field2Value)
 	assert.Equal(t, match, true)
-	match = matchFieldValue(field3, field3Value)
+	match = matchFieldValues(field3, field3Value)
 	assert.Equal(t, match, true)
-	match = matchFieldValue(field4, field4Value)
+	match = matchFieldValues(field4, field4Value)
 	assert.Equal(t, match, true)
-	match = matchFieldValue(field5, field5Value)
+	match = matchFieldValues(field5, field5Value)
 	assert.Equal(t, match, true)
-	match = matchFieldValue(field5, field1Value)
+	match = matchFieldValues(field5, field1Value)
 	assert.Equal(t, match, false)
 }
 
@@ -664,52 +665,66 @@ func TestFilterFieldsRecord(t *testing.T) {
 	}
 
 	type test struct {
-		filterField map[string]string
+		filterField map[string][]string
 		result      bool
 	}
 	testTable := []test{
 		{
-			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40"},
+			filterField: map[string][]string{"forwardFlow.SourceHost": {"10.20.30.40"}},
 			result:      true,
 		},
 		{
-			filterField: map[string]string{"sourceSiteName": "public1"},
+			filterField: map[string][]string{"sourceSiteName": {"public1"}},
 			result:      true,
 		},
 		{
-			filterField: map[string]string{"sourceSiteName": "pub"},
+			filterField: map[string][]string{"sourceSiteName": {"pub"}},
 			result:      true,
 		},
 		{
-			filterField: map[string]string{"sourceSiteName": "ic1"},
+			filterField: map[string][]string{"sourceSiteName": {"pub", "xyz"}},
+			result:      true,
+		},
+		{
+			filterField: map[string][]string{"sourceSiteName": {"ic1"}},
 			result:      false,
 		},
 		{
-			filterField: map[string]string{"sourceSiteName": "xpublic1"},
+			filterField: map[string][]string{"sourceSiteName": {"xpublic1"}},
 			result:      false,
 		},
 		{
-			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40", "sourceSiteName": "public1"},
-			result:      true,
-		},
-		{
-			filterField: map[string]string{"forwardFlow.SourceHost": "10.20.30.40", "sourceSiteName": "public2"},
+			filterField: map[string][]string{"sourceSiteName": {"xpublic1", "zpublic1"}},
 			result:      false,
 		},
 		{
-			filterField: map[string]string{},
+			filterField: map[string][]string{"forwardFlow.SourceHost": {"10.20.30.40"}, "sourceSiteName": {"public1"}},
 			result:      true,
 		},
 		{
-			filterField: map[string]string{"sourceSiteName": ""},
+			filterField: map[string][]string{"forwardFlow.SourceHost": {"10.20.255.255", "10.20.30.40"}, "sourceSiteName": {"public1"}},
+			result:      true,
+		},
+		{
+			filterField: map[string][]string{"forwardFlow.SourceHost": {"10.20.30.40"}, "sourceSiteName": {"public2"}},
+			result:      false,
+		},
+		{
+			filterField: map[string][]string{},
+			result:      true,
+		},
+		{
+			filterField: map[string][]string{"sourceSiteName": {""}},
 			result:      false,
 		},
 	}
 
-	for _, test := range testTable {
-		qp := QueryParams{FilterFields: test.filterField}
-		result := filterRecord(flowPair, qp)
-		assert.Equal(t, result, test.result)
+	for i, test := range testTable {
+		t.Run(fmt.Sprintf("test-%d", i), func(t *testing.T) {
+			qp := QueryParams{FilterFields: test.filterField}
+			result := filterRecord(flowPair, qp)
+			assert.Equal(t, result, test.result)
+		})
 	}
 }
 

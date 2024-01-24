@@ -474,15 +474,15 @@ type Payload struct {
 }
 
 type QueryParams struct {
-	Offset             int               `json:"offset"`
-	Limit              int               `json:"limit"`
-	SortBy             string            `json:"sortBy"`
-	Filter             string            `json:"filter"`
-	FilterFields       map[string]string `json:"filterFields"`
-	TimeRangeStart     uint64            `json:"timeRangeStart"`
-	TimeRangeEnd       uint64            `json:"timeRangeEnd"`
-	TimeRangeOperation TimeRangeRelation `json:"timeRangeOperation"`
-	State              RecordState       `json:"state"`
+	Offset             int                 `json:"offset"`
+	Limit              int                 `json:"limit"`
+	SortBy             string              `json:"sortBy"`
+	Filter             string              `json:"filter"`
+	FilterFields       map[string][]string `json:"filterFields"`
+	TimeRangeStart     uint64              `json:"timeRangeStart"`
+	TimeRangeEnd       uint64              `json:"timeRangeEnd"`
+	TimeRangeOperation TimeRangeRelation   `json:"timeRangeOperation"`
+	State              RecordState         `json:"state"`
 }
 
 func getQueryParams(url *url.URL) QueryParams {
@@ -492,7 +492,7 @@ func getQueryParams(url *url.URL) QueryParams {
 		Limit:              -1,
 		SortBy:             "identity.asc",
 		Filter:             "",
-		FilterFields:       make(map[string]string),
+		FilterFields:       make(map[string][]string),
 		TimeRangeStart:     now - (15 * oneMinute),
 		TimeRangeEnd:       now,
 		TimeRangeOperation: intersects,
@@ -556,7 +556,7 @@ func getQueryParams(url *url.URL) QueryParams {
 				qp.State = all
 			}
 		default:
-			qp.FilterFields[cases.Title(language.Und, cases.NoLower).String(k)] = v[0]
+			qp.FilterFields[cases.Title(language.Und, cases.NoLower).String(k)] = v
 		}
 	}
 	return qp
@@ -700,33 +700,37 @@ func getField(field string, record interface{}) interface{} {
 	return nil
 }
 
-func matchFieldValue(x interface{}, y string) bool {
-	if x != nil && y != "" {
-		switch x.(type) {
-		case string:
-			return strings.HasPrefix(x.(string), y)
-		case uint64:
-			i, err := strconv.ParseInt(y, 10, 64)
-			if err == nil {
-				return x.(uint64) == uint64(i)
+func matchFieldValues(x interface{}, values []string) bool {
+	if x == nil || len(values) == 0 {
+		return false
+	}
+	switch x := x.(type) {
+	case string:
+		for _, y := range values {
+			if y == "" {
+				continue
 			}
-		case int32:
-			i, err := strconv.ParseInt(y, 10, 32)
-			if err == nil {
-				return x.(int32) == int32(i)
+			if strings.HasPrefix(x, y) {
+				return true
 			}
-		case int64:
-			i, err := strconv.ParseInt(y, 10, 64)
-			if err == nil {
-				return x.(int64) == int64(i)
-			}
-		case int:
-			i, err := strconv.ParseInt(y, 10, 64)
-			if err == nil {
-				return x.(int) == int(i)
-			}
-		default:
-			return false
+		}
+	case uint64:
+		return numInStringSlice(x, values)
+	case int32:
+		return numInStringSlice(x, values)
+	case int64:
+		return numInStringSlice(x, values)
+	case int:
+		return numInStringSlice(x, values)
+	}
+	return false
+}
+
+func numInStringSlice[T int | uint64 | int64 | int32](x T, values []string) bool {
+	for _, value := range values {
+		i, err := strconv.ParseInt(value, 10, 64)
+		if err == nil && x == T(i) {
+			return true
 		}
 	}
 	return false
@@ -773,9 +777,9 @@ func compareFields(x, y interface{}, order string) bool {
 	}
 }
 
-// type any = interface{}
-func filterRecord[T any](item T, qp QueryParams) bool {
+func filterRecord(item any, qp QueryParams) bool {
 	filter := true
+	//TODO(ck) deprecate filter?
 	if qp.Filter != "" {
 		field, match, err := validateAndReturnFilterQuery(qp.Filter)
 		// todo propagate error or log
@@ -791,7 +795,7 @@ func filterRecord[T any](item T, qp QueryParams) bool {
 				if !filterSubRecord(value, match) {
 					filter = false
 				}
-			} else if !matchFieldValue(value, match) {
+			} else if !matchFieldValues(value, []string{match}) {
 				filter = false
 			}
 		}
@@ -807,10 +811,10 @@ func filterRecord[T any](item T, qp QueryParams) bool {
 			} else {
 				x := reflect.ValueOf(value)
 				if x.Kind() == reflect.Struct {
-					if !filterSubRecord(value, subField+"."+match) {
+					if !filterSubRecordValues(value, subField, match) {
 						filter = false
 					}
-				} else if !matchFieldValue(value, match) {
+				} else if !matchFieldValues(value, match) {
 					filter = false
 				}
 			}
@@ -819,8 +823,22 @@ func filterRecord[T any](item T, qp QueryParams) bool {
 	return filter
 }
 
-// type any = interface{}
-func filterSubRecord[T any](item T, filter string) bool {
+func filterSubRecordValues(item interface{}, spec string, values []string) bool {
+	if spec == "" {
+		return true
+	}
+	titleCaser := cases.Title(language.Und, cases.NoLower)
+	parts := strings.Split(spec, ".")
+	field, spec := titleCaser.String(parts[0]), strings.Join(parts[1:], ".")
+	value := getField(field, item)
+	x := reflect.ValueOf(value)
+	if x.Kind() == reflect.Struct {
+		return filterSubRecordValues(value, spec, values)
+	}
+	return matchFieldValues(value, values)
+}
+
+func filterSubRecord(item interface{}, filter string) bool {
 	if filter == "" {
 		return true
 	}
@@ -834,7 +852,7 @@ func filterSubRecord[T any](item T, filter string) bool {
 	if x.Kind() == reflect.Struct {
 		return filterSubRecord(value, match)
 	}
-	return matchFieldValue(value, match)
+	return matchFieldValues(value, []string{match})
 }
 
 func sortAndSlice[T any](list []T, payload *Payload, queryParams QueryParams) error {
