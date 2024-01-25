@@ -66,6 +66,7 @@ func (s *Site) GetConsoleUrl() string {
 type SiteHandler struct {
 	cli      *podman.PodmanRestClient
 	endpoint string
+	up       *domain.UpdateProcessor
 }
 
 func NewSitePodmanHandlerFromCli(cli *podman.PodmanRestClient) *SiteHandler {
@@ -678,8 +679,32 @@ func (s *SiteHandler) AnyResourceLeft() bool {
 	return false
 }
 
+func (s *SiteHandler) SetUpdateProcessor(up *domain.UpdateProcessor) {
+	s.up = up
+}
+
 func (s *SiteHandler) Update() error {
-	return fmt.Errorf("not implemented")
+	/*
+	  Registering tasks to be analyzed against current site version
+	*/
+
+	// updates images for all skupper containers
+	s.up.RegisterTasks(NewContainerImagesTask(s.cli))
+	// updates site version number (always the last one)
+	s.up.RegisterTasks(NewVersionUpdateTask(s.cli))
+	// 1.5.4 tasks
+	s.up.RegisterTasks(new(SkupperNetworkStatusVolume).WithCli(s.cli))
+	// process eligible tasks
+	ctx, cn := context.WithTimeout(context.Background(), s.up.Timeout)
+	defer cn()
+
+	// current version
+	site, err := s.Get()
+	if err != nil {
+		return err
+	}
+
+	return s.up.Process(ctx, site.GetVersion())
 }
 
 func (s *SiteHandler) RevokeAccess() error {
@@ -830,14 +855,15 @@ func (s *SiteHandler) getConsoleUserPass() (string, string, error) {
 func (s *SiteHandler) prepareControllerDeployment(site *Site) *SkupperDeployment {
 	// Service Controller Deployment
 	volumeMounts := map[string]string{
-		types.ServiceInterfaceConfigMap: "/etc/skupper-services",
-		types.LocalClientSecret:         "/etc/messaging",
-		types.ConsoleUsersSecret:        "/etc/console-users",
-		types.ConsoleServerSecret:       "/etc/service-controller/console",
-		types.LocalServerSecret:         "/etc/skupper-router-certs/skupper-amqps/",
-		types.TransportConfigMapName:    "/etc/skupper-router/config/",
-		"skupper-router-certs":          "/etc/skupper-router-certs",
-		types.SiteServerSecret:          "/etc/skupper-router-certs/skupper-internal/",
+		types.ServiceInterfaceConfigMap:  "/etc/skupper-services",
+		types.NetworkStatusConfigMapName: "/etc/skupper-network-status",
+		types.LocalClientSecret:          "/etc/messaging",
+		types.ConsoleUsersSecret:         "/etc/console-users",
+		types.ConsoleServerSecret:        "/etc/service-controller/console",
+		types.LocalServerSecret:          "/etc/skupper-router-certs/skupper-amqps/",
+		types.TransportConfigMapName:     "/etc/skupper-router/config/",
+		"skupper-router-certs":           "/etc/skupper-router-certs",
+		types.SiteServerSecret:           "/etc/skupper-router-certs/skupper-internal/",
 	}
 
 	endpoint := site.PodmanEndpoint

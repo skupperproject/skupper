@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -79,6 +80,17 @@ func (c *ControllerPodman) Run(stopCh <-chan struct{}) error {
 	flowController := flow.NewFlowController(c.origin, version.Version, siteCreationTime, qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", c.tlsConfig), flow.WithPolicyDisabled)
 	flowController.Start(stopCh)
 	log.Println("Started flow-controller")
+
+	var collectorLite *flow.FlowCollector
+	collectorLite = flow.NewFlowCollector(flow.FlowCollectorSpec{
+		Mode:              flow.RecordStatus,
+		Origin:            os.Getenv("SKUPPER_SITE_ID"),
+		PromReg:           nil,
+		ConnectionFactory: qdr.NewConnectionFactory("amqps://"+types.LocalTransportServiceName+":5671", c.tlsConfig),
+		FlowRecordTtl:     time.Minute * 15})
+
+	collectorLite.Start(stopCh)
+	log.Println("Started flow-collector lite")
 
 	//
 	// Set the beacons

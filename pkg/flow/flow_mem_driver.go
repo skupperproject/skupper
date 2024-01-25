@@ -16,6 +16,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -493,47 +494,47 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 	var err error
 	networkData := map[string]string{}
 	platform := config.GetPlatform()
+	var sites []*SiteStatus
+	var addresses []*VanAddressRecord
+
+	for _, address := range fc.VanAddresses {
+		fc.getAddressAdaptorCounts(address)
+		addresses = append(addresses, address)
+	}
+	for _, site := range fc.Sites {
+		var routerStatus []RouterStatus
+		routers := fc.getRoutersForSite(site)
+		for _, router := range routers {
+			links := fc.getLinksForRouter(router)
+			listeners := fc.getListenersForRouter(router)
+			connectors := fc.getConnectorsForRouter(router)
+			routerStatus = append(routerStatus, RouterStatus{
+				Router:     router,
+				Links:      links,
+				Listeners:  listeners,
+				Connectors: connectors,
+			})
+		}
+		siteStatus := &SiteStatus{
+			Site:         site,
+			RouterStatus: routerStatus,
+		}
+		sites = append(sites, siteStatus)
+	}
+	sort.SliceStable(addresses, func(i, j int) bool {
+		return addresses[i].Name < addresses[j].Name
+	})
+	networkStatus := NetworkStatus{
+		Addresses: addresses,
+		Sites:     sites,
+	}
+	networkData["NetworkStatus"] = prettyPrint(networkStatus)
+
 	if platform == "" || platform == types.PlatformKubernetes {
 		cli, err := client.NewClient(fc.namespace, "", "")
 		if err != nil {
 			return err
 		}
-
-		var sites []*SiteStatus
-		var addresses []*VanAddressRecord
-
-		for _, address := range fc.VanAddresses {
-			fc.getAddressAdaptorCounts(address)
-			addresses = append(addresses, address)
-		}
-		for _, site := range fc.Sites {
-			var routerStatus []RouterStatus
-			routers := fc.getRoutersForSite(site)
-			for _, router := range routers {
-				links := fc.getLinksForRouter(router)
-				listeners := fc.getListenersForRouter(router)
-				connectors := fc.getConnectorsForRouter(router)
-				routerStatus = append(routerStatus, RouterStatus{
-					Router:     router,
-					Links:      links,
-					Listeners:  listeners,
-					Connectors: connectors,
-				})
-			}
-			siteStatus := &SiteStatus{
-				Site:         site,
-				RouterStatus: routerStatus,
-			}
-			sites = append(sites, siteStatus)
-		}
-		sort.SliceStable(addresses, func(i, j int) bool {
-			return addresses[i].Name < addresses[j].Name
-		})
-		networkStatus := NetworkStatus{
-			Addresses: addresses,
-			Sites:     sites,
-		}
-		networkData["NetworkStatus"] = prettyPrint(networkStatus)
 
 		err = retry.RetryOnConflict(defaultRetry, func() error {
 			configMap, err := kube.GetConfigMap(types.NetworkStatusConfigMapName, cli.Namespace, cli.KubeClient)
@@ -555,6 +556,9 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 			fc.networkStatusUp = true
 			log.Printf("COLLECTOR: First functional network status update written after %s and %d updates\n", time.Since(fc.begin), netUpdateCt)
 		}
+	} else if platform == types.PlatformPodman {
+		networkStatusHandler := &podman.NetworkStatusHandler{}
+		err = networkStatusHandler.Update(networkData["NetworkStatus"])
 	}
 	return err
 }

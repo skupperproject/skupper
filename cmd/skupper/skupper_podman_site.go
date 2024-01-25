@@ -13,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	podman "github.com/skupperproject/skupper/pkg/domain/podman"
-	"github.com/skupperproject/skupper/pkg/domain/podman/update"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
@@ -291,17 +290,12 @@ func (s *SkupperPodmanSite) Platform() types.Platform {
 }
 
 func (s *SkupperPodmanSite) Update(cmd *cobra.Command, args []string) error {
-	/*
-	  Registering tasks to be analyzed against current site version
-	*/
-	// updates images for all skupper containers
-	s.up.RegisterTasks(update.NewContainerImagesTask(s.podman.cli))
-	// updates site version number (always the last one)
-	s.up.RegisterTasks(update.NewVersionUpdateTask(s.podman.cli))
-	// process eligible tasks
-	ctx, cn := context.WithTimeout(context.Background(), s.up.Timeout)
-	defer cn()
-	return s.up.Process(ctx, s.podman.currentSite.Version)
+	siteHandler, err := podman.NewSitePodmanHandler("")
+	if err != nil {
+		return fmt.Errorf("Unable to communicate with Skupper site - %w", err)
+	}
+	siteHandler.SetUpdateProcessor(s.up)
+	return siteHandler.Update()
 }
 
 func (s *SkupperPodmanSite) UpdateFlags(cmd *cobra.Command) {

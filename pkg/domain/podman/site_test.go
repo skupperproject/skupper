@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	//go:embed update/skrouterd.json
+	//go:embed skrouterd.json
 	skrouterdJson string
-	//go:embed update/skupper-services.json
+	//go:embed skupper-services.json
 	skupperServicesJson string
 )
 
@@ -189,7 +189,7 @@ func TestSiteHandlerDeleteBrokenSite(t *testing.T) {
 	// Validating container and volume counts after creation
 	containersAfterCreate, volumesAfterCreate := countContainersAndVolumes()
 	assert.Equal(t, containersAfterCreate, containersBefore+4)
-	assert.Equal(t, volumesAfterCreate, volumesBefore+14)
+	assert.Equal(t, volumesAfterCreate, volumesBefore+15)
 
 	//
 	// Removing mandatory volume
@@ -209,7 +209,9 @@ func TestSiteHandlerDeleteBrokenSite(t *testing.T) {
 func TestSiteHandlerDeleteBrokenSiteMock(t *testing.T) {
 	cli := podman.NewPodmanClientMock(mockContainers())
 	mock := cli.RestClient.(*podman.RestClientMock)
-	assert.Assert(t, mock.MockVolumeFiles(mockVolumes()))
+	mockedVolumes, mockedVolumeFiles := mockVolumes()
+	origLenMockedVolumes := len(mockedVolumes)
+	assert.Assert(t, mock.MockVolumeFiles(mockedVolumes, mockedVolumeFiles))
 	defer func() {
 		_ = mock.CleanupMockVolumeDir()
 	}()
@@ -236,7 +238,7 @@ func TestSiteHandlerDeleteBrokenSiteMock(t *testing.T) {
 	assert.Equal(t, len(containers), 5)
 	volumes, err := cli.VolumeList()
 	assert.Assert(t, err)
-	assert.Equal(t, len(volumes), 13)
+	assert.Equal(t, len(volumes), origLenMockedVolumes+1)
 
 	// force a site get to be in a bad state
 	delete(mock.Volumes, types.TransportConfigMapName)
@@ -386,6 +388,7 @@ func mockVolumes() (map[string]*container.Volume, map[string]map[string]string) 
 	addSkupperVolume("skupper-local-ca", "CertAuthority")
 	addSkupperVolume("skupper-local-client", "Credential")
 	addSkupperVolume("skupper-local-server", "Credential")
+	addSkupperVolume("skupper-network-status")
 	addSkupperVolume("skupper-router-certs")
 	addSkupperVolume("skupper-service-ca", "CertAuthority")
 	addSkupperVolume("skupper-service-client", "Credential")
