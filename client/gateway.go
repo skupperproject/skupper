@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"os/user"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
@@ -595,7 +596,7 @@ func (cli *VanClient) setupGatewayConfig(ctx context.Context, gatewayName string
 	}
 	gatewayConfig.Listeners["amqp"] = qdr.Listener{
 		Name: "amqp",
-		Host: "localhost",
+		Host: "0.0.0.0",
 		Port: int32(amqpPort),
 	}
 
@@ -734,6 +735,22 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 	}
 
 	siteId, _ := getGatewaySiteId(gatewayDir)
+	adminUrl, _ := getRouterUrl(gatewayDir)
+	adminPort := strings.Split(adminUrl, ":")
+	isNonLinux := runtime.GOOS == "windows" || runtime.GOOS == "darwin"
+
+	networkingFlag := "--network"
+	networkingValue := "host"
+
+	volumeFlag := gatewayDir + ":" + containerDir + ":Z"
+
+	if isNonLinux {
+		networkingFlag = "-p"
+		networkingValue = adminPort[len(adminPort)-1] + ":" + adminPort[len(adminPort)-1]
+
+		volumeFlag = gatewayDir + ":" + containerDir
+	}
+
 	containerCmd := gatewayType
 	containerCmdArgs := []string{
 		"run",
@@ -742,8 +759,8 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 		"-d",
 		"--name",
 		gatewayName,
-		"--network",
-		"host",
+		networkingFlag,
+		networkingValue,
 		"-e",
 		"SKUPPER_SITE_ID=gateway" + "_" + gatewayName + "_" + siteId,
 		"-e",
@@ -751,7 +768,7 @@ func (cli *VanClient) gatewayStartContainer(ctx context.Context, gatewayName str
 		"-e",
 		"QDROUTERD_CONF=" + containerDir + "/config/skrouterd.json",
 		"-v",
-		gatewayDir + ":" + containerDir + ":Z",
+		volumeFlag,
 		images.GetRouterImageName(),
 	}
 
