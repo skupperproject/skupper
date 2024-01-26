@@ -578,6 +578,13 @@ func (a *Agent) BatchQuery(queries []Query) ([][]Record, error) {
 		response.Accept()
 		responseIndex, ok := response.Properties.CorrelationID.(uint64)
 		if !ok {
+			ri, ok2 := response.Properties.CorrelationID.(int32)
+			if ok2 {
+				responseIndex = uint64(ri)
+				ok = true
+			}
+		}
+		if !ok {
 			errors = append(errors, fmt.Sprintf("Could not get correct correlation id from response: %#v (%T)", response.Properties.CorrelationID, response.Properties.CorrelationID))
 		} else {
 			if status, ok := AsInt(response.ApplicationProperties["statusCode"]); ok && isOk(status) {
