@@ -62,7 +62,10 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	currentNetworkStatus, err := cli.NetworkStatus(context.Background())
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), "\"skupper-network-status\" not found") {
+		fmt.Println("Status pending...")
+		return nil
+	} else if err != nil {
 		return fmt.Errorf("Could not retrieve services: %w", err)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/utils/formatter"
@@ -200,7 +201,10 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 						fmt.Println()
 
 						remoteLinks, err := linkHandler.RemoteLinks(ctx)
-						if err != nil {
+						if err != nil && strings.Contains(err.Error(), "\"skupper-network-status\" not found") {
+							fmt.Println("\t Remote link status pending...")
+							return nil
+						} else if err != nil {
 							return err
 						}
 

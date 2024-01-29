@@ -49,7 +49,8 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
 	currentNetworkStatus, errStatus := s.kube.Cli.NetworkStatus(ctx)
 	if errStatus != nil {
-		return errStatus
+		fmt.Println("Status pending...")
+		return nil
 	}
 
 	sitesStatus := currentNetworkStatus.SiteStatus
