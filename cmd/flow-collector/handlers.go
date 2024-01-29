@@ -176,12 +176,20 @@ func (c *Controller) promqueryHandler(w http.ResponseWriter, r *http.Request) {
 	proxyReq, err := http.NewRequest(r.Method, urlOut, nil)
 	if err != nil {
 		log.Printf("COLLECTOR: prom proxy request error: %s\n", err.Error())
+
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Internal Server Error: %s\n", err.Error())
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	proxyResp, err := client.Do(proxyReq)
 	if err != nil {
 		log.Printf("COLLECTOR: Prometheus query error: %s\n", err.Error())
+
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Internal Server Error: %s\n", err.Error())
+		return
 	} else {
 		w.WriteHeader(proxyResp.StatusCode)
 		data, _ := io.ReadAll(proxyResp.Body)
@@ -197,6 +205,10 @@ func (c *Controller) promqueryrangeHandler(w http.ResponseWriter, r *http.Reques
 	proxyReq, err := http.NewRequest(r.Method, urlOut, nil)
 	if err != nil {
 		log.Printf("COLLECTOR: prom proxy request error: %s \n", err.Error())
+
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Internal Server Error: %s\n", err.Error())
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -204,6 +216,10 @@ func (c *Controller) promqueryrangeHandler(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(proxyResp.StatusCode)
 	if err != nil {
 		log.Printf("COLLECTOR: Prometheus query_range error: %s\n", err.Error())
+
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Internal Server Error: %s\n", err.Error())
+		return
 	} else {
 		data, _ := io.ReadAll(proxyResp.Body)
 		proxyResp.Body.Close()
