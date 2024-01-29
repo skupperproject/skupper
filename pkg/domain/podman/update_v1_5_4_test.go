@@ -7,6 +7,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/skupperproject/skupper/api/types"
 	clientpodman "github.com/skupperproject/skupper/client/podman"
 	"gotest.tools/assert"
 )
@@ -15,6 +16,7 @@ func TestSkupperNetworkStatusVolumeUpdate(t *testing.T) {
 	cli := clientpodman.NewPodmanClientMock(mockContainers())
 	mock := cli.RestClient.(*clientpodman.RestClientMock)
 	localMockVolumes, localMockVolumeFiles := mockVolumes()
+	// removing new volume to enforce update task to run
 	delete(localMockVolumes, "skupper-network-status")
 	assert.Assert(t, mock.MockVolumeFiles(localMockVolumes, localMockVolumeFiles))
 	defer func() {
@@ -85,6 +87,19 @@ func TestSkupperNetworkStatusVolumeUpdate(t *testing.T) {
 				assert.Assert(t, res.Changed() == test.changed)
 				if test.changed {
 					assert.Assert(t, 1 == len(res.GetChanges()))
+					// removing mounted volume from controller container
+					volumeMounted := false
+					for _, c := range mock.Containers {
+						if c.Name != types.ControllerPodmanContainerName {
+							continue
+						}
+						for _, m := range c.Mounts {
+							if m.Name == types.NetworkStatusConfigMapName {
+								volumeMounted = true
+							}
+						}
+					}
+					assert.Assert(t, volumeMounted)
 				}
 			}
 		})
