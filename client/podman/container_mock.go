@@ -113,6 +113,8 @@ func (r *RestClientMock) Submit(operation *runtime.ClientOperation) (interface{}
 		res, err = r.HandleContainerStart(operation, r.ErrorHook)
 	case "ContainerStopLibpod":
 		res, err = r.HandleContainerStop(operation, r.ErrorHook)
+	case "VolumeCreateLibpod":
+		res, err = r.HandleVolumeCreate(operation, r.ErrorHook)
 	case "VolumeInspectLibpod":
 		res, err = r.HandleVolumeInspect(operation, r.ErrorHook)
 	case "VolumeListLibpod":
@@ -532,5 +534,34 @@ func (r *RestClientMock) HandleNetworkInspect(operation *runtime.ClientOperation
 		Subnets:     subnets,
 	}
 
+	return res, nil
+}
+
+func (r *RestClientMock) HandleVolumeCreate(operation *runtime.ClientOperation, hook func(operation *runtime.ClientOperation) error) (interface{}, error) {
+	res := &volumes.VolumeCreateLibpodCreated{}
+	if hook != nil {
+		if err := hook(operation); err != nil {
+			return res, err
+		}
+	}
+	params := operation.Params.(*volumes.VolumeCreateLibpodParams)
+	spec := params.Create
+
+	for _, v := range r.Volumes {
+		if v.Name == spec.Name {
+			return res, fmt.Errorf("volume already exists")
+		}
+	}
+	v := &container.Volume{
+		Name:   spec.Name,
+		Labels: spec.Labels,
+	}
+	r.Volumes[v.Name] = v
+
+	res.Payload = &volumes.VolumeCreateLibpodCreatedBody{
+		CreatedAt: strfmt.DateTime{},
+		Labels:    v.Labels,
+		Name:      v.Name,
+	}
 	return res, nil
 }
