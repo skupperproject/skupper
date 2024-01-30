@@ -103,6 +103,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	substituteFlowCollector := false
 	addPrometheusServer := false
 	moveClaims := false
+	updateRole := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
 		return false, err
@@ -116,7 +117,10 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		addCertsSharedVolume = utils.LessRecentThanVersion(originalVersion, "0.9.0")
 		substituteFlowCollector = utils.LessRecentThanVersion(originalVersion, "1.3.0")
 		addPrometheusServer = utils.LessRecentThanVersion(originalVersion, "1.4.0")
-		moveClaims = utils.LessRecentThanVersion(originalVersion, "1.5.0")
+		if utils.LessRecentThanVersion(originalVersion, "1.5.0") {
+			moveClaims = !config.IsEdge()
+			updateRole = true //config-sync requires extra permission to write skupper-network-status configmap
+		}
 	} else {
 		originalVersion = site.Version
 	}
@@ -141,7 +145,8 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 				addPrometheusServer = true
 			}
 			if utils.LessRecentThanVersion(originalVersion, "1.5.0") {
-				moveClaims = true
+				moveClaims = !config.IsEdge()
+				updateRole = true //config-sync requires extra permission to write skupper-network-status configmap
 			}
 
 			err = cli.updateStarted(site.Version, namespace, configmap.ObjectMeta.OwnerReferences)
@@ -524,6 +529,11 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		}
 		kube.AppendSecretVolumeWithVolumeName(&router.Spec.Template.Spec.Volumes, &router.Spec.Template.Spec.Containers[1].VolumeMounts, types.SiteServerSecret, "claims-cert", "/etc/skupper-internal/")
 		updateRouter = true
+	} else if updateRole {
+		err = kube.UpdateRole(namespace, types.TransportRoleName, types.TransportPolicyRule, cli.KubeClient)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	if updateRouter || updateSite || hup {
