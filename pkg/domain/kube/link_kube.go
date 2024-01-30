@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"strconv"
+	"strings"
 )
 
 type LinkHandlerKube struct {
@@ -117,12 +118,16 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*network.RemoteLin
 	currentSiteId := l.site.Reference.UID
 
 	configmap, err := k8s.GetConfigMap(types.NetworkStatusConfigMapName, l.namespace, l.cli)
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), "\"skupper-network-status\" not found") {
+		return nil, fmt.Errorf("status not ready")
+	} else if err != nil {
 		return nil, err
 	}
 
 	currentStatus, err := network.UnmarshalSkupperStatus(configmap.Data)
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), "unexpected end of JSON input") {
+		return nil, fmt.Errorf("status not ready")
+	} else if err != nil {
 		return nil, err
 	}
 
