@@ -3,6 +3,7 @@ package flow
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -197,6 +198,9 @@ type FlowCollector struct {
 	connectorsToReconcile   map[string]string
 	processesToReconcile    map[string]*ProcessRecord
 	aggregatesToReconcile   map[string]*FlowPairRecord
+
+	begin           time.Time
+	networkStatusUp bool
 }
 
 func getTtl(ttl time.Duration) time.Duration {
@@ -332,7 +336,7 @@ func (c *FlowCollector) beaconUpdate(beacon BeaconRecord) {
 }
 
 func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
-	tickerFlush := time.NewTicker(1 * time.Second)
+	tickerFlush := time.NewTicker(250 * time.Millisecond)
 	defer tickerFlush.Stop()
 	tickerReconcile := time.NewTicker(2 * time.Second)
 	defer tickerReconcile.Stop()
@@ -398,7 +402,37 @@ func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
 }
 
 func (c *FlowCollector) Start(stopCh <-chan struct{}) {
+	c.begin = time.Now()
 	go c.run(stopCh)
+}
+
+// PrimeSiteBeacons "sends" the collector phony beacon records for a controller
+// and a router event source when their addresses are known in order to avoid
+// the startup time waiting for beacon records.
+func (c *FlowCollector) PrimeSiteBeacons(controllerID, routerID string) {
+	var incoming []interface{}
+	if controllerID != "" {
+		incoming = append(incoming, BeaconRecord{
+			Version:    1,
+			SourceType: "CONTROLLER",
+			Address:    fmt.Sprintf("mc/sfe.%s", controllerID),
+			Direct:     fmt.Sprintf("sfe.%s", controllerID),
+			Identity:   controllerID,
+		})
+	}
+	if routerID != "" {
+		incoming = append(incoming, BeaconRecord{
+			Version:    1,
+			SourceType: "ROUTER",
+			Address:    fmt.Sprintf("mc/sfe.%s", routerID),
+			Direct:     fmt.Sprintf("sfe.%s", routerID),
+			Identity:   routerID,
+		})
+	}
+	if len(incoming) == 0 {
+		return
+	}
+	c.beaconsIncoming <- incoming
 }
 
 func (c *FlowCollector) run(stopCh <-chan struct{}) {

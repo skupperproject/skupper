@@ -487,6 +487,8 @@ var defaultRetry = wait.Backoff{
 	Jitter:   0.1,
 }
 
+var netUpdateCt int
+
 func (fc *FlowCollector) updateNetworkStatus() error {
 	var err error
 	networkData := map[string]string{}
@@ -545,9 +547,14 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 			if err != nil {
 				return err
 			} else {
+				netUpdateCt++
 				return nil
 			}
 		})
+		if !fc.networkStatusUp && len(networkStatus.Sites) > 0 && len(networkStatus.Sites[0].RouterStatus) > 0 {
+			fc.networkStatusUp = true
+			log.Printf("COLLECTOR: First functional network status update written after %s and %d updates\n", time.Since(fc.begin), netUpdateCt)
+		}
 	}
 	return err
 }
