@@ -82,6 +82,22 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 		Userns:        userNs,
 		Idmappings:    idMappings,
 	}
+	// resource limits set like using --cpus and --memory through CLI
+	if c.Cpus > 0 || c.MemoryBytes > 0 {
+		spec.ResourceLimits = &models.LinuxResources{}
+	}
+	if c.Cpus > 0 {
+		spec.ResourceLimits.CPU = &models.LinuxCPU{
+			Quota:  int64(c.Cpus * 100000),
+			Period: 100000,
+		}
+	}
+	if c.MemoryBytes > 0 {
+		spec.ResourceLimits.Memory = &models.LinuxMemory{
+			Limit: c.MemoryBytes,
+		}
+	}
+
 	if c.Annotations != nil && c.Annotations["io.podman.annotations.label"] == "disable" {
 		spec.SelinuxOpts = append(spec.SelinuxOpts, "disable")
 	}
@@ -170,6 +186,8 @@ func (p *PodmanRestClient) ContainerUpdate(name string, fn func(newContainer *co
 		EntryPoint:    c.EntryPoint,
 		Command:       c.Command,
 		RestartPolicy: c.RestartPolicy,
+		Cpus:          c.Cpus,
+		MemoryBytes:   c.MemoryBytes,
 	}
 
 	// apply new container customization
@@ -475,6 +493,12 @@ func FromInspectContainer(c containers.ContainerInspectLibpodOKBody) *container.
 		hostConfig := c.HostConfig
 		if hostConfig.RestartPolicy != nil {
 			ct.RestartPolicy = hostConfig.RestartPolicy.Name
+		}
+		if hostConfig.CPUQuota > 0 {
+			ct.Cpus = int(hostConfig.CPUQuota / 100000)
+		}
+		if hostConfig.Memory > 0 {
+			ct.MemoryBytes = hostConfig.Memory
 		}
 	}
 

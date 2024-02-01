@@ -13,6 +13,8 @@ type SkupperComponent interface {
 	GetEnv() map[string]string
 	GetLabels() map[string]string
 	GetSiteIngresses() []SiteIngress
+	GetMemoryLimit() int64
+	GetCpus() int
 }
 
 type SkupperComponentHandler interface {
@@ -25,6 +27,8 @@ type Router struct {
 	Env           map[string]string
 	Labels        map[string]string
 	SiteIngresses []SiteIngress
+	MemoryLimit   int64
+	Cpus          int
 }
 
 func (r *Router) Name() string {
@@ -57,11 +61,21 @@ func (r *Router) GetSiteIngresses() []SiteIngress {
 	return r.SiteIngresses
 }
 
+func (r *Router) GetMemoryLimit() int64 {
+	return r.MemoryLimit
+}
+
+func (r *Router) GetCpus() int {
+	return r.Cpus
+}
+
 type FlowCollector struct {
 	Image         string
 	Env           map[string]string
 	Labels        map[string]string
 	SiteIngresses []SiteIngress
+	MemoryLimit   int64
+	Cpus          int
 }
 
 func (r *FlowCollector) Name() string {
@@ -94,11 +108,21 @@ func (r *FlowCollector) GetSiteIngresses() []SiteIngress {
 	return r.SiteIngresses
 }
 
+func (r *FlowCollector) GetMemoryLimit() int64 {
+	return r.MemoryLimit
+}
+
+func (r *FlowCollector) GetCpus() int {
+	return r.Cpus
+}
+
 type Controller struct {
 	Image         string
 	Env           map[string]string
 	Labels        map[string]string
 	SiteIngresses []SiteIngress
+	MemoryLimit   int64
+	Cpus          int
 }
 
 func (s *Controller) Name() string {
@@ -131,11 +155,21 @@ func (s *Controller) GetSiteIngresses() []SiteIngress {
 	return s.SiteIngresses
 }
 
+func (s *Controller) GetMemoryLimit() int64 {
+	return s.MemoryLimit
+}
+
+func (s *Controller) GetCpus() int {
+	return s.Cpus
+}
+
 type Prometheus struct {
 	Image         string
 	Env           map[string]string
 	Labels        map[string]string
 	SiteIngresses []SiteIngress
+	MemoryLimit   int64
+	Cpus          int
 }
 
 func (s *Prometheus) Name() string {
@@ -166,4 +200,12 @@ func (s *Prometheus) GetLabels() map[string]string {
 
 func (s *Prometheus) GetSiteIngresses() []SiteIngress {
 	return s.SiteIngresses
+}
+
+func (s *Prometheus) GetMemoryLimit() int64 {
+	return s.MemoryLimit
+}
+
+func (s *Prometheus) GetCpus() int {
+	return s.Cpus
 }

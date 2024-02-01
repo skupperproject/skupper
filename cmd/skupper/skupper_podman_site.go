@@ -72,8 +72,9 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		AuthMode:                     routerCreateOpts.AuthMode,
 		ConsoleUser:                  routerCreateOpts.User,
 		ConsolePassword:              routerCreateOpts.Password,
-		FlowCollectorRecordTtl:       routerCreateOpts.FlowCollector.FlowRecordTtl,
 		RouterOpts:                   routerCreateOpts.Router,
+		ControllerOpts:               routerCreateOpts.Controller,
+		FlowCollectorOpts:            routerCreateOpts.FlowCollector,
 		PrometheusOpts:               routerCreateOpts.PrometheusServer,
 	}
 
@@ -183,6 +184,16 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().IntVar(&s.flags.IngressBindFlowCollectorPort, "bind-port-flow-collector", int(types.FlowCollectorDefaultServicePort),
 		"ingress host binding port used for flow-collector and console")
 	cmd.Flags().DurationVar(&routerCreateOpts.FlowCollector.FlowRecordTtl, "flow-collector-record-ttl", 0, "Time after which terminated flow records are deleted, i.e. those flow records that have an end time set. Default is 30 minutes.")
+
+	// limits
+	cmd.Flags().StringVar(&routerCreateOpts.Router.CpuLimit, "router-cpu-limit", "", "CPU limit for router container (decimal)")
+	cmd.Flags().StringVar(&routerCreateOpts.Router.MemoryLimit, "router-memory-limit", "", "Memory limit for router container (bytes)")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.CpuLimit, "controller-cpu-limit", "", "CPU limit for controller container (decimal)")
+	cmd.Flags().StringVar(&routerCreateOpts.Controller.MemoryLimit, "controller-memory-limit", "", "Memory limit for controller container (bytes)")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.CpuLimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector container (decimal)")
+	cmd.Flags().StringVar(&routerCreateOpts.FlowCollector.MemoryLimit, "flow-collector-memory-limit", "", "Memory limit for flow collector container (bytes)")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.CpuLimit, "prometheus-cpu-limit", "", "CPU limit for prometheus container (decimal)")
+	cmd.Flags().StringVar(&routerCreateOpts.PrometheusServer.MemoryLimit, "prometheus-memory-limit", "", "Memory limit for prometheus container (bytes)")
 
 	cmd.Flags().DurationVar(&s.flags.Timeout, "timeout", types.DefaultTimeoutDuration, "Configurable timeout for site initialization")
 

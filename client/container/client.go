@@ -73,6 +73,8 @@ type Container struct {
 	EntryPoint    []string
 	Command       []string
 	RestartPolicy string
+	Cpus          int
+	MemoryBytes   int64
 	RestartCount  int
 	Running       bool
 	CreatedAt     time.Time

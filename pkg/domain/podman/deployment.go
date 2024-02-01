@@ -120,6 +120,8 @@ func (s *SkupperDeploymentHandler) Deploy(ctx context.Context, deployment domain
 			FileMounts:    fileMounts,
 			Ports:         ports,
 			RestartPolicy: "always",
+			MemoryBytes:   component.GetMemoryLimit(),
+			Cpus:          component.GetCpus(),
 		}
 
 		if podmanDeployment.SELinuxDisable {
