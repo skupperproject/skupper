@@ -869,9 +869,9 @@ func NewCmdVersion(skupperClient SkupperSiteClient) *cobra.Command {
 
 func NewCmdVersionManifest() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "manifest",
-		Short: "Report the version of the Skupper images by default and the value of the environment variables",
-		Args:  cobra.NoArgs,
+		Use:  "manifest",
+		Long: "Generate a JSON file containing the version of the Skupper images by default and the value of the environment variables in the current directory.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
 

@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/images"
@@ -43,6 +44,24 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 }
 
 func (manager *ManifestManager) CreateFile(m Manifest) error {
+	filename := "manifest.json"
+	if _, err := os.Stat(filename); err == nil {
+		fmt.Printf("The file %s already exists. Continuing will override it.\n", filename)
+		fmt.Print("Are you sure you want to proceed? [Y/n]")
+
+		reader := bufio.NewReader(os.Stdin)
+		userInput, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			return nil
+		}
+
+		userInput = strings.TrimRight(userInput, "\n")
+		if userInput != "" && userInput != "Y" && userInput != "y" {
+			return nil
+		}
+	}
+
 	// Encode the manifest image list as JSON.
 	manifestListJSON, err := json.MarshalIndent(m, "", "   ")
 	if err != nil {
@@ -51,7 +70,7 @@ func (manager *ManifestManager) CreateFile(m Manifest) error {
 	}
 
 	// Create a new file.
-	file, err := os.Create("manifest.json")
+	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("Error creating file: %v\n", err)
 	}
@@ -62,6 +81,7 @@ func (manager *ManifestManager) CreateFile(m Manifest) error {
 		return fmt.Errorf("Error writing to file: %v\n", err)
 	}
 
+	fmt.Printf("%s file successfully generated in the current directory.\n", filename)
 	return nil
 }
 
