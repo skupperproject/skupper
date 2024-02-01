@@ -154,6 +154,22 @@ func (m *DefinitionMonitor) runDefinitionMonitor() {
 	}
 }
 
+func (m *DefinitionMonitor) deducePortFromStatefulSet(statefulSet *appsv1.StatefulSet) (map[int]int, error) {
+	if port, ok := statefulSet.ObjectMeta.Annotations[types.PortQualifier]; ok {
+		return kube.PortLabelStrToMap(port), nil
+	} else {
+		return m.getServicePortsForStatefulSet(statefulSet)
+	}
+}
+
+func (m *DefinitionMonitor) getServicePortsForStatefulSet(statefulSet *appsv1.StatefulSet) (map[int]int, error) {
+	service, err := m.vanClient.KubeClient.CoreV1().Services(statefulSet.Namespace).Get(context.TODO(), statefulSet.Spec.ServiceName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Cannot retrieve Service %s: %s", statefulSet.Spec.ServiceName, err)
+	}
+	return kube.GetServicePortMap(service), nil
+}
+
 func deducePort(deployment *appsv1.Deployment) map[int]int {
 	if port, ok := deployment.ObjectMeta.Annotations[types.PortQualifier]; ok {
 		return kube.PortLabelStrToMap(port)
@@ -167,14 +183,6 @@ func deducePortFromDeploymentConfig(deploymentConfig *oappsv1.DeploymentConfig) 
 		return kube.PortLabelStrToMap(port)
 	} else {
 		return kube.GetContainerPortForDeploymentConfig(deploymentConfig)
-	}
-}
-
-func deducePortFromStatefulSet(statefulSet *appsv1.StatefulSet) map[int]int {
-	if port, ok := statefulSet.ObjectMeta.Annotations[types.PortQualifier]; ok {
-		return kube.PortLabelStrToMap(port)
-	} else {
-		return kube.GetContainerPortForStatefulSet(statefulSet)
 	}
 }
 
@@ -382,16 +390,13 @@ func (m *DefinitionMonitor) getServiceDefinitionFromAnnotatedStatefulSet(statefu
 	var svc types.ServiceInterface
 	if protocol, ok := statefulset.ObjectMeta.Annotations[types.ProxyQualifier]; ok {
 		port := map[int]int{}
-		if port = deducePortFromStatefulSet(statefulset); len(port) > 0 {
-			svc.Ports = []int{}
-			for p, _ := range port {
-				svc.Ports = append(svc.Ports, p)
-			}
-		} else if protocol == "http" {
-			svc.Ports = []int{80}
-		} else {
-			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated statefulset %s; cannot deduce port", statefulset.ObjectMeta.Name)
+		ports, err := m.deducePortFromStatefulSet(statefulset)
+		if err != nil {
+			event.Recordf(DefinitionMonitorIgnored, "Ignoring annotated statefulset %s; cannot deduce port: %s", statefulset.ObjectMeta.Name, err)
 			return svc, false
+		}
+		for p, _ := range ports {
+			svc.Ports = append(svc.Ports, p)
 		}
 		svc.Protocol = protocol
 		if headless, ok := statefulset.ObjectMeta.Annotations[types.HeadlessQualifier]; ok && strings.EqualFold(headless, "true") {
