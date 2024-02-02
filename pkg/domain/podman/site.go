@@ -64,6 +64,49 @@ func (s *Site) GetConsoleUrl() string {
 	return ""
 }
 
+func (s *Site) validateCreate() error {
+	validationFunctions := []func() error{
+		s.ValidateTuningOpts,
+	}
+	for _, fn := range validationFunctions {
+		if err := fn(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Site) ValidateTuningOpts() error {
+	var err error
+	cpuLimits := map[string]string{
+		"router":         s.RouterOpts.Tuning.CpuLimit,
+		"controller":     s.ControllerOpts.Tuning.CpuLimit,
+		"flow-collector": s.FlowCollectorOpts.Tuning.CpuLimit,
+		"prometheus":     s.PrometheusOpts.Tuning.CpuLimit,
+	}
+	memoryLimits := map[string]string{
+		"router":         s.RouterOpts.Tuning.MemoryLimit,
+		"controller":     s.ControllerOpts.Tuning.MemoryLimit,
+		"flow-collector": s.FlowCollectorOpts.Tuning.MemoryLimit,
+		"prometheus":     s.PrometheusOpts.Tuning.MemoryLimit,
+	}
+	for component, cpuLimit := range cpuLimits {
+		if cpuLimit != "" {
+			if _, err = strconv.Atoi(cpuLimit); err != nil {
+				return fmt.Errorf("invalid cpu limit (decimal) for %s: %s", component, cpuLimit)
+			}
+		}
+	}
+	for component, memoryLimit := range memoryLimits {
+		if memoryLimit != "" {
+			if _, err = strconv.ParseInt(memoryLimit, 10, 64); err != nil {
+				return fmt.Errorf("invalid memory limit (bytes) for %s: %s", component, memoryLimit)
+			}
+		}
+	}
+	return nil
+}
+
 type SiteHandler struct {
 	cli      *podman.PodmanRestClient
 	endpoint string
@@ -122,6 +165,10 @@ func (s *SiteHandler) prepare(ctx context.Context, site domain.Site) (domain.Sit
 	// Validating mode (only interior is allowed at this point)
 	if podmanSite.Mode == string(types.TransportModeEdge) {
 		return nil, fmt.Errorf("edge mode is not yet allowed")
+	}
+	// Podman site specific validation
+	if err := podmanSite.validateCreate(); err != nil {
+		return nil, err
 	}
 
 	// Preparing site
