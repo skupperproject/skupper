@@ -200,7 +200,10 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 						fmt.Println()
 
 						remoteLinks, err := linkHandler.RemoteLinks(ctx)
-						if err != nil {
+						if err != nil && err.Error() == "status not ready" {
+							fmt.Println("\t Remote link status pending...")
+							return nil
+						} else if err != nil {
 							return err
 						}
 

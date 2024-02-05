@@ -48,7 +48,10 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 	currentSite := siteConfig.Reference.UID
 
 	currentNetworkStatus, errStatus := s.kube.Cli.NetworkStatus(ctx)
-	if errStatus != nil {
+	if errStatus != nil && errStatus.Error() == "status not ready" {
+		fmt.Println("Status pending...")
+		return nil
+	} else if errStatus != nil {
 		return errStatus
 	}
 
