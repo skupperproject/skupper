@@ -83,18 +83,18 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 		Idmappings:    idMappings,
 	}
 	// resource limits set like using --cpus and --memory through CLI
-	if c.Cpus > 0 || c.MemoryBytes > 0 {
+	if c.MaxCpus > 0 || c.MaxMemoryBytes > 0 {
 		spec.ResourceLimits = &models.LinuxResources{}
 	}
-	if c.Cpus > 0 {
+	if c.MaxCpus > 0 {
 		spec.ResourceLimits.CPU = &models.LinuxCPU{
-			Quota:  int64(c.Cpus * 100000),
+			Quota:  int64(c.MaxCpus * 100000),
 			Period: 100000,
 		}
 	}
-	if c.MemoryBytes > 0 {
+	if c.MaxMemoryBytes > 0 {
 		spec.ResourceLimits.Memory = &models.LinuxMemory{
-			Limit: c.MemoryBytes,
+			Limit: c.MaxMemoryBytes,
 		}
 	}
 
@@ -174,20 +174,20 @@ func (p *PodmanRestClient) ContainerUpdate(name string, fn func(newContainer *co
 
 	newContainerName := fmt.Sprintf("%s-new-%s", c.Name, datetime)
 	cc := &container.Container{
-		Name:          newContainerName,
-		Image:         c.Image,
-		Env:           c.Env,
-		Labels:        c.Labels,
-		Annotations:   c.Annotations,
-		Networks:      c.Networks,
-		Mounts:        c.Mounts,
-		FileMounts:    c.FileMounts,
-		Ports:         c.Ports,
-		EntryPoint:    c.EntryPoint,
-		Command:       c.Command,
-		RestartPolicy: c.RestartPolicy,
-		Cpus:          c.Cpus,
-		MemoryBytes:   c.MemoryBytes,
+		Name:           newContainerName,
+		Image:          c.Image,
+		Env:            c.Env,
+		Labels:         c.Labels,
+		Annotations:    c.Annotations,
+		Networks:       c.Networks,
+		Mounts:         c.Mounts,
+		FileMounts:     c.FileMounts,
+		Ports:          c.Ports,
+		EntryPoint:     c.EntryPoint,
+		Command:        c.Command,
+		RestartPolicy:  c.RestartPolicy,
+		MaxCpus:        c.MaxCpus,
+		MaxMemoryBytes: c.MaxMemoryBytes,
 	}
 
 	// apply new container customization
@@ -495,10 +495,10 @@ func FromInspectContainer(c containers.ContainerInspectLibpodOKBody) *container.
 			ct.RestartPolicy = hostConfig.RestartPolicy.Name
 		}
 		if hostConfig.CPUQuota > 0 {
-			ct.Cpus = int(hostConfig.CPUQuota / 100000)
+			ct.MaxCpus = int(hostConfig.CPUQuota / 100000)
 		}
 		if hostConfig.Memory > 0 {
-			ct.MemoryBytes = hostConfig.Memory
+			ct.MaxMemoryBytes = hostConfig.Memory
 		}
 	}
 

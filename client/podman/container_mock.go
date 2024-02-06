@@ -284,11 +284,11 @@ func (r *RestClientMock) HandleContainerInspect(operation *runtime.ClientOperati
 			StartedAt:  strfmt.DateTime(c.StartedAt),
 		},
 	}
-	if c.Cpus > 0 || c.MemoryBytes > 0 {
+	if c.MaxCpus > 0 || c.MaxMemoryBytes > 0 {
 		res.Payload.HostConfig = &models.InspectContainerHostConfig{
-			CPUQuota:  int64(c.Cpus * 100000),
+			CPUQuota:  int64(c.MaxCpus * 100000),
 			CPUPeriod: 100000,
-			Memory:    c.MemoryBytes,
+			Memory:    c.MaxMemoryBytes,
 		}
 	}
 	return res, nil
@@ -368,10 +368,10 @@ func (r *RestClientMock) HandleContainerCreate(operation *runtime.ClientOperatio
 	}
 	if spec.ResourceLimits != nil {
 		if spec.ResourceLimits.CPU != nil {
-			c.Cpus = int(spec.ResourceLimits.CPU.Quota / 100000)
+			c.MaxCpus = int(spec.ResourceLimits.CPU.Quota / 100000)
 		}
 		if spec.ResourceLimits.Memory != nil {
-			c.MemoryBytes = spec.ResourceLimits.Memory.Limit
+			c.MaxMemoryBytes = spec.ResourceLimits.Memory.Limit
 		}
 	}
 	r.Containers = append(r.Containers, c)
