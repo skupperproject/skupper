@@ -1,4 +1,4 @@
-//go:build (podman && cli) || (podman && examples) || (podman && integration)
+//go:build (podman && cli) || (podman && integration)
 
 package helloworld
 

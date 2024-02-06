@@ -1,5 +1,5 @@
-//go:build examples || cli || gateway || acceptance || smoke
-// +build examples cli gateway acceptance smoke
+//go:build integration || examples || cli || gateway || acceptance || smoke
+// +build integration examples cli gateway acceptance smoke
 
 package examples
 
