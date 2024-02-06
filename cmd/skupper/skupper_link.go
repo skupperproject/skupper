@@ -119,7 +119,8 @@ func NewCmdLinkStatus(skupperClient SkupperLinkClient) *cobra.Command {
 
 			linkHandler := skupperClient.LinkHandler()
 			if linkHandler == nil {
-				return fmt.Errorf("unable to retrieve links")
+				fmt.Println("Unable to retrieve links")
+				return nil
 			}
 
 			if verboseLinkStatus && (len(args) == 0 || args[0] == "all") {

@@ -33,7 +33,7 @@ func (s *SkupperKubeNetwork) Status(cmd *cobra.Command, args []string) error {
 
 	siteConfig, err := s.kube.Cli.SiteConfigInspect(ctx, nil)
 	if err != nil || siteConfig == nil {
-		fmt.Printf("The site configuration is not available: %s", err)
+		fmt.Printf("Skupper is not enabled in namespace: %s", s.kube.Cli.GetNamespace())
 		fmt.Println()
 		return nil
 	}

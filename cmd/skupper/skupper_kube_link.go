@@ -118,6 +118,7 @@ func (s *SkupperKubeLink) LinkHandler() domain.LinkHandler {
 	cli := s.kube.Cli.(*client.VanClient)
 	cm, err := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), types.TransportConfigMapName, v1.GetOptions{})
 	if err != nil {
+		fmt.Printf("Skupper is not enabled in namespace %s \n", s.kube.Cli.GetNamespace())
 		return nil
 	}
 	router, err := qdr.GetRouterConfigFromConfigMap(cm)

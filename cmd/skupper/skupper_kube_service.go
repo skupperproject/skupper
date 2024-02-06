@@ -62,7 +62,10 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	currentNetworkStatus, err := cli.NetworkStatus(context.Background())
-	if err != nil && err.Error() == "status not ready" {
+	if err != nil && strings.Contains(err.Error(), "Skupper is not installed") {
+		fmt.Printf("Skupper is not enabled in namespace: %s \n", cli.GetNamespace())
+		return nil
+	} else if err != nil && err.Error() == "status not ready" {
 		fmt.Println("Status pending...")
 		return nil
 	} else if err != nil {
