@@ -276,6 +276,58 @@ commands:
       - store_test_results:
           path: /tmp/policy-results
 
+  run_examples_cluster_tests:
+    description: run the e2e examples tests inside the current KUBECONFIG configured cluster
+    parameters:
+      args:
+        default: ""
+        type: string
+    steps:
+      - system_status # before the tests
+      - run:
+          name: Creating artifacts directory
+          command: mkdir /tmp/artifacts
+      - run:
+          name: Creating results directory
+          command: mkdir /tmp/results
+      - run:
+          name: Run Integration Tests
+          no_output_timeout: 60m
+          command: |
+            make build-cmd && sudo install skupper /usr/local/bin
+            export PUBLIC_1_INGRESS_HOST=`minikube ip`
+            export SKUPPER_TEST_CLI_MAX_STATUS_ATTEMPTS=20
+            go test -tags=examples -timeout=60m -v ./test/integration/... | tee /tmp/results/test-integration.out
+      - run:
+          name: Run client tests in real cluster
+          command: |
+            go test -v -count=1 -timeout=20m ./client -use-cluster | tee /tmp/results/test-client.out
+      - run:
+          name: Run skupper cli tests in real cluster
+          command: |
+            go test -v -count=1 ./cmd/skupper -use-cluster | tee /tmp/results/test-cmd-skupper.out
+      - run:
+          name: Run site-controller tests in real cluster
+          command: |
+            go test -v -count=1 ./cmd/site-controller -use-cluster | tee /tmp/results/test-cmd-site-controller.out
+      - system_status
+      - run:
+          name: Archiving test artifacts
+          command: |
+            find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/artifacts -xv
+          when: always
+      - run:
+          name: Generate junit reports
+          command: |
+            (cd /tmp/results && for f in *.out; do [[ -f $f ]] && cat $f | ~/go/bin/go-junit-report > ${f/.out/.xml}; done)
+          when: always
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: test-artifacts
+      - store_test_results:
+          path: /tmp/results
+
+
   compile_go_program:
     description: Compile specified platform.
     parameters:
@@ -442,6 +494,34 @@ workflows:
           <<: *release_requires
           context:
             - skupper-org
+  nightly-workflow:
+    triggers:
+      - schedule:
+          cron: "0 5 * * *"
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - build-all
+      - test-skupper-binary:
+          matrix:
+            parameters:
+              image:
+                - quay.io/centos/centos:stream8
+                - quay.io/centos/centos:stream9
+                - quay.io/fedora/fedora:38
+                - quay.io/fedora/fedora:39
+          requires:
+            - build-all
+      - test
+      - build_and_save_test_images
+      - main_example_tests_minikube_local_cluster:
+          pre-steps:
+            - prepare_for_local_cluster_tests
+          requires:
+            - test
+            - build_and_save_test_images
 
 jobs:
   test:
@@ -699,3 +779,18 @@ jobs:
             done
             cd ${BASEDIR}
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
+
+    main_example_tests_minikube_local_cluster:
+      executor: local_cluster_test_executor
+      steps:
+        - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
+        - local_registry_start
+        - minikube-install
+        - minikube-start-large
+        - minikube-start-load-balancer
+        - podman-latest
+        - go-junit
+        - minikube-logs
+        - system_monitor
+        - run: kubectl cluster-info
+        - run_examples_cluster_tests
