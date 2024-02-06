@@ -780,17 +780,19 @@ jobs:
             cd ${BASEDIR}
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
 
-    main_example_tests_minikube_local_cluster:
-      executor: local_cluster_test_executor
-      steps:
-        - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
-        - local_registry_start
-        - minikube-install
-        - minikube-start-large
-        - minikube-start-load-balancer
-        - podman-latest
-        - go-junit
-        - minikube-logs
-        - system_monitor
-        - run: kubectl cluster-info
-        - run_examples_cluster_tests
+
+
+  main_example_tests_minikube_local_cluster:
+    executor: local_cluster_test_executor
+    steps:
+      - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
+      - local_registry_start
+      - minikube-install
+      - minikube-start-large
+      - minikube-start-load-balancer
+      - podman-latest
+      - go-junit
+      - minikube-logs
+      - system_monitor
+      - run: kubectl cluster-info
+      - run_examples_cluster_tests
