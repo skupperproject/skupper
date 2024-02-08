@@ -1,4 +1,4 @@
-package update
+package podman
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	clientpodman "github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/domain"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -44,7 +43,7 @@ func (v *VersionUpdateTask) Priority() domain.UpdatePriority {
 
 func (v *VersionUpdateTask) Run(context.Context) *domain.UpdateResult {
 	var res = &domain.UpdateResult{}
-	ch := podman.NewRouterConfigHandlerPodman(v.cli)
+	ch := NewRouterConfigHandlerPodman(v.cli)
 	cfg, err := ch.GetRouterConfig()
 	if err != nil {
 		res.AddErrors(fmt.Errorf("error retrieving router config: %s", err))
@@ -92,7 +91,7 @@ func (u *ContainerImagesTask) Priority() domain.UpdatePriority {
 
 func (u *ContainerImagesTask) Run(ctx context.Context) *domain.UpdateResult {
 	var result = &domain.UpdateResult{}
-	sh := podman.NewSitePodmanHandlerFromCli(u.cli)
+	sh := NewSitePodmanHandlerFromCli(u.cli)
 	site, err := sh.Get()
 	if err != nil {
 		result.AddErrors(fmt.Errorf("error retrieving site info: %s", err))
@@ -137,14 +136,14 @@ func (u *ContainerImagesTask) Run(ctx context.Context) *domain.UpdateResult {
 
 func (u *ContainerImagesTask) updateServiceContainers(ctx context.Context) domain.UpdateResult {
 	var result domain.UpdateResult
-	sh := podman.NewServiceHandlerPodman(u.cli)
+	sh := NewServiceHandlerPodman(u.cli)
 	services, err := sh.List()
 	if err != nil {
 		result.AddErrors(fmt.Errorf("error listing services: %s", err))
 		return result
 	}
 	for _, svc := range services {
-		svcPodman := svc.(*podman.Service)
+		svcPodman := svc.(*Service)
 		c, err := u.cli.ContainerInspect(svcPodman.ContainerName)
 		if err != nil {
 			result.AddErrors(fmt.Errorf("error retrieving container info for %s: %s",

@@ -1,0 +1,95 @@
+{
+  "addresses": [
+    {
+      "recType": "ADDRESS",
+      "identity": "e0550f85-2be2-4fa0-8d21-dd8b515e6ffc",
+      "startTime": 1706186809048594,
+      "endTime": 0,
+      "name": "myservice:8080",
+      "protocol": "tcp",
+      "listenerCount": 1,
+      "connectorCount": 0
+    }
+  ],
+  "siteStatus": [
+    {
+      "site": {
+        "recType": "SITE",
+        "identity": "34fadf03-4487-4b37-a5c3-f6b10f03cfa6",
+        "startTime": 1706182347533977,
+        "endTime": 0,
+        "source": "34fadf03-4487-4b37-a5c3-f6b10f03cfa6",
+        "platform": "podman",
+        "name": "fedora-fgiorget-ced97",
+        "nameSpace": "",
+        "siteVersion": "main-release-33-g4e9bae44-modified",
+        "policy": "disabled"
+      },
+      "routerStatus": [
+        {
+          "router": {
+            "recType": "ROUTER",
+            "identity": "_1l4m:0",
+            "parent": "34fadf03-4487-4b37-a5c3-f6b10f03cfa6",
+            "startTime": 1706182347169844,
+            "endTime": 0,
+            "source": "_1l4m:0",
+            "name": "0/fedora-fgiorget-ced97",
+            "imageName": "skupper-router",
+            "imageVersion": "latest",
+            "hostname": "00981d1a0cda",
+            "buildVersion": "2.5.1"
+          },
+          "links": null,
+          "listeners": null,
+          "connectors": null
+        },
+        {
+          "router": {
+            "recType": "ROUTER",
+            "identity": "ftkAX:0",
+            "parent": "34fadf03-4487-4b37-a5c3-f6b10f03cfa6",
+            "startTime": 1706186809032483,
+            "endTime": 0,
+            "source": "ftkAX:0",
+            "name": "0/fedora-fgiorget-ced97-myservice",
+            "imageName": "34fadf03-4487-4b37-a5c3-f6b10f03cfa6",
+            "imageVersion": "latest",
+            "hostname": "e6f1c83a9019",
+            "buildVersion": "2.5.1"
+          },
+          "links": [
+            {
+              "recType": "LINK",
+              "identity": "ftkAX:2",
+              "parent": "ftkAX:0",
+              "startTime": 1706186809069316,
+              "endTime": 0,
+              "source": "ftkAX:0",
+              "mode": "edge",
+              "name": "fedora-fgiorget-ced97",
+              "direction": "outgoing"
+            }
+          ],
+          "listeners": [
+            {
+              "recType": "LISTENER",
+              "identity": "ftkAX:1",
+              "parent": "ftkAX:0",
+              "startTime": 1706186809048594,
+              "endTime": 0,
+              "source": "ftkAX:0",
+              "name": "myservice:8080",
+              "destHost": "0.0.0.0",
+              "destPort": "8080",
+              "protocol": "tcp",
+              "address": "myservice:8080",
+              "addressId": "e0550f85-2be2-4fa0-8d21-dd8b515e6ffc"
+            }
+          ],
+          "connectors": null
+        }
+      ]
+    }
+  ]
+}
