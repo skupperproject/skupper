@@ -136,6 +136,24 @@ func (s *SkupperPodmanSite) Create(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Error initializing Skupper - %w", err)
 	}
 
+	err = utils.NewSpinner("Waiting for status...", 50, func() error {
+		networkStatusHandler := new(podman.NetworkStatusHandler).WithClient(s.podman.cli)
+		if networkStatusHandler != nil {
+			statusInfo, statusError := networkStatusHandler.Get()
+			if statusError != nil {
+				return statusError
+			} else if statusInfo == nil || len(statusInfo.SiteStatus) == 0 || len(statusInfo.SiteStatus[0].RouterStatus) == 0 {
+				return fmt.Errorf("network status not loaded yet")
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println("Skupper status is not loaded yet.")
+	}
+
 	fmt.Println("Skupper is now installed for user '" + podman.Username + "'.  Use 'skupper status' to get more information.")
 	return nil
 }
