@@ -439,7 +439,12 @@ func TestRouterCreateDefaults(t *testing.T) {
 				c.cmsExpected = append(c.cmsExpected, cm)
 			}
 		}
-		if diff := cmp.Diff(c.depsExpected, depsFound, c.opts...); diff != "" {
+		var diff string
+		_ = utils.Retry(time.Second, 10, func() (bool, error) {
+			diff = cmp.Diff(c.depsExpected, depsFound, c.opts...)
+			return diff == "", nil
+		})
+		if diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" deployments mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.cmsExpected, cmsFound, c.opts...); diff != "" {
