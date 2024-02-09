@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/network"
 	"net"
 	"os"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	podman "github.com/skupperproject/skupper/pkg/domain/podman"
-	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -234,13 +234,33 @@ func (s *SkupperPodmanSite) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanSite) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
-	site := s.podman.currentSite
-	routerMgr := podman.NewRouterEntityManagerPodman(s.podman.cli)
-	routers, err := routerMgr.QueryAllRouters()
-	if err != nil {
-		return fmt.Errorf("error verifying network - %w", err)
+	silenceCobra(cmd)
+
+	siteHandler, err := podman.NewSitePodmanHandler("")
+
+	podmanSiteVersion := s.podman.currentSite.Version
+	if podmanSiteVersion != "" && !utils.IsValidFor(podmanSiteVersion, network.MINIMUM_PODMAN_VERSION) {
+		fmt.Printf(network.MINIMUM_VERSION_MESSAGE, podmanSiteVersion, network.MINIMUM_PODMAN_VERSION)
+		fmt.Println()
+		return nil
 	}
-	connectedSites := qdr.ConnectedSitesInfo(site.GetId(), routers)
+
+	currentStatus, errStatus := siteHandler.NetworkStatusHandler().Get()
+	if errStatus != nil && strings.HasPrefix(errStatus.Error(), "Skupper is not installed") {
+		fmt.Printf("Skupper is not enabled\n")
+		return nil
+	} else if errStatus != nil && errStatus.Error() == "status not ready" {
+		fmt.Println("Status pending...")
+		return nil
+	} else if errStatus != nil {
+		return errStatus
+	}
+
+	statusManager := network.SkupperStatus{
+		NetworkStatus: currentStatus,
+	}
+
+	site := s.podman.currentSite
 
 	// Preparing output
 	statusOutput := StatusData{}
@@ -252,26 +272,24 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	statusOutput.mode = site.GetMode()
 	statusOutput.enabledIn = PlatformSupport{"podman", podman.Username}
 
-	if len(connectedSites.Warnings) > 0 {
-		var warnings []string
-		for _, w := range connectedSites.Warnings {
-			warnings = append(warnings, w)
-		}
+	var currentSite = statusManager.GetSiteById(site.Id)
 
-		statusOutput.warnings = warnings
-	}
-
-	statusOutput.totalConnections = connectedSites.Total
-	statusOutput.directConnections = connectedSites.Direct
-	statusOutput.indirectConnections = connectedSites.Indirect
-
-	svcIfaceHandler := podman.NewServiceInterfaceHandlerPodman(s.podman.cli)
-	list, err := svcIfaceHandler.List()
+	err, index := statusManager.GetRouterIndex(currentSite)
 	if err != nil {
-		return fmt.Errorf("error retrieving service list - %w", err)
+		return err
 	}
 
-	statusOutput.exposedServices = len(list)
+	mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&currentSite.RouterStatus[index], &currentSite.Site)
+
+	totalSites := len(currentStatus.SiteStatus)
+	// the current site does not count as a connection
+	connections := totalSites - 1
+	directConnections := len(mapSiteLink)
+	statusOutput.totalConnections = connections
+	statusOutput.directConnections = directConnections
+	statusOutput.indirectConnections = connections - directConnections
+
+	statusOutput.exposedServices = len(currentStatus.Addresses)
 
 	if site.EnableFlowCollector {
 		statusOutput.consoleUrl = site.GetConsoleUrl()

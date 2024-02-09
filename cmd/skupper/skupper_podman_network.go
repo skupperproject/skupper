@@ -27,7 +27,7 @@ func (s *SkupperPodmanNetwork) GetCurrentSite(ctx context.Context) (string, erro
 func (s *SkupperPodmanNetwork) Status(cmd *cobra.Command, args []string, ctx context.Context) (*network.NetworkStatusInfo, error) {
 	podmanSiteVersion := s.podman.currentSite.Version
 	if podmanSiteVersion != "" && !utils.IsValidFor(podmanSiteVersion, network.MINIMUM_PODMAN_VERSION) {
-		return nil, fmt.Errorf(network.MINIMUM_VERSION_MESSAGE, podmanSiteVersion, network.MINIMUM_VERSION)
+		return nil, fmt.Errorf(network.MINIMUM_VERSION_MESSAGE, podmanSiteVersion, network.MINIMUM_PODMAN_VERSION)
 	}
 
 	return s.NetworkStatusHandler().Get()

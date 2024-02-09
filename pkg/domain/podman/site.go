@@ -64,9 +64,10 @@ func (s *Site) GetConsoleUrl() string {
 }
 
 type SiteHandler struct {
-	cli      *podman.PodmanRestClient
-	endpoint string
-	up       *domain.UpdateProcessor
+	cli                  *podman.PodmanRestClient
+	endpoint             string
+	up                   *domain.UpdateProcessor
+	networkStatusHandler *NetworkStatusHandler
 }
 
 func NewSitePodmanHandlerFromCli(cli *podman.PodmanRestClient) *SiteHandler {
@@ -98,6 +99,17 @@ func NewSitePodmanHandler(endpoint string) (*SiteHandler, error) {
 		cli:      c,
 		endpoint: endpoint,
 	}, nil
+}
+
+func (s *SiteHandler) NetworkStatusHandler() *NetworkStatusHandler {
+	if s.networkStatusHandler != nil {
+		return s.networkStatusHandler
+	}
+	if s.cli == nil {
+		return nil
+	}
+	s.networkStatusHandler = new(NetworkStatusHandler).WithClient(s.cli)
+	return s.networkStatusHandler
 }
 
 func (s *SiteHandler) prepare(ctx context.Context, site domain.Site) (domain.Site, error) {
