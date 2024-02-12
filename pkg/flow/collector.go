@@ -113,7 +113,7 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 		activeReconcile: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "active_reconciles",
-				Help: "Number of active reconcile tasks, partitione by type",
+				Help: "Number of active reconcile tasks, partitioned by type",
 			},
 			[]string{"reconcileTask"}),
 		apiQueryLatency: prometheus.NewHistogramVec(
