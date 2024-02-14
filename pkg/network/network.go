@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"strings"
 )
 
@@ -177,4 +178,63 @@ func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
 	}
 
 	return false
+}
+
+func PrintServiceStatus(currentNetworkStatus *NetworkStatusInfo, mapServiceLabels map[string]map[string]string, verboseServiceStatus bool, showLabels bool) error {
+	statusManager := SkupperStatus{
+		NetworkStatus: currentNetworkStatus,
+	}
+
+	mapServiceSites := statusManager.GetServiceSitesMap()
+	mapSiteTarget := statusManager.GetSiteTargetMap()
+
+	if len(currentNetworkStatus.Addresses) == 0 {
+		fmt.Println("No services defined")
+	} else {
+		l := formatter.NewList()
+		l.Item("Services exposed through Skupper:")
+
+		for _, si := range currentNetworkStatus.Addresses {
+			svc := l.NewChild(fmt.Sprintf("%s (%s)", si.Name, si.Protocol))
+
+			if verboseServiceStatus {
+				sites := svc.NewChild("Sites:")
+
+				if mapServiceSites[si.Name] != nil {
+					for _, site := range mapServiceSites[si.Name] {
+						item := site.Site.Identity + "(" + site.Site.Namespace + ")\n"
+						policy := "-"
+						if len(site.Site.Policy) > 0 {
+							policy = site.Site.Policy
+						}
+						theSite := sites.NewChildWithDetail(item, map[string]string{"policy": policy})
+
+						if si.ConnectorCount > 0 {
+							t := mapSiteTarget[site.Site.Identity][si.Name]
+
+							if len(t.Address) > 0 {
+								targets := theSite.NewChild("Targets:")
+								var name string
+								if t.Target != "" {
+									name = fmt.Sprintf("name=%s", t.Target)
+								}
+								targetInfo := fmt.Sprintf("%s %s", t.Address, name)
+								targets.NewChild(targetInfo)
+							}
+						}
+					}
+				}
+			}
+
+			if showLabels && len(mapServiceLabels[si.Name]) > 0 {
+				labels := svc.NewChild("Labels:")
+				for k, v := range mapServiceLabels[si.Name] {
+					labels.NewChild(fmt.Sprintf("%s=%s", k, v))
+				}
+			}
+		}
+		l.Print()
+	}
+
+	return nil
 }
