@@ -166,8 +166,9 @@ func PrintableRouter(router RouterStatusInfo, siteName string) bool {
 
 	isARegularSite := len(routerId) > 1 && strings.HasPrefix(routerId[1], siteName)
 	isAGateway := len(routerId) > 1 && strings.HasPrefix(routerId[1], "skupper-gateway")
+	isNotAnAdditionalPodmanRouter := router.Router.ImageName == "skupper-router"
 
-	return isARegularSite || isAGateway
+	return (isARegularSite || isAGateway) && isNotAnAdditionalPodmanRouter
 }
 
 func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
