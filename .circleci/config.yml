@@ -466,6 +466,7 @@ jobs:
           command: mkdir /tmp/artifacts
       - go/test:
           coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
+          verbose: true
           coverprofile: "/tmp/artifacts/cover.out"
       - run:
           name: Generating HTML coverage report
@@ -479,6 +480,7 @@ jobs:
     steps:
       - docker/install-docker
       - checkout
+      - run: docker buildx create --use --name skupper-buildx
       - run: make -e docker-build
       - run:
           name: persisting images to workspace
@@ -548,6 +550,12 @@ jobs:
           goos: linux
           goarch: arm64
           platform: linux-arm64
+
+      - compile_go_program:
+          goos: linux
+          goarch: s390x
+          platform: linux-s390x
+
       - persist_to_workspace:
           root: .
           paths:
@@ -654,6 +662,7 @@ jobs:
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
+            docker buildx create --use --name skupper-buildx
             make -e docker-build
             make -e docker-push
 
@@ -674,6 +683,7 @@ jobs:
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:main' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:main' >> $BASH_ENV
             source $BASH_ENV
+            docker buildx create --use --name skupper-buildx
             make -e docker-build
             make -e docker-push
 
