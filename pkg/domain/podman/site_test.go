@@ -6,6 +6,7 @@ package podman
 import (
 	"context"
 	_ "embed"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -204,6 +205,110 @@ func TestSiteHandlerDeleteBrokenSite(t *testing.T) {
 	containersAfterDelete, volumesAfterDelete := countContainersAndVolumes()
 	assert.Equal(t, containersBefore, containersAfterDelete)
 	assert.Equal(t, volumesBefore, volumesAfterDelete)
+}
+
+func TestSiteHandlerCreateSiteMock(t *testing.T) {
+	var err error
+	cli := podman.NewPodmanClientMock([]*container.Container{})
+	mock := cli.RestClient.(*podman.RestClientMock)
+	sh := NewSitePodmanHandlerFromCli(cli)
+
+	// clean up mock volumes (created as temporary directories)
+	defer func() {
+		for volumeName, volume := range mock.Volumes {
+			if strings.HasPrefix(volume.Source, os.TempDir()+"/") {
+				t.Logf("removing tempdir used by mock volume %s: %s", volumeName, volume.Source)
+				_ = os.RemoveAll(volume.Source)
+			}
+		}
+	}()
+
+	// Initializing skupper
+	site := &Site{
+		SiteCommon: &domain.SiteCommon{
+			Name: "mock-site",
+		},
+		IngressHosts:        []string{"127.0.0.1"},
+		EnableFlowCollector: true,
+		EnableConsole:       true,
+		AuthMode:            "internal",
+		ConsoleUser:         "internal",
+		ConsolePassword:     "internal",
+		RouterOpts: types.RouterOptions{
+			Tuning: types.Tuning{
+				CpuLimit:    "4",
+				MemoryLimit: "4096",
+			},
+		},
+		ControllerOpts: types.ControllerOptions{
+			Tuning: types.Tuning{
+				CpuLimit:    "3",
+				MemoryLimit: "3072",
+			},
+		},
+		FlowCollectorOpts: types.FlowCollectorOptions{
+			Tuning: types.Tuning{
+				CpuLimit:    "2",
+				MemoryLimit: "2048",
+			},
+		},
+		PrometheusOpts: types.PrometheusServerOptions{
+			Tuning: types.Tuning{
+				CpuLimit:    "1",
+				MemoryLimit: "1024",
+			},
+			ExternalServer: "http://10.0.0.1:8080/v1",
+			AuthMode:       "internal",
+			User:           "admin",
+			Password:       "admin",
+		},
+	}
+	err = sh.Create(context.Background(), site)
+	assert.Assert(t, err)
+
+	// validating mocked site creation
+	siteCreated, err := sh.Get()
+	assert.Assert(t, err)
+
+	site = siteCreated.(*Site)
+	assert.Equal(t, "mock-site", site.GetName())
+	assert.Equal(t, "127.0.0.1", site.IngressHosts[1])
+	assert.Equal(t, true, site.EnableFlowCollector)
+	assert.Equal(t, true, site.EnableConsole)
+	assert.Equal(t, "internal", site.AuthMode)
+	assert.Equal(t, "internal", site.ConsoleUser)
+	assert.Equal(t, "internal", site.ConsolePassword)
+	assert.DeepEqual(t, types.RouterOptions{
+		Tuning: types.Tuning{
+			CpuLimit:    "4",
+			MemoryLimit: "4096",
+		},
+		MaxFrameSize:     16384,
+		MaxSessionFrames: 640,
+	}, site.RouterOpts)
+	assert.DeepEqual(t, types.ControllerOptions{
+		Tuning: types.Tuning{
+			CpuLimit:    "3",
+			MemoryLimit: "3072",
+		},
+	}, site.ControllerOpts)
+	assert.DeepEqual(t, types.FlowCollectorOptions{
+		Tuning: types.Tuning{
+			CpuLimit:    "2",
+			MemoryLimit: "2048",
+		},
+	}, site.FlowCollectorOpts)
+	assert.DeepEqual(t, types.PrometheusServerOptions{
+		Tuning: types.Tuning{
+			CpuLimit:    "1",
+			MemoryLimit: "1024",
+		},
+		ExternalServer: "http://10.0.0.1:8080/v1",
+		AuthMode:       "internal",
+		User:           "admin",
+		Password:       "admin",
+		PodAnnotations: map[string]string{},
+	}, site.PrometheusOpts)
 }
 
 func TestSiteHandlerDeleteBrokenSiteMock(t *testing.T) {

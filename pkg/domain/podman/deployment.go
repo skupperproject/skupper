@@ -111,15 +111,17 @@ func (s *SkupperDeploymentHandler) Deploy(ctx context.Context, deployment domain
 		labels := component.GetLabels()
 		labels[types.ComponentAnnotation] = deployment.GetName()
 		c := &container.Container{
-			Name:          component.Name(),
-			Image:         component.GetImage(),
-			Env:           component.GetEnv(),
-			Labels:        labels,
-			Networks:      networkMap,
-			Mounts:        mounts,
-			FileMounts:    fileMounts,
-			Ports:         ports,
-			RestartPolicy: "always",
+			Name:           component.Name(),
+			Image:          component.GetImage(),
+			Env:            component.GetEnv(),
+			Labels:         labels,
+			Networks:       networkMap,
+			Mounts:         mounts,
+			FileMounts:     fileMounts,
+			Ports:          ports,
+			RestartPolicy:  "always",
+			MaxMemoryBytes: component.GetMemoryLimit(),
+			MaxCpus:        component.GetCpus(),
 		}
 
 		if podmanDeployment.SELinuxDisable {

@@ -33,6 +33,9 @@ func ToNetworkInfoList(networks []*models.Network) []*container.Network {
 func ToNetworkInfo(network *models.Network) *container.Network {
 	var ss []*container.Subnet
 
+	if network.Subnets == nil {
+		network.Subnets = []*models.Subnet{}
+	}
 	for _, s := range network.Subnets {
 		ss = append(ss, &container.Subnet{
 			Subnet:  s.Subnet,

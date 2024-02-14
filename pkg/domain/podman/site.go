@@ -38,9 +38,10 @@ type Site struct {
 	AuthMode                     string
 	ConsoleUser                  string
 	ConsolePassword              string
-	FlowCollectorRecordTtl       time.Duration
 	RouterOpts                   types.RouterOptions
 	PrometheusOpts               types.PrometheusServerOptions
+	ControllerOpts               types.ControllerOptions
+	FlowCollectorOpts            types.FlowCollectorOptions
 }
 
 func (s *Site) GetPlatform() string {
@@ -61,6 +62,49 @@ func (s *Site) GetConsoleUrl() string {
 		return fmt.Sprintf("https://%s:%d", ipAddr, port)
 	}
 	return ""
+}
+
+func (s *Site) validateCreate() error {
+	validationFunctions := []func() error{
+		s.ValidateTuningOpts,
+	}
+	for _, fn := range validationFunctions {
+		if err := fn(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Site) ValidateTuningOpts() error {
+	var err error
+	cpuLimits := map[string]string{
+		"router":         s.RouterOpts.Tuning.CpuLimit,
+		"controller":     s.ControllerOpts.Tuning.CpuLimit,
+		"flow-collector": s.FlowCollectorOpts.Tuning.CpuLimit,
+		"prometheus":     s.PrometheusOpts.Tuning.CpuLimit,
+	}
+	memoryLimits := map[string]string{
+		"router":         s.RouterOpts.Tuning.MemoryLimit,
+		"controller":     s.ControllerOpts.Tuning.MemoryLimit,
+		"flow-collector": s.FlowCollectorOpts.Tuning.MemoryLimit,
+		"prometheus":     s.PrometheusOpts.Tuning.MemoryLimit,
+	}
+	for component, cpuLimit := range cpuLimits {
+		if cpuLimit != "" {
+			if _, err = strconv.Atoi(cpuLimit); err != nil {
+				return fmt.Errorf("invalid cpu limit (decimal) for %s: %s", component, cpuLimit)
+			}
+		}
+	}
+	for component, memoryLimit := range memoryLimits {
+		if memoryLimit != "" {
+			if _, err = strconv.ParseInt(memoryLimit, 10, 64); err != nil {
+				return fmt.Errorf("invalid memory limit (bytes) for %s: %s", component, memoryLimit)
+			}
+		}
+	}
+	return nil
 }
 
 type SiteHandler struct {
@@ -122,6 +166,10 @@ func (s *SiteHandler) prepare(ctx context.Context, site domain.Site) (domain.Sit
 	if podmanSite.Mode == string(types.TransportModeEdge) {
 		return nil, fmt.Errorf("edge mode is not yet allowed")
 	}
+	// Podman site specific validation
+	if err := podmanSite.validateCreate(); err != nil {
+		return nil, err
+	}
 
 	// Preparing site
 	domain.ConfigureSiteCredentials(podmanSite, podmanSite.IngressHosts...)
@@ -153,6 +201,8 @@ func (s *SiteHandler) prepareRouterDeployment(site *Site) *SkupperDeployment {
 	if !site.IsEdge() {
 		volumeMounts[types.SiteServerSecret] = "/etc/skupper-router-certs/skupper-internal/"
 	}
+	memoryLimit, _ := strconv.ParseInt(site.RouterOpts.MemoryLimit, 10, 64)
+	cpus, _ := strconv.Atoi(site.RouterOpts.CpuLimit)
 	routerComponent := &domain.Router{
 		// TODO ADD Labels
 		Labels: map[string]string{},
@@ -162,6 +212,8 @@ func (s *SiteHandler) prepareRouterDeployment(site *Site) *SkupperDeployment {
 			"QDROUTERD_CONF_TYPE": "json",
 			"SKUPPER_SITE_ID":     site.Id,
 		},
+		MemoryLimit: memoryLimit,
+		Cpus:        cpus,
 	}
 	routerDepl := &SkupperDeployment{
 		Name: types.TransportDeploymentName,
@@ -543,6 +595,8 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				routerFound = true
 				c.GetSiteIngresses()
 				site.RouterOpts.Logging = qdr.GetRouterLogging(routerConfig)
+				site.RouterOpts.MemoryLimit = strconv.FormatInt(c.MemoryLimit, 10)
+				site.RouterOpts.CpuLimit = strconv.Itoa(c.Cpus)
 			case *domain.FlowCollector:
 				enableConsole, _ := strconv.ParseBool(c.Env["ENABLE_CONSOLE"])
 				consoleUsers, _ := c.Env["FLOW_USERS"]
@@ -553,7 +607,9 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				}
 				site.EnableConsole = enableConsole
 				site.EnableFlowCollector = true
-				site.FlowCollectorRecordTtl, _ = time.ParseDuration(c.Env["FLOW_RECORD_TTL"])
+				site.FlowCollectorOpts.FlowRecordTtl, _ = time.ParseDuration(c.Env["FLOW_RECORD_TTL"])
+				site.FlowCollectorOpts.MemoryLimit = strconv.FormatInt(c.MemoryLimit, 10)
+				site.FlowCollectorOpts.CpuLimit = strconv.Itoa(c.Cpus)
 				user, password, err := s.getConsoleUserPass()
 				if err != nil {
 					fmt.Println("error retrieving console user and password -", err)
@@ -562,8 +618,12 @@ func (s *SiteHandler) Get() (domain.Site, error) {
 				site.ConsolePassword = password
 			case *domain.Controller:
 				ctrlFound = true
+				site.ControllerOpts.MemoryLimit = strconv.FormatInt(c.MemoryLimit, 10)
+				site.ControllerOpts.CpuLimit = strconv.Itoa(c.Cpus)
 			case *domain.Prometheus:
 				site.PrometheusOpts, err = s.getPrometheusServerOptions()
+				site.PrometheusOpts.MemoryLimit = strconv.FormatInt(c.MemoryLimit, 10)
+				site.PrometheusOpts.CpuLimit = strconv.Itoa(c.Cpus)
 				if err != nil {
 					fmt.Println("error retrieving prometheus options -", err)
 				}
@@ -754,15 +814,19 @@ func (s *SiteHandler) prepareFlowCollectorDeployment(site *Site) *SkupperDeploym
 		endpoint = "/tmp/podman.sock"
 		volumeMounts[sockFile] = endpoint
 	}
+	memoryLimit, _ := strconv.ParseInt(site.FlowCollectorOpts.MemoryLimit, 10, 64)
+	cpus, _ := strconv.Atoi(site.FlowCollectorOpts.CpuLimit)
 	flowComponent := &domain.FlowCollector{
 		// TODO ADD Labels
 		Labels: map[string]string{},
 		Env: map[string]string{
 			"ENABLE_CONSOLE":   fmt.Sprintf("%v", site.EnableConsole),
-			"FLOW_RECORD_TTL":  site.FlowCollectorRecordTtl.String(),
+			"FLOW_RECORD_TTL":  site.FlowCollectorOpts.FlowRecordTtl.String(),
 			"SKUPPER_PLATFORM": types.PlatformPodman,
 			"PODMAN_ENDPOINT":  endpoint,
 		},
+		MemoryLimit: memoryLimit,
+		Cpus:        cpus,
 	}
 	if site.AuthMode != types.ConsoleAuthModeUnsecured {
 		flowComponent.Env["FLOW_USERS"] = "/etc/console-users"
@@ -872,6 +936,8 @@ func (s *SiteHandler) prepareControllerDeployment(site *Site) *SkupperDeployment
 		endpoint = "/tmp/podman.sock"
 		volumeMounts[sockFile] = endpoint
 	}
+	memoryLimit, _ := strconv.ParseInt(site.ControllerOpts.MemoryLimit, 10, 64)
+	cpus, _ := strconv.Atoi(site.ControllerOpts.CpuLimit)
 	ctrlComponent := &domain.Controller{
 		// TODO ADD Labels
 		Labels: map[string]string{},
@@ -882,6 +948,8 @@ func (s *SiteHandler) prepareControllerDeployment(site *Site) *SkupperDeployment
 			"SKUPPER_PLATFORM":    types.PlatformPodman,
 			"PODMAN_ENDPOINT":     endpoint,
 		},
+		MemoryLimit: memoryLimit,
+		Cpus:        cpus,
 	}
 	if site.AuthMode != types.ConsoleAuthModeUnsecured {
 		ctrlComponent.Env["FLOW_USERS"] = "/etc/console-users"
@@ -913,9 +981,13 @@ func (s *SiteHandler) preparePrometheusDeployment(site *Site) domain.SkupperDepl
 		"prometheus-server-config":  "/etc/prometheus",
 		"prometheus-storage-volume": "/prometheus",
 	}
+	memoryLimit, _ := strconv.ParseInt(site.PrometheusOpts.MemoryLimit, 10, 64)
+	cpus, _ := strconv.Atoi(site.PrometheusOpts.CpuLimit)
 	prometheusComponent := &domain.Prometheus{
 		// TODO ADD Labels
-		Labels: map[string]string{},
+		Labels:      map[string]string{},
+		MemoryLimit: memoryLimit,
+		Cpus:        cpus,
 	}
 	prometheusDeployment := &SkupperDeployment{
 		Name: types.PrometheusDeploymentName,

@@ -59,26 +59,28 @@ type Version struct {
 }
 
 type Container struct {
-	ID            string
-	Name          string
-	Pod           string
-	Image         string
-	Env           map[string]string
-	Labels        map[string]string
-	Annotations   map[string]string
-	Networks      map[string]ContainerNetworkInfo
-	Mounts        []Volume
-	FileMounts    []FileMount
-	Ports         []Port
-	EntryPoint    []string
-	Command       []string
-	RestartPolicy string
-	RestartCount  int
-	Running       bool
-	CreatedAt     time.Time
-	StartedAt     time.Time
-	ExitedAt      time.Time
-	ExitCode      int
+	ID             string
+	Name           string
+	Pod            string
+	Image          string
+	Env            map[string]string
+	Labels         map[string]string
+	Annotations    map[string]string
+	Networks       map[string]ContainerNetworkInfo
+	Mounts         []Volume
+	FileMounts     []FileMount
+	Ports          []Port
+	EntryPoint     []string
+	Command        []string
+	RestartPolicy  string
+	MaxCpus        int
+	MaxMemoryBytes int64
+	RestartCount   int
+	Running        bool
+	CreatedAt      time.Time
+	StartedAt      time.Time
+	ExitedAt       time.Time
+	ExitCode       int
 }
 
 func (c *Container) FromEnv(env []string) {

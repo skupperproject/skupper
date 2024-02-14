@@ -289,6 +289,23 @@ func ValidateStrings(t *testing.T, original []string, final []string) {
 	}
 }
 
+func TestContainerCreateMock(t *testing.T) {
+	cli := NewPodmanClientMock([]*container.Container{})
+	err := cli.ContainerCreate(&container.Container{
+		Name:           "sample-container",
+		Image:          "sample-image",
+		MaxCpus:        2,
+		MaxMemoryBytes: 1024 * 1024 * 1024,
+	})
+	assert.Assert(t, err)
+
+	ci, err := cli.ContainerInspect("sample-container")
+	assert.Assert(t, err)
+
+	assert.Equal(t, 2, ci.MaxCpus)
+	assert.Equal(t, int64(1024*1024*1024), ci.MaxMemoryBytes)
+}
+
 func TestContainerUpdateMock(t *testing.T) {
 	image := images.GetServiceControllerImageName()
 	cli := NewPodmanClientMock(mockContainers(image))

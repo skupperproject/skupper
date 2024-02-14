@@ -14,6 +14,7 @@ import (
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/containers"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/networks"
+	"github.com/skupperproject/skupper/client/generated/libpod/client/system"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes"
 	"github.com/skupperproject/skupper/client/generated/libpod/models"
 )
@@ -99,6 +100,8 @@ func (r *RestClientMock) Submit(operation *runtime.ClientOperation) (interface{}
 	var err error = nil
 
 	switch operation.ID {
+	case "SystemInfoLibpod":
+		res, err = r.HandleSystemInfo(operation, r.ErrorHook)
 	case "ContainerListLibpod":
 		res, err = r.HandleContainerList(operation, r.ErrorHook)
 	case "ContainerInspectLibpod":
@@ -123,6 +126,10 @@ func (r *RestClientMock) Submit(operation *runtime.ClientOperation) (interface{}
 		res, err = r.HandleVolumeDelete(operation, r.ErrorHook)
 	case "NetworkInspectLibpod":
 		res, err = r.HandleNetworkInspect(operation, r.ErrorHook)
+	case "NetworkCreateLibpod":
+		res, err = r.HandleNetworkCreate(operation, r.ErrorHook)
+	case "NetworkDeleteLibpod":
+		res, err = r.HandleNetworkDelete(operation, r.ErrorHook)
 	}
 	return res, err
 }
@@ -277,6 +284,13 @@ func (r *RestClientMock) HandleContainerInspect(operation *runtime.ClientOperati
 			StartedAt:  strfmt.DateTime(c.StartedAt),
 		},
 	}
+	if c.MaxCpus > 0 || c.MaxMemoryBytes > 0 {
+		res.Payload.HostConfig = &models.InspectContainerHostConfig{
+			CPUQuota:  int64(c.MaxCpus * 100000),
+			CPUPeriod: 100000,
+			Memory:    c.MaxMemoryBytes,
+		}
+	}
 	return res, nil
 }
 
@@ -351,6 +365,14 @@ func (r *RestClientMock) HandleContainerCreate(operation *runtime.ClientOperatio
 		RestartPolicy: spec.RestartPolicy,
 		RestartCount:  int(spec.RestartRetries),
 		CreatedAt:     time.Now(),
+	}
+	if spec.ResourceLimits != nil {
+		if spec.ResourceLimits.CPU != nil {
+			c.MaxCpus = int(spec.ResourceLimits.CPU.Quota / 100000)
+		}
+		if spec.ResourceLimits.Memory != nil {
+			c.MaxMemoryBytes = spec.ResourceLimits.Memory.Limit
+		}
 	}
 	r.Containers = append(r.Containers, c)
 	return res, nil
@@ -456,7 +478,12 @@ func (r *RestClientMock) HandleVolumeInspect(operation *runtime.ClientOperation,
 	params := operation.Params.(*volumes.VolumeInspectLibpodParams)
 	v, ok := r.Volumes[params.Name]
 	if !ok {
-		return res, fmt.Errorf("no volume with name %q", params.Name)
+		return res, &volumes.VolumeInspectLibpodNotFound{
+			Payload: &volumes.VolumeInspectLibpodNotFoundBody{
+				Message:      fmt.Sprintf("no volume with name %q", params.Name),
+				ResponseCode: 404,
+			},
+		}
 	}
 	res.Payload = &volumes.VolumeInspectLibpodOKBody{
 		Labels:     v.Labels,
@@ -537,31 +564,141 @@ func (r *RestClientMock) HandleNetworkInspect(operation *runtime.ClientOperation
 	return res, nil
 }
 
+func (r *RestClientMock) HandleSystemInfo(operation *runtime.ClientOperation, hook func(operation *runtime.ClientOperation) error) (interface{}, error) {
+	var res = &system.SystemInfoLibpodOK{
+		Payload: &models.Info{
+			Version: &models.Version{
+				APIVersion: "4.0.0",
+				Version:    "4.0.0",
+			},
+			Host: &models.HostInfo{
+				Arch:     "amd64",
+				Hostname: "host.domain",
+				Kernel:   "6.6",
+				OS:       "linux",
+			},
+		},
+	}
+	if hook != nil {
+		if err := hook(operation); err != nil {
+			return res, err
+		}
+	}
+	return res, nil
+}
+
+func (r *RestClientMock) HandleNetworkCreate(operation *runtime.ClientOperation, hook func(operation *runtime.ClientOperation) error) (interface{}, error) {
+	var res = &networks.NetworkCreateLibpodOK{}
+	if hook != nil {
+		if err := hook(operation); err != nil {
+			return res, err
+		}
+	}
+	if r.networks == nil {
+		r.networks = map[string]*container.Network{}
+	}
+
+	params := operation.Params.(*networks.NetworkCreateLibpodParams)
+	_, ok := r.networks[params.Create.Name]
+	if ok {
+		return res, fmt.Errorf("network already exists %q", params.Create.Name)
+	}
+	n := params.Create
+
+	nn := &container.Network{
+		ID:        n.ID,
+		Name:      n.Name,
+		Driver:    n.Driver,
+		IPV6:      n.IPV6Enabled,
+		DNS:       n.DNSEnabled,
+		Internal:  n.Internal,
+		Labels:    n.Labels,
+		Options:   n.Options,
+		CreatedAt: n.Created.String(),
+	}
+	for _, s := range n.Subnets {
+		nn.Subnets = append(nn.Subnets, &container.Subnet{
+			Subnet:  s.Subnet,
+			Gateway: s.Gateway,
+		})
+	}
+	r.networks[nn.Name] = nn
+
+	res.Payload = &models.Network{
+		Created:          n.Created,
+		DNSEnabled:       n.DNSEnabled,
+		Driver:           n.Driver,
+		ID:               n.ID,
+		IPAMOptions:      n.IPAMOptions,
+		IPV6Enabled:      n.IPV6Enabled,
+		Internal:         n.Internal,
+		Labels:           n.Labels,
+		Name:             n.Name,
+		NetworkInterface: n.NetworkInterface,
+		Options:          n.Options,
+		Subnets:          n.Subnets,
+	}
+	return res, nil
+}
+
 func (r *RestClientMock) HandleVolumeCreate(operation *runtime.ClientOperation, hook func(operation *runtime.ClientOperation) error) (interface{}, error) {
-	res := &volumes.VolumeCreateLibpodCreated{}
+	var res = &volumes.VolumeCreateLibpodCreated{}
 	if hook != nil {
 		if err := hook(operation); err != nil {
 			return res, err
 		}
 	}
 	params := operation.Params.(*volumes.VolumeCreateLibpodParams)
-	spec := params.Create
+	v := params.Create
+	_, ok := r.Volumes[v.Name]
+	if ok {
+		return res, fmt.Errorf("volume %q already exists", v.Name)
+	}
 
-	for _, v := range r.Volumes {
-		if v.Name == spec.Name {
-			return res, fmt.Errorf("volume already exists")
+	vDir, err := os.MkdirTemp("", "skupper-mock-")
+	if err != nil {
+		return res, err
+	}
+	if r.Volumes == nil {
+		r.Volumes = map[string]*container.Volume{}
+	}
+	r.Volumes[v.Name] = &container.Volume{
+		Name:   v.Name,
+		Source: vDir,
+		Labels: v.Labels,
+	}
+	res.Payload = &volumes.VolumeCreateLibpodCreatedBody{
+		CreatedAt:  strfmt.DateTime(time.Now()),
+		Mountpoint: vDir,
+		Driver:     v.Driver,
+		Labels:     v.Labels,
+		Name:       v.Name,
+		Options:    v.Options,
+	}
+	return res, nil
+}
+
+func (r *RestClientMock) HandleNetworkDelete(operation *runtime.ClientOperation, hook func(operation *runtime.ClientOperation) error) (interface{}, error) {
+	var res = &networks.NetworkDeleteLibpodOK{}
+	if hook != nil {
+		if err := hook(operation); err != nil {
+			return res, err
 		}
 	}
-	v := &container.Volume{
-		Name:   spec.Name,
-		Labels: spec.Labels,
+	if r.networks == nil {
+		r.networks = map[string]*container.Network{}
 	}
-	r.Volumes[v.Name] = v
 
-	res.Payload = &volumes.VolumeCreateLibpodCreatedBody{
-		CreatedAt: strfmt.DateTime{},
-		Labels:    v.Labels,
-		Name:      v.Name,
+	params := operation.Params.(*networks.NetworkDeleteLibpodParams)
+	_, ok := r.networks[params.Name]
+	if !ok {
+		return res, fmt.Errorf("network %q not found", params.Name)
 	}
+	for _, c := range r.Containers {
+		if _, ok := c.Networks[params.Name]; ok && !*params.Force {
+			return res, fmt.Errorf("network %q in use by container %q", params.Name, c.Name)
+		}
+	}
+	delete(r.networks, params.Name)
 	return res, nil
 }

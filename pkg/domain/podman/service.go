@@ -247,6 +247,9 @@ func (s *ServiceHandler) createService(servicePodman *Service) error {
 		return fmt.Errorf("error retrieving %s container - %w", types.TransportDeploymentName, err)
 	}
 	site.GetDeployments()[0].GetComponents()[0].GetImage()
+	podmanSite := site.(*Site)
+	cpuLimit, _ := strconv.Atoi(podmanSite.RouterOpts.CpuLimit)
+	memoryLimit, _ := strconv.ParseInt(podmanSite.RouterOpts.MemoryLimit, 10, 64)
 	c := &container.Container{
 		Name:  servicePodman.GetContainerName(),
 		Image: utils.DefaultStr(routerContainer.Image, images.GetRouterImageName()),
@@ -259,10 +262,12 @@ func (s *ServiceHandler) createService(servicePodman *Service) error {
 		Labels: map[string]string{
 			types.AddressQualifier: servicePodman.GetAddress(),
 		},
-		Mounts:        routerContainer.Mounts,
-		Networks:      map[string]container.ContainerNetworkInfo{},
-		Ports:         servicePodman.ContainerPorts(),
-		RestartPolicy: "always",
+		MaxCpus:        cpuLimit,
+		MaxMemoryBytes: memoryLimit,
+		Mounts:         routerContainer.Mounts,
+		Networks:       map[string]container.ContainerNetworkInfo{},
+		Ports:          servicePodman.ContainerPorts(),
+		RestartPolicy:  "always",
 	}
 	for netName, _ := range routerContainer.Networks {
 		c.Networks[netName] = container.ContainerNetworkInfo{

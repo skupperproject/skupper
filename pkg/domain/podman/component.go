@@ -52,6 +52,8 @@ func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, err
 			Env:           c.Env,
 			Labels:        c.Labels,
 			SiteIngresses: siteIngresses,
+			MemoryLimit:   c.MaxMemoryBytes,
+			Cpus:          c.MaxCpus,
 		}
 	case types.FlowCollectorContainerName:
 		component = &domain.FlowCollector{
@@ -59,6 +61,8 @@ func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, err
 			Env:           c.Env,
 			Labels:        c.Labels,
 			SiteIngresses: siteIngresses,
+			MemoryLimit:   c.MaxMemoryBytes,
+			Cpus:          c.MaxCpus,
 		}
 	case types.ControllerPodmanContainerName:
 		component = &domain.Controller{
@@ -66,6 +70,8 @@ func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, err
 			Env:           c.Env,
 			Labels:        c.Labels,
 			SiteIngresses: siteIngresses,
+			MemoryLimit:   c.MaxMemoryBytes,
+			Cpus:          c.MaxCpus,
 		}
 	case types.PrometheusDeploymentName:
 		component = &domain.Prometheus{
@@ -73,6 +79,8 @@ func (s *SkupperComponentHandler) Get(name string) (domain.SkupperComponent, err
 			Env:           c.Env,
 			Labels:        c.Labels,
 			SiteIngresses: siteIngresses,
+			MemoryLimit:   c.MaxMemoryBytes,
+			Cpus:          c.MaxCpus,
 		}
 	default:
 		return nil, fmt.Errorf("invalid component: %s", componentName)
