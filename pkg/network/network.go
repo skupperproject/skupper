@@ -164,11 +164,10 @@ func PrintableRouter(router RouterStatusInfo, siteName string) bool {
 	// Ignore routers that belong to statefulsets for headless services and any other router
 	routerId := strings.Split(router.Router.Name, "/")
 
-	isARegularSite := len(routerId) > 1 && strings.HasPrefix(routerId[1], siteName)
+	isARegularSite := len(routerId) > 1 && strings.HasPrefix(routerId[1], siteName) && router.Router.ImageName == "skupper-router"
 	isAGateway := len(routerId) > 1 && strings.HasPrefix(routerId[1], "skupper-gateway")
-	isNotAnAdditionalPodmanRouter := router.Router.ImageName == "skupper-router"
 
-	return (isARegularSite || isAGateway) && isNotAnAdditionalPodmanRouter
+	return isARegularSite || isAGateway
 }
 
 func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
