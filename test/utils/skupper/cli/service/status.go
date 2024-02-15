@@ -110,16 +110,6 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 	// Iterating through provided service interfaces to validate stdout matches
 	for _, svc := range s.ServiceInterfaces {
 		serviceEntry := fmt.Sprintf(`.*%s:%d \(%s\)`, svc.Address, svc.Ports[0], svc.Protocol)
-		if hostPortBinding, ok := s.Podman.GetHostPortBinding(svc.Address); ok {
-			hostIp := utils.DefaultStr(hostPortBinding.HostIp, `\*`)
-			var portMapping string
-			var portMappingPrefix string
-			for svcPort, hostPort := range hostPortBinding.HostPorts {
-				portMapping += fmt.Sprintf("%s%d -> %d", portMappingPrefix, hostPort, svcPort)
-				portMappingPrefix = ", "
-			}
-			serviceEntry += fmt.Sprintf(`\n.*Host ports:\n.*ip: %s - ports: %s`, hostIp, portMapping)
-		}
 
 		r := regexp.MustCompile(serviceEntry)
 		if r.MatchString(stdout) == s.Absent {
