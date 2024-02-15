@@ -119,7 +119,7 @@ func printNetworkStatus(currentSite string, currentNetworkStatus *network.Networ
 							routerId := strings.Split(routerStatus.Router.Name, "/")
 
 							// skip routers that belong to headless services
-							if network.PrintableRouter(routerStatus, siteStatus.Site.Name) {
+							if network.PrintableRouter(routerStatus, &siteStatus) {
 								routerItem := fmt.Sprintf("name: %s\n", routerId[1])
 								detailsRouter := map[string]string{"image name": routerStatus.Router.ImageName, "image version": routerStatus.Router.ImageVersion}
 
