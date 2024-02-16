@@ -46,9 +46,9 @@ func (s *SkupperStatus) GetServiceSitesMap() map[string][]SiteStatusInfo {
 	return mapServiceSites
 }
 
-func (s *SkupperStatus) GetSiteTargetMap() map[string]map[string]ConnectorInfo {
+func (s *SkupperStatus) GetSiteTargetMap() map[string]map[string][]ConnectorInfo {
 
-	mapSiteTarget := make(map[string]map[string]ConnectorInfo)
+	mapSiteTarget := make(map[string]map[string][]ConnectorInfo)
 
 	for _, site := range s.NetworkStatus.SiteStatus {
 
@@ -56,9 +56,9 @@ func (s *SkupperStatus) GetSiteTargetMap() map[string]map[string]ConnectorInfo {
 			for _, router := range site.RouterStatus {
 				for _, connector := range router.Connectors {
 					if mapSiteTarget[site.Site.Identity] == nil {
-						mapSiteTarget[site.Site.Identity] = make(map[string]ConnectorInfo)
+						mapSiteTarget[site.Site.Identity] = make(map[string][]ConnectorInfo)
 					}
-					mapSiteTarget[site.Site.Identity][connector.Address] = connector
+					mapSiteTarget[site.Site.Identity][connector.Address] = append(mapSiteTarget[site.Site.Identity][connector.Address], connector)
 				}
 			}
 		}
@@ -211,16 +211,21 @@ func PrintServiceStatus(currentNetworkStatus *NetworkStatusInfo, mapServiceLabel
 						theSite := sites.NewChildWithDetail(item, map[string]string{"policy": policy})
 
 						if si.ConnectorCount > 0 {
-							t := mapSiteTarget[site.Site.Identity][si.Name]
+							serviceTargets := mapSiteTarget[site.Site.Identity][si.Name]
 
-							if len(t.Address) > 0 {
+							if len(serviceTargets) > 0 {
 								targets := theSite.NewChild("Targets:")
-								var name string
-								if t.Target != "" {
-									name = fmt.Sprintf("name=%s", t.Target)
+
+								for _, t := range serviceTargets {
+									if len(t.Address) > 0 {
+										var name string
+										if t.Target != "" {
+											name = fmt.Sprintf("name=%s", t.Target)
+										}
+										targetInfo := fmt.Sprintf("%s %s", t.Address, name)
+										targets.NewChild(targetInfo)
+									}
 								}
-								targetInfo := fmt.Sprintf("%s %s", t.Address, name)
-								targets.NewChild(targetInfo)
 							}
 						}
 					}
