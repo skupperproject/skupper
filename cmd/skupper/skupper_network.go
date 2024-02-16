@@ -34,7 +34,7 @@ func NewCmdNetworkStatus(skupperClient SkupperNetworkClient) *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), types.DefaultTimeoutDuration)
 			defer cancel()
 
-			currentSiteId, err := skupperClient.GetCurrentSite(ctx)
+			currentSiteId, err := skupperClient.GetCurrentSiteId(ctx)
 			if err != nil && strings.HasPrefix(err.Error(), "Skupper is not enabled") {
 				fmt.Println(err.Error())
 				return nil

@@ -86,7 +86,7 @@ type SkupperTokenClient interface {
 }
 
 type SkupperNetworkClient interface {
-	GetCurrentSite(ctx context.Context) (string, error)
+	GetCurrentSiteId(ctx context.Context) (string, error)
 	Status(cmd *cobra.Command, args []string, ctx context.Context) (*network.NetworkStatusInfo, error)
 	StatusFlags(cmd *cobra.Command)
 	SkupperClientCommon

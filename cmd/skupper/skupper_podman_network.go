@@ -15,7 +15,7 @@ type SkupperPodmanNetwork struct {
 	networkStatusHandler *podman.NetworkStatusHandler
 }
 
-func (s *SkupperPodmanNetwork) GetCurrentSite(ctx context.Context) (string, error) {
+func (s *SkupperPodmanNetwork) GetCurrentSiteId(ctx context.Context) (string, error) {
 
 	if s.podman.currentSite == nil {
 		return "", fmt.Errorf("Skupper is not enabled")

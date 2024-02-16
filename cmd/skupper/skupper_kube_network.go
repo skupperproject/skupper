@@ -13,7 +13,7 @@ type SkupperKubeNetwork struct {
 	kube *SkupperKube
 }
 
-func (s *SkupperKubeNetwork) GetCurrentSite(ctx context.Context) (string, error) {
+func (s *SkupperKubeNetwork) GetCurrentSiteId(ctx context.Context) (string, error) {
 
 	siteConfig, err := s.kube.Cli.SiteConfigInspect(ctx, nil)
 	if err != nil || siteConfig == nil {
