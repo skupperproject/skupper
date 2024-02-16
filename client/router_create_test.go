@@ -338,14 +338,23 @@ func TestRouterCreateDefaults(t *testing.T) {
 				rolesFound = append(rolesFound, role.Name)
 			},
 		})
+
+		expectedClusterRoles := sets.NewString(c.clusterRolesExpected...)
 		clusterRoleInformer := clusterRoleInformerFactory.Rbac().V1().ClusterRoles().Informer()
 		clusterRoleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				clusterRole := obj.(*rbacv1.ClusterRole)
 				if strings.HasPrefix(clusterRole.Name, "skupper") {
-					clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
-					for _, p := range clusterRole.Rules {
-						clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+					if isCluster && !expectedClusterRoles.Has(clusterRole.Name) {
+						// A real cluster may have pre-existing clusterroles that would
+						// make this test flaky, so we ignore clusterroles not listed
+						// on the test.
+						fmt.Printf("clusterrole %q ignored due to -use-cluster\n", clusterRole.Name)
+					} else {
+						clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
+						for _, p := range clusterRole.Rules {
+							clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+						}
 					}
 				}
 			},
@@ -378,16 +387,17 @@ func TestRouterCreateDefaults(t *testing.T) {
 				svcAccountsFound = append(svcAccountsFound, svcAccount.Name)
 			},
 		})
-		clusterRoleInformerFactory.Start(ctx.Done())
-		informerFactory.Start(ctx.Done())
-		cache.WaitForCacheSync(ctx.Done(), depInformer.HasSynced)
-		cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced)
-		cache.WaitForCacheSync(ctx.Done(), roleInformer.HasSynced)
-		cache.WaitForCacheSync(ctx.Done(), roleBindingInformer.HasSynced)
-		cache.WaitForCacheSync(ctx.Done(), secretInformer.HasSynced)
-		cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced)
-		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
-		cache.WaitForCacheSync(ctx.Done(), clusterRoleInformer.HasSynced)
+		iterationCtx, iterationCancel := context.WithCancel(ctx)
+		clusterRoleInformerFactory.Start(iterationCtx.Done())
+		informerFactory.Start(iterationCtx.Done())
+		cache.WaitForCacheSync(iterationCtx.Done(), depInformer.HasSynced)
+		cache.WaitForCacheSync(iterationCtx.Done(), cmInformer.HasSynced)
+		cache.WaitForCacheSync(iterationCtx.Done(), roleInformer.HasSynced)
+		cache.WaitForCacheSync(iterationCtx.Done(), roleBindingInformer.HasSynced)
+		cache.WaitForCacheSync(iterationCtx.Done(), secretInformer.HasSynced)
+		cache.WaitForCacheSync(iterationCtx.Done(), svcInformer.HasSynced)
+		cache.WaitForCacheSync(iterationCtx.Done(), svcAccountInformer.HasSynced)
+		cache.WaitForCacheSync(iterationCtx.Done(), clusterRoleInformer.HasSynced)
 
 		getIngress := func() string {
 			if c.clusterLocal || !isCluster {
@@ -454,6 +464,9 @@ func TestRouterCreateDefaults(t *testing.T) {
 		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 		}
+
+		// Close informers
+		iterationCancel()
 	}
 }
 
