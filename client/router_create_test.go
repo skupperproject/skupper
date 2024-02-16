@@ -393,17 +393,16 @@ func TestRouterCreateDefaults(t *testing.T) {
 				svcAccountsFound = append(svcAccountsFound, svcAccount.Name)
 			},
 		})
-		iterationCtx, iterationCancel := context.WithCancel(ctx)
-		clusterRoleInformerFactory.Start(iterationCtx.Done())
-		informerFactory.Start(iterationCtx.Done())
-		cache.WaitForCacheSync(iterationCtx.Done(), depInformer.HasSynced)
-		cache.WaitForCacheSync(iterationCtx.Done(), cmInformer.HasSynced)
-		cache.WaitForCacheSync(iterationCtx.Done(), roleInformer.HasSynced)
-		cache.WaitForCacheSync(iterationCtx.Done(), roleBindingInformer.HasSynced)
-		cache.WaitForCacheSync(iterationCtx.Done(), secretInformer.HasSynced)
-		cache.WaitForCacheSync(iterationCtx.Done(), svcInformer.HasSynced)
-		cache.WaitForCacheSync(iterationCtx.Done(), svcAccountInformer.HasSynced)
-		cache.WaitForCacheSync(iterationCtx.Done(), clusterRoleInformer.HasSynced)
+		clusterRoleInformerFactory.Start(ctx.Done())
+		informerFactory.Start(ctx.Done())
+		cache.WaitForCacheSync(ctx.Done(), depInformer.HasSynced)
+		cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced)
+		cache.WaitForCacheSync(ctx.Done(), roleInformer.HasSynced)
+		cache.WaitForCacheSync(ctx.Done(), roleBindingInformer.HasSynced)
+		cache.WaitForCacheSync(ctx.Done(), secretInformer.HasSynced)
+		cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced)
+		cache.WaitForCacheSync(ctx.Done(), svcAccountInformer.HasSynced)
+		cache.WaitForCacheSync(ctx.Done(), clusterRoleInformer.HasSynced)
 
 		getIngress := func() string {
 			if c.clusterLocal || !isCluster {
@@ -487,7 +486,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 		}
 
 		// Close informers
-		iterationCancel()
+		cancel()
 	}
 }
 
