@@ -18,12 +18,13 @@ import (
 )
 
 type LinkHandler struct {
-	cli              *podman.PodmanRestClient
-	routerCfgHandler qdr.RouterConfigHandler
-	routerManager    domain.RouterEntityManager
-	credHandler      *CredentialHandler
-	site             *Site
-	redeemer         *domain.ClaimRedeemer
+	cli                  *podman.PodmanRestClient
+	routerCfgHandler     qdr.RouterConfigHandler
+	routerManager        domain.RouterEntityManager
+	credHandler          *CredentialHandler
+	site                 *Site
+	redeemer             *domain.ClaimRedeemer
+	networkStatusHandler *NetworkStatusHandler
 }
 
 func NewLinkHandlerPodman(site *Site, cli *podman.PodmanRestClient) *LinkHandler {
@@ -298,24 +299,58 @@ func (l *LinkHandler) Detail(link types.LinkStatus) (map[string]string, error) {
 }
 
 func (l *LinkHandler) RemoteLinks(ctx context.Context) ([]*network.RemoteLinkInfo, error) {
-	var remoteLinks []*network.RemoteLinkInfo
-	if l.site.GetMode() == string(types.TransportModeEdge) {
-		return remoteLinks, nil
+	podmanSiteVersion := l.site.Version
+	if podmanSiteVersion != "" && !utils.IsValidFor(podmanSiteVersion, network.MINIMUM_PODMAN_VERSION) {
+		return nil, fmt.Errorf(network.MINIMUM_VERSION_MESSAGE, podmanSiteVersion, network.MINIMUM_PODMAN_VERSION)
 	}
-	routers, err := l.routerManager.QueryAllRouters()
+
+	currentStatus, err := l.NetworkStatusHandler().Get()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving remote links - %w", err)
+		return nil, err
 	}
-	for _, router := range routers {
-		if router.Id == l.site.Name {
-			continue
-		}
-		if utils.StringSliceContains(router.ConnectedTo, l.site.Name) {
-			remoteLinks = append(remoteLinks, &network.RemoteLinkInfo{
-				SiteName: router.Id,
-				SiteId:   router.Site.Id,
-			})
+
+	var remoteLinks []*network.RemoteLinkInfo
+
+	statusManager := network.SkupperStatus{NetworkStatus: currentStatus}
+
+	mapRouterSite := statusManager.GetRouterSiteMap()
+
+	var currentSite network.SiteStatusInfo
+	for _, s := range currentStatus.SiteStatus {
+		if s.Site.Identity == l.site.Id {
+			currentSite = s
 		}
 	}
+
+	if len(currentSite.Site.Identity) > 0 {
+		for _, router := range currentSite.RouterStatus {
+			for _, link := range router.Links {
+				if link.Direction == "incoming" {
+					remoteSite, ok := mapRouterSite[link.Name]
+					if !ok {
+						return nil, fmt.Errorf("remote site not found in config map %s", types.NetworkStatusConfigMapName)
+					}
+
+					// links between routers of the same site will not be shown
+					if remoteSite.Site.Identity != currentSite.Site.Identity {
+						newRemoteLink := network.RemoteLinkInfo{SiteName: remoteSite.Site.Name, Namespace: remoteSite.Site.Namespace, SiteId: remoteSite.Site.Identity, LinkName: link.Name}
+						remoteLinks = append(remoteLinks, &newRemoteLink)
+					}
+				}
+			}
+		}
+	}
+
 	return remoteLinks, nil
+}
+
+func (l *LinkHandler) NetworkStatusHandler() *NetworkStatusHandler {
+	if l.networkStatusHandler != nil {
+		return l.networkStatusHandler
+	}
+	if l.cli == nil {
+		return nil
+	}
+	l.networkStatusHandler = new(NetworkStatusHandler).WithClient(l.cli)
+	return l.networkStatusHandler
 }

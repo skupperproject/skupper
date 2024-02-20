@@ -56,7 +56,7 @@ func TestGetSiteTargetsMap(t *testing.T) {
 	result := skupperStatus.GetSiteTargetMap()
 
 	assert.Check(t, result[expectedSite2] == nil)
-	assert.Check(t, result[expectedSite1][expectedService].Address == expectedService)
+	assert.Check(t, result[expectedSite1][expectedService][0].Address == expectedService)
 
 }
 

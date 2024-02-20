@@ -341,15 +341,6 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 						TargetName:  "hello-world-frontend",
 						TargetPort:  8080,
 					},
-					// skupper service status - validate status expecting frontend now has a target
-					&service.StatusTester{
-						ServiceInterfaces: []types.ServiceInterface{
-							{Address: "hello-world-frontend", Protocol: "tcp", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
-								{Name: "hello-world-frontend", TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-frontend"},
-							}},
-							{Address: "hello-world-backend", Protocol: "tcp", Ports: []int{8080}},
-						},
-					},
 				}},
 				{Platform: types.PlatformPodman, Commands: []cli.SkupperCommandTester{
 					// skupper service bind - bind service to deployment and validate target has been defined
@@ -363,10 +354,7 @@ func TestHelloWorldCLIOnPodman(t *testing.T) {
 					&service.StatusTester{
 						ServiceInterfaces: []types.ServiceInterface{
 							{Address: "hello-world-frontend", Protocol: "tcp", Ports: []int{8080}},
-							{Address: "hello-world-backend", Protocol: "tcp", Ports: []int{8080}, Targets: []types.ServiceInterfaceTarget{
-								{Name: `*domain.EgressResolverHost={"host":"hello-world-backend","ports":{"8080":8080}}`,
-									TargetPorts: map[int]int{8080: 8080}, Service: "hello-world-backend"},
-							}},
+							{Address: "hello-world-backend", Protocol: "tcp", Ports: []int{8080}},
 						},
 						Podman: service.StatusPodman{
 							ServiceHostPort: map[string]service.HostPortBinding{

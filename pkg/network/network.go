@@ -3,11 +3,13 @@ package network
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"strings"
 )
 
 const MINIMUM_VERSION string = "1.5.0"
-const MINIMUM_VERSION_MESSAGE string = "Detected that the skupper version installed in the namespace is version %s. The CLI requires version %s. To update the installation, please follow the instructions found here: https://skupper.io/docs/index.html"
+const MINIMUM_PODMAN_VERSION string = "1.6.0"
+const MINIMUM_VERSION_MESSAGE string = "Version incompatibility:\n \tDetected that the skupper version installed in the namespace is version %s. The CLI requires at least version %s. To update the installation, please follow the instructions found here: https://skupper.io/install/index.html"
 
 type SkupperStatus struct {
 	NetworkStatus *NetworkStatusInfo
@@ -44,9 +46,9 @@ func (s *SkupperStatus) GetServiceSitesMap() map[string][]SiteStatusInfo {
 	return mapServiceSites
 }
 
-func (s *SkupperStatus) GetSiteTargetMap() map[string]map[string]ConnectorInfo {
+func (s *SkupperStatus) GetSiteTargetMap() map[string]map[string][]ConnectorInfo {
 
-	mapSiteTarget := make(map[string]map[string]ConnectorInfo)
+	mapSiteTarget := make(map[string]map[string][]ConnectorInfo)
 
 	for _, site := range s.NetworkStatus.SiteStatus {
 
@@ -54,9 +56,9 @@ func (s *SkupperStatus) GetSiteTargetMap() map[string]map[string]ConnectorInfo {
 			for _, router := range site.RouterStatus {
 				for _, connector := range router.Connectors {
 					if mapSiteTarget[site.Site.Identity] == nil {
-						mapSiteTarget[site.Site.Identity] = make(map[string]ConnectorInfo)
+						mapSiteTarget[site.Site.Identity] = make(map[string][]ConnectorInfo)
 					}
-					mapSiteTarget[site.Site.Identity][connector.Address] = connector
+					mapSiteTarget[site.Site.Identity][connector.Address] = append(mapSiteTarget[site.Site.Identity][connector.Address], connector)
 				}
 			}
 		}
@@ -123,7 +125,7 @@ func (s *SkupperStatus) LinkBelongsToSameSite(linkName string, siteId string, ro
 func (s *SkupperStatus) GetRouterIndex(site *SiteStatusInfo) (error, int) {
 
 	for index, router := range site.RouterStatus {
-		if PrintableRouter(router, site.Site.Name) {
+		if PrintableRouter(router, site) {
 			return nil, index
 
 		}
@@ -158,14 +160,15 @@ func UnmarshalSkupperStatus(data map[string]string) (*NetworkStatusInfo, error) 
 	return networkStatusInfo, nil
 }
 
-func PrintableRouter(router RouterStatusInfo, siteName string) bool {
+func PrintableRouter(router RouterStatusInfo, site *SiteStatusInfo) bool {
 	// Ignore routers that belong to statefulsets for headless services and any other router
 	routerId := strings.Split(router.Router.Name, "/")
 
-	isARegularSite := len(routerId) > 1 && strings.HasPrefix(routerId[1], siteName)
+	isAKubernetesSite := len(routerId) > 1 && strings.HasPrefix(routerId[1], site.Site.Name) && site.Site.Platform == "kubernetes"
+	isAPodmanSite := len(routerId) > 1 && routerId[1] == site.Site.Name && site.Site.Platform == "podman"
 	isAGateway := len(routerId) > 1 && strings.HasPrefix(routerId[1], "skupper-gateway")
 
-	return isARegularSite || isAGateway
+	return isAKubernetesSite || isAPodmanSite || isAGateway
 }
 
 func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
@@ -176,4 +179,68 @@ func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
 	}
 
 	return false
+}
+
+func PrintServiceStatus(currentNetworkStatus *NetworkStatusInfo, mapServiceLabels map[string]map[string]string, verboseServiceStatus bool, showLabels bool) error {
+	statusManager := SkupperStatus{
+		NetworkStatus: currentNetworkStatus,
+	}
+
+	mapServiceSites := statusManager.GetServiceSitesMap()
+	mapSiteTarget := statusManager.GetSiteTargetMap()
+
+	if len(currentNetworkStatus.Addresses) == 0 {
+		fmt.Println("No services defined")
+	} else {
+		l := formatter.NewList()
+		l.Item("Services exposed through Skupper:")
+
+		for _, si := range currentNetworkStatus.Addresses {
+			svc := l.NewChild(fmt.Sprintf("%s (%s)", si.Name, si.Protocol))
+
+			if verboseServiceStatus {
+				sites := svc.NewChild("Sites:")
+
+				if mapServiceSites[si.Name] != nil {
+					for _, site := range mapServiceSites[si.Name] {
+						item := site.Site.Identity + "(" + site.Site.Namespace + ")\n"
+						policy := "-"
+						if len(site.Site.Policy) > 0 {
+							policy = site.Site.Policy
+						}
+						theSite := sites.NewChildWithDetail(item, map[string]string{"policy": policy})
+
+						if si.ConnectorCount > 0 {
+							serviceTargets := mapSiteTarget[site.Site.Identity][si.Name]
+
+							if len(serviceTargets) > 0 {
+								targets := theSite.NewChild("Targets:")
+
+								for _, t := range serviceTargets {
+									if len(t.Address) > 0 {
+										var name string
+										if t.Target != "" {
+											name = fmt.Sprintf("name=%s", t.Target)
+										}
+										targetInfo := fmt.Sprintf("%s %s", t.Address, name)
+										targets.NewChild(targetInfo)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if showLabels && len(mapServiceLabels[si.Name]) > 0 {
+				labels := svc.NewChild("Labels:")
+				for k, v := range mapServiceLabels[si.Name] {
+					labels.NewChild(fmt.Sprintf("%s=%s", k, v))
+				}
+			}
+		}
+		l.Print()
+	}
+
+	return nil
 }

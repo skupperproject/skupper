@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/utils/configs"
 	"os"
 	"reflect"
@@ -85,7 +86,8 @@ type SkupperTokenClient interface {
 }
 
 type SkupperNetworkClient interface {
-	Status(cmd *cobra.Command, args []string) error
+	GetCurrentSiteId(ctx context.Context) (string, error)
+	Status(cmd *cobra.Command, args []string, ctx context.Context) (*network.NetworkStatusInfo, error)
 	StatusFlags(cmd *cobra.Command)
 	SkupperClientCommon
 }

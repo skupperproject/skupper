@@ -16,7 +16,7 @@ var notImplementedErr = fmt.Errorf("Not implemented")
 
 var SkupperPodmanCommands = []string{
 	"switch", "init", "delete", "status", "version", "token", "link",
-	"service", "expose", "unexpose", "revoke-access", "update",
+	"service", "expose", "unexpose", "revoke-access", "update", "network",
 }
 
 type SkupperPodman struct {
@@ -28,6 +28,7 @@ type SkupperPodman struct {
 	token              *SkupperPodmanToken
 	link               *SkupperPodmanLink
 	service            *SkupperPodmanService
+	network            *SkupperPodmanNetwork
 	exit               exitHandler
 	output             io.Writer
 }
@@ -79,12 +80,13 @@ func (s *SkupperPodman) Token() SkupperTokenClient {
 }
 
 func (s *SkupperPodman) Network() SkupperNetworkClient {
-	return &SkupperPodmanNetwork{}
-}
-
-func notImplementedExit() {
-	fmt.Println("Not implemented")
-	os.Exit(1)
+	if s.network != nil {
+		return s.network
+	}
+	s.network = &SkupperPodmanNetwork{
+		podman: s,
+	}
+	return s.network
 }
 
 func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
