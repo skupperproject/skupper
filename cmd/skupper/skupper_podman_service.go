@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/network"
 	"net"
 	"net/url"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
 )
 
@@ -78,12 +78,11 @@ func (p *PodmanServiceCreateFlags) ToPortMapping(service podman.Service) (map[in
 }
 
 type SkupperPodmanService struct {
-	podman               *SkupperPodman
-	svcHandler           *podman.ServiceHandler
-	svcIfaceHandler      *podman.ServiceInterfaceHandler
-	createFlags          PodmanServiceCreateFlags
-	exposeFlags          PodmanExposeFlags
-	networkStatusHandler *podman.NetworkStatusHandler
+	podman          *SkupperPodman
+	svcHandler      *podman.ServiceHandler
+	svcIfaceHandler *podman.ServiceInterfaceHandler
+	createFlags     PodmanServiceCreateFlags
+	exposeFlags     PodmanExposeFlags
 }
 
 func (s *SkupperPodmanService) Create(cmd *cobra.Command, args []string) error {
@@ -138,36 +137,57 @@ func (s *SkupperPodmanService) List(cmd *cobra.Command, args []string) error {
 func (s *SkupperPodmanService) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
-
-	podmanSiteVersion := s.podman.currentSite.Version
-	if podmanSiteVersion != "" && !utils.IsValidFor(podmanSiteVersion, network.MINIMUM_PODMAN_VERSION) {
-		fmt.Printf(network.MINIMUM_VERSION_MESSAGE, podmanSiteVersion, network.MINIMUM_PODMAN_VERSION)
-		fmt.Println()
-		return nil
-	}
 	services, err := s.svcHandler.List()
 	if err == nil {
 		if len(services) == 0 {
 			fmt.Println("No services defined")
 		} else {
-
-			currentStatus, errStatus := s.NetworkStatusHandler().Get()
-			if errStatus != nil && strings.HasPrefix(errStatus.Error(), "Skupper is not installed") {
-				fmt.Printf("Skupper is not enabled\n")
-				return nil
-			} else if errStatus != nil && errStatus.Error() == "status not ready" {
-				fmt.Println("Status pending...")
-				return nil
-			} else if errStatus != nil {
-				return errStatus
+			l := formatter.NewList()
+			l.Item("Services exposed through Skupper:")
+			addresses := []string{}
+			for _, si := range services {
+				addresses = append(addresses, si.GetAddress())
 			}
 
-			mapServiceLabels := getPodmanServiceLabelsMap(services)
+			for _, svc := range services {
+				svcPodman := svc.(*podman.Service)
 
-			err = network.PrintServiceStatus(currentStatus, mapServiceLabels, verboseServiceStatus, showLabels)
-			if err != nil {
-				return err
+				for _, port := range svcPodman.GetPorts() {
+					portStr := strconv.Itoa(port)
+
+					svc := l.NewChild(fmt.Sprintf("%s:%s (%s)", svcPodman.GetAddress(), portStr, svcPodman.GetProtocol()))
+					// ingressInfo := ""
+					containerPorts := svcPodman.ContainerPorts()
+					if len(containerPorts) > 0 {
+						ingress := svc.NewChild("Host ports:")
+						ingressInfo := fmt.Sprintf("ip: %s - ports: ", utils.DefaultStr(svcPodman.Ingress.GetHost(), "*"))
+						for i, portInfo := range containerPorts {
+							if i > 0 {
+								ingressInfo += ", "
+							}
+							ingressInfo += fmt.Sprintf("%s -> %s", portInfo.Host, portInfo.Target)
+						}
+						ingress.NewChild(ingressInfo)
+					}
+					if len(svcPodman.GetEgressResolvers()) > 0 {
+						targets := svc.NewChild("Targets:")
+						for _, t := range svcPodman.GetEgressResolvers() {
+							targetInfo := ""
+							if resolverHost, ok := t.(*domain.EgressResolverHost); ok {
+								targetInfo = fmt.Sprintf("host: %s - ports: %v", resolverHost.Host, resolverHost.Ports)
+							}
+							targets.NewChild(targetInfo)
+						}
+					}
+					if showLabels && len(svcPodman.GetLabels()) > 0 {
+						labels := svc.NewChild("Labels:")
+						for k, v := range svcPodman.GetLabels() {
+							labels.NewChild(fmt.Sprintf("%s=%s", k, v))
+						}
+					}
+				}
 			}
+			l.Print()
 		}
 	} else {
 		return fmt.Errorf("Could not retrieve services: %w", err)
@@ -175,9 +195,7 @@ func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (s *SkupperPodmanService) StatusFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolVarP(&verboseServiceStatus, "verbose", "v", false, "more detailed output")
-}
+func (s *SkupperPodmanService) StatusFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanService) NewClient(cmd *cobra.Command, args []string) {
 	s.podman.NewClient(cmd, args)
@@ -431,32 +449,4 @@ func (s *SkupperPodmanService) checkCommonExposeArgs(cmd *cobra.Command, args []
 		}
 	}
 	return nil
-}
-
-func (s *SkupperPodmanService) NetworkStatusHandler() *podman.NetworkStatusHandler {
-	if s.networkStatusHandler != nil {
-		return s.networkStatusHandler
-	}
-	if s.podman.cli == nil {
-		return nil
-	}
-	s.networkStatusHandler = new(podman.NetworkStatusHandler).WithClient(s.podman.cli)
-	return s.networkStatusHandler
-}
-
-func getPodmanServiceLabelsMap(services []domain.Service) map[string]map[string]string {
-
-	mapServiceLabels := make(map[string]map[string]string)
-
-	for _, svc := range services {
-		if svc.GetLabels() != nil {
-			for _, port := range svc.GetPorts() {
-				serviceName := svc.GetAddress() + ":" + strconv.Itoa(port)
-				mapServiceLabels[serviceName] = svc.GetLabels()
-			}
-		}
-
-	}
-
-	return mapServiceLabels
 }
