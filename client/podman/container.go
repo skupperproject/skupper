@@ -52,7 +52,7 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 	var idMappings *models.IDMappingOptions
 	var userNs *models.Namespace
 
-	if err == nil && curUser.Uid != "0" {
+	if err == nil {
 		// this is based on:
 		// https://www.redhat.com/sysadmin/debug-rootless-podman-mounted-volumes
 		// idMappings is mandatory and is set to the same value podman sets it
