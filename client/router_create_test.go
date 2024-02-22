@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/utils"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/version"
 
@@ -291,6 +292,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 
 		depsFound := []string{}
 		cmsFound := []string{}
+		cmsUpdated := []string{}
 		rolesFound := []string{}
 		clusterRolesFound := []string{}
 		clusterRolesResourcesFound := sets.NewString()
@@ -330,6 +332,10 @@ func TestRouterCreateDefaults(t *testing.T) {
 				cm := obj.(*corev1.ConfigMap)
 				cmsFound = append(cmsFound, cm.Name)
 			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				cm := newObj.(*corev1.ConfigMap)
+				cmsUpdated = append(cmsUpdated, cm.Name)
+			},
 		})
 		roleInformer := informerFactory.Rbac().V1().Roles().Informer()
 		roleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
@@ -338,14 +344,23 @@ func TestRouterCreateDefaults(t *testing.T) {
 				rolesFound = append(rolesFound, role.Name)
 			},
 		})
+
+		expectedClusterRoles := sets.NewString(c.clusterRolesExpected...)
 		clusterRoleInformer := clusterRoleInformerFactory.Rbac().V1().ClusterRoles().Informer()
 		clusterRoleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				clusterRole := obj.(*rbacv1.ClusterRole)
 				if strings.HasPrefix(clusterRole.Name, "skupper") {
-					clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
-					for _, p := range clusterRole.Rules {
-						clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+					if isCluster && !expectedClusterRoles.Has(clusterRole.Name) {
+						// A real cluster may have pre-existing clusterroles that would
+						// make this test flaky, so we ignore clusterroles not listed
+						// on the test.
+						fmt.Printf("clusterrole %q ignored due to -use-cluster\n", clusterRole.Name)
+					} else {
+						clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
+						for _, p := range clusterRole.Rules {
+							clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+						}
 					}
 				}
 			},
@@ -415,15 +430,30 @@ func TestRouterCreateDefaults(t *testing.T) {
 			},
 		})
 
-		// TODO: make more deterministic, allow for leader election
-		time.Sleep(time.Second * 10)
 		assert.Check(t, err, c.doc)
 		if isCluster {
+			var networkStatusUpdated bool
+			var siteLeaderUpdated bool
+			err = utils.Retry(time.Second, 120, func() (bool, error) {
+				networkStatusUpdated = utils.StringSliceContains(cmsUpdated, types.NetworkStatusConfigMapName)
+				siteLeaderUpdated = utils.StringSliceContains(cmsUpdated, types.SiteLeaderLockName)
+				return networkStatusUpdated && siteLeaderUpdated, nil
+			})
+			if err != nil {
+				t.Logf("Network Status updated: %v", networkStatusUpdated)
+				t.Logf("Site leader updated: %v", siteLeaderUpdated)
+			}
+			assert.Assert(t, err, "error waiting on network-status and leader-election to complete")
 			for _, cm := range c.cmsExtraExpected {
 				c.cmsExpected = append(c.cmsExpected, cm)
 			}
 		}
-		if diff := cmp.Diff(c.depsExpected, depsFound, c.opts...); diff != "" {
+		var diff string
+		_ = utils.Retry(time.Second, 10, func() (bool, error) {
+			diff = cmp.Diff(c.depsExpected, depsFound, c.opts...)
+			return diff == "", nil
+		})
+		if diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" deployments mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.cmsExpected, cmsFound, c.opts...); diff != "" {
@@ -454,6 +484,9 @@ func TestRouterCreateDefaults(t *testing.T) {
 		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 		}
+
+		// Close informers
+		cancel()
 	}
 }
 
