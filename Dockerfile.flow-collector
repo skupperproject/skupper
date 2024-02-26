@@ -2,7 +2,6 @@ FROM --platform=$BUILDPLATFORM golang:1.20 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG BUILDARCH
 
 WORKDIR /go/src/app
 
@@ -14,9 +13,7 @@ COPY . .
 
 RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH
 
-FROM --platform=$BUILDPLATFORM $BUILDARCH/node:18.18.2 AS console-builder
-
-ARG BUILDARCH
+FROM --platform=$BUILDPLATFORM node:18.18.2 AS console-builder
 
 WORKDIR /skupper-console/
 ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
