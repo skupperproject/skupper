@@ -459,7 +459,6 @@ jobs:
               fi
       - go/mod-download-cached
       - run: make
-      - run: make package
       - run: make clean
       - run:
           name: Creating artifacts directory
