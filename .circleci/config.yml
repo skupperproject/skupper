@@ -468,6 +468,7 @@ jobs:
           coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
           verbose: true
           coverprofile: "/tmp/artifacts/cover.out"
+          parallel: "3"
       - run:
           name: Generating HTML coverage report
           command: go tool cover -html /tmp/artifacts/cover.out -o /tmp/artifacts/cover.html
