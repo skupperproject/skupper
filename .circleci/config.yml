@@ -458,8 +458,7 @@ jobs:
                 exit 1
               fi
       - go/mod-download-cached
-      - run: make
-      - run: make clean
+      - run: make generate-client
       - run:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
