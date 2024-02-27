@@ -1204,6 +1204,55 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 	return nil
 }
 
+type linkResponseHandler struct {
+	siteByRouterID   map[string]string
+	siteByRouterName map[string]string
+}
+
+func newLinkResponseHandler(sites map[string]*SiteRecord, routers map[string]*RouterRecord) linkResponseHandler {
+	builder := linkResponseHandler{
+		siteByRouterID:   make(map[string]string, len(routers)),
+		siteByRouterName: make(map[string]string, len(routers)),
+	}
+	for _, router := range routers {
+		_, ok := sites[router.Parent]
+		if !ok || router.Name == nil {
+			continue
+		}
+		// router names are prefixed with a routing area - so far always `0/`
+		normalizedName := *router.Name
+		if delim := strings.IndexRune(normalizedName, '/'); delim > -1 {
+			normalizedName = normalizedName[delim+1:]
+		}
+		builder.siteByRouterName[normalizedName] = router.Parent
+		builder.siteByRouterID[router.Identity] = router.Parent
+	}
+	return builder
+}
+
+func (b linkResponseHandler) handle(l LinkRecord) (linkRecordResponse, bool) {
+	var (
+		ok   bool
+		resp = linkRecordResponse{LinkRecord: l}
+	)
+	if l.Name == nil || l.Direction == nil {
+		return resp, false
+	}
+
+	if resp.SourceSiteId, ok = b.siteByRouterID[l.Parent]; !ok {
+		return resp, false
+	}
+
+	if resp.DestinationSiteId, ok = b.siteByRouterName[*l.Name]; !ok {
+		return resp, false
+	}
+	if *l.Direction == Incoming {
+		resp.SourceSiteId, resp.DestinationSiteId = resp.DestinationSiteId, resp.SourceSiteId
+	}
+
+	return resp, true
+}
+
 func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 	vars := mux.Vars(request.Request)
 	url := request.Request.URL
@@ -1270,14 +1319,19 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			}
 			retrieveError = sortAndSlice(routers, &p, queryParams)
 		case "links":
-			links := []LinkRecord{}
+			links := []linkRecordResponse{}
+			linkHandler := newLinkResponseHandler(fc.Sites, fc.Routers)
 			if id, ok := vars["id"]; ok {
 				if site, ok := fc.Sites[id]; ok {
 					for _, link := range fc.Links {
 						if fc.getRecordSiteId(*link) == site.Identity {
+							lr, ok := linkHandler.handle(*link)
+							if !ok {
+								continue
+							}
 							p.TotalCount++
-							if filterRecord(*link, queryParams) && link.Base.TimeRangeValid(queryParams) {
-								links = append(links, *link)
+							if filterRecord(lr, queryParams) && link.Base.TimeRangeValid(queryParams) {
+								links = append(links, lr)
 							}
 						}
 					}
@@ -1383,14 +1437,19 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			}
 			retrieveError = sortAndSlice(flows, &p, queryParams)
 		case "links":
-			links := []LinkRecord{}
+			links := []linkRecordResponse{}
+			linkHandler := newLinkResponseHandler(fc.Sites, fc.Routers)
 			if id, ok := vars["id"]; ok {
 				if router, ok := fc.Routers[id]; ok {
 					for _, link := range fc.Links {
 						if link.Parent == router.Identity {
+							lr, ok := linkHandler.handle(*link)
+							if !ok {
+								continue
+							}
 							p.TotalCount++
-							if filterRecord(*link, queryParams) && link.Base.TimeRangeValid(queryParams) {
-								links = append(links, *link)
+							if filterRecord(lr, queryParams) && link.Base.TimeRangeValid(queryParams) {
+								links = append(links, lr)
 							}
 						}
 					}
@@ -1429,12 +1488,17 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 			retrieveError = sortAndSlice(connectors, &p, queryParams)
 		}
 	case Link:
+		linkHandler := newLinkResponseHandler(fc.Sites, fc.Routers)
 		switch request.HandlerName {
 		case "list":
-			links := []LinkRecord{}
+			links := []linkRecordResponse{}
 			for _, link := range fc.Links {
-				if filterRecord(*link, queryParams) && link.Base.TimeRangeValid(queryParams) {
-					links = append(links, *link)
+				lr, ok := linkHandler.handle(*link)
+				if !ok {
+					continue
+				}
+				if filterRecord(lr, queryParams) && link.Base.TimeRangeValid(queryParams) {
+					links = append(links, lr)
 				}
 			}
 			p.TotalCount = len(fc.Links)
@@ -1442,8 +1506,11 @@ func (fc *FlowCollector) retrieve(request ApiRequest) (*string, error) {
 		case "item":
 			if id, ok := vars["id"]; ok {
 				if link, ok := fc.Links[id]; ok {
-					p.Count = 1
-					p.Results = link
+					lr, ok := linkHandler.handle(*link)
+					if ok {
+						p.Count = 1
+						p.Results = lr
+					}
 				}
 			}
 		}

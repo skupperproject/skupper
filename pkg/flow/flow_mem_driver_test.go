@@ -36,6 +36,15 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 	processConnector := "connector:0"
 	destHost1 := "10.20.30.40"
 	destHost2 := "host.cloud.com"
+	linkNames := []string{
+		"site1.1",
+		"site2.0",
+	}
+	routerNames := []string{
+		"0/site1.0",
+		"0/site1.1",
+		"0/site2.0",
+	}
 
 	sites := []SiteRecord{
 		{
@@ -67,7 +76,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				Parent:    "site:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			Name: &name,
+			Name: &routerNames[0],
 		},
 		{
 			Base: Base{
@@ -76,7 +85,16 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				Parent:    "site:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			Name: &name,
+			Name: &routerNames[1],
+		},
+		{
+			Base: Base{
+				RecType:   recordNames[Router],
+				Identity:  "router:2",
+				Parent:    "site:1",
+				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+			},
+			Name: &routerNames[2],
 		},
 	}
 	hosts := []HostRecord{
@@ -110,17 +128,21 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			Base: Base{
 				RecType:   recordNames[Link],
 				Identity:  "link:0",
-				Parent:    "router:0",
+				Parent:    "router:1",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
+			Name:      &linkNames[0],
+			Direction: &Incoming,
 		},
 		{
 			Base: Base{
 				RecType:   recordNames[Link],
 				Identity:  "link:1",
-				Parent:    "router:1",
+				Parent:    "router:2",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
+			Name:      &linkNames[1],
+			Direction: &Outgoing,
 		},
 	}
 	processes := []ProcessRecord{
@@ -391,7 +413,11 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 	}
 	for _, l := range links {
 		id := fc.getRecordSiteId(l)
-		assert.Equal(t, id, "site:0")
+		expected := "site:0"
+		if l.Parent == "router:2" {
+			expected = "site:1"
+		}
+		assert.Equal(t, id, expected)
 	}
 	for _, p := range processes {
 		id := fc.getRecordSiteId(p)
@@ -412,7 +438,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 		}
 		if f.Trace != nil {
 			trace := fc.annotateFlowTrace(&f)
-			assert.Equal(t, *trace, "skupper-site1@skupper-site1")
+			assert.Equal(t, *trace, "site1.0@skupper-site1")
 		}
 	}
 
@@ -428,7 +454,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 	}
 
 	var processGroupId string
-	for x, _ := range fc.ProcessGroups {
+	for x := range fc.ProcessGroups {
 		processGroupId = x
 		break
 	}
@@ -473,7 +499,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{"id": "site:0"},
 			name:         "routers",
-			responseSize: len(routers),
+			responseSize: 2,
 		},
 		{
 			desc:         "Get Site links",
@@ -483,7 +509,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{"id": "site:0"},
 			name:         "links",
-			responseSize: len(links),
+			responseSize: 1,
 		},
 		{
 			desc:         "Get Site hosts",
@@ -561,7 +587,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			method:       "Get",
 			url:          "/",
 			params:       map[string]string{"sortBy": "identity.asc"},
-			vars:         map[string]string{"id": "router:0"},
+			vars:         map[string]string{"id": "router:1"},
 			name:         "links",
 			responseSize: 1,
 		},
