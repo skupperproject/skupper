@@ -221,8 +221,10 @@ func PrintServiceStatus(currentNetworkStatus *NetworkStatusInfo, mapServiceLabel
 										var name string
 										if t.Target != "" {
 											name = fmt.Sprintf("name=%s", t.Target)
+										} else if t.DestHost != "" && t.DestPort != "" {
+											name = fmt.Sprintf("dest host=%s:%s", t.DestHost, t.DestPort)
 										}
-										targetInfo := fmt.Sprintf("%s %s", t.Address, name)
+										targetInfo := fmt.Sprintf("address=%s %s", t.Address, name)
 										targets.NewChild(targetInfo)
 									}
 								}

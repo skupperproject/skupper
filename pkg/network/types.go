@@ -63,6 +63,7 @@ type ListenerInfo struct {
 }
 
 type ConnectorInfo struct {
+	DestHost string `json:"destHost,omitempty"`
 	DestPort string `json:"destPort,omitempty"`
 	Address  string `json:"address,omitempty"`
 	Process  string `json:"process,omitempty"`
