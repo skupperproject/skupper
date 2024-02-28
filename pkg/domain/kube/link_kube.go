@@ -150,7 +150,7 @@ func (l *LinkHandlerKube) RemoteLinks(ctx context.Context) ([]*network.RemoteLin
 				if link.Direction == "incoming" {
 					remoteSite, ok := mapRouterSite[link.Name]
 					if !ok {
-						return nil, fmt.Errorf("remote site not found in config map %s", types.NetworkStatusConfigMapName)
+						return nil, fmt.Errorf("status not ready")
 					}
 
 					// links between routers of the same site will not be shown
