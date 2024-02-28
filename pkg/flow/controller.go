@@ -29,6 +29,8 @@ type FlowController struct {
 	hostOutgoing         chan *HostRecord
 	siteRecordController siteRecordController
 	startTime            int64
+	beaconInterval       time.Duration // test hooks
+	heartbeatInterval    time.Duration
 }
 
 type PolicyEvaluator interface {
@@ -106,10 +108,11 @@ func UpdateHost(c *FlowController, deleted bool, name string, host *HostRecord) 
 }
 
 func (c *FlowController) updateBeacon(stopCh <-chan struct{}) {
-	tickerAge := time.NewTicker(10 * time.Minute)
-	defer tickerAge.Stop()
-
-	beaconTimer := time.NewTicker(10 * time.Second)
+	beaconInterval := c.beaconInterval
+	if beaconInterval == 0 {
+		beaconInterval = 10 * time.Second
+	}
+	beaconTimer := time.NewTicker(beaconInterval)
 	defer beaconTimer.Stop()
 
 	identity := c.origin
@@ -128,7 +131,6 @@ func (c *FlowController) updateBeacon(stopCh <-chan struct{}) {
 		select {
 		case <-beaconTimer.C:
 			c.beaconOutgoing <- beacon
-		case <-tickerAge.C:
 		case <-stopCh:
 			return
 
@@ -137,10 +139,11 @@ func (c *FlowController) updateBeacon(stopCh <-chan struct{}) {
 }
 
 func (c *FlowController) updateHeartbeats(stopCh <-chan struct{}) {
-	tickerAge := time.NewTicker(10 * time.Minute)
-	defer tickerAge.Stop()
-
-	heartbeatTimer := time.NewTicker(2 * time.Second)
+	heartbeatInterval := c.heartbeatInterval
+	if heartbeatInterval == 0 {
+		heartbeatInterval = 2 * time.Second
+	}
+	heartbeatTimer := time.NewTicker(heartbeatInterval)
 	defer heartbeatTimer.Stop()
 
 	heartbeat := &HeartbeatRecord{
@@ -157,7 +160,6 @@ func (c *FlowController) updateHeartbeats(stopCh <-chan struct{}) {
 		case <-heartbeatTimer.C:
 			heartbeat.Now = uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
 			c.heartbeatOutgoing <- heartbeat
-		case <-tickerAge.C:
 		case <-stopCh:
 			return
 

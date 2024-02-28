@@ -56,11 +56,13 @@ func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) {
 	}
 
 	fc = flow.NewFlowCollector(flow.FlowCollectorSpec{
-		Mode:              flow.RecordStatus,
-		Namespace:         cli.Namespace,
-		PromReg:           nil,
-		ConnectionFactory: qdr.NewConnectionFactory("amqp://localhost:5672", nil),
-		FlowRecordTtl:     time.Minute * 15})
+		Mode:                flow.RecordStatus,
+		Namespace:           cli.Namespace,
+		PromReg:             nil,
+		ConnectionFactory:   qdr.NewConnectionFactory("amqp://localhost:5672", nil),
+		FlowRecordTtl:       time.Minute * 15,
+		NetworkStatusClient: cli.KubeClient,
+	})
 
 	go primeBeacons(fc, cli)
 	log.Println("COLLECTOR: Starting flow collector")

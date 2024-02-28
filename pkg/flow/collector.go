@@ -14,6 +14,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/messaging"
 	"github.com/skupperproject/skupper/pkg/version"
+	"k8s.io/client-go/kubernetes"
 )
 
 type senderDirect struct {
@@ -153,15 +154,17 @@ const (
 )
 
 type FlowCollectorSpec struct {
-	Mode              CollectorMode
-	Namespace         string
-	Origin            string
-	PromReg           prometheus.Registerer
-	ConnectionFactory messaging.ConnectionFactory
-	FlowRecordTtl     time.Duration
+	Mode                CollectorMode
+	Namespace           string
+	Origin              string
+	PromReg             prometheus.Registerer
+	ConnectionFactory   messaging.ConnectionFactory
+	FlowRecordTtl       time.Duration
+	NetworkStatusClient kubernetes.Interface
 }
 
 type FlowCollector struct {
+	kubeclient              kubernetes.Interface
 	mode                    CollectorMode
 	origin                  string
 	namespace               string
@@ -215,6 +218,7 @@ func getTtl(ttl time.Duration) time.Duration {
 
 func NewFlowCollector(spec FlowCollectorSpec) *FlowCollector {
 	fc := &FlowCollector{
+		kubeclient:              spec.NetworkStatusClient,
 		mode:                    spec.Mode,
 		namespace:               spec.Namespace,
 		origin:                  spec.Origin,
