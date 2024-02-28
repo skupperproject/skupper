@@ -50,19 +50,19 @@ build-manifest:
 	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
 
 docker-build-test-image:
-	${DOCKER} buildx build --no-cache --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 	${DOCKER} buildx build --load -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
 docker-build: generate-client docker-build-test-image
-	${DOCKER} buildx build --no-cache --platform ${PLATFORMS} -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
 	${DOCKER} buildx build --load  -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
-	${DOCKER} buildx build --no-cache --platform ${PLATFORMS} -t ${CONTROLLER_PODMAN_IMAGE} -f Dockerfile.controller-podman .
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONTROLLER_PODMAN_IMAGE} -f Dockerfile.controller-podman .
 	${DOCKER} buildx build --load  -t ${CONTROLLER_PODMAN_IMAGE} -f Dockerfile.controller-podman .
-	${DOCKER} buildx build --no-cache --platform ${PLATFORMS} -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
 	${DOCKER} buildx build --load  -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
-	${DOCKER} buildx build --no-cache --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
 	${DOCKER} buildx build --load  -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
-	${DOCKER} buildx build --no-cache --platform ${PLATFORMS} -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
 	${DOCKER} buildx build --load  -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
 
 docker-push-test-image:
