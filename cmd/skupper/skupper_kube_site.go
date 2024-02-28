@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"reflect"
 	"strings"
 	"time"
@@ -272,11 +273,11 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		if len(currentSite.RouterStatus) > 0 {
 			routerMode = currentSite.RouterStatus[0].Router.Mode
 
-			statusDataOutput := StatusData{
-				enabledIn: PlatformSupport{"kubernetes", currentSite.Site.Namespace},
-				mode:      routerMode,
-				siteName:  currentSite.Site.Name,
-				policies:  currentSite.Site.Policy,
+			statusDataOutput := formatter.StatusData{
+				EnabledIn: formatter.PlatformSupport{"kubernetes", currentSite.Site.Namespace},
+				Mode:      routerMode,
+				SiteName:  currentSite.Site.Name,
+				Policies:  currentSite.Site.Policy,
 			}
 
 			err, index := statusManager.GetRouterIndex(currentSite)
@@ -290,11 +291,11 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 			// the current site does not count as a connection
 			connections := totalSites - 1
 			directConnections := len(mapSiteLink)
-			statusDataOutput.totalConnections = connections
-			statusDataOutput.directConnections = directConnections
-			statusDataOutput.indirectConnections = connections - directConnections
+			statusDataOutput.TotalConnections = connections
+			statusDataOutput.DirectConnections = directConnections
+			statusDataOutput.IndirectConnections = connections - directConnections
 
-			statusDataOutput.exposedServices = len(currentStatus.Addresses)
+			statusDataOutput.ExposedServices = len(currentStatus.Addresses)
 
 			consoleUrl, _ := cli.GetConsoleUrl(cli.GetNamespace())
 
@@ -303,21 +304,21 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 				return err
 			} else {
 				if siteConfig.Spec.EnableFlowCollector && consoleUrl != "" {
-					statusDataOutput.consoleUrl = consoleUrl
+					statusDataOutput.ConsoleUrl = consoleUrl
 					if siteConfig.Spec.AuthMode == "internal" {
-						statusDataOutput.credentials = PlatformSupport{"secret", "'skupper-console-users'"}
+						statusDataOutput.Credentials = formatter.PlatformSupport{"secret", "'skupper-console-users'"}
 					}
 				}
 			}
 
 			if err == nil && verboseStatus {
-				err := PrintVerboseStatus(statusDataOutput)
+				err := formatter.PrintVerboseStatus(statusDataOutput)
 				if err != nil {
 					return err
 				}
 
 			} else if err == nil {
-				err := PrintStatus(statusDataOutput)
+				err := formatter.PrintStatus(statusDataOutput)
 				if err != nil {
 					return err
 				}
