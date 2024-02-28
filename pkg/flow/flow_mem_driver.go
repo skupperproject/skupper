@@ -531,7 +531,7 @@ func (fc *FlowCollector) updateNetworkStatus() {
 
 	if platform == "" || platform == types.PlatformKubernetes {
 		if fc.kubeclient == nil { // errant configuration - means there is a bug in FlowCollector or how it was configured
-			panic("FlowCollector was not configured with a kuberentes client")
+			panic("FlowCollector was not configured with a kubernetes client")
 		}
 		err = func() error {
 			err = retry.RetryOnConflict(defaultRetry, func() error {
