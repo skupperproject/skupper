@@ -449,6 +449,7 @@ jobs:
       name: go_cimg
     steps:
       - checkout
+      - go/mod-download-cached
       - run:
           name: "Enforce Go Formatted Code"
           command: >
@@ -457,7 +458,6 @@ jobs:
                 echo "Bad formatting! execute \"\$make format\" locally and push again!"
                 exit 1
               fi
-      - go/mod-download-cached
       - run: make generate-client
       - run:
           name: Creating artifacts directory
