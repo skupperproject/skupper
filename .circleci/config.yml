@@ -458,9 +458,7 @@ jobs:
                 exit 1
               fi
       - go/mod-download-cached
-      - run: make
-      - run: make package
-      - run: make clean
+      - run: make generate-client
       - run:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
@@ -468,6 +466,7 @@ jobs:
           coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
           verbose: true
           coverprofile: "/tmp/artifacts/cover.out"
+          parallel: "3"
       - run:
           name: Generating HTML coverage report
           command: go tool cover -html /tmp/artifacts/cover.out -o /tmp/artifacts/cover.html
