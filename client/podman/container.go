@@ -62,7 +62,9 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 			HostGIDMapping: false,
 			HostUIDMapping: false,
 		}
-		userNs = &models.Namespace{Nsmode: models.NamespaceMode("keep-id")}
+		if curUser.Uid != "0" {
+			userNs = &models.Namespace{Nsmode: models.NamespaceMode("keep-id")}
+		}
 	}
 	spec := &models.SpecGenerator{
 		Annotations:   c.Annotations,
