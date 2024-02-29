@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -490,7 +489,7 @@ var defaultRetry = wait.Backoff{
 
 var netUpdateCt int
 
-func (fc *FlowCollector) updateNetworkStatus() error {
+func (fc *FlowCollector) updateNetworkStatus() {
 	var err error
 	networkData := map[string]string{}
 	platform := config.GetPlatform()
@@ -531,36 +530,40 @@ func (fc *FlowCollector) updateNetworkStatus() error {
 	networkData["NetworkStatus"] = prettyPrint(networkStatus)
 
 	if platform == "" || platform == types.PlatformKubernetes {
-		cli, err := client.NewClient(fc.namespace, "", "")
-		if err != nil {
-			return err
+		if fc.kubeclient == nil { // errant configuration - means there is a bug in FlowCollector or how it was configured
+			panic("FlowCollector was not configured with a kubernetes client")
 		}
+		err = func() error {
+			err = retry.RetryOnConflict(defaultRetry, func() error {
+				configMap, err := kube.GetConfigMap(types.NetworkStatusConfigMapName, fc.namespace, fc.kubeclient)
+				if err != nil {
+					return err
+				}
 
-		err = retry.RetryOnConflict(defaultRetry, func() error {
-			configMap, err := kube.GetConfigMap(types.NetworkStatusConfigMapName, cli.Namespace, cli.KubeClient)
-			if err != nil {
-				return err
+				configMap.Data = networkData
+
+				_, err = fc.kubeclient.CoreV1().ConfigMaps(fc.namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+				if err != nil {
+					return err
+				} else {
+					netUpdateCt++
+					return nil
+				}
+			})
+			if !fc.networkStatusUp && len(networkStatus.Sites) > 0 && len(networkStatus.Sites[0].RouterStatus) > 0 {
+				fc.networkStatusUp = true
+				log.Printf("COLLECTOR: First functional network status update written after %s and %d updates\n", time.Since(fc.begin), netUpdateCt)
 			}
-
-			configMap.Data = networkData
-
-			_, err = cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
-			if err != nil {
-				return err
-			} else {
-				netUpdateCt++
-				return nil
-			}
-		})
-		if !fc.networkStatusUp && len(networkStatus.Sites) > 0 && len(networkStatus.Sites[0].RouterStatus) > 0 {
-			fc.networkStatusUp = true
-			log.Printf("COLLECTOR: First functional network status update written after %s and %d updates\n", time.Since(fc.begin), netUpdateCt)
-		}
+			return nil
+		}()
 	} else if platform == types.PlatformPodman {
 		networkStatusHandler := &podman.NetworkStatusHandler{}
 		err = networkStatusHandler.Update(networkData["NetworkStatus"])
 	}
-	return err
+
+	if err != nil {
+		log.Printf("COLLECTOR: Error writing network status update: %v", err)
+	}
 }
 
 func (fc *FlowCollector) addRecord(record interface{}) error {
@@ -2469,7 +2472,9 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 							connector.Target = process.Name
 							process.connector = &connector.Identity
 							process.ProcessBinding = &Bound
-							fc.updateNetworkStatus()
+							if fc.mode == RecordStatus {
+								fc.updateNetworkStatus()
+							}
 							log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
 							delete(fc.connectorsToReconcile, connId)
 							break

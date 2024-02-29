@@ -63,6 +63,8 @@ func TestUpdateHost(t *testing.T) {
 func TestUpdateBeaconAndHeartbeats(t *testing.T) {
 	_ = os.Setenv("SKUPPER_SITE_ID", "mySite")
 	fc := NewFlowController("mySite", "X.Y.Z", uint64(time.Now().UnixNano())/uint64(time.Microsecond), nil, WithPolicyDisabled)
+	fc.beaconInterval = 10 * time.Millisecond
+	fc.heartbeatInterval = 2 * time.Millisecond
 	assert.Assert(t, fc != nil)
 	stopCh := make(chan struct{})
 	go fc.updateBeacon(stopCh)

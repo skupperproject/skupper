@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -8,7 +9,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/skupperproject/skupper/api/types"
 	"gotest.tools/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestRecordGraphWithMetrics(t *testing.T) {
@@ -994,8 +999,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 	}
 }
 
-// TODO: address dependence on cli
-func xTestRecordGraphNetworkStatus(t *testing.T) {
+func TestRecordGraphNetworkStatus(t *testing.T) {
 	name := "skupper-site"
 	namespace := "skupper-public"
 	provider := "aws"
@@ -1186,14 +1190,26 @@ func xTestRecordGraphNetworkStatus(t *testing.T) {
 	}
 
 	u, _ := time.ParseDuration("5m")
+	client := fake.NewSimpleClientset()
+	configMapClient := client.CoreV1().ConfigMaps("default")
+	_, err := configMapClient.Create(
+		context.Background(),
+		&v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: types.NetworkStatusConfigMapName}},
+		metav1.CreateOptions{},
+	)
+	if err != nil {
+		t.Fatalf("kube cliet setup failed: %v", err)
+	}
 	fc := NewFlowCollector(FlowCollectorSpec{
-		Mode:              RecordStatus,
-		Namespace:         "default",
-		Origin:            "origin",
-		PromReg:           nil,
-		ConnectionFactory: nil,
-		FlowRecordTtl:     u,
+		Mode:                RecordStatus,
+		Namespace:           "default",
+		Origin:              "origin",
+		PromReg:             nil,
+		ConnectionFactory:   nil,
+		FlowRecordTtl:       u,
+		NetworkStatusClient: client,
 	})
+
 	for _, s := range sites {
 		err := fc.updateRecord(s)
 		assert.Assert(t, err)
@@ -1268,6 +1284,17 @@ func xTestRecordGraphNetworkStatus(t *testing.T) {
 
 	fc.reconcileConnectorRecords()
 
-	err := fc.updateNetworkStatus()
-	assert.Assert(t, err)
+	fc.updateNetworkStatus()
+
+	cm, err := configMapClient.Get(context.Background(), types.NetworkStatusConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal("expected configmap", err)
+	}
+	networkStatus, ok := cm.Data["NetworkStatus"]
+	assert.Check(t, ok)
+	var status NetworkStatus
+	assert.Check(t, json.Unmarshal([]byte(networkStatus), &status))
+	assert.Equal(t, len(status.Sites), len(sites))
+	assert.Equal(t, len(status.Addresses), 4)
+
 }
