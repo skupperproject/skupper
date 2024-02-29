@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"strconv"
 	"strings"
 
@@ -77,7 +78,7 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 		mapServiceLabels = getServiceLabelsMap(vsis)
 	}
 
-	err = network.PrintServiceStatus(currentNetworkStatus, mapServiceLabels, verboseServiceStatus, showLabels)
+	err = formatter.PrintServiceStatus(currentNetworkStatus, mapServiceLabels, verboseServiceStatus, showLabels)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"net"
 	"os"
 	"strings"
@@ -274,14 +275,14 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	site := s.podman.currentSite
 
 	// Preparing output
-	statusOutput := StatusData{}
+	statusOutput := formatter.StatusData{}
 
 	if site.GetName() != "" && site.GetName() != podman.Username {
-		statusOutput.siteName = site.GetName()
+		statusOutput.SiteName = site.GetName()
 	}
 
-	statusOutput.mode = site.GetMode()
-	statusOutput.enabledIn = PlatformSupport{"podman", podman.Username}
+	statusOutput.Mode = site.GetMode()
+	statusOutput.EnabledIn = formatter.PlatformSupport{"podman", podman.Username}
 
 	var currentSite = statusManager.GetSiteById(site.Id)
 
@@ -296,24 +297,24 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	// the current site does not count as a connection
 	connections := totalSites - 1
 	directConnections := len(mapSiteLink)
-	statusOutput.totalConnections = connections
-	statusOutput.directConnections = directConnections
-	statusOutput.indirectConnections = connections - directConnections
+	statusOutput.TotalConnections = connections
+	statusOutput.DirectConnections = directConnections
+	statusOutput.IndirectConnections = connections - directConnections
 
-	statusOutput.exposedServices = len(currentStatus.Addresses)
+	statusOutput.ExposedServices = len(currentStatus.Addresses)
 
 	if site.EnableFlowCollector {
-		statusOutput.consoleUrl = site.GetConsoleUrl()
-		statusOutput.credentials = PlatformSupport{"podman volume", "'skupper-console-users'"}
+		statusOutput.ConsoleUrl = site.GetConsoleUrl()
+		statusOutput.Credentials = formatter.PlatformSupport{"podman volume", "'skupper-console-users'"}
 	}
 
 	if verboseStatus {
-		err := PrintVerboseStatus(statusOutput)
+		err := formatter.PrintVerboseStatus(statusOutput)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := PrintStatus(statusOutput)
+		err := formatter.PrintStatus(statusOutput)
 		if err != nil {
 			return err
 		}
