@@ -278,6 +278,12 @@ type LinkRecord struct {
 	Direction *string `json:"direction,omitempty"`
 }
 
+type linkRecordResponse struct {
+	LinkRecord
+	SourceSiteId      string `json:"sourceSiteId"`
+	DestinationSiteId string `json:"destinationSiteId"`
+}
+
 type ListenerRecord struct {
 	Base
 	Name        *string `json:"name,omitempty"`
