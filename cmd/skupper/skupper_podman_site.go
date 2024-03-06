@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/network"
-	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"net"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/api/types"
@@ -197,7 +198,7 @@ func (s *SkupperPodmanSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console must be used in conjunction with '--enable-flow-collector' flag")
 	cmd.Flags().StringVarP(&routerCreateOpts.AuthMode, "console-auth", "", "internal", "Authentication mode for console(s). One of: 'internal', 'unsecured'")
 	cmd.Flags().StringVarP(&routerCreateOpts.User, "console-user", "", "", "Skupper console user. Valid only when --console-auth=internal")
-	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --console-auth=internal")
+	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console password. Valid only when --console-auth=internal")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-flow-collector", "", false, "Enable cross-site flow collection for the application network")
 	// --bind-port-flow-collector
 	cmd.Flags().IntVar(&s.flags.IngressBindFlowCollectorPort, "bind-port-flow-collector", int(types.FlowCollectorDefaultServicePort),
