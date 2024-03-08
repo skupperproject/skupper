@@ -58,10 +58,12 @@ func (n *NetworkStatusHandler) updateInContainer(networkStatusJson []byte) error
 	defer func() {
 		_ = os.Remove(networkStatusLockFile)
 	}()
-	var f *os.File
-	if f, err = os.Create(NetworkStatusFileInternal()); err == nil {
-		_, err = f.Write(networkStatusJson)
+	f, err := os.Create(NetworkStatusFileInternal())
+	if err != nil {
+		return fmt.Errorf("error opening file %s: %s", NetworkStatusFileInternal(), err)
 	}
+	defer f.Close()
+	_, err = f.Write(networkStatusJson)
 	if err != nil {
 		return fmt.Errorf("error writing to %s: %s", NetworkStatusFileInternal(), err)
 	}
