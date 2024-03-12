@@ -1056,9 +1056,17 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 	})
 	svcPorts := definition.Ports
 	ports := map[int]int{}
+	targetNs := namespace
+
 	if len(definition.Targets) > 0 {
-		ports = definition.Targets[0].TargetPorts
-	} else {
+		target := definition.Targets[0]
+		targetNs = target.Namespace
+		if len(target.TargetPorts) > 0 {
+			ports = target.TargetPorts
+		}
+	}
+
+	if len(ports) == 0 {
 		for _, sp := range svcPorts {
 			ports[sp] = sp
 		}
@@ -1067,7 +1075,7 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 		address := fmt.Sprintf("%s-%s:%d", definition.Address, "${POD_ID}", iPort)
 		if definition.IsOfLocalOrigin() {
 			name := fmt.Sprintf("egress:%d", ePort)
-			host := definition.Headless.Name + "-${POD_ID}." + definition.Address + "." + namespace
+			host := definition.Headless.Name + "-${POD_ID}." + definition.Address + "." + targetNs
 			// in the originating site, just have egress bindings
 			switch definition.Protocol {
 			case "tcp":

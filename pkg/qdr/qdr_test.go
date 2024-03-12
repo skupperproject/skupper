@@ -559,3 +559,180 @@ func TestGetSslProfilesDifference(t *testing.T) {
 	assert.Assert(t, utils.StringSlicesEqual(deletedSslProfiles, expectedDeletedSslProfiles), "Expected %v but got %v", expectedDeletedSslProfiles, deletedSslProfiles)
 
 }
+
+func TestGetRouterConfigForHeadlessProxy(t *testing.T) {
+	type test struct {
+		name           string
+		definition     types.ServiceInterface
+		site           string
+		version        string
+		namespace      string
+		expectedResult BridgeConfig
+	}
+
+	testTable := []test{
+		{
+			name: "definition-with-targets",
+			definition: types.ServiceInterface{
+				Origin:   "",
+				Address:  "address",
+				Protocol: "tcp",
+				Ports:    []int{9000},
+				Headless: &types.Headless{
+					Name: "dummy",
+				},
+				Targets: []types.ServiceInterfaceTarget{{
+					Name:      "target-1",
+					Selector:  "app=dummy",
+					Namespace: "default",
+					TargetPorts: map[int]int{
+						3000: 3000,
+					},
+				}},
+			},
+			site:      "site-1",
+			version:   "version-1",
+			namespace: "namespace-1",
+			expectedResult: BridgeConfig{
+				TcpConnectors: TcpEndpointMap{
+					"egress:3000": TcpEndpoint{
+						Name:    "egress:3000",
+						Host:    "dummy-${POD_ID}.address.default",
+						Port:    "3000",
+						Address: "address-${POD_ID}:3000",
+						SiteId:  "site-1",
+					},
+				},
+				TcpListeners:   TcpEndpointMap{},
+				HttpConnectors: HttpEndpointMap{},
+				HttpListeners:  HttpEndpointMap{},
+			},
+		},
+		{
+			name: "definition-without-targets",
+			definition: types.ServiceInterface{
+				Origin:   "",
+				Address:  "address",
+				Protocol: "tcp",
+				Ports:    []int{9000},
+				Headless: &types.Headless{
+					Name: "dummy",
+				},
+			},
+			site:      "site-1",
+			version:   "version-1",
+			namespace: "namespace-1",
+			expectedResult: BridgeConfig{
+				TcpConnectors: TcpEndpointMap{
+					"egress:9000": TcpEndpoint{
+						Name:    "egress:9000",
+						Host:    "dummy-${POD_ID}.address.namespace-1",
+						Port:    "9000",
+						Address: "address-${POD_ID}:9000",
+						SiteId:  "site-1",
+					},
+				},
+				TcpListeners:   TcpEndpointMap{},
+				HttpConnectors: HttpEndpointMap{},
+				HttpListeners:  HttpEndpointMap{},
+			},
+		},
+		{
+			name: "definition-without-targets-http",
+			definition: types.ServiceInterface{
+				Origin:   "",
+				Address:  "address",
+				Protocol: "http",
+				Ports:    []int{9000},
+				Headless: &types.Headless{
+					Name: "dummy",
+				},
+			},
+			site:      "site-1",
+			version:   "version-1",
+			namespace: "namespace-1",
+			expectedResult: BridgeConfig{
+				TcpConnectors: TcpEndpointMap{},
+				TcpListeners:  TcpEndpointMap{},
+				HttpConnectors: HttpEndpointMap{
+					"egress:9000": HttpEndpoint{
+						Name:    "egress:9000",
+						Host:    "dummy-${POD_ID}.address.namespace-1",
+						Port:    "9000",
+						Address: "address-${POD_ID}:9000",
+						SiteId:  "site-1",
+					},
+				},
+				HttpListeners: HttpEndpointMap{},
+			},
+		},
+		{
+			name: "definition-external-origin",
+			definition: types.ServiceInterface{
+				Origin:   "external",
+				Address:  "address",
+				Protocol: "tcp",
+				Ports:    []int{9000},
+				Headless: &types.Headless{
+					Name: "dummy",
+				},
+			},
+			site:      "site-1",
+			version:   "version-1",
+			namespace: "namespace-1",
+			expectedResult: BridgeConfig{
+				TcpConnectors: TcpEndpointMap{},
+				TcpListeners: TcpEndpointMap{
+					"ingress:9000": TcpEndpoint{
+						Name:    "ingress:9000",
+						Host:    "",
+						Port:    "9000",
+						Address: "address-${POD_ID}:9000",
+						SiteId:  "site-1",
+					},
+				},
+				HttpConnectors: HttpEndpointMap{},
+				HttpListeners:  HttpEndpointMap{},
+			},
+		},
+		{
+			name: "definition-external-http",
+			definition: types.ServiceInterface{
+				Origin:   "external",
+				Address:  "address",
+				Protocol: "http",
+				Ports:    []int{9000},
+				Headless: &types.Headless{
+					Name: "dummy",
+				},
+			},
+			site:      "site-1",
+			version:   "version-1",
+			namespace: "namespace-1",
+			expectedResult: BridgeConfig{
+				TcpConnectors:  TcpEndpointMap{},
+				TcpListeners:   TcpEndpointMap{},
+				HttpConnectors: HttpEndpointMap{},
+				HttpListeners: HttpEndpointMap{
+					"ingress:9000": HttpEndpoint{
+						Name:    "ingress:9000",
+						Host:    "",
+						Port:    "9000",
+						Address: "address-${POD_ID}:9000",
+						SiteId:  "site-1",
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			expectedResult := test.expectedResult
+			actualResult, _ := GetRouterConfigForHeadlessProxy(test.definition, test.site, test.version, test.namespace)
+			routerConfig, _ := UnmarshalRouterConfig(actualResult)
+
+			assert.Assert(t, reflect.DeepEqual(expectedResult, routerConfig.Bridges))
+		})
+	}
+}
