@@ -1,5 +1,5 @@
-//go:build integration || examples
-// +build integration examples
+//go:build examples
+// +build examples
 
 package hipstershop
 
