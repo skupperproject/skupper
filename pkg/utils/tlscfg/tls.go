@@ -22,7 +22,7 @@ func Modern() *tls.Config {
 }
 
 // Default TLS Configuration excludes cipher suites implemented in crypto/tls
-// that have not been marked insecure.
+// that have been marked insecure.
 func Default() *tls.Config {
 	suites := make([]uint16, len(tlsCiphers))
 	copy(suites, tlsCiphers)
