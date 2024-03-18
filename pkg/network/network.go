@@ -3,7 +3,6 @@ package network
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"strings"
 )
 
@@ -178,88 +177,4 @@ func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
 	}
 
 	return false
-}
-
-func PrintServiceStatus(currentNetworkStatus *NetworkStatusInfo, mapServiceLabels map[string]map[string]string, verboseServiceStatus bool, showLabels bool, localSiteInfo *LocalSiteInfo) error {
-	statusManager := SkupperStatus{
-		NetworkStatus: currentNetworkStatus,
-	}
-
-	mapServiceSites := statusManager.GetServiceSitesMap()
-	mapSiteTarget := statusManager.GetSiteTargetMap()
-
-	if len(currentNetworkStatus.Addresses) == 0 {
-		fmt.Println("No services defined")
-	} else {
-		l := formatter.NewList()
-		l.Item("Services exposed through Skupper:")
-
-		for _, si := range currentNetworkStatus.Addresses {
-			svc := l.NewChild(fmt.Sprintf("%s (%s)", si.Name, si.Protocol))
-
-			if verboseServiceStatus {
-				sites := svc.NewChild("Sites:")
-
-				if mapServiceSites[si.Name] != nil {
-					for _, site := range mapServiceSites[si.Name] {
-						siteNamespace := ""
-
-						if len(site.Site.Namespace) > 0 {
-							siteNamespace = "(" + site.Site.Namespace + ")"
-						}
-						item := site.Site.Identity + siteNamespace + "\n"
-						policy := "-"
-						if len(site.Site.Policy) > 0 {
-							policy = site.Site.Policy
-						}
-						theSite := sites.NewChildWithDetail(item, map[string]string{"policy": policy})
-
-						if si.ConnectorCount > 0 {
-							serviceTargets := mapSiteTarget[site.Site.Identity][si.Name]
-
-							if len(serviceTargets) > 0 {
-								/* if the function has been provided with information about targets, it will be
-								   printed, instead the information provided by the controller-lite*/
-								if localSiteInfo != nil && localSiteInfo.SiteId == site.Site.Identity {
-									for serviceAddress, serviceInfo := range localSiteInfo.ServiceInfo {
-										if serviceAddress == si.Name {
-											for section, data := range serviceInfo.Data {
-												entrySection := theSite.NewChild(section)
-												for _, sectionValue := range data {
-													entrySection.NewChild(sectionValue)
-												}
-											}
-										}
-									}
-								} else {
-									targets := theSite.NewChild("Targets:")
-
-									for _, t := range serviceTargets {
-										if len(t.Address) > 0 {
-											var name string
-											if t.Target != "" {
-												name = fmt.Sprintf("name=%s", t.Target)
-											}
-											targetInfo := fmt.Sprintf("%s %s", t.Address, name)
-											targets.NewChild(targetInfo)
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			if showLabels && len(mapServiceLabels[si.Name]) > 0 {
-				labels := svc.NewChild("Labels:")
-				for k, v := range mapServiceLabels[si.Name] {
-					labels.NewChild(fmt.Sprintf("%s=%s", k, v))
-				}
-			}
-		}
-		l.Print()
-	}
-
-	return nil
 }

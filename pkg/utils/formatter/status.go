@@ -216,7 +216,7 @@ func PrintNetworkStatus(currentSite string, currentNetworkStatus *network.Networ
 	return nil
 }
 
-func PrintServiceStatus(currentNetworkStatus *network.NetworkStatusInfo, mapServiceLabels map[string]map[string]string, verboseServiceStatus bool, showLabels bool) error {
+func PrintServiceStatus(currentNetworkStatus *network.NetworkStatusInfo, mapServiceLabels map[string]map[string]string, verboseServiceStatus bool, showLabels bool, localSiteInfo *network.LocalSiteInfo) error {
 	statusManager := network.SkupperStatus{
 		NetworkStatus: currentNetworkStatus,
 	}
@@ -238,7 +238,12 @@ func PrintServiceStatus(currentNetworkStatus *network.NetworkStatusInfo, mapServ
 
 				if mapServiceSites[si.Name] != nil {
 					for _, site := range mapServiceSites[si.Name] {
-						item := site.Site.Identity + "(" + site.Site.Namespace + ")\n"
+						siteNamespace := ""
+
+						if len(site.Site.Namespace) > 0 {
+							siteNamespace = "(" + site.Site.Namespace + ")"
+						}
+						item := site.Site.Identity + siteNamespace + "\n"
 						policy := "-"
 						if len(site.Site.Policy) > 0 {
 							policy = site.Site.Policy
@@ -249,18 +254,31 @@ func PrintServiceStatus(currentNetworkStatus *network.NetworkStatusInfo, mapServ
 							serviceTargets := mapSiteTarget[site.Site.Identity][si.Name]
 
 							if len(serviceTargets) > 0 {
-								targets := theSite.NewChild("Targets:")
-
-								for _, t := range serviceTargets {
-									if len(t.Address) > 0 {
-										var name string
-										if t.Target != "" {
-											name = fmt.Sprintf("name=%s", t.Target)
-										} else if t.DestHost != "" && t.DestPort != "" {
-											name = fmt.Sprintf("dest host=%s:%s", t.DestHost, t.DestPort)
+								/* if the function has been provided with information about targets, it will be
+								   printed, instead the information provided by the controller-lite*/
+								if localSiteInfo != nil && localSiteInfo.SiteId == site.Site.Identity {
+									for serviceAddress, serviceInfo := range localSiteInfo.ServiceInfo {
+										if serviceAddress == si.Name {
+											for section, data := range serviceInfo.Data {
+												entrySection := theSite.NewChild(section)
+												for _, sectionValue := range data {
+													entrySection.NewChild(sectionValue)
+												}
+											}
 										}
-										targetInfo := fmt.Sprintf("address=%s %s", t.Address, name)
-										targets.NewChild(targetInfo)
+									}
+								} else {
+									targets := theSite.NewChild("Targets:")
+
+									for _, t := range serviceTargets {
+										if len(t.Address) > 0 {
+											var name string
+											if t.Target != "" {
+												name = fmt.Sprintf("name=%s", t.Target)
+											}
+											targetInfo := fmt.Sprintf("%s %s", t.Address, name)
+											targets.NewChild(targetInfo)
+										}
 									}
 								}
 							}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"net"
 	"net/url"
 	"strconv"
@@ -215,7 +216,7 @@ func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 		return errStatus
 	}
 
-	err = network.PrintServiceStatus(currentStatus, mapServiceLabels, verboseServiceStatus, showLabels, &localPodmanSiteInfo)
+	err = formatter.PrintServiceStatus(currentStatus, mapServiceLabels, verboseServiceStatus, showLabels, &localPodmanSiteInfo)
 	if err != nil {
 		return err
 	}
