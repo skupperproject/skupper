@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"net"
 	"net/url"
 	"strconv"
@@ -11,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/utils"
-	"github.com/skupperproject/skupper/pkg/utils/formatter"
 	"github.com/spf13/cobra"
 )
 
@@ -78,11 +79,12 @@ func (p *PodmanServiceCreateFlags) ToPortMapping(service podman.Service) (map[in
 }
 
 type SkupperPodmanService struct {
-	podman          *SkupperPodman
-	svcHandler      *podman.ServiceHandler
-	svcIfaceHandler *podman.ServiceInterfaceHandler
-	createFlags     PodmanServiceCreateFlags
-	exposeFlags     PodmanExposeFlags
+	podman               *SkupperPodman
+	svcHandler           *podman.ServiceHandler
+	svcIfaceHandler      *podman.ServiceInterfaceHandler
+	createFlags          PodmanServiceCreateFlags
+	exposeFlags          PodmanExposeFlags
+	networkStatusHandler *podman.NetworkStatusHandler
 }
 
 func (s *SkupperPodmanService) Create(cmd *cobra.Command, args []string) error {
@@ -138,12 +140,12 @@ func (s *SkupperPodmanService) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 	services, err := s.svcHandler.List()
+	var mapServiceLabels map[string]map[string]string
+	localPodmanSiteInfo := network.LocalSiteInfo{SiteId: s.podman.currentSite.Id, ServiceInfo: make(map[string]network.LocalServiceInfo)}
+
 	if err == nil {
-		if len(services) == 0 {
-			fmt.Println("No services defined")
-		} else {
-			l := formatter.NewList()
-			l.Item("Services exposed through Skupper:")
+		if len(services) > 0 {
+
 			addresses := []string{}
 			for _, si := range services {
 				addresses = append(addresses, si.GetAddress())
@@ -152,14 +154,14 @@ func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 			for _, svc := range services {
 				svcPodman := svc.(*podman.Service)
 
+				serviceInfo := make(map[string][]string)
 				for _, port := range svcPodman.GetPorts() {
 					portStr := strconv.Itoa(port)
+					serviceName := svcPodman.GetAddress()
 
-					svc := l.NewChild(fmt.Sprintf("%s:%s (%s)", svcPodman.GetAddress(), portStr, svcPodman.GetProtocol()))
-					// ingressInfo := ""
 					containerPorts := svcPodman.ContainerPorts()
 					if len(containerPorts) > 0 {
-						ingress := svc.NewChild("Host ports:")
+						ingressKey := "Host ports:"
 						ingressInfo := fmt.Sprintf("ip: %s - ports: ", utils.DefaultStr(svcPodman.Ingress.GetHost(), "*"))
 						for i, portInfo := range containerPorts {
 							if i > 0 {
@@ -167,35 +169,64 @@ func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 							}
 							ingressInfo += fmt.Sprintf("%s -> %s", portInfo.Host, portInfo.Target)
 						}
-						ingress.NewChild(ingressInfo)
+						serviceInfo[ingressKey] = append(serviceInfo[ingressKey], ingressInfo)
 					}
 					if len(svcPodman.GetEgressResolvers()) > 0 {
-						targets := svc.NewChild("Targets:")
+						targetKey := "Targets:"
 						for _, t := range svcPodman.GetEgressResolvers() {
 							targetInfo := ""
 							if resolverHost, ok := t.(*domain.EgressResolverHost); ok {
 								targetInfo = fmt.Sprintf("host: %s - ports: %v", resolverHost.Host, resolverHost.Ports)
 							}
-							targets.NewChild(targetInfo)
+							serviceInfo[targetKey] = append(serviceInfo[targetKey], targetInfo)
 						}
 					}
+
+					address := serviceName + ":" + portStr
+
+					localPodmanSiteInfo.ServiceInfo[address] = network.LocalServiceInfo{Data: serviceInfo}
+
 					if showLabels && len(svcPodman.GetLabels()) > 0 {
-						labels := svc.NewChild("Labels:")
-						for k, v := range svcPodman.GetLabels() {
-							labels.NewChild(fmt.Sprintf("%s=%s", k, v))
-						}
+
+						mapServiceLabels[serviceName+":"+portStr] = svcPodman.GetLabels()
 					}
 				}
 			}
-			l.Print()
+
 		}
-	} else {
-		return fmt.Errorf("Could not retrieve services: %w", err)
 	}
+
+	cli := s.podman.currentSite
+
+	configSyncVersion := utils.GetVersionTag(cli.GetVersion())
+	if configSyncVersion != "" && !utils.IsValidFor(configSyncVersion, network.MINIMUM_PODMAN_VERSION) {
+		fmt.Printf(network.MINIMUM_VERSION_MESSAGE, configSyncVersion, network.MINIMUM_PODMAN_VERSION)
+		fmt.Println()
+		return nil
+	}
+
+	currentStatus, errStatus := s.NetworkStatusHandler().Get()
+	if errStatus != nil && strings.HasPrefix(errStatus.Error(), "Skupper is not installed") {
+		fmt.Printf("Skupper is not enabled\n")
+		return nil
+	} else if errStatus != nil && errStatus.Error() == "status not ready" {
+		fmt.Println("Status pending...")
+		return nil
+	} else if errStatus != nil {
+		return errStatus
+	}
+
+	err = formatter.PrintServiceStatus(currentStatus, mapServiceLabels, verboseServiceStatus, showLabels, &localPodmanSiteInfo)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (s *SkupperPodmanService) StatusFlags(cmd *cobra.Command) {}
+func (s *SkupperPodmanService) StatusFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVarP(&verboseServiceStatus, "verbose", "v", false, "more detailed output")
+}
 
 func (s *SkupperPodmanService) NewClient(cmd *cobra.Command, args []string) {
 	s.podman.NewClient(cmd, args)
@@ -449,4 +480,15 @@ func (s *SkupperPodmanService) checkCommonExposeArgs(cmd *cobra.Command, args []
 		}
 	}
 	return nil
+}
+
+func (s *SkupperPodmanService) NetworkStatusHandler() *podman.NetworkStatusHandler {
+	if s.networkStatusHandler != nil {
+		return s.networkStatusHandler
+	}
+	if s.podman.cli == nil {
+		return nil
+	}
+	s.networkStatusHandler = new(podman.NetworkStatusHandler).WithClient(s.podman.cli)
+	return s.networkStatusHandler
 }

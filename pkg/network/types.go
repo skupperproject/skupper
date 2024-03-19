@@ -88,3 +88,11 @@ type RemoteLinkInfo struct {
 	SiteId    string `json:"siteId,omitempty"`
 	LinkName  string `json:"linkName,omitempty"`
 }
+
+type LocalSiteInfo struct {
+	SiteId      string
+	ServiceInfo map[string]LocalServiceInfo
+}
+type LocalServiceInfo struct {
+	Data map[string][]string
+}

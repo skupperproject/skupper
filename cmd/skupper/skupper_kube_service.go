@@ -78,7 +78,7 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 		mapServiceLabels = getServiceLabelsMap(vsis)
 	}
 
-	err = formatter.PrintServiceStatus(currentNetworkStatus, mapServiceLabels, verboseServiceStatus, showLabels)
+	err = formatter.PrintServiceStatus(currentNetworkStatus, mapServiceLabels, verboseServiceStatus, showLabels, nil)
 	if err != nil {
 		return err
 	}
