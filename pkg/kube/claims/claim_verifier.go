@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
 )
 
 const (
@@ -198,8 +199,15 @@ func enableClaimVerifier() bool {
 
 func (server *ClaimVerifier) listen() {
 	addr := fmt.Sprintf(":%d", types.ClaimRedemptionPort)
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      server,
+		TLSConfig:    tlscfg.Modern(),
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+	}
 	log.Printf("Claim verifier listening on %s", addr)
-	log.Fatal(http.ListenAndServeTLS(addr, cert, key, server))
+	log.Fatal(srv.ListenAndServeTLS(cert, key))
 }
 
 func StartClaimVerifier(client kubernetes.Interface, namespace string, generator TokenGenerator, siteChecker SiteChecker) bool {

@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
 	"github.com/skupperproject/skupper/pkg/version"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -426,11 +427,18 @@ func (server *ConsoleServer) listen() {
 	if os.Getenv("USE_CORS") != "" {
 		r.Use(cors)
 	}
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      r,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		TLSConfig:    tlscfg.Default(),
+	}
 	_, err := os.Stat("/etc/service-controller/console/tls.crt")
 	if err == nil {
-		log.Fatal(http.ListenAndServeTLS(addr, "/etc/service-controller/console/tls.crt", "/etc/service-controller/console/tls.key", r))
+		log.Fatal(srv.ListenAndServeTLS("/etc/service-controller/console/tls.crt", "/etc/service-controller/console/tls.key"))
 	} else {
-		log.Fatal(http.ListenAndServe(addr, r))
+		log.Fatal(srv.ListenAndServe())
 	}
 }
 

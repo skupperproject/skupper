@@ -26,6 +26,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -575,8 +576,11 @@ func main() {
 	}
 	log.Printf("COLLECTOR: server listening on %s", addr)
 	s := &http.Server{
-		Addr:    addr,
-		Handler: handlers.CompressHandler(mux),
+		Addr:         addr,
+		Handler:      handlers.CompressHandler(mux),
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		TLSConfig:    tlscfg.Default(),
 	}
 
 	go func() {
