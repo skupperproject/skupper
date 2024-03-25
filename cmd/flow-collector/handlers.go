@@ -190,11 +190,11 @@ func (c *Controller) promqueryHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Internal Server Error: %s\n", err.Error())
 		return
-	} else {
-		w.WriteHeader(proxyResp.StatusCode)
-		data, _ := io.ReadAll(proxyResp.Body)
-		proxyResp.Body.Close()
-		fmt.Fprintf(w, "%s\n", data)
+	}
+	w.WriteHeader(proxyResp.StatusCode)
+	defer proxyResp.Body.Close()
+	if _, err := io.Copy(w, proxyResp.Body); err != nil {
+		log.Printf("COLLECTOR: query proxy response write error: %s", err.Error())
 	}
 }
 
@@ -213,16 +213,16 @@ func (c *Controller) promqueryrangeHandler(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	proxyResp, err := client.Do(proxyReq)
-	w.WriteHeader(proxyResp.StatusCode)
 	if err != nil {
 		log.Printf("COLLECTOR: Prometheus query_range error: %s\n", err.Error())
 
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Internal Server Error: %s\n", err.Error())
 		return
-	} else {
-		data, _ := io.ReadAll(proxyResp.Body)
-		proxyResp.Body.Close()
-		fmt.Fprintf(w, "%s\n", data)
+	}
+	defer proxyResp.Body.Close()
+	w.WriteHeader(proxyResp.StatusCode)
+	if _, err := io.Copy(w, proxyResp.Body); err != nil {
+		log.Printf("COLLECTOR: rangequery proxy response write error: %s", err.Error())
 	}
 }
