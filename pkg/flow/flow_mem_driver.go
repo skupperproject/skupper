@@ -576,6 +576,9 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 	case *SiteRecord:
 		if site, ok := record.(*SiteRecord); ok {
 			fc.Sites[site.Identity] = site
+			if fc.mode == RecordMetrics {
+				fc.metrics.activeSites.Inc()
+			}
 		}
 	case *HostRecord:
 		if host, ok := record.(*HostRecord); ok {
@@ -584,10 +587,16 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 	case *RouterRecord:
 		if router, ok := record.(*RouterRecord); ok {
 			fc.Routers[router.Identity] = router
+			if fc.mode == RecordMetrics {
+				fc.metrics.activeRouters.Inc()
+			}
 		}
 	case *LinkRecord:
 		if link, ok := record.(*LinkRecord); ok {
 			fc.Links[link.Identity] = link
+			if fc.mode == RecordMetrics {
+				fc.metrics.activeLinks.Inc()
+			}
 		}
 	case *ListenerRecord:
 		if listener, ok := record.(*ListenerRecord); ok {
@@ -639,6 +648,9 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	case *SiteRecord:
 		if site, ok := record.(*SiteRecord); ok {
 			delete(fc.Sites, site.Identity)
+			if fc.mode == RecordMetrics {
+				fc.metrics.activeSites.Dec()
+			}
 		}
 	case *HostRecord:
 		if host, ok := record.(*HostRecord); ok {
@@ -647,10 +659,16 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	case *RouterRecord:
 		if router, ok := record.(*RouterRecord); ok {
 			delete(fc.Routers, router.Identity)
+			if fc.mode == RecordMetrics {
+				fc.metrics.activeRouters.Dec()
+			}
 		}
 	case *LinkRecord:
 		if link, ok := record.(*LinkRecord); ok {
 			delete(fc.Links, link.Identity)
+			if fc.mode == RecordMetrics {
+				fc.metrics.activeLinks.Dec()
+			}
 		}
 	case *ListenerRecord:
 		if listener, ok := record.(*ListenerRecord); ok {
