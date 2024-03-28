@@ -64,7 +64,7 @@ func (i NumberValidator) Evaluate(value interface{}) (bool, error) {
 		if v >= 0 {
 			return true, nil
 		}
-		return false, fmt.Errorf("value is not greater than zero")
+		return false, fmt.Errorf("value is not positive")
 	}
 	return true, nil
 }
