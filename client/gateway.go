@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha1"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -70,195 +71,34 @@ type GatewayInstance struct {
 	RouterID   string
 }
 
+var (
+	//go:embed static/expand_vars.py
+	expandVars string
+	//go:embed static/service.template
+	serviceTemplate string
+	//go:embed static/launch.sh
+	launchTemplate string
+	//go:embed static/remove.sh
+	removeTemplate string
+)
+
 func serviceForQdr(info UnitInfo) string {
-	service := `
-[Unit]
-Description=Qpid Dispatch router daemon
-{{- if .IsSystemService }}
-Requires=network.target
-After=network.target
-{{- end }}
-
-[Service]
-Type=simple
-ExecStart={{.Binary}} -c {{.ConfigPath}}/config/skrouterd.json
-
-[Install]
-{{- if .IsSystemService }}
-WantedBy=multi-user.target
-{{- else}}
-WantedBy=default.target
-{{- end}}
-`
 	var buf bytes.Buffer
-	qdrService := template.Must(template.New("qdrService").Parse(service))
+	qdrService := template.Must(template.New("qdrService").Parse(serviceTemplate))
 	qdrService.Execute(&buf, info)
-
 	return buf.String()
 }
 
-func expandVars() string {
-	expand := `
-from __future__ import print_function
-import sys
-import os
-
-try:
-	filename = sys.argv[1]
-	is_file = os.path.isfile(filename)
-	if not is_file:
-		raise Exception()
-except Exception as e:
-	print ("Usage: python3 expandvars.py <absolute_file_path>. Example - python3 expandvars.py /tmp/skrouterd.conf")
-	## Unix programs generally use 2 for command line syntax errors
-	sys.exit(2)
-
-out_list = []
-with open(filename) as f:
-	for line in f:
-		if line.startswith("#") or not '$' in line:
-			out_list.append(line)
-		else:
-			out_list.append(os.path.expandvars(line))
-
-with open(filename, 'w') as f:
-	for out in out_list:
-		f.write(out)
-`
-	return expand
-}
-
 func launchScript(info UnitInfo) string {
-	launch := `
-#!/bin/sh
-
-while getopts t: flag
-do
-    case "${flag}" in
-        t) type=${OPTARG};;
-    esac
-done
-
-if [ -z "$type" ]; then
-	type="service"
-fi
-
-if [ "$type" != "service" ] && [ "$type" != "docker" ] && [ "$type" != "podman" ]; then
-    echo "gateway type must be one of service, docker or podman"
-    exit
-fi
-
-gateway_name={{.GatewayName}}
-gateway_image=${QDROUTERD_IMAGE:-{{.Image}}}
-
-share_dir=${XDG_DATA_HOME:-~/.local/share}
-config_dir=${XDG_CONFIG_HOME:-~/.config}
-
-local_dir=$share_dir/skupper/bundle/$gateway_name
-certs_dir=$share_dir/skupper/bundle/$gateway_name/skupper-router-certs
-qdrcfg_dir=$share_dir/skupper/bundle/$gateway_name/config
-
-if [[ -z "$(command -v python3 2>&1)" ]]; then
-    echo "python3 could not be found. Please 'install python3'"
-    exit
-fi
-
-if [ "$type" == "service" ]; then
-    if result=$(command -v skrouterd 2>&1); then
-        qdr_bin=$result
-    else
-        echo "skrouterd could not be found. Please 'install skrouterd'"
-        exit
-    fi    
-    export QDR_CONF_DIR=$share_dir/skupper/bundle/$gateway_name
-    export QDR_CONF_DIR=$share_dir/skupper/bundle/$gateway_name
-    export QDR_BIN_PATH=${QDROUTERD_HOME:-$qdr_bin}  
-else
-	if [ "$type" == "docker" ]; then    
-        if result=$(command -v docker 2>&1); then
-            docker_bin=$result
-        else
-            echo "docker could not be found. Please install first"
-            exit
-        fi
-	elif [ "$type" == "podman" ]; then
-	    if result=$(command -v podman 2>&1); then
-	        podman_bin=$result
-        else
-	        echo "podman could not be found. Please install first"
-	        exit
-        fi	
-	fi
-    export ROUTER_ID=$(uuidgen)
-    export QDR_CONF_DIR=/opt/skupper
-fi
-
-mkdir -p $qdrcfg_dir
-mkdir -p $certs_dir
-
-cp -R ./skupper-router-certs/* $certs_dir
-cp ./config/skrouterd.json $qdrcfg_dir
-    
-chmod -R 0755 $local_dir
-
-python3 ./expandvars.py $qdrcfg_dir/skrouterd.json
-
-if [ "$type" == "service" ]; then
-    mkdir -p $config_dir/systemd/user
-    cp ./service/$gateway_name.service $config_dir/systemd/user/
-    
-    python3 ./expandvars.py $config_dir/systemd/user/$gateway_name.service
-    
-    systemctl --user enable $gateway_name.service
-    systemctl --user daemon-reload
-    systemctl --user start $gateway_name.service
-    exit
-elif [ "$type" == "docker" ] || [ "$type" == "podman" ]; then
-    ${type} run --restart always -d --name ${gateway_name} --network host \
-	   -e QDROUTERD_CONF_TYPE=json \
-	   -e QDROUTERD_CONF=/opt/skupper/config/skrouterd.json \
-	   -e SKUPPER_SITE_ID=gateway_${gateway_name}_$(uuidgen) \
-	   -v ${local_dir}:${QDR_CONF_DIR}:Z \
-	   ${gateway_image} 
-    exit    
-fi
-
-`
 	var buf bytes.Buffer
-	launchScript := template.Must(template.New("launchScript").Parse(launch))
+	launchScript := template.Must(template.New("launchScript").Parse(launchTemplate))
 	launchScript.Execute(&buf, info)
-
 	return buf.String()
 }
 
 func removeScript(info UnitInfo) string {
-	remove := `
-#!/bin/sh
-
-gateway_name={{.GatewayName}}
-
-share_dir=${XDG_DATA_HOME:-~/.local/share}
-config_dir=${XDG_CONFIG_HOME:-~/.config}
-
-if [ -f $config_dir/systemd/user/$gateway_name.service ]; then
-    systemctl --user stop $gateway_name.service
-    systemctl --user disable $gateway_name.service
-    systemctl --user daemon-reload
-
-    rm $config_dir/systemd/user/$gateway_name.service
-elif [ $( docker ps -a | grep $gateway_name | wc -l ) -gt 0 ]; then
-    docker rm -f $gateway_name
-elif [ $( podman ps -a | grep $gateway_name | wc -l ) -gt 0 ]; then
-    podman rm -f $gateway_name
-fi
-
-if [ -d $share_dir/skupper/bundle/$gateway_name ]; then
-    rm -rf $share_dir/skupper/bundle/$gateway_name
-fi
-
-`
 	var buf bytes.Buffer
-	removeScript := template.Must(template.New("removeScript").Parse(remove))
+	removeScript := template.Must(template.New("removeScript").Parse(removeTemplate))
 	removeScript.Execute(&buf, info)
 
 	return buf.String()
@@ -1273,8 +1113,7 @@ func (cli *VanClient) GatewayDownload(ctx context.Context, gatewayName string, d
 		return tarFile.Name(), err
 	}
 
-	expand := expandVars()
-	err = writeTar("expandvars.py", []byte(expand), time.Now(), tw)
+	err = writeTar("expandvars.py", []byte(expandVars), time.Now(), tw)
 	return tarFile.Name(), nil
 }
 
@@ -2082,13 +1921,32 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	}
 
 	gatewayName := gatewayConfig.GatewayName
-	tarFile, err := os.Create(bundlePath + "/" + gatewayName + ".tar.gz")
+	installFileName := bundlePath + "/" + gatewayName + ".sh"
+	installFile, err := os.OpenFile(installFileName, os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
 		return "", fmt.Errorf("Unable to create download file: %w", err)
 	}
 
+	gatewayInfo := UnitInfo{
+		IsSystemService: false,
+		Binary:          "${QDR_BIN_PATH}",
+		Image:           images.GetRouterImageName(),
+		ConfigPath:      "${QDR_CONF_DIR}",
+		GatewayName:     gatewayName,
+	}
+
+	launch := launchScript(gatewayInfo)
+	launchWritten, err := installFile.WriteString(launch)
+	if err != nil {
+		return installFile.Name(), err
+	}
+	if launchWritten != len(launch) {
+		err = fmt.Errorf("error writing launch script: wrote=%d, expected=%d", launchWritten, len(launch))
+		return installFileName, err
+	}
+
 	// compress tar
-	gz := gzip.NewWriter(tarFile)
+	gz := gzip.NewWriter(installFile)
 	defer gz.Close()
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
@@ -2098,22 +1956,22 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	if errors.IsNotFound(err) {
 		secret, _, err = cli.ConnectorTokenCreate(context.Background(), gatewayResourceName, "")
 		if err != nil {
-			return tarFile.Name(), fmt.Errorf("Failed to create gateway token: %w", err)
+			return installFile.Name(), fmt.Errorf("Failed to create gateway token: %w", err)
 		}
 		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*owner}
 		secret.Labels[types.SkupperTypeQualifier] = types.TypeGatewayToken
 		_, err = cli.KubeClient.CoreV1().Secrets(cli.GetNamespace()).Create(ctx, secret, metav1.CreateOptions{})
 		if err != nil {
-			return tarFile.Name(), fmt.Errorf("Failed to create gateway secret: %w", err)
+			return installFile.Name(), fmt.Errorf("Failed to create gateway secret: %w", err)
 		}
 	} else if err != nil {
-		return tarFile.Name(), fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
+		return installFile.Name(), fmt.Errorf("Failed to retrieve external gateway secret: %w", err)
 	}
 
 	for _, cert := range certs {
 		err = writeTar("skupper-router-certs/conn1-profile/"+cert, secret.Data[cert], time.Now(), tw)
 		if err != nil {
-			return tarFile.Name(), err
+			return installFile.Name(), err
 		}
 	}
 
@@ -2235,45 +2093,30 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 	qdrConfig.Execute(&buf, instance)
 
 	if err != nil {
-		return tarFile.Name(), fmt.Errorf("Failed to parse gateway configmap: %w", err)
+		return installFile.Name(), fmt.Errorf("Failed to parse gateway configmap: %w", err)
 	}
 
 	err = writeTar("config/skrouterd.json", buf.Bytes(), time.Now(), tw)
 	if err != nil {
-		return tarFile.Name(), err
-	}
-
-	gatewayInfo := UnitInfo{
-		IsSystemService: false,
-		Binary:          "${QDR_BIN_PATH}",
-		Image:           images.GetRouterImageName(),
-		ConfigPath:      "${QDR_CONF_DIR}",
-		GatewayName:     gatewayName,
+		return installFile.Name(), err
 	}
 
 	qdrUserUnit := serviceForQdr(gatewayInfo)
 	err = writeTar("service/"+gatewayName+".service", []byte(qdrUserUnit), time.Now(), tw)
 	if err != nil {
-		return tarFile.Name(), err
-	}
-
-	launch := launchScript(gatewayInfo)
-	err = writeTar("launch.sh", []byte(launch), time.Now(), tw)
-	if err != nil {
-		return tarFile.Name(), err
+		return installFile.Name(), err
 	}
 
 	remove := removeScript(gatewayInfo)
 	err = writeTar("remove.sh", []byte(remove), time.Now(), tw)
 	if err != nil {
-		return tarFile.Name(), err
+		return installFile.Name(), err
 	}
 
-	expand := expandVars()
-	err = writeTar("expandvars.py", []byte(expand), time.Now(), tw)
+	err = writeTar("expandvars.py", []byte(expandVars), time.Now(), tw)
 	if err != nil {
-		return tarFile.Name(), err
+		return installFile.Name(), err
 	}
 
-	return tarFile.Name(), nil
+	return installFile.Name(), nil
 }

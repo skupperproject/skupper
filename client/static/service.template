@@ -1,0 +1,17 @@
+[Unit]
+Description=Qpid Dispatch router daemon
+{{- if .IsSystemService }}
+Requires=network.target
+After=network.target
+{{- end }}
+
+[Service]
+Type=simple
+ExecStart={{.Binary}} -c {{.ConfigPath}}/config/skrouterd.json
+
+[Install]
+{{- if .IsSystemService }}
+WantedBy=multi-user.target
+{{- else}}
+WantedBy=default.target
+{{- end}}
