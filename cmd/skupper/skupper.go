@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/utils/configs"
+	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"os"
 	"reflect"
 	"strconv"
@@ -449,6 +450,16 @@ installation that can then be connected to other skupper installations`,
 
 			if routerCreateOpts.AuthMode != "internal" && (len(routerCreateOpts.User) > 0 || len(routerCreateOpts.Password) > 0) {
 				return fmt.Errorf("for the console to work with this user or password, the --console-auth option must be set to internal")
+			}
+
+			ok, err := validator.NewStringValidator().Evaluate(routerCreateOpts.SkupperName)
+			if !ok {
+				return fmt.Errorf("invalid skupper site name: %s", err.Error())
+			}
+
+			ok, err = validator.NewNumberValidator().Evaluate(routerCreateOpts.Routers)
+			if !ok {
+				return fmt.Errorf("invalid number for routers: %s", err.Error())
 			}
 
 			return skupperCli.Create(cmd, args)
