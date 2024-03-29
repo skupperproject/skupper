@@ -1326,120 +1326,181 @@ func TestRecordGraphNetworkStatus(t *testing.T) {
 }
 
 func TestGraph(t *testing.T) {
-	var (
-		nameRouter0     = "0/router0"
-		nameRouter1     = "0/router1"
-		nameRouter2     = "0/router2"
-		linkNameRouter0 = "router0"
-		linkNameRouter1 = "router1"
-		linkNameRouter2 = "router2"
-	)
-	fc := NewFlowCollector(FlowCollectorSpec{})
-	fc.Sites = map[string]*SiteRecord{
-		"site:0": {
+	newSite := func(id string) *SiteRecord {
+		return &SiteRecord{
 			Base: Base{
 				RecType:  recordNames[Site],
-				Identity: "site:0",
+				Identity: id,
 			},
-		},
-		"site:1": {
-			Base: Base{
-				RecType:  recordNames[Site],
-				Identity: "site:1",
-			},
-		},
+		}
 	}
-	fc.Routers = map[string]*RouterRecord{
-		"router:0": {
-			Base: Base{
-				RecType:  recordNames[Router],
-				Identity: "router:0",
-				Parent:   "site:0",
-			},
-			Name: &nameRouter0,
+	newRouter := func(id string, parent string, name string) *RouterRecord {
+		rn := "0/" + name
+		return &RouterRecord{Base: Base{
+			RecType:  recordNames[Router],
+			Identity: id,
+			Parent:   parent,
 		},
-		"router:1": {
-			Base: Base{
-				RecType:  recordNames[Router],
-				Identity: "router:1",
-				Parent:   "site:1",
-			},
-			Name: &nameRouter1,
-		},
-		"router:2": {
-			Base: Base{
-				RecType:  recordNames[Router],
-				Identity: "router:2",
-				Parent:   "site:1",
-			},
-			Name: &nameRouter2,
-		},
+			Name: &rn,
+		}
 	}
 
-	fc.Links = map[string]*LinkRecord{
-		"orphaned:noparent": {
+	newLink := func(id string, router string, peerRouterName string, direction string) *LinkRecord {
+		return &LinkRecord{
 			Base: Base{
 				RecType:  recordNames[Router],
-				Identity: "orphaned:noparent",
-				Parent:   "router:dne",
+				Identity: id,
+				Parent:   router,
 			},
-			Name:      &linkNameRouter2,
-			Direction: &Outgoing,
-		},
-		"router0:orphan1": {
-			Base: Base{
-				RecType:  recordNames[Router],
-				Identity: "router0:orphan1",
-				Parent:   "router:0",
+			Name:      &peerRouterName,
+			Direction: &direction,
+		}
+	}
+	tests := []struct {
+		Name                string
+		Sites               []*SiteRecord
+		Routers             []*RouterRecord
+		Links               []*LinkRecord
+		ExpectedRouterNodes map[string]*node
+		ExpectedSiteNodes   map[string]*node
+	}{
+		{
+			Name: "empty",
+		}, {
+			Name: "missing routers",
+			Sites: []*SiteRecord{
+				newSite("site:0"),
+				newSite("site:1"),
 			},
-			Name:      &linkNameRouter1,
-			Direction: &Incoming,
-		},
-		"router0:orphan2": {
-			Base: Base{
-				RecType:  recordNames[Router],
-				Identity: "router0:orphan2",
-				Parent:   "router:0",
+			Links: []*LinkRecord{
+				newLink("norouter:0", "router:0", "r1", Incoming),
+				newLink("norouter:1", "router:1", "r0", Outgoing),
 			},
-			Name:      &linkNameRouter2,
-			Direction: &Incoming,
-		},
-		"router0:pair1": {
-			Base: Base{
-				RecType:  recordNames[Router],
-				Identity: "router0:pair1",
-				Parent:   "router:0",
+			ExpectedSiteNodes: map[string]*node{
+				"site:0": {ID: "site:0"},
+				"site:1": {ID: "site:1"},
 			},
-			Name:      &linkNameRouter1,
-			Direction: &Incoming,
-		},
-		"router1:pair1": {
-			Base: Base{
-				RecType:  recordNames[Router],
-				Identity: "router1:pair1",
-				Parent:   "router:1",
+		}, {
+			Name: "missing site",
+			Sites: []*SiteRecord{
+				newSite("site:0"),
 			},
-			Name:      &linkNameRouter0,
-			Direction: &Outgoing,
-		},
-		"router0:nopair": {
-			Base: Base{
-				RecType:  recordNames[Router],
-				Identity: "router0:nopair",
-				Parent:   "router:0",
+			Routers: []*RouterRecord{
+				newRouter("router0", "site:0", "r0"),
+				newRouter("router1", "site:1", "r1"),
 			},
-			Name:      &linkNameRouter2,
-			Direction: &Incoming,
+			Links: []*LinkRecord{
+				newLink("link0", "router0", "r1", Incoming),
+				newLink("link1", "router1", "r0", Outgoing),
+			},
+			ExpectedRouterNodes: map[string]*node{
+				"router0": {ID: "router0"},
+				"router1": {ID: "router1"},
+			},
+			ExpectedSiteNodes: map[string]*node{
+				"site:0": {ID: "site:0"},
+			},
+		}, {
+			Name: "single link pair",
+			Sites: []*SiteRecord{
+				newSite("site:0"),
+				newSite("site:1"),
+			},
+			Routers: []*RouterRecord{
+				newRouter("router0", "site:0", "r0"),
+				newRouter("router1", "site:1", "r1"),
+			},
+			Links: []*LinkRecord{
+				newLink("link0", "router0", "r1", Incoming),
+				newLink("link1", "router1", "r0", Outgoing),
+			},
+			ExpectedRouterNodes: map[string]*node{
+				"router0": {ID: "router0", Backward: []string{"router1"}},
+				"router1": {ID: "router1", Forward: []string{"router0"}},
+			},
+			ExpectedSiteNodes: map[string]*node{
+				"site:0": {ID: "site:0", Backward: []string{"site:1"}},
+				"site:1": {ID: "site:1", Forward: []string{"site:0"}},
+			},
+		}, {
+			Name: "redundant links",
+			Sites: []*SiteRecord{
+				newSite("site:0"),
+				newSite("site:1"),
+			},
+			Routers: []*RouterRecord{
+				newRouter("router0", "site:0", "r0"),
+				newRouter("router1", "site:1", "r1"),
+			},
+			Links: []*LinkRecord{
+				newLink("link0", "router0", "r1", Incoming),
+				newLink("link1", "router1", "r0", Outgoing),
+				newLink("link2", "router0", "r1", Incoming),
+				newLink("link3", "router1", "r0", Outgoing),
+				newLink("link80", "router0", "r1", Incoming),
+				newLink("link90", "router0", "r1", Incoming),
+			},
+			ExpectedRouterNodes: map[string]*node{
+				"router0": {ID: "router0", Backward: []string{"router1"}},
+				"router1": {ID: "router1", Forward: []string{"router0"}},
+			},
+			ExpectedSiteNodes: map[string]*node{
+				"site:0": {ID: "site:0", Backward: []string{"site:1"}},
+				"site:1": {ID: "site:1", Forward: []string{"site:0"}},
+			},
+		}, {
+			Name: "complex",
+			Sites: []*SiteRecord{
+				newSite("site:0"),
+				newSite("site:1"),
+				newSite("site:2"),
+			},
+			Routers: []*RouterRecord{
+				newRouter("router0", "site:0", "r0"),
+				newRouter("router1", "site:1", "r1"),
+				newRouter("router2", "site:2", "r2"),
+			},
+			Links: []*LinkRecord{
+				newLink("link0", "router1", "r0", Outgoing), // half link to router1 -> router0
+				newLink("link1", "router1", "r2", Outgoing), // |
+				newLink("link2", "router2", "r1", Incoming), // | link pair router1,router2
+				newLink("link3", "router2", "r0", Incoming), // half link to router2 -> router0
+				newLink("bogus1", "router2", "rdne", Incoming),
+				newLink("bogus2", "routerdne", "r0", Incoming),
+			},
+			ExpectedRouterNodes: map[string]*node{
+				"router0": {ID: "router0"},
+				"router1": {ID: "router1", Forward: []string{"router2"}},
+				"router2": {ID: "router2", Backward: []string{"router1"}},
+			},
+			ExpectedSiteNodes: map[string]*node{
+				"site:0": {ID: "site:0"},
+				"site:1": {ID: "site:1", Forward: []string{"site:2"}},
+				"site:2": {ID: "site:2", Backward: []string{"site:1"}},
+			},
 		},
 	}
-
-	routers, sites := fc.graph()
-	assert.Equal(t, routers["router:0"].ID, "router:0")
-	assert.Equal(t, len(routers["router:0"].Forward), 0)
-	assert.Equal(t, len(routers["router:0"].Backward), 1)
-	assert.Equal(t, routers["router:0"].Backward[0], "router:1")
-	assert.Equal(t, sites["site:0"].ID, "site:0")
-	assert.Equal(t, len(sites["site:0"].Forward), 0)
-	assert.Equal(t, len(sites["site:0"].Backward), 1)
-	assert.Equal(t, sites["site:0"].Backward[0], "site:1")
+	for _, tc := range tests {
+		t.Run("", func(t *testing.T) {
+			fc := NewFlowCollector(FlowCollectorSpec{})
+			for _, site := range tc.Sites {
+				fc.Sites[site.Identity] = site
+			}
+			for _, router := range tc.Routers {
+				fc.Routers[router.Identity] = router
+			}
+			for _, link := range tc.Links {
+				fc.Links[link.Identity] = link
+			}
+			if tc.ExpectedRouterNodes == nil {
+				tc.ExpectedRouterNodes = make(map[string]*node)
+			}
+			if tc.ExpectedSiteNodes == nil {
+				tc.ExpectedSiteNodes = make(map[string]*node)
+			}
+			routers, sites := fc.graph()
+			assert.DeepEqual(t, routers, tc.ExpectedRouterNodes)
+			assert.DeepEqual(t, sites, tc.ExpectedSiteNodes)
+		})
+	}
 }
