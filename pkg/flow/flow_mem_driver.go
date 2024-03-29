@@ -566,6 +566,19 @@ func (fc *FlowCollector) updateNetworkStatus() {
 	}
 }
 
+func (fc *FlowCollector) updateEntityCounts() {
+	if fc.mode != RecordMetrics {
+		return
+	}
+	fc.metrics.activeSites.Set(float64(len(fc.Sites)))
+	fc.metrics.activeRouters.Set(float64(len(fc.Routers)))
+	_, siteNodes := fc.graph()
+	for _, node := range siteNodes {
+		fc.metrics.activeLinks.WithLabelValues(node.ID, "outgoing").Set(float64(len(node.Forward)))
+		fc.metrics.activeLinks.WithLabelValues(node.ID, "incoming").Set(float64(len(node.Backward)))
+	}
+}
+
 func (fc *FlowCollector) addRecord(record interface{}) error {
 	if record == nil {
 		return fmt.Errorf("No record to add")
@@ -576,9 +589,6 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 	case *SiteRecord:
 		if site, ok := record.(*SiteRecord); ok {
 			fc.Sites[site.Identity] = site
-			if fc.mode == RecordMetrics {
-				fc.metrics.activeSites.Inc()
-			}
 		}
 	case *HostRecord:
 		if host, ok := record.(*HostRecord); ok {
@@ -587,16 +597,10 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 	case *RouterRecord:
 		if router, ok := record.(*RouterRecord); ok {
 			fc.Routers[router.Identity] = router
-			if fc.mode == RecordMetrics {
-				fc.metrics.activeRouters.Inc()
-			}
 		}
 	case *LinkRecord:
 		if link, ok := record.(*LinkRecord); ok {
 			fc.Links[link.Identity] = link
-			if fc.mode == RecordMetrics {
-				fc.metrics.activeLinks.Inc()
-			}
 		}
 	case *ListenerRecord:
 		if listener, ok := record.(*ListenerRecord); ok {
@@ -648,9 +652,6 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	case *SiteRecord:
 		if site, ok := record.(*SiteRecord); ok {
 			delete(fc.Sites, site.Identity)
-			if fc.mode == RecordMetrics {
-				fc.metrics.activeSites.Dec()
-			}
 		}
 	case *HostRecord:
 		if host, ok := record.(*HostRecord); ok {
@@ -659,16 +660,10 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	case *RouterRecord:
 		if router, ok := record.(*RouterRecord); ok {
 			delete(fc.Routers, router.Identity)
-			if fc.mode == RecordMetrics {
-				fc.metrics.activeRouters.Dec()
-			}
 		}
 	case *LinkRecord:
 		if link, ok := record.(*LinkRecord); ok {
 			delete(fc.Links, link.Identity)
-			if fc.mode == RecordMetrics {
-				fc.metrics.activeLinks.Dec()
-			}
 		}
 	case *ListenerRecord:
 		if listener, ok := record.(*ListenerRecord); ok {
@@ -761,6 +756,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				}
 			}
 			fc.updateLastHeard(site.Source)
+			fc.updateEntityCounts()
 		}
 	case HostRecord:
 		if host, ok := record.(HostRecord); ok {
@@ -799,6 +795,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				}
 			}
 			fc.updateLastHeard(router.Source)
+			fc.updateEntityCounts()
 		}
 	case LogEventRecord:
 		if logEvent, ok := record.(LogEventRecord); ok {
@@ -817,6 +814,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				}
 			}
 			fc.updateLastHeard(link.Source)
+			fc.updateEntityCounts()
 		}
 	case ListenerRecord:
 		if listener, ok := record.(ListenerRecord); ok {
@@ -1240,15 +1238,19 @@ func newLinkResponseHandler(sites map[string]*SiteRecord, routers map[string]*Ro
 		if !ok || router.Name == nil {
 			continue
 		}
-		// router names are prefixed with a routing area - so far always `0/`
-		normalizedName := *router.Name
-		if delim := strings.IndexRune(normalizedName, '/'); delim > -1 {
-			normalizedName = normalizedName[delim+1:]
-		}
-		builder.siteByRouterName[normalizedName] = router.Parent
+
+		builder.siteByRouterName[normalizeRouterName(*router.Name)] = router.Parent
 		builder.siteByRouterID[router.Identity] = router.Parent
 	}
 	return builder
+}
+
+func normalizeRouterName(name string) string {
+	// router names are prefixed with a routing area - so far always `0/`
+	if delim := strings.IndexRune(name, '/'); delim > -1 {
+		return name[delim+1:]
+	}
+	return name
 }
 
 func (b linkResponseHandler) handle(l LinkRecord) (linkRecordResponse, bool) {
@@ -2788,4 +2790,86 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 		}
 	}
 	return found
+}
+
+// graph relations between routers and sites using incoming/outgoing link
+// pairs.
+func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
+	siteByRouterID := make(map[string]string, len(fc.Routers))
+	routerIDByName := make(map[string]string, len(fc.Routers))
+	for _, router := range fc.Routers {
+		if _, ok := fc.Sites[router.Parent]; !ok || router.Name == nil {
+			continue
+		}
+		siteByRouterID[router.Identity] = router.Parent
+		routerIDByName[normalizeRouterName(*router.Name)] = router.Identity
+	}
+	setLink := func(set map[string]map[string]struct{}, local, peer string) {
+		s, ok := set[local]
+		if !ok {
+			set[local] = make(map[string]struct{})
+			s = set[local]
+		}
+		s[peer] = struct{}{}
+	}
+	// find unique links by localRotuerID->peerRouterID
+	outgoing := make(map[string]map[string]struct{})
+	incoming := make(map[string]map[string]struct{})
+	for _, link := range fc.Links {
+		if link.Direction == nil || link.Name == nil {
+			continue
+		}
+		localRouterID, peerRouterName := link.Parent, *link.Name
+
+		if _, ok := fc.Routers[localRouterID]; !ok {
+			continue
+		}
+		peerRouterID, ok := routerIDByName[peerRouterName]
+		if !ok {
+			continue
+		}
+		switch *link.Direction {
+		case "incoming":
+			setLink(incoming, localRouterID, peerRouterID)
+		case "outgoing":
+			setLink(outgoing, localRouterID, peerRouterID)
+		}
+	}
+
+	routerNodes := make(map[string]*node, len(fc.Routers))
+	for id := range fc.Routers {
+		routerNodes[id] = &node{ID: id}
+	}
+	siteNodes := make(map[string]*node, len(fc.Sites))
+	for id := range fc.Sites {
+		siteNodes[id] = &node{ID: id}
+	}
+
+	// for each outgoing link, check that it has a matching incoming link then
+	// add edges to those router and site nodes for that link
+	for router, links := range outgoing {
+		for peerRouter := range links {
+			peerLinks, ok := incoming[peerRouter]
+			if !ok {
+				continue
+			}
+			if _, ok := peerLinks[router]; !ok {
+				continue
+			}
+			site, peerSite := siteByRouterID[router], siteByRouterID[peerRouter]
+			rNode, peerNode := routerNodes[router], routerNodes[peerRouter]
+			rNode.Forward = append(rNode.Forward, peerRouter)
+			peerNode.Backward = append(peerNode.Backward, router)
+			siteNode, peerSiteNode := siteNodes[site], siteNodes[peerSite]
+			siteNode.Forward = append(siteNode.Forward, peerSite)
+			peerSiteNode.Backward = append(peerSiteNode.Backward, site)
+		}
+	}
+	return routerNodes, siteNodes
+}
+
+type node struct {
+	ID       string
+	Forward  []string
+	Backward []string
 }

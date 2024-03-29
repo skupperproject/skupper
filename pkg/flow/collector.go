@@ -52,7 +52,7 @@ type collectorMetrics struct {
 	flowLatency     *prometheus.HistogramVec
 	activeReconcile *prometheus.GaugeVec
 	apiQueryLatency *prometheus.HistogramVec
-	activeLinks     prometheus.Gauge
+	activeLinks     *prometheus.GaugeVec
 	activeRouters   prometheus.Gauge
 	activeSites     prometheus.Gauge
 }
@@ -128,16 +128,16 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 				Buckets: []float64{10, 100, 1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
 			},
 			[]string{"recordType", "handler"}),
-		activeLinks: prometheus.NewGauge(
+		activeLinks: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "active_links",
-				Help: "Number of active links",
-			},
+				Help: "Number of active links by site and direction",
+			}, []string{"sourceSite", "direction"},
 		),
 		activeRouters: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Name: "active_routers",
-				Help: "Number of routers by site",
+				Help: "Number of routers",
 			},
 		),
 		activeSites: prometheus.NewGauge(
