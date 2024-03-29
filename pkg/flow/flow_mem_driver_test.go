@@ -1324,3 +1324,122 @@ func TestRecordGraphNetworkStatus(t *testing.T) {
 	assert.Equal(t, len(status.Addresses), 4)
 
 }
+
+func TestGraph(t *testing.T) {
+	var (
+		nameRouter0     = "0/router0"
+		nameRouter1     = "0/router1"
+		nameRouter2     = "0/router2"
+		linkNameRouter0 = "router0"
+		linkNameRouter1 = "router1"
+		linkNameRouter2 = "router2"
+	)
+	fc := NewFlowCollector(FlowCollectorSpec{})
+	fc.Sites = map[string]*SiteRecord{
+		"site:0": {
+			Base: Base{
+				RecType:  recordNames[Site],
+				Identity: "site:0",
+			},
+		},
+		"site:1": {
+			Base: Base{
+				RecType:  recordNames[Site],
+				Identity: "site:1",
+			},
+		},
+	}
+	fc.Routers = map[string]*RouterRecord{
+		"router:0": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "router:0",
+				Parent:   "site:0",
+			},
+			Name: &nameRouter0,
+		},
+		"router:1": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "router:1",
+				Parent:   "site:1",
+			},
+			Name: &nameRouter1,
+		},
+		"router:2": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "router:2",
+				Parent:   "site:1",
+			},
+			Name: &nameRouter2,
+		},
+	}
+
+	fc.Links = map[string]*LinkRecord{
+		"orphaned:noparent": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "orphaned:noparent",
+				Parent:   "router:dne",
+			},
+			Name:      &linkNameRouter2,
+			Direction: &Outgoing,
+		},
+		"router0:orphan1": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "router0:orphan1",
+				Parent:   "router:0",
+			},
+			Name:      &linkNameRouter1,
+			Direction: &Incoming,
+		},
+		"router0:orphan2": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "router0:orphan2",
+				Parent:   "router:0",
+			},
+			Name:      &linkNameRouter2,
+			Direction: &Incoming,
+		},
+		"router0:pair1": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "router0:pair1",
+				Parent:   "router:0",
+			},
+			Name:      &linkNameRouter1,
+			Direction: &Incoming,
+		},
+		"router1:pair1": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "router1:pair1",
+				Parent:   "router:1",
+			},
+			Name:      &linkNameRouter0,
+			Direction: &Outgoing,
+		},
+		"router0:nopair": {
+			Base: Base{
+				RecType:  recordNames[Router],
+				Identity: "router0:nopair",
+				Parent:   "router:0",
+			},
+			Name:      &linkNameRouter2,
+			Direction: &Incoming,
+		},
+	}
+
+	routers, sites := fc.graph()
+	assert.Equal(t, routers["router:0"].ID, "router:0")
+	assert.Equal(t, len(routers["router:0"].Forward), 0)
+	assert.Equal(t, len(routers["router:0"].Backward), 1)
+	assert.Equal(t, routers["router:0"].Backward[0], "router:1")
+	assert.Equal(t, sites["site:0"].ID, "site:0")
+	assert.Equal(t, len(sites["site:0"].Forward), 0)
+	assert.Equal(t, len(sites["site:0"].Backward), 1)
+	assert.Equal(t, sites["site:0"].Backward[0], "site:1")
+}
