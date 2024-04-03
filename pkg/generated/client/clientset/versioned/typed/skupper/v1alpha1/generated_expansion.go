@@ -18,11 +18,21 @@ limitations under the License.
 
 package v1alpha1
 
+type CertificateExpansion interface{}
+
+type ClaimExpansion interface{}
+
 type ConnectorExpansion interface{}
 
-type LinkConfigExpansion interface{}
+type GrantExpansion interface{}
+
+type LinkExpansion interface{}
+
+type LinkAccessExpansion interface{}
 
 type ListenerExpansion interface{}
+
+type SecuredAccessExpansion interface{}
 
 type SiteExpansion interface{}
 

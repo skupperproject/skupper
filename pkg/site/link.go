@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-func getHostPorts(lc *skupperv1alpha1.LinkConfig) map[qdr.Role]HostPort {
+func getHostPorts(lc *skupperv1alpha1.Link) map[qdr.Role]HostPort {
 	hostPorts := map[qdr.Role]HostPort{}
 	hostPorts[qdr.RoleEdge] = HostPort{
 		host: lc.Spec.Edge.Host,
@@ -37,7 +37,7 @@ func (o *HostPort) defined() bool {
 	return o.host != "" && o.port != ""
 }
 
-type LinkConfig struct {
+type Link struct {
 	name          string
 	cost          int32
 	hostPorts     map[qdr.Role]HostPort
@@ -45,13 +45,13 @@ type LinkConfig struct {
 	url           string
 }
 
-func NewLinkConfig(name string) *LinkConfig {
-	return &LinkConfig{
+func NewLink(name string) *Link {
+	return &Link{
 		name: name,
 	}
 }
 
-func (l *LinkConfig) Apply(current *qdr.RouterConfig) bool {
+func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	profile := qdr.SslProfile {
 		Name: sslProfileName(l.name),
 	}
@@ -87,9 +87,9 @@ func sslProfileName(connectorName string) string {
 	return connectorName + "-profile"
 }
 
-type LinkConfigMap map[string]*LinkConfig
+type LinkMap map[string]*Link
 
-func (m LinkConfigMap) Apply(current *qdr.RouterConfig) bool {
+func (m LinkMap) Apply(current *qdr.RouterConfig) bool {
 	for _, config := range m {
 		config.Apply(current)
 	}
@@ -104,7 +104,7 @@ func (m LinkConfigMap) Apply(current *qdr.RouterConfig) bool {
 	return true //TODO: can optimise by indicating if no change was required
 }
 
-func (config *LinkConfig) Update(lc *skupperv1alpha1.LinkConfig) bool {
+func (config *Link) Update(lc *skupperv1alpha1.Link) bool {
 	changed := false
 	if int32(lc.Spec.Cost) != config.cost {
 		config.cost = int32(lc.Spec.Cost)
@@ -121,7 +121,7 @@ func (config *LinkConfig) Update(lc *skupperv1alpha1.LinkConfig) bool {
 	return changed
 }
 
-func (config *LinkConfig) UpdateStatus(lc *skupperv1alpha1.LinkConfig) {
+func (config *Link) UpdateStatus(lc *skupperv1alpha1.Link) {
 	lc.Status.Url = config.url
 }
 

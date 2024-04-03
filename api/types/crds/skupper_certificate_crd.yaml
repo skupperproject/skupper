@@ -1,0 +1,74 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: certificates.skupper.io
+spec:
+  group: skupper.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                ca:
+                  type: string
+                subject:
+                  type: string
+                hosts:
+                  type: array
+                  items:
+                    type: string
+                client:
+                  type: boolean
+                server:
+                  type: boolean
+                signing:
+                  type: boolean
+              required:
+              - ca
+              - subject
+            status:
+              type: object
+              properties:
+                status:
+                  type: string
+                expiration:
+                  type: string
+                  format: date-time
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+      - name: CA
+        type: string
+        description: Identifies the CA to be used in signing the certificate
+        jsonPath: .spec.ca
+      - name: Server
+        type: boolean
+        description: Whether or not the certificate is valid for use as a server
+        jsonPath: .spec.client
+      - name: Client
+        type: boolean
+        description: Whether or not the certificate is valid for use as a client
+        jsonPath: .spec.client
+      - name: Signing
+        type: boolean
+        description: Whether or not the certificate is valid for use as a CA
+        jsonPath: .spec.signing
+      - name: Status
+        type: string
+        description: The status of the certificate
+        jsonPath: .status.status
+      - name: Expiration
+        type: string
+        description: The expiration of the certificate if relevant
+        jsonPath: .status.expiration
+  scope: Namespaced
+  names:
+    plural: certificates
+    singular: certificate
+    kind: Certificate

@@ -32,59 +32,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// LinkConfigInformer provides access to a shared informer and lister for
-// LinkConfigs.
-type LinkConfigInformer interface {
+// SecuredAccessInformer provides access to a shared informer and lister for
+// SecuredAccesses.
+type SecuredAccessInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.LinkConfigLister
+	Lister() v1alpha1.SecuredAccessLister
 }
 
-type linkConfigInformer struct {
+type securedAccessInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewLinkConfigInformer constructs a new informer for LinkConfig type.
+// NewSecuredAccessInformer constructs a new informer for SecuredAccess type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewLinkConfigInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredLinkConfigInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewSecuredAccessInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredSecuredAccessInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredLinkConfigInformer constructs a new informer for LinkConfig type.
+// NewFilteredSecuredAccessInformer constructs a new informer for SecuredAccess type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredLinkConfigInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredSecuredAccessInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV1alpha1().LinkConfigs(namespace).List(context.TODO(), options)
+				return client.SkupperV1alpha1().SecuredAccesses(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV1alpha1().LinkConfigs(namespace).Watch(context.TODO(), options)
+				return client.SkupperV1alpha1().SecuredAccesses(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&skupperv1alpha1.LinkConfig{},
+		&skupperv1alpha1.SecuredAccess{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *linkConfigInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredLinkConfigInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *securedAccessInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredSecuredAccessInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *linkConfigInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&skupperv1alpha1.LinkConfig{}, f.defaultInformer)
+func (f *securedAccessInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&skupperv1alpha1.SecuredAccess{}, f.defaultInformer)
 }
 
-func (f *linkConfigInformer) Lister() v1alpha1.LinkConfigLister {
-	return v1alpha1.NewLinkConfigLister(f.Informer().GetIndexer())
+func (f *securedAccessInformer) Lister() v1alpha1.SecuredAccessLister {
+	return v1alpha1.NewSecuredAccessLister(f.Informer().GetIndexer())
 }

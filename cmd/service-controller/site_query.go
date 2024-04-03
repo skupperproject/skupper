@@ -132,7 +132,7 @@ func getSiteUrl(vanClient *client.VanClient) (string, error) {
 			}
 		}
 	} else {
-		route, err := vanClient.RouteClient.Routes(vanClient.Namespace).Get(context.TODO(), "skupper-inter-router", metav1.GetOptions{})
+		route, err := vanClient.GetRouteClient().Routes(vanClient.Namespace).Get(context.TODO(), "skupper-inter-router", metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {

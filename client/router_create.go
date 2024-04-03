@@ -1320,7 +1320,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 	if options.Spec.IsIngressRoute() {
 		for _, rte := range van.Transport.Routes {
 			rte.ObjectMeta.OwnerReferences = ownerRefs
-			_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
+			_, err = kube.CreateRoute(rte, van.Namespace, cli.GetRouteClient())
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return err
 			}
@@ -1469,7 +1469,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 		if options.Spec.IsConsoleIngressRoute() {
 			for _, rte := range van.Controller.Routes {
 				rte.ObjectMeta.OwnerReferences = ownerRefs
-				_, err = kube.CreateRoute(rte, van.Namespace, cli.RouteClient)
+				_, err = kube.CreateRoute(rte, van.Namespace, cli.GetRouteClient())
 				if err != nil && !errors.IsAlreadyExists(err) {
 					return err
 				}
@@ -1477,7 +1477,7 @@ sasldb_path: /tmp/skrouterd.sasldb
 		}
 		for _, cred := range van.ControllerCredentials {
 			if options.Spec.IsConsoleIngressRoute() {
-				rte, err := kube.GetRoute(types.ClaimRedemptionRouteName, van.Namespace, cli.RouteClient)
+				rte, err := kube.GetRoute(types.ClaimRedemptionRouteName, van.Namespace, cli.GetRouteClient())
 				if err == nil {
 					cred.Hosts = append(cred.Hosts, rte.Spec.Host)
 				} else {

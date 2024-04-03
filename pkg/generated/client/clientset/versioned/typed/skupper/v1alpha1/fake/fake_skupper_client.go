@@ -28,16 +28,36 @@ type FakeSkupperV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeSkupperV1alpha1) Certificates(namespace string) v1alpha1.CertificateInterface {
+	return &FakeCertificates{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) Claims(namespace string) v1alpha1.ClaimInterface {
+	return &FakeClaims{c, namespace}
+}
+
 func (c *FakeSkupperV1alpha1) Connectors(namespace string) v1alpha1.ConnectorInterface {
 	return &FakeConnectors{c, namespace}
 }
 
-func (c *FakeSkupperV1alpha1) LinkConfigs(namespace string) v1alpha1.LinkConfigInterface {
-	return &FakeLinkConfigs{c, namespace}
+func (c *FakeSkupperV1alpha1) Grants(namespace string) v1alpha1.GrantInterface {
+	return &FakeGrants{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) Links(namespace string) v1alpha1.LinkInterface {
+	return &FakeLinks{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) LinkAccesses(namespace string) v1alpha1.LinkAccessInterface {
+	return &FakeLinkAccesses{c, namespace}
 }
 
 func (c *FakeSkupperV1alpha1) Listeners(namespace string) v1alpha1.ListenerInterface {
 	return &FakeListeners{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) SecuredAccesses(namespace string) v1alpha1.SecuredAccessInterface {
+	return &FakeSecuredAccesses{c, namespace}
 }
 
 func (c *FakeSkupperV1alpha1) Sites(namespace string) v1alpha1.SiteInterface {

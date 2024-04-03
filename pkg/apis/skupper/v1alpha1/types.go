@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"fmt"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -156,23 +158,23 @@ type ConnectorSpec struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type LinkConfig struct {
+type Link struct {
 	v1.TypeMeta                    `json:",inline"`
 	v1.ObjectMeta                  `json:"metadata,omitempty"`
-	Spec          LinkConfigSpec   `json:"spec,omitempty"`
-	Status        LinkConfigStatus `json:"status,omitempty"`
+	Spec          LinkSpec   `json:"spec,omitempty"`
+	Status        LinkStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// LinkConfigList contains a List of LinkConfig instances
-type LinkConfigList struct {
+// LinkList contains a List of Link instances
+type LinkList struct {
 	v1.TypeMeta `json:",inline"`
 	v1.ListMeta `json:"metadata,omitempty"`
-	Items       []LinkConfig `json:"items"`
+	Items       []Link `json:"items"`
 }
 
-type LinkConfigSpec struct {
+type LinkSpec struct {
 	InterRouter    HostPort `json:"interRouter"`
 	Edge           HostPort `json:"edge"`
 	TlsCredentials string   `json:"tlsCredentials,omitempty"`
@@ -185,9 +187,211 @@ type HostPort struct {
 	Port int              `json:"port"`
 }
 
-type LinkConfigStatus struct {
+type LinkStatus struct {
 	Status             `json:",inline"`
 	Configured  bool   `json:"configured,omitempty"`
 	Url         string `json:"url,omitempty"`
 	Site        string `json:"site,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type Claim struct {
+	v1.TypeMeta               `json:",inline"`
+	v1.ObjectMeta             `json:"metadata,omitempty"`
+	Spec          ClaimSpec   `json:"spec,omitempty"`
+	Status        ClaimStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ClaimList contains a List of Claim instances
+type ClaimList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []Claim `json:"items"`
+}
+
+type ClaimSpec struct {
+	Url    string `json:"url"`
+	Secret string `json:"secret"`
+	Ca     string `json:"ca"`
+}
+
+type ClaimStatus struct {
+	Claimed bool   `json:"claimed,omitempty"`
+	Status  string `json:"status,omitempty"`
+}
+
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type Grant struct {
+	v1.TypeMeta               `json:",inline"`
+	v1.ObjectMeta             `json:"metadata,omitempty"`
+	Spec          GrantSpec   `json:"spec,omitempty"`
+	Status        GrantStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// GrantList contains a List of Grant instances
+type GrantList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []Grant `json:"items"`
+}
+
+type GrantSpec struct {
+	Claims   int `json:"claims,omitempty"`
+	ValidFor string `json:"validFor,omitempty"`
+	Secret   string `json:"secret,omitempty"`
+}
+
+type GrantStatus struct {
+	Url        string `json:"url"`
+	Secret     string `json:"secret"`
+	Ca         string `json:"ca"`
+	Claimed    int    `json:"claimed,omitempty"`
+	Expiration string `json:"expiration,omitempty"`
+	Status     string `json:"status,omitempty"`
+}
+
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type SecuredAccess struct {
+	v1.TypeMeta               `json:",inline"`
+	v1.ObjectMeta             `json:"metadata,omitempty"`
+	Spec          SecuredAccessSpec   `json:"spec,omitempty"`
+	Status        SecuredAccessStatus `json:"status,omitempty"`
+}
+
+func (sa *SecuredAccess) Key() string {
+	return fmt.Sprintf("%s/%s", sa.Namespace, sa.Name)
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SecuredaccessList contains a List of Securedaccess instances
+type SecuredAccessList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []SecuredAccess `json:"items"`
+}
+
+type SecuredAccessPort struct {
+	Name       string `json:"name"`
+	Port       int `json:"port"`
+	TargetPort int `json:"targetPort,omitempty"`
+	Protocol   string `json:"protocol,omitempty"`
+}
+
+type SecuredAccessSpec struct {
+	AccessType      string               `json:"accessType,omitempty"`
+	Selector        map[string]string    `json:"selector"`
+	Ports           []SecuredAccessPort  `json:"ports"`
+	Certificate     string               `json:"certificate,omitempty"`
+	Ca              string               `json:"ca,omitempty"`
+	Options         map[string]string    `json:"options,omitempty"`
+}
+
+type SecuredAccessUrl struct {
+	Name string `json:"name"`
+	Url  string `json:"url"`
+}
+
+type SecuredAccessStatus struct {
+	Urls       []SecuredAccessUrl `json:"url,omitempty"`
+	Ca         string             `json:"ca,omitempty"`
+	Status     string             `json:"status,omitempty"`
+}
+
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type Certificate struct {
+	v1.TypeMeta               `json:",inline"`
+	v1.ObjectMeta             `json:"metadata,omitempty"`
+	Spec          CertificateSpec   `json:"spec,omitempty"`
+	Status        CertificateStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CertificateList contains a List of Certificate instances
+type CertificateList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []Certificate `json:"items"`
+}
+
+type CertificateSpec struct {
+	Ca      string   `json:"ca"`
+	Subject string   `json:"subject"`
+	Hosts   []string `json:"hosts,omitempty"`
+	Client  bool `json:"client,omitempty"`
+	Server  bool `json:"server,omitempty"`
+	Signing bool `json:"signing,omitempty"`
+}
+
+type CertificateStatus struct {
+	Expiration string `json:"expiration,omitempty"`
+	Status     string `json:"status,omitempty"`
+}
+
+func (c *Certificate) Key() string {
+	return fmt.Sprintf("%s/%s", c.Namespace, c.Name)
+}
+
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type LinkAccess struct {
+	v1.TypeMeta               `json:",inline"`
+	v1.ObjectMeta             `json:"metadata,omitempty"`
+	Spec          LinkAccessSpec   `json:"spec,omitempty"`
+	Status        LinkAccessStatus `json:"status,omitempty"`
+}
+
+func (link *LinkAccess) Key() string {
+	return fmt.Sprintf("%s/%s", link.Namespace, link.Name)
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// LinkAccessList contains a List of LinkAccess instances
+type LinkAccessList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []LinkAccess `json:"items"`
+}
+
+type LinkAccessRole struct {
+	Role       string `json:"role"`
+	Port       int `json:"port"`
+}
+
+type LinkAccessSpec struct {
+	AccessType      string            `json:"accessType,omitempty"`
+	Roles           []LinkAccessRole  `json:"roles"`
+	TlsCredentials  string            `json:"tlsCredentials"`
+	Ca              string            `json:"ca"`
+	Options         map[string]string `json:"options,omitempty"`
+}
+
+type LinkAccessUrl struct {
+	Role string `json:"role"`
+	Url  string `json:"url"`
+}
+
+type LinkAccessStatus struct {
+	Active     bool            `json:"active,omitempty"`
+	Status     string          `json:"status,omitempty"`
+	Urls       []LinkAccessUrl `json:"urls,omitempty"`
 }

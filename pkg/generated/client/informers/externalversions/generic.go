@@ -53,12 +53,22 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=skupper.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("certificates"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Certificates().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("claims"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Claims().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("connectors"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Connectors().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("linkconfigs"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().LinkConfigs().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("grants"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Grants().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("links"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Links().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("linkaccesses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().LinkAccesses().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("listeners"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Listeners().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("securedaccesses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().SecuredAccesses().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("sites"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Sites().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("skupperclusterpolicies"):

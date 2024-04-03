@@ -22,6 +22,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 const (
@@ -210,9 +211,9 @@ func (server *ClaimVerifier) listen() {
 	log.Fatal(srv.ListenAndServeTLS(cert, key))
 }
 
-func StartClaimVerifier(client kubernetes.Interface, namespace string, generator TokenGenerator, siteChecker SiteChecker) bool {
+func StartClaimVerifier(clients kube.Clients, namespace string, generator TokenGenerator, siteChecker SiteChecker) bool {
 	if enableClaimVerifier() {
-		verifier := newClaimVerifier(client, namespace, generator, siteChecker)
+		verifier := newClaimVerifier(clients.GetKubeClient(), namespace, generator, siteChecker)
 		go verifier.listen()
 		return true
 	}
