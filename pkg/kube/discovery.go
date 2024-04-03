@@ -5,13 +5,18 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
+
+func GetContourHttpProxyGVR() schema.GroupVersionResource {
+	return schema.GroupVersionResource{
+		Group: "projectcontour.io",
+		Version: "v1",
+		Resource: "httpproxies",
+	}
+}
+
 var ingressResources = [][]schema.GroupVersionResource {
 	{
-		{
-			Group:    "projectcontour.io",
-			Version:  "v1",
-			Resource: "httpproxies",
-		},
+		GetContourHttpProxyGVR(),
 	},
 	{
 		{

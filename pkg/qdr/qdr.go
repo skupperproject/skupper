@@ -401,6 +401,13 @@ const (
 	RoleEdge             = "edge"
 )
 
+func GetRole(name string) Role {
+	if name == "edge" {
+		return RoleEdge
+	}
+	return RoleInterRouter
+}
+
 type Mode string
 
 const (

@@ -216,7 +216,7 @@ func (cli *VanClient) SkupperDump(ctx context.Context, tarName string, version s
 
 	if cli.RouteClient != nil {
 		for i := range routes {
-			route, err := cli.RouteClient.Routes(cli.Namespace).Get(context.TODO(), routes[i], metav1.GetOptions{})
+			route, err := cli.GetRouteClient().Routes(cli.Namespace).Get(context.TODO(), routes[i], metav1.GetOptions{})
 			if err == nil {
 				err := writeObject(route, "/routes/"+route.Name, ".yaml", tw)
 				if err != nil {

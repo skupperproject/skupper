@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
+	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 )
 
 const (
@@ -359,6 +360,7 @@ type VanClientInterface interface {
 	GetKubeClient() kubernetes.Interface
 	GetDynamicClient() dynamic.Interface
 	GetDiscoveryClient() *discovery.DiscoveryClient
-	GetRouteClient() *routev1client.RouteV1Client
+	GetRouteClient() routev1client.RouteV1Interface
+	GetRouteInterface() openshiftroute.Interface
 	GetSkupperClient() skupperclient.Interface
 }

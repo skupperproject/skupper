@@ -1,0 +1,54 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: claims.skupper.io
+spec:
+  group: skupper.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                url:
+                  type: string
+                secret:
+                  type: string
+                ca:
+                  type: string
+              required:
+              - url
+              - secret
+              - ca
+            status:
+              type: object
+              properties:
+                claimed:
+                  type: boolean
+                status:
+                  type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+      - name: URL
+        type: string
+        description: The URL the claim is redeemed at
+        jsonPath: .spec.url
+      - name: Claimed
+        type: boolean
+        description: Whether the claim has already been claimed
+        jsonPath: .status.claimed
+      - name: Status
+        type: string
+        description: The status of the claim
+        jsonPath: .status.status
+  scope: Namespaced
+  names:
+    plural: claims
+    singular: claim
+    kind: Claim

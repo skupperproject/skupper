@@ -4,6 +4,7 @@ import (
 	"time"
 
 	openshiftapps "github.com/openshift/client-go/apps/clientset/versioned"
+	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/skupperproject/skupper/api/types"
@@ -34,7 +35,8 @@ var defaultRetry = wait.Backoff{
 type VanClient struct {
 	Namespace       string
 	KubeClient      kubernetes.Interface
-	RouteClient     *routev1client.RouteV1Client
+	RouteClient     openshiftroute.Interface
+	//RouteClient     *routev1client.RouteV1Client
 	OCAppsClient    openshiftapps.Interface
 	RestConfig      *restclient.Config
 	DynamicClient   dynamic.Interface
@@ -59,8 +61,12 @@ func (cli *VanClient) GetDiscoveryClient() *discovery.DiscoveryClient {
 	return cli.DiscoveryClient
 }
 
-func (cli *VanClient) GetRouteClient() *routev1client.RouteV1Client {
+func (cli *VanClient) GetRouteInterface() openshiftroute.Interface {
 	return cli.RouteClient
+}
+
+func (cli *VanClient) GetRouteClient() routev1client.RouteV1Interface {
+	return cli.RouteClient.RouteV1()
 }
 
 func (cli *VanClient) GetVersion(component string, name string) string {
@@ -95,7 +101,8 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*VanCli
 	dc, err := discovery.NewDiscoveryClientForConfig(restconfig)
 	resources, err := dc.ServerResourcesForGroupVersion("route.openshift.io/v1")
 	if err == nil && len(resources.APIResources) > 0 {
-		c.RouteClient, err = routev1client.NewForConfig(restconfig)
+		c.RouteClient, err = openshiftroute.NewForConfig(restconfig)
+		//c.RouteClient, err = routev1client.NewForConfig(restconfig)
 		if err != nil {
 			return c, err
 		}

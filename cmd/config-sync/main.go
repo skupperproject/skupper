@@ -76,7 +76,7 @@ func main() {
 	go startCollector(cli)
 
 	event.StartDefaultEventStore(stopCh)
-	if claims.StartClaimVerifier(cli.KubeClient, cli.Namespace, cli, cli) {
+	if claims.StartClaimVerifier(cli, cli.Namespace, cli, cli) {
 		log.Println("CONFIG_SYNC: Claim verifier started")
 	} else {
 		log.Println("CONFIG_SYNC: Claim verifier not enabled")

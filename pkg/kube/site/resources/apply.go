@@ -97,7 +97,7 @@ func resourceTemplates(clients kube.Clients, name string, siteId string, namespa
 	if config.IsIngressKubernetes() && kube.IsResourceAvailable(clients.GetDiscoveryClient(), ingressGVR) {
 		//TODO:
 	}
-	if config.IsIngressContourHttpProxy() && kube.IsResourceAvailable(clients.GetDiscoveryClient(), ingressGVR) {
+	if config.IsIngressContourHttpProxy() && kube.IsResourceAvailable(clients.GetDiscoveryClient(), httpProxyGVR) {
 		//TODO:
 	}
 	return templates

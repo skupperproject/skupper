@@ -11,12 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func GetRoute(name string, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {
+func GetRoute(name string, namespace string, rc routev1client.RouteV1Interface) (*routev1.Route, error) {
 	current, err := rc.Routes(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	return current, err
 }
 
-func CreateRoute(route *routev1.Route, namespace string, rc *routev1client.RouteV1Client) (*routev1.Route, error) {
+func CreateRoute(route *routev1.Route, namespace string, rc routev1client.RouteV1Interface) (*routev1.Route, error) {
 	current, err := rc.Routes(namespace).Get(context.TODO(), route.Name, metav1.GetOptions{})
 	if err == nil {
 		return current, errors.NewAlreadyExists(schema.GroupResource{Group: "openshift.io", Resource: "routes"}, route.Name)
@@ -32,18 +32,18 @@ func CreateRoute(route *routev1.Route, namespace string, rc *routev1client.Route
 	}
 }
 
-func UpdateTargetServiceForRoute(routeName string, serviceName string, namespace string, rc *routev1client.RouteV1Client) error {
+func UpdateTargetServiceForRoute(routeName string, serviceName string, namespace string, rc routev1client.RouteV1Interface) error {
 	return updateTargetServiceForRoute(true, routeName, serviceName, namespace, rc)
 }
 
-func UpdateTargetServiceForRouteIfExists(routeName string, serviceName string, namespace string, rc *routev1client.RouteV1Client) error {
+func UpdateTargetServiceForRouteIfExists(routeName string, serviceName string, namespace string, rc routev1client.RouteV1Interface) error {
 	if rc == nil {
 		return nil
 	}
 	return updateTargetServiceForRoute(false, routeName, serviceName, namespace, rc)
 }
 
-func updateTargetServiceForRoute(failIfNotExists bool, routeName string, serviceName string, namespace string, rc *routev1client.RouteV1Client) error {
+func updateTargetServiceForRoute(failIfNotExists bool, routeName string, serviceName string, namespace string, rc routev1client.RouteV1Interface) error {
 	current, err := rc.Routes(namespace).Get(context.TODO(), routeName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		if failIfNotExists {

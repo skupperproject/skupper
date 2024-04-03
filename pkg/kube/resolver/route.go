@@ -24,7 +24,7 @@ import (
 )
 
 type RouteResolver struct {
-	client    *routev1client.RouteV1Client
+	client    routev1client.RouteV1Interface
 	namespace string
 }
 

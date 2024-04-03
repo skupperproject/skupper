@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/version"
 )
@@ -57,7 +59,18 @@ func main() {
 		log.Fatal("Error getting van client ", err.Error())
 	}
 
-	controller, err := NewController(cli)
+	var watchNamespace string
+	if os.Getenv("WATCH_NAMESPACE") != "" {
+		watchNamespace = os.Getenv("WATCH_NAMESPACE")
+		log.Println("Skupper controller watching current namespace ", watchNamespace)
+	} else {
+		watchNamespace = metav1.NamespaceAll
+		log.Println("Skupper controller watching all namespaces")
+	}
+	log.Printf("Version: %s", version.Version)
+
+	grantConfig := os.Getenv("GRANT_CONFIG")
+	controller, err := NewController(cli, watchNamespace, grantConfig)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
 	}

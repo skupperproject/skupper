@@ -1,0 +1,79 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: securedaccesses.skupper.io
+spec:
+  group: skupper.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                ports:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      port:
+                        type: integer
+                      targetPort:
+                        type: integer
+                      protocol:
+                        type: string
+                selector:
+                  type: object
+                  additionalProperties:
+                    type: string
+                ca:
+                  type: string
+                certificate:
+                  type: string
+                accessType:
+                  type: string
+                options:
+                  type: object
+                  additionalProperties:
+                    type: string
+              required:
+              - selector
+              - ports
+              - caCredentials
+              - tlsCredentials
+            status:
+              type: object
+              properties:
+                active:
+                  type: boolean
+                urls:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      url:
+                        type: string
+                ca:
+                  type: string
+                status:
+                  type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+      - name: Status
+        type: string
+        description: The status of the secured access
+        jsonPath: .status.status
+  scope: Namespaced
+  names:
+    plural: securedaccesses
+    singular: securedaccess
+    kind: SecuredAccess

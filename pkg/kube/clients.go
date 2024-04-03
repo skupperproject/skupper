@@ -15,6 +15,7 @@ limitations under the License.
 package kube
 
 import (
+	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -27,6 +28,7 @@ type Clients interface {
 	GetKubeClient() kubernetes.Interface
 	GetDynamicClient() dynamic.Interface
 	GetDiscoveryClient() *discovery.DiscoveryClient
-	GetRouteClient() *routev1client.RouteV1Client
+	GetRouteInterface() openshiftroute.Interface
+	GetRouteClient() routev1client.RouteV1Interface
 	GetSkupperClient() skupperclient.Interface
 }

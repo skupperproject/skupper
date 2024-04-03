@@ -18,6 +18,22 @@ limitations under the License.
 
 package v1alpha1
 
+// CertificateListerExpansion allows custom methods to be added to
+// CertificateLister.
+type CertificateListerExpansion interface{}
+
+// CertificateNamespaceListerExpansion allows custom methods to be added to
+// CertificateNamespaceLister.
+type CertificateNamespaceListerExpansion interface{}
+
+// ClaimListerExpansion allows custom methods to be added to
+// ClaimLister.
+type ClaimListerExpansion interface{}
+
+// ClaimNamespaceListerExpansion allows custom methods to be added to
+// ClaimNamespaceLister.
+type ClaimNamespaceListerExpansion interface{}
+
 // ConnectorListerExpansion allows custom methods to be added to
 // ConnectorLister.
 type ConnectorListerExpansion interface{}
@@ -26,13 +42,29 @@ type ConnectorListerExpansion interface{}
 // ConnectorNamespaceLister.
 type ConnectorNamespaceListerExpansion interface{}
 
-// LinkConfigListerExpansion allows custom methods to be added to
-// LinkConfigLister.
-type LinkConfigListerExpansion interface{}
+// GrantListerExpansion allows custom methods to be added to
+// GrantLister.
+type GrantListerExpansion interface{}
 
-// LinkConfigNamespaceListerExpansion allows custom methods to be added to
-// LinkConfigNamespaceLister.
-type LinkConfigNamespaceListerExpansion interface{}
+// GrantNamespaceListerExpansion allows custom methods to be added to
+// GrantNamespaceLister.
+type GrantNamespaceListerExpansion interface{}
+
+// LinkListerExpansion allows custom methods to be added to
+// LinkLister.
+type LinkListerExpansion interface{}
+
+// LinkNamespaceListerExpansion allows custom methods to be added to
+// LinkNamespaceLister.
+type LinkNamespaceListerExpansion interface{}
+
+// LinkAccessListerExpansion allows custom methods to be added to
+// LinkAccessLister.
+type LinkAccessListerExpansion interface{}
+
+// LinkAccessNamespaceListerExpansion allows custom methods to be added to
+// LinkAccessNamespaceLister.
+type LinkAccessNamespaceListerExpansion interface{}
 
 // ListenerListerExpansion allows custom methods to be added to
 // ListenerLister.
@@ -41,6 +73,14 @@ type ListenerListerExpansion interface{}
 // ListenerNamespaceListerExpansion allows custom methods to be added to
 // ListenerNamespaceLister.
 type ListenerNamespaceListerExpansion interface{}
+
+// SecuredAccessListerExpansion allows custom methods to be added to
+// SecuredAccessLister.
+type SecuredAccessListerExpansion interface{}
+
+// SecuredAccessNamespaceListerExpansion allows custom methods to be added to
+// SecuredAccessNamespaceLister.
+type SecuredAccessNamespaceListerExpansion interface{}
 
 // SiteListerExpansion allows custom methods to be added to
 // SiteLister.

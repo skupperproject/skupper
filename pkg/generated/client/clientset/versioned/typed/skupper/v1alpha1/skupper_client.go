@@ -26,9 +26,14 @@ import (
 
 type SkupperV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	CertificatesGetter
+	ClaimsGetter
 	ConnectorsGetter
-	LinkConfigsGetter
+	GrantsGetter
+	LinksGetter
+	LinkAccessesGetter
 	ListenersGetter
+	SecuredAccessesGetter
 	SitesGetter
 	SkupperClusterPoliciesGetter
 }
@@ -38,16 +43,36 @@ type SkupperV1alpha1Client struct {
 	restClient rest.Interface
 }
 
+func (c *SkupperV1alpha1Client) Certificates(namespace string) CertificateInterface {
+	return newCertificates(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) Claims(namespace string) ClaimInterface {
+	return newClaims(c, namespace)
+}
+
 func (c *SkupperV1alpha1Client) Connectors(namespace string) ConnectorInterface {
 	return newConnectors(c, namespace)
 }
 
-func (c *SkupperV1alpha1Client) LinkConfigs(namespace string) LinkConfigInterface {
-	return newLinkConfigs(c, namespace)
+func (c *SkupperV1alpha1Client) Grants(namespace string) GrantInterface {
+	return newGrants(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) Links(namespace string) LinkInterface {
+	return newLinks(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) LinkAccesses(namespace string) LinkAccessInterface {
+	return newLinkAccesses(c, namespace)
 }
 
 func (c *SkupperV1alpha1Client) Listeners(namespace string) ListenerInterface {
 	return newListeners(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) SecuredAccesses(namespace string) SecuredAccessInterface {
+	return newSecuredAccesses(c, namespace)
 }
 
 func (c *SkupperV1alpha1Client) Sites(namespace string) SiteInterface {

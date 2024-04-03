@@ -24,12 +24,22 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// Certificates returns a CertificateInformer.
+	Certificates() CertificateInformer
+	// Claims returns a ClaimInformer.
+	Claims() ClaimInformer
 	// Connectors returns a ConnectorInformer.
 	Connectors() ConnectorInformer
-	// LinkConfigs returns a LinkConfigInformer.
-	LinkConfigs() LinkConfigInformer
+	// Grants returns a GrantInformer.
+	Grants() GrantInformer
+	// Links returns a LinkInformer.
+	Links() LinkInformer
+	// LinkAccesses returns a LinkAccessInformer.
+	LinkAccesses() LinkAccessInformer
 	// Listeners returns a ListenerInformer.
 	Listeners() ListenerInformer
+	// SecuredAccesses returns a SecuredAccessInformer.
+	SecuredAccesses() SecuredAccessInformer
 	// Sites returns a SiteInformer.
 	Sites() SiteInformer
 	// SkupperClusterPolicies returns a SkupperClusterPolicyInformer.
@@ -47,19 +57,44 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
+// Certificates returns a CertificateInformer.
+func (v *version) Certificates() CertificateInformer {
+	return &certificateInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Claims returns a ClaimInformer.
+func (v *version) Claims() ClaimInformer {
+	return &claimInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // Connectors returns a ConnectorInformer.
 func (v *version) Connectors() ConnectorInformer {
 	return &connectorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// LinkConfigs returns a LinkConfigInformer.
-func (v *version) LinkConfigs() LinkConfigInformer {
-	return &linkConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// Grants returns a GrantInformer.
+func (v *version) Grants() GrantInformer {
+	return &grantInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Links returns a LinkInformer.
+func (v *version) Links() LinkInformer {
+	return &linkInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// LinkAccesses returns a LinkAccessInformer.
+func (v *version) LinkAccesses() LinkAccessInformer {
+	return &linkAccessInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Listeners returns a ListenerInformer.
 func (v *version) Listeners() ListenerInformer {
 	return &listenerInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SecuredAccesses returns a SecuredAccessInformer.
+func (v *version) SecuredAccesses() SecuredAccessInformer {
+	return &securedAccessInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Sites returns a SiteInformer.

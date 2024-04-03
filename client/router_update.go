@@ -368,7 +368,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 
 		if cli.RouteClient != nil {
 			// routes: skupper-controller -> skupper
-			original, err := cli.RouteClient.Routes(namespace).Get(context.TODO(), "skupper-controller", metav1.GetOptions{})
+			original, err := cli.GetRouteClient().Routes(namespace).Get(context.TODO(), "skupper-controller", metav1.GetOptions{})
 			if err == nil {
 				route := &routev1.Route{
 					TypeMeta: metav1.TypeMeta{
@@ -389,7 +389,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 						},
 					},
 				}
-				_, err := cli.RouteClient.Routes(namespace).Create(context.TODO(), route, metav1.CreateOptions{})
+				_, err := cli.GetRouteClient().Routes(namespace).Create(context.TODO(), route, metav1.CreateOptions{})
 				if err != nil && !errors.IsAlreadyExists(err) {
 					return false, err
 				}
@@ -397,11 +397,11 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 				return false, err
 			}
 			// need to update edge and inter-router routes to point at different service:
-			err = kube.UpdateTargetServiceForRoute(types.EdgeRouteName, types.TransportServiceName, namespace, cli.RouteClient)
+			err = kube.UpdateTargetServiceForRoute(types.EdgeRouteName, types.TransportServiceName, namespace, cli.GetRouteClient())
 			if err != nil {
 				return false, err
 			}
-			err = kube.UpdateTargetServiceForRoute(types.InterRouterRouteName, types.TransportServiceName, namespace, cli.RouteClient)
+			err = kube.UpdateTargetServiceForRoute(types.InterRouterRouteName, types.TransportServiceName, namespace, cli.GetRouteClient())
 			if err != nil {
 				return false, err
 			}
@@ -739,7 +739,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	if renameFor050 {
 		// delete old resources
 		if cli.RouteClient != nil {
-			err = cli.RouteClient.Routes(namespace).Delete(context.TODO(), "skupper-controller", metav1.DeleteOptions{})
+			err = cli.GetRouteClient().Routes(namespace).Delete(context.TODO(), "skupper-controller", metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				return false, err
 			}
@@ -1217,7 +1217,7 @@ func updateOauthProxyServiceAccount(spec *corev1.PodSpec, name string) {
 
 func (cli *VanClient) usingRoutes(namespace string) (bool, error) {
 	if cli.RouteClient != nil {
-		_, err := kube.GetRoute(types.InterRouterRouteName, namespace, cli.RouteClient)
+		_, err := kube.GetRoute(types.InterRouterRouteName, namespace, cli.GetRouteClient())
 		if err == nil {
 			return true, nil
 		} else if errors.IsNotFound(err) {
@@ -1324,7 +1324,7 @@ func (cli *VanClient) removeClaimsPortsFromControllerService(ctx context.Context
 }
 
 func (cli *VanClient) updateIngressResources(ctx context.Context, namespace string) error {
-	if err := kube.UpdateTargetServiceForRouteIfExists(types.ClaimRedemptionRouteName, types.TransportServiceName, namespace, cli.RouteClient); err != nil {
+	if err := kube.UpdateTargetServiceForRouteIfExists(types.ClaimRedemptionRouteName, types.TransportServiceName, namespace, cli.GetRouteClient()); err != nil {
 		return err
 	}
 	if err := kube.UpdateIngressRuleServiceName(types.IngressName, "claims", types.TransportServiceName, namespace, cli); err != nil {
@@ -1381,7 +1381,7 @@ func (cli *VanClient) createClaimsRedemptionRoute(ctx context.Context, namespace
 			},
 		},
 	}
-	_, err := kube.CreateRoute(route, namespace, cli.RouteClient)
+	_, err := kube.CreateRoute(route, namespace, cli.GetRouteClient())
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}

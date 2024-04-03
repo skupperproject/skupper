@@ -37,10 +37,11 @@ type Site struct {
 	config      *types.SiteConfigSpec
 	controller  *kube.Controller
 	bindings    *site.Bindings
-	links       map[string]*site.LinkConfig
+	links       map[string]*site.Link
 	resolver    resolver.Resolver
 	errors      map[string]string
 	addresses   resolver.HostPorts
+	linkAccess  map[string]*skupperv1alpha1.LinkAccess
 }
 
 func NewSite(namespace string, controller *kube.Controller) *Site {
@@ -48,7 +49,8 @@ func NewSite(namespace string, controller *kube.Controller) *Site {
 		bindings:   site.NewBindings(),
 		namespace:  namespace,
 		controller: controller,
-		links: map[string]*site.LinkConfig{},
+		links:      map[string]*site.Link{},
+		linkAccess: map[string]*skupperv1alpha1.LinkAccess{},
 	}
 }
 
@@ -94,12 +96,14 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 		s.bindings.SetBindingContext(s)
 		if createRouterConfig {
 			s.bindings.Apply(routerConfig)
+			//TODO: apply any recovered LinkAccess configuration
 			err = s.createRouterConfig(routerConfig)
 			if err != nil {
 				return err
 			}
 			log.Printf("Router config created for site %s/%s", siteDef.Namespace, siteDef.Name)
 		} else {
+			//TODO: include any LinkAccess configuration
 			err = s.updateRouterConfig(ConfigUpdateList{s.bindings,s})
 			if err != nil {
 				return err
@@ -727,28 +731,28 @@ func (s *Site) CheckListener(name string, listener *skupperv1alpha1.Listener) er
 	return s.updateListenerStatus(listener, err)
 }
 
-func (s *Site) newLinkConfig(linkconfig *skupperv1alpha1.LinkConfig) *site.LinkConfig {
-	config := site.NewLinkConfig(linkconfig.ObjectMeta.Name)
+func (s *Site) newLink(linkconfig *skupperv1alpha1.Link) *site.Link {
+	config := site.NewLink(linkconfig.ObjectMeta.Name)
 	config.Update(linkconfig)
 	return config
 }
 
-func (s *Site) CheckLinkConfig(name string, linkconfig *skupperv1alpha1.LinkConfig) error {
-	log.Printf("checkLinkConfig(%s)", name)
+func (s *Site) CheckLink(name string, linkconfig *skupperv1alpha1.Link) error {
+	log.Printf("checkLink(%s)", name)
 	if linkconfig == nil {
 		return s.unlink(name)
 	}
 	return s.link(linkconfig)
 }
 
-func (s *Site) link(linkconfig *skupperv1alpha1.LinkConfig) error {
-	var config *site.LinkConfig
+func (s *Site) link(linkconfig *skupperv1alpha1.Link) error {
+	var config *site.Link
 	if existing, ok := s.links[linkconfig.ObjectMeta.Name]; ok {
 		if existing.Update(linkconfig) {
 			config = existing
 		}
 	} else {
-		config = s.newLinkConfig(linkconfig)
+		config = s.newLink(linkconfig)
 		s.links[linkconfig.ObjectMeta.Name] = config
 	}
 	if s.initialised {
@@ -756,7 +760,7 @@ func (s *Site) link(linkconfig *skupperv1alpha1.LinkConfig) error {
 			log.Printf("Connecting site in %s using token %s", s.namespace, linkconfig.ObjectMeta.Name)
 			err := s.updateRouterConfig(config)
 			config.UpdateStatus(linkconfig)
-			return s.updateLinkConfigStatus(linkconfig, err)
+			return s.updateLinkStatus(linkconfig, err)
 		} else {
 			log.Printf("No update to router config required for link %s in %s", linkconfig.ObjectMeta.Name, linkconfig.ObjectMeta.Namespace)
 		}
@@ -777,7 +781,7 @@ func (s *Site) unlink(name string) error {
 	return nil
 }
 
-func (s *Site) updateLinkConfigStatus(link *skupperv1alpha1.LinkConfig, err error) error {
+func (s *Site) updateLinkStatus(link *skupperv1alpha1.Link, err error) error {
 	if link == nil {
 		return nil
 	}
@@ -788,7 +792,7 @@ func (s *Site) updateLinkConfigStatus(link *skupperv1alpha1.LinkConfig, err erro
 		link.Status.Configured = false
 		link.Status.StatusMessage = err.Error()
 	}
-	_, updateErr := s.controller.GetSkupperClient().SkupperV1alpha1().LinkConfigs(link.ObjectMeta.Namespace).UpdateStatus(context.TODO(), link, metav1.UpdateOptions{})
+	_, updateErr := s.controller.GetSkupperClient().SkupperV1alpha1().Links(link.ObjectMeta.Namespace).UpdateStatus(context.TODO(), link, metav1.UpdateOptions{})
 	if updateErr != nil {
 		if err == nil {
 			return updateErr
@@ -863,6 +867,33 @@ func (s *Site) UpdateSiteStatus(site *skupperv1alpha1.Site) (*skupperv1alpha1.Si
 		return nil, err
 	}
 	return updated, nil
+}
+
+func (s *Site) CheckLinkAccess(name string, la *skupperv1alpha1.LinkAccess) error {
+	specChanged := false
+	statusChanged := false
+	if la == nil {
+		delete(s.linkAccess, name)
+		specChanged = true
+		statusChanged = true
+	} else {
+		if existing, ok := s.linkAccess[name]; ok {
+			specChanged = !reflect.DeepEqual(existing.Spec, la.Spec)
+			statusChanged = !reflect.DeepEqual(existing.Status, la.Status)
+		}
+		s.linkAccess[name] = la
+	}
+	if !s.initialised {
+		return nil
+	}
+	//TODO
+	if specChanged {
+		// update router config
+	}
+	if statusChanged {
+		// update site status 
+	}
+	return nil
 }
 
 type TargetSelection struct {

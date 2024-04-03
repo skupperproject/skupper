@@ -65,7 +65,7 @@ func (cli *VanClient) GetConsoleUrl(namespace string) (string, error) {
 			}
 		}
 	} else {
-		route, err := cli.RouteClient.Routes(namespace).Get(context.TODO(), types.ConsoleRouteName, metav1.GetOptions{})
+		route, err := cli.GetRouteClient().Routes(namespace).Get(context.TODO(), types.ConsoleRouteName, metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		} else {
