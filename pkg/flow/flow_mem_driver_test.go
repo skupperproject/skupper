@@ -1345,16 +1345,27 @@ func TestGraph(t *testing.T) {
 		}
 	}
 
-	newLink := func(id string, router string, peerRouterName string, direction string) *LinkRecord {
-		return &LinkRecord{
+	type largs struct {
+		ID             string
+		RouterID       string
+		PeerRouterName string
+		Direction      string
+		Role           string
+	}
+	newLink := func(a largs) *LinkRecord {
+		record := &LinkRecord{
 			Base: Base{
 				RecType:  recordNames[Router],
-				Identity: id,
-				Parent:   router,
+				Identity: a.ID,
+				Parent:   a.RouterID,
 			},
-			Name:      &peerRouterName,
-			Direction: &direction,
+			Name:      &a.PeerRouterName,
+			Direction: &a.Direction,
 		}
+		if a.Role != "" {
+			record.Mode = &a.Role
+		}
+		return record
 	}
 	tests := []struct {
 		Name                string
@@ -1369,12 +1380,12 @@ func TestGraph(t *testing.T) {
 		}, {
 			Name: "missing routers",
 			Sites: []*SiteRecord{
-				newSite("site:0"),
-				newSite("site:1"),
+				newSite("site:0"), newSite("site:1"),
 			},
 			Links: []*LinkRecord{
-				newLink("norouter:0", "router:0", "r1", Incoming),
-				newLink("norouter:1", "router:1", "r0", Outgoing),
+				newLink(largs{ID: "norouter:0", RouterID: "router:0", PeerRouterName: "r1", Direction: Incoming}),
+				newLink(largs{ID: "norouter:1", RouterID: "router:1", PeerRouterName: "r0", Direction: Outgoing}),
+				newLink(largs{ID: "norouter:2", RouterID: "router:2", PeerRouterName: "r0", Direction: Outgoing, Role: "edge"}),
 			},
 			ExpectedSiteNodes: map[string]*node{
 				"site:0": {ID: "site:0"},
@@ -1388,14 +1399,17 @@ func TestGraph(t *testing.T) {
 			Routers: []*RouterRecord{
 				newRouter("router0", "site:0", "r0"),
 				newRouter("router1", "site:1", "r1"),
+				newRouter("router2", "site:2", "r2"),
 			},
 			Links: []*LinkRecord{
-				newLink("link0", "router0", "r1", Incoming),
-				newLink("link1", "router1", "r0", Outgoing),
+				newLink(largs{ID: "link0", RouterID: "router0", PeerRouterName: "r1", Direction: Incoming}),
+				newLink(largs{ID: "link1", RouterID: "router1", PeerRouterName: "r0", Direction: Outgoing}),
+				newLink(largs{ID: "link2", RouterID: "router2", PeerRouterName: "r0", Direction: Outgoing, Role: "edge"}),
 			},
 			ExpectedRouterNodes: map[string]*node{
 				"router0": {ID: "router0"},
 				"router1": {ID: "router1"},
+				"router2": {ID: "router2"},
 			},
 			ExpectedSiteNodes: map[string]*node{
 				"site:0": {ID: "site:0"},
@@ -1403,16 +1417,15 @@ func TestGraph(t *testing.T) {
 		}, {
 			Name: "single link pair",
 			Sites: []*SiteRecord{
-				newSite("site:0"),
-				newSite("site:1"),
+				newSite("site:0"), newSite("site:1"),
 			},
 			Routers: []*RouterRecord{
 				newRouter("router0", "site:0", "r0"),
 				newRouter("router1", "site:1", "r1"),
 			},
 			Links: []*LinkRecord{
-				newLink("link0", "router0", "r1", Incoming),
-				newLink("link1", "router1", "r0", Outgoing),
+				newLink(largs{ID: "link0", RouterID: "router0", PeerRouterName: "r1", Direction: Incoming}),
+				newLink(largs{ID: "link1", RouterID: "router1", PeerRouterName: "r0", Direction: Outgoing}),
 			},
 			ExpectedRouterNodes: map[string]*node{
 				"router0": {ID: "router0", Backward: []string{"router1"}},
@@ -1425,20 +1438,19 @@ func TestGraph(t *testing.T) {
 		}, {
 			Name: "redundant links",
 			Sites: []*SiteRecord{
-				newSite("site:0"),
-				newSite("site:1"),
+				newSite("site:0"), newSite("site:1"),
 			},
 			Routers: []*RouterRecord{
 				newRouter("router0", "site:0", "r0"),
 				newRouter("router1", "site:1", "r1"),
 			},
 			Links: []*LinkRecord{
-				newLink("link0", "router0", "r1", Incoming),
-				newLink("link1", "router1", "r0", Outgoing),
-				newLink("link2", "router0", "r1", Incoming),
-				newLink("link3", "router1", "r0", Outgoing),
-				newLink("link80", "router0", "r1", Incoming),
-				newLink("link90", "router0", "r1", Incoming),
+				newLink(largs{ID: "link0", RouterID: "router0", PeerRouterName: "r1", Direction: Incoming}),
+				newLink(largs{ID: "link1", RouterID: "router1", PeerRouterName: "r0", Direction: Outgoing}),
+				newLink(largs{ID: "link2", RouterID: "router0", PeerRouterName: "r1", Direction: Incoming}),
+				newLink(largs{ID: "link3", RouterID: "router1", PeerRouterName: "r0", Direction: Outgoing}),
+				newLink(largs{ID: "link80", RouterID: "router0", PeerRouterName: "r1", Direction: Incoming}),
+				newLink(largs{ID: "link90", RouterID: "router0", PeerRouterName: "r1", Direction: Incoming}),
 			},
 			ExpectedRouterNodes: map[string]*node{
 				"router0": {ID: "router0", Backward: []string{"router1"}},
@@ -1451,9 +1463,7 @@ func TestGraph(t *testing.T) {
 		}, {
 			Name: "complex",
 			Sites: []*SiteRecord{
-				newSite("site:0"),
-				newSite("site:1"),
-				newSite("site:2"),
+				newSite("site:0"), newSite("site:1"), newSite("site:2"),
 			},
 			Routers: []*RouterRecord{
 				newRouter("router0", "site:0", "r0"),
@@ -1461,12 +1471,12 @@ func TestGraph(t *testing.T) {
 				newRouter("router2", "site:2", "r2"),
 			},
 			Links: []*LinkRecord{
-				newLink("link0", "router1", "r0", Outgoing), // half link to router1 -> router0
-				newLink("link1", "router1", "r2", Outgoing), // |
-				newLink("link2", "router2", "r1", Incoming), // | link pair router1,router2
-				newLink("link3", "router2", "r0", Incoming), // half link to router2 -> router0
-				newLink("bogus1", "router2", "rdne", Incoming),
-				newLink("bogus2", "routerdne", "r0", Incoming),
+				newLink(largs{ID: "link0", RouterID: "router1", PeerRouterName: "r0", Direction: Outgoing}), // half link to router1 -> router0
+				newLink(largs{ID: "link1", RouterID: "router1", PeerRouterName: "r2", Direction: Outgoing}), // |
+				newLink(largs{ID: "link2", RouterID: "router2", PeerRouterName: "r1", Direction: Incoming}), // | link pair router1,router2
+				newLink(largs{ID: "link3", RouterID: "router2", PeerRouterName: "r0", Direction: Incoming}), // half link to router2 -> router0
+				newLink(largs{ID: "bogus1", RouterID: "router2", PeerRouterName: "rdne", Direction: Incoming, Role: "edge"}),
+				newLink(largs{ID: "bogus2", RouterID: "routerdne", PeerRouterName: "r0", Direction: Incoming}),
 			},
 			ExpectedRouterNodes: map[string]*node{
 				"router0": {ID: "router0"},
@@ -1478,10 +1488,35 @@ func TestGraph(t *testing.T) {
 				"site:1": {ID: "site:1", Forward: []string{"site:2"}},
 				"site:2": {ID: "site:2", Backward: []string{"site:1"}},
 			},
+		}, {
+			Name: "edge links counted on connector side only",
+			Sites: []*SiteRecord{
+				newSite("site:0"), newSite("site:1"), newSite("site:2"),
+			},
+			Routers: []*RouterRecord{
+				newRouter("router0", "site:0", "r0"),
+				newRouter("router1", "site:1", "r1"),
+				newRouter("router2", "site:2", "r2"),
+			},
+			Links: []*LinkRecord{
+				newLink(largs{ID: "link1", RouterID: "router1", PeerRouterName: "r0", Direction: Outgoing, Role: "inter-router"}),
+				newLink(largs{ID: "link2", RouterID: "router2", PeerRouterName: "r0", Direction: Outgoing, Role: "edge"}),
+				newLink(largs{ID: "link-invalid", RouterID: "router0", PeerRouterName: "r2", Direction: Incoming, Role: "edge"}),
+			},
+			ExpectedRouterNodes: map[string]*node{
+				"router0": {ID: "router0"},
+				"router1": {ID: "router1"},
+				"router2": {ID: "router2", Forward: []string{"router0"}},
+			},
+			ExpectedSiteNodes: map[string]*node{
+				"site:0": {ID: "site:0"},
+				"site:1": {ID: "site:1"},
+				"site:2": {ID: "site:2", Forward: []string{"site:0"}},
+			},
 		},
 	}
 	for _, tc := range tests {
-		t.Run("", func(t *testing.T) {
+		t.Run(tc.Name, func(t *testing.T) {
 			fc := NewFlowCollector(FlowCollectorSpec{})
 			for _, site := range tc.Sites {
 				fc.Sites[site.Identity] = site

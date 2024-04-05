@@ -2792,8 +2792,12 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 	return found
 }
 
-// graph relations between routers and sites using incoming/outgoing link
-// pairs.
+// graph relations between routers and sites using LinkRecords
+//
+// Collector state is falible, as such this graph is meant to be conservative
+// in the edges it includes between nodes. It deduplicates links (see
+// skupperproject/skupper-router issue #1456) and also for inter-router links
+// ensures both the listener and connector side links are present.
 func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
 	siteByRouterID := make(map[string]string, len(fc.Routers))
 	routerIDByName := make(map[string]string, len(fc.Routers))
@@ -2804,22 +2808,27 @@ func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
 		siteByRouterID[router.Identity] = router.Parent
 		routerIDByName[normalizeRouterName(*router.Name)] = router.Identity
 	}
-	setLink := func(set map[string]map[string]struct{}, local, peer string) {
+	setLink := func(set map[string]map[string]string, local, peer, role string) {
 		s, ok := set[local]
 		if !ok {
-			set[local] = make(map[string]struct{})
+			set[local] = make(map[string]string)
 			s = set[local]
 		}
-		s[peer] = struct{}{}
+		s[peer] = role
 	}
-	// find unique links by localRotuerID->peerRouterID
-	outgoing := make(map[string]map[string]struct{})
-	incoming := make(map[string]map[string]struct{})
+	// find unique links by localRotuerID and peerRouterID
+	outgoing := make(map[string]map[string]string)
+	incoming := make(map[string]map[string]string)
 	for _, link := range fc.Links {
 		if link.Direction == nil || link.Name == nil {
 			continue
 		}
 		localRouterID, peerRouterName := link.Parent, *link.Name
+
+		linkRole := "inter-router"
+		if link.Mode != nil && *link.Mode != "" {
+			linkRole = *link.Mode
+		}
 
 		if _, ok := fc.Routers[localRouterID]; !ok {
 			continue
@@ -2830,9 +2839,9 @@ func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
 		}
 		switch *link.Direction {
 		case "incoming":
-			setLink(incoming, localRouterID, peerRouterID)
+			setLink(incoming, localRouterID, peerRouterID, linkRole)
 		case "outgoing":
-			setLink(outgoing, localRouterID, peerRouterID)
+			setLink(outgoing, localRouterID, peerRouterID, linkRole)
 		}
 	}
 
@@ -2845,24 +2854,43 @@ func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
 		siteNodes[id] = &node{ID: id}
 	}
 
-	// for each outgoing link, check that it has a matching incoming link then
-	// add edges to those router and site nodes for that link
 	for router, links := range outgoing {
-		for peerRouter := range links {
-			peerLinks, ok := incoming[peerRouter]
-			if !ok {
-				continue
+		for peerRouter, role := range links {
+			switch role {
+			// Since the router does not presently include Link records for
+			// edge router connections on the listener side, for edge router
+			// links we include all unique links on the connector (Outgoing)
+			// side.
+			case "edge":
+				site, peerSite := siteByRouterID[router], siteByRouterID[peerRouter]
+				rNode, siteNode := routerNodes[router], siteNodes[site]
+				if rNode == nil || siteNode == nil {
+					continue
+				}
+				rNode.Forward = append(rNode.Forward, peerRouter)
+				siteNode.Forward = append(siteNode.Forward, peerSite)
+			default:
+				fallthrough
+			case "inter-router":
+				// Ignore inter-router links only when the connector side
+				// exists but not the listener side or vice-versa. When one or
+				// the other of these records is missing it is likely that the
+				// connection is down.
+				peerLinks, ok := incoming[peerRouter]
+				if !ok {
+					continue
+				}
+				if _, ok := peerLinks[router]; !ok {
+					continue
+				}
+				site, peerSite := siteByRouterID[router], siteByRouterID[peerRouter]
+				rNode, peerNode := routerNodes[router], routerNodes[peerRouter]
+				rNode.Forward = append(rNode.Forward, peerRouter)
+				peerNode.Backward = append(peerNode.Backward, router)
+				siteNode, peerSiteNode := siteNodes[site], siteNodes[peerSite]
+				siteNode.Forward = append(siteNode.Forward, peerSite)
+				peerSiteNode.Backward = append(peerSiteNode.Backward, site)
 			}
-			if _, ok := peerLinks[router]; !ok {
-				continue
-			}
-			site, peerSite := siteByRouterID[router], siteByRouterID[peerRouter]
-			rNode, peerNode := routerNodes[router], routerNodes[peerRouter]
-			rNode.Forward = append(rNode.Forward, peerRouter)
-			peerNode.Backward = append(peerNode.Backward, router)
-			siteNode, peerSiteNode := siteNodes[site], siteNodes[peerSite]
-			siteNode.Forward = append(siteNode.Forward, peerSite)
-			peerSiteNode.Backward = append(peerSiteNode.Backward, site)
 		}
 	}
 	return routerNodes, siteNodes
