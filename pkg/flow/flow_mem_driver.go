@@ -2794,10 +2794,10 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 
 // graph relations between routers and sites using LinkRecords
 //
-// Collector state is falible, as such this graph is meant to be conservative
-// in the edges it includes between nodes. It deduplicates links (see
-// skupperproject/skupper-router issue #1456) and also for inter-router links
-// ensures both the listener and connector side links are present.
+// Collector state is fallible, as such this graph is meant to be conservative
+// in the edges it includes between nodes. It de-duplicates links (see
+// skupperproject/skupper-router issue #1456) and ensures both the listener and
+// connector sides of inter-router links are present representing either.
 func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
 	siteByRouterID := make(map[string]string, len(fc.Routers))
 	routerIDByName := make(map[string]string, len(fc.Routers))
