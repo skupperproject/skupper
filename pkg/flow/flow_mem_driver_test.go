@@ -1513,6 +1513,29 @@ func TestGraph(t *testing.T) {
 				"site:1": {ID: "site:1"},
 				"site:2": {ID: "site:2", Forward: []string{"site:0"}},
 			},
+		}, {
+			Name: "exclude intra-site links",
+			Sites: []*SiteRecord{
+				newSite("site:0"),
+			},
+			Routers: []*RouterRecord{
+				newRouter("router0", "site:0", "r0"),
+				newRouter("router1", "site:0", "r1"),
+				newRouter("router2", "site:0", "r2"),
+			},
+			Links: []*LinkRecord{
+				newLink(largs{ID: "link1", RouterID: "router0", PeerRouterName: "r1", Direction: Incoming, Role: "inter-router"}),
+				newLink(largs{ID: "link2", RouterID: "router1", PeerRouterName: "r0", Direction: Outgoing, Role: "inter-router"}),
+				newLink(largs{ID: "link3", RouterID: "router2", PeerRouterName: "r0", Direction: Outgoing, Role: "edge"}),
+			},
+			ExpectedRouterNodes: map[string]*node{
+				"router0": {ID: "router0", Backward: []string{"router1"}},
+				"router1": {ID: "router1", Forward: []string{"router0"}},
+				"router2": {ID: "router2", Forward: []string{"router0"}},
+			},
+			ExpectedSiteNodes: map[string]*node{
+				"site:0": {ID: "site:0"},
+			},
 		},
 	}
 	for _, tc := range tests {

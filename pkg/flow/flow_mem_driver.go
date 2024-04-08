@@ -2868,7 +2868,9 @@ func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
 					continue
 				}
 				rNode.Forward = append(rNode.Forward, peerRouter)
-				siteNode.Forward = append(siteNode.Forward, peerSite)
+				if site != peerSite {
+					siteNode.Forward = append(siteNode.Forward, peerSite)
+				}
 			default:
 				fallthrough
 			case "inter-router":
@@ -2887,9 +2889,11 @@ func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
 				rNode, peerNode := routerNodes[router], routerNodes[peerRouter]
 				rNode.Forward = append(rNode.Forward, peerRouter)
 				peerNode.Backward = append(peerNode.Backward, router)
-				siteNode, peerSiteNode := siteNodes[site], siteNodes[peerSite]
-				siteNode.Forward = append(siteNode.Forward, peerSite)
-				peerSiteNode.Backward = append(peerSiteNode.Backward, site)
+				if site != peerSite {
+					siteNode, peerSiteNode := siteNodes[site], siteNodes[peerSite]
+					siteNode.Forward = append(siteNode.Forward, peerSite)
+					peerSiteNode.Backward = append(peerSiteNode.Backward, site)
+				}
 			}
 		}
 	}
