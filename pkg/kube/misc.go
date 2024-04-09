@@ -87,6 +87,9 @@ func GetServiceInterfaceTarget(targetType string, targetName string, deducePort 
 		}
 		return &target, nil
 	} else if targetType == "deploymentconfig" {
+		if appscli == nil {
+			return nil, fmt.Errorf("can not read deploymentconfig without apps/v1 client")
+		}
 		depconfig, err := GetDeploymentConfig(targetName, namespace, appscli)
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
