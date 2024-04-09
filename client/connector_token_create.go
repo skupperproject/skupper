@@ -64,7 +64,7 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 	if namespace == "" {
 		namespace = cli.Namespace
 	}
-	version, err := cli.checkNotEdgeAndGetVersion(ctx, "")
+	version, err := cli.checkNotEdgeAndGetVersion(ctx, namespace)
 	if err != nil {
 		return nil, false, err
 	}
@@ -82,7 +82,11 @@ func (cli *VanClient) ConnectorTokenCreate(ctx context.Context, subject string, 
 
 func (cli *VanClient) annotateConnectorToken(ctx context.Context, namespace string, token *corev1.Secret, version string) (bool, error) {
 	// get the host and port for inter-router and edge
-	siteConfig, err := cli.SiteConfigInspect(ctx, nil)
+	siteConfigMap, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, types.SiteConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	siteConfig, err := cli.SiteConfigInspect(ctx, siteConfigMap)
 	if err != nil {
 		return false, err
 	}
