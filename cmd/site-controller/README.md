@@ -99,10 +99,6 @@ For example:
 apiVersion: v1
 data:
   cluster-local: "false"
-  console: "true"
-  console-authentication: internal
-  console-password: "barney"
-  console-user: "rubble"
   edge: "false"
   name: skupp3r
   router-console: "true"
