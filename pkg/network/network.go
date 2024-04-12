@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -143,6 +144,37 @@ func (s *SkupperStatus) RemoveLinksFromSameSite(router RouterStatusInfo, site Si
 	}
 
 	return filteredLinks
+}
+
+func (s *SkupperStatus) GetPeerSites(currentRouter *RouterStatusInfo, currentSiteId string) []string {
+
+	routerSiteMap := s.GetRouterSiteMap()
+	var peerSites []string
+	for _, s := range s.NetworkStatus.SiteStatus {
+		for _, r := range s.RouterStatus {
+			for _, l := range r.Links {
+
+				//Edge and interior routers have outgoing links in the connector side, but only interior routers have
+				//incoming links in the listener side, that is why we rely on outgoing links.
+				if l.Direction == "outgoing" {
+					var site string
+					//We get peer sites from outgoing links directed to the current router from others routers that
+					//don't belong to the same site, and from outgoing links of the current router
+					if strings.Contains(currentRouter.Router.Name, l.Name) && s.Site.Identity != currentSiteId {
+						site = s.Site.Identity
+					} else if currentRouter.Router.Name == r.Router.Name {
+						site = routerSiteMap[l.Name].Site.Identity
+					}
+
+					if site != "" && !slices.Contains(peerSites, site) {
+						peerSites = append(peerSites, site)
+					}
+				}
+			}
+		}
+	}
+
+	return peerSites
 }
 
 func UnmarshalSkupperStatus(data map[string]string) (*NetworkStatusInfo, error) {
