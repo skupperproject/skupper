@@ -3,7 +3,6 @@ package network
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 )
 
@@ -146,10 +145,10 @@ func (s *SkupperStatus) RemoveLinksFromSameSite(router RouterStatusInfo, site Si
 	return filteredLinks
 }
 
-func (s *SkupperStatus) GetPeerSites(currentRouter *RouterStatusInfo, currentSiteId string) []string {
+func (s *SkupperStatus) GetPeerSites(currentRouter *RouterStatusInfo, currentSiteId string) []SiteStatusInfo {
 
 	routerSiteMap := s.GetRouterSiteMap()
-	var peerSites []string
+	var peerSites []SiteStatusInfo
 	for _, s := range s.NetworkStatus.SiteStatus {
 		for _, r := range s.RouterStatus {
 			for _, l := range r.Links {
@@ -157,16 +156,16 @@ func (s *SkupperStatus) GetPeerSites(currentRouter *RouterStatusInfo, currentSit
 				//Edge and interior routers have outgoing links in the connector side, but only interior routers have
 				//incoming links in the listener side, that is why we rely on outgoing links.
 				if l.Direction == "outgoing" {
-					var site string
+					var site SiteStatusInfo
 					//We get peer sites from outgoing links directed to the current router from others routers that
 					//don't belong to the same site, and from outgoing links of the current router
 					if strings.Contains(currentRouter.Router.Name, l.Name) && s.Site.Identity != currentSiteId {
-						site = s.Site.Identity
+						site = s
 					} else if currentRouter.Router.Name == r.Router.Name {
-						site = routerSiteMap[l.Name].Site.Identity
+						site = routerSiteMap[l.Name]
 					}
 
-					if site != "" && !slices.Contains(peerSites, site) {
+					if site.Site.Identity != "" && !sliceContainsSite(peerSites, site) {
 						peerSites = append(peerSites, site)
 					}
 				}

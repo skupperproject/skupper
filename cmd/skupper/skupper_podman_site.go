@@ -292,12 +292,12 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&currentSite.RouterStatus[index], &currentSite.Site)
+	peerSites := statusManager.GetPeerSites(&currentSite.RouterStatus[index], currentSite.Site.Identity)
 
 	totalSites := len(currentStatus.SiteStatus)
 	// the current site does not count as a connection
 	connections := totalSites - 1
-	directConnections := len(mapSiteLink)
+	directConnections := len(peerSites)
 	statusOutput.TotalConnections = connections
 	statusOutput.DirectConnections = directConnections
 	statusOutput.IndirectConnections = connections - directConnections
