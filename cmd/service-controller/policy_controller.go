@@ -407,6 +407,10 @@ func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget, 
 	if target.Selector == "" {
 		return ""
 	}
+	service, _ := kube.GetService(target.Name, namespace, c.cli.KubeClient)
+	if service != nil && hasProxyAnnotation(*service) {
+		return "service"
+	}
 	getBySelector := func(targetTypes ...string) string {
 		for _, targetType := range targetTypes {
 			retTarget, err := kube.GetServiceInterfaceTarget(targetType, target.Name, true, namespace, c.cli.KubeClient, c.cli.OCAppsClient)
@@ -418,7 +422,6 @@ func (c *PolicyController) inferTargetType(target types.ServiceInterfaceTarget, 
 		}
 		return ""
 	}
-
 	return getBySelector(DeploymentObjectType, StatefulSetObjectType, DeploymentConfigObjectType)
 }
 
