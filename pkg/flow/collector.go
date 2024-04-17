@@ -52,6 +52,9 @@ type collectorMetrics struct {
 	flowLatency     *prometheus.HistogramVec
 	activeReconcile *prometheus.GaugeVec
 	apiQueryLatency *prometheus.HistogramVec
+	activeLinks     *prometheus.GaugeVec
+	activeRouters   prometheus.Gauge
+	activeSites     prometheus.Gauge
 }
 
 func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics {
@@ -125,6 +128,24 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 				Buckets: []float64{10, 100, 1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
 			},
 			[]string{"recordType", "handler"}),
+		activeLinks: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "active_links",
+				Help: "Number of active links by site and direction",
+			}, []string{"sourceSite", "direction"},
+		),
+		activeRouters: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "active_routers",
+				Help: "Number of routers",
+			},
+		),
+		activeSites: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "active_sites",
+				Help: "Number of sites attached to the network",
+			},
+		),
 	}
 	reg.MustRegister(m.info)
 	reg.MustRegister(m.collectorOctets)
@@ -137,6 +158,9 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 	reg.MustRegister(m.flowLatency)
 	reg.MustRegister(m.activeReconcile)
 	reg.MustRegister(m.apiQueryLatency)
+	reg.MustRegister(m.activeLinks)
+	reg.MustRegister(m.activeRouters)
+	reg.MustRegister(m.activeSites)
 	return m
 
 }

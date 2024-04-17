@@ -566,6 +566,19 @@ func (fc *FlowCollector) updateNetworkStatus() {
 	}
 }
 
+func (fc *FlowCollector) updateEntityCounts() {
+	if fc.mode != RecordMetrics {
+		return
+	}
+	fc.metrics.activeSites.Set(float64(len(fc.Sites)))
+	fc.metrics.activeRouters.Set(float64(len(fc.Routers)))
+	_, siteNodes := fc.graph()
+	for _, node := range siteNodes {
+		fc.metrics.activeLinks.WithLabelValues(node.ID, "outgoing").Set(float64(len(node.Forward)))
+		fc.metrics.activeLinks.WithLabelValues(node.ID, "incoming").Set(float64(len(node.Backward)))
+	}
+}
+
 func (fc *FlowCollector) addRecord(record interface{}) error {
 	if record == nil {
 		return fmt.Errorf("No record to add")
@@ -743,6 +756,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				}
 			}
 			fc.updateLastHeard(site.Source)
+			fc.updateEntityCounts()
 		}
 	case HostRecord:
 		if host, ok := record.(HostRecord); ok {
@@ -781,6 +795,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				}
 			}
 			fc.updateLastHeard(router.Source)
+			fc.updateEntityCounts()
 		}
 	case LogEventRecord:
 		if logEvent, ok := record.(LogEventRecord); ok {
@@ -799,6 +814,7 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				}
 			}
 			fc.updateLastHeard(link.Source)
+			fc.updateEntityCounts()
 		}
 	case ListenerRecord:
 		if listener, ok := record.(ListenerRecord); ok {
@@ -1222,15 +1238,19 @@ func newLinkResponseHandler(sites map[string]*SiteRecord, routers map[string]*Ro
 		if !ok || router.Name == nil {
 			continue
 		}
-		// router names are prefixed with a routing area - so far always `0/`
-		normalizedName := *router.Name
-		if delim := strings.IndexRune(normalizedName, '/'); delim > -1 {
-			normalizedName = normalizedName[delim+1:]
-		}
-		builder.siteByRouterName[normalizedName] = router.Parent
+
+		builder.siteByRouterName[normalizeRouterName(*router.Name)] = router.Parent
 		builder.siteByRouterID[router.Identity] = router.Parent
 	}
 	return builder
+}
+
+func normalizeRouterName(name string) string {
+	// router names are prefixed with a routing area - so far always `0/`
+	if delim := strings.IndexRune(name, '/'); delim > -1 {
+		return name[delim+1:]
+	}
+	return name
 }
 
 func (b linkResponseHandler) handle(l LinkRecord) (linkRecordResponse, bool) {
@@ -2770,4 +2790,118 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 		}
 	}
 	return found
+}
+
+// graph relations between routers and sites using LinkRecords
+//
+// Collector state is fallible, as such this graph is meant to be conservative
+// in the edges it includes between nodes. It de-duplicates links (see
+// skupperproject/skupper-router issue #1456) and ensures both the listener and
+// connector sides of inter-router links are present representing either.
+func (fc *FlowCollector) graph() (routers, sites map[string]*node) {
+	siteByRouterID := make(map[string]string, len(fc.Routers))
+	routerIDByName := make(map[string]string, len(fc.Routers))
+	for _, router := range fc.Routers {
+		if _, ok := fc.Sites[router.Parent]; !ok || router.Name == nil {
+			continue
+		}
+		siteByRouterID[router.Identity] = router.Parent
+		routerIDByName[normalizeRouterName(*router.Name)] = router.Identity
+	}
+	setLink := func(set map[string]map[string]string, local, peer, role string) {
+		s, ok := set[local]
+		if !ok {
+			set[local] = make(map[string]string)
+			s = set[local]
+		}
+		s[peer] = role
+	}
+	// find unique links by localRotuerID and peerRouterID
+	outgoing := make(map[string]map[string]string)
+	incoming := make(map[string]map[string]string)
+	for _, link := range fc.Links {
+		if link.Direction == nil || link.Name == nil {
+			continue
+		}
+		localRouterID, peerRouterName := link.Parent, *link.Name
+
+		linkRole := "inter-router"
+		if link.Mode != nil && *link.Mode != "" {
+			linkRole = *link.Mode
+		}
+
+		if _, ok := fc.Routers[localRouterID]; !ok {
+			continue
+		}
+		peerRouterID, ok := routerIDByName[peerRouterName]
+		if !ok {
+			continue
+		}
+		switch *link.Direction {
+		case "incoming":
+			setLink(incoming, localRouterID, peerRouterID, linkRole)
+		case "outgoing":
+			setLink(outgoing, localRouterID, peerRouterID, linkRole)
+		}
+	}
+
+	routerNodes := make(map[string]*node, len(fc.Routers))
+	for id := range fc.Routers {
+		routerNodes[id] = &node{ID: id}
+	}
+	siteNodes := make(map[string]*node, len(fc.Sites))
+	for id := range fc.Sites {
+		siteNodes[id] = &node{ID: id}
+	}
+
+	for router, links := range outgoing {
+		for peerRouter, role := range links {
+			switch role {
+			// Since the router does not presently include Link records for
+			// edge router connections on the listener side, for edge router
+			// links we include all unique links on the connector (Outgoing)
+			// side.
+			case "edge":
+				site, peerSite := siteByRouterID[router], siteByRouterID[peerRouter]
+				rNode, siteNode := routerNodes[router], siteNodes[site]
+				if rNode == nil || siteNode == nil {
+					continue
+				}
+				rNode.Forward = append(rNode.Forward, peerRouter)
+				if site != peerSite {
+					siteNode.Forward = append(siteNode.Forward, peerSite)
+				}
+			default:
+				fallthrough
+			case "inter-router":
+				// Ignore inter-router links only when the connector side
+				// exists but not the listener side or vice-versa. When one or
+				// the other of these records is missing it is likely that the
+				// connection is down.
+				peerLinks, ok := incoming[peerRouter]
+				if !ok {
+					continue
+				}
+				if _, ok := peerLinks[router]; !ok {
+					continue
+				}
+				site, peerSite := siteByRouterID[router], siteByRouterID[peerRouter]
+				rNode, peerNode := routerNodes[router], routerNodes[peerRouter]
+				rNode.Forward = append(rNode.Forward, peerRouter)
+				peerNode.Backward = append(peerNode.Backward, router)
+				if site != peerSite {
+					siteNode, peerSiteNode := siteNodes[site], siteNodes[peerSite]
+					siteNode.Forward = append(siteNode.Forward, peerSite)
+					peerSiteNode.Backward = append(peerSiteNode.Backward, site)
+				}
+			}
+		}
+	}
+	return routerNodes, siteNodes
+}
+
+type node struct {
+	ID       string
+	Forward  []string
+	Backward []string
 }
