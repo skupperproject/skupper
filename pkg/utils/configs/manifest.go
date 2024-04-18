@@ -1,7 +1,6 @@
 package configs
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/images"
@@ -46,20 +45,7 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 func (manager *ManifestManager) CreateFile(m Manifest) error {
 	filename := "manifest.json"
 	if _, err := os.Stat(filename); err == nil {
-		fmt.Printf("The file %s already exists. Continuing will override it.\n", filename)
-		fmt.Print("Are you sure you want to proceed? [Y/n]")
-
-		reader := bufio.NewReader(os.Stdin)
-		userInput, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Error reading input:", err)
-			return nil
-		}
-
-		userInput = strings.TrimRight(userInput, "\n")
-		if userInput != "" && userInput != "Y" && userInput != "y" {
-			return nil
-		}
+		return fmt.Errorf("The file %s already exists in the current directory.\n", filename)
 	}
 
 	// Encode the manifest image list as JSON.
