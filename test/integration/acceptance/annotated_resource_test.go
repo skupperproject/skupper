@@ -10,13 +10,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	vanClient "github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/pkg/data"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/integration/acceptance/annotation"
 	"github.com/skupperproject/skupper/test/utils/base"
-	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/tools"
 	"gotest.tools/assert"
 )
@@ -26,6 +26,10 @@ import (
 // table that starts verifying initial state and then applies modifications
 // to validate if Skupper is reacting as expected.
 func TestAnnotatedResources(t *testing.T) {
+	const testStepTimeout = time.Minute * 2
+	const testStepInterval = time.Second * 5
+	const serviceWorkingRetries = 12
+
 	pub, _ := testRunner.GetPublicContext(1)
 	prv, _ := testRunner.GetPrivateContext(1)
 
@@ -218,11 +222,10 @@ func TestAnnotatedResources(t *testing.T) {
 
 			// 4.2 Validate services from DATA endpoint (with retries)
 			var consoleData data.ConsoleData
-			backoff := constants.DefaultRetry
-			ctx, cancelFn := context.WithTimeout(context.Background(), constants.ImagePullingAndResourceCreationTimeout)
+			ctx, cancelFn := context.WithTimeout(context.Background(), testStepTimeout)
 			defer cancelFn()
 
-			err = utils.RetryWithContext(ctx, backoff.Duration, func() (bool, error) {
+			err = utils.RetryWithContext(ctx, testStepInterval, func() (bool, error) {
 				log.Printf("Trying to retrieve ConsoleData...")
 				// 4.2.1. retrieve ConsoleData and eventual error
 				consoleData, err = base.GetConsoleData(pub, "admin", "admin")
@@ -283,7 +286,7 @@ func TestAnnotatedResources(t *testing.T) {
 					log.Printf("validating communication with service %s through %s", svc, cluster.Namespace)
 					// reaching service through service-controller's pod (with some attempts to make sure bridge is connected)
 					var lastErr error
-					err = utils.Retry(backoff.Duration, backoff.Steps, func() (bool, error) {
+					err = utils.Retry(testStepInterval, serviceWorkingRetries, func() (bool, error) {
 						endpoint := fmt.Sprintf("http://%s", svc)
 						resp, lastErr = tools.Curl(cluster.KubeClient, cluster.RestConfig, cluster.Namespace, "", endpoint, tools.CurlOpts{Timeout: 10})
 						if lastErr != nil {
@@ -301,6 +304,7 @@ func TestAnnotatedResources(t *testing.T) {
 		if !testResult {
 			log.Printf("Test %s failed: gathering info dump", test.name)
 			testRunner.DumpTestInfo(filepath.Join(t.Name(), test.name))
+			t.FailNow()
 		}
 
 	}
