@@ -39,7 +39,7 @@ type Controller struct {
 	grants               *claims.Grants
 	accessMgr            *securedaccess.SecuredAccessManager
 	accessRecovery       AccessRecovery
-	certMgr              *certificates.CertificateManager
+	certMgr              *certificates.CertificateManagerImpl
 }
 
 type AccessRecovery struct {
@@ -53,14 +53,20 @@ func (m *AccessRecovery) recoverAll(accessMgr *securedaccess.SecuredAccessManage
 	for _, service := range m.serviceWatcher.List() {
 		accessMgr.RecoverService(service)
 	}
-	for _, route := range m.routeWatcher.List() {
-		accessMgr.RecoverRoute(route)
+	if m.routeWatcher != nil {
+		for _, route := range m.routeWatcher.List() {
+			accessMgr.RecoverRoute(route)
+		}
 	}
-	for _, ingress := range m.ingressWatcher.List() {
-		accessMgr.RecoverIngress(ingress)
+	if m.ingressWatcher != nil {
+		for _, ingress := range m.ingressWatcher.List() {
+			accessMgr.RecoverIngress(ingress)
+		}
 	}
-	for _, httpProxy := range m.httpProxyWatcher.List() {
-		accessMgr.RecoverHttpProxy(httpProxy)
+	if m.httpProxyWatcher != nil {
+		for _, httpProxy := range m.httpProxyWatcher.List() {
+			accessMgr.RecoverHttpProxy(httpProxy)
+		}
 	}
 }
 
@@ -108,7 +114,6 @@ func NewController(cli kube.Clients, watchNamespace string, grantConfig string) 
 	controller.connectorWatcher = controller.controller.WatchConnectors(watchNamespace, controller.checkConnector)
 	controller.linkAccessWatcher = controller.controller.WatchLinkAccesses(watchNamespace, controller.checkLinkAccess)
 	controller.controller.WatchLinks(watchNamespace, controller.checkLink)
-	controller.controller.WatchServices(skupperRouterService(), watchNamespace, controller.checkRouterService) //TODO: move site to SecuredAccess and get rid of this
 	controller.controller.WatchConfigMaps(skupperNetworkStatus(), watchNamespace, controller.networkStatusUpdate)
 	controller.controller.WatchClaims(watchNamespace, controller.checkClaim)
 	controller.controller.WatchSecuredAccesses(watchNamespace, controller.checkSecuredAccess)
@@ -186,7 +191,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	if existing, ok := c.sites[namespace]; ok {
 		return existing
 	}
-	site := site.NewSite(namespace, c.controller)
+	site := site.NewSite(namespace, c.controller, c.certMgr, c.accessMgr)
 	c.sites[namespace] = site
 	return site
 }
@@ -235,13 +240,6 @@ func (c *Controller) checkLink(key string, linkconfig *skupperv1alpha1.Link) err
 	return c.getSite(namespace).CheckLink(name, linkconfig)
 }
 
-func (c *Controller) checkRouterService(key string, svc *corev1.Service) error {
-	if svc == nil || svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
-		return nil
-	}
-	return c.getSite(svc.ObjectMeta.Namespace).CheckLoadBalancer(svc)
-}
-
 func (c *Controller) checkSecuredAccessService(key string, svc *corev1.Service) error {
 	return c.accessMgr.CheckService(key, svc)
 }
@@ -277,6 +275,7 @@ func (c *Controller) checkSecuredAccess(key string, se *skupperv1alpha1.SecuredA
 	if se == nil {
 		return c.accessMgr.SecuredAccessDeleted(key)
 	}
+	c.getSite(se.ObjectMeta.Namespace).CheckSecuredAccess(se)
 	return c.accessMgr.SecuredAccessChanged(key, se)
 }
 

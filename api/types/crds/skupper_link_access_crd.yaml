@@ -64,4 +64,4 @@ spec:
   names:
     plural: linkaccesses
     singular: linkaccess
-    kind: Linkaccess
+    kind: LinkAccess

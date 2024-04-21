@@ -16,7 +16,7 @@ spec:
               type: object
               properties:
                 claims:
-                  type: int
+                  type: integer
                 validFor:
                   type: string
                   format: duration
@@ -32,7 +32,7 @@ spec:
                 ca:
                   type: string
                 claimed:
-                  type: int
+                  type: integer
                 expiration:
                   type: string
                   format: date-time
@@ -42,11 +42,11 @@ spec:
         status: {}
       additionalPrinterColumns:
       - name: Claims Allowed
-        type: int
+        type: integer
         description: The number of claims the grant is valid for
         jsonPath: .spec.claims
       - name: Claims Made
-        type: int
+        type: integer
         description: The number of times the grant has been claimed
         jsonPath: .status.claimed
       - name: Expiration

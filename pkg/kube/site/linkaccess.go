@@ -8,13 +8,22 @@ import (
 type LinkAccessMap map[string]*skupperv1alpha1.LinkAccess
 
 type LinkAccessChanges struct {
+	listeners ListenerChanges
+	profiles  SslProfileChanges
+}
+
+type ListenerChanges struct {
 	changed map[string]qdr.Listener
 	deleted []string
 }
 
+type SslProfileChanges struct {
+	added   []string
+	deleted []string
+}
+
 func (m LinkAccessMap) Apply(config *qdr.RouterConfig) bool {
-	lac := changes(extractActual(config), m.asRouterListeners())
-	//TODO: update SslProfiles also
+	lac := changes(config.GetMatchingListeners(qdr.IsNotNormalListener), m.asRouterListeners())
 	return lac.Apply(config)
 }
 
@@ -28,42 +37,46 @@ func (m LinkAccessMap) asRouterListeners() map[string]qdr.Listener {
 
 func changes(actual map[string]qdr.Listener, desired map[string]qdr.Listener) LinkAccessChanges {
 	changes := LinkAccessChanges {
-		changed: map[string]qdr.Listener{},
+		listeners: ListenerChanges {
+			changed: map[string]qdr.Listener{},
+		},
 	}
 	for key, desiredValue := range desired {
 		if actualValue, ok := actual[key]; !ok || actualValue != desiredValue {
-			changes.changed[key] = desiredValue
+			changes.listeners.changed[key] = desiredValue
+			changes.profiles.added = append(changes.profiles.added, desiredValue.SslProfile)
 		}
 	}
-	for key, _ := range actual {
+	for key, stale := range actual {
 		if _, ok := desired[key]; !ok {
-			changes.deleted = append(changes.deleted, key)
+			changes.listeners.deleted = append(changes.listeners.deleted, key)
+			changes.profiles.deleted = append(changes.profiles.deleted, stale.SslProfile)
 		}
 	}
 	return changes
 }
 
 func (lac *LinkAccessChanges) Apply(config *qdr.RouterConfig) bool {
-	if len(lac.changed) == 0 && len(lac.deleted) == 0 {
+	if len(lac.listeners.changed) == 0 && len(lac.listeners.deleted) == 0 {
 		return false
 	}
-	for key, value := range lac.changed {
+	for key, value := range lac.listeners.changed {
 		config.Listeners[key] = value
 	}
-	for _, key := range lac.deleted {
+	for _, key := range lac.listeners.deleted {
 		delete(config.Listeners, key)
 	}
-	return true
-}
-
-func extractActual(config *qdr.RouterConfig) map[string]qdr.Listener {
-	actual := map[string]qdr.Listener{}
-	for key, listener := range config.Listeners {
-		if listener.Role == qdr.RoleInterRouter || listener.Role == qdr.RoleEdge {
-			actual[key] = listener
+	for _, name := range lac.profiles.added {
+		config.AddSslProfileWithPath("/etc/skupper-router-certs", qdr.SslProfile{Name:name})
+	}
+	// SslProfiles may be shared, so only delete those that are now unreferenced
+	unreferenced := config.UnreferencedSslProfiles()
+	for _, name := range lac.profiles.deleted {
+		if _, ok := unreferenced[name]; ok {
+			config.RemoveSslProfile(name)
 		}
 	}
-	return actual
+	return true
 }
 
 func asRouterListeners(la *skupperv1alpha1.LinkAccess, listeners map[string]qdr.Listener) {

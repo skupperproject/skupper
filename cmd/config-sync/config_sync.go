@@ -239,6 +239,16 @@ func (c *ConfigSync) syncRouterConfig(desired *qdr.RouterConfig) error {
 }
 
 func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
+	if err := syncConnectors(agent, desired, c); err != nil {
+		return err
+	}
+	if err := syncListeners(agent, desired, c); err != nil {
+		return err
+	}
+	return nil
+}
+
+func syncConnectors(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
 	actual, err := agent.GetLocalConnectors()
 	if err != nil {
 		return fmt.Errorf("Error retrieving local connectors: %s", err)
@@ -261,6 +271,28 @@ func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync
 		}
 		return nil
 	}
+}
+
+func syncListeners(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
+	actual, err := agent.GetLocalListeners()
+	if err != nil {
+		return fmt.Errorf("Error retrieving local listeners: %s", err)
+	}
+
+	differences := qdr.ListenersDifference(qdr.FilterListeners(actual, qdr.IsNotNormalListener), desired.GetMatchingListeners(qdr.IsNotNormalListener))
+
+	if differences.Empty() {
+		return nil
+	}
+	profileChanges := desired.CorrespondingSslProfileDifference(differences)
+	if err := c.syncListenerSecrets(profileChanges, SHARED_TLS_DIRECTORY); err != nil {
+		return fmt.Errorf("error syncing secrets: %s", err)
+	}
+
+	if err := agent.UpdateListenerConfig(differences); err != nil {
+		return fmt.Errorf("Error syncing listeners: %s", err)
+	}
+	return nil
 }
 
 func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDifference, sharedPath string, copyCerts CopyCerts, newSSlProfile CreateSSlProfile, delSslProfile DeleteSslProfile) error {
@@ -347,6 +379,43 @@ func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, shar
 
 		}
 
+	}
+
+	return nil
+}
+
+func (c *ConfigSync) syncListenerSecrets(changes *qdr.SslProfileDifference, sharedTlsFilesDir string) error {
+
+	agent, err := c.agentPool.Get()
+	if err != nil {
+		return err
+	}
+
+	for _, deleted := range changes.Deleted {
+		log.Printf("Deleting sslProfile %s and corresponding cert files", deleted.Name)
+
+		if err = agent.Delete("io.skupper.router.sslProfile", deleted.Name); err != nil {
+			return fmt.Errorf("Error deleting ssl profile: #{err}")
+		}
+
+		err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.Name)
+		if err != nil {
+			return err
+		}
+
+	}
+	for _, added := range changes.Added {
+		log.Printf("Synchronising secret %s for SslProfile %s", added.Name, added.Name)
+		err = c.copyCertsFilesToPath(sharedTlsFilesDir, added.Name, added.Name)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("Creating ssl profile %s", added.Name)
+		err := agent.CreateSslProfile(added)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

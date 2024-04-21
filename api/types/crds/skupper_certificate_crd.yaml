@@ -50,7 +50,7 @@ spec:
       - name: Server
         type: boolean
         description: Whether or not the certificate is valid for use as a server
-        jsonPath: .spec.client
+        jsonPath: .spec.server
       - name: Client
         type: boolean
         description: Whether or not the certificate is valid for use as a client

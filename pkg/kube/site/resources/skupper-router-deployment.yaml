@@ -122,8 +122,6 @@ spec:
           successThreshold: 1
           timeoutSeconds: 1
         volumeMounts:
-        - mountPath: /etc/skupper-internal/
-          name: claims-cert
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
       serviceAccount: {{ .ServiceAccount }}
@@ -137,10 +135,6 @@ spec:
           name: skupper-internal
         name: router-config
       - name: skupper-site-server
-        secret:
-          defaultMode: 420
-          secretName: skupper-site-server
-      - name: claims-cert
         secret:
           defaultMode: 420
           secretName: skupper-site-server
