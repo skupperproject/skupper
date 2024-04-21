@@ -5,23 +5,21 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"strconv"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/skupperproject/skupper/api/types"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/kube/certificates"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
-	"github.com/skupperproject/skupper/pkg/kube/resolver"
+	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/kube/site/resources"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
@@ -38,19 +36,21 @@ type Site struct {
 	controller  *kube.Controller
 	bindings    *site.Bindings
 	links       map[string]*site.Link
-	resolver    resolver.Resolver
 	errors      map[string]string
-	addresses   resolver.HostPorts
-	linkAccess  map[string]*skupperv1alpha1.LinkAccess
+	linkAccess  LinkAccessMap
+	certs         certificates.CertificateManager
+	access      securedaccess.Factory
 }
 
-func NewSite(namespace string, controller *kube.Controller) *Site {
+func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access securedaccess.Factory) *Site {
 	return &Site {
 		bindings:   site.NewBindings(),
 		namespace:  namespace,
 		controller: controller,
 		links:      map[string]*site.Link{},
-		linkAccess: map[string]*skupperv1alpha1.LinkAccess{},
+		linkAccess: LinkAccessMap{},
+		certs:        certs,
+		access:     access,
 	}
 }
 
@@ -88,7 +88,8 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 		createRouterConfig := false
 		if routerConfig == nil {
 			createRouterConfig = true
-			rc := qdr.InitialConfigSkupperRouter(s.config.SkupperName+"-${HOSTNAME}", s.siteId, version.Version, s.isEdge(), 3, s.config.Router)
+			rc := qdr.InitialConfig(s.config.SkupperName+"-${HOSTNAME}", s.siteId, version.Version, s.isEdge(), 3)
+			rc.SetNormalListeners()
 			routerConfig = &rc
 		}
 		s.initialised = true
@@ -110,6 +111,7 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 			}
 			log.Printf("Router config updated for site %s/%s", siteDef.Namespace, siteDef.Name)
 		}
+		s.checkSecuredAccess()
 	} else {
 		err = s.updateRouterConfig(s)
 		if err != nil {
@@ -134,14 +136,69 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 		return err
 	}
 	//}
-	// 3. deployment, services & any ingress related resources
+	// CAs for local and site access
+	if err := s.certs.EnsureCA(s.namespace, "skupper-site-ca", fmt.Sprintf("%s site CA", s.name), s.ownerReferences()); err != nil {
+		return err
+	}
+	if err := s.certs.EnsureCA(s.namespace, "skupper-local-ca", fmt.Sprintf("%s local CA", s.name), s.ownerReferences()); err != nil {
+		return err
+	}
+	if err := s.certs.Ensure(s.namespace, "skupper-local-server", "skupper-local-ca", "skupper-router-local", s.qualified("skupper-router-local"), false, true, s.ownerReferences()); err != nil {
+		return err
+	}
+	// LinkAccess for router
+	//TODO: make conditional on attribute in site spec
+	if err := s.checkDefaultLinkAccess(ctxt); err != nil {
+		return err
+	}
+
+	// 3. deployment
 	err = resources.Apply(s.controller, ctxt, s.namespace, s.name, s.siteId, s.config)
 	if err != nil {
 		return err
 	}
+	return s.updateStatus()
+}
 
-	// 4. secrets (may change when ingress related resource status is udpated)
-	return s.checkCredentials(ctxt)
+func (s *Site) checkDefaultLinkAccess(ctxt context.Context) error {
+	if len(s.linkAccess) > 0 {
+		return nil
+	}
+	name := "skupper-router"
+	la := &skupperv1alpha1.LinkAccess{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v1alpha1",
+			Kind:       "LinkAccess",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			OwnerReferences: s.ownerReferences(),
+			Annotations: map[string]string{
+				"internal.skupper.io/controlled": "true",
+			},
+		},
+		Spec: skupperv1alpha1.LinkAccessSpec{
+			AccessType:      "loadbalancer", //TODO: change this in some way
+			Roles:           []skupperv1alpha1.LinkAccessRole{
+				{
+					Role: "inter-router",
+					Port: 55671,
+				},
+				{
+					Role: "edge",
+					Port: 45671,
+				},
+			},
+			TlsCredentials:  "skupper-site-server",
+			Ca:              "skupper-site-ca",
+		},
+	}
+	created, err := s.controller.GetSkupperClient().SkupperV1alpha1().LinkAccesses(s.namespace).Create(context.Background(), la, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	s.linkAccess[name] = created
+	return nil
 }
 
 func (s *Site) checkServiceAccount(ctxt context.Context) error {
@@ -263,63 +320,17 @@ func (s *Site) checkRole(ctxt context.Context) error {
 	return nil
 }
 
-func (s *Site) checkCredentials(ctxt context.Context) error {
-	resolver, err := resolver.NewResolver(s.controller, s.namespace, s.config)
-	if err != nil {
-		return err
-	}
-	s.resolver = resolver
-
-	creds, err := s.credentials()
-	if err != nil {
-		return err
-	}
-	for _, cred := range creds {
-		ca := types.CertAuthority{
-			Name: cred.CA,
-		}
-		_, err = kube.NewCertAuthority(ca, s.ownerReference(), s.namespace, s.controller.GetKubeClient())
-		if err != nil && !errors.IsAlreadyExists(err) {
-			return err
-		}
-		err = kube.EnsureSecret(cred, s.ownerReference(), s.namespace, s.controller.GetKubeClient())
-		if err != nil {
-			return err
-		}
-	}
-	updateStatus, err := s.checkAddresses()
-	if err != nil {
-		return err
-	}
-	if updateStatus {
-		return s.updateStatus()
-	}
-
-	return nil
-}
-
 func (s *Site) endpoints() []skupperv1alpha1.Endpoint {
 	var endpoints []skupperv1alpha1.Endpoint
-	if s.addresses.InterRouter.Host != "" {
-		endpoints = append(endpoints, skupperv1alpha1.Endpoint{
-			Name: "inter-router",
-			Host: s.addresses.InterRouter.Host,
-			Port: strconv.Itoa(int(s.addresses.InterRouter.Port)),
-		})
-	}
-	if s.addresses.Edge.Host != "" {
-		endpoints = append(endpoints, skupperv1alpha1.Endpoint{
-			Name: "edge",
-			Host: s.addresses.Edge.Host,
-			Port: strconv.Itoa(int(s.addresses.Edge.Port)),
-		})
-	}
-	if s.addresses.Claims.Host != "" {
-		endpoints = append(endpoints, skupperv1alpha1.Endpoint{
-			Name: "claims",
-			Host: s.addresses.Claims.Host,
-			Port: strconv.Itoa(int(s.addresses.Claims.Port)),
-		})
+	for _, la := range s.linkAccess {
+		for _, url := range la.Status.Urls {
+			parts := strings.Split(url.Url, ":")
+			endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+				Name: url.Role,
+				Host: parts[0],
+				Port: parts[1],
+			})
+		}
 	}
 	return endpoints
 }
@@ -332,95 +343,12 @@ func (s *Site) clearError(key string) {
 
 }
 
-func (s *Site) checkAddresses() (bool, error) {
-	changed := false
-	if !s.isEdge() {
-		hp, err := s.resolver.GetHostPortForInterRouter()
-		if err != nil {
-			return changed, err
-		}
-		if hp != s.addresses.InterRouter {
-			s.addresses.InterRouter = hp
-			changed = true
-		}
-		hp, err = s.resolver.GetHostPortForEdge()
-		if err != nil {
-			return changed, err
-		}
-		if hp != s.addresses.InterRouter {
-			s.addresses.Edge = hp
-			changed = true
-		}
-		hp, err = s.resolver.GetHostPortForClaims()
-		if err != nil {
-			return changed, err
-		}
-		if hp != s.addresses.InterRouter {
-			s.addresses.Claims = hp
-			changed = true
-		}
-	} else {
-		empty := resolver.HostPort{}
-		if s.addresses.InterRouter != empty {
-			s.addresses.InterRouter = empty
-			changed = true
-		}
-		if s.addresses.Edge != empty {
-			s.addresses.Edge = empty
-			changed = true
-		}
-		if s.addresses.Claims != empty {
-			s.addresses.Claims = empty
-			changed = true
-		}
-	}
-	return changed, nil
-}
-
 func (s *Site) qualified(svc string) []string {
 	return []string{
 		svc,
 		strings.Join([]string{svc, s.namespace}, "."),
 		strings.Join([]string{svc, s.namespace, "svc.cluster.local"}, "."),
 	}
-}
-
-func (s *Site) certificateExpiration() time.Duration {
-	return time.Hour * 24 * 365 * 5 //TODO: make configurable
-}
-
-func (s *Site) credentials() ([]types.Credential, error) {
-	creds := []types.Credential{
-		{
-			CA:          types.LocalCaSecret,
-			Name:        types.LocalServerSecret,
-			Subject:     types.LocalTransportServiceName,
-			Hosts:       s.qualified(types.LocalTransportServiceName),
-			Expiration:  s.certificateExpiration(),
-		},
-		{
-			CA:          types.LocalCaSecret,
-			Name:        types.LocalClientSecret,
-			Subject:     types.LocalTransportServiceName,
-			Hosts:       []string{},
-			ConnectJson: true,
-			Expiration:  s.certificateExpiration(),
-		},
-	}
-	if !s.isEdge() {
-		hosts, err := s.resolver.GetAllHosts()
-		if err != nil {
-			return nil, err
-		}
-		creds = append(creds, types.Credential{
-			CA:          types.SiteCaSecret,
-			Name:        types.SiteServerSecret,
-			Subject:     types.TransportServiceName,
-			Hosts:       hosts,
-			Expiration:  s.certificateExpiration(),
-		})
-	}
-	return creds, nil
 }
 
 func (s *Site) routerMode() qdr.Mode {
@@ -802,14 +730,6 @@ func (s *Site) updateLinkStatus(link *skupperv1alpha1.Link, err error) error {
 	return err
 }
 
-func (s *Site) CheckLoadBalancer(svc *corev1.Service) error {
-	return s.checkCredentials(context.TODO())
-}
-
-func (s *Site) ResolveHosts(o *unstructured.Unstructured) error {
-	return s.checkCredentials(context.TODO())
-}
-
 func (s *Site) Deleted() {
 	s.bindings.CloseAllSelectedConnectors()
 }
@@ -828,7 +748,7 @@ func (s *Site) updateStatus() error {
 }
 
 func (s *Site) NetworkStatusUpdated(network []skupperv1alpha1.SiteRecord) error {
-	if reflect.DeepEqual(s.site.Status.Network, network) {
+	if s.site == nil || reflect.DeepEqual(s.site.Status.Network, network) {
 		return nil
 	}
 	s.site.Status.Network = network
@@ -869,6 +789,65 @@ func (s *Site) UpdateSiteStatus(site *skupperv1alpha1.Site) (*skupperv1alpha1.Si
 	return updated, nil
 }
 
+func (s *Site) CheckSecuredAccess(sa *skupperv1alpha1.SecuredAccess) {
+	la, ok := s.linkAccess[sa.Name]
+	if !ok {
+		return
+	}
+	urls := sa.Status.GetLinkAccessUrls()
+	if reflect.DeepEqual(urls, la.Status.Urls) {
+		return
+	}
+	la.Status.Urls = urls
+	la.Status.Active = len(urls) > 0
+	if la.Status.Active {
+		la.Status.Status = "OK"
+	}
+	s.updateLinkAccessStatus(la)
+}
+
+func (s *Site) updateLinkAccessStatus(la *skupperv1alpha1.LinkAccess) {
+	updated, err := s.controller.GetSkupperClient().SkupperV1alpha1().LinkAccesses(la.Namespace).UpdateStatus(context.TODO(), la, metav1.UpdateOptions{})
+	if err != nil {
+		log.Printf("Error updating LinkAccess status for %s/%s: %s", la.Namespace, la.Name, err)
+	} else {
+		s.linkAccess[la.Name] = updated
+	}
+}
+
+func asSecuredAccessSpec(la *skupperv1alpha1.LinkAccess) skupperv1alpha1.SecuredAccessSpec {
+	spec := skupperv1alpha1.SecuredAccessSpec {
+		AccessType:  la.Spec.AccessType,
+		Selector:    map[string]string{
+			"skupper.io/component": "router",
+			//TODO: add extra label to allow for distinct sets of routers in HA
+		},
+		Certificate: la.Spec.TlsCredentials,
+		Ca:          la.Spec.Ca,
+		Options:     la.Spec.Options,
+	}
+	for _, role := range la.Spec.Roles {
+		spec.Ports = append(spec.Ports, skupperv1alpha1.SecuredAccessPort {
+			Name:       role.Role,
+			Port:       role.Port,
+			TargetPort: role.Port,
+			Protocol:   "TCP",
+		})
+	}
+	return spec
+}
+
+func (s *Site) checkSecuredAccess() error {
+	for _, la := range s.linkAccess {
+		if err := s.access.Ensure(s.namespace, la.Name, asSecuredAccessSpec(la), s.ownerReferences()); err != nil {
+			//TODO: add message to site status
+			log.Printf("Error ensuring SecuredAccess for LinkAccess %s: %s", la.Key(), err)
+		}
+	}
+	return nil
+}
+
+
 func (s *Site) CheckLinkAccess(name string, la *skupperv1alpha1.LinkAccess) error {
 	specChanged := false
 	statusChanged := false
@@ -886,12 +865,19 @@ func (s *Site) CheckLinkAccess(name string, la *skupperv1alpha1.LinkAccess) erro
 	if !s.initialised {
 		return nil
 	}
-	//TODO
-	if specChanged {
-		// update router config
+	if specChanged || !la.Status.Active {
+		if err := s.updateRouterConfig(s.linkAccess); err != nil {
+			//TODO: update site status message
+			log.Printf("Error updating router config for %s: %s", s.namespace, err)
+		}
+		if err := s.access.Ensure(s.namespace, la.Name, asSecuredAccessSpec(la), s.ownerReferences()); err != nil {
+			//TODO: add message to site status
+			log.Printf("Error ensuring SecuredAccess for LinkAccess %s: %s", la.Key(), err)
+		}
 	}
 	if statusChanged {
-		// update site status 
+		log.Printf("Updating site status for %s/%s as LinkAccess %s status has changed", s.namespace, s.name, name)
+		s.updateStatus()
 	}
 	return nil
 }

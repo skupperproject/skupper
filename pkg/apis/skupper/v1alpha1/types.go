@@ -276,7 +276,7 @@ func (sa *SecuredAccess) Key() string {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SecuredaccessList contains a List of Securedaccess instances
+// SecuredAccessList contains a List of SecuredAccess instances
 type SecuredAccessList struct {
 	v1.TypeMeta `json:",inline"`
 	v1.ListMeta `json:"metadata,omitempty"`
@@ -304,12 +304,26 @@ type SecuredAccessUrl struct {
 	Url  string `json:"url"`
 }
 
+func (s *SecuredAccessUrl) AsLinkAccessUrl() LinkAccessUrl {
+	return LinkAccessUrl {
+		Role: s.Name,
+		Url:  s.Url,
+	}
+}
+
 type SecuredAccessStatus struct {
-	Urls       []SecuredAccessUrl `json:"url,omitempty"`
+	Urls       []SecuredAccessUrl `json:"urls,omitempty"`
 	Ca         string             `json:"ca,omitempty"`
 	Status     string             `json:"status,omitempty"`
 }
 
+func (s *SecuredAccessStatus) GetLinkAccessUrls() []LinkAccessUrl {
+	var urls []LinkAccessUrl
+	for _, u := range s.Urls {
+		urls = append(urls, u.AsLinkAccessUrl())
+	}
+	return urls
+}
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -23,27 +23,35 @@ func options() internalinterfaces.TweakListOptionsFunc {
 	}
 }
 
-type CertificateManager struct {
+type CertificateManager interface {
+	EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error
+	Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error
+}
+
+type CertificateManagerImpl struct {
 	definitions        map[string]*skupperv1alpha1.Certificate
+	changed            map[string]bool
 	secrets            map[string]*corev1.Secret
 	certificateWatcher *kube.CertificateWatcher
 	secretWatcher      *kube.SecretWatcher
 	controller         *kube.Controller
 }
 
-func NewCertificateManager(controller *kube.Controller) *CertificateManager {
-	return &CertificateManager{
+func NewCertificateManager(controller *kube.Controller) *CertificateManagerImpl {
+	return &CertificateManagerImpl{
 		definitions: map[string]*skupperv1alpha1.Certificate{},
+		changed:     map[string]bool{},
+		secrets:     map[string]*corev1.Secret{},
 		controller:  controller,
 	}
 }
 
-func (m *CertificateManager) Watch(watchNamespace string) {
+func (m *CertificateManagerImpl) Watch(watchNamespace string) {
 	m.certificateWatcher = m.controller.WatchCertificates(watchNamespace, m.checkCertificate)
 	m.secretWatcher = m.controller.WatchSecrets(options(), watchNamespace, m.checkSecret)
 }
 
-func (m *CertificateManager) Recover() {
+func (m *CertificateManagerImpl) Recover() {
 	for _, secret := range m.secretWatcher.List() {
 		m.secrets[secretKey(secret)] = secret
 	}
@@ -54,8 +62,15 @@ func (m *CertificateManager) Recover() {
 	}
 }
 
-func (m *CertificateManager) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
-	key := fmt.Sprintf("%s/%s", namespace, name)
+func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error {
+	spec := skupperv1alpha1.CertificateSpec {
+		Subject: subject,
+		Signing: true,
+	}
+	return m.ensure(namespace, name, spec, refs)
+}
+
+func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
 	spec := skupperv1alpha1.CertificateSpec {
 		Ca:      ca,
 		Subject: subject,
@@ -63,6 +78,16 @@ func (m *CertificateManager) Ensure(namespace string, name string, ca string, su
 		Client:  client,
 		Server:  server,
 	}
+	return m.ensure(namespace, name, spec, refs)
+}
+
+func (m *CertificateManagerImpl) definitionUpdated(key string, def *skupperv1alpha1.Certificate) {
+	m.definitions[key] = def
+	m.changed[key] = true
+}
+
+func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv1alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
+	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		if reflect.DeepEqual(spec, current.Spec) {
 			return nil
@@ -72,7 +97,7 @@ func (m *CertificateManager) Ensure(namespace string, name string, ca string, su
 		if err != nil {
 			return err
 		}
-		m.definitions[key] = updated
+		m.definitionUpdated(key, updated)
 		return nil
 	} else {
 		cert := &skupperv1alpha1.Certificate{
@@ -96,12 +121,41 @@ func (m *CertificateManager) Ensure(namespace string, name string, ca string, su
 		if err != nil {
 			return err
 		}
-		m.definitions[key] = created
+		m.definitionUpdated(key, created)
 		return nil
 	}
 }
+func (m *CertificateManagerImpl) checkChanged(key string) bool {
+	if _, ok := m.changed[key]; !ok {
+		return false
+	}
+	delete(m.changed, key)
+	return true
+}
 
-func (m *CertificateManager) certificateDeleted(key string) error {
+func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupperv1alpha1.Certificate) error {
+	log.Printf("Checking Certificate %s", key)
+	if certificate == nil {
+		return m.certificateDeleted(key)
+	}
+	if existing, ok := m.definitions[key]; ok && reflect.DeepEqual(existing.Spec, certificate.Spec) && !m.checkChanged(key) {
+		log.Printf("Certificate %s is unchanged", key)
+		return nil
+	}
+	if secret, ok := m.secrets[key]; ok {
+		if err := m.updateSecret(key, certificate, secret); err != nil {
+			return m.updateStatus(certificate, err)
+		}
+	} else {
+		if err := m.createSecret(key, certificate); err != nil {
+			return m.updateStatus(certificate, err)
+		}
+	}
+	m.definitionUpdated(key, certificate)
+	return m.updateStatus(certificate, nil)
+}
+
+func (m *CertificateManagerImpl) certificateDeleted(key string) error {
 	delete(m.definitions, key)
 	if secret, ok := m.secrets[key]; ok {
 		err := m.controller.GetKubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
@@ -113,13 +167,13 @@ func (m *CertificateManager) certificateDeleted(key string) error {
 	return nil
 }
 
-func (m *CertificateManager) secretDeleted(key string) error {
+func (m *CertificateManagerImpl) secretDeleted(key string) error {
 	delete(m.secrets, key)
 	//TODO
 	return nil
 }
 
-func (m *CertificateManager) updateStatus(certificate *skupperv1alpha1.Certificate, err error) error {
+func (m *CertificateManagerImpl) updateStatus(certificate *skupperv1alpha1.Certificate, err error) error {
 	if err == nil {
 		certificate.Status.Status = "Ok"
 	} else {
@@ -133,41 +187,26 @@ func (m *CertificateManager) updateStatus(certificate *skupperv1alpha1.Certifica
 	return nil
 }
 
-func (m *CertificateManager) checkCertificate(key string, certificate *skupperv1alpha1.Certificate) error {
-	if certificate == nil {
-		return m.certificateDeleted(key)
-	}
-	if existing, ok := m.definitions[key]; ok &&reflect.DeepEqual(existing.Spec, certificate.Spec) {
-		return nil
-	}
-	if secret, ok := m.secrets[key]; ok {
-		if err := m.updateSecret(key, certificate, secret); err != nil {
-			return m.updateStatus(certificate, err)
-		}
-	}
-	if err := m.createSecret(key, certificate); err != nil {
-		return m.updateStatus(certificate, err)
-	}
-	return m.updateStatus(certificate, nil)
-}
-
-func (m *CertificateManager) updateSecret(key string, certificate *skupperv1alpha1.Certificate, secret *corev1.Secret) error {
+func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv1alpha1.Certificate, secret *corev1.Secret) error {
 	if !isSecretCorrect(certificate, secret) {
 		secret, err := m.generateSecret(certificate)
 		if err != nil {
+			log.Printf("Error generating secret %s/%s for Certificate %s", certificate.Namespace, secret.Name, key)
 			return err
 		}
+		log.Printf("Updating secret %s/%s for Certificate %s for hosts %v", secret.Namespace, secret.Name, key, certificate.Spec.Hosts)
 		updated, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 		m.secrets[key] = updated
+	} else {
+		log.Printf("Secret %s/%s matches Certificate %s", secret.Namespace, secret.Name, key)
 	}
-	m.definitions[key] = certificate
 	return nil
 }
 
-func (m *CertificateManager) generateSecret(certificate *skupperv1alpha1.Certificate) (*corev1.Secret, error) {
+func (m *CertificateManagerImpl) generateSecret(certificate *skupperv1alpha1.Certificate) (*corev1.Secret, error) {
 	var secret corev1.Secret
 	if certificate.Spec.Signing {
 		secret = certs.GenerateCASecret(certificate.Name, certificate.Spec.Subject)
@@ -188,21 +227,22 @@ func (m *CertificateManager) generateSecret(certificate *skupperv1alpha1.Certifi
 }
 
 
-func (m *CertificateManager) createSecret(key string, certificate *skupperv1alpha1.Certificate) error {
+func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv1alpha1.Certificate) error {
 	secret, err := m.generateSecret(certificate)
 	if err != nil {
+		log.Printf("Error generating secret for Certificate %s: %s", key, err)
 		return err
 	}
+	log.Printf("Creating secret %s/%s for Certificate %s for hosts %v", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
 	created, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 	m.secrets[key] = created
-	m.definitions[key] = certificate
 	return nil
 }
 
-func (m *CertificateManager) checkSecret(key string, secret *corev1.Secret) error {
+func (m *CertificateManagerImpl) checkSecret(key string, secret *corev1.Secret) error {
 	if secret == nil {
 		return m.secretDeleted(key)
 	}

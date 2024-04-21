@@ -82,7 +82,7 @@ func InitialConfigSkupperRouter(id string, siteId string, version string, edge b
 	return routerConfig
 }
 
-func (r *RouterConfig) SetListenersForMode(options types.RouterOptions) {
+func (r *RouterConfig) SetNormalListeners() {
 	r.Listeners = map[string]Listener{}
 	r.AddListener(Listener{
 		Port:        9090,
@@ -112,6 +112,10 @@ func (r *RouterConfig) SetListenersForMode(options types.RouterOptions) {
 		SslProfile{
 			Name: types.ServiceClientSecret,
 		})
+}
+
+func (r *RouterConfig) SetListenersForMode(options types.RouterOptions) {
+	r.SetNormalListeners()
 	if r.Metadata.Mode != ModeEdge {
 		r.AddSslProfile(SslProfile{
 			Name: types.InterRouterProfile,
@@ -206,6 +210,34 @@ func (r *RouterConfig) RemoveSslProfile(name string) bool {
 	} else {
 		return false
 	}
+}
+
+func (r *RouterConfig) UnreferencedSslProfiles() map[string]SslProfile {
+	results := map[string]SslProfile{}
+	for _, profile := range r.SslProfiles {
+		results[profile.Name] = profile
+	}
+	//remove any that are referenced
+	for _, o := range r.Listeners {
+		delete(results, o.SslProfile)
+	}
+	for _, o := range r.Connectors {
+		delete(results, o.SslProfile)
+	}
+	for _, o := range r.Bridges.TcpListeners {
+		delete(results, o.SslProfile)
+	}
+	for _, o := range r.Bridges.TcpConnectors {
+		delete(results, o.SslProfile)
+	}
+	for _, o := range r.Bridges.HttpListeners {
+		delete(results, o.SslProfile)
+	}
+	for _, o := range r.Bridges.HttpConnectors {
+		delete(results, o.SslProfile)
+	}
+
+	return results
 }
 
 func (r *RouterConfig) AddAddress(a Address) {
@@ -399,7 +431,22 @@ type Role string
 const (
 	RoleInterRouter Role = "inter-router"
 	RoleEdge             = "edge"
+	RoleNormal           = "normal"
+	RoleDefault          = ""
 )
+
+func asRole(name string) Role {
+	if name == "edge" {
+		return RoleEdge
+	}
+	if name == "inter-router" {
+		return RoleInterRouter
+	}
+	if name == "normal" {
+		return RoleNormal
+	}
+	return RoleDefault
+}
 
 func GetRole(name string) Role {
 	if name == "edge" {
@@ -777,6 +824,26 @@ func (r *RouterConfig) UpdateConfigMap(configmap *corev1.ConfigMap) (bool, error
 	return true, nil
 }
 
+type ListenerPredicate func (Listener) bool
+
+func IsNotNormalListener(l Listener) bool {
+	return l.Role != "normal" && l.Role != ""
+}
+
+func FilterListeners(in map[string]Listener, predicate ListenerPredicate) map[string]Listener {
+	results := map[string]Listener{}
+	for key, listener := range in {
+		if predicate(listener) {
+			results[key] = listener
+		}
+	}
+	return results
+}
+
+func (config *RouterConfig) GetMatchingListeners(predicate ListenerPredicate) map[string]Listener {
+	return FilterListeners(config.Listeners, predicate)
+}
+
 func (b *BridgeConfig) UpdateConfigMap(configmap *corev1.ConfigMap) (bool, error) {
 	if configmap.Data != nil && configmap.Data[types.TransportConfigFile] != "" {
 		existing, err := UnmarshalRouterConfig(configmap.Data[types.TransportConfigFile])
@@ -1042,6 +1109,50 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 }
 
 func (a *ConnectorDifference) Empty() bool {
+	return len(a.Deleted) == 0 && len(a.Added) == 0
+}
+
+type ListenerDifference struct {
+	Deleted          []Listener
+	Added            []Listener
+}
+
+type SslProfileDifference struct {
+	Deleted          []SslProfile
+	Added            []SslProfile
+}
+
+func (config *RouterConfig) CorrespondingSslProfileDifference(listeners *ListenerDifference) *SslProfileDifference {
+	result := SslProfileDifference{}
+	for _, l := range listeners.Added {
+		result.Added = append(result.Added, config.SslProfiles[l.SslProfile])
+	}
+	// SslProfiles may be shared, so only delete those that are now unreferenced
+	unreferenced := config.UnreferencedSslProfiles()
+	for _, l := range listeners.Deleted {
+		if _, ok := unreferenced[l.SslProfile]; ok {
+			result.Deleted = append(result.Deleted, config.SslProfiles[l.SslProfile])
+		}
+	}
+	return &result
+}
+
+func ListenersDifference(actual map[string]Listener, desired map[string]Listener) *ListenerDifference {
+	result := ListenerDifference{}
+	for key, value := range desired {
+		if _, ok := actual[key]; !ok {
+			result.Added = append(result.Added, value)
+		}
+	}
+	for key, value := range actual {
+		if _, ok := desired[key]; !ok {
+			result.Deleted = append(result.Deleted, value)
+		}
+	}
+	return &result
+}
+
+func (a *ListenerDifference) Empty() bool {
 	return len(a.Deleted) == 0 && len(a.Added) == 0
 }
 

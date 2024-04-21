@@ -128,9 +128,11 @@ func (c *Controller) GetRouteInterface() openshiftroute.Interface {
 }
 
 func (c *Controller)  GetRouteClient() routev1client.RouteV1Interface {
+	if c.routeClient == nil {
+		return nil
+	}
 	return c.routeClient.RouteV1()
 }
-
 
 func (c *Controller)  GetSkupperClient() skupperclient.Interface {
 	return c.skupperClient

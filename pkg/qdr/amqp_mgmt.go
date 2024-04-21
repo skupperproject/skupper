@@ -1228,6 +1228,28 @@ func asConnector(record Record) Connector {
 	}
 }
 
+func asListener(record Record) Listener {
+	return Listener{
+		Name:             record.AsString("name"),
+		Role:             asRole(record.AsString("role")),
+		Host:             record.AsString("host"),
+		Port:             int32(record.AsInt("port")),
+		Cost:             int32(record.AsInt("cost")),
+		LinkCapacity:     int32(record.AsInt("linkCapacity")),
+		AuthenticatePeer: record.AsBool("authenticatePeer"),
+		SaslMechanisms:   record.AsString("saslMechanisms"),
+		RouteContainer:   record.AsBool("routeContainer"),
+		Http:             record.AsBool("http"),
+		HttpRootDir:      record.AsString("httpRootDir"),
+		Websockets:       record.AsBool("websockets"),
+		Healthz:          record.AsBool("healthz"),
+		Metrics:          record.AsBool("metrics"),
+		SslProfile:       record.AsString("sslProfile"),
+		MaxFrameSize:     record.AsInt("maxFrameSize"),
+		MaxSessionFrames: record.AsInt("maxSessionFrames"),
+	}
+}
+
 func asSslProfile(record Record) SslProfile {
 	return SslProfile{
 		Name:           record.AsString("name"),
@@ -1338,6 +1360,87 @@ func (a *Agent) GetLocalConnectors() (map[string]Connector, error) {
 		connectors[c.Name] = c
 	}
 	return connectors, nil
+}
+
+func asListenerRecord(listener Listener) Record {
+
+	record := map[string]interface{}{}
+	record["name"] = listener.Name
+	record["role"] = string(listener.Role)
+	record["host"] = listener.Host
+	record["port"] = listener.Port
+	if listener.Cost > 0 {
+		record["cost"] = listener.Cost
+	}
+	if listener.LinkCapacity > 0 {
+		record["linkCapacity"] = listener.LinkCapacity
+	}
+	if len(listener.SslProfile) > 0 {
+		record["sslProfile"] = listener.SslProfile
+	}
+	if listener.AuthenticatePeer {
+		record["authenticatePeer"] = listener.AuthenticatePeer
+	}
+	if len(listener.SaslMechanisms) > 0 {
+		record["saslMechanisms"] = listener.SaslMechanisms
+	}
+	if listener.MaxFrameSize > 0 {
+		record["maxFrameSize"] = listener.MaxFrameSize
+	}
+	if listener.MaxSessionFrames > 0 {
+		record["maxSessionFrames"] = listener.MaxSessionFrames
+	}
+	if listener.RouteContainer {
+		record["routeContainer"] = listener.RouteContainer
+	}
+	if listener.Http {
+		record["http"] = listener.Http
+	}
+	if len(listener.HttpRootDir) > 0 {
+		record["httpRootDir"] = listener.HttpRootDir
+	}
+	if listener.Websockets {
+		record["websockets"] = listener.Websockets
+	}
+	if listener.Healthz {
+		record["healthz"] = listener.Healthz
+	}
+	if listener.Metrics {
+		record["metrics"] = listener.Metrics
+	}
+
+	return record
+}
+
+
+func (a *Agent) UpdateListenerConfig(changes *ListenerDifference) error {
+	for _, deleted := range changes.Deleted {
+		if err := a.Delete("io.skupper.router.listener", deleted.Name); err != nil {
+			return fmt.Errorf("Error deleting listeners: %s", err)
+		}
+	}
+
+	for _, added := range changes.Added {
+		if err := a.Create("io.skupper.router.listener", added.Name, asListenerRecord(added)); err != nil {
+			return fmt.Errorf("Error adding listeners: %s", err)
+		}
+
+	}
+
+	return nil
+}
+
+func (a *Agent) GetLocalListeners() (map[string]Listener, error) {
+	results, err := a.Query("io.skupper.router.listener", []string{})
+	if err != nil {
+		return nil, err
+	}
+	listeners := map[string]Listener{}
+	for _, record := range results {
+		l := asListener(record)
+		listeners[l.Name] = l
+	}
+	return listeners, nil
 }
 
 func (a *Agent) Request(request *Request) (*Response, error) {

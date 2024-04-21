@@ -17,10 +17,11 @@ import (
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/kube/certificates"
 )
 
-type CertificateManager interface {
-	Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error
+type Factory interface {
+	Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, refs []metav1.OwnerReference) error
 }
 
 type AccessType interface {
@@ -36,10 +37,10 @@ type SecuredAccessManager struct {
 	httpProxies  map[string]*unstructured.Unstructured
 	//controller   *kube.Controller
 	controller   kube.Clients
-	certMgr      CertificateManager
+	certMgr      certificates.CertificateManager
 }
 
-func NewSecuredAccessManager(clients kube.Clients, certMgr CertificateManager) *SecuredAccessManager {
+func NewSecuredAccessManager(clients kube.Clients, certMgr certificates.CertificateManager) *SecuredAccessManager {
 	return &SecuredAccessManager {
 		definitions:  map[string]*skupperv1alpha1.SecuredAccess{},
 		services:     map[string]*corev1.Service{},
@@ -51,11 +52,51 @@ func NewSecuredAccessManager(clients kube.Clients, certMgr CertificateManager) *
 	}
 }
 
+func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, refs []metav1.OwnerReference) error {
+	log.Printf("SecuredAccess.Ensure(%s, %s)", namespace, name)
+	key := fmt.Sprintf("%s/%s", namespace, name)
+	if current, ok := m.definitions[key]; ok {
+		if reflect.DeepEqual(spec, current.Spec) {
+			return nil
+		}
+		current.Spec = spec
+		updated, err := m.controller.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		m.definitions[key] = updated
+		return nil
+	} else {
+		sa := &skupperv1alpha1.SecuredAccess{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "skupper.io/v1alpha1",
+				Kind:       "SecuredAccess",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				OwnerReferences: refs,
+				Annotations: map[string]string{
+					"internal.skupper.io/controlled": "true",
+				},
+			},
+			Spec: spec,
+		}
+		created, err := m.controller.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Create(context.Background(), sa, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+		m.definitions[key] = created
+		return nil
+	}
+
+}
+
 func serviceKey(svc *corev1.Service) string {
 	return fmt.Sprintf("%s/%s", svc.Namespace, svc.Name)
 }
 
 func (m *SecuredAccessManager) SecuredAccessChanged(key string, current *skupperv1alpha1.SecuredAccess) error {
+	log.Printf("Checking SecuredAccess %s", key)
 	if original, ok := m.definitions[key]; ok {
 		if original.Spec.AccessType != current.Spec.AccessType {
 			//TODO: access type changed, delete any resources that may exist from old access type
@@ -68,8 +109,11 @@ func (m *SecuredAccessManager) SecuredAccessChanged(key string, current *skupper
 func (m *SecuredAccessManager) accessType(sa *skupperv1alpha1.SecuredAccess) AccessType {
 	if sa.Spec.AccessType == "route" {
 		return newRouteAccess(m)
+	} else if sa.Spec.AccessType == "loadbalancer" {
+		return newLoadbalancerAccess(m)
+	} else {
+		return newUnsupportedAccess(m)
 	}
-	return newUnsupportedAccess(m)
 }
 
 func (m *SecuredAccessManager) reconcile(sa *skupperv1alpha1.SecuredAccess) error {
@@ -90,6 +134,7 @@ func (m *SecuredAccessManager) reconcile(sa *skupperv1alpha1.SecuredAccess) erro
 	if !updated {
 		return nil
 	}
+	log.Printf("Updating SecuredAccess status for %s", sa.Key())
 	latest, err := m.controller.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(sa.Namespace).UpdateStatus(context.TODO(), sa, metav1.UpdateOptions{})
 	if err != nil {
 		return err
@@ -103,21 +148,11 @@ func (m *SecuredAccessManager) checkCertificate(sa *skupperv1alpha1.SecuredAcces
 	if sa.Spec.Ca == "" {
 		return nil
 	}
-	var hosts []string
-	for _, url := range sa.Status.Urls {
-		if url.Url != "" {
-			host := strings.Split(url.Url, ":")[0]
-			hosts = append(hosts, host)
-		}
-	}
-	if len(hosts) == 0 {
-		return nil
-	}
 	name := sa.Spec.Certificate
 	if name == "" {
 		name = sa.Name
 	}
-	return m.certMgr.Ensure(sa.Namespace, name, sa.Spec.Ca, sa.Name, hosts, false, true, ownerReferences(sa))
+	return m.certMgr.Ensure(sa.Namespace, name, sa.Spec.Ca, sa.Name, getHosts(sa), false, true, ownerReferences(sa))
 }
 
 func (m *SecuredAccessManager) checkService(sa *skupperv1alpha1.SecuredAccess) error {
@@ -393,4 +428,19 @@ func ownerReferences(sa *skupperv1alpha1.SecuredAccess) []metav1.OwnerReference 
 			UID:        sa.ObjectMeta.UID,
 		},
 	}
+}
+
+func getHosts(sa *skupperv1alpha1.SecuredAccess) []string {
+	hosts := map[string]string{}
+	for _, url := range sa.Status.Urls {
+		if url.Url != "" {
+			host := strings.Split(url.Url, ":")[0]
+			hosts[host] = host
+		}
+	}
+	var results []string
+	for key, _ := range hosts {
+		results = append(results, key)
+	}
+	return results
 }
