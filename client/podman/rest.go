@@ -23,9 +23,10 @@ import (
 )
 
 const (
-	ENV_PODMAN_ENDPOINT  = "PODMAN_ENDPOINT"
-	DEFAULT_BASE_PATH    = "/v4.0.0"
-	DefaultNetworkDriver = "bridge"
+	ENV_PODMAN_ENDPOINT         = "PODMAN_ENDPOINT"
+	DEFAULT_BASE_PATH           = "/v4.0.0"
+	DefaultNetworkDriver        = "bridge"
+	podmanVersionRecommendation = "Please update your podman installation."
 )
 
 var (
@@ -388,7 +389,10 @@ func (p *PodmanRestClient) Validate() error {
 	}
 	apiVersion := utils.ParseVersion(version.Server.APIVersion)
 	if apiVersion.Major < 4 {
-		return fmt.Errorf("podman version must be 4.0.0 or greater, found: %s", version.Server.APIVersion)
+		return &Error{
+			Err:            fmt.Errorf("podman version must be 4.0.0 or greater, found: %s", version.Server.APIVersion),
+			Recommendation: podmanVersionRecommendation,
+		}
 	}
 	return nil
 }

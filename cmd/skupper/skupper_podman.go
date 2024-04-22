@@ -124,10 +124,14 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 	c, err := s.cliFactory(endpoint, "")
 	if err != nil {
 		if exitOnError {
-			fmt.Fprintf(out, "Podman endpoint is not available: %s",
-				utils.DefaultStr(endpoint, clientpodman.GetDefaultPodmanEndpoint()))
-			fmt.Fprintln(out)
-			recommendation := `
+			var recommendation string
+			if podmanErr, ok := err.(*clientpodman.Error); ok {
+				fmt.Println(podmanErr)
+			} else {
+				fmt.Fprintf(out, "Podman endpoint is not available: %s",
+					utils.DefaultStr(endpoint, clientpodman.GetDefaultPodmanEndpoint()))
+				fmt.Fprintln(out)
+				recommendation = `
 Recommendation:
 
 	Make sure you have an active podman endpoint available.
@@ -142,7 +146,8 @@ Recommendation:
 	You can get concrete examples through:
 
 		podman help system service`
-			fmt.Fprintln(out, recommendation)
+				fmt.Fprintln(out, recommendation)
+			}
 			s.exit(1)
 		}
 		return
