@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/config"
 
 	"gotest.tools/assert"
 )
@@ -316,4 +317,32 @@ func TestSkupperInitFlowCollectorParseArgs(t *testing.T) {
 	assert.Equal(t, routerCreateOpts.FlowCollector.Memory, "2G")
 	assert.Equal(t, routerCreateOpts.FlowCollector.MemoryLimit, "3G")
 	assert.Equal(t, routerCreateOpts.FlowCollector.FlowRecordTtl, time.Minute*15)
+}
+
+func TestParsePlatformFlagOnly(t *testing.T) {
+	config.Platform = ""
+	args := []string{"skupper", "expose", "host", "10.0.0.1", "--address", "test-service", "--port", "8080", "--platform", "podman"}
+	parsePlatformFlagOnly(args)
+	assert.Equal(t, config.Platform, types.PlatformPodman)
+
+	config.Platform = ""
+	args = []string{"skupper", "expose", "host", "10.0.0.1", "--address", "test-service", "--port", "8080", "--platform=podman"}
+	parsePlatformFlagOnly(args)
+	assert.Equal(t, config.Platform, types.PlatformPodman)
+
+	config.Platform = ""
+	args = []string{"skupper", "--platform", "podman", "expose", "host", "10.0.0.1", "--address", "test-service", "--port", "8080"}
+	parsePlatformFlagOnly(args)
+	assert.Equal(t, config.Platform, types.PlatformPodman)
+
+	config.Platform = ""
+	args = []string{"skupper", "--platform=podman", "expose", "host", "10.0.0.1", "--address", "test-service", "--port", "8080"}
+	parsePlatformFlagOnly(args)
+	assert.Equal(t, config.Platform, types.PlatformPodman)
+
+	// Bad value
+	config.Platform = ""
+	args = []string{"skupper", "--platform=", "expose", "host", "10.0.0.1", "--address", "test-service", "--port", "8080"}
+	parsePlatformFlagOnly(args)
+	assert.Equal(t, config.Platform, "")
 }
