@@ -306,7 +306,9 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 
 	if site.EnableFlowCollector {
 		statusOutput.ConsoleUrl = site.GetConsoleUrl()
-		statusOutput.Credentials = formatter.PlatformSupport{"podman volume", "'skupper-console-users'"}
+		if site.AuthMode == "internal" {
+			statusOutput.Credentials = formatter.PlatformSupport{"podman volume", "'skupper-console-users'"}
+		}
 	}
 
 	if verboseStatus {
