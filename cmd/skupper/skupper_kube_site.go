@@ -286,12 +286,12 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			mapSiteLink := statusManager.GetSiteLinkMapPerRouter(&currentSite.RouterStatus[index], &currentSite.Site)
-
+			peerSites := statusManager.GetPeerSites(&currentSite.RouterStatus[index], currentSite.Site.Identity)
 			totalSites := len(currentStatus.SiteStatus)
+
 			// the current site does not count as a connection
 			connections := totalSites - 1
-			directConnections := len(mapSiteLink)
+			directConnections := len(peerSites)
 			statusDataOutput.TotalConnections = connections
 			statusDataOutput.DirectConnections = directConnections
 			statusDataOutput.IndirectConnections = connections - directConnections
