@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+set -o errexit
+set -o nounset
+
+for container in $({{.SkupperPlatform}} container ls --filter label=application=skupper --filter label=skupper.io/site-id={{.SiteId}} --format {{"{{"}}.Names{{"}}"}} --all); do
+    {{.SkupperPlatform}} start ${container}
+done
+

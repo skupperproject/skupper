@@ -20,7 +20,6 @@ func NewLink(name string, profilePath string) *Link {
 		profilePath: profilePath,
 	}
 }
-
 func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if l.definition == nil {
 		return false
