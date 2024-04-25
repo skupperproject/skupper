@@ -214,8 +214,12 @@ func GenerateSecret(name string, subject string, hosts string, ca *corev1.Secret
 }
 
 func GenerateSecretWithExpiration(name string, subject string, hosts string, expiration time.Duration, ca *corev1.Secret) corev1.Secret {
-	caCert := getCAFromSecret(ca)
-	return generateSecret(name, subject, hosts, &caCert, expiration)
+	var caCert *CertificateAuthority
+	if ca != nil {
+		caFromSecret := getCAFromSecret(ca)
+		caCert = &caFromSecret
+	}
+	return generateSecret(name, subject, hosts, caCert, expiration)
 }
 
 func GenerateCASecret(name string, subject string) corev1.Secret {

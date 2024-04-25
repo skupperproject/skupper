@@ -1,15 +1,19 @@
-package config
+package apis
 
 import (
 	"bytes"
 	"fmt"
 	"os"
+	"path"
 	"reflect"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/config"
 	"gopkg.in/yaml.v3"
 	"gotest.tools/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGetConfigHome(t *testing.T) {
@@ -152,33 +156,33 @@ func TestGetPlatform(t *testing.T) {
 		},
 	}
 	// Saving original values
-	cliOrig := Platform
+	cliOrig := config.Platform
 	envOrig := os.Getenv(types.ENV_PLATFORM)
-	cfgFileOrig := PlatformConfigFile
+	cfgFileOrig := config.PlatformConfigFile
 	// Restore original values
 	defer func() {
-		Platform = cliOrig
+		config.Platform = cliOrig
 		_ = os.Setenv(types.ENV_PLATFORM, envOrig)
-		PlatformConfigFile = cfgFileOrig
+		config.PlatformConfigFile = cfgFileOrig
 	}()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			Platform = tt.cliVar
+			config.Platform = tt.cliVar
 			_ = os.Setenv(types.ENV_PLATFORM, tt.envVar)
 
 			// creating a temporary platform file
 			f, err := os.CreateTemp(os.TempDir(), "platform-*.yaml")
 			_ = f.Close()
 			assert.Assert(t, err, "unable to create temporary platform file")
-			PlatformConfigFile = f.Name()
+			config.PlatformConfigFile = f.Name()
 			if tt.cfgVal == "" {
 				_ = os.Remove(f.Name())
 			} else {
-				info := &PlatformInfo{}
+				info := &config.PlatformInfo{}
 				assert.Assert(t, info.Update(tt.cfgVal), "error setting platform in %s", f.Name())
 			}
 
-			got := GetPlatform()
+			got := config.GetPlatform()
 
 			// removing temporary file
 			if tt.cfgVal != "" {
@@ -194,45 +198,45 @@ func TestGetPlatform(t *testing.T) {
 func TestPlatformInfo_Load(t *testing.T) {
 	tests := []struct {
 		name          string
-		existing      *PlatformInfo
-		want          *PlatformInfo
+		existing      *config.PlatformInfo
+		want          *config.PlatformInfo
 		wantReadErr   bool
 		wantDecodeErr bool
 	}{
 		{
 			name:     "default-no-config-file",
 			existing: nil,
-			want:     &PlatformInfo{},
+			want:     &config.PlatformInfo{},
 		},
 		{
 			name:        "error-no-permission",
 			existing:    nil,
-			want:        &PlatformInfo{},
+			want:        &config.PlatformInfo{},
 			wantReadErr: true,
 		},
 		{
 			name:          "error-invalid-content",
-			existing:      &PlatformInfo{},
-			want:          &PlatformInfo{},
+			existing:      &config.PlatformInfo{},
+			want:          &config.PlatformInfo{},
 			wantDecodeErr: true,
 		},
 		{
 			name: "valid-config-file",
-			existing: &PlatformInfo{
+			existing: &config.PlatformInfo{
 				Current:  types.PlatformPodman,
 				Previous: types.PlatformKubernetes,
 			},
-			want: &PlatformInfo{
+			want: &config.PlatformInfo{
 				Current:  types.PlatformPodman,
 				Previous: types.PlatformKubernetes,
 			},
 		},
 	}
 	// Saving original values
-	cfgFileOrig := PlatformConfigFile
+	cfgFileOrig := config.PlatformConfigFile
 	// Restore original values
 	defer func() {
-		PlatformConfigFile = cfgFileOrig
+		config.PlatformConfigFile = cfgFileOrig
 	}()
 
 	for _, tt := range tests {
@@ -244,14 +248,14 @@ func TestPlatformInfo_Load(t *testing.T) {
 			defer func(name string) {
 				_ = os.Remove(name)
 			}(tempFile)
-			PlatformConfigFile = tempFile
+			config.PlatformConfigFile = tempFile
 			if !tt.wantReadErr {
 				_ = os.Remove(tempFile)
 			} else {
 				_ = os.Chmod(tempFile, 0)
 			}
 			if tt.existing == nil {
-				tt.existing = &PlatformInfo{}
+				tt.existing = &config.PlatformInfo{}
 			} else if !tt.wantReadErr {
 				// populating temp file
 				info := tt.existing
@@ -275,9 +279,9 @@ func TestPlatformInfo_Load(t *testing.T) {
 func TestPlatformInfo_Update(t *testing.T) {
 	tests := []struct {
 		name         string
-		existing     *PlatformInfo
+		existing     *config.PlatformInfo
 		platform     types.Platform
-		want         *PlatformInfo
+		want         *config.PlatformInfo
 		wantWriteErr bool
 		wantReadErr  bool
 	}{
@@ -285,31 +289,31 @@ func TestPlatformInfo_Update(t *testing.T) {
 			name:     "new-config-file",
 			existing: nil,
 			platform: types.PlatformPodman,
-			want: &PlatformInfo{
+			want: &config.PlatformInfo{
 				Current:  types.PlatformPodman,
 				Previous: types.PlatformPodman,
 			},
 		},
 		{
 			name: "config-file-changed",
-			existing: &PlatformInfo{
+			existing: &config.PlatformInfo{
 				Current:  types.PlatformKubernetes,
 				Previous: types.PlatformKubernetes,
 			},
 			platform: types.PlatformPodman,
-			want: &PlatformInfo{
+			want: &config.PlatformInfo{
 				Current:  types.PlatformPodman,
 				Previous: types.PlatformKubernetes,
 			},
 		},
 		{
 			name: "error-no-write-permission",
-			existing: &PlatformInfo{
+			existing: &config.PlatformInfo{
 				Current:  types.PlatformKubernetes,
 				Previous: types.PlatformKubernetes,
 			},
 			platform: types.PlatformPodman,
-			want: &PlatformInfo{
+			want: &config.PlatformInfo{
 				Current:  types.PlatformKubernetes,
 				Previous: types.PlatformKubernetes,
 			},
@@ -317,20 +321,20 @@ func TestPlatformInfo_Update(t *testing.T) {
 		},
 		{
 			name: "error-no-read-permission",
-			existing: &PlatformInfo{
+			existing: &config.PlatformInfo{
 				Current:  types.PlatformKubernetes,
 				Previous: types.PlatformKubernetes,
 			},
 			platform:    types.PlatformPodman,
-			want:        &PlatformInfo{},
+			want:        &config.PlatformInfo{},
 			wantReadErr: true,
 		},
 	}
 	// Saving original values
-	cfgFileOrig := PlatformConfigFile
+	cfgFileOrig := config.PlatformConfigFile
 	// Restore original values
 	defer func() {
-		PlatformConfigFile = cfgFileOrig
+		config.PlatformConfigFile = cfgFileOrig
 	}()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -342,10 +346,10 @@ func TestPlatformInfo_Update(t *testing.T) {
 			defer func(name string) {
 				_ = os.Remove(name)
 			}(tempFile)
-			PlatformConfigFile = tempFile
+			config.PlatformConfigFile = tempFile
 			if tt.existing == nil {
 				_ = os.Remove(tempFile)
-				tt.existing = &PlatformInfo{}
+				tt.existing = &config.PlatformInfo{}
 			} else {
 				data := fmt.Sprintf("current: %s\nprevious: %s\n", tt.existing.Current, tt.existing.Previous)
 				assert.Assert(t, os.WriteFile(tempFile, []byte(data), 0644), "error preparing platform config file")
@@ -366,10 +370,52 @@ func TestPlatformInfo_Update(t *testing.T) {
 			if tt.want != nil {
 				data, _ := os.ReadFile(tempFile)
 				decoder := yaml.NewDecoder(bytes.NewReader(data))
-				current := &PlatformInfo{}
+				current := &config.PlatformInfo{}
 				_ = decoder.Decode(current)
 				assert.Assert(t, reflect.DeepEqual(tt.want, current), "want = %v, got = %v", tt.want, current)
 			}
 		})
+	}
+}
+
+func TestGetHostSiteHome(t *testing.T) {
+	fakeSite := &v1alpha1.Site{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-test-site",
+		},
+		Spec: v1alpha1.SiteSpec{},
+	}
+	homeDir, err := os.UserHomeDir()
+	assert.Assert(t, err)
+	defaultSiteHome := path.Join(homeDir, ".local/share/skupper/sites/my-test-site")
+	const fakeXdgDataHome = "/fake/xdg/home"
+	xdgSiteHome := path.Join(fakeXdgDataHome, "/skupper/sites/my-test-site")
+
+	envXdgDataHome := "XDG_DATA_HOME"
+	originalXdgDataHome := os.Getenv(envXdgDataHome)
+	defer func() {
+		_ = os.Setenv(envXdgDataHome, originalXdgDataHome)
+	}()
+	for _, scenario := range []struct {
+		expectedSiteHome string
+		useXdgDataHome   bool
+	}{
+		{
+			expectedSiteHome: defaultSiteHome,
+			useXdgDataHome:   false,
+		},
+		{
+			expectedSiteHome: xdgSiteHome,
+			useXdgDataHome:   true,
+		},
+	} {
+		if !scenario.useXdgDataHome {
+			assert.Assert(t, os.Unsetenv(envXdgDataHome))
+		} else {
+			assert.Assert(t, os.Setenv(envXdgDataHome, fakeXdgDataHome))
+		}
+		siteHome, err := GetHostSiteHome(fakeSite)
+		assert.Assert(t, err)
+		assert.Equal(t, siteHome, scenario.expectedSiteHome)
 	}
 }

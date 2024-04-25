@@ -12,10 +12,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/images"
+	"github.com/skupperproject/skupper/pkg/non_kube/common"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -396,21 +398,24 @@ func (s *SiteHandler) Create(ctx context.Context, site domain.Site) error {
 	}
 
 	// Creating startup scripts first
-	scripts := config.GetStartupScripts(types.PlatformPodman)
+	// TODO REMOVE pkd/domain/podman once V2 is stable - IT NO LONGER WORKS
+	scripts, _ := common.GetStartupScripts(&v1alpha1.Site{}, "")
 	err = scripts.Create()
 	if err != nil {
 		return fmt.Errorf("error creating startup scripts: %w\n", err)
 	}
 
 	// Creating systemd user service
-	if err = config.NewSystemdServiceInfo(types.PlatformPodman).Create(); err != nil {
+	// TODO IT NO LONGER WORKS
+	systemd, err := common.NewSystemdServiceInfo(&v1alpha1.Site{})
+	if err = systemd.Create(); err != nil {
 		fmt.Printf("Unable to create startup service - %v\n", err)
 		fmt.Printf("The startup scripts: %s and %s are available at %s\n,",
 			scripts.GetStartFileName(), scripts.GetStopFileName(), scripts.GetPath())
 	}
 
 	// Validate if lingering is enabled for current user
-	if Username != "root" && !config.IsLingeringEnabled(Username) {
+	if Username != "root" && !common.IsLingeringEnabled(Username) {
 		fmt.Printf("It is recommended to enable lingering for %s, otherwise Skupper may not start on boot.\n", Username)
 	}
 
@@ -725,9 +730,10 @@ func (s *SiteHandler) removePodmanResources() error {
 	}
 
 	// Removing startup files and service
-	scripts := config.GetStartupScripts(types.PlatformPodman)
+	// TODO REMOVE IT - V1 podman wont work anymore
+	scripts, _ := common.GetStartupScripts(&v1alpha1.Site{}, "")
 	scripts.Remove()
-	systemd := config.NewSystemdServiceInfo(types.PlatformPodman)
+	systemd, _ := common.NewSystemdServiceInfo(&v1alpha1.Site{})
 	if err = systemd.Remove(); err != nil {
 		fmt.Printf("Unable to remove systemd service - %v\n", err)
 	}
