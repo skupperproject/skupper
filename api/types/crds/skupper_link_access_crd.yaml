@@ -24,6 +24,9 @@ spec:
                         type: string
                       port:
                         type: integer
+                host:
+                  description: Hostname or IP address that can be used by the chosen access type
+                  type: string
                 ca:
                   type: string
                 tlsCredentials:

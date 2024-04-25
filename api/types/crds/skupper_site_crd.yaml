@@ -17,7 +17,7 @@ spec:
               properties:
                 serviceAccount:
                   type: string
-                settings:
+                options:
                   type: array
                   items:
                     type: object

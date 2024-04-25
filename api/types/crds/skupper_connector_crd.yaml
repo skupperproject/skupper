@@ -29,6 +29,15 @@ spec:
                   type: string
                 includeNotReady:
                   type: boolean
+                options:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
               required:
               - routingKey
               - port
