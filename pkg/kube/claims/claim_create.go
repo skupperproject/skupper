@@ -73,6 +73,7 @@ func NewClaimFactory(clients kube.Clients, namespace string, siteContext SiteCon
 }
 
 func (m *ClaimFactory) CreateTokenClaim(name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, error) {
+	var expiryStr string
 	options, err := checkOptions(name, password, expiry, uses)
 	if err != nil {
 		return nil, err
@@ -82,11 +83,15 @@ func (m *ClaimFactory) CreateTokenClaim(name string, password []byte, expiry tim
 		return nil, fmt.Errorf("Edge configuration cannot accept connections")
 	}
 
-	claim, err := m.createClaimToken(options.Name, options.Password)
+	if expiry > 0 {
+		expiration := time.Now().Add(expiry)
+		expiryStr = expiration.Format(time.RFC3339)
+	}
+	claim, err := m.createClaimToken(options.Name, options.Password, expiryStr)
 	if err != nil {
 		return nil, err
 	}
-	err = m.createClaimRecord(options.Name, options.Password, options.Expiry, options.Uses)
+	err = m.createClaimRecord(options.Name, options.Password, expiryStr, options.Uses)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +100,7 @@ func (m *ClaimFactory) CreateTokenClaim(name string, password []byte, expiry tim
 }
 
 func (m *ClaimFactory) RecreateTokenClaim(name string) (*corev1.Secret, error) {
+	var expiryStr string
 	secret, err := m.clients.GetKubeClient().CoreV1().Secrets(m.namespace).Get(m.ctx, name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return nil, nil
@@ -104,11 +110,14 @@ func (m *ClaimFactory) RecreateTokenClaim(name string) (*corev1.Secret, error) {
 		return nil, nil
 	}
 	password := secret.Data[types.ClaimPasswordDataKey]
-	token, err := m.createClaimToken(name, password)
+	if secret.ObjectMeta.Annotations[types.ClaimExpiration] != "" {
+		expiryStr = secret.ObjectMeta.Annotations[types.ClaimExpiration]
+	}
+	token, err := m.createClaimToken(name, password, expiryStr)
 	return token, err
 }
 
-func (m *ClaimFactory) createClaimRecord(name string, password []byte, expiry time.Duration, uses int) error {
+func (m *ClaimFactory) createClaimRecord(name string, password []byte, expiry string, uses int) error {
 	record := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -128,9 +137,8 @@ func (m *ClaimFactory) createClaimRecord(name string, password []byte, expiry ti
 		},
 	}
 	record.ObjectMeta.OwnerReferences = m.siteContext.GetOwnerReferences()
-	if expiry > 0 {
-		expiration := time.Now().Add(expiry)
-		record.ObjectMeta.Annotations[types.ClaimExpiration] = expiration.Format(time.RFC3339)
+	if expiry != "" {
+		record.ObjectMeta.Annotations[types.ClaimExpiration] = expiry
 	}
 	if uses > 0 {
 		record.ObjectMeta.Annotations[types.ClaimsRemaining] = strconv.Itoa(uses)
@@ -139,7 +147,7 @@ func (m *ClaimFactory) createClaimRecord(name string, password []byte, expiry ti
 	return err
 }
 
-func (m *ClaimFactory) createClaimToken(name string, password []byte) (*corev1.Secret, error) {
+func (m *ClaimFactory) createClaimToken(name string, password []byte, expiry string) (*corev1.Secret, error) {
 	hostPort, err := m.siteContext.GetHostPortForClaims()
 	if err != nil {
 		return nil, err
@@ -171,6 +179,11 @@ func (m *ClaimFactory) createClaimToken(name string, password []byte) (*corev1.S
 			types.ClaimCaCertDataKey:   caSecret.Data["tls.crt"],
 		},
 	}
+	claim.ObjectMeta.OwnerReferences = m.siteContext.GetOwnerReferences()
+	if expiry != "" {
+		claim.ObjectMeta.Annotations[types.ClaimExpiration] = expiry
+	}
+
 	return &claim, nil
 }
 
