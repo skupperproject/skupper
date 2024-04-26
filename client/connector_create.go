@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/skupperproject/skupper/pkg/domain"
 	domainkube "github.com/skupperproject/skupper/pkg/domain/kube"
@@ -113,6 +114,17 @@ func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, options
 				return nil, fmt.Errorf("Claims not supported. %s", err)
 			}
 		}
+		if expirationStr, ok := secret.ObjectMeta.Annotations[types.ClaimExpiration]; ok {
+			expiration, timeErr := time.Parse(time.RFC3339, expirationStr)
+			if timeErr == nil {
+				if expiration.Before(time.Now()) {
+					fmt.Printf("Warning: token may have expired, expiration time: %s\n", expiration)
+				}
+			} else {
+				fmt.Printf("Warning: cannot parse token expiration %s", timeErr)
+			}
+		}
+
 		secret.ObjectMeta.SetOwnerReferences([]metav1.OwnerReference{
 			kube.GetDeploymentOwnerReference(current),
 		})

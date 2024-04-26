@@ -196,6 +196,13 @@ func TestCreateTokenClaim(t *testing.T) {
 			assert.Equal(t, token.Annotations[types.SiteVersion], ctxt.siteVersion)
 			assert.Equal(t, token.Annotations[types.TokenGeneratedBy], ctxt.siteId)
 			assert.Assert(t, bytes.Equal(token.Data[types.ClaimPasswordDataKey], test.password))
+			// expect claim Expiration if expiry time is configured
+			_, ok := token.Annotations[types.ClaimExpiration]
+			if test.expiration != 0 {
+				assert.Assert(t, ok == true)
+			} else {
+				assert.Assert(t, ok == false)
+			}
 			if test.name != "" {
 				assert.Equal(t, token.Annotations[types.ClaimUrlAnnotationKey], fmt.Sprintf("https://%s:%d/%s", ctxt.claimsHostPort.Host, ctxt.claimsHostPort.Port, test.name))
 			} else {
