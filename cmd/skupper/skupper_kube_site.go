@@ -36,7 +36,7 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 	routerIngressFlag := cmd.Flag("ingress")
 	routerCreateOpts.Platform = s.kube.Platform()
 
-	if !routerIngressFlag.Changed {
+	if !routerIngressFlag.Changed || routerCreateOpts.Ingress == "" {
 		routerCreateOpts.Ingress = cli.GetIngressDefault()
 	}
 	if routerCreateOpts.Ingress == types.IngressNodePortString && routerCreateOpts.IngressHost == "" && routerCreateOpts.Router.IngressHost == "" {
