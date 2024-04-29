@@ -345,22 +345,14 @@ func TestRouterCreateDefaults(t *testing.T) {
 			},
 		})
 
-		expectedClusterRoles := sets.NewString(c.clusterRolesExpected...)
 		clusterRoleInformer := clusterRoleInformerFactory.Rbac().V1().ClusterRoles().Informer()
 		clusterRoleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				clusterRole := obj.(*rbacv1.ClusterRole)
 				if strings.HasPrefix(clusterRole.Name, "skupper") {
-					if isCluster && !expectedClusterRoles.Has(clusterRole.Name) {
-						// A real cluster may have pre-existing clusterroles that would
-						// make this test flaky, so we ignore clusterroles not listed
-						// on the test.
-						fmt.Printf("clusterrole %q ignored due to -use-cluster\n", clusterRole.Name)
-					} else {
-						clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
-						for _, p := range clusterRole.Rules {
-							clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
-						}
+					clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
+					for _, p := range clusterRole.Rules {
+						clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
 					}
 				}
 			},
@@ -463,7 +455,17 @@ func TestRouterCreateDefaults(t *testing.T) {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" roles mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.clusterRolesExpected, clusterRolesFound, c.opts...); diff != "" {
-			t.Errorf("TestRouterCreateDefaults "+c.doc+" cluster roles mismatch (-want +got):\n%s", diff)
+			// On a cluster that's not been created exclusivelly for this test, there may be pre-existing
+			// cluster roles.  For that reason, we only log the differences, and then check specifically
+			// that the cluster roles we expected _are_ present, ignoring any additional cluster roles.
+			t.Logf("TestRouterCreateDefaults "+c.doc+" cluster roles mismatch (-want +got):\n%s", diff)
+			t.Logf("Checking specifically for expected cluster roles")
+			expectedClusterRoles := sets.NewString(c.clusterRolesExpected...)
+			for _, cr := range c.clusterRolesExpected {
+				if !expectedClusterRoles.Has(cr) {
+					t.Errorf("TestRouterCreateDefaults "+c.doc+" expected cluster role not found: %q", cr)
+				}
+			}
 		}
 		if diff := cmp.Diff(c.clusterRoleResources, clusterRolesResourcesFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" cluster roles policy resources mismatch (-want +got):\n%s", diff)
