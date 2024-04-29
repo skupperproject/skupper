@@ -455,15 +455,19 @@ func TestRouterCreateDefaults(t *testing.T) {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" roles mismatch (-want +got):\n%s", diff)
 		}
 		if diff := cmp.Diff(c.clusterRolesExpected, clusterRolesFound, c.opts...); diff != "" {
-			// On a cluster that's not been created exclusivelly for this test, there may be pre-existing
-			// cluster roles.  For that reason, we only log the differences, and then check specifically
-			// that the cluster roles we expected _are_ present, ignoring any additional cluster roles.
-			t.Logf("TestRouterCreateDefaults "+c.doc+" cluster roles mismatch (-want +got):\n%s", diff)
-			t.Logf("Checking specifically for expected cluster roles")
-			expectedClusterRoles := sets.NewString(c.clusterRolesExpected...)
-			for _, cr := range c.clusterRolesExpected {
-				if !expectedClusterRoles.Has(cr) {
-					t.Errorf("TestRouterCreateDefaults "+c.doc+" expected cluster role not found: %q", cr)
+			if !isCluster {
+				t.Errorf("TestRouterCreateDefaults "+c.doc+" cluster roles mismatch (-want +got):\n%s", diff)
+			} else {
+				// On a cluster that's not been created exclusivelly for this test, there may be pre-existing
+				// cluster roles.  For that reason, we only log the differences, and then check specifically
+				// that the cluster roles we expected _are_ present, ignoring any additional cluster roles.
+				t.Logf("TestRouterCreateDefaults "+c.doc+" cluster roles mismatch (-want +got):\n%s", diff)
+				t.Logf("Checking specifically for expected cluster roles, as we're running on a cluster...")
+				expectedClusterRoles := sets.NewString(c.clusterRolesExpected...)
+				for _, cr := range c.clusterRolesExpected {
+					if !expectedClusterRoles.Has(cr) {
+						t.Errorf("TestRouterCreateDefaults "+c.doc+" expected cluster role not found: %q", cr)
+					}
 				}
 			}
 		}
