@@ -26,14 +26,9 @@ spec:
                 type:
                   type: string
                 options:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                      value:
-                        type: string
+                  type: object
+                  additionalProperties:
+                    type: string
               required:
                 - routingKey
                 - host
