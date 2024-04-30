@@ -28,19 +28,18 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 	address3 := "mongo"
 	address4 := "cartservice"
 	protocol := "tcp"
-	counterFlow1 := "flow:0"
 	counterFlow2 := "flow:2"
 	counterFlow4 := "flow:4"
-	flowTrace := "router:0|router:1"
 	processName1 := "checkout-1234"
 	processName2 := "payment-1234"
 	groupName1 := "online-store"
-	listenerProcess := "process:0"
 	connectorProcess1 := "process:1"
 	connectorProcess2 := "process:2"
 	processConnector := "connector:0"
+	sourceHost1 := "11.22.33.44"
 	destHost1 := "10.20.30.40"
 	destHost2 := "host.cloud.com"
+	connectorHost := "0.0.0.0"
 	linkNames := []string{
 		"site1.1",
 		"site2.0",
@@ -158,8 +157,9 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				Parent:    "site:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			Name:      &processName1,
-			GroupName: &groupName1,
+			Name:       &processName1,
+			GroupName:  &groupName1,
+			SourceHost: &sourceHost1,
 		},
 		{
 			Base: Base{
@@ -266,6 +266,10 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			DestHost:  &destHost1,
 		},
 	}
+	// Two very screwy flow pairs
+	//	flow:2/flow:3 a regular tcp flow pair from process:0 -> process:1
+	//  flow:4/flow:5 a L7 flow pair with parents flow:0/flow:1. Also from process:0 -> process:1 with protocol tcp
+	//  un-paired flow:0/flow:1 act as parents for the L7 flow pair. Mostly nonsense, as they reference l4 listeners and connectors
 	flows := []FlowRecord{
 		{
 			Base: Base{
@@ -274,8 +278,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				Parent:    "listener:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			ProcessName: &processName1,
-			Process:     &listenerProcess,
+			SourceHost: &sourceHost1,
 		},
 		{
 			Base: Base{
@@ -284,11 +287,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				Parent:    "connector:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			CounterFlow: &counterFlow1,
-			Trace:       &flowTrace,
-			ProcessName: &processName2,
-			Process:     &connectorProcess1,
-			SourceHost:  &destHost1,
+			SourceHost: &connectorHost,
 		},
 		{
 			Base: Base{
@@ -297,8 +296,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				Parent:    "listener:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			ProcessName: &processName1,
-			Process:     &listenerProcess,
+			SourceHost: &sourceHost1,
 		},
 		{
 			Base: Base{
@@ -307,6 +305,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				Parent:    "connector:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
+			SourceHost:  &connectorHost,
 			CounterFlow: &counterFlow2,
 			ProcessName: &processName2,
 			Process:     &connectorProcess1,
@@ -319,6 +318,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 				EndTime:   uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
+			SourceHost:  &sourceHost1,
 			ProcessName: &processName1,
 		},
 		{
@@ -328,8 +328,6 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				Parent:    "flow:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
-			ProcessName: &processName1,
-			Process:     &listenerProcess,
 		},
 		{
 			Base: Base{
@@ -339,9 +337,6 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
 			CounterFlow: &counterFlow4,
-			ProcessName: &processName2,
-			Trace:       &flowTrace,
-			Process:     &connectorProcess1,
 		},
 	}
 
@@ -385,6 +380,12 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 		err = fc.updateRecord(p)
 		assert.Assert(t, err)
 	}
+	for _, f := range flows {
+		err := fc.updateRecord(f)
+		assert.Assert(t, err)
+		err = fc.updateRecord(f)
+		assert.Assert(t, err)
+	}
 	for _, l := range listeners {
 		err := fc.updateRecord(l)
 		assert.Assert(t, err)
@@ -397,13 +398,6 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 		err = fc.updateRecord(c)
 		assert.Assert(t, err)
 	}
-	for _, f := range flows {
-		err := fc.updateRecord(f)
-		assert.Assert(t, err)
-		err = fc.updateRecord(f)
-		assert.Assert(t, err)
-	}
-
 	for _, s := range sites {
 		id := fc.getRecordSiteId(s)
 		assert.Equal(t, id, s.Identity)
@@ -463,6 +457,9 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 		processGroupId = x
 		break
 	}
+
+	fc.reconcileConnectorRecords()
+	fc.reconcileFlowRecords()
 
 	type test struct {
 		desc         string
@@ -744,7 +741,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{"id": addressId},
 			name:         "flowpairs",
-			responseSize: 3,
+			responseSize: 2,
 		},
 		{
 			desc:         "Get Address listeners",
@@ -812,7 +809,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			method:       "Get",
 			url:          "/",
 			params:       map[string]string{"sortBy": "identity.asc"},
-			vars:         map[string]string{"id": "fp-flow:0"},
+			vars:         map[string]string{"id": "fp-flow:2"},
 			name:         "item",
 			responseSize: 1,
 		},
@@ -968,9 +965,6 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 		},
 	}
 
-	fc.reconcileConnectorRecords()
-	fc.reconcileFlowRecords()
-
 	var payload Payload
 	for _, test := range testTable {
 		req, _ := http.NewRequest(test.method, test.url, nil)
@@ -985,6 +979,10 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 		err = json.Unmarshal([]byte(*resp), &payload)
 		assert.Assert(t, err)
 		assert.Equal(t, test.responseSize, payload.Count, test.desc)
+	}
+
+	for _, flow := range fc.Flows {
+		assert.DeepEqual(t, flow.Protocol, &protocol)
 	}
 
 	endTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)

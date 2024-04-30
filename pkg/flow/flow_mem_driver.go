@@ -2369,6 +2369,7 @@ func (fc *FlowCollector) reconcileFlowRecords() error {
 			if flow.SourceHost != nil {
 				if connector, ok := fc.Connectors[flow.Parent]; ok {
 					flow.Place = serverSide
+					flow.Protocol = connector.Protocol
 					if connector.ProcessId != nil && connector.AddressId != nil {
 						flow.Process = connector.ProcessId
 						if process, ok := fc.Processes[*flow.Process]; ok {
@@ -2382,6 +2383,7 @@ func (fc *FlowCollector) reconcileFlowRecords() error {
 					}
 				} else if listener, ok := fc.Listeners[flow.Parent]; ok {
 					flow.Place = clientSide
+					flow.Protocol = listener.Protocol
 					if listener.AddressId != nil {
 						found := false
 						for _, process := range fc.Processes {
@@ -2405,6 +2407,7 @@ func (fc *FlowCollector) reconcileFlowRecords() error {
 				if l4Flow.Process != nil {
 					flow.Process = l4Flow.Process
 					flow.ProcessName = l4Flow.ProcessName
+					flow.Protocol = fc.getFlowProtocol(l4Flow)
 					delete(fc.flowsToProcessReconcile, flowId)
 				}
 			}
