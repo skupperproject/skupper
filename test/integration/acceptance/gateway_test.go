@@ -37,9 +37,9 @@ func TestGateway(t *testing.T) {
 		t.Errorf("error deploying gateway resources before creating the skupper network")
 	}
 	defer gateway.TearDown(testRunner)
-	t.Run("local-gateway-service", testLocalGatewayService)
 	t.Run("local-gateway-docker", testLocalGatewayDocker)
 	t.Run("local-gateway-podman", testLocalGatewayPodman)
+	t.Run("local-gateway-service", testLocalGatewayService)
 }
 
 // testLocalGateway uses localhost to run a TCP Echo server
