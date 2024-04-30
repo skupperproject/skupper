@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-    docker: circleci/docker@1.0.1
+    docker: circleci/docker@2.6.0
     kube-orb: circleci/kubernetes@0.11.0
     go: circleci/go@1.7.1
 
@@ -15,6 +15,8 @@ executors:
     machine:
       image: ubuntu-2204:2022.10.2
     resource_class: large
+    environment:
+      CGO_ENABLED: 0
 
   local_cluster_policy_test_executor:
     machine:
@@ -479,7 +481,7 @@ jobs:
     steps:
       - docker/install-docker
       - checkout
-      - run: docker buildx create --use --name skupper-buildx
+      - run: docker buildx create --use --name skupper-buildx --bootstrap
       - run: make -e docker-build
       - run:
           name: persisting images to workspace
@@ -646,10 +648,11 @@ jobs:
 
   publish-github-release-images:
     executor:
-      name: go_cimg
+      name: local_cluster_test_executor
     steps:
       - checkout
-      - setup_remote_docker
+      - docker/install-docker:
+          version: "v26.0.1"
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run:
           name:
@@ -661,16 +664,17 @@ jobs:
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
-            docker buildx create --use --name skupper-buildx
+            docker buildx create --use --name skupper-buildx --bootstrap
             make -e docker-build
             make -e docker-push
 
   publish-github-main-images:
     executor:
-      name: go_cimg
+      name: local_cluster_test_executor
     steps:
       - checkout
-      - setup_remote_docker
+      - docker/install-docker:
+          version: "v26.0.1"
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run:
           name: "Publishing main images"
@@ -682,7 +686,7 @@ jobs:
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:main' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:main' >> $BASH_ENV
             source $BASH_ENV
-            docker buildx create --use --name skupper-buildx
+            docker buildx create --use --name skupper-buildx --bootstrap
             make -e docker-build
             make -e docker-push
 
