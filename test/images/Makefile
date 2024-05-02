@@ -79,7 +79,7 @@ SKOPEO = skopeo
 # The options below create or transform the images into the docker format.
 # That is required for their use with Openshift 3.11
 FORMAT_OPTIONS = --format docker
-TRANSFORM_OPTIONS = --format v2s1
+TRANSFORM_OPTIONS = --format v2s2
 
 # Repositories
 MAIN_REPO = quay.io/skupper
