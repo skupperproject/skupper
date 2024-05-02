@@ -156,14 +156,12 @@ func testServices(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		defer cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Delete(context.TODO(), job.Name, v12.DeleteOptions{})
+
 		_, err = k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, name, time.Minute)
 		if err != nil {
 			_, _ = cluster.KubectlExec("logs job/" + name)
 			testRunner.DumpTestInfo(name)
-			return err
-		}
-		err = cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Delete(context.TODO(), job.Name, v12.DeleteOptions{})
-		if err != nil {
 			return err
 		}
 		return nil
