@@ -161,6 +161,9 @@ func GetConfigHome() string {
 }
 
 func GetRuntimeDir() string {
+	if os.Getuid() == 0 {
+		return "/run"
+	}
 	runtimeDir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
 	if !ok {
 		runtimeDir = fmt.Sprintf("/run/user/%d", os.Getuid())
