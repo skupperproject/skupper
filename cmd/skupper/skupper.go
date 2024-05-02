@@ -1026,12 +1026,27 @@ func addCommands(skupperCli SkupperClient, rootCmd *cobra.Command, cmds ...*cobr
 	}
 }
 
+func parsePlatformFlagOnly(args []string) {
+	// This function is called when not every supported command flag is defined yet
+	for i, p := range args {
+		if p == "--platform" && i < len(args)-1 {
+			config.Platform = args[i+1]
+			break
+		} else if strings.HasPrefix(p, "--platform=") {
+			_, v, _ := strings.Cut(p, "=")
+			config.Platform = v
+			break
+		}
+	}
+}
+
 func init() {
 	rootCmd = &cobra.Command{Use: "skupper"}
 	routev1.AddToScheme(scheme.Scheme)
 
 	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "", "", "The platform type to use [kubernetes, podman]")
-	rootCmd.ParseFlags(os.Args)
+	// Only the "platform" flag is defined at this point so it is unsafe to call rootCmd.ParseFlags(os.Args) here
+	parsePlatformFlagOnly(os.Args)
 
 	var skupperCli SkupperClient
 	switch config.GetPlatform() {
