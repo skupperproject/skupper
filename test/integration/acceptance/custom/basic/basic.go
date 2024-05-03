@@ -160,10 +160,22 @@ func (r *BasicTestRunner) Delete(ctx context.Context, t *testing.T) {
 			return len(pods) == 0, nil
 		})
 	}
+	waitNoServices := func(componentSelector string, cluster *base.ClusterContext) error {
+		return utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
+			options := v1.ListOptions{LabelSelector: componentSelector}
+			podList, err := cluster.VanClient.KubeClient.CoreV1().Pods(cluster.Namespace).List(context.TODO(), options)
+			if err != nil {
+				return false, err
+			}
+			return len(podList.Items) == 0, nil
+		})
+	}
 	assert.Assert(t, waitNoPods("skupper.io/component=service-controller", pub1Cluster))
 	assert.Assert(t, waitNoPods("skupper.io/component=router", pub1Cluster))
 	assert.Assert(t, waitNoPods("skupper.io/component=service-controller", prv1Cluster))
 	assert.Assert(t, waitNoPods("skupper.io/component=router", prv1Cluster))
+	assert.Assert(t, waitNoServices("app.kubernetes.io/part-of=skupper", prv1Cluster))
+	assert.Assert(t, waitNoServices("app.kubernetes.io/part-of=skupper", pub1Cluster))
 }
 
 func (r *BasicTestRunner) TearDown(ctx context.Context) {
