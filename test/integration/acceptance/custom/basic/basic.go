@@ -3,8 +3,10 @@ package basic
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +37,12 @@ func (r *BasicTestRunner) RunTests(ctx context.Context, t *testing.T) {
 
 	prvCluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
+
+	defer func() {
+		if t.Failed() {
+			r.DumpTestInfo(fmt.Sprintf("%s", strings.ReplaceAll(t.Name(), "/", "-")))
+		}
+	}()
 
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, pubCluster, 1))
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, prvCluster, 1))
