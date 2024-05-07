@@ -1,0 +1,21 @@
+FROM golang:1.22 AS builder
+WORKDIR /go/src/app
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . .
+RUN go build .
+
+FROM registry.access.redhat.com/ubi9-minimal
+
+# Create user and group and switch to user's context
+RUN microdnf -y install shadow-utils \
+&& microdnf clean all
+RUN useradd --uid 10000 runner
+USER 10000
+
+WORKDIR /app
+COPY --from=builder /go/src/app/skupper-kiali-bridge .
+ENTRYPOINT ["/app/skupper-kiali-bridge"]
