@@ -178,12 +178,21 @@ func (r *BasicTestRunner) Delete(ctx context.Context, t *testing.T) {
 			return len(podList.Items) == 0, nil
 		})
 	}
-	assert.Assert(t, waitNoPods("skupper.io/component=service-controller", pub1Cluster))
-	assert.Assert(t, waitNoPods("skupper.io/component=router", pub1Cluster))
-	assert.Assert(t, waitNoPods("skupper.io/component=service-controller", prv1Cluster))
-	assert.Assert(t, waitNoPods("skupper.io/component=router", prv1Cluster))
-	assert.Assert(t, waitNoServices("app.kubernetes.io/part-of=skupper", prv1Cluster))
-	assert.Assert(t, waitNoServices("app.kubernetes.io/part-of=skupper", pub1Cluster))
+
+	// Do not assert those as they come; the reason we're waiting on the
+	// pods to be gone is to make sure the clean-up is properly done before
+	// the next test; we do not want to end that waiting prematurely, lest
+	// we might cause unnecessary failures on the following tests.
+	errs := []error{}
+	errs = append(errs, waitNoPods("skupper.io/component=service-controller", pub1Cluster))
+	errs = append(errs, waitNoPods("skupper.io/component=router", pub1Cluster))
+	errs = append(errs, waitNoPods("skupper.io/component=service-controller", prv1Cluster))
+	errs = append(errs, waitNoPods("skupper.io/component=router", prv1Cluster))
+	errs = append(errs, waitNoServices("app.kubernetes.io/part-of=skupper", prv1Cluster))
+	errs = append(errs, waitNoServices("app.kubernetes.io/part-of=skupper", pub1Cluster))
+	for _, err := range errs {
+		assert.Assert(t, err)
+	}
 }
 
 func (r *BasicTestRunner) TearDown(ctx context.Context) {
