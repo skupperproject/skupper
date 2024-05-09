@@ -60,21 +60,21 @@ func (s *systemdServiceInfo) Create() error {
 	}
 
 	// Enabling systemd user service
-	cmd := exec.Command("systemctl", "--user", "enable", serviceName)
+	cmd := GetCmdEnableSystemdService(serviceName)
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("Unable to enable user service: %w", err)
 	}
 
 	// Reloading systemd user daemon
-	cmd = exec.Command("systemctl", "--user", "daemon-reload")
+	cmd = GetCmdReloadSystemdDaemon()
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("Unable to user service daemon-reload: %w", err)
 	}
 
 	// Starting systemd user service
-	cmd = exec.Command("systemctl", "--user", "start", serviceName)
+	cmd = GetCmdStartSystemdService(serviceName)
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("Unable to start user service: %w", err)
@@ -84,6 +84,9 @@ func (s *systemdServiceInfo) Create() error {
 }
 
 func (s *systemdServiceInfo) getServiceFile() string {
+	if os.Getuid() == 0 {
+		return path.Join("/etc/systemd/system", s.getServiceName())
+	}
 	return path.Join(GetConfigHome(), "systemd/user", s.getServiceName())
 }
 
@@ -98,29 +101,78 @@ func (s *systemdServiceInfo) Remove() error {
 
 	// Stopping systemd user service
 	serviceName := "skupper-" + string(s.Platform) + ".service"
-	cmd := exec.Command("systemctl", "--user", "stop", serviceName)
+	cmd := GetCmdStopSystemdService(serviceName)
 	_ = cmd.Run()
 
 	// Disabling systemd user service
-	cmd = exec.Command("systemctl", "--user", "disable", serviceName)
+	cmd = GetCmdDisableSystemdService(serviceName)
 	_ = cmd.Run()
 
 	// Removing the .service file
 	_ = os.Remove(s.getServiceFile())
 
 	// Reloading systemd user daemon
-	cmd = exec.Command("systemctl", "--user", "daemon-reload")
+	cmd = GetCmdReloadSystemdDaemon()
 	_ = cmd.Run()
 
 	// Resetting failed status
-	cmd = exec.Command("systemctl", "--user", "reset-failed", serviceName)
+	cmd = GetCmdResetFailedSystemService(serviceName)
 	_ = cmd.Run()
 
 	return nil
 }
 
+func GetCmdEnableSystemdService(serviceName string) *exec.Cmd {
+	if os.Getuid() == 0 {
+		return exec.Command("systemctl", "enable", serviceName)
+	}
+	return exec.Command("systemctl", "--user", "enable", serviceName)
+}
+
+func GetCmdDisableSystemdService(serviceName string) *exec.Cmd {
+	if os.Getuid() == 0 {
+		return exec.Command("systemctl", "disable", serviceName)
+	}
+	return exec.Command("systemctl", "--user", "disable", serviceName)
+}
+
+func GetCmdReloadSystemdDaemon() *exec.Cmd {
+	if os.Getuid() == 0 {
+		return exec.Command("systemctl", "daemon-reload")
+	}
+	return exec.Command("systemctl", "--user", "daemon-reload")
+}
+
+func GetCmdStartSystemdService(serviceName string) *exec.Cmd {
+	if os.Getuid() == 0 {
+		return exec.Command("systemctl", "start", serviceName)
+	}
+	return exec.Command("systemctl", "--user", "start", serviceName)
+}
+
+func GetCmdStopSystemdService(serviceName string) *exec.Cmd {
+	if os.Getuid() == 0 {
+		return exec.Command("systemctl", "stop", serviceName)
+	}
+	return exec.Command("systemctl", "--user", "stop", serviceName)
+}
+
+func GetCmdResetFailedSystemService(serviceName string) *exec.Cmd {
+	if os.Getuid() == 0 {
+		return exec.Command("systemctl", "reset-failed", serviceName)
+	}
+	return exec.Command("systemctl", "--user", "reset-failed", serviceName)
+}
+
+func GetCmdIsSystemdEnabled() *exec.Cmd {
+	if os.Getuid() == 0 {
+		return exec.Command("systemctl", []string{"list-units", "--no-pager"}...)
+	}
+	return exec.Command("systemctl", []string{"--user", "list-units", "--no-pager"}...)
+}
+
 func IsSystemdUserEnabled() bool {
-	cmd := exec.Command("systemctl", []string{"--user", "list-units", "--no-pager"}...)
+	cmd := GetCmdIsSystemdEnabled()
 	if err := cmd.Run(); err != nil {
 		return false
 	}
