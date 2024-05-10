@@ -54,6 +54,20 @@ func NewTokenGenerator(namespace string, clients kube.Clients) (*TokenGenerator,
 	return generator, nil
 }
 
+func NewTokenGeneratorForSite(site *skupperv1alpha1.Site, clients kube.Clients) (*TokenGenerator, error) {
+	generator := &TokenGenerator{
+		namespace: site.Namespace,
+		clients:   clients,
+	}
+	if err := generator.loadCA(); err != nil {
+		return nil, err
+	}
+	if err := generator.setValidHostsFromSite(site); err != nil {
+		return nil, err
+	}
+	return generator, nil
+}
+
 func (g *TokenGenerator) loadCA() error {
 	ca, err := g.clients.GetKubeClient().CoreV1().Secrets(g.namespace).Get(context.TODO(), "skupper-site-ca", metav1.GetOptions{})
 	if err != nil {
@@ -97,6 +111,10 @@ func (g *TokenGenerator) loadValidHosts() error {
 	if err != nil {
 		return err
 	}
+	return g.setValidHostsFromSite(site)
+}
+
+func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) error {
 	//TODO: if site is edge site, then return an error as it
 	//cannot issue certificates
 	var hosts []string
