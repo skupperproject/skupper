@@ -882,6 +882,10 @@ func (s *Site) CheckLinkAccess(name string, la *skupperv1alpha1.LinkAccess) erro
 	return nil
 }
 
+func (s *Site) GetSite() *skupperv1alpha1.Site {
+	return s.site
+}
+
 type TargetSelection struct {
 	watcher         *kube.PodWatcher
 	stopCh          chan struct{}

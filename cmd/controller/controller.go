@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube/claims"
 	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/kube/site"
+	"github.com/skupperproject/skupper/pkg/kube/tokens"
 )
 
 type Controller struct {
@@ -36,7 +38,7 @@ type Controller struct {
 	linkAccessWatcher    *kube.LinkAccessWatcher
 	grantWatcher         *kube.GrantWatcher
 	sites                map[string]*site.Site
-	grants               *claims.Grants
+	grants               claims.GrantManager
 	accessMgr            *securedaccess.SecuredAccessManager
 	accessRecovery       AccessRecovery
 	certMgr              *certificates.CertificateManagerImpl
@@ -104,11 +106,12 @@ func dynamicSecuredAccess() dynamicinformer.TweakListOptionsFunc {
 	return dynamicWatcherOptions("internal.skupper.io/secured-access")
 }
 
-func NewController(cli kube.Clients, watchNamespace string, grantConfig string) (*Controller, error) {
+func NewController(cli kube.Clients, watchNamespace string) (*Controller, error) {
 	controller := &Controller{
 		controller:      kube.NewController("Controller", cli),
 		sites:           map[string]*site.Site{},
 	}
+
 	controller.siteWatcher = controller.controller.WatchSites(watchNamespace, controller.checkSite)
 	controller.listenerWatcher = controller.controller.WatchListeners(watchNamespace, controller.checkListener)
 	controller.connectorWatcher = controller.controller.WatchConnectors(watchNamespace, controller.checkConnector)
@@ -127,10 +130,8 @@ func NewController(cli kube.Clients, watchNamespace string, grantConfig string) 
 	controller.accessRecovery.routeWatcher = controller.controller.WatchRoutes(routeSecuredAccess(), watchNamespace, controller.checkSecuredAccessRoute)
 	controller.accessRecovery.httpProxyWatcher = controller.controller.WatchContourHttpProxies(dynamicSecuredAccess(), watchNamespace, controller.checkSecuredAccessHttpProxy)
 
-	if grantConfig != "" {
-		controller.grants = claims.NewGrants(controller.controller, nil, nil)
-		controller.grantWatcher = controller.controller.WatchGrants(watchNamespace, controller.checkGrant)
-	}
+	controller.grants = claims.NewGrantManager(controller.controller, claims.GrantConfigFromEnv(), controller.generateLinkConfig)
+	controller.grantWatcher = controller.controller.WatchGrants(watchNamespace, controller.grants.GrantChanged)
 
 	return controller, nil
 }
@@ -168,17 +169,12 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 		site := c.getSite(la.ObjectMeta.Namespace)
 		site.CheckLinkAccess(la.ObjectMeta.Name, la)
 	}
+	for _, grant := range c.grantWatcher.List() {
+		c.grants.GrantChanged(fmt.Sprintf("%s/%s", grant.Namespace, grant.Name), grant)
+	}
 	c.certMgr.Recover()
 	c.accessRecovery.recoverAll(c.accessMgr)
-	if c.grants != nil {
-		//TODO: process all grants before starting to listen for incoming claims
-		for _, grant := range c.grantWatcher.List() {
-			key := fmt.Sprintf("%s/%s", grant.Namespace, grant.Name)
-			c.checkGrant(key, grant)
-		}
-		//TODO: listen for incoming claims
-		c.grants.Listen()
-	}
+	c.grants.Start()
 
 	log.Println("Starting event loop")
 	c.controller.Start(stopCh)
@@ -257,18 +253,27 @@ func (c *Controller) checkSecuredAccessHttpProxy(key string, o *unstructured.Uns
 }
 
 func (c *Controller) checkClaim(key string, claim *skupperv1alpha1.Claim) error {
-	//TODO
-	return nil
-}
-
-func (c *Controller) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
-	if c.grants == nil {
+	if claim == nil || claim.Status.Claimed {
 		return nil
 	}
-	if grant == nil {
-		return c.grants.GrantDeleted(key)
+	site := c.getSite(claim.Namespace).GetSite()
+	if site == nil {
+		return nil
 	}
-	return c.grants.GrantChanged(key, grant)
+	return claims.RedeemClaim(claim, site, c.controller)
+}
+
+func (c *Controller) generateLinkConfig(namespace string, name string, writer io.Writer) error {
+	site := c.getSite(namespace).GetSite()
+	if site == nil {
+		return fmt.Errorf("Site not yet defined for %s", namespace)
+	}
+	generator, err := tokens.NewTokenGeneratorForSite(site, c.controller)
+	if err != nil {
+		return err
+	}
+	token := generator.NewCertToken(name)
+	return token.Write(writer)
 }
 
 func (c *Controller) checkSecuredAccess(key string, se *skupperv1alpha1.SecuredAccess) error {
@@ -276,6 +281,7 @@ func (c *Controller) checkSecuredAccess(key string, se *skupperv1alpha1.SecuredA
 		return c.accessMgr.SecuredAccessDeleted(key)
 	}
 	c.getSite(se.ObjectMeta.Namespace).CheckSecuredAccess(se)
+	c.grants.SecuredAccessChanged(key, se)
 	return c.accessMgr.SecuredAccessChanged(key, se)
 }
 

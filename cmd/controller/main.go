@@ -69,8 +69,7 @@ func main() {
 	}
 	log.Printf("Version: %s", version.Version)
 
-	grantConfig := os.Getenv("GRANT_CONFIG")
-	controller, err := NewController(cli, watchNamespace, grantConfig)
+	controller, err := NewController(cli, watchNamespace)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
 	}

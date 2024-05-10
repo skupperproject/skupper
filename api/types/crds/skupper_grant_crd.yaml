@@ -28,7 +28,7 @@ spec:
                 url:
                   type: string
                 secret:
-                  type: integer
+                  type: string
                 ca:
                   type: string
                 claimed:

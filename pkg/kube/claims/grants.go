@@ -10,69 +10,88 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/util/retry"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
+type GrantResponse func(namespace string, name string, writer io.Writer) error
+
 type Grants struct {
 	clients     kube.Clients
-	generator   TokenGenerator
-	siteChecker SiteChecker
+	generator   GrantResponse
+	url         string
+	ca          string
 	grants      map[kubetypes.UID]*skupperv1alpha1.Grant
 	grantIndex  map[string]kubetypes.UID
-	ca          string
-	url         string
-	addr        string
-	cert        string
-	key         string
 	lock        sync.Mutex
 }
 
-func NewGrants(clients kube.Clients, generator TokenGenerator, siteChecker SiteChecker) *Grants {
+func newGrants(clients kube.Clients, generator GrantResponse, url string) *Grants {
 	return &Grants{
 		clients:     clients,
 		generator:   generator,
-		siteChecker: siteChecker,
+		url:         url,
 		grants:      map[kubetypes.UID]*skupperv1alpha1.Grant{},
 		grantIndex:  map[string]kubetypes.UID{},
 	}
 }
 
-func (server *Grants) GrantDeleted(key string) error {
-	server.lock.Lock()
-	defer server.lock.Unlock()
-	if uid, ok := server.grantIndex[key]; ok {
-		delete(server.grantIndex, key)
-		delete(server.grants, uid)
+func (g *Grants) record(key string, grant *skupperv1alpha1.Grant) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	if uid, ok := g.grantIndex[key]; ok && uid != grant.ObjectMeta.UID {
+		delete(g.grants, uid)
+	}
+	g.grantIndex[key] = grant.ObjectMeta.UID
+	g.grants[grant.ObjectMeta.UID] = grant
+}
+
+func (g *Grants) remove(key string) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	if uid, ok := g.grantIndex[key]; ok {
+		delete(g.grantIndex, key)
+		delete(g.grants, uid)
+	}
+}
+
+func (g *Grants) put(grant *skupperv1alpha1.Grant) error {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	g.grants[grant.ObjectMeta.UID] = grant
+	return nil
+}
+
+func (g *Grants) get(key string) *skupperv1alpha1.Grant {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+
+	if grant, ok := g.grants[kubetypes.UID(key)]; ok {
+		return grant
 	}
 	return nil
 }
 
-func (server *Grants) GrantChanged(key string, grant *skupperv1alpha1.Grant) error {
-	server.lock.Lock()
-	defer server.lock.Unlock()
-	if uid, ok := server.grantIndex[key]; ok && uid != grant.ObjectMeta.UID {
-		delete(server.grants, uid)
+func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
+	if grant == nil {
+		g.remove(key)
+		return nil
 	}
-	server.grantIndex[key] = grant.ObjectMeta.UID
-	server.grants[grant.ObjectMeta.UID] = grant
+	g.record(key, grant)
 	changed := false
 	var status []string
-	//TODO: Url and Ca come from configuration
-	if grant.Status.Url != server.url {
-		grant.Status.Url = server.url
+	if g.url == "" {
+		status = append(status, "Url pending")
+	} else if grant.Status.Url != g.url {
+		grant.Status.Url = g.url
 		changed = true
 	}
-	if grant.Status.Ca != server.ca {
-		grant.Status.Ca = server.ca
+	if grant.Status.Ca != g.ca {
+		grant.Status.Ca = g.ca
 		changed = true
 	}
 
@@ -111,127 +130,95 @@ func (server *Grants) GrantChanged(key string, grant *skupperv1alpha1.Grant) err
 	if !changed {
 		return nil
 	}
-	return server.updateGrantStatus(grant)
+	return g.updateGrantStatus(grant)
 }
 
-func (server *Grants) updateGrantStatus(grant *skupperv1alpha1.Grant) error {
-	updated, err := server.clients.GetSkupperClient().SkupperV1alpha1().Grants(grant.ObjectMeta.Namespace).UpdateStatus(context.TODO(), grant, metav1.UpdateOptions{})
+func (g *Grants) updateGrantStatus(grant *skupperv1alpha1.Grant) error {
+	updated, err := g.clients.GetSkupperClient().SkupperV1alpha1().Grants(grant.ObjectMeta.Namespace).UpdateStatus(context.TODO(), grant, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	server.grants[grant.ObjectMeta.UID] = updated
+	g.put(updated)
 	return nil
 }
 
-func (server *Grants) checkAndUpdateClaim(key string, data []byte) (string, int) {
+func (g *Grants) checkAndUpdateClaim(key string, data []byte) (*skupperv1alpha1.Grant, *HttpError) {
 	log.Printf("Checking claim for %s", key)
-
-	server.lock.Lock()
-	defer server.lock.Unlock()
-
-	grant, ok := server.grants[kubetypes.UID(key)]
-	if !ok {
-		return "No such claim", http.StatusNotFound
+	grant := g.get(key)
+	if grant == nil {
+		return nil, httpError("No such claim", http.StatusNotFound)
 	}
+
 	expiration, err := time.Parse(time.RFC3339, grant.Status.Expiration)
 	if err != nil {
 		log.Printf("Cannot determine expiration for %s/%s: %s", grant.Namespace, grant.Name, err)
-		return "Corrupted claim", http.StatusInternalServerError
-	} else if expiration.Before(time.Now()) {
+		return nil, httpError("Corrupted claim", http.StatusInternalServerError)
+	}
+	if expiration.Before(time.Now()) {
 		log.Printf("Grant %s/%s expired", grant.Namespace, grant.Name)
-		return "No such claim", http.StatusNotFound
+		return nil, httpError("No such claim", http.StatusNotFound)
 	}
 	if grant.Spec.Claims <= grant.Status.Claimed {
 		log.Printf("Grant %s/%s already claimed", grant.Namespace, grant.Name)
-		return "No such claim", http.StatusNotFound
+		return nil, httpError("No such claim", http.StatusNotFound)
 	}
 	if grant.Status.Secret != string(data) {
-		return "Claim refused", http.StatusForbidden
+		return nil, httpError("Claim refused", http.StatusForbidden)
 	}
 	grant.Status.Claimed += 1
-	err = server.updateGrantStatus(grant)
+	err = g.updateGrantStatus(grant)
 	if err != nil {
 		log.Printf("Error updating grant %s/%s: %s", grant.Namespace, grant.Name, err)
-		return "Internal error", http.StatusServiceUnavailable
+		return nil, httpError("Internal error", http.StatusServiceUnavailable)
 	}
-	return "ok", http.StatusOK
+	return grant, nil
 }
 
-func (server *Grants) redeemClaim(name string, subject string, data []byte, generator TokenGenerator) (*corev1.Secret, string, int) {
-	text := ""
-	code := http.StatusServiceUnavailable
-	backoff := retry.DefaultRetry
-	for i := 0; i < 5 && code == http.StatusServiceUnavailable; i++ {
-		if i > 0 {
-			time.Sleep(backoff.Step())
-		}
-		text, code = server.checkAndUpdateClaim(name, data)
-	}
-	if code != http.StatusOK {
-		log.Printf("failed to check and update claim record: %s", text)
-		return nil, text, code
-	}
-	token, _, err := generator.ConnectorTokenCreate(context.TODO(), subject, "")
-	if err != nil {
-		log.Printf("Failed to create token: %s", err.Error())
-		return nil, err.Error(), http.StatusInternalServerError
-	}
-	return token, "ok", http.StatusOK
-
-}
-
-func (server *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		log.Printf("Bad method %s", r.Method)
+		log.Printf("Bad method %s for path %s", r.Method, r.URL.Path)
 		http.Error(w, "Only POST is supported", http.StatusMethodNotAllowed)
 		return
 	}
-	name := strings.Join(strings.Split(r.URL.Path, "/"), "")
+	key := strings.Join(strings.Split(r.URL.Path, "/"), "")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading body: %s", err.Error())
+		log.Printf("Error reading body for path %s: %s", r.URL.Path, err.Error())
 		http.Error(w, "Request body not valid", http.StatusBadRequest)
 		return
 	}
-	subject := r.Header.Get("skupper-site-name")
-	if subject == "" {
-		log.Printf("No site name specified, using claim name")
-		subject = name
-	}
-	remoteSiteVersion := r.URL.Query().Get("site-version")
-	if err = server.siteChecker.VerifySiteCompatibility(remoteSiteVersion); err != nil {
-		if remoteSiteVersion == "" {
-			remoteSiteVersion = "undefined"
-		}
-		log.Printf("%s - remote site version is %s", err.Error(), remoteSiteVersion)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+
+	grant, e := g.checkAndUpdateClaim(key, body)
+	if e != nil {
+		e.write(w)
 		return
 	}
-	token, text, code := server.redeemClaim(name, subject, body, server.generator)
-	if token == nil {
-		log.Printf("Claim request for %s failed: %s", name, text)
-		http.Error(w, text, code)
-		return
+
+	name := r.Header.Get("name")
+	if name == "" {
+		log.Printf("No name specified when redeeming claim for %s/%s, using grant name", grant.Namespace, grant.Name)
+		name = grant.Name
 	}
-	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-	err = s.Encode(token, w)
-	if err != nil {
-		log.Printf("Error encoding token: %s", err.Error())
+	if err := g.generator(grant.Namespace, name, w); err != nil {
+		log.Printf("Failed to create token for %s/%s: %s", grant.Namespace, grant.Name, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Printf("Claim for %s succeeded", name)
+	log.Printf("Claim for %s/%s succeeded", grant.Namespace, grant.Name)
 }
 
-func (server *Grants) Listen() {
-	go server.listen()
+type HttpError struct {
+	text string
+	code int
 }
 
-func (server *Grants) listen() {
-	err := http.ListenAndServeTLS(server.addr, server.cert, server.key, server)
-	if err != nil {
-		log.Printf("Claim verifier failed to start on %s: %s", server.addr, err)
-	} else {
-		log.Printf("Claim verifier listening on %s", server.addr)
+func (e *HttpError) write(w http.ResponseWriter) {
+	http.Error(w, e.text, e.code)
+}
+
+func httpError(text string, code int) *HttpError {
+	return &HttpError{
+		text: text,
+		code: code,
 	}
 }
