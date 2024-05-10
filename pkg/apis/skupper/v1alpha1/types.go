@@ -395,7 +395,7 @@ type LinkAccessSpec struct {
 	TlsCredentials          string            `json:"tlsCredentials"`
 	Ca                      string            `json:"ca"`
 	Options                 map[string]string `json:"options,omitempty"`
-	BindHosts               []string          `json:"bindHosts,omitempty"`
+	BindHost                string            `json:"bindHost,omitempty"`
 	SubjectAlternativeNames []string          `json:"subjectAlternativeNames,omitempty"`
 }
 

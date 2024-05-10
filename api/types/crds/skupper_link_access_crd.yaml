@@ -28,10 +28,8 @@ spec:
                   type: string
                 tlsCredentials:
                   type: string
-                bindHosts:
-                  type: array
-                  items:
-                    type: string
+                bindHost:
+                  type: string
                 subjectAlternativeNames:
                   type: array
                   items:
