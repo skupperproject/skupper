@@ -42,7 +42,7 @@ type SkupperClusterPolicySpec struct {
 type Site struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          SiteSpec `json:"spec,omitempty"`
+	Spec          SiteSpec   `json:"spec,omitempty"`
 	Status        SiteStatus `json:"status,omitempty"`
 }
 
@@ -56,17 +56,17 @@ type SiteList struct {
 }
 
 type SiteSpec struct {
-	ServiceAccount string `json:"serviceAccount,omitempty"`
+	ServiceAccount string            `json:"serviceAccount,omitempty"`
 	Settings       map[string]string `json:"settings,omitempty"`
 }
 
 type Status struct {
-	Active        bool `json:"active"`
-	StatusMessage string  `json:"status,omitempty"`
+	Active        bool   `json:"active"`
+	StatusMessage string `json:"status,omitempty"`
 }
 
 type SiteStatus struct {
-	Status                         `json:",inline"`
+	Status            `json:",inline"`
 	Endpoints         []Endpoint   `json:"endpoints,omitempty"`
 	SitesInNetwork    int          `json:"sitesInNetwork,omitempty"`
 	ServicesInNetwork int          `json:"servicesInNetwork,omitempty"`
@@ -74,9 +74,9 @@ type SiteStatus struct {
 }
 
 type Endpoint struct {
-	Name  string `json:"name,omitempty"`
-	Host  string `json:"host,omitempty"`
-	Port  string `json:"port,omitempty"`
+	Name string `json:"name,omitempty"`
+	Host string `json:"host,omitempty"`
+	Port string `json:"port,omitempty"`
 }
 
 type SiteRecord struct {
@@ -90,9 +90,9 @@ type SiteRecord struct {
 }
 
 type ServiceRecord struct {
-	RoutingKey  string   `json:"routingKey"`
-	Connectors  []string `json:"connectors"`
-	Listeners   []string `json:"listeners"`
+	RoutingKey string   `json:"routingKey"`
+	Connectors []string `json:"connectors"`
+	Listeners  []string `json:"listeners"`
 }
 
 // +genclient
@@ -123,9 +123,10 @@ type ListenerSpec struct {
 }
 
 type ServicePort struct {
-	Name    string `json:"name"`
-	Port    int    `json:"port"`
+	Name string `json:"name"`
+	Port int    `json:"port"`
 }
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -146,21 +147,21 @@ type ConnectorList struct {
 }
 
 type ConnectorSpec struct {
-	RoutingKey      string  `json:"routingKey"`
-	Host            string  `json:"host,omitempty"`
-	Selector        string  `json:"selector,omitempty"`
-	Port            int     `json:"port"`
-	TlsCredentials  string  `json:"tlsCredentials,omitempty"`
-	Type            string  `json:"type,omitempty"`
-	IncludeNotReady bool    `json:"includeNotReady,omitempty"`
+	RoutingKey      string `json:"routingKey"`
+	Host            string `json:"host,omitempty"`
+	Selector        string `json:"selector,omitempty"`
+	Port            int    `json:"port"`
+	TlsCredentials  string `json:"tlsCredentials,omitempty"`
+	Type            string `json:"type,omitempty"`
+	IncludeNotReady bool   `json:"includeNotReady,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type Link struct {
-	v1.TypeMeta                    `json:",inline"`
-	v1.ObjectMeta                  `json:"metadata,omitempty"`
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          LinkSpec   `json:"spec,omitempty"`
 	Status        LinkStatus `json:"status,omitempty"`
 }
@@ -183,23 +184,23 @@ type LinkSpec struct {
 }
 
 type HostPort struct {
-	Host string           `json:"host"`
-	Port int              `json:"port"`
+	Host string `json:"host"`
+	Port int    `json:"port"`
 }
 
 type LinkStatus struct {
-	Status             `json:",inline"`
-	Configured  bool   `json:"configured,omitempty"`
-	Url         string `json:"url,omitempty"`
-	Site        string `json:"site,omitempty"`
+	Status     `json:",inline"`
+	Configured bool   `json:"configured,omitempty"`
+	Url        string `json:"url,omitempty"`
+	Site       string `json:"site,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type Claim struct {
-	v1.TypeMeta               `json:",inline"`
-	v1.ObjectMeta             `json:"metadata,omitempty"`
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          ClaimSpec   `json:"spec,omitempty"`
 	Status        ClaimStatus `json:"status,omitempty"`
 }
@@ -224,13 +225,12 @@ type ClaimStatus struct {
 	Status  string `json:"status,omitempty"`
 }
 
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type Grant struct {
-	v1.TypeMeta               `json:",inline"`
-	v1.ObjectMeta             `json:"metadata,omitempty"`
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          GrantSpec   `json:"spec,omitempty"`
 	Status        GrantStatus `json:"status,omitempty"`
 }
@@ -245,7 +245,7 @@ type GrantList struct {
 }
 
 type GrantSpec struct {
-	Claims   int `json:"claims,omitempty"`
+	Claims   int    `json:"claims,omitempty"`
 	ValidFor string `json:"validFor,omitempty"`
 	Secret   string `json:"secret,omitempty"`
 }
@@ -259,13 +259,12 @@ type GrantStatus struct {
 	Status     string `json:"status,omitempty"`
 }
 
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type SecuredAccess struct {
-	v1.TypeMeta               `json:",inline"`
-	v1.ObjectMeta             `json:"metadata,omitempty"`
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          SecuredAccessSpec   `json:"spec,omitempty"`
 	Status        SecuredAccessStatus `json:"status,omitempty"`
 }
@@ -285,18 +284,18 @@ type SecuredAccessList struct {
 
 type SecuredAccessPort struct {
 	Name       string `json:"name"`
-	Port       int `json:"port"`
-	TargetPort int `json:"targetPort,omitempty"`
+	Port       int    `json:"port"`
+	TargetPort int    `json:"targetPort,omitempty"`
 	Protocol   string `json:"protocol,omitempty"`
 }
 
 type SecuredAccessSpec struct {
-	AccessType      string               `json:"accessType,omitempty"`
-	Selector        map[string]string    `json:"selector"`
-	Ports           []SecuredAccessPort  `json:"ports"`
-	Certificate     string               `json:"certificate,omitempty"`
-	Ca              string               `json:"ca,omitempty"`
-	Options         map[string]string    `json:"options,omitempty"`
+	AccessType  string              `json:"accessType,omitempty"`
+	Selector    map[string]string   `json:"selector"`
+	Ports       []SecuredAccessPort `json:"ports"`
+	Certificate string              `json:"certificate,omitempty"`
+	Ca          string              `json:"ca,omitempty"`
+	Options     map[string]string   `json:"options,omitempty"`
 }
 
 type SecuredAccessUrl struct {
@@ -305,16 +304,16 @@ type SecuredAccessUrl struct {
 }
 
 func (s *SecuredAccessUrl) AsLinkAccessUrl() LinkAccessUrl {
-	return LinkAccessUrl {
+	return LinkAccessUrl{
 		Role: s.Name,
 		Url:  s.Url,
 	}
 }
 
 type SecuredAccessStatus struct {
-	Urls       []SecuredAccessUrl `json:"urls,omitempty"`
-	Ca         string             `json:"ca,omitempty"`
-	Status     string             `json:"status,omitempty"`
+	Urls   []SecuredAccessUrl `json:"urls,omitempty"`
+	Ca     string             `json:"ca,omitempty"`
+	Status string             `json:"status,omitempty"`
 }
 
 func (s *SecuredAccessStatus) GetLinkAccessUrls() []LinkAccessUrl {
@@ -329,8 +328,8 @@ func (s *SecuredAccessStatus) GetLinkAccessUrls() []LinkAccessUrl {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type Certificate struct {
-	v1.TypeMeta               `json:",inline"`
-	v1.ObjectMeta             `json:"metadata,omitempty"`
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          CertificateSpec   `json:"spec,omitempty"`
 	Status        CertificateStatus `json:"status,omitempty"`
 }
@@ -348,9 +347,9 @@ type CertificateSpec struct {
 	Ca      string   `json:"ca"`
 	Subject string   `json:"subject"`
 	Hosts   []string `json:"hosts,omitempty"`
-	Client  bool `json:"client,omitempty"`
-	Server  bool `json:"server,omitempty"`
-	Signing bool `json:"signing,omitempty"`
+	Client  bool     `json:"client,omitempty"`
+	Server  bool     `json:"server,omitempty"`
+	Signing bool     `json:"signing,omitempty"`
 }
 
 type CertificateStatus struct {
@@ -362,13 +361,12 @@ func (c *Certificate) Key() string {
 	return fmt.Sprintf("%s/%s", c.Namespace, c.Name)
 }
 
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type LinkAccess struct {
-	v1.TypeMeta               `json:",inline"`
-	v1.ObjectMeta             `json:"metadata,omitempty"`
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          LinkAccessSpec   `json:"spec,omitempty"`
 	Status        LinkAccessStatus `json:"status,omitempty"`
 }
@@ -387,16 +385,18 @@ type LinkAccessList struct {
 }
 
 type LinkAccessRole struct {
-	Role       string `json:"role"`
-	Port       int `json:"port"`
+	Role string `json:"role"`
+	Port int    `json:"port"`
 }
 
 type LinkAccessSpec struct {
-	AccessType      string            `json:"accessType,omitempty"`
-	Roles           []LinkAccessRole  `json:"roles"`
-	TlsCredentials  string            `json:"tlsCredentials"`
-	Ca              string            `json:"ca"`
-	Options         map[string]string `json:"options,omitempty"`
+	AccessType              string            `json:"accessType,omitempty"`
+	Roles                   []LinkAccessRole  `json:"roles"`
+	TlsCredentials          string            `json:"tlsCredentials"`
+	Ca                      string            `json:"ca"`
+	Options                 map[string]string `json:"options,omitempty"`
+	BindHost                string            `json:"bindHost,omitempty"`
+	SubjectAlternativeNames []string          `json:"subjectAlternativeNames,omitempty"`
 }
 
 type LinkAccessUrl struct {
@@ -405,7 +405,7 @@ type LinkAccessUrl struct {
 }
 
 type LinkAccessStatus struct {
-	Active     bool            `json:"active,omitempty"`
-	Status     string          `json:"status,omitempty"`
-	Urls       []LinkAccessUrl `json:"urls,omitempty"`
+	Active bool            `json:"active,omitempty"`
+	Status string          `json:"status,omitempty"`
+	Urls   []LinkAccessUrl `json:"urls,omitempty"`
 }

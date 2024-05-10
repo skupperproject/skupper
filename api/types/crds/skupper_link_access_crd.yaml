@@ -28,8 +28,12 @@ spec:
                   type: string
                 tlsCredentials:
                   type: string
-                accessType:
+                bindHost:
                   type: string
+                subjectAlternativeNames:
+                  type: array
+                  items:
+                    type: string
                 options:
                   type: object
                   additionalProperties:

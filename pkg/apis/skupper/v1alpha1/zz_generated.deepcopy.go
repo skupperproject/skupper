@@ -538,6 +538,11 @@ func (in *LinkAccessSpec) DeepCopyInto(out *LinkAccessSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.SubjectAlternativeNames != nil {
+		in, out := &in.SubjectAlternativeNames, &out.SubjectAlternativeNames
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
