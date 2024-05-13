@@ -122,16 +122,16 @@ release/linux.tgz: release/linux/skupper
 	tar -czf release/linux.tgz -C release/linux/ skupper
 
 release/linux/skupper: cmd/skupper/skupper.go
-	GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/linux/skupper ./cmd/skupper
+	GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/linux/skupper ./internal/cmd/skupper
 
 release/windows/skupper: cmd/skupper/skupper.go
-	GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/windows/skupper ./cmd/skupper
+	GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/windows/skupper ./internal/cmd/skupper
 
 release/windows.zip: release/windows/skupper
 	zip -j release/windows.zip release/windows/skupper
 
 release/darwin/skupper: cmd/skupper/skupper.go
-	GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/darwin/skupper ./cmd/skupper
+	GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/darwin/skupper ./internal/cmd/skupper
 
 release/darwin.zip: release/darwin/skupper
 	zip -j release/darwin.zip release/darwin/skupper
@@ -143,13 +143,13 @@ generate-doc: build-doc-generator
 	./generate-doc
 
 release/s390x/skupper: cmd/skupper/skupper.go
-	GOOS=linux GOARCH=s390x go build -ldflags="${LDFLAGS}" -o release/s390x/skupper ./cmd/skupper
+	GOOS=linux GOARCH=s390x go build -ldflags="${LDFLAGS}" -o release/s390x/skupper ./internal/cmd/skupper
 
 release/s390x.tgz: release/s390x/skupper
 	tar -czf release/s390x.tgz release/s390x/skupper
 
 release/arm64/skupper: cmd/skupper/skupper.go
-	GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o release/arm64/skupper ./cmd/skupper
+	GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o release/arm64/skupper ./internal/cmd/skupper
 
 release/arm64.tgz: release/arm64/skupper
 	tar -czf release/arm64.tgz release/arm64/skupper
