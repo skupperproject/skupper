@@ -1,13 +1,17 @@
+/*
+Copyright © 2024 Skupper Team <skupper@googlegroups.com>
+*/
 package main
 
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/root"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
-	"github.com/spf13/cobra/doc"
 )
 
 func main() {
 
-	utils.HandleError(doc.GenMarkdownTree(root.NewSkupperRootCommand(), "./doc"))
+	rootCmd := root.NewSkupperRootCommand()
 
+	err := rootCmd.Execute()
+	utils.HandleError(err)
 }

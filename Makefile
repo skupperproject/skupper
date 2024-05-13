@@ -25,8 +25,7 @@ build-tests:
 	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/tls_t/job -o ${TEST_BINARIES_FOLDER}/tls_test
 
 build-cmd: generate-client
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupperv2 ./internal/cmd/skupperv2
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./internal/cmd/skupper
 
 build-get:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o get ./cmd/get
