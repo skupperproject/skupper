@@ -18,26 +18,44 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-type GrantResponse func(namespace string, name string, writer io.Writer) error
+type GrantResponse func(namespace string, name string, subject string, writer io.Writer) error
 
 type Grants struct {
 	clients     kube.Clients
 	generator   GrantResponse
 	url         string
 	ca          string
+	scheme      string
 	grants      map[kubetypes.UID]*skupperv1alpha1.Grant
 	grantIndex  map[string]kubetypes.UID
 	lock        sync.Mutex
 }
 
-func newGrants(clients kube.Clients, generator GrantResponse, url string) *Grants {
+func newGrants(clients kube.Clients, generator GrantResponse, scheme string, url string) *Grants {
 	return &Grants{
 		clients:     clients,
 		generator:   generator,
+		scheme:      scheme,
 		url:         url,
 		grants:      map[kubetypes.UID]*skupperv1alpha1.Grant{},
 		grantIndex:  map[string]kubetypes.UID{},
 	}
+}
+
+func (g *Grants) setCA(ca string) bool {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	if g.ca == ca {
+		return false
+	}
+	g.ca = ca
+	return true
+}
+
+func (g *Grants) getCA() string {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	return g.ca
 }
 
 func (g *Grants) record(key string, grant *skupperv1alpha1.Grant) {
@@ -76,6 +94,89 @@ func (g *Grants) get(key string) *skupperv1alpha1.Grant {
 	return nil
 }
 
+func (g *Grants) getAll() []*skupperv1alpha1.Grant {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	var grants []*skupperv1alpha1.Grant
+	for _, grant := range g.grants {
+		grants = append(grants, grant)
+	}
+	return grants
+}
+
+func (g *Grants) setUrl(url string) bool {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	if g.url == url {
+		return false
+	}
+	g.url = url
+	return true
+}
+
+func (g *Grants) getUrl() string {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	return g.url
+}
+
+func (g *Grants) recheckUrl() {
+	for _, grant := range g.getAll() {
+		key := fmt.Sprintf("%s/%s", grant.Namespace, grant.Name)
+		if changed, message := g.checkUrl(key, grant); changed {
+			if message != "" {
+				grant.Status.Status = message
+			} else if grant.Status.Status != "Ok" {
+				grant.Status.Status = "Ok"
+			}
+			if err := g.updateGrantStatus(grant); err != nil {
+				log.Printf("Error updating grant %s after setting url: %s", key, err)
+			}
+		}
+	}
+}
+
+func (g *Grants) recheckCa() {
+	for _, grant := range g.getAll() {
+		key := fmt.Sprintf("%s/%s", grant.Namespace, grant.Name)
+		if g.checkCa(key, grant) {
+			if err := g.updateGrantStatus(grant); err != nil {
+				log.Printf("Error updating grant %s after setting ca: %s", key, err)
+			}
+		}
+	}
+}
+
+func (g *Grants) claimUrl(grant *skupperv1alpha1.Grant) string {
+	if url := g.getUrl(); url != "" {
+		return fmt.Sprintf("%s://%s/%s", g.scheme, url, string(grant.ObjectMeta.UID))
+	}
+	return ""
+}
+
+func (g *Grants) checkUrl(key string, grant *skupperv1alpha1.Grant) (bool, string) {
+	url := g.claimUrl(grant)
+	if url == "" {
+		log.Printf("URL pending for Grant %s", key)
+		return true, "Url pending"
+	} else if grant.Status.Url != url {
+		log.Printf("Setting URL for Grant %s to %s", key, url)
+		grant.Status.Url = url
+		return true, ""
+	} else {
+		return false, ""
+	}
+}
+
+func (g *Grants) checkCa(key string, grant *skupperv1alpha1.Grant) bool {
+	ca := g.getCA()
+	if grant.Status.Ca == ca {
+		return false
+	}
+	grant.Status.Ca = ca
+	return true
+}
+
 func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
 	if grant == nil {
 		g.remove(key)
@@ -84,14 +185,13 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
 	g.record(key, grant)
 	changed := false
 	var status []string
-	if g.url == "" {
-		status = append(status, "Url pending")
-	} else if grant.Status.Url != g.url {
-		grant.Status.Url = g.url
+	if updated, message := g.checkUrl(key, grant); updated {
 		changed = true
+		if message != "" {
+			status = append(status, message)
+		}
 	}
-	if grant.Status.Ca != g.ca {
-		grant.Status.Ca = g.ca
+	if g.checkCa(key, grant) {
 		changed = true
 	}
 
@@ -122,7 +222,7 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
 	if len(status) != 0 {
 		grant.Status.Status = strings.Join(status, ", ")
 		changed = true
-	} else if grant.Status.Status == "" {
+	} else if grant.Status.Status != "Ok" {
 		grant.Status.Status = "Ok"
 		changed = true
 	}
@@ -130,6 +230,7 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
 	if !changed {
 		return nil
 	}
+	log.Printf("Updating status for Grant %s", key)
 	return g.updateGrantStatus(grant)
 }
 
@@ -199,7 +300,11 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("No name specified when redeeming claim for %s/%s, using grant name", grant.Namespace, grant.Name)
 		name = grant.Name
 	}
-	if err := g.generator(grant.Namespace, name, w); err != nil {
+	subject := r.Header.Get("subject")
+	if subject == "" {
+		subject = name
+	}
+	if err := g.generator(grant.Namespace, name, subject, w); err != nil {
 		log.Printf("Failed to create token for %s/%s: %s", grant.Namespace, grant.Name, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

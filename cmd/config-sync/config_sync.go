@@ -406,7 +406,7 @@ func (c *ConfigSync) syncListenerSecrets(changes *qdr.SslProfileDifference, shar
 	}
 	for _, added := range changes.Added {
 		log.Printf("Synchronising secret %s for SslProfile %s", added.Name, added.Name)
-		err = c.copyCertsFilesToPath(sharedTlsFilesDir, added.Name, added.Name)
+		err = c.copyCertsFilesToPath_(sharedTlsFilesDir, added.Name, added.Name, true)
 		if err != nil {
 			return err
 		}
@@ -451,6 +451,10 @@ func (c *ConfigSync) checkCertFiles(path string) error {
 }
 
 func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secretname string) error {
+	return c.copyCertsFilesToPath_(path, profilename, secretname, false)
+}
+
+func (c *ConfigSync) copyCertsFilesToPath_(path string, profilename string, secretname string, overwrite bool) error {
 	secret, err := c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Get(context.TODO(), secretname, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -470,7 +474,7 @@ func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secre
 	caCertFile := path + "/" + profilename + "/ca.crt"
 
 	_, err = os.Stat(certFile)
-	if secret.Data["tls.crt"] != nil && os.IsNotExist(err) {
+	if secret.Data["tls.crt"] != nil && (overwrite || os.IsNotExist(err)) {
 		err = os.WriteFile(certFile, secret.Data["tls.crt"], 0777)
 		if err != nil {
 			return err
@@ -478,7 +482,7 @@ func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secre
 	}
 
 	_, err = os.Stat(keyFile)
-	if secret.Data["tls.key"] != nil && os.IsNotExist(err) {
+	if secret.Data["tls.key"] != nil && (overwrite || os.IsNotExist(err)) {
 		err = os.WriteFile(keyFile, secret.Data["tls.key"], 0777)
 		if err != nil {
 			return err
@@ -486,7 +490,7 @@ func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secre
 	}
 
 	_, err = os.Stat(caCertFile)
-	if secret.Data["ca.crt"] != nil && os.IsNotExist(err) {
+	if secret.Data["ca.crt"] != nil && (overwrite || os.IsNotExist(err)) {
 		err = os.WriteFile(caCertFile, secret.Data["ca.crt"], 0777)
 		if err != nil {
 			return err

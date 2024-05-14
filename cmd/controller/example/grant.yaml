@@ -1,0 +1,7 @@
+apiVersion: skupper.io/v1alpha1
+kind: Grant
+metadata:
+  name: my-grant
+spec:
+  claims: 10
+  validFor: 1h

@@ -131,8 +131,8 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) error
 	return nil
 }
 
-func (g *TokenGenerator) NewCertToken(name string) Token {
-	cert := certs.GenerateSecret(name, name, strings.Join(g.hosts, ","), g.ca)
+func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
+	cert := certs.GenerateSecret(name, subject, strings.Join(g.hosts, ","), g.ca)
 	return &CertToken{
 		linkConfig:     &skupperv1alpha1.Link{
 			TypeMeta:   metav1.TypeMeta{

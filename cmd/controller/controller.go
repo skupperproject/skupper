@@ -106,7 +106,7 @@ func dynamicSecuredAccess() dynamicinformer.TweakListOptionsFunc {
 	return dynamicWatcherOptions("internal.skupper.io/secured-access")
 }
 
-func NewController(cli kube.Clients, watchNamespace string) (*Controller, error) {
+func NewController(cli kube.Clients, watchNamespace string, currentNamespace string) (*Controller, error) {
 	controller := &Controller{
 		controller:      kube.NewController("Controller", cli),
 		sites:           map[string]*site.Site{},
@@ -132,6 +132,7 @@ func NewController(cli kube.Clients, watchNamespace string) (*Controller, error)
 
 	controller.grants = claims.NewGrantManager(controller.controller, claims.GrantConfigFromEnv(), controller.generateLinkConfig)
 	controller.grantWatcher = controller.controller.WatchGrants(watchNamespace, controller.grants.GrantChanged)
+	controller.grants.Watch(controller.controller, currentNamespace)
 
 	return controller, nil
 }
@@ -263,7 +264,7 @@ func (c *Controller) checkClaim(key string, claim *skupperv1alpha1.Claim) error 
 	return claims.RedeemClaim(claim, site, c.controller)
 }
 
-func (c *Controller) generateLinkConfig(namespace string, name string, writer io.Writer) error {
+func (c *Controller) generateLinkConfig(namespace string, name string, subject string, writer io.Writer) error {
 	site := c.getSite(namespace).GetSite()
 	if site == nil {
 		return fmt.Errorf("Site not yet defined for %s", namespace)
@@ -272,7 +273,7 @@ func (c *Controller) generateLinkConfig(namespace string, name string, writer io
 	if err != nil {
 		return err
 	}
-	token := generator.NewCertToken(name)
+	token := generator.NewCertToken(name, subject)
 	return token.Write(writer)
 }
 

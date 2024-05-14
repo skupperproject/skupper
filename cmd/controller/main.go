@@ -69,7 +69,7 @@ func main() {
 	}
 	log.Printf("Version: %s", version.Version)
 
-	controller, err := NewController(cli, watchNamespace)
+	controller, err := NewController(cli, watchNamespace, cli.Namespace)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
 	}
