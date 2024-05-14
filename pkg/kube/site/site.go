@@ -89,6 +89,10 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 		if routerConfig == nil {
 			createRouterConfig = true
 			rc := qdr.InitialConfig(s.config.SkupperName+"-${HOSTNAME}", s.siteId, version.Version, s.isEdge(), 3)
+			rc.AddAddress(qdr.Address{
+				Prefix:       "mc",
+				Distribution: "multicast",
+			})
 			rc.SetNormalListeners()
 			routerConfig = &rc
 		}
