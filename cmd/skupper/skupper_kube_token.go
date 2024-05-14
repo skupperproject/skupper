@@ -43,7 +43,7 @@ func (s *SkupperKubeToken) Create(cmd *cobra.Command, args []string) error {
 	}
 	switch tokenType {
 	case "cert":
-		token := generator.NewCertToken(clientIdentity)
+		token := generator.NewCertToken(clientIdentity, clientIdentity)
 		err = token.Write(out)
 		if err != nil {
 			return fmt.Errorf("Failed to create token: %w", err)

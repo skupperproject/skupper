@@ -5,12 +5,14 @@ import (
 	"log"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers/internalinterfaces"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type GrantManager interface {
+	Watch(controller *kube.Controller, namespace string)
 	Start()
 	GrantChanged(key string, grant *skupperv1alpha1.Grant) error
 	SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess)
@@ -24,7 +26,9 @@ func NewGrantManager(clients kube.Clients, config *GrantConfig, generator GrantR
 	}
 	if config.SecuredAccessKey != "" {
 		server := &UrlFromSecuredAccess{
-			key: config.SecuredAccessKey,
+			key:                  config.SecuredAccessKey,
+			tlsCredentialsPath:   config.TlsCredentialsPath,
+			tlsCredentialsSecret: config.TlsCredentialsSecret,
 		}
 		server.configure(clients, config, generator)
 		return server
@@ -34,26 +38,33 @@ func NewGrantManager(clients kube.Clients, config *GrantConfig, generator GrantR
 	return server
 }
 
-type UrlFromSecuredAccess struct {
-	GrantServer
-	key         string
-	ready       bool
-}
-
 type UrlFromEnv struct {
 	GrantServer
 }
 
 func (s *UrlFromEnv) SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) {}
+func (s *UrlFromEnv) Watch(controller *kube.Controller, namespace string) {}
 
 func (s *UrlFromEnv) Start() {
 	s.start()
 }
 
+
+type UrlFromSecuredAccess struct {
+	GrantServer
+	key                  string
+	ready                bool
+	tlsCredentialsPath   string
+	tlsCredentialsSecret string
+}
+
 func (s *UrlFromSecuredAccess) SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) {
 	if se != nil && s.key == key && len(se.Status.Urls) > 0 && s.grants.url == "" {
-		s.grants.url = se.Status.Urls[0].Url
+		if s.grants.setUrl(se.Status.Urls[0].Url) {
+			s.grants.recheckUrl()
+		}
 		if s.ready {
+			log.Print("Starting grant server")
 			s.start()
 		}
 	}
@@ -64,6 +75,16 @@ func (s *UrlFromSecuredAccess) Start() {
 	if s.grants.url != "" {
 		s.start()
 	}
+}
+
+func byName(name string) internalinterfaces.TweakListOptionsFunc {
+	return func(options *metav1.ListOptions) {
+		options.FieldSelector = "metadata.name=" + name
+	}
+}
+
+func (s *UrlFromSecuredAccess) Watch(controller *kube.Controller, namespace string) {
+	controller.WatchSecrets(byName(s.tlsCredentialsSecret), namespace, s.tlsCredentialsUpdated)
 }
 
 const notEnabled string = "Grants are not enabled"
@@ -85,3 +106,4 @@ func (s *GrantsDisabled) GrantChanged(key string, grant *skupperv1alpha1.Grant) 
 
 func (s *GrantsDisabled) SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) {}
 func (s *GrantsDisabled) Start() {}
+func (s *GrantsDisabled) Watch(controller *kube.Controller, namespace string) {}

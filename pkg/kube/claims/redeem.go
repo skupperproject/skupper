@@ -32,7 +32,8 @@ func RedeemClaim(claim *skupperv1alpha1.Claim, site *skupperv1alpha1.Site, clien
 		Transport: transport,
 	}
 	request, err := http.NewRequest(http.MethodPost, claim.Spec.Url, bytes.NewReader([]byte(claim.Spec.Secret)))
-	request.Header.Add("name", string(site.ObjectMeta.UID))
+	request.Header.Add("name", claim.Name)
+	request.Header.Add("subject", string(site.ObjectMeta.UID))
 	response, err := client.Do(request)
 	if err != nil {
 		return updateClaimStatus(claim, err, clients)
