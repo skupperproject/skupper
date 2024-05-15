@@ -86,7 +86,12 @@ func main() {
 	})
 	go http.ListenAndServe(":9191", nil)
 
-	configSync := newConfigSync(cli, namespace, SHARED_TLS_DIRECTORY)
+	routerConfigMap := os.Getenv("SKUPPER_CONFIG")
+	if routerConfigMap == "" {
+		routerConfigMap = "skupper-internal"// change defult?
+	}
+
+	configSync := newConfigSync(cli, namespace, SHARED_TLS_DIRECTORY, routerConfigMap)
 	log.Println("CONFIG_SYNC: Starting controller loop...")
 	configSync.start(stopCh)
 

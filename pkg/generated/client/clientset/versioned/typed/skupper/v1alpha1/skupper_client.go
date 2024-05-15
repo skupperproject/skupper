@@ -31,8 +31,8 @@ type SkupperV1alpha1Interface interface {
 	ConnectorsGetter
 	GrantsGetter
 	LinksGetter
-	LinkAccessesGetter
 	ListenersGetter
+	RouterAccessesGetter
 	SecuredAccessesGetter
 	SitesGetter
 	SkupperClusterPoliciesGetter
@@ -63,12 +63,12 @@ func (c *SkupperV1alpha1Client) Links(namespace string) LinkInterface {
 	return newLinks(c, namespace)
 }
 
-func (c *SkupperV1alpha1Client) LinkAccesses(namespace string) LinkAccessInterface {
-	return newLinkAccesses(c, namespace)
-}
-
 func (c *SkupperV1alpha1Client) Listeners(namespace string) ListenerInterface {
 	return newListeners(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) RouterAccesses(namespace string) RouterAccessInterface {
+	return newRouterAccesses(c, namespace)
 }
 
 func (c *SkupperV1alpha1Client) SecuredAccesses(namespace string) SecuredAccessInterface {

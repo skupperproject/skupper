@@ -22,7 +22,7 @@ import (
 )
 
 type Factory interface {
-	Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, refs []metav1.OwnerReference) error
+	Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error
 }
 
 type AccessType interface {
@@ -54,14 +54,15 @@ func NewSecuredAccessManager(clients kube.Clients, certMgr certificates.Certific
 	}
 }
 
-func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, refs []metav1.OwnerReference) error {
+func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error {
 	log.Printf("SecuredAccess.Ensure(%s, %s)", namespace, name)
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
-		if reflect.DeepEqual(spec, current.Spec) {
+		if reflect.DeepEqual(spec, current.Spec) && reflect.DeepEqual(annotations, current.ObjectMeta.Annotations) {
 			return nil
 		}
 		current.Spec = spec
+		current.ObjectMeta.Annotations = annotations
 		updated, err := m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
@@ -77,9 +78,7 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            name,
 				OwnerReferences: refs,
-				Annotations: map[string]string{
-					"internal.skupper.io/controlled": "true",
-				},
+				Annotations: annotations,
 			},
 			Spec: spec,
 		}
@@ -124,6 +123,8 @@ func (m *SecuredAccessManager) accessType(sa *skupperv1alpha1.SecuredAccess) Acc
 		return newRouteAccess(m)
 	} else if accessType == ACCESS_TYPE_LOADBALANCER {
 		return newLoadbalancerAccess(m)
+	} else if accessType == ACCESS_TYPE_LOCAL {
+		return newLocalAccess(m)
 	} else {
 		return newUnsupportedAccess(m)
 	}
@@ -158,14 +159,14 @@ func (m *SecuredAccessManager) reconcile(sa *skupperv1alpha1.SecuredAccess) erro
 }
 
 func (m *SecuredAccessManager) checkCertificate(sa *skupperv1alpha1.SecuredAccess) error {
-	if sa.Spec.Ca == "" {
+	if sa.Spec.Issuer == "" {
 		return nil
 	}
 	name := sa.Spec.Certificate
 	if name == "" {
 		name = sa.Name
 	}
-	return m.certMgr.Ensure(sa.Namespace, name, sa.Spec.Ca, sa.Name, getHosts(sa), false, true, ownerReferences(sa))
+	return m.certMgr.Ensure(sa.Namespace, name, sa.Spec.Issuer, sa.Name, getHosts(sa), false, true, ownerReferences(sa))
 }
 
 func (m *SecuredAccessManager) checkService(sa *skupperv1alpha1.SecuredAccess) error {
@@ -311,15 +312,15 @@ func (m *SecuredAccessManager) CheckRoute(routeKey string, route *routev1.Route)
 
 	// ensure status of access object has correct urls
 	update := false
-	for i, url := range sa.Status.Urls {
-		if url.Name == port {
-			if latest.Spec.Host != "" {
-				desired := latest.Spec.Host + ":443"
-				if url.Url != desired {
-					sa.Status.Urls[i].Url = desired
-					update = true
-				}
-			}
+	if latest.Spec.Host != "" {
+		desiredEndpoint := &skupperv1alpha1.Endpoint{
+			Name:  port,
+			Host:  latest.Spec.Host,
+			Port:  "443",
+			Group: latest.Name,
+		}
+		if sa.Status.UpdateEndpoint(desiredEndpoint) {
+			update = true
 		}
 	}
 	if !update {
@@ -446,22 +447,24 @@ func ownerReferences(sa *skupperv1alpha1.SecuredAccess) []metav1.OwnerReference 
 
 func getHosts(sa *skupperv1alpha1.SecuredAccess) []string {
 	hosts := map[string]string{}
-	for _, url := range sa.Status.Urls {
-		if url.Url != "" {
-			host := strings.Split(url.Url, ":")[0]
-			hosts[host] = host
+	for _, endpoint := range sa.Status.Endpoints {
+		if endpoint.Host != "" {
+			hosts[endpoint.Host] = endpoint.Host
 		}
 	}
 	var results []string
 	for key, _ := range hosts {
 		results = append(results, key)
 	}
+	results = append(results, sa.Name)
+	results = append(results, sa.Name + "." + sa.Namespace)
 	return results
 }
 
 const ACCESS_TYPE_LOADBALANCER = "loadbalancer"
 const ACCESS_TYPE_ROUTE = "route"
 const ACCESS_TYPE_NODEPORT = "nodeport"
+const ACCESS_TYPE_LOCAL = "local"
 
 func DefaultAccessType(clients kube.Clients) string {
 	if clients.GetRouteClient() != nil {

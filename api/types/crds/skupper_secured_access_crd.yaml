@@ -32,7 +32,7 @@ spec:
                   type: object
                   additionalProperties:
                     type: string
-                ca:
+                issuer:
                   type: string
                 certificate:
                   type: string
@@ -50,14 +50,18 @@ spec:
               properties:
                 active:
                   type: boolean
-                urls:
+                endpoints:
                   type: array
                   items:
                     type: object
                     properties:
                       name:
                         type: string
-                      url:
+                      host:
+                        type: string
+                      port:
+                        type: string
+                      group:
                         type: string
                 ca:
                   type: string

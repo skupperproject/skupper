@@ -22,6 +22,8 @@ spec:
                   format: duration
                 secret:
                   type: string
+                issuer:
+                  type: string
             status:
               type: object
               properties:

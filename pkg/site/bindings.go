@@ -75,7 +75,7 @@ func (b *Bindings) updateConnector(connector *skupperv1alpha1.Connector) (qdr.Co
 		}
 	} else {
 		c.resourceUpdated(connector)
-		if c.resource.Spec != connector.Spec &&c.init(b.context) {
+		if c.resource.Spec != connector.Spec && c.init(b.context) {
 			return b, nil
 		}
 	}

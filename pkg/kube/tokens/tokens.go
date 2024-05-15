@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strconv"
+	"log"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,10 +15,11 @@ import (
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
+	sitepkg "github.com/skupperproject/skupper/pkg/site"
 )
 
 type CertToken struct {
-	linkConfig     *skupperv1alpha1.Link
+	links          []*skupperv1alpha1.Link
 	tlsCredentials *corev1.Secret
 }
 
@@ -32,26 +33,18 @@ type Token interface{
 
 type TokenGenerator struct {
 	namespace string
-	clients     kube.Clients
-	ca          *corev1.Secret
-	interRouter skupperv1alpha1.HostPort
-	edge        skupperv1alpha1.HostPort
-	claims      skupperv1alpha1.HostPort
-	hosts       []string
+	clients   kube.Clients
+	ca        *corev1.Secret
+	endpoints [][]skupperv1alpha1.Endpoint
+	hosts     []string
 }
 
 func NewTokenGenerator(namespace string, clients kube.Clients) (*TokenGenerator, error) {
-	generator := &TokenGenerator{
-		namespace: namespace,
-		clients:   clients,
-	}
-	if err := generator.loadCA(); err != nil {
+	site, err := getActiveSite(namespace, clients)
+	if err != nil {
 		return nil, err
 	}
-	if err := generator.loadValidHosts(); err != nil {
-		return nil, err
-	}
-	return generator, nil
+	return NewTokenGeneratorForSite(site, clients)
 }
 
 func NewTokenGeneratorForSite(site *skupperv1alpha1.Site, clients kube.Clients) (*TokenGenerator, error) {
@@ -59,7 +52,7 @@ func NewTokenGeneratorForSite(site *skupperv1alpha1.Site, clients kube.Clients) 
 		namespace: site.Namespace,
 		clients:   clients,
 	}
-	if err := generator.loadCA(); err != nil {
+	if err := generator.loadCA(sitepkg.DefaultIssuer(site)); err != nil {
 		return nil, err
 	}
 	if err := generator.setValidHostsFromSite(site); err != nil {
@@ -68,8 +61,8 @@ func NewTokenGeneratorForSite(site *skupperv1alpha1.Site, clients kube.Clients) 
 	return generator, nil
 }
 
-func (g *TokenGenerator) loadCA() error {
-	ca, err := g.clients.GetKubeClient().CoreV1().Secrets(g.namespace).Get(context.TODO(), "skupper-site-ca", metav1.GetOptions{})
+func (g *TokenGenerator) loadCA(name string) error {
+	ca, err := g.clients.GetKubeClient().CoreV1().Secrets(g.namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -77,8 +70,8 @@ func (g *TokenGenerator) loadCA() error {
 	return nil
 }
 
-func (g *TokenGenerator) getActiveSite() (*skupperv1alpha1.Site, error) {
-	sites, err := g.clients.GetSkupperClient().SkupperV1alpha1().Sites(g.namespace).List(context.TODO(), metav1.ListOptions{})
+func getActiveSite(namespace string, clients kube.Clients) (*skupperv1alpha1.Site, error) {
+	sites, err := clients.GetSkupperClient().SkupperV1alpha1().Sites(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -87,31 +80,7 @@ func (g *TokenGenerator) getActiveSite() (*skupperv1alpha1.Site, error) {
 			return &site, nil
 		}
 	}
-	return nil, fmt.Errorf("No active site in %s", g.namespace)
-}
-
-func setHostPortFromEndpoint(o *skupperv1alpha1.HostPort, endpoint *skupperv1alpha1.Endpoint) {
-	o.Host = endpoint.Host
-	o.Port, _ = strconv.Atoi(endpoint.Port) //TODO: why different types here?
-}
-
-func (g *TokenGenerator) getHostPortByName(name string) *skupperv1alpha1.HostPort {
-	if name == "inter-router" {
-		return &g.interRouter
-	} else if name == "edge" {
-		return &g.edge
-	} else if name == "claims" {
-		return &g.claims
-	}
-	return nil
-}
-
-func (g *TokenGenerator) loadValidHosts() error {
-	site, err := g.getActiveSite()
-	if err != nil {
-		return err
-	}
-	return g.setValidHostsFromSite(site)
+	return nil, fmt.Errorf("No active site in %s", namespace)
 }
 
 func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) error {
@@ -119,50 +88,67 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) error
 	//cannot issue certificates
 	var hosts []string
 	for _, endpoint := range site.Status.Endpoints {
-		if hp := g.getHostPortByName(endpoint.Name); hp != nil && endpoint.Host != "" {
-			setHostPortFromEndpoint(hp, &endpoint)
-			hosts = append(hosts, endpoint.Host)
-		}
+		hosts = append(hosts, endpoint.Host)
 	}
 	if len(hosts) == 0 {
 		return fmt.Errorf("Endpoints for site in %s not yet resolved", g.namespace)
 	}
+	byGroup := map[string][]skupperv1alpha1.Endpoint{}
+	//TODO: should only include groups that are valid for the defined issuer
+	for _, endpoint := range site.Status.Endpoints {
+		if endpoint.Name == "inter-router" || endpoint.Name == "edge" {
+			byGroup[endpoint.Group] = append(byGroup[endpoint.Group], endpoint)
+		}
+	}
+	for _, endpoints := range byGroup {
+		g.endpoints = append(g.endpoints, endpoints)
+	}
+	log.Printf("Endpoints for grant: %v (by group: %v)", g.endpoints, byGroup)
 	g.hosts = hosts
 	return nil
 }
 
 func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
 	cert := certs.GenerateSecret(name, subject, strings.Join(g.hosts, ","), g.ca)
-	return &CertToken{
-		linkConfig:     &skupperv1alpha1.Link{
+	token := &CertToken{
+		tlsCredentials: &cert,
+	}
+	for i, endpoints := range g.endpoints {
+		linkName := name
+		if len(g.endpoints) > 1 {
+			linkName = fmt.Sprintf("%s-%d", name, i+1)
+		}
+		link := &skupperv1alpha1.Link{
 			TypeMeta:   metav1.TypeMeta{
 				APIVersion: "skupper.io/v1alpha1",
 				Kind:       "Link",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
+				Name:        linkName,
 			},
 			Spec:       skupperv1alpha1.LinkSpec{
-				InterRouter:    g.interRouter,
-				Edge:           g.edge,
+				Endpoints:      endpoints,
 				TlsCredentials: name,
 			},
-		},
-		tlsCredentials: &cert,
+		}
+		token.links = append(token.links, link)
 	}
+	return token
 }
 
 func (t *CertToken) Write(writer io.Writer) error {
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 	writer.Write([]byte("---\n"))
-	err := s.Encode(t.linkConfig, writer)
+	err := s.Encode(t.tlsCredentials, writer)
 	if err != nil {
 		return err
 	}
-	writer.Write([]byte("---\n"))
-	err = s.Encode(t.tlsCredentials, writer)
-	if err != nil {
-		return err
+	for _, link := range t.links {
+		writer.Write([]byte("---\n"))
+		err = s.Encode(link, writer)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

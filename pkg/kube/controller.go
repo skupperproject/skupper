@@ -1500,10 +1500,10 @@ func (w *CertificateWatcher) List() []*skupperv1alpha1.Certificate {
 	return results
 }
 
-func (c *Controller) WatchLinkAccesses(namespace string, handler LinkAccessHandler) *LinkAccessWatcher {
-	watcher := &LinkAccessWatcher{
-		handler: handler,
-		informer: skupperv1alpha1informer.NewLinkAccessInformer(
+func (c *Controller) WatchRouterAccesses(namespace string, handler RouterAccessHandler) *RouterAccessWatcher {
+	watcher := &RouterAccessWatcher{
+		handler:  handler,
+		informer: skupperv1alpha1informer.NewRouterAccessInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1515,15 +1515,15 @@ func (c *Controller) WatchLinkAccesses(namespace string, handler LinkAccessHandl
 	return watcher
 }
 
-type LinkAccessHandler func(string, *skupperv1alpha1.LinkAccess) error
+type RouterAccessHandler func(string, *skupperv1alpha1.RouterAccess) error
 
-type LinkAccessWatcher struct {
-	handler   LinkAccessHandler
+type RouterAccessWatcher struct {
+	handler   RouterAccessHandler
 	informer  cache.SharedIndexInformer
 	namespace string
 }
 
-func (w *LinkAccessWatcher) Handle(event ResourceChange) error {
+func (w *RouterAccessWatcher) Handle(event ResourceChange) error {
 	obj, err := w.Get(event.Key)
 	if err != nil {
 		return err
@@ -1531,23 +1531,23 @@ func (w *LinkAccessWatcher) Handle(event ResourceChange) error {
 	return w.handler(event.Key, obj)
 }
 
-func (w *LinkAccessWatcher) HasSynced() func() bool {
+func (w *RouterAccessWatcher) HasSynced() func() bool {
 	return w.informer.HasSynced
 }
 
-func (w *LinkAccessWatcher) Describe(event ResourceChange) string {
-	return fmt.Sprintf("LinkAccess %s", event.Key)
+func (w *RouterAccessWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("RouterAccess %s", event.Key)
 }
 
-func (w *LinkAccessWatcher) Start(stopCh <-chan struct{}) {
+func (w *RouterAccessWatcher) Start(stopCh <-chan struct{}) {
 	go w.informer.Run(stopCh)
 }
 
-func (w *LinkAccessWatcher) Sync(stopCh <-chan struct{}) bool {
+func (w *RouterAccessWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *LinkAccessWatcher) Get(key string) (*skupperv1alpha1.LinkAccess, error) {
+func (w *RouterAccessWatcher) Get(key string) (*skupperv1alpha1.RouterAccess, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1555,14 +1555,14 @@ func (w *LinkAccessWatcher) Get(key string) (*skupperv1alpha1.LinkAccess, error)
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.LinkAccess), nil
+	return entity.(*skupperv1alpha1.RouterAccess), nil
 }
 
-func (w *LinkAccessWatcher) List() []*skupperv1alpha1.LinkAccess {
+func (w *RouterAccessWatcher) List() []*skupperv1alpha1.RouterAccess {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.LinkAccess{}
+	results := []*skupperv1alpha1.RouterAccess{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.LinkAccess))
+		results = append(results, o.(*skupperv1alpha1.RouterAccess))
 	}
 	return results
 }

@@ -35,7 +35,7 @@ type Controller struct {
 	siteWatcher       *kube.SiteWatcher
 	listenerWatcher   *kube.ListenerWatcher
 	connectorWatcher  *kube.ConnectorWatcher
-	linkAccessWatcher *kube.LinkAccessWatcher
+	linkAccessWatcher *kube.RouterAccessWatcher
 	grantWatcher      *kube.GrantWatcher
 	sites             map[string]*site.Site
 	grants            claims.GrantManager
@@ -115,7 +115,7 @@ func NewController(cli kube.Clients, watchNamespace string, currentNamespace str
 	controller.siteWatcher = controller.controller.WatchSites(watchNamespace, controller.checkSite)
 	controller.listenerWatcher = controller.controller.WatchListeners(watchNamespace, controller.checkListener)
 	controller.connectorWatcher = controller.controller.WatchConnectors(watchNamespace, controller.checkConnector)
-	controller.linkAccessWatcher = controller.controller.WatchLinkAccesses(watchNamespace, controller.checkLinkAccess)
+	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(watchNamespace, controller.checkRouterAccess)
 	controller.controller.WatchLinks(watchNamespace, controller.checkLink)
 	controller.controller.WatchConfigMaps(skupperNetworkStatus(), watchNamespace, controller.networkStatusUpdate)
 	controller.controller.WatchClaims(watchNamespace, controller.checkClaim)
@@ -168,7 +168,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	}
 	for _, la := range c.linkAccessWatcher.List() {
 		site := c.getSite(la.ObjectMeta.Namespace)
-		site.CheckLinkAccess(la.ObjectMeta.Name, la)
+		site.CheckRouterAccess(la.ObjectMeta.Name, la)
 	}
 	for _, grant := range c.grantWatcher.List() {
 		c.grants.GrantChanged(fmt.Sprintf("%s/%s", grant.Namespace, grant.Name), grant)
@@ -286,12 +286,12 @@ func (c *Controller) checkSecuredAccess(key string, se *skupperv1alpha1.SecuredA
 	return c.accessMgr.SecuredAccessChanged(key, se)
 }
 
-func (c *Controller) checkLinkAccess(key string, la *skupperv1alpha1.LinkAccess) error {
+func (c *Controller) checkRouterAccess(key string, ra *skupperv1alpha1.RouterAccess) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
-	return c.getSite(namespace).CheckLinkAccess(name, la)
+	return c.getSite(namespace).CheckRouterAccess(name, ra)
 }
 
 func (c *Controller) networkStatusUpdate(key string, cm *corev1.ConfigMap) error {

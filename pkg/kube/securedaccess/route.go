@@ -43,20 +43,21 @@ func (o *RouteAccessType) Realise(access *skupperv1alpha1.SecuredAccess) bool {
 }
 
 func (o *RouteAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {
-	var urls []skupperv1alpha1.SecuredAccessUrl
+	var endpoints []skupperv1alpha1.Endpoint
 	for _, port := range access.Spec.Ports {
 		key := routeKey(access, port)
 		if route, ok := o.manager.routes[key]; ok && route.Spec.Host != "" {
-			urls = append(urls, skupperv1alpha1.SecuredAccessUrl{
+			endpoints = append(endpoints, skupperv1alpha1.Endpoint{
 				Name: port.Name,
-				Url:  route.Spec.Host + ":443",
+				Host: route.Spec.Host,
+				Port: ":443",
 			})
 		}
 	}
-	if urls == nil || reflect.DeepEqual(urls, access.Status.Urls) {
+	if endpoints == nil || reflect.DeepEqual(endpoints, access.Status.Endpoints) {
 		return false
 	}
-	access.Status.Urls = urls
+	access.Status.Endpoints = endpoints
 	return true
 }
 

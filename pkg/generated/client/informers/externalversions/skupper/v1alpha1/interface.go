@@ -34,10 +34,10 @@ type Interface interface {
 	Grants() GrantInformer
 	// Links returns a LinkInformer.
 	Links() LinkInformer
-	// LinkAccesses returns a LinkAccessInformer.
-	LinkAccesses() LinkAccessInformer
 	// Listeners returns a ListenerInformer.
 	Listeners() ListenerInformer
+	// RouterAccesses returns a RouterAccessInformer.
+	RouterAccesses() RouterAccessInformer
 	// SecuredAccesses returns a SecuredAccessInformer.
 	SecuredAccesses() SecuredAccessInformer
 	// Sites returns a SiteInformer.
@@ -82,14 +82,14 @@ func (v *version) Links() LinkInformer {
 	return &linkInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// LinkAccesses returns a LinkAccessInformer.
-func (v *version) LinkAccesses() LinkAccessInformer {
-	return &linkAccessInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
 // Listeners returns a ListenerInformer.
 func (v *version) Listeners() ListenerInformer {
 	return &listenerInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// RouterAccesses returns a RouterAccessInformer.
+func (v *version) RouterAccesses() RouterAccessInformer {
+	return &routerAccessInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // SecuredAccesses returns a SecuredAccessInformer.

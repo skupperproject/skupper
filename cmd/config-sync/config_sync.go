@@ -10,7 +10,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -18,22 +17,24 @@ import (
 // Syncs the live router config with the configmap (bridge configuration,
 // secrets for services with TLS enabled, and secrets and connectors for links)
 type ConfigSync struct {
-	agentPool  *qdr.AgentPool
-	controller *kube.Controller
-	namespace  string
-	tracking   map[string]*SyncTarget
-	config     *kube.ConfigMapWatcher
-	secrets    *kube.SecretWatcher
-	path       string
+	agentPool       *qdr.AgentPool
+	controller      *kube.Controller
+	namespace       string
+	tracking        map[string]*SyncTarget
+	config          *kube.ConfigMapWatcher
+	secrets         *kube.SecretWatcher
+	path            string
+	routerConfigMap string
 }
 
-func newConfigSync(cli kube.Clients, namespace string, path string) *ConfigSync {
+func newConfigSync(cli kube.Clients, namespace string, path string, routerConfigMap string) *ConfigSync {
 	configSync := &ConfigSync{
-		agentPool:  qdr.NewAgentPool("amqp://localhost:5672", nil),
-		controller: kube.NewController("config-sync", cli),
-		namespace:  namespace,
-		tracking:   map[string]*SyncTarget{},
-		path:       path,
+		agentPool:       qdr.NewAgentPool("amqp://localhost:5672", nil),
+		controller:      kube.NewController("config-sync", cli),
+		namespace:       namespace,
+		tracking:        map[string]*SyncTarget{},
+		path:            path,
+		routerConfigMap: routerConfigMap,
 	}
 	return configSync
 }
@@ -42,7 +43,7 @@ func (c *ConfigSync) start(stopCh <-chan struct{}) error {
 	if err := mkdir(c.path); err != nil {
 		return err
 	}
-	c.config = c.controller.WatchConfigMaps(kube.ByName(types.TransportConfigMapName), c.namespace, c.configEvent)
+	c.config = c.controller.WatchConfigMaps(kube.ByName(c.routerConfigMap), c.namespace, c.configEvent)
 	c.secrets = c.controller.WatchAllSecrets(c.namespace, c.secretEvent)
 	c.controller.StartWatchers(stopCh)
 	log.Printf("CONFIG_SYNC: Waiting for informers to sync...")
@@ -292,12 +293,12 @@ func (c *ConfigSync) trackSslProfiles(config *qdr.RouterConfig, path string) err
 }
 
 func (c *ConfigSync) recoverTracking() error {
-	configmap, err := c.config.Get(c.key(types.TransportConfigMapName))
+	configmap, err := c.config.Get(c.key(c.routerConfigMap))
 	if err != nil {
 		return err
 	}
 	if configmap == nil {
-		return fmt.Errorf("No configmap %q", types.TransportConfigMapName)
+		return fmt.Errorf("No configmap %q", c.routerConfigMap)
 	}
 	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
 	if err != nil {

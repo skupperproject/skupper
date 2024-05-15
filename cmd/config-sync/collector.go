@@ -41,7 +41,7 @@ func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) {
 	if platform != types.PlatformKubernetes {
 		return
 	}
-	current, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+	current, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.KubeClient)
 	if err != nil {
 		log.Fatal("Failed to get transport deployment", err.Error())
 	}
@@ -93,7 +93,7 @@ func primeBeacons(fc *flow.FlowCollector, cli *client.VanClient) {
 func startFlowController(stopCh <-chan struct{}, cli *client.VanClient) error {
 	siteId := os.Getenv("SKUPPER_SITE_ID")
 
-	deployment, err := kube.GetDeployment(types.TransportDeploymentName, cli.Namespace, cli.KubeClient)
+	deployment, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.KubeClient)
 	if err != nil {
 		log.Fatal("Failed to get transport deployment", err.Error())
 	}
@@ -163,4 +163,13 @@ func startCollector(cli *client.VanClient) {
 	}
 
 	runLeaderElection(cmLock, ctx, podname, cli)
+}
+
+func deploymentName() string {
+	deployment := os.Getenv("SKUPPER_ROUTER_DEPLOYMENT")
+	if deployment == "" {
+		return types.TransportDeploymentName
+	}
+	return deployment
+
 }

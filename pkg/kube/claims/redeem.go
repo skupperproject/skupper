@@ -49,16 +49,10 @@ func RedeemClaim(claim *skupperv1alpha1.Claim, site *skupperv1alpha1.Site, clien
 	}
 	log.Printf("HTTP Post to %s for %s/%s was sucessful, decoding response body", claim.Spec.Url, claim.Namespace, claim.Name)
 
-	decoder := yaml.NewYAMLOrJSONDecoder(response.Body, 1024)
-	var link skupperv1alpha1.Link
-	if err := decoder.Decode(&link); err != nil {
+	decoder := newLinkDecoder(response.Body)
+	if err := decoder.decodeAll(); err != nil {
 		return updateClaimStatus(claim, err, clients)
 	}
-	var secret corev1.Secret
-	if err := decoder.Decode(&secret); err != nil {
-		return updateClaimStatus(claim, err, clients)
-	}
-
 	refs := []metav1.OwnerReference{
 		{
 			Kind:       "Site",
@@ -67,14 +61,15 @@ func RedeemClaim(claim *skupperv1alpha1.Claim, site *skupperv1alpha1.Site, clien
 			UID:        site.ObjectMeta.UID,
 		},
 	}
-	secret.ObjectMeta.OwnerReferences = refs
-	link.ObjectMeta.OwnerReferences = refs
-
-	if _, err := clients.GetKubeClient().CoreV1().Secrets(claim.ObjectMeta.Namespace).Create(context.TODO(), &secret, metav1.CreateOptions{}); err != nil {
+	decoder.secret.ObjectMeta.OwnerReferences = refs
+	if _, err := clients.GetKubeClient().CoreV1().Secrets(claim.ObjectMeta.Namespace).Create(context.TODO(), &decoder.secret, metav1.CreateOptions{}); err != nil {
 		return err
 	}
-	if _, err := clients.GetSkupperClient().SkupperV1alpha1().Links(claim.ObjectMeta.Namespace).Create(context.TODO(), &link, metav1.CreateOptions{}); err != nil {
-		return err
+	for _, link := range decoder.links {
+		link.ObjectMeta.OwnerReferences = refs
+		if _, err := clients.GetSkupperClient().SkupperV1alpha1().Links(claim.ObjectMeta.Namespace).Create(context.TODO(), &link, metav1.CreateOptions{}); err != nil {
+			return err
+		}
 	}
 
 	return updateClaimStatus(claim, nil, clients)
@@ -91,4 +86,41 @@ func updateClaimStatus(claim *skupperv1alpha1.Claim, err error, clients kube.Cli
 	}
 	_, err = clients.GetSkupperClient().SkupperV1alpha1().Claims(claim.ObjectMeta.Namespace).UpdateStatus(context.TODO(), claim, metav1.UpdateOptions{})
 	return err
+}
+
+type LinkDecoder struct {
+	decoder *yaml.YAMLOrJSONDecoder
+	secret corev1.Secret
+	links  []skupperv1alpha1.Link
+}
+
+func newLinkDecoder(r io.Reader) *LinkDecoder {
+	return &LinkDecoder{
+		decoder: yaml.NewYAMLOrJSONDecoder(r, 1024),
+	}
+}
+
+func (d *LinkDecoder) decodeSecret() error {
+	return d.decoder.Decode(&d.secret)
+}
+
+func (d *LinkDecoder) decodeLink() error {
+	var link skupperv1alpha1.Link
+	if err := d.decoder.Decode(&link); err != nil {
+		return err
+	}
+	d.links = append(d.links, link)
+	return nil
+}
+
+func (d *LinkDecoder) decodeAll() error {
+	if err := d.decodeSecret(); err != nil {
+		return err
+	}
+	for err := d.decodeLink(); err != io.EOF; err = d.decodeLink() {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

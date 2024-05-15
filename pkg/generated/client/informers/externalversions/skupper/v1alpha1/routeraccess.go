@@ -32,59 +32,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// LinkAccessInformer provides access to a shared informer and lister for
-// LinkAccesses.
-type LinkAccessInformer interface {
+// RouterAccessInformer provides access to a shared informer and lister for
+// RouterAccesses.
+type RouterAccessInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.LinkAccessLister
+	Lister() v1alpha1.RouterAccessLister
 }
 
-type linkAccessInformer struct {
+type routerAccessInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewLinkAccessInformer constructs a new informer for LinkAccess type.
+// NewRouterAccessInformer constructs a new informer for RouterAccess type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewLinkAccessInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredLinkAccessInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewRouterAccessInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredRouterAccessInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredLinkAccessInformer constructs a new informer for LinkAccess type.
+// NewFilteredRouterAccessInformer constructs a new informer for RouterAccess type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredLinkAccessInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredRouterAccessInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV1alpha1().LinkAccesses(namespace).List(context.TODO(), options)
+				return client.SkupperV1alpha1().RouterAccesses(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV1alpha1().LinkAccesses(namespace).Watch(context.TODO(), options)
+				return client.SkupperV1alpha1().RouterAccesses(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&skupperv1alpha1.LinkAccess{},
+		&skupperv1alpha1.RouterAccess{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *linkAccessInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredLinkAccessInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *routerAccessInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredRouterAccessInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *linkAccessInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&skupperv1alpha1.LinkAccess{}, f.defaultInformer)
+func (f *routerAccessInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&skupperv1alpha1.RouterAccess{}, f.defaultInformer)
 }
 
-func (f *linkAccessInformer) Lister() v1alpha1.LinkAccessLister {
-	return v1alpha1.NewLinkAccessLister(f.Informer().GetIndexer())
+func (f *routerAccessInformer) Lister() v1alpha1.RouterAccessLister {
+	return v1alpha1.NewRouterAccessLister(f.Informer().GetIndexer())
 }
