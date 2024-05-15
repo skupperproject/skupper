@@ -46,7 +46,7 @@ type CreateFlags struct {
 }
 
 type CmdSiteCreate struct {
-	client   *client.VanClient
+	Client   *client.VanClient
 	CobraCmd cobra.Command
 	flags    CreateFlags
 	options  map[string]string
@@ -68,13 +68,13 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 			utils.HandleError(skupperCmd.FlagsToOptions())
 			utils.HandleError(skupperCmd.Run())
 		},
-		PostRun: func(cmd *cobra.Command, args []string) {
+		PostRunE: func(cmd *cobra.Command, args []string) error {
 			if ok := skupperCmd.WaitUntilReady(); ok {
 				fmt.Printf("Site \"%s\" is ready\n", skupperCmd.options["name"])
 			} else {
-				fmt.Printf("Site \"%s\" not ready yet, check the logs for more information\n", skupperCmd.options["name"])
+				return fmt.Errorf("Site \"%s\" not ready yet, check the logs for more information\n", skupperCmd.options["name"])
 			}
-
+			return nil
 		},
 	}
 
@@ -118,7 +118,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	cli, err := client.NewClient("", "", "")
 	utils.HandleError(err)
 
-	cmd.client = cli
+	cmd.Client = cli
 }
 
 func (cmd *CmdSiteCreate) ValidateFlags() []error {
@@ -203,7 +203,7 @@ func (cmd *CmdSiteCreate) Run() error {
 
 	siteName := cmd.options["name"]
 	if siteName == "" {
-		siteName = cmd.client.Namespace
+		siteName = cmd.Client.Namespace
 	}
 
 	resource := v1alpha1.Site{
@@ -213,7 +213,7 @@ func (cmd *CmdSiteCreate) Run() error {
 		},
 	}
 
-	_, err := cmd.client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.client.Namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	_, err := cmd.Client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.Client.Namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
 	utils.HandleError(err)
 	return nil
 }
@@ -222,7 +222,7 @@ func (cmd *CmdSiteCreate) WaitUntilReady() bool {
 
 	err := utils.NewSpinner("Waiting for site...", 5, func() error {
 
-		resource, err := cmd.client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.client.Namespace).Get(context.TODO(), cmd.options["name"], metav1.GetOptions{})
+		resource, err := cmd.Client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.Client.Namespace).Get(context.TODO(), cmd.options["name"], metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
