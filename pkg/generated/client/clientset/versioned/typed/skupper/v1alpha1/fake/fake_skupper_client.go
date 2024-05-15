@@ -48,12 +48,12 @@ func (c *FakeSkupperV1alpha1) Links(namespace string) v1alpha1.LinkInterface {
 	return &FakeLinks{c, namespace}
 }
 
-func (c *FakeSkupperV1alpha1) LinkAccesses(namespace string) v1alpha1.LinkAccessInterface {
-	return &FakeLinkAccesses{c, namespace}
-}
-
 func (c *FakeSkupperV1alpha1) Listeners(namespace string) v1alpha1.ListenerInterface {
 	return &FakeListeners{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) RouterAccesses(namespace string) v1alpha1.RouterAccessInterface {
+	return &FakeRouterAccesses{c, namespace}
 }
 
 func (c *FakeSkupperV1alpha1) SecuredAccesses(namespace string) v1alpha1.SecuredAccessInterface {

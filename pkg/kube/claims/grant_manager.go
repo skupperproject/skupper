@@ -58,8 +58,8 @@ type UrlFromSecuredAccess struct {
 }
 
 func (s *UrlFromSecuredAccess) SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) {
-	if se != nil && s.key == key && len(se.Status.Urls) > 0 && s.grants.getUrl() != se.Status.Urls[0].Url {
-		if s.grants.setUrl(se.Status.Urls[0].Url) {
+	if se != nil && s.key == key && len(se.Status.Endpoints) > 0 && s.grants.getUrl() != se.Status.Endpoints[0].Url() {
+		if s.grants.setUrl(se.Status.Endpoints[0].Url()) {
 			s.grants.recheckUrl()
 		}
 		if s.ready && !s.started {

@@ -160,8 +160,12 @@ func (r *RouterConfig) AddListener(l Listener) {
 	r.Listeners[l.Name] = l
 }
 
-func (r *RouterConfig) AddConnector(c Connector) {
+func (r *RouterConfig) AddConnector(c Connector) bool {
+	if original, ok := r.Connectors[c.Name]; ok && original == c {
+		return false
+	}
 	r.Connectors[c.Name] = c
+	return true
 }
 
 func (r *RouterConfig) RemoveConnector(name string) (bool, Connector) {

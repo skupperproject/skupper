@@ -7,18 +7,17 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-func UpdateRouterConfig(client kubernetes.Interface, namespace string, ctxt context.Context, update qdr.ConfigUpdate) error {
+func UpdateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		return updateRouterConfig(client, namespace, ctxt, update)
+		return updateRouterConfig(client, name, namespace, ctxt, update)
 	})
 }
 
-func updateRouterConfig(client kubernetes.Interface, namespace string, ctxt context.Context, update qdr.ConfigUpdate) error {
-	current, err := client.CoreV1().ConfigMaps(namespace).Get(ctxt, types.TransportConfigMapName, metav1.GetOptions{})
+func updateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate) error {
+	current, err := client.CoreV1().ConfigMaps(namespace).Get(ctxt, name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

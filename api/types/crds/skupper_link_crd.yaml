@@ -15,26 +15,19 @@ spec:
             spec:
               type: object
               properties:
-                interRouter:
-                  type: object
-                  properties:
-                    host:
-                      type: string
-                    port:
-                      type: integer
-                  required:
-                    - host
-                    - port
-                edge:
-                  type: object
-                  properties:
-                    host:
-                      type: string
-                    port:
-                      type: integer
-                  required:
-                    - host
-                    - port
+                endpoints:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      host:
+                        type: string
+                      port:
+                        type: string
+                      group:
+                        type: string
                 tlsCredentials:
                   type: string
                 cost:
@@ -42,28 +35,19 @@ spec:
                 noClientAuth:
                   type: boolean
               required:
-                - interRouter
-                - edge
+                - endpoints
             status:
               type: object
               properties:
                 configured:
                   type: boolean
-                url:
-                  type: string
                 active:
                   type: boolean
-                site:
-                  type: string
                 status:
                   type: string
       subresources:
         status: {}
       additionalPrinterColumns:
-      - name: Url
-        type: string
-        description: The host and port the router has been configured to link to
-        jsonPath: .status.url
       - name: Configured
         type: boolean
         description: Whether the router has been configured to try and establish the link
@@ -72,10 +56,6 @@ spec:
         type: boolean
         description: Whether link is active
         jsonPath: .status.active
-      - name: Site Name
-        type: string
-        description: The name of the site linked to
-        jsonPath: .status.site
       - name: Status
         type: string
         description: The status of the link

@@ -15,10 +15,16 @@ spec:
             spec:
               type: object
               properties:
+                routerMode:
+                  type: string
                 serviceAccount:
                   type: string
                 linkAccess:
                   type: string
+                defaultIssuer:
+                  type: string
+                ha:
+                  type: boolean
                 settings:
                   type: object
                   additionalProperties:
@@ -26,6 +32,8 @@ spec:
             status:
               type: object
               properties:
+                defaultIssuer:
+                  type: string
                 active:
                   type: boolean
                 status:
@@ -40,6 +48,8 @@ spec:
                       port:
                         type: string
                       name:
+                        type: string
+                      group:
                         type: string
                 sitesInNetwork:
                   type: integer

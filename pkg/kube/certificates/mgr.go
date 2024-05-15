@@ -10,6 +10,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers/internalinterfaces"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -89,10 +90,13 @@ func (m *CertificateManagerImpl) definitionUpdated(key string, def *skupperv1alp
 func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv1alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
-		if reflect.DeepEqual(spec, current.Spec) {
+		if !mergeOwnerReferences(current.ObjectMeta.OwnerReferences, refs) && reflect.DeepEqual(spec, current.Spec) {
 			return nil
 		}
+		// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
+		hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts).apply(current.Spec.Hosts)
 		current.Spec = spec
+		current.Spec.Hosts = hosts
 		updated, err := m.controller.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
@@ -117,6 +121,9 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 			},
 			Spec: spec,
 		}
+		if len(refs) > 0 {
+			cert.ObjectMeta.Annotations["internal.skupper.io/hosts-" + string(refs[0].UID)] = strings.Join(spec.Hosts, ",")
+		}
 		created, err := m.controller.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Create(context.Background(), cert, metav1.CreateOptions{})
 		if err != nil {
 			return err
@@ -125,6 +132,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		return nil
 	}
 }
+
 func (m *CertificateManagerImpl) checkChanged(key string) bool {
 	if _, ok := m.changed[key]; !ok {
 		return false
@@ -294,4 +302,85 @@ func ownerReferences(cert *skupperv1alpha1.Certificate) []metav1.OwnerReference 
 			UID:        cert.ObjectMeta.UID,
 		},
 	}
+}
+
+func mergeOwnerReferences(original []metav1.OwnerReference, added []metav1.OwnerReference) bool {
+	changed := false
+	byUid := map[types.UID]metav1.OwnerReference{}
+	for _, ref := range original {
+		byUid[ref.UID] = ref
+	}
+	for _, ref := range added {
+		if actual, ok := byUid[ref.UID]; !ok || actual != ref {
+			original = append(original, ref)
+			changed = true
+		}
+	}
+	return changed
+}
+
+
+type HostChanges struct {
+	additions []string
+	deletions []string
+}
+
+func (changes *HostChanges) apply(original []string) []string {
+	changed := false
+	index := map[string]bool{}
+	for _, value := range original {
+		index[value] = true
+	}
+	for _, host := range changes.additions {
+		if _, ok := index[host]; !ok {
+			index[host] = true
+			changed = true
+		}
+	}
+	for _, host := range changes.deletions {
+		if _, ok := index[host]; ok {
+			delete(index, host)
+			changed = true
+		}
+	}
+	if !changed {
+		return original
+	}
+	var hosts []string
+	for key, _ := range index {
+		hosts = append(hosts, key)
+	}
+	return hosts
+}
+
+func getPreviousHosts(cert *skupperv1alpha1.Certificate, refs []metav1.OwnerReference) map[string]bool {
+	if len(refs) > 0 {
+		if value, ok := cert.ObjectMeta.Annotations["internal.skupper.io/hosts-" + string(refs[0].UID)]; ok {
+			hosts := map[string]bool{}
+			for _, value := range strings.Split(value, ",") {
+				hosts[value] = true
+			}
+			return hosts
+		}
+	}
+	return nil
+}
+
+func getHostChanges(previous map[string]bool, current []string) *HostChanges {
+	changes := &HostChanges{}
+	if len(previous) > 0 {
+		for _, value := range current {
+			if _, ok := previous[value]; ok {
+				delete(previous, value)
+			} else {
+				changes.additions = append(changes.additions, value)
+			}
+		}
+		for value, _ := range previous {
+			changes.deletions = append(changes.deletions, value)
+		}
+	} else {
+		changes.additions = current
+	}
+	return changes
 }

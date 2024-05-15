@@ -28,9 +28,9 @@ type GrantExpansion interface{}
 
 type LinkExpansion interface{}
 
-type LinkAccessExpansion interface{}
-
 type ListenerExpansion interface{}
+
+type RouterAccessExpansion interface{}
 
 type SecuredAccessExpansion interface{}
 

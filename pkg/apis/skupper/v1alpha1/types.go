@@ -46,6 +46,10 @@ type Site struct {
 	Status        SiteStatus `json:"status,omitempty"`
 }
 
+func (s *Site) GetSiteId() string {
+	return string(s.ObjectMeta.UID)
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // SiteList contains a List of Site instances
@@ -58,7 +62,31 @@ type SiteList struct {
 type SiteSpec struct {
 	ServiceAccount string            `json:"serviceAccount,omitempty"`
 	LinkAccess     string            `json:"linkAccess,omitempty"`
+	DefaultIssuer  string            `json:"defaultIssuer,omitempty"`
+	RouterMode     string            `json:"routerMode,omitempty"`
+	HA             bool              `json:"ha,omitempty"`
 	Settings       map[string]string `json:"settings,omitempty"`
+}
+
+func (s *SiteSpec) GetServiceAccount() string {
+	if s.ServiceAccount == "" {
+		return "skupper-router"
+	}
+	return s.ServiceAccount
+}
+
+func (s *SiteSpec) GetRouterLogging() string {
+	if value, ok := s.Settings["router-logging"]; ok {
+		return value
+	}
+	return ""
+}
+
+func (s *SiteSpec) GetRouterDataConnectionCount() string {
+	if value, ok := s.Settings["router-data-connection-count"]; ok {
+		return value
+	}
+	return ""
 }
 
 type Status struct {
@@ -72,12 +100,22 @@ type SiteStatus struct {
 	SitesInNetwork    int          `json:"sitesInNetwork,omitempty"`
 	ServicesInNetwork int          `json:"servicesInNetwork,omitempty"`
 	Network           []SiteRecord `json:"network,omitempty"`
+	DefaultIssuer     string       `json:"defaultIssuer,omitempty"`
 }
 
 type Endpoint struct {
-	Name string `json:"name,omitempty"`
-	Host string `json:"host,omitempty"`
-	Port string `json:"port,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Host  string `json:"host,omitempty"`
+	Port  string `json:"port,omitempty"`
+	Group string `json:"group,omitempty"`
+}
+
+func (a *Endpoint) MatchHostPort(b *Endpoint) bool {
+	return a.Host == b.Host && a.Port == b.Port
+}
+
+func (a *Endpoint) Url() string {
+	return fmt.Sprintf("%s:%s", a.Host, a.Port)
 }
 
 type SiteRecord struct {
@@ -177,23 +215,24 @@ type LinkList struct {
 }
 
 type LinkSpec struct {
-	InterRouter    HostPort `json:"interRouter"`
-	Edge           HostPort `json:"edge"`
-	TlsCredentials string   `json:"tlsCredentials,omitempty"`
-	Cost           int      `json:"cost,omitempty"`
-	NoClientAuth   bool     `json:"noClientAuth,omitempty"`
+	Endpoints      []Endpoint `json:"endpoints,omitempty"`
+	TlsCredentials string     `json:"tlsCredentials,omitempty"`
+	Cost           int        `json:"cost,omitempty"`
+	NoClientAuth   bool       `json:"noClientAuth,omitempty"`
 }
 
-type HostPort struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
+func (s *LinkSpec) GetEndpointForRole(name string) (Endpoint, bool) {
+	for _, endpoint := range s.Endpoints {
+		if endpoint.Name == name {
+			return endpoint, true
+		}
+	}
+	return Endpoint{}, false
 }
 
 type LinkStatus struct {
 	Status     `json:",inline"`
 	Configured bool   `json:"configured,omitempty"`
-	Url        string `json:"url,omitempty"`
-	Site       string `json:"site,omitempty"`
 }
 
 // +genclient
@@ -249,6 +288,7 @@ type GrantSpec struct {
 	Claims   int    `json:"claims,omitempty"`
 	ValidFor string `json:"validFor,omitempty"`
 	Secret   string `json:"secret,omitempty"`
+	Issuer   string `json:"issuer,omitempty"`
 }
 
 type GrantStatus struct {
@@ -295,35 +335,38 @@ type SecuredAccessSpec struct {
 	Selector    map[string]string   `json:"selector"`
 	Ports       []SecuredAccessPort `json:"ports"`
 	Certificate string              `json:"certificate,omitempty"`
-	Ca          string              `json:"ca,omitempty"`
+	Issuer      string              `json:"issuer,omitempty"`
 	Options     map[string]string   `json:"options,omitempty"`
 }
 
-type SecuredAccessUrl struct {
-	Name string `json:"name"`
-	Url  string `json:"url"`
-}
-
-func (s *SecuredAccessUrl) AsLinkAccessUrl() LinkAccessUrl {
-	return LinkAccessUrl{
-		Role: s.Name,
-		Url:  s.Url,
-	}
-}
-
 type SecuredAccessStatus struct {
-	Urls   []SecuredAccessUrl `json:"urls,omitempty"`
-	Ca     string             `json:"ca,omitempty"`
-	Status string             `json:"status,omitempty"`
+	Endpoints []Endpoint `json:"endpoints,omitempty"`
+	Ca        string     `json:"ca,omitempty"`
+	Status    string     `json:"status,omitempty"`
 }
 
-func (s *SecuredAccessStatus) GetLinkAccessUrls() []LinkAccessUrl {
-	var urls []LinkAccessUrl
-	for _, u := range s.Urls {
-		urls = append(urls, u.AsLinkAccessUrl())
+func (s *SecuredAccessStatus) GetEndpointByName(name string) *Endpoint {
+	for i, endpoint := range s.Endpoints {
+		if endpoint.Name == name {
+			return &s.Endpoints[i]
+		}
 	}
-	return urls
+	return nil
 }
+
+func (s *SecuredAccessStatus) UpdateEndpoint(endpoint *Endpoint) bool {
+	current := s.GetEndpointByName(endpoint.Name)
+	if current == nil {
+		s.Endpoints = append(s.Endpoints, *endpoint)
+		return true
+	}
+	if !current.MatchHostPort(endpoint) {
+		current = endpoint
+		return true
+	}
+	return false
+}
+
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -365,48 +408,88 @@ func (c *Certificate) Key() string {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type LinkAccess struct {
+type RouterAccess struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          LinkAccessSpec   `json:"spec,omitempty"`
-	Status        LinkAccessStatus `json:"status,omitempty"`
+	Spec          RouterAccessSpec   `json:"spec,omitempty"`
+	Status        RouterAccessStatus `json:"status,omitempty"`
 }
 
-func (link *LinkAccess) Key() string {
-	return fmt.Sprintf("%s/%s", link.Namespace, link.Name)
+func (r *RouterAccess) Key() string {
+	return fmt.Sprintf("%s/%s", r.Namespace, r.Name)
+}
+
+func (r *RouterAccess) FindRole(name string) *RouterAccessRole {
+	for _, role := range r.Spec.Roles {
+		if role.Name == name {
+			return &role
+		}
+	}
+	return nil
+}
+
+// endpoints are assumed all to be from one group
+func (s *RouterAccessStatus) UpdateEndpointsForGroup(endpoints []Endpoint, group string) bool {
+	all := []Endpoint{}
+	updated := false
+	byName := map[string]Endpoint{}
+	for _, endpoint := range endpoints {
+		endpoint.Group = group
+		byName[endpoint.Name] = endpoint
+	}
+	for _, endpoint := range s.Endpoints {
+		if endpoint.Group != group {
+			all = append(all, endpoint)
+		} else if desired, ok := byName[endpoint.Name]; ok {
+			if desired.MatchHostPort(&endpoint) {
+				all = append(all, endpoint)
+			} else {
+				all = append(all, desired)
+				updated = true
+			}
+			delete(byName, endpoint.Name)
+		} else {
+			// endpoint is in group, but not in desired list so don't add it
+			updated = true
+		}
+	}
+	for _, endpoint := range byName {
+		all = append(all, endpoint)
+		updated = true
+	}
+	if updated {
+		s.Endpoints = all
+		return true
+	}
+	return false
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// LinkAccessList contains a List of LinkAccess instances
-type LinkAccessList struct {
+// RouterAccessList contains a List of RouterAccess instances
+type RouterAccessList struct {
 	v1.TypeMeta `json:",inline"`
 	v1.ListMeta `json:"metadata,omitempty"`
-	Items       []LinkAccess `json:"items"`
+	Items       []RouterAccess `json:"items"`
 }
 
-type LinkAccessRole struct {
-	Role string `json:"role"`
+type RouterAccessRole struct {
+	Name string `json:"name"`
 	Port int    `json:"port"`
 }
 
-type LinkAccessSpec struct {
+type RouterAccessSpec struct {
 	AccessType              string            `json:"accessType,omitempty"`
-	Roles                   []LinkAccessRole  `json:"roles"`
+	Roles                   []RouterAccessRole  `json:"roles"`
 	TlsCredentials          string            `json:"tlsCredentials"`
-	Ca                      string            `json:"ca"`
+	GenerateTlsCredentials  bool              `json:"generateTlsCredentials"`
+	Issuer                  string            `json:"issuer"`
 	Options                 map[string]string `json:"options,omitempty"`
 	BindHost                string            `json:"bindHost,omitempty"`
 	SubjectAlternativeNames []string          `json:"subjectAlternativeNames,omitempty"`
 }
 
-type LinkAccessUrl struct {
-	Role string `json:"role"`
-	Url  string `json:"url"`
-}
-
-type LinkAccessStatus struct {
-	Active bool            `json:"active,omitempty"`
-	Status string          `json:"status,omitempty"`
-	Urls   []LinkAccessUrl `json:"urls,omitempty"`
+type RouterAccessStatus struct {
+	Status               `json:",inline"`
+	Endpoints []Endpoint `json:"endpoints,omitempty"`
 }

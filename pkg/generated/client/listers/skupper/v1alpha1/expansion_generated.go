@@ -58,14 +58,6 @@ type LinkListerExpansion interface{}
 // LinkNamespaceLister.
 type LinkNamespaceListerExpansion interface{}
 
-// LinkAccessListerExpansion allows custom methods to be added to
-// LinkAccessLister.
-type LinkAccessListerExpansion interface{}
-
-// LinkAccessNamespaceListerExpansion allows custom methods to be added to
-// LinkAccessNamespaceLister.
-type LinkAccessNamespaceListerExpansion interface{}
-
 // ListenerListerExpansion allows custom methods to be added to
 // ListenerLister.
 type ListenerListerExpansion interface{}
@@ -73,6 +65,14 @@ type ListenerListerExpansion interface{}
 // ListenerNamespaceListerExpansion allows custom methods to be added to
 // ListenerNamespaceLister.
 type ListenerNamespaceListerExpansion interface{}
+
+// RouterAccessListerExpansion allows custom methods to be added to
+// RouterAccessLister.
+type RouterAccessListerExpansion interface{}
+
+// RouterAccessNamespaceListerExpansion allows custom methods to be added to
+// RouterAccessNamespaceLister.
+type RouterAccessNamespaceListerExpansion interface{}
 
 // SecuredAccessListerExpansion allows custom methods to be added to
 // SecuredAccessLister.

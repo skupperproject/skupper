@@ -1,9 +1,9 @@
 package securedaccess
 
 import (
-	"fmt"
 	"log"
 	"reflect"
+	"strconv"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 )
@@ -27,13 +27,13 @@ func (o *LoadbalancerAccessType) Realise(access *skupperv1alpha1.SecuredAccess) 
 }
 
 func (o *LoadbalancerAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {
-	log.Printf("Resolving URLs for SecuredAccess %s of accessType 'loadbalancer'", access.Key())
+	log.Printf("Resolving endpoints for SecuredAccess %s of accessType 'loadbalancer'", access.Key())
 	svc, ok := o.manager.services[access.Key()]
 	if !ok {
-		log.Printf("Cannot resolve URLs; no service %s found", access.Key())
+		log.Printf("Cannot resolve endpoints; no service %s found", access.Key())
 		return false
 	}
-	var urls []skupperv1alpha1.SecuredAccessUrl
+	var endpoints []skupperv1alpha1.Endpoint
 	for _, i := range svc.Status.LoadBalancer.Ingress {
 		var host string
 		if i.IP != "" {
@@ -44,18 +44,19 @@ func (o *LoadbalancerAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) 
 			continue
 		}
 		for _, p := range svc.Spec.Ports {
-			urls = append(urls, skupperv1alpha1.SecuredAccessUrl{
+			endpoints = append(endpoints, skupperv1alpha1.Endpoint{
 				Name: p.Name,
-				Url:  fmt.Sprintf("%s:%d", host, p.Port),
+				Host: host,
+				Port: strconv.Itoa(int(p.Port)),
 			})
 		}
 	}
-	log.Printf("Resolving URLs for SecuredAccess %s of accessType 'loadbalancer' -> %v", access.Key(), urls)
-	if urls == nil || reflect.DeepEqual(urls, access.Status.Urls) {
-		log.Printf("URLs for SecuredAccess %s of accessType 'loadbalancer' have not changed", access.Key())
+	log.Printf("Resolving endpoints for SecuredAccess %s of accessType 'loadbalancer' -> %v", access.Key(), endpoints)
+	if endpoints == nil || reflect.DeepEqual(endpoints, access.Status.Endpoints) {
+		log.Printf("Endpoints for SecuredAccess %s of accessType 'loadbalancer' have not changed", access.Key())
 		return false
 	}
-	access.Status.Urls = urls
-	log.Printf("Resolved URLs for SecuredAccess %s of accessType 'loadbalancer' -> %v", access.Key(), urls)
+	access.Status.Endpoints = endpoints
+	log.Printf("Resolved endpoints for SecuredAccess %s of accessType 'loadbalancer' -> %v", access.Key(), endpoints)
 	return true
 }
