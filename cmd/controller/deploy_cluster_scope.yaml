@@ -1,5 +1,10 @@
 ---
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: skupper
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: skupper-controller
