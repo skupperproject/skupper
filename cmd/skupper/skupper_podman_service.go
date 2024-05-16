@@ -140,7 +140,7 @@ func (s *SkupperPodmanService) ListFlags(cmd *cobra.Command) {}
 
 func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 	services, err := s.svcHandler.List()
-	var mapServiceLabels map[string]map[string]string
+	mapServiceLabels := make(map[string]map[string]string)
 	localPodmanSiteInfo := network.LocalSiteInfo{SiteId: s.podman.currentSite.Id, ServiceInfo: make(map[string]network.LocalServiceInfo)}
 
 	if err == nil {
@@ -183,13 +183,9 @@ func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 					}
 
 					address := serviceName + ":" + portStr
-
 					localPodmanSiteInfo.ServiceInfo[address] = network.LocalServiceInfo{Data: serviceInfo}
+					mapServiceLabels[address] = svcPodman.GetLabels()
 
-					if showLabels && len(svcPodman.GetLabels()) > 0 {
-
-						mapServiceLabels[serviceName+":"+portStr] = svcPodman.GetLabels()
-					}
 				}
 			}
 
@@ -215,6 +211,15 @@ func (s *SkupperPodmanService) Status(cmd *cobra.Command, args []string) error {
 	} else if errStatus != nil {
 		return errStatus
 	}
+
+	var servicesToDisplay []network.AddressInfo
+	for _, addr := range currentStatus.Addresses {
+		if _, exist := mapServiceLabels[addr.Name]; exist {
+			servicesToDisplay = append(servicesToDisplay, addr)
+		}
+
+	}
+	currentStatus.Addresses = servicesToDisplay
 
 	err = formatter.PrintServiceStatus(currentStatus, mapServiceLabels, verboseServiceStatus, showLabels, &localPodmanSiteInfo)
 	if err != nil {
