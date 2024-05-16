@@ -142,6 +142,9 @@ func GetPlatform() types.Platform {
 }
 
 func GetDataHome() string {
+	if os.Getuid() == 0 {
+		return "/usr/local/bin"
+	}
 	dataHome, ok := os.LookupEnv("XDG_DATA_HOME")
 	if !ok {
 		homeDir, _ := os.UserHomeDir()
