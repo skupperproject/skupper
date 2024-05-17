@@ -21,8 +21,8 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 const (

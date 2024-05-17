@@ -23,14 +23,15 @@ type CertToken struct {
 }
 
 type ClaimToken struct {
+
 }
 
-type Token interface {
+type Token interface{
 	Write(writer io.Writer) error
 }
 
 type TokenGenerator struct {
-	namespace   string
+	namespace string
 	clients     kube.Clients
 	ca          *corev1.Secret
 	interRouter skupperv1alpha1.HostPort
@@ -133,15 +134,15 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) error
 func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
 	cert := certs.GenerateSecret(name, subject, strings.Join(g.hosts, ","), g.ca)
 	return &CertToken{
-		linkConfig: &skupperv1alpha1.Link{
-			TypeMeta: metav1.TypeMeta{
+		linkConfig:     &skupperv1alpha1.Link{
+			TypeMeta:   metav1.TypeMeta{
 				APIVersion: "skupper.io/v1alpha1",
 				Kind:       "Link",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name:        name,
 			},
-			Spec: skupperv1alpha1.LinkSpec{
+			Spec:       skupperv1alpha1.LinkSpec{
 				InterRouter:    g.interRouter,
 				Edge:           g.edge,
 				TlsCredentials: name,

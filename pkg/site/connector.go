@@ -9,7 +9,7 @@ import (
 )
 
 type Connector struct {
-	resource  *skupperv1alpha1.Connector
+	resource *skupperv1alpha1.Connector
 	selection TargetSelection
 }
 
@@ -55,7 +55,7 @@ func (c *Connector) updateBridges(siteId string, config *qdr.BridgeConfig) {
 }
 
 func (c *Connector) AsTcpEndpoint(name string, host string, siteId string) qdr.TcpEndpoint {
-	return qdr.TcpEndpoint{
+	return qdr.TcpEndpoint {
 		Name:       name,
 		Host:       host,
 		Port:       strconv.Itoa(c.resource.Spec.Port),
@@ -68,17 +68,17 @@ func (c *Connector) AsTcpEndpoint(name string, host string, siteId string) qdr.T
 }
 
 func (c *Connector) AsHttpEndpoint(name string, host string, siteId string) qdr.HttpEndpoint {
-	return qdr.HttpEndpoint{
+	return qdr.HttpEndpoint {
 		Name:       name,
 		Host:       host,
 		Port:       strconv.Itoa(c.resource.Spec.Port), //TODO: should port be a string to allow for wll known service names in binding definitions?
 		Address:    c.resource.Spec.RoutingKey,
 		SiteId:     siteId,
 		SslProfile: c.resource.Spec.TlsCredentials,
-		//TODO:
-		//Aggregation
-		//EventChannel
-		//HostOverride
+	        //TODO:
+	        //Aggregation
+	        //EventChannel
+	        //HostOverride
 		//VerifyHostname
 	}
 }

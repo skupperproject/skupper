@@ -23,6 +23,7 @@ func getHostPorts(lc *skupperv1alpha1.Link) map[qdr.Role]HostPort {
 	return hostPorts
 }
 
+
 type HostPort struct {
 	host string
 	port string
@@ -51,7 +52,7 @@ func NewLink(name string) *Link {
 }
 
 func (l *Link) Apply(current *qdr.RouterConfig) bool {
-	profile := qdr.SslProfile{
+	profile := qdr.SslProfile {
 		Name: sslProfileName(l.name),
 	}
 	role := qdr.RoleInterRouter
@@ -62,7 +63,7 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if hostPort.defined() {
 		l.url = hostPort.url()
 	}
-	connector := qdr.Connector{
+	connector := qdr.Connector {
 		Name:       l.name,
 		Cost:       l.cost,
 		SslProfile: profile.Name,

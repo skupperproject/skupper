@@ -98,7 +98,7 @@ func startFlowController(stopCh <-chan struct{}, cli *client.VanClient) error {
 		log.Fatal("Failed to get transport deployment", err.Error())
 	}
 	creationTime := uint64(deployment.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
-	flowController := flow.NewFlowController(siteId, version.Version, creationTime, qdr.NewConnectionFactory("amqp://localhost:5672", nil), nil /*TODO: enable policy checks?*/)
+	flowController := flow.NewFlowController(siteId, version.Version, creationTime, qdr.NewConnectionFactory("amqp://localhost:5672", nil), nil/*TODO: enable policy checks?*/)
 
 	controller := kube.NewController("flow-controller", cli)
 	kubeflow.WatchPods(controller, cli.Namespace, flowController.UpdateProcess)

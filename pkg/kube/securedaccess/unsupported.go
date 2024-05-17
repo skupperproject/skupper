@@ -6,6 +6,7 @@ import (
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 )
 
+
 type UnsupportedAccessType struct {
 	manager *SecuredAccessManager
 }

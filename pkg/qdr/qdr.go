@@ -824,7 +824,7 @@ func (r *RouterConfig) UpdateConfigMap(configmap *corev1.ConfigMap) (bool, error
 	return true, nil
 }
 
-type ListenerPredicate func(Listener) bool
+type ListenerPredicate func (Listener) bool
 
 func IsNotNormalListener(l Listener) bool {
 	return l.Role != "normal" && l.Role != ""
@@ -1113,13 +1113,13 @@ func (a *ConnectorDifference) Empty() bool {
 }
 
 type ListenerDifference struct {
-	Deleted []Listener
-	Added   []Listener
+	Deleted          []Listener
+	Added            []Listener
 }
 
 type SslProfileDifference struct {
-	Deleted []SslProfile
-	Added   []SslProfile
+	Deleted          []SslProfile
+	Added            []SslProfile
 }
 
 func (config *RouterConfig) CorrespondingSslProfileDifference(listeners *ListenerDifference) *SslProfileDifference {
