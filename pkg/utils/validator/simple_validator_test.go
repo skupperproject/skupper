@@ -81,3 +81,39 @@ func TestIntegerValidator_Evaluate(t *testing.T) {
 		})
 	}
 }
+
+func TestNewOptionValidator(t *testing.T) {
+
+	t.Run("Test Option Validator constructor", func(t *testing.T) {
+
+		expectedResult := &OptionValidator{
+			AllowedOptions: []string{"a", "b"},
+		}
+		actualResult := NewOptionValidator([]string{"a", "b"})
+		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+	})
+}
+
+func TestOptionValidator_Evaluate(t *testing.T) {
+	type test struct {
+		name   string
+		value  interface{}
+		result bool
+	}
+
+	testTable := []test{
+		{name: "empty string", value: "", result: false},
+		{name: "value not included", value: "c", result: false},
+		{name: "nil value", value: nil, result: false},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			optionValidator := NewOptionValidator([]string{"a", "b"})
+			expectedResult := test.result
+			actualResult, _ := optionValidator.Evaluate(test.value)
+			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+		})
+	}
+}

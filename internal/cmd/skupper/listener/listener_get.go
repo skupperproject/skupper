@@ -28,8 +28,8 @@ func NewCmdListenerGet() *CmdListenerGet {
 		Example: listenerGetExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -41,7 +41,7 @@ func NewCmdListenerGet() *CmdListenerGet {
 
 func (cmd *CmdListenerGet) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdListenerGet) AddFlags()                                            {}
-func (cmd *CmdListenerGet) ValidateFlags() []error                               { return nil }
-func (cmd *CmdListenerGet) FlagsToOptions() error                                { return nil }
+func (cmd *CmdListenerGet) ValidateInput(args []string) []error                  { return nil }
+func (cmd *CmdListenerGet) InputToOptions(args []string) error                   { return nil }
 func (cmd *CmdListenerGet) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdListenerGet) WaitUntilReady() bool                                 { return true }
+func (cmd *CmdListenerGet) WaitUntilReady() error                                { return nil }

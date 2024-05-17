@@ -19,12 +19,12 @@ func NewCmdSiteGet() *CmdSiteGet {
 	cmd := cobra.Command{
 		Use:     "get",
 		Short:   "get the site",
-		Long:    siteCreateLong,
-		Example: siteCreateExample,
+		Long:    "",
+		Example: "",
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -36,7 +36,7 @@ func NewCmdSiteGet() *CmdSiteGet {
 
 func (cmd *CmdSiteGet) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdSiteGet) AddFlags()                                            {}
-func (cmd *CmdSiteGet) ValidateFlags() []error                               { return nil }
-func (cmd *CmdSiteGet) FlagsToOptions() error                                { return nil }
+func (cmd *CmdSiteGet) ValidateInput(args []string) []error                  { return nil }
+func (cmd *CmdSiteGet) InputToOptions(args []string) error                   { return nil }
 func (cmd *CmdSiteGet) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdSiteGet) WaitUntilReady() bool                                 { return true }
+func (cmd *CmdSiteGet) WaitUntilReady() error                                { return nil }

@@ -6,6 +6,7 @@ package site
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -13,36 +14,21 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
-	"strings"
 )
 
 var (
-	siteCreateLong = `Setup a router and other supporting objects to provide a functional skupper
-installation that can then be connected to other skupper installations.`
-	siteCreateExample = `skupper site create --name site1 --enable-collector --enable-console
-skupper site create --ingress route`
+	siteCreateLong = `A site is a place where components of your application are running. 
+Sites are linked to form application networks.
+There can be only one site definition per namespace.`
+
+	linkAccessTypes = []string{"route", "loadbalancer", "nodeport", "nginx-ingress-v1", "contour-http-proxy", "ingress"}
 )
 
 type CreateFlags struct {
-	name                     string
-	ingress                  string
-	ingressHost              string
-	labels                   []string
-	routerMode               string
-	routerLogging            string
-	enableConsole            bool
-	enableFlowCollector      bool
-	consoleAuth              string
-	consoleUser              string
-	consolePassword          string
-	routerCPULimit           string
-	routerMemoryLimit        string
-	controllerCPULimit       string
-	controllerMemoryLimit    string
-	flowCollectorCPULimit    string
-	flowCollectorMemoryLimit string
-	prometheusCPULimit       string
-	prometheusMemoryLimit    string
+	enableLinkAccess bool
+	linkAccessType   string
+	linkAccessHost   string
+	serviceAccount   string
 }
 
 type CmdSiteCreate struct {
@@ -50,6 +36,7 @@ type CmdSiteCreate struct {
 	CobraCmd cobra.Command
 	flags    CreateFlags
 	options  map[string]string
+	siteName string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -58,23 +45,17 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 	skupperCmd := CmdSiteCreate{options: options, flags: CreateFlags{}}
 
 	cmd := cobra.Command{
-		Use:     "create",
-		Short:   "Create a new site",
-		Long:    siteCreateLong,
-		Example: siteCreateExample,
-		PreRun:  skupperCmd.NewClient,
+		Use:    "create <name>",
+		Short:  "Create a new site",
+		Long:   siteCreateLong,
+		PreRun: skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			if ok := skupperCmd.WaitUntilReady(); ok {
-				fmt.Printf("Site \"%s\" is ready\n", skupperCmd.options["name"])
-			} else {
-				return fmt.Errorf("Site \"%s\" not ready yet, check the logs for more information\n", skupperCmd.options["name"])
-			}
-			return nil
+			return skupperCmd.WaitUntilReady()
 		},
 	}
 
@@ -85,33 +66,12 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 }
 
 func (cmd *CmdSiteCreate) AddFlags() {
-	//Generic
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.name, "name", "", "Provide a specific name for this skupper installation (by default the same as in the namespace)")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.ingress, "ingress", "none", "Setup Skupper ingress to one of: [route|loadbalancer|nodeport|nginx-ingress-v1|contour-http-proxy|ingress|none]")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.ingressHost, "ingress-host", "", "Hostname or alias by which the ingress route or proxy can be reached")
-	cmd.CobraCmd.Flags().StringSliceVar(&cmd.flags.labels, "labels", []string{}, "Labels to add to resources created by skupper")
-
-	//Router
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.routerMode, "router-mode", "interior", "Skupper router-mode")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.routerLogging, "router-logging", "info", "Logging settings for router. On of [trace|debug|info|notice|warning|error]")
-
-	//Console and Flow collector
-	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.enableFlowCollector, "enable-flow-collector", false, "Enable cross-site flow collection for the application network")
-	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.enableConsole, "enable-console", false, "Enable skupper console must be used in conjunction with '--enable-flow-collector' flag")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.consoleAuth, "console-auth", "internal", "Authentication mode for console(s). One of: [openshift|internal|unsecured]")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.consoleUser, "console-user", "", "Skupper console user. Valid only when --console-auth=internal")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.consolePassword, "console-password", "", "Skupper console password. Valid only when --console-auth=internal")
-
-	//Setting limits
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.routerCPULimit, "router-cpu-limit", "", "CPU limit for router pods")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.routerMemoryLimit, "router-memory-limit", "", "Memory limit for router pods")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.controllerCPULimit, "controller-cpu-limit", "", "CPU limit for controller pods")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.controllerMemoryLimit, "controller-memory-limit", "", "Memory limit for controller pods")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.flowCollectorCPULimit, "flow-collector-cpu-limit", "", "CPU limit for flow collector pods")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.flowCollectorMemoryLimit, "flow-collector-memory-limit", "", "Memory limit for flow collector pods")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.prometheusCPULimit, "prometheus-cpu-limit", "", "CPU limit for prometheus pods")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.prometheusMemoryLimit, "prometheus-memory-limit", "", "Memory limit for flow prometheus pods")
-
+	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.enableLinkAccess, "enable-link-access", false, "Enable external access for links from remote sites")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessType, "link-access-type", "", `Select the means of opening external access 
+One of: [route|loadbalancer|nodeport|nginx-ingress-v1|contour-http-proxy|ingress] 
+Default: route if the environment is OpenShift, otherwise loadbalancer`)
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessHost, "link-access-host", "", "The host or IP address at which to expose link access")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "", "Specify the service account")
 }
 
 func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -121,77 +81,64 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Client = cli
 }
 
-func (cmd *CmdSiteCreate) ValidateFlags() []error {
+func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
 	stringValidator := validator.NewStringValidator()
+	linkAccessTypeValidator := validator.NewOptionValidator(linkAccessTypes)
 
-	ok, err := stringValidator.Evaluate(cmd.flags.name)
-	if !ok {
-		validationErrors = append(validationErrors, err)
+	//Validate if there is already a site defined in the namespace
+	siteList, err := cmd.Client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.Client.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil && siteList != nil && len(siteList.Items) > 0 {
+		validationErrors = append(validationErrors, fmt.Errorf("there is already a site created for this namespace"))
 	}
 
-	if cmd.flags.enableConsole && !cmd.flags.enableFlowCollector {
-		validationErrors = append(validationErrors, fmt.Errorf("the --enable-flow-collector option must be used with the --enable-console option"))
+	if len(args) == 0 || args[0] == "" {
+		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
+	} else {
+		cmd.siteName = args[0]
+
+		ok, err := stringValidator.Evaluate(cmd.siteName)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
+		}
 	}
 
-	if cmd.flags.consoleAuth != "internal" && (len(cmd.flags.consoleUser) > 0 || len(cmd.flags.consolePassword) > 0) {
-		validationErrors = append(validationErrors, fmt.Errorf("for the console to work with this user or password, the --console-auth option must be set to internal"))
+	if cmd.flags.enableLinkAccess {
+		ok, err := linkAccessTypeValidator.Evaluate(cmd.flags.linkAccessType)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("link access type is not valid: %s", err))
+		}
+	}
+
+	if !cmd.flags.enableLinkAccess && len(cmd.flags.linkAccessType) > 0 {
+		validationErrors = append(validationErrors, fmt.Errorf("for the site to work with this type of linkAccess, the --enable-link-access option must be set to true"))
 	}
 
 	return validationErrors
 }
 
-func (cmd *CmdSiteCreate) FlagsToOptions() error {
+func (cmd *CmdSiteCreate) InputToOptions(args []string) error {
 
 	options := make(map[string]string)
 
-	options["name"] = cmd.flags.name
-	options["ingress"] = cmd.flags.ingress
+	options["name"] = args[0]
+	options["linkAccess"] = strconv.FormatBool(cmd.flags.enableLinkAccess)
 
-	if cmd.flags.ingressHost != "" {
-		options["name"] = cmd.flags.ingressHost
+	//TODO: set value route or loadbalancer as defaults depending if it's openshift or kubernetes
+	if cmd.flags.enableLinkAccess && cmd.flags.linkAccessType == "" {
+		options["linkAccessType"] = "loadbalancer"
 	}
-
-	if len(cmd.flags.labels) > 0 {
-		options["ingress"] = strings.Join(cmd.flags.labels, "")
-	}
-
-	options["router-mode"] = cmd.flags.routerMode
-	options["router-logging"] = cmd.flags.routerLogging
-
-	options["enable-flow-collector"] = strconv.FormatBool(cmd.flags.enableFlowCollector)
-	options["enable-console"] = strconv.FormatBool(cmd.flags.enableConsole)
-	options["console-auth"] = cmd.flags.consoleAuth
-	options["console-user"] = cmd.flags.consoleUser
-	options["console-password"] = cmd.flags.consolePassword
-
-	if cmd.flags.routerCPULimit != "" {
-		options["router-cpu-limit"] = cmd.flags.routerCPULimit
-	}
-	if cmd.flags.routerMemoryLimit != "" {
-		options["router-memory-limit"] = cmd.flags.routerMemoryLimit
-	}
-	if cmd.flags.controllerCPULimit != "" {
-		options["controller-cpu-limit"] = cmd.flags.controllerCPULimit
-	}
-	if cmd.flags.controllerMemoryLimit != "" {
-		options["controller-memory-limit"] = cmd.flags.controllerMemoryLimit
-	}
-	if cmd.flags.flowCollectorCPULimit != "" {
-		options["flow-collector-cpu-limit"] = cmd.flags.flowCollectorCPULimit
+	if cmd.flags.linkAccessType != "" {
+		options["linkAccessType"] = cmd.flags.linkAccessType
 	}
 
-	if cmd.flags.flowCollectorMemoryLimit != "" {
-		options["flow-collector-memory-limit"] = cmd.flags.flowCollectorMemoryLimit
+	if cmd.flags.linkAccessHost != "" {
+		options["linkAccessHost"] = cmd.flags.linkAccessHost
 	}
 
-	if cmd.flags.prometheusCPULimit != "" {
-		options["prometheus-cpu-limit"] = cmd.flags.prometheusCPULimit
-	}
-
-	if cmd.flags.prometheusMemoryLimit != "" {
-		options["prometheus-memory-limit"] = cmd.flags.prometheusMemoryLimit
+	if len(cmd.flags.serviceAccount) > 0 {
+		options["serviceAccount"] = cmd.flags.serviceAccount
 	}
 
 	cmd.options = options
@@ -202,9 +149,6 @@ func (cmd *CmdSiteCreate) FlagsToOptions() error {
 func (cmd *CmdSiteCreate) Run() error {
 
 	siteName := cmd.options["name"]
-	if siteName == "" {
-		siteName = cmd.Client.Namespace
-	}
 
 	resource := v1alpha1.Site{
 		ObjectMeta: metav1.ObjectMeta{Name: siteName},
@@ -218,11 +162,11 @@ func (cmd *CmdSiteCreate) Run() error {
 	return nil
 }
 
-func (cmd *CmdSiteCreate) WaitUntilReady() bool {
+func (cmd *CmdSiteCreate) WaitUntilReady() error {
 
 	err := utils.NewSpinner("Waiting for site...", 5, func() error {
 
-		resource, err := cmd.Client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.Client.Namespace).Get(context.TODO(), cmd.options["name"], metav1.GetOptions{})
+		resource, err := cmd.Client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.Client.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -235,8 +179,28 @@ func (cmd *CmdSiteCreate) WaitUntilReady() bool {
 	})
 
 	if err != nil {
-		return false
+		return fmt.Errorf("Site \"%s\" not ready yet, check the logs for more information\n", cmd.siteName)
 	}
 
-	return true
+	err = utils.NewSpinner("Waiting for status...", 5, func() error {
+
+		configmap, err := cmd.Client.KubeClient.CoreV1().ConfigMaps(cmd.Client.Namespace).Get(context.TODO(), types.NetworkStatusConfigMapName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if configmap != nil && configmap.Data != nil && len(configmap.Data) > 0 {
+			return nil
+		}
+
+		return fmt.Errorf("error getting the status updated")
+	})
+
+	if err != nil {
+		fmt.Println("Status is not ready yet, check the logs for more information")
+	}
+
+	fmt.Printf("Site \"%s\" is ready\n", cmd.siteName)
+
+	return nil
 }

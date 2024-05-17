@@ -19,12 +19,12 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 	cmd := cobra.Command{
 		Use:     "update",
 		Short:   "update the site",
-		Long:    siteCreateLong,
-		Example: siteCreateExample,
+		Long:    "",
+		Example: "",
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -36,7 +36,7 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 
 func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdSiteUpdate) AddFlags()                                            {}
-func (cmd *CmdSiteUpdate) ValidateFlags() []error                               { return nil }
-func (cmd *CmdSiteUpdate) FlagsToOptions() error                                { return nil }
+func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error                  { return nil }
+func (cmd *CmdSiteUpdate) InputToOptions(args []string) error                   { return nil }
 func (cmd *CmdSiteUpdate) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdSiteUpdate) WaitUntilReady() bool                                 { return true }
+func (cmd *CmdSiteUpdate) WaitUntilReady() error                                { return nil }

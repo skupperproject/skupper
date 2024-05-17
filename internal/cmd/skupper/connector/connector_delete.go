@@ -28,8 +28,8 @@ func NewCmdConnectorDelete() *CmdConnectorDelete {
 		Example: connectorDeleteExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -41,7 +41,7 @@ func NewCmdConnectorDelete() *CmdConnectorDelete {
 
 func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdConnectorDelete) AddFlags()                                            {}
-func (cmd *CmdConnectorDelete) ValidateFlags() []error                               { return nil }
-func (cmd *CmdConnectorDelete) FlagsToOptions() error                                { return nil }
+func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error                  { return nil }
+func (cmd *CmdConnectorDelete) InputToOptions(args []string) error                   { return nil }
 func (cmd *CmdConnectorDelete) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdConnectorDelete) WaitUntilReady() bool                                 { return true }
+func (cmd *CmdConnectorDelete) WaitUntilReady() error                                { return nil }

@@ -6,16 +6,17 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/listener"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/token"
+	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
 )
 
 type SkupperCommand interface {
 	NewClient(cobraCommand *cobra.Command, args []string)
 	AddFlags()
-	ValidateFlags() []error
-	FlagsToOptions() error
+	ValidateInput(args []string) []error
+	InputToOptions(args []string) error
 	Run() error
-	WaitUntilReady() bool
+	WaitUntilReady() error
 }
 
 func NewSkupperRootCommand() *cobra.Command {
@@ -32,6 +33,9 @@ For more information visit https://skupper.io`,
 	rootCmd.AddCommand(listener.NewCmdListener())
 	rootCmd.AddCommand(link.NewCmdLink())
 	rootCmd.AddCommand(connector.NewCmdConnector())
+
+	//TODO: Add persistent flags for context and namespace
+	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "p", "", "The platform type to use [kubernetes, podman]")
 
 	return rootCmd
 }

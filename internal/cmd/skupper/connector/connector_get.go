@@ -28,8 +28,8 @@ func NewCmdConnectorGet() *CmdConnectorGet {
 		Example: connectorGetExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -41,7 +41,7 @@ func NewCmdConnectorGet() *CmdConnectorGet {
 
 func (cmd *CmdConnectorGet) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdConnectorGet) AddFlags()                                            {}
-func (cmd *CmdConnectorGet) ValidateFlags() []error                               { return nil }
-func (cmd *CmdConnectorGet) FlagsToOptions() error                                { return nil }
+func (cmd *CmdConnectorGet) ValidateInput(args []string) []error                  { return nil }
+func (cmd *CmdConnectorGet) InputToOptions(args []string) error                   { return nil }
 func (cmd *CmdConnectorGet) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdConnectorGet) WaitUntilReady() bool                                 { return true }
+func (cmd *CmdConnectorGet) WaitUntilReady() error                                { return nil }

@@ -28,8 +28,8 @@ func NewCmdLinkDelete() *CmdLinkDelete {
 		Example: linkDeleteExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -41,7 +41,7 @@ func NewCmdLinkDelete() *CmdLinkDelete {
 
 func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdLinkDelete) AddFlags()                                            {}
-func (cmd *CmdLinkDelete) ValidateFlags() []error                               { return nil }
-func (cmd *CmdLinkDelete) FlagsToOptions() error                                { return nil }
+func (cmd *CmdLinkDelete) ValidateInput(args []string) []error                  { return nil }
+func (cmd *CmdLinkDelete) InputToOptions(args []string) error                   { return nil }
 func (cmd *CmdLinkDelete) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdLinkDelete) WaitUntilReady() bool                                 { return true }
+func (cmd *CmdLinkDelete) WaitUntilReady() error                                { return nil }

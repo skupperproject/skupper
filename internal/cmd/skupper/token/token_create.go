@@ -28,8 +28,8 @@ func NewCmdTokenCreate() *CmdTokenCreate {
 		Example: tokenCreateExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(nil))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -41,7 +41,7 @@ func NewCmdTokenCreate() *CmdTokenCreate {
 
 func (cmd *CmdTokenCreate) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdTokenCreate) AddFlags()                                            {}
-func (cmd *CmdTokenCreate) ValidateFlags() []error                               { return nil }
-func (cmd *CmdTokenCreate) FlagsToOptions() error                                { return nil }
+func (cmd *CmdTokenCreate) ValidateInput(args []string) []error                  { return nil }
+func (cmd *CmdTokenCreate) InputToOptions([]string) error                        { return nil }
 func (cmd *CmdTokenCreate) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdTokenCreate) WaitUntilReady() bool                                 { return true }
+func (cmd *CmdTokenCreate) WaitUntilReady() error                                { return nil }

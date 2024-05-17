@@ -28,8 +28,8 @@ func NewCmdLinkGet() *CmdLinkGet {
 		Example: linkGetExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateFlags())
-			utils.HandleError(skupperCmd.FlagsToOptions())
+			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.InputToOptions(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -41,7 +41,7 @@ func NewCmdLinkGet() *CmdLinkGet {
 
 func (cmd *CmdLinkGet) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdLinkGet) AddFlags()                                            {}
-func (cmd *CmdLinkGet) ValidateFlags() []error                               { return nil }
-func (cmd *CmdLinkGet) FlagsToOptions() error                                { return nil }
+func (cmd *CmdLinkGet) ValidateInput(args []string) []error                  { return nil }
+func (cmd *CmdLinkGet) InputToOptions(args []string) error                   { return nil }
 func (cmd *CmdLinkGet) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdLinkGet) WaitUntilReady() bool                                 { return true }
+func (cmd *CmdLinkGet) WaitUntilReady() error                                { return nil }

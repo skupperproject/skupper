@@ -25,7 +25,7 @@ build-tests:
 	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/tls_t/job -o ${TEST_BINARIES_FOLDER}/tls_test
 
 build-cmd: generate-client
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./internal/cmd/skupper
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
 
 build-get:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o get ./cmd/get
@@ -114,7 +114,7 @@ test:
 	go test -v -count=1 ./pkg/... ./cmd/... ./client/...
 
 clean:
-	rm -rf skupper service-controller controller-podman site-controller release get config-sync manifest skupperv2 ${TEST_BINARIES_FOLDER}
+	rm -rf skupper service-controller controller-podman site-controller release get config-sync manifest  ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz release/s390x.tgz release/arm64.tgz
 
