@@ -3,7 +3,6 @@ package validator
 import (
 	"fmt"
 	"regexp"
-	"slices"
 )
 
 type Validator interface {
@@ -94,7 +93,14 @@ func (i OptionValidator) Evaluate(value interface{}) (bool, error) {
 		return false, fmt.Errorf("value must not be empty")
 	}
 
-	if !slices.Contains(i.AllowedOptions, v) {
+	valueFound := false
+	for _, option := range i.AllowedOptions {
+		if option == v {
+			valueFound = true
+		}
+	}
+
+	if !valueFound {
 		return false, fmt.Errorf("value %s not allowed. It should be one of this options: %v", v, i.AllowedOptions)
 	}
 	return true, nil
