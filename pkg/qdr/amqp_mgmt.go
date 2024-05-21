@@ -841,6 +841,20 @@ func (a *Agent) GetSslProfileByName(name string) (*SslProfile, error) {
 	return nil, nil
 }
 
+func (a *Agent) GetSslProfiles() (map[string]SslProfile, error) {
+	results, err := a.Query("io.skupper.router.sslProfile", []string{})
+	if err != nil {
+		return nil, err
+	}
+	profiles := map[string]SslProfile{}
+	for _, record := range results {
+		profile := asSslProfile(record)
+		profiles[profile.Name] = profile
+	}
+
+	return profiles, nil
+}
+
 func (a *Agent) getLocalHttpEndpoints(typename string, filter HttpEndpointFilter) ([]HttpEndpoint, error) {
 	results, err := a.Query(typename, []string{})
 	if err != nil {

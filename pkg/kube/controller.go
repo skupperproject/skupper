@@ -43,7 +43,6 @@ import (
 	routev1informer "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 
-	"github.com/skupperproject/skupper/pkg/event"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 	skupperv1alpha1informer "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/skupper/v1alpha1"
@@ -170,15 +169,12 @@ func (c *Controller) process() bool {
 	retry := false
 	defer c.queue.Done(obj)
 	if evt, ok := obj.(ResourceChange); ok {
-		event.Recordf(c.eventKey, evt.Handler.Describe(evt))
 		err := evt.Handler.Handle(evt)
 		if err != nil {
 			retry = true
-			event.Recordf(c.errorKey, "Error while handling %s: %s", evt.Handler.Describe(evt), err)
 			log.Printf("[%s] Error while handling %s: %s", c.errorKey, evt.Handler.Describe(evt), err)
 		}
 	} else {
-		event.Recordf(c.errorKey, "Invalid object on event queue: %#v", obj)
 		log.Printf("Invalid object on event queue for %q: %#v", c.errorKey, obj)
 	}
 	c.queue.Forget(obj)
@@ -339,6 +335,23 @@ func (c *Controller) WatchSecrets(options internalinterfaces.TweakListOptionsFun
 			c.resync,
 			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 			options),
+		namespace: namespace,
+	}
+
+	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
+	c.addWatcher(watcher)
+	return watcher
+}
+
+func (c *Controller) WatchAllSecrets(namespace string, handler SecretHandler) *SecretWatcher {
+	watcher := &SecretWatcher{
+		handler:   handler,
+		informer:  corev1informer.NewSecretInformer(
+			c.client,
+			namespace,
+			c.resync,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+		),
 		namespace: namespace,
 	}
 
@@ -1549,4 +1562,10 @@ func (w *LinkAccessWatcher) List() []*skupperv1alpha1.LinkAccess {
 		results = append(results, o.(*skupperv1alpha1.LinkAccess))
 	}
 	return results
+}
+
+func ByName(name string) internalinterfaces.TweakListOptionsFunc {
+	return func(options *metav1.ListOptions) {
+		options.FieldSelector = "metadata.name=" + name
+	}
 }

@@ -4,22 +4,18 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/version"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1informer "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/informers/internalinterfaces"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/claims"
+	"github.com/skupperproject/skupper/pkg/version"
 )
 
 var onlyOneSignalHandler = make(chan struct{})
@@ -40,6 +36,8 @@ func SetupSignalHandler() (stopCh <-chan struct{}) {
 
 	return stop
 }
+
+const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
 
 func main() {
 	// if -version used, report and exit
@@ -75,30 +73,21 @@ func main() {
 	log.Println("CONFIG_SYNC: Starting collector...")
 	go startCollector(cli)
 
-	event.StartDefaultEventStore(stopCh)
 	if claims.StartClaimVerifier(cli, cli.Namespace, cli, cli) {
 		log.Println("CONFIG_SYNC: Claim verifier started")
 	} else {
 		log.Println("CONFIG_SYNC: Claim verifier not enabled")
 	}
 
-	log.Printf("CONFIG_SYNC: Creating ConfigMap informer...")
-	informer := corev1informer.NewFilteredConfigMapInformer(
-		cli.KubeClient,
-		cli.Namespace,
-		time.Second*30,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-		internalinterfaces.TweakListOptionsFunc(func(options *metav1.ListOptions) {
-			options.FieldSelector = "metadata.name=skupper-internal"
-		}))
-	go informer.Run(stopCh)
-	log.Printf("CONFIG_SYNC: Waiting for informer to sync...")
-	if ok := cache.WaitForCacheSync(stopCh, informer.HasSynced); !ok {
-		log.Fatal("Failed to wait for caches to sync")
-	}
+	//start health check
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	})
+	go http.ListenAndServe(":9191", nil)
 
-	configSync := newConfigSync(informer, cli)
-	log.Println("CONFIG_SYNC: Starting sync controller loop...")
+	configSync := newConfigSync(cli, namespace, SHARED_TLS_DIRECTORY)
+	log.Println("CONFIG_SYNC: Starting controller loop...")
 	configSync.start(stopCh)
 
 	<-stopCh

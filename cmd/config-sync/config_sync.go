@@ -1,181 +1,139 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"math"
-	"net/http"
 	"os"
+	paths "path"
+	"reflect"
 	"strings"
-	"time"
-
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
-	"github.com/skupperproject/skupper/pkg/kube"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 // Syncs the live router config with the configmap (bridge configuration,
 // secrets for services with TLS enabled, and secrets and connectors for links)
 type ConfigSync struct {
-	informer  cache.SharedIndexInformer
-	events    workqueue.RateLimitingInterface
-	agentPool *qdr.AgentPool
-	vanClient *client.VanClient
+	agentPool  *qdr.AgentPool
+	controller *kube.Controller
+	namespace  string
+	tracking   map[string]*SyncTarget
+	config     *kube.ConfigMapWatcher
+	secrets    *kube.SecretWatcher
+	path       string
 }
 
-type CopyCerts func(string, string, string) error
-type CreateSSlProfile func(profile qdr.SslProfile) error
-type DeleteSslProfile func(string, string) error
-
-const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
-
-func enqueue(events workqueue.RateLimitingInterface, obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
-	if err == nil {
-		events.Add(key)
-	} else {
-		log.Printf("Error getting key: %s", err)
-	}
-
-}
-
-func newEventHandler(events workqueue.RateLimitingInterface) *cache.ResourceEventHandlerFuncs {
-	return &cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			enqueue(events, obj)
-		},
-		UpdateFunc: func(old, new interface{}) {
-			enqueue(events, new)
-		},
-		DeleteFunc: func(obj interface{}) {
-			enqueue(events, obj)
-		},
-	}
-}
-
-func newConfigSync(configInformer cache.SharedIndexInformer, cli *client.VanClient) *ConfigSync {
+func newConfigSync(cli kube.Clients, namespace string, path string) *ConfigSync {
 	configSync := &ConfigSync{
-		informer:  configInformer,
-		agentPool: qdr.NewAgentPool("amqp://localhost:5672", nil),
-		vanClient: cli,
+		agentPool:  qdr.NewAgentPool("amqp://localhost:5672", nil),
+		controller: kube.NewController("config-sync", cli),
+		namespace:  namespace,
+		tracking:   map[string]*SyncTarget{},
+		path:       path,
 	}
-	configSync.events = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "skupper-config-sync")
-	configSync.informer.AddEventHandler(newEventHandler(configSync.events))
 	return configSync
 }
 
 func (c *ConfigSync) start(stopCh <-chan struct{}) error {
-	go wait.Until(c.runConfigSync, time.Second, stopCh)
-
+	if err := mkdir(c.path); err != nil {
+		return err
+	}
+	c.config = c.controller.WatchConfigMaps(kube.ByName(types.TransportConfigMapName), c.namespace, c.configEvent)
+	c.secrets = c.controller.WatchAllSecrets(c.namespace, c.secretEvent)
+	c.controller.StartWatchers(stopCh)
+	log.Printf("CONFIG_SYNC: Waiting for informers to sync...")
+	if ok := c.controller.WaitForCacheSync(stopCh); !ok {
+		log.Print("CONFIG_SYNC: Failed to wait for caches to sync")
+	}
+	if err := c.recoverTracking(); err != nil {
+		log.Printf("CONFIG_SYNC: Error recovering tracked ssl profiles: %s", err)
+	}
+	c.controller.Start(stopCh)
 	return nil
 }
 
 func (c *ConfigSync) stop() {
-	c.events.ShutDown()
+	c.controller.Stop()
 }
 
-func (c *ConfigSync) runConfigSync() {
-	err := c.checkCertFiles(SHARED_TLS_DIRECTORY)
-	if err != nil {
-		log.Printf("An error has occurred when checking certification files for the router: %s", err)
-	}
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte("ok"))
-	})
-	go http.ListenAndServe(":9191", nil)
-	for c.processNextEvent() {
-	}
+func (c *ConfigSync) key(name string) string {
+	return fmt.Sprintf("%s/%s", c.namespace, name)
 }
 
-const (
-	ConfigSyncEvent string = "ConfigSyncEvent"
-	ConfigSyncError string = "ConfigSyncError"
-)
-
-func (c *ConfigSync) processNextEvent() bool {
-	obj, shutdown := c.events.Get()
-
-	if shutdown {
-		return false
-	}
-
-	err := func(obj interface{}) error {
-		defer c.events.Done(obj)
-
-		var ok bool
-		var key string
-		if key, ok = obj.(string); !ok {
-			// invalid item
-			log.Printf("expected string in events but got %#v", obj)
-			c.events.Forget(obj)
-			return fmt.Errorf("expected string in events but got %#v", obj)
-		} else {
-			obj, exists, err := c.informer.GetStore().GetByKey(key)
-			if err != nil {
-				return fmt.Errorf("Error reading pod from cache: %s", err)
-			}
-			if exists {
-				err = c.checkCertFiles(SHARED_TLS_DIRECTORY)
-				if err != nil {
-					return fmt.Errorf("Error checking certificate files: %s", err)
-				}
-
-				configmap, ok := obj.(*corev1.ConfigMap)
-				if !ok {
-					return fmt.Errorf("Expected ConfigMap for %s but got %#v", key, obj)
-				}
-				bridges, err := qdr.GetBridgeConfigFromConfigMap(configmap)
-				if err != nil {
-					return fmt.Errorf("Error parsing bridge configuration from %s: %s", key, err)
-				}
-				err = c.syncConfig(bridges)
-				if err != nil {
-					log.Printf("sync failed: %s", err)
-					return err
-				}
-
-				routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
-				if err != nil {
-					return err
-				}
-
-				err = c.syncRouterConfig(routerConfig)
-				if err != nil {
-					log.Printf("sync failed: %s", err)
-					return err
-				}
-			}
+func (c *ConfigSync) track(name string, path string) (*SyncTarget, bool) {
+	if current, ok := c.tracking[name]; ok {
+		return current, false
+	} else {
+		target := &SyncTarget{
+			name:   name,
+			path:   path,
 		}
-		c.events.Forget(obj)
+		return target, true
+	}
+}
+
+func (c *ConfigSync) trackSslProfile(profile string) (*SyncTarget, bool) {
+	secret := profile
+	if strings.HasSuffix(profile, "-profile") {
+		secret = strings.TrimSuffix(profile, "-profile")
+	}
+	return c.track(secret, paths.Join(c.path, profile))
+}
+
+func (c *ConfigSync) sync(target *SyncTarget) error {
+	secret, err := c.secrets.Get(c.key(target.name))
+	if err != nil {
+		return fmt.Errorf("Error looking up secret for %s: %s", target.name, err)
+	}
+	if secret == nil {
+		log.Printf("CONFIG_SYNC: No secret %q cached", target.name)
 		return nil
-	}(obj)
-
-	if err != nil {
-		if c.events.NumRequeues(obj) < 25 {
-			log.Printf("Requeuing %v after error: %v", obj, err)
-			c.events.AddRateLimited(obj)
-		} else {
-			log.Printf("Delayed requeue %v after error: %v", obj, err)
-			c.events.AddAfter(obj, time.Duration(math.Min(float64(c.events.NumRequeues(obj)/50), 10))*time.Second)
-		}
-		utilruntime.HandleError(err)
 	}
-
-	return true
+	return target.sync(secret)
 }
 
-func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (bool, error) {
+func (c *ConfigSync) secretEvent(key string, secret *corev1.Secret) error {
+	if secret == nil {
+		return nil
+	}
+	if current, ok := c.tracking[secret.Name]; ok && !reflect.DeepEqual(current.secret.Data, secret.Data) {
+		if err := current.sync(secret); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error {
+	if configmap == nil {
+		return nil
+	}
+	desired, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return err
+	}
+	if err := c.syncSslProfileCredentialsToDisk(desired.SslProfiles); err != nil {
+		return err
+	}
+	if err := c.syncSslProfilesToRouter(desired.SslProfiles); err != nil {
+		return err
+	}
+	if err := c.syncBridgeConfig(&desired.Bridges); err != nil {
+		log.Printf("sync failed: %s", err)
+		return err
+	}
+	if err := c.syncRouterConfig(desired); err != nil {
+		log.Printf("sync failed: %s", err)
+		return err
+	}
+	return nil
+}
+
+func syncBridgeConfig(agent *qdr.Agent, desired *qdr.BridgeConfig) (bool, error) {
 	actual, err := agent.GetLocalBridgeConfig()
 	if err != nil {
 		return false, fmt.Errorf("Error retrieving bridges: %s", err)
@@ -184,19 +142,6 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	if differences.Empty() {
 		return true, nil
 	} else {
-		differences.Print()
-
-		configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
-		if err != nil {
-			return false, err
-		}
-		routerConfig, err := qdr.GetRouterConfigFromConfigMap(configmap)
-
-		err = syncSecrets(routerConfig, differences, SHARED_TLS_DIRECTORY, c.copyCertsFilesToPath, agent.CreateSslProfile, agent.Delete)
-		if err != nil {
-			return false, fmt.Errorf("error syncing secrets: %s", err)
-		}
-
 		if err = agent.UpdateLocalBridgeConfig(differences); err != nil {
 			return false, fmt.Errorf("Error syncing bridges: %s", err)
 		}
@@ -204,14 +149,14 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	}
 }
 
-func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
+func (c *ConfigSync) syncBridgeConfig(desired *qdr.BridgeConfig) error {
 	agent, err := c.agentPool.Get()
 	if err != nil {
 		return fmt.Errorf("Could not get management agent : %s", err)
 	}
 	var synced bool
 
-	synced, err = syncConfig(agent, desired, c)
+	synced, err = syncBridgeConfig(agent, desired)
 
 	c.agentPool.Put(agent)
 	if err != nil {
@@ -229,7 +174,7 @@ func (c *ConfigSync) syncRouterConfig(desired *qdr.RouterConfig) error {
 		return fmt.Errorf("Could not get management agent : %s", err)
 	}
 
-	err = syncRouterConfig(agent, desired, c)
+	err = syncRouterConfig(agent, desired)
 
 	c.agentPool.Put(agent)
 	if err != nil {
@@ -238,264 +183,165 @@ func (c *ConfigSync) syncRouterConfig(desired *qdr.RouterConfig) error {
 	return nil
 }
 
-func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
-	if err := syncConnectors(agent, desired, c); err != nil {
+func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig) error {
+	if err := syncConnectors(agent, desired); err != nil {
 		return err
 	}
-	if err := syncListeners(agent, desired, c); err != nil {
+	if err := syncListeners(agent, desired); err != nil {
 		return err
 	}
 	return nil
 }
 
-func syncConnectors(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
+func syncConnectors(agent *qdr.Agent, desired *qdr.RouterConfig) error {
 	actual, err := agent.GetLocalConnectors()
 	if err != nil {
 		return fmt.Errorf("Error retrieving local connectors: %s", err)
 	}
 
 	ignorePrefix := "auto-mesh"
-	differences := qdr.ConnectorsDifference(actual, desired, &ignorePrefix)
-
-	if differences.Empty() {
-		return nil
-	} else {
-
-		err := c.syncConnectorSecrets(differences, SHARED_TLS_DIRECTORY)
-		if err != nil {
-			return fmt.Errorf("error syncing secrets: %s", err)
-		}
-
+	if differences := qdr.ConnectorsDifference(actual, desired, &ignorePrefix); !differences.Empty() {
 		if err = agent.UpdateConnectorConfig(differences); err != nil {
 			return fmt.Errorf("Error syncing connectors: %s", err)
 		}
-		return nil
 	}
+	return nil
 }
 
-func syncListeners(agent *qdr.Agent, desired *qdr.RouterConfig, c *ConfigSync) error {
+func syncListeners(agent *qdr.Agent, desired *qdr.RouterConfig) error {
 	actual, err := agent.GetLocalListeners()
 	if err != nil {
 		return fmt.Errorf("Error retrieving local listeners: %s", err)
 	}
 
-	differences := qdr.ListenersDifference(qdr.FilterListeners(actual, qdr.IsNotNormalListener), desired.GetMatchingListeners(qdr.IsNotNormalListener))
-
-	if differences.Empty() {
-		return nil
-	}
-	profileChanges := desired.CorrespondingSslProfileDifference(differences)
-	if err := c.syncListenerSecrets(profileChanges, SHARED_TLS_DIRECTORY); err != nil {
-		return fmt.Errorf("error syncing secrets: %s", err)
-	}
-
-	if err := agent.UpdateListenerConfig(differences); err != nil {
-		return fmt.Errorf("Error syncing listeners: %s", err)
+	if differences := qdr.ListenersDifference(qdr.FilterListeners(actual, qdr.IsNotNormalListener), desired.GetMatchingListeners(qdr.IsNotNormalListener)); !differences.Empty() {
+		if err := agent.UpdateListenerConfig(differences); err != nil {
+			return fmt.Errorf("Error syncing listeners: %s", err)
+		}
 	}
 	return nil
 }
 
-func syncSecrets(routerConfig *qdr.RouterConfig, changes *qdr.BridgeConfigDifference, sharedPath string, copyCerts CopyCerts, newSSlProfile CreateSSlProfile, delSslProfile DeleteSslProfile) error {
-
-	log.Printf("Sync profiles: Added %v  Deleted %v", changes.AddedSslProfiles, changes.DeletedSSlProfiles)
-
-	for _, addedProfile := range changes.AddedSslProfiles {
-		if len(addedProfile) > 0 {
-			log.Printf("Copying cert files related to sslProfile %s", addedProfile)
-			err := copyCerts(sharedPath, addedProfile, addedProfile)
-
-			if err != nil {
-				return err
-			}
-
-			log.Printf("Creating ssl profile %s", addedProfile)
-			err = newSSlProfile(routerConfig.SslProfiles[addedProfile])
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	for _, deleted := range changes.DeletedSSlProfiles {
-		if len(deleted) > 0 {
-
-			log.Printf("Deleting cert files related to sslProfile %s", deleted)
-
-			if err := delSslProfile("io.skupper.router.sslProfile", deleted); err != nil {
-				return fmt.Errorf("Error deleting ssl profile: #{err}")
-			}
-
-			err := os.RemoveAll(sharedPath + "/" + deleted)
-			if err != nil {
-				return err
-			}
-
-		}
-
-	}
-
-	return nil
-}
-
-func (c *ConfigSync) syncConnectorSecrets(changes *qdr.ConnectorDifference, sharedTlsFilesDir string) error {
-
+func (c *ConfigSync) syncSslProfilesToRouter(desired map[string]qdr.SslProfile) error {
 	agent, err := c.agentPool.Get()
 	if err != nil {
 		return err
 	}
-
-	for _, added := range changes.Added {
-		if len(added.SslProfile) > 0 {
-			log.Printf("Synchronising secrets related to Connector %s", added.Name)
-			secretName := strings.TrimSuffix(added.SslProfile, "-profile")
-			err = c.copyCertsFilesToPath(sharedTlsFilesDir, added.SslProfile, secretName)
-			if err != nil {
-				return err
-			}
-
-			sslProfile := changes.AddedSslProfiles[added.SslProfile]
-			log.Printf("Creating ssl profile %s", sslProfile.Name)
-			err := agent.CreateSslProfile(sslProfile)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	for _, deleted := range changes.Deleted {
-
-		if len(deleted.SslProfile) > 0 {
-
-			log.Printf("Deleting cert files related to connector sslProfile %s", deleted.SslProfile)
-
-			if err = agent.Delete("io.skupper.router.sslProfile", deleted.SslProfile); err != nil {
-				return fmt.Errorf("Error deleting ssl profile: #{err}")
-			}
-
-			err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.SslProfile)
-			if err != nil {
-				return err
-			}
-
-		}
-
-	}
-
-	return nil
-}
-
-func (c *ConfigSync) syncListenerSecrets(changes *qdr.SslProfileDifference, sharedTlsFilesDir string) error {
-
-	agent, err := c.agentPool.Get()
+	actual, err := agent.GetSslProfiles()
 	if err != nil {
 		return err
 	}
 
-	for _, deleted := range changes.Deleted {
-		log.Printf("Deleting sslProfile %s and corresponding cert files", deleted.Name)
-
-		if err = agent.Delete("io.skupper.router.sslProfile", deleted.Name); err != nil {
-			return fmt.Errorf("Error deleting ssl profile: #{err}")
-		}
-
-		err = os.RemoveAll(sharedTlsFilesDir + "/" + deleted.Name)
-		if err != nil {
-			return err
-		}
-
-	}
-	for _, added := range changes.Added {
-		log.Printf("Synchronising secret %s for SslProfile %s", added.Name, added.Name)
-		err = c.copyCertsFilesToPath_(sharedTlsFilesDir, added.Name, added.Name, true)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("Creating ssl profile %s", added.Name)
-		err := agent.CreateSslProfile(added)
-		if err != nil {
-			return err
+	for _, profile := range desired {
+		if _, ok := actual[profile.Name]; !ok {
+			if err := agent.CreateSslProfile(profile); err != nil {
+				return err
+			}
 		}
 	}
-
+	for _, profile := range actual {
+		if _, ok := desired[profile.Name]; !ok {
+			if err := agent.Delete("io.skupper.router.sslProfile", profile.Name); err != nil {
+				return err
+			}
+		}
+	}
+	c.agentPool.Put(agent)
 	return nil
 }
 
-func (c *ConfigSync) checkCertFiles(path string) error {
-
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, c.vanClient.Namespace, c.vanClient.GetKubeClient())
-	if err != nil {
-		return err
+func (c *ConfigSync) syncSslProfileCredentialsToDisk(profiles map[string]qdr.SslProfile) error {
+	for _, profile := range profiles {
+		if isExcludedProfile(profile.Name) {
+			continue
+		}
+		if tracker, sync := c.trackSslProfile(profile.Name); sync {
+			if err := c.sync(tracker); err != nil {
+				return fmt.Errorf("Error synchronising secret for profile %s: %s", profile.Name, err)
+			}
+		}
 	}
-	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
-
-	for _, profile := range current.SslProfiles {
+	return nil
+}
+func (c *ConfigSync) trackSslProfiles(config *qdr.RouterConfig, path string) error {
+	for _, profile := range config.SslProfiles {
 		secretName := profile.Name
 
 		if strings.HasSuffix(profile.Name, "-profile") {
 			secretName = strings.TrimSuffix(profile.Name, "-profile")
 		}
-
-		_, err = c.vanClient.GetKubeClient().CoreV1().Secrets(c.vanClient.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
-		if err != nil {
-			continue
-		}
-
-		err = c.copyCertsFilesToPath(path, profile.Name, secretName)
-		if err != nil {
-			return err
-		}
+		c.track(secretName, paths.Join(path, profile.Name))
 	}
-
 	return nil
 }
 
-func (c *ConfigSync) copyCertsFilesToPath(path string, profilename string, secretname string) error {
-	return c.copyCertsFilesToPath_(path, profilename, secretname, false)
-}
-
-func (c *ConfigSync) copyCertsFilesToPath_(path string, profilename string, secretname string, overwrite bool) error {
-	secret, err := c.vanClient.KubeClient.CoreV1().Secrets(c.vanClient.Namespace).Get(context.TODO(), secretname, metav1.GetOptions{})
+func (c *ConfigSync) recoverTracking() error {
+	configmap, err := c.config.Get(c.key(types.TransportConfigMapName))
 	if err != nil {
 		return err
 	}
-
-	_, err = os.Stat(path + "/" + profilename)
-
-	if os.IsNotExist(err) {
-		err = os.Mkdir(path+"/"+profilename, 0777)
-		if err != nil {
-			return err
-		}
+	if configmap == nil {
+		return fmt.Errorf("No configmap %q", types.TransportConfigMapName)
 	}
-
-	certFile := path + "/" + profilename + "/tls.crt"
-	keyFile := path + "/" + profilename + "/tls.key"
-	caCertFile := path + "/" + profilename + "/ca.crt"
-
-	_, err = os.Stat(certFile)
-	if secret.Data["tls.crt"] != nil && (overwrite || os.IsNotExist(err)) {
-		err = os.WriteFile(certFile, secret.Data["tls.crt"], 0777)
-		if err != nil {
-			return err
-		}
+	current, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	if err != nil {
+		return err
 	}
-
-	_, err = os.Stat(keyFile)
-	if secret.Data["tls.key"] != nil && (overwrite || os.IsNotExist(err)) {
-		err = os.WriteFile(keyFile, secret.Data["tls.key"], 0777)
-		if err != nil {
-			return err
-		}
+	for _, profile := range current.SslProfiles {
+		c.trackSslProfile(profile.Name)
 	}
-
-	_, err = os.Stat(caCertFile)
-	if secret.Data["ca.crt"] != nil && (overwrite || os.IsNotExist(err)) {
-		err = os.WriteFile(caCertFile, secret.Data["ca.crt"], 0777)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
+}
+
+type SyncTarget struct {
+	name   string
+	path   string
+	secret *corev1.Secret
+}
+
+func (s *SyncTarget) sync(secret *corev1.Secret) error {
+	if s.secret != nil && reflect.DeepEqual(s.secret.Data, secret.Data) {
+		return nil
+	}
+	if err := writeSecretToPath(secret, s.path); err != nil {
+		return err
+	}
+	s.secret = secret
+	return nil
+}
+
+func writeSecretToPath(secret *corev1.Secret, path string) error {
+	if err := mkdir(path); err != nil {
+		return err
+	}
+	for key, value := range secret.Data {
+		if err := os.WriteFile(paths.Join(path, key), value, 0777); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func mkdir(path string) error {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		err = os.Mkdir(path, 0777)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func excludedProfiles() []string {
+	return []string{"skupper-amqps", "skupper-service-client"}
+}
+
+func isExcludedProfile(name string) bool {
+	for _, v := range excludedProfiles() {
+		if name == v {
+			return true
+		}
+	}
+	return false
 }
