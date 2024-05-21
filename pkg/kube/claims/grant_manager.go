@@ -5,7 +5,6 @@ import (
 	"log"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/informers/internalinterfaces"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -54,16 +53,18 @@ type UrlFromSecuredAccess struct {
 	GrantServer
 	key                  string
 	ready                bool
+	started              bool
 	tlsCredentialsPath   string
 	tlsCredentialsSecret string
 }
 
 func (s *UrlFromSecuredAccess) SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) {
-	if se != nil && s.key == key && len(se.Status.Urls) > 0 && s.grants.url == "" {
+	if se != nil && s.key == key && len(se.Status.Urls) > 0 && s.grants.getUrl() != se.Status.Urls[0].Url {
 		if s.grants.setUrl(se.Status.Urls[0].Url) {
 			s.grants.recheckUrl()
 		}
-		if s.ready {
+		if s.ready && !s.started {
+			s.started = true
 			log.Print("Starting grant server")
 			s.start()
 		}
@@ -77,14 +78,8 @@ func (s *UrlFromSecuredAccess) Start() {
 	}
 }
 
-func byName(name string) internalinterfaces.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.FieldSelector = "metadata.name=" + name
-	}
-}
-
 func (s *UrlFromSecuredAccess) Watch(controller *kube.Controller, namespace string) {
-	controller.WatchSecrets(byName(s.tlsCredentialsSecret), namespace, s.tlsCredentialsUpdated)
+	controller.WatchSecrets(kube.ByName(s.tlsCredentialsSecret), namespace, s.tlsCredentialsUpdated)
 }
 
 const notEnabled string = "Grants are not enabled"
