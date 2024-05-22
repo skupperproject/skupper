@@ -17,6 +17,8 @@ spec:
               properties:
                 serviceAccount:
                   type: string
+                linkAccess:
+                  type: string
                 settings:
                   type: array
                   items:

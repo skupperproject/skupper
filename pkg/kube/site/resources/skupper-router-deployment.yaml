@@ -94,8 +94,6 @@ spec:
           name: skupper-local-server
         - mountPath: /etc/skupper-router/config/
           name: router-config
-        - mountPath: /etc/skupper-router-certs/skupper-internal/
-          name: skupper-site-server
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
       - env:
@@ -134,9 +132,5 @@ spec:
           defaultMode: 420
           name: skupper-internal
         name: router-config
-      - name: skupper-site-server
-        secret:
-          defaultMode: 420
-          secretName: skupper-site-server
       - emptyDir: {}
         name: skupper-router-certs
