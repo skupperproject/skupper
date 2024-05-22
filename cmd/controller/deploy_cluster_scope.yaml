@@ -223,4 +223,3 @@ spec:
     port: 9090
   ca: skupper-grant-server-ca
   certificate: skupper-grant-server
-  accessType: loadbalancer

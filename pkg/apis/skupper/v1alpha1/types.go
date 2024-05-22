@@ -57,6 +57,7 @@ type SiteList struct {
 
 type SiteSpec struct {
 	ServiceAccount string            `json:"serviceAccount,omitempty"`
+	LinkAccess     string            `json:"linkAccess,omitempty"`
 	Settings       map[string]string `json:"settings,omitempty"`
 }
 

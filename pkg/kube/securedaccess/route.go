@@ -95,6 +95,10 @@ func desiredRouteForPort(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1
 				Kind: "Service",
 				Name: sa.Name,
 			},
+			TLS: &routev1.TLSConfig{
+				Termination:                   routev1.TLSTerminationPassthrough,
+				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
+			},
 		},
 	}
 	return route

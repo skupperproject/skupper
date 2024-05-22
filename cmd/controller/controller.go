@@ -123,7 +123,7 @@ func NewController(cli kube.Clients, watchNamespace string, currentNamespace str
 
 	controller.certMgr = certificates.NewCertificateManager(controller.controller)
 	controller.certMgr.Watch(watchNamespace)
-	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr)
+	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr, securedaccess.GetAccessTypeFromEnv())
 
 	controller.accessRecovery.serviceWatcher = controller.controller.WatchServices(coreSecuredAccess(), watchNamespace, controller.checkSecuredAccessService)
 	controller.accessRecovery.ingressWatcher = controller.controller.WatchIngresses(coreSecuredAccess(), watchNamespace, controller.checkSecuredAccessIngress)

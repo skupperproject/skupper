@@ -38,7 +38,7 @@ type Site struct {
 	links       map[string]*site.Link
 	errors      map[string]string
 	linkAccess  LinkAccessMap
-	certs         certificates.CertificateManager
+	certs       certificates.CertificateManager
 	access      securedaccess.Factory
 }
 
@@ -49,7 +49,7 @@ func NewSite(namespace string, controller *kube.Controller, certs certificates.C
 		controller: controller,
 		links:      map[string]*site.Link{},
 		linkAccess: LinkAccessMap{},
-		certs:        certs,
+		certs:      certs,
 		access:     access,
 	}
 }
@@ -152,7 +152,7 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 	}
 	// LinkAccess for router
 	//TODO: make conditional on attribute in site spec
-	if err := s.checkDefaultLinkAccess(ctxt); err != nil {
+	if err := s.checkDefaultLinkAccess(ctxt, siteDef); err != nil {
 		return err
 	}
 
@@ -164,12 +164,16 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 	return s.updateStatus()
 }
 
-func (s *Site) checkDefaultLinkAccess(ctxt context.Context) error {
-	if len(s.linkAccess) > 0 {
+func (s *Site) checkDefaultLinkAccess(ctxt context.Context, site *skupperv1alpha1.Site) error {
+	if site.Spec.LinkAccess == "" || site.Spec.LinkAccess == "none" {
 		return nil
 	}
 	name := "skupper-router"
-	la := &skupperv1alpha1.LinkAccess{
+	accessType := site.Spec.LinkAccess
+	if site.Spec.LinkAccess == "default" {
+		accessType = ""
+	}
+	desired := &skupperv1alpha1.LinkAccess{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v1alpha1",
 			Kind:       "LinkAccess",
@@ -182,7 +186,7 @@ func (s *Site) checkDefaultLinkAccess(ctxt context.Context) error {
 			},
 		},
 		Spec: skupperv1alpha1.LinkAccessSpec{
-			AccessType:      "loadbalancer", //TODO: change this in some way
+			AccessType:      accessType,
 			Roles:           []skupperv1alpha1.LinkAccessRole{
 				{
 					Role: "inter-router",
@@ -197,12 +201,26 @@ func (s *Site) checkDefaultLinkAccess(ctxt context.Context) error {
 			Ca:              "skupper-site-ca",
 		},
 	}
-	created, err := s.controller.GetSkupperClient().SkupperV1alpha1().LinkAccesses(s.namespace).Create(context.Background(), la, metav1.CreateOptions{})
-	if err != nil {
-		return err
+	current, ok := s.linkAccess[name]
+	if ok {
+		if reflect.DeepEqual(current.Spec, desired.Spec) {
+			return nil
+		}
+		current.Spec = desired.Spec
+		updated, err := s.controller.GetSkupperClient().SkupperV1alpha1().LinkAccesses(s.namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		s.linkAccess[name] = updated
+		return nil
+	} else {
+		created, err := s.controller.GetSkupperClient().SkupperV1alpha1().LinkAccesses(s.namespace).Create(context.Background(), desired, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+		s.linkAccess[name] = created
+		return nil
 	}
-	s.linkAccess[name] = created
-	return nil
 }
 
 func (s *Site) checkServiceAccount(ctxt context.Context) error {
