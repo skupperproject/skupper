@@ -118,6 +118,17 @@ func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
 	if bindings.ingressBinding != nil {
 		mode = bindings.ingressBinding.Mode()
 	}
+
+	targets := []types.ServiceInterfaceTarget{}
+	for key, egress := range bindings.targets {
+		targets = append(targets, types.ServiceInterfaceTarget{
+			Name:      egress.name,
+			Selector:  egress.Selector,
+			Service:   egress.service,
+			Namespace: key.namespace,
+		})
+	}
+
 	return types.ServiceInterface{
 		Address:                  bindings.Address,
 		Protocol:                 bindings.protocol,
@@ -132,6 +143,7 @@ func (bindings *ServiceBindings) AsServiceInterface() types.ServiceInterface {
 		TlsCredentials:           bindings.TlsCredentials,
 		TlsCertAuthority:         bindings.TlsCertAuthority,
 		PublishNotReadyAddresses: bindings.PublishNotReadyAddresses,
+		Targets:                  targets,
 	}
 }
 
