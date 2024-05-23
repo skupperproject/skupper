@@ -68,6 +68,12 @@ skupper token create --token-type=cert -n west token.yaml
 kubectl apply -n east -f token.yaml
 ```
 
+or, combined
+
+```
+skupper token create --token-type=cert -n west - | kubectl apply -n east -f -
+```
+
 # Test connectivity
 
 ```

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -29,17 +30,18 @@ func (s *SkupperKubeToken) Platform() types.Platform {
 
 func (s *SkupperKubeToken) Create(cmd *cobra.Command, args []string) error {
 	silenceCobra(cmd)
+	filename := args[0]
+	out, err := getOutput(filename)
+	if err != nil {
+		return fmt.Errorf("Could not create file %s: %w", filename, err)
+	}
 	if tokenTemplate != "" {
-		return s.createFromTemplate(cmd, args)
+		return s.createFromTemplate(filename, out)
 	}
 	cli := s.kube.Cli
 	generator, err := tokens.NewTokenGenerator(s.kube.Cli.GetNamespace(), s.kube.Cli)
 	if err != nil {
 		return err
-	}
-	out, err := os.Create(args[0])
-	if err != nil {
-		return fmt.Errorf("Could not create file %s: %s", args[0], err.Error())
 	}
 	switch tokenType {
 	case "cert":
@@ -67,30 +69,26 @@ func (s *SkupperKubeToken) Create(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func (s *SkupperKubeToken) createFromTemplate(cmd *cobra.Command, args []string) error {
+func (s *SkupperKubeToken) createFromTemplate(filename string, out io.Writer) error {
 	cli := s.kube.Cli
 	switch tokenType {
 	case "cert":
-		filename := args[0]
 		secret, localOnly, err := cli.ConnectorTokenCreateFromTemplate(context.Background(), clientIdentity, tokenTemplate)
 		if err != nil {
 			return fmt.Errorf("Failed to create token: %w", err)
 		}
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-		out, err := os.Create(filename)
-		if err != nil {
-			return fmt.Errorf("Could not write to file " + filename + ": " + err.Error())
-		}
 		err = s.Encode(secret, out)
 		if err != nil {
 			return fmt.Errorf("Could not write out generated secret: " + err.Error())
 		} else {
-			var extra string
-			if localOnly {
-				extra = "(Note: token will only be valid for local cluster)"
+			if out != os.Stdout {
+				fmt.Printf("Connection token written to %s", filename)
+				if localOnly {
+					fmt.Printf(" (Note: token will only be valid for local cluster)")
+				}
+				fmt.Println()
 			}
-			fmt.Printf("Connection token written to %s %s", filename, extra)
-			fmt.Println()
 			return nil
 		}
 		return nil
@@ -100,6 +98,13 @@ func (s *SkupperKubeToken) createFromTemplate(cmd *cobra.Command, args []string)
 		return fmt.Errorf("invalid token type.")
 	}
 	return nil
+}
+
+func getOutput(filename string) (io.Writer, error) {
+	if filename == "-" {
+		return os.Stdout, nil
+	}
+	return os.Create(filename)
 }
 
 func (s *SkupperKubeToken) CreateFlags(cmd *cobra.Command) {
