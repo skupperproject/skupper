@@ -21,23 +21,23 @@ kubectl create deployment backend --image quay.io/skupper/hello-world-backend --
 # Create sites
 
 ```
-kubectl apply -f -n west https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/site1.yaml
+kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/site1.yaml
 ```
 
 ```
-kubectl apply -f -n east https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/site2.yaml
+kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/site2.yaml
 ```
 
 # Expose backend in east site
 
 ```
-kubectl apply -f -n east https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/connector.yaml
+kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/connector.yaml
 ```
 
 # Consume backend in west site
 
 ```
-kubectl apply -f -n west https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/listener.yaml
+kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/listener.yaml
 ```
 
 # Link sites
@@ -47,7 +47,7 @@ kubectl apply -f -n west https://raw.githubusercontent.com/skupperproject/skuppe
 Create a Grant in east site:
 
 ```
-kubectl apply -f -n east https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/grant.yaml
+kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/grant.yaml
 ```
 
 Wait until url and ca fields in status are set:
