@@ -288,6 +288,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 
 		depsFound := []string{}
 		cmsFound := []string{}
+		cmsUpdated := []string{}
 		rolesFound := []string{}
 		clusterRolesFound := []string{}
 		clusterRolesResourcesFound := sets.NewString()
@@ -327,6 +328,10 @@ func TestRouterCreateDefaults(t *testing.T) {
 				cm := obj.(*corev1.ConfigMap)
 				cmsFound = append(cmsFound, cm.Name)
 			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				cm := newObj.(*corev1.ConfigMap)
+				cmsUpdated = append(cmsUpdated, cm.Name)
+			},
 		})
 		roleInformer := informerFactory.Rbac().V1().Roles().Informer()
 		roleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
@@ -335,14 +340,23 @@ func TestRouterCreateDefaults(t *testing.T) {
 				rolesFound = append(rolesFound, role.Name)
 			},
 		})
+
+		expectedClusterRoles := sets.NewString(c.clusterRolesExpected...)
 		clusterRoleInformer := clusterRoleInformerFactory.Rbac().V1().ClusterRoles().Informer()
 		clusterRoleInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				clusterRole := obj.(*rbacv1.ClusterRole)
 				if strings.HasPrefix(clusterRole.Name, "skupper") {
-					clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
-					for _, p := range clusterRole.Rules {
-						clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+					if isCluster && !expectedClusterRoles.Has(clusterRole.Name) {
+						// A real cluster may have pre-existing clusterroles that would
+						// make this test flaky, so we ignore clusterroles not listed
+						// on the test.
+						fmt.Printf("clusterrole %q ignored due to -use-cluster\n", clusterRole.Name)
+					} else {
+						clusterRolesFound = append(clusterRolesFound, clusterRole.Name)
+						for _, p := range clusterRole.Rules {
+							clusterRolesResourcesFound = clusterRolesResourcesFound.Insert(p.Resources...)
+						}
 					}
 				}
 			},
@@ -446,6 +460,9 @@ func TestRouterCreateDefaults(t *testing.T) {
 		if diff := cmp.Diff(c.secretsExpected, secretsFound, c.opts...); diff != "" {
 			t.Errorf("TestRouterCreateDefaults "+c.doc+" secrets mismatch (-want +got):\n%s", diff)
 		}
+
+		// Close informers
+		cancel()
 	}
 }
 

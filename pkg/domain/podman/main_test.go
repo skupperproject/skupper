@@ -110,10 +110,16 @@ func teardownKube() {
 }
 
 func configureSiteAndCreateRouter(ctx context.Context, cli *client.VanClient, name string) error {
+	var ingressType string
+	if cli.RouteClient != nil {
+		// Like the product, we default to routes on OpenShift
+		ingressType = types.IngressRouteString
+	}
 	routerCreateOpts := types.SiteConfigSpec{
 		SkupperName:      "skupper",
 		RouterMode:       string(types.TransportModeInterior),
 		EnableController: true,
+		Ingress:          ingressType,
 	}
 	siteConfig, err := cli.SiteConfigCreate(ctx, routerCreateOpts)
 	if err != nil {
