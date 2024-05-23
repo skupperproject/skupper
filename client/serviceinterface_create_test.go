@@ -32,6 +32,9 @@ func check_result(t *testing.T, name string, timeoutSeconds float64, resultType 
 	if len(expected) <= 0 {
 		return
 	}
+
+	fmt.Printf("Checking %q results for test %q on %q\n", resultType, doc, name)
+
 	// Sometimes it requires a little time for the requested entities to be
 	// created and for the informers to tell us about them.
 	// So -- count down by tenths of a second until the alotted timeout expires,
@@ -224,7 +227,8 @@ func TestServiceInterfaceCreate(t *testing.T) {
 		cmInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				cm := obj.(*corev1.ConfigMap)
-				if cm.Name != "kube-root-ca.crt" { // seems to be something added in more recent kubernetes?
+				if cm.Name != "kube-root-ca.crt" && // auto-created, introduced in K8S 1.20
+					cm.Name != "openshift-service-ca.crt" { // auto-created, OCP 4.7
 					cmsFound = append(cmsFound, cm.Name)
 				}
 			},
