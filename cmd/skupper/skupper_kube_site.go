@@ -244,11 +244,6 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	localServices, err := cli.ServiceInterfaceList(context.Background())
-	if err != nil {
-		return err
-	}
-
 	currentStatus, errStatus := cli.NetworkStatus(context.Background())
 	if errStatus != nil && strings.HasPrefix(errStatus.Error(), "Skupper is not installed") {
 		fmt.Printf("Skupper is not enabled in namespace '%s'\n", cli.GetNamespace())
@@ -269,6 +264,11 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		fmt.Printf("The site configuration is not available: %s", err)
 		fmt.Println()
 		return nil
+	}
+
+	localServices, err := cli.ServiceInterfaceList(context.Background())
+	if err != nil {
+		return err
 	}
 
 	var currentSite = statusManager.GetSiteById(siteConfig.Reference.UID)
