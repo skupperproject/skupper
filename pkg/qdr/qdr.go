@@ -412,6 +412,7 @@ const (
 )
 
 type RouterMetadata struct {
+	ExtraFieldsImpl
 	Id                  string `json:"id,omitempty"`
 	Mode                Mode   `json:"mode,omitempty"`
 	HelloMaxAgeSeconds  string `json:"helloMaxAgeSeconds,omitempty"`
@@ -420,6 +421,7 @@ type RouterMetadata struct {
 }
 
 type SslProfile struct {
+	ExtraFieldsImpl
 	Name           string `json:"name,omitempty"`
 	CertFile       string `json:"certFile,omitempty"`
 	PrivateKeyFile string `json:"privateKeyFile,omitempty"`
@@ -432,6 +434,7 @@ type LogConfig struct {
 }
 
 type Listener struct {
+	ExtraFieldsImpl
 	Name             string `json:"name,omitempty" yaml:"name,omitempty"`
 	Role             Role   `json:"role,omitempty" yaml:"role,omitempty"`
 	Host             string `json:"host,omitempty" yaml:"host,omitempty"`
@@ -460,6 +463,7 @@ func (l *Listener) SetMaxSessionFrames(value int) {
 }
 
 type Connector struct {
+	ExtraFieldsImpl
 	Name             string `json:"name,omitempty"`
 	Role             Role   `json:"role,omitempty"`
 	Host             string `json:"host"`
@@ -490,11 +494,13 @@ const (
 )
 
 type Address struct {
+	ExtraFieldsImpl
 	Prefix       string `json:"prefix,omitempty"`
 	Distribution string `json:"distribution,omitempty"`
 }
 
 type TcpEndpoint struct {
+	ExtraFieldsImpl
 	Name           string `json:"name,omitempty"`
 	Host           string `json:"host,omitempty"`
 	Port           string `json:"port,omitempty"`
@@ -505,6 +511,7 @@ type TcpEndpoint struct {
 }
 
 type HttpEndpoint struct {
+	ExtraFieldsImpl
 	Name            string `json:"name,omitempty"`
 	Host            string `json:"host,omitempty"`
 	Port            string `json:"port,omitempty"`
@@ -518,6 +525,23 @@ type HttpEndpoint struct {
 	VerifyHostname  *bool  `json:"verifyHostname,omitempty"`
 }
 
+type ExtraFieldsImpl struct {
+	extraFields map[string]interface{}
+}
+
+func (o *ExtraFieldsImpl) GetExtraFields() map[string]interface{} {
+	return o.extraFields
+}
+
+func (o *ExtraFieldsImpl) SetExtraFields(extra map[string]interface{}) {
+	o.extraFields = extra
+}
+
+type ExtraFields interface {
+	GetExtraFields() map[string]interface{}
+	SetExtraFields(extra map[string]interface{})
+}
+
 func convert(from interface{}, to interface{}) error {
 	data, err := json.Marshal(from)
 	if err != nil {
@@ -528,6 +552,44 @@ func convert(from interface{}, to interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func fieldNames(obj interface{}) map[string]bool {
+	names := map[string]bool{}
+	value := reflect.Indirect(reflect.ValueOf(obj))
+	for i := 0; i < value.NumField(); i++ {
+		tagName := strings.Split(value.Type().Field(i).Tag.Get("json"), ",")[0]
+		names[tagName] = true
+	}
+	return names
+}
+
+func convertToStruct(from map[string]interface{}, to ExtraFields) error {
+	if err := convert(from, to); err != nil {
+		return err
+	}
+	extra := map[string]interface{}{}
+	fields := fieldNames(to)
+	for key, value := range from {
+		if _, ok := fields[key]; !ok {
+			extra[key] = value
+		}
+	}
+	if len(extra) > 0 {
+		to.SetExtraFields(extra)
+	}
+	return nil
+}
+
+func convertToMap(from interface{}, extraFields map[string]interface{}) map[string]interface{} {
+	to := map[string]interface{}{}
+	convert(from, &to)
+	for key, value := range extraFields {
+		if _, ok := to[key]; !ok {
+			to[key] = value
+		}
+	}
+	return to
 }
 
 func RouterConfigEquals(actual, desired string) bool {
@@ -575,75 +637,79 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 		if !ok {
 			return result, fmt.Errorf("Invalid JSON for router configuration, expected entity type as string got %#v", element[0])
 		}
+		entityValue, ok := element[1].(map[string]interface{})
+		if !ok {
+			return result, fmt.Errorf("Invalid JSON for router configuration, expected entity as map got %#v", element[1])
+		}
 		switch entityType {
 		case "router":
 			metadata := RouterMetadata{}
-			err = convert(element[1], &metadata)
+			err = convertToStruct(entityValue, &metadata)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.Metadata = metadata
 		case "address":
 			address := Address{}
-			err = convert(element[1], &address)
+			err = convertToStruct(entityValue, &address)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.Addresses[address.Prefix] = address
 		case "connector":
 			connector := Connector{}
-			err = convert(element[1], &connector)
+			err = convertToStruct(entityValue, &connector)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.Connectors[connector.Name] = connector
 		case "listener":
 			listener := Listener{}
-			err = convert(element[1], &listener)
+			err = convertToStruct(entityValue, &listener)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.Listeners[listener.Name] = listener
 		case "sslProfile":
 			sslProfile := SslProfile{}
-			err = convert(element[1], &sslProfile)
+			err = convertToStruct(entityValue, &sslProfile)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.SslProfiles[sslProfile.Name] = sslProfile
 		case "log":
 			logConfig := LogConfig{}
 			err = convert(element[1], &logConfig)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.LogConfig[logConfig.Module] = logConfig
 		case "tcpConnector":
 			connector := TcpEndpoint{}
-			err = convert(element[1], &connector)
+			err = convertToStruct(entityValue, &connector)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.Bridges.TcpConnectors[connector.Name] = connector
 		case "tcpListener":
 			listener := TcpEndpoint{}
-			err = convert(element[1], &listener)
+			err = convertToStruct(entityValue, &listener)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.Bridges.TcpListeners[listener.Name] = listener
 		case "httpConnector":
 			connector := HttpEndpoint{}
-			err = convert(element[1], &connector)
+			err = convertToStruct(entityValue, &connector)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.Bridges.HttpConnectors[connector.Name] = connector
 		case "httpListener":
 			listener := HttpEndpoint{}
-			err = convert(element[1], &listener)
+			err = convertToStruct(entityValue, &listener)
 			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+				return result, err
 			}
 			result.Bridges.HttpListeners[listener.Name] = listener
 		default:
@@ -656,62 +722,62 @@ func MarshalRouterConfig(config RouterConfig) (string, error) {
 	elements := [][]interface{}{}
 	tuple := []interface{}{
 		"router",
-		config.Metadata,
+		convertToMap(config.Metadata, config.Metadata.extraFields),
 	}
 	elements = append(elements, tuple)
 	for _, e := range config.SslProfiles {
 		tuple := []interface{}{
 			"sslProfile",
-			e,
+			convertToMap(e, e.extraFields),
 		}
 		elements = append(elements, tuple)
 	}
 	for _, e := range config.Connectors {
 		tuple := []interface{}{
 			"connector",
-			e,
+			convertToMap(e, e.extraFields),
 		}
 		elements = append(elements, tuple)
 	}
 	for _, e := range config.Listeners {
 		tuple := []interface{}{
 			"listener",
-			e,
+			convertToMap(e, e.extraFields),
 		}
 		elements = append(elements, tuple)
 	}
 	for _, e := range config.Addresses {
 		tuple := []interface{}{
 			"address",
-			e,
+			convertToMap(e, e.extraFields),
 		}
 		elements = append(elements, tuple)
 	}
 	for _, e := range config.Bridges.TcpConnectors {
 		tuple := []interface{}{
 			"tcpConnector",
-			e,
+			convertToMap(e, e.extraFields),
 		}
 		elements = append(elements, tuple)
 	}
 	for _, e := range config.Bridges.TcpListeners {
 		tuple := []interface{}{
 			"tcpListener",
-			e,
+			convertToMap(e, e.extraFields),
 		}
 		elements = append(elements, tuple)
 	}
 	for _, e := range config.Bridges.HttpConnectors {
 		tuple := []interface{}{
 			"httpConnector",
-			e,
+			convertToMap(e, e.extraFields),
 		}
 		elements = append(elements, tuple)
 	}
 	for _, e := range config.Bridges.HttpListeners {
 		tuple := []interface{}{
 			"httpListener",
-			e,
+			convertToMap(e, e.extraFields),
 		}
 		elements = append(elements, tuple)
 	}
