@@ -1,6 +1,7 @@
 package qdr
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -558,4 +559,113 @@ func TestGetSslProfilesDifference(t *testing.T) {
 	assert.Assert(t, utils.StringSlicesEqual(addedSslProfiles, expectedAddedSslProfiles), "Expected %v but got %v", expectedAddedSslProfiles, addedSslProfiles)
 	assert.Assert(t, utils.StringSlicesEqual(deletedSslProfiles, expectedDeletedSslProfiles), "Expected %v but got %v", expectedDeletedSslProfiles, deletedSslProfiles)
 
+}
+
+func TestExtraFields(t *testing.T) {
+	input := `[
+        [
+            "router",
+            {
+                "id": "abc",
+                "mode": "interior",
+                "raIntervalSeconds": 71
+            }
+        ],
+        [
+            "sslProfile",
+            {
+                "name": "my-profile",
+                "certFile": "/path/to/tls.crt",
+                "privateKeyFile": "/path/to/tls.key",
+                "caCertFile": "/path/to/ca.crt",
+                "protocols": "TLSv1.2"
+            }
+        ],
+        [
+            "connector",
+            {
+                "name": "my-connector",
+                "role": "edge",
+                "host": "my-router.acme.com",
+                "port": "45671",
+                "idleTimeoutSeconds": 94
+            }
+        ],
+        [
+            "listener",
+            {
+                "name": "my-listener",
+                "role": "edge",
+                "port": 45671,
+                "initialHandshakeTimeoutSeconds": 33
+            }
+        ],
+        [
+            "address",
+            {
+                "prefix": "mc",
+                "distribution": "multicast",
+                "priority": 8
+            }
+        ],
+        [
+            "tcpConnector",
+            {
+                "name": "fooC",
+                "host": "0.0.0.0",
+                "port": "1024",
+                "address": "whatever",
+                "tweaks": 1234
+            }
+        ],
+        [
+            "tcpListener",
+            {
+                "name": "foo",
+                "host": "0.0.0.0",
+                "port": "1024",
+                "address": "whatever",
+                "experimental": "yes please!"
+            }
+        ],
+        [
+            "httpConnector",
+            {
+                "name": "barC",
+                "host": "0.0.0.0",
+                "port": "1024",
+                "address": "whatever",
+                "hacks": "abc"
+            }
+        ],
+        [
+            "httpListener",
+            {
+                "name": "bar",
+                "host": "0.0.0.0",
+                "port": "1024",
+                "address": "whatever",
+                "futureProof": true
+            }
+        ]
+    ]`
+	data, err := UnmarshalRouterConfig(input)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+	output, err := MarshalRouterConfig(data)
+	if err != nil {
+		t.Fatalf("Failed to marshal: %v", err)
+	}
+	var expected interface{}
+	if err := json.Unmarshal([]byte(input), &expected); err != nil {
+		t.Fatalf("Failed to unmarshal input as json: %v", err)
+	}
+	var actual interface{}
+	if err := json.Unmarshal([]byte(output), &actual); err != nil {
+		t.Fatalf("Failed to unmarshal output as json: %v", err)
+	}
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("Incorrect metadata. Expected %#v got %#v", expected, actual)
+	}
 }
