@@ -203,20 +203,22 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
 		}
 	}
 
-	if grant.Spec.ValidFor != "" {
-		d, e := time.ParseDuration(grant.Spec.ValidFor)
-		if e != nil {
-			status = append(status, fmt.Sprintf("Invalid duration %q: %s", grant.Spec.ValidFor, e))
-		} else {
-			expiration := time.Now().Add(d).Format(time.RFC3339)
-			if grant.Status.Expiration != expiration {
-				grant.Status.Expiration = expiration
-				changed = true
+	if grant.Status.Expiration == "" {
+		if grant.Spec.ValidFor != "" {
+			d, e := time.ParseDuration(grant.Spec.ValidFor)
+			if e != nil {
+				status = append(status, fmt.Sprintf("Invalid duration %q: %s", grant.Spec.ValidFor, e))
+			} else {
+				expiration := time.Now().Add(d).Format(time.RFC3339)
+				if grant.Status.Expiration != expiration {
+					grant.Status.Expiration = expiration
+					changed = true
+				}
 			}
+		} else {
+			grant.Status.Expiration = time.Now().Add(time.Minute * 10).Format(time.RFC3339)
+			changed = true
 		}
-	} else if grant.Status.Expiration == "" {
-		grant.Status.Expiration = time.Now().Add(time.Minute * 10).Format(time.RFC3339)
-		changed = true
 	}
 
 	if len(status) != 0 {

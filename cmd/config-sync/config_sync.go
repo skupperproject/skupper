@@ -66,12 +66,15 @@ func (c *ConfigSync) key(name string) string {
 
 func (c *ConfigSync) track(name string, path string) (*SyncTarget, bool) {
 	if current, ok := c.tracking[name]; ok {
+		log.Printf("CONFIG_SYNC: Secret %q already being tracked", name)
 		return current, false
 	} else {
 		target := &SyncTarget{
 			name:   name,
 			path:   path,
 		}
+		c.tracking[name] = target
+		log.Printf("CONFIG_SYNC: Tracking secret %q", name)
 		return target, true
 	}
 }
@@ -87,23 +90,36 @@ func (c *ConfigSync) trackSslProfile(profile string) (*SyncTarget, bool) {
 func (c *ConfigSync) sync(target *SyncTarget) error {
 	secret, err := c.secrets.Get(c.key(target.name))
 	if err != nil {
-		return fmt.Errorf("Error looking up secret for %s: %s", target.name, err)
+		return fmt.Errorf("CONFIG_SYNC: Error looking up secret for %s: %s", target.name, err)
 	}
 	if secret == nil {
 		log.Printf("CONFIG_SYNC: No secret %q cached", target.name)
-		return nil
+		return fmt.Errorf("No secret %q cached", target.name)
 	}
-	return target.sync(secret)
+	if err := target.sync(secret); err != nil {
+		log.Printf("CONFIG_SYNC: Error syncing secret %q: %s", target.name, err)
+		return err
+	}
+	log.Printf("CONFIG_SYNC: Secret %q synced", target.name)
+	return nil
 }
 
 func (c *ConfigSync) secretEvent(key string, secret *corev1.Secret) error {
 	if secret == nil {
 		return nil
 	}
-	if current, ok := c.tracking[secret.Name]; ok && !reflect.DeepEqual(current.secret.Data, secret.Data) {
+	if current, ok := c.tracking[secret.Name]; ok {
+		if current.secret != nil && reflect.DeepEqual(current.secret.Data, secret.Data) {
+			log.Printf("CONFIG_SYNC: Secret %q already up to date", secret.Name)
+			return nil
+		}
 		if err := current.sync(secret); err != nil {
+			log.Printf("CONFIG_SYNC: Error syncing secret %q: %s", secret.Name, err)
 			return err
 		}
+		log.Printf("CONFIG_SYNC: Secret %q synced", secret.Name)
+	} else {
+		log.Printf("CONFIG_SYNC: Secret %q not being tracked", secret.Name)
 	}
 	return nil
 }

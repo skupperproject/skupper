@@ -138,11 +138,11 @@ func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupp
 	if certificate == nil {
 		return m.certificateDeleted(key)
 	}
-	if existing, ok := m.definitions[key]; ok && reflect.DeepEqual(existing.Spec, certificate.Spec) && !m.checkChanged(key) {
-		log.Printf("Certificate %s is unchanged", key)
-		return nil
-	}
 	if secret, ok := m.secrets[key]; ok {
+		if existing, ok := m.definitions[key]; ok && reflect.DeepEqual(existing.Spec, certificate.Spec) && !m.checkChanged(key) {
+			log.Printf("Certificate %s is unchanged", key)
+			return nil
+		}
 		if err := m.updateSecret(key, certificate, secret); err != nil {
 			return m.updateStatus(certificate, err)
 		}
