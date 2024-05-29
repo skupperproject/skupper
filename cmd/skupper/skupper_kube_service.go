@@ -72,11 +72,21 @@ func (s *SkupperKubeService) Status(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Could not retrieve services: %w", err)
 	}
 
+	// we get the current services in kubernetes and create a map with their labels.
 	var mapServiceLabels map[string]map[string]string
 	vsis, err := s.kube.Cli.ServiceInterfaceList(context.Background())
 	if err == nil {
 		mapServiceLabels = getServiceLabelsMap(vsis)
 	}
+
+	var servicesToDisplay []network.AddressInfo
+	for _, addr := range currentNetworkStatus.Addresses {
+		if _, exist := mapServiceLabels[addr.Name]; exist {
+			servicesToDisplay = append(servicesToDisplay, addr)
+		}
+
+	}
+	currentNetworkStatus.Addresses = servicesToDisplay
 
 	err = formatter.PrintServiceStatus(currentNetworkStatus, mapServiceLabels, verboseServiceStatus, showLabels, nil)
 	if err != nil {
@@ -251,13 +261,10 @@ func getServiceLabelsMap(services []*types.ServiceInterface) map[string]map[stri
 	mapServiceLabels := make(map[string]map[string]string)
 
 	for _, svc := range services {
-		if svc.Labels != nil {
-			for _, port := range svc.Ports {
-				serviceName := svc.Address + ":" + strconv.Itoa(port)
-				mapServiceLabels[serviceName] = svc.Labels
-			}
+		for _, port := range svc.Ports {
+			serviceName := svc.Address + ":" + strconv.Itoa(port)
+			mapServiceLabels[serviceName] = svc.Labels
 		}
-
 	}
 
 	return mapServiceLabels

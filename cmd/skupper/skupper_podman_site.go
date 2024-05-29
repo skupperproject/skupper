@@ -258,6 +258,12 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	svcIfaceHandler := podman.NewServiceInterfaceHandlerPodman(s.podman.cli)
+	localServices, err := svcIfaceHandler.List()
+	if err != nil {
+		return fmt.Errorf("error retrieving service list - %w", err)
+	}
+
 	currentStatus, errStatus := siteHandler.NetworkStatusHandler().Get()
 	if errStatus != nil && strings.HasPrefix(errStatus.Error(), "Skupper is not installed") {
 		fmt.Printf("Skupper is not enabled\n")
@@ -302,7 +308,7 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	statusOutput.DirectConnections = directConnections
 	statusOutput.IndirectConnections = connections - directConnections
 
-	statusOutput.ExposedServices = len(currentStatus.Addresses)
+	statusOutput.ExposedServices = len(localServices)
 
 	if site.EnableFlowCollector {
 		statusOutput.ConsoleUrl = site.GetConsoleUrl()

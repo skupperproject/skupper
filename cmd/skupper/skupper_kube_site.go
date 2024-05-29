@@ -266,6 +266,11 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	localServices, err := cli.ServiceInterfaceList(context.Background())
+	if err != nil {
+		return err
+	}
+
 	var currentSite = statusManager.GetSiteById(siteConfig.Reference.UID)
 
 	if currentSite != nil {
@@ -296,7 +301,7 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 			statusDataOutput.DirectConnections = directConnections
 			statusDataOutput.IndirectConnections = connections - directConnections
 
-			statusDataOutput.ExposedServices = len(currentStatus.Addresses)
+			statusDataOutput.ExposedServices = len(localServices)
 
 			consoleUrl, _ := cli.GetConsoleUrl(cli.GetNamespace())
 
