@@ -24,7 +24,7 @@ func NewCmdSiteDelete() *CmdSiteDelete {
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
 			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.InputToOptions(args))
+			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -37,6 +37,6 @@ func NewCmdSiteDelete() *CmdSiteDelete {
 func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdSiteDelete) AddFlags()                                            {}
 func (cmd *CmdSiteDelete) ValidateInput(args []string) []error                  { return nil }
-func (cmd *CmdSiteDelete) InputToOptions(args []string) error                   { return nil }
+func (cmd *CmdSiteDelete) InputToOptions()                                      {}
 func (cmd *CmdSiteDelete) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
 func (cmd *CmdSiteDelete) WaitUntilReady() error                                { return nil }

@@ -24,7 +24,7 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
 			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.InputToOptions(args))
+			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -37,6 +37,6 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdSiteUpdate) AddFlags()                                            {}
 func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error                  { return nil }
-func (cmd *CmdSiteUpdate) InputToOptions(args []string) error                   { return nil }
+func (cmd *CmdSiteUpdate) InputToOptions()                                      {}
 func (cmd *CmdSiteUpdate) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
 func (cmd *CmdSiteUpdate) WaitUntilReady() error                                { return nil }

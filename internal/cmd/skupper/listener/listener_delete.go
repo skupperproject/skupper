@@ -29,7 +29,7 @@ func NewCmdListenerDelete() *CmdListenerDelete {
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
 			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.InputToOptions(args))
+			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -42,6 +42,6 @@ func NewCmdListenerDelete() *CmdListenerDelete {
 func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdListenerDelete) AddFlags()                                            {}
 func (cmd *CmdListenerDelete) ValidateInput(args []string) []error                  { return nil }
-func (cmd *CmdListenerDelete) InputToOptions(args []string) error                   { return nil }
+func (cmd *CmdListenerDelete) InputToOptions()                                      {}
 func (cmd *CmdListenerDelete) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
 func (cmd *CmdListenerDelete) WaitUntilReady() error                                { return nil }

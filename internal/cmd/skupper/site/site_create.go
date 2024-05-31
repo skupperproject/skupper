@@ -10,10 +10,12 @@ import (
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -32,11 +34,14 @@ type CreateFlags struct {
 }
 
 type CmdSiteCreate struct {
-	Client   *client.VanClient
-	CobraCmd cobra.Command
-	flags    CreateFlags
-	options  map[string]string
-	siteName string
+	Client             skupperv1alpha1.SkupperV1alpha1Interface
+	KubeClient         kubernetes.Interface
+	CobraCmd           cobra.Command
+	flags              CreateFlags
+	options            map[string]string
+	siteName           string
+	serviceAccountName string
+	Namespace          string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -51,7 +56,7 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 		PreRun: skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
 			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.InputToOptions(args))
+			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
@@ -65,6 +70,15 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 	return &skupperCmd
 }
 
+func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
+	cli, err := client.NewClient("", "", "")
+	utils.HandleError(err)
+
+	cmd.Client = cli.SkupperClient.SkupperV1alpha1()
+	cmd.KubeClient = cli.KubeClient
+	cmd.Namespace = cli.Namespace
+}
+
 func (cmd *CmdSiteCreate) AddFlags() {
 	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.enableLinkAccess, "enable-link-access", false, "Enable external access for links from remote sites")
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessType, "link-access-type", "", `Select the means of opening external access 
@@ -74,13 +88,6 @@ Default: route if the environment is OpenShift, otherwise loadbalancer`)
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "", "Specify the service account")
 }
 
-func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
-	cli, err := client.NewClient("", "", "")
-	utils.HandleError(err)
-
-	cmd.Client = cli
-}
-
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
@@ -88,8 +95,8 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	linkAccessTypeValidator := validator.NewOptionValidator(linkAccessTypes)
 
 	//Validate if there is already a site defined in the namespace
-	siteList, err := cmd.Client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.Client.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil && siteList != nil && len(siteList.Items) > 0 {
+	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if siteList != nil && len(siteList.Items) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("there is already a site created for this namespace"))
 	}
 
@@ -104,7 +111,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.flags.enableLinkAccess {
+	if cmd.flags.linkAccessType != "" {
 		ok, err := linkAccessTypeValidator.Evaluate(cmd.flags.linkAccessType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("link access type is not valid: %s", err))
@@ -115,63 +122,65 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("for the site to work with this type of linkAccess, the --enable-link-access option must be set to true"))
 	}
 
+	if cmd.flags.serviceAccount != "" {
+		ok, err := stringValidator.Evaluate(cmd.flags.serviceAccount)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
+		}
+		cmd.serviceAccountName = cmd.flags.serviceAccount
+	}
+
 	return validationErrors
 }
 
-func (cmd *CmdSiteCreate) InputToOptions(args []string) error {
+func (cmd *CmdSiteCreate) InputToOptions() {
 
 	options := make(map[string]string)
 
-	options["name"] = args[0]
-	options["linkAccess"] = strconv.FormatBool(cmd.flags.enableLinkAccess)
+	options[site.SiteConfigNameKey] = cmd.siteName
 
-	//TODO: set value route or loadbalancer as defaults depending if it's openshift or kubernetes
-	if cmd.flags.enableLinkAccess && cmd.flags.linkAccessType == "" {
-		options["linkAccessType"] = "loadbalancer"
-	}
-	if cmd.flags.linkAccessType != "" {
-		options["linkAccessType"] = cmd.flags.linkAccessType
+	if cmd.flags.enableLinkAccess {
+		if cmd.flags.linkAccessType == "" {
+			options[site.SiteConfigIngressKey] = "loadbalancer"
+		} else {
+			options[site.SiteConfigIngressKey] = cmd.flags.linkAccessType
+		}
+	} else {
+		options[site.SiteConfigIngressKey] = "none"
 	}
 
 	if cmd.flags.linkAccessHost != "" {
-		options["linkAccessHost"] = cmd.flags.linkAccessHost
-	}
-
-	if len(cmd.flags.serviceAccount) > 0 {
-		options["serviceAccount"] = cmd.flags.serviceAccount
+		options[site.SiteConfigIngressHostKey] = cmd.flags.linkAccessHost
 	}
 
 	cmd.options = options
 
-	return nil
 }
 
 func (cmd *CmdSiteCreate) Run() error {
 
-	siteName := cmd.options["name"]
-
 	resource := v1alpha1.Site{
-		ObjectMeta: metav1.ObjectMeta{Name: siteName},
+		ObjectMeta: metav1.ObjectMeta{Name: cmd.siteName},
 		Spec: v1alpha1.SiteSpec{
-			Settings: cmd.options,
+			Settings:       cmd.options,
+			ServiceAccount: cmd.serviceAccountName,
 		},
 	}
 
-	_, err := cmd.Client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.Client.Namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
-	utils.HandleError(err)
-	return nil
+	_, err := cmd.Client.Sites(cmd.Namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	return err
 }
 
 func (cmd *CmdSiteCreate) WaitUntilReady() error {
 
 	err := utils.NewSpinner("Waiting for site...", 5, func() error {
 
-		resource, err := cmd.Client.GetSkupperClient().SkupperV1alpha1().Sites(cmd.Client.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
+		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 
-		if resource != nil {
+		if resource != nil && resource.Status.StatusMessage == "OK" {
 			return nil
 		}
 
@@ -184,7 +193,7 @@ func (cmd *CmdSiteCreate) WaitUntilReady() error {
 
 	err = utils.NewSpinner("Waiting for status...", 5, func() error {
 
-		configmap, err := cmd.Client.KubeClient.CoreV1().ConfigMaps(cmd.Client.Namespace).Get(context.TODO(), types.NetworkStatusConfigMapName, metav1.GetOptions{})
+		configmap, err := cmd.KubeClient.CoreV1().ConfigMaps(cmd.Namespace).Get(context.TODO(), types.NetworkStatusConfigMapName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}

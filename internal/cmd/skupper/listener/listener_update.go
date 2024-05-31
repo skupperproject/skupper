@@ -29,7 +29,7 @@ func NewCmdListenerUpdate() *CmdListenerUpdate {
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
 			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.InputToOptions(args))
+			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -42,6 +42,6 @@ func NewCmdListenerUpdate() *CmdListenerUpdate {
 func (cmd *CmdListenerUpdate) NewClient(cobraCommand *cobra.Command, args []string) {}
 func (cmd *CmdListenerUpdate) AddFlags()                                            {}
 func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error                  { return nil }
-func (cmd *CmdListenerUpdate) InputToOptions(args []string) error                   { return nil }
+func (cmd *CmdListenerUpdate) InputToOptions()                                      {}
 func (cmd *CmdListenerUpdate) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
 func (cmd *CmdListenerUpdate) WaitUntilReady() error                                { return nil }

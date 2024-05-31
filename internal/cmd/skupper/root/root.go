@@ -14,7 +14,7 @@ type SkupperCommand interface {
 	NewClient(cobraCommand *cobra.Command, args []string)
 	AddFlags()
 	ValidateInput(args []string) []error
-	InputToOptions(args []string) error
+	InputToOptions()
 	Run() error
 	WaitUntilReady() error
 }
