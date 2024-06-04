@@ -69,8 +69,8 @@ func (c *ConfigSync) track(name string, path string) (*SyncTarget, bool) {
 		return current, false
 	} else {
 		target := &SyncTarget{
-			name:   name,
-			path:   path,
+			name: name,
+			path: path,
 		}
 		return target, true
 	}

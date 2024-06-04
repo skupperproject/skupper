@@ -21,24 +21,24 @@ import (
 type GrantResponse func(namespace string, name string, subject string, writer io.Writer) error
 
 type Grants struct {
-	clients     kube.Clients
-	generator   GrantResponse
-	url         string
-	ca          string
-	scheme      string
-	grants      map[kubetypes.UID]*skupperv1alpha1.Grant
-	grantIndex  map[string]kubetypes.UID
-	lock        sync.Mutex
+	clients    kube.Clients
+	generator  GrantResponse
+	url        string
+	ca         string
+	scheme     string
+	grants     map[kubetypes.UID]*skupperv1alpha1.Grant
+	grantIndex map[string]kubetypes.UID
+	lock       sync.Mutex
 }
 
 func newGrants(clients kube.Clients, generator GrantResponse, scheme string, url string) *Grants {
 	return &Grants{
-		clients:     clients,
-		generator:   generator,
-		scheme:      scheme,
-		url:         url,
-		grants:      map[kubetypes.UID]*skupperv1alpha1.Grant{},
-		grantIndex:  map[string]kubetypes.UID{},
+		clients:    clients,
+		generator:  generator,
+		scheme:     scheme,
+		url:        url,
+		grants:     map[kubetypes.UID]*skupperv1alpha1.Grant{},
+		grantIndex: map[string]kubetypes.UID{},
 	}
 }
 

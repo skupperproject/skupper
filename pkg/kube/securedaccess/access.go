@@ -42,7 +42,7 @@ type SecuredAccessManager struct {
 }
 
 func NewSecuredAccessManager(clients kube.Clients, certMgr certificates.CertificateManager, defaultAccessType string) *SecuredAccessManager {
-	return &SecuredAccessManager {
+	return &SecuredAccessManager{
 		definitions:       map[string]*skupperv1alpha1.SecuredAccess{},
 		services:          map[string]*corev1.Service{},
 		routes:            map[string]*routev1.Route{},
@@ -75,7 +75,7 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 				Kind:       "SecuredAccess",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name:            name,
 				OwnerReferences: refs,
 				Annotations: map[string]string{
 					"internal.skupper.io/controlled": "true",
@@ -202,7 +202,7 @@ func (m *SecuredAccessManager) createService(sa *skupperv1alpha1.SecuredAccess) 
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: sa.Name,
+			Name:            sa.Name,
 			OwnerReferences: ownerReferences(sa),
 			Labels: map[string]string{
 				"internal.skupper.io/secured-access": "true",
@@ -291,7 +291,7 @@ func (m *SecuredAccessManager) CheckRoute(routeKey string, route *routev1.Route)
 	}
 	sa, ok := m.definitions[key]
 	var latest *routev1.Route
-	if ok && sa.Spec.AccessType == "route"{
+	if ok && sa.Spec.AccessType == "route" {
 		for _, p := range sa.Spec.Ports {
 			if p.Name == port {
 				latest = desiredRouteForPort(sa, p)

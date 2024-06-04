@@ -38,7 +38,7 @@ func GrantConfigFromEnv() *GrantConfig {
 	}
 	if c.TlsCredentialsPath != "" {
 		c.CertPath = path.Join(c.TlsCredentialsPath, "tls.crt")
-		c.KeyPath =  path.Join(c.TlsCredentialsPath, "tls.key")
+		c.KeyPath = path.Join(c.TlsCredentialsPath, "tls.key")
 		c.CaPath = path.Join(c.TlsCredentialsPath, "ca.crt")
 	}
 
@@ -57,4 +57,3 @@ func boolEnvVar(name string) bool {
 	value, _ := strconv.ParseBool(os.Getenv(name))
 	return value
 }
-

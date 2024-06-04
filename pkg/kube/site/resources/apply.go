@@ -61,7 +61,7 @@ func (t NamedTemplate) getYaml() ([]byte, error) {
 
 func resourceTemplates(clients kube.Clients, name string, siteId string, namespace string, config *skuppertypes.SiteConfigSpec) []NamedTemplate {
 	options := getCoreParams(name, siteId, namespace, config)
-	templates:= []NamedTemplate{
+	templates := []NamedTemplate{
 		{
 			name:   "deployment",
 			value:  routerDeploymentTemplate,
@@ -101,7 +101,7 @@ func resourceTemplates(clients kube.Clients, name string, siteId string, namespa
 	if config.IsIngressContourHttpProxy() && kube.IsResourceAvailable(clients.GetDiscoveryClient(), httpProxyGVR) {
 		//TODO:
 	}
-        */
+	*/
 	return templates
 }
 
@@ -161,7 +161,7 @@ func getCoreParams(name string, siteId string, namespace string, config *skupper
 		SiteId:          siteId,
 		SiteName:        name,
 		Replicas:        replicas,
-		ServiceAccount:  "skupper-router",//TODO, take from config, e.g. config.ServiceAccount,
+		ServiceAccount:  "skupper-router", //TODO, take from config, e.g. config.ServiceAccount,
 		IsEdge:          isEdge(config),
 		ServiceType:     serviceType(config),
 		ConfigDigest:    configDigest(config),
@@ -187,23 +187,23 @@ var ingressGVR = schema.GroupVersionResource{
 	Version:  "v1",
 	Resource: "ingresses",
 }
-//TODO: do we need to support v1beta1 for ingress separately?
 
+//TODO: do we need to support v1beta1 for ingress separately?
 
 func routeParams(siteId string) []RouteParams {
 	return []RouteParams{
 		{
-			SiteId: siteId,
+			SiteId:    siteId,
 			RouteName: skuppertypes.EdgeRouteName,
 			PortName:  "edge",
 		},
 		{
-			SiteId: siteId,
+			SiteId:    siteId,
 			RouteName: skuppertypes.InterRouterRouteName,
 			PortName:  "inter-router",
 		},
 		{
-			SiteId: siteId,
+			SiteId:    siteId,
 			RouteName: skuppertypes.ClaimRedemptionRouteName,
 			PortName:  "claims",
 		},
@@ -256,7 +256,7 @@ type StatusParams struct {
 }
 
 func ApplyStatus(clients kube.Clients, ctx context.Context, namespace string, siteName string, siteId string, addresses resolver.HostPorts, errors []string) error {
-	params := StatusParams {
+	params := StatusParams{
 		SiteName: siteName,
 		SiteId:   siteId,
 	}
@@ -270,7 +270,7 @@ func ApplyStatus(clients kube.Clients, ctx context.Context, namespace string, si
 		return err
 	}
 	params.Errors = string(b)
-	template:= NamedTemplate{
+	template := NamedTemplate{
 		name:   "status",
 		value:  statusTemplate,
 		params: params,
@@ -281,5 +281,3 @@ func ApplyStatus(clients kube.Clients, ctx context.Context, namespace string, si
 	}
 	return apply(clients, ctx, namespace, raw)
 }
-
-

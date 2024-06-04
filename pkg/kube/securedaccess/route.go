@@ -76,7 +76,7 @@ func desiredRouteForPort(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1
 			Kind:       "Route",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
+			Name: name,
 			Labels: map[string]string{
 				"internal.skupper.io/secured-access": "true",
 			},

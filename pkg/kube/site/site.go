@@ -11,8 +11,8 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	kubetypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/skupperproject/skupper/api/types"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -43,7 +43,7 @@ type Site struct {
 }
 
 func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access securedaccess.Factory) *Site {
-	return &Site {
+	return &Site{
 		bindings:   site.NewBindings(),
 		namespace:  namespace,
 		controller: controller,
@@ -109,7 +109,7 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 			log.Printf("Router config created for site %s/%s", siteDef.Namespace, siteDef.Name)
 		} else {
 			//TODO: include any LinkAccess configuration
-			err = s.updateRouterConfig(ConfigUpdateList{s.bindings,s})
+			err = s.updateRouterConfig(ConfigUpdateList{s.bindings, s})
 			if err != nil {
 				return err
 			}
@@ -179,15 +179,15 @@ func (s *Site) checkDefaultLinkAccess(ctxt context.Context, site *skupperv1alpha
 			Kind:       "LinkAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:            name,
 			OwnerReferences: s.ownerReferences(),
 			Annotations: map[string]string{
 				"internal.skupper.io/controlled": "true",
 			},
 		},
 		Spec: skupperv1alpha1.LinkAccessSpec{
-			AccessType:      accessType,
-			Roles:           []skupperv1alpha1.LinkAccessRole{
+			AccessType: accessType,
+			Roles: []skupperv1alpha1.LinkAccessRole{
 				{
 					Role: "inter-router",
 					Port: 55671,
@@ -197,8 +197,8 @@ func (s *Site) checkDefaultLinkAccess(ctxt context.Context, site *skupperv1alpha
 					Port: 45671,
 				},
 			},
-			TlsCredentials:  "skupper-site-server",
-			Ca:              "skupper-site-ca",
+			TlsCredentials: "skupper-site-server",
+			Ca:             "skupper-site-ca",
 		},
 	}
 	current, ok := s.linkAccess[name]
@@ -250,7 +250,7 @@ func (s *Site) checkRoleBinding(ctxt context.Context) error {
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:            name,
 			OwnerReferences: s.ownerReferences(),
 		},
 		Subjects: []rbacv1.Subject{{
@@ -321,7 +321,7 @@ func (s *Site) checkRole(ctxt context.Context) error {
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "skupper-router",
+			Name:            "skupper-router",
 			OwnerReferences: s.ownerReferences(),
 		},
 		Rules: rules,
@@ -408,7 +408,6 @@ func (s *Site) getRouterConfig() (*qdr.RouterConfig, error) {
 	return qdr.GetRouterConfigFromConfigMap(current)
 }
 
-
 func (s *Site) IsInitialised() bool {
 	return s.initialised
 }
@@ -420,7 +419,7 @@ func (s *Site) Select(connector *skupperv1alpha1.Connector) site.TargetSelection
 	if selector == "" {
 		return nil
 	}
-	handler := &TargetSelection {
+	handler := &TargetSelection{
 		stopCh:          make(chan struct{}),
 		site:            s,
 		name:            name,
@@ -558,7 +557,6 @@ func isOwned(service *corev1.Service) bool {
 	return true
 }
 
-
 func (s *Site) updateRouterConfig(update qdr.ConfigUpdate) error {
 	if !s.initialised {
 		log.Printf("Cannot update router config for site in %s", s.namespace)
@@ -567,7 +565,7 @@ func (s *Site) updateRouterConfig(update qdr.ConfigUpdate) error {
 	return kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), s.namespace, context.TODO(), update)
 }
 
-//TODO: get rid of this one in favour of version that returns slice
+// TODO: get rid of this one in favour of version that returns slice
 func (s *Site) ownerReference() *metav1.OwnerReference {
 	return &metav1.OwnerReference{
 		Kind:       "Site",
@@ -599,7 +597,7 @@ func (s *Site) createRouterConfig(config *qdr.RouterConfig) error {
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: types.TransportConfigMapName,
+			Name:            types.TransportConfigMapName,
 			OwnerReferences: s.ownerReferences(),
 			//TODO: Labels & Annotations?
 		},
@@ -838,9 +836,9 @@ func (s *Site) updateLinkAccessStatus(la *skupperv1alpha1.LinkAccess) {
 }
 
 func asSecuredAccessSpec(la *skupperv1alpha1.LinkAccess) skupperv1alpha1.SecuredAccessSpec {
-	spec := skupperv1alpha1.SecuredAccessSpec {
-		AccessType:  la.Spec.AccessType,
-		Selector:    map[string]string{
+	spec := skupperv1alpha1.SecuredAccessSpec{
+		AccessType: la.Spec.AccessType,
+		Selector: map[string]string{
 			"skupper.io/component": "router",
 			//TODO: add extra label to allow for distinct sets of routers in HA
 		},
@@ -849,7 +847,7 @@ func asSecuredAccessSpec(la *skupperv1alpha1.LinkAccess) skupperv1alpha1.Secured
 		Options:     la.Spec.Options,
 	}
 	for _, role := range la.Spec.Roles {
-		spec.Ports = append(spec.Ports, skupperv1alpha1.SecuredAccessPort {
+		spec.Ports = append(spec.Ports, skupperv1alpha1.SecuredAccessPort{
 			Name:       role.Role,
 			Port:       role.Port,
 			TargetPort: role.Port,
@@ -868,7 +866,6 @@ func (s *Site) checkSecuredAccess() error {
 	}
 	return nil
 }
-
 
 func (s *Site) CheckLinkAccess(name string, la *skupperv1alpha1.LinkAccess) error {
 	specChanged := false

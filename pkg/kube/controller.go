@@ -24,24 +24,24 @@ import (
 	networkingv1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	corev1informer "k8s.io/client-go/informers/core/v1"
-	networkingv1informer "k8s.io/client-go/informers/networking/v1"
-	"k8s.io/client-go/informers/internalinterfaces"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	corev1informer "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/internalinterfaces"
+	networkingv1informer "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	routev1 "github.com/openshift/api/route/v1"
 	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
-	routev1 "github.com/openshift/api/route/v1"
-	routev1informer "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
+	routev1informer "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
@@ -76,9 +76,9 @@ type Watcher interface {
 }
 
 type Controller struct {
-	eventKey        string
-	errorKey        string
-	client          kubernetes.Interface
+	eventKey string
+	errorKey string
+	client   kubernetes.Interface
 	//routeClient     *routev1client.RouteV1Client
 	routeClient     openshiftroute.Interface
 	dynamicClient   dynamic.Interface
@@ -99,18 +99,18 @@ func NewController(name string, clients Clients) *Controller {
 		dynamicClient:   clients.GetDynamicClient(),
 		skupperClient:   clients.GetSkupperClient(),
 		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
-		resync:          time.Minute*5,
+		resync:          time.Minute * 5,
 	}
 }
-func (c *Controller)  GetKubeClient() kubernetes.Interface {
+func (c *Controller) GetKubeClient() kubernetes.Interface {
 	return c.client
 }
 
-func (c *Controller)  GetDynamicClient() dynamic.Interface {
+func (c *Controller) GetDynamicClient() dynamic.Interface {
 	return c.dynamicClient
 }
 
-func (c *Controller)  GetDiscoveryClient() *discovery.DiscoveryClient {
+func (c *Controller) GetDiscoveryClient() *discovery.DiscoveryClient {
 	return c.discoveryClient
 }
 
@@ -126,14 +126,14 @@ func (c *Controller) GetRouteInterface() openshiftroute.Interface {
 	return c.routeClient
 }
 
-func (c *Controller)  GetRouteClient() routev1client.RouteV1Interface {
+func (c *Controller) GetRouteClient() routev1client.RouteV1Interface {
 	if c.routeClient == nil {
 		return nil
 	}
 	return c.routeClient.RouteV1()
 }
 
-func (c *Controller)  GetSkupperClient() skupperclient.Interface {
+func (c *Controller) GetSkupperClient() skupperclient.Interface {
 	return c.skupperClient
 }
 
@@ -141,8 +141,8 @@ func (c *Controller) NewWatchers(client kubernetes.Interface) Watchers {
 	return &Controller{
 		eventKey: c.eventKey,
 		errorKey: c.errorKey,
-		client: client,
-		queue: c.queue,
+		client:   client,
+		queue:    c.queue,
 	}
 }
 
@@ -186,7 +186,6 @@ func (c *Controller) process() bool {
 	return true
 }
 
-
 func (c *Controller) Stop() {
 	c.queue.ShutDown()
 }
@@ -196,7 +195,7 @@ func (c *Controller) Empty() bool {
 }
 
 func (c *Controller) newEventHandler(handler ResourceChangeHandler) *cache.ResourceEventHandlerFuncs {
-	evt := ResourceChange {
+	evt := ResourceChange{
 		Handler: handler,
 	}
 	return &cache.ResourceEventHandlerFuncs{
@@ -252,15 +251,15 @@ func (c *Controller) HaveWatchersSynced() []cache.InformerSynced {
 	return combined
 }
 
-type Watchers interface{
+type Watchers interface {
 	WatchConfigMaps(options internalinterfaces.TweakListOptionsFunc, namespace string, handler ConfigMapHandler) *ConfigMapWatcher
 	WatchSecrets(options internalinterfaces.TweakListOptionsFunc, namespace string, handler SecretHandler) *SecretWatcher
 }
 
 func (c *Controller) WatchConfigMaps(options internalinterfaces.TweakListOptionsFunc, namespace string, handler ConfigMapHandler) *ConfigMapWatcher {
 	watcher := &ConfigMapWatcher{
-		handler:   handler,
-		informer:  corev1informer.NewFilteredConfigMapInformer(
+		handler: handler,
+		informer: corev1informer.NewFilteredConfigMapInformer(
 			c.client,
 			namespace,
 			c.resync,
@@ -328,8 +327,8 @@ func (w *ConfigMapWatcher) List() []*corev1.ConfigMap {
 
 func (c *Controller) WatchSecrets(options internalinterfaces.TweakListOptionsFunc, namespace string, handler SecretHandler) *SecretWatcher {
 	watcher := &SecretWatcher{
-		handler:   handler,
-		informer:  corev1informer.NewFilteredSecretInformer(
+		handler: handler,
+		informer: corev1informer.NewFilteredSecretInformer(
 			c.client,
 			namespace,
 			c.resync,
@@ -345,8 +344,8 @@ func (c *Controller) WatchSecrets(options internalinterfaces.TweakListOptionsFun
 
 func (c *Controller) WatchAllSecrets(namespace string, handler SecretHandler) *SecretWatcher {
 	watcher := &SecretWatcher{
-		handler:   handler,
-		informer:  corev1informer.NewSecretInformer(
+		handler: handler,
+		informer: corev1informer.NewSecretInformer(
 			c.client,
 			namespace,
 			c.resync,
@@ -594,8 +593,8 @@ func (c *Controller) WatchContourHttpProxies(options dynamicinformer.TweakListOp
 
 func (c *Controller) WatchDynamic(resource schema.GroupVersionResource, options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	watcher := &DynamicWatcher{
-		handler:   handler,
-		informer:  dynamicinformer.NewFilteredDynamicInformer(
+		handler: handler,
+		informer: dynamicinformer.NewFilteredDynamicInformer(
 			c.dynamicClient,
 			resource,
 			namespace,
@@ -603,7 +602,7 @@ func (c *Controller) WatchDynamic(resource schema.GroupVersionResource, options 
 			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 			options).Informer(),
 		namespace: namespace,
-		resource: resource,
+		resource:  resource,
 	}
 
 	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
@@ -671,8 +670,8 @@ func (w *DynamicWatcher) List() []*unstructured.Unstructured {
 type Callback func(context string) error
 
 type CallbackHandler struct {
-	callback   Callback
-	context    string
+	callback Callback
+	context  string
 }
 
 func (c *CallbackHandler) Handle(event ResourceChange) error {
@@ -684,7 +683,7 @@ func (c *CallbackHandler) Describe(event ResourceChange) string {
 }
 
 func (c *Controller) CallbackAfter(delay time.Duration, callback Callback, context string) {
-	evt := ResourceChange {
+	evt := ResourceChange{
 		Handler: &CallbackHandler{
 			callback: callback,
 			context:  context,
@@ -695,8 +694,8 @@ func (c *Controller) CallbackAfter(delay time.Duration, callback Callback, conte
 
 func (c *Controller) WatchNamespaces(options internalinterfaces.TweakListOptionsFunc, handler NamespaceHandler) *NamespaceWatcher {
 	watcher := &NamespaceWatcher{
-		handler:   handler,
-		informer:  corev1informer.NewFilteredNamespaceInformer(
+		handler: handler,
+		informer: corev1informer.NewFilteredNamespaceInformer(
 			c.client,
 			c.resync,
 			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
@@ -711,8 +710,8 @@ func (c *Controller) WatchNamespaces(options internalinterfaces.TweakListOptions
 type NamespaceHandler func(string, *corev1.Namespace) error
 
 type NamespaceWatcher struct {
-	handler   NamespaceHandler
-	informer  cache.SharedIndexInformer
+	handler  NamespaceHandler
+	informer cache.SharedIndexInformer
 }
 
 func (w *NamespaceWatcher) HasSynced() func() bool {
@@ -761,8 +760,8 @@ func (w *NamespaceWatcher) List() []*corev1.Namespace {
 
 func (c *Controller) WatchNodes(handler NodeHandler) *NodeWatcher {
 	watcher := &NodeWatcher{
-		handler:   handler,
-		informer:  corev1informer.NewNodeInformer(
+		handler: handler,
+		informer: corev1informer.NewNodeInformer(
 			c.client,
 			c.resync,
 			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
@@ -776,8 +775,8 @@ func (c *Controller) WatchNodes(handler NodeHandler) *NodeWatcher {
 type NodeHandler func(string, *corev1.Node) error
 
 type NodeWatcher struct {
-	handler   NodeHandler
-	informer  cache.SharedIndexInformer
+	handler  NodeHandler
+	informer cache.SharedIndexInformer
 }
 
 func (w *NodeWatcher) HasSynced() func() bool {
@@ -826,8 +825,8 @@ func (w *NodeWatcher) List() []*corev1.Node {
 
 func (c *Controller) WatchSites(namespace string, handler SiteHandler) *SiteWatcher {
 	watcher := &SiteWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewSiteInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewSiteInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -838,6 +837,7 @@ func (c *Controller) WatchSites(namespace string, handler SiteHandler) *SiteWatc
 	c.addWatcher(watcher)
 	return watcher
 }
+
 type SiteHandler func(string, *skupperv1alpha1.Site) error
 
 type SiteWatcher struct {
@@ -892,8 +892,8 @@ func (w *SiteWatcher) List() []*skupperv1alpha1.Site {
 
 func (c *Controller) WatchListeners(namespace string, handler ListenerHandler) *ListenerWatcher {
 	watcher := &ListenerWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewListenerInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewListenerInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -904,6 +904,7 @@ func (c *Controller) WatchListeners(namespace string, handler ListenerHandler) *
 	c.addWatcher(watcher)
 	return watcher
 }
+
 type ListenerHandler func(string, *skupperv1alpha1.Listener) error
 
 type ListenerWatcher struct {
@@ -958,8 +959,8 @@ func (w *ListenerWatcher) List() []*skupperv1alpha1.Listener {
 
 func (c *Controller) WatchConnectors(namespace string, handler ConnectorHandler) *ConnectorWatcher {
 	watcher := &ConnectorWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewConnectorInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewConnectorInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -970,6 +971,7 @@ func (c *Controller) WatchConnectors(namespace string, handler ConnectorHandler)
 	c.addWatcher(watcher)
 	return watcher
 }
+
 type ConnectorHandler func(string, *skupperv1alpha1.Connector) error
 
 type ConnectorWatcher struct {
@@ -1024,8 +1026,8 @@ func (w *ConnectorWatcher) List() []*skupperv1alpha1.Connector {
 
 func (c *Controller) WatchLinks(namespace string, handler LinkHandler) *LinkWatcher {
 	watcher := &LinkWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewLinkInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewLinkInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1036,6 +1038,7 @@ func (c *Controller) WatchLinks(namespace string, handler LinkHandler) *LinkWatc
 	c.addWatcher(watcher)
 	return watcher
 }
+
 type LinkHandler func(string, *skupperv1alpha1.Link) error
 
 type LinkWatcher struct {
@@ -1090,8 +1093,8 @@ func (w *LinkWatcher) List() []*skupperv1alpha1.Link {
 
 func (c *Controller) WatchClaims(namespace string, handler ClaimHandler) *ClaimWatcher {
 	watcher := &ClaimWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewClaimInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewClaimInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1157,8 +1160,8 @@ func (w *ClaimWatcher) List() []*skupperv1alpha1.Claim {
 
 func (c *Controller) WatchGrants(namespace string, handler GrantHandler) *GrantWatcher {
 	watcher := &GrantWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewGrantInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewGrantInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1224,8 +1227,8 @@ func (w *GrantWatcher) List() []*skupperv1alpha1.Grant {
 
 func (c *Controller) WatchSecuredAccesses(namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
 	watcher := &SecuredAccessWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewSecuredAccessInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewSecuredAccessInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1291,8 +1294,8 @@ func (w *SecuredAccessWatcher) List() []*skupperv1alpha1.SecuredAccess {
 
 func (c *Controller) WatchIngresses(options internalinterfaces.TweakListOptionsFunc, namespace string, handler IngressHandler) *IngressWatcher {
 	watcher := &IngressWatcher{
-		handler:   handler,
-		informer:  networkingv1informer.NewFilteredIngressInformer(
+		handler: handler,
+		informer: networkingv1informer.NewFilteredIngressInformer(
 			c.client,
 			namespace,
 			c.resync,
@@ -1363,8 +1366,8 @@ func (c *Controller) WatchRoutes(options routev1interfaces.TweakListOptionsFunc,
 		return nil
 	}
 	watcher := &RouteWatcher{
-		handler:   handler,
-		informer:  routev1informer.NewFilteredRouteInformer(
+		handler: handler,
+		informer: routev1informer.NewFilteredRouteInformer(
 			c.routeClient,
 			namespace,
 			c.resync,
@@ -1432,8 +1435,8 @@ func (w *RouteWatcher) List() []*routev1.Route {
 
 func (c *Controller) WatchCertificates(namespace string, handler CertificateHandler) *CertificateWatcher {
 	watcher := &CertificateWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewCertificateInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewCertificateInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1499,8 +1502,8 @@ func (w *CertificateWatcher) List() []*skupperv1alpha1.Certificate {
 
 func (c *Controller) WatchLinkAccesses(namespace string, handler LinkAccessHandler) *LinkAccessWatcher {
 	watcher := &LinkAccessWatcher{
-		handler:   handler,
-		informer:  skupperv1alpha1informer.NewLinkAccessInformer(
+		handler: handler,
+		informer: skupperv1alpha1informer.NewLinkAccessInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
