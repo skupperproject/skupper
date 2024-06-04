@@ -206,7 +206,7 @@ func (cmd *CmdSiteCreate) WaitUntilReady() error {
 	})
 
 	if err != nil {
-		fmt.Println("Status is not ready yet, check the logs for more information")
+		fmt.Println("Status is updating, check the logs for more information")
 	}
 
 	fmt.Printf("Site \"%s\" is ready\n", cmd.siteName)
