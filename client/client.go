@@ -20,8 +20,8 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/skupperproject/skupper/pkg/kube"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
+	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 var defaultRetry = wait.Backoff{
@@ -33,9 +33,9 @@ var defaultRetry = wait.Backoff{
 
 // A VAN Client manages orchestration and communications with the network components
 type VanClient struct {
-	Namespace       string
-	KubeClient      kubernetes.Interface
-	RouteClient     openshiftroute.Interface
+	Namespace   string
+	KubeClient  kubernetes.Interface
+	RouteClient openshiftroute.Interface
 	//RouteClient     *routev1client.RouteV1Client
 	OCAppsClient    openshiftapps.Interface
 	RestConfig      *restclient.Config

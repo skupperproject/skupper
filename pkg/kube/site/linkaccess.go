@@ -36,8 +36,8 @@ func (m LinkAccessMap) asRouterListeners() map[string]qdr.Listener {
 }
 
 func changes(actual map[string]qdr.Listener, desired map[string]qdr.Listener) LinkAccessChanges {
-	changes := LinkAccessChanges {
-		listeners: ListenerChanges {
+	changes := LinkAccessChanges{
+		listeners: ListenerChanges{
 			changed: map[string]qdr.Listener{},
 		},
 	}
@@ -67,7 +67,7 @@ func (lac *LinkAccessChanges) Apply(config *qdr.RouterConfig) bool {
 		delete(config.Listeners, key)
 	}
 	for _, name := range lac.profiles.added {
-		config.AddSslProfileWithPath("/etc/skupper-router-certs", qdr.SslProfile{Name:name})
+		config.AddSslProfileWithPath("/etc/skupper-router-certs", qdr.SslProfile{Name: name})
 	}
 	// SslProfiles may be shared, so only delete those that are now unreferenced
 	unreferenced := config.UnreferencedSslProfiles()

@@ -42,12 +42,11 @@ type UrlFromEnv struct {
 }
 
 func (s *UrlFromEnv) SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) {}
-func (s *UrlFromEnv) Watch(controller *kube.Controller, namespace string) {}
+func (s *UrlFromEnv) Watch(controller *kube.Controller, namespace string)                {}
 
 func (s *UrlFromEnv) Start() {
 	s.start()
 }
-
 
 type UrlFromSecuredAccess struct {
 	GrantServer
@@ -100,5 +99,5 @@ func (s *GrantsDisabled) GrantChanged(key string, grant *skupperv1alpha1.Grant) 
 }
 
 func (s *GrantsDisabled) SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) {}
-func (s *GrantsDisabled) Start() {}
-func (s *GrantsDisabled) Watch(controller *kube.Controller, namespace string) {}
+func (s *GrantsDisabled) Start()                                                             {}
+func (s *GrantsDisabled) Watch(controller *kube.Controller, namespace string)                {}

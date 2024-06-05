@@ -30,25 +30,25 @@ import (
 )
 
 type Controller struct {
-	controller           *kube.Controller
-	stopCh               <-chan struct{}
-	siteWatcher          *kube.SiteWatcher
-	listenerWatcher      *kube.ListenerWatcher
-	connectorWatcher     *kube.ConnectorWatcher
-	linkAccessWatcher    *kube.LinkAccessWatcher
-	grantWatcher         *kube.GrantWatcher
-	sites                map[string]*site.Site
-	grants               claims.GrantManager
-	accessMgr            *securedaccess.SecuredAccessManager
-	accessRecovery       AccessRecovery
-	certMgr              *certificates.CertificateManagerImpl
+	controller        *kube.Controller
+	stopCh            <-chan struct{}
+	siteWatcher       *kube.SiteWatcher
+	listenerWatcher   *kube.ListenerWatcher
+	connectorWatcher  *kube.ConnectorWatcher
+	linkAccessWatcher *kube.LinkAccessWatcher
+	grantWatcher      *kube.GrantWatcher
+	sites             map[string]*site.Site
+	grants            claims.GrantManager
+	accessMgr         *securedaccess.SecuredAccessManager
+	accessRecovery    AccessRecovery
+	certMgr           *certificates.CertificateManagerImpl
 }
 
 type AccessRecovery struct {
-	serviceWatcher     *kube.ServiceWatcher
-	routeWatcher       *kube.RouteWatcher
-	ingressWatcher     *kube.IngressWatcher
-	httpProxyWatcher   *kube.DynamicWatcher
+	serviceWatcher   *kube.ServiceWatcher
+	routeWatcher     *kube.RouteWatcher
+	ingressWatcher   *kube.IngressWatcher
+	httpProxyWatcher *kube.DynamicWatcher
 }
 
 func (m *AccessRecovery) recoverAll(accessMgr *securedaccess.SecuredAccessManager) {
@@ -108,8 +108,8 @@ func dynamicSecuredAccess() dynamicinformer.TweakListOptionsFunc {
 
 func NewController(cli kube.Clients, watchNamespace string, currentNamespace string) (*Controller, error) {
 	controller := &Controller{
-		controller:      kube.NewController("Controller", cli),
-		sites:           map[string]*site.Site{},
+		controller: kube.NewController("Controller", cli),
+		sites:      map[string]*site.Site{},
 	}
 
 	controller.siteWatcher = controller.controller.WatchSites(watchNamespace, controller.checkSite)
@@ -332,8 +332,8 @@ func extractSiteRecords(status *flow.NetworkStatus) []skupperv1alpha1.SiteRecord
 		}
 	}
 	for _, site := range status.Sites {
-		record := skupperv1alpha1.SiteRecord {
-			Id:   site.Site.Identity,
+		record := skupperv1alpha1.SiteRecord{
+			Id: site.Site.Identity,
 		}
 		if site.Site.Name != nil {
 			record.Name = *site.Site.Name
@@ -390,4 +390,3 @@ func extractSiteRecords(status *flow.NetworkStatus) []skupperv1alpha1.SiteRecord
 	}
 	return records
 }
-

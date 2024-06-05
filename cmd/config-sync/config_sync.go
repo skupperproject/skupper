@@ -70,8 +70,8 @@ func (c *ConfigSync) track(name string, path string) (*SyncTarget, bool) {
 		return current, false
 	} else {
 		target := &SyncTarget{
-			name:   name,
-			path:   path,
+			name: name,
+			path: path,
 		}
 		c.tracking[name] = target
 		log.Printf("CONFIG_SYNC: Tracking secret %q", name)
