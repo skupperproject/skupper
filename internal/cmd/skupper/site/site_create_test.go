@@ -168,10 +168,11 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name           string
-		args           []string
-		flags          CreateFlags
-		expectedResult map[string]string
+		name               string
+		args               []string
+		flags              CreateFlags
+		expectedSettings   map[string]string
+		expectedLinkAccess string
 	}
 
 	testTable := []test{
@@ -179,38 +180,38 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			name:  "options without link access enabled",
 			args:  []string{"my-site"},
 			flags: CreateFlags{},
-			expectedResult: map[string]string{
-				"name":    "my-site",
-				"ingress": "none",
+			expectedSettings: map[string]string{
+				"name": "my-site",
 			},
+			expectedLinkAccess: "none",
 		},
 		{
 			name:  "options with link access enabled but using a type by default and link access host specified",
 			args:  []string{"my-site"},
 			flags: CreateFlags{enableLinkAccess: true, linkAccessHost: "host"},
-			expectedResult: map[string]string{
+			expectedSettings: map[string]string{
 				"name":         "my-site",
-				"ingress":      "loadbalancer",
 				"ingress-host": "host",
 			},
+			expectedLinkAccess: "loadbalancer",
 		},
 		{
 			name:  "options with link access enabled using the nodeport type",
 			args:  []string{"my-site"},
 			flags: CreateFlags{enableLinkAccess: true, linkAccessType: "nodeport"},
-			expectedResult: map[string]string{
-				"name":    "my-site",
-				"ingress": "nodeport",
+			expectedSettings: map[string]string{
+				"name": "my-site",
 			},
+			expectedLinkAccess: "nodeport",
 		},
 		{
 			name:  "options with link access options not well specified",
 			args:  []string{"my-site"},
 			flags: CreateFlags{enableLinkAccess: false, linkAccessType: "nodeport"},
-			expectedResult: map[string]string{
-				"name":    "my-site",
-				"ingress": "none",
+			expectedSettings: map[string]string{
+				"name": "my-site",
 			},
+			expectedLinkAccess: "none",
 		},
 	}
 
@@ -223,7 +224,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 
 			cmd.InputToOptions()
 
-			assert.DeepEqual(t, cmd.options, test.expectedResult)
+			assert.DeepEqual(t, cmd.options, test.expectedSettings)
 		})
 	}
 }

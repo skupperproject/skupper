@@ -42,6 +42,7 @@ type CmdSiteCreate struct {
 	siteName           string
 	serviceAccountName string
 	Namespace          string
+	linkAccessType     string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -127,7 +128,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
 		}
-		cmd.serviceAccountName = cmd.flags.serviceAccount
 	}
 
 	return validationErrors
@@ -135,19 +135,20 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 func (cmd *CmdSiteCreate) InputToOptions() {
 
-	options := make(map[string]string)
-
-	options[site.SiteConfigNameKey] = cmd.siteName
+	cmd.serviceAccountName = cmd.flags.serviceAccount
 
 	if cmd.flags.enableLinkAccess {
 		if cmd.flags.linkAccessType == "" {
-			options[site.SiteConfigIngressKey] = "loadbalancer"
+			cmd.linkAccessType = "default"
 		} else {
-			options[site.SiteConfigIngressKey] = cmd.flags.linkAccessType
+			cmd.linkAccessType = cmd.flags.linkAccessType
 		}
 	} else {
-		options[site.SiteConfigIngressKey] = "none"
+		cmd.linkAccessType = "none"
 	}
+
+	options := make(map[string]string)
+	options[site.SiteConfigNameKey] = cmd.siteName
 
 	if cmd.flags.linkAccessHost != "" {
 		options[site.SiteConfigIngressHostKey] = cmd.flags.linkAccessHost
@@ -164,6 +165,7 @@ func (cmd *CmdSiteCreate) Run() error {
 		Spec: v1alpha1.SiteSpec{
 			Settings:       cmd.options,
 			ServiceAccount: cmd.serviceAccountName,
+			LinkAccess:     cmd.linkAccessType,
 		},
 	}
 
