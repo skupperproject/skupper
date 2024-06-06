@@ -190,7 +190,7 @@ func (cmd *CmdSiteCreate) WaitUntilReady() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Site \"%s\" not ready yet, check the logs for more information\n", cmd.siteName)
+		return fmt.Errorf("Site %q not ready yet, check the logs for more information\n", cmd.siteName)
 	}
 
 	err = utils.NewSpinner("Waiting for status...", 5, func() error {
@@ -211,7 +211,7 @@ func (cmd *CmdSiteCreate) WaitUntilReady() error {
 		fmt.Println("Status is updating, check the logs for more information")
 	}
 
-	fmt.Printf("Site \"%s\" is ready\n", cmd.siteName)
+	fmt.Printf("Site %q is ready\n", cmd.siteName)
 
 	return nil
 }
