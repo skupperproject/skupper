@@ -434,7 +434,7 @@ func (r *IngressRoute) toUntypedRule() interface{} {
 	}
 }
 
-func useV1API(dc *discovery.DiscoveryClient) bool {
+func useV1API(dc discovery.DiscoveryInterface) bool {
 	if dc == nil {
 		return false
 	}

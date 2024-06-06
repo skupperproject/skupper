@@ -40,7 +40,7 @@ type VanClient struct {
 	OCAppsClient    openshiftapps.Interface
 	RestConfig      *restclient.Config
 	DynamicClient   dynamic.Interface
-	DiscoveryClient *discovery.DiscoveryClient
+	DiscoveryClient discovery.DiscoveryInterface
 	skupperClient   skupperclient.Interface
 	LinkHandler     domain.LinkHandler
 }
@@ -57,7 +57,7 @@ func (cli *VanClient) GetDynamicClient() dynamic.Interface {
 	return cli.DynamicClient
 }
 
-func (cli *VanClient) GetDiscoveryClient() *discovery.DiscoveryClient {
+func (cli *VanClient) GetDiscoveryClient() discovery.DiscoveryInterface {
 	return cli.DiscoveryClient
 }
 

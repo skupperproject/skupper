@@ -82,7 +82,7 @@ type Controller struct {
 	//routeClient     *routev1client.RouteV1Client
 	routeClient     openshiftroute.Interface
 	dynamicClient   dynamic.Interface
-	discoveryClient *discovery.DiscoveryClient
+	discoveryClient discovery.DiscoveryInterface
 	skupperClient   skupperclient.Interface
 	queue           workqueue.RateLimitingInterface
 	resync          time.Duration
@@ -110,7 +110,7 @@ func (c *Controller) GetDynamicClient() dynamic.Interface {
 	return c.dynamicClient
 }
 
-func (c *Controller) GetDiscoveryClient() *discovery.DiscoveryClient {
+func (c *Controller) GetDiscoveryClient() discovery.DiscoveryInterface {
 	return c.discoveryClient
 }
 
