@@ -37,7 +37,7 @@ type Site struct {
 	bindings    *site.Bindings
 	links       map[string]*site.Link
 	errors      map[string]string
-	linkAccess  LinkAccessMap
+	linkAccess  site.LinkAccessMap
 	certs       certificates.CertificateManager
 	access      securedaccess.Factory
 }
@@ -48,7 +48,7 @@ func NewSite(namespace string, controller *kube.Controller, certs certificates.C
 		namespace:  namespace,
 		controller: controller,
 		links:      map[string]*site.Link{},
-		linkAccess: LinkAccessMap{},
+		linkAccess: site.LinkAccessMap{},
 		certs:      certs,
 		access:     access,
 	}

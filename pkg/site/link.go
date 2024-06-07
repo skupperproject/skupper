@@ -50,8 +50,10 @@ func NewLink(name string) *Link {
 		name: name,
 	}
 }
-
 func (l *Link) Apply(current *qdr.RouterConfig) bool {
+	return l.ApplyWithSslProfilePath(current, "/etc/skupper-router-certs")
+}
+func (l *Link) ApplyWithSslProfilePath(current *qdr.RouterConfig, sslProfilePath string) bool {
 	profile := qdr.SslProfile {
 		Name: sslProfileName(l.name),
 	}
@@ -76,9 +78,9 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	//connector.SetMaxSessionFrames(siteConfig.Spec.Router.MaxSessionFrames)
 	current.AddConnector(connector)
 	if l.hasClientCert {
-		current.AddSslProfile(profile)
+		current.AddSslProfileWithPath(sslProfilePath, profile)
 	} else {
-		current.AddSimpleSslProfile(profile)
+		current.AddSimpleSslProfileWithPath(sslProfilePath, profile)
 	}
 	return true //TODO: optimise by indicating if no change was actually needed
 }
@@ -90,8 +92,11 @@ func sslProfileName(connectorName string) string {
 type LinkMap map[string]*Link
 
 func (m LinkMap) Apply(current *qdr.RouterConfig) bool {
+	return m.ApplyWithSslProfile(current, "/etc/skupper-router-certs")
+}
+func (m LinkMap) ApplyWithSslProfile(current *qdr.RouterConfig, sslProfilePath string) bool {
 	for _, config := range m {
-		config.Apply(current)
+		config.ApplyWithSslProfilePath(current, sslProfilePath)
 	}
 	for _, connector := range current.Connectors {
 		if !strings.HasPrefix(connector.Name, "auto-mesh") {

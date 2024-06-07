@@ -24,17 +24,28 @@ func (l *Listener) updateBridges(siteId string, mapping *qdr.PortMapping, config
 	}
 }
 
-func (l *Listener) AsTcpEndpoint(siteId string, mapping *qdr.PortMapping) qdr.TcpEndpoint {
-	port, err := mapping.GetPortForKey(l.resource.Name)
-	if err != nil {
-		log.Printf("Could not allocate port for %s/%s: %s", l.resource.Namespace, l.resource.Name, err)
+func (l *Listener) getHostPort(mapping *qdr.PortMapping) (string, string) {
+	var err error
+	host := l.resource.Spec.Host
+	port := l.resource.Spec.Port
+	if mapping != nil {
+		host = "0.0.0.0"
+		port, err = mapping.GetPortForKey(l.resource.Name)
+		if err != nil {
+			log.Printf("Could not allocate port for %s/%s: %s", l.resource.Namespace, l.resource.Name, err)
+		}
 	}
-	return qdr.TcpEndpoint {
-		Name:    l.resource.Name,
-		Host:    "0.0.0.0",
-		Port:    strconv.Itoa(port),
-		Address: l.resource.Spec.RoutingKey,
-		SiteId:  siteId,
+	return host, strconv.Itoa(port)
+}
+
+func (l *Listener) AsTcpEndpoint(siteId string, mapping *qdr.PortMapping) qdr.TcpEndpoint {
+	host, port := l.getHostPort(mapping)
+	return qdr.TcpEndpoint{
+		Name:       l.resource.Name,
+		Host:       host,
+		Port:       port,
+		Address:    l.resource.Spec.RoutingKey,
+		SiteId:     siteId,
 		SslProfile: l.resource.Spec.TlsCredentials,
 		//TODO:
 		//VerifyHostname
@@ -42,14 +53,11 @@ func (l *Listener) AsTcpEndpoint(siteId string, mapping *qdr.PortMapping) qdr.Tc
 }
 
 func (l *Listener) AsHttpEndpoint(siteId string, mapping *qdr.PortMapping) qdr.HttpEndpoint {
-	port, err := mapping.GetPortForKey(l.resource.Name)
-	if err != nil {
-		log.Printf("Could not allocate port for %s/%s: %s", l.resource.Namespace, l.resource.Name, err)
-	}
-	return qdr.HttpEndpoint {
+	host, port := l.getHostPort(mapping)
+	return qdr.HttpEndpoint{
 		Name:       l.resource.Name,
-		Host:       "0.0.0.0",
-		Port:       strconv.Itoa(port), //TODO: should port be a string to allow for wll known service names in binding definitions?
+		Host:       host,
+		Port:       port, //TODO: should port be a string to allow for wll known service names in binding definitions?
 		Address:    l.resource.Spec.RoutingKey,
 		SiteId:     siteId,
 		SslProfile: l.resource.Spec.TlsCredentials,

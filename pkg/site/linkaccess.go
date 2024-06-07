@@ -23,8 +23,12 @@ type SslProfileChanges struct {
 }
 
 func (m LinkAccessMap) Apply(config *qdr.RouterConfig) bool {
+	return m.ApplyWithSslProfilePath(config, "/etc/skupper-router-certs")
+}
+
+func (m LinkAccessMap) ApplyWithSslProfilePath(config *qdr.RouterConfig, sslProfilePath string) bool {
 	lac := changes(config.GetMatchingListeners(qdr.IsNotNormalListener), m.asRouterListeners())
-	return lac.Apply(config)
+	return lac.ApplyWithSslProfilePath(config, sslProfilePath)
 }
 
 func (m LinkAccessMap) asRouterListeners() map[string]qdr.Listener {
@@ -57,6 +61,10 @@ func changes(actual map[string]qdr.Listener, desired map[string]qdr.Listener) Li
 }
 
 func (lac *LinkAccessChanges) Apply(config *qdr.RouterConfig) bool {
+	return lac.ApplyWithSslProfilePath(config, "/etc/skupper-router-certs")
+}
+
+func (lac *LinkAccessChanges) ApplyWithSslProfilePath(config *qdr.RouterConfig, sslProfilePath string) bool {
 	if len(lac.listeners.changed) == 0 && len(lac.listeners.deleted) == 0 {
 		return false
 	}
@@ -67,7 +75,7 @@ func (lac *LinkAccessChanges) Apply(config *qdr.RouterConfig) bool {
 		delete(config.Listeners, key)
 	}
 	for _, name := range lac.profiles.added {
-		config.AddSslProfileWithPath("/etc/skupper-router-certs", qdr.SslProfile{Name:name})
+		config.AddSslProfileWithPath(sslProfilePath, qdr.SslProfile{Name: name})
 	}
 	// SslProfiles may be shared, so only delete those that are now unreferenced
 	unreferenced := config.UnreferencedSslProfiles()
@@ -85,10 +93,12 @@ func asRouterListeners(la *skupperv1alpha1.LinkAccess, listeners map[string]qdr.
 		listeners[name] = qdr.Listener{
 			Name:             name,
 			Role:             qdr.GetRole(role.Role),
+			Host:             la.Spec.BindHost,
 			Port:             getPort(role),
 			SslProfile:       la.Spec.TlsCredentials,
 			SaslMechanisms:   "EXTERNAL",
 			AuthenticatePeer: true,
+			// TODO MaxFrameSize and MaxSessionFrames
 		}
 	}
 }
