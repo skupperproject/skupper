@@ -120,6 +120,16 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"site name must not be empty"},
 		},
 		{
+			name: "more than one argument was specified",
+			args: []string{"my", "site"},
+			setUpMock: func(command *CmdSiteCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				command.Client = fakeSkupperClient
+			},
+			expectedErrors: []string{"only one argument is allowed for this command."},
+		},
+		{
 			name: "service account name is not valid.",
 			args: []string{"my-site"},
 			setUpMock: func(command *CmdSiteCreate) {

@@ -99,6 +99,8 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	if len(args) == 0 || args[0] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
+	} else if len(args) > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command."))
 	} else {
 		cmd.siteName = args[0]
 
