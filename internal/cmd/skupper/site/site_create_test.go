@@ -107,7 +107,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				fakeSkupperClient.Fake.ClearActions()
 				command.Client = fakeSkupperClient
 			},
-			expectedErrors: []string{"site name is not valid: value contains spaces"},
+			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name: "site name is not specified.",
@@ -138,7 +138,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				command.Client = fakeSkupperClient
 				command.flags = CreateFlags{serviceAccount: "not valid service account name"}
 			},
-			expectedErrors: []string{"service account name is not valid: value contains spaces"},
+			expectedErrors: []string{"service account name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name: "link access type is not valid",

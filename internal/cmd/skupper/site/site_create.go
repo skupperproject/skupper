@@ -88,7 +88,7 @@ for other Kubernetes flavors, loadbalancer is the default.`)
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
-	stringValidator := validator.NewStringValidator()
+	resourceStringValidator := validator.NewResourceStringValidator()
 	linkAccessTypeValidator := validator.NewOptionValidator(linkAccessTypes)
 
 	//Validate if there is already a site defined in the namespace
@@ -104,7 +104,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	} else {
 		cmd.siteName = args[0]
 
-		ok, err := stringValidator.Evaluate(cmd.siteName)
+		ok, err := resourceStringValidator.Evaluate(cmd.siteName)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
 		}
@@ -122,7 +122,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	}
 
 	if cmd.flags.serviceAccount != "" {
-		ok, err := stringValidator.Evaluate(cmd.flags.serviceAccount)
+		ok, err := resourceStringValidator.Evaluate(cmd.flags.serviceAccount)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
 		}

@@ -26,6 +26,17 @@ func NewStringValidator() *StringValidator {
 	}
 }
 
+func NewResourceStringValidator() *StringValidator {
+	re, err := regexp.Compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$")
+	if err != nil {
+		fmt.Printf("Error compiling regex: %v", err)
+		return nil
+	}
+	return &StringValidator{
+		Expression: re,
+	}
+}
+
 func (s StringValidator) Evaluate(value interface{}) (bool, error) {
 	v, ok := value.(string)
 
@@ -37,7 +48,7 @@ func (s StringValidator) Evaluate(value interface{}) (bool, error) {
 		return true, nil
 	}
 
-	return false, fmt.Errorf("value contains spaces")
+	return false, fmt.Errorf("value does not match this regular expression: %s", s.Expression)
 }
 
 //
