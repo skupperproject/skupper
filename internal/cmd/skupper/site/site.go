@@ -12,9 +12,7 @@ func NewCmdSite() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "site",
 		Short: "A site is where skupper is deployed and components of your application are running.",
-		Long: `A site is a location where components of your application are running. 
-Sites are linked together to form a network. They have different kinds 
-based on platform link Kubernetes, Podman, virtual machines, and bare metal hosts.`,
+		Long:  `A site is a place where components of your application are running. Sites are linked to form application networks.`,
 		Example: `skupper site create my-site
 skupper site get my-site`,
 	}

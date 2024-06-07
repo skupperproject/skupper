@@ -21,7 +21,7 @@ var (
 Sites are linked to form application networks.
 There can be only one site definition per namespace.`
 
-	linkAccessTypes = []string{"route", "loadbalancer", "nodeport", "nginx-ingress-v1", "contour-http-proxy", "ingress"}
+	linkAccessTypes = []string{"route", "loadbalancer", "default"}
 )
 
 type CreateFlags struct {
@@ -77,12 +77,12 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 }
 
 func (cmd *CmdSiteCreate) AddFlags() {
-	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.enableLinkAccess, "enable-link-access", false, "Enable external access for links from remote sites")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessType, "link-access-type", "", `Select the means of opening external access 
-One of: [route|loadbalancer|nodeport|nginx-ingress-v1|contour-http-proxy|ingress] 
-Default: route if the environment is OpenShift, otherwise loadbalancer`)
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessHost, "link-access-host", "", "The host or IP address at which to expose link access")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "", "Specify the service account")
+	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.enableLinkAccess, "enable-link-access", false, "allow access for incoming links from remote sites (default: false)")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessType, "link-access-type", "", `configure external access for links from remote sites.
+Choices: [route|loadbalancer]. Default: On OpenShift, route is the default; 
+for other Kubernetes flavors, loadbalancer is the default.`)
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessHost, "link-access-host", "", "the host or IP address at which to expose link access")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "skupper-controller", "the Kubernetes service account under which to run the Skupper controller")
 }
 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {

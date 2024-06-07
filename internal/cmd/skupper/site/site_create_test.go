@@ -36,7 +36,7 @@ func TestCmdSiteCreate_AddFlags(t *testing.T) {
 		"enable-link-access": "false",
 		"link-access-type":   "",
 		"link-access-host":   "",
-		"service-account":    "",
+		"service-account":    "skupper-controller",
 	}
 	var flagList []string
 
@@ -150,7 +150,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				command.flags = CreateFlags{linkAccessType: "not-valid"}
 			},
 			expectedErrors: []string{
-				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer nodeport nginx-ingress-v1 contour-http-proxy ingress]",
+				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
 			},
 		},
