@@ -12,6 +12,7 @@
 /config-sync
 /flow-collector
 /manifest
+/generate-doc
 
 # Test binary, built with `go test -c`
 *.test
@@ -30,3 +31,4 @@
 
 # Generated files
 manifest.json
+*.md

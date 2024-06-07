@@ -8,6 +8,6 @@ import (
 
 func main() {
 
-	utils.HandleError(doc.GenMarkdownTree(root.NewSkupperRootCommand(), "./doc"))
+	utils.HandleError(doc.GenMarkdownTree(root.NewSkupperRootCommand(), "."))
 
 }
