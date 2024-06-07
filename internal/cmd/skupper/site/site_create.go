@@ -6,7 +6,6 @@ package site
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -15,7 +14,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -35,7 +33,6 @@ type CreateFlags struct {
 
 type CmdSiteCreate struct {
 	Client             skupperv1alpha1.SkupperV1alpha1Interface
-	KubeClient         kubernetes.Interface
 	CobraCmd           cobra.Command
 	flags              CreateFlags
 	options            map[string]string
@@ -76,7 +73,6 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	utils.HandleError(err)
 
 	cmd.Client = cli.SkupperClient.SkupperV1alpha1()
-	cmd.KubeClient = cli.KubeClient
 	cmd.Namespace = cli.Namespace
 }
 
@@ -191,24 +187,6 @@ func (cmd *CmdSiteCreate) WaitUntilReady() error {
 
 	if err != nil {
 		return fmt.Errorf("Site %q not ready yet, check the logs for more information\n", cmd.siteName)
-	}
-
-	err = utils.NewSpinner("Waiting for status...", 5, func() error {
-
-		configmap, err := cmd.KubeClient.CoreV1().ConfigMaps(cmd.Namespace).Get(context.TODO(), types.NetworkStatusConfigMapName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		if configmap != nil && configmap.Data != nil && len(configmap.Data) > 0 {
-			return nil
-		}
-
-		return fmt.Errorf("error getting the status updated")
-	})
-
-	if err != nil {
-		fmt.Println("Status is updating, check the logs for more information")
 	}
 
 	fmt.Printf("Site %q is ready\n", cmd.siteName)

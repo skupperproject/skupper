@@ -6,10 +6,8 @@ import (
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
-	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 	testing2 "k8s.io/client-go/testing"
 	"testing"
 )
@@ -369,13 +367,7 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.Client = fakeSkupperClient
-				fakeKubeClient := kubefake.NewSimpleClientset()
-				fakeKubeClient.Fake.ClearActions()
-				fakeKubeClient.Fake.PrependReactor("get", "configmaps", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
 
-					return true, nil, nil
-				})
-				command.KubeClient = fakeKubeClient
 			},
 			expectError: false,
 		},
@@ -399,13 +391,6 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.Client = fakeSkupperClient
-				fakeKubeClient := kubefake.NewSimpleClientset()
-				fakeKubeClient.Fake.ClearActions()
-				fakeKubeClient.Fake.PrependReactor("get", "configmaps", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, nil, fmt.Errorf("it failed")
-				})
-				command.KubeClient = fakeKubeClient
 			},
 			expectError: false,
 		},
@@ -429,15 +414,6 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.Client = fakeSkupperClient
-				fakeKubeClient := kubefake.NewSimpleClientset()
-				fakeKubeClient.Fake.ClearActions()
-				fakeKubeClient.Fake.PrependReactor("get", "configmaps", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v12.ConfigMap{
-						Data: map[string]string{"Sites": "site information"},
-					}, nil
-				})
-				command.KubeClient = fakeKubeClient
 			},
 			expectError: false,
 		},
@@ -463,9 +439,8 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 func newCmdSiteCreateWithMocks() *CmdSiteCreate {
 
 	cmdSiteCreate := &CmdSiteCreate{
-		Client:     &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
-		KubeClient: kubefake.NewSimpleClientset(),
-		Namespace:  "test",
+		Client:    &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
+		Namespace: "test",
 	}
 
 	return cmdSiteCreate
