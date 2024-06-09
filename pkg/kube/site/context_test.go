@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/event"
+	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 	"github.com/skupperproject/skupper/pkg/kube/resolver"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -37,11 +39,19 @@ func (*TestClient) GetDynamicClient() dynamic.Interface {
 	return nil
 }
 
-func (*TestClient) GetDiscoveryClient() *discovery.DiscoveryClient {
+func (*TestClient) GetDiscoveryClient() discovery.DiscoveryInterface {
 	return nil
 }
 
-func (*TestClient) GetRouteClient() *routev1client.RouteV1Client {
+func (*TestClient) GetRouteClient() routev1client.RouteV1Interface {
+	return nil
+}
+
+func (*TestClient) GetRouteInterface() openshiftroute.Interface {
+	return nil
+}
+
+func (*TestClient) GetSkupperClient() skupperclient.Interface {
 	return nil
 }
 

@@ -359,7 +359,7 @@ type VanClientInterface interface {
 	GetConsoleUrl(namespace string) (string, error)
 	GetKubeClient() kubernetes.Interface
 	GetDynamicClient() dynamic.Interface
-	GetDiscoveryClient() *discovery.DiscoveryClient
+	GetDiscoveryClient() discovery.DiscoveryInterface
 	GetRouteClient() routev1client.RouteV1Interface
 	GetRouteInterface() openshiftroute.Interface
 	GetSkupperClient() skupperclient.Interface

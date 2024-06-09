@@ -27,7 +27,7 @@ import (
 type Clients interface {
 	GetKubeClient() kubernetes.Interface
 	GetDynamicClient() dynamic.Interface
-	GetDiscoveryClient() *discovery.DiscoveryClient
+	GetDiscoveryClient() discovery.DiscoveryInterface
 	GetRouteInterface() openshiftroute.Interface
 	GetRouteClient() routev1client.RouteV1Interface
 	GetSkupperClient() skupperclient.Interface
