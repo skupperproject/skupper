@@ -54,6 +54,9 @@ build-controllers: build-controller build-site-controller build-service-controll
 build-manifest:
 	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
 
+build-doc-generator:
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o generate-doc ./internal/cmd/generate-doc
+
 docker-build-test-image:
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 	${DOCKER} buildx build --load -t ${TEST_IMAGE} -f Dockerfile.ci-test .
@@ -111,7 +114,7 @@ test:
 	go test -v -count=1 ./pkg/... ./cmd/... ./client/...
 
 clean:
-	rm -rf skupper service-controller controller-podman site-controller release get config-sync manifest ${TEST_BINARIES_FOLDER}
+	rm -rf skupper service-controller controller-podman site-controller release get config-sync manifest  ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz release/s390x.tgz release/arm64.tgz
 
@@ -135,6 +138,9 @@ release/darwin.zip: release/darwin/skupper
 
 generate-manifest: build-manifest
 	./manifest
+
+generate-doc: build-doc-generator
+	./generate-doc
 
 release/s390x/skupper: cmd/skupper/skupper.go
 	GOOS=linux GOARCH=s390x go build -ldflags="${LDFLAGS}" -o release/s390x/skupper ./cmd/skupper

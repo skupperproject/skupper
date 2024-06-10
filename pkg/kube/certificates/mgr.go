@@ -63,7 +63,7 @@ func (m *CertificateManagerImpl) Recover() {
 }
 
 func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error {
-	spec := skupperv1alpha1.CertificateSpec{
+	spec := skupperv1alpha1.CertificateSpec {
 		Subject: subject,
 		Signing: true,
 	}
@@ -71,7 +71,7 @@ func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject
 }
 
 func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
-	spec := skupperv1alpha1.CertificateSpec{
+	spec := skupperv1alpha1.CertificateSpec {
 		Ca:      ca,
 		Subject: subject,
 		Hosts:   hosts,
@@ -106,7 +106,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 				Kind:       "Certificate",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            name,
+				Name: name,
 				OwnerReferences: refs,
 				Labels: map[string]string{
 					"internal.skupper.io/certificate": "true",
@@ -225,6 +225,7 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv1alpha1.Cer
 	secret.ObjectMeta.OwnerReferences = ownerReferences(certificate)
 	return &secret, nil
 }
+
 
 func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv1alpha1.Certificate) error {
 	secret, err := m.generateSecret(certificate)

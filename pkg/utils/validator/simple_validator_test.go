@@ -81,3 +81,78 @@ func TestIntegerValidator_Evaluate(t *testing.T) {
 		})
 	}
 }
+
+func TestNewOptionValidator(t *testing.T) {
+
+	t.Run("Test Option Validator constructor", func(t *testing.T) {
+
+		expectedResult := &OptionValidator{
+			AllowedOptions: []string{"a", "b"},
+		}
+		actualResult := NewOptionValidator([]string{"a", "b"})
+		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+	})
+}
+
+func TestOptionValidator_Evaluate(t *testing.T) {
+	type test struct {
+		name   string
+		value  interface{}
+		result bool
+	}
+
+	testTable := []test{
+		{name: "empty string", value: "", result: false},
+		{name: "value not included", value: "c", result: false},
+		{name: "nil value", value: nil, result: false},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			optionValidator := NewOptionValidator([]string{"a", "b"})
+			expectedResult := test.result
+			actualResult, _ := optionValidator.Evaluate(test.value)
+			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+		})
+	}
+}
+
+func TestNewResourceStringValidator(t *testing.T) {
+
+	t.Run("Test New Resource String Validator constructor", func(t *testing.T) {
+
+		validRegexp, _ := regexp.Compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$")
+		expectedResult := &StringValidator{validRegexp}
+		actualResult := NewResourceStringValidator()
+		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+	})
+}
+
+func TestNewResourceStringValidator_Evaluate(t *testing.T) {
+	type test struct {
+		name   string
+		value  interface{}
+		result bool
+	}
+
+	testTable := []test{
+		{name: "empty string", value: "", result: false},
+		{name: "valid value", value: "provided-value", result: true},
+		{name: "string with spaces", value: "provided value", result: false},
+		{name: "string with numbers", value: "site123", result: true},
+		{name: "number", value: 123, result: false},
+		{name: "nil value", value: nil, result: false},
+		{name: "string with underscore", value: "abc_def", result: false},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			stringValidator := NewResourceStringValidator()
+			expectedResult := test.result
+			actualResult, _ := stringValidator.Evaluate(test.value)
+			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+		})
+	}
+}

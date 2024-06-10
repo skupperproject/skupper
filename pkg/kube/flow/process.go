@@ -13,7 +13,7 @@ import (
 type ProcessUpdateHandler func(deleted bool, name string, process *flow.ProcessRecord) error
 
 func WatchPods(controller *kube.Controller, namespace string, handler ProcessUpdateHandler) {
-	controller.WatchAllPods(namespace, func(key string, pod *corev1.Pod) error {
+	controller.WatchAllPods(namespace, func (key string, pod *corev1.Pod) error {
 		if pod == nil {
 			handler(true, key, nil)
 		} else {

@@ -27,6 +27,7 @@ const (
 	SiteConfigRunAsUserKey           string = "run-as-user"
 	SiteConfigRunAsGroupKey          string = "run-as-group"
 	SiteConfigClusterPermissionsKey  string = "cluster-permissions"
+	SiteConfigServiceAccountKey      string = "service-account"
 
 	// console options
 	SiteConfigConsoleKey               string = "console"

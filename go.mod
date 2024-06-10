@@ -22,7 +22,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/rogpeppe/go-internal v1.3.0
 	github.com/skupperproject/skupper-example-tcp-echo v0.0.0-20210727195922-db4a7dc7b35d
-	github.com/spf13/cobra v0.0.6
+	github.com/spf13/cobra v1.8.0
 	github.com/tsenart/vegeta/v12 v12.8.3
 	go.mongodb.org/mongo-driver v1.10.0
 	golang.org/x/crypto v0.14.0
@@ -56,7 +56,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect
 	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
 	github.com/fatih/color v1.7.0 // indirect
@@ -77,7 +77,7 @@ require (
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/influxdata/tdigest v0.0.0-20180711151920-a7d76c6f093a // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -96,7 +96,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
-	github.com/russross/blackfriday/v2 v2.0.1 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

@@ -26,6 +26,17 @@ func NewStringValidator() *StringValidator {
 	}
 }
 
+func NewResourceStringValidator() *StringValidator {
+	re, err := regexp.Compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$")
+	if err != nil {
+		fmt.Printf("Error compiling regex: %v", err)
+		return nil
+	}
+	return &StringValidator{
+		Expression: re,
+	}
+}
+
 func (s StringValidator) Evaluate(value interface{}) (bool, error) {
 	v, ok := value.(string)
 
@@ -37,7 +48,7 @@ func (s StringValidator) Evaluate(value interface{}) (bool, error) {
 		return true, nil
 	}
 
-	return false, fmt.Errorf("value contains spaces")
+	return false, fmt.Errorf("value does not match this regular expression: %s", s.Expression)
 }
 
 //
@@ -70,3 +81,38 @@ func (i NumberValidator) Evaluate(value interface{}) (bool, error) {
 }
 
 ///
+
+type OptionValidator struct {
+	AllowedOptions []string
+}
+
+func NewOptionValidator(validOptions []string) *OptionValidator {
+	return &OptionValidator{
+		AllowedOptions: validOptions,
+	}
+}
+
+func (i OptionValidator) Evaluate(value interface{}) (bool, error) {
+
+	v, ok := value.(string)
+
+	if !ok {
+		return false, fmt.Errorf("value is not a string")
+	}
+
+	if v == "" {
+		return false, fmt.Errorf("value must not be empty")
+	}
+
+	valueFound := false
+	for _, option := range i.AllowedOptions {
+		if option == v {
+			valueFound = true
+		}
+	}
+
+	if !valueFound {
+		return false, fmt.Errorf("value %s not allowed. It should be one of this options: %v", v, i.AllowedOptions)
+	}
+	return true, nil
+}
