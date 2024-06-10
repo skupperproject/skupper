@@ -72,7 +72,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	cli, err := client.NewClient("", "", "")
 	utils.HandleError(err)
 
-	cmd.Client = cli.SkupperClient.SkupperV1alpha1()
+	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
 }
 
