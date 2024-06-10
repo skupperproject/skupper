@@ -171,11 +171,11 @@ func (r *BasicTestRunner) Delete(ctx context.Context, t *testing.T) {
 	waitNoServices := func(componentSelector string, cluster *base.ClusterContext) error {
 		return utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
 			options := v1.ListOptions{LabelSelector: componentSelector}
-			podList, err := cluster.VanClient.KubeClient.CoreV1().Pods(cluster.Namespace).List(context.TODO(), options)
+			svcList, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).List(context.TODO(), options)
 			if err != nil {
 				return false, err
 			}
-			return len(podList.Items) == 0, nil
+			return len(svcList.Items) == 0, nil
 		})
 	}
 
