@@ -108,7 +108,7 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 			log.Printf("Router config created for site %s/%s", siteDef.Namespace, siteDef.Name)
 		} else {
 			//TODO: include any RouterAccess configuration
-			if err := s.updateRouterConfigForGroups(ConfigUpdateList{s.bindings,s}); err != nil {
+			if err := s.updateRouterConfigForGroups(ConfigUpdateList{s.bindings, s}); err != nil {
 				return err
 			}
 		}
@@ -158,9 +158,9 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 
 func (s *Site) groups() []string {
 	if s.site.Spec.HA {
-		return []string {"skupper-router-1", "skupper-router-2"}
+		return []string{"skupper-router-1", "skupper-router-2"}
 	} else {
-		return []string {"skupper-router"}
+		return []string{"skupper-router"}
 	}
 }
 
@@ -188,9 +188,9 @@ func (s *Site) checkDefaultRouterAccess(ctxt context.Context, site *skupperv1alp
 		Spec: skupperv1alpha1.RouterAccessSpec{
 			AccessType:             accessType,
 			TlsCredentials:         "skupper-site-server",
-			Issuer:                 "skupper-site-ca",//TODO: can rely ondefault here
+			Issuer:                 "skupper-site-ca", //TODO: can rely ondefault here
 			GenerateTlsCredentials: true,
-			Roles:                  []skupperv1alpha1.RouterAccessRole{
+			Roles: []skupperv1alpha1.RouterAccessRole{
 				{
 					Name: "inter-router",
 					Port: 55671,
@@ -560,7 +560,7 @@ func (s *Site) getRouterConfig() (*qdr.RouterConfig, error) {
 }
 
 func (s *Site) createRouterConfig(config *qdr.RouterConfig) error {
- 	for _, group := range s.groups() {
+	for _, group := range s.groups() {
 		data, err := config.AsConfigMapData()
 		if err != nil {
 			return err
@@ -571,7 +571,7 @@ func (s *Site) createRouterConfig(config *qdr.RouterConfig) error {
 				Kind:       "ConfigMap",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: group,
+				Name:            group,
 				OwnerReferences: s.ownerReferences(),
 				//TODO: Labels & Annotations?
 			},
@@ -844,9 +844,9 @@ func asSecuredAccessSpec(la *skupperv1alpha1.RouterAccess, group string, default
 	if issuer == "" {
 		issuer = defaultIssuer
 	}
-	spec := skupperv1alpha1.SecuredAccessSpec {
-		AccessType:  la.Spec.AccessType,
-		Selector:    map[string]string{
+	spec := skupperv1alpha1.SecuredAccessSpec{
+		AccessType: la.Spec.AccessType,
+		Selector: map[string]string{
 			"skupper.io/component": "router",
 		},
 		Certificate: la.Spec.TlsCredentials,
@@ -874,10 +874,10 @@ func (s *Site) checkSecuredAccess() error {
 		for _, la := range s.linkAccess {
 			name := la.Name
 			if len(groups) > 0 {
-				name = fmt.Sprintf("%s-%d", la.Name, (i+1))
+				name = fmt.Sprintf("%s-%d", la.Name, (i + 1))
 			}
-			annotations := map[string]string {
-				"internal.skupper.io/controlled": "true",
+			annotations := map[string]string{
+				"internal.skupper.io/controlled":   "true",
 				"internal.skupper.io/routeraccess": la.Name,
 			}
 			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.defaultIssuer()), annotations, s.ownerReferences()); err != nil {
@@ -916,10 +916,10 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv1alpha1.RouterAccess) 
 			if la != nil {
 				name := la.Name
 				if len(groups) > 0 {
-					name = fmt.Sprintf("%s-%d", la.Name, (i+1))
+					name = fmt.Sprintf("%s-%d", la.Name, (i + 1))
 				}
-				annotations := map[string]string {
-					"internal.skupper.io/controlled": "true",
+				annotations := map[string]string{
+					"internal.skupper.io/controlled":   "true",
 					"internal.skupper.io/routeraccess": la.Name,
 				}
 				if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.defaultIssuer()), annotations, s.ownerReferences()); err != nil {

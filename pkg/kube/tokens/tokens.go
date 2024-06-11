@@ -24,10 +24,9 @@ type CertToken struct {
 }
 
 type ClaimToken struct {
-
 }
 
-type Token interface{
+type Token interface {
 	Write(writer io.Writer) error
 }
 
@@ -119,14 +118,14 @@ func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
 			linkName = fmt.Sprintf("%s-%d", name, i+1)
 		}
 		link := &skupperv1alpha1.Link{
-			TypeMeta:   metav1.TypeMeta{
+			TypeMeta: metav1.TypeMeta{
 				APIVersion: "skupper.io/v1alpha1",
 				Kind:       "Link",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        linkName,
+				Name: linkName,
 			},
-			Spec:       skupperv1alpha1.LinkSpec{
+			Spec: skupperv1alpha1.LinkSpec{
 				Endpoints:      endpoints,
 				TlsCredentials: name,
 			},

@@ -9,8 +9,8 @@ import (
 )
 
 type Link struct {
-	name          string
-	definition    *skupperv1alpha1.Link
+	name       string
+	definition *skupperv1alpha1.Link
 }
 
 func NewLink(name string) *Link {
@@ -31,10 +31,10 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if !ok {
 		return false
 	}
-	profile := qdr.SslProfile {
+	profile := qdr.SslProfile{
 		Name: sslProfileName(l.definition),
 	}
-	connector := qdr.Connector {
+	connector := qdr.Connector{
 		Name:       l.name,
 		Cost:       int32(l.definition.Spec.Cost),
 		SslProfile: profile.Name,

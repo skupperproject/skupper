@@ -88,7 +88,7 @@ func main() {
 
 	routerConfigMap := os.Getenv("SKUPPER_CONFIG")
 	if routerConfigMap == "" {
-		routerConfigMap = "skupper-internal"// change defult?
+		routerConfigMap = "skupper-internal" // change defult?
 	}
 
 	configSync := newConfigSync(cli, namespace, SHARED_TLS_DIRECTORY, routerConfigMap)

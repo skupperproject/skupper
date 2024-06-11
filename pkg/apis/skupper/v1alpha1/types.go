@@ -232,7 +232,7 @@ func (s *LinkSpec) GetEndpointForRole(name string) (Endpoint, bool) {
 
 type LinkStatus struct {
 	Status     `json:",inline"`
-	Configured bool   `json:"configured,omitempty"`
+	Configured bool `json:"configured,omitempty"`
 }
 
 // +genclient
@@ -367,7 +367,6 @@ func (s *SecuredAccessStatus) UpdateEndpoint(endpoint *Endpoint) bool {
 	return false
 }
 
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -479,17 +478,17 @@ type RouterAccessRole struct {
 }
 
 type RouterAccessSpec struct {
-	AccessType              string            `json:"accessType,omitempty"`
-	Roles                   []RouterAccessRole  `json:"roles"`
-	TlsCredentials          string            `json:"tlsCredentials"`
-	GenerateTlsCredentials  bool              `json:"generateTlsCredentials"`
-	Issuer                  string            `json:"issuer"`
-	Options                 map[string]string `json:"options,omitempty"`
-	BindHost                string            `json:"bindHost,omitempty"`
-	SubjectAlternativeNames []string          `json:"subjectAlternativeNames,omitempty"`
+	AccessType              string             `json:"accessType,omitempty"`
+	Roles                   []RouterAccessRole `json:"roles"`
+	TlsCredentials          string             `json:"tlsCredentials"`
+	GenerateTlsCredentials  bool               `json:"generateTlsCredentials"`
+	Issuer                  string             `json:"issuer"`
+	Options                 map[string]string  `json:"options,omitempty"`
+	BindHost                string             `json:"bindHost,omitempty"`
+	SubjectAlternativeNames []string           `json:"subjectAlternativeNames,omitempty"`
 }
 
 type RouterAccessStatus struct {
-	Status               `json:",inline"`
+	Status    `json:",inline"`
 	Endpoints []Endpoint `json:"endpoints,omitempty"`
 }

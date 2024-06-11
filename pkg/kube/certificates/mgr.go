@@ -64,7 +64,7 @@ func (m *CertificateManagerImpl) Recover() {
 }
 
 func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error {
-	spec := skupperv1alpha1.CertificateSpec {
+	spec := skupperv1alpha1.CertificateSpec{
 		Subject: subject,
 		Signing: true,
 	}
@@ -72,7 +72,7 @@ func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject
 }
 
 func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
-	spec := skupperv1alpha1.CertificateSpec {
+	spec := skupperv1alpha1.CertificateSpec{
 		Ca:      ca,
 		Subject: subject,
 		Hosts:   hosts,
@@ -110,7 +110,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 				Kind:       "Certificate",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name:            name,
 				OwnerReferences: refs,
 				Labels: map[string]string{
 					"internal.skupper.io/certificate": "true",
@@ -122,7 +122,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 			Spec: spec,
 		}
 		if len(refs) > 0 {
-			cert.ObjectMeta.Annotations["internal.skupper.io/hosts-" + string(refs[0].UID)] = strings.Join(spec.Hosts, ",")
+			cert.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)] = strings.Join(spec.Hosts, ",")
 		}
 		created, err := m.controller.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Create(context.Background(), cert, metav1.CreateOptions{})
 		if err != nil {
@@ -234,7 +234,6 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv1alpha1.Cer
 	return &secret, nil
 }
 
-
 func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv1alpha1.Certificate) error {
 	secret, err := m.generateSecret(certificate)
 	if err != nil {
@@ -319,7 +318,6 @@ func mergeOwnerReferences(original []metav1.OwnerReference, added []metav1.Owner
 	return changed
 }
 
-
 type HostChanges struct {
 	additions []string
 	deletions []string
@@ -355,7 +353,7 @@ func (changes *HostChanges) apply(original []string) []string {
 
 func getPreviousHosts(cert *skupperv1alpha1.Certificate, refs []metav1.OwnerReference) map[string]bool {
 	if len(refs) > 0 {
-		if value, ok := cert.ObjectMeta.Annotations["internal.skupper.io/hosts-" + string(refs[0].UID)]; ok {
+		if value, ok := cert.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)]; ok {
 			hosts := map[string]bool{}
 			for _, value := range strings.Split(value, ",") {
 				hosts[value] = true

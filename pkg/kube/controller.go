@@ -1502,7 +1502,7 @@ func (w *CertificateWatcher) List() []*skupperv1alpha1.Certificate {
 
 func (c *Controller) WatchRouterAccesses(namespace string, handler RouterAccessHandler) *RouterAccessWatcher {
 	watcher := &RouterAccessWatcher{
-		handler:  handler,
+		handler: handler,
 		informer: skupperv1alpha1informer.NewRouterAccessInformer(
 			c.skupperClient,
 			namespace,
