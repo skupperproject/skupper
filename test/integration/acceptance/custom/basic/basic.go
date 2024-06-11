@@ -3,8 +3,10 @@ package basic
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +37,12 @@ func (r *BasicTestRunner) RunTests(ctx context.Context, t *testing.T) {
 
 	prvCluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
+
+	defer func() {
+		if t.Failed() {
+			r.DumpTestInfo(fmt.Sprintf("%s", strings.ReplaceAll(t.Name(), "/", "-")))
+		}
+	}()
 
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, pubCluster, 1))
 	assert.Assert(t, base.WaitForSkupperConnectedSites(ctx, prvCluster, 1))
@@ -160,10 +168,31 @@ func (r *BasicTestRunner) Delete(ctx context.Context, t *testing.T) {
 			return len(pods) == 0, nil
 		})
 	}
-	assert.Assert(t, waitNoPods("skupper.io/component=service-controller", pub1Cluster))
-	assert.Assert(t, waitNoPods("skupper.io/component=router", pub1Cluster))
-	assert.Assert(t, waitNoPods("skupper.io/component=service-controller", prv1Cluster))
-	assert.Assert(t, waitNoPods("skupper.io/component=router", prv1Cluster))
+	waitNoServices := func(componentSelector string, cluster *base.ClusterContext) error {
+		return utils.RetryWithContext(ctx, time.Second, func() (bool, error) {
+			options := v1.ListOptions{LabelSelector: componentSelector}
+			svcList, err := cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).List(context.TODO(), options)
+			if err != nil {
+				return false, err
+			}
+			return len(svcList.Items) == 0, nil
+		})
+	}
+
+	// Do not assert those as they come; the reason we're waiting on the
+	// pods to be gone is to make sure the clean-up is properly done before
+	// the next test; we do not want to end that waiting prematurely, lest
+	// we might cause unnecessary failures on the following tests.
+	errs := []error{}
+	errs = append(errs, waitNoPods("skupper.io/component=service-controller", pub1Cluster))
+	errs = append(errs, waitNoPods("skupper.io/component=router", pub1Cluster))
+	errs = append(errs, waitNoPods("skupper.io/component=service-controller", prv1Cluster))
+	errs = append(errs, waitNoPods("skupper.io/component=router", prv1Cluster))
+	errs = append(errs, waitNoServices("app.kubernetes.io/part-of=skupper", prv1Cluster))
+	errs = append(errs, waitNoServices("app.kubernetes.io/part-of=skupper", pub1Cluster))
+	for _, err := range errs {
+		assert.Assert(t, err)
+	}
 }
 
 func (r *BasicTestRunner) TearDown(ctx context.Context) {
