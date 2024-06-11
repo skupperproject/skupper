@@ -8,6 +8,9 @@
 # * Mount type
 #   - Added Destination (string)
 #   - Added Options ([]string)
+#
+# Podman V5 update
+# .definitions.InspectContainerConfig.properties.StopSignal (removed)
 # 
 LIBPOD_SPEC='./scripts/swagger-v4.0.3.yaml'
 

@@ -2563,10 +2563,6 @@ definitions:
           Whether STDIN is only left open once.
           Presently not supported by Podman, unused.
         type: boolean
-      StopSignal:
-        description: Container stop signal
-        format: uint64
-        type: integer
       StopTimeout:
         description: StopTimeout is time before container is stopped when calling
           stop
