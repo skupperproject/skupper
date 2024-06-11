@@ -25,7 +25,7 @@ type SslProfileChanges struct {
 }
 
 type RouterAccessConfig struct {
-	listeners map[string]qdr.Listener
+	listeners  map[string]qdr.Listener
 	connectors []qdr.Connector
 }
 
@@ -67,11 +67,11 @@ func (c *RouterAccessConfig) getDesired(definitions RouterAccessMap, targetGroup
 			for _, group := range targetGroups {
 				name := group
 				connector := qdr.Connector{
-					Name:             name,
-					Host:             group,
-					Role:             qdr.RoleInterRouter,
-					Port:             strconv.Itoa(role.Port),
-					SslProfile:       ra.Spec.TlsCredentials,
+					Name:       name,
+					Host:       group,
+					Role:       qdr.RoleInterRouter,
+					Port:       strconv.Itoa(role.Port),
+					SslProfile: ra.Spec.TlsCredentials,
 				}
 				c.connectors = append(c.connectors, connector)
 			}
@@ -88,8 +88,8 @@ func (m RouterAccessMap) getChanges(targetGroups []string) *RouterAccessConfig {
 }
 
 func changes(actual map[string]qdr.Listener, desired map[string]qdr.Listener) RouterAccessChanges {
-	changes := RouterAccessChanges {
-		listeners: ListenerChanges {
+	changes := RouterAccessChanges{
+		listeners: ListenerChanges{
 			changed: map[string]qdr.Listener{},
 		},
 	}
@@ -119,7 +119,7 @@ func (lac *RouterAccessChanges) Apply(config *qdr.RouterConfig) bool {
 		delete(config.Listeners, key)
 	}
 	for _, name := range lac.profiles.added {
-		config.AddSslProfileWithPath("/etc/skupper-router-certs", qdr.SslProfile{Name:name})
+		config.AddSslProfileWithPath("/etc/skupper-router-certs", qdr.SslProfile{Name: name})
 	}
 	// SslProfiles may be shared, so only delete those that are now unreferenced
 	unreferenced := config.UnreferencedSslProfiles()

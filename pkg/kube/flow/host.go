@@ -13,11 +13,11 @@ import (
 type HostUpdateHandler func(deleted bool, name string, process *flow.HostRecord) error
 
 func WatchNodes(controller *kube.Controller, namespace string, handler HostUpdateHandler) {
-	controller.WatchNodes(func (key string, node *corev1.Node) error {
+	controller.WatchNodes(func(key string, node *corev1.Node) error {
 		if node == nil {
 			handler(true, key, nil)
 		} else {
-			handler(false, key, AsHostRecord("-" + namespace, node))
+			handler(false, key, AsHostRecord("-"+namespace, node))
 		}
 		return nil
 	})

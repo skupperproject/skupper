@@ -78,7 +78,7 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            name,
 				OwnerReferences: refs,
-				Annotations: annotations,
+				Annotations:     annotations,
 			},
 			Spec: spec,
 		}
@@ -457,7 +457,7 @@ func getHosts(sa *skupperv1alpha1.SecuredAccess) []string {
 		results = append(results, key)
 	}
 	results = append(results, sa.Name)
-	results = append(results, sa.Name + "." + sa.Namespace)
+	results = append(results, sa.Name+"."+sa.Namespace)
 	return results
 }
 

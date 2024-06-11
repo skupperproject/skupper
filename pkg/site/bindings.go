@@ -61,7 +61,6 @@ func (b *Bindings) UpdateConnector(name string, connector *skupperv1alpha1.Conne
 	return b.updateConnector(connector)
 }
 
-
 func (b *Bindings) updateConnector(connector *skupperv1alpha1.Connector) (qdr.ConfigUpdate, error) {
 	name := connector.ObjectMeta.Name
 	c, ok := b.connectors[name]
@@ -135,7 +134,7 @@ func (b *Bindings) deleteListener(name string) qdr.ConfigUpdate {
 }
 
 func (b *Bindings) ToBridgeConfig(mapping *qdr.PortMapping) qdr.BridgeConfig {
-	config := qdr.BridgeConfig {
+	config := qdr.BridgeConfig{
 		TcpListeners:   qdr.TcpEndpointMap{},
 		TcpConnectors:  qdr.TcpEndpointMap{},
 		HttpListeners:  qdr.HttpEndpointMap{},
@@ -163,27 +162,27 @@ func (b *Bindings) Apply(config *qdr.RouterConfig) bool {
 	return true //TODO: can optimise by indicating if no change was required
 }
 
-func (b *Bindings) expose(l *Listener)  {
+func (b *Bindings) expose(l *Listener) {
 	if b.mapping != nil {
 		allocatedRouterPort, err := b.mapping.GetPortForKey(l.resource.Name)
 		if err != nil {
 			log.Printf("Unable to get port for listener %s/%s: %s", l.resource.Namespace, l.resource.Name, err)
 		} else {
-			port := Port {
+			port := Port{
 				Name:       l.resource.Name,
 				Port:       l.resource.Spec.Port,
 				TargetPort: allocatedRouterPort,
 				Protocol:   l.protocol(),
 			}
 			exposed := b.exposed.Expose(l.resource.Spec.Host, port)
-			if exposed != nil && b.context != nil{
+			if exposed != nil && b.context != nil {
 				b.context.Expose(exposed)
 			}
 		}
 	}
 }
 
-func (b *Bindings) unexpose(name string, l *Listener)  {
+func (b *Bindings) unexpose(name string, l *Listener) {
 	exposed := b.exposed.Unexpose(l.resource.Spec.Host, name)
 	if exposed != nil && b.context != nil {
 		if len(exposed.Ports) > 0 {

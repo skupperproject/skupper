@@ -51,7 +51,7 @@ func (t NamedTemplate) getYaml() ([]byte, error) {
 
 func resourceTemplates(site *skupperv1alpha1.Site, group string) []NamedTemplate {
 	options := getCoreParams(site, group)
-	templates:= []NamedTemplate{
+	templates := []NamedTemplate{
 		{
 			name:   "deployment",
 			value:  routerDeploymentTemplate,
@@ -143,5 +143,3 @@ func apply(clients kube.Clients, ctx context.Context, namespace string, raw []by
 	})
 	return err
 }
-
-

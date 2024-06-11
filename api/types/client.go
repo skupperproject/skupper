@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/network"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
+	"github.com/skupperproject/skupper/pkg/network"
 
+	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
+	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
-	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 )
 
 const (

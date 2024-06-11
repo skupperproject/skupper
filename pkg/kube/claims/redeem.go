@@ -90,8 +90,8 @@ func updateClaimStatus(claim *skupperv1alpha1.Claim, err error, clients kube.Cli
 
 type LinkDecoder struct {
 	decoder *yaml.YAMLOrJSONDecoder
-	secret corev1.Secret
-	links  []skupperv1alpha1.Link
+	secret  corev1.Secret
+	links   []skupperv1alpha1.Link
 }
 
 func newLinkDecoder(r io.Reader) *LinkDecoder {

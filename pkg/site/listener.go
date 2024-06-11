@@ -29,12 +29,12 @@ func (l *Listener) AsTcpEndpoint(siteId string, mapping *qdr.PortMapping) qdr.Tc
 	if err != nil {
 		log.Printf("Could not allocate port for %s/%s: %s", l.resource.Namespace, l.resource.Name, err)
 	}
-	return qdr.TcpEndpoint {
-		Name:    l.resource.Name,
-		Host:    "0.0.0.0",
-		Port:    strconv.Itoa(port),
-		Address: l.resource.Spec.RoutingKey,
-		SiteId:  siteId,
+	return qdr.TcpEndpoint{
+		Name:       l.resource.Name,
+		Host:       "0.0.0.0",
+		Port:       strconv.Itoa(port),
+		Address:    l.resource.Spec.RoutingKey,
+		SiteId:     siteId,
 		SslProfile: l.resource.Spec.TlsCredentials,
 		//TODO:
 		//VerifyHostname
@@ -46,17 +46,17 @@ func (l *Listener) AsHttpEndpoint(siteId string, mapping *qdr.PortMapping) qdr.H
 	if err != nil {
 		log.Printf("Could not allocate port for %s/%s: %s", l.resource.Namespace, l.resource.Name, err)
 	}
-	return qdr.HttpEndpoint {
+	return qdr.HttpEndpoint{
 		Name:       l.resource.Name,
 		Host:       "0.0.0.0",
 		Port:       strconv.Itoa(port), //TODO: should port be a string to allow for wll known service names in binding definitions?
 		Address:    l.resource.Spec.RoutingKey,
 		SiteId:     siteId,
 		SslProfile: l.resource.Spec.TlsCredentials,
-	        //TODO:
-	        //Aggregation
-	        //EventChannel
-	        //HostOverride
+		//TODO:
+		//Aggregation
+		//EventChannel
+		//HostOverride
 		//VerifyHostname
 	}
 }

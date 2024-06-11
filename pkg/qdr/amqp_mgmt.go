@@ -1426,7 +1426,6 @@ func asListenerRecord(listener Listener) Record {
 	return record
 }
 
-
 func (a *Agent) UpdateListenerConfig(changes *ListenerDifference) error {
 	for _, deleted := range changes.Deleted {
 		if err := a.Delete("io.skupper.router.listener", deleted.Name); err != nil {
