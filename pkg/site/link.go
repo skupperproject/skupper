@@ -9,13 +9,15 @@ import (
 )
 
 type Link struct {
-	name       string
-	definition *skupperv1alpha1.Link
+	name        string
+	profilePath string
+	definition  *skupperv1alpha1.Link
 }
 
-func NewLink(name string) *Link {
+func NewLink(name string, profilePath string) *Link {
 	return &Link{
-		name: name,
+		name:        name,
+		profilePath: profilePath,
 	}
 }
 
@@ -31,23 +33,17 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if !ok {
 		return false
 	}
-	profile := qdr.SslProfile{
-		Name: sslProfileName(l.definition),
-	}
+	profileName := sslProfileName(l.definition)
 	connector := qdr.Connector{
 		Name:       l.name,
 		Cost:       int32(l.definition.Spec.Cost),
-		SslProfile: profile.Name,
+		SslProfile: profileName,
 		Role:       role,
 		Host:       endpoint.Host,
 		Port:       endpoint.Port,
 	}
 	current.AddConnector(connector)
-	if l.definition.Spec.NoClientAuth {
-		current.AddSimpleSslProfile(profile)
-	} else {
-		current.AddSslProfile(profile)
-	}
+	current.AddSslProfile(qdr.ConfigureSslProfile(profileName, l.profilePath, !l.definition.Spec.NoClientAuth))
 	return true //TODO: optimise by indicating if no change was actually needed
 }
 

@@ -477,6 +477,16 @@ type RouterAccessRole struct {
 	Port int    `json:"port"`
 }
 
+func (role RouterAccessRole) GetPort() int32 {
+	if role.Port != 0 {
+		return int32(role.Port)
+	} else if role.Name == "edge" {
+		return 45671
+	} else {
+		return 55671
+	}
+}
+
 type RouterAccessSpec struct {
 	AccessType              string             `json:"accessType,omitempty"`
 	Roles                   []RouterAccessRole `json:"roles"`

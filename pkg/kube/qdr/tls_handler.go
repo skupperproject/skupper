@@ -38,7 +38,7 @@ func (manager *TlsManager) EnableTlsSupport(support TlsServiceSupport) error {
 					return err
 				}
 
-				return manager.AddSslProfile(qdr.SslProfile{Name: serviceSecret.Name})
+				return manager.AddSslProfile(qdr.ConfigureSslProfile(serviceSecret.Name, qdr.SSL_PROFILE_PATH, true))
 			}
 		} else {
 			_, err := manager.GetSecret(support.Credentials)
@@ -46,7 +46,7 @@ func (manager *TlsManager) EnableTlsSupport(support TlsServiceSupport) error {
 				return fmt.Errorf("The secret %s for address %s is missing", support.Credentials, support.Address)
 			}
 
-			err = checkAndIncludeSslProfile(qdr.SslProfile{Name: support.Credentials}, manager)
+			err = checkAndIncludeSslProfile(qdr.ConfigureSslProfile(support.Credentials, qdr.SSL_PROFILE_PATH, true), manager)
 			if err != nil {
 				return err
 			}

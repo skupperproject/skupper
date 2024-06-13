@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	path_ "path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -67,7 +68,7 @@ func InitialConfig(id string, siteId string, version string, edge bool, helloAge
 	return config
 }
 
-func InitialConfigSkupperRouter(id string, siteId string, version string, edge bool, helloAge int, options types.RouterOptions) RouterConfig {
+func InitialConfigSkupperRouter(id string, siteId string, version string, edge bool, helloAge int, options types.RouterOptions, path string) RouterConfig {
 	routerConfig := InitialConfig(id, siteId, version, edge, helloAge)
 	routerConfig.Metadata.DataConnectionCount = options.DataConnectionCount
 
@@ -78,11 +79,11 @@ func InitialConfigSkupperRouter(id string, siteId string, version string, edge b
 		Prefix:       "mc",
 		Distribution: "multicast",
 	})
-	routerConfig.SetListenersForMode(options)
+	routerConfig.SetListenersForMode(options, path)
 	return routerConfig
 }
 
-func (r *RouterConfig) SetNormalListeners() {
+func (r *RouterConfig) SetNormalListeners(path string) {
 	r.Listeners = map[string]Listener{}
 	r.AddListener(Listener{
 		Port:        9090,
@@ -98,9 +99,7 @@ func (r *RouterConfig) SetNormalListeners() {
 		Host: "localhost",
 		Port: types.AmqpDefaultPort,
 	})
-	r.AddSslProfile(SslProfile{
-		Name: "skupper-amqps",
-	})
+	r.AddSslProfile(ConfigureSslProfile("skupper-amqps", path, true))
 	r.AddListener(Listener{
 		Name:             "amqps",
 		Port:             types.AmqpsDefaultPort,
@@ -108,18 +107,13 @@ func (r *RouterConfig) SetNormalListeners() {
 		SaslMechanisms:   "EXTERNAL",
 		AuthenticatePeer: true,
 	})
-	r.AddSimpleSslProfileWithPath("/etc/skupper-router-certs",
-		SslProfile{
-			Name: types.ServiceClientSecret,
-		})
+	r.AddSslProfile(ConfigureSslProfile(types.ServiceClientSecret, path, false))
 }
 
-func (r *RouterConfig) SetListenersForMode(options types.RouterOptions) {
-	r.SetNormalListeners()
+func (r *RouterConfig) SetListenersForMode(options types.RouterOptions, path string) {
+	r.SetNormalListeners(path)
 	if r.Metadata.Mode != ModeEdge {
-		r.AddSslProfile(SslProfile{
-			Name: types.InterRouterProfile,
-		})
+		r.AddSslProfile(ConfigureSslProfile(types.InterRouterProfile, path, true))
 		listeners := []Listener{InteriorListener(options), EdgeListener(options)}
 		for _, listener := range listeners {
 			r.AddListener(listener)
@@ -153,11 +147,25 @@ func NewBridgeConfigCopy(src BridgeConfig) BridgeConfig {
 	return newBridges
 }
 
-func (r *RouterConfig) AddListener(l Listener) {
+func (r *RouterConfig) AddListener(l Listener) bool {
 	if l.Name == "" {
 		l.Name = fmt.Sprintf("%s@%d", l.Host, l.Port)
 	}
+	if original, ok := r.Listeners[l.Name]; ok && original == l {
+		return false
+	}
 	r.Listeners[l.Name] = l
+	return true
+}
+
+func (r *RouterConfig) RemoveListener(name string) (bool, Listener) {
+	c, ok := r.Listeners[name]
+	if ok {
+		delete(r.Listeners, name)
+		return true, c
+	} else {
+		return false, Listener{}
+	}
 }
 
 func (r *RouterConfig) AddConnector(c Connector) bool {
@@ -182,28 +190,26 @@ func (r *RouterConfig) IsEdge() bool {
 	return r.Metadata.Mode == ModeEdge
 }
 
-func (r *RouterConfig) AddSslProfileWithPath(path string, s SslProfile) {
-	if s.CertFile == "" && s.CaCertFile == "" && s.PrivateKeyFile == "" {
-		s.CertFile = fmt.Sprintf(path+"/%s/tls.crt", s.Name)
-		s.PrivateKeyFile = fmt.Sprintf(path+"/%s/tls.key", s.Name)
-		s.CaCertFile = fmt.Sprintf(path+"/%s/ca.crt", s.Name)
+const SSL_PROFILE_PATH = "/etc/skupper-router-certs"
+
+func ConfigureSslProfile(name string, path string, clientAuth bool) SslProfile {
+	profile := SslProfile{
+		Name:       name,
+		CaCertFile: path_.Join(path, name, "ca.crt"),
+	}
+	if clientAuth {
+		profile.CertFile = path_.Join(path, name, "tls.crt")
+		profile.PrivateKeyFile = path_.Join(path, name, "tls.key")
+	}
+	return profile
+}
+
+func (r *RouterConfig) AddSslProfile(s SslProfile) bool {
+	if original, ok := r.SslProfiles[s.Name]; ok && original == s {
+		return false
 	}
 	r.SslProfiles[s.Name] = s
-}
-
-func (r *RouterConfig) AddSimpleSslProfileWithPath(path string, s SslProfile) {
-	if s.CaCertFile == "" {
-		s.CaCertFile = fmt.Sprintf(path+"/%s/ca.crt", s.Name)
-	}
-	r.SslProfiles[s.Name] = s
-}
-
-func (r *RouterConfig) AddSslProfile(s SslProfile) {
-	r.AddSslProfileWithPath("/etc/skupper-router-certs", s)
-}
-
-func (r *RouterConfig) AddSimpleSslProfile(s SslProfile) {
-	r.AddSimpleSslProfileWithPath("/etc/skupper-router-certs", s)
+	return true
 }
 
 func (r *RouterConfig) RemoveSslProfile(name string) bool {
@@ -1121,31 +1127,17 @@ type ListenerDifference struct {
 	Added   []Listener
 }
 
-type SslProfileDifference struct {
-	Deleted []SslProfile
-	Added   []SslProfile
-}
-
-func (config *RouterConfig) CorrespondingSslProfileDifference(listeners *ListenerDifference) *SslProfileDifference {
-	result := SslProfileDifference{}
-	for _, l := range listeners.Added {
-		result.Added = append(result.Added, config.SslProfiles[l.SslProfile])
-	}
-	// SslProfiles may be shared, so only delete those that are now unreferenced
-	unreferenced := config.UnreferencedSslProfiles()
-	for _, l := range listeners.Deleted {
-		if _, ok := unreferenced[l.SslProfile]; ok {
-			result.Deleted = append(result.Deleted, config.SslProfiles[l.SslProfile])
-		}
-	}
-	return &result
-}
-
 func ListenersDifference(actual map[string]Listener, desired map[string]Listener) *ListenerDifference {
 	result := ListenerDifference{}
-	for key, value := range desired {
-		if _, ok := actual[key]; !ok {
-			result.Added = append(result.Added, value)
+	for key, desiredValue := range desired {
+		if actualValue, ok := actual[key]; ok {
+			if actualValue != desiredValue {
+				// handle change as delete then add, so it also works over management protocol
+				result.Deleted = append(result.Deleted, desiredValue)
+				result.Added = append(result.Added, desiredValue)
+			}
+		} else {
+			result.Added = append(result.Added, desiredValue)
 		}
 	}
 	for key, value := range actual {
@@ -1160,12 +1152,10 @@ func (a *ListenerDifference) Empty() bool {
 	return len(a.Deleted) == 0 && len(a.Added) == 0
 }
 
-func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, version string, namespace string) (string, error) {
+func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, version string, namespace string, profilePath string) (string, error) {
 	config := InitialConfig("${HOSTNAME}-"+siteId, siteId, version, true, 3)
 	// add edge-connector
-	config.AddSslProfile(SslProfile{
-		Name: types.InterRouterProfile,
-	})
+	config.AddSslProfile(ConfigureSslProfile(types.InterRouterProfile, profilePath, true))
 	config.AddConnector(Connector{
 		Name:       "uplink",
 		SslProfile: types.InterRouterProfile,

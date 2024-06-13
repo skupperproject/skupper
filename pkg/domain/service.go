@@ -212,10 +212,10 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 	svcRouterConfig.LogConfig = parentRouterConfig.LogConfig
 
 	// Setting sslProfiles
-	svcRouterConfig.AddSslProfile(qdr.SslProfile{Name: "skupper-internal"})
+	svcRouterConfig.AddSslProfile(qdr.ConfigureSslProfile("skupper-internal", qdr.SSL_PROFILE_PATH, true))
 	tlsCredentialName := types.SkupperServiceCertPrefix + service.GetAddress()
 	if service.IsTls() {
-		svcRouterConfig.AddSslProfile(qdr.SslProfile{Name: tlsCredentialName})
+		svcRouterConfig.AddSslProfile(qdr.ConfigureSslProfile(tlsCredentialName, qdr.SSL_PROFILE_PATH, true))
 	}
 
 	// local AMQP listener

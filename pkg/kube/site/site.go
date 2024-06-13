@@ -34,7 +34,7 @@ type Site struct {
 	bindings    *site.Bindings
 	links       map[string]*site.Link
 	errors      map[string]string
-	linkAccess  RouterAccessMap
+	linkAccess  site.RouterAccessMap
 	certs       certificates.CertificateManager
 	access      securedaccess.Factory
 }
@@ -45,7 +45,7 @@ func NewSite(namespace string, controller *kube.Controller, certs certificates.C
 		namespace:  namespace,
 		controller: controller,
 		links:      map[string]*site.Link{},
-		linkAccess: RouterAccessMap{},
+		linkAccess: site.RouterAccessMap{},
 		certs:      certs,
 		access:     access,
 	}
@@ -67,6 +67,8 @@ func (s *Site) routerMode() qdr.Mode {
 		return qdr.ModeInterior
 	}
 }
+
+const SSL_PROFILE_PATH = "/etc/skupper-router-certs"
 
 func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 	if s.site != nil && s.site.Name != siteDef.Name {
@@ -92,7 +94,7 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 				Prefix:       "mc",
 				Distribution: "multicast",
 			})
-			rc.SetNormalListeners()
+			rc.SetNormalListeners(SSL_PROFILE_PATH)
 			routerConfig = &rc
 		}
 		s.initialised = true
@@ -675,7 +677,7 @@ func (s *Site) CheckListener(name string, listener *skupperv1alpha1.Listener) er
 }
 
 func (s *Site) newLink(linkconfig *skupperv1alpha1.Link) *site.Link {
-	config := site.NewLink(linkconfig.ObjectMeta.Name)
+	config := site.NewLink(linkconfig.ObjectMeta.Name, SSL_PROFILE_PATH)
 	config.Update(linkconfig)
 	return config
 }
@@ -910,7 +912,7 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv1alpha1.RouterAccess) 
 		var previousGroups []string
 		groups := s.groups()
 		for i, group := range groups {
-			if err := s.updateRouterConfig(s.linkAccess.getChanges(previousGroups), group); err != nil {
+			if err := s.updateRouterConfig(s.linkAccess.DesiredConfig(previousGroups, SSL_PROFILE_PATH), group); err != nil {
 				log.Printf("Error updating router config for %s: %s", s.namespace, err)
 			}
 			if la != nil {

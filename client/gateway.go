@@ -907,9 +907,7 @@ func (cli *VanClient) newGateway(ctx context.Context, gatewayName string, gatewa
 		Port: types.AmqpDefaultPort,
 	})
 
-	routerConfig.AddSslProfileWithPath("{{.WorkingDir}}/skupper-router-certs", qdr.SslProfile{
-		Name: "conn1-profile",
-	})
+	routerConfig.AddSslProfile(qdr.ConfigureSslProfile("conn1-profile", "{{.WorkingDir}}/skupper-router-certs", true))
 	connector := qdr.Connector{
 		Name:             "conn1",
 		Cost:             1,
@@ -2135,9 +2133,7 @@ func (cli *VanClient) GatewayGenerateBundle(ctx context.Context, configFile stri
 		}
 	}
 
-	routerConfig.AddSslProfileWithPath("{{.WorkingDir}}/skupper-router-certs", qdr.SslProfile{
-		Name: "conn1-profile",
-	})
+	routerConfig.AddSslProfile(qdr.ConfigureSslProfile("conn1-profile", "{{.WorkingDir}}/skupper-router-certs", true))
 	connector := qdr.Connector{
 		Name:             "conn1",
 		Cost:             1,

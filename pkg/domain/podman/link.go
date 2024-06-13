@@ -130,8 +130,8 @@ func (l *LinkHandler) Create(secret *corev1.Secret, name string, cost int) error
 	}
 	hostname, port := domain.GetTokenEndpoint(l.site, secret)
 
-	profile := qdr.SslProfile{Name: fmt.Sprintf("%s-profile", name)}
-	cfg.AddSslProfileWithPath("/etc/skupper-router-certs", profile)
+	profile := qdr.ConfigureSslProfile(fmt.Sprintf("%s-profile", name), "/etc/skupper-router-certs", true)
+	cfg.AddSslProfile(profile)
 	profile = cfg.SslProfiles[profile.Name]
 	role := qdr.RoleInterRouter
 	if l.site.IsEdge() {
