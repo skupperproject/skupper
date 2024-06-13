@@ -345,7 +345,7 @@ func (s *SiteHandler) Create(ctx context.Context, site domain.Site) error {
 	// Create initial transport config file
 	podmanSite.RouterOpts.MaxFrameSize = types.RouterMaxFrameSizeDefault
 	podmanSite.RouterOpts.MaxSessionFrames = types.RouterMaxSessionFramesDefault
-	initialRouterConfig := qdr.InitialConfigSkupperRouter(podmanSite.GetName(), podmanSite.GetId(), version.Version, podmanSite.IsEdge(), 3, podmanSite.RouterOpts)
+	initialRouterConfig := qdr.InitialConfigSkupperRouter(podmanSite.GetName(), podmanSite.GetId(), version.Version, podmanSite.IsEdge(), 3, podmanSite.RouterOpts, "/etc/skupper-router-certs") //Is this the right path??
 	var routerConfigHandler qdr.RouterConfigHandler
 	routerConfigHandler = NewRouterConfigHandlerPodman(s.cli)
 	err = routerConfigHandler.SaveRouterConfig(&initialRouterConfig)

@@ -71,21 +71,17 @@ func TestAddSslProfile(t *testing.T) {
 		Name:     "myprofile",
 		CertFile: "/my/certs/cert.pem",
 	})
-	if config.SslProfiles["myprofile"].CertFile != "/my/certs/cert.pem" {
-		t.Errorf("Expected cert file '/my/certs/cert.pem' but got %q", config.SslProfiles["myprofile"].CertFile)
-	}
-	config.AddSslProfile(SslProfile{
-		Name: "another",
-	})
-	if config.SslProfiles["another"].CertFile != "/etc/skupper-router-certs/another/tls.crt" {
-		t.Errorf("Expected cert file '/etc/skupper-router-certs/another/tls.crt' but got %q", config.SslProfiles["another"].CertFile)
-	}
-	if config.SslProfiles["another"].CaCertFile != "/etc/skupper-router-certs/another/ca.crt" {
-		t.Errorf("Expected cert file '/etc/skupper-router-certs/another/ca.crt' but got %q", config.SslProfiles["another"].CaCertFile)
-	}
-	if config.SslProfiles["another"].PrivateKeyFile != "/etc/skupper-router-certs/another/tls.key" {
-		t.Errorf("Expected cert file '/etc/skupper-router-certs/another/tls.key' but got %q", config.SslProfiles["another"].PrivateKeyFile)
-	}
+	assert.Equal(t, config.SslProfiles["myprofile"].CertFile, "/my/certs/cert.pem")
+
+	config.AddSslProfile(ConfigureSslProfile("another", "/etc/skupper-router-certs", true))
+	assert.Equal(t, config.SslProfiles["another"].CaCertFile, "/etc/skupper-router-certs/another/ca.crt")
+	assert.Equal(t, config.SslProfiles["another"].CertFile, "/etc/skupper-router-certs/another/tls.crt")
+	assert.Equal(t, config.SslProfiles["another"].PrivateKeyFile, "/etc/skupper-router-certs/another/tls.key")
+
+	config.AddSslProfile(ConfigureSslProfile("third", "/foo/bar/", false))
+	assert.Equal(t, config.SslProfiles["third"].CaCertFile, "/foo/bar/third/ca.crt")
+	assert.Equal(t, config.SslProfiles["third"].CertFile, "")
+	assert.Equal(t, config.SslProfiles["third"].PrivateKeyFile, "")
 }
 
 func TestAddAddress(t *testing.T) {

@@ -701,7 +701,7 @@ func (c *Controller) deleteHeadlessProxy(statefulset *appsv1.StatefulSet) error 
 
 func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, statefulset *appsv1.StatefulSet) error {
 	serviceInterface := bindings.AsServiceInterface()
-	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, version.Version, c.vanClient.Namespace)
+	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, version.Version, c.vanClient.Namespace, qdr.SSL_PROFILE_PATH)
 	if err != nil {
 		return err
 	}
@@ -715,7 +715,7 @@ func (c *Controller) ensureHeadlessProxyFor(bindings *service.ServiceBindings, s
 
 func (c *Controller) createHeadlessProxyFor(bindings *service.ServiceBindings) error {
 	serviceInterface := bindings.AsServiceInterface()
-	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, version.Version, c.vanClient.Namespace)
+	config, err := qdr.GetRouterConfigForHeadlessProxy(serviceInterface, c.origin, version.Version, c.vanClient.Namespace, qdr.SSL_PROFILE_PATH)
 	if err != nil {
 		return err
 	}

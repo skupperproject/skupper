@@ -160,6 +160,8 @@ func isCertToken(secret *corev1.Secret) bool {
 	return secret.ObjectMeta.Labels != nil && secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeToken
 }
 
+const SSL_PROFILE_PATH = "/etc/skupper-router-certs"
+
 func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret, options types.ConnectorCreateOptions) error {
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -179,15 +181,8 @@ func (cli *VanClient) ConnectorCreate(ctx context.Context, secret *corev1.Secret
 		// read annotations to get the host and port to connect to
 		profileName := options.Name + "-profile"
 		if _, ok := current.SslProfiles[profileName]; !ok {
-			if _, hasClientCert := secret.Data["tls.crt"]; isCertToken(secret) && !hasClientCert {
-				current.AddSimpleSslProfile(qdr.SslProfile{
-					Name: profileName,
-				})
-			} else {
-				current.AddSslProfile(qdr.SslProfile{
-					Name: profileName,
-				})
-			}
+			_, hasClientCert := secret.Data["tls.crt"]
+			current.AddSslProfile(qdr.ConfigureSslProfile(profileName, SSL_PROFILE_PATH, hasClientCert))
 			updated = true
 		}
 		connector := qdr.Connector{
