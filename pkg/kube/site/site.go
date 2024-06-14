@@ -11,7 +11,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/skupperproject/skupper/api/types"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -37,6 +36,7 @@ type Site struct {
 	linkAccess  site.RouterAccessMap
 	certs       certificates.CertificateManager
 	access      securedaccess.Factory
+	adaptor     BindingAdaptor
 }
 
 func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access securedaccess.Factory) *Site {
@@ -98,8 +98,10 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 			routerConfig = &rc
 		}
 		s.initialised = true
-		s.bindings.RecoverPortMapping(routerConfig)
-		s.bindings.SetBindingContext(s)
+		s.adaptor.init(s, routerConfig)
+		s.bindings.SetBindingEventHandler(&s.adaptor)
+		s.bindings.SetConnectorConfiguration(s.adaptor.updateBridgeConfigForConnector)
+		s.bindings.SetListenerConfiguration(s.adaptor.updateBridgeConfigForListener)
 		if createRouterConfig {
 			s.bindings.Apply(routerConfig)
 			//TODO: apply any recovered RouterAccess configuration
@@ -395,7 +397,7 @@ func (s *Site) IsInitialised() bool {
 	return s.initialised
 }
 
-func (s *Site) Select(connector *skupperv1alpha1.Connector) site.TargetSelection {
+func (s *Site) Select(connector *skupperv1alpha1.Connector) *TargetSelection {
 	name := connector.Name
 	selector := connector.Spec.Selector
 	includeNotReady := connector.Spec.IncludeNotReady
@@ -417,45 +419,7 @@ func (s *Site) Select(connector *skupperv1alpha1.Connector) site.TargetSelection
 	return handler
 }
 
-func toServicePorts(desired map[string]site.Port) map[string]corev1.ServicePort {
-	results := map[string]corev1.ServicePort{}
-	for name, details := range desired {
-		results[name] = corev1.ServicePort{
-			Name:       name,
-			Port:       int32(details.Port),
-			TargetPort: intstr.IntOrString{IntVal: int32(details.TargetPort)},
-			Protocol:   details.Protocol,
-		}
-	}
-	return results
-}
-
-func updatePorts(spec *corev1.ServiceSpec, desired map[string]site.Port) bool {
-	expected := toServicePorts(desired)
-	changed := false
-	var ports []corev1.ServicePort
-	for _, actual := range spec.Ports {
-		if port, ok := expected[actual.Name]; ok {
-			ports = append(ports, port)
-			delete(expected, actual.Name)
-			if actual != port {
-				changed = true
-			}
-		} else {
-			changed = true
-		}
-	}
-	for _, port := range expected {
-		ports = append(ports, port)
-		changed = true
-	}
-	if changed {
-		spec.Ports = ports
-	}
-	return changed
-}
-
-func (s *Site) Expose(exposed *site.ExposedPortSet) {
+func (s *Site) Expose(exposed *ExposedPortSet) {
 	ctxt := context.TODO()
 	current, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, exposed.Host, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
@@ -748,7 +712,7 @@ func (s *Site) updateLinkStatus(link *skupperv1alpha1.Link, err error) error {
 }
 
 func (s *Site) Deleted() {
-	s.bindings.CloseAllSelectedConnectors()
+	s.adaptor.cleanup()
 }
 
 func (s *Site) updateStatus() error {
@@ -941,57 +905,6 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv1alpha1.RouterAccess) 
 
 func (s *Site) GetSite() *skupperv1alpha1.Site {
 	return s.site
-}
-
-type TargetSelection struct {
-	watcher         *kube.PodWatcher
-	stopCh          chan struct{}
-	site            *Site
-	connector       *skupperv1alpha1.Connector
-	name            string
-	namespace       string
-	includeNotReady bool
-}
-
-func (w *TargetSelection) Close() {
-	close(w.stopCh)
-}
-
-func (w *TargetSelection) List() []string {
-	pods := w.watcher.List()
-	var targets []string
-
-	for _, pod := range pods {
-		if kube.IsPodReady(pod) || w.includeNotReady {
-			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
-				log.Printf("Pod %s selected for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
-				targets = append(targets, pod.Status.PodIP)
-			} else {
-				log.Printf("Pod %s not running for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
-			}
-		} else {
-			log.Printf("Pod %s not ready for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
-		}
-	}
-	return targets
-
-}
-
-func (w *TargetSelection) Update(connector *skupperv1alpha1.Connector) {
-	w.connector = connector
-}
-
-func (w *TargetSelection) handle(key string, pod *corev1.Pod) error {
-	err := w.site.updateRouterConfigForGroups(w.site.bindings)
-	if err != nil {
-		return w.site.updateConnectorStatus(w.connector, err)
-	}
-	if len(w.List()) == 0 {
-		log.Printf("No pods available for %s/%s", w.connector.Namespace, w.connector.Name)
-		return w.site.updateConnectorStatus(w.connector, fmt.Errorf("No targets for selector"))
-	}
-	log.Printf("Pods are available for %s/%s", w.connector.Namespace, w.connector.Name)
-	return w.site.updateConnectorStatus(w.connector, nil)
 }
 
 type ConfigUpdateList []qdr.ConfigUpdate
