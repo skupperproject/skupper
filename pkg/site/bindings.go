@@ -7,50 +7,52 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-type TargetSelection interface {
-	Update(connector *skupperv1alpha1.Connector)
-	List() []string
-	Close()
-}
+type ListenerConfiguration func (siteId string, listener *skupperv1alpha1.Listener, config *qdr.BridgeConfig)
+type ConnectorConfiguration func (siteId string, connector *skupperv1alpha1.Connector, config *qdr.BridgeConfig)
 
-type BindingContext interface {
-	Select(connector *skupperv1alpha1.Connector) TargetSelection
-	Expose(ports *ExposedPortSet)
-	Unexpose(host string)
+type BindingEventHandler interface {
+	ListenerUpdated(listener *skupperv1alpha1.Listener)
+	ListenerDeleted(listener *skupperv1alpha1.Listener)
+	ConnectorUpdated(connector *skupperv1alpha1.Connector, specChanged bool) bool
+	ConnectorDeleted(connector *skupperv1alpha1.Connector)
 }
 
 type Bindings struct {
 	SiteId     string
-	context    BindingContext
-	mapping    *qdr.PortMapping
-	connectors map[string]*Connector
-	listeners  map[string]*Listener
-	exposed    ExposedPorts
+	connectors map[string]*skupperv1alpha1.Connector
+	listeners  map[string]*skupperv1alpha1.Listener
+	handler    BindingEventHandler
+	configure  struct{
+		listener  ListenerConfiguration
+		connector ConnectorConfiguration
+	}
 }
 
 func NewBindings() *Bindings {
-	return &Bindings{
-		connectors: map[string]*Connector{},
-		listeners:  map[string]*Listener{},
-		exposed:    ExposedPorts{},
+	bindings := &Bindings{
+		connectors: map[string]*skupperv1alpha1.Connector{},
+		listeners:  map[string]*skupperv1alpha1.Listener{},
 	}
+	bindings.configure.listener = UpdateBridgeConfigForListener
+	bindings.configure.connector = UpdateBridgeConfigForConnector
+	return bindings
 }
 
-func (b *Bindings) SetBindingContext(context BindingContext) {
-	b.context = context
-	for _, sc := range b.connectors {
-		sc.init(context)
+func (b *Bindings) SetListenerConfiguration(configuration ListenerConfiguration) {
+	b.configure.listener = configuration
+}
+
+func (b *Bindings) SetConnectorConfiguration(configuration ConnectorConfiguration) {
+	b.configure.connector = configuration
+}
+
+func (b *Bindings) SetBindingEventHandler(handler BindingEventHandler) {
+	b.handler = handler
+	for _, c := range b.connectors {
+		b.handler.ConnectorUpdated(c, true)
 	}
 	for _, l := range b.listeners {
-		b.expose(l)
-	}
-}
-
-func (b *Bindings) CloseAllSelectedConnectors() {
-	for _, c := range b.connectors {
-		if c.selection != nil {
-			c.selection.Close()
-		}
+		b.handler.ListenerUpdated(l)
 	}
 }
 
@@ -63,18 +65,14 @@ func (b *Bindings) UpdateConnector(name string, connector *skupperv1alpha1.Conne
 
 func (b *Bindings) updateConnector(connector *skupperv1alpha1.Connector) (qdr.ConfigUpdate, error) {
 	name := connector.ObjectMeta.Name
-	c, ok := b.connectors[name]
-	if !ok {
-		c = &Connector{
-			resource: connector,
-		}
-		b.connectors[name] = c
-		if c.init(b.context) {
+	existing, ok := b.connectors[name]
+	b.connectors[name] = connector
+	if b.handler == nil {
+		if !ok || existing.Spec != connector.Spec {
 			return b, nil
 		}
 	} else {
-		c.resourceUpdated(connector)
-		if c.resource.Spec != connector.Spec && c.init(b.context) {
+		if b.handler.ConnectorUpdated(connector, !ok || existing.Spec == connector.Spec) {
 			return b, nil
 		}
 	}
@@ -83,10 +81,10 @@ func (b *Bindings) updateConnector(connector *skupperv1alpha1.Connector) (qdr.Co
 
 func (b *Bindings) deleteConnector(name string) qdr.ConfigUpdate {
 	if existing, ok := b.connectors[name]; ok {
-		if existing.selection != nil {
-			existing.selection.Close()
-		}
 		delete(b.connectors, name)
+		if b.handler != nil {
+			b.handler.ConnectorDeleted(existing)
+		}
 		return b
 	}
 	return nil
@@ -102,38 +100,30 @@ func (b *Bindings) UpdateListener(name string, listener *skupperv1alpha1.Listene
 func (b *Bindings) updateListener(latest *skupperv1alpha1.Listener) (qdr.ConfigUpdate, error) {
 	log.Printf("updating listener %s/%s...", latest.Namespace, latest.Name)
 	name := latest.ObjectMeta.Name
-	if existing, ok := b.listeners[name]; !ok || existing.resource.Spec != latest.Spec {
-		if !ok {
-			existing = &Listener{
-				resource: latest,
-			}
-			b.listeners[name] = existing
-		} else {
-			existing.resource = latest
-		}
-		b.expose(existing)
-		log.Printf("Updating router config for listener %s/%s", latest.Namespace, latest.Name)
+	existing, ok := b.listeners[name]
+	b.listeners[name] = latest
+	if b.handler != nil {
+		b.handler.ListenerUpdated(latest)
+	}
+
+	if !ok || existing.Spec != latest.Spec {
 		return b, nil
 	}
-	log.Printf("No need to update router config for listener %s/%s", latest.Namespace, latest.Name)
 	return nil, nil
 }
 
 func (b *Bindings) deleteListener(name string) qdr.ConfigUpdate {
-	if _, ok := b.listeners[name]; ok {
+	if existing, ok := b.listeners[name]; ok {
 		delete(b.listeners, name)
-		if b.context != nil {
-			b.context.Unexpose(name)
-		}
-		if b.mapping != nil {
-			b.mapping.ReleasePortForKey(name)
+		if b.handler != nil {
+			b.handler.ListenerDeleted(existing)
 		}
 		return b
 	}
 	return nil
 }
 
-func (b *Bindings) ToBridgeConfig(mapping *qdr.PortMapping) qdr.BridgeConfig {
+func (b *Bindings) ToBridgeConfig() qdr.BridgeConfig {
 	config := qdr.BridgeConfig{
 		TcpListeners:   qdr.TcpEndpointMap{},
 		TcpConnectors:  qdr.TcpEndpointMap{},
@@ -141,54 +131,17 @@ func (b *Bindings) ToBridgeConfig(mapping *qdr.PortMapping) qdr.BridgeConfig {
 		HttpConnectors: qdr.HttpEndpointMap{},
 	}
 	for _, c := range b.connectors {
-		c.updateBridges(b.SiteId, &config)
+		b.configure.connector(b.SiteId, c, &config)
 	}
 	for _, l := range b.listeners {
-		l.updateBridges(b.SiteId, mapping, &config)
+		b.configure.listener(b.SiteId, l, &config)
 	}
 
 	return config
 }
 
-func (b *Bindings) RecoverPortMapping(config *qdr.RouterConfig) {
-	if b.mapping == nil {
-		b.mapping = qdr.RecoverPortMapping(config)
-	}
-}
-
 func (b *Bindings) Apply(config *qdr.RouterConfig) bool {
 	//TODO: add/remove SslProfiles as necessary
-	config.UpdateBridgeConfig(b.ToBridgeConfig(b.mapping))
+	config.UpdateBridgeConfig(b.ToBridgeConfig())
 	return true //TODO: can optimise by indicating if no change was required
-}
-
-func (b *Bindings) expose(l *Listener) {
-	if b.mapping != nil {
-		allocatedRouterPort, err := b.mapping.GetPortForKey(l.resource.Name)
-		if err != nil {
-			log.Printf("Unable to get port for listener %s/%s: %s", l.resource.Namespace, l.resource.Name, err)
-		} else {
-			port := Port{
-				Name:       l.resource.Name,
-				Port:       l.resource.Spec.Port,
-				TargetPort: allocatedRouterPort,
-				Protocol:   l.protocol(),
-			}
-			exposed := b.exposed.Expose(l.resource.Spec.Host, port)
-			if exposed != nil && b.context != nil {
-				b.context.Expose(exposed)
-			}
-		}
-	}
-}
-
-func (b *Bindings) unexpose(name string, l *Listener) {
-	exposed := b.exposed.Unexpose(l.resource.Spec.Host, name)
-	if exposed != nil && b.context != nil {
-		if len(exposed.Ports) > 0 {
-			b.context.Expose(exposed)
-		} else {
-			b.context.Unexpose(exposed.Host)
-		}
-	}
 }

@@ -2,6 +2,7 @@ package site
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Port struct {
@@ -60,4 +61,43 @@ func (p ExposedPorts) Unexpose(host string, portname string) *ExposedPortSet {
 	}
 	//no change was required
 	return nil
+}
+
+
+func toServicePorts(desired map[string]Port) map[string]corev1.ServicePort {
+	results := map[string]corev1.ServicePort{}
+	for name, details := range desired {
+		results[name] = corev1.ServicePort{
+			Name:       name,
+			Port:       int32(details.Port),
+			TargetPort: intstr.IntOrString{IntVal: int32(details.TargetPort)},
+			Protocol:   details.Protocol,
+		}
+	}
+	return results
+}
+
+func updatePorts(spec *corev1.ServiceSpec, desired map[string]Port) bool {
+	expected := toServicePorts(desired)
+	changed := false
+	var ports []corev1.ServicePort
+	for _, actual := range spec.Ports {
+		if port, ok := expected[actual.Name]; ok {
+			ports = append(ports, port)
+			delete(expected, actual.Name)
+			if actual != port {
+				changed = true
+			}
+		} else {
+			changed = true
+		}
+	}
+	for _, port := range expected {
+		ports = append(ports, port)
+		changed = true
+	}
+	if changed {
+		spec.Ports = ports
+	}
+	return changed
 }
