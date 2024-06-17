@@ -4,6 +4,7 @@ Copyright © 2024 Skupper Team <skupper@googlegroups.com>
 package site
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/site/kube"
 	"github.com/spf13/cobra"
 )
 
@@ -17,10 +18,10 @@ func NewCmdSite() *cobra.Command {
 skupper site get my-site`,
 	}
 
-	siteCreateCommand := NewCmdSiteCreate()
-	siteGetCommand := NewCmdSiteGet()
-	siteUpdateCommand := NewCmdSiteUpdate()
-	siteDeleteCommand := NewCmdSiteDelete()
+	siteCreateCommand := kube.NewCmdSiteCreate()
+	siteGetCommand := kube.NewCmdSiteGet()
+	siteUpdateCommand := kube.NewCmdSiteUpdate()
+	siteDeleteCommand := kube.NewCmdSiteDelete()
 
 	cmd.AddCommand(&siteCreateCommand.CobraCmd)
 	cmd.AddCommand(&siteGetCommand.CobraCmd)

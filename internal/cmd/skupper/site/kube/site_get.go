@@ -1,4 +1,4 @@
-package site
+package kube
 
 import (
 	"fmt"
