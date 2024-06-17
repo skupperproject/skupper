@@ -1,5 +1,5 @@
 apiVersion: skupper.io/v1alpha1
-kind: Claim
+kind: AccessToken
 metadata:
-  name: my-claim
+  name: my-token
 spec:

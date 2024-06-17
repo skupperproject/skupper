@@ -26,10 +26,10 @@ import (
 
 type SkupperV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	AccessGrantsGetter
+	AccessTokensGetter
 	CertificatesGetter
-	ClaimsGetter
 	ConnectorsGetter
-	GrantsGetter
 	LinksGetter
 	ListenersGetter
 	RouterAccessesGetter
@@ -43,20 +43,20 @@ type SkupperV1alpha1Client struct {
 	restClient rest.Interface
 }
 
+func (c *SkupperV1alpha1Client) AccessGrants(namespace string) AccessGrantInterface {
+	return newAccessGrants(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) AccessTokens(namespace string) AccessTokenInterface {
+	return newAccessTokens(c, namespace)
+}
+
 func (c *SkupperV1alpha1Client) Certificates(namespace string) CertificateInterface {
 	return newCertificates(c, namespace)
 }
 
-func (c *SkupperV1alpha1Client) Claims(namespace string) ClaimInterface {
-	return newClaims(c, namespace)
-}
-
 func (c *SkupperV1alpha1Client) Connectors(namespace string) ConnectorInterface {
 	return newConnectors(c, namespace)
-}
-
-func (c *SkupperV1alpha1Client) Grants(namespace string) GrantInterface {
-	return newGrants(c, namespace)
 }
 
 func (c *SkupperV1alpha1Client) Links(namespace string) LinkInterface {

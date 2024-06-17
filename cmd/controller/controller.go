@@ -36,7 +36,7 @@ type Controller struct {
 	listenerWatcher   *kube.ListenerWatcher
 	connectorWatcher  *kube.ConnectorWatcher
 	linkAccessWatcher *kube.RouterAccessWatcher
-	grantWatcher      *kube.GrantWatcher
+	grantWatcher      *kube.AccessGrantWatcher
 	sites             map[string]*site.Site
 	grants            claims.GrantManager
 	accessMgr         *securedaccess.SecuredAccessManager
@@ -118,7 +118,7 @@ func NewController(cli kube.Clients, watchNamespace string, currentNamespace str
 	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(watchNamespace, controller.checkRouterAccess)
 	controller.controller.WatchLinks(watchNamespace, controller.checkLink)
 	controller.controller.WatchConfigMaps(skupperNetworkStatus(), watchNamespace, controller.networkStatusUpdate)
-	controller.controller.WatchClaims(watchNamespace, controller.checkClaim)
+	controller.controller.WatchAccessTokens(watchNamespace, controller.checkAccessToken)
 	controller.controller.WatchSecuredAccesses(watchNamespace, controller.checkSecuredAccess)
 
 	controller.certMgr = certificates.NewCertificateManager(controller.controller)
@@ -131,7 +131,7 @@ func NewController(cli kube.Clients, watchNamespace string, currentNamespace str
 	controller.accessRecovery.httpProxyWatcher = controller.controller.WatchContourHttpProxies(dynamicSecuredAccess(), watchNamespace, controller.checkSecuredAccessHttpProxy)
 
 	controller.grants = claims.NewGrantManager(controller.controller, claims.GrantConfigFromEnv(), controller.generateLinkConfig)
-	controller.grantWatcher = controller.controller.WatchGrants(watchNamespace, controller.grants.GrantChanged)
+	controller.grantWatcher = controller.controller.WatchAccessGrants(watchNamespace, controller.grants.GrantChanged)
 	controller.grants.Watch(controller.controller, currentNamespace)
 
 	return controller, nil
@@ -253,15 +253,15 @@ func (c *Controller) checkSecuredAccessHttpProxy(key string, o *unstructured.Uns
 	return c.accessMgr.CheckHttpProxy(key, o)
 }
 
-func (c *Controller) checkClaim(key string, claim *skupperv1alpha1.Claim) error {
-	if claim == nil || claim.Status.Claimed {
+func (c *Controller) checkAccessToken(key string, token *skupperv1alpha1.AccessToken) error {
+	if token == nil || token.Status.Redeemed {
 		return nil
 	}
-	site := c.getSite(claim.Namespace).GetSite()
+	site := c.getSite(token.Namespace).GetSite()
 	if site == nil {
 		return nil
 	}
-	return claims.RedeemClaim(claim, site, c.controller)
+	return claims.RedeemAccessToken(token, site, c.controller)
 }
 
 func (c *Controller) generateLinkConfig(namespace string, name string, subject string, writer io.Writer) error {

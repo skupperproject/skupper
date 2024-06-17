@@ -13,7 +13,7 @@ import (
 type GrantManager interface {
 	Watch(controller *kube.Controller, namespace string)
 	Start()
-	GrantChanged(key string, grant *skupperv1alpha1.Grant) error
+	GrantChanged(key string, grant *skupperv1alpha1.AccessGrant) error
 	SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess)
 }
 
@@ -81,18 +81,18 @@ func (s *UrlFromSecuredAccess) Watch(controller *kube.Controller, namespace stri
 	controller.WatchSecrets(kube.ByName(s.tlsCredentialsSecret), namespace, s.tlsCredentialsUpdated)
 }
 
-const notEnabled string = "Grants are not enabled"
+const notEnabled string = "AccessGrants are not enabled"
 
 type GrantsDisabled struct {
 	clients kube.Clients
 }
 
-func (s *GrantsDisabled) GrantChanged(key string, grant *skupperv1alpha1.Grant) error {
+func (s *GrantsDisabled) GrantChanged(key string, grant *skupperv1alpha1.AccessGrant) error {
 	if grant == nil || grant.Status.Status == notEnabled {
 		return nil
 	}
 	grant.Status.Status = notEnabled
-	if _, err := s.clients.GetSkupperClient().SkupperV1alpha1().Grants(grant.ObjectMeta.Namespace).UpdateStatus(context.TODO(), grant, metav1.UpdateOptions{}); err != nil {
+	if _, err := s.clients.GetSkupperClient().SkupperV1alpha1().AccessGrants(grant.ObjectMeta.Namespace).UpdateStatus(context.TODO(), grant, metav1.UpdateOptions{}); err != nil {
 		log.Printf("%s. Error updating status for %s: %s", notEnabled, key, err)
 	}
 	return nil

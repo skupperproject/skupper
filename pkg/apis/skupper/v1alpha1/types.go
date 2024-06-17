@@ -247,64 +247,64 @@ type LinkStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type Claim struct {
+type AccessToken struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          ClaimSpec   `json:"spec,omitempty"`
-	Status        ClaimStatus `json:"status,omitempty"`
+	Spec          AccessTokenSpec   `json:"spec,omitempty"`
+	Status        AccessTokenStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ClaimList contains a List of Claim instances
-type ClaimList struct {
+// AccessTokenList contains a List of AccessToken instances
+type AccessTokenList struct {
 	v1.TypeMeta `json:",inline"`
 	v1.ListMeta `json:"metadata,omitempty"`
-	Items       []Claim `json:"items"`
+	Items       []AccessToken `json:"items"`
 }
 
-type ClaimSpec struct {
+type AccessTokenSpec struct {
 	Url    string `json:"url"`
-	Secret string `json:"secret"`
+	Code   string `json:"code"`
 	Ca     string `json:"ca"`
 }
 
-type ClaimStatus struct {
-	Claimed bool   `json:"claimed,omitempty"`
-	Status  string `json:"status,omitempty"`
+type AccessTokenStatus struct {
+	Redeemed bool   `json:"redeemed,omitempty"`
+	Status   string `json:"status,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type Grant struct {
+type AccessGrant struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          GrantSpec   `json:"spec,omitempty"`
-	Status        GrantStatus `json:"status,omitempty"`
+	Spec          AccessGrantSpec   `json:"spec,omitempty"`
+	Status        AccessGrantStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// GrantList contains a List of Grant instances
-type GrantList struct {
+// AccessGrantList contains a List of AccessGrant instances
+type AccessGrantList struct {
 	v1.TypeMeta `json:",inline"`
 	v1.ListMeta `json:"metadata,omitempty"`
-	Items       []Grant `json:"items"`
+	Items       []AccessGrant `json:"items"`
 }
 
-type GrantSpec struct {
-	Claims   int    `json:"claims,omitempty"`
-	ValidFor string `json:"validFor,omitempty"`
-	Secret   string `json:"secret,omitempty"`
-	Issuer   string `json:"issuer,omitempty"`
+type AccessGrantSpec struct {
+	RedemptionsAllowed int    `json:"redemptionsAllowed,omitempty"`
+	ExpirationWindow   string `json:"expirationWindow,omitempty"`
+	Code               string `json:"code,omitempty"`
+	Issuer             string `json:"issuer,omitempty"`
 }
 
-type GrantStatus struct {
+type AccessGrantStatus struct {
 	Url        string `json:"url"`
-	Secret     string `json:"secret"`
+	Code       string `json:"code"`
 	Ca         string `json:"ca"`
-	Claimed    int    `json:"claimed,omitempty"`
+	Redeemed  int    `json:"redeemed,omitempty"`
 	Expiration string `json:"expiration,omitempty"`
 	Status     string `json:"status,omitempty"`
 }

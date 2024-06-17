@@ -8,7 +8,6 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: skupper-controller
-  namespace: skupper
   labels:
     application: skupper-controller
 ---
@@ -116,16 +115,16 @@ rules:
   - sites/status
   - links
   - links/status
-  - claims
-  - claims/status
-  - grants
-  - grants/status
+  - accesstokens
+  - accesstokens/status
+  - accessgrants
+  - accessgrants/status
   - listeners
   - listeners/status
   - connectors
   - connectors/status
-  - linkaccesses
-  - linkaccesses/status
+  - routeraccesses
+  - routeraccesses/status
   - securedaccesses
   - securedaccesses/status
   - certificates
@@ -157,7 +156,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: skupper-controller
-  namespace: skupper
 spec:
   replicas: 1
   selector:
@@ -180,7 +178,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: controller
-        image: quay.io/gordons/controller:v2-wip
+        image: quay.io/gordons/controller:v2-milestone1
         imagePullPolicy: Always
         env:
         - name: SKUPPER_ENABLE_GRANTS
@@ -190,7 +188,7 @@ spec:
         - name: SKUPPER_CLAIMS_TLS_CREDENTIALS_SECRET
           value: skupper-grant-server
         - name: SKUPPER_CONFIG_SYNC_IMAGE
-          value: quay.io/gordons/config-sync:v2-wip
+          value: quay.io/gordons/config-sync:v2-milestone1
         securityContext:
           capabilities:
             drop:
@@ -208,7 +206,6 @@ apiVersion: skupper.io/v1alpha1
 kind: Certificate
 metadata:
   name: skupper-grant-server-ca
-  namespace: skupper
 spec:
   signing: true
   ca:      ""
@@ -218,12 +215,11 @@ apiVersion: skupper.io/v1alpha1
 kind: SecuredAccess
 metadata:
   name: skupper-grant-server
-  namespace: skupper
 spec:
   selector:
       application: skupper-controller
   ports:
   - name: https
     port: 9090
-  ca: skupper-grant-server-ca
+  issuer: skupper-grant-server-ca
   certificate: skupper-grant-server
