@@ -24,14 +24,14 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// AccessGrants returns a AccessGrantInformer.
+	AccessGrants() AccessGrantInformer
+	// AccessTokens returns a AccessTokenInformer.
+	AccessTokens() AccessTokenInformer
 	// Certificates returns a CertificateInformer.
 	Certificates() CertificateInformer
-	// Claims returns a ClaimInformer.
-	Claims() ClaimInformer
 	// Connectors returns a ConnectorInformer.
 	Connectors() ConnectorInformer
-	// Grants returns a GrantInformer.
-	Grants() GrantInformer
 	// Links returns a LinkInformer.
 	Links() LinkInformer
 	// Listeners returns a ListenerInformer.
@@ -57,24 +57,24 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
+// AccessGrants returns a AccessGrantInformer.
+func (v *version) AccessGrants() AccessGrantInformer {
+	return &accessGrantInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// AccessTokens returns a AccessTokenInformer.
+func (v *version) AccessTokens() AccessTokenInformer {
+	return &accessTokenInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // Certificates returns a CertificateInformer.
 func (v *version) Certificates() CertificateInformer {
 	return &certificateInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// Claims returns a ClaimInformer.
-func (v *version) Claims() ClaimInformer {
-	return &claimInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
 // Connectors returns a ConnectorInformer.
 func (v *version) Connectors() ConnectorInformer {
 	return &connectorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// Grants returns a GrantInformer.
-func (v *version) Grants() GrantInformer {
-	return &grantInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Links returns a LinkInformer.

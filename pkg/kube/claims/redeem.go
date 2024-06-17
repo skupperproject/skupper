@@ -19,7 +19,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
-func RedeemClaim(claim *skupperv1alpha1.Claim, site *skupperv1alpha1.Site, clients kube.Clients) error {
+func RedeemAccessToken(claim *skupperv1alpha1.AccessToken, site *skupperv1alpha1.Site, clients kube.Clients) error {
 	transport := &http.Transport{}
 	if claim.Spec.Ca != "" {
 		caPool := x509.NewCertPool()
@@ -31,12 +31,12 @@ func RedeemClaim(claim *skupperv1alpha1.Claim, site *skupperv1alpha1.Site, clien
 	client := &http.Client{
 		Transport: transport,
 	}
-	request, err := http.NewRequest(http.MethodPost, claim.Spec.Url, bytes.NewReader([]byte(claim.Spec.Secret)))
+	request, err := http.NewRequest(http.MethodPost, claim.Spec.Url, bytes.NewReader([]byte(claim.Spec.Code)))
 	request.Header.Add("name", claim.Name)
 	request.Header.Add("subject", string(site.ObjectMeta.UID))
 	response, err := client.Do(request)
 	if err != nil {
-		return updateClaimStatus(claim, err, clients)
+		return updateAccessTokenStatus(claim, err, clients)
 	}
 	if response.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(response.Body)
@@ -45,13 +45,13 @@ func RedeemClaim(claim *skupperv1alpha1.Claim, site *skupperv1alpha1.Site, clien
 		} else {
 			err = fmt.Errorf("Received HTTP Response %d. Could not read body: %s", response.StatusCode, err)
 		}
-		return updateClaimStatus(claim, err, clients)
+		return updateAccessTokenStatus(claim, err, clients)
 	}
 	log.Printf("HTTP Post to %s for %s/%s was sucessful, decoding response body", claim.Spec.Url, claim.Namespace, claim.Name)
 
 	decoder := newLinkDecoder(response.Body)
 	if err := decoder.decodeAll(); err != nil {
-		return updateClaimStatus(claim, err, clients)
+		return updateAccessTokenStatus(claim, err, clients)
 	}
 	refs := []metav1.OwnerReference{
 		{
@@ -72,19 +72,19 @@ func RedeemClaim(claim *skupperv1alpha1.Claim, site *skupperv1alpha1.Site, clien
 		}
 	}
 
-	return updateClaimStatus(claim, nil, clients)
+	return updateAccessTokenStatus(claim, nil, clients)
 }
 
-func updateClaimStatus(claim *skupperv1alpha1.Claim, err error, clients kube.Clients) error {
+func updateAccessTokenStatus(claim *skupperv1alpha1.AccessToken, err error, clients kube.Clients) error {
 	if err == nil {
 		log.Printf("Redeemed claim %s/%s successfully", claim.Namespace, claim.Name)
 		claim.Status.Status = "Ok"
-		claim.Status.Claimed = true
+		claim.Status.Redeemed = true
 	} else {
 		log.Printf("Error processing claim %s/%s: %s", claim.Namespace, claim.Name, err)
 		claim.Status.Status = err.Error()
 	}
-	_, err = clients.GetSkupperClient().SkupperV1alpha1().Claims(claim.ObjectMeta.Namespace).UpdateStatus(context.TODO(), claim, metav1.UpdateOptions{})
+	_, err = clients.GetSkupperClient().SkupperV1alpha1().AccessTokens(claim.ObjectMeta.Namespace).UpdateStatus(context.TODO(), claim, metav1.UpdateOptions{})
 	return err
 }
 

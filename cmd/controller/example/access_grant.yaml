@@ -1,7 +1,7 @@
 apiVersion: skupper.io/v1alpha1
-kind: Grant
+kind: AccessGrant
 metadata:
   name: my-grant
 spec:
-  claims: 10
-  validFor: 1h
+  redemptionsAllowed: 10
+  expirationWindow: 1h

@@ -26,7 +26,7 @@ type Grants struct {
 	url        string
 	ca         string
 	scheme     string
-	grants     map[kubetypes.UID]*skupperv1alpha1.Grant
+	grants     map[kubetypes.UID]*skupperv1alpha1.AccessGrant
 	grantIndex map[string]kubetypes.UID
 	lock       sync.Mutex
 }
@@ -37,7 +37,7 @@ func newGrants(clients kube.Clients, generator GrantResponse, scheme string, url
 		generator:  generator,
 		scheme:     scheme,
 		url:        url,
-		grants:     map[kubetypes.UID]*skupperv1alpha1.Grant{},
+		grants:     map[kubetypes.UID]*skupperv1alpha1.AccessGrant{},
 		grantIndex: map[string]kubetypes.UID{},
 	}
 }
@@ -58,7 +58,7 @@ func (g *Grants) getCA() string {
 	return g.ca
 }
 
-func (g *Grants) record(key string, grant *skupperv1alpha1.Grant) {
+func (g *Grants) record(key string, grant *skupperv1alpha1.AccessGrant) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	if uid, ok := g.grantIndex[key]; ok && uid != grant.ObjectMeta.UID {
@@ -77,14 +77,14 @@ func (g *Grants) remove(key string) {
 	}
 }
 
-func (g *Grants) put(grant *skupperv1alpha1.Grant) error {
+func (g *Grants) put(grant *skupperv1alpha1.AccessGrant) error {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	g.grants[grant.ObjectMeta.UID] = grant
 	return nil
 }
 
-func (g *Grants) get(key string) *skupperv1alpha1.Grant {
+func (g *Grants) get(key string) *skupperv1alpha1.AccessGrant {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 
@@ -94,10 +94,10 @@ func (g *Grants) get(key string) *skupperv1alpha1.Grant {
 	return nil
 }
 
-func (g *Grants) getAll() []*skupperv1alpha1.Grant {
+func (g *Grants) getAll() []*skupperv1alpha1.AccessGrant {
 	g.lock.Lock()
 	defer g.lock.Unlock()
-	var grants []*skupperv1alpha1.Grant
+	var grants []*skupperv1alpha1.AccessGrant
 	for _, grant := range g.grants {
 		grants = append(grants, grant)
 	}
@@ -147,20 +147,20 @@ func (g *Grants) recheckCa() {
 	}
 }
 
-func (g *Grants) claimUrl(grant *skupperv1alpha1.Grant) string {
+func (g *Grants) claimUrl(grant *skupperv1alpha1.AccessGrant) string {
 	if url := g.getUrl(); url != "" {
 		return fmt.Sprintf("%s://%s/%s", g.scheme, url, string(grant.ObjectMeta.UID))
 	}
 	return ""
 }
 
-func (g *Grants) checkUrl(key string, grant *skupperv1alpha1.Grant) (bool, string) {
+func (g *Grants) checkUrl(key string, grant *skupperv1alpha1.AccessGrant) (bool, string) {
 	url := g.claimUrl(grant)
 	if url == "" {
-		log.Printf("URL pending for Grant %s", key)
+		log.Printf("URL pending for AccessGrant %s", key)
 		return true, "Url pending"
 	} else if grant.Status.Url != url {
-		log.Printf("Setting URL for Grant %s to %s", key, url)
+		log.Printf("Setting URL for AccessGrant %s to %s", key, url)
 		grant.Status.Url = url
 		return true, ""
 	} else {
@@ -168,7 +168,7 @@ func (g *Grants) checkUrl(key string, grant *skupperv1alpha1.Grant) (bool, strin
 	}
 }
 
-func (g *Grants) checkCa(key string, grant *skupperv1alpha1.Grant) bool {
+func (g *Grants) checkCa(key string, grant *skupperv1alpha1.AccessGrant) bool {
 	ca := g.getCA()
 	if grant.Status.Ca == ca {
 		return false
@@ -177,7 +177,7 @@ func (g *Grants) checkCa(key string, grant *skupperv1alpha1.Grant) bool {
 	return true
 }
 
-func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
+func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.AccessGrant) error {
 	if grant == nil {
 		g.remove(key)
 		return nil
@@ -195,19 +195,19 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
 		changed = true
 	}
 
-	if grant.Status.Secret == "" {
-		if grant.Spec.Secret == "" {
-			grant.Status.Secret = utils.RandomId(24)
+	if grant.Status.Code == "" {
+		if grant.Spec.Code == "" {
+			grant.Status.Code = utils.RandomId(24)
 		} else {
-			grant.Status.Secret = grant.Spec.Secret
+			grant.Status.Code = grant.Spec.Code
 		}
 	}
 
 	if grant.Status.Expiration == "" {
-		if grant.Spec.ValidFor != "" {
-			d, e := time.ParseDuration(grant.Spec.ValidFor)
+		if grant.Spec.ExpirationWindow != "" {
+			d, e := time.ParseDuration(grant.Spec.ExpirationWindow)
 			if e != nil {
-				status = append(status, fmt.Sprintf("Invalid duration %q: %s", grant.Spec.ValidFor, e))
+				status = append(status, fmt.Sprintf("Invalid duration %q: %s", grant.Spec.ExpirationWindow, e))
 			} else {
 				expiration := time.Now().Add(d).Format(time.RFC3339)
 				if grant.Status.Expiration != expiration {
@@ -232,12 +232,12 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.Grant) error {
 	if !changed {
 		return nil
 	}
-	log.Printf("Updating status for Grant %s", key)
+	log.Printf("Updating status for AccessGrant %s", key)
 	return g.updateGrantStatus(grant)
 }
 
-func (g *Grants) updateGrantStatus(grant *skupperv1alpha1.Grant) error {
-	updated, err := g.clients.GetSkupperClient().SkupperV1alpha1().Grants(grant.ObjectMeta.Namespace).UpdateStatus(context.TODO(), grant, metav1.UpdateOptions{})
+func (g *Grants) updateGrantStatus(grant *skupperv1alpha1.AccessGrant) error {
+	updated, err := g.clients.GetSkupperClient().SkupperV1alpha1().AccessGrants(grant.ObjectMeta.Namespace).UpdateStatus(context.TODO(), grant, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -245,8 +245,8 @@ func (g *Grants) updateGrantStatus(grant *skupperv1alpha1.Grant) error {
 	return nil
 }
 
-func (g *Grants) checkAndUpdateClaim(key string, data []byte) (*skupperv1alpha1.Grant, *HttpError) {
-	log.Printf("Checking claim for %s", key)
+func (g *Grants) checkAndUpdateAccessToken(key string, data []byte) (*skupperv1alpha1.AccessGrant, *HttpError) {
+	log.Printf("Checking access token for %s", key)
 	grant := g.get(key)
 	if grant == nil {
 		return nil, httpError("No such claim", http.StatusNotFound)
@@ -258,20 +258,20 @@ func (g *Grants) checkAndUpdateClaim(key string, data []byte) (*skupperv1alpha1.
 		return nil, httpError("Corrupted claim", http.StatusInternalServerError)
 	}
 	if expiration.Before(time.Now()) {
-		log.Printf("Grant %s/%s expired", grant.Namespace, grant.Name)
+		log.Printf("AccessGrant %s/%s expired", grant.Namespace, grant.Name)
 		return nil, httpError("No such claim", http.StatusNotFound)
 	}
-	if grant.Spec.Claims <= grant.Status.Claimed {
-		log.Printf("Grant %s/%s already claimed", grant.Namespace, grant.Name)
-		return nil, httpError("No such claim", http.StatusNotFound)
+	if grant.Spec.RedemptionsAllowed <= grant.Status.Redeemed {
+		log.Printf("AccessGrant %s/%s already redeemed", grant.Namespace, grant.Name)
+		return nil, httpError("No such access granted", http.StatusNotFound)
 	}
-	if grant.Status.Secret != string(data) {
-		return nil, httpError("Claim refused", http.StatusForbidden)
+	if grant.Status.Code != string(data) {
+		return nil, httpError("Redemption of access token refused", http.StatusForbidden)
 	}
-	grant.Status.Claimed += 1
+	grant.Status.Redeemed += 1
 	err = g.updateGrantStatus(grant)
 	if err != nil {
-		log.Printf("Error updating grant %s/%s: %s", grant.Namespace, grant.Name, err)
+		log.Printf("Error updating access grant %s/%s: %s", grant.Namespace, grant.Name, err)
 		return nil, httpError("Internal error", http.StatusServiceUnavailable)
 	}
 	return grant, nil
@@ -291,7 +291,7 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	grant, e := g.checkAndUpdateClaim(key, body)
+	grant, e := g.checkAndUpdateAccessToken(key, body)
 	if e != nil {
 		e.write(w)
 		return
@@ -299,7 +299,7 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	name := r.Header.Get("name")
 	if name == "" {
-		log.Printf("No name specified when redeeming claim for %s/%s, using grant name", grant.Namespace, grant.Name)
+		log.Printf("No name specified when redeeming access token for %s/%s, using access grant name", grant.Namespace, grant.Name)
 		name = grant.Name
 	}
 	subject := r.Header.Get("subject")
@@ -311,7 +311,7 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Printf("Claim for %s/%s succeeded", grant.Namespace, grant.Name)
+	log.Printf("Redemption of access token %s/%s succeeded", grant.Namespace, grant.Name)
 }
 
 type HttpError struct {

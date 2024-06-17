@@ -23,7 +23,7 @@ type GrantServer struct {
 	cert     *tls.Certificate
 }
 
-func (s *GrantServer) GrantChanged(key string, grant *skupperv1alpha1.Grant) error {
+func (s *GrantServer) GrantChanged(key string, grant *skupperv1alpha1.AccessGrant) error {
 	return s.grants.checkGrant(key, grant)
 }
 

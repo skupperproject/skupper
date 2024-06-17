@@ -28,20 +28,20 @@ type FakeSkupperV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeSkupperV1alpha1) AccessGrants(namespace string) v1alpha1.AccessGrantInterface {
+	return &FakeAccessGrants{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) AccessTokens(namespace string) v1alpha1.AccessTokenInterface {
+	return &FakeAccessTokens{c, namespace}
+}
+
 func (c *FakeSkupperV1alpha1) Certificates(namespace string) v1alpha1.CertificateInterface {
 	return &FakeCertificates{c, namespace}
 }
 
-func (c *FakeSkupperV1alpha1) Claims(namespace string) v1alpha1.ClaimInterface {
-	return &FakeClaims{c, namespace}
-}
-
 func (c *FakeSkupperV1alpha1) Connectors(namespace string) v1alpha1.ConnectorInterface {
 	return &FakeConnectors{c, namespace}
-}
-
-func (c *FakeSkupperV1alpha1) Grants(namespace string) v1alpha1.GrantInterface {
-	return &FakeGrants{c, namespace}
 }
 
 func (c *FakeSkupperV1alpha1) Links(namespace string) v1alpha1.LinkInterface {

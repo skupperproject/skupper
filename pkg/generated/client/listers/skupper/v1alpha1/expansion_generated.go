@@ -18,6 +18,22 @@ limitations under the License.
 
 package v1alpha1
 
+// AccessGrantListerExpansion allows custom methods to be added to
+// AccessGrantLister.
+type AccessGrantListerExpansion interface{}
+
+// AccessGrantNamespaceListerExpansion allows custom methods to be added to
+// AccessGrantNamespaceLister.
+type AccessGrantNamespaceListerExpansion interface{}
+
+// AccessTokenListerExpansion allows custom methods to be added to
+// AccessTokenLister.
+type AccessTokenListerExpansion interface{}
+
+// AccessTokenNamespaceListerExpansion allows custom methods to be added to
+// AccessTokenNamespaceLister.
+type AccessTokenNamespaceListerExpansion interface{}
+
 // CertificateListerExpansion allows custom methods to be added to
 // CertificateLister.
 type CertificateListerExpansion interface{}
@@ -26,14 +42,6 @@ type CertificateListerExpansion interface{}
 // CertificateNamespaceLister.
 type CertificateNamespaceListerExpansion interface{}
 
-// ClaimListerExpansion allows custom methods to be added to
-// ClaimLister.
-type ClaimListerExpansion interface{}
-
-// ClaimNamespaceListerExpansion allows custom methods to be added to
-// ClaimNamespaceLister.
-type ClaimNamespaceListerExpansion interface{}
-
 // ConnectorListerExpansion allows custom methods to be added to
 // ConnectorLister.
 type ConnectorListerExpansion interface{}
@@ -41,14 +49,6 @@ type ConnectorListerExpansion interface{}
 // ConnectorNamespaceListerExpansion allows custom methods to be added to
 // ConnectorNamespaceLister.
 type ConnectorNamespaceListerExpansion interface{}
-
-// GrantListerExpansion allows custom methods to be added to
-// GrantLister.
-type GrantListerExpansion interface{}
-
-// GrantNamespaceListerExpansion allows custom methods to be added to
-// GrantNamespaceLister.
-type GrantNamespaceListerExpansion interface{}
 
 // LinkListerExpansion allows custom methods to be added to
 // LinkLister.

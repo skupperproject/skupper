@@ -32,59 +32,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// GrantInformer provides access to a shared informer and lister for
-// Grants.
-type GrantInformer interface {
+// AccessTokenInformer provides access to a shared informer and lister for
+// AccessTokens.
+type AccessTokenInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.GrantLister
+	Lister() v1alpha1.AccessTokenLister
 }
 
-type grantInformer struct {
+type accessTokenInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewGrantInformer constructs a new informer for Grant type.
+// NewAccessTokenInformer constructs a new informer for AccessToken type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewGrantInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredGrantInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewAccessTokenInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredAccessTokenInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredGrantInformer constructs a new informer for Grant type.
+// NewFilteredAccessTokenInformer constructs a new informer for AccessToken type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredGrantInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredAccessTokenInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV1alpha1().Grants(namespace).List(context.TODO(), options)
+				return client.SkupperV1alpha1().AccessTokens(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV1alpha1().Grants(namespace).Watch(context.TODO(), options)
+				return client.SkupperV1alpha1().AccessTokens(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&skupperv1alpha1.Grant{},
+		&skupperv1alpha1.AccessToken{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *grantInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredGrantInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *accessTokenInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredAccessTokenInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *grantInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&skupperv1alpha1.Grant{}, f.defaultInformer)
+func (f *accessTokenInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&skupperv1alpha1.AccessToken{}, f.defaultInformer)
 }
 
-func (f *grantInformer) Lister() v1alpha1.GrantLister {
-	return v1alpha1.NewGrantLister(f.Informer().GetIndexer())
+func (f *accessTokenInformer) Lister() v1alpha1.AccessTokenLister {
+	return v1alpha1.NewAccessTokenLister(f.Informer().GetIndexer())
 }

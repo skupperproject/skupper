@@ -1091,10 +1091,10 @@ func (w *LinkWatcher) List() []*skupperv1alpha1.Link {
 	return results
 }
 
-func (c *Controller) WatchClaims(namespace string, handler ClaimHandler) *ClaimWatcher {
-	watcher := &ClaimWatcher{
+func (c *Controller) WatchAccessTokens(namespace string, handler AccessTokenHandler) *AccessTokenWatcher {
+	watcher := &AccessTokenWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewClaimInformer(
+		informer: skupperv1alpha1informer.NewAccessTokenInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1106,15 +1106,15 @@ func (c *Controller) WatchClaims(namespace string, handler ClaimHandler) *ClaimW
 	return watcher
 }
 
-type ClaimHandler func(string, *skupperv1alpha1.Claim) error
+type AccessTokenHandler func(string, *skupperv1alpha1.AccessToken) error
 
-type ClaimWatcher struct {
-	handler   ClaimHandler
+type AccessTokenWatcher struct {
+	handler   AccessTokenHandler
 	informer  cache.SharedIndexInformer
 	namespace string
 }
 
-func (w *ClaimWatcher) Handle(event ResourceChange) error {
+func (w *AccessTokenWatcher) Handle(event ResourceChange) error {
 	obj, err := w.Get(event.Key)
 	if err != nil {
 		return err
@@ -1122,23 +1122,23 @@ func (w *ClaimWatcher) Handle(event ResourceChange) error {
 	return w.handler(event.Key, obj)
 }
 
-func (w *ClaimWatcher) HasSynced() func() bool {
+func (w *AccessTokenWatcher) HasSynced() func() bool {
 	return w.informer.HasSynced
 }
 
-func (w *ClaimWatcher) Describe(event ResourceChange) string {
-	return fmt.Sprintf("Claim %s", event.Key)
+func (w *AccessTokenWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("AccessToken %s", event.Key)
 }
 
-func (w *ClaimWatcher) Start(stopCh <-chan struct{}) {
+func (w *AccessTokenWatcher) Start(stopCh <-chan struct{}) {
 	go w.informer.Run(stopCh)
 }
 
-func (w *ClaimWatcher) Sync(stopCh <-chan struct{}) bool {
+func (w *AccessTokenWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *ClaimWatcher) Get(key string) (*skupperv1alpha1.Claim, error) {
+func (w *AccessTokenWatcher) Get(key string) (*skupperv1alpha1.AccessToken, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1146,22 +1146,22 @@ func (w *ClaimWatcher) Get(key string) (*skupperv1alpha1.Claim, error) {
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.Claim), nil
+	return entity.(*skupperv1alpha1.AccessToken), nil
 }
 
-func (w *ClaimWatcher) List() []*skupperv1alpha1.Claim {
+func (w *AccessTokenWatcher) List() []*skupperv1alpha1.AccessToken {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.Claim{}
+	results := []*skupperv1alpha1.AccessToken{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.Claim))
+		results = append(results, o.(*skupperv1alpha1.AccessToken))
 	}
 	return results
 }
 
-func (c *Controller) WatchGrants(namespace string, handler GrantHandler) *GrantWatcher {
-	watcher := &GrantWatcher{
+func (c *Controller) WatchAccessGrants(namespace string, handler AccessGrantHandler) *AccessGrantWatcher {
+	watcher := &AccessGrantWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewGrantInformer(
+		informer: skupperv1alpha1informer.NewAccessGrantInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1173,15 +1173,15 @@ func (c *Controller) WatchGrants(namespace string, handler GrantHandler) *GrantW
 	return watcher
 }
 
-type GrantHandler func(string, *skupperv1alpha1.Grant) error
+type AccessGrantHandler func(string, *skupperv1alpha1.AccessGrant) error
 
-type GrantWatcher struct {
-	handler   GrantHandler
+type AccessGrantWatcher struct {
+	handler   AccessGrantHandler
 	informer  cache.SharedIndexInformer
 	namespace string
 }
 
-func (w *GrantWatcher) Handle(event ResourceChange) error {
+func (w *AccessGrantWatcher) Handle(event ResourceChange) error {
 	obj, err := w.Get(event.Key)
 	if err != nil {
 		return err
@@ -1189,23 +1189,23 @@ func (w *GrantWatcher) Handle(event ResourceChange) error {
 	return w.handler(event.Key, obj)
 }
 
-func (w *GrantWatcher) HasSynced() func() bool {
+func (w *AccessGrantWatcher) HasSynced() func() bool {
 	return w.informer.HasSynced
 }
 
-func (w *GrantWatcher) Describe(event ResourceChange) string {
-	return fmt.Sprintf("Grant %s", event.Key)
+func (w *AccessGrantWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("AccessGrant %s", event.Key)
 }
 
-func (w *GrantWatcher) Start(stopCh <-chan struct{}) {
+func (w *AccessGrantWatcher) Start(stopCh <-chan struct{}) {
 	go w.informer.Run(stopCh)
 }
 
-func (w *GrantWatcher) Sync(stopCh <-chan struct{}) bool {
+func (w *AccessGrantWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *GrantWatcher) Get(key string) (*skupperv1alpha1.Grant, error) {
+func (w *AccessGrantWatcher) Get(key string) (*skupperv1alpha1.AccessGrant, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1213,14 +1213,14 @@ func (w *GrantWatcher) Get(key string) (*skupperv1alpha1.Grant, error) {
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.Grant), nil
+	return entity.(*skupperv1alpha1.AccessGrant), nil
 }
 
-func (w *GrantWatcher) List() []*skupperv1alpha1.Grant {
+func (w *AccessGrantWatcher) List() []*skupperv1alpha1.AccessGrant {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.Grant{}
+	results := []*skupperv1alpha1.AccessGrant{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.Grant))
+		results = append(results, o.(*skupperv1alpha1.AccessGrant))
 	}
 	return results
 }

@@ -18,13 +18,13 @@ limitations under the License.
 
 package v1alpha1
 
+type AccessGrantExpansion interface{}
+
+type AccessTokenExpansion interface{}
+
 type CertificateExpansion interface{}
 
-type ClaimExpansion interface{}
-
 type ConnectorExpansion interface{}
-
-type GrantExpansion interface{}
 
 type LinkExpansion interface{}
 

@@ -53,14 +53,14 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=skupper.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("accessgrants"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().AccessGrants().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("accesstokens"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().AccessTokens().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("certificates"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Certificates().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("claims"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Claims().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("connectors"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Connectors().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("grants"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Grants().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("links"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Links().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("listeners"):
