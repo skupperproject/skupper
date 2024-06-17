@@ -1,10 +1,11 @@
 package validator
 
 import (
-	"gotest.tools/assert"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"gotest.tools/assert"
 )
 
 func TestNewStringValidator(t *testing.T) {
@@ -38,6 +39,34 @@ func TestStringValidator_Evaluate(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			stringValidator := NewStringValidator()
+			expectedResult := test.result
+			actualResult, _ := stringValidator.Evaluate(test.value)
+			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+		})
+	}
+}
+
+func TestTlsStringValidator_Evaluate(t *testing.T) {
+	type test struct {
+		name   string
+		value  interface{}
+		result bool
+	}
+
+	testTable := []test{
+		{name: "empty string", value: "", result: false},
+		{name: "valid value", value: "provided= :value", result: true},
+		{name: "string with spaces", value: "provided value", result: true},
+		{name: "string with numbers", value: "site123", result: true},
+		{name: "string with colons and equals", value: "tls: site=", result: true},
+		{name: "number", value: 123, result: false},
+		{name: "nil value", value: nil, result: false},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			stringValidator := NewTlsStringValidator()
 			expectedResult := test.result
 			actualResult, _ := stringValidator.Evaluate(test.value)
 			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
