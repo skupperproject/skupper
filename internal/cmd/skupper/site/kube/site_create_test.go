@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"github.com/spf13/pflag"
@@ -165,7 +166,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 
 			actualErrors := command.ValidateInput(test.args)
 
-			actualErrorsMessages := errorsToMessages(actualErrors)
+			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
 
 			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
 
@@ -436,12 +437,4 @@ func newCmdSiteCreateWithMocks() *CmdSiteCreate {
 	}
 
 	return cmdSiteCreate
-}
-
-func errorsToMessages(errs []error) []string {
-	msgs := make([]string, len(errs))
-	for i, err := range errs {
-		msgs[i] = err.Error()
-	}
-	return msgs
 }

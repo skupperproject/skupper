@@ -21,3 +21,11 @@ func HandleErrorList(errList []error) {
 		syscall.Exit(0)
 	}
 }
+
+func ErrorsToMessages(errs []error) []string {
+	messages := make([]string, len(errs))
+	for i, err := range errs {
+		messages[i] = err.Error()
+	}
+	return messages
+}
