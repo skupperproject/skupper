@@ -4,7 +4,7 @@ CONTROLLER_PODMAN_IMAGE := quay.io/skupper/controller-podman
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 SITE_CONTROLLER_V2_IMAGE := quay.io/skupper/site-controller-v2
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
-FLOW_COLLECTOR_IMAGE := quay.io/skupper/flow-collector
+NETWORK_CONSOLE_COLLECTOR_IMAGE := quay.io/skupper/network-console-collector
 TEST_IMAGE := quay.io/skupper/skupper-tests
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
@@ -43,13 +43,13 @@ build-controller-podman:
 build-site-controller:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o site-controller cmd/site-controller/main.go cmd/site-controller/controller.go
 
-build-flow-collector:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o flow-collector cmd/flow-collector/main.go cmd/flow-collector/controller.go cmd/flow-collector/handlers.go
+build-network-console-collector:
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-console-collector ./cmd/network-console-collector
 
 build-config-sync:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o config-sync cmd/config-sync/main.go cmd/config-sync/config_sync.go cmd/config-sync/collector.go
 
-build-controllers: build-controller build-site-controller build-service-controller build-controller-podman build-flow-collector
+build-controllers: build-controller build-site-controller build-service-controller build-controller-podman build-network-console-collector
 
 build-manifest:
 	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
@@ -70,8 +70,8 @@ docker-build: generate-client docker-build-test-image
 	${DOCKER} buildx build --load  -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
 	${DOCKER} buildx build --load  -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
-	${DOCKER} buildx build --platform ${PLATFORMS} -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
-	${DOCKER} buildx build --load  -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
+	${DOCKER} buildx build --load  -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
 
 docker-push-test-image:
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
@@ -81,7 +81,7 @@ docker-push: docker-push-test-image
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${CONTROLLER_PODMAN_IMAGE} -f Dockerfile.controller-podman .
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${SITE_CONTROLLER_IMAGE} -f Dockerfile.site-controller .
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
-	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
+	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
 
 format:
 	go fmt ./...

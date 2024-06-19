@@ -30,6 +30,6 @@ RUN useradd --uid 10000 runner
 USER 10000
 
 WORKDIR /app
-COPY --from=builder /go/src/app/flow-collector .
+COPY --from=builder /go/src/app/network-console-collector .
 COPY --from=console-builder /skupper-console/skupper-console-main/build/ console
-CMD ["/app/flow-collector"]
+ENTRYPOINT ["/app/network-console-collector"]

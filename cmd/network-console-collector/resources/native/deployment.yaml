@@ -1,0 +1,99 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: network-console-issuer
+  labels:
+    app.kubernetes.io/part-of: network-console
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: network-console-cert
+  labels:
+    app.kubernetes.io/part-of: network-console
+spec:
+  commonName: network-console
+  secretName: network-console-certs
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: network-console-issuer
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/name: network-console-collector
+    app.kubernetes.io/component: server
+  name: network-console-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: network-console
+      app.kubernetes.io/name: network-console-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: network-console
+        app.kubernetes.io/name: network-console-collector
+        app.kubernetes.io/component: server
+    spec:
+      containers:
+      - image: quay.io/ckruse/network-console-collector:latest
+        imagePullPolicy: Always
+        name: network-console
+        args:
+          - -listen=:8443
+          - -tls-cert=/etc/console/tls.crt
+          - -tls-key=/etc/console/tls.key
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+        volumeMounts:
+        - mountPath: /etc/console/
+          name: network-console-certs
+        - mountPath: /etc/messaging/
+          name: skupper-local-client
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+      volumes:
+      - name: network-console-certs
+        secret:
+          defaultMode: 420
+          secretName: network-console-certs
+      - name: skupper-local-client
+        secret:
+          defaultMode: 420
+          secretName: skupper-local-client
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/name: network-console-collector
+  name: network-console-collector
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app.kubernetes.io/name: network-console-collector
+    app.kubernetes.io/component: server
+  type: LoadBalancer
+
