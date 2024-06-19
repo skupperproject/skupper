@@ -9,9 +9,9 @@ import (
 
 	"github.com/rogpeppe/go-internal/lockedfile"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/certs"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/qdr"

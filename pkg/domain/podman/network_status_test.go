@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/network"
 	"gotest.tools/assert"
 	"k8s.io/apimachinery/pkg/util/rand"

@@ -13,13 +13,13 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/containers_compat"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/networks_compat"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/system_compat"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes_compat"
 	"github.com/skupperproject/skupper/client/generated/libpod/models"
 	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/pkg/container"
 )
 
 func NewCompatClientMock(containers []*container.Container) *CompatClient {

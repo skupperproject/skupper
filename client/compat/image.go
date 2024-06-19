@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/go-openapi/runtime"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/images_compat"
+	"github.com/skupperproject/skupper/pkg/container"
 )
 
 const (

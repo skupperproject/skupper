@@ -7,10 +7,10 @@ import (
 	"path"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes"
 	"github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/certs"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

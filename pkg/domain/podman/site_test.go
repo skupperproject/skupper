@@ -13,8 +13,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/utils"

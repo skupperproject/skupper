@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	clientpodman "github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"

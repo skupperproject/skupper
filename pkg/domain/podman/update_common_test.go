@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
 	"gotest.tools/assert"
 )

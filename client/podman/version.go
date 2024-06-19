@@ -1,8 +1,8 @@
 package podman
 
 import (
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/system"
+	"github.com/skupperproject/skupper/pkg/container"
 )
 
 func (p *PodmanRestClient) Version() (*container.Version, error) {

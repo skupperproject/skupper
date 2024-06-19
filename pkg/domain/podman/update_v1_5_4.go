@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	clientpodman "github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/utils"
 )

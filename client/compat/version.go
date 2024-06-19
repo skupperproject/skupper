@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/skupperproject/skupper/client/container"
 	system "github.com/skupperproject/skupper/client/generated/libpod/client/system_compat"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
