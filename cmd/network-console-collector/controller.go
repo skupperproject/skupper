@@ -1,13 +1,12 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -16,7 +15,7 @@ type Controller struct {
 	FlowCollector *flow.FlowCollector
 }
 
-func NewController(origin string, reg prometheus.Registerer, scheme string, host string, port string, tlsConfig *certs.TlsConfigRetriever, recordTtl time.Duration) (*Controller, error) {
+func NewController(origin string, reg prometheus.Registerer, scheme string, host string, port string, tlsConfig qdr.TlsConfigRetriever, recordTtl time.Duration) (*Controller, error) {
 
 	controller := &Controller{
 		FlowCollector: flow.NewFlowCollector(flow.FlowCollectorSpec{
@@ -34,12 +33,12 @@ func NewController(origin string, reg prometheus.Registerer, scheme string, host
 func (c *Controller) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
-	log.Println("COLLECTOR: Starting the Skupper flow collector")
+	slog.Info("Starting Network Console flow collector")
 
 	c.FlowCollector.Start(stopCh)
 
 	<-stopCh
-	log.Println("COLLECTOR: Shutting down the Skupper flow collector")
+	slog.Info("Network Console flow collector shutting down")
 
 	return nil
 }

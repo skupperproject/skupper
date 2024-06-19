@@ -1,6 +1,7 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
 BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
+NETWORK_CONSOLE_COLLECTOR_IMAGE := quay.io/skupper/network-console-collector
 TEST_IMAGE := quay.io/skupper/skupper-tests
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
@@ -32,6 +33,9 @@ build-controller:
 build-config-sync:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o config-sync cmd/config-sync/main.go cmd/config-sync/config_sync.go cmd/config-sync/collector.go
 
+build-network-console-collector:
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-console-collector ./cmd/network-console-collector
+
 build-manifest:
 	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
 
@@ -52,6 +56,10 @@ docker-build-bootstrap:
 
 docker-push-bootstrap:
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${BOOTSTRAP_IMAGE} -f Dockerfile.bootstrap .
+
+docker-build-network-console-collector:
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
+	${DOCKER} buildx build --load  -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
 
 docker-push-test-image:
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
