@@ -6,9 +6,9 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/networks"
 	"github.com/skupperproject/skupper/client/generated/libpod/models"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 

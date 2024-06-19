@@ -1,4 +1,4 @@
-package podman
+package compat
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/generated/libpod/client/containers"
+	"github.com/skupperproject/skupper/client/generated/libpod/client/containers_compat"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -33,7 +33,7 @@ func RandomName(name string) string {
 func TestContainer(t *testing.T) {
 	var err error
 	ctx, cancel := context.WithCancel(context.Background())
-	cli, wg := NewClientOrSkip(t, ctx)
+	cli, wg := NewClientOrSkip(t, "", ctx)
 	defer wg.Wait()
 	defer cancel()
 
@@ -132,13 +132,12 @@ func TestContainer(t *testing.T) {
 	// Creating container
 	t.Run("container-create", func(t *testing.T) {
 		err = cli.ContainerCreate(&container.Container{
-			Name:        name,
-			Image:       image,
-			Env:         env,
-			Labels:      labels,
-			Annotations: annotations,
+			Name:   name,
+			Image:  image,
+			Env:    env,
+			Labels: labels,
 			Networks: map[string]container.ContainerNetworkInfo{
-				name: container.ContainerNetworkInfo{
+				name: {
 					Aliases: aliases,
 				},
 			},
@@ -164,7 +163,6 @@ func TestContainer(t *testing.T) {
 		ValidateMaps(t, env, c.Env)
 		ValidateMaps(t, labels, c.Labels)
 		assert.Assert(t, c.Labels["application"] == types.AppName)
-		ValidateMaps(t, annotations, c.Annotations)
 		ValidateStrings(t, aliases, c.NetworkAliases()[name])
 		assert.Equal(t, 1, len(c.Mounts))
 		mount := c.Mounts[0]
@@ -257,12 +255,18 @@ func TestContainer(t *testing.T) {
 	})
 }
 
-func NewClientOrSkip(t *testing.T, ctx context.Context) (*PodmanRestClient, *sync.WaitGroup) {
-	var cli *PodmanRestClient
+func NewClientOrSkip(t *testing.T, endpoint string, ctx context.Context) (*CompatClient, *sync.WaitGroup) {
+	var cli *CompatClient
 	var err error
-	endpoint, wg := StartPodmanService(t, ctx, false)
+	var wg *sync.WaitGroup
+	if endpoint == "" {
+		endpoint, wg = StartPodmanService(t, ctx, false)
+	} else {
+		wg = new(sync.WaitGroup)
+		wg.Done()
+	}
 	err = utils.RetryError(time.Second, 10, func() error {
-		cli, err = NewPodmanClient(endpoint, "")
+		cli, err = NewCompatClient(endpoint, "")
 		if err != nil {
 			return err
 		}
@@ -290,7 +294,7 @@ func ValidateStrings(t *testing.T, original []string, final []string) {
 }
 
 func TestContainerCreateMock(t *testing.T) {
-	cli := NewPodmanClientMock([]*container.Container{})
+	cli := NewCompatClientMock([]*container.Container{})
 	err := cli.ContainerCreate(&container.Container{
 		Name:           "sample-container",
 		Image:          "sample-image",
@@ -308,7 +312,7 @@ func TestContainerCreateMock(t *testing.T) {
 
 func TestContainerUpdateMock(t *testing.T) {
 	image := images.GetServiceControllerImageName()
-	cli := NewPodmanClientMock(mockContainers(image))
+	cli := NewCompatClientMock(mockContainers(image))
 
 	// starting the container
 	assert.Assert(t, cli.ContainerStart("my-container"))
@@ -317,6 +321,9 @@ func TestContainerUpdateMock(t *testing.T) {
 	cc, err := cli.ContainerInspect("my-container")
 	assert.Assert(t, err)
 	startedAt := cc.StartedAt
+	cl, err := cli.ContainerList()
+	assert.Assert(t, err)
+	assert.Equal(t, len(cl), 1)
 
 	newImage := strings.Replace(image, ":main", ":updated", -1)
 	_, err = cli.ContainerUpdateImage(context.Background(), "my-container", newImage)
@@ -329,7 +336,7 @@ func TestContainerUpdateMock(t *testing.T) {
 	assert.Equal(t, cc.Image, newImage)
 
 	// assert that there is no other container left
-	cl, err := cli.ContainerList()
+	cl, err = cli.ContainerList()
 	assert.Assert(t, err)
 	assert.Equal(t, len(cl), 1)
 }
@@ -337,7 +344,7 @@ func TestContainerUpdateMock(t *testing.T) {
 func TestContainerUpdateErrorMock(t *testing.T) {
 	image := images.GetServiceControllerImageName()
 	newImage := strings.Replace(image, ":main", ":updated", -1)
-	cli := NewPodmanClientMock(mockContainers(image))
+	cli := NewCompatClientMock(mockContainers(image))
 	mock := cli.RestClient.(*RestClientMock)
 
 	tests := []struct {
@@ -347,8 +354,8 @@ func TestContainerUpdateErrorMock(t *testing.T) {
 		// must stop and remove the new container
 		name: "error-stopping-old-container",
 		errorHook: func(operation *runtime.ClientOperation) error {
-			if operation.ID == "ContainerStopLibpod" {
-				params := operation.Params.(*containers.ContainerStopLibpodParams)
+			if operation.ID == "ContainerStop" {
+				params := operation.Params.(*containers_compat.ContainerStopParams)
 				// returns error when stopping the current container
 				if params.Name == "my-container" {
 					return fmt.Errorf("error stopping %q", params.Name)
@@ -360,8 +367,8 @@ func TestContainerUpdateErrorMock(t *testing.T) {
 		// must start the old container, stop and remove the new one
 		name: "error-renaming-old-container",
 		errorHook: func(operation *runtime.ClientOperation) error {
-			if operation.ID == "ContainerRenameLibpod" {
-				params := operation.Params.(*containers.ContainerRenameLibpodParams)
+			if operation.ID == "ContainerRename" {
+				params := operation.Params.(*containers_compat.ContainerRenameParams)
 				curName := params.PathName
 				newName := params.QueryName
 				// returns error when renaming current container to a backup name
@@ -375,8 +382,8 @@ func TestContainerUpdateErrorMock(t *testing.T) {
 		// must rename old container back, start the old container, stop and remove the new one
 		name: "error-renaming-new-container-as-old-container",
 		errorHook: func(operation *runtime.ClientOperation) error {
-			if operation.ID == "ContainerRenameLibpod" {
-				params := operation.Params.(*containers.ContainerRenameLibpodParams)
+			if operation.ID == "ContainerRename" {
+				params := operation.Params.(*containers_compat.ContainerRenameParams)
 				curName := params.PathName
 				newName := params.QueryName
 				// return error when renaming new container to original name
@@ -390,8 +397,8 @@ func TestContainerUpdateErrorMock(t *testing.T) {
 		// must rename old container back, start the old container, stop and remove the new one
 		name: "error-starting-new-container",
 		errorHook: func(operation *runtime.ClientOperation) error {
-			if operation.ID == "ContainerStartLibpod" {
-				params := operation.Params.(*containers.ContainerStartLibpodParams)
+			if operation.ID == "ContainerStart" {
+				params := operation.Params.(*containers_compat.ContainerStartParams)
 				hasBackupContainer := true
 				for _, c := range mock.Containers {
 					if strings.Contains(c.Name, "-new-") {
@@ -422,27 +429,4 @@ func TestContainerUpdateErrorMock(t *testing.T) {
 			assert.Equal(t, true, mock.Containers[0].Running)
 		})
 	}
-}
-
-func mockContainers(image string) []*container.Container {
-	return []*container.Container{{
-		ID:    "abcd",
-		Name:  "my-container",
-		Image: image,
-		Env:   map[string]string{"var1": "val1", "var2": "val2"},
-		Networks: map[string]container.ContainerNetworkInfo{
-			"skupper": container.ContainerNetworkInfo{
-				ID:        "skupper",
-				IPAddress: "172.17.0.10",
-				Gateway:   "172.17.0.1",
-				Aliases:   []string{"skupper", "service-controller"},
-			},
-		},
-		Ports: []container.Port{
-			{Host: "8888", HostIP: "10.0.0.1", Target: "8080", Protocol: "tcp"},
-		},
-		Running:   true,
-		CreatedAt: time.Now(),
-		StartedAt: time.Now(),
-	}}
 }

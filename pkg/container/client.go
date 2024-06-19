@@ -56,6 +56,7 @@ type Version struct {
 	Arch     string
 	Kernel   string
 	OS       string
+	Engine   string
 }
 
 type Container struct {
@@ -84,6 +85,9 @@ type Container struct {
 }
 
 func (c *Container) FromEnv(env []string) {
+	if c.Env == nil {
+		c.Env = make(map[string]string)
+	}
 	for _, e := range env {
 		if !strings.Contains(e, "=") {
 			continue
@@ -121,6 +125,8 @@ type FileMount struct {
 	Source      string
 	Destination string
 	Options     []string
+	Propagation string
+	RW          bool
 }
 
 type Volume struct {

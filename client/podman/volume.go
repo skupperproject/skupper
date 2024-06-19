@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes"
 	"github.com/skupperproject/skupper/client/generated/libpod/models"
+	"github.com/skupperproject/skupper/pkg/container"
 )
 
 func (p *PodmanRestClient) VolumeCreate(volume *container.Volume) (*container.Volume, error) {

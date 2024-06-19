@@ -1,4 +1,4 @@
-package podman
+package compat
 
 import (
 	"context"
@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-openapi/runtime"
-	"github.com/skupperproject/skupper/client/generated/libpod/client/images"
+	"github.com/skupperproject/skupper/client/generated/libpod/client/images_compat"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 
@@ -18,47 +20,63 @@ const (
 If the image is being pulled from an authenticated registry,
 make sure to log in first, using:
 
-    podman login <registry-url>
+    %s login <registry-url>
 
 In case you are using a custom authentication file, you should
 set the REGISTRY_AUTH_FILE environment variable.`
 )
 
-func (p *PodmanRestClient) ImageList() ([]*container.Image, error) {
-	cli := images.New(p.RestClient, formats)
-	param := images.NewImageListLibpodParams()
-	param.All = boolTrue()
-	res, err := cli.ImageListLibpod(param)
+type Error struct {
+	Recommendation string
+	Err            error
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s\n\nRecommendation: %s\n", e.Err, e.Recommendation)
+}
+
+func (c *CompatClient) ImageList() ([]*container.Image, error) {
+	cli := images_compat.New(c.RestClient, formats)
+	params := images_compat.NewImageListParams()
+	params.All = boolTrue()
+	res, err := cli.ImageList(params)
 	if err != nil {
-		return nil, fmt.Errorf("error listing images: %v", err)
+		return nil, fmt.Errorf("error listing images: %v", ToAPIError(err))
 	}
 	var imgs []*container.Image
 	for _, img := range res.Payload {
 		for _, imgName := range img.RepoTags {
-			// for _, imgName := range img.Names {
-			imgs = append(imgs, &container.Image{
-				Id:         img.ID,
+			imageId := strings.Replace(*img.ID, "sha256:", "", 1)
+			newImg := &container.Image{
+				Id:         imageId,
 				Repository: imgName,
-				Created:    fmt.Sprint(img.Created),
-			})
+				Created:    time.Unix(*img.Created, 0).UTC().Format(time.RFC3339),
+			}
+			if len(img.RepoDigests) > 0 {
+				newImg.Digest = img.RepoDigests[len(img.RepoDigests)-1]
+			}
+			imgs = append(imgs, newImg)
+
 		}
 	}
 	return imgs, nil
 }
 
-func (p *PodmanRestClient) ImageInspect(id string) (*container.Image, error) {
-	cli := images.New(p.RestClient, formats)
-	param := images.NewImageInspectLibpodParams()
-	param.Name = id
-	res, err := cli.ImageInspectLibpod(param)
+func (c *CompatClient) ImageInspect(id string) (*container.Image, error) {
+	cli := images_compat.New(c.RestClient, formats)
+	params := images_compat.NewImageInspectParams()
+	params.Name = id
+	res, err := cli.ImageInspect(params)
 	if err != nil {
-		return nil, fmt.Errorf("error inspecting image %s: %v", id, err)
+		return nil, fmt.Errorf("error inspecting image %s: %v", id, ToAPIError(err))
 	}
 	img := &container.Image{
-		Id:         res.Payload.ID,
+		Id:         strings.Replace(res.Payload.ID, "sha256:", "", 1),
 		Repository: res.Payload.RepoTags[0],
-		Digest:     string(res.Payload.Digest),
-		Created:    res.Payload.Created.String(),
+		Created:    res.Payload.Created,
+	}
+	if len(res.Payload.RepoDigests) > 0 {
+		img.Digest = res.Payload.RepoDigests[len(res.Payload.RepoDigests)-1]
 	}
 	if !strings.HasPrefix(img.Id, id) {
 		for _, name := range res.Payload.RepoTags {
@@ -68,28 +86,23 @@ func (p *PodmanRestClient) ImageInspect(id string) (*container.Image, error) {
 			}
 		}
 	}
-
 	return img, nil
 }
 
-func (p *PodmanRestClient) ImagePull(ctx context.Context, id string) error {
-	params := images.NewImagePullLibpodParams()
-	params.Reference = &id
-	params.TLSVerify = new(bool)
-	params.AllTags = new(bool)
-	params.Quiet = new(bool)
-	params.Arch = stringP("")
-	params.OS = stringP("")
-	params.Variant = stringP("")
-	params.Policy = stringP("always")
-	params.XRegistryAuth = getXRegistryAuth(id)
+func (c *CompatClient) ImagePull(ctx context.Context, id string) error {
+	params := images_compat.NewImageCreateParams()
+	imgTag := toImageTag(id)
+	params.FromImage = stringP(imgTag.Image)
+	params.Tag = stringP(imgTag.Tag)
+	params.XRegistryAuth = c.getXRegistryAuth(id)
+	params.Context = ctx
 
 	// Need to do that as the default response reader is being closed too soon
 	reader := &responseReaderJSONErrorBody{}
 	op := &runtime.ClientOperation{
-		ID:                 "ImagePullLibpod",
+		ID:                 "ImageCreate",
 		Method:             "POST",
-		PathPattern:        "/libpod/images/pull",
+		PathPattern:        "/images/create",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json", "application/x-tar"},
 		Schemes:            []string{"http", "https"},
@@ -98,11 +111,11 @@ func (p *PodmanRestClient) ImagePull(ctx context.Context, id string) error {
 		Context:            ctx,
 		Client:             params.HTTPClient,
 	}
-	res, err := p.RestClient.Submit(op)
+	res, err := c.RestClient.Submit(op)
 	if err != nil {
 		return &Error{
 			Err:            fmt.Errorf("error pulling image %s: %v", id, err),
-			Recommendation: imagePullRecommendation,
+			Recommendation: fmt.Sprintf(imagePullRecommendation, c.engine),
 		}
 	}
 	// eventually err is nil but auth problems are reported as json after a string msg
@@ -118,7 +131,7 @@ func (p *PodmanRestClient) ImagePull(ctx context.Context, id string) error {
 			if errMsg, ok := jsonRes["error"]; ok && errMsg != "" {
 				return &Error{
 					Err:            fmt.Errorf("unable to pull image %s: %v", id, errMsg),
-					Recommendation: imagePullRecommendation,
+					Recommendation: fmt.Sprintf(imagePullRecommendation, c.engine),
 				}
 			}
 		}
@@ -126,11 +139,48 @@ func (p *PodmanRestClient) ImagePull(ctx context.Context, id string) error {
 	return nil
 }
 
-func getXRegistryAuth(image string) *string {
+type imageTag struct {
+	Image string
+	Tag   string
+}
+
+func toImageTag(imageName string) imageTag {
+	repositorySplit := strings.Split(imageName, "/")
+	hostPath := strings.Join(repositorySplit[:len(repositorySplit)-1], "/")
+	repository := repositorySplit[len(repositorySplit)-1]
+	sep := ":"
+	if strings.Contains(repository, "@sha256:") {
+		sep = "@"
+	}
+	nameTag := strings.Split(repository, sep)
+	tag := "latest"
+	if len(nameTag) == 2 {
+		tag = nameTag[1]
+	}
+	repositoryName := nameTag[0]
+	if len(hostPath) > 0 {
+		repositoryName = strings.Join([]string{hostPath, repositoryName}, "/")
+	}
+	return imageTag{
+		Image: repositoryName,
+		Tag:   tag,
+	}
+}
+
+func (c *CompatClient) getXRegistryAuth(image string) *string {
 	authFile := os.Getenv("REGISTRY_AUTH_FILE")
 	// use the default
 	if authFile == "" {
-		return nil
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil
+		}
+		defaultAuthFile := filepath.Join(homeDir, ".docker", "config.json")
+		info, err := os.Stat(defaultAuthFile)
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		authFile = defaultAuthFile
 	}
 	data, err := os.ReadFile(authFile)
 	if err != nil {
@@ -167,10 +217,18 @@ func getXRegistryAuth(image string) *string {
 				if len(credentials) != 2 {
 					return nil
 				}
-				registryAuthMap := map[string]map[string]string{}
-				registryAuthMap[imageServer] = map[string]string{
-					"username": credentials[0],
-					"password": credentials[1],
+				registryAuthMap := map[string]interface{}{}
+				if c.engine == "podman" {
+					registryAuthMap[imageServer] = map[string]string{
+						"username": credentials[0],
+						"password": credentials[1],
+					}
+				} else {
+					registryAuthMap = map[string]interface{}{
+						"username":      credentials[0],
+						"password":      credentials[1],
+						"serveraddress": imageServer,
+					}
 				}
 				registryAuthMapJson, _ := json.Marshal(registryAuthMap)
 				registryAuthMapB64 := base64.StdEncoding.EncodeToString(registryAuthMapJson)
@@ -179,13 +237,4 @@ func getXRegistryAuth(image string) *string {
 		}
 	}
 	return nil
-}
-
-type Error struct {
-	Recommendation string
-	Err            error
-}
-
-func (e *Error) Error() string {
-	return fmt.Sprintf("%s\n\nRecommendation: %s\n", e.Err, e.Recommendation)
 }

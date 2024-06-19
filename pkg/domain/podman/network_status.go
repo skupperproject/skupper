@@ -7,8 +7,8 @@ import (
 
 	"github.com/rogpeppe/go-internal/lockedfile"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/podman"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/network"
 )
 

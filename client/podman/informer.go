@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/skupperproject/skupper/client/container"
+	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 )

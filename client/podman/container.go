@@ -11,10 +11,10 @@ import (
 	"github.com/go-openapi/runtime"
 	runtimeclient "github.com/go-openapi/runtime/client"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/containers"
 	"github.com/skupperproject/skupper/client/generated/libpod/client/exec"
 	"github.com/skupperproject/skupper/client/generated/libpod/models"
+	"github.com/skupperproject/skupper/pkg/container"
 )
 
 func (p *PodmanRestClient) ContainerList() ([]*container.Container, error) {

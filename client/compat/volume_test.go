@@ -1,4 +1,4 @@
-package podman
+package compat
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 func TestVolume(t *testing.T) {
 	var err error
 	ctx, cancel := context.WithCancel(context.Background())
-	cli, wg := NewClientOrSkip(t, ctx)
+	cli, wg := NewClientOrSkip(t, "", ctx)
 	defer wg.Wait()
 	defer cancel()
 
