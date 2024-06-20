@@ -95,6 +95,8 @@ type Status struct {
 	StatusMessage string `json:"status,omitempty"`
 }
 
+const STATUS_OK = "OK"
+
 type SiteStatus struct {
 	Status            `json:",inline"`
 	Endpoints         []Endpoint   `json:"endpoints,omitempty"`

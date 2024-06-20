@@ -183,7 +183,7 @@ func (m *CertificateManagerImpl) secretDeleted(key string) error {
 
 func (m *CertificateManagerImpl) updateStatus(certificate *skupperv1alpha1.Certificate, err error) error {
 	if err == nil {
-		certificate.Status.Status = "Ok"
+		certificate.Status.Status = skupperv1alpha1.STATUS_OK
 	} else {
 		certificate.Status.Status = err.Error()
 	}

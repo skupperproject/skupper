@@ -126,8 +126,8 @@ func (g *Grants) recheckUrl() {
 		if changed, message := g.checkUrl(key, grant); changed {
 			if message != "" {
 				grant.Status.Status = message
-			} else if grant.Status.Status != "Ok" {
-				grant.Status.Status = "Ok"
+			} else if grant.Status.Status != skupperv1alpha1.STATUS_OK {
+				grant.Status.Status = skupperv1alpha1.STATUS_OK
 			}
 			if err := g.updateGrantStatus(grant); err != nil {
 				log.Printf("Error updating grant %s after setting url: %s", key, err)
@@ -224,8 +224,8 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.AccessGrant) erro
 	if len(status) != 0 {
 		grant.Status.Status = strings.Join(status, ", ")
 		changed = true
-	} else if grant.Status.Status != "Ok" {
-		grant.Status.Status = "Ok"
+	} else if grant.Status.Status != skupperv1alpha1.STATUS_OK {
+		grant.Status.Status = skupperv1alpha1.STATUS_OK
 		changed = true
 	}
 
