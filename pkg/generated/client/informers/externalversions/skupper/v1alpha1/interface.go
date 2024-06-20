@@ -28,6 +28,10 @@ type Interface interface {
 	AccessGrants() AccessGrantInformer
 	// AccessTokens returns a AccessTokenInformer.
 	AccessTokens() AccessTokenInformer
+	// AttachedConnectors returns a AttachedConnectorInformer.
+	AttachedConnectors() AttachedConnectorInformer
+	// AttachedConnectorAnchors returns a AttachedConnectorAnchorInformer.
+	AttachedConnectorAnchors() AttachedConnectorAnchorInformer
 	// Certificates returns a CertificateInformer.
 	Certificates() CertificateInformer
 	// Connectors returns a ConnectorInformer.
@@ -65,6 +69,16 @@ func (v *version) AccessGrants() AccessGrantInformer {
 // AccessTokens returns a AccessTokenInformer.
 func (v *version) AccessTokens() AccessTokenInformer {
 	return &accessTokenInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// AttachedConnectors returns a AttachedConnectorInformer.
+func (v *version) AttachedConnectors() AttachedConnectorInformer {
+	return &attachedConnectorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// AttachedConnectorAnchors returns a AttachedConnectorAnchorInformer.
+func (v *version) AttachedConnectorAnchors() AttachedConnectorAnchorInformer {
+	return &attachedConnectorAnchorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Certificates returns a CertificateInformer.

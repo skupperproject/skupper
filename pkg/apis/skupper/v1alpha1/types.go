@@ -865,3 +865,141 @@ type RouterAccessStatus struct {
 	Status    `json:",inline"`
 	Endpoints []Endpoint `json:"endpoints,omitempty"`
 }
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type AttachedConnector struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          AttachedConnectorSpec   `json:"spec,omitempty"`
+	Status        AttachedConnectorStatus `json:"status,omitempty"`
+}
+
+type AttachedConnectorStatus struct {
+	Status       `json:",inline"`
+	SelectedPods []PodDetails `json:"selectedPods,omitempty"`
+}
+
+func (c *AttachedConnector) SetConfigured(err error) bool {
+	if c.Status.SetCondition(CONDITION_TYPE_CONFIGURED, err, c.ObjectMeta.Generation) {
+		c.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (c *AttachedConnector) setReady(err error) bool {
+	if err != nil {
+		c.Status.StatusMessage = err.Error()
+		return c.Status.SetCondition(CONDITION_TYPE_READY, err, c.ObjectMeta.Generation)
+	} else if c.isReady() {
+		c.Status.StatusMessage = STATUS_OK
+		return c.Status.SetCondition(CONDITION_TYPE_READY, nil, c.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (c *AttachedConnector) isReady() bool {
+	return meta.IsStatusConditionTrue(c.Status.Conditions, CONDITION_TYPE_CONFIGURED)
+}
+
+func (c *AttachedConnector) SetSelectedPods(pods []PodDetails) bool {
+	if !reflect.DeepEqual(pods, c.Status.SelectedPods) {
+		c.Status.SelectedPods = pods
+		return true
+	}
+	return false
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AttachedConnectorList contains a List of AttachedConnector instances
+type AttachedConnectorList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []AttachedConnector `json:"items"`
+}
+
+type AttachedConnectorSpec struct {
+	SiteNamespace   string `json:"siteNamespace"`
+	Selector        string `json:"selector,omitempty"`
+	Port            int    `json:"port"`
+	TlsCredentials  string `json:"tlsCredentials,omitempty"`
+	Type            string `json:"type,omitempty"`
+	IncludeNotReady bool   `json:"includeNotReady,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type AttachedConnectorAnchor struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          AttachedConnectorAnchorSpec   `json:"spec,omitempty"`
+	Status        AttachedConnectorAnchorStatus `json:"status,omitempty"`
+}
+
+type AttachedConnectorAnchorStatus struct {
+	Status                `json:",inline"`
+	MatchingListenerCount int `json:"matchingListenerCount,omitempty"`
+}
+
+func (c *AttachedConnectorAnchor) SetConfigured(err error) bool {
+	if c.Status.SetCondition(CONDITION_TYPE_CONFIGURED, err, c.ObjectMeta.Generation) {
+		c.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (c *AttachedConnectorAnchor) setReady(err error) bool {
+	if err != nil {
+		c.Status.StatusMessage = err.Error()
+		return c.Status.SetCondition(CONDITION_TYPE_READY, err, c.ObjectMeta.Generation)
+	} else if c.isReady() {
+		c.Status.StatusMessage = STATUS_OK
+		return c.Status.SetCondition(CONDITION_TYPE_READY, nil, c.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (c *AttachedConnectorAnchor) setMatched() bool {
+	var err error
+	if c.Status.MatchingListenerCount == 0 {
+		err = fmt.Errorf("No matching listeners")
+	}
+	if c.Status.SetCondition(CONDITION_TYPE_MATCHED, err, c.ObjectMeta.Generation) {
+		c.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (c *AttachedConnectorAnchor) SetMatchingListenerCount(count int) bool {
+	if c.Status.MatchingListenerCount != count || c.Status.MatchingListenerCount == 0 {
+		c.Status.MatchingListenerCount = count
+		c.setMatched()
+		return true
+	}
+	return false
+}
+
+func (c *AttachedConnectorAnchor) isReady() bool {
+	return meta.IsStatusConditionTrue(c.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
+		meta.IsStatusConditionTrue(c.Status.Conditions, CONDITION_TYPE_MATCHED)
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AttachedConnectorAnchorList contains a List of AttachedConnectorAnchor instances
+type AttachedConnectorAnchorList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []AttachedConnectorAnchor `json:"items"`
+}
+
+type AttachedConnectorAnchorSpec struct {
+	ConnectorNamespace string `json:"connectorNamespace"`
+	RoutingKey         string `json:"routingKey"`
+}

@@ -22,6 +22,10 @@ type AccessGrantExpansion interface{}
 
 type AccessTokenExpansion interface{}
 
+type AttachedConnectorExpansion interface{}
+
+type AttachedConnectorAnchorExpansion interface{}
+
 type CertificateExpansion interface{}
 
 type ConnectorExpansion interface{}
