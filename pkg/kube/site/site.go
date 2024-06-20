@@ -580,7 +580,7 @@ func (s *Site) updateConnectorStatus(connector *skupperv1alpha1.Connector, err e
 	}
 	if err == nil {
 		connector.Status.Active = true
-		connector.Status.StatusMessage = "Ok"
+		connector.Status.StatusMessage = skupperv1alpha1.STATUS_OK
 	} else {
 		connector.Status.Active = false
 		connector.Status.StatusMessage = err.Error()
@@ -613,7 +613,7 @@ func (s *Site) updateListenerStatus(listener *skupperv1alpha1.Listener, err erro
 	}
 	if err == nil {
 		listener.Status.Active = true
-		listener.Status.StatusMessage = "Ok"
+		listener.Status.StatusMessage = skupperv1alpha1.STATUS_OK
 	} else {
 		listener.Status.Active = false
 		listener.Status.StatusMessage = err.Error()
@@ -696,7 +696,7 @@ func (s *Site) updateLinkStatus(link *skupperv1alpha1.Link, err error) error {
 	}
 	if err == nil {
 		link.Status.Configured = true
-		link.Status.StatusMessage = "Ok"
+		link.Status.StatusMessage = skupperv1alpha1.STATUS_OK
 	} else {
 		link.Status.Configured = false
 		link.Status.StatusMessage = err.Error()
@@ -719,7 +719,7 @@ func (s *Site) updateStatus() error {
 	log.Printf("Updating site status for %s", s.namespace)
 	s.site.Status.Active = true
 	s.site.Status.Endpoints = s.endpoints()
-	s.site.Status.StatusMessage = "OK"
+	s.site.Status.StatusMessage = skupperv1alpha1.STATUS_OK
 	s.site.Status.DefaultIssuer = s.defaultIssuer()
 	updated, err := s.controller.GetSkupperClient().SkupperV1alpha1().Sites(s.site.ObjectMeta.Namespace).UpdateStatus(context.TODO(), s.site, metav1.UpdateOptions{})
 	if err != nil {
@@ -787,7 +787,7 @@ func (s *Site) CheckSecuredAccess(sa *skupperv1alpha1.SecuredAccess) {
 	}
 	la.Status.Active = len(la.Status.Endpoints) > 0
 	if la.Status.Active {
-		la.Status.StatusMessage = "OK"
+		la.Status.StatusMessage = skupperv1alpha1.STATUS_OK
 	}
 	s.updateRouterAccessStatus(la)
 }

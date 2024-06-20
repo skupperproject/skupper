@@ -78,7 +78,7 @@ func RedeemAccessToken(claim *skupperv1alpha1.AccessToken, site *skupperv1alpha1
 func updateAccessTokenStatus(claim *skupperv1alpha1.AccessToken, err error, clients kube.Clients) error {
 	if err == nil {
 		log.Printf("Redeemed claim %s/%s successfully", claim.Namespace, claim.Name)
-		claim.Status.Status = "Ok"
+		claim.Status.Status = skupperv1alpha1.STATUS_OK
 		claim.Status.Redeemed = true
 	} else {
 		log.Printf("Error processing claim %s/%s: %s", claim.Namespace, claim.Name, err)
