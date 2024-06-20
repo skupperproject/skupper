@@ -140,7 +140,7 @@ generate-manifest: build-manifest
 	./manifest
 
 generate-doc: build-doc-generator
-	./generate-doc
+	./generate-doc ./doc/cli
 
 release/s390x/skupper: cmd/skupper/skupper.go
 	GOOS=linux GOARCH=s390x go build -ldflags="${LDFLAGS}" -o release/s390x/skupper ./cmd/skupper
