@@ -202,7 +202,7 @@ func (cmd *CmdSiteCreate) WaitUntilReady() error {
 		return nil
 	}
 
-	err := utils.NewSpinner("Waiting for site...", 5, func() error {
+	err := utils.NewSpinner("Waiting for status...", 5, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 		if err != nil {
