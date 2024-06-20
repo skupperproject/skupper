@@ -16,6 +16,7 @@ func main() {
 	path, err := checkArgs(os.Args[1:])
 	if err != nil {
 		fmt.Printf("%s\n\nUsage: generate-doc ./docsoutput\n", err)
+		os.Exit(1)
 	}
 	utils.HandleError(doc.GenMarkdownTree(root.NewSkupperRootCommand(), path))
 
