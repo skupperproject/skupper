@@ -123,6 +123,10 @@ rules:
   - listeners/status
   - connectors
   - connectors/status
+  - attachedconnectors
+  - attachedconnectors/status
+  - attachedconnectoranchors
+  - attachedconnectoranchors/status
   - routeraccesses
   - routeraccesses/status
   - securedaccesses
@@ -178,7 +182,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: controller
-        image: quay.io/gordons/controller:v2-status
+        image: quay.io/gordons/controller:v2-attached-connector
         imagePullPolicy: Always
         env:
         - name: SKUPPER_ENABLE_GRANTS

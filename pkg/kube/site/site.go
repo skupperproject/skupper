@@ -31,7 +31,7 @@ type Site struct {
 	name        string
 	namespace   string
 	controller  *kube.Controller
-	bindings    *site.Bindings
+	bindings    *ExtendedBindings
 	links       map[string]*site.Link
 	errors      map[string]string
 	linkAccess  site.RouterAccessMap
@@ -43,7 +43,7 @@ type Site struct {
 
 func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access securedaccess.Factory) *Site {
 	return &Site{
-		bindings:   site.NewBindings(),
+		bindings:   NewExtendedBindings(controller),
 		namespace:  namespace,
 		controller: controller,
 		links:      map[string]*site.Link{},
@@ -107,6 +107,7 @@ func (s *Site) reconcile(siteDef *skupperv1alpha1.Site) error {
 		}
 		s.initialised = true
 		s.adaptor.init(s, routerConfig)
+		s.bindings.SetSite(s)
 		s.bindings.SetBindingEventHandler(&s.adaptor)
 		s.bindings.SetConnectorConfiguration(s.adaptor.updateBridgeConfigForConnector)
 		s.bindings.SetListenerConfiguration(s.adaptor.updateBridgeConfigForListener)
@@ -420,11 +421,18 @@ func (s *Site) Select(connector *skupperv1alpha1.Connector) TargetSelection {
 		namespace:       s.namespace,
 		includeNotReady: includeNotReady,
 	}
-	log.Printf("Watching pods matching %s in %s for %s", selector, s.namespace, name)
-	handler.watcher = s.controller.WatchPods(selector, s.namespace, handler.handle)
-	handler.watcher.Start(handler.stopCh)
-
+	handler.watcher = s.WatchPods(handler, s.namespace)
 	return handler
+}
+
+func (s *Site) WatchPods(context PodWatchingContext, namespace string) *PodWatcher {
+	w := &PodWatcher{
+		stopCh:  make(chan struct{}),
+		context: context,
+	}
+	w.watcher = s.controller.WatchPods(context.Selector(), namespace, w.handle)
+	w.watcher.Start(w.stopCh)
+	return w
 }
 
 func (s *Site) Expose(exposed *ExposedPortSet) {
@@ -776,6 +784,8 @@ func (s *Site) NetworkStatusUpdated(network []skupperv1alpha1.SiteRecord) error 
 
 	bindingStatus := newBindingStatus(s.controller, network)
 	s.bindings.Map(bindingStatus.updateMatchingListenerCount, bindingStatus.updateMatchingConnectorCount)
+	log.Printf("Updating matching listeners for attached connectors")
+	s.bindings.MapOverAttachedConnectors(bindingStatus.updateMatchingListenerCountForAttachedConnector)
 	return bindingStatus.error()
 }
 
@@ -923,6 +933,18 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv1alpha1.RouterAccess) 
 		}
 	}
 	return s.updateResolved()
+}
+
+func (s *Site) CheckAttachedConnectorAnchor(namespace string, name string, anchor *skupperv1alpha1.AttachedConnectorAnchor) error {
+	return s.bindings.checkAttachedConnectorAnchor(namespace, name, anchor)
+}
+
+func (s *Site) AttachedConnectorUpdated(connector *skupperv1alpha1.AttachedConnector) error {
+	return s.bindings.attachedConnectorUpdated(connector.Name, connector)
+}
+
+func (s *Site) AttachedConnectorDeleted(namespace string, name string) error {
+	return s.bindings.attachedConnectorDeleted(name, namespace)
 }
 
 func (s *Site) GetSite() *skupperv1alpha1.Site {

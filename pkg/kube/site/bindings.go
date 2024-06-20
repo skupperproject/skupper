@@ -125,7 +125,7 @@ type TargetSelection interface {
 }
 
 type TargetSelectionImpl struct {
-	watcher         *kube.PodWatcher
+	watcher         *PodWatcher
 	stopCh          chan struct{}
 	site            *Site
 	selector        string
@@ -139,34 +139,23 @@ func (w *TargetSelectionImpl) Selector() string {
 }
 
 func (w *TargetSelectionImpl) Close() {
+	//w.watcher.Close()
 	close(w.stopCh)
 }
 
-func (w *TargetSelectionImpl) List() []skupperv1alpha1.PodDetails {
-	pods := w.watcher.List()
-	var targets []skupperv1alpha1.PodDetails
-
-	for _, pod := range pods {
-		if kube.IsPodReady(pod) || w.includeNotReady {
-			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
-				log.Printf("Pod %s selected for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
-				targets = append(targets, skupperv1alpha1.PodDetails{
-					UID:  string(pod.UID),
-					Name: pod.Name,
-					IP:   pod.Status.PodIP,
-				})
-			} else {
-				log.Printf("Pod %s not running for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
-			}
-		} else {
-			log.Printf("Pod %s not ready for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
-		}
-	}
-	return targets
-
+func (w *TargetSelectionImpl) IncludeNotReady() bool {
+	return w.includeNotReady
 }
 
-func (w *TargetSelectionImpl) handle(key string, pod *corev1.Pod) error {
+func (w *TargetSelectionImpl) Id() string {
+	return fmt.Sprintf("Connector %s/%s", w.name, w.namespace)
+}
+
+func (w *TargetSelectionImpl) List() []skupperv1alpha1.PodDetails {
+	return w.watcher.pods()
+}
+
+func (w *TargetSelectionImpl) Updated(pods []skupperv1alpha1.PodDetails) error {
 	err := w.site.updateRouterConfigForGroups(w.site.bindings)
 	connector := w.site.bindings.GetConnector(w.name)
 	if connector == nil {
@@ -175,5 +164,53 @@ func (w *TargetSelectionImpl) handle(key string, pod *corev1.Pod) error {
 	if err != nil {
 		return w.site.updateConnectorConfiguredStatus(connector, err)
 	}
-	return w.site.updateConnectorConfiguredStatusWithSelectedPods(connector, w.List())
+	if len(pods) == 0 {
+		log.Printf("No pods available for %s", w.Id())
+		return w.site.updateConnectorConfiguredStatus(connector, fmt.Errorf("No matches for selector"))
+	}
+	log.Printf("Pods are available for %s", w.Id())
+	return w.site.updateConnectorConfiguredStatus(connector, nil)
+}
+
+type PodWatchingContext interface {
+	Selector() string
+	IncludeNotReady() bool
+	Id() string
+	Updated(pods []skupperv1alpha1.PodDetails) error
+}
+
+type PodWatcher struct {
+	watcher *kube.PodWatcher
+	stopCh  chan struct{}
+	context PodWatchingContext
+}
+
+func (w *PodWatcher) pods() []skupperv1alpha1.PodDetails {
+	var targets []skupperv1alpha1.PodDetails
+	for _, pod := range w.watcher.List() {
+		if kube.IsPodReady(pod) || w.context.IncludeNotReady() {
+			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
+				log.Printf("Pod %s selected for connector %s", pod.ObjectMeta.Name, w.context.Id())
+				targets = append(targets, skupperv1alpha1.PodDetails{
+					UID:  string(pod.UID),
+					Name: pod.Name,
+					IP:   pod.Status.PodIP,
+				})
+			} else {
+				log.Printf("Pod %s not running for connector %s", pod.ObjectMeta.Name, w.context.Id())
+			}
+		} else {
+			log.Printf("Pod %s not ready for connector %s", pod.ObjectMeta.Name, w.context.Id())
+		}
+	}
+	return targets
+
+}
+
+func (w *PodWatcher) handle(key string, pod *corev1.Pod) error {
+	return w.context.Updated(w.pods())
+}
+
+func (w *PodWatcher) Close() {
+	close(w.stopCh)
 }

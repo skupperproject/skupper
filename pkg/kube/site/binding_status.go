@@ -70,6 +70,12 @@ func (s *BindingStatus) updateMatchingConnectorCount(listener *skupperv1alpha1.L
 	return nil
 }
 
+func (s *BindingStatus) updateMatchingListenerCountForAttachedConnector(connector *AttachedConnector) {
+	if connector.anchor != nil {
+		connector.setMatchingListenerCount(len(s.listeners[connector.anchor.Spec.RoutingKey]))
+	}
+}
+
 func (s *BindingStatus) error() error {
 	if len(s.errors) > 0 {
 		return fmt.Errorf(strings.Join(s.errors, ", "))
