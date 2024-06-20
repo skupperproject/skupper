@@ -50,7 +50,7 @@ func (o *RouteAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {
 			endpoints = append(endpoints, skupperv1alpha1.Endpoint{
 				Name: port.Name,
 				Host: route.Spec.Host,
-				Port: ":443",
+				Port: "443",
 			})
 		}
 	}
