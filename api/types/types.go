@@ -329,6 +329,10 @@ func (p Platform) IsKubernetes() bool {
 	return p == "" || p == PlatformKubernetes
 }
 
+func (p Platform) IsContainerEngine() bool {
+	return p == PlatformDocker || p == PlatformPodman
+}
+
 type ConsoleAuthMode string
 
 const (

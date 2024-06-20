@@ -173,16 +173,14 @@ func fakeSiteState() *apis.SiteState {
 				Spec: v1alpha1.LinkSpec{
 					Endpoints: []v1alpha1.Endpoint{
 						{
-							Name:  "inter-router",
-							Host:  "127.0.0.1",
-							Port:  "55671",
-							Group: "", // TODO ?
+							Name: "inter-router",
+							Host: "127.0.0.1",
+							Port: "55671",
 						},
 						{
-							Name:  "edge",
-							Host:  "127.0.0.1",
-							Port:  "45671",
-							Group: "", // TODO ?
+							Name: "edge",
+							Host: "127.0.0.1",
+							Port: "45671",
 						},
 					},
 					TlsCredentials: "link-one",

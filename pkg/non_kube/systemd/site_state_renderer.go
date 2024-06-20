@@ -18,7 +18,6 @@ type SiteStateRenderer struct {
 func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	var err error
 	var validator apis.SiteStateValidator = &common.SiteStateValidator{}
-	// TODO enhance site state validator (too basic yet)
 	err = validator.Validate(loadedSiteState)
 	if err != nil {
 		return err
@@ -30,7 +29,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	if err != nil {
 		return fmt.Errorf("failed to redeem claims: %v", err)
 	}
-	// TODO Wait until we have RouterAccess type to make it right
+	// TODO verify if needed in phase 0
 	//if err = common.CreateRouterAccess(s.siteState); err != nil {
 	//	return err
 	//}
@@ -54,7 +53,6 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	if err = s.configRenderer.MarshalSiteStates(*s.loadedSiteState, *s.siteState); err != nil {
 		return err
 	}
-	// TODO Controller, collector, claims api, console have not yet been planned for systemd sites
 
 	// Create systemd service
 	if err = s.createSystemdService(); err != nil {

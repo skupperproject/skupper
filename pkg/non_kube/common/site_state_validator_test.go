@@ -44,8 +44,18 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 					break
 				}
 			}),
+			valid: true,
+		},
+		{
+			info: "invalid-link-access-tlsCredentials-bad-name",
+			siteState: customize(func(siteState *apis.SiteState) {
+				for _, la := range siteState.RouterAccesses {
+					la.Spec.TlsCredentials = "bad_name"
+					break
+				}
+			}),
 			valid:         false,
-			errorContains: "invalid router access tls credentials: empty",
+			errorContains: "invalid router access tls credentials:",
 		},
 		{
 			info: "invalid-link-access-roles-required",

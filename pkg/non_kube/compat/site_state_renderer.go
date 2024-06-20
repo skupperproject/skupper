@@ -27,13 +27,11 @@ type SiteStateRenderer struct {
 func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	var err error
 	var validator apis.SiteStateValidator = &common.SiteStateValidator{}
-	// TODO enhance site state validator (too basic yet)
 	err = validator.Validate(loadedSiteState)
 	if err != nil {
 		return err
 	}
 	s.loadedSiteState = loadedSiteState
-	// TODO define how to get container engine socket endpoint from Site CR
 	s.cli, err = compat.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
@@ -44,7 +42,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	if err != nil {
 		return fmt.Errorf("failed to redeem claims: %v", err)
 	}
-	// TODO Wait until we have RouterAccess type to make it right
+	// TODO verify if needed in phase 0
 	//if err = common.CreateRouterAccess(s.siteState); err != nil {
 	//	return err
 	//}
@@ -64,11 +62,6 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 		return err
 	}
 
-	// TODO Controller might need some more thinking still
-	//      - collector is being separated
-	//      - claim api needs to be added
-	//      - an API for interacting with CRs (OpenAPI/Rest)
-	// TODO How to get timeout setting from Site CR
 	ctx, cn := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cn()
 	if err = s.prepareContainers(); err != nil {

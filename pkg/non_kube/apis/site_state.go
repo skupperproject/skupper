@@ -56,7 +56,6 @@ func (s *SiteState) IsInterior() bool {
 }
 
 func (s *SiteState) HasRouterAccess() bool {
-	// TODO switch to RouterAccess once new type if defined
 	for _, la := range s.RouterAccesses {
 		for _, role := range la.Spec.Roles {
 			if role.Name == "normal" {
@@ -71,7 +70,6 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 	tlsCaName := fmt.Sprintf("%s-ca", name)
 	tlsServerName := fmt.Sprintf("%s-server", name)
 	tlsClientName := fmt.Sprintf("%s-client", name)
-	// TODO RouterAccess instead (once available)
 	s.RouterAccesses[name] = &v1alpha1.RouterAccess{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v1alpha1",
@@ -91,20 +89,17 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 			Issuer:         tlsCaName,
 		},
 	}
-	// TODO Validate if CA Certificate (CR) is properly described
 	s.Certificates[tlsCaName] = s.newCertificate(tlsCaName, &v1alpha1.CertificateSpec{
 		Subject: tlsCaName,
 		Hosts:   []string{"127.0.0.1", "localhost"},
 		Signing: true,
 	})
-	// TODO Validate if Server certificate looks good
 	s.Certificates[tlsServerName] = s.newCertificate(tlsServerName, &v1alpha1.CertificateSpec{
 		Subject: "127.0.0.1",
 		Hosts:   []string{"127.0.0.1", "localhost"},
 		Ca:      tlsCaName,
 		Server:  true,
 	})
-	// TODO Validate if client certificate looks good
 	s.Certificates[tlsClientName] = s.newCertificate(tlsClientName, &v1alpha1.CertificateSpec{
 		Subject: "127.0.0.1",
 		Hosts:   []string{"127.0.0.1", "localhost"},
@@ -139,13 +134,19 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 		if linkAccess.Spec.Issuer != "" {
 			linkAccessCaName = linkAccess.Spec.Issuer
 		}
-		s.Certificates[name] = s.newCertificate(name, &v1alpha1.CertificateSpec{
+		certName := name
+		if linkAccess.Spec.TlsCredentials != "" {
+			certName = linkAccess.Spec.TlsCredentials
+		} else {
+			linkAccess.Spec.TlsCredentials = name
+		}
+		s.Certificates[certName] = s.newCertificate(certName, &v1alpha1.CertificateSpec{
 			Ca:      linkAccessCaName,
 			Subject: name,
 			Hosts:   hosts,
 			Server:  true,
 		})
-		clientCertificateName := fmt.Sprintf("client-%s", name)
+		clientCertificateName := fmt.Sprintf("client-%s", certName)
 		s.Certificates[clientCertificateName] = s.newCertificate(clientCertificateName, &v1alpha1.CertificateSpec{
 			Ca:      linkAccessCaName,
 			Subject: clientCertificateName,
@@ -161,8 +162,6 @@ func (s *SiteState) CreateBridgeCertificates() {
 		Subject: caName,
 		Signing: true,
 	})
-	// TODO How can we differentiate a listener that does simple tls (CA only) vs mutual tls auth?
-	// 	    Should we introduce a "CA" field or should we inspect the content of the tlsCredential?
 	for _, listener := range s.Listeners {
 		if listener.Spec.TlsCredentials != "" {
 			s.Certificates[listener.Spec.TlsCredentials] = s.newCertificate(listener.Spec.TlsCredentials, &v1alpha1.CertificateSpec{
@@ -285,7 +284,7 @@ func MarshalSiteState(siteState SiteState, outputDirectory string) error {
 	if err = marshalMap(outputDirectory, "connectors", siteState.Connectors); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "linkAccesses", siteState.RouterAccesses); err != nil {
+	if err = marshalMap(outputDirectory, "routerAccesses", siteState.RouterAccesses); err != nil {
 		return err
 	}
 	if err = marshalMap(outputDirectory, "links", siteState.Links); err != nil {
