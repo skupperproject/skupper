@@ -9,9 +9,6 @@ import (
 	"github.com/spf13/cobra/doc"
 )
 
-const usage = `
-`
-
 func main() {
 	path, err := checkArgs(os.Args[1:])
 	if err != nil {
