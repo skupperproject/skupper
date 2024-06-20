@@ -18,7 +18,7 @@ var (
 )
 
 const (
-	rfc1123Error = `a lowercase RFC 1123 label must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')`
+	rfc1123Error = `a lowercase RFC 1123 name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')`
 )
 
 type SiteStateValidator struct {
@@ -68,8 +68,10 @@ func (s *SiteStateValidator) validateRouterAccesses(routerAccesses map[string]*v
 		if err := ValidateName(routerAccess.Name); err != nil {
 			return fmt.Errorf("invalid router access name: %w", err)
 		}
-		if routerAccess.Spec.TlsCredentials == "" {
-			return fmt.Errorf("invalid router access tls credentials: empty")
+		if routerAccess.Spec.TlsCredentials != "" {
+			if err := ValidateName(routerAccess.Spec.TlsCredentials); err != nil {
+				return fmt.Errorf("invalid router access tls credentials: %w", err)
+			}
 		}
 		if len(routerAccess.Spec.Roles) == 0 {
 			return fmt.Errorf("invalid router access: roles are required")
@@ -130,9 +132,6 @@ func (s *SiteStateValidator) validateListeners(listeners map[string]*v1alpha1.Li
 		if listener.Spec.Host == "" || listener.Spec.Port == 0 {
 			return fmt.Errorf("host and port are required")
 		}
-		// TODO allow host field to expose a name (not an ip)
-		//      this is related to iptables/proxy container and will also
-		//      require a container network to be provided
 		if ip := net.ParseIP(listener.Spec.Host); ip == nil {
 			return fmt.Errorf("invalid listener host: %s - a valid IP address is expected", listener.Spec.Host)
 		}
@@ -153,9 +152,6 @@ func (s *SiteStateValidator) validateConnectors(connectors map[string]*v1alpha1.
 		if connector.Spec.Host == "" || connector.Spec.Port == 0 {
 			return fmt.Errorf("connector host and port are required")
 		}
-		// TODO evaluate allowing a host field to expose a container by name
-		//      this is related to the iptables/proxy container and will also
-		//      require a container network to be provided somehow
 		ip := net.ParseIP(connector.Spec.Host)
 		validHostname := hostnameRfc1123Regex.MatchString(connector.Spec.Host)
 		if ip == nil && !validHostname {

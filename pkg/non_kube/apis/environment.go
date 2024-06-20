@@ -5,7 +5,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/prometheus/procfs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 )
 
@@ -46,31 +45,15 @@ func GetRuntimeDir() string {
 	return runtimeDir
 }
 
-// GetHostDataHome returns the root of the /output mount point
-// or the value of the OUTPUT_PATH environment variable when
-// running via container or the result of GetDataHome() otherwise.
+// GetHostDataHome returns the value of the OUTPUT_PATH environment
+// variable when running via container or the result of GetDataHome() otherwise.
 // This is only useful during the bootstrap process.
 func GetHostDataHome() (string, error) {
 	// If container provides OUTPUT_PATH use it
 	if os.Getenv("OUTPUT_PATH") != "" {
 		return os.Getenv("OUTPUT_PATH"), nil
 	}
-	if IsRunningInContainer() {
-		mounts, err := procfs.GetProcMounts(1)
-		if err != nil {
-			return "", fmt.Errorf("error getting mount points: %v", err)
-		}
-		// TODO today the mountinfo does not return the proper root location
-		//      when running as the root user, it shows (/root/root/...)
-		for _, mount := range mounts {
-			if mount.MountPoint == "/output" {
-				return mount.Root, nil
-			}
-		}
-		return "", fmt.Errorf("unable to determine host data home directory")
-	} else {
-		return GetDataHome(), nil
-	}
+	return GetDataHome(), nil
 }
 
 func GetHostSiteHome(site *v1alpha1.Site) (string, error) {
@@ -83,11 +66,10 @@ func GetHostSiteHome(site *v1alpha1.Site) (string, error) {
 
 func IsRunningInContainer() bool {
 	// See: https://docs.podman.io/en/latest/markdown/podman-run.1.html
-	if _, err := os.Stat("/run/.containerenv"); err == nil {
-		return true
-	}
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		return true
+	for _, file := range []string{"/run/.containerenv", "/.dockerenv"} {
+		if _, err := os.Stat(file); err == nil {
+			return true
+		}
 	}
 	return false
 }

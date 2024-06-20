@@ -20,7 +20,6 @@ require (
 	github.com/openshift/api v0.0.0-20210428205234-a8389931bee7
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47
 	github.com/prometheus/client_golang v1.14.0
-	github.com/prometheus/procfs v0.8.0
 	github.com/rogpeppe/go-internal v1.3.0
 	github.com/skupperproject/skupper-example-tcp-echo v0.0.0-20210727195922-db4a7dc7b35d
 	github.com/skupperproject/skupper-libpod/v4 v4.0.3-0
@@ -98,6 +97,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect

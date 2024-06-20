@@ -48,7 +48,7 @@ func GetStartupScripts(site *v1alpha1.Site, siteId string) (StartupScript, error
 	}
 
 	platform := config.GetPlatform()
-	if platform.IsKubernetes() {
+	if !platform.IsContainerEngine() {
 		return nil, fmt.Errorf("startup scripts can only be used with podman or docker platforms")
 	}
 	scripts.SkupperPlatform = string(platform)

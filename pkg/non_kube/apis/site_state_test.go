@@ -103,7 +103,7 @@ func TestMarshalSiteState(t *testing.T) {
 		"listeners/listener-one.yaml",
 		"listeners/listener-two.yaml",
 		"connectors/connector-one.yaml",
-		"linkAccesses/link-access-one.yaml",
+		"routerAccesses/link-access-one.yaml",
 		"links/link-one.yaml",
 		"certificates/skupper-service-ca.yaml",
 		"certificates/listener-one-credentials.yaml",
@@ -204,16 +204,14 @@ func fakeSiteState() *SiteState {
 				Spec: v1alpha1.LinkSpec{
 					Endpoints: []v1alpha1.Endpoint{
 						{
-							Name:  "inter-router",
-							Host:  "127.0.0.1",
-							Port:  "55671",
-							Group: "", // TODO What should I use here?
+							Name: "inter-router",
+							Host: "127.0.0.1",
+							Port: "55671",
 						},
 						{
-							Name:  "edge",
-							Host:  "127.0.0.1",
-							Port:  "45671",
-							Group: "", // TODO What should I use here?
+							Name: "edge",
+							Host: "127.0.0.1",
+							Port: "45671",
 						},
 					},
 					TlsCredentials: "link-one",

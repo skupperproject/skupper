@@ -1,7 +1,7 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
 CONTROLLER_PODMAN_IMAGE := quay.io/skupper/controller-podman
-BOOTSTRAP_IMAGE := quay.io/fgiorgetti/bootstrap
+BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 SITE_CONTROLLER_V2_IMAGE := quay.io/skupper/site-controller-v2
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
@@ -33,9 +33,6 @@ build-get:
 
 build-bootstrap:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o bootstrap ./cmd/bootstrap
-
-build-bootstrap-debug:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -gcflags="all=-N -l" -ldflags="${LDFLAGS}" -o bootstrap ./cmd/bootstrap
 
 build-controller:
 	go build -ldflags="${LDFLAGS}"  -o controller cmd/controller/main.go cmd/controller/controller.go

@@ -22,7 +22,7 @@ var (
 
 func main() {
 	// if -version used, report and exit
-	isVersion := flag.Bool("version", false, "Report the version of the Skupper Controller")
+	isVersion := flag.Bool("version", false, "Report the version of the Skupper bootstrap command")
 	flag.Parse()
 	if *isVersion {
 		fmt.Println(version.Version)
@@ -35,9 +35,10 @@ func main() {
 	// the /input path must be mapped to a directory containing a site
 	// definition based on CR files.
 	// It also expects the /output path to be mapped to the
-	// Host's XDG_DATA_HOME/skupper or $HOME/.local/share/skupper
+	// Host's XDG_DATA_HOME/skupper or $HOME/.local/share/skupper (non-root)
+	// and /usr/local/share/skupper (root).
 	//
-	fmt.Printf("Skupper V2 - nonkube bootstrap (version: %s)\n", version.Version)
+	fmt.Printf("Skupper nonkube bootstrap (version: %s)\n", version.Version)
 
 	var inputPath string
 	var outputPath string
@@ -48,7 +49,6 @@ func main() {
 		_ = os.Setenv(types.ENV_PLATFORM, "podman")
 	}
 	if apis.IsRunningInContainer() {
-		//
 		inputPath = "/input"
 		outputPath = "/output"
 		for _, directory := range []string{inputPath, outputPath} {

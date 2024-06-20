@@ -157,7 +157,11 @@ func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, run
 func (c *FileSystemConfigurationRenderer) createTokens(siteState *apis.SiteState) error {
 	tokens := make([]apis.Token, 0)
 	for name, linkAccess := range siteState.RouterAccesses {
-		secretName := fmt.Sprintf("client-%s", name)
+		certName := name
+		if linkAccess.Spec.TlsCredentials != "" {
+			certName = linkAccess.Spec.TlsCredentials
+		}
+		secretName := fmt.Sprintf("client-%s", certName)
 		secret, err := c.loadClientSecret(secretName)
 		if err != nil {
 			return fmt.Errorf("unable to load client secret %s: %v", secretName, err)
@@ -258,7 +262,6 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *apis.
 			}
 		}
 		if certificate.Spec.Client {
-			// TODO Verify if client certificate is generated correctly
 			purpose = "client"
 			secret = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), caSecret)
 			// TODO Not sure if connect.json is needed (probably need to get rid of it)
@@ -300,8 +303,7 @@ func (c *FileSystemConfigurationRenderer) connectJson(siteState *apis.SiteState)
 		for _, role := range la.Spec.Roles {
 			if role.Name == "normal" {
 				port = role.Port
-				// TODO adjust once model is refined
-				host = getOption(la.Spec.Options, "bindIp", "127.0.0.1")
+				host = getOption(la.Spec.Options, la.Spec.BindHost, "127.0.0.1")
 			}
 		}
 		if port > 0 {
@@ -311,7 +313,6 @@ func (c *FileSystemConfigurationRenderer) connectJson(siteState *apis.SiteState)
 	if port == 0 {
 		return nil
 	}
-	// TODO not sure if it will be needed, but just in case we are using 127.0.0.1 as the target host
 	content := `
 {
     "scheme": "amqps",

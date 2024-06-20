@@ -1,6 +1,6 @@
 set -Ceu
 
-IMAGE="quay.io/fgiorgetti/bootstrap"
+IMAGE="quay.io/skupper/bootstrap"
 INPUT_PATH="${1:-${PWD}}"
 OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
