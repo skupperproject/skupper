@@ -461,6 +461,8 @@ func asRole(name string) Role {
 func GetRole(name string) Role {
 	if name == "edge" {
 		return RoleEdge
+	} else if name == "normal" {
+		return RoleNormal
 	}
 	return RoleInterRouter
 }
