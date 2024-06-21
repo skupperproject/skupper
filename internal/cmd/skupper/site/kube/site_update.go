@@ -193,8 +193,8 @@ func (cmd *CmdSiteUpdate) Run() error {
 
 	resource := v1alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
-			Kind:       "Site",
+			APIVersion: currentSite.APIVersion,
+			Kind:       currentSite.Kind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              currentSite.Name,
