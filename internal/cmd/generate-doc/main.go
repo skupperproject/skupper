@@ -21,7 +21,7 @@ func main() {
 
 func checkArgs(args []string) (path string, err error) {
 	if len(args) != 1 {
-		return path, fmt.Errorf("exepcted single argument")
+		return path, fmt.Errorf("expected single argument")
 	}
 	path = args[0]
 	info, err := os.Stat(path)
