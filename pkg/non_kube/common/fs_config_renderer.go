@@ -157,6 +157,11 @@ func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, run
 func (c *FileSystemConfigurationRenderer) createTokens(siteState *apis.SiteState) error {
 	tokens := make([]apis.Token, 0)
 	for name, linkAccess := range siteState.RouterAccesses {
+		noInterRouterRole := linkAccess.FindRole("inter-router") == nil
+		noEdgeRole := linkAccess.FindRole("edge") == nil
+		if noInterRouterRole && noEdgeRole {
+			continue
+		}
 		certName := name
 		if linkAccess.Spec.TlsCredentials != "" {
 			certName = linkAccess.Spec.TlsCredentials

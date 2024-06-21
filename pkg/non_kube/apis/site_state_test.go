@@ -45,7 +45,7 @@ func TestSiteState_CreateBridgeCertificates(t *testing.T) {
 func TestSiteState_CreateLinkAccessesCertificates(t *testing.T) {
 	ss := fakeSiteState()
 	ss.CreateLinkAccessesCertificates()
-	assert.Assert(t, len(ss.RouterAccesses) == 1)
+	assert.Equal(t, len(ss.RouterAccesses), 2)
 	assert.Equal(t, len(ss.Certificates), 3)
 	_, hasSiteCA := ss.Certificates["skupper-site-ca"]
 	assert.Assert(t, hasSiteCA)
@@ -56,7 +56,7 @@ func TestSiteState_CreateLinkAccessesCertificates(t *testing.T) {
 }
 
 func TestSiteState_HasRouterAccess(t *testing.T) {
-	assert.Equal(t, fakeSiteState().HasRouterAccess(), false)
+	assert.Equal(t, fakeSiteState().HasRouterAccess(), true)
 }
 
 func TestSiteState_CreateRouterAccess(t *testing.T) {
@@ -68,6 +68,7 @@ func TestSiteState_CreateRouterAccess(t *testing.T) {
 	_, routerAccessFound := ss.RouterAccesses[name]
 	assert.Assert(t, routerAccessFound)
 	assert.Equal(t, len(ss.RouterAccesses), 1)
+	assert.Equal(t, ss.RouterAccesses[name].Spec.Roles[0].Name, "normal")
 	assert.Equal(t, len(ss.Certificates), 3)
 	for _, certName := range []string{"skupper-local-ca", "skupper-local-client", "skupper-local-server"} {
 		_, certFound := ss.Certificates[certName]
@@ -79,11 +80,17 @@ func TestSiteState_ToRouterConfig(t *testing.T) {
 	ss := fakeSiteState()
 	sslProfileBasePath := "${SSL_PROFILE_BASE_PATH}"
 	routerConfig := ss.ToRouterConfig(sslProfileBasePath)
-	assert.Equal(t, len(routerConfig.Listeners), 2)
+	assert.Equal(t, len(routerConfig.Listeners), 3)
+	rolesFound := map[string]bool{}
+	for _, listener := range routerConfig.Listeners {
+		rolesFound[string(listener.Role)] = true
+	}
+	assert.Equal(t, len(rolesFound), 3, "expecting normal, inter-router and edge, found: %s", rolesFound)
 	assert.Equal(t, len(routerConfig.Connectors), 1)
-	assert.Equal(t, len(routerConfig.SslProfiles), 2)
+	assert.Equal(t, len(routerConfig.SslProfiles), 3)
 	assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-access-one"].CaCertFile, sslProfileBasePath))
 	assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-one-profile"].CaCertFile, sslProfileBasePath))
+	assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["local-access-one"].CaCertFile, sslProfileBasePath))
 	assert.Equal(t, len(routerConfig.Bridges.TcpListeners), 2)
 	assert.Equal(t, len(routerConfig.Bridges.TcpConnectors), 1)
 }
@@ -188,6 +195,24 @@ func fakeSiteState() *SiteState {
 						},
 					},
 					TlsCredentials: "link-access-one",
+					BindHost:       "127.0.0.1",
+					SubjectAlternativeNames: []string{
+						"localhost",
+					},
+				},
+			},
+			"local-access-one": {
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "local-access-one",
+				},
+				Spec: v1alpha1.RouterAccessSpec{
+					Roles: []v1alpha1.RouterAccessRole{
+						{
+							Name: "normal",
+							Port: 5671,
+						},
+					},
+					TlsCredentials: "local-access-one",
 					BindHost:       "127.0.0.1",
 					SubjectAlternativeNames: []string{
 						"localhost",

@@ -43,9 +43,9 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 		return fmt.Errorf("failed to redeem claims: %v", err)
 	}
 	// TODO verify if needed in phase 0
-	//if err = common.CreateRouterAccess(s.siteState); err != nil {
-	//	return err
-	//}
+	if err = common.CreateRouterAccess(s.siteState); err != nil {
+		return err
+	}
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates

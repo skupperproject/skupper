@@ -85,6 +85,7 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 					Port: port,
 				},
 			},
+			BindHost:       "127.0.0.1",
 			TlsCredentials: tlsServerName,
 			Issuer:         tlsCaName,
 		},
