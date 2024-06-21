@@ -73,10 +73,6 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		expectedErrors []string
 	}
 
-	command := &CmdSiteUpdate{
-		Namespace: "test",
-	}
-
 	testTable := []test{
 		{
 			name: "site is updated because there is already a site in the namespace.",
@@ -193,9 +189,107 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
 			},
 		},
+		{
+			name: "output format is not valid",
+			args: []string{"my-site"},
+			setUpMock: func(command *CmdSiteUpdate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "my-site",
+									Namespace: "test",
+								},
+							},
+						},
+					}, nil
+				})
+				command.Client = fakeSkupperClient
+				command.flags = UpdateFlags{output: "not-valid"}
+			},
+			expectedErrors: []string{
+				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
+			},
+		},
+		{
+			name: "there is no skupper site",
+			args: []string{"my-site"},
+			setUpMock: func(command *CmdSiteUpdate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &v1alpha1.SiteList{}, nil
+				})
+				command.Client = fakeSkupperClient
+			},
+			expectedErrors: []string{
+				"there is no existing Skupper site resource to update",
+			},
+		},
+		{
+			name: "there are several skupper sites",
+			args: []string{},
+			setUpMock: func(command *CmdSiteUpdate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "my-site",
+									Namespace: "test",
+								},
+							},
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "another-site",
+									Namespace: "test",
+								},
+							},
+						},
+					}, nil
+				})
+				command.Client = fakeSkupperClient
+			},
+			expectedErrors: []string{
+				"there are several sites in this namespace and and it should be only one",
+			},
+		},
+		{
+			name: "the name specified in the arguments does not match with the current site",
+			args: []string{"a-site"},
+			setUpMock: func(command *CmdSiteUpdate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "my-site",
+									Namespace: "test",
+								},
+							},
+						},
+					}, nil
+				})
+				command.Client = fakeSkupperClient
+			},
+			expectedErrors: []string{
+				"site with name \"a-site\" is not available",
+			},
+		},
 	}
 
 	for _, test := range testTable {
+		command := &CmdSiteUpdate{
+			Namespace: "test",
+		}
+
 		t.Run(test.name, func(t *testing.T) {
 
 			if test.setUpMock != nil {
@@ -328,12 +422,16 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 					if site.Spec.ServiceAccount != "my-service-account" {
 						return true, nil, fmt.Errorf("unexpected value")
 					}
+					if site.Spec.LinkAccess != "default" {
+						return true, nil, fmt.Errorf("unexpected value")
+					}
 
 					return true, nil, nil
 				})
 				command.Client = fakeSkupperClient
 				command.siteName = "my-site"
 				command.serviceAccountName = "my-service-account"
+				command.linkAccessType = "default"
 				command.options = map[string]string{"name": "my-site"}
 			},
 		},
@@ -376,6 +474,19 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 				command.output = "unsupported"
 			},
 			errorMessage: "format unsupported not supported",
+		},
+		{
+			name: "run fails because the site cannot be retrieved",
+			setUpMock: func(command *CmdSiteUpdate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, nil, fmt.Errorf("error")
+				})
+				command.Client = fakeSkupperClient
+				command.siteName = "my-site"
+			},
+			errorMessage: "error",
 		},
 	}
 
@@ -444,6 +555,30 @@ func TestCmdSiteUpdate_WaitUntilReady(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.Client = fakeSkupperClient
+				command.output = "json"
+			},
+			expectError: false,
+		},
+		{
+			name: "site is updated",
+			setUpMock: func(command *CmdSiteUpdate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+
+					return true, &v1alpha1.Site{
+						ObjectMeta: v1.ObjectMeta{
+							Name:      "my-site",
+							Namespace: "test",
+						},
+						Status: v1alpha1.SiteStatus{
+							Status: v1alpha1.Status{
+								StatusMessage: "OK",
+							},
+						},
+					}, nil
+				})
+				command.Client = fakeSkupperClient
 			},
 			expectError: false,
 		},
@@ -452,7 +587,6 @@ func TestCmdSiteUpdate_WaitUntilReady(t *testing.T) {
 	for _, test := range testTable {
 		cmd := newCmdSiteUpdateWithMocks()
 		cmd.siteName = "my-site"
-		cmd.output = "json"
 		test.setUpMock(cmd)
 		t.Run(test.name, func(t *testing.T) {
 

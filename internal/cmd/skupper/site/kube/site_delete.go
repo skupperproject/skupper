@@ -58,20 +58,27 @@ func (cmd *CmdSiteDelete) AddFlags() {}
 func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
 
-	if len(args) == 0 || args[0] == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
-	} else if len(args) > 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command."))
-	} else {
+	//Validate if there is already a site defined in the namespace
+	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
 
-		//Validate if there is already a site defined in the namespace
-		site, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), args[0], metav1.GetOptions{})
-		if err != nil {
-			validationErrors = append(validationErrors, err)
-		} else if site == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("there is no site with name %q", args[0]))
-		} else {
-			cmd.siteName = args[0]
+	if err != nil {
+		validationErrors = append(validationErrors, err)
+	} else if siteList == nil || (siteList != nil && len(siteList.Items) == 0) {
+		validationErrors = append(validationErrors, fmt.Errorf("there is no existing Skupper site resource to update"))
+	} else if len(siteList.Items) > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("there are several sites in this namespace and and it should be only one"))
+	} else {
+		currentSite := siteList.Items[0]
+
+		if len(args) > 1 {
+			validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
+		} else if len(args) <= 1 {
+
+			if len(args) > 0 && currentSite.Name != args[0] {
+				validationErrors = append(validationErrors, fmt.Errorf("site with name %q is not available", args[0]))
+			} else {
+				cmd.siteName = currentSite.Name
+			}
 		}
 	}
 

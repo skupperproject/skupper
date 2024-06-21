@@ -57,6 +57,7 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 	}
 
 	skupperCmd.CobraCmd = cmd
+	skupperCmd.AddFlags()
 
 	return &skupperCmd
 }
@@ -157,20 +158,45 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 
 }
 func (cmd *CmdSiteUpdate) Run() error {
+
+	currentSite, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	updatedSettings := currentSite.Spec.Settings
+	if len(cmd.options) != 0 {
+		updatedSettings = cmd.options
+	}
+
+	updatedServiceAccount := currentSite.Spec.ServiceAccount
+	if cmd.serviceAccountName != "" {
+		updatedServiceAccount = cmd.serviceAccountName
+	}
+
+	updatedLinkAccessType := currentSite.Spec.LinkAccess
+	if cmd.linkAccessType != "" {
+		updatedLinkAccessType = cmd.linkAccessType
+	}
+
 	resource := v1alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
-			Kind:       "Site",
+			APIVersion: currentSite.APIVersion,
+			Kind:       currentSite.Kind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmd.siteName,
-			Namespace: cmd.Namespace,
+			Name:              currentSite.Name,
+			Namespace:         currentSite.Namespace,
+			CreationTimestamp: currentSite.CreationTimestamp,
+			ResourceVersion:   currentSite.ResourceVersion,
 		},
 		Spec: v1alpha1.SiteSpec{
-			Settings:       cmd.options,
-			ServiceAccount: cmd.serviceAccountName,
-			LinkAccess:     cmd.linkAccessType,
+			Settings:       updatedSettings,
+			ServiceAccount: updatedServiceAccount,
+			LinkAccess:     updatedLinkAccessType,
 		},
+		Status: currentSite.Status,
 	}
 
 	if cmd.output != "" {

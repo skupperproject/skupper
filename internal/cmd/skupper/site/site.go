@@ -19,7 +19,7 @@ skupper site get my-site`,
 	}
 
 	siteCreateCommand := kube.NewCmdSiteCreate()
-	siteGetCommand := kube.NewCmdSiteGet()
+	siteGetCommand := kube.NewCmdSiteStatus()
 	siteUpdateCommand := kube.NewCmdSiteUpdate()
 	siteDeleteCommand := kube.NewCmdSiteDelete()
 

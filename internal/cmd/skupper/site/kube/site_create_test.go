@@ -155,6 +155,19 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
 			},
 		},
+		{
+			name: "output format is not valid",
+			args: []string{"my-site"},
+			setUpMock: func(command *CmdSiteCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				command.Client = fakeSkupperClient
+				command.flags = CreateFlags{output: "not-valid"}
+			},
+			expectedErrors: []string{
+				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -406,6 +419,30 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.Client = fakeSkupperClient
+				command.output = "json"
+			},
+			expectError: false,
+		},
+		{
+			name: "site is ready",
+			setUpMock: func(command *CmdSiteCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+
+					return true, &v1alpha1.Site{
+						ObjectMeta: v1.ObjectMeta{
+							Name:      "my-site",
+							Namespace: "test",
+						},
+						Status: v1alpha1.SiteStatus{
+							Status: v1alpha1.Status{
+								StatusMessage: "OK",
+							},
+						},
+					}, nil
+				})
+				command.Client = fakeSkupperClient
 			},
 			expectError: false,
 		},
@@ -414,13 +451,15 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 	for _, test := range testTable {
 		cmd := newCmdSiteCreateWithMocks()
 		cmd.siteName = "my-site"
-		cmd.output = "json"
 		test.setUpMock(cmd)
 		t.Run(test.name, func(t *testing.T) {
 
 			err := cmd.WaitUntilReady()
-			if err != nil {
-				assert.Check(t, test.expectError)
+
+			if test.expectError {
+				assert.Check(t, err != nil)
+			} else {
+				assert.Check(t, err == nil)
 			}
 
 		})
