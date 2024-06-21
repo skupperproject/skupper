@@ -20,9 +20,6 @@ var (
 	siteCreateLong = `A site is a place where components of your application are running. 
 Sites are linked to form application networks.
 There can be only one site definition per namespace.`
-
-	linkAccessTypes = []string{"route", "loadbalancer", "default"}
-	outputTypes     = []string{"json", "yaml"}
 )
 
 type CreateFlags struct {
@@ -91,8 +88,8 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
-	linkAccessTypeValidator := validator.NewOptionValidator(linkAccessTypes)
-	outputTypeValidator := validator.NewOptionValidator(outputTypes)
+	linkAccessTypeValidator := validator.NewOptionValidator(utils.LinkAccessTypes)
+	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
 	//Validate if there is already a site defined in the namespace
 	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
