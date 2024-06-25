@@ -2,7 +2,10 @@ package kube
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -160,4 +163,29 @@ func RegenerateCredentials(credential types.Credential, namespace string, ca *co
 	regenerated := certs.GenerateSecret(credential.Name, credential.Subject, strings.Join(credential.Hosts, ","), ca)
 	current.Data = regenerated.Data
 	return cli.CoreV1().Secrets(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
+}
+
+func GenerateConsoleSessionCredentials(source io.Reader) (types.Credential, error) {
+	var (
+		key     [32]byte // key is 32 random bytes
+		keyText [44]byte // keyText is the base64 encoded key - 44 characters
+		cred    types.Credential
+	)
+	if source == nil {
+		source = rand.Reader
+	}
+	if _, err := io.ReadFull(source, key[:]); err != nil {
+		return cred, fmt.Errorf("error generating console session key: %s", err)
+	}
+	base64.URLEncoding.Encode(keyText[:], key[:])
+	return types.Credential{
+		CA:          "",
+		Name:        types.ConsoleSessionSecret,
+		Subject:     "",
+		ConnectJson: false,
+		Data: map[string][]byte{
+			"session_secret": keyText[:],
+		},
+		Post: false,
+	}, nil
 }

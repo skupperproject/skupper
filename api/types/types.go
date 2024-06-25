@@ -215,6 +215,7 @@ const (
 	SiteCaSecret             string = "skupper-site-ca"
 	ConsoleServerSecret      string = "skupper-console-certs"
 	ConsoleUsersSecret       string = "skupper-console-users"
+	ConsoleSessionSecret     string = "skupper-console-session"
 	PrometheusServerSecret   string = "skupper-prometheus-certs"
 	OauthRouterConsoleSecret string = "skupper-router-console-certs"
 	ServiceCaSecret          string = "skupper-service-ca"
