@@ -104,6 +104,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	addPrometheusServer := false
 	moveClaims := false
 	updateRole := false
+	updateOauthProxy := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
 		return false, err
@@ -121,6 +122,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			moveClaims = !config.IsEdge()
 			updateRole = true //config-sync requires extra permission to write skupper-network-status configmap
 		}
+		updateOauthProxy = utils.LessRecentThanVersion(originalVersion, "1.7.2")
 	} else {
 		originalVersion = site.Version
 	}
@@ -148,6 +150,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 				moveClaims = !config.IsEdge()
 				updateRole = true //config-sync requires extra permission to write skupper-network-status configmap
 			}
+			updateOauthProxy = utils.LessRecentThanVersion(originalVersion, "1.7.2")
 
 			err = cli.updateStarted(site.Version, namespace, configmap.ObjectMeta.OwnerReferences)
 			if err != nil {
@@ -662,6 +665,25 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			err = cli.createPrometheus(ctx, siteConfig, van)
 			if err != nil {
 				return false, err
+			}
+		}
+	}
+
+	if updateOauthProxy {
+		siteConfig, _ := cli.SiteConfigInspectInNamespace(ctx, nil, namespace)
+		if siteConfig.Spec.EnableFlowCollector &&
+			siteConfig.Spec.EnableConsole &&
+			siteConfig.Spec.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+			var owner *metav1.OwnerReference
+			if len(configmap.ObjectMeta.OwnerReferences) > 0 {
+				owner = &configmap.ObjectMeta.OwnerReferences[0]
+			}
+			changed, err := ensureOauthProxyConfig(cli, owner, controller)
+			if err != nil {
+				return false, err
+			}
+			if changed {
+				updateController = true
 			}
 		}
 	}
@@ -1472,4 +1494,79 @@ func createFlowCollectorSidecar(ctx context.Context, cli *VanClient, controller 
 	flowContainer.Name = types.FlowCollectorContainerName
 	controller.Spec.Template.Spec.Containers = append(controller.Spec.Template.Spec.Containers, flowContainer)
 	return nil
+}
+
+func ensureOauthProxyConfig(cli *VanClient, owner *metav1.OwnerReference, controller *appsv1.Deployment) (bool, error) {
+	var edited bool
+	// ensure the console session credentials are present
+	sessionCreds, err := kube.GenerateConsoleSessionCredentials(nil)
+	if err != nil {
+		return false, err
+	}
+	edited = true
+	_, err = kube.NewSecret(sessionCreds, owner, cli.Namespace, cli.KubeClient)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) { // ignore already exists errors
+			return false, fmt.Errorf("error creating skupper-console-session secret: %s", err)
+		}
+		edited = false
+	}
+
+	// ensure oauth-proxy container spec is updated
+	idx := -1
+	for i, c := range controller.Spec.Template.Spec.Containers {
+		if c.Name == "oauth-proxy" {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return edited, fmt.Errorf("error updating oauth-proxy spec: container not found")
+	}
+	desiredCtr := OauthProxyContainer(types.ControllerServiceAccountName, fmt.Sprint(types.ConsoleOpenShiftServicePort))
+	actualCtr := controller.Spec.Template.Spec.Containers[idx]
+	if !reflect.DeepEqual(actualCtr.Args, desiredCtr.Args) {
+		edited = true
+		actualCtr.Args = desiredCtr.Args
+	}
+
+	// ensure console session secret is mounted as volume
+	volIdx := -1
+	for i, v := range controller.Spec.Template.Spec.Volumes {
+		if v.Name == types.ConsoleSessionSecret {
+			volIdx = i
+			break
+		}
+	}
+	if volIdx < 0 {
+		edited = true
+		controller.Spec.Template.Spec.Volumes = append(controller.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: types.ConsoleSessionSecret,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: types.ConsoleSessionSecret,
+				},
+			},
+		})
+	}
+
+	mtIdx := -1
+	for i, m := range actualCtr.VolumeMounts {
+		if m.Name == types.ConsoleSessionSecret {
+			mtIdx = i
+			break
+		}
+	}
+	if mtIdx < 0 {
+		edited = true
+		actualCtr.VolumeMounts = append(actualCtr.VolumeMounts, corev1.VolumeMount{
+			Name:      types.ConsoleSessionSecret,
+			MountPath: "/etc/skupper-console-session/",
+		})
+	}
+
+	if edited {
+		controller.Spec.Template.Spec.Containers[idx] = actualCtr
+	}
+	return edited, nil
 }
