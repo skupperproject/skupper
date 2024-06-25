@@ -48,7 +48,7 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 			"--upstream=http://localhost:" + servicePort,
 			"--tls-cert=/etc/tls/proxy-certs/tls.crt",
 			"--tls-key=/etc/tls/proxy-certs/tls.key",
-			"--cookie-secret=SECRET",
+			"--cookie-secret-file=/etc/skupper-console-session/session_secret",
 		},
 		Ports: []corev1.ContainerPort{
 			{
@@ -287,6 +287,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_HOST", Value: "localhost"})
 			mounts = append(mounts, []corev1.VolumeMount{})
 			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.ConsoleServerSecret, "/etc/tls/proxy-certs/")
+			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.ConsoleSessionSecret, "/etc/skupper-console-session/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_USERS", Value: "/etc/console-users"})
 			kube.AppendSharedSecretVolume(&volumes, []*[]corev1.VolumeMount{&mounts[serviceController], &mounts[flowCollector]}, "skupper-console-users", "/etc/console-users/")
@@ -696,7 +697,7 @@ func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) erro
 	}
 }
 
-func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) *types.RouterSpec {
+func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) (*types.RouterSpec, error) {
 	// skupper-router container index
 	// TODO: update after dataplance changes
 	const (
@@ -985,6 +986,15 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Post:        post,
 		})
 	}
+
+	if options.EnableFlowCollector && options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+		sessionCreds, err := kube.GenerateConsoleSessionCredentials(nil)
+		if err != nil {
+			return van, fmt.Errorf("failed to generate console session credentials: %s", err)
+		}
+		credentials = append(credentials, sessionCreds)
+	}
+
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) && (options.EnableFlowCollector || options.EnableRestAPI) {
 		userData := map[string][]byte{}
 		if options.User != "" {
@@ -1132,7 +1142,64 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.Transport.Routes = routes
 
-	return van
+	return van, nil
+}
+
+func (cli *VanClient) GetRouterHostAliasesSpecFromTokens(ctx context.Context, namespace string) ([]corev1.HostAlias, error) {
+	hostAliasesMap := make(map[string]map[string]bool)
+	secrets, err := cli.KubeClient.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: types.SkupperTypeQualifier + "=" + types.TypeToken})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve connection token: %w", err)
+	}
+	if len(secrets.Items) == 0 {
+		return nil, nil
+	} else {
+		for _, s := range secrets.Items {
+			if alias, ok := s.ObjectMeta.Annotations["edge-alias"]; ok {
+				if net.ParseIP(alias) == nil {
+					log.Printf("Skipping edge-alias: %s is not a valid textual representation of an IP address\n", alias)
+				} else {
+					name := s.ObjectMeta.Annotations["edge-host"]
+					if msgs := validation.IsDNS1123Subdomain(name); len(msgs) != 0 {
+						log.Printf("Skipping edge-alias: %v\n", msgs)
+					} else {
+						if _, ok := hostAliasesMap[alias][name]; !ok {
+							hostAliasesMap[alias] = make(map[string]bool)
+							hostAliasesMap[alias][name] = true
+						}
+					}
+				}
+			}
+			if alias, ok := s.ObjectMeta.Annotations["inter-router-alias"]; ok {
+				if net.ParseIP(alias) == nil {
+					log.Printf("Skipping inter-router-alias: %s is not a valid textual representation of an IP address", alias)
+				} else {
+					name := s.ObjectMeta.Annotations["inter-router-host"]
+					if msgs := validation.IsDNS1123Subdomain(name); len(msgs) != 0 {
+						log.Printf("Skipping inter-router-alias: %v\n", msgs)
+					} else {
+						if _, ok := hostAliasesMap[alias][name]; !ok {
+							hostAliasesMap[alias] = make(map[string]bool)
+							hostAliasesMap[alias][name] = true
+						}
+					}
+				}
+			}
+		}
+	}
+	hostAliases := []corev1.HostAlias{}
+	for alias, v := range hostAliasesMap {
+		new := corev1.HostAlias{
+			IP:        alias,
+			Hostnames: []string{},
+		}
+		for hn, _ := range v {
+			new.Hostnames = append(new.Hostnames, hn)
+		}
+		hostAliases = append(hostAliases, new)
+	}
+
+	return hostAliases, nil
 }
 
 // RouterCreate instantiates a VAN (router and controller) deployment
@@ -1165,13 +1232,20 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 	if siteId == "" {
 		siteId = utils.RandomId(10)
 	}
-	van := cli.GetRouterSpecFromOpts(options.Spec, siteId)
+	van, err := cli.GetRouterSpecFromOpts(options.Spec, siteId)
+	if err != nil {
+		return err
+	}
 	siteOwnerRef := asOwnerReference(options.Reference)
 	var ownerRefs []metav1.OwnerReference
 	if siteOwnerRef != nil {
 		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 	}
-	var err error
+	hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx, cli.GetNamespace())
+	if err != nil {
+		return err
+	}
+	van.Transport.HostAliases = hostAliases
 	if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) {
 		config := `
 pwcheck_method: auxprop
