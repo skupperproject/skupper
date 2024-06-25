@@ -11,11 +11,11 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
-	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/containers"
-	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/networks"
-	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/system"
-	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/volumes"
-	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/models"
+	"github.com/fgiorgetti/skupper-libpod/client/containers"
+	"github.com/fgiorgetti/skupper-libpod/client/networks"
+	"github.com/fgiorgetti/skupper-libpod/client/system"
+	"github.com/fgiorgetti/skupper-libpod/client/volumes"
+	"github.com/fgiorgetti/skupper-libpod/models"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 

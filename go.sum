@@ -124,6 +124,8 @@ github.com/felixge/httpsnoop v1.0.3 h1:s/nj+GCswXYzN5v2DpNMuMQYe+0DDwt5WVCU6CWBd
 github.com/felixge/httpsnoop v1.0.3/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fgiorgetti/skupper-libpod v0.0.0-20240624191343-9cfbf8a38467 h1:pjkVIfHHzUp6SmPpMp+U2HvefHMjOFAAGuHXGLqRUrE=
 github.com/fgiorgetti/skupper-libpod v0.0.0-20240624191343-9cfbf8a38467/go.mod h1:7+6UeXS9kNzDcP4mEtiElMSjn40qfy+oU4W0Vkp4o1Q=
+github.com/fgiorgetti/skupper-libpod v0.0.0-20240625184520-c285c5042ac0 h1:afMbDD3KwnazkXWm+LKKQHWYegrABrpVpxua3+KWhS8=
+github.com/fgiorgetti/skupper-libpod v0.0.0-20240625184520-c285c5042ac0/go.mod h1:7+6UeXS9kNzDcP4mEtiElMSjn40qfy+oU4W0Vkp4o1Q=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible h1:TcekIExNqud5crz4xD2pavyTgWiPvpYe4Xau31I0PRk=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8vw=

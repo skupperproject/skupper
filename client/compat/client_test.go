@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/volumes_compat"
+	"github.com/fgiorgetti/skupper-libpod/client/volumes_compat"
 	"gotest.tools/assert"
 )
 

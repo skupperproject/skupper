@@ -7,7 +7,7 @@ import (
 	"regexp"
 
 	"github.com/go-openapi/runtime"
-	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/models"
+	"github.com/fgiorgetti/skupper-libpod/models"
 )
 
 // boolTrue returns a true bool pointer (for false, just use new(bool))
