@@ -48,7 +48,7 @@ func OauthProxyContainer(serviceAccount string, servicePort string) *corev1.Cont
 			"--upstream=http://localhost:" + servicePort,
 			"--tls-cert=/etc/tls/proxy-certs/tls.crt",
 			"--tls-key=/etc/tls/proxy-certs/tls.key",
-			"--cookie-secret=SECRET",
+			"--cookie-secret-file=/etc/skupper-console-session/session_secret",
 		},
 		Ports: []corev1.ContainerPort{
 			{
@@ -287,6 +287,7 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_HOST", Value: "localhost"})
 			mounts = append(mounts, []corev1.VolumeMount{})
 			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.ConsoleServerSecret, "/etc/tls/proxy-certs/")
+			kube.AppendSecretVolume(&volumes, &mounts[oauthProxy], types.ConsoleSessionSecret, "/etc/skupper-console-session/")
 		} else if options.AuthMode == string(types.ConsoleAuthModeInternal) {
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_USERS", Value: "/etc/console-users"})
 			kube.AppendSharedSecretVolume(&volumes, []*[]corev1.VolumeMount{&mounts[serviceController], &mounts[flowCollector]}, "skupper-console-users", "/etc/console-users/")
@@ -696,7 +697,7 @@ func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) erro
 	}
 }
 
-func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) *types.RouterSpec {
+func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId string) (*types.RouterSpec, error) {
 	// skupper-router container index
 	// TODO: update after dataplance changes
 	const (
@@ -985,6 +986,15 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 			Post:        post,
 		})
 	}
+
+	if options.EnableFlowCollector && options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+		sessionCreds, err := kube.GenerateConsoleSessionCredentials(nil)
+		if err != nil {
+			return van, fmt.Errorf("failed to generate console session credentials: %s", err)
+		}
+		credentials = append(credentials, sessionCreds)
+	}
+
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) && (options.EnableFlowCollector || options.EnableRestAPI) {
 		userData := map[string][]byte{}
 		if options.User != "" {
@@ -1132,7 +1142,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.Transport.Routes = routes
 
-	return van
+	return van, nil
 }
 
 // RouterCreate instantiates a VAN (router and controller) deployment
@@ -1165,13 +1175,15 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 	if siteId == "" {
 		siteId = utils.RandomId(10)
 	}
-	van := cli.GetRouterSpecFromOpts(options.Spec, siteId)
+	van, err := cli.GetRouterSpecFromOpts(options.Spec, siteId)
+	if err != nil {
+		return err
+	}
 	siteOwnerRef := asOwnerReference(options.Reference)
 	var ownerRefs []metav1.OwnerReference
 	if siteOwnerRef != nil {
 		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 	}
-	var err error
 	if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) {
 		config := `
 pwcheck_method: auxprop
