@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/generated/libpod/client/containers"
+	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/containers"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/utils"

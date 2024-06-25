@@ -7,8 +7,8 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes_compat"
-	"github.com/skupperproject/skupper/client/generated/libpod/models"
+	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/volumes_compat"
+	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/models"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 

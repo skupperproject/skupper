@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-openapi/runtime"
-	"github.com/skupperproject/skupper/client/generated/libpod/client/images"
+	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/images"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 

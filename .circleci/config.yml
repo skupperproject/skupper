@@ -458,7 +458,7 @@ jobs:
                 exit 1
               fi
       - go/mod-download-cached
-      - run: make generate-client
+      - run: make
       - run:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
@@ -506,7 +506,7 @@ jobs:
     steps:
       - checkout
       - go/mod-download-cached
-      - run: make generate-client
+      - run: make
 
       - compile_go_program:
           goos: linux

@@ -1,7 +1,7 @@
 package podman
 
 import (
-	"github.com/skupperproject/skupper/client/generated/libpod/client/system"
+	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/system"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 

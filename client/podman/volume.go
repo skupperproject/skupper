@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes"
-	"github.com/skupperproject/skupper/client/generated/libpod/models"
+	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/client/volumes"
+	"github.com/fgiorgetti/skupper-libpod/pkg/libpod/models"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 
