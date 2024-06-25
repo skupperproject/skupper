@@ -69,7 +69,7 @@ func main() {
 		} else if platform == types.PlatformDocker {
 			binary = "docker"
 		}
-		err := exec.Command("command", "-v", binary).Run()
+		_, err := exec.LookPath(binary)
 		if err != nil {
 			fmt.Printf("Platform %q is not available.\n", platform)
 			fmt.Printf("ERROR! Command not found: %s.\n", binary)
