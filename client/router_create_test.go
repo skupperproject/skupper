@@ -195,6 +195,7 @@ func TestRouterCreateDefaults(t *testing.T) {
 				types.LocalClientSecret,
 				types.SiteServerSecret,
 				types.ConsoleServerSecret,
+				types.ConsoleSessionSecret,
 				types.ServiceCaSecret,
 				types.ServiceClientSecret},
 			svcsExpected:        []string{types.LocalTransportServiceName, types.TransportServiceName, types.ControllerServiceName, types.PrometheusServiceName},
