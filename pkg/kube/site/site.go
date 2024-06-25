@@ -603,6 +603,9 @@ func (s *Site) CheckConnector(name string, connector *skupperv1alpha1.Connector)
 	if update == nil {
 		return nil
 	}
+	if s.site == nil {
+		return nil
+	}
 	err = s.updateRouterConfigForGroups(update)
 	return s.updateConnectorStatus(connector, err)
 }
