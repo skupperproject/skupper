@@ -40,7 +40,7 @@ authentication.
 
 This native kubernetes deployment is more of an example than a completed
 solution. Users may want to plug in their own certificate management scheme and
-their preferred ingress and authentication. This example assumes a slef-issued
+their preferred ingress and authentication. This example assumes a self-issued
 certificate from cert-manager, a service of type LoadBalancer for ingress to
 the network console, and no authentication layer.
 
