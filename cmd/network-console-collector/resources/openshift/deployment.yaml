@@ -4,7 +4,7 @@ kind: ServiceAccount
 metadata:
   name: network-console-collector
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
     app.kubernetes.io/name: network-console-collector
   annotations:
     serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"network-console"}}'
@@ -13,19 +13,19 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
     app.kubernetes.io/name: network-console-collector
   name: network-console-collector
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/part-of: network-console
+      app.kubernetes.io/part-of: skupper-network-console
       app.kubernetes.io/name: network-console-collector
   template:
     metadata:
       labels:
-        app.kubernetes.io/part-of: network-console
+        app.kubernetes.io/part-of: skupper-network-console
         app.kubernetes.io/name: network-console-collector
         app.kubernetes.io/component: server
     spec:
@@ -93,7 +93,7 @@ metadata:
   annotations:
     service.beta.openshift.io/serving-cert-secret-name: network-console-certs
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
     app.kubernetes.io/name: network-console-collector
   name: network-console-collector
 spec:
@@ -111,7 +111,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
     app.kubernetes.io/name: network-console
   name: network-console
 spec:
