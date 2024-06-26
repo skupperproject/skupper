@@ -4,7 +4,7 @@ kind: Role
 metadata:
   name: network-console-prometheus
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
 rules:
 - apiGroups:
   - ""
@@ -54,14 +54,14 @@ kind: ServiceAccount
 metadata:
   name: network-console-prometheus
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: network-console-prometheus
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -120,14 +120,14 @@ kind: ConfigMap
 metadata:
   name: prometheus-server-config
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: openshift-service-ca
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
   annotations:
     service.beta.openshift.io/inject-cabundle: "true"
 ---
@@ -136,7 +136,7 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/name: network-console-prometheus
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
     app.kubernetes.io/component: metrics
   name: network-console-prometheus
 spec:
@@ -148,7 +148,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: network-console-prometheus
-        app.kubernetes.io/part-of: network-console
+        app.kubernetes.io/part-of: skupper-network-console
         app.kubernetes.io/component: metrics
     spec:
       containers:
@@ -193,7 +193,7 @@ kind: Service
 metadata:
   name: network-console-prometheus
   labels:
-    app.kubernetes.io/part-of: network-console
+    app.kubernetes.io/part-of: skupper-network-console
     app.kubernetes.io/name: network-console-prometheus
 spec:
   ports:
