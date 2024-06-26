@@ -5,10 +5,13 @@ go 1.21
 require (
 	github.com/briandowns/spinner v1.23.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/fgiorgetti/skupper-libpod v0.0.0-20240625184520-c285c5042ac0
+	github.com/fgiorgetti/skupper-libpod/v4 v4.0.3
 	github.com/fsnotify/fsnotify v1.6.0
+	github.com/go-openapi/errors v0.20.3
 	github.com/go-openapi/runtime v0.24.1
 	github.com/go-openapi/strfmt v0.21.3
+	github.com/go-openapi/swag v0.21.1
+	github.com/go-openapi/validate v0.22.0
 	github.com/golang/glog v1.1.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
@@ -64,13 +67,10 @@ require (
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/go-logr/logr v0.2.0 // indirect
 	github.com/go-openapi/analysis v0.21.2 // indirect
-	github.com/go-openapi/errors v0.20.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.6 // indirect
 	github.com/go-openapi/loads v0.21.1 // indirect
 	github.com/go-openapi/spec v0.20.4 // indirect
-	github.com/go-openapi/swag v0.21.1 // indirect
-	github.com/go-openapi/validate v0.22.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
