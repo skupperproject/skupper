@@ -1,11 +1,10 @@
 module github.com/skupperproject/skupper
 
-go 1.21
+go 1.21.0
 
 require (
 	github.com/briandowns/spinner v1.23.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/fgiorgetti/skupper-libpod/v4 v4.0.3
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-openapi/errors v0.20.3
 	github.com/go-openapi/runtime v0.24.1
@@ -23,6 +22,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/rogpeppe/go-internal v1.3.0
 	github.com/skupperproject/skupper-example-tcp-echo v0.0.0-20210727195922-db4a7dc7b35d
+	github.com/skupperproject/skupper-libpod/v4 v4.0.3-0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/tsenart/vegeta/v12 v12.8.3
