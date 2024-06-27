@@ -11,9 +11,9 @@ import (
 	"github.com/go-openapi/runtime"
 	runtimeclient "github.com/go-openapi/runtime/client"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/fgiorgetti/skupper-libpod/v4/client/containers"
-	"github.com/fgiorgetti/skupper-libpod/v4/client/exec"
-	"github.com/fgiorgetti/skupper-libpod/v4/models"
+	"github.com/skupperproject/skupper-libpod/v4/client/containers"
+	"github.com/skupperproject/skupper-libpod/v4/client/exec"
+	"github.com/skupperproject/skupper-libpod/v4/models"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 
