@@ -1,6 +1,9 @@
 package connector
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/connector/kube"
+	"github.com/spf13/cobra"
+)
 
 func NewCmdConnector() *cobra.Command {
 
@@ -11,13 +14,13 @@ func NewCmdConnector() *cobra.Command {
 		Example: ``,
 	}
 
-	connectorCreateCommand := NewCmdConnectorCreate()
-	connectorGetCommand := NewCmdConnectorGet()
-	connectorUpdateCommand := NewCmdConnectorUpdate()
-	connectorDeleteCommand := NewCmdConnectorDelete()
+	connectorCreateCommand := kube.NewCmdConnectorCreate()
+	connectorStatusCommand := kube.NewCmdConnectorStatus()
+	connectorUpdateCommand := kube.NewCmdConnectorUpdate()
+	connectorDeleteCommand := kube.NewCmdConnectorDelete()
 
 	cmd.AddCommand(&connectorCreateCommand.CobraCmd)
-	cmd.AddCommand(&connectorGetCommand.CobraCmd)
+	cmd.AddCommand(&connectorStatusCommand.CobraCmd)
 	cmd.AddCommand(&connectorUpdateCommand.CobraCmd)
 	cmd.AddCommand(&connectorDeleteCommand.CobraCmd)
 
