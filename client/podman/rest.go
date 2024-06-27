@@ -18,7 +18,6 @@ import (
 	runtimeclient "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper-libpod/v4/models"
-	"github.com/skupperproject/skupper/client/generated/libpod/models"
 	"github.com/skupperproject/skupper/pkg/non_kube/apis"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
