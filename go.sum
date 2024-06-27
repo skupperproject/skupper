@@ -443,6 +443,8 @@ github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6Mwd
 github.com/sirupsen/logrus v1.6.0/go.mod h1:7uNnSEd1DgxDLC74fIahvMZmmYsHGZGEOFrfsX/uA88=
 github.com/skupperproject/skupper-example-tcp-echo v0.0.0-20210727195922-db4a7dc7b35d h1:XmA9DC9Ffu1gnNAJZyjjoNImRs+iI5XBf/30YbqXVcs=
 github.com/skupperproject/skupper-example-tcp-echo v0.0.0-20210727195922-db4a7dc7b35d/go.mod h1:+Hm/U62PKiUAFpD3RTrjogZnPA0W2ZIDRG9+Cf7qjSU=
+github.com/skupperproject/skupper-libpod/v4 v4.0.3-0 h1:hhnfTCM0Re3bnQbdeC+ff3rJI4KTbqfr0H16HrGTcac=
+github.com/skupperproject/skupper-libpod/v4 v4.0.3-0/go.mod h1:ToBI6fKBtixpugNsnHZ3GqVh6mXiETXXwSJVOWqUvNk=
 github.com/spf13/afero v1.2.2/go.mod h1:9ZxEEn6pIJ8Rxe320qSDBk6AsU0r9pR7Q4OcevTdifk=
 github.com/spf13/cobra v0.0.3/go.mod h1:1l0Ry5zgKvJasoi3XT1TypsSe7PqH0Sj9dhYf7v3XqQ=
 github.com/spf13/cobra v1.8.0 h1:7aJaZx1B85qltLMc546zn58BxxfZdR/W22ej9CFoEf0=

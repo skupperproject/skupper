@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/generated/libpod/client/volumes"
+	"github.com/skupperproject/skupper-libpod/v4/client/volumes"
 	"github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/container"

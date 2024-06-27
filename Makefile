@@ -13,7 +13,7 @@ PLATFORMS ?= linux/amd64,linux/arm64
 GOOS ?= linux
 GOARCH ?= amd64
 
-all: generate-client build-cmd build-get build-config-sync build-controllers build-tests build-manifest
+all: build-cmd build-get build-config-sync build-controllers build-tests build-manifest
 
 build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
@@ -24,7 +24,7 @@ build-tests:
 	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/custom/hipstershop/job -o ${TEST_BINARIES_FOLDER}/grpcclient_test
 	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/tls_t/job -o ${TEST_BINARIES_FOLDER}/tls_test
 
-build-cmd: generate-client
+build-cmd:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
 
 build-get:
@@ -61,7 +61,7 @@ docker-build-test-image:
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 	${DOCKER} buildx build --load -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
-docker-build: generate-client docker-build-test-image
+docker-build: docker-build-test-image
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
 	${DOCKER} buildx build --load  -t ${SERVICE_CONTROLLER_IMAGE} -f Dockerfile.service-controller .
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONTROLLER_PODMAN_IMAGE} -f Dockerfile.controller-podman .
@@ -88,11 +88,9 @@ format:
 
 generate-client:
 	./scripts/update-codegen.sh
-	./scripts/libpod-generate.sh
 
 force-generate-client:
 	FORCE=true ./scripts/update-codegen.sh
-	FORCE=true ./scripts/libpod-generate.sh
 
 client-mock-test:
 	go test -v -count=1 ./client
