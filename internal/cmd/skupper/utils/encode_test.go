@@ -25,7 +25,22 @@ func Test_Marshal(t *testing.T) {
 			Spec: v1alpha1.SiteSpec{
 				LinkAccess: "default",
 			},
-		}, `{"kind":"Site","apiVersion":"skupper.io/v1alpha1","metadata":{"name":"my-site","namespace":"test","creationTimestamp":null},"spec":{"linkAccess":"default"},"status":{"active":false}}`, false},
+		},
+			`{
+  "kind": "Site",
+  "apiVersion": "skupper.io/v1alpha1",
+  "metadata": {
+    "name": "my-site",
+    "namespace": "test",
+    "creationTimestamp": null
+  },
+  "spec": {
+    "linkAccess": "default"
+  },
+  "status": {
+    "active": false
+  }
+}`, false},
 		{"yaml", v1alpha1.Site{
 			TypeMeta: v1.TypeMeta{
 				APIVersion: "skupper.io/v1alpha1",

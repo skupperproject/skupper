@@ -19,12 +19,12 @@ skupper site get my-site`,
 	}
 
 	siteCreateCommand := kube.NewCmdSiteCreate()
-	siteGetCommand := kube.NewCmdSiteStatus()
+	siteStatusCommand := kube.NewCmdSiteStatus()
 	siteUpdateCommand := kube.NewCmdSiteUpdate()
 	siteDeleteCommand := kube.NewCmdSiteDelete()
 
 	cmd.AddCommand(&siteCreateCommand.CobraCmd)
-	cmd.AddCommand(&siteGetCommand.CobraCmd)
+	cmd.AddCommand(&siteStatusCommand.CobraCmd)
 	cmd.AddCommand(&siteUpdateCommand.CobraCmd)
 	cmd.AddCommand(&siteDeleteCommand.CobraCmd)
 

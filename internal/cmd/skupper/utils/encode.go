@@ -13,7 +13,7 @@ func Encode(outputType string, resource interface{}) (string, error) {
 
 	switch outputType {
 	case "json":
-		result, err = json.Marshal(resource)
+		result, err = json.MarshalIndent(resource, "", "  ")
 	case "yaml":
 		result, err = yaml.Marshal(resource)
 	default:
