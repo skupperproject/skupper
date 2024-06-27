@@ -63,7 +63,7 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 }
 
 func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) {
-	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), "")
+	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
@@ -90,19 +90,27 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if siteList != nil && len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no existing Skupper site resource to update"))
-	} else if len(siteList.Items) > 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("there are several sites in this namespace and and it should be only one"))
 	} else {
-		currentSite := siteList.Items[0]
 
 		if len(args) > 1 {
 			validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
-		} else if len(args) <= 1 {
+		} else if len(args) == 1 {
 
-			if len(args) > 0 && currentSite.Name != args[0] {
-				validationErrors = append(validationErrors, fmt.Errorf("site with name %q is not available", args[0]))
-			} else {
-				cmd.siteName = currentSite.Name
+			selectedSite := args[0]
+			for _, s := range siteList.Items {
+				if s.Name == selectedSite {
+					cmd.siteName = s.Name
+				}
+			}
+
+			if cmd.siteName == "" {
+				validationErrors = append(validationErrors, fmt.Errorf("site with name %q is not available", selectedSite))
+			}
+		} else if len(args) == 0 {
+			if len(siteList.Items) > 1 {
+				validationErrors = append(validationErrors, fmt.Errorf("site name is required because there are several sites in this namespace"))
+			} else if len(siteList.Items) == 1 {
+				cmd.siteName = siteList.Items[0].Name
 			}
 		}
 	}

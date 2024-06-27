@@ -38,10 +38,6 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		expectedErrors []string
 	}
 
-	command := &CmdSiteDelete{
-		Namespace: "test",
-	}
-
 	testTable := []test{
 		{
 			name: "site is not deleted because it does not exist",
@@ -92,7 +88,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
-			name: "there are more than one site defined in the namespace",
+			name: "there are several skupper sites and no site name was specified",
 			args: []string{},
 			setUpMock: func(command *CmdSiteDelete) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
@@ -108,7 +104,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 							},
 							{
 								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-other-site",
+									Name:      "another-site",
 									Namespace: "test",
 								},
 							},
@@ -117,7 +113,63 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 				})
 				command.Client = fakeSkupperClient
 			},
-			expectedErrors: []string{"there are several sites in this namespace and and it should be only one"},
+			expectedErrors: []string{"site name is required because there are several sites in this namespace"},
+		},
+		{
+			name: "there are several skupper sites but the one specified by the user",
+			args: []string{"special-site"},
+			setUpMock: func(command *CmdSiteDelete) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "my-site",
+									Namespace: "test",
+								},
+							},
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "another-site",
+									Namespace: "test",
+								},
+							},
+						},
+					}, nil
+				})
+				command.Client = fakeSkupperClient
+			},
+			expectedErrors: []string{"site with name \"special-site\" is not available"},
+		},
+		{
+			name: "there are several skupper sites and the user specifies one of them",
+			args: []string{"my-site"},
+			setUpMock: func(command *CmdSiteDelete) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "my-site",
+									Namespace: "test",
+								},
+							},
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "another-site",
+									Namespace: "test",
+								},
+							},
+						},
+					}, nil
+				})
+				command.Client = fakeSkupperClient
+			},
+			expectedErrors: []string{},
 		},
 		{
 			name: "trying to delete a site that does not exist",
@@ -167,6 +219,10 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
+
+			command := &CmdSiteDelete{
+				Namespace: "test",
+			}
 
 			if test.setUpMock != nil {
 				test.setUpMock(command)
