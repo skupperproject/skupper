@@ -21,6 +21,7 @@ type SkupperCommand interface {
 
 var SelectedNamespace string
 var SelectedContext string
+var KubeConfigPath string
 
 func NewSkupperRootCommand() *cobra.Command {
 
@@ -39,6 +40,7 @@ For more information visit https://skupperproject.github.io/refdog/index.html`,
 
 	rootCmd.PersistentFlags().StringVarP(&SelectedNamespace, "namespace", "n", "", "Set the namespace")
 	rootCmd.PersistentFlags().StringVarP(&SelectedContext, "context", "c", "", "Set the kubeconfig context")
+	rootCmd.PersistentFlags().StringVarP(&KubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "p", "", "Set the platform type to use [kubernetes, podman, docker, systemd]")
 
 	return rootCmd
