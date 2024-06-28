@@ -668,7 +668,7 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			if len(configmap.ObjectMeta.OwnerReferences) > 0 {
 				owner = &configmap.ObjectMeta.OwnerReferences[0]
 			}
-			changed, err := ensureOauthProxyConfig(cli, owner, controller)
+			changed, err := ensureOauthProxyConfig(cli, owner, siteConfig.Spec.Labels, controller)
 			if err != nil {
 				return false, err
 			}
@@ -1486,13 +1486,14 @@ func createFlowCollectorSidecar(ctx context.Context, cli *VanClient, controller 
 	return nil
 }
 
-func ensureOauthProxyConfig(cli *VanClient, owner *metav1.OwnerReference, controller *appsv1.Deployment) (bool, error) {
+func ensureOauthProxyConfig(cli *VanClient, owner *metav1.OwnerReference, labels map[string]string, controller *appsv1.Deployment) (bool, error) {
 	var edited bool
 	// ensure the console session credentials are present
 	sessionCreds, err := kube.GenerateConsoleSessionCredentials(nil)
 	if err != nil {
 		return false, err
 	}
+	sessionCreds.Labels = labels
 	edited = true
 	_, err = kube.NewSecret(sessionCreds, owner, cli.Namespace, cli.KubeClient)
 	if err != nil {
