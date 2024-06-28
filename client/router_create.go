@@ -984,6 +984,7 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		if err != nil {
 			return van, fmt.Errorf("failed to generate console session credentials: %s", err)
 		}
+		sessionCreds.Labels = options.Labels
 		credentials = append(credentials, sessionCreds)
 	}
 
