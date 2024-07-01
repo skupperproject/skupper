@@ -1,7 +1,8 @@
-package site
+package kube
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"github.com/spf13/pflag"
@@ -35,8 +36,8 @@ func TestCmdSiteCreate_AddFlags(t *testing.T) {
 	expectedFlagsWithDefaultValue := map[string]interface{}{
 		"enable-link-access": "false",
 		"link-access-type":   "",
-		"link-access-host":   "",
 		"service-account":    "skupper-controller",
+		"output":             "",
 	}
 	var flagList []string
 
@@ -54,7 +55,7 @@ func TestCmdSiteCreate_AddFlags(t *testing.T) {
 
 		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
 			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil)
+			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil, fmt.Sprintf("flag %q not expected", flag.Name))
 			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
 		})
 
@@ -154,6 +155,19 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
 			},
 		},
+		{
+			name: "output format is not valid",
+			args: []string{"my-site"},
+			setUpMock: func(command *CmdSiteCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				command.Client = fakeSkupperClient
+				command.flags = CreateFlags{output: "not-valid"}
+			},
+			expectedErrors: []string{
+				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -165,7 +179,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 
 			actualErrors := command.ValidateInput(test.args)
 
-			actualErrorsMessages := errorsToMessages(actualErrors)
+			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
 
 			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
 
@@ -181,6 +195,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		flags              CreateFlags
 		expectedSettings   map[string]string
 		expectedLinkAccess string
+		expectedOutput     string
 	}
 
 	testTable := []test{
@@ -192,16 +207,17 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 				"name": "my-site",
 			},
 			expectedLinkAccess: "none",
+			expectedOutput:     "",
 		},
 		{
 			name:  "options with link access enabled but using a type by default and link access host specified",
 			args:  []string{"my-site"},
-			flags: CreateFlags{enableLinkAccess: true, linkAccessHost: "host"},
+			flags: CreateFlags{enableLinkAccess: true},
 			expectedSettings: map[string]string{
-				"name":         "my-site",
-				"ingress-host": "host",
+				"name": "my-site",
 			},
 			expectedLinkAccess: "loadbalancer",
+			expectedOutput:     "",
 		},
 		{
 			name:  "options with link access enabled using the nodeport type",
@@ -211,6 +227,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 				"name": "my-site",
 			},
 			expectedLinkAccess: "nodeport",
+			expectedOutput:     "",
 		},
 		{
 			name:  "options with link access options not well specified",
@@ -220,6 +237,17 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 				"name": "my-site",
 			},
 			expectedLinkAccess: "none",
+			expectedOutput:     "",
+		},
+		{
+			name:  "options output type",
+			args:  []string{"my-site"},
+			flags: CreateFlags{enableLinkAccess: false, linkAccessType: "nodeport", output: "yaml"},
+			expectedSettings: map[string]string{
+				"name": "my-site",
+			},
+			expectedLinkAccess: "none",
+			expectedOutput:     "yaml",
 		},
 	}
 
@@ -233,6 +261,8 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.DeepEqual(t, cmd.options, test.expectedSettings)
+
+			assert.Check(t, cmd.output == test.expectedOutput)
 		})
 	}
 }
@@ -266,7 +296,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 						return true, nil, fmt.Errorf("unexpected value")
 					}
 
-					if site.Spec.Settings["ingress"] != "none" {
+					if site.Spec.Settings["name"] != "my-site" {
 						return true, nil, fmt.Errorf("unexpected value")
 					}
 
@@ -279,7 +309,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 				command.Client = fakeSkupperClient
 				command.siteName = "my-site"
 				command.serviceAccountName = "my-service-account"
-				command.options = map[string]string{"ingress": "none"}
+				command.options = map[string]string{"name": "my-site"}
 			},
 		},
 		{
@@ -292,9 +322,35 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 				})
 				command.Client = fakeSkupperClient
 				command.siteName = "my-site"
-				command.options = map[string]string{"ingress": "none"}
 			},
 			errorMessage: "error",
+		},
+		{
+			name: "runs ok without creating site",
+			setUpMock: func(command *CmdSiteCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				command.Client = fakeSkupperClient
+				command.siteName = "my-site"
+				command.serviceAccountName = "my-service-account"
+				command.options = map[string]string{"name": "my-site"}
+				command.siteName = "test"
+				command.output = "yaml"
+			},
+		},
+		{
+			name: "runs fails because the output format is not supported",
+			setUpMock: func(command *CmdSiteCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				command.Client = fakeSkupperClient
+				command.siteName = "my-site"
+				command.serviceAccountName = "my-service-account"
+				command.options = map[string]string{"name": "my-site"}
+				command.siteName = "test"
+				command.output = "unsupported"
+			},
+			errorMessage: "format unsupported not supported",
 		},
 	}
 
@@ -358,54 +414,17 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "site is ready but network status configmap is empty",
+			name: "there is no need to wait for a site, the user just wanted the output",
 			setUpMock: func(command *CmdSiteCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v1alpha1.Site{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-site",
-							Namespace: "test",
-						},
-						Status: v1alpha1.SiteStatus{
-							Status: v1alpha1.Status{
-								StatusMessage: "OK",
-							},
-						},
-					}, nil
-				})
 				command.Client = fakeSkupperClient
-
+				command.output = "json"
 			},
 			expectError: false,
 		},
 		{
-			name: "site is ready but network status configmap is not returned",
-			setUpMock: func(command *CmdSiteCreate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v1alpha1.Site{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-site",
-							Namespace: "test",
-						},
-						Status: v1alpha1.SiteStatus{
-							Status: v1alpha1.Status{
-								StatusMessage: "OK",
-							},
-						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
-			},
-			expectError: false,
-		},
-		{
-			name: "site and network status configmap are ready",
+			name: "site is ready",
 			setUpMock: func(command *CmdSiteCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
@@ -436,8 +455,11 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			err := cmd.WaitUntilReady()
-			if err != nil {
-				assert.Check(t, test.expectError)
+
+			if test.expectError {
+				assert.Check(t, err != nil)
+			} else {
+				assert.Check(t, err == nil)
 			}
 
 		})
@@ -454,12 +476,4 @@ func newCmdSiteCreateWithMocks() *CmdSiteCreate {
 	}
 
 	return cmdSiteCreate
-}
-
-func errorsToMessages(errs []error) []string {
-	msgs := make([]string, len(errs))
-	for i, err := range errs {
-		msgs[i] = err.Error()
-	}
-	return msgs
 }
