@@ -1,8 +1,0 @@
-#!/usr/bin/env sh
-
-set -o errexit
-set -o nounset
-
-for container in $(podman container ls --filter label=application=skupper --format {{.Names}} --all); do
-    podman stop -t 10 ${container}
-done

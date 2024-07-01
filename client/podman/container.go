@@ -106,8 +106,13 @@ func ToSpecGenerator(c *container.Container) *models.SpecGenerator {
 
 	// Network info
 	spec.Networks = map[string]models.PerNetworkOptions{}
+	var nsMode models.NamespaceMode
+	nsMode = "bridge"
+	if len(c.Networks) == 0 {
+		nsMode = "host"
+	}
 	spec.Netns = &models.Namespace{
-		Nsmode: "bridge",
+		Nsmode: nsMode,
 	}
 	for networkName, network := range c.Networks {
 		// aliases must be populated when dns is enabled for the network

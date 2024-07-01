@@ -257,6 +257,7 @@ const (
 	TypeTokenRequestQualifier   string = BaseQualifier + "/type=connection-token-request"
 	TokenGeneratedBy            string = BaseQualifier + "/generated-by"
 	SiteVersion                 string = BaseQualifier + "/site-version"
+	SiteId                      string = BaseQualifier + "/site-id"
 	TokenCost                   string = BaseQualifier + "/cost"
 	TokenTemplate               string = BaseQualifier + "/token-template"
 	UpdatedAnnotation           string = InternalQualifier + "/updated"
@@ -321,10 +322,15 @@ const (
 	PlatformKubernetes Platform = "kubernetes"
 	PlatformPodman              = "podman"
 	PlatformDocker              = "docker"
+	PlatformSystemd             = "systemd"
 )
 
 func (p Platform) IsKubernetes() bool {
 	return p == "" || p == PlatformKubernetes
+}
+
+func (p Platform) IsContainerEngine() bool {
+	return p == PlatformDocker || p == PlatformPodman
 }
 
 type ConsoleAuthMode string
