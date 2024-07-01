@@ -1,0 +1,22 @@
+version: 4
+networks:
+  skupper:
+    external: true
+
+volumes:
+  skupper-local-client:
+    external: true
+
+services:
+  network-console:
+    image: quay.io/ckruse/network-console-collector
+    network: skupper
+    command:
+    volumes:
+      - skupper-local-client:/etc/messaging:z
+    ports:
+      - "8080:8080"
+  network-console-prometheus:
+    image: prom/prometheus:latest
+    network: skupper
+    volumes: ./static:/etc/prometheus:ro,z
