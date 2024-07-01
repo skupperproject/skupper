@@ -1,0 +1,54 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: attachedconnectoranchors.skupper.io
+spec:
+  group: skupper.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                connectorNamespace:
+                  type: string
+                routingKey:
+                  type: string
+              required:
+              - routingKey
+            status:
+              type: object
+              properties:
+                active:
+                  type: boolean
+                status:
+                  type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+      - name: Routing Key
+        type: string
+        description: The key that ties connectors and listeners together
+        jsonPath: .spec.routingKey
+      - name: Connector Namespace
+        type: string
+        description: The namespace in which the associated AttachableConnector is to be found.
+        jsonPath: .spec.connectorNamespace
+      - name: Active
+        type: boolean
+        description: Whether connector is active
+        jsonPath: .status.active
+      - name: Status
+        type: string
+        description: The status of the connector
+        jsonPath: .status.status
+  scope: Namespaced
+  names:
+    plural: attachedconnectoranchors
+    singular: attachedconnectoranchor
+    kind: AttachedConnectorAnchor

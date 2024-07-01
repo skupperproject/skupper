@@ -26,7 +26,7 @@ var (
 )
 
 func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(SchemeGroupVersion, &SkupperClusterPolicy{}, &SkupperClusterPolicyList{}, &Site{}, &SiteList{}, &Listener{}, &ListenerList{}, &Connector{}, &ConnectorList{}, &Link{}, &LinkList{}, &AccessToken{}, &AccessTokenList{}, &AccessGrant{}, &AccessGrantList{}, &SecuredAccess{}, &SecuredAccessList{}, &Certificate{}, &CertificateList{}, &RouterAccess{}, &RouterAccessList{})
+	scheme.AddKnownTypes(SchemeGroupVersion, &SkupperClusterPolicy{}, &SkupperClusterPolicyList{}, &Site{}, &SiteList{}, &Listener{}, &ListenerList{}, &Connector{}, &ConnectorList{}, &Link{}, &LinkList{}, &AccessToken{}, &AccessTokenList{}, &AccessGrant{}, &AccessGrantList{}, &SecuredAccess{}, &SecuredAccessList{}, &Certificate{}, &CertificateList{}, &RouterAccess{}, &RouterAccessList{}, &AttachedConnector{}, &AttachedConnectorList{}, &AttachedConnectorAnchor{}, &AttachedConnectorAnchorList{})
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }

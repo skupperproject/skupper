@@ -1572,3 +1572,137 @@ func ByName(name string) internalinterfaces.TweakListOptionsFunc {
 		options.FieldSelector = "metadata.name=" + name
 	}
 }
+
+func (c *Controller) WatchAttachedConnectorAnchors(namespace string, handler AttachedConnectorAnchorHandler) *AttachedConnectorAnchorWatcher {
+	watcher := &AttachedConnectorAnchorWatcher{
+		handler: handler,
+		informer: skupperv1alpha1informer.NewAttachedConnectorAnchorInformer(
+			c.skupperClient,
+			namespace,
+			time.Second*30,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+		namespace: namespace,
+	}
+	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
+	c.addWatcher(watcher)
+	return watcher
+}
+
+type AttachedConnectorAnchorHandler func(string, *skupperv1alpha1.AttachedConnectorAnchor) error
+
+type AttachedConnectorAnchorWatcher struct {
+	handler   AttachedConnectorAnchorHandler
+	informer  cache.SharedIndexInformer
+	namespace string
+}
+
+func (w *AttachedConnectorAnchorWatcher) Handle(event ResourceChange) error {
+	obj, err := w.Get(event.Key)
+	if err != nil {
+		return err
+	}
+	return w.handler(event.Key, obj)
+}
+
+func (w *AttachedConnectorAnchorWatcher) HasSynced() func() bool {
+	return w.informer.HasSynced
+}
+
+func (w *AttachedConnectorAnchorWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("AttachedConnectorAnchor %s", event.Key)
+}
+
+func (w *AttachedConnectorAnchorWatcher) Start(stopCh <-chan struct{}) {
+	go w.informer.Run(stopCh)
+}
+
+func (w *AttachedConnectorAnchorWatcher) Sync(stopCh <-chan struct{}) bool {
+	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
+}
+
+func (w *AttachedConnectorAnchorWatcher) Get(key string) (*skupperv1alpha1.AttachedConnectorAnchor, error) {
+	entity, exists, err := w.informer.GetStore().GetByKey(key)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+	return entity.(*skupperv1alpha1.AttachedConnectorAnchor), nil
+}
+
+func (w *AttachedConnectorAnchorWatcher) List() []*skupperv1alpha1.AttachedConnectorAnchor {
+	list := w.informer.GetStore().List()
+	results := []*skupperv1alpha1.AttachedConnectorAnchor{}
+	for _, o := range list {
+		results = append(results, o.(*skupperv1alpha1.AttachedConnectorAnchor))
+	}
+	return results
+}
+
+func (c *Controller) WatchAttachedConnectors(namespace string, handler AttachedConnectorHandler) *AttachedConnectorWatcher {
+	watcher := &AttachedConnectorWatcher{
+		handler: handler,
+		informer: skupperv1alpha1informer.NewAttachedConnectorInformer(
+			c.skupperClient,
+			namespace,
+			time.Second*30,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}),
+		namespace: namespace,
+	}
+	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
+	c.addWatcher(watcher)
+	return watcher
+}
+
+type AttachedConnectorHandler func(string, *skupperv1alpha1.AttachedConnector) error
+
+type AttachedConnectorWatcher struct {
+	handler   AttachedConnectorHandler
+	informer  cache.SharedIndexInformer
+	namespace string
+}
+
+func (w *AttachedConnectorWatcher) Handle(event ResourceChange) error {
+	obj, err := w.Get(event.Key)
+	if err != nil {
+		return err
+	}
+	return w.handler(event.Key, obj)
+}
+
+func (w *AttachedConnectorWatcher) HasSynced() func() bool {
+	return w.informer.HasSynced
+}
+
+func (w *AttachedConnectorWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("AttachedConnector %s", event.Key)
+}
+
+func (w *AttachedConnectorWatcher) Start(stopCh <-chan struct{}) {
+	go w.informer.Run(stopCh)
+}
+
+func (w *AttachedConnectorWatcher) Sync(stopCh <-chan struct{}) bool {
+	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
+}
+
+func (w *AttachedConnectorWatcher) Get(key string) (*skupperv1alpha1.AttachedConnector, error) {
+	entity, exists, err := w.informer.GetStore().GetByKey(key)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+	return entity.(*skupperv1alpha1.AttachedConnector), nil
+}
+
+func (w *AttachedConnectorWatcher) List() []*skupperv1alpha1.AttachedConnector {
+	list := w.informer.GetStore().List()
+	results := []*skupperv1alpha1.AttachedConnector{}
+	for _, o := range list {
+		results = append(results, o.(*skupperv1alpha1.AttachedConnector))
+	}
+	return results
+}

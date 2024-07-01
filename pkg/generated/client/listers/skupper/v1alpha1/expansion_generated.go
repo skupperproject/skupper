@@ -34,6 +34,22 @@ type AccessTokenListerExpansion interface{}
 // AccessTokenNamespaceLister.
 type AccessTokenNamespaceListerExpansion interface{}
 
+// AttachedConnectorListerExpansion allows custom methods to be added to
+// AttachedConnectorLister.
+type AttachedConnectorListerExpansion interface{}
+
+// AttachedConnectorNamespaceListerExpansion allows custom methods to be added to
+// AttachedConnectorNamespaceLister.
+type AttachedConnectorNamespaceListerExpansion interface{}
+
+// AttachedConnectorAnchorListerExpansion allows custom methods to be added to
+// AttachedConnectorAnchorLister.
+type AttachedConnectorAnchorListerExpansion interface{}
+
+// AttachedConnectorAnchorNamespaceListerExpansion allows custom methods to be added to
+// AttachedConnectorAnchorNamespaceLister.
+type AttachedConnectorAnchorNamespaceListerExpansion interface{}
+
 // CertificateListerExpansion allows custom methods to be added to
 // CertificateLister.
 type CertificateListerExpansion interface{}

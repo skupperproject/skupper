@@ -28,6 +28,8 @@ type SkupperV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	AccessGrantsGetter
 	AccessTokensGetter
+	AttachedConnectorsGetter
+	AttachedConnectorAnchorsGetter
 	CertificatesGetter
 	ConnectorsGetter
 	LinksGetter
@@ -49,6 +51,14 @@ func (c *SkupperV1alpha1Client) AccessGrants(namespace string) AccessGrantInterf
 
 func (c *SkupperV1alpha1Client) AccessTokens(namespace string) AccessTokenInterface {
 	return newAccessTokens(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) AttachedConnectors(namespace string) AttachedConnectorInterface {
+	return newAttachedConnectors(c, namespace)
+}
+
+func (c *SkupperV1alpha1Client) AttachedConnectorAnchors(namespace string) AttachedConnectorAnchorInterface {
+	return newAttachedConnectorAnchors(c, namespace)
 }
 
 func (c *SkupperV1alpha1Client) Certificates(namespace string) CertificateInterface {

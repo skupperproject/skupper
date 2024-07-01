@@ -30,18 +30,19 @@ import (
 )
 
 type Controller struct {
-	controller        *kube.Controller
-	stopCh            <-chan struct{}
-	siteWatcher       *kube.SiteWatcher
-	listenerWatcher   *kube.ListenerWatcher
-	connectorWatcher  *kube.ConnectorWatcher
-	linkAccessWatcher *kube.RouterAccessWatcher
-	grantWatcher      *kube.AccessGrantWatcher
-	sites             map[string]*site.Site
-	grants            claims.GrantManager
-	accessMgr         *securedaccess.SecuredAccessManager
-	accessRecovery    AccessRecovery
-	certMgr           *certificates.CertificateManagerImpl
+	controller           *kube.Controller
+	stopCh               <-chan struct{}
+	siteWatcher          *kube.SiteWatcher
+	listenerWatcher      *kube.ListenerWatcher
+	connectorWatcher     *kube.ConnectorWatcher
+	linkAccessWatcher    *kube.RouterAccessWatcher
+	grantWatcher         *kube.AccessGrantWatcher
+	sites                map[string]*site.Site
+	grants               claims.GrantManager
+	accessMgr            *securedaccess.SecuredAccessManager
+	accessRecovery       AccessRecovery
+	certMgr              *certificates.CertificateManagerImpl
+	attachableConnectors map[string]*skupperv1alpha1.AttachedConnector
 }
 
 type AccessRecovery struct {
@@ -108,14 +109,17 @@ func dynamicSecuredAccess() dynamicinformer.TweakListOptionsFunc {
 
 func NewController(cli kube.Clients, watchNamespace string, currentNamespace string) (*Controller, error) {
 	controller := &Controller{
-		controller: kube.NewController("Controller", cli),
-		sites:      map[string]*site.Site{},
+		controller:           kube.NewController("Controller", cli),
+		sites:                map[string]*site.Site{},
+		attachableConnectors: map[string]*skupperv1alpha1.AttachedConnector{},
 	}
 
 	controller.siteWatcher = controller.controller.WatchSites(watchNamespace, controller.checkSite)
 	controller.listenerWatcher = controller.controller.WatchListeners(watchNamespace, controller.checkListener)
 	controller.connectorWatcher = controller.controller.WatchConnectors(watchNamespace, controller.checkConnector)
 	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(watchNamespace, controller.checkRouterAccess)
+	controller.controller.WatchAttachedConnectors(watchNamespace, controller.checkAttachedConnector)
+	controller.controller.WatchAttachedConnectorAnchors(watchNamespace, controller.checkAttachedConnectorAnchor)
 	controller.controller.WatchLinks(watchNamespace, controller.checkLink)
 	controller.controller.WatchConfigMaps(skupperNetworkStatus(), watchNamespace, controller.networkStatusUpdate)
 	controller.controller.WatchAccessTokens(watchNamespace, controller.checkAccessToken)
@@ -292,6 +296,27 @@ func (c *Controller) checkRouterAccess(key string, ra *skupperv1alpha1.RouterAcc
 		return err
 	}
 	return c.getSite(namespace).CheckRouterAccess(name, ra)
+}
+
+func (c *Controller) checkAttachedConnectorAnchor(key string, anchor *skupperv1alpha1.AttachedConnectorAnchor) error {
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+	return c.getSite(namespace).CheckAttachedConnectorAnchor(namespace, name, anchor)
+}
+
+func (c *Controller) checkAttachedConnector(key string, connector *skupperv1alpha1.AttachedConnector) error {
+	if connector == nil {
+		if previous, ok := c.attachableConnectors[key]; ok {
+			delete(c.attachableConnectors, key)
+			return c.getSite(previous.Spec.SiteNamespace).AttachedConnectorDeleted(previous.Namespace, previous.Name)
+		} else {
+			return nil
+		}
+	} else {
+		return c.getSite(connector.Spec.SiteNamespace).AttachedConnectorUpdated(connector)
+	}
 }
 
 func (c *Controller) networkStatusUpdate(key string, cm *corev1.ConfigMap) error {

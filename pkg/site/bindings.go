@@ -38,6 +38,10 @@ func NewBindings() *Bindings {
 	return bindings
 }
 
+func (b *Bindings) SetSiteId(siteId string) {
+	b.SiteId = siteId
+}
+
 func (b *Bindings) SetListenerConfiguration(configuration ListenerConfiguration) {
 	b.configure.listener = configuration
 }

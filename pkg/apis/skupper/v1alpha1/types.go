@@ -97,6 +97,15 @@ type Status struct {
 
 const STATUS_OK = "OK"
 
+func (s *Status) SetStatus(active bool, message string) bool {
+	if s.Active != active || s.StatusMessage != message {
+		s.Active = active
+		s.StatusMessage = message
+		return true
+	}
+	return false
+}
+
 type SiteStatus struct {
 	Status            `json:",inline"`
 	Endpoints         []Endpoint   `json:"endpoints,omitempty"`
@@ -512,4 +521,57 @@ type RouterAccessSpec struct {
 type RouterAccessStatus struct {
 	Status    `json:",inline"`
 	Endpoints []Endpoint `json:"endpoints,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type AttachedConnector struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          AttachedConnectorSpec `json:"spec,omitempty"`
+	Status        Status        `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AttachedConnectorList contains a List of AttachedConnector instances
+type AttachedConnectorList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []AttachedConnector `json:"items"`
+}
+
+type AttachedConnectorSpec struct {
+	SiteNamespace   string `json:"siteNamespace"`
+	Selector        string `json:"selector,omitempty"`
+	Port            int    `json:"port"`
+	TlsCredentials  string `json:"tlsCredentials,omitempty"`
+	Type            string `json:"type,omitempty"`
+	IncludeNotReady bool   `json:"includeNotReady,omitempty"`
+}
+
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type AttachedConnectorAnchor struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          AttachedConnectorAnchorSpec `json:"spec,omitempty"`
+	Status        Status        `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// AttachedConnectorAnchorList contains a List of AttachedConnectorAnchor instances
+type AttachedConnectorAnchorList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []AttachedConnectorAnchor `json:"items"`
+}
+
+type AttachedConnectorAnchorSpec struct {
+	ConnectorNamespace string `json:"connectorNamespace"`
+	RoutingKey         string `json:"routingKey"`
 }

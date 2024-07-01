@@ -36,6 +36,14 @@ func (c *FakeSkupperV1alpha1) AccessTokens(namespace string) v1alpha1.AccessToke
 	return &FakeAccessTokens{c, namespace}
 }
 
+func (c *FakeSkupperV1alpha1) AttachedConnectors(namespace string) v1alpha1.AttachedConnectorInterface {
+	return &FakeAttachedConnectors{c, namespace}
+}
+
+func (c *FakeSkupperV1alpha1) AttachedConnectorAnchors(namespace string) v1alpha1.AttachedConnectorAnchorInterface {
+	return &FakeAttachedConnectorAnchors{c, namespace}
+}
+
 func (c *FakeSkupperV1alpha1) Certificates(namespace string) v1alpha1.CertificateInterface {
 	return &FakeCertificates{c, namespace}
 }
