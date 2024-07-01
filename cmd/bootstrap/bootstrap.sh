@@ -40,7 +40,8 @@ container_env() {
             ;;
     esac
     export CONTAINER_ENDPOINT_DEFAULT="unix://${XDG_RUNTIME_DIR:-/run/user/${UID}}/podman/podman.sock"
-    export RUNAS="${UID}"
+    GID=$(id -g "${UID}")
+    export RUNAS="${UID}:${GID}"
     export USERNS="keep-id"
     if [[ "${CONTAINER_ENGINE}" = "docker" ]]; then
         export CONTAINER_ENDPOINT_DEFAULT="unix:///run/docker.sock"

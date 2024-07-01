@@ -12,10 +12,10 @@ import (
 
 	"github.com/go-openapi/runtime"
 	runtimeclient "github.com/go-openapi/runtime/client"
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper-libpod/v4/client/containers_compat"
 	"github.com/skupperproject/skupper-libpod/v4/client/exec_compat"
 	"github.com/skupperproject/skupper-libpod/v4/models"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 
@@ -255,10 +255,6 @@ func (c *CompatClient) ToSpecGenerator(newContainer *container.Container) *model
 		HostConfig: &models.HostConfig{
 			// Populate Binds if you need to mount volumes (format: source:dest:options)
 			Binds:        nil,
-			CPUCount:     int64(newContainer.MaxCpus),
-			CPUPeriod:    100000,
-			CPUQuota:     int64(newContainer.MaxCpus * 100000),
-			Memory:       newContainer.MaxMemoryBytes,
 			Mounts:       make([]*models.Mount, 0),
 			NetworkMode:  "host",
 			OomScoreAdj:  100, // this is the default value set by podman
@@ -282,6 +278,15 @@ func (c *CompatClient) ToSpecGenerator(newContainer *container.Container) *model
 		if err == nil {
 			spec.User = fmt.Sprintf("0:%s", dockerGroup.Gid)
 		}
+	}
+	// Resource settings
+	if newContainer.MaxCpus > 0 {
+		spec.HostConfig.CPUCount = int64(newContainer.MaxCpus)
+		spec.HostConfig.CPUPeriod = 100000
+		spec.HostConfig.CPUQuota = int64(newContainer.MaxCpus * 100000)
+	}
+	if newContainer.MaxMemoryBytes > 0 {
+		spec.HostConfig.Memory = newContainer.MaxMemoryBytes
 	}
 	// Network info
 	if len(newContainer.Networks) > 0 {
