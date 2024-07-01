@@ -12,11 +12,11 @@ import (
 	"testing"
 )
 
-func TestCmdSiteStatus_NewCmdSiteStatus(t *testing.T) {
+func TestCmdLinkStatus_NewCmdLinkStatus(t *testing.T) {
 
-	t.Run("status command", func(t *testing.T) {
+	t.Run("link status command", func(t *testing.T) {
 
-		result := NewCmdSiteStatus()
+		result := NewCmdLinkStatus()
 
 		assert.Check(t, result.CobraCmd.Use != "")
 		assert.Check(t, result.CobraCmd.Short != "")
@@ -29,59 +29,19 @@ func TestCmdSiteStatus_NewCmdSiteStatus(t *testing.T) {
 
 }
 
-func TestCmdSiteStatus_ValidateInput(t *testing.T) {
+func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		setUpMock      func(command *CmdSiteStatus)
+		setUpMock      func(command *CmdLinkStatus)
 		expectedErrors []string
-	}
-
-	command := &CmdSiteStatus{
-		Namespace: "test",
 	}
 
 	testTable := []test{
 		{
 			name: "more than one argument was specified",
-			args: []string{"my-site", ""},
-			setUpMock: func(command *CmdSiteStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.Client = fakeSkupperClient
-			},
-			expectedErrors: []string{"this command does not need any arguments"},
-		},
-	}
-
-	for _, test := range testTable {
-		t.Run(test.name, func(t *testing.T) {
-
-			if test.setUpMock != nil {
-				test.setUpMock(command)
-			}
-
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
-		})
-	}
-}
-
-func TestCmdSiteStatus_Run(t *testing.T) {
-	type test struct {
-		name         string
-		setUpMock    func(command *CmdSiteStatus)
-		errorMessage string
-	}
-
-	testTable := []test{
-		{
-			name: "runs ok",
-			setUpMock: func(command *CmdSiteStatus) {
+			args: []string{"my-link", ""},
+			setUpMock: func(command *CmdLinkStatus) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
@@ -98,22 +58,12 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 				})
 				command.Client = fakeSkupperClient
 			},
+			expectedErrors: []string{"this command does not need any arguments"},
 		},
 		{
-			name: "run fails",
-			setUpMock: func(command *CmdSiteStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("error")
-				})
-				command.Client = fakeSkupperClient
-			},
-			errorMessage: "error",
-		},
-		{
-			name: "there is no existing skupper site",
-			setUpMock: func(command *CmdSiteStatus) {
+			name: "there are no sites",
+			args: []string{},
+			setUpMock: func(command *CmdLinkStatus) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
@@ -121,11 +71,86 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 				})
 				command.Client = fakeSkupperClient
 			},
+			expectedErrors: []string{"there is no skupper site available"},
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdSiteStatusWithMocks()
+		t.Run(test.name, func(t *testing.T) {
+
+			command := &CmdLinkStatus{
+				Namespace: "test",
+			}
+
+			if test.setUpMock != nil {
+				test.setUpMock(command)
+			}
+
+			actualErrors := command.ValidateInput(test.args)
+
+			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
+
+			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
+
+		})
+	}
+}
+
+func TestCmdLinkStatus_Run(t *testing.T) {
+	type test struct {
+		name         string
+		setUpMock    func(command *CmdLinkStatus)
+		errorMessage string
+	}
+
+	testTable := []test{
+		{
+			name: "runs ok",
+			setUpMock: func(command *CmdLinkStatus) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "links", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &v1alpha1.LinkList{
+						Items: []v1alpha1.Link{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "link",
+									Namespace: "test",
+								},
+							},
+						},
+					}, nil
+				})
+				command.Client = fakeSkupperClient
+			},
+		},
+		{
+			name: "run fails",
+			setUpMock: func(command *CmdLinkStatus) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "links", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, nil, fmt.Errorf("error")
+				})
+				command.Client = fakeSkupperClient
+			},
+			errorMessage: "error",
+		},
+		{
+			name: "there are no links",
+			setUpMock: func(command *CmdLinkStatus) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "links", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &v1alpha1.LinkList{}, nil
+				})
+				command.Client = fakeSkupperClient
+			},
+		},
+	}
+
+	for _, test := range testTable {
+		cmd := newCmdLinkStatusWithMocks()
 		test.setUpMock(cmd)
 
 		t.Run(test.name, func(t *testing.T) {
@@ -140,11 +165,11 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 	}
 }
 
-func TestCmdSiteStatus_WaitUntilReady(t *testing.T) {
+func TestCmdLinkStatus_WaitUntilReady(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 
-		cmd := newCmdSiteStatusWithMocks()
+		cmd := newCmdLinkStatusWithMocks()
 
 		result := cmd.WaitUntilReady()
 		assert.Check(t, result == nil)
@@ -155,12 +180,12 @@ func TestCmdSiteStatus_WaitUntilReady(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSiteStatusWithMocks() *CmdSiteStatus {
+func newCmdLinkStatusWithMocks() *CmdLinkStatus {
 
-	CmdSiteStatus := &CmdSiteStatus{
+	CmdLinkStatus := &CmdLinkStatus{
 		Client:    &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
 		Namespace: "test",
 	}
 
-	return CmdSiteStatus
+	return CmdLinkStatus
 }
