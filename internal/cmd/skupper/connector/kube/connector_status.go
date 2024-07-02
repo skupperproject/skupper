@@ -70,7 +70,7 @@ func (cmd *CmdConnectorStatus) AddFlags() {
 func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
-	outputTypeValidator := validator.NewOptionValidator(outputTypes)
+	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
 	// Validate arguments name if specified
 	if len(args) > 1 {

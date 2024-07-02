@@ -21,7 +21,6 @@ var (
 	connectorUpdateExample = "skupper connector update database --host mysql --port 3306"
 
 	connectorTypes = []string{"tcp"}
-	outputTypes    = []string{"json", "yaml"}
 )
 
 type ConnectorUpdates struct {
@@ -98,7 +97,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(connectorTypes)
-	outputTypeValidator := validator.NewOptionValidator(outputTypes)
+	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator()
 
 	// Validate arguments name
