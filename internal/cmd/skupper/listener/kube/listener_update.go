@@ -19,9 +19,6 @@ var (
 	listenerUpdateLong = `Clients at this site use the listener host and port to establish connections to the remote service.
 	The user can change port, host name, TLS secret, listener type and routing key`
 	listenerUpdateExample = "skupper listener update database --host mysql --port 3306"
-
-	listenerTypes = []string{"tcp"}
-	outputTypes   = []string{"json", "yaml"}
 )
 
 type ListenerUpdates struct {
@@ -91,8 +88,8 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
-	listenerTypeValidator := validator.NewOptionValidator(listenerTypes)
-	outputTypeValidator := validator.NewOptionValidator(outputTypes)
+	listenerTypeValidator := validator.NewOptionValidator(utils.ListenerTypes)
+	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
 	// Validate arguments name
 	if len(args) < 1 {
