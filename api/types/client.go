@@ -38,6 +38,13 @@ type LinkStatus struct {
 	Created     string
 }
 
+type TokenStatus struct {
+	Name    string
+	Type    string
+	Creator string
+	Secret  *corev1.Secret
+}
+
 type SiteConfig struct {
 	Spec      SiteConfigSpec
 	Reference SiteConfigReference

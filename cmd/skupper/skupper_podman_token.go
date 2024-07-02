@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/domain"
 	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -14,6 +17,14 @@ import (
 type SkupperPodmanToken struct {
 	podman      *SkupperPodman
 	ingressHost string
+}
+
+func (s *SkupperPodmanToken) GetCurrentSiteId(ctx context.Context) (string, error) {
+
+	if s.podman.currentSite == nil {
+		return "", fmt.Errorf("Skupper is not enabled")
+	}
+	return s.podman.currentSite.Id, nil
 }
 
 func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
@@ -53,6 +64,66 @@ func (s *SkupperPodmanToken) Create(cmd *cobra.Command, args []string) error {
 	// Creating secret
 	tokenHandler := &podman.TokenCertHandler{}
 	return tokenHandler.Create(secretFile, subject, info, sitePodman, credHandler)
+}
+
+func (s *SkupperPodmanToken) Status(cmd *cobra.Command, args []string) error {
+	// Retrieving CA
+	credHandler := podman.NewPodmanCredentialHandler(s.podman.cli)
+	ca, err := credHandler.GetSecret(types.SiteServerSecret)
+	if err != nil {
+		return fmt.Errorf("unable to find ca %s - %w", types.ServiceCaSecret, err)
+	}
+
+	// Check that the ca.crt from the token matches the ca.crt from skupper-site-sevice
+	if strings.Compare(string(TokenStatusOpts.Secret.Data[types.ClaimCaCertDataKey]), string(ca.Data["ca.crt"])) == 0 {
+		fmt.Printf("  CA: Token matches %s\n", types.SiteServerSecret)
+	} else {
+		fmt.Println("  CA: does not match")
+	}
+
+	cert, err := certs.DecodeCertificate(ca.Data["tls.crt"])
+	if err != nil {
+		return fmt.Errorf("failed to DecodeCertificate for %s %w", types.SiteServerSecret, err)
+	}
+
+	cert2, err := certs.DecodeCertificate(TokenStatusOpts.Secret.Data["tls.crt"])
+	if err != nil {
+		return fmt.Errorf("failed to DecodeCertificate for %s %w", TokenStatusOpts.Name, err)
+	}
+
+	// check that the hostname/IP is in the SANs list
+	if secretHostname, ok := TokenStatusOpts.Secret.ObjectMeta.Annotations["inter-router-host"]; ok {
+		hostFound := false
+		for _, hostname := range cert.DNSNames {
+			if secretHostname == hostname {
+				hostFound = true
+				fmt.Printf("  hostname: %s found in SANs list\n", secretHostname)
+				break
+			}
+		}
+		if !hostFound {
+			fmt.Printf("  hostname: %s not found in SANs list\n", secretHostname)
+		}
+	}
+
+	// check that skupper is the issuer of both secrets
+	if cert.Issuer.CommonName == cert2.Issuer.CommonName {
+		fmt.Printf("  Issuer: %s for both\n", cert.Issuer.CommonName)
+	}
+
+	fmt.Println()
+	fmt.Println("Skupper-site-server Secret details:")
+	fmt.Println("  AuthorityKeyId:", cert.AuthorityKeyId)
+	fmt.Println("  DNS:", cert.DNSNames)
+	fmt.Println("  IP:", cert.IPAddresses)
+	fmt.Println("  Issuer:", cert.Issuer)
+
+	fmt.Println()
+	fmt.Println("Token Secret details:")
+	fmt.Println("  AuthorityKeyId:", cert2.AuthorityKeyId)
+	fmt.Println("  Issuer:", cert2.Issuer)
+
+	return nil
 }
 
 func (s *SkupperPodmanToken) CreateFlags(cmd *cobra.Command) {

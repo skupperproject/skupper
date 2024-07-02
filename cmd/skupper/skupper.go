@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/network"
-	"github.com/skupperproject/skupper/pkg/utils/configs"
-	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/pkg/utils/configs"
+	"github.com/skupperproject/skupper/pkg/utils/validator"
 
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/skupperproject/skupper/pkg/domain"
@@ -83,6 +84,8 @@ type SkupperLinkClient interface {
 type SkupperTokenClient interface {
 	Create(cmd *cobra.Command, args []string) error
 	CreateFlags(cmd *cobra.Command)
+	GetCurrentSiteId(ctx context.Context) (string, error)
+	Status(cmd *cobra.Command, args []string) error
 	SkupperClientCommon
 }
 
@@ -1146,6 +1149,7 @@ func init() {
 
 	cmdToken := NewCmdToken()
 	cmdToken.AddCommand(NewCmdTokenCreate(skupperCli.Token(), ""))
+	cmdToken.AddCommand(NewCmdTokenStatus(skupperCli.Token(), ""))
 
 	cmdCompletion := NewCmdCompletion()
 

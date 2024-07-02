@@ -842,3 +842,13 @@ func (a ByServiceInterfaceAddress) Swap(i, j int) {
 func QualifiedServiceName(name string, namespace string) string {
 	return name + "." + namespace + ".svc.cluster.local"
 }
+
+const (
+	TokenRoleClaim string = "claim"
+	TokenRoleCert  string = "cert"
+)
+
+const (
+	TokenCreatorLocal  string = "local"
+	TokenCreatorRemote string = "remote"
+)
