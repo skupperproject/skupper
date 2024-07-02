@@ -93,7 +93,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(connectorTypes)
-	outputTypeValidator := validator.NewOptionValidator(outputTypes)
+	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator()
 
 	// Validate arguments name and port
