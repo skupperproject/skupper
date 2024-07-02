@@ -86,8 +86,8 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
-	listenerTypeValidator := validator.NewOptionValidator(listenerTypes)
-	outputTypeValidator := validator.NewOptionValidator(outputTypes)
+	listenerTypeValidator := validator.NewOptionValidator(utils.ListenerTypes)
+	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
 	// Validate arguments name and port
 	if len(args) < 2 {
