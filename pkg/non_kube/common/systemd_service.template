@@ -1,0 +1,12 @@
+[Unit]
+Description=skupper-site-{{.Site.Name}}.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+TimeoutStopSec=70
+Type=simple
+ExecStart=skrouterd -c {{.SiteConfigPath}}/skrouterd.json
+
+[Install]
+WantedBy=default.target

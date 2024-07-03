@@ -1,6 +1,7 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
 SERVICE_CONTROLLER_IMAGE := quay.io/skupper/service-controller
 CONTROLLER_PODMAN_IMAGE := quay.io/skupper/controller-podman
+BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap
 SITE_CONTROLLER_IMAGE := quay.io/skupper/site-controller
 SITE_CONTROLLER_V2_IMAGE := quay.io/skupper/site-controller-v2
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
@@ -30,6 +31,8 @@ build-cmd:
 build-get:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o get ./cmd/get
 
+build-bootstrap:
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o bootstrap ./cmd/bootstrap
 
 build-controller:
 	go build -ldflags="${LDFLAGS}"  -o controller cmd/controller/main.go cmd/controller/controller.go
@@ -72,6 +75,13 @@ docker-build: docker-build-test-image
 	${DOCKER} buildx build --load  -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
 	${DOCKER} buildx build --load  -t ${FLOW_COLLECTOR_IMAGE} -f Dockerfile.flow-collector .
+
+docker-build-bootstrap:
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${BOOTSTRAP_IMAGE} -f Dockerfile.bootstrap .
+	${DOCKER} buildx build --load  -t ${BOOTSTRAP_IMAGE} -f Dockerfile.bootstrap .
+
+docker-push-bootstrap:
+	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${BOOTSTRAP_IMAGE} -f Dockerfile.bootstrap .
 
 docker-push-test-image:
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
