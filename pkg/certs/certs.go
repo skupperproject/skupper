@@ -69,7 +69,10 @@ func decodeDataElement(in []byte, name string) []byte {
 	return block.Bytes
 }
 
-func getCAFromSecret(secret *corev1.Secret) CertificateAuthority {
+func getCAFromSecret(secret *corev1.Secret) *CertificateAuthority {
+	if secret == nil || secret.Data == nil {
+		return nil
+	}
 	cert, err := x509.ParseCertificate(decodeDataElement(secret.Data["tls.crt"], "certificate"))
 	if err != nil {
 		log.Fatal("failed to get CA certificate from secret")
@@ -78,7 +81,7 @@ func getCAFromSecret(secret *corev1.Secret) CertificateAuthority {
 	if err != nil {
 		log.Fatal("failed to get CA private key from secret", err)
 	}
-	return CertificateAuthority{
+	return &CertificateAuthority{
 		Certificate: cert,
 		Key:         key,
 		CrtData:     secret.Data["tls.crt"],
@@ -177,7 +180,9 @@ func generateSimpleSecretWithCA(name string, ca *CertificateAuthority) corev1.Se
 		Data: map[string][]byte{},
 	}
 
-	secret.Data["ca.crt"] = ca.CrtData
+	if ca != nil {
+		secret.Data["ca.crt"] = ca.CrtData
+	}
 
 	return secret
 }
@@ -214,11 +219,7 @@ func GenerateSecret(name string, subject string, hosts string, ca *corev1.Secret
 }
 
 func GenerateSecretWithExpiration(name string, subject string, hosts string, expiration time.Duration, ca *corev1.Secret) corev1.Secret {
-	var caCert *CertificateAuthority
-	if ca != nil {
-		caFromSecret := getCAFromSecret(ca)
-		caCert = &caFromSecret
-	}
+	caCert := getCAFromSecret(ca)
 	return generateSecret(name, subject, hosts, caCert, expiration)
 }
 
@@ -228,7 +229,7 @@ func GenerateCASecret(name string, subject string) corev1.Secret {
 
 func GenerateSimpleSecret(name string, ca *corev1.Secret) corev1.Secret {
 	caCert := getCAFromSecret(ca)
-	return generateSimpleSecretWithCA(name, &caCert)
+	return generateSimpleSecretWithCA(name, caCert)
 }
 
 func AnnotateConnectionToken(secret *corev1.Secret, role string, host string, port string) {
