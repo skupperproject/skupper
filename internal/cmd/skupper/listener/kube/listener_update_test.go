@@ -160,18 +160,6 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
-			name: "host is not valid",
-			args: []string{"my-listener-host"},
-			setUpMock: func(command *CmdListenerUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ListenerUpdates{host: ":not-Valid"}
-			},
-			expectedErrors: []string{
-				"host name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
-		},
-		{
 			name: "tls-secret is not valid",
 			args: []string{"my-listener-tls"},
 			setUpMock: func(command *CmdListenerUpdate) {

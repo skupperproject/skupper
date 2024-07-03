@@ -99,10 +99,11 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	} else if args[0] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("listener name must not be empty"))
 	} else {
-		cmd.name = args[0]
-		ok, err := resourceStringValidator.Evaluate(cmd.name)
+		ok, err := resourceStringValidator.Evaluate(args[0])
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener name is not valid: %s", err))
+		} else {
+			cmd.name = args[0]
 		}
 	}
 
@@ -122,7 +123,6 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	//TBD what characters are not allowed
 	if cmd.flags.routingKey != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.flags.routingKey)
 		if !ok {
@@ -131,13 +131,9 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.routingKey = cmd.flags.routingKey
 		}
 	}
+	// TBD what validation should be done
 	if cmd.flags.host != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.host)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("host name is not valid: %s", err))
-		} else {
-			cmd.newSettings.host = cmd.flags.host
-		}
+		cmd.newSettings.host = cmd.flags.host
 	}
 	if cmd.flags.tlsSecret != "" {
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.flags.tlsSecret, metav1.GetOptions{})

@@ -45,7 +45,7 @@ func NewCmdListenerCreate() *CmdListenerCreate {
 	skupperCmd := CmdListenerCreate{flags: ListenerCreate{}}
 
 	cmd := cobra.Command{
-		Use:     "create <name>",
+		Use:     "create <name> <port>",
 		Short:   "create a listener",
 		Long:    listenerCreateLong,
 		Example: listenerCreateExample,
@@ -99,10 +99,11 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	} else if args[1] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("listener port must not be empty"))
 	} else {
-		cmd.name = args[0]
-		ok, err := resourceStringValidator.Evaluate(cmd.name)
+		ok, err := resourceStringValidator.Evaluate(args[0])
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener name is not valid: %s", err))
+		} else {
+			cmd.name = args[0]
 		}
 
 		cmd.port, err = strconv.Atoi(args[1])
@@ -115,6 +116,12 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 		}
 	}
 
+	// Validate there is already a site defined in the namespace before a listener can be created
+	siteList, _ := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if siteList == nil || len(siteList.Items) < 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a listener can be created", cmd.namespace))
+	}
+
 	// Validate if there is already a listener with this name in the namespace
 	if cmd.name != "" {
 		listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
@@ -125,21 +132,14 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 
 	// Validate flags
 	if cmd.flags.routingKey != "" {
-		//TBD what characters are not allowed
 		ok, err := resourceStringValidator.Evaluate(cmd.flags.routingKey)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
 		}
 	}
-	if cmd.flags.host != "" {
-		//TBD what characters are not allowed
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.host)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("host name is not valid: %s", err))
-		}
-	}
+	//TBD what characters are not allowed for host flag
+
 	if cmd.flags.tlsSecret != "" {
-		//TBD what characters are allowed
 		// check that the secret exists
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.flags.tlsSecret, metav1.GetOptions{})
 		if err != nil {
@@ -199,7 +199,7 @@ func (cmd *CmdListenerCreate) WaitUntilReady() error {
 		return nil
 	}
 
-	err := utils.NewSpinner("Waiting for create to complete...", 5, func() error {
+	err := utils.NewSpinner("Waiting for create to complete...", 10, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {

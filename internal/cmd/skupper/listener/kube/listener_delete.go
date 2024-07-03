@@ -67,17 +67,21 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
 	} else if args[0] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("listener name must not be empty"))
 	} else {
-		cmd.name = args[0]
-		ok, err := resourceStringValidator.Evaluate(cmd.name)
+		ok, err := resourceStringValidator.Evaluate(args[0])
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener name is not valid: %s", err))
+		} else {
+			cmd.name = args[0]
 		}
-		// Validate that there is already a listener with this name in the namespace
-		listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if err != nil {
-			validationErrors = append(validationErrors, err)
-		} else if listener == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("listener %s does not exist in namespace %s", cmd.name, cmd.namespace))
+
+		if cmd.name != "" {
+			// Validate that there is already a listener with this name in the namespace
+			listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
+			if err != nil {
+				validationErrors = append(validationErrors, err)
+			} else if listener == nil {
+				validationErrors = append(validationErrors, fmt.Errorf("listener %s does not exist in namespace %s", cmd.name, cmd.namespace))
+			}
 		}
 	}
 
