@@ -1,1 +1,0 @@
-{"nginx":{"address":"nginx","protocol":"tcp","ports":[8080],"exposeIngress":"","targets":[{"name":"*domain.EgressResolverHost={\"host\":\"nginx\",\"ports\":{\"8080\":8080}}","targetPorts":{"8080":8080},"service":"nginx"}]}}

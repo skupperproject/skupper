@@ -7,8 +7,6 @@ import (
 	"log"
 
 	"github.com/skupperproject/skupper/api/types"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/test/utils/base"
 	skuppercli "github.com/skupperproject/skupper/test/utils/skupper/cli"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,10 +94,6 @@ func (s *UnbindTester) getKubernetesService(cluster *base.ClusterContext) (*type
 }
 
 func (s *UnbindTester) getPodmanService() (*types.ServiceInterface, error) {
-	cli, err := clientpodman.NewPodmanClient("", "")
-	if err != nil {
-		return nil, err
-	}
-	svcIfaceHandler := podman.NewServiceInterfaceHandlerPodman(cli)
-	return svcIfaceHandler.Get(s.ServiceName)
+	// TODO Removed broken v1 implementation
+	return nil, fmt.Errorf("broken implementation")
 }

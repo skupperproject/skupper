@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -108,15 +107,8 @@ func (s *StatusTester) validateMainContent(platform types.Platform, cluster *bas
 			return nil
 		}
 	} else if platform == types.PlatformPodman {
-		mainContent = append(mainContent, fmt.Sprintf("Skupper is enabled for \"%s\"", podman.Username))
-		if s.NotEnabled {
-			notEnabledContent := fmt.Sprintf("Skupper is not enabled for user '%s'", podman.Username)
-			if !strings.Contains(stdout, notEnabledContent) {
-				return fmt.Errorf("error validating not enabled message - expected: %s - stdout: %s", notEnabledContent, stdout)
-			}
-			// when not enabled, there is nothing else to validate
-			return nil
-		}
+		// TODO Removed broken v1 implementation
+		return fmt.Errorf("broken implementation")
 	}
 
 	// Site name variant

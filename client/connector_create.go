@@ -3,15 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
 	"reflect"
-	"strconv"
 
-	"github.com/skupperproject/skupper/pkg/domain"
-	domainkube "github.com/skupperproject/skupper/pkg/domain/kube"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -52,108 +47,23 @@ func (cli *VanClient) ConnectorCreateFromFile(ctx context.Context, secretFile st
 }
 
 func (cli *VanClient) ConnectorCreateSecretFromData(ctx context.Context, options types.ConnectorCreateOptions) (*corev1.Secret, error) {
-	current, err := kube.GetDeployment(types.TransportDeploymentName, options.SkupperNamespace, cli.KubeClient)
-	if err == nil {
-		if options.Secret == nil {
-			return nil, fmt.Errorf("Could not parse connection token: %w", err)
-		}
-		var secret = options.Secret
-
-		// Validating destination host
-		siteConfig, err := cli.SiteConfigInspect(context.Background(), nil)
-		if err != nil {
-			return nil, err
-		}
-		hostname := ""
-		if secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeToken {
-			if siteConfig.Spec.RouterMode == string(types.TransportModeEdge) {
-				hostname = secret.ObjectMeta.Annotations["edge-host"]
-			} else {
-				hostname = secret.ObjectMeta.Annotations["inter-router-host"]
-			}
-		} else {
-			destUrl, err := url.Parse(secret.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey])
-			if err != nil {
-				return nil, fmt.Errorf("Invalid URL defined in token: %s", err)
-			}
-			hostname = destUrl.Hostname()
-		}
-		policy := NewClusterPolicyValidator(cli)
-		res := policy.ValidateOutgoingLink(hostname)
-		if !res.Allowed() {
-			return nil, fmt.Errorf("outgoing link to %s is not allowed", hostname)
-		}
-
-		cfg, err := cli.getRouterConfig(ctx, cli.Namespace)
-		if err != nil {
-			return nil, fmt.Errorf("error reading router config: %w", err)
-		}
-		linkHandler := domainkube.NewLinkHandlerKube(options.SkupperNamespace, siteConfig, cfg, cli.KubeClient, cli.RestConfig)
-		if options.Name == "" {
-			options.Name = domain.GenerateLinkName(linkHandler)
-		}
-		secret.ObjectMeta.Name = options.Name
-		err = domain.VerifyToken(secret)
-		if err != nil {
-			return nil, err
-		}
-		// Verify if site link can be created
-		err = domain.VerifyNotSelfOrDuplicate(*secret, siteConfig.Reference.UID, linkHandler)
-		if err != nil {
-			return nil, err
-		}
-		err = cli.VerifySecretCompatibility(*secret)
-		if err != nil {
-			return nil, err
-		}
-		if secret.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeClaimRequest {
-			// can site handle claims?
-			err := cli.requireSiteVersion(ctx, options.SkupperNamespace, "0.7.0")
-			if err != nil {
-				return nil, fmt.Errorf("Claims not supported. %s", err)
-			}
-		}
-		secret.ObjectMeta.SetOwnerReferences([]metav1.OwnerReference{
-			kube.GetDeploymentOwnerReference(current),
-		})
-		if options.Cost != 0 {
-			if secret.ObjectMeta.Annotations == nil {
-				secret.ObjectMeta.Annotations = map[string]string{}
-			}
-			secret.ObjectMeta.Annotations[types.TokenCost] = strconv.Itoa(int(options.Cost))
-		}
-		_, err = cli.KubeClient.CoreV1().Secrets(options.SkupperNamespace).Create(context.TODO(), secret, metav1.CreateOptions{})
-		if err == nil {
-			return secret, nil
-		} else if errors.IsAlreadyExists(err) {
-			return secret, fmt.Errorf("The connector secret \"%s\" already exists, please choose a different name", secret.ObjectMeta.Name)
-		} else {
-			return nil, fmt.Errorf("Failed to create connector secret: %w", err)
-		}
-	} else {
-		return nil, fmt.Errorf("Failed to retrieve router deployment: %w", err)
-	}
+	// TODO REMOVE CLIENT PKG
+	return nil, fmt.Errorf("broken implementation")
 }
 
 // VerifySecretCompatibility returns nil if current site version is compatible
 // with the token or cert provided. If sites are not compatible an error is
 // returned with the appropriate information
 func (cli *VanClient) VerifySecretCompatibility(secret corev1.Secret) error {
-	siteMeta, err := cli.GetSiteMetadata()
-	if err != nil {
-		return err
-	}
-	return domain.VerifySecretCompatibility(siteMeta.Version, secret)
+	// TODO Removed broken v1 implementation
+	return fmt.Errorf("broken implementation")
 }
 
 // VerifySiteCompatibility returns nil if current site version is compatible
 // with the provided version, otherwise it returns a clear error.
 func (cli *VanClient) VerifySiteCompatibility(siteVersion string) error {
-	siteMeta, err := cli.GetSiteMetadata()
-	if err != nil {
-		return err
-	}
-	return domain.VerifySiteCompatibility(siteMeta.Version, siteVersion)
+	// TODO Removed broken v1 implementation
+	return fmt.Errorf("broken implementation")
 }
 
 func isCertToken(secret *corev1.Secret) bool {

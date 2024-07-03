@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	utils2 "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -95,14 +93,6 @@ func (e *UnexposeTester) validateKubernetes(ctx context.Context, cluster *base.C
 }
 
 func (e *UnexposeTester) validatePodman() (bool, error) {
-	cli, err := clientpodman.NewPodmanClient("", "")
-	if err != nil {
-		return true, err
-	}
-	svcIfaceHandler := podman.NewServiceInterfaceHandlerPodman(cli)
-	_, err = svcIfaceHandler.Get(e.Address)
-	if err == nil {
-		return false, nil
-	}
-	return true, nil
+	// TODO Removed broken v1 implementation
+	return false, fmt.Errorf("broken implementation")
 }

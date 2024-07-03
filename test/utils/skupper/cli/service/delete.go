@@ -2,11 +2,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/skupperproject/skupper/api/types"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -44,9 +43,8 @@ func (s *DeleteTester) Run(platform types.Platform, cluster *base.ClusterContext
 		if platform.IsKubernetes() {
 			_, err = cluster.VanClient.KubeClient.CoreV1().Services(cluster.Namespace).Get(ctx, s.Name, v1.GetOptions{})
 		} else if platform == types.PlatformPodman {
-			cli, _ := clientpodman.NewPodmanClient("", "")
-			svcHandler := podman.NewServiceHandlerPodman(cli)
-			_, err = svcHandler.Get(s.Name)
+			// TODO Removed broken v1 implementation
+			return false, fmt.Errorf("broken implementation")
 		}
 		if err == nil {
 			log.Printf("service %s still available", s.Name)

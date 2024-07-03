@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/skupper/cli"
 	corev1 "k8s.io/api/core/v1"
@@ -101,17 +99,9 @@ func (s *BindTester) Run(platform types.Platform, cluster *base.ClusterContext) 
 			return
 		}
 	} else if platform == types.PlatformPodman {
-		var cli *clientpodman.PodmanRestClient
-		cli, err = clientpodman.NewPodmanClient("", "")
-		if err != nil {
-			err = fmt.Errorf("unable to create podman client")
-			return
-		}
-		svcIfaceHandler := podman.NewServiceInterfaceHandlerPodman(cli)
-		svc, err = svcIfaceHandler.Get(s.ServiceName)
-		if err != nil {
-			return
-		}
+		// TODO Removed broken v1 implementation
+		err = fmt.Errorf("broken implementation")
+		return
 	}
 
 	// No targets found

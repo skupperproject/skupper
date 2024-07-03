@@ -15,7 +15,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -557,8 +556,8 @@ func (fc *FlowCollector) updateNetworkStatus() {
 			return nil
 		}()
 	} else if platform == types.PlatformPodman {
-		networkStatusHandler := &podman.NetworkStatusHandler{}
-		err = networkStatusHandler.Update(networkData["NetworkStatus"])
+		// TODO Removed broken v1 implementation
+		log.Fatal("broken implementation")
 	}
 
 	if err != nil {
