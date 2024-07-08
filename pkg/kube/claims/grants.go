@@ -124,13 +124,14 @@ func (g *Grants) recheckUrl() {
 	for _, grant := range g.getAll() {
 		key := fmt.Sprintf("%s/%s", grant.Namespace, grant.Name)
 		if changed, message := g.checkUrl(key, grant); changed {
-			if message != "" {
-				grant.Status.Status = message
-			} else if grant.Status.Status != skupperv1alpha1.STATUS_OK {
-				grant.Status.Status = skupperv1alpha1.STATUS_OK
+			if message == "" {
+				message = skupperv1alpha1.STATUS_OK
 			}
-			if err := g.updateGrantStatus(grant); err != nil {
-				log.Printf("Error updating grant %s after setting url: %s", key, err)
+			grant.SetResolved()
+			if grant.Status.SetStatusMessage(message) {
+				if err := g.updateGrantStatus(grant); err != nil {
+					log.Printf("Error updating grant %s after setting url: %s", key, err)
+				}
 			}
 		}
 	}
@@ -140,6 +141,7 @@ func (g *Grants) recheckCa() {
 	for _, grant := range g.getAll() {
 		key := fmt.Sprintf("%s/%s", grant.Namespace, grant.Name)
 		if g.checkCa(key, grant) {
+			grant.SetResolved()
 			if err := g.updateGrantStatus(grant); err != nil {
 				log.Printf("Error updating grant %s after setting ca: %s", key, err)
 			}
@@ -220,12 +222,15 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.AccessGrant) erro
 			changed = true
 		}
 	}
+	var err error
 
 	if len(status) != 0 {
-		grant.Status.Status = strings.Join(status, ", ")
+		err = fmt.Errorf(strings.Join(status, ", "))
+	}
+	if grant.SetProcessed(err) {
 		changed = true
-	} else if grant.Status.Status != skupperv1alpha1.STATUS_OK {
-		grant.Status.Status = skupperv1alpha1.STATUS_OK
+	}
+	if grant.SetResolved() {
 		changed = true
 	}
 

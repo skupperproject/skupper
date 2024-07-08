@@ -120,6 +120,7 @@ func NewController(cli internalclient.Clients, watchNamespace string, currentNam
 	controller.controller.WatchConfigMaps(skupperNetworkStatus(), watchNamespace, controller.networkStatusUpdate)
 	controller.controller.WatchAccessTokens(watchNamespace, controller.checkAccessToken)
 	controller.controller.WatchSecuredAccesses(watchNamespace, controller.checkSecuredAccess)
+	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", watchNamespace, controller.routerPodEvent)
 
 	controller.certMgr = certificates.NewCertificateManager(controller.controller)
 	controller.certMgr.Watch(watchNamespace)
@@ -254,7 +255,7 @@ func (c *Controller) checkSecuredAccessHttpProxy(key string, o *unstructured.Uns
 }
 
 func (c *Controller) checkAccessToken(key string, token *skupperv1alpha1.AccessToken) error {
-	if token == nil || token.Status.Redeemed {
+	if token == nil || token.IsRedeemed() {
 		return nil
 	}
 	site := c.getSite(token.Namespace).GetSite()
@@ -262,6 +263,14 @@ func (c *Controller) checkAccessToken(key string, token *skupperv1alpha1.AccessT
 		return nil
 	}
 	return claims.RedeemAccessToken(token, site, c.controller)
+}
+
+func (c *Controller) routerPodEvent(key string, pod *corev1.Pod) error {
+	namespace, _, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+	return c.getSite(namespace).RouterPodEvent(key, pod)
 }
 
 func (c *Controller) generateLinkConfig(namespace string, name string, subject string, writer io.Writer) error {
@@ -315,14 +324,11 @@ func (c *Controller) networkStatusUpdate(key string, cm *corev1.ConfigMap) error
 
 func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.SiteRecord {
 	var records []skupperv1alpha1.SiteRecord
-	routerAPs := map[string]string{} // router access point ID -> site name
+	routerAPs := map[string]string{} // router access point ID -> site ID
 	for _, site := range status.SiteStatus {
-		if site.Site.Name == "" {
-			continue
-		}
 		for _, router := range site.RouterStatus {
 			for _, ap := range router.AccessPoints {
-				routerAPs[ap.Identity] = site.Site.Name
+				routerAPs[ap.Identity] = site.Site.Identity
 			}
 		}
 	}
@@ -342,7 +348,10 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.Site
 				}
 
 				if site, ok := routerAPs[link.Peer]; ok {
-					record.Links = append(record.Links, site)
+					record.Links = append(record.Links, skupperv1alpha1.LinkRecord{
+						Name:         link.Name,
+						RemoteSiteId: site,
+					})
 				}
 			}
 			for _, connector := range router.Connectors {

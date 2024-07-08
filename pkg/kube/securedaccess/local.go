@@ -15,10 +15,10 @@ func newLocalAccess(m *SecuredAccessManager) AccessType {
 }
 
 func (o *LocalAccessType) Realise(access *skupperv1alpha1.SecuredAccess) bool {
-	if access.Status.Status == skupperv1alpha1.STATUS_OK {
+	if access.Status.StatusMessage == skupperv1alpha1.STATUS_OK {
 		return false
 	}
-	access.Status.Status = skupperv1alpha1.STATUS_OK
+	access.Status.StatusMessage = skupperv1alpha1.STATUS_OK
 	return true
 }
 

@@ -38,6 +38,42 @@ spec:
                   type: boolean
                 status:
                   type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        maxLength: 32768
+                        type: string
+                      observedGeneration:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      reason:
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        type: string
+                      status:
+                        enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                        type: string
+                      type:
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][- A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        type: string
+                    required:
+                    - lastTransitionTime
+                    - message
+                    - reason
+                    - status
+                    - type
                 endpoints:
                   type: array
                   items:
@@ -52,8 +88,6 @@ spec:
                       group:
                         type: string
                 sitesInNetwork:
-                  type: integer
-                servicesInNetwork:
                   type: integer
                 network:
                   type: array
@@ -73,7 +107,12 @@ spec:
                       links:
                         type: array
                         items:
-                          type: string
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            remoteSiteId:
+                              type: string
                       services:
                         type: array
                         items:
@@ -92,10 +131,6 @@ spec:
       subresources:
         status: {}
       additionalPrinterColumns:
-      - name: Active
-        type: boolean
-        description: Whether site is active
-        jsonPath: .status.active
       - name: Status
         type: string
         description: The status of the site
@@ -104,10 +139,6 @@ spec:
         type: integer
         description: The number of sites in the network
         jsonPath: .status.sitesInNetwork
-      - name: Services In Network
-        type: integer
-        description: The number of services in the network
-        jsonPath: .status.servicesInNetwork
   scope: Namespaced
   names:
     plural: sites

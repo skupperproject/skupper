@@ -13,9 +13,12 @@ type ConnectorConfiguration func(siteId string, connector *skupperv1alpha1.Conne
 type BindingEventHandler interface {
 	ListenerUpdated(listener *skupperv1alpha1.Listener)
 	ListenerDeleted(listener *skupperv1alpha1.Listener)
-	ConnectorUpdated(connector *skupperv1alpha1.Connector, specChanged bool) bool
+	ConnectorUpdated(connector *skupperv1alpha1.Connector) bool
 	ConnectorDeleted(connector *skupperv1alpha1.Connector)
 }
+
+type ConnectorFunction func(*skupperv1alpha1.Connector) *skupperv1alpha1.Connector
+type ListenerFunction func(*skupperv1alpha1.Listener) *skupperv1alpha1.Listener
 
 type Bindings struct {
 	SiteId     string
@@ -49,34 +52,55 @@ func (b *Bindings) SetConnectorConfiguration(configuration ConnectorConfiguratio
 func (b *Bindings) SetBindingEventHandler(handler BindingEventHandler) {
 	b.handler = handler
 	for _, c := range b.connectors {
-		b.handler.ConnectorUpdated(c, true)
+		b.handler.ConnectorUpdated(c)
 	}
 	for _, l := range b.listeners {
 		b.handler.ListenerUpdated(l)
 	}
 }
 
-func (b *Bindings) UpdateConnector(name string, connector *skupperv1alpha1.Connector) (qdr.ConfigUpdate, error) {
+func (b *Bindings) Map(cf ConnectorFunction, lf ListenerFunction) {
+	if cf != nil {
+		for key, connector := range b.connectors {
+			if updated := cf(connector); updated != nil {
+				b.connectors[key] = updated
+			}
+		}
+	}
+	if lf != nil {
+		for key, listener := range b.listeners {
+			if updated := lf(listener); updated != nil {
+				b.listeners[key] = updated
+			}
+		}
+	}
+}
+
+func (b *Bindings) GetConnector(name string) *skupperv1alpha1.Connector {
+	if existing, ok := b.connectors[name]; ok {
+		return existing
+	}
+	return nil
+}
+
+func (b *Bindings) UpdateConnector(name string, connector *skupperv1alpha1.Connector) qdr.ConfigUpdate {
 	if connector == nil {
-		return b.deleteConnector(name), nil
+		return b.deleteConnector(name)
 	}
 	return b.updateConnector(connector)
 }
 
-func (b *Bindings) updateConnector(connector *skupperv1alpha1.Connector) (qdr.ConfigUpdate, error) {
+func (b *Bindings) updateConnector(connector *skupperv1alpha1.Connector) qdr.ConfigUpdate {
 	name := connector.ObjectMeta.Name
 	existing, ok := b.connectors[name]
-	b.connectors[name] = connector
-	if b.handler == nil {
-		if !ok || existing.Spec != connector.Spec {
-			return b, nil
-		}
-	} else {
-		if b.handler.ConnectorUpdated(connector, !ok || existing.Spec == connector.Spec) {
-			return b, nil
-		}
+	b.connectors[name] = connector // always update pointer, even if spec has not changed
+	if ok && existing.Spec == connector.Spec {
+		return nil
 	}
-	return nil, nil
+	if b.handler == nil || b.handler.ConnectorUpdated(connector) {
+		return b
+	}
+	return nil
 }
 
 func (b *Bindings) deleteConnector(name string) qdr.ConfigUpdate {
@@ -90,14 +114,14 @@ func (b *Bindings) deleteConnector(name string) qdr.ConfigUpdate {
 	return nil
 }
 
-func (b *Bindings) UpdateListener(name string, listener *skupperv1alpha1.Listener) (qdr.ConfigUpdate, error) {
+func (b *Bindings) UpdateListener(name string, listener *skupperv1alpha1.Listener) qdr.ConfigUpdate {
 	if listener == nil {
-		return b.deleteListener(name), nil
+		return b.deleteListener(name)
 	}
 	return b.updateListener(listener)
 }
 
-func (b *Bindings) updateListener(latest *skupperv1alpha1.Listener) (qdr.ConfigUpdate, error) {
+func (b *Bindings) updateListener(latest *skupperv1alpha1.Listener) qdr.ConfigUpdate {
 	log.Printf("updating listener %s/%s...", latest.Namespace, latest.Name)
 	name := latest.ObjectMeta.Name
 	existing, ok := b.listeners[name]
@@ -107,9 +131,9 @@ func (b *Bindings) updateListener(latest *skupperv1alpha1.Listener) (qdr.ConfigU
 	}
 
 	if !ok || existing.Spec != latest.Spec {
-		return b, nil
+		return b
 	}
-	return nil, nil
+	return nil
 }
 
 func (b *Bindings) deleteListener(name string) qdr.ConfigUpdate {

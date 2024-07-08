@@ -183,9 +183,9 @@ func (m *CertificateManagerImpl) secretDeleted(key string) error {
 
 func (m *CertificateManagerImpl) updateStatus(certificate *skupperv1alpha1.Certificate, err error) error {
 	if err == nil {
-		certificate.Status.Status = skupperv1alpha1.STATUS_OK
+		certificate.Status.StatusMessage = skupperv1alpha1.STATUS_OK
 	} else {
-		certificate.Status.Status = err.Error()
+		certificate.Status.StatusMessage = err.Error()
 	}
 	latest, err := m.controller.GetSkupperClient().SkupperV1alpha1().Certificates(certificate.Namespace).UpdateStatus(context.TODO(), certificate, metav1.UpdateOptions{})
 	if err != nil {
