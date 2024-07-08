@@ -16,8 +16,8 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/certificates"
 )
 
@@ -36,12 +36,12 @@ type SecuredAccessManager struct {
 	routes            map[string]*routev1.Route
 	ingresses         map[string]*networkingv1.Ingress
 	httpProxies       map[string]*unstructured.Unstructured
-	clients           kube.Clients
+	clients           internalclient.Clients
 	certMgr           certificates.CertificateManager
 	defaultAccessType string
 }
 
-func NewSecuredAccessManager(clients kube.Clients, certMgr certificates.CertificateManager, defaultAccessType string) *SecuredAccessManager {
+func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificates.CertificateManager, defaultAccessType string) *SecuredAccessManager {
 	return &SecuredAccessManager{
 		definitions:       map[string]*skupperv1alpha1.SecuredAccess{},
 		services:          map[string]*corev1.Service{},
@@ -466,7 +466,7 @@ const ACCESS_TYPE_ROUTE = "route"
 const ACCESS_TYPE_NODEPORT = "nodeport"
 const ACCESS_TYPE_LOCAL = "local"
 
-func DefaultAccessType(clients kube.Clients) string {
+func DefaultAccessType(clients internalclient.Clients) string {
 	if clients.GetRouteClient() != nil {
 		return ACCESS_TYPE_ROUTE
 	}
@@ -477,7 +477,7 @@ func GetAccessTypeFromEnv() string {
 	return os.Getenv("SKUPPER_DEFAULT_ACCESS_TYPE")
 }
 
-func getAccessType(accessType string, clients kube.Clients) string {
+func getAccessType(accessType string, clients internalclient.Clients) string {
 	if accessType == "" {
 		return DefaultAccessType(clients)
 	}

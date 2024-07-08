@@ -17,9 +17,9 @@ import (
 	"k8s.io/client-go/restmapper"
 
 	skuppertypes "github.com/skupperproject/skupper/api/types"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/images"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 var decoder = yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
@@ -106,7 +106,7 @@ func getCoreParams(site *skupperv1alpha1.Site, group string) CoreParams {
 	}
 }
 
-func Apply(clients kube.Clients, ctx context.Context, site *skupperv1alpha1.Site, group string) error {
+func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv1alpha1.Site, group string) error {
 	for _, t := range resourceTemplates(site, group) {
 		raw, err := t.getYaml()
 		if err != nil {
@@ -120,7 +120,7 @@ func Apply(clients kube.Clients, ctx context.Context, site *skupperv1alpha1.Site
 	return nil
 }
 
-func apply(clients kube.Clients, ctx context.Context, namespace string, raw []byte) error {
+func apply(clients internalclient.Clients, ctx context.Context, namespace string, raw []byte) error {
 	obj := &unstructured.Unstructured{}
 	_, gvk, err := decoder.Decode(raw, nil, obj)
 	if err != nil {

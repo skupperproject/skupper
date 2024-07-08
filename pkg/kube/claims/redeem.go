@@ -15,11 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
-func RedeemAccessToken(claim *skupperv1alpha1.AccessToken, site *skupperv1alpha1.Site, clients kube.Clients) error {
+func RedeemAccessToken(claim *skupperv1alpha1.AccessToken, site *skupperv1alpha1.Site, clients internalclient.Clients) error {
 	transport := &http.Transport{}
 	if claim.Spec.Ca != "" {
 		caPool := x509.NewCertPool()
@@ -75,7 +75,7 @@ func RedeemAccessToken(claim *skupperv1alpha1.AccessToken, site *skupperv1alpha1
 	return updateAccessTokenStatus(claim, nil, clients)
 }
 
-func updateAccessTokenStatus(claim *skupperv1alpha1.AccessToken, err error, clients kube.Clients) error {
+func updateAccessTokenStatus(claim *skupperv1alpha1.AccessToken, err error, clients internalclient.Clients) error {
 	if err == nil {
 		log.Printf("Redeemed claim %s/%s successfully", claim.Namespace, claim.Name)
 		claim.Status.Status = skupperv1alpha1.STATUS_OK

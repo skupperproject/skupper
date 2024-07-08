@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -113,7 +114,7 @@ func CreateContourProxies(routes []IngressRoute, labels map[string]string, owner
 	return nil
 }
 
-func UpdateContourProxyService(clients Clients, namespace string, proxyName string, serviceName string) error {
+func UpdateContourProxyService(clients internalclient.Clients, namespace string, proxyName string, serviceName string) error {
 	dc := clients.GetDiscoveryClient()
 	if dc == nil {
 		return nil

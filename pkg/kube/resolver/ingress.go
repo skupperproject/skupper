@@ -16,16 +16,18 @@ package resolver
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type IngressResolver struct {
-	clients   kube.Clients
+	clients   internalclient.Clients
 	namespace string
 }
 
-func NewIngressResolver(clients kube.Clients, namespace string) Resolver {
+func NewIngressResolver(clients internalclient.Clients, namespace string) Resolver {
 	return &IngressResolver{
 		clients:   clients,
 		namespace: namespace,

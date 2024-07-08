@@ -42,6 +42,7 @@ import (
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 	routev1informer "github.com/openshift/client-go/route/informers/externalversions/route/v1"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
@@ -89,7 +90,7 @@ type Controller struct {
 	watchers        []Watcher
 }
 
-func NewController(name string, clients Clients) *Controller {
+func NewController(name string, clients internalclient.Clients) *Controller {
 	return &Controller{
 		eventKey:        name + "Event",
 		errorKey:        name + "Error",

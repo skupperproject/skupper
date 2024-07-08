@@ -6,6 +6,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
@@ -17,7 +18,7 @@ type GrantManager interface {
 	SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess)
 }
 
-func NewGrantManager(clients kube.Clients, config *GrantConfig, generator GrantResponse) GrantManager {
+func NewGrantManager(clients internalclient.Clients, config *GrantConfig, generator GrantResponse) GrantManager {
 	if !config.Enabled {
 		return &GrantsDisabled{
 			clients: clients,
@@ -84,7 +85,7 @@ func (s *UrlFromSecuredAccess) Watch(controller *kube.Controller, namespace stri
 const notEnabled string = "AccessGrants are not enabled"
 
 type GrantsDisabled struct {
-	clients kube.Clients
+	clients internalclient.Clients
 }
 
 func (s *GrantsDisabled) GrantChanged(key string, grant *skupperv1alpha1.AccessGrant) error {

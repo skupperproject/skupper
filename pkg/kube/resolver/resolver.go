@@ -17,7 +17,7 @@ package resolver
 import (
 	"fmt"
 
-	"github.com/skupperproject/skupper/pkg/kube"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 )
 
 type HostPort struct {
@@ -51,7 +51,7 @@ type IngressConfig interface {
 	GetRouterIngressHost() string
 }
 
-func NewResolver(clients kube.Clients, namespace string, ingress IngressConfig) (Resolver, error) {
+func NewResolver(clients internalclient.Clients, namespace string, ingress IngressConfig) (Resolver, error) {
 	client := clients.GetKubeClient()
 	if ingress.IsIngressRoute() {
 		return NewRouteResolver(clients, namespace)

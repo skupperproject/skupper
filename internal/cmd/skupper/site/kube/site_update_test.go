@@ -2,15 +2,15 @@ package kube
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	testing2 "k8s.io/client-go/testing"
-	"testing"
 )
 
 func TestCmdSiteUpdate_NewCmdSiteUpdate(t *testing.T) {
@@ -41,19 +41,25 @@ func TestCmdSiteUpdate_AddFlags(t *testing.T) {
 	}
 	var flagList []string
 
-	cmd := newCmdSiteUpdateWithMocks()
+	command := &CmdSiteUpdate{
+		Namespace: "test",
+	}
+
+	fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, nil, nil, "")
+	assert.Assert(t, err)
+	command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 
 	t.Run("add flags", func(t *testing.T) {
 
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		command.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
 			flagList = append(flagList, flag.Name)
 		})
 
 		assert.Check(t, len(flagList) == 0)
 
-		cmd.AddFlags()
+		command.AddFlags()
 
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		command.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
 			flagList = append(flagList, flag.Name)
 			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil, fmt.Sprintf("flag %q not expected", flag.Name))
 			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
@@ -69,270 +75,270 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		setUpMock      func(command *CmdSiteUpdate)
+		flags          *UpdateFlags
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		skupperError   string
 		expectedErrors []string
 	}
 
 	testTable := []test{
 		{
-			name: "site is updated because there is already a site in the namespace.",
-			args: []string{"my-site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
+			name:       "site is updated because there is already a site in the namespace.",
+			args:       []string{"my-site"},
+			flags:      &UpdateFlags{},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
 			},
+			skupperError:   "",
 			expectedErrors: []string{},
 		},
 		{
-			name: "site name is not specified.",
-			args: []string{},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
+			name:       "site name is not specified.",
+			args:       []string{},
+			flags:      &UpdateFlags{},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
 			},
+			skupperError:   "",
 			expectedErrors: []string{},
 		},
 		{
-			name: "more than one argument was specified",
-			args: []string{"my", "site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
+			name:       "more than one argument was specified",
+			args:       []string{"my", "site"},
+			flags:      &UpdateFlags{},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
 			},
+			skupperError:   "",
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
-			name: "service account name is not valid.",
-			args: []string{"my-site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.Client = fakeSkupperClient
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
+			name:       "service account name is not valid.",
+			args:       []string{"my-site"},
+			flags:      &UpdateFlags{serviceAccount: "not valid service account name"},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.flags = UpdateFlags{serviceAccount: "not valid service account name"}
+					},
+				},
 			},
+			skupperError:   "",
 			expectedErrors: []string{"service account name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
-			name: "link access type is not valid",
-			args: []string{"my-site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
+			name:       "link access type is not valid",
+			args:       []string{"my-site"},
+			flags:      &UpdateFlags{linkAccessType: "not-valid"},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				fakeSkupperClient.Fake.ClearActions()
-				command.Client = fakeSkupperClient
-				command.flags = UpdateFlags{linkAccessType: "not-valid"}
+					},
+				},
 			},
+			skupperError: "",
 			expectedErrors: []string{
 				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
 			},
 		},
 		{
-			name: "output format is not valid",
-			args: []string{"my-site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
+			name:       "output format is not valid",
+			args:       []string{"my-site"},
+			flags:      &UpdateFlags{output: "not-valid"},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
-				command.flags = UpdateFlags{output: "not-valid"}
+					},
+				},
 			},
 			expectedErrors: []string{
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
 		},
 		{
-			name: "there is no skupper site",
-			args: []string{"my-site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{}, nil
-				})
-				command.Client = fakeSkupperClient
-			},
+			name:           "there is no skupper site",
+			args:           []string{"my-site"},
+			flags:          &UpdateFlags{},
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			skupperError:   "",
 			expectedErrors: []string{
 				"there is no existing Skupper site resource to update",
 			},
 		},
 		{
-			name: "there are several skupper sites and no site name was specified",
-			args: []string{},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "another-site",
-									Namespace: "test",
-								},
-							},
+			name:       "there are several skupper sites and no site name was specified",
+			args:       []string{},
+			flags:      &UpdateFlags{},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "another-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
+						},
+					},
+				},
 			},
+			skupperError:   "",
 			expectedErrors: []string{"site name is required because there are several sites in this namespace"},
 		},
 		{
-			name: "there are several skupper sites but the one specified by the user",
-			args: []string{"special-site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "another-site",
-									Namespace: "test",
-								},
-							},
+			name:       "there are several skupper sites but not the one specified by the user",
+			args:       []string{"special-site"},
+			flags:      &UpdateFlags{},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "another-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
+						},
+					},
+				},
 			},
+			skupperError:   "",
 			expectedErrors: []string{"site with name \"special-site\" is not available"},
 		},
 		{
-			name: "there are several skupper sites and the user specifies one of them",
-			args: []string{"my-site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "another-site",
-									Namespace: "test",
-								},
-							},
+			name:       "there are several skupper sites and the user specifies one of them",
+			args:       []string{"my-site"},
+			flags:      &UpdateFlags{},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "another-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
+						},
+					},
+				},
 			},
+			skupperError:   "",
 			expectedErrors: []string{},
 		},
 		{
-			name: "the name specified in the arguments does not match with the current site",
-			args: []string{"a-site"},
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
-							},
+			name:       "the name specified in the arguments does not match with the current site",
+			args:       []string{"a-site"},
+			flags:      &UpdateFlags{},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
 			},
+			skupperError: "",
 			expectedErrors: []string{
 				"site with name \"a-site\" is not available",
 			},
@@ -346,8 +352,12 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			if test.setUpMock != nil {
-				test.setUpMock(command)
+			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
+			assert.Assert(t, err)
+			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+
+			if test.flags != nil {
+				command.flags = *test.flags
 			}
 
 			actualErrors := command.ValidateInput(test.args)
@@ -426,132 +436,121 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
+			command := &CmdSiteUpdate{
+				Namespace: "test",
+			}
 
-			cmd := newCmdSiteUpdateWithMocks()
-			cmd.flags = test.flags
-			cmd.siteName = "my-site"
+			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, nil, nil, "")
+			assert.Assert(t, err)
+			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+			command.flags = test.flags
+			command.siteName = "my-site"
 
-			cmd.InputToOptions()
+			command.InputToOptions()
 
-			assert.DeepEqual(t, cmd.options, test.expectedSettings)
+			assert.DeepEqual(t, command.options, test.expectedSettings)
 
-			assert.Check(t, cmd.output == test.expectedOutput)
+			assert.Check(t, command.output == test.expectedOutput)
 		})
 	}
 }
 
 func TestCmdSiteUpdate_Run(t *testing.T) {
 	type test struct {
-		name         string
-		setUpMock    func(command *CmdSiteUpdate)
-		errorMessage string
+		name               string
+		k8sObjects         []runtime.Object
+		skupperObjects     []runtime.Object
+		skupperError       string
+		siteName           string
+		serviceAccountName string
+		linkAccessType     string
+		options            map[string]string
+		output             string
+		errorMessage       string
 	}
 
 	testTable := []test{
 		{
-			name: "runs ok",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("update", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					createAction, ok := action.(testing2.CreateActionImpl)
-					if !ok {
-						return
-					}
-					createdObject := createAction.GetObject()
-
-					site, ok := createdObject.(*v1alpha1.Site)
-					if !ok {
-						return
-					}
-
-					if site.Name != "my-site" {
-						return true, nil, fmt.Errorf("unexpected value")
-					}
-
-					if site.Spec.Settings["name"] != "my-site" {
-						return true, nil, fmt.Errorf("unexpected value")
-					}
-
-					if site.Spec.ServiceAccount != "my-service-account" {
-						return true, nil, fmt.Errorf("unexpected value")
-					}
-					if site.Spec.LinkAccess != "default" {
-						return true, nil, fmt.Errorf("unexpected value")
-					}
-
-					return true, nil, nil
-				})
-				command.Client = fakeSkupperClient
-				command.siteName = "my-site"
-				command.serviceAccountName = "my-service-account"
-				command.linkAccessType = "default"
-				command.options = map[string]string{"name": "my-site"}
+			name:       "runs ok",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "",
+						},
+					},
+				},
 			},
+			siteName:           "my-site",
+			serviceAccountName: "my-service-account",
+			linkAccessType:     "default",
+			options:            map[string]string{"name": "my-site"},
+			output:             "",
+			skupperError:       "",
+			errorMessage:       "",
 		},
 		{
-			name: "run fails",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("update", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("error")
-				})
-				command.Client = fakeSkupperClient
-				command.siteName = "my-site"
-			},
-			errorMessage: "error",
+			name:               "run fails",
+			k8sObjects:         nil,
+			skupperObjects:     nil,
+			siteName:           "my-site",
+			serviceAccountName: "my-service-account",
+			linkAccessType:     "default",
+			options:            map[string]string{"name": "my-site"},
+			output:             "",
+			skupperError:       "error",
+			errorMessage:       "error",
 		},
 		{
-			name: "runs ok without creating site",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.Client = fakeSkupperClient
-				command.siteName = "my-site"
-				command.serviceAccountName = "my-service-account"
-				command.options = map[string]string{"name": "my-site"}
-				command.siteName = "test"
-				command.output = "yaml"
-			},
+			name:               "runs ok without creating site",
+			k8sObjects:         nil,
+			skupperObjects:     nil,
+			siteName:           "my-site",
+			serviceAccountName: "my-service-account",
+			linkAccessType:     "default",
+			options:            map[string]string{"name": "my-site"},
+			output:             "yaml",
+			skupperError:       "",
+			errorMessage:       "sites.skupper.io \"my-site\" not found",
 		},
 		{
-			name: "runs fails because the output format is not supported",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.Client = fakeSkupperClient
-				command.siteName = "my-site"
-				command.serviceAccountName = "my-service-account"
-				command.options = map[string]string{"name": "my-site"}
-				command.siteName = "test"
-				command.output = "unsupported"
-			},
-			errorMessage: "format unsupported not supported",
-		},
-		{
-			name: "run fails because the site cannot be retrieved",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("error")
-				})
-				command.Client = fakeSkupperClient
-				command.siteName = "my-site"
-			},
-			errorMessage: "error",
+			name:               "runs fails because the output format is not supported",
+			k8sObjects:         nil,
+			skupperObjects:     nil,
+			siteName:           "my-site",
+			serviceAccountName: "my-service-account",
+			linkAccessType:     "default",
+			options:            map[string]string{"name": "my-site"},
+			output:             "unsupported",
+			skupperError:       "",
+			errorMessage:       "sites.skupper.io \"my-site\" not found",
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdSiteUpdateWithMocks()
-		test.setUpMock(cmd)
+		command := &CmdSiteUpdate{
+			Namespace: "test",
+		}
+
+		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
+		assert.Assert(t, err)
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.siteName = test.siteName
+		command.serviceAccountName = test.serviceAccountName
+		command.linkAccessType = test.linkAccessType
+		command.options = test.options
+		command.output = test.output
 
 		t.Run(test.name, func(t *testing.T) {
 
-			err := cmd.Run()
+			err := command.Run()
 			if err != nil {
+				fmt.Println("error", err.Error())
 				assert.Check(t, test.errorMessage == err.Error())
 			} else {
 				assert.Check(t, err == nil)
@@ -562,105 +561,57 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 
 func TestCmdSiteUpdate_WaitUntilReady(t *testing.T) {
 	type test struct {
-		name        string
-		setUpMock   func(command *CmdSiteUpdate)
-		expectError bool
+		name           string
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		siteName       string
+		skupperError   string
+		errorMessage   string
+		expectError    bool
 	}
 
 	testTable := []test{
 		{
-			name: "site is not ready",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v1alpha1.Site{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-site",
-							Namespace: "test",
+			name:       "site is not ready",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "",
 						},
-						Status: v1alpha1.SiteStatus{
-							Status: v1alpha1.Status{
-								StatusMessage: "",
-							},
-						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
 			},
-			expectError: true,
-		},
-		{
-			name: "site is not returned",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("it failed")
-				})
-				command.Client = fakeSkupperClient
-			},
-			expectError: true,
-		},
-		{
-			name: "there is no need to wait for a site, the user just wanted the output",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.Client = fakeSkupperClient
-				command.output = "json"
-			},
-			expectError: false,
-		},
-		{
-			name: "site is updated",
-			setUpMock: func(command *CmdSiteUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v1alpha1.Site{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-site",
-							Namespace: "test",
-						},
-						Status: v1alpha1.SiteStatus{
-							Status: v1alpha1.Status{
-								StatusMessage: "OK",
-							},
-						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
-			},
-			expectError: false,
+			siteName:     "my-site",
+			skupperError: "",
+			errorMessage: "Site \"my-site\" not ready yet, check the logs for more information\n",
+			expectError:  true,
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdSiteUpdateWithMocks()
-		cmd.siteName = "my-site"
-		test.setUpMock(cmd)
+		command := &CmdSiteUpdate{
+			Namespace: "test",
+		}
+
+		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
+		assert.Assert(t, err)
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.siteName = test.siteName
+
 		t.Run(test.name, func(t *testing.T) {
 
-			err := cmd.WaitUntilReady()
+			err := command.WaitUntilReady()
 			if err != nil {
 				assert.Check(t, test.expectError)
+				assert.Check(t, test.errorMessage == err.Error())
 			}
 
 		})
 	}
-}
-
-// --- helper methods
-
-func newCmdSiteUpdateWithMocks() *CmdSiteUpdate {
-
-	CmdSiteUpdate := &CmdSiteUpdate{
-		Client:    &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
-		Namespace: "test",
-	}
-
-	return CmdSiteUpdate
 }

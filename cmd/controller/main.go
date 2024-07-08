@@ -10,7 +10,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/skupperproject/skupper/client"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -54,7 +54,7 @@ func main() {
 	stopCh := SetupSignalHandler()
 
 	// todo, get context from env?
-	cli, err := client.NewClient(namespace, "", kubeconfig)
+	cli, err := internalclient.NewClient(namespace, "", kubeconfig)
 	if err != nil {
 		log.Fatal("Error getting van client ", err.Error())
 	}

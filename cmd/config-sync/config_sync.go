@@ -10,6 +10,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
@@ -27,7 +28,7 @@ type ConfigSync struct {
 	routerConfigMap string
 }
 
-func newConfigSync(cli kube.Clients, namespace string, path string, routerConfigMap string) *ConfigSync {
+func newConfigSync(cli internalclient.Clients, namespace string, path string, routerConfigMap string) *ConfigSync {
 	configSync := &ConfigSync{
 		agentPool:       qdr.NewAgentPool("amqp://localhost:5672", nil),
 		controller:      kube.NewController("config-sync", cli),

@@ -12,9 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
-	"github.com/skupperproject/skupper/pkg/kube"
 	sitepkg "github.com/skupperproject/skupper/pkg/site"
 )
 
@@ -32,13 +32,13 @@ type Token interface {
 
 type TokenGenerator struct {
 	namespace string
-	clients   kube.Clients
+	clients   internalclient.Clients
 	ca        *corev1.Secret
 	endpoints [][]skupperv1alpha1.Endpoint
 	hosts     []string
 }
 
-func NewTokenGenerator(namespace string, clients kube.Clients) (*TokenGenerator, error) {
+func NewTokenGenerator(namespace string, clients internalclient.Clients) (*TokenGenerator, error) {
 	site, err := getActiveSite(namespace, clients)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func NewTokenGenerator(namespace string, clients kube.Clients) (*TokenGenerator,
 	return NewTokenGeneratorForSite(site, clients)
 }
 
-func NewTokenGeneratorForSite(site *skupperv1alpha1.Site, clients kube.Clients) (*TokenGenerator, error) {
+func NewTokenGeneratorForSite(site *skupperv1alpha1.Site, clients internalclient.Clients) (*TokenGenerator, error) {
 	generator := &TokenGenerator{
 		namespace: site.Namespace,
 		clients:   clients,
@@ -69,7 +69,7 @@ func (g *TokenGenerator) loadCA(name string) error {
 	return nil
 }
 
-func getActiveSite(namespace string, clients kube.Clients) (*skupperv1alpha1.Site, error) {
+func getActiveSite(namespace string, clients internalclient.Clients) (*skupperv1alpha1.Site, error) {
 	sites, err := clients.GetSkupperClient().SkupperV1alpha1().Sites(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -85,7 +86,7 @@ func addNginxIngressAnnotations(sslPassthrough bool, annotations map[string]stri
 	}
 }
 
-func UpdateIngressRuleServiceName(ingressName string, hostPrefix string, serviceName string, namespace string, clients Clients) error {
+func UpdateIngressRuleServiceName(ingressName string, hostPrefix string, serviceName string, namespace string, clients internalclient.Clients) error {
 	if useV1API(clients.GetDiscoveryClient()) {
 		return updateIngressRuleServiceNameV1(clients.GetDynamicClient(), namespace, ingressName, hostPrefix, serviceName)
 	} else {
@@ -111,7 +112,7 @@ func UpdateIngressRuleServiceName(ingressName string, hostPrefix string, service
 	}
 }
 
-func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthrough bool, ownerRefs []metav1.OwnerReference, namespace string, annotations map[string]string, labels map[string]string, clients Clients) error {
+func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthrough bool, ownerRefs []metav1.OwnerReference, namespace string, annotations map[string]string, labels map[string]string, clients internalclient.Clients) error {
 	if useV1API(clients.GetDiscoveryClient()) {
 		if isNginx {
 			if annotations == nil {
@@ -196,7 +197,7 @@ func CreateIngress(name string, routes []IngressRoute, isNginx bool, sslPassthro
 	return nil
 }
 
-func GetIngressRoutes(name string, namespace string, clients Clients) ([]IngressRoute, error) {
+func GetIngressRoutes(name string, namespace string, clients internalclient.Clients) ([]IngressRoute, error) {
 	if useV1API(clients.GetDiscoveryClient()) {
 		return getIngressRoutesV1(clients.GetDynamicClient(), namespace, name)
 	}

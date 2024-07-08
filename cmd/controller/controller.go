@@ -18,6 +18,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/flow"
@@ -106,7 +107,7 @@ func dynamicSecuredAccess() dynamicinformer.TweakListOptionsFunc {
 	return dynamicWatcherOptions("internal.skupper.io/secured-access")
 }
 
-func NewController(cli kube.Clients, watchNamespace string, currentNamespace string) (*Controller, error) {
+func NewController(cli internalclient.Clients, watchNamespace string, currentNamespace string) (*Controller, error) {
 	controller := &Controller{
 		controller: kube.NewController("Controller", cli),
 		sites:      map[string]*site.Site{},

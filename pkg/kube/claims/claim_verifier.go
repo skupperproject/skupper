@@ -21,7 +21,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/kube"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
 )
 
@@ -211,7 +211,7 @@ func (server *ClaimVerifier) listen() {
 	log.Fatal(srv.ListenAndServeTLS(cert, key))
 }
 
-func StartClaimVerifier(clients kube.Clients, namespace string, generator TokenGenerator, siteChecker SiteChecker) bool {
+func StartClaimVerifier(clients internalclient.Clients, namespace string, generator TokenGenerator, siteChecker SiteChecker) bool {
 	if enableClaimVerifier() {
 		verifier := newClaimVerifier(clients.GetKubeClient(), namespace, generator, siteChecker)
 		go verifier.listen()
