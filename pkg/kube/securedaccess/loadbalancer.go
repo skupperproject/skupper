@@ -19,11 +19,7 @@ func newLoadbalancerAccess(m *SecuredAccessManager) AccessType {
 }
 
 func (o *LoadbalancerAccessType) Realise(access *skupperv1alpha1.SecuredAccess) bool {
-	if access.Status.Status == skupperv1alpha1.STATUS_OK {
-		return false
-	}
-	access.Status.Status = skupperv1alpha1.STATUS_OK
-	return true
+	return access.Status.SetStatusMessage(skupperv1alpha1.STATUS_OK)
 }
 
 func (o *LoadbalancerAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {

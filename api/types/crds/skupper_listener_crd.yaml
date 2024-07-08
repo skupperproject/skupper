@@ -32,10 +32,46 @@ spec:
             status:
               type: object
               properties:
-                active:
-                  type: boolean
                 status:
                   type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        maxLength: 32768
+                        type: string
+                      observedGeneration:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      reason:
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        type: string
+                      status:
+                        enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                        type: string
+                      type:
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][- A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        type: string
+                    required:
+                    - lastTransitionTime
+                    - message
+                    - reason
+                    - status
+                    - type
+                matchingConnectorCount:
+                  type: integer
       subresources:
         status: {}
       additionalPrinterColumns:
@@ -51,14 +87,14 @@ spec:
         type: string
         description: The name of the service
         jsonPath: .spec.host
-      - name: Active
-        type: boolean
-        description: Whether listener is active
-        jsonPath: .status.active
       - name: Status
         type: string
         description: The status of the listener
         jsonPath: .status.status
+      - name: Matching Connector Count
+        type: integer
+        description: The number of connectors in the network with a matching routing key.
+        jsonPath: .status.matchingConnectorCount
   scope: Namespaced
   names:
     plural: listeners

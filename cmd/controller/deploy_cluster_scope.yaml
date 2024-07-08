@@ -178,7 +178,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: controller
-        image: quay.io/gordons/controller:v2-milestone1
+        image: quay.io/gordons/controller:v2-status
         imagePullPolicy: Always
         env:
         - name: SKUPPER_ENABLE_GRANTS
@@ -188,7 +188,7 @@ spec:
         - name: SKUPPER_CLAIMS_TLS_CREDENTIALS_SECRET
           value: skupper-grant-server
         - name: SKUPPER_CONFIG_SYNC_IMAGE
-          value: quay.io/gordons/config-sync:v2-milestone1
+          value: quay.io/gordons/config-sync:v2-status
         securityContext:
           capabilities:
             drop:

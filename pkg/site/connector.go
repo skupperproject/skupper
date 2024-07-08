@@ -9,15 +9,15 @@ import (
 
 func UpdateBridgeConfigForConnector(siteId string, connector *skupperv1alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
-		UpdateBridgeConfigForConnectorWithHostProcess(siteId, connector, connector.Spec.Host, "", config)
+		updateBridgeConfigForConnector(siteId, connector, connector.Spec.Host, "", config)
 	}
 }
 
-func UpdateBridgeConfigForConnectorWithHost(siteId string, connector *skupperv1alpha1.Connector, host string, config *qdr.BridgeConfig) {
-	UpdateBridgeConfigForConnectorWithHostProcess(siteId, connector, host, "", config)
+func UpdateBridgeConfigForConnectorToPod(siteId string, connector *skupperv1alpha1.Connector, pod skupperv1alpha1.PodDetails, config *qdr.BridgeConfig) {
+	updateBridgeConfigForConnector(siteId, connector, pod.IP, pod.UID, config)
 }
 
-func UpdateBridgeConfigForConnectorWithHostProcess(siteId string, connector *skupperv1alpha1.Connector, host string, processID string, config *qdr.BridgeConfig) {
+func updateBridgeConfigForConnector(siteId string, connector *skupperv1alpha1.Connector, host string, processID string, config *qdr.BridgeConfig) {
 	name := connector.Name + "-" + host
 	if connector.Spec.Type == "tcp" || connector.Spec.Type == "" {
 		config.AddTcpConnector(qdr.TcpEndpoint{

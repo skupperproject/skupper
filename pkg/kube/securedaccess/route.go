@@ -34,12 +34,7 @@ func (o *RouteAccessType) Realise(access *skupperv1alpha1.SecuredAccess) bool {
 	if len(errors) == 0 {
 		return false
 	}
-	message := strings.Join(errors, ",")
-	if message == access.Status.Status {
-		return false
-	}
-	access.Status.Status = message
-	return true
+	return access.Status.SetStatusMessage(strings.Join(errors, ","))
 }
 
 func (o *RouteAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {

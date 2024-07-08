@@ -75,7 +75,7 @@ func getActiveSite(namespace string, clients internalclient.Clients) (*skupperv1
 		return nil, err
 	}
 	for _, site := range sites.Items {
-		if site.Status.Active {
+		if site.IsActive() {
 			return &site, nil
 		}
 	}

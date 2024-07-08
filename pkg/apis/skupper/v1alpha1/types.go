@@ -2,8 +2,11 @@ package v1alpha1
 
 import (
 	"fmt"
+	"reflect"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -91,19 +94,139 @@ func (s *SiteSpec) GetRouterDataConnectionCount() string {
 }
 
 type Status struct {
-	Active        bool   `json:"active"`
-	StatusMessage string `json:"status,omitempty"`
+	Conditions    []v1.Condition `json:"conditions,omitempty"`
+	StatusMessage string         `json:"status,omitempty"`
+}
+
+func (s *Status) SetStatusMessage(message string) bool {
+	if s.StatusMessage != message {
+		s.StatusMessage = message
+		return true
+	}
+	return false
+}
+
+func (s *Status) SetCondition(conditionType string, err error, generation int64) bool {
+	condition := v1.Condition{
+		Type:               conditionType,
+		ObservedGeneration: generation,
+	}
+	if err != nil {
+		condition.Status = v1.ConditionFalse
+		condition.Reason = "Error"
+		condition.Message = err.Error()
+	} else {
+		condition.Status = v1.ConditionTrue
+		condition.Reason = STATUS_OK
+		condition.Message = STATUS_OK
+	}
+	return setStatusCondition(&s.Conditions, condition)
+}
+
+func setStatusCondition(conditions *[]v1.Condition, newCondition v1.Condition) (changed bool) {
+	if conditions == nil {
+		return false
+	}
+	existingCondition := meta.FindStatusCondition(*conditions, newCondition.Type)
+	if existingCondition == nil {
+		if newCondition.LastTransitionTime.IsZero() {
+			newCondition.LastTransitionTime = v1.NewTime(time.Now())
+		}
+		*conditions = append(*conditions, newCondition)
+		return true
+	}
+
+	if existingCondition.Status != newCondition.Status {
+		existingCondition.Status = newCondition.Status
+		if !newCondition.LastTransitionTime.IsZero() {
+			existingCondition.LastTransitionTime = newCondition.LastTransitionTime
+		} else {
+			existingCondition.LastTransitionTime = v1.NewTime(time.Now())
+		}
+		changed = true
+	}
+
+	if existingCondition.Reason != newCondition.Reason {
+		existingCondition.Reason = newCondition.Reason
+		changed = true
+	}
+	if existingCondition.Message != newCondition.Message {
+		existingCondition.Message = newCondition.Message
+		changed = true
+	}
+	if existingCondition.ObservedGeneration != newCondition.ObservedGeneration {
+		existingCondition.ObservedGeneration = newCondition.ObservedGeneration
+		changed = true
+	}
+
+	return changed
+}
+
+func (s *Site) SetConfigured(err error) bool {
+	if s.Status.SetCondition(CONDITION_TYPE_CONFIGURED, err, s.ObjectMeta.Generation) {
+		s.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (s *Site) SetResolved(err error) bool {
+	if s.Status.SetCondition(CONDITION_TYPE_RESOLVED, err, s.ObjectMeta.Generation) {
+		s.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (s *Site) SetRunning(err error) bool {
+	if s.Status.SetCondition(CONDITION_TYPE_RUNNING, err, s.ObjectMeta.Generation) {
+		s.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (s *Site) setReady(err error) bool {
+	if err != nil {
+		s.Status.StatusMessage = err.Error()
+		return s.Status.SetCondition(CONDITION_TYPE_READY, err, s.ObjectMeta.Generation)
+	} else if s.isReady() {
+		s.Status.StatusMessage = STATUS_OK
+		return s.Status.SetCondition(CONDITION_TYPE_READY, nil, s.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (s *Site) isReady() bool {
+	return meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
+		(!s.resolutionRequired() || meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_RESOLVED)) &&
+		meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_RUNNING)
+}
+
+func (s *Site) IsActive() bool {
+	return meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_CONFIGURED)
+}
+
+func (s *Site) resolutionRequired() bool {
+	return s.Spec.LinkAccess != "" && s.Spec.LinkAccess != "none"
 }
 
 const STATUS_OK = "OK"
 
+const CONDITION_TYPE_CONFIGURED = "Configured"
+const CONDITION_TYPE_RESOLVED = "Resolved"
+const CONDITION_TYPE_RUNNING = "Running"
+const CONDITION_TYPE_MATCHED = "Matched"
+const CONDITION_TYPE_PROCESSED = "Processed"
+const CONDITION_TYPE_REDEEMED = "Redeemed"
+const CONDITION_TYPE_READY = "Ready"
+
 type SiteStatus struct {
-	Status            `json:",inline"`
-	Endpoints         []Endpoint   `json:"endpoints,omitempty"`
-	SitesInNetwork    int          `json:"sitesInNetwork,omitempty"`
-	ServicesInNetwork int          `json:"servicesInNetwork,omitempty"`
-	Network           []SiteRecord `json:"network,omitempty"`
-	DefaultIssuer     string       `json:"defaultIssuer,omitempty"`
+	Status         `json:",inline"`
+	Endpoints      []Endpoint   `json:"endpoints,omitempty"`
+	SitesInNetwork int          `json:"sitesInNetwork,omitempty"`
+	Network        []SiteRecord `json:"network,omitempty"`
+	DefaultIssuer  string       `json:"defaultIssuer,omitempty"`
 }
 
 type Endpoint struct {
@@ -127,7 +250,7 @@ type SiteRecord struct {
 	Namespace string          `json:"namespace,omitempty"`
 	Platform  string          `json:"platform,omitempty"`
 	Version   string          `json:"version,omitempty"`
-	Links     []string        `json:"links,omitempty"`
+	Links     []LinkRecord    `json:"links,omitempty"`
 	Services  []ServiceRecord `json:"services,omitempty"`
 }
 
@@ -137,14 +260,64 @@ type ServiceRecord struct {
 	Listeners  []string `json:"listeners"`
 }
 
+type LinkRecord struct {
+	Name         string `json:"name"`
+	RemoteSiteId string `json:"remoteSiteId"`
+}
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type Listener struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          ListenerSpec `json:"spec,omitempty"`
-	Status        Status       `json:"status,omitempty"`
+	Spec          ListenerSpec   `json:"spec,omitempty"`
+	Status        ListenerStatus `json:"status,omitempty"`
+}
+
+func (l *Listener) SetConfigured(err error) bool {
+	if l.Status.SetCondition(CONDITION_TYPE_CONFIGURED, err, l.ObjectMeta.Generation) {
+		l.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (c *Listener) setMatched() bool {
+	var err error
+	if c.Status.MatchingConnectorCount == 0 {
+		err = fmt.Errorf("No matching connectors")
+	}
+	if c.Status.SetCondition(CONDITION_TYPE_MATCHED, err, c.ObjectMeta.Generation) {
+		c.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (c *Listener) SetMatchingConnectorCount(count int) bool {
+	if c.Status.MatchingConnectorCount != count {
+		c.Status.MatchingConnectorCount = count
+		c.setMatched()
+		return true
+	}
+	return false
+}
+
+func (l *Listener) setReady(err error) bool {
+	if err != nil {
+		l.Status.StatusMessage = err.Error()
+		return l.Status.SetCondition(CONDITION_TYPE_READY, err, l.ObjectMeta.Generation)
+	} else if l.isReady() {
+		l.Status.StatusMessage = STATUS_OK
+		return l.Status.SetCondition(CONDITION_TYPE_READY, nil, l.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (l *Listener) isReady() bool {
+	return meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
+		meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_MATCHED)
 }
 
 func (l *Listener) Protocol() corev1.Protocol {
@@ -171,6 +344,11 @@ type ListenerSpec struct {
 	Type           string `json:"type,omitempty"`
 }
 
+type ListenerStatus struct {
+	Status                 `json:",inline"`
+	MatchingConnectorCount int `json:"matchingConnectorCount,omitempty"`
+}
+
 type ServicePort struct {
 	Name string `json:"name"`
 	Port int    `json:"port"`
@@ -182,8 +360,61 @@ type ServicePort struct {
 type Connector struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          ConnectorSpec `json:"spec,omitempty"`
-	Status        Status        `json:"status,omitempty"`
+	Spec          ConnectorSpec   `json:"spec,omitempty"`
+	Status        ConnectorStatus `json:"status,omitempty"`
+}
+
+func (c *Connector) SetConfigured(err error) bool {
+	if c.Status.SetCondition(CONDITION_TYPE_CONFIGURED, err, c.ObjectMeta.Generation) {
+		c.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (c *Connector) setMatched() bool {
+	var err error
+	if c.Status.MatchingListenerCount == 0 {
+		err = fmt.Errorf("No matching listeners")
+	}
+	if c.Status.SetCondition(CONDITION_TYPE_MATCHED, err, c.ObjectMeta.Generation) {
+		c.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (c *Connector) SetMatchingListenerCount(count int) bool {
+	if c.Status.MatchingListenerCount != count {
+		c.Status.MatchingListenerCount = count
+		c.setMatched()
+		return true
+	}
+	return false
+}
+
+func (c *Connector) setReady(err error) bool {
+	if err != nil {
+		c.Status.StatusMessage = err.Error()
+		return c.Status.SetCondition(CONDITION_TYPE_READY, err, c.ObjectMeta.Generation)
+	} else if c.isReady() {
+		c.Status.StatusMessage = STATUS_OK
+		return c.Status.SetCondition(CONDITION_TYPE_READY, nil, c.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (c *Connector) isReady() bool {
+	return meta.IsStatusConditionTrue(c.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
+		meta.IsStatusConditionTrue(c.Status.Conditions, CONDITION_TYPE_MATCHED)
+}
+
+func (c *Connector) SetSelectedPods(pods []PodDetails) bool {
+	if !reflect.DeepEqual(pods, c.Status.SelectedPods) {
+		c.Status.SelectedPods = pods
+		return true
+	}
+	return false
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -205,14 +436,49 @@ type ConnectorSpec struct {
 	IncludeNotReady bool   `json:"includeNotReady,omitempty"`
 }
 
+type PodDetails struct {
+	UID  string `json:"-"`
+	Name string `json:"name"`
+	IP   string `json:"ip"`
+}
+
+type ConnectorStatus struct {
+	Status                `json:",inline"`
+	SelectedPods          []PodDetails `json:"selectedPods,omitempty"`
+	MatchingListenerCount int          `json:"matchingListenerCount,omitempty"`
+}
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type Link struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          LinkSpec   `json:"spec,omitempty"`
-	Status        LinkStatus `json:"status,omitempty"`
+	Spec          LinkSpec `json:"spec,omitempty"`
+	Status        Status   `json:"status,omitempty"`
+}
+
+func (l *Link) SetConfigured(err error) bool {
+	if l.Status.SetCondition(CONDITION_TYPE_CONFIGURED, err, l.ObjectMeta.Generation) {
+		l.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (l *Link) setReady(err error) bool {
+	if err != nil {
+		l.Status.StatusMessage = err.Error()
+		return l.Status.SetCondition(CONDITION_TYPE_READY, err, l.ObjectMeta.Generation)
+	} else if l.isReady() {
+		l.Status.StatusMessage = STATUS_OK
+		return l.Status.SetCondition(CONDITION_TYPE_READY, nil, l.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (l *Link) isReady() bool {
+	return meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_CONFIGURED)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -240,19 +506,30 @@ func (s *LinkSpec) GetEndpointForRole(name string) (Endpoint, bool) {
 	return Endpoint{}, false
 }
 
-type LinkStatus struct {
-	Status     `json:",inline"`
-	Configured bool `json:"configured,omitempty"`
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type AccessToken struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          AccessTokenSpec   `json:"spec,omitempty"`
-	Status        AccessTokenStatus `json:"status,omitempty"`
+	Spec          AccessTokenSpec `json:"spec,omitempty"`
+	Status        Status          `json:"status,omitempty"`
+}
+
+func (t *AccessToken) SetRedeemed(err error) bool {
+	if t.Status.SetCondition(CONDITION_TYPE_REDEEMED, err, t.ObjectMeta.Generation) {
+		if err == nil {
+			t.Status.StatusMessage = STATUS_OK
+		} else if err != nil {
+			t.Status.StatusMessage = err.Error()
+		}
+		return true
+	}
+	return false
+}
+
+func (t *AccessToken) IsRedeemed() bool {
+	return meta.IsStatusConditionTrue(t.Status.Conditions, CONDITION_TYPE_REDEEMED)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -271,8 +548,8 @@ type AccessTokenSpec struct {
 }
 
 type AccessTokenStatus struct {
-	Redeemed bool   `json:"redeemed,omitempty"`
-	Status   string `json:"status,omitempty"`
+	Status   `json:",inline"`
+	Redeemed bool `json:"redeemed,omitempty"`
 }
 
 // +genclient
@@ -283,6 +560,42 @@ type AccessGrant struct {
 	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          AccessGrantSpec   `json:"spec,omitempty"`
 	Status        AccessGrantStatus `json:"status,omitempty"`
+}
+
+func (g *AccessGrant) SetResolved() bool {
+	var err error
+	if g.Status.Ca == "" || g.Status.Url == "" {
+		err = fmt.Errorf("Pending")
+	}
+	if g.Status.SetCondition(CONDITION_TYPE_RESOLVED, err, g.ObjectMeta.Generation) {
+		g.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (g *AccessGrant) SetProcessed(err error) bool {
+	if g.Status.SetCondition(CONDITION_TYPE_PROCESSED, err, g.ObjectMeta.Generation) {
+		g.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (g *AccessGrant) setReady(err error) bool {
+	if err != nil {
+		g.Status.StatusMessage = err.Error()
+		return g.Status.SetCondition(CONDITION_TYPE_READY, err, g.ObjectMeta.Generation)
+	} else if g.isReady() {
+		g.Status.StatusMessage = STATUS_OK
+		return g.Status.SetCondition(CONDITION_TYPE_READY, nil, g.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (g *AccessGrant) isReady() bool {
+	return meta.IsStatusConditionTrue(g.Status.Conditions, CONDITION_TYPE_PROCESSED) &&
+		meta.IsStatusConditionTrue(g.Status.Conditions, CONDITION_TYPE_RESOLVED)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -302,12 +615,12 @@ type AccessGrantSpec struct {
 }
 
 type AccessGrantStatus struct {
+	Status     `json:",inline"`
 	Url        string `json:"url"`
 	Code       string `json:"code"`
 	Ca         string `json:"ca"`
 	Redeemed   int    `json:"redeemed,omitempty"`
 	Expiration string `json:"expiration,omitempty"`
-	Status     string `json:"status,omitempty"`
 }
 
 // +genclient
@@ -350,9 +663,9 @@ type SecuredAccessSpec struct {
 }
 
 type SecuredAccessStatus struct {
+	Status    `json:",inline"`
 	Endpoints []Endpoint `json:"endpoints,omitempty"`
 	Ca        string     `json:"ca,omitempty"`
-	Status    string     `json:"status,omitempty"`
 }
 
 func (s *SecuredAccessStatus) GetEndpointByName(name string) *Endpoint {
@@ -406,8 +719,8 @@ type CertificateSpec struct {
 }
 
 type CertificateStatus struct {
+	Status     `json:",inline"`
 	Expiration string `json:"expiration,omitempty"`
-	Status     string `json:"status,omitempty"`
 }
 
 func (c *Certificate) Key() string {
@@ -435,6 +748,46 @@ func (r *RouterAccess) FindRole(name string) *RouterAccessRole {
 		}
 	}
 	return nil
+}
+
+func (r *RouterAccess) SetConfigured(err error) bool {
+	if r.Status.SetCondition(CONDITION_TYPE_CONFIGURED, err, r.ObjectMeta.Generation) {
+		r.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (r *RouterAccess) Resolve(endpoints []Endpoint, group string) bool {
+	changed := false
+	if r.Status.UpdateEndpointsForGroup(endpoints, group) {
+		changed = true
+	}
+	if len(r.Status.Endpoints) > 0 && r.Status.SetCondition(CONDITION_TYPE_RESOLVED, nil, r.ObjectMeta.Generation) {
+		r.setReady(nil)
+		changed = true
+	}
+	return changed
+}
+
+func (r *RouterAccess) setReady(err error) bool {
+	if err != nil {
+		r.Status.StatusMessage = err.Error()
+		return r.Status.SetCondition(CONDITION_TYPE_READY, err, r.ObjectMeta.Generation)
+	} else if r.isReady() {
+		r.Status.StatusMessage = STATUS_OK
+		return r.Status.SetCondition(CONDITION_TYPE_READY, nil, r.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (r *RouterAccess) isReady() bool {
+	return meta.IsStatusConditionTrue(r.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
+		meta.IsStatusConditionTrue(r.Status.Conditions, CONDITION_TYPE_RESOLVED)
+}
+
+func (r *RouterAccess) IsConfigured() bool {
+	return meta.IsStatusConditionTrue(r.Status.Conditions, CONDITION_TYPE_CONFIGURED)
 }
 
 // endpoints are assumed all to be from one group

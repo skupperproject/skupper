@@ -76,16 +76,11 @@ func RedeemAccessToken(claim *skupperv1alpha1.AccessToken, site *skupperv1alpha1
 }
 
 func updateAccessTokenStatus(claim *skupperv1alpha1.AccessToken, err error, clients internalclient.Clients) error {
-	if err == nil {
-		log.Printf("Redeemed claim %s/%s successfully", claim.Namespace, claim.Name)
-		claim.Status.Status = skupperv1alpha1.STATUS_OK
-		claim.Status.Redeemed = true
-	} else {
-		log.Printf("Error processing claim %s/%s: %s", claim.Namespace, claim.Name, err)
-		claim.Status.Status = err.Error()
+	if claim.SetRedeemed(err) {
+		_, err = clients.GetSkupperClient().SkupperV1alpha1().AccessTokens(claim.ObjectMeta.Namespace).UpdateStatus(context.TODO(), claim, metav1.UpdateOptions{})
+		return err
 	}
-	_, err = clients.GetSkupperClient().SkupperV1alpha1().AccessTokens(claim.ObjectMeta.Namespace).UpdateStatus(context.TODO(), claim, metav1.UpdateOptions{})
-	return err
+	return nil
 }
 
 type LinkDecoder struct {

@@ -18,11 +18,7 @@ func newUnsupportedAccess(m *SecuredAccessManager) AccessType {
 
 func (o *UnsupportedAccessType) Realise(access *skupperv1alpha1.SecuredAccess) bool {
 	log.Printf("Unsupported access type %q in SecuredAccess %s/%s", access.Spec.AccessType, access.Namespace, access.Name)
-	if access.Status.Status == "unsupported access type" {
-		return false
-	}
-	access.Status.Status = "unsupported access type"
-	return true
+	return access.Status.SetStatusMessage("unsupported access type")
 }
 
 func (o *UnsupportedAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {

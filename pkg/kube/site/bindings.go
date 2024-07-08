@@ -13,7 +13,7 @@ import (
 )
 
 type BindingContext interface {
-	Select(connector *skupperv1alpha1.Connector) *TargetSelection
+	Select(connector *skupperv1alpha1.Connector) TargetSelection
 	Expose(ports *ExposedPortSet)
 	Unexpose(host string)
 }
@@ -22,7 +22,7 @@ type BindingAdaptor struct {
 	context   BindingContext
 	mapping   *qdr.PortMapping
 	exposed   ExposedPorts
-	selectors map[string]*TargetSelection
+	selectors map[string]TargetSelection
 }
 
 func (a *BindingAdaptor) init(context BindingContext, config *qdr.RouterConfig) {
@@ -31,7 +31,7 @@ func (a *BindingAdaptor) init(context BindingContext, config *qdr.RouterConfig) 
 		a.mapping = qdr.RecoverPortMapping(config)
 	}
 	a.exposed = ExposedPorts{}
-	a.selectors = map[string]*TargetSelection{}
+	a.selectors = map[string]TargetSelection{}
 }
 
 func (a *BindingAdaptor) cleanup() {
@@ -40,22 +40,9 @@ func (a *BindingAdaptor) cleanup() {
 	}
 }
 
-func (a *BindingAdaptor) ConnectorUpdated(connector *skupperv1alpha1.Connector, specChanged bool) bool {
-	if !specChanged {
-		if connector.Spec.Selector != "" {
-			if selector, ok := a.selectors[connector.Name]; ok {
-				selector.connector = connector // need to update to latest resource regardless of spec change
-			} else {
-				log.Printf("Warning: spec for connector %s/%s has not changed but pods not tracked", connector.Namespace, connector.Name)
-				a.selectors[connector.Name] = a.context.Select(connector)
-			}
-		}
-		return false
-	}
+func (a *BindingAdaptor) ConnectorUpdated(connector *skupperv1alpha1.Connector) bool {
 	if selector, ok := a.selectors[connector.Name]; ok {
-		selectorChanged := selector.connector.Spec != connector.Spec
-		selector.connector = connector
-		if !selectorChanged {
+		if selector.Selector() == connector.Spec.Selector {
 			// don't need to change the pod watcher, but may need to reconfigure for other change to spec
 			return true
 		} else {
@@ -109,11 +96,11 @@ func (a *BindingAdaptor) ListenerDeleted(listener *skupperv1alpha1.Listener) {
 
 func (a *BindingAdaptor) updateBridgeConfigForConnector(siteId string, connector *skupperv1alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
-		site.UpdateBridgeConfigForConnectorWithHost(siteId, connector, connector.Spec.Host, config)
+		site.UpdateBridgeConfigForConnector(siteId, connector, config)
 	} else if connector.Spec.Selector != "" {
 		if selector, ok := a.selectors[connector.Name]; ok {
-			for podUID, host := range selector.List() {
-				site.UpdateBridgeConfigForConnectorWithHostProcess(siteId, connector, host, podUID, config)
+			for _, pod := range selector.List() {
+				site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, config)
 			}
 		} else {
 			log.Printf("Error: not yet tracking pods for connector %s/%s with selector set", connector.Namespace, connector.Name)
@@ -131,29 +118,43 @@ func (a *BindingAdaptor) updateBridgeConfigForListener(siteId string, listener *
 	}
 }
 
-type TargetSelection struct {
+type TargetSelection interface {
+	Selector() string
+	Close()
+	List() []skupperv1alpha1.PodDetails
+}
+
+type TargetSelectionImpl struct {
 	watcher         *kube.PodWatcher
 	stopCh          chan struct{}
 	site            *Site
-	connector       *skupperv1alpha1.Connector
+	selector        string
 	name            string
 	namespace       string
 	includeNotReady bool
 }
 
-func (w *TargetSelection) Close() {
+func (w *TargetSelectionImpl) Selector() string {
+	return w.selector
+}
+
+func (w *TargetSelectionImpl) Close() {
 	close(w.stopCh)
 }
 
-func (w *TargetSelection) List() map[string]string {
+func (w *TargetSelectionImpl) List() []skupperv1alpha1.PodDetails {
 	pods := w.watcher.List()
-	targets := make(map[string]string, len(pods))
+	var targets []skupperv1alpha1.PodDetails
 
 	for _, pod := range pods {
 		if kube.IsPodReady(pod) || w.includeNotReady {
 			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
 				log.Printf("Pod %s selected for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
-				targets[string(pod.UID)] = pod.Status.PodIP
+				targets = append(targets, skupperv1alpha1.PodDetails{
+					UID:  string(pod.UID),
+					Name: pod.Name,
+					IP:   pod.Status.PodIP,
+				})
 			} else {
 				log.Printf("Pod %s not running for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
 			}
@@ -165,15 +166,14 @@ func (w *TargetSelection) List() map[string]string {
 
 }
 
-func (w *TargetSelection) handle(key string, pod *corev1.Pod) error {
+func (w *TargetSelectionImpl) handle(key string, pod *corev1.Pod) error {
 	err := w.site.updateRouterConfigForGroups(w.site.bindings)
+	connector := w.site.bindings.GetConnector(w.name)
+	if connector == nil {
+		return fmt.Errorf("Error looking up connector for %s/%s", w.namespace, w.name)
+	}
 	if err != nil {
-		return w.site.updateConnectorStatus(w.connector, err)
+		return w.site.updateConnectorConfiguredStatus(connector, err)
 	}
-	if len(w.List()) == 0 {
-		log.Printf("No pods available for %s/%s", w.connector.Namespace, w.connector.Name)
-		return w.site.updateConnectorStatus(w.connector, fmt.Errorf("No targets for selector"))
-	}
-	log.Printf("Pods are available for %s/%s", w.connector.Namespace, w.connector.Name)
-	return w.site.updateConnectorStatus(w.connector, nil)
+	return w.site.updateConnectorConfiguredStatusWithSelectedPods(connector, w.List())
 }
