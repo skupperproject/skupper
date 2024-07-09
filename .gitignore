@@ -4,16 +4,12 @@
 *.dll
 *.so
 *.dylib
-/service-controller
-/controller-podman
-/site-controller
 /skupper
-/get
 /config-sync
-/flow-collector
 /manifest
 /generate-doc
 /bootstrap
+/controller
 
 # Test binary, built with `go test -c`
 *.test
