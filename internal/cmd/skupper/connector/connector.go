@@ -8,10 +8,11 @@ import (
 func NewCmdConnector() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:     "connector",
-		Short:   "",
-		Long:    ``,
-		Example: ``,
+		Use:   "connector",
+		Short: "Binds target workloads in the local site to listeners in remote sites.",
+		Long:  `A connector is a endpoint in the local site and binds to listeners in remote sites`,
+		Example: `skupper connector create my-connector 8080
+skupper connector status my-connector`,
 	}
 
 	connectorCreateCommand := kube.NewCmdConnectorCreate()

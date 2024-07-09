@@ -3,6 +3,7 @@ package kube
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -45,6 +46,7 @@ func TestCmdConnectorUpdate_AddFlags(t *testing.T) {
 		"workload":          "",
 		"selector":          "",
 		"include-not-ready": "false",
+		"timeout":           "1m0s",
 		"output":            "",
 	}
 	var flagList []string
@@ -95,6 +97,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					return true, nil, fmt.Errorf("NotFound")
 				})
 				command.client = fakeSkupperClient
+				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"connector my-connector must exist in namespace test to be updated"},
 		},
@@ -105,6 +108,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"connector name must be configured"},
 		},
@@ -115,6 +119,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"connector name must not be empty"},
 		},
@@ -125,6 +130,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
@@ -135,6 +141,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
@@ -145,7 +152,10 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{connectorType: "not-valid"}
+				command.flags = ConnectorUpdates{
+					connectorType: "not-valid",
+					timeout:       1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{
 				"connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
@@ -157,22 +167,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{routingKey: "not-valid$"}
+				command.flags = ConnectorUpdates{
+					routingKey: "not-valid$",
+					timeout:    60 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
-		},
-		{
-			name: "host is not valid",
-			args: []string{"my-connector-host"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{host: ":not-Valid"}
-			},
-			expectedErrors: []string{
-				"host name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name: "tls-secret is not valid",
@@ -188,6 +189,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					return true, nil, fmt.Errorf("secret not found")
 				})
 				command.KubeClient = fakeKubeClient
+				command.flags = ConnectorUpdates{
+					tlsSecret: "test-tls",
+					timeout:   5 * time.Second}
 			},
 			expectedErrors: []string{
 				"tls-secret is not valid: does not exist"},
@@ -199,7 +203,10 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{port: -1}
+				command.flags = ConnectorUpdates{
+					port:    -1,
+					timeout: 40 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"connector port is not valid: value is not positive"},
@@ -211,7 +218,10 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{workload: "!workload"}
+				command.flags = ConnectorUpdates{
+					workload: "!workload",
+					timeout:  70 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"workload is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
@@ -223,10 +233,27 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{selector: "@#$%"}
+				command.flags = ConnectorUpdates{
+					selector: "@#$%",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{
 				"selector is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
+		},
+		{
+			name: "timeout is not valid",
+			args: []string{"bad-timeout"},
+			setUpMock: func(command *CmdConnectorUpdate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				command.client = fakeSkupperClient
+				command.flags = ConnectorUpdates{
+					selector: "selector",
+					timeout:  0 * time.Second}
+			},
+			expectedErrors: []string{
+				"timeout is not valid"},
 		},
 		{
 			name: "output is not valid",
@@ -235,7 +262,10 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{output: "not-supported"}
+				command.flags = ConnectorUpdates{
+					output:  "not-supported",
+					timeout: 1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{
 				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
@@ -255,6 +285,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					connectorType:   "tcp",
 					selector:        "backend",
 					includeNotReady: false,
+					timeout:         5 * time.Second,
 					output:          "json",
 				}
 				fakeKubeClient := kubefake.NewSimpleClientset()
@@ -424,7 +455,6 @@ func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-connector"
 			},
 			expectError: true,
 		},
@@ -437,7 +467,6 @@ func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 					return true, nil, fmt.Errorf("it failed")
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-connector"
 			},
 			expectError: true,
 		},
@@ -459,7 +488,6 @@ func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-connector"
 			},
 			expectError: false,
 		},
@@ -482,7 +510,6 @@ func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 				})
 				command.client = fakeSkupperClient
 				command.newSettings.output = "json"
-				command.name = "my-connector"
 			},
 			expectError: false,
 		},
@@ -490,6 +517,8 @@ func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 
 	for _, test := range testTable {
 		cmd := newCmdConnectorUpdateWithMocks()
+		cmd.flags = ConnectorUpdates{timeout: 5 * time.Second}
+		cmd.name = "my-connector"
 
 		test.setUpMock(cmd)
 		t.Run(test.name, func(t *testing.T) {

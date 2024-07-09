@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -32,6 +33,7 @@ type ConnectorUpdates struct {
 	workload        string
 	selector        string
 	includeNotReady bool
+	timeout         time.Duration
 	output          string
 }
 
@@ -83,12 +85,13 @@ func (cmd *CmdConnectorUpdate) NewClient(cobraCommand *cobra.Command, args []str
 func (cmd *CmdConnectorUpdate) AddFlags() {
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.routingKey, "routing-key", "r", "", "The identifier used to route traffic from connectors to connectors")
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.host, "host", "", "The hostname or IP address of the local connector")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.tlsSecret, "tls-secret", "", "The name of a Kubernetes secret containing TLS credentials")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.connectorType, "type", "t", "tcp", "The connector type. Choices: [tcp|http].")
+	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.tlsSecret, "tls-secret", "t", "", "The name of a Kubernetes secret containing TLS credentials")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.connectorType, "type", "tcp", "The connector type. Choices: [tcp|http].")
 	cmd.CobraCmd.Flags().IntVar(&cmd.flags.port, "port", 0, "The port of the local connector")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.selector, "selector", "s", "", "A Kubernetes label selector for specifying target server pods.")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.workload, "workload", "w", "", "A Kubernetes resource name that identifies a workload")
 	cmd.CobraCmd.Flags().BoolVarP(&cmd.flags.includeNotReady, "include-not-ready", "i", false, "If set, include server pods that are not in the ready state.")
+	cmd.CobraCmd.Flags().DurationVar(&cmd.flags.timeout, "timeout", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "Print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
@@ -108,10 +111,11 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	} else if args[0] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("connector name must not be empty"))
 	} else {
-		cmd.name = args[0]
-		ok, err := resourceStringValidator.Evaluate(cmd.name)
+		ok, err := resourceStringValidator.Evaluate(args[0])
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("connector name is not valid: %s", err))
+		} else {
+			cmd.name = args[0]
 		}
 	}
 
@@ -134,7 +138,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	//TBD what characters are not allowed
 	if cmd.flags.routingKey != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.flags.routingKey)
 		if !ok {
@@ -143,13 +146,9 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.routingKey = cmd.flags.routingKey
 		}
 	}
+	//TBD what characters are not allowed for host flag
 	if cmd.flags.host != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.host)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("host name is not valid: %s", err))
-		} else {
-			cmd.newSettings.host = cmd.flags.host
-		}
+		cmd.newSettings.host = cmd.flags.host
 	}
 	if cmd.flags.tlsSecret != "" {
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.flags.tlsSecret, metav1.GetOptions{})
@@ -189,6 +188,10 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("workload is not valid: %s", err))
 		}
 		cmd.newSettings.selector = cmd.flags.workload
+	}
+	//TBD what is valid timeout
+	if cmd.flags.timeout <= 0*time.Minute {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
 	if cmd.flags.output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
@@ -243,7 +246,8 @@ func (cmd *CmdConnectorUpdate) WaitUntilReady() error {
 		return nil
 	}
 
-	err := utils.NewSpinner("Waiting for update to complete...", 5, func() error {
+	waitTime := int(cmd.flags.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {

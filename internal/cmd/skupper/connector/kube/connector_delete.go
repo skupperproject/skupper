@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -17,9 +18,14 @@ var (
 	connectorDeleteExample = "skupper connector delete database"
 )
 
+type ConnectorDelete struct {
+	timeout time.Duration
+}
+
 type CmdConnectorDelete struct {
 	client    skupperv1alpha1.SkupperV1alpha1Interface
 	CobraCmd  cobra.Command
+	flags     ConnectorDelete
 	namespace string
 	name      string
 }
@@ -43,6 +49,7 @@ func NewCmdConnectorDelete() *CmdConnectorDelete {
 		},
 	}
 	skupperCmd.CobraCmd = cmd
+	skupperCmd.AddFlags()
 
 	return &skupperCmd
 }
@@ -53,6 +60,10 @@ func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []str
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
+}
+
+func (cmd *CmdConnectorDelete) AddFlags() {
+	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 }
 
 func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
@@ -67,17 +78,25 @@ func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 	} else if args[0] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("connector name must not be empty"))
 	} else {
-		cmd.name = args[0]
-		ok, err := resourceStringValidator.Evaluate(cmd.name)
+		ok, err := resourceStringValidator.Evaluate(args[0])
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("connector name is not valid: %s", err))
+		} else {
+			cmd.name = args[0]
 		}
 		// Validate that there is already a connector with this name in the namespace
-		connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if err != nil {
-			validationErrors = append(validationErrors, err)
-		} else if connector == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("connector %s does not exist in namespace %s", cmd.name, cmd.namespace))
+		if cmd.name != "" {
+			connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
+			if err != nil {
+				validationErrors = append(validationErrors, err)
+			} else if connector == nil {
+				validationErrors = append(validationErrors, fmt.Errorf("connector %s does not exist in namespace %s", cmd.name, cmd.namespace))
+			}
+		}
+
+		//TBD what is valid timeout
+		if cmd.flags.timeout <= 0*time.Minute {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 		}
 	}
 
@@ -90,7 +109,8 @@ func (cmd *CmdConnectorDelete) Run() error {
 }
 
 func (cmd *CmdConnectorDelete) WaitUntilReady() error {
-	err := utils.NewSpinner("Waiting for deletion to complete...", 5, func() error {
+	waitTime := int(cmd.flags.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err == nil && resource != nil {

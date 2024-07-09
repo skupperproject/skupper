@@ -3,6 +3,7 @@ package kube
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -44,6 +45,7 @@ func TestCmdConnectorCreate_AddFlags(t *testing.T) {
 		"workload":          "",
 		"selector":          "",
 		"include-not-ready": "false",
+		"timeout":           "1m0s",
 		"output":            "",
 	}
 	var flagList []string
@@ -91,28 +93,65 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					connector := v1alpha1.Connector{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-connector",
-							Namespace: "test",
-						},
-						Spec: v1alpha1.ConnectorSpec{
-							Port:     8080,
-							Type:     "tcp",
-							Host:     "test",
-							Selector: "mySelector",
-						},
-						Status: v1alpha1.Status{
-							StatusMessage: "Ok",
-						},
+				fakeSkupperClient.Fake.PrependReactor("*", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					switch action.(type) {
+					case testing2.GetAction:
+						connector := v1alpha1.Connector{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "my-connector",
+								Namespace: "test",
+							},
+							Spec: v1alpha1.ConnectorSpec{
+								Port:     8080,
+								Type:     "tcp",
+								Host:     "test",
+								Selector: "mySelector",
+							},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
+							},
+						}
+						return true, &connector, nil
+					case testing2.ListAction:
+						site := v1alpha1.SiteList{
+							Items: []v1alpha1.Site{
+								{
+									ObjectMeta: v1.ObjectMeta{
+										Name:      "site1",
+										Namespace: "test",
+									},
+								},
+							},
+						}
+						return true, &site, nil
 					}
-					return true, &connector, nil
+					return false, nil, nil
 				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"there is already a connector my-connector created for namespace test"},
+		},
+		{
+			name: "connector no site",
+			args: []string{"connector-site", "8090"},
+			setUpMock: func(command *CmdConnectorCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					return true, nil, nil
+				})
+				command.client = fakeSkupperClient
+				command.flags = ConnectorCreate{
+					host:    "127.0.0.1",
+					timeout: 1 * time.Minute,
+				}
+
+			},
+			expectedErrors: []string{"A site must exist in namespace test before a connector can be created"},
 		},
 		{
 			name: "connector name and port are not specified",
@@ -120,8 +159,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"connector name and port must be configured"},
 		},
@@ -131,8 +186,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"connector name must not be empty"},
 		},
@@ -142,8 +213,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"connector port must not be empty"},
 		},
@@ -153,8 +240,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"connector port is not valid: value is not positive"},
 		},
@@ -164,8 +267,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"connector name and port must be configured"},
 		},
@@ -175,8 +294,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"connector name and port must be configured"},
 		},
@@ -186,8 +321,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"only two arguments are allowed for this command"},
 		},
@@ -197,8 +348,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
@@ -208,8 +375,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "backend"}
+				command.flags = ConnectorCreate{
+					selector: "backend",
+					timeout:  1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{"connector port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax"},
 		},
@@ -219,10 +402,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
 				command.flags = ConnectorCreate{
 					connectorType: "not-valid",
 					selector:      "backend",
+					timeout:       60 * time.Second,
 				}
 			},
 			expectedErrors: []string{
@@ -234,27 +431,28 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
 				command.flags = ConnectorCreate{
 					routingKey: "not-valid$",
 					selector:   "backend",
+					timeout:    5 * time.Minute,
 				}
 			},
 			expectedErrors: []string{
 				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
-		},
-		{
-			name: "host is not valid",
-			args: []string{"my-connector-host", "8080"},
-			setUpMock: func(command *CmdConnectorCreate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{
-					host: ":not-Valid"}
-			},
-			expectedErrors: []string{
-				"host name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name: "tls-secret does not exist",
@@ -262,10 +460,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
 				command.flags = ConnectorCreate{
 					tlsSecret: "not-valid",
 					selector:  "backend",
+					timeout:   30 * time.Second,
 				}
 				fakeKubeClient := kubefake.NewSimpleClientset()
 				fakeKubeClient.Fake.ClearActions()
@@ -283,8 +495,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{workload: "@345"}
+				command.flags = ConnectorCreate{
+					workload: "@345",
+					timeout:  30 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"workload is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
@@ -295,11 +523,54 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{selector: "@#$%"}
+				command.flags = ConnectorCreate{
+					selector: "@#$%",
+					timeout:  30 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"selector is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
+		},
+		{
+			name: "timeout is not valid",
+			args: []string{"bad-timeout", "8080"},
+			setUpMock: func(command *CmdConnectorCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
+				command.client = fakeSkupperClient
+				command.flags = ConnectorCreate{
+					workload: "workload",
+					timeout:  0 * time.Second}
+			},
+			expectedErrors: []string{
+				"timeout is not valid"},
 		},
 		{
 			name: "output is not valid",
@@ -307,10 +578,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
 				command.flags = ConnectorCreate{
 					output:   "not-supported",
 					selector: "backend",
+					timeout:  30 * time.Second,
 				}
 			},
 			expectedErrors: []string{
@@ -322,8 +607,24 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
-				command.flags = ConnectorCreate{output: "json"}
+				command.flags = ConnectorCreate{
+					output:  "json",
+					timeout: 30 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"One of the following options must be set: workload, selector, host"},
@@ -334,6 +635,19 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdConnectorCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
 				command.client = fakeSkupperClient
 				command.flags = ConnectorCreate{
 					host:            "hostname",
@@ -342,6 +656,7 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 					connectorType:   "tcp",
 					selector:        "backend",
 					includeNotReady: true,
+					timeout:         30 * time.Second,
 					output:          "json",
 				}
 				fakeKubeClient := kubefake.NewSimpleClientset()
@@ -552,7 +867,6 @@ func TestCmdConnectorCreate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-
 			},
 			expectError: false,
 		},
@@ -583,6 +897,8 @@ func TestCmdConnectorCreate_WaitUntilReady(t *testing.T) {
 	for _, test := range testTable {
 		cmd := newCmdConnectorCreateWithMocks()
 		cmd.name = "my-connector"
+		cmd.flags = ConnectorCreate{timeout: 1 * time.Second}
+
 		test.setUpMock(cmd)
 		t.Run(test.name, func(t *testing.T) {
 

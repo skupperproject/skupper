@@ -146,7 +146,7 @@ func (cmd *CmdConnectorStatus) Run() error {
 			fmt.Println(encodedOutput)
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nSelector:\t%s\nHost:\t%s\nPort:\t%d\nConnectors:\t1\n",
+			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nSelector:\t%s\nHost:\t%s\nPort:\t%d\nListeners:\n",
 				resource.Name, resource.Status.StatusMessage, resource.Spec.RoutingKey, resource.Spec.Selector, resource.Spec.Host, resource.Spec.Port))
 			_ = tw.Flush()
 		}

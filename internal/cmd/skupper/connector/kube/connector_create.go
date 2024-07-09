@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -29,6 +30,7 @@ type ConnectorCreate struct {
 	connectorType   string
 	includeNotReady bool
 	workload        string
+	timeout         time.Duration
 	output          string
 }
 
@@ -48,7 +50,7 @@ func NewCmdConnectorCreate() *CmdConnectorCreate {
 	skupperCmd := CmdConnectorCreate{flags: ConnectorCreate{}}
 
 	cmd := cobra.Command{
-		Use:     "create <name>",
+		Use:     "create <name> <port>",
 		Short:   "create a connector",
 		Long:    connectorCreateLong,
 		Example: connectorCreateExample,
@@ -80,11 +82,12 @@ func (cmd *CmdConnectorCreate) NewClient(cobraCommand *cobra.Command, args []str
 func (cmd *CmdConnectorCreate) AddFlags() {
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.routingKey, "routing-key", "r", "", "The identifier used to route traffic from Connectors to connectors")
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.host, "host", "", "The hostname or IP address of the local Connector")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.tlsSecret, "tls-secret", "", "The name of a Kubernetes secret containing TLS credentials")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.connectorType, "type", "t", "tcp", "The Connector type. Choices: [tcp].")
+	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.tlsSecret, "tls-secret", "t", "", "The name of a Kubernetes secret containing TLS credentials")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.connectorType, "type", "tcp", "The Connector type. Choices: [tcp].")
 	cmd.CobraCmd.Flags().BoolVarP(&cmd.flags.includeNotReady, "include-not-ready", "i", false, "If true, include server pods that are not in the ready state.")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.selector, "selector", "s", "", "A Kubernetes label selector for specifying target server pods.")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.workload, "workload", "w", "", "A Kubernetes label selector for specifying target server pods.")
+	cmd.CobraCmd.Flags().DurationVar(&cmd.flags.timeout, "timeout", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
@@ -106,10 +109,11 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	} else if args[1] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("connector port must not be empty"))
 	} else {
-		cmd.name = args[0]
-		ok, err := resourceStringValidator.Evaluate(cmd.name)
+		ok, err := resourceStringValidator.Evaluate(args[0])
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("connector name is not valid: %s", err))
+		} else {
+			cmd.name = args[0]
 		}
 
 		cmd.port, err = strconv.Atoi(args[1])
@@ -122,29 +126,29 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		}
 	}
 
+	// Validate there is already a site defined in the namespace before a connector can be created
+	siteList, _ := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if siteList == nil || len(siteList.Items) < 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a connector can be created", cmd.namespace))
+	}
+
 	// Validate if there is already a Connector with this name in the namespace
 	if cmd.name != "" {
-		Connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if Connector != nil && !errors.IsNotFound(err) && Connector.Status.StatusMessage == "Ok" {
+		connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
+		if connector != nil && !errors.IsNotFound(err) && connector.Status.StatusMessage == "Ok" {
 			validationErrors = append(validationErrors, fmt.Errorf("there is already a connector %s created for namespace %s", cmd.name, cmd.namespace))
 		}
 	}
 
 	// Validate flags
 	if cmd.flags.routingKey != "" {
-		//TBD what characters are not allowed
 		ok, err := resourceStringValidator.Evaluate(cmd.flags.routingKey)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
 		}
 	}
-	if cmd.flags.host != "" {
-		//TBD what characters are not allowed
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.host)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("host name is not valid: %s", err))
-		}
-	}
+	//TBD what characters are not allowed for host flag
+
 	if cmd.flags.tlsSecret != "" {
 		// check that the secret exists
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.flags.tlsSecret, metav1.GetOptions{})
@@ -158,7 +162,6 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("connector type is not valid: %s", err))
 		}
 	}
-	//TBD what are valid values here
 	if cmd.flags.selector != "" {
 		ok, err := workloadStringValidator.Evaluate(cmd.flags.selector)
 		if !ok {
@@ -171,6 +174,10 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("workload is not valid: %s", err))
 		}
+	}
+	//TBD what is valid timeout
+	if cmd.flags.timeout <= 0*time.Minute {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
 	// workload, selector or host must be specified
 	if cmd.flags.workload == "" && cmd.flags.selector == "" && cmd.flags.host == "" {
@@ -226,7 +233,8 @@ func (cmd *CmdConnectorCreate) WaitUntilReady() error {
 		return nil
 	}
 
-	err := utils.NewSpinner("Waiting for create to complete...", 5, func() error {
+	waitTime := int(cmd.flags.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {
