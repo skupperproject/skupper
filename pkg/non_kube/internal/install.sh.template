@@ -1,0 +1,90 @@
+# Bundle installation
+
+# site name to be provided by bundle generation
+export SITE_NAME="{{.SiteName}}"
+export SKUPPER_PLATFORM="podman"
+export REMOVE=false
+export LOG_FILE="$(mktemp /tmp/skupper-install.XXXXX.log)"
+
+# standard output directories
+export OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
+export SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
+if [[ ${UID} -eq 0 ]]; then
+    export OUTPUT_PATH="/usr/local/share/skupper"
+    export SERVICE_DIR="/etc/systemd/system"
+fi
+
+exit_error() {
+    echo "$*"
+    exit 1
+}
+
+usage() {
+    echo "Usage: $0 [-p <podman|docker|systemd>] [-x]" >&2
+    exit 1
+}
+
+parse_opts() {
+    while getopts "xp:" opt; do
+        case "${opt}" in
+            p)
+                export SKUPPER_PLATFORM="${OPTARG}"
+                ;;
+            x)
+                export REMOVE=true
+                ;;
+            *)
+                usage
+                ;;
+        esac
+    done
+}
+
+create_service() {
+    # if systemd is not available, skip it
+    if [[ ${UID} -eq 0 ]]; then
+        systemctl list-units > /dev/null 2>&1 || return
+    else
+        systemctl --user list-units > /dev/null 2>&1 || return
+    fi
+    service_name="skupper-site-${SITE_NAME}.service"
+    service_file="${OUTPUT_PATH}/sites/${SITE_NAME}/runtime/scripts/${service_name}"
+    if [[ ! -f ${service_file} ]]; then
+        echo "SystemD service has not been defined"
+        return
+    fi
+
+    # Moving it to the appropriate location
+    if [[ ${UID} -eq 0 ]]; then
+        mv "${service_file}" /etc/systemd/system/
+        systemctl enable --now "${service_name}"
+        systemctl daemon-reload
+    else
+        if [[ ! -d "${SERVICE_DIR}" ]]; then
+            echo "Unable to define path to SystemD service"
+            return
+        fi
+        mv "${service_file}" "${SERVICE_DIR}"
+        systemctl --user enable --now "${service_name}"
+        systemctl --user daemon-reload
+    fi
+}
+
+remove() {
+    # TODO: on removal, find existing site definition first
+    #  then read platform.yml to determine the platform
+    #  and ignore -p flag
+    echo
+}
+
+main() {
+    # validate provided options
+    parse_opts "$@"
+
+    echo "Skupper site bundle installation"
+    echo "Site name: ${SITE_NAME}"
+    echo "Platform : ${SKUPPER_PLATFORM}"
+    echo "Remove?  : ${REMOVE}"
+}
+
+main "$@"
