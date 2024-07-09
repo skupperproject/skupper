@@ -4,16 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
-	"github.com/skupperproject/skupper/pkg/container"
-	"github.com/skupperproject/skupper/pkg/domain"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -159,7 +154,10 @@ func (s *InitTester) Run(platform types.Platform, cluster *base.ClusterContext) 
 	}
 	switch platform {
 	case types.PlatformPodman:
-		err = s.ValidatePodman(stdout, stderr)
+		// TODO Removed broken v1 implementation
+		err = fmt.Errorf("broken implementation")
+		return
+
 	default:
 		err = s.ValidateKubernetes(cluster, stdout, stderr)
 	}
@@ -292,14 +290,8 @@ func (s *InitTester) ValidateConsoleKube(cluster *base.ClusterContext) error {
 	// if running against an OpenShift cluster, check for route
 	routeClient := cluster.VanClient.RouteClient
 	if routeClient != nil {
-		route, err := routeClient.Routes(cluster.Namespace).Get(context.TODO(), types.ControllerServiceName, v1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("error retrieving route: %s - %v", types.ControllerServiceName, err)
-		}
-		if route.Spec.To.Kind != "Service" || route.Spec.To.Name != types.ControllerServiceName {
-			return fmt.Errorf("console route is not targeting the correct service - expected: Service/%s - found: %s/%s",
-				types.ControllerServiceName, route.Spec.To.Kind, route.Spec.To.Name)
-		}
+		// TODO Removed broken v1 implementation
+		return fmt.Errorf("broken implementation")
 	}
 
 	return nil
@@ -362,16 +354,8 @@ func (s *InitTester) validateIngressFor(cluster *base.ClusterContext, ingress st
 	// if running against an OpenShift cluster, check for route
 	routeClient := cluster.VanClient.RouteClient
 	if routeClient != nil {
-		for _, routeName := range routes {
-			_, err := routeClient.Routes(cluster.Namespace).Get(context.TODO(), routeName, v1.GetOptions{})
-			// route expected at this point
-			if err != nil && ingress == "route" {
-				return fmt.Errorf("expected route not found: %s - %v", routeName, err)
-			}
-			if err == nil && ingress == "none" {
-				return fmt.Errorf("route is not expected using --ingress=none: %s", routeName)
-			}
-		}
+		// TODO Removed broken v1 implementation
+		return fmt.Errorf("broken implementation")
 	}
 
 	return nil
@@ -400,36 +384,8 @@ func (s *InitTester) validateRouterMode(cluster *base.ClusterContext) error {
 
 	routeClient := cluster.VanClient.RouteClient
 	if routeClient != nil && s.Ingress == "route" {
-
-		for _, routeName := range []string{types.EdgeRouteName, types.InterRouterRouteName} {
-			targetPortName := routeName[strings.Index(routeName, "-")+1:]
-			route, err := routeClient.Routes(cluster.Namespace).Get(context.TODO(), routeName, v1.GetOptions{})
-
-			// route expected at this point
-			if err != nil && s.RouterMode == "interior" {
-				return fmt.Errorf("expected route not found: %s - %v", routeName, err)
-			}
-
-			// route not expected using edge mode
-			if err == nil && s.RouterMode == "edge" {
-				return fmt.Errorf("route not expected using --router-mode=edge: %s", routeName)
-			}
-
-			// if edge mode, continue
-			if s.RouterMode == "edge" {
-				continue
-			}
-
-			// Verify routes
-			if route.Spec.To.Kind != "Service" || route.Spec.To.Name != types.TransportServiceName {
-				return fmt.Errorf("controller route is not targeting the correct service - expected: Service/%s - found: %s/%s",
-					types.TransportServiceName, route.Spec.To.Kind, route.Spec.To.Name)
-			}
-			if route.Spec.Port.String() != targetPortName {
-				return fmt.Errorf("controller route is not targeting the correct service - expected: Service/%s - found: %s/%s",
-					types.TransportServiceName, route.Spec.To.Kind, route.Spec.To.Name)
-			}
-		}
+		// TODO Removed broken v1 implementation
+		return fmt.Errorf("broken implementation")
 	}
 
 	return nil
@@ -618,146 +574,5 @@ func (s *InitTester) validatePodSecurityContext(cluster *base.ClusterContext) er
 			return fmt.Errorf("--run-as-group defined as: [%s] but deployment has [%d]", s.RunAsGroup, *psc.RunAsGroup)
 		}
 	}
-	return nil
-}
-
-func (s *InitTester) ValidatePodman(stdout string, stderr string) (err error) {
-	var cli *clientpodman.PodmanRestClient
-	var siteHandler domain.SiteHandler
-
-	// Validate if init output contains the username where skupper podman is running
-	log.Println("Validating 'skupper init'")
-	if !strings.Contains(stdout, fmt.Sprintf("Skupper is now installed for user '%s'.", podman.Username)) {
-		err = fmt.Errorf("init output is valid - missing username info")
-	}
-
-	// Site Handler to get status
-	cli, err = clientpodman.NewPodmanClient("", "")
-	if err != nil {
-		return
-	}
-	log.Println("Validate if all components are running")
-	siteHandler, err = podman.NewSitePodmanHandler("")
-	if err != nil {
-		return
-	}
-	var site domain.Site
-	site, err = siteHandler.Get()
-	if err != nil {
-		return
-	}
-	podmanSite := site.(*podman.Site)
-	// hosts/ports bound
-	var siteIngresses []domain.SiteIngress
-	for _, dep := range site.GetDeployments() {
-		for _, cmp := range dep.GetComponents() {
-			var c *container.Container
-			c, err = cli.ContainerInspect(cmp.Name())
-			if err != nil {
-				return
-			}
-			if !c.Running {
-				err = fmt.Errorf("expected component is not running: %s", c.Name)
-				return
-			}
-			siteIngresses = append(siteIngresses, cmp.GetSiteIngresses()...)
-		}
-	}
-
-	// Validating ingress hosts
-	log.Println("Validating ingress hosts")
-	if s.Ingress == "none" && len(podmanSite.IngressHosts) > 1 {
-		return fmt.Errorf("ingress is none but %d ingress hosts have been defined: %v", len(podmanSite.IngressHosts), podmanSite.IngressHosts)
-	} else if s.Ingress == types.IngressPodmanExternal && len(s.Podman.IngressHosts) > 0 {
-		if len(siteIngresses) != len(s.Podman.IngressHosts) {
-			return fmt.Errorf("%d ingress hosts expected, found: %d", len(s.Podman.IngressHosts), len(siteIngresses))
-		}
-	}
-
-	// Validating router logging
-	log.Println("Validating router logging")
-	routerConfigHandler := podman.NewRouterConfigHandlerPodman(cli)
-	routerConfig, err := routerConfigHandler.GetRouterConfig()
-	if err != nil {
-		return fmt.Errorf("error retrieving router config - %w", err)
-	}
-	if err = s.validateLogging(routerConfig); err != nil {
-		return err
-	}
-
-	// Validating site name
-	log.Println("Validating site name")
-	expectedSiteName := s.SiteName
-	if s.SiteName == "" {
-		hostname, _ := os.Hostname()
-		expectedSiteName = hostname + "-" + strings.ToLower(podman.Username)
-	}
-	if expectedSiteName != podmanSite.GetName() {
-		return fmt.Errorf("invalid site name - expected: %s - found: %s", expectedSiteName, podmanSite.GetName())
-	}
-
-	// Validating bound ports
-	if s.Ingress != types.IngressNoneString {
-		expectedBindPort := utils.DefaultNumber(s.Podman.BindPort, int(types.InterRouterListenerPort))
-		expectedBindPortEdge := utils.DefaultNumber(s.Podman.BindPortEdge, int(types.EdgeListenerPort))
-		if podmanSite.IngressBindInterRouterPort != expectedBindPort {
-			return fmt.Errorf("incorrect bind-port - expected: %d - found: %d", expectedBindPort, podmanSite.IngressBindInterRouterPort)
-		}
-		if podmanSite.IngressBindEdgePort != expectedBindPortEdge {
-			return fmt.Errorf("incorrect bind-port-edge - expected: %d - found: %d", expectedBindPortEdge, podmanSite.IngressBindEdgePort)
-		}
-	}
-	if s.EnableFlowCollector {
-		log.Println("Validating flow-collector")
-		fcFound := false
-		for _, dep := range podmanSite.GetDeployments() {
-			if dep.GetName() == types.FlowCollectorContainerName {
-				fcFound = true
-			}
-		}
-		if !fcFound {
-			return fmt.Errorf("flow collector expected to be present, but not found")
-		}
-		expectedBindPortFc := utils.DefaultNumber(s.Podman.BindPortFlowCollector, int(types.FlowCollectorDefaultServiceTargetPort))
-		if podmanSite.IngressBindFlowCollectorPort != expectedBindPortFc {
-			return fmt.Errorf("incorrect bind-port-flow-collector - expected: %d - found: %d", expectedBindPortFc, podmanSite.IngressBindFlowCollectorPort)
-		}
-		if s.EnableConsole {
-			if err = s.ValidateConsolePodman(podmanSite); err != nil {
-				return
-			}
-		}
-	}
-
-	return
-}
-
-func (s *InitTester) ValidateConsolePodman(site *podman.Site) error {
-
-	if site.EnableConsole != s.EnableConsole {
-		return fmt.Errorf("expected enable console to be %v - found: %v", s.EnableConsole, site.EnableConsole)
-	}
-
-	// Verifying console authentication (just internal and unsecured for now)
-	if s.ConsoleAuth != types.ConsoleAuthModeUnsecured {
-		var user, pass string
-
-		// retrieve password
-		user = site.ConsoleUser
-		pass = site.ConsolePassword
-
-		// validating if user and password match
-		if s.ConsoleUser != "" {
-			if user != s.ConsoleUser {
-				return fmt.Errorf("console username not defined as requested - expected: %s - found: %s", s.ConsoleUser, user)
-			}
-		}
-		if s.ConsolePassword != "" {
-			if pass != s.ConsolePassword {
-				return fmt.Errorf("console password not defined as requested - expected: %s - found: %s", s.ConsoleUser, user)
-			}
-		}
-	}
-
 	return nil
 }

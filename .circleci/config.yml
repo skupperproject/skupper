@@ -98,7 +98,6 @@ commands:
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
             echo "export SKUPPER_SERVICE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/service-controller" >> $BASH_ENV
-            echo "export SKUPPER_CONTROLLER_PODMAN_IMAGE=${LOCAL_IP}:5000/controller-podman" >> $BASH_ENV
             echo "export SKUPPER_SITE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/site-controller" >> $BASH_ENV
             echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
             echo "export SKUPPER_FLOW_COLLECTOR_IMAGE=${LOCAL_IP}:5000/flow-collector" >> $BASH_ENV
@@ -134,8 +133,6 @@ commands:
           command: |
             gunzip -c /tmp/images/service-controller.gz | docker import - 0.0.0.0:5000/service-controller
             gunzip -c /tmp/images/service-controller.gz | docker load
-            gunzip -c /tmp/images/controller-podman.gz | docker import - 0.0.0.0:5000/controller-podman
-            gunzip -c /tmp/images/controller-podman.gz | docker load
             gunzip -c /tmp/images/config-sync.gz | docker import - 0.0.0.0:5000/config-sync
             gunzip -c /tmp/images/config-sync.gz | docker load
             gunzip -c /tmp/images/flow-collector.gz | docker import - 0.0.0.0:5000/flow-collector
@@ -146,7 +143,6 @@ commands:
           name: push to local registry
           command: |
             docker push 0.0.0.0:5000/service-controller
-            docker push 0.0.0.0:5000/controller-podman
             docker push 0.0.0.0:5000/config-sync
             docker push 0.0.0.0:5000/flow-collector
             docker push 0.0.0.0:5000/skupper-tests
@@ -218,10 +214,6 @@ commands:
           name: Run site-controller tests in real cluster
           command: |
             go test -v -count=1 ./cmd/site-controller -use-cluster | tee /tmp/results/test-cmd-site-controller.out
-      - run:
-          name: Run podman system tests in real cluster
-          command: |
-            go test -v -count=1 -v -tags=podman ./pkg/domain/podman/... -use-cluster | tee /tmp/results/test-pkg-domain-podman.out
       - system_status
       - run:
           name: Archiving test artifacts
@@ -487,8 +479,6 @@ jobs:
             mkdir /tmp/images
             docker tag quay.io/skupper/service-controller 0.0.0.0:5000/service-controller
             docker save 0.0.0.0:5000/service-controller | gzip > /tmp/images/service-controller.gz
-            docker tag quay.io/skupper/controller-podman 0.0.0.0:5000/controller-podman
-            docker save 0.0.0.0:5000/controller-podman | gzip > /tmp/images/controller-podman.gz
             docker tag quay.io/skupper/config-sync 0.0.0.0:5000/config-sync
             docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
             docker tag quay.io/skupper/flow-collector 0.0.0.0:5000/flow-collector
@@ -655,7 +645,6 @@ jobs:
           name:
           command: |
             echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export CONTROLLER_PODMAN_IMAGE=quay.io/skupper/controller-podman:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
@@ -676,7 +665,6 @@ jobs:
           name: "Publishing main images"
           command: |
             echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:main' >> $BASH_ENV
-            echo 'export CONTROLLER_PODMAN_IMAGE=quay.io/skupper/controller-podman:main' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:main' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:main' >> $BASH_ENV
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:main' >> $BASH_ENV

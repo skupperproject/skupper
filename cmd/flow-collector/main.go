@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/signal"
 	"path"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -22,10 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
 	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -262,38 +258,6 @@ func main() {
 		svc, err := kube.GetService(types.PrometheusServiceName, cli.Namespace, cli.KubeClient)
 		if err == nil {
 			prometheusUrl = "http://" + svc.Spec.ClusterIP + ":" + fmt.Sprint(svc.Spec.Ports[0].Port) + "/api/v1/"
-		}
-	} else {
-		cfg, err := podman.NewPodmanConfigFileHandler().GetConfig()
-		if err != nil {
-			log.Fatal("Error reading podman site config", err)
-		}
-		podmanCli, err := clientpodman.NewPodmanClient(cfg.Endpoint, "")
-		if err != nil {
-			log.Fatal("Error creating podman client", err)
-		}
-		err = utils.Retry(time.Second, 120, func() (bool, error) {
-			router, err := podmanCli.ContainerInspect(types.TransportDeploymentName)
-			if err != nil {
-				return false, fmt.Errorf("error retrieving %s container state - %w", types.TransportDeploymentName, err)
-			}
-			if !router.Running {
-				return false, nil
-			}
-			return true, nil
-		})
-		if err != nil {
-			log.Fatalf("unable to determine if %s container is running - %s", types.TransportDeploymentName, err)
-		}
-		flowRecordTtl, _ = time.ParseDuration(os.Getenv("FLOW_RECORD_TTL"))
-		enableConsole, _ = strconv.ParseBool(os.Getenv("ENABLE_CONSOLE"))
-		prometheusUrl = "http://skupper-prometheus:9090/api/v1/"
-
-		flowUsers := os.Getenv("FLOW_USERS")
-		// Podman support only unsecured auth mode and internal auth mode
-		authMode = types.ConsoleAuthModeUnsecured
-		if flowUsers != "" {
-			authMode = types.ConsoleAuthModeInternal
 		}
 	}
 

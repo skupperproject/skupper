@@ -7,9 +7,6 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
-	"github.com/skupperproject/skupper/pkg/container"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -46,7 +43,10 @@ func (d *DeleteTester) Run(platform types.Platform, cluster *base.ClusterContext
 	log.Printf("Validating 'skupper delete'")
 	var expectedOutput string
 	if platform == types.PlatformPodman {
-		expectedOutput = fmt.Sprintf("Skupper is now removed for user '%s'.", podman.Username)
+		// TODO Removed broken v1 implementation
+		err = fmt.Errorf("broken implementation")
+		return
+
 	} else {
 		expectedOutput = fmt.Sprintf("Skupper is now removed from '%s'.", cluster.Namespace)
 	}
@@ -104,46 +104,6 @@ func (d *DeleteTester) validateKubeRemoved(ctx context.Context, cluster *base.Cl
 }
 
 func (d *DeleteTester) validatePodmanRemoved() (bool, error) {
-	cli, err := clientpodman.NewPodmanClient("", "")
-	if err != nil {
-		return true, err
-	}
-
-	// no skupper-owned containers found
-	containers, err := cli.ContainerList()
-	if err != nil {
-		return true, fmt.Errorf("error retrieving container list: %w", err)
-	}
-	for _, c := range containers {
-		if container.IsOwnedBySkupper(c.Labels) {
-			log.Printf("skupper container still exists: %s", c.Name)
-			return false, nil
-		}
-	}
-
-	// no skupper-owned volumes found
-	volumes, err := cli.VolumeList()
-	if err != nil {
-		return true, fmt.Errorf("error retrieving volume list: %w", err)
-	}
-	for _, v := range volumes {
-		if container.IsOwnedBySkupper(v.Labels) {
-			log.Printf("skupper volume still exists: %s", v.Name)
-			return false, nil
-		}
-	}
-
-	// no skupper-owned networks found
-	networks, err := cli.NetworkList()
-	if err != nil {
-		return true, fmt.Errorf("error retrieving network list: %w", err)
-	}
-	for _, n := range networks {
-		if container.IsOwnedBySkupper(n.Labels) {
-			log.Printf("skupper network still exists: %s", n.Name)
-			return false, nil
-		}
-	}
-
-	return true, nil
+	// TODO Removed broken v1 implementation
+	return false, fmt.Errorf("broken implementation")
 }

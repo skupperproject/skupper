@@ -8,7 +8,6 @@ import (
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/domain"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -42,7 +41,6 @@ type VanClient struct {
 	DynamicClient   dynamic.Interface
 	DiscoveryClient discovery.DiscoveryInterface
 	skupperClient   skupperclient.Interface
-	LinkHandler     domain.LinkHandler
 }
 
 func (cli *VanClient) GetNamespace() string {

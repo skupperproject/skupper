@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	utils2 "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils"
 	"github.com/skupperproject/skupper/test/utils/base"
@@ -121,7 +119,8 @@ func (e *ExposeTester) Run(platform types.Platform, cluster *base.ClusterContext
 		log.Printf("validating service after expose completed - attempt: %d", attempt)
 
 		if platform == types.PlatformPodman {
-			return e.validatePodman(expectedAddress)
+			// TODO Removed broken v1 implementation
+			return false, fmt.Errorf("broken implementation")
 		}
 		return e.validateKubernetes(ctx, platform, expectedAddress, cluster)
 	})
@@ -190,71 +189,5 @@ func (e *ExposeTester) validateTargets(platform types.Platform, svc types.Servic
 		return true, fmt.Errorf("no target has been found for given target name")
 	}
 
-	return true, nil
-}
-
-func (e *ExposeTester) validatePodman(address string) (bool, error) {
-	cli, err := clientpodman.NewPodmanClient("", "")
-	if err != nil {
-		return true, err
-	}
-	containerName := utils2.DefaultStr(e.Podman.ContainerName, e.Address)
-	c, err := cli.ContainerInspect(containerName)
-	if err != nil {
-		return false, nil
-	}
-
-	// verifying service definition
-	svcHandler := podman.NewServiceHandlerPodman(cli)
-	svc, err := svcHandler.Get(e.Address)
-	if err != nil {
-		return true, fmt.Errorf("service definition not found - %w", err)
-	}
-
-	// validating service ports
-	if e.Port != svc.GetPorts()[0] {
-		return true, fmt.Errorf("incorrect ports defined - expecting: [%d] - found: %v", e.Port, svc.GetPorts())
-	}
-
-	// validate host binding
-	if e.Podman.HostIp != "" {
-		if e.Podman.HostIp != c.Ports[0].HostIP {
-			return true, fmt.Errorf("host ip does not match - expecting: %s - found: %s", e.Podman.HostIp, c.Ports[0].HostIP)
-		}
-	}
-
-	// validate host ports
-	if len(e.Podman.HostPorts) > 0 {
-		for _, hostPort := range e.Podman.HostPorts {
-			hostPortSlice := strings.Split(hostPort, ":")
-			hostPort := hostPortSlice[0]
-			if len(hostPortSlice) > 1 {
-				hostPort = hostPortSlice[1]
-			}
-			svcPort := hostPortSlice[0]
-
-			found := false
-			for _, cPort := range c.Ports {
-				if cPort.Target == svcPort && cPort.Host == hostPort {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return true, fmt.Errorf("host port binding not found: %s - container ports: %v", hostPort, c.Ports)
-			}
-		}
-	}
-
-	// validating labels
-	if len(e.Podman.Labels) > 0 {
-		for k, v := range e.Podman.Labels {
-			if cv, ok := c.Labels[k]; !ok {
-				return true, fmt.Errorf("container label is missing: %s", k)
-			} else if v != cv {
-				return true, fmt.Errorf("container label does not match - expected: %s=%s - found: %s=%s", k, v, k, cv)
-			}
-		}
-	}
 	return true, nil
 }

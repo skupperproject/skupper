@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	clientpodman "github.com/skupperproject/skupper/client/podman"
-	"github.com/skupperproject/skupper/pkg/domain/podman"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -125,67 +122,6 @@ func (s *CreateTester) validateKubernetes(cluster *base.ClusterContext) (bool, e
 }
 
 func (s *CreateTester) validatePodman() (bool, error) {
-	cli, err := clientpodman.NewPodmanClient("", "")
-	if err != nil {
-		return true, err
-	}
-	containerName := utils.DefaultStr(s.Podman.ContainerName, s.Name)
-	c, err := cli.ContainerInspect(containerName)
-	if err != nil {
-		return false, nil
-	}
-
-	// verifying service definition
-	svcHandler := podman.NewServiceHandlerPodman(cli)
-	svc, err := svcHandler.Get(s.Name)
-	if err != nil {
-		return true, fmt.Errorf("service definition not found - %w", err)
-	}
-
-	// validating service ports
-	if s.Port != svc.GetPorts()[0] {
-		return true, fmt.Errorf("incorrect ports defined - expecting: [%d] - found: %v", s.Port, svc.GetPorts())
-	}
-
-	// validate host binding
-	if s.Podman.HostIp != "" {
-		if s.Podman.HostIp != c.Ports[0].HostIP {
-			return true, fmt.Errorf("host ip does not match - expecting: %s - found: %s", s.Podman.HostIp, c.Ports[0].HostIP)
-		}
-	}
-
-	// validate host ports
-	if len(s.Podman.HostPorts) > 0 {
-		for _, hostPort := range s.Podman.HostPorts {
-			hostPortSlice := strings.Split(hostPort, ":")
-			hostPort := hostPortSlice[0]
-			if len(hostPortSlice) > 1 {
-				hostPort = hostPortSlice[1]
-			}
-			svcPort := hostPortSlice[0]
-
-			found := false
-			for _, cPort := range c.Ports {
-				if cPort.Target == svcPort && cPort.Host == hostPort {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return true, fmt.Errorf("host port binding not found: %s - container ports: %v", hostPort, c.Ports)
-			}
-		}
-	}
-
-	// validating labels
-	if len(s.Podman.Labels) > 0 {
-		for k, v := range s.Podman.Labels {
-			if cv, ok := c.Labels[k]; !ok {
-				return true, fmt.Errorf("container label is missing: %s", k)
-			} else if v != cv {
-				return true, fmt.Errorf("container label does not match - expected: %s=%s - found: %s=%s", k, v, k, cv)
-			}
-		}
-	}
-	return true, nil
+	// TODO Removed broken v1 implementation
+	return false, fmt.Errorf("broken implementation")
 }
