@@ -1,6 +1,7 @@
 package apis
 
 import (
+	encodingjson "encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -34,9 +35,10 @@ type SiteState struct {
 	Claims          map[string]*v1alpha1.AccessToken
 	Certificates    map[string]*v1alpha1.Certificate
 	SecuredAccesses map[string]*v1alpha1.SecuredAccess
+	bundle          bool
 }
 
-func NewSiteState() *SiteState {
+func NewSiteState(bundle bool) *SiteState {
 	return &SiteState{
 		Site:            &v1alpha1.Site{},
 		Listeners:       make(map[string]*v1alpha1.Listener),
@@ -48,7 +50,12 @@ func NewSiteState() *SiteState {
 		Claims:          make(map[string]*v1alpha1.AccessToken),
 		Certificates:    map[string]*v1alpha1.Certificate{},
 		SecuredAccesses: map[string]*v1alpha1.SecuredAccess{},
+		bundle:          bundle,
 	}
+}
+
+func (s *SiteState) IsBundle() bool {
+	return s.bundle
 }
 
 func (s *SiteState) IsInterior() bool {
@@ -231,7 +238,17 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
 		s.SiteId = uuid.New().String()
 	}
 	routerConfig := qdr.InitialConfig(s.Site.Name, s.SiteId, version.Version, !s.IsInterior(), 3)
-
+	// override metadata
+	if s.bundle {
+		routerConfig.Metadata.Id += "-{{.SiteNameSuffix)}"
+		metadata := qdr.SiteMetadata{
+			Id:       "{{.SiteId}}",
+			Version:  version.Version,
+			Platform: "{{.Platform}}",
+		}
+		metadataJson, _ := encodingjson.Marshal(metadata)
+		routerConfig.Metadata.Metadata = string(metadataJson)
+	}
 	// LinkAccess
 	s.linkAccessMap().DesiredConfig(nil, path.Join(sslProfileBasePath, "certificates/server")).Apply(&routerConfig)
 	// Link

@@ -10,7 +10,7 @@ import (
 
 func CopySiteState(siteState *apis.SiteState) *apis.SiteState {
 	// Preserving loaded state
-	var activeSiteState = apis.NewSiteState()
+	var activeSiteState = apis.NewSiteState(siteState.IsBundle())
 	siteState.Site.DeepCopyInto(activeSiteState.Site)
 	activeSiteState.SiteId = siteState.SiteId
 	activeSiteState.Listeners = maps.Clone(siteState.Listeners)

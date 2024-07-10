@@ -323,6 +323,7 @@ const (
 	PlatformPodman     Platform = "podman"
 	PlatformDocker     Platform = "docker"
 	PlatformSystemd    Platform = "systemd"
+	PlatformBundle     Platform = "bundle"
 )
 
 func (p Platform) IsKubernetes() bool {
@@ -331,6 +332,10 @@ func (p Platform) IsKubernetes() bool {
 
 func (p Platform) IsContainerEngine() bool {
 	return p == PlatformDocker || p == PlatformPodman
+}
+
+func (p Platform) IsBundle() bool {
+	return p == PlatformBundle
 }
 
 type ConsoleAuthMode string

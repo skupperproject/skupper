@@ -60,7 +60,7 @@ func TestSiteState_HasRouterAccess(t *testing.T) {
 }
 
 func TestSiteState_CreateRouterAccess(t *testing.T) {
-	ss := NewSiteState()
+	ss := NewSiteState(false)
 	name := "skupper-local"
 	assert.Assert(t, !ss.HasRouterAccess())
 	ss.CreateRouterAccess(name, 5671)

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -Ceu
+
 TAR_CONTENT_START=$(awk '/^__TARBALL_CONTENT__$/ {print NR+1; exit 0;}' $0)
 TMP_DIR=$(mktemp -d /tmp/skupper-bundle.XXXXX)
 CUR_DIR=$(pwd)

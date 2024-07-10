@@ -1,4 +1,6 @@
-# Bundle installation
+# Bundle installation and removal script
+
+export REQUIRED_FIELDS=("SITE_NAME" "OUTPUT_PATH" "SERVICE_DIR" "SITES_PATH" "SKUPPER_PLATFORM")
 
 # site name to be provided by bundle generation
 export SITE_NAME="{{.SiteName}}"
@@ -9,10 +11,15 @@ export LOG_FILE="$(mktemp /tmp/skupper-install.XXXXX.log)"
 # standard output directories
 export OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 export SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
+export RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${UID}}"
+export SYSTEMCTL="systemctl --user"
 if [[ ${UID} -eq 0 ]]; then
     export OUTPUT_PATH="/usr/local/share/skupper"
     export SERVICE_DIR="/etc/systemd/system"
+    export RUNTIME_DIR="/run"
+    export SYSTEMCTL="systemctl"
 fi
+export SITES_PATH="${OUTPUT_PATH}/sites"
 
 exit_error() {
     echo "$*"
@@ -42,49 +49,86 @@ parse_opts() {
 
 create_service() {
     # if systemd is not available, skip it
-    if [[ ${UID} -eq 0 ]]; then
-        systemctl list-units > /dev/null 2>&1 || return
-    else
-        systemctl --user list-units > /dev/null 2>&1 || return
-    fi
+    ${SYSTEMCTL} list-units > /dev/null 2>&1 || return
     service_name="skupper-site-${SITE_NAME}.service"
-    service_file="${OUTPUT_PATH}/sites/${SITE_NAME}/runtime/scripts/${service_name}"
+    service_file_suffix=".container"
+    [[ "${SKUPPER_PLATFORM}" = "systemd" ]] && service_file_suffix=".systemd"
+    service_file="${OUTPUT_PATH}/sites/${SITE_NAME}/runtime/scripts/${service_name}.${service_file_suffix}"
+
     if [[ ! -f ${service_file} ]]; then
         echo "SystemD service has not been defined"
-        return
+        return 0
     fi
 
     # Moving it to the appropriate location
     if [[ ${UID} -eq 0 ]]; then
         mv "${service_file}" /etc/systemd/system/
-        systemctl enable --now "${service_name}"
-        systemctl daemon-reload
     else
         if [[ ! -d "${SERVICE_DIR}" ]]; then
             echo "Unable to define path to SystemD service"
             return
         fi
         mv "${service_file}" "${SERVICE_DIR}"
-        systemctl --user enable --now "${service_name}"
-        systemctl --user daemon-reload
     fi
+
+    ${SYSTEMCTL} enable --now "${service_name}"
+    ${SYSTEMCTL} daemon-reload
 }
 
-remove() {
-    # TODO: on removal, find existing site definition first
-    #  then read platform.yml to determine the platform
-    #  and ignore -p flag
-    echo
+remove_service() {
+    service="skupper-site-${SITE_NAME}.service"
+    ${SYSTEMCTL} stop ${service}
+    ${SYSTEMCTL} disable ${service}
+    rm -f "${SERVICE_DIR:?}/${service}"
+    ${SYSTEMCTL} daemon-reload
+    ${SYSTEMCTL} reset-failed
+}
+
+remove_site() {
+    if [[ ! -d "${SITES_PATH}/${SITE_NAME}" ]]; then
+        echo "Site \"${SITE_NAME}\" does not exist"
+        exit 0
+    fi
+
+    echo "Removing Skupper site definition for: ${SITE_NAME}"
+    platform_file="${SITES_PATH}/${SITE_NAME}/runtime/state/platform.yaml"
+    SKUPPER_PLATFORM=$(grep '^platform: ' "${platform_file}" | sed -e 's/.*: //g')
+    if [[ "${SKUPPER_PLATFORM}" != "systemd" ]]; then
+        # removing router container
+        ${SKUPPER_PLATFORM} rm -f ${SITE_NAME}-skupper-router
+    fi
+    # removing site definition
+    rm -rf "${SITES_PATH:?}/${SITE_NAME:?}/"
+}
+
+create_site() {
+    echo "Skupper site bundle installation"
+    echo "Site name: ${SITE_NAME}"
+    echo "Platform : ${SKUPPER_PLATFORM}"
+
+    # TODO If bundle has tokens, show token location after site has been created
+
+    # TODO Create a python script to discover free port for normal listener
+}
+
+sanity_check() {
+    for field_name in "${REQUIRED_FIELDS[@]}"; do
+        eval [[ -n "\${${field_name}}" ]] || exit_error "Internal error: required field ${field_name} not defined"
+    done
 }
 
 main() {
     # validate provided options
     parse_opts "$@"
 
-    echo "Skupper site bundle installation"
-    echo "Site name: ${SITE_NAME}"
-    echo "Platform : ${SKUPPER_PLATFORM}"
-    echo "Remove?  : ${REMOVE}"
+    sanity_check
+
+    if ${REMOVE}; then
+        remove_site
+        return
+    fi
+
+    create_site
 }
 
 main "$@"

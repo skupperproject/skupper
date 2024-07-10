@@ -18,11 +18,12 @@ import (
 )
 
 type FileSystemSiteStateLoader struct {
-	Path string
+	Path   string
+	Bundle bool
 }
 
 func (f *FileSystemSiteStateLoader) Load() (*apis.SiteState, error) {
-	var siteState = apis.NewSiteState()
+	var siteState = apis.NewSiteState(f.Bundle)
 	yamlFileNames, err := f.readAllFiles(f.Path)
 	if err != nil {
 		return nil, err

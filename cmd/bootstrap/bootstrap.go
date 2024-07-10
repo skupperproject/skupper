@@ -10,6 +10,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/non_kube/apis"
+	"github.com/skupperproject/skupper/pkg/non_kube/bundle"
 	"github.com/skupperproject/skupper/pkg/non_kube/common"
 	"github.com/skupperproject/skupper/pkg/non_kube/compat"
 	"github.com/skupperproject/skupper/pkg/non_kube/systemd"
@@ -62,7 +63,7 @@ func main() {
 				os.Exit(1)
 			}
 		}
-	} else {
+	} else if !platform.IsBundle() {
 		binary := "podman"
 		if platform == types.PlatformSystemd {
 			binary = "skrouterd"
@@ -87,21 +88,27 @@ func main() {
 		fmt.Println("Failed to bootstrap:", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Site %q has been created\n", siteState.Site.Name)
-	siteHome, err := apis.GetHostSiteHome(siteState.Site)
-	if err != nil {
-		fmt.Println("Failed to get site's home directory:", err)
-	} else {
-		tokenPath := path.Join(siteHome, common.RuntimeTokenPath)
-		hostTokenPath := tokenPath
-		if apis.IsRunningInContainer() {
-			tokenPath = path.Join("/output", "sites", siteState.Site.Name, common.RuntimeTokenPath)
-		}
-		tokens, _ := os.ReadDir(tokenPath)
-		for _, token := range tokens {
-			if !token.IsDir() {
-				fmt.Println("Static tokens have been defined at:", hostTokenPath)
-				break
+	var bundleSuffix string
+	if platform.IsBundle() {
+		bundleSuffix = " (as a distributable bundle)"
+	}
+	fmt.Printf("Site %q has been created%s\n", siteState.Site.Name, bundleSuffix)
+	if !platform.IsBundle() {
+		siteHome, err := apis.GetHostSiteHome(siteState.Site)
+		if err != nil {
+			fmt.Println("Failed to get site's home directory:", err)
+		} else {
+			tokenPath := path.Join(siteHome, common.RuntimeTokenPath)
+			hostTokenPath := tokenPath
+			if apis.IsRunningInContainer() {
+				tokenPath = path.Join("/output", "sites", siteState.Site.Name, common.RuntimeTokenPath)
+			}
+			tokens, _ := os.ReadDir(tokenPath)
+			for _, token := range tokens {
+				if !token.IsDir() {
+					fmt.Println("Static tokens have been defined at:", hostTokenPath)
+					break
+				}
 			}
 		}
 	}
@@ -110,7 +117,8 @@ func main() {
 func bootstrap(inputPath string) (*apis.SiteState, error) {
 	var siteStateLoader apis.SiteStateLoader
 	siteStateLoader = &common.FileSystemSiteStateLoader{
-		Path: inputPath,
+		Path:   inputPath,
+		Bundle: platform.IsBundle(),
 	}
 	siteState, err := siteStateLoader.Load()
 	if err != nil {
@@ -119,6 +127,8 @@ func bootstrap(inputPath string) (*apis.SiteState, error) {
 	var siteStateRenderer apis.StaticSiteStateRenderer
 	if platform == types.PlatformSystemd {
 		siteStateRenderer = &systemd.SiteStateRenderer{}
+	} else if platform.IsBundle() {
+		siteStateRenderer = &bundle.SiteStateRenderer{}
 	} else {
 		siteStateRenderer = &compat.SiteStateRenderer{}
 	}
