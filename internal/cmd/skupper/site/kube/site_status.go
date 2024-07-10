@@ -3,13 +3,14 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/client"
+	"os"
+	"text/tabwriter"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"text/tabwriter"
 )
 
 var (
