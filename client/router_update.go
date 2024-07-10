@@ -98,8 +98,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 	addCertsSharedVolume := false
 	substituteFlowCollector := false
 	addPrometheusServer := false
-	moveClaims := false
-	updateRole := false
 	updateOauthProxy := false
 	inprogress, originalVersion, err := cli.isUpdating(namespace)
 	if err != nil {
@@ -114,10 +112,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 		addCertsSharedVolume = utils.LessRecentThanVersion(originalVersion, "0.9.0")
 		substituteFlowCollector = utils.LessRecentThanVersion(originalVersion, "1.3.0")
 		addPrometheusServer = utils.LessRecentThanVersion(originalVersion, "1.4.0")
-		if utils.LessRecentThanVersion(originalVersion, "1.5.0") {
-			moveClaims = !config.IsEdge()
-			updateRole = true //config-sync requires extra permission to write skupper-network-status configmap
-		}
 		updateOauthProxy = utils.LessRecentThanVersion(originalVersion, "1.7.2")
 	} else {
 		originalVersion = site.Version
@@ -141,10 +135,6 @@ func (cli *VanClient) RouterUpdateVersionInNamespace(ctx context.Context, hup bo
 			}
 			if utils.LessRecentThanVersion(originalVersion, "1.4.0") {
 				addPrometheusServer = true
-			}
-			if utils.LessRecentThanVersion(originalVersion, "1.5.0") {
-				moveClaims = !config.IsEdge()
-				updateRole = true //config-sync requires extra permission to write skupper-network-status configmap
 			}
 			updateOauthProxy = utils.LessRecentThanVersion(originalVersion, "1.7.2")
 

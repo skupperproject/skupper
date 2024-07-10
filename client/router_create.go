@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"log"
+	"net"
 	"strconv"
 	"strings"
 	"text/template"
@@ -1241,11 +1243,6 @@ func (cli *VanClient) RouterCreate(ctx context.Context, options types.SiteConfig
 	if siteOwnerRef != nil {
 		ownerRefs = []metav1.OwnerReference{*siteOwnerRef}
 	}
-	hostAliases, err := cli.GetRouterHostAliasesSpecFromTokens(ctx, cli.GetNamespace())
-	if err != nil {
-		return err
-	}
-	van.Transport.HostAliases = hostAliases
 	if options.Spec.AuthMode == string(types.ConsoleAuthModeInternal) {
 		config := `
 pwcheck_method: auxprop
