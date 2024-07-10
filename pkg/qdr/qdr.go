@@ -570,6 +570,7 @@ type TcpEndpoint struct {
 	SiteId         string `json:"siteId,omitempty"`
 	SslProfile     string `json:"sslProfile,omitempty"`
 	VerifyHostname *bool  `json:"verifyHostname,omitempty"`
+	ProcessID      string `json:"processId,omitempty"`
 }
 
 type HttpEndpoint struct {
@@ -941,7 +942,7 @@ func equivalentHost(a string, b string) bool {
 
 func (a TcpEndpoint) Equivalent(b TcpEndpoint) bool {
 	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
-		a.SiteId != b.SiteId {
+		a.SiteId != b.SiteId || a.ProcessID != b.ProcessID {
 		return false
 	}
 	return true

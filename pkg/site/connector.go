@@ -9,11 +9,15 @@ import (
 
 func UpdateBridgeConfigForConnector(siteId string, connector *skupperv1alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
-		UpdateBridgeConfigForConnectorWithHost(siteId, connector, connector.Spec.Host, config)
+		UpdateBridgeConfigForConnectorWithHostProccess(siteId, connector, connector.Spec.Host, "", config)
 	}
 }
 
 func UpdateBridgeConfigForConnectorWithHost(siteId string, connector *skupperv1alpha1.Connector, host string, config *qdr.BridgeConfig) {
+	UpdateBridgeConfigForConnectorWithHostProccess(siteId, connector, host, "", config)
+}
+
+func UpdateBridgeConfigForConnectorWithHostProccess(siteId string, connector *skupperv1alpha1.Connector, host string, processID string, config *qdr.BridgeConfig) {
 	name := connector.Name + "-" + host
 	if connector.Spec.Type == "tcp" || connector.Spec.Type == "" {
 		config.AddTcpConnector(qdr.TcpEndpoint{
@@ -23,6 +27,7 @@ func UpdateBridgeConfigForConnectorWithHost(siteId string, connector *skupperv1a
 			Port:       strconv.Itoa(connector.Spec.Port),
 			Address:    connector.Spec.RoutingKey,
 			SslProfile: connector.Spec.TlsCredentials,
+			ProcessID:  processID,
 			//TODO:
 			//VerifyHostname
 		})
