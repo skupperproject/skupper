@@ -14,11 +14,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
 	fakecorev1 "k8s.io/client-go/kubernetes/typed/core/v1/fake"
 	testingk8s "k8s.io/client-go/testing"
 
 	"github.com/skupperproject/skupper/api/types"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube/resolver"
@@ -165,18 +165,20 @@ func TestCreateTokenClaim(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		cli := &TestClientContext{
+		cli, err := fakeclient.NewFakeClient("create-token-claim-"+test.name, nil, nil, "")
+		assert.Assert(t, err)
+		tc := &TestClientContext{
+			KubeClient: cli,
 			Namespace:  "create-token-claim-" + test.name,
-			KubeClient: fake.NewSimpleClientset(),
 		}
 		ctxt := &test.ctxt
 		if test.createCA {
-			err := cli.createCA(types.SiteCaSecret)
+			err := tc.createCA(types.SiteCaSecret)
 			assert.Check(t, err, "claim-verifier-test: creating CA")
 		}
 		factory := NewClaimFactory(cli, cli.Namespace, ctxt, context.TODO())
 		if test.createError != nil {
-			cli.KubeClient.CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("create", "secrets", func(action testingk8s.Action) (handled bool, ret runtime.Object, err error) {
+			cli.GetKubeClient().CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("create", "secrets", func(action testingk8s.Action) (handled bool, ret runtime.Object, err error) {
 				return true, nil, test.createError
 			})
 		}
@@ -246,24 +248,25 @@ func TestRecreateTokenClaim(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		cli := &TestClientContext{
+		cli, _ := fakeclient.NewFakeClient("recreate-token-claim-"+test.name, nil, nil, "")
+		tc := &TestClientContext{
+			KubeClient: cli,
 			Namespace:  "recreate-token-claim-" + test.name,
-			KubeClient: fake.NewSimpleClientset(),
 		}
 		ctxt := &test.ctxt
-		err := cli.createCA(types.SiteCaSecret)
+		err := tc.createCA(types.SiteCaSecret)
 		assert.Check(t, err)
 		factory := NewClaimFactory(cli, cli.Namespace, ctxt, context.TODO())
 		if test.noClaim {
 			if test.secretExists {
-				cli.createSecret(test.name)
+				tc.createSecret(test.name)
 			}
 			token, err := factory.RecreateTokenClaim(test.name)
 			assert.Check(t, err)
 			assert.Assert(t, token == nil)
 		} else if test.failGet {
 			expected := fmt.Errorf("error getting secret")
-			cli.KubeClient.CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("get", "secrets", func(action testingk8s.Action) (handled bool, ret runtime.Object, err error) {
+			cli.GetKubeClient().CoreV1().(*fakecorev1.FakeCoreV1).PrependReactor("get", "secrets", func(action testingk8s.Action) (handled bool, ret runtime.Object, err error) {
 				return true, nil, expected
 			})
 			_, err := factory.RecreateTokenClaim(test.name)
@@ -321,7 +324,7 @@ func (c *ClaimCreateTestContext) GetOwnerReferences() []metav1.OwnerReference {
 
 func (c *TestClientContext) createCA(name string) error {
 	newCA := certs.GenerateCASecret(name, name)
-	_, err := c.GetKubeClient().CoreV1().Secrets(c.Namespace).Create(context.TODO(), &newCA, metav1.CreateOptions{})
+	_, err := c.KubeClient.GetKubeClient().CoreV1().Secrets(c.Namespace).Create(context.TODO(), &newCA, metav1.CreateOptions{})
 	return err
 }
 
@@ -335,6 +338,6 @@ func (c *TestClientContext) createSecret(name string) error {
 			Name: name,
 		},
 	}
-	_, err := c.GetKubeClient().CoreV1().Secrets(c.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+	_, err := c.KubeClient.GetKubeClient().CoreV1().Secrets(c.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	return err
 }

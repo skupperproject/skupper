@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/kube"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/kube/resolver"
 )
 
@@ -32,7 +32,7 @@ type SiteContext interface {
 }
 
 type ClaimFactory struct {
-	clients     kube.Clients
+	clients     internalclient.Clients
 	namespace   string
 	ctx         context.Context
 	siteContext SiteContext
@@ -63,7 +63,7 @@ func checkOptions(name string, password []byte, expiry time.Duration, uses int) 
 	return options, nil
 }
 
-func NewClaimFactory(clients kube.Clients, namespace string, siteContext SiteContext, ctx context.Context) *ClaimFactory {
+func NewClaimFactory(clients internalclient.Clients, namespace string, siteContext SiteContext, ctx context.Context) *ClaimFactory {
 	return &ClaimFactory{
 		clients:     clients,
 		namespace:   namespace,

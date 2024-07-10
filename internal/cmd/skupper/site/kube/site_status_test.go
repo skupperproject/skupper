@@ -1,15 +1,14 @@
 package kube
 
 import (
-	"fmt"
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	testing2 "k8s.io/client-go/testing"
-	"testing"
 )
 
 func TestCmdSiteStatus_NewCmdSiteStatus(t *testing.T) {
@@ -33,33 +32,32 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		setUpMock      func(command *CmdSiteStatus)
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		skupperError   string
 		expectedErrors []string
-	}
-
-	command := &CmdSiteStatus{
-		Namespace: "test",
 	}
 
 	testTable := []test{
 		{
-			name: "more than one argument was specified",
-			args: []string{"my-site", ""},
-			setUpMock: func(command *CmdSiteStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.Client = fakeSkupperClient
-			},
+			name:           "more than one argument was specified",
+			args:           []string{"my-site", ""},
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			skupperError:   "",
 			expectedErrors: []string{"this command does not need any arguments"},
 		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-
-			if test.setUpMock != nil {
-				test.setUpMock(command)
+			command := &CmdSiteStatus{
+				Namespace: "test",
 			}
+
+			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
+			assert.Assert(t, err)
+			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -73,65 +71,61 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 
 func TestCmdSiteStatus_Run(t *testing.T) {
 	type test struct {
-		name         string
-		setUpMock    func(command *CmdSiteStatus)
-		errorMessage string
+		name           string
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		skupperError   string
+		errorMessage   string
 	}
 
 	testTable := []test{
 		{
-			name: "runs ok",
-			setUpMock: func(command *CmdSiteStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "old-site",
-									Namespace: "test",
-								},
-							},
+			name:       "runs ok",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "old-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
-				command.Client = fakeSkupperClient
+					},
+				},
 			},
+			skupperError: "",
+			errorMessage: "",
 		},
 		{
-			name: "run fails",
-			setUpMock: func(command *CmdSiteStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("error")
-				})
-				command.Client = fakeSkupperClient
-			},
-			errorMessage: "error",
+			name:           "run fails",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			skupperError:   "error",
+			errorMessage:   "error",
 		},
 		{
-			name: "there is no existing skupper site",
-			setUpMock: func(command *CmdSiteStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{}, nil
-				})
-				command.Client = fakeSkupperClient
-			},
+			name:           "there is no existing skupper site",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			skupperError:   "",
+			errorMessage:   "",
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdSiteStatusWithMocks()
-		test.setUpMock(cmd)
+		command := &CmdSiteStatus{
+			Namespace: "test",
+		}
+
+		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
+		assert.Assert(t, err)
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 
 		t.Run(test.name, func(t *testing.T) {
 
-			err := cmd.Run()
+			err := command.Run()
 			if err != nil {
 				assert.Check(t, test.errorMessage == err.Error())
 			} else {
@@ -145,23 +139,17 @@ func TestCmdSiteStatus_WaitUntilReady(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 
-		cmd := newCmdSiteStatusWithMocks()
+		command := &CmdSiteStatus{
+			Namespace: "test",
+		}
 
-		result := cmd.WaitUntilReady()
+		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, nil, nil, "")
+		assert.Assert(t, err)
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+
+		result := command.WaitUntilReady()
 		assert.Check(t, result == nil)
 
 	})
 
-}
-
-// --- helper methods
-
-func newCmdSiteStatusWithMocks() *CmdSiteStatus {
-
-	CmdSiteStatus := &CmdSiteStatus{
-		Client:    &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
-		Namespace: "test",
-	}
-
-	return CmdSiteStatus
 }

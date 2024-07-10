@@ -17,9 +17,10 @@ package resolver
 import (
 	"context"
 	"fmt"
+
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/kube"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,7 +29,7 @@ type RouteResolver struct {
 	namespace string
 }
 
-func NewRouteResolver(clients kube.Clients, namespace string) (Resolver, error) {
+func NewRouteResolver(clients internalclient.Clients, namespace string) (Resolver, error) {
 	client := clients.GetRouteClient()
 	if client == nil {
 		return nil, fmt.Errorf("Route client not configured, but ingress set to route")

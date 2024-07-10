@@ -9,14 +9,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/kube"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/kube/resolver"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
 )
 
 type SiteContext struct {
-	clients         kube.Clients
+	clients         internalclient.Clients
 	namespace       string
 	siteConfig      *types.SiteConfig
 	routerConfig    *qdr.RouterConfig
@@ -24,7 +24,7 @@ type SiteContext struct {
 	resolver        resolver.Resolver
 }
 
-func GetSiteContext(clients kube.Clients, namespace string, ctx context.Context) (*SiteContext, error) {
+func GetSiteContext(clients internalclient.Clients, namespace string, ctx context.Context) (*SiteContext, error) {
 	impl := &SiteContext{
 		clients:   clients,
 		namespace: namespace,
@@ -68,7 +68,7 @@ func (s *SiteContext) defaultIngress() string {
 	return defaultIngress(s.clients)
 }
 
-func defaultIngress(clients kube.Clients) string {
+func defaultIngress(clients internalclient.Clients) string {
 	if clients.GetRouteClient() == nil {
 		return types.IngressLoadBalancerString
 	}

@@ -9,8 +9,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
 )
 
@@ -31,7 +31,7 @@ func (s *GrantServer) start() {
 	go s.listen()
 }
 
-func (s *GrantServer) configure(clients kube.Clients, config *GrantConfig, generator GrantResponse) {
+func (s *GrantServer) configure(clients internalclient.Clients, config *GrantConfig, generator GrantResponse) {
 	s.addr = config.Addr
 	s.keyPath = config.KeyPath
 	s.certPath = config.CertPath
