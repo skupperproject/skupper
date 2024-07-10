@@ -2,8 +2,9 @@ package token
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/client"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/spf13/cobra"
 )
 
@@ -13,7 +14,7 @@ var (
 )
 
 type CmdTokenCreate struct {
-	client   *client.VanClient
+	client   *client.KubeClient
 	CobraCmd cobra.Command
 }
 
