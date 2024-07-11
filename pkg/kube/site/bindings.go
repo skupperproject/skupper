@@ -113,7 +113,7 @@ func (a *BindingAdaptor) updateBridgeConfigForConnector(siteId string, connector
 	} else if connector.Spec.Selector != "" {
 		if selector, ok := a.selectors[connector.Name]; ok {
 			for podUID, host := range selector.List() {
-				site.UpdateBridgeConfigForConnectorWithHostProccess(siteId, connector, host, podUID, config)
+				site.UpdateBridgeConfigForConnectorWithHostProcess(siteId, connector, host, podUID, config)
 			}
 		} else {
 			log.Printf("Error: not yet tracking pods for connector %s/%s with selector set", connector.Namespace, connector.Name)
