@@ -67,7 +67,7 @@ func (a *BindingAdaptor) ConnectorUpdated(connector *skupperv1alpha1.Connector, 
 				return true
 			}
 			// else create a new watcher below
- 		}
+		}
 	} else if connector.Spec.Selector == "" {
 		return true
 	}
@@ -112,8 +112,8 @@ func (a *BindingAdaptor) updateBridgeConfigForConnector(siteId string, connector
 		site.UpdateBridgeConfigForConnectorWithHost(siteId, connector, connector.Spec.Host, config)
 	} else if connector.Spec.Selector != "" {
 		if selector, ok := a.selectors[connector.Name]; ok {
-			for _, host := range selector.List() {
-				site.UpdateBridgeConfigForConnectorWithHost(siteId, connector, host, config)
+			for podUID, host := range selector.List() {
+				site.UpdateBridgeConfigForConnectorWithHostProcess(siteId, connector, host, podUID, config)
 			}
 		} else {
 			log.Printf("Error: not yet tracking pods for connector %s/%s with selector set", connector.Namespace, connector.Name)
@@ -145,15 +145,15 @@ func (w *TargetSelection) Close() {
 	close(w.stopCh)
 }
 
-func (w *TargetSelection) List() []string {
+func (w *TargetSelection) List() map[string]string {
 	pods := w.watcher.List()
-	var targets []string
+	targets := make(map[string]string, len(pods))
 
 	for _, pod := range pods {
 		if kube.IsPodReady(pod) || w.includeNotReady {
 			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
 				log.Printf("Pod %s selected for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
-				targets = append(targets, pod.Status.PodIP)
+				targets[string(pod.UID)] = pod.Status.PodIP
 			} else {
 				log.Printf("Pod %s not running for connector %s in %s", pod.ObjectMeta.Name, w.name, w.namespace)
 			}

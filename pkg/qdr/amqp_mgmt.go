@@ -125,6 +125,7 @@ func asTcpEndpoint(record Record) TcpEndpoint {
 		Address:    record.AsString("address"),
 		SiteId:     record.AsString("siteId"),
 		SslProfile: record.AsString("sslProfile"),
+		ProcessID:  record.AsString("processId"),
 	}
 }
 
