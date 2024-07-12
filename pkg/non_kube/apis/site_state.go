@@ -240,7 +240,7 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
 	routerConfig := qdr.InitialConfig(s.Site.Name, s.SiteId, version.Version, !s.IsInterior(), 3)
 	// override metadata
 	if s.bundle {
-		routerConfig.Metadata.Id += "-{{.SiteNameSuffix)}"
+		routerConfig.Metadata.Id += "-{{.SiteNameSuffix}}"
 		metadata := qdr.SiteMetadata{
 			Id:       "{{.SiteId}}",
 			Version:  version.Version,

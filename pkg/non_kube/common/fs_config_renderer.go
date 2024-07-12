@@ -135,10 +135,12 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *apis.SiteState) erro
 	if platform == "kubernetes" {
 		platform = "podman"
 	}
-	content := fmt.Sprintf("platform: %s\n", string(platform))
-	err = os.WriteFile(path.Join(c.OutputPath, RuntimeSiteStatePath, "platform.yaml"), []byte(content), 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write runtime platform: %w", err)
+	if !platform.IsBundle() {
+		content := fmt.Sprintf("platform: %s\n", string(platform))
+		err = os.WriteFile(path.Join(c.OutputPath, RuntimeSiteStatePath, "platform.yaml"), []byte(content), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write runtime platform: %w", err)
+		}
 	}
 
 	return nil

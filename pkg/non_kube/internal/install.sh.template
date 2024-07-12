@@ -20,6 +20,10 @@ if [[ ${UID} -eq 0 ]]; then
     export SYSTEMCTL="systemctl"
 fi
 export SITES_PATH="${OUTPUT_PATH}/sites"
+export PLATFORM_FILE="${SITES_PATH}/${SITE_NAME}/runtime/state/platform.yaml"
+export VALID_PLATFORMS=(podman docker systemd)
+export RANDOM_SUFFIX="$(date +%s)"
+export SITE_ID="$(hostname -s)-${USER}-${RANDOM_SUFFIX}"
 
 exit_error() {
     echo "$*"
@@ -38,6 +42,10 @@ parse_opts() {
         case "${opt}" in
             p)
                 export SKUPPER_PLATFORM="${OPTARG}"
+                if ! [[ "${VALID_PLATFORMS[*]}" =~ ${SKUPPER_PLATFORM} ]]; then
+                    echo "Invalid platform: ${SKUPPER_PLATFORM}"
+                    usage
+                fi
                 ;;
             x)
                 export REMOVE=true
@@ -96,8 +104,7 @@ remove_site() {
     fi
 
     echo "Removing Skupper site definition for: ${SITE_NAME}"
-    platform_file="${SITES_PATH}/${SITE_NAME}/runtime/state/platform.yaml"
-    SKUPPER_PLATFORM=$(grep '^platform: ' "${platform_file}" | sed -e 's/.*: //g')
+    SKUPPER_PLATFORM=$(grep '^platform: ' "${PLATFORM_FILE}" | sed -e 's/.*: //g')
     if [[ "${SKUPPER_PLATFORM}" != "systemd" ]]; then
         # removing router container
         ${SKUPPER_PLATFORM} rm -f ${SITE_NAME}-skupper-router
@@ -106,20 +113,56 @@ remove_site() {
     rm -rf "${SITES_PATH:?}/${SITE_NAME:?}/"
 }
 
+create_sed_script() {
+    ssl_profile_base_path='${SSL_PROFILE_BASE_PATH}'
+    [[ "${SKUPPER_PLATFORM}" = "systemd" ]] && ssl_profile_base_path="${SITES_PATH}/${SITE_NAME}"
+    container_engine="podman"
+    [[ "${SKUPPER_PLATFORM}" != "systemd" ]] && container_engine="${SKUPPER_PLATFORM}"
+    # populating sed script
+    {
+        echo "s#{{"{{"}}.SiteNameSuffix{{"}}"}}#${SITE_ID}#g"
+        echo "s#{{"{{"}}.Platform{{"}}"}}#${SKUPPER_PLATFORM}#g"
+        echo "s#{{"{{"}}.SslProfileBasePath{{"}}"}}#${ssl_profile_base_path}#g"
+        echo "s#{{"{{"}}.ContainerEngine{{"}}"}}#${container_engine}#g"
+        echo "s#{{"{{"}}.SiteId{{"}}"}}#${SITE_ID}#g"
+        echo "s#{{"{{"}}.SitesPath{{"}}"}}#${SITES_PATH}#g"
+        echo "s#{{"{{"}}.RuntimeDir{{"}}"}}#${RUNTIME_DIR}#g"
+        echo "s#{{"{{"}}.SiteScriptPath{{"}}"}}#${SITES_PATH}/${SITE_NAME}/runtime/scripts#g"
+        echo "s#{{"{{"}}.SiteConfigPath{{"}}"}}#${SITES_PATH}/${SITE_NAME}/config/router#g"
+    } >> script.sed
+}
+
+render_templates() {
+    grep -rl '{{"{{"}}' "${SITES_PATH}/${SITE_NAME}" | xargs -r -i sed -f script.sed -i {}
+}
+
 create_site() {
-    find ./
-    
+    if [[ -d "${SITES_PATH}/${SITE_NAME}" ]]; then
+        echo "Failed: site \"${SITE_NAME}\" is already defined"
+        exit 1
+    fi
+
     echo "Skupper site bundle installation"
     echo "Site name: ${SITE_NAME}"
     echo "Platform : ${SKUPPER_PLATFORM}"
 
-    # TODO create sed template script
+    # Installing site definition files
+    mv "./${SITE_NAME}" "${SITES_PATH}/${SITE_NAME}"
 
-    # TODO create platform.yaml
+    # Creating platform.yaml
+    echo "platform: ${SKUPPER_PLATFORM}" > ${PLATFORM_FILE}
+
+    # Creating sed script to render template files
+    create_sed_script
+    render_templates
+
+    # TODO create sed template script
 
     # TODO If bundle has tokens, show token location after site has been created
 
     # TODO Create a python script to discover free port for normal listener
+
+    echo "Site \"${SITE_NAME}\" is now running"
 }
 
 sanity_check() {
