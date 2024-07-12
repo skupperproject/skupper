@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/non_kube/apis"
 	"github.com/skupperproject/skupper/pkg/non_kube/common"
-	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/non_kube/internal"
 )
 
 type SiteStateRenderer struct {
@@ -64,14 +64,18 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 		return err
 	}
 	// Create systemd service and scripts
-	if err = s.createSystemdService(); err != nil {
+	if err = CreateSystemdServices(s.siteState); err != nil {
 		return err
 	}
-	if err = s.createSedScript(); err != nil {
+	if err = CreateStartupScripts(s.siteState); err != nil {
 		return err
 	}
-	s.createBundle()
-	s.removeSiteFiles()
+	if err = s.createBundle(); err != nil {
+		return err
+	}
+	if err = s.removeSiteFiles(); err != nil {
+
+	}
 	return nil
 }
 
@@ -93,12 +97,12 @@ func (s *SiteStateRenderer) prepareContainers() error {
 		},
 		FileMounts: []container.FileMount{
 			{
-				Source:      path.Join("{{.SitesPath}}", "{{.SiteName}}", "config/router"),
+				Source:      path.Join("{{.SitesPath}}", s.siteState.Site.Name, "config/router"),
 				Destination: "/etc/skupper-router/config",
 				Options:     []string{"z"},
 			},
 			{
-				Source:      path.Join("{{.SitesPath}}", "{{.SiteName}}", "certificates"),
+				Source:      path.Join("{{.SitesPath}}", s.siteState.Site.Name, "certificates"),
 				Destination: "/etc/skupper-router/certificates",
 				Options:     []string{"z"},
 			},
@@ -113,37 +117,63 @@ func (s *SiteStateRenderer) prepareContainers() error {
 }
 
 func (s *SiteStateRenderer) createContainerScript() error {
-	return nil
-}
-
-func (s *SiteStateRenderer) createSystemdService() error {
-	// TODO Modify logic to put Template vars in place
-	// Creating startup scripts first
-	scripts, err := common.GetStartupScripts(s.siteState.Site, s.configRenderer.RouterConfig.GetSiteMetadata().Id)
-	if err != nil {
-		return fmt.Errorf("error getting startup scripts: %w", err)
-	}
-	err = scripts.Create()
-	if err != nil {
-		return fmt.Errorf("error creating startup scripts: %w", err)
-	}
-
-	// Creating systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.siteState.Site)
+	siteHome, err := apis.GetHostSiteHome(s.siteState.Site)
 	if err != nil {
 		return err
 	}
-	if err = systemd.Create(); err != nil {
-		return fmt.Errorf("unable to create startup service %q - %v\n", systemd.GetServiceName(), err)
+	scriptsPath := path.Join(siteHome, common.RuntimeScriptsPath)
+	if apis.IsRunningInContainer() {
+		scriptsPath = path.Join(common.GetDefaultOutputPath(s.siteState.Site.Name), common.RuntimeScriptsPath)
 	}
-
-	// Validate if lingering is enabled for current user
-	if !apis.IsRunningInContainer() {
-		username := utils.ReadUsername()
-		if os.Getuid() != 0 && !common.IsLingeringEnabled(username) {
-			fmt.Printf("It is recommended to enable lingering for %s, otherwise Skupper may not start on boot.\n", username)
-		}
+	scriptContent := containersToShell(s.containers)
+	err = os.WriteFile(path.Join(scriptsPath, "containers_create.sh"), scriptContent, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create containers script: %v", err)
 	}
+	return nil
+}
 
+func (s *SiteStateRenderer) createBundle() error {
+	dataHome, err := apis.GetHostDataHome()
+	if err != nil {
+		return err
+	}
+	sitesHomeDir := path.Join(dataHome, "sites")
+	if apis.IsRunningInContainer() {
+		sitesHomeDir = path.Join("/output", "sites")
+	}
+	siteHomeDir := path.Join(sitesHomeDir, s.siteState.Site.Name)
+	tarball := internal.NewTarball()
+	err = tarball.AddFiles(sitesHomeDir, s.siteState.Site.Name)
+	if err != nil {
+		return fmt.Errorf("failed to add files to tarball (%q): %v", siteHomeDir, err)
+	}
+	tarballData, err := tarball.SaveData()
+	if err != nil {
+		return fmt.Errorf("failed to prepare tarball content (%q): %v", siteHomeDir, err)
+	}
+	bundle := &internal.SelfExtractingBundle{
+		SiteName:   s.siteState.Site.Name,
+		OutputPath: sitesHomeDir,
+	}
+	err = bundle.Generate(tarballData)
+	if err != nil {
+		return fmt.Errorf("failed to generate site bundle (%q): %v", s.siteState.Site.Name, err)
+	}
+	return nil
+}
+
+func (s *SiteStateRenderer) removeSiteFiles() error {
+	siteHomeDir, err := apis.GetHostSiteHome(s.siteState.Site)
+	if err != nil {
+		return err
+	}
+	if apis.IsRunningInContainer() {
+		siteHomeDir = path.Join("/output", "sites", s.siteState.Site.Name)
+	}
+	err = os.RemoveAll(siteHomeDir)
+	if err != nil {
+		return fmt.Errorf("file to remove temporary site directory %q: %v", siteHomeDir, err)
+	}
 	return nil
 }

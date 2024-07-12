@@ -35,6 +35,7 @@ type startupScripts struct {
 	Site            *v1alpha1.Site
 	SiteId          string
 	SkupperPlatform string
+	ContainerEngine string
 	path            string
 }
 
@@ -48,10 +49,14 @@ func GetStartupScripts(site *v1alpha1.Site, siteId string) (StartupScript, error
 	}
 
 	platform := config.GetPlatform()
-	if !platform.IsContainerEngine() {
+	if !platform.IsContainerEngine() && !platform.IsBundle() {
 		return nil, fmt.Errorf("startup scripts can only be used with podman or docker platforms")
 	}
 	scripts.SkupperPlatform = string(platform)
+	scripts.ContainerEngine = scripts.SkupperPlatform
+	if platform.IsBundle() {
+		scripts.ContainerEngine = "{{.ContainerEngine}}"
+	}
 	siteHome, err := apis.GetHostSiteHome(site)
 	if err != nil {
 		return nil, err

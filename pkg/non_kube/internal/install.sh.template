@@ -28,17 +28,22 @@ exit_error() {
 
 usage() {
     echo "Usage: $0 [-p <podman|docker|systemd>] [-x]" >&2
+    echo "    -p    platform to use (one of: podman, docker, systemd)" >&2
+    echo "    -x    remove existing site definition" >&2
     exit 1
 }
 
 parse_opts() {
-    while getopts "xp:" opt; do
+    while getopts "hxp:" opt; do
         case "${opt}" in
             p)
                 export SKUPPER_PLATFORM="${OPTARG}"
                 ;;
             x)
                 export REMOVE=true
+                ;;
+            h)
+                usage
                 ;;
             *)
                 usage
@@ -102,9 +107,15 @@ remove_site() {
 }
 
 create_site() {
+    find ./
+    
     echo "Skupper site bundle installation"
     echo "Site name: ${SITE_NAME}"
     echo "Platform : ${SKUPPER_PLATFORM}"
+
+    # TODO create sed template script
+
+    # TODO create platform.yaml
 
     # TODO If bundle has tokens, show token location after site has been created
 
@@ -125,6 +136,7 @@ main() {
 
     if ${REMOVE}; then
         remove_site
+        remove_service
         return
     fi
 

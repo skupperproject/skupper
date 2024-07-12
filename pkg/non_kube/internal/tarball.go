@@ -80,7 +80,7 @@ func (t *Tarball) close() error {
 
 // AddFiles adds all files (recursively) based on the
 // provided directory.
-func (t *Tarball) AddFiles(dir string) error {
+func (t *Tarball) AddFiles(dir string, includesOnly ...string) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	t.lastAdded = time.Now()
@@ -88,7 +88,14 @@ func (t *Tarball) AddFiles(dir string) error {
 		dir = dir + "/"
 	}
 	t.basePath = dir
-	err := t.addFiles(dir)
+	var err error
+	if len(includesOnly) > 0 {
+		for _, inc := range includesOnly {
+			err = t.addFiles(path.Join(dir, inc))
+		}
+	} else {
+		err = t.addFiles(dir)
+	}
 	t.lastAdded = time.Time{}
 	t.basePath = ""
 	return err

@@ -17,7 +17,12 @@ is_sock_endpoint() {
 }
 
 is_container_platform() {
-    [[ "${SKUPPER_PLATFORM}" != "systemd" ]] && return 0
+    [[ "${SKUPPER_PLATFORM}" != "systemd" ]] && [[ "${SKUPPER_PLATFORM}" != "bundle" ]] && return 0
+    return 1
+}
+
+is_bundle_platform() {
+    [[ "${SKUPPER_PLATFORM}" = "bundle" ]] && return 0
     return 1
 }
 
@@ -62,6 +67,11 @@ container_env() {
 }
 
 create_service() {
+    # do not create service when preparing a site bundle
+    if is_bundle_platform; then
+        return
+    fi
+
     # if systemd is not available, skip it
     if [[ ${UID} -eq 0 ]]; then
         systemctl list-units > /dev/null 2>&1 || return

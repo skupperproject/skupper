@@ -111,6 +111,13 @@ func main() {
 				}
 			}
 		}
+	} else {
+		dataHome, err := apis.GetHostDataHome()
+		if err != nil {
+			fmt.Println("Failed to get site bundle base directory:", err)
+		}
+		installationFile := path.Join(dataHome, "sites", fmt.Sprintf("skupper-install-%s.sh", siteState.Site.Name))
+		fmt.Println("Installation bundle available at:", installationFile)
 	}
 }
 
