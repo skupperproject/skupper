@@ -32,6 +32,8 @@ func containersToShell(containers map[string]container.Container) []byte {
 	for _, c := range containers {
 		var createCmd []string
 		createCmd = append(createCmd, "{{.ContainerEngine}}", "run", "-d", "--name", escapeArgument(c.Name))
+		createCmd = append(createCmd, "-u", "{{.RunAs}}")
+		createCmd = append(createCmd, "--userns", "{{.UserNamespace}}")
 		for envName, envVal := range c.Env {
 			createCmd = append(createCmd, "--env", fmt.Sprintf("%s=%s", envName, escapeArgument(envVal)))
 		}
