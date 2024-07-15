@@ -7,6 +7,7 @@ export REQUIRED_COMMANDS=("python" "sed" "find" "grep" "xargs" "tar" "getent" "i
 export SITE_NAME="{{.SiteName}}"
 export SKUPPER_PLATFORM="podman"
 export REMOVE=false
+export DUMP_TOKENS=false
 export LOG_FILE="$(mktemp /tmp/skupper-install.XXXXX.log)"
 
 # standard output directories
@@ -36,14 +37,15 @@ exit_error() {
 }
 
 usage() {
-    echo "Usage: $0 [-p <podman|docker|systemd>] [-x]" >&2
+    echo "Usage: $0 [-p <podman|docker|systemd>] [-x] [-d <output-dir>]" >&2
     echo "    -p    platform to use (one of: podman, docker, systemd)" >&2
     echo "    -x    remove existing site definition" >&2
+    echo "    -d    dump tokens from bundle to the provide output directory" >&2
     exit 1
 }
 
 parse_opts() {
-    while getopts "hxp:" opt; do
+    while getopts "xhd:p:" opt; do
         case "${opt}" in
             p)
                 export SKUPPER_PLATFORM="${OPTARG}"
@@ -57,6 +59,18 @@ parse_opts() {
                     fi
                     export DOCKERGID=$(getent group docker | cut -d: -f3)
                     export RUNAS="${UID}:${DOCKERGID}"
+                fi
+                ;;
+            d)
+                export DUMP_TOKENS=true
+                export TOKEN_OUTPUT_PATH="${OPTARG}"
+                if [[ -z "${TOKEN_OUTPUT_PATH}" || ! -d "${TOKEN_OUTPUT_PATH}" ]]; then
+                    echo "Output directory is not valid"
+                    usage
+                fi
+                if [[ ! -w "${TOKEN_OUTPUT_PATH}" ]]; then
+                    echo "No permission to write tokens to provided output directory"
+                    usage
                 fi
                 ;;
             x)
@@ -125,6 +139,18 @@ remove_site() {
     rm -rf "${SITES_PATH:?}/${SITE_NAME:?}/"
 }
 
+dump_tokens() {
+    tokens="$(ls "./${SITE_NAME}/runtime/token/")"
+    if [[ -z "${tokens}" ]]; then
+        echo "No tokens defined in this site bundle"
+        return
+    fi
+    token_out_dir="${TOKEN_OUTPUT_PATH:?}/${SITE_NAME:?}"
+    mkdir -p "${token_out_dir}"
+    cp "./${SITE_NAME}/runtime/token/"*.yaml "${token_out_dir}"
+    echo "Tokens for site \"${SITE_NAME}\" have been saved into ${token_out_dir}"
+}
+
 set_router_access_port() {
     config_file="${SITES_PATH}/${SITE_NAME}/config/router/skrouterd.json"
     python "${SITES_PATH:?}/${SITE_NAME:?}/runtime/scripts/router_free_port.py" "${config_file}"
@@ -165,6 +191,7 @@ show_token_info() {
 }
 
 create_containers() {
+    [[ "${SKUPPER_PLATFORM}" == "systemd" ]] && return
     "${SITES_PATH:?}/${SITE_NAME:?}/runtime/scripts/containers_create.sh"
 }
 
@@ -197,7 +224,7 @@ create_site() {
     # If bundle has tokens, show token location after site has been created
     show_token_info
 
-    # Creating containers
+    # Creating containers (container engine only)
     create_containers
 
     # Create systemd service
@@ -226,6 +253,9 @@ main() {
     if ${REMOVE}; then
         remove_site
         remove_service
+        return
+    elif ${DUMP_TOKENS}; then
+        dump_tokens
         return
     fi
 
