@@ -1,16 +1,22 @@
 package bundle
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path"
 
 	"github.com/skupperproject/skupper/api/types"
+	internal "github.com/skupperproject/skupper/internal/non_kube"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/non_kube/apis"
 	"github.com/skupperproject/skupper/pkg/non_kube/common"
-	"github.com/skupperproject/skupper/pkg/non_kube/internal"
+)
+
+var (
+	//go:embed router_free_port.py
+	FreePortScript string
 )
 
 type SiteStateRenderer struct {
@@ -61,6 +67,9 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 		return err
 	}
 	if err = s.createContainerScript(); err != nil {
+		return err
+	}
+	if err = s.createFreePortScript(); err != nil {
 		return err
 	}
 	// Create systemd service and scripts
@@ -174,6 +183,22 @@ func (s *SiteStateRenderer) removeSiteFiles() error {
 	err = os.RemoveAll(siteHomeDir)
 	if err != nil {
 		return fmt.Errorf("file to remove temporary site directory %q: %v", siteHomeDir, err)
+	}
+	return nil
+}
+
+func (s *SiteStateRenderer) createFreePortScript() error {
+	siteHome, err := apis.GetHostSiteHome(s.siteState.Site)
+	if err != nil {
+		return err
+	}
+	scriptsPath := path.Join(siteHome, common.RuntimeScriptsPath)
+	if apis.IsRunningInContainer() {
+		scriptsPath = path.Join(common.GetDefaultOutputPath(s.siteState.Site.Name), common.RuntimeScriptsPath)
+	}
+	err = os.WriteFile(path.Join(scriptsPath, "router_free_port.py"), []byte(FreePortScript), 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create router_free_port.py script: %v", err)
 	}
 	return nil
 }

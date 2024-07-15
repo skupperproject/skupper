@@ -1,4 +1,4 @@
-package internal
+package non_kube
 
 import (
 	"log"

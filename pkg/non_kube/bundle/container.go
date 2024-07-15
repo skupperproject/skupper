@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	internal "github.com/skupperproject/skupper/internal/non_kube"
 	"github.com/skupperproject/skupper/pkg/container"
-	"github.com/skupperproject/skupper/pkg/non_kube/internal"
 )
 
 var (
@@ -35,6 +35,7 @@ func containersToShell(containers map[string]container.Container) []byte {
 		for envName, envVal := range c.Env {
 			createCmd = append(createCmd, "--env", fmt.Sprintf("%s=%s", envName, escapeArgument(envVal)))
 		}
+		createCmd = append(createCmd, "--label", "application=skupper")
 		for labelName, labelVal := range c.Labels {
 			createCmd = append(createCmd, "--label", fmt.Sprintf("%s=%s", labelName, escapeArgument(labelVal)))
 		}

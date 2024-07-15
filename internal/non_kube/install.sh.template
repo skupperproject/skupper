@@ -1,6 +1,7 @@
 # Bundle installation and removal script
 
 export REQUIRED_FIELDS=("SITE_NAME" "OUTPUT_PATH" "SERVICE_DIR" "SITES_PATH" "SKUPPER_PLATFORM")
+export REQUIRED_COMMANDS=("python" "sed" "find" "grep" "xargs" "tar")
 
 # site name to be provided by bundle generation
 export SITE_NAME="{{.SiteName}}"
@@ -64,8 +65,8 @@ create_service() {
     # if systemd is not available, skip it
     ${SYSTEMCTL} list-units > /dev/null 2>&1 || return
     service_name="skupper-site-${SITE_NAME}.service"
-    service_file_suffix=".container"
-    [[ "${SKUPPER_PLATFORM}" = "systemd" ]] && service_file_suffix=".systemd"
+    service_file_suffix="container"
+    [[ "${SKUPPER_PLATFORM}" = "systemd" ]] && service_file_suffix="systemd"
     service_file="${OUTPUT_PATH}/sites/${SITE_NAME}/runtime/scripts/${service_name}.${service_file_suffix}"
 
     if [[ ! -f ${service_file} ]]; then
@@ -75,13 +76,13 @@ create_service() {
 
     # Moving it to the appropriate location
     if [[ ${UID} -eq 0 ]]; then
-        mv "${service_file}" /etc/systemd/system/
+        cp "${service_file}" "/etc/systemd/system/${service_name}"
     else
         if [[ ! -d "${SERVICE_DIR}" ]]; then
             echo "Unable to define path to SystemD service"
             return
         fi
-        mv "${service_file}" "${SERVICE_DIR}"
+        cp "${service_file}" "${SERVICE_DIR}/${service_name}"
     fi
 
     ${SYSTEMCTL} enable --now "${service_name}"
@@ -113,6 +114,11 @@ remove_site() {
     rm -rf "${SITES_PATH:?}/${SITE_NAME:?}/"
 }
 
+set_router_access_port() {
+    config_file="${SITES_PATH}/${SITE_NAME}/config/router/skrouterd.json"
+    python "${SITES_PATH:?}/${SITE_NAME:?}/runtime/scripts/router_free_port.py" "${config_file}"
+}
+
 create_sed_script() {
     ssl_profile_base_path='${SSL_PROFILE_BASE_PATH}'
     [[ "${SKUPPER_PLATFORM}" = "systemd" ]] && ssl_profile_base_path="${SITES_PATH}/${SITE_NAME}"
@@ -132,8 +138,21 @@ create_sed_script() {
     } >> script.sed
 }
 
-render_templates() {
+render_sed_templates() {
     grep -rl '{{"{{"}}' "${SITES_PATH}/${SITE_NAME}" | xargs -r -i sed -f script.sed -i {}
+}
+
+show_token_info() {
+    token_path="${SITES_PATH:?}/${SITE_NAME:?}/runtime/token"
+    [[ ! -d "${token_path}" ]] && return
+    tokens_found=$(find "${token_path}" -type f | wc -l)
+    if [[ "${tokens_found}" -gt 0 ]]; then
+        echo "Static tokens have been defined at: ${token_path}"
+    fi
+}
+
+create_containers() {
+    "${SITES_PATH:?}/${SITE_NAME:?}/runtime/scripts/containers_create.sh"
 }
 
 create_site() {
@@ -152,15 +171,21 @@ create_site() {
     # Creating platform.yaml
     echo "platform: ${SKUPPER_PLATFORM}" > ${PLATFORM_FILE}
 
-    # Creating sed script to render template files
+    # Adjust router normal access port
+    set_router_access_port
+
+    # Creating sed script to render template files at install time
     create_sed_script
-    render_templates
+    render_sed_templates
 
-    # TODO create sed template script
+    # If bundle has tokens, show token location after site has been created
+    show_token_info
 
-    # TODO If bundle has tokens, show token location after site has been created
+    # Creating containers
+    create_containers
 
-    # TODO Create a python script to discover free port for normal listener
+    # Create systemd service
+    create_service
 
     echo "Site \"${SITE_NAME}\" is now running"
 }
@@ -168,6 +193,11 @@ create_site() {
 sanity_check() {
     for field_name in "${REQUIRED_FIELDS[@]}"; do
         eval [[ -n "\${${field_name}}" ]] || exit_error "Internal error: required field ${field_name} not defined"
+    done
+    for cmd in "${REQUIRED_COMMANDS[@]}"; do
+        if ! command -v ${cmd} > /dev/null 2>&1; then
+            exit_error "A required command could not be found: ${cmd}"
+        fi
     done
 }
 

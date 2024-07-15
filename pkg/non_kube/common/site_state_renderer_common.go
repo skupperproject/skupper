@@ -5,7 +5,6 @@ import (
 	"maps"
 
 	"github.com/skupperproject/skupper/pkg/non_kube/apis"
-	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 func CopySiteState(siteState *apis.SiteState) *apis.SiteState {
@@ -28,11 +27,7 @@ func CopySiteState(siteState *apis.SiteState) *apis.SiteState {
 func CreateRouterAccess(siteState *apis.SiteState) error {
 	if !siteState.HasRouterAccess() {
 		name := fmt.Sprintf("skupper-local")
-		port, err := utils.TcpPortNextFree(5671)
-		if err != nil {
-			return err
-		}
-		siteState.CreateRouterAccess(name, port)
+		siteState.CreateRouterAccess(name, 5671)
 	}
 	return nil
 }
