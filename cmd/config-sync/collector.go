@@ -51,7 +51,12 @@ func siteCollector(stopCh <-chan struct{}, cli *internalclient.KubeClient) {
 	}
 	owner := kube.GetDeploymentOwnerReference(current)
 
+	const shadowNetworkStatusConfigMapName = "skupper-network-status-shadow"
 	existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
+	if err != nil && existing == nil {
+		log.Fatal("Failed to create site status config map ", err.Error())
+	}
+	existing, err = kube.NewConfigMap(shadowNetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
 	if err != nil && existing == nil {
 		log.Fatal("Failed to create site status config map ", err.Error())
 	}
@@ -61,6 +66,8 @@ func siteCollector(stopCh <-chan struct{}, cli *internalclient.KubeClient) {
 		log.Println("Update lock error", err.Error())
 	}
 
+	factory := session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-collector"})
+	statusSync := kubeflow.NewStatusSync(factory, nil, cli.Kube.CoreV1().ConfigMaps(cli.Namespace), shadowNetworkStatusConfigMapName)
 	fc = flow.NewFlowCollector(flow.FlowCollectorSpec{
 		Mode:                flow.RecordStatus,
 		Namespace:           cli.Namespace,
@@ -72,7 +79,9 @@ func siteCollector(stopCh <-chan struct{}, cli *internalclient.KubeClient) {
 
 	go primeBeacons(fc, cli)
 	log.Println("COLLECTOR: Starting flow collector")
+	go statusSync.Run(context.Background())
 	fc.Start(stopCh)
+
 }
 
 // primeBeacons attempts to guess the router and service-controller vanflow IDs
@@ -102,7 +111,7 @@ func startFlowController(stopCh <-chan struct{}, cli *internalclient.KubeClient)
 		log.Fatal("Failed to get transport deployment", err.Error())
 	}
 
-	informer := corev1informer.NewPodInformer(cli.KubeClient, cli.Namespace, time.Minute*5, cache.Indexers{})
+	informer := corev1informer.NewPodInformer(cli.Kube, cli.Namespace, time.Minute*5, cache.Indexers{})
 	platform := "kubernetes"
 	fc := kubeflow.NewController(kubeflow.ControllerConfig{
 		Factory:  session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-controller"}),
