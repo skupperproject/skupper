@@ -69,7 +69,7 @@ func desiredRouteForPort(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1
 	name := fmt.Sprintf("%s-%s", sa.Name, port.Name)
 	host := sa.Spec.Options["domain"]
 	if host != "" {
-		host = fmt.Sprintf("%s-%s.%s", sa.Namespace, host)
+		host = fmt.Sprintf("%s.%s", sa.Namespace, host)
 	}
 	route := &routev1.Route{
 		TypeMeta: metav1.TypeMeta{
