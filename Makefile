@@ -85,7 +85,7 @@ test:
 	go test -v -count=1 ./pkg/... ./internal/... ./cmd/...
 
 clean:
-	rm -rf skupper controller release config-sync manifest  ${TEST_BINARIES_FOLDER}
+	rm -rf skupper controller release config-sync manifest bootstrap ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz release/s390x.tgz release/arm64.tgz
 
