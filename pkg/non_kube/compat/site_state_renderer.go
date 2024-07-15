@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client/compat"
+	internalclient "github.com/skupperproject/skupper/internal/non-kube/client/compat"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/non_kube/apis"
@@ -21,7 +21,7 @@ type SiteStateRenderer struct {
 	siteState       *apis.SiteState
 	configRenderer  *common.FileSystemConfigurationRenderer
 	containers      map[string]container.Container
-	cli             *compat.CompatClient
+	cli             *internalclient.CompatClient
 }
 
 func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
@@ -32,7 +32,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 		return err
 	}
 	s.loadedSiteState = loadedSiteState
-	s.cli, err = compat.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
+	s.cli, err = internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}
