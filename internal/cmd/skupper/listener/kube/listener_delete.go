@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -17,9 +18,14 @@ var (
 	listenerDeleteExample = "skupper listener delete database"
 )
 
+type ListenerDelete struct {
+	timeout time.Duration
+}
+
 type CmdListenerDelete struct {
 	client    skupperv1alpha1.SkupperV1alpha1Interface
 	CobraCmd  cobra.Command
+	flags     ListenerDelete
 	namespace string
 	name      string
 }
@@ -43,6 +49,7 @@ func NewCmdListenerDelete() *CmdListenerDelete {
 		},
 	}
 	skupperCmd.CobraCmd = cmd
+	skupperCmd.AddFlags()
 
 	return &skupperCmd
 }
@@ -53,6 +60,10 @@ func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []stri
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
+}
+
+func (cmd *CmdListenerDelete) AddFlags() {
+	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 }
 
 func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
@@ -83,6 +94,11 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
 				validationErrors = append(validationErrors, fmt.Errorf("listener %s does not exist in namespace %s", cmd.name, cmd.namespace))
 			}
 		}
+
+		//TBD what is valid timeout
+		if cmd.flags.timeout <= 0*time.Minute {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+		}
 	}
 
 	return validationErrors
@@ -94,7 +110,8 @@ func (cmd *CmdListenerDelete) Run() error {
 }
 
 func (cmd *CmdListenerDelete) WaitUntilReady() error {
-	err := utils.NewSpinner("Waiting for deletion to complete...", 5, func() error {
+	waitTime := int(cmd.flags.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err == nil && resource != nil {

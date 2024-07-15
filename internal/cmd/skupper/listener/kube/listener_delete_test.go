@@ -3,10 +3,12 @@ package kube
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
+	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,6 +33,35 @@ func TestCmdListenerDelete_NewCmdListenerDelete(t *testing.T) {
 
 }
 
+func TestCmdListenerDelete_AddFlags(t *testing.T) {
+
+	expectedFlagsWithDefaultValue := map[string]interface{}{
+		"timeout": "1m0s",
+	}
+	var flagList []string
+
+	cmd := newCmdListenerDeleteWithMocks()
+
+	t.Run("add flags", func(t *testing.T) {
+
+		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
+			flagList = append(flagList, flag.Name)
+		})
+
+		assert.Check(t, len(flagList) == 0)
+
+		cmd.AddFlags()
+
+		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
+			flagList = append(flagList, flag.Name)
+			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil)
+			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
+		})
+
+		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
+	})
+
+}
 func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
@@ -54,6 +85,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 					return true, nil, fmt.Errorf("NotFound")
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerDelete{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"NotFound"},
 		},
@@ -67,6 +99,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 					return true, nil, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerDelete{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener my-listener does not exist in namespace test"},
 		},
@@ -77,6 +110,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ListenerDelete{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener name must be specified"},
 		},
@@ -87,6 +121,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ListenerDelete{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener name must not be empty"},
 		},
@@ -97,6 +132,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ListenerDelete{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
@@ -107,8 +143,21 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ListenerDelete{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"only one argument is allowed for this command"},
+		},
+		{
+			name: "timeout is not valid",
+			args: []string{"bad-timeout"},
+			setUpMock: func(command *CmdListenerDelete) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				command.client = fakeSkupperClient
+				command.flags = ListenerDelete{timeout: 0 * time.Second}
+			},
+			expectedErrors: []string{
+				"timeout is not valid"},
 		},
 	}
 
@@ -208,7 +257,6 @@ func TestCmdListenerDelete_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
 			},
 			expectError: true,
 		},
@@ -221,7 +269,6 @@ func TestCmdListenerDelete_WaitUntilReady(t *testing.T) {
 					return true, nil, fmt.Errorf("it failed")
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
 			},
 			expectError: true,
 		},
@@ -234,7 +281,6 @@ func TestCmdListenerDelete_WaitUntilReady(t *testing.T) {
 					return true, nil, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
 			},
 			expectError: false,
 		},
@@ -242,6 +288,8 @@ func TestCmdListenerDelete_WaitUntilReady(t *testing.T) {
 
 	for _, test := range testTable {
 		cmd := newCmdListenerDeleteWithMocks()
+		cmd.name = "my-listener"
+		cmd.flags = ListenerDelete{timeout: 5 * time.Second}
 
 		test.setUpMock(cmd)
 		t.Run(test.name, func(t *testing.T) {

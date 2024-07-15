@@ -3,6 +3,7 @@ package kube
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -42,6 +43,7 @@ func TestCmdListenerUpdate_AddFlags(t *testing.T) {
 		"tls-secret":  "",
 		"type":        "tcp",
 		"port":        "0",
+		"timeout":     "1m0s",
 		"output":      "",
 	}
 	var flagList []string
@@ -92,6 +94,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					return true, nil, fmt.Errorf("NotFound")
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"listener my-listener must exist in namespace test to be updated"},
 		},
@@ -102,6 +105,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ListenerUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"listener name must be configured"},
 		},
@@ -112,6 +116,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ListenerUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"listener name must not be empty"},
 		},
@@ -122,6 +127,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ListenerUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
@@ -132,6 +138,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
+				command.flags = ListenerUpdates{timeout: 5 * time.Second}
 			},
 			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
@@ -142,7 +149,10 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ListenerUpdates{listenerType: "not-valid"}
+				command.flags = ListenerUpdates{
+					listenerType: "not-valid",
+					timeout:      60 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
@@ -154,7 +164,9 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ListenerUpdates{routingKey: "not-valid$"}
+				command.flags = ListenerUpdates{
+					routingKey: "not-valid$",
+					timeout:    30 * time.Second}
 			},
 			expectedErrors: []string{
 				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
@@ -165,14 +177,18 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdListenerUpdate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ListenerUpdates{tlsSecret: ":not-valid"}
 				fakeKubeClient := kubefake.NewSimpleClientset()
 				fakeKubeClient.Fake.ClearActions()
 				fakeKubeClient.Fake.PrependReactor("get", "secrets", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, fmt.Errorf("secret not found")
 				})
+				command.client = fakeSkupperClient
 				command.KubeClient = fakeKubeClient
+				command.client = fakeSkupperClient
+				command.flags = ListenerUpdates{
+					tlsSecret: ":not-valid",
+					timeout:   5 * time.Minute,
+				}
 			},
 			expectedErrors: []string{
 				"tls-secret is not valid: does not exist"},
@@ -184,10 +200,25 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ListenerUpdates{port: -1}
+				command.flags = ListenerUpdates{
+					port:    -1,
+					timeout: 60 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"listener port is not valid: value is not positive"},
+		},
+		{
+			name: "timeout is not valid",
+			args: []string{"bad-timeout"},
+			setUpMock: func(command *CmdListenerUpdate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				command.client = fakeSkupperClient
+				command.flags = ListenerUpdates{timeout: 0 * time.Second}
+			},
+			expectedErrors: []string{
+				"timeout is not valid"},
 		},
 		{
 			name: "output is not valid",
@@ -196,7 +227,10 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
 				command.client = fakeSkupperClient
-				command.flags = ListenerUpdates{output: "not-supported"}
+				command.flags = ListenerUpdates{
+					output:  "not-supported",
+					timeout: 1 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
@@ -214,6 +248,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					tlsSecret:    "secretname",
 					port:         1234,
 					listenerType: "tcp",
+					timeout:      1 * time.Second,
 					output:       "json",
 				}
 				fakeKubeClient := kubefake.NewSimpleClientset()
@@ -383,7 +418,6 @@ func TestCmdListenerUpdate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
 			},
 			expectError: true,
 		},
@@ -396,7 +430,6 @@ func TestCmdListenerUpdate_WaitUntilReady(t *testing.T) {
 					return true, nil, fmt.Errorf("it failed")
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
 			},
 			expectError: true,
 		},
@@ -418,7 +451,6 @@ func TestCmdListenerUpdate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
 			},
 			expectError: false,
 		},
@@ -440,7 +472,6 @@ func TestCmdListenerUpdate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
 				command.newSettings.output = "json"
 			},
 			expectError: false,
@@ -449,6 +480,8 @@ func TestCmdListenerUpdate_WaitUntilReady(t *testing.T) {
 
 	for _, test := range testTable {
 		cmd := newCmdListenerUpdateWithMocks()
+		cmd.name = "my-listener"
+		cmd.flags = ListenerUpdates{timeout: 5 * time.Second}
 
 		test.setUpMock(cmd)
 		t.Run(test.name, func(t *testing.T) {

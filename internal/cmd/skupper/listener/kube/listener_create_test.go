@@ -3,6 +3,7 @@ package kube
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -41,6 +42,7 @@ func TestCmdListenerCreate_AddFlags(t *testing.T) {
 		"host":        "",
 		"tls-secret":  "",
 		"type":        "tcp",
+		"timeout":     "1m0s",
 		"output":      "",
 	}
 	var flagList []string
@@ -122,6 +124,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return false, nil, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"there is already a listener my-listener created for namespace test"},
 		},
@@ -135,6 +138,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, nil, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"A site must exist in namespace test before a listener can be created"},
 		},
@@ -158,6 +162,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener name and port must be configured"},
 		},
@@ -181,6 +186,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener name must not be empty"},
 		},
@@ -204,6 +210,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener port must not be empty"},
 		},
@@ -213,7 +220,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdListenerCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
 				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
 					site := v1alpha1.SiteList{
 						Items: []v1alpha1.Site{
@@ -227,6 +233,8 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					}
 					return true, &site, nil
 				})
+				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener port is not valid: value is not positive"},
 		},
@@ -250,6 +258,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener name and port must be configured"},
 		},
@@ -259,7 +268,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdListenerCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
 				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
 					site := v1alpha1.SiteList{
 						Items: []v1alpha1.Site{
@@ -273,6 +281,8 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					}
 					return true, &site, nil
 				})
+				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener name and port must be configured"},
 		},
@@ -282,7 +292,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			setUpMock: func(command *CmdListenerCreate) {
 				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
 				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
 				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
 					site := v1alpha1.SiteList{
 						Items: []v1alpha1.Site{
@@ -296,6 +305,8 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					}
 					return true, &site, nil
 				})
+				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"only two arguments are allowed for this command"},
 		},
@@ -319,6 +330,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
@@ -342,6 +354,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{"listener port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax"},
 		},
@@ -365,7 +378,10 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
-				command.flags = ListenerCreate{listenerType: "not-valid"}
+				command.flags = ListenerCreate{
+					listenerType: "not-valid",
+					timeout:      20 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
@@ -390,7 +406,10 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
-				command.flags = ListenerCreate{routingKey: "not-valid$"}
+				command.flags = ListenerCreate{
+					routingKey: "not-valid$",
+					timeout:    60 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
@@ -414,17 +433,45 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					}
 					return true, &site, nil
 				})
-				command.client = fakeSkupperClient
-				command.flags = ListenerCreate{tlsSecret: "not-valid"}
 				fakeKubeClient := kubefake.NewSimpleClientset()
 				fakeKubeClient.Fake.ClearActions()
 				fakeKubeClient.Fake.PrependReactor("get", "secrets", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
 					return true, nil, fmt.Errorf("secret not found")
 				})
 				command.KubeClient = fakeKubeClient
+				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{
+					tlsSecret: "not-valid",
+					timeout:   1 * time.Minute,
+				}
 			},
 			expectedErrors: []string{
 				"tls-secret is not valid: does not exist"},
+		},
+		{
+			name: "timeout is not valid",
+			args: []string{"bad-timeout", "8080"},
+			setUpMock: func(command *CmdListenerCreate) {
+				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
+				fakeSkupperClient.Fake.ClearActions()
+				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
+					site := v1alpha1.SiteList{
+						Items: []v1alpha1.Site{
+							{
+								ObjectMeta: v1.ObjectMeta{
+									Name:      "site1",
+									Namespace: "test",
+								},
+							},
+						},
+					}
+					return true, &site, nil
+				})
+				command.client = fakeSkupperClient
+				command.flags = ListenerCreate{timeout: 0 * time.Second}
+			},
+			expectedErrors: []string{
+				"timeout is not valid"},
 		},
 		{
 			name: "output is not valid",
@@ -446,7 +493,10 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &site, nil
 				})
 				command.client = fakeSkupperClient
-				command.flags = ListenerCreate{output: "not-supported"}
+				command.flags = ListenerCreate{
+					output:  "not-supported",
+					timeout: 30 * time.Second,
+				}
 			},
 			expectedErrors: []string{
 				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
@@ -476,6 +526,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					routingKey:   "routingkeyname",
 					tlsSecret:    "secretname",
 					listenerType: "tcp",
+					timeout:      1 * time.Minute,
 					output:       "json",
 				}
 				fakeKubeClient := kubefake.NewSimpleClientset()
@@ -489,6 +540,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					return true, &secret, nil
 				})
 				command.KubeClient = fakeKubeClient
+				command.flags = ListenerCreate{timeout: 1 * time.Minute}
 			},
 			expectedErrors: []string{},
 		},
@@ -640,8 +692,6 @@ func TestCmdListenerCreate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
-				command.port = 8080
 			},
 			expectError: true,
 		},
@@ -654,8 +704,6 @@ func TestCmdListenerCreate_WaitUntilReady(t *testing.T) {
 					return true, nil, fmt.Errorf("it failed")
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
-				command.port = 8080
 			},
 			expectError: true,
 		},
@@ -677,8 +725,6 @@ func TestCmdListenerCreate_WaitUntilReady(t *testing.T) {
 					}, nil
 				})
 				command.client = fakeSkupperClient
-				command.name = "my-listener"
-				command.port = 8080
 			},
 			expectError: false,
 		},
@@ -701,8 +747,6 @@ func TestCmdListenerCreate_WaitUntilReady(t *testing.T) {
 				})
 				command.client = fakeSkupperClient
 				command.output = "yaml"
-				command.name = "my-listener"
-				command.port = 8080
 			},
 			expectError: false,
 		},
@@ -710,6 +754,9 @@ func TestCmdListenerCreate_WaitUntilReady(t *testing.T) {
 
 	for _, test := range testTable {
 		cmd := newCmdListenerCreateWithMocks()
+		cmd.name = "my-listener"
+		cmd.port = 8080
+		cmd.flags = ListenerCreate{timeout: 1 * time.Second}
 
 		test.setUpMock(cmd)
 		t.Run(test.name, func(t *testing.T) {

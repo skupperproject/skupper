@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -27,6 +28,7 @@ type ListenerUpdates struct {
 	tlsSecret    string
 	listenerType string
 	port         int
+	timeout      time.Duration
 	output       string
 }
 
@@ -81,6 +83,7 @@ func (cmd *CmdListenerUpdate) AddFlags() {
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.tlsSecret, "tls-secret", "", "The name of a Kubernetes secret containing TLS credentials")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.listenerType, "type", "t", "tcp", "The listener type. Choices: [tcp|http].")
 	cmd.CobraCmd.Flags().IntVar(&cmd.flags.port, "port", 0, "The port of the local listener")
+	cmd.CobraCmd.Flags().DurationVar(&cmd.flags.timeout, "timeout", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
@@ -159,6 +162,10 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.port = cmd.flags.port
 		}
 	}
+	//TBD what is valid timeout
+	if cmd.flags.timeout <= 0*time.Minute {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+	}
 	if cmd.flags.output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
 		if !ok {
@@ -208,7 +215,8 @@ func (cmd *CmdListenerUpdate) WaitUntilReady() error {
 		return nil
 	}
 
-	err := utils.NewSpinner("Waiting for update to complete...", 5, func() error {
+	waitTime := int(cmd.flags.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {
