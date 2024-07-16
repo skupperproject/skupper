@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-cmp/cmp"
 	"github.com/skupperproject/skupper/pkg/network"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/eventsource"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
+	"golang.org/x/time/rate"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/retry"
@@ -50,9 +50,12 @@ type StatusSync struct {
 
 	hasNext    chan struct{}
 	purgeQueue chan store.SourceRef
+	limit      rate.Limit
+	burst      int
 }
 
 func NewStatusSync(factory session.ContainerFactory, localSources map[string][]store.Interface, client v1.ConfigMapInterface, configMap string) *StatusSync {
+
 	// TODO ignore local sources and use their stores
 	logger := slog.New(slog.Default().Handler()).With(
 		slog.String("component", "kube.flow.statusSync"),
@@ -73,6 +76,8 @@ func NewStatusSync(factory session.ContainerFactory, localSources map[string][]s
 		clients:       make(map[string]*eventsource.Client),
 		purgeQueue:    make(chan store.SourceRef, 8),
 		hasNext:       make(chan struct{}, 1),
+		limit:         rate.Every(time.Second),
+		burst:         1,
 
 		logger: logger,
 	}
@@ -110,13 +115,24 @@ func (s *StatusSync) Run(ctx context.Context) {
 			Forgotten:  s.handleForgotten,
 		})
 	}()
-	var prev network.NetworkStatusInfo
 
-	// gate network status updates with an exponential backoff to not spam the
-	// downstream processes with excessive changes
-	publishBackoff := backoff.NewExponentialBackOff(backoff.WithMaxInterval(time.Second*10), backoff.WithMaxElapsedTime(0))
-	publishTicker := backoff.NewTicker(publishBackoff)
-	defer publishTicker.Stop()
+	var (
+		prev  network.NetworkStatusInfo
+		later <-chan time.Time
+	)
+
+	tryBuildAndPublish := func() {
+		var err error
+		prev, err = s.buildAndPublish(prev)
+		if err != nil {
+			s.logger.Error("could not update network status info", slog.Any("error", err))
+		}
+	}
+	var limiter *rate.Limiter
+	if s.limit != 0 && s.burst != 0 {
+		limiter = rate.NewLimiter(s.limit, s.burst)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -126,21 +142,25 @@ func (s *StatusSync) Run(ctx context.Context) {
 				return
 			}
 			s.logger.Error("event source discovery finished unexpectedly", slog.Any("error", err))
-		case t := <-publishTicker.C:
-			select {
-			case <-s.hasNext:
-			default:
-				// No change this interval so reset the backoff sequence
-				publishBackoff.Reset()
-				continue
+
+		case <-s.hasNext:
+			if limiter != nil {
+				r := limiter.Reserve()
+				if d := r.Delay(); d != 0 {
+					// rate limit reached
+					if later == nil {
+						later = time.After(d) // schedule next update
+					} else {
+						r.Cancel() // future update already scheduled
+					}
+					continue
+				}
 			}
-			next := s.build()
-			if cmp.Equal(prev, next) {
-				continue
-			}
-			s.logger.Info("publishing update", slog.Any("t", t))
-			prev = next
-			s.publish(next)
+			tryBuildAndPublish()
+
+		case <-later:
+			later = nil
+			tryBuildAndPublish()
 		case source := <-s.purgeQueue:
 			ct := s.purge(source)
 			s.logger.Info("purged records from forgotten source",
@@ -149,6 +169,15 @@ func (s *StatusSync) Run(ctx context.Context) {
 			)
 		}
 	}
+}
+
+func (s *StatusSync) buildAndPublish(prev network.NetworkStatusInfo) (network.NetworkStatusInfo, error) {
+	next := s.build()
+	if cmp.Equal(prev, next) {
+		s.logger.Debug("no change since last publish")
+		return prev, nil
+	}
+	return next, s.publish(next)
 }
 
 func (s *StatusSync) build() network.NetworkStatusInfo {
