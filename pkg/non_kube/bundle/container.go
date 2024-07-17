@@ -29,6 +29,10 @@ func escapeArgument(argument string) string {
 func containersToShell(containers map[string]container.Container) []byte {
 	buf := new(bytes.Buffer)
 
+	if len(containers) > 0 {
+		buf.WriteString("#!/bin/sh\n\n")
+	}
+
 	for _, c := range containers {
 		var createCmd []string
 		createCmd = append(createCmd, "{{.ContainerEngine}}", "run", "-d", "--name", escapeArgument(c.Name))

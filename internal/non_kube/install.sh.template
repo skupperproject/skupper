@@ -1,16 +1,34 @@
-# Bundle installation and removal script
+#!/bin/sh
 
-export REQUIRED_FIELDS=("SITE_NAME" "OUTPUT_PATH" "SERVICE_DIR" "SITES_PATH" "SKUPPER_PLATFORM")
-export REQUIRED_COMMANDS=("python" "sed" "find" "grep" "xargs" "tar" "getent" "id")
+set -Ceu
+
+# Self extract
+TAR_CONTENT_START=$(awk '/^__TARBALL_CONTENT__$/ {print NR+1; exit 0;}' "$0")
+TMP_DIR=$(mktemp -d /tmp/skupper-bundle.XXXXX)
+CUR_DIR=$(pwd)
+
+cleanup() {
+  [ -d "${TMP_DIR}" ] && rm -rf "${TMP_DIR}"
+  cd "${CUR_DIR}"
+}
+
+trap cleanup EXIT
+tail -n+"${TAR_CONTENT_START}" "$0" | tar zxf - -C "${TMP_DIR}"
+cd "${TMP_DIR}"
+
+# Bundle installation and removal script
 
 # site name to be provided by bundle generation
 export SITE_NAME="{{.SiteName}}"
 export SKUPPER_PLATFORM="podman"
 export REMOVE=false
 export DUMP_TOKENS=false
-export LOG_FILE="$(mktemp /tmp/skupper-install.XXXXX.log)"
 
 # standard output directories
+if [ -z "${UID:-}" ]; then
+    UID="$(id -u)"
+    export UID
+fi
 export OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 export SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 export RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${UID}}"
@@ -18,18 +36,18 @@ export SYSTEMCTL="systemctl --user"
 export USERNS="keep-id"
 GID=$(id -g "${UID}")
 export RUNAS="${UID}:${GID}"
-if [[ ${UID} -eq 0 ]]; then
+if [ "${UID}" -eq 0 ]; then
     export OUTPUT_PATH="/usr/local/share/skupper"
     export SERVICE_DIR="/etc/systemd/system"
     export RUNTIME_DIR="/run"
     export SYSTEMCTL="systemctl"
+    # shellcheck disable=SC2089
     export USERNS="''"
 fi
 export SITES_PATH="${OUTPUT_PATH}/sites"
 export PLATFORM_FILE="${SITES_PATH}/${SITE_NAME}/runtime/state/platform.yaml"
-export VALID_PLATFORMS=(podman docker systemd)
-export RANDOM_SUFFIX="$(date +%s)"
-export SITE_ID="$(hostname -s)-${USER}-${RANDOM_SUFFIX}"
+SITE_ID="$(hostname -s)-${USER}-$(date +%s)"
+export SITE_ID
 
 exit_error() {
     echo "$*"
@@ -48,27 +66,36 @@ parse_opts() {
     while getopts "xhd:p:" opt; do
         case "${opt}" in
             p)
+                valid_platforms="podman docker systemd"
                 export SKUPPER_PLATFORM="${OPTARG}"
-                if ! [[ "${VALID_PLATFORMS[*]}" =~ ${SKUPPER_PLATFORM} ]]; then
+                is_platform_valid=false
+                for valid_platform in ${valid_platforms}; do
+                    if [ "${valid_platform}" = "${SKUPPER_PLATFORM}" ]; then
+                        is_platform_valid=true
+                        break
+                    fi
+                done
+                if [ ! "${is_platform_valid}" ]; then
                     echo "Invalid platform: ${SKUPPER_PLATFORM}"
                     usage
                 fi
-                if [[ "${SKUPPER_PLATFORM}" = "docker" ]]; then
-                    if [[ ${UID} -ne 0 ]]; then
+                if [ "${SKUPPER_PLATFORM}" = "docker" ]; then
+                    if [ "${UID}" -ne 0 ]; then
+                        # shellcheck disable=SC2090
                         export USERNS="host"
                     fi
-                    export DOCKERGID=$(getent group docker | cut -d: -f3)
-                    export RUNAS="${UID}:${DOCKERGID}"
+                    docker_gid=$(getent group docker | cut -d: -f3)
+                    export RUNAS="${UID}:${docker_gid}"
                 fi
                 ;;
             d)
                 export DUMP_TOKENS=true
                 export TOKEN_OUTPUT_PATH="${OPTARG}"
-                if [[ -z "${TOKEN_OUTPUT_PATH}" || ! -d "${TOKEN_OUTPUT_PATH}" ]]; then
+                if [ -z "${TOKEN_OUTPUT_PATH}" ] || [ ! -d "${TOKEN_OUTPUT_PATH}" ]; then
                     echo "Output directory is not valid"
                     usage
                 fi
-                if [[ ! -w "${TOKEN_OUTPUT_PATH}" ]]; then
+                if [ ! -w "${TOKEN_OUTPUT_PATH}" ]; then
                     echo "No permission to write tokens to provided output directory"
                     usage
                 fi
@@ -91,19 +118,19 @@ create_service() {
     ${SYSTEMCTL} list-units > /dev/null 2>&1 || return
     service_name="skupper-site-${SITE_NAME}.service"
     service_file_suffix="container"
-    [[ "${SKUPPER_PLATFORM}" = "systemd" ]] && service_file_suffix="systemd"
+    [ "${SKUPPER_PLATFORM}" = "systemd" ] && service_file_suffix="systemd"
     service_file="${OUTPUT_PATH}/sites/${SITE_NAME}/runtime/scripts/${service_name}.${service_file_suffix}"
 
-    if [[ ! -f ${service_file} ]]; then
+    if [ ! -f "${service_file}" ]; then
         echo "SystemD service has not been defined"
         return 0
     fi
 
     # Moving it to the appropriate location
-    if [[ ${UID} -eq 0 ]]; then
+    if [ "${UID}" -eq 0 ]; then
         cp "${service_file}" "/etc/systemd/system/${service_name}"
     else
-        if [[ ! -d "${SERVICE_DIR}" ]]; then
+        if [ ! -d "${SERVICE_DIR}" ]; then
             echo "Unable to define path to SystemD service"
             return
         fi
@@ -124,14 +151,14 @@ remove_service() {
 }
 
 remove_site() {
-    if [[ ! -d "${SITES_PATH}/${SITE_NAME}" ]]; then
+    if [ ! -d "${SITES_PATH}/${SITE_NAME}" ]; then
         echo "Site \"${SITE_NAME}\" does not exist"
         exit 0
     fi
 
     echo "Removing Skupper site definition for: ${SITE_NAME}"
     SKUPPER_PLATFORM=$(grep '^platform: ' "${PLATFORM_FILE}" | sed -e 's/.*: //g')
-    if [[ "${SKUPPER_PLATFORM}" != "systemd" ]]; then
+    if [ "${SKUPPER_PLATFORM}" != "systemd" ]; then
         # removing router container
         ${SKUPPER_PLATFORM} rm -f ${SITE_NAME}-skupper-router
     fi
@@ -141,7 +168,7 @@ remove_site() {
 
 dump_tokens() {
     tokens="$(ls "./${SITE_NAME}/runtime/token/")"
-    if [[ -z "${tokens}" ]]; then
+    if [ -z "${tokens}" ]; then
         echo "No tokens defined in this site bundle"
         return
     fi
@@ -157,11 +184,14 @@ set_router_access_port() {
 }
 
 create_sed_script() {
-    ssl_profile_base_path='${SSL_PROFILE_BASE_PATH}'
-    [[ "${SKUPPER_PLATFORM}" = "systemd" ]] && ssl_profile_base_path="${SITES_PATH}/${SITE_NAME}"
+    ssl_profile_base_path="\${SSL_PROFILE_BASE_PATH}"
+    [ "${SKUPPER_PLATFORM}" = "systemd" ] && ssl_profile_base_path="${SITES_PATH}/${SITE_NAME}"
     container_engine="podman"
-    [[ "${SKUPPER_PLATFORM}" != "systemd" ]] && container_engine="${SKUPPER_PLATFORM}"
+    [ "${SKUPPER_PLATFORM}" != "systemd" ] && container_engine="${SKUPPER_PLATFORM}"
     # populating sed script
+    # note that this is processed a golang template prior to
+    # being inserted into the bundle
+    # shellcheck disable=SC1083
     {
         echo "s#{{"{{"}}.SiteNameSuffix{{"}}"}}#${SITE_ID}#g"
         echo "s#{{"{{"}}.Platform{{"}}"}}#${SKUPPER_PLATFORM}#g"
@@ -183,20 +213,20 @@ render_sed_templates() {
 
 show_token_info() {
     token_path="${SITES_PATH:?}/${SITE_NAME:?}/runtime/token"
-    [[ ! -d "${token_path}" ]] && return
+    [ ! -d "${token_path}" ] && return
     tokens_found=$(find "${token_path}" -type f | wc -l)
-    if [[ "${tokens_found}" -gt 0 ]]; then
+    if [ "${tokens_found}" -gt 0 ]; then
         echo "Static tokens have been defined at: ${token_path}"
     fi
 }
 
 create_containers() {
-    [[ "${SKUPPER_PLATFORM}" == "systemd" ]] && return
+    [ "${SKUPPER_PLATFORM}" = "systemd" ] && return
     "${SITES_PATH:?}/${SITE_NAME:?}/runtime/scripts/containers_create.sh"
 }
 
 create_site() {
-    if [[ -d "${SITES_PATH}/${SITE_NAME}" ]]; then
+    if [ -d "${SITES_PATH}/${SITE_NAME}" ]; then
         echo "Failed: site \"${SITE_NAME}\" is already defined"
         exit 1
     fi
@@ -212,7 +242,7 @@ create_site() {
     mv "./${SITE_NAME}" "${SITES_PATH}/${SITE_NAME}"
 
     # Creating platform.yaml
-    echo "platform: ${SKUPPER_PLATFORM}" > ${PLATFORM_FILE}
+    echo "platform: ${SKUPPER_PLATFORM}" > "${PLATFORM_FILE}"
 
     # Adjust router normal access port
     set_router_access_port
@@ -234,11 +264,14 @@ create_site() {
 }
 
 sanity_check() {
-    for field_name in "${REQUIRED_FIELDS[@]}"; do
-        eval [[ -n "\${${field_name}}" ]] || exit_error "Internal error: required field ${field_name} not defined"
+    required_fields="SITE_NAME OUTPUT_PATH SERVICE_DIR SITES_PATH SKUPPER_PLATFORM"
+    required_commands="python sed find grep xargs tar getent id"
+
+    for field_name in ${required_fields}; do
+        eval [ -n "\${${field_name}}" ] || exit_error "Internal error: required field ${field_name} not defined"
     done
-    for cmd in "${REQUIRED_COMMANDS[@]}"; do
-        if ! command -v ${cmd} > /dev/null 2>&1; then
+    for cmd in ${required_commands}; do
+        if ! command -v "${cmd}" > /dev/null 2>&1; then
             exit_error "A required command could not be found: ${cmd}"
         fi
     done

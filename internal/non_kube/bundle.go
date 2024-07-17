@@ -15,9 +15,6 @@ const (
 )
 
 var (
-	//go:embed self_extract.sh
-	selfExtractPart string
-
 	//go:embed install.sh.template
 	installScript string
 )
@@ -51,9 +48,6 @@ func (s *SelfExtractingBundle) Generate(siteData []byte) error {
 		return nil
 	}
 
-	if err := write(selfExtractPart); err != nil {
-		return err
-	}
 	installScriptTemplate := template.Must(template.New("install").Parse(installScript))
 	var parsedInstallScript = new(bytes.Buffer)
 	err = installScriptTemplate.Execute(parsedInstallScript, map[string]interface{}{
