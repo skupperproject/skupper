@@ -82,7 +82,6 @@ func (cmd *CmdLinkUpdate) AddFlags() {
 func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
-	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
@@ -99,15 +98,10 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 	} else {
 		cmd.linkName = args[0]
 
-		ok, err := resourceStringValidator.Evaluate(cmd.linkName)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("link name is not valid: %s", err))
+		link, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
+		if link == nil || err != nil {
+			validationErrors = append(validationErrors, fmt.Errorf("the link %q is not available in the namespace: %s", cmd.linkName, err))
 		}
-	}
-
-	link, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
-	if link == nil || err != nil {
-		validationErrors = append(validationErrors, fmt.Errorf("the link %q is not available in the namespace: %s", cmd.linkName, err))
 	}
 
 	if cmd.flags.tlsSecret != "" {
@@ -146,18 +140,36 @@ func (cmd *CmdLinkUpdate) InputToOptions() {
 
 func (cmd *CmdLinkUpdate) Run() error {
 
+	currentSite, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	updatedCost := currentSite.Spec.Cost
+	if cmd.cost != currentSite.Spec.Cost {
+		updatedCost = cmd.cost
+	}
+
+	updatedTlsSecret := currentSite.Spec.TlsCredentials
+	if cmd.tlsSecret != "" {
+		updatedTlsSecret = cmd.tlsSecret
+	}
+
 	resource := v1alpha1.Link{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v1alpha1",
 			Kind:       "Link",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmd.linkName,
-			Namespace: cmd.Namespace,
+			Name:              cmd.linkName,
+			Namespace:         cmd.Namespace,
+			CreationTimestamp: currentSite.CreationTimestamp,
+			ResourceVersion:   currentSite.ResourceVersion,
 		},
 		Spec: v1alpha1.LinkSpec{
-			TlsCredentials: cmd.tlsSecret,
-			Cost:           cmd.cost,
+			TlsCredentials: updatedTlsSecret,
+			Cost:           updatedCost,
 		},
 	}
 
@@ -168,7 +180,7 @@ func (cmd *CmdLinkUpdate) Run() error {
 		return err
 
 	} else {
-		_, err := cmd.Client.Links(cmd.Namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+		_, err := cmd.Client.Links(cmd.Namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
 		return err
 	}
 

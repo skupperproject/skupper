@@ -3,6 +3,7 @@ package kube
 import (
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"gotest.tools/assert"
@@ -34,113 +35,88 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		setUpMock      func(command *CmdLinkDelete)
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
 		expectedErrors []string
 	}
 
 	testTable := []test{
 		{
-			name: "there is no site in the namespace.",
-			args: []string{"my-link"},
-			setUpMock: func(command *CmdLinkDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{}, nil
-				})
-				command.Client = fakeSkupperClient
-			},
-			expectedErrors: []string{"there is no skupper site in this namespace"},
+			name:           "there is no active skupper site in this namespace",
+			args:           []string{"my-link"},
+			expectedErrors: []string{"there is no skupper site in this namespace", "the link \"my-link\" is not available in the namespace"},
 		},
 		{
 			name: "link is not deleted because it does not exist",
 			args: []string{"my-link"},
-			setUpMock: func(command *CmdLinkDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "the-site",
-									Namespace: "test",
-								},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
 							},
 						},
-					}, nil
-				})
-				fakeSkupperClient.Fake.PrependReactor("get", "links", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.Client = fakeSkupperClient
-				command.Namespace = "test"
+					},
+				},
 			},
 			expectedErrors: []string{"the link \"my-link\" is not available in the namespace"},
 		},
 		{
 			name: "more than one argument was specified",
 			args: []string{"my", "link"},
-			setUpMock: func(command *CmdLinkDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
 							},
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
 			},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
 			name: "trying to delete without specifying a name",
 			args: []string{""},
-			setUpMock: func(command *CmdLinkDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
 							},
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
 			},
 			expectedErrors: []string{"link name must not be empty"},
 		},
 		{
-			name: "deleting the link successfully",
+			name: "link deleted successfully",
 			args: []string{"my-link"},
-			setUpMock: func(command *CmdLinkDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.SiteList{
-						Items: []v1alpha1.Site{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-site",
-									Namespace: "test",
-								},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
 							},
 						},
-					}, nil
-				})
-				command.Client = fakeSkupperClient
+					},
+				},
+				&v1alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+				},
 			},
 			expectedErrors: []string{},
 		},
@@ -149,13 +125,8 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command := &CmdLinkDelete{
-				Namespace: "test",
-			}
-
-			if test.setUpMock != nil {
-				test.setUpMock(command)
-			}
+			command, err := newCmdLinkDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			assert.Assert(t, err)
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -169,58 +140,43 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 
 func TestCmdLinkDelete_Run(t *testing.T) {
 	type test struct {
-		name         string
-		setUpMock    func(command *CmdLinkDelete)
-		errorMessage string
+		name           string
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		linkName       string
+		errorMessage   string
 	}
 
 	testTable := []test{
 		{
-			name: "runs ok",
-			setUpMock: func(command *CmdLinkDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("delete", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					deleteAction, ok := action.(testing2.DeleteAction)
-					if !ok {
-						return
-					}
-					linkName := deleteAction.GetName()
-
-					if linkName != "my-site" {
-						return true, nil, fmt.Errorf("unexpected value")
-					}
-
-					return true, nil, nil
-				})
-				command.Client = fakeSkupperClient
-				command.linkName = "my-site"
+			name:     "runs ok",
+			linkName: "my-link",
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+				},
 			},
 		},
 		{
-			name: "run fails",
-			setUpMock: func(command *CmdLinkDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("delete", "sites", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("error")
-				})
-				command.Client = fakeSkupperClient
-				command.linkName = "my-site"
-			},
+			name:         "run fails",
 			errorMessage: "error",
+			linkName:     "my-link",
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdLinkDeleteWithMocks()
-		test.setUpMock(cmd)
+		cmd, err := newCmdLinkDeleteWithMocks("test", nil, test.skupperObjects, test.errorMessage)
+		assert.Assert(t, err)
+		cmd.linkName = test.linkName
 
 		t.Run(test.name, func(t *testing.T) {
 
 			err := cmd.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, test.errorMessage == err.Error(), err.Error())
 			} else {
 				assert.Check(t, err == nil)
 			}
@@ -274,7 +230,8 @@ func TestCmdLinkDelete_WaitUntilReady(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdLinkDeleteWithMocks()
+		cmd, err := newCmdLinkDeleteWithMocks("test", nil, nil, "")
+		assert.Assert(t, err)
 		cmd.linkName = "my-site"
 		test.setUpMock(cmd)
 		t.Run(test.name, func(t *testing.T) {
@@ -290,12 +247,16 @@ func TestCmdLinkDelete_WaitUntilReady(t *testing.T) {
 
 // --- helper methods
 
-func newCmdLinkDeleteWithMocks() *CmdLinkDelete {
+func newCmdLinkDeleteWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdLinkDelete, error) {
 
-	CmdLinkDelete := &CmdLinkDelete{
-		Client:    &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
-		Namespace: "test",
+	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
+	if err != nil {
+		return nil, err
+	}
+	cmdLinkDelete := &CmdLinkDelete{
+		Client:    client.GetSkupperClient().SkupperV1alpha1(),
+		Namespace: namespace,
 	}
 
-	return CmdLinkDelete
+	return cmdLinkDelete, nil
 }
