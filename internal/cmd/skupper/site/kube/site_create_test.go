@@ -39,7 +39,7 @@ func TestCmdSiteCreate_AddFlags(t *testing.T) {
 	expectedFlagsWithDefaultValue := map[string]interface{}{
 		"enable-link-access": "false",
 		"link-access-type":   "",
-		"service-account":    "skupper-controller",
+		"service-account":    "",
 		"output":             "",
 	}
 	var flagList []string
@@ -117,7 +117,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			name:           "service account name is not valid.",
 			args:           []string{"my-site"},
 			flags:          &CreateFlags{serviceAccount: "not valid service account name"},
-			expectedErrors: []string{"service account name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
 		},
 		{
 			name:  "link access type is not valid",
@@ -147,6 +147,8 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+			command.KubeClient = fakeSkupperClient.GetKubeClient()
+
 			if test.flags != nil {
 				command.flags = *test.flags
 			}
@@ -437,13 +439,14 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 
 func newCmdSiteCreateWithMocks(namespace string) (*CmdSiteCreate, error) {
 
-	vanclient, err := fakeclient.NewFakeClient(namespace, nil, nil, "")
+	client, err := fakeclient.NewFakeClient(namespace, nil, nil, "")
 	if err != nil {
 		return nil, err
 	}
 	cmdSiteCreate := &CmdSiteCreate{
-		Client:    vanclient.GetSkupperClient().SkupperV1alpha1(),
-		Namespace: namespace,
+		Client:     client.GetSkupperClient().SkupperV1alpha1(),
+		KubeClient: client.GetKubeClient(),
+		Namespace:  namespace,
 	}
 
 	return cmdSiteCreate, nil

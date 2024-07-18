@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -27,6 +28,7 @@ type UpdateFlags struct {
 
 type CmdSiteUpdate struct {
 	Client             skupperv1alpha1.SkupperV1alpha1Interface
+	KubeClient         kubernetes.Interface
 	CobraCmd           cobra.Command
 	flags              UpdateFlags
 	options            map[string]string
@@ -68,6 +70,7 @@ func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) 
 	utils.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 }
 
@@ -76,14 +79,13 @@ func (cmd *CmdSiteUpdate) AddFlags() {
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessType, "link-access-type", "", `configure external access for links from remote sites.
 Choices: [route|loadbalancer]. Default: On OpenShift, route is the default; 
 for other Kubernetes flavors, loadbalancer is the default.`)
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "skupper-controller", "the Kubernetes service account under which to run the Skupper controller")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "", "the Kubernetes service account under which to run the Skupper controller")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
 func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
-	resourceStringValidator := validator.NewResourceStringValidator()
 	linkAccessTypeValidator := validator.NewOptionValidator(utils.LinkAccessTypes)
 	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
@@ -128,8 +130,8 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 	}
 
 	if cmd.flags.serviceAccount != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.serviceAccount)
-		if !ok {
+		svcAccount, err := cmd.KubeClient.CoreV1().ServiceAccounts(cmd.Namespace).Get(context.TODO(), cmd.flags.serviceAccount, metav1.GetOptions{})
+		if err != nil || svcAccount == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
 		}
 	}
