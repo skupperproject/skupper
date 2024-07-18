@@ -36,7 +36,7 @@ func TestCmdSiteUpdate_AddFlags(t *testing.T) {
 	expectedFlagsWithDefaultValue := map[string]interface{}{
 		"enable-link-access": "false",
 		"link-access-type":   "",
-		"service-account":    "skupper-controller",
+		"service-account":    "",
 		"output":             "",
 	}
 	var flagList []string
@@ -165,7 +165,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			skupperError:   "",
-			expectedErrors: []string{"service account name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
 		},
 		{
 			name:       "link access type is not valid",
@@ -355,6 +355,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+			command.KubeClient = fakeSkupperClient.GetKubeClient()
 
 			if test.flags != nil {
 				command.flags = *test.flags

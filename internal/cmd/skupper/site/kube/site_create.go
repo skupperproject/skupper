@@ -6,6 +6,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -32,6 +33,7 @@ type CreateFlags struct {
 
 type CmdSiteCreate struct {
 	Client             skupperv1alpha1.SkupperV1alpha1Interface
+	KubeClient         kubernetes.Interface
 	CobraCmd           cobra.Command
 	flags              CreateFlags
 	options            map[string]string
@@ -73,6 +75,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	utils.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 }
 
@@ -81,7 +84,7 @@ func (cmd *CmdSiteCreate) AddFlags() {
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessType, "link-access-type", "", `configure external access for links from remote sites.
 Choices: [route|loadbalancer]. Default: On OpenShift, route is the default; 
 for other Kubernetes flavors, loadbalancer is the default.`)
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "skupper-controller", "the Kubernetes service account under which to run the Skupper controller")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "", "the Kubernetes service account under which to run the Skupper controller")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
@@ -123,8 +126,8 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	}
 
 	if cmd.flags.serviceAccount != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.serviceAccount)
-		if !ok {
+		svcAccount, err := cmd.KubeClient.CoreV1().ServiceAccounts(cmd.Namespace).Get(context.TODO(), cmd.flags.serviceAccount, metav1.GetOptions{})
+		if err != nil || svcAccount == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
 		}
 	}
