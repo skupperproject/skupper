@@ -63,7 +63,6 @@ func (p ExposedPorts) Unexpose(host string, portname string) *ExposedPortSet {
 	return nil
 }
 
-
 func toServicePorts(desired map[string]Port) map[string]corev1.ServicePort {
 	results := map[string]corev1.ServicePort{}
 	for name, details := range desired {

@@ -6,9 +6,9 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper-libpod/v4/client/networks_compat"
 	"github.com/skupperproject/skupper-libpod/v4/models"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/utils"
 )

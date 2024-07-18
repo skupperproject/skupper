@@ -7,8 +7,8 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-type ListenerConfiguration func (siteId string, listener *skupperv1alpha1.Listener, config *qdr.BridgeConfig)
-type ConnectorConfiguration func (siteId string, connector *skupperv1alpha1.Connector, config *qdr.BridgeConfig)
+type ListenerConfiguration func(siteId string, listener *skupperv1alpha1.Listener, config *qdr.BridgeConfig)
+type ConnectorConfiguration func(siteId string, connector *skupperv1alpha1.Connector, config *qdr.BridgeConfig)
 
 type BindingEventHandler interface {
 	ListenerUpdated(listener *skupperv1alpha1.Listener)
@@ -22,7 +22,7 @@ type Bindings struct {
 	connectors map[string]*skupperv1alpha1.Connector
 	listeners  map[string]*skupperv1alpha1.Listener
 	handler    BindingEventHandler
-	configure  struct{
+	configure  struct {
 		listener  ListenerConfiguration
 		connector ConnectorConfiguration
 	}
