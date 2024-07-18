@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/go-openapi/runtime"
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper-libpod/v4/client/containers_compat"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/utils"

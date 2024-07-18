@@ -147,7 +147,6 @@ type Listener struct {
 	Status        Status       `json:"status,omitempty"`
 }
 
-
 func (l *Listener) Protocol() corev1.Protocol {
 	if l.Spec.Type == "udp" {
 		return corev1.ProtocolUDP
@@ -266,9 +265,9 @@ type AccessTokenList struct {
 }
 
 type AccessTokenSpec struct {
-	Url    string `json:"url"`
-	Code   string `json:"code"`
-	Ca     string `json:"ca"`
+	Url  string `json:"url"`
+	Code string `json:"code"`
+	Ca   string `json:"ca"`
 }
 
 type AccessTokenStatus struct {
@@ -306,7 +305,7 @@ type AccessGrantStatus struct {
 	Url        string `json:"url"`
 	Code       string `json:"code"`
 	Ca         string `json:"ca"`
-	Redeemed  int    `json:"redeemed,omitempty"`
+	Redeemed   int    `json:"redeemed,omitempty"`
 	Expiration string `json:"expiration,omitempty"`
 	Status     string `json:"status,omitempty"`
 }
