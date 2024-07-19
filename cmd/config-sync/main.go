@@ -12,9 +12,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skupperproject/skupper/client"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/kube/claims"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -59,25 +58,19 @@ func main() {
 		log.Fatal("Error determining namespace: ", err.Error())
 	}
 
-	cli, err := client.NewClient(namespace, "", "")
+	cli, err := internalclient.NewClient(namespace, "", "")
 	if err != nil {
 		log.Fatal("Error getting van client: ", err.Error())
 	}
 
 	log.Println("CONFIG_SYNC: Waiting for Skupper router to be ready")
-	_, err = kube.WaitForPodsSelectorStatus(namespace, cli.KubeClient, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
+	_, err = kube.WaitForPodsSelectorStatus(namespace, cli.Kube, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
 	if err != nil {
 		log.Fatal("Error waiting for router pods to be ready ", err.Error())
 	}
 
 	log.Println("CONFIG_SYNC: Starting collector...")
 	go startCollector(cli)
-
-	if claims.StartClaimVerifier(cli, cli.Namespace, cli, cli) {
-		log.Println("CONFIG_SYNC: Claim verifier started")
-	} else {
-		log.Println("CONFIG_SYNC: Claim verifier not enabled")
-	}
 
 	//start health check
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {

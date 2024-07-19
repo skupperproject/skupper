@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/client"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/flow"
 	"github.com/skupperproject/skupper/pkg/kube"
@@ -20,8 +20,8 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
-func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, cli *client.VanClient) error {
-	current, err := cli.KubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), lockname, metav1.GetOptions{})
+func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, cli *internalclient.KubeClient) error {
+	current, err := cli.Kube.CoreV1().ConfigMaps(namespace).Get(context.TODO(), lockname, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -30,24 +30,24 @@ func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, c
 			*owner,
 		}
 	}
-	_, err = cli.KubeClient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
+	_, err = cli.Kube.CoreV1().ConfigMaps(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 	return err
 }
 
-func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) {
+func siteCollector(stopCh <-chan struct{}, cli *internalclient.KubeClient) {
 	var fc *flow.FlowCollector
 	siteData := map[string]string{}
 	platform := config.GetPlatform()
 	if platform != types.PlatformKubernetes {
 		return
 	}
-	current, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.KubeClient)
+	current, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.Kube)
 	if err != nil {
 		log.Fatal("Failed to get transport deployment", err.Error())
 	}
 	owner := kube.GetDeploymentOwnerReference(current)
 
-	existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.KubeClient)
+	existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
 	if err != nil && existing == nil {
 		log.Fatal("Failed to create site status config map ", err.Error())
 	}
@@ -63,7 +63,7 @@ func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) {
 		PromReg:             nil,
 		ConnectionFactory:   qdr.NewConnectionFactory("amqp://localhost:5672", nil),
 		FlowRecordTtl:       time.Minute * 15,
-		NetworkStatusClient: cli.KubeClient,
+		NetworkStatusClient: cli.Kube,
 	})
 
 	go primeBeacons(fc, cli)
@@ -73,14 +73,14 @@ func siteCollector(stopCh <-chan struct{}, cli *client.VanClient) {
 
 // primeBeacons attempts to guess the router and service-controller vanflow IDs
 // to pass to the flow collector in order to accelerate startup time.
-func primeBeacons(fc *flow.FlowCollector, cli *client.VanClient) {
+func primeBeacons(fc *flow.FlowCollector, cli *internalclient.KubeClient) {
 	podname, _ := os.Hostname()
 	var prospectRouterID string
 	if len(podname) >= 5 {
 		prospectRouterID = fmt.Sprintf("%s:0", podname[len(podname)-5:])
 	}
 	var siteID string
-	cm, err := kube.WaitConfigMapCreated(types.SiteConfigMapName, cli.Namespace, cli.KubeClient, 5*time.Second, 250*time.Millisecond)
+	cm, err := kube.WaitConfigMapCreated(types.SiteConfigMapName, cli.Namespace, cli.Kube, 5*time.Second, 250*time.Millisecond)
 	if err != nil {
 		log.Printf("COLLECTOR: failed to get skupper-site ConfigMap. Proceeding without Site ID. %s\n", err)
 	} else if cm != nil {
@@ -90,10 +90,10 @@ func primeBeacons(fc *flow.FlowCollector, cli *client.VanClient) {
 	fc.PrimeSiteBeacons(siteID, prospectRouterID)
 }
 
-func startFlowController(stopCh <-chan struct{}, cli *client.VanClient) error {
+func startFlowController(stopCh <-chan struct{}, cli *internalclient.KubeClient) error {
 	siteId := os.Getenv("SKUPPER_SITE_ID")
 
-	deployment, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.KubeClient)
+	deployment, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.Kube)
 	if err != nil {
 		log.Fatal("Failed to get transport deployment", err.Error())
 	}
@@ -109,7 +109,7 @@ func startFlowController(stopCh <-chan struct{}, cli *client.VanClient) error {
 	return nil
 }
 
-func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id string, cli *client.VanClient) {
+func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id string, cli *internalclient.KubeClient) {
 	begin := time.Now()
 	var stopCh chan struct{}
 	podname, _ := os.Hostname()
@@ -143,7 +143,7 @@ func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id
 	})
 }
 
-func startCollector(cli *client.VanClient) {
+func startCollector(cli *internalclient.KubeClient) {
 	lockname := types.SiteLeaderLockName
 	namespace := cli.Namespace
 	podname, _ := os.Hostname()
@@ -156,7 +156,7 @@ func startCollector(cli *client.VanClient) {
 			Name:      lockname,
 			Namespace: namespace,
 		},
-		Client: cli.KubeClient.CoreV1(),
+		Client: cli.Kube.CoreV1(),
 		LockConfig: resourcelock.ResourceLockConfig{
 			Identity: podname,
 		},
