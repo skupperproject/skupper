@@ -379,8 +379,8 @@ workflows:
             - build-all
       - test:
           <<: *run_for_all_branches_and_numeric_tags
-      - build_and_save_test_images:
-          <<: *run_for_all_branches_and_numeric_tags
+      # - build_and_save_test_images:
+      #    <<: *run_for_all_branches_and_numeric_tags
 
       # - main_tests_minikube_local_cluster:
       #     <<: *run_for_all_branches_and_numeric_tags
@@ -439,6 +439,7 @@ jobs:
     executor:
       name: go_cimg
     steps:
+      - podman-latest
       - checkout
       - run:
           name: "Enforce Go Formatted Code"
