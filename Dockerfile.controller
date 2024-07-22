@@ -18,5 +18,4 @@ USER 10000
 
 WORKDIR /app
 COPY --from=builder /go/src/app/controller .
-COPY --from=builder /go/src/app/get /usr/local/bin/get
-CMD ["/app/controller"]
+ CMD ["/app/controller"]

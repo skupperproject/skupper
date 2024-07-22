@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	vanClient "github.com/skupperproject/skupper/client"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"gotest.tools/assert"
@@ -45,10 +45,10 @@ func (c *updateCollector) handler(changed []types.ServiceInterface, deleted []st
 	return nil
 }
 
-func NewMockClient(namespace string) *vanClient.VanClient {
-	return &vanClient.VanClient{
-		Namespace:  namespace,
-		KubeClient: fake.NewSimpleClientset(),
+func NewMockClient(namespace string) *internalclient.KubeClient {
+	return &internalclient.KubeClient{
+		Namespace: namespace,
+		Kube:      fake.NewSimpleClientset(),
 	}
 }
 

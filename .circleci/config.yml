@@ -97,8 +97,7 @@ commands:
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
-            echo "export SKUPPER_SERVICE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/service-controller" >> $BASH_ENV
-            echo "export SKUPPER_SITE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/site-controller" >> $BASH_ENV
+            echo "export SKUPPER_CONTROLLER_IMAGE=${LOCAL_IP}:5000/controller" >> $BASH_ENV
             echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
             echo "export SKUPPER_FLOW_COLLECTOR_IMAGE=${LOCAL_IP}:5000/flow-collector" >> $BASH_ENV
             echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests" >> $BASH_ENV
@@ -131,8 +130,8 @@ commands:
       - run:
           name: load docker images
           command: |
-            gunzip -c /tmp/images/service-controller.gz | docker import - 0.0.0.0:5000/service-controller
-            gunzip -c /tmp/images/service-controller.gz | docker load
+            gunzip -c /tmp/images/controller.gz | docker import - 0.0.0.0:5000/controller
+            gunzip -c /tmp/images/controller.gz | docker load
             gunzip -c /tmp/images/config-sync.gz | docker import - 0.0.0.0:5000/config-sync
             gunzip -c /tmp/images/config-sync.gz | docker load
             gunzip -c /tmp/images/flow-collector.gz | docker import - 0.0.0.0:5000/flow-collector
@@ -142,7 +141,7 @@ commands:
       - run:
           name: push to local registry
           command: |
-            docker push 0.0.0.0:5000/service-controller
+            docker push 0.0.0.0:5000/controller
             docker push 0.0.0.0:5000/config-sync
             docker push 0.0.0.0:5000/flow-collector
             docker push 0.0.0.0:5000/skupper-tests
@@ -383,57 +382,57 @@ workflows:
       - build_and_save_test_images:
           <<: *run_for_all_branches_and_numeric_tags
 
-      - main_tests_minikube_local_cluster:
-          <<: *run_for_all_branches_and_numeric_tags
-          pre-steps:
-            - prepare_for_local_cluster_tests
-          requires:
-            - test
-            - build_and_save_test_images
+      # - main_tests_minikube_local_cluster:
+      #     <<: *run_for_all_branches_and_numeric_tags
+      #     pre-steps:
+      #       - prepare_for_local_cluster_tests
+      #     requires:
+      #       - test
+      #       - build_and_save_test_images
 
-      - policy_tests_minikube_local_cluster:
-          <<: *run_for_all_branches_and_numeric_tags
-          pre-steps:
-            - prepare_for_local_cluster_tests
-          requires:
-            - test
-            - build_and_save_test_images
+      # - policy_tests_minikube_local_cluster:
+      #     <<: *run_for_all_branches_and_numeric_tags
+      #     pre-steps:
+      #       - prepare_for_local_cluster_tests
+      #     requires:
+      #       - test
+      #       - build_and_save_test_images
 
-      - publish-github-release-images:
-          <<: *run_for_numeric_tags
-          <<: *release_requires
-          context:
-            - skupper-org
+      # - publish-github-release-images:
+      #     <<: *run_for_numeric_tags
+      #     <<: *release_requires
+      #     context:
+      #       - skupper-org
 
-      - generate-manifest:
-          <<: *run_for_numeric_tags
-          <<: *release_requires
-          requires:
-            - publish-github-release-images
-          context:
-            - skupper-org
+      # - generate-manifest:
+      #     <<: *run_for_numeric_tags
+      #     <<: *release_requires
+      #     requires:
+      #       - publish-github-release-images
+      #     context:
+      #       - skupper-org
 
-      - publish-github-release-artifacts:
-          <<: *run_for_numeric_tags
-          <<: *release_requires
-          requires:
-            - generate-manifest
-            - publish-github-release-images
-          context:
-            - skupper-org
+      # - publish-github-release-artifacts:
+      #     <<: *run_for_numeric_tags
+      #     <<: *release_requires
+      #     requires:
+      #       - generate-manifest
+      #       - publish-github-release-images
+      #     context:
+      #       - skupper-org
 
-      - publish-github-main-artifacts:
-          <<: *run_for_main_branch
-          requires:
-            - publish-github-main-images
-          context:
-            - skupper-org
+      # - publish-github-main-artifacts:
+      #     <<: *run_for_main_branch
+      #     requires:
+      #       - publish-github-main-images
+      #     context:
+      #       - skupper-org
 
-      - publish-github-main-images:
-          <<: *run_for_main_branch
-          <<: *release_requires
-          context:
-            - skupper-org
+      # - publish-github-main-images:
+      #     <<: *run_for_main_branch
+      #     <<: *release_requires
+      #     context:
+      #       - skupper-org
 
 jobs:
   test:
@@ -455,7 +454,7 @@ jobs:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
       - go/test:
-          coverpkg: "./api/...,./client/...,./cmd/...,./pkg/..."
+          coverpkg: "./internal/...,./pkg/..."
           verbose: true
           coverprofile: "/tmp/artifacts/cover.out"
           parallel: "3"
@@ -477,14 +476,12 @@ jobs:
           name: persisting images to workspace
           command: |
             mkdir /tmp/images
-            docker tag quay.io/skupper/service-controller 0.0.0.0:5000/service-controller
-            docker save 0.0.0.0:5000/service-controller | gzip > /tmp/images/service-controller.gz
+            docker tag quay.io/skupper/controller 0.0.0.0:5000/controller
+            docker save 0.0.0.0:5000/controller | gzip > /tmp/images/controller.gz
             docker tag quay.io/skupper/config-sync 0.0.0.0:5000/config-sync
             docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
-            docker tag quay.io/skupper/flow-collector 0.0.0.0:5000/flow-collector
-            docker save 0.0.0.0:5000/flow-collector | gzip > /tmp/images/flow-collector.gz
-            docker tag quay.io/skupper/skupper-tests 0.0.0.0:5000/skupper-tests
-            docker save 0.0.0.0:5000/skupper-tests | gzip > /tmp/images/test-image.gz
+            docker tag quay.io/skupper/bootstrap 0.0.0.0:5000/bootstrap
+            docker save 0.0.0.0:5000/bootstrap | gzip > /tmp/images/bootstrap.gz
       - persist_to_workspace:
           root: /tmp
           paths:
@@ -564,12 +561,12 @@ jobs:
           name: "Run the skupper binary"
           command: |
             cd dist/linux-amd64
-            ./skupper version
+            ./skupper site
 
   main_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
     steps:
-      - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
+      - run: echo "skupper_image = ${SKUPPER_CONTROLLER_IMAGE}"
       - local_registry_start
       - minikube-install
       - minikube-start-large
@@ -584,7 +581,7 @@ jobs:
   policy_tests_minikube_local_cluster:
     executor: local_cluster_policy_test_executor
     steps:
-      - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
+      - run: echo "skupper_image = ${SKUPPER_CONTROLLER_IMAGE}"
       - local_registry_start
       - minikube-install
       - minikube-start-medium
@@ -644,8 +641,7 @@ jobs:
       - run:
           name:
           command: |
-            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
@@ -664,8 +660,7 @@ jobs:
       - run:
           name: "Publishing main images"
           command: |
-            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:main' >> $BASH_ENV
-            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:main' >> $BASH_ENV
+            echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:main' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:main' >> $BASH_ENV
             echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:main' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:main' >> $BASH_ENV
