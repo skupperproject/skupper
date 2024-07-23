@@ -12,9 +12,11 @@ import (
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -42,6 +44,7 @@ type CmdLinkExport struct {
 	outputFile         string
 	activeSite         *v1alpha1.Site
 	generateCredential bool
+	generatedLink      v1alpha1.Link
 }
 
 func NewCmdLinkExport() *CmdLinkExport {
@@ -57,6 +60,9 @@ func NewCmdLinkExport() *CmdLinkExport {
 			utils.HandleErrorList(skupperCmd.ValidateInput(args))
 			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
+		},
+		PostRunE: func(cmd *cobra.Command, args []string) error {
+			return skupperCmd.WaitUntilReady()
 		},
 	}
 
@@ -184,12 +190,7 @@ func (cmd *CmdLinkExport) Run() error {
 		},
 	}
 
-	encodedOutput, err := utils.Encode(cmd.output, resource)
-	if err != nil {
-		return err
-	}
-
-	var resourcesToPrint []string
+	cmd.generatedLink = resource
 
 	if cmd.generateCredential {
 		certificate := v1alpha1.Certificate{
@@ -201,16 +202,70 @@ func (cmd *CmdLinkExport) Run() error {
 				Name: cmd.tlsSecret,
 			},
 			Spec: v1alpha1.CertificateSpec{
-				Ca:     cmd.activeSite.Status.DefaultIssuer,
-				Server: true,
+				Ca:      cmd.activeSite.Status.DefaultIssuer,
+				Client:  true,
+				Subject: GetSubjectsFromEndpoints(cmd.activeSite.Status.Endpoints),
 			},
 		}
-		encodedCredential, _ := utils.Encode(cmd.output, certificate)
 
-		resourcesToPrint = []string{encodedCredential, encodedOutput}
-	} else {
-		resourcesToPrint = []string{encodedOutput}
+		_, err := cmd.Client.Certificates(cmd.Namespace).Create(context.TODO(), &certificate, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+
 	}
+
+	return nil
+}
+
+func (cmd *CmdLinkExport) WaitUntilReady() error {
+
+	var resourcesToPrint []string
+	encodedOutput, err := utils.Encode(cmd.output, cmd.generatedLink)
+	if err != nil {
+		return err
+	}
+
+	if cmd.generateCredential {
+
+		err := utils.NewSpinner("Waiting for secret to be generated...", 20, func() error {
+
+			generatedSecret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.tlsSecret, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+
+			if generatedSecret != nil {
+
+				secretResource := &corev1.Secret{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "Secret",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: cmd.tlsSecret,
+					},
+					Type: "kubernetes.io/tls",
+					Data: map[string][]byte{
+						"tls.crt": generatedSecret.Data["tls.crt"],
+						"tls.key": generatedSecret.Data["tls.key"],
+						"ca.crt":  generatedSecret.Data["ca.crt"],
+					},
+				}
+
+				encodedSecret, _ := utils.Encode(cmd.output, secretResource)
+				resourcesToPrint = append(resourcesToPrint, encodedSecret)
+			}
+			return nil
+		})
+
+		if err != nil {
+			return fmt.Errorf("TLS secret %q not ready yet, check the logs for more information\n", cmd.tlsSecret)
+		}
+
+	}
+
+	resourcesToPrint = append(resourcesToPrint, encodedOutput)
 
 	utils.CreateFileWithResources(resourcesToPrint, cmd.output, cmd.outputFile)
 
@@ -220,4 +275,12 @@ func (cmd *CmdLinkExport) Run() error {
 	return nil
 }
 
-func (cmd *CmdLinkExport) WaitUntilReady() error { return nil }
+func GetSubjectsFromEndpoints(endpointList []v1alpha1.Endpoint) string {
+
+	var hosts []string
+	for _, endpoint := range endpointList {
+		hosts = append(hosts, endpoint.Host)
+	}
+
+	return strings.Join(hosts, ",")
+}

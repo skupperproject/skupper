@@ -7,6 +7,8 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
@@ -26,6 +28,7 @@ func TestCmdLinkExport_NewCmdLinkExport(t *testing.T) {
 		assert.Check(t, result.CobraCmd.PreRun != nil)
 		assert.Check(t, result.CobraCmd.Run != nil)
 		assert.Check(t, result.CobraCmd.Flags() != nil)
+		assert.Check(t, result.CobraCmd.PostRunE != nil)
 
 	})
 
@@ -344,9 +347,10 @@ func TestCmdLinkExport_InputToOptions(t *testing.T) {
 
 func TestCmdLinkExport_Run(t *testing.T) {
 	type test struct {
-		name         string
-		setUpMock    func(command *CmdLinkExport)
-		errorMessage string
+		name              string
+		setUpMock         func(command *CmdLinkExport)
+		errorMessage      string
+		skCliErrorMessage string
 	}
 
 	testTable := []test{
@@ -540,17 +544,53 @@ func TestCmdLinkExport_Run(t *testing.T) {
 			},
 			errorMessage: "there is no active site to generate the link resource file",
 		},
+		{
+			name: "runs fails because certificate could not be created",
+			setUpMock: func(command *CmdLinkExport) {
+				command.linkName = "my-link"
+				command.cost = 1
+				command.tlsSecret = "secret"
+				command.output = "yaml"
+				command.outputFile = "created-link.yaml"
+				command.generateCredential = true
+				command.activeSite = &v1alpha1.Site{
+
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "the-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							Active:        true,
+							StatusMessage: "OK",
+						},
+						Endpoints: []v1alpha1.Endpoint{
+							{
+								Name:  "inter-router",
+								Host:  "127.0.0.1",
+								Port:  "8080",
+								Group: "skupper-router-1",
+							},
+							{
+								Name:  "edge",
+								Host:  "127.0.0.1",
+								Port:  "8080",
+								Group: "skupper-router-1",
+							},
+						},
+					},
+				}
+			},
+			skCliErrorMessage: "error creating certificate",
+			errorMessage:      "error creating certificate",
+		},
 	}
 
 	for _, test := range testTable {
-		cmd, err := newCmdLinkExportWithMocks("test", nil, nil, "")
+		cmd, err := newCmdLinkExportWithMocks("test", nil, nil, test.skCliErrorMessage)
 		assert.Assert(t, err)
 
 		test.setUpMock(cmd)
-
-		tempDir := os.TempDir()
-		testFilePath := filepath.Join(tempDir, cmd.outputFile)
-		cmd.outputFile = testFilePath
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -559,10 +599,99 @@ func TestCmdLinkExport_Run(t *testing.T) {
 				assert.Check(t, test.errorMessage == err.Error(), err.Error())
 			} else {
 				assert.Check(t, err == nil)
+			}
+		})
+	}
+}
 
-				_, err := os.Stat(cmd.outputFile)
+func TestCmdLinkExport_WaitUntilReady(t *testing.T) {
+	type test struct {
+		name               string
+		generateCredential bool
+		generatedLink      v1alpha1.Link
+		outputFile         string
+		outputType         string
+		tlsSecret          string
+		k8sObjects         []runtime.Object
+		skupperObjects     []runtime.Object
+		skupperError       string
+		expectError        bool
+	}
+
+	testTable := []test{
+		{
+			name:               "secret is not returned",
+			outputFile:         "link.yaml",
+			outputType:         "yaml",
+			tlsSecret:          "linkSecret",
+			generateCredential: true,
+			expectError:        true,
+		},
+		{
+			name:               "the file only contains the link",
+			generateCredential: false,
+			outputFile:         "link.yaml",
+			outputType:         "yaml",
+			expectError:        false,
+		},
+		{
+			name:               "bad format for the file",
+			generateCredential: false,
+			outputFile:         "link.yaml",
+			outputType:         "not supported",
+			expectError:        true,
+		},
+		{
+			name:               "the file contains the link and the secret",
+			generateCredential: true,
+			outputFile:         "link.yaml",
+			outputType:         "yaml",
+			tlsSecret:          "linkSecret",
+			k8sObjects: []runtime.Object{
+				&corev1.Secret{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "Secret",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "linkSecret",
+						Namespace: "test",
+					},
+					Type: "kubernetes.io/tls",
+					Data: map[string][]byte{
+						"tls.crt": []byte("tls cert"),
+						"tls.key": []byte("tls key"),
+						"ca.crt":  []byte("ca"),
+					},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, test := range testTable {
+		command, err := newCmdLinkExportWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
+		assert.Assert(t, err)
+
+		t.Run(test.name, func(t *testing.T) {
+
+			tempDir := os.TempDir()
+			testFilePath := filepath.Join(tempDir, command.outputFile)
+			command.outputFile = testFilePath
+			command.output = test.outputType
+			command.generateCredential = test.generateCredential
+			command.tlsSecret = test.tlsSecret
+
+			err := command.WaitUntilReady()
+
+			if test.expectError {
+				assert.Check(t, err != nil)
+			} else {
+				assert.Check(t, err == nil)
+				_, err := os.Stat(command.outputFile)
 				assert.Check(t, err == nil, err)
 			}
+
 		})
 	}
 }
@@ -576,8 +705,9 @@ func newCmdLinkExportWithMocks(namespace string, k8sObjects []runtime.Object, sk
 		return nil, err
 	}
 	cmdLinkExport := &CmdLinkExport{
-		Client:    client.GetSkupperClient().SkupperV1alpha1(),
-		Namespace: namespace,
+		Client:     client.GetSkupperClient().SkupperV1alpha1(),
+		KubeClient: client.GetKubeClient(),
+		Namespace:  namespace,
 	}
 
 	return cmdLinkExport, nil
