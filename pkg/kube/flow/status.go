@@ -177,6 +177,7 @@ func (s *StatusSync) buildAndPublish(prev network.NetworkStatusInfo) (network.Ne
 		s.logger.Debug("no change since last publish")
 		return prev, nil
 	}
+	s.logger.Info("updating network status info", slog.String("configmap", s.configMapName))
 	return next, s.publish(next)
 }
 
