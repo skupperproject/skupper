@@ -82,7 +82,7 @@ func (cmd *CmdLinkExport) NewClient(cobraCommand *cobra.Command, args []string) 
 }
 
 func (cmd *CmdLinkExport) AddFlags() {
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.tlsSecret, "tls-secret", "", "the name of a Kubernetes secret containing TLS credentials.")
+	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.tlsSecret, "tls-secret", "t", "", "the name of a Kubernetes secret containing TLS credentials.")
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.cost, "cost", "1", "the configured \"expense\" of sending traffic over the link. ")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "yaml", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.generateCredential, "generate-credential", true, "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
