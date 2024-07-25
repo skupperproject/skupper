@@ -93,6 +93,29 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"A site must exist in namespace test before a token can be redeemed"},
 		},
 		{
+			name:  "token not site ok",
+			args:  []string{"/tmp/token-redeem.yaml"},
+			flags: TokenRedeem{timeout: 60 * time.Second},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErrors: []string{"there is no active skupper site in this namespace"},
+		},
+		{
 			name:  "file name is not specified",
 			args:  []string{},
 			flags: TokenRedeem{timeout: 60 * time.Second},
@@ -103,6 +126,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},
@@ -122,6 +151,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 								Name:      "the-site",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -139,6 +174,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},
@@ -158,6 +199,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 								Name:      "the-site",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -175,6 +222,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},
@@ -195,6 +248,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},

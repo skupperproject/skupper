@@ -37,6 +37,7 @@ type CmdTokenIssue struct {
 	namespace  string
 	grantName  string
 	fileName   string
+	activeSite *v1alpha1.Site
 	KubeClient kubernetes.Interface
 }
 
@@ -112,8 +113,17 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 
 	// Validate there is already a site defined in the namespace before a token can be created
 	siteList, _ := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
-	if siteList == nil || len(siteList.Items) < 1 {
+	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be created", cmd.namespace))
+	} else {
+		for _, s := range siteList.Items {
+			if s.Status.Status.StatusMessage == "OK" && s.Status.Active {
+				cmd.activeSite = &s
+			}
+		}
+		if cmd.activeSite == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
+		}
 	}
 
 	// Validate if we already have a token with this name in the namespace

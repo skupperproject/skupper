@@ -94,6 +94,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "the-site",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -132,6 +138,39 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"A site must exist in namespace test before a token can be created"},
 		},
 		{
+			name: "token no site with OK status",
+			args: []string{"token", "filename"},
+			flags: TokenIssue{
+				expiration:  15 * time.Minute,
+				redemptions: 1,
+				timeout:     60 * time.Second,
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "",
+								},
+							},
+						},
+					},
+				},
+				&v1alpha1.AccessGrant{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-token",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{"there is no active skupper site in this namespace"},
+		},
+		{
 			name: "token name and file name are not specified",
 			args: []string{},
 			flags: TokenIssue{
@@ -146,6 +185,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},
@@ -169,6 +214,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -190,6 +241,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},
@@ -213,6 +270,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -234,6 +297,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},
@@ -257,6 +326,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -279,6 +354,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -300,6 +381,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},
@@ -324,6 +411,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -346,6 +439,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
+							},
 						},
 					},
 				},
@@ -367,6 +466,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									StatusMessage: "OK",
+									Active:        true,
+								},
 							},
 						},
 					},
