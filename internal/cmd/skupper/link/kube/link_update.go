@@ -100,12 +100,11 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 	} else if len(args) > 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
 	} else {
-		cmd.linkName = args[0]
-
-		link, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
+		link, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), args[0], metav1.GetOptions{})
 		if link == nil || err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("the link %q is not available in the namespace: %s", cmd.linkName, err))
+			validationErrors = append(validationErrors, fmt.Errorf("the link %q is not available in the namespace: %s", args[0], err))
 		}
+		cmd.linkName = args[0]
 	}
 
 	if cmd.flags.tlsSecret != "" {
