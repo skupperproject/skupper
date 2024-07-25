@@ -15,7 +15,7 @@ func NewCmdLink() *cobra.Command {
 skupper link status`,
 	}
 
-	linkExportCommand := kube.NewCmdLinkExport()
+	linkExportCommand := kube.NewCmdLinkGenerate()
 	linkUpdateCommand := kube.NewCmdLinkUpdate()
 	linkStatusCommand := kube.NewCmdLinkStatus()
 	linkDeleteCommand := kube.NewCmdLinkDelete()

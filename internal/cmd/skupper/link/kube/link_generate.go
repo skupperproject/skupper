@@ -10,6 +10,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	utils2 "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -17,14 +18,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
-	linkExportLong = `Generate a new link resource in a yaml file with the data needed from the target site. The resultant
-yaml file needs to be applied in the site in which we want to create the link.`
+	linkGenerateLong = `Generate a new link resource with the data needed from the target site. The resultant
+output needs to be applied in the site in which we want to create the link.`
 )
 
-type ExportLinkFlags struct {
+type GenerateLinkFlags struct {
 	tlsSecret          string
 	cost               string
 	output             string
@@ -32,31 +34,30 @@ type ExportLinkFlags struct {
 	timeout            string
 }
 
-type CmdLinkExport struct {
+type CmdLinkGenerate struct {
 	Client             skupperv1alpha1.SkupperV1alpha1Interface
 	KubeClient         kubernetes.Interface
 	CobraCmd           cobra.Command
-	flags              ExportLinkFlags
+	flags              GenerateLinkFlags
 	linkName           string
 	Namespace          string
 	tlsSecret          string
 	cost               int
 	output             string
-	outputFile         string
 	activeSite         *v1alpha1.Site
 	generateCredential bool
 	generatedLink      v1alpha1.Link
 	timeout            int
 }
 
-func NewCmdLinkExport() *CmdLinkExport {
+func NewCmdLinkGenerate() *CmdLinkGenerate {
 
-	skupperCmd := CmdLinkExport{flags: ExportLinkFlags{}}
+	skupperCmd := CmdLinkGenerate{flags: GenerateLinkFlags{}}
 
 	cmd := cobra.Command{
-		Use:    "export <name> <output file>",
+		Use:    "generate",
 		Short:  "Generate a new link resource in a yaml file",
-		Long:   linkExportLong,
+		Long:   linkGenerateLong,
 		PreRun: skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
 			utils.HandleErrorList(skupperCmd.ValidateInput(args))
@@ -74,7 +75,7 @@ func NewCmdLinkExport() *CmdLinkExport {
 	return &skupperCmd
 }
 
-func (cmd *CmdLinkExport) NewClient(cobraCommand *cobra.Command, args []string) {
+func (cmd *CmdLinkGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
@@ -83,15 +84,15 @@ func (cmd *CmdLinkExport) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdLinkExport) AddFlags() {
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.tlsSecret, "tls-secret", "t", "", "the name of a Kubernetes secret containing TLS credentials.")
+func (cmd *CmdLinkGenerate) AddFlags() {
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.tlsSecret, "tls-secret", "", "the name of a Kubernetes secret containing the generated or externally-supplied TLS credentials.")
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.cost, "cost", "1", "the configured \"expense\" of sending traffic over the link. ")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "yaml", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.generateCredential, "generate-credential", true, "generate the necessary credentials to create the link")
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
 }
 
-func (cmd *CmdLinkExport) ValidateInput(args []string) []error {
+func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -115,24 +116,13 @@ func (cmd *CmdLinkExport) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 	}
 
-	if len(args) < 2 || args[0] == "" || args[1] == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("link name and output file must not be empty"))
-	} else if len(args) > 2 {
-		validationErrors = append(validationErrors, fmt.Errorf("only two arguments are allowed for this command."))
-	} else {
-		cmd.linkName = args[0]
-
-		ok, err := resourceStringValidator.Evaluate(cmd.linkName)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("link name is not valid: %s", err))
-		}
-
-		cmd.outputFile = args[1]
+	if len(args) > 0 {
+		validationErrors = append(validationErrors, fmt.Errorf("arguments are not allowed in this command"))
 	}
 
-	if cmd.flags.tlsSecret == "" {
+	if cmd.flags.tlsSecret == "" && !cmd.flags.generateCredential {
 		validationErrors = append(validationErrors, fmt.Errorf("the TLS secret name was not specified"))
-	} else {
+	} else if cmd.flags.tlsSecret != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.flags.tlsSecret)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("the name of the tls secret is not valid: %s", err))
@@ -168,17 +158,29 @@ func (cmd *CmdLinkExport) ValidateInput(args []string) []error {
 	return validationErrors
 }
 
-func (cmd *CmdLinkExport) InputToOptions() {
+func (cmd *CmdLinkGenerate) InputToOptions() {
 
 	cmd.cost, _ = strconv.Atoi(cmd.flags.cost)
-	cmd.tlsSecret = cmd.flags.tlsSecret
 	cmd.output = cmd.flags.output
 	cmd.generateCredential = cmd.flags.generateCredential
 	cmd.timeout, _ = strconv.Atoi(cmd.flags.timeout)
 
+	var generatedLinkName string
+	if cmd.activeSite != nil {
+		generatedLinkName = "link-" + cmd.activeSite.Name
+	}
+
+	cmd.linkName = generatedLinkName
+
+	if cmd.flags.tlsSecret == "" {
+		cmd.tlsSecret = generatedLinkName
+	} else {
+		cmd.tlsSecret = cmd.flags.tlsSecret
+	}
+
 }
 
-func (cmd *CmdLinkExport) Run() error {
+func (cmd *CmdLinkGenerate) Run() error {
 
 	if cmd.activeSite == nil {
 		return fmt.Errorf("there is no active site to generate the link resource file")
@@ -219,7 +221,7 @@ func (cmd *CmdLinkExport) Run() error {
 			Spec: v1alpha1.CertificateSpec{
 				Ca:      cmd.activeSite.Status.DefaultIssuer,
 				Client:  true,
-				Subject: GetSubjectsFromEndpoints(cmd.activeSite.Status.Endpoints),
+				Subject: getSubjectsFromEndpoints(cmd.activeSite.Status.Endpoints),
 			},
 		}
 
@@ -233,7 +235,7 @@ func (cmd *CmdLinkExport) Run() error {
 	return nil
 }
 
-func (cmd *CmdLinkExport) WaitUntilReady() error {
+func (cmd *CmdLinkGenerate) WaitUntilReady() error {
 
 	var resourcesToPrint []string
 	encodedOutput, err := utils.Encode(cmd.output, cmd.generatedLink)
@@ -243,7 +245,10 @@ func (cmd *CmdLinkExport) WaitUntilReady() error {
 
 	if cmd.generateCredential {
 
-		err := utils.NewSpinnerWithTimeout("Waiting for secret to be generated...", cmd.timeout, func() error {
+		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(cmd.timeout))
+		defer cancel()
+
+		err := utils2.RetryErrorWithContext(ctxWithTimeout, time.Second, func() error {
 
 			generatedSecret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.tlsSecret, metav1.GetOptions{})
 			if err != nil {
@@ -281,16 +286,19 @@ func (cmd *CmdLinkExport) WaitUntilReady() error {
 	}
 
 	resourcesToPrint = append(resourcesToPrint, encodedOutput)
+	printResources(resourcesToPrint, cmd.output)
 
-	utils.CreateFileWithResources(resourcesToPrint, cmd.output, cmd.outputFile)
-
-	fmt.Printf("File %q has been created successfully.\n", cmd.outputFile)
-	fmt.Println("Apply this resource in the site in which you want to create the link.")
+	if cmd.generateCredential {
+		_, err = cmd.Client.Certificates(cmd.Namespace).Get(context.TODO(), cmd.tlsSecret, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("there was an error trying to delete the generated certificate: %s", err)
+		}
+	}
 
 	return nil
 }
 
-func GetSubjectsFromEndpoints(endpointList []v1alpha1.Endpoint) string {
+func getSubjectsFromEndpoints(endpointList []v1alpha1.Endpoint) string {
 
 	var hosts []string
 	for _, endpoint := range endpointList {
@@ -298,4 +306,14 @@ func GetSubjectsFromEndpoints(endpointList []v1alpha1.Endpoint) string {
 	}
 
 	return strings.Join(hosts, ",")
+}
+
+func printResources(resources []string, outputFormat string) {
+
+	for _, resource := range resources {
+		fmt.Println(resource)
+		if outputFormat == "yaml" {
+			fmt.Println("---")
+		}
+	}
 }
