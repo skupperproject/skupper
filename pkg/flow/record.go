@@ -211,7 +211,7 @@ type BeaconRecord struct {
 }
 
 type HeartbeatRecord struct {
-	Source   string `json:"source,omityempty"`
+	Source   string `json:"source,omitempty"`
 	Identity string `json:"identity,omitempty"`
 	Version  uint32 `json:"version,omitempty"`
 	Now      uint64 `json:"now,omitempty"`
@@ -396,7 +396,6 @@ type FlowRecord struct {
 	lastOctets       uint64
 	octetMetric      prometheus.Counter
 	activeFlowMetric prometheus.Gauge
-	httpReqsMetric   prometheus.Counter
 }
 
 // Note a flowpair does not have a defined parent relationship through Base
@@ -431,42 +430,9 @@ type FlowAggregateRecord struct {
 	Protocol            *string `json:"protocol,omitempty"`
 }
 
-type ControllerRecord struct {
-	base
-	ImageName    string `json:"imageName,omitempty"`
-	ImageVersion string `json:"imageVersion,omitempty"`
-	Hostname     string `json:"hostame,omitempty"`
-	Name         string `json:"name,omitempty"`
-	BuildVersion string `json:"buildVersion,omitempty"`
-}
-
-type ImageRecord struct {
-	Base
-	Name    string `json:"name,omitempty"`
-	Version string `json:"version,omitempty"`
-	// signature, url/rep, id??
-}
-
 type CollectorRecord struct {
 	Base
 	PrometheusUrl string
-}
-
-type NetworkStatus struct {
-	Addresses []*VanAddressRecord `json:"addresses"`
-	Sites     []*SiteStatus       `json:"siteStatus"`
-}
-
-type SiteStatus struct {
-	Site         *SiteRecord    `json:"site"`
-	RouterStatus []RouterStatus `json:"routerStatus"`
-}
-
-type RouterStatus struct {
-	Router     *RouterRecord      `json:"router"`
-	Links      []*LinkRecord      `json:"links"`
-	Listeners  []*ListenerRecord  `json:"listeners"`
-	Connectors []*ConnectorRecord `json:"connectors"`
 }
 
 type Payload struct {
@@ -568,24 +534,8 @@ func getQueryParams(url *url.URL) QueryParams {
 	return qp
 }
 
-func min(a, b uint64) uint64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b uint64) uint64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 const oneSecond uint64 = 1000000
 const oneMinute uint64 = 60000000
-const oneHour uint64 = 3600000000
-const oneDay uint64 = 86400000000
 
 type TimeRangeRelation int
 

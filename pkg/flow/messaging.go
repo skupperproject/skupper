@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
-	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/messaging"
 )
 
@@ -88,7 +87,7 @@ func (c *sender) _send() error {
 			if beacon, ok := update.(*BeaconRecord); ok {
 				msg, err := encodeBeacon(beacon)
 				if err != nil {
-					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
+					log.Printf("Failed to encode message for flow controller: %s", err.Error())
 				} else {
 					request = msg
 				}
@@ -96,7 +95,7 @@ func (c *sender) _send() error {
 			if heartbeat, ok := update.(*HeartbeatRecord); ok {
 				msg, err := encodeHeartbeat(heartbeat)
 				if err != nil {
-					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
+					log.Printf("Failed to encode message for flow controller: %s", err.Error())
 				} else {
 					request = msg
 				}
@@ -104,7 +103,7 @@ func (c *sender) _send() error {
 			if fr, ok := update.(*FlushRecord); ok {
 				msg, err := encodeFlush(fr)
 				if err != nil {
-					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
+					log.Printf("Failed to encode message for flow controller: %s", err.Error())
 				} else {
 					request = msg
 				}
@@ -112,7 +111,7 @@ func (c *sender) _send() error {
 			if site, ok := update.(*SiteRecord); ok {
 				msg, err := encodeSite(site)
 				if err != nil {
-					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
+					log.Printf("Failed to encode message for flow controller: %s", err.Error())
 				} else {
 					request = msg
 				}
@@ -120,7 +119,7 @@ func (c *sender) _send() error {
 			if process, ok := update.(*ProcessRecord); ok {
 				msg, err := encodeProcess(process)
 				if err != nil {
-					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
+					log.Printf("Failed to encode message for flow controller: %s", err.Error())
 				} else {
 					request = msg
 				}
@@ -128,7 +127,7 @@ func (c *sender) _send() error {
 			if host, ok := update.(*HostRecord); ok {
 				msg, err := encodeHost(host)
 				if err != nil {
-					event.Recordf(FlowControllerEvent, "Failed to encode message for flow controller: %s", err.Error())
+					log.Printf("Failed to encode message for flow controller: %s", err.Error())
 				} else {
 					request = msg
 				}

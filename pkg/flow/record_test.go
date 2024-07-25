@@ -10,14 +10,11 @@ import (
 
 func TestTimeRange(t *testing.T) {
 	type test struct {
-		name               string
-		startTime          uint64
-		endTime            uint64
-		queryParams        QueryParams
-		timeRangeStart     uint64
-		timeRangeEnd       uint64
-		timeRangeOperation TimeRangeRelation
-		result             bool
+		name        string
+		startTime   uint64
+		endTime     uint64
+		queryParams QueryParams
+		result      bool
 	}
 
 	testTable := []test{
@@ -273,15 +270,11 @@ func TestTimeRange(t *testing.T) {
 
 func TestRecordState(t *testing.T) {
 	type test struct {
-		name               string
-		startTime          uint64
-		endTime            uint64
-		queryParams        QueryParams
-		timeRangeStart     uint64
-		timeRangeEnd       uint64
-		timeRangeOperation TimeRangeRelation
-		state              RecordState
-		result             bool
+		name        string
+		startTime   uint64
+		endTime     uint64
+		queryParams QueryParams
+		result      bool
 	}
 
 	testTable := []test{

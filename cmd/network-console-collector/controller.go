@@ -19,7 +19,6 @@ func NewController(origin string, reg prometheus.Registerer, routerURL string, t
 
 	controller := &Controller{
 		FlowCollector: flow.NewFlowCollector(flow.FlowCollectorSpec{
-			Mode:              flow.RecordMetrics,
 			Origin:            origin,
 			PromReg:           reg,
 			ConnectionFactory: qdr.NewConnectionFactory(routerURL, tlsConfig),
