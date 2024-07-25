@@ -6,24 +6,32 @@ import (
 	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 )
 
 var (
 	linkDeleteLong = `Delete a link by name`
 )
 
+type DeleteLinkFlags struct {
+	timeout string
+}
+
 type CmdLinkDelete struct {
 	Client    skupperv1alpha1.SkupperV1alpha1Interface
 	CobraCmd  cobra.Command
 	Namespace string
+	flags     DeleteLinkFlags
 	linkName  string
+	timeout   int
 }
 
 func NewCmdLinkDelete() *CmdLinkDelete {
 
-	skupperCmd := CmdLinkDelete{}
+	skupperCmd := CmdLinkDelete{flags: DeleteLinkFlags{}}
 
 	cmd := cobra.Command{
 		Use:     "delete <name>",
@@ -33,6 +41,7 @@ func NewCmdLinkDelete() *CmdLinkDelete {
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
 			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
@@ -41,6 +50,7 @@ func NewCmdLinkDelete() *CmdLinkDelete {
 	}
 
 	skupperCmd.CobraCmd = cmd
+	skupperCmd.AddFlags()
 
 	return &skupperCmd
 }
@@ -53,10 +63,13 @@ func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdLinkDelete) AddFlags() {}
+func (cmd *CmdLinkDelete) AddFlags() {
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
+}
 
 func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	//Validate if there is already a site defined in the namespace
 	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
@@ -76,17 +89,28 @@ func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("the link %q is not available in the namespace", cmd.linkName))
 		}
 	}
+	selectedTimeout, conversionErr := strconv.Atoi(cmd.flags.timeout)
+	if conversionErr != nil {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", conversionErr))
+	} else {
+		ok, err := timeoutValidator.Evaluate(selectedTimeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
+	}
 
 	return validationErrors
 }
-func (cmd *CmdLinkDelete) InputToOptions() {}
+func (cmd *CmdLinkDelete) InputToOptions() {
+	cmd.timeout, _ = strconv.Atoi(cmd.flags.timeout)
+}
 
 func (cmd *CmdLinkDelete) Run() error {
 	err := cmd.Client.Links(cmd.Namespace).Delete(context.TODO(), cmd.linkName, metav1.DeleteOptions{})
 	return err
 }
 func (cmd *CmdLinkDelete) WaitUntilReady() error {
-	err := utils.NewSpinner("Waiting for deletion to complete...", 5, func() error {
+	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", cmd.timeout, func() error {
 
 		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
 

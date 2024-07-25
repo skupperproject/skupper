@@ -25,6 +25,7 @@ type UpdateLinkFlags struct {
 	tlsSecret string
 	cost      string
 	output    string
+	timeout   string
 }
 
 type CmdLinkUpdate struct {
@@ -37,6 +38,7 @@ type CmdLinkUpdate struct {
 	tlsSecret  string
 	cost       int
 	output     string
+	timeout    int
 }
 
 func NewCmdLinkUpdate() *CmdLinkUpdate {
@@ -77,12 +79,14 @@ func (cmd *CmdLinkUpdate) AddFlags() {
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.tlsSecret, "tls-secret", "t", "", "the name of a Kubernetes secret containing TLS credentials.")
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.cost, "cost", "1", "the configured \"expense\" of sending traffic over the link. ")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
 }
 
 func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
 	numberValidator := validator.NewNumberValidator()
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
 	//Validate if there is already a site defined in the namespace
@@ -127,6 +131,16 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
+	selectedTimeout, convErr := strconv.Atoi(cmd.flags.timeout)
+	if convErr != nil {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", convErr))
+	} else {
+		ok, err = timeoutValidator.Evaluate(selectedTimeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
+	}
+
 	return validationErrors
 }
 
@@ -135,6 +149,7 @@ func (cmd *CmdLinkUpdate) InputToOptions() {
 	cmd.cost, _ = strconv.Atoi(cmd.flags.cost)
 	cmd.tlsSecret = cmd.flags.tlsSecret
 	cmd.output = cmd.flags.output
+	cmd.timeout, _ = strconv.Atoi(cmd.flags.timeout)
 
 }
 
@@ -193,7 +208,7 @@ func (cmd *CmdLinkUpdate) WaitUntilReady() error {
 		return nil
 	}
 
-	err := utils.NewSpinner("Waiting for update to complete...", 5, func() error {
+	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", cmd.timeout, func() error {
 
 		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
 		if err != nil {

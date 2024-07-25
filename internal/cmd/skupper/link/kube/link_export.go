@@ -29,6 +29,7 @@ type ExportLinkFlags struct {
 	cost               string
 	output             string
 	generateCredential bool
+	timeout            string
 }
 
 type CmdLinkExport struct {
@@ -45,6 +46,7 @@ type CmdLinkExport struct {
 	activeSite         *v1alpha1.Site
 	generateCredential bool
 	generatedLink      v1alpha1.Link
+	timeout            int
 }
 
 func NewCmdLinkExport() *CmdLinkExport {
@@ -86,6 +88,7 @@ func (cmd *CmdLinkExport) AddFlags() {
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.cost, "cost", "1", "the configured \"expense\" of sending traffic over the link. ")
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "yaml", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.generateCredential, "generate-credential", true, "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
+	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
 }
 
 func (cmd *CmdLinkExport) ValidateInput(args []string) []error {
@@ -93,6 +96,7 @@ func (cmd *CmdLinkExport) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
 	//Validate if there is already a site defined in the namespace
@@ -151,6 +155,16 @@ func (cmd *CmdLinkExport) ValidateInput(args []string) []error {
 		}
 	}
 
+	selectedTimeout, convErr := strconv.Atoi(cmd.flags.timeout)
+	if convErr != nil {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", convErr))
+	} else {
+		ok, err = timeoutValidator.Evaluate(selectedTimeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
+	}
+
 	return validationErrors
 }
 
@@ -160,6 +174,7 @@ func (cmd *CmdLinkExport) InputToOptions() {
 	cmd.tlsSecret = cmd.flags.tlsSecret
 	cmd.output = cmd.flags.output
 	cmd.generateCredential = cmd.flags.generateCredential
+	cmd.timeout, _ = strconv.Atoi(cmd.flags.timeout)
 
 }
 
@@ -228,7 +243,7 @@ func (cmd *CmdLinkExport) WaitUntilReady() error {
 
 	if cmd.generateCredential {
 
-		err := utils.NewSpinner("Waiting for secret to be generated...", 20, func() error {
+		err := utils.NewSpinnerWithTimeout("Waiting for secret to be generated...", cmd.timeout, func() error {
 
 			generatedSecret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.tlsSecret, metav1.GetOptions{})
 			if err != nil {

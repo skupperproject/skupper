@@ -41,6 +41,7 @@ func TestCmdLinkExport_AddFlags(t *testing.T) {
 		"tls-secret":          "",
 		"output":              "yaml",
 		"generate-credential": "true",
+		"timeout":             "60",
 	}
 	var flagList []string
 
@@ -84,7 +85,7 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 			name:           "link yaml is not generated because there is no site in the namespace.",
 			args:           []string{"my-new-link", "~/link.yaml"},
 			expectedErrors: []string{"there is no skupper site in this namespace", "there is no active skupper site in this namespace"},
-			flags:          ExportLinkFlags{cost: "1", tlsSecret: "secret"},
+			flags:          ExportLinkFlags{cost: "1", tlsSecret: "secret", timeout: "60"},
 		},
 		{
 			name: "link name is not valid.",
@@ -107,7 +108,7 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          ExportLinkFlags{cost: "1", tlsSecret: "secret"},
+			flags:          ExportLinkFlags{cost: "1", tlsSecret: "secret", timeout: "60"},
 			expectedErrors: []string{"link name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
@@ -131,7 +132,7 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          ExportLinkFlags{cost: "1", tlsSecret: "secret"},
+			flags:          ExportLinkFlags{cost: "1", tlsSecret: "secret", timeout: "60"},
 			expectedErrors: []string{"link name and output file must not be empty"},
 		},
 		{
@@ -155,7 +156,7 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          ExportLinkFlags{cost: "1", tlsSecret: "secret"},
+			flags:          ExportLinkFlags{cost: "1", tlsSecret: "secret", timeout: "60"},
 			expectedErrors: []string{"only two arguments are allowed for this command."},
 		},
 		{
@@ -179,7 +180,7 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          ExportLinkFlags{cost: "1"},
+			flags:          ExportLinkFlags{cost: "1", timeout: "60"},
 			expectedErrors: []string{"the TLS secret name was not specified"},
 		},
 		{
@@ -203,7 +204,7 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          ExportLinkFlags{cost: "one", tlsSecret: "secret"},
+			flags:          ExportLinkFlags{cost: "one", tlsSecret: "secret", timeout: "60"},
 			expectedErrors: []string{"link cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
 		},
 		{
@@ -227,7 +228,7 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: ExportLinkFlags{cost: "-4", tlsSecret: "secret"},
+			flags: ExportLinkFlags{cost: "-4", tlsSecret: "secret", timeout: "60"},
 			expectedErrors: []string{
 				"link cost is not valid: value is not positive",
 			},
@@ -253,7 +254,7 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: ExportLinkFlags{cost: "1", tlsSecret: "secret", output: "not-valid"},
+			flags: ExportLinkFlags{cost: "1", tlsSecret: "secret", output: "not-valid", timeout: "60"},
 			expectedErrors: []string{
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
@@ -279,9 +280,35 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: ExportLinkFlags{cost: "1", tlsSecret: "tls secret"},
+			flags: ExportLinkFlags{cost: "1", tlsSecret: "tls secret", timeout: "60"},
 			expectedErrors: []string{
 				"the name of the tls secret is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
+			},
+		},
+		{
+			name: "timeout is not valid",
+			args: []string{"my-site", "file.yaml"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									Active:        true,
+									StatusMessage: "OK",
+								},
+							},
+						},
+					},
+				},
+			},
+			flags: ExportLinkFlags{cost: "1", tlsSecret: "secret", timeout: "0"},
+			expectedErrors: []string{
+				"timeout is not valid: value 0 is not allowed",
 			},
 		},
 	}
@@ -319,7 +346,7 @@ func TestCmdLinkExport_InputToOptions(t *testing.T) {
 		{
 			name:                        "check options",
 			args:                        []string{"my-link"},
-			flags:                       ExportLinkFlags{"secret", "1", "json", false},
+			flags:                       ExportLinkFlags{"secret", "1", "json", false, "60"},
 			expectedCost:                1,
 			expectedTlsSecret:           "secret",
 			expectedOutput:              "json",
@@ -612,6 +639,7 @@ func TestCmdLinkExport_WaitUntilReady(t *testing.T) {
 		outputFile         string
 		outputType         string
 		tlsSecret          string
+		timeout            int
 		k8sObjects         []runtime.Object
 		skupperObjects     []runtime.Object
 		skupperError       string
@@ -623,6 +651,7 @@ func TestCmdLinkExport_WaitUntilReady(t *testing.T) {
 			name:               "secret is not returned",
 			outputFile:         "link.yaml",
 			outputType:         "yaml",
+			timeout:            3,
 			tlsSecret:          "linkSecret",
 			generateCredential: true,
 			expectError:        true,
@@ -632,6 +661,7 @@ func TestCmdLinkExport_WaitUntilReady(t *testing.T) {
 			generateCredential: false,
 			outputFile:         "link.yaml",
 			outputType:         "yaml",
+			timeout:            3,
 			expectError:        false,
 		},
 		{
@@ -639,6 +669,7 @@ func TestCmdLinkExport_WaitUntilReady(t *testing.T) {
 			generateCredential: false,
 			outputFile:         "link.yaml",
 			outputType:         "not supported",
+			timeout:            3,
 			expectError:        true,
 		},
 		{
@@ -646,6 +677,7 @@ func TestCmdLinkExport_WaitUntilReady(t *testing.T) {
 			generateCredential: true,
 			outputFile:         "link.yaml",
 			outputType:         "yaml",
+			timeout:            3,
 			tlsSecret:          "linkSecret",
 			k8sObjects: []runtime.Object{
 				&corev1.Secret{
@@ -681,6 +713,7 @@ func TestCmdLinkExport_WaitUntilReady(t *testing.T) {
 			command.output = test.outputType
 			command.generateCredential = test.generateCredential
 			command.tlsSecret = test.tlsSecret
+			command.timeout = test.timeout
 
 			err := command.WaitUntilReady()
 

@@ -78,11 +78,20 @@ func (s StringValidator) Evaluate(value interface{}) (bool, error) {
 
 type NumberValidator struct {
 	PositiveInt bool
+	IncludeZero bool
 }
 
 func NewNumberValidator() *NumberValidator {
 	return &NumberValidator{
 		PositiveInt: true,
+		IncludeZero: true,
+	}
+}
+
+func NewTimeoutInSecondsValidator() *NumberValidator {
+	return &NumberValidator{
+		PositiveInt: true,
+		IncludeZero: false,
 	}
 }
 
@@ -95,10 +104,18 @@ func (i NumberValidator) Evaluate(value interface{}) (bool, error) {
 	}
 
 	if i.PositiveInt {
-		if v >= 0 {
+		if v < 0 {
+			return false, fmt.Errorf("value is not positive")
+		}
+		if v > 0 {
 			return true, nil
 		}
-		return false, fmt.Errorf("value is not positive")
+		if v == 0 {
+			if i.IncludeZero {
+				return true, nil
+			}
+			return false, fmt.Errorf("value 0 is not allowed")
+		}
 	}
 	return true, nil
 }

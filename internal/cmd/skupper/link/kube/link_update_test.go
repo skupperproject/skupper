@@ -7,6 +7,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
+	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"testing"
@@ -36,6 +37,7 @@ func TestCmdLinkUpdate_AddFlags(t *testing.T) {
 		"cost":       "1",
 		"tls-secret": "",
 		"output":     "",
+		"timeout":    "60",
 	}
 	var flagList []string
 
@@ -78,7 +80,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "link is not updated because there is no site in the namespace.",
 			args:  []string{"my-link"},
-			flags: UpdateLinkFlags{cost: "1"},
+			flags: UpdateLinkFlags{cost: "1", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
@@ -92,7 +94,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "link is not available",
 			args:  []string{"my-link"},
-			flags: UpdateLinkFlags{cost: "1"},
+			flags: UpdateLinkFlags{cost: "1", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -110,7 +112,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "selected link does not exist",
 			args:  []string{"my"},
-			flags: UpdateLinkFlags{cost: "1"},
+			flags: UpdateLinkFlags{cost: "1", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -134,7 +136,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "link name is not specified.",
 			args:  []string{},
-			flags: UpdateLinkFlags{cost: "1"},
+			flags: UpdateLinkFlags{cost: "1", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -158,7 +160,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "more than one argument was specified",
 			args:  []string{"my", "link"},
-			flags: UpdateLinkFlags{cost: "1"},
+			flags: UpdateLinkFlags{cost: "1", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -182,7 +184,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "cost is not valid.",
 			args:  []string{"my-link"},
-			flags: UpdateLinkFlags{cost: "one"},
+			flags: UpdateLinkFlags{cost: "one", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -206,7 +208,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "cost is not positive",
 			args:  []string{"my-link"},
-			flags: UpdateLinkFlags{cost: "-4"},
+			flags: UpdateLinkFlags{cost: "-4", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -232,7 +234,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "output format is not valid",
 			args:  []string{"my-link"},
-			flags: UpdateLinkFlags{cost: "1", output: "not-valid"},
+			flags: UpdateLinkFlags{cost: "1", output: "not-valid", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -258,7 +260,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "tls secret not available",
 			args:  []string{"my-link"},
-			flags: UpdateLinkFlags{cost: "1", tlsSecret: "secret"},
+			flags: UpdateLinkFlags{cost: "1", tlsSecret: "secret", timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -279,6 +281,74 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			},
 			expectedErrors: []string{
 				"the TLS secret \"secret\" is not available in the namespace: secrets \"secret\" not found",
+			},
+		},
+		{
+			name:  "timeout value is 0",
+			args:  []string{"my-link"},
+			flags: UpdateLinkFlags{cost: "1", tlsSecret: "secret", timeout: "0"},
+			k8sObjects: []runtime.Object{
+				&v12.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "test",
+					},
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
+							},
+						},
+					},
+				},
+				&v1alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{
+				"timeout is not valid: value 0 is not allowed",
+			},
+		},
+		{
+			name:  "timeout value is negative",
+			args:  []string{"my-link"},
+			flags: UpdateLinkFlags{cost: "1", tlsSecret: "secret", timeout: "-4"},
+			k8sObjects: []runtime.Object{
+				&v12.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "test",
+					},
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
+							},
+						},
+					},
+				},
+				&v1alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{
+				"timeout is not valid: value is not positive",
 			},
 		},
 	}
@@ -310,16 +380,18 @@ func TestCmdLinkUpdate_InputToOptions(t *testing.T) {
 		expectedTlsSecret string
 		expectedCost      int
 		expectedOutput    string
+		expectedTimeout   int
 	}
 
 	testTable := []test{
 		{
 			name:              "check options",
 			args:              []string{"my-link"},
-			flags:             UpdateLinkFlags{"secret", "1", "json"},
+			flags:             UpdateLinkFlags{"secret", "1", "json", "60"},
 			expectedCost:      1,
 			expectedTlsSecret: "secret",
 			expectedOutput:    "json",
+			expectedTimeout:   60,
 		},
 	}
 
@@ -335,6 +407,7 @@ func TestCmdLinkUpdate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
 			assert.Check(t, cmd.cost == test.expectedCost)
+			assert.Check(t, cmd.timeout == test.expectedTimeout)
 		})
 	}
 }
@@ -436,6 +509,7 @@ func TestCmdLinkUpdate_WaitUntilReady(t *testing.T) {
 		skupperErrorMessage string
 		linkName            string
 		output              string
+		timeout             int
 		expectError         bool
 	}
 
@@ -456,17 +530,20 @@ func TestCmdLinkUpdate_WaitUntilReady(t *testing.T) {
 				},
 			},
 			linkName:    "my-link",
+			timeout:     3,
 			expectError: true,
 		},
 		{
 			name:        "link is not returned",
 			linkName:    "my-link",
+			timeout:     3,
 			expectError: true,
 		},
 		{
 			name:        "there is no need to wait for a link, the user just wanted the output",
 			linkName:    "my-link",
 			output:      "json",
+			timeout:     3,
 			expectError: false,
 		},
 		{
@@ -485,6 +562,7 @@ func TestCmdLinkUpdate_WaitUntilReady(t *testing.T) {
 				},
 			},
 			linkName:    "my-link",
+			timeout:     3,
 			expectError: false,
 		},
 	}
@@ -494,6 +572,7 @@ func TestCmdLinkUpdate_WaitUntilReady(t *testing.T) {
 		assert.Assert(t, err)
 		cmd.linkName = test.linkName
 		cmd.output = test.output
+		cmd.timeout = test.timeout
 
 		t.Run(test.name, func(t *testing.T) {
 
