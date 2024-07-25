@@ -351,6 +351,40 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 				"timeout is not valid: value is not positive",
 			},
 		},
+		{
+			name:  "timeout value is not a number",
+			args:  []string{"my-link"},
+			flags: UpdateLinkFlags{cost: "1", tlsSecret: "secret", timeout: "four"},
+			k8sObjects: []runtime.Object{
+				&v12.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "test",
+					},
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
+							},
+						},
+					},
+				},
+				&v1alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{
+				"timeout is not valid: strconv.Atoi: parsing \"four\": invalid syntax",
+			},
+		},
 	}
 
 	for _, test := range testTable {

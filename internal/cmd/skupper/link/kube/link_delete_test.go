@@ -205,6 +205,30 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			},
 			expectedErrors: []string{"timeout is not valid: value 0 is not allowed"},
 		},
+		{
+			name:  "timeout is not valid because it is not a number",
+			args:  []string{"my-link"},
+			flags: DeleteLinkFlags{timeout: "one"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
+							},
+						},
+					},
+				},
+				&v1alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{"timeout is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
+		},
 	}
 
 	for _, test := range testTable {
@@ -337,7 +361,7 @@ func TestCmdLinkDelete_WaitUntilReady(t *testing.T) {
 	for _, test := range testTable {
 		cmd, err := newCmdLinkDeleteWithMocks("test", nil, test.skupperObjects, "")
 		assert.Assert(t, err)
-		cmd.linkName = "my-site"
+		cmd.linkName = "my-link"
 		cmd.timeout = test.timeout
 		t.Run(test.name, func(t *testing.T) {
 

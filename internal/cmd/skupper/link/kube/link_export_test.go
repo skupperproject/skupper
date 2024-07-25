@@ -311,6 +311,32 @@ func TestCmdLinkExport_ValidateInput(t *testing.T) {
 				"timeout is not valid: value 0 is not allowed",
 			},
 		},
+		{
+			name: "timeout is not valid because it is not a number",
+			args: []string{"my-site", "file.yaml"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									Active:        true,
+									StatusMessage: "OK",
+								},
+							},
+						},
+					},
+				},
+			},
+			flags: ExportLinkFlags{cost: "1", tlsSecret: "secret", timeout: "two"},
+			expectedErrors: []string{
+				"timeout is not valid: strconv.Atoi: parsing \"two\": invalid syntax",
+			},
+		},
 	}
 
 	for _, test := range testTable {
