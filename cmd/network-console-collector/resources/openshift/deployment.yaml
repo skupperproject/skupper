@@ -9,6 +9,17 @@ metadata:
   annotations:
     serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"network-console"}}'
 ---
+apiVersion: skupper.io/v1alpha1
+kind: Certificate
+metadata:
+  name: skupper-management-client
+spec:
+  ca: skupper-local-ca
+  hosts:
+  - skupper-router-local
+  client: true
+  subject: skupper-router-local
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -36,6 +47,10 @@ spec:
         imagePullPolicy: Always
         args:
           - -listen=127.0.0.1:8080
+          - -router-endpoint=amqps://skupper-router-local
+          - -router-tls-ca=/etc/messaging/ca.crt
+          - -router-tls-cert=/etc/messaging/tls.crt
+          - -router-tls-key=/etc/messaging/tls.key
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -44,7 +59,7 @@ spec:
           runAsNonRoot: true
         volumeMounts:
         - mountPath: /etc/messaging/
-          name: skupper-local-client
+          name: skupper-management-client
         ports:
         - containerPort: 8080
           name: web
@@ -82,10 +97,10 @@ spec:
         secret:
           defaultMode: 420
           secretName: network-console-certs
-      - name: skupper-local-client
+      - name: skupper-management-client
         secret:
           defaultMode: 420
-          secretName: skupper-local-client
+          secretName: skupper-management-client
 ---
 apiVersion: v1
 kind: Service

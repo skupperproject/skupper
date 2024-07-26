@@ -30,18 +30,13 @@ func run(cfg Config) error {
 	// Startup message
 	slog.Info("Network Console Collector starting", slog.String("skupper_version", version.Version))
 
-	conn, err := getConnectInfo(cfg.FlowConnectionFile)
-	if err != nil {
-		return fmt.Errorf("error reading flow connection file: %s", err.Error())
-	}
-
 	var tlsConfig qdr.TlsConfigRetriever
-	if conn.TLS.Key != "" || conn.TLS.CA != "" {
-		tlsConfig = certs.GetTlsConfigRetriever(true, conn.TLS.Cert, conn.TLS.Key, conn.TLS.CA)
+	if cfg.RouterTLS.Key != "" || cfg.RouterTLS.CA != "" {
+		tlsConfig = certs.GetTlsConfigRetriever(true, cfg.RouterTLS.Cert, cfg.RouterTLS.Key, cfg.RouterTLS.CA)
 	}
 
 	reg := prometheus.NewRegistry()
-	c, err := NewController("", reg, conn.Scheme, conn.Host, conn.Port, tlsConfig, cfg.FlowRecordTTL)
+	c, err := NewController("", reg, cfg.RouterURL, tlsConfig, cfg.FlowRecordTTL)
 	if err != nil {
 		return fmt.Errorf("error initializing flow collector %s", err.Error())
 	}
@@ -278,9 +273,9 @@ func run(cfg Config) error {
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
-	tlsEnabled := cfg.TLSCert != ""
+	tlsEnabled := cfg.APITLS.Cert != ""
 	if tlsEnabled {
-		cert, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
+		cert, err := tls.LoadX509KeyPair(cfg.APITLS.Cert, cfg.APITLS.Key)
 		if err != nil {
 			return fmt.Errorf("could not set up certs for api server: %s", err)
 		}
@@ -348,12 +343,16 @@ func main() {
 	// if -version used, report and exit
 	isVersion := flags.Bool("version", false, "Report the version of skupper the Network Console Collector was built against")
 
-	flags.StringVar(&cfg.FlowConnectionFile, "flow-connection-file", "/etc/messaging/connect.json", "Path to the file detailing connection info for the skupper router")
+	flags.StringVar(&cfg.RouterURL, "router-endpoint", "amqps://skupper-router-local", "URL to the skupper router amqp(s) endpoint")
+	flags.StringVar(&cfg.RouterTLS.Cert, "router-tls-cert", "", "Path to the client certificate for the router endpoint")
+	flags.StringVar(&cfg.RouterTLS.Key, "router-tls-key", "", "Path to the client key for the router endpoint")
+	flags.StringVar(&cfg.RouterTLS.CA, "router-tls-ca", "", "Path to the CA certificate file for the router endpoint")
+	flags.BoolVar(&cfg.RouterTLS.Verify, "router-tls-verify", true, "Set to false to skip verifying the router tls ca")
 
 	flags.StringVar(&cfg.APIListenAddress, "listen", ":8080", "The address that the API Server will listen on")
 	flags.BoolVar(&cfg.APIDisableAccessLogs, "disable-access-logs", false, "Disables access logging for the API Server")
-	flags.StringVar(&cfg.TLSCert, "tls-cert", "", "Path to the API Server certificate file")
-	flags.StringVar(&cfg.TLSKey, "tls-key", "", "Path to the API Server certificate key file matching tls-cert")
+	flags.StringVar(&cfg.APITLS.Cert, "tls-cert", "", "Path to the API Server certificate file")
+	flags.StringVar(&cfg.APITLS.Key, "tls-key", "", "Path to the API Server certificate key file matching tls-cert")
 
 	flags.BoolVar(&cfg.EnableConsole, "enable-console", true, "Enables the web console")
 	flags.StringVar(&cfg.ConsoleLocation, "console-location", "/app/console", "Location where the console assets are installed")

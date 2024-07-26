@@ -15,14 +15,14 @@ type Controller struct {
 	FlowCollector *flow.FlowCollector
 }
 
-func NewController(origin string, reg prometheus.Registerer, scheme string, host string, port string, tlsConfig qdr.TlsConfigRetriever, recordTtl time.Duration) (*Controller, error) {
+func NewController(origin string, reg prometheus.Registerer, routerURL string, tlsConfig qdr.TlsConfigRetriever, recordTtl time.Duration) (*Controller, error) {
 
 	controller := &Controller{
 		FlowCollector: flow.NewFlowCollector(flow.FlowCollectorSpec{
 			Mode:              flow.RecordMetrics,
 			Origin:            origin,
 			PromReg:           reg,
-			ConnectionFactory: qdr.NewConnectionFactory(scheme+"://"+host+":"+port, tlsConfig),
+			ConnectionFactory: qdr.NewConnectionFactory(routerURL, tlsConfig),
 			FlowRecordTtl:     recordTtl,
 		}),
 	}
