@@ -32,10 +32,11 @@ type SiteInfo struct {
 }
 
 type RouterStatusInfo struct {
-	Router     RouterInfo      `json:"router"`
-	Links      []LinkInfo      `json:"links"`
-	Listeners  []ListenerInfo  `json:"listeners"`
-	Connectors []ConnectorInfo `json:"connectors"`
+	Router       RouterInfo         `json:"router"`
+	Links        []LinkInfo         `json:"links"`
+	AccessPoints []RouterAccessInfo `json:"routerAccess"`
+	Listeners    []ListenerInfo     `json:"listeners"`
+	Connectors   []ConnectorInfo    `json:"connectors"`
 }
 
 type RouterInfo struct {
@@ -48,10 +49,15 @@ type RouterInfo struct {
 }
 
 type LinkInfo struct {
-	Mode      string `json:"mode,omitempty"`
-	Name      string `json:"name,omitempty"`
-	LinkCost  uint64 `json:"linkCost,omitempty"`
-	Direction string `json:"direction,omitempty"`
+	Name     string `json:"name,omitempty"`
+	LinkCost uint64 `json:"linkCost,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Role     string `json:"role,omitempty"`
+	Peer     string `json:"peer,omitempty"`
+}
+
+type RouterAccessInfo struct {
+	Identity string `json:"identity,omitempty"`
 }
 
 type ListenerInfo struct {

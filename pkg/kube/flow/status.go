@@ -219,6 +219,16 @@ func (s *StatusSync) build() network.NetworkStatusInfo {
 			for i, linkEnt := range linkEntries {
 				routerInfo.Links[i] = asLinkInfo(linkEnt.Record.(vanflow.LinkRecord))
 			}
+
+			accessExemplar := store.Entry{Record: vanflow.RouterAccessRecord{
+				Parent: &routerID,
+			}}
+			accessEntries := sorted(s.records.Index(byTypeParent, accessExemplar))
+			routerInfo.AccessPoints = make([]network.RouterAccessInfo, len(accessEntries))
+			for i, accessEnt := range accessEntries {
+				routerInfo.AccessPoints[i] = asRouterAccessInfo(accessEnt.Record.(vanflow.RouterAccessRecord))
+			}
+
 			connExemplar := store.Entry{Record: vanflow.ConnectorRecord{
 				Parent: &routerID,
 			}}
@@ -464,7 +474,16 @@ func asAddressInfo(address string, connectors []vanflow.ConnectorRecord, listene
 func asLinkInfo(link vanflow.LinkRecord) network.LinkInfo {
 	return network.LinkInfo{
 		Name:     dref(link.Name),
+		Status:   dref(link.Status),
 		LinkCost: dref(link.LinkCost),
+		Role:     dref(link.Role),
+		Peer:     dref(link.Peer),
+	}
+}
+
+func asRouterAccessInfo(link vanflow.RouterAccessRecord) network.RouterAccessInfo {
+	return network.RouterAccessInfo{
+		Identity: link.ID,
 	}
 }
 
