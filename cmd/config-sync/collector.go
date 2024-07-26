@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -64,12 +65,15 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 }
 
 func startFlowController(ctx context.Context, cli *internalclient.KubeClient) error {
-	siteId := os.Getenv("SKUPPER_SITE_ID")
-
 	deployment, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.Kube)
 	if err != nil {
-		log.Fatal("Failed to get transport deployment", err.Error())
+		return fmt.Errorf("failed to get transport deployment: %s", err)
 	}
+	if len(deployment.OwnerReferences) < 1 {
+		return fmt.Errorf("transport deployment had no owner required to infer site name and ID")
+	}
+	siteID := string(deployment.OwnerReferences[0].UID)
+	siteName := deployment.OwnerReferences[0].Name
 
 	informer := corev1informer.NewPodInformer(cli.Kube, cli.Namespace, time.Minute*5, cache.Indexers{})
 	platform := "kubernetes"
@@ -77,8 +81,8 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 		Factory:  session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-controller"}),
 		Informer: informer,
 		Site: vanflow.SiteRecord{
-			BaseRecord: vanflow.NewBase(siteId, deployment.ObjectMeta.CreationTimestamp.Time),
-			Name:       &deployment.Name,
+			BaseRecord: vanflow.NewBase(siteID, deployment.ObjectMeta.CreationTimestamp.Time),
+			Name:       &siteName,
 			Namespace:  &cli.Namespace,
 			Platform:   &platform,
 		},
