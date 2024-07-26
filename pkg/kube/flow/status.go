@@ -503,6 +503,7 @@ func asListenerInfo(listener vanflow.ListenerRecord) network.ListenerInfo {
 		DestPort: dref(listener.DestPort),
 		Protocol: dref(listener.Protocol),
 		Address:  dref(listener.Address),
+		Name:     dref(listener.Name),
 	}
 }
 
