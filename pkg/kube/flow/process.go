@@ -2,54 +2,43 @@ package flow
 
 import (
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skupperproject/skupper/pkg/flow"
-	"github.com/skupperproject/skupper/pkg/kube"
+	"github.com/skupperproject/skupper/pkg/vanflow"
 )
 
-type ProcessUpdateHandler func(deleted bool, name string, process *flow.ProcessRecord) error
+var (
+	modeExternal = "external"
+	modeInternal = "internal"
+)
 
-func WatchPods(controller *kube.Controller, namespace string, handler ProcessUpdateHandler) {
-	controller.WatchAllPods(namespace, func(key string, pod *corev1.Pod) error {
-		if pod == nil {
-			handler(true, key, nil)
-		} else {
-			handler(false, key, AsProcessRecord(pod))
-		}
-		return nil
-	})
-}
-
-func AsProcessRecord(pod *corev1.Pod) *flow.ProcessRecord {
-	process := &flow.ProcessRecord{}
-	process.Identity = string(pod.ObjectMeta.UID)
-	process.StartTime = uint64(pod.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
-	process.Name = &pod.ObjectMeta.Name
+func asProcessRecord(pod *corev1.Pod) vanflow.ProcessRecord {
+	process := vanflow.ProcessRecord{
+		BaseRecord: vanflow.NewBase(string(pod.ObjectMeta.UID), pod.ObjectMeta.CreationTimestamp.Time),
+		Name:       &pod.ObjectMeta.Name,
+		Mode:       &modeExternal,
+	}
 	if pod.Status.PodIP != "" {
 		process.SourceHost = &pod.Status.PodIP
 	}
-	process.Image = &pod.Spec.Containers[0].Image
-	process.ImageName = process.Image
-	process.HostName = &pod.Spec.NodeName
-	process.ProcessRole = &flow.External
+	process.ImageName = &pod.Spec.Containers[0].Image
+	process.Hostname = &pod.Spec.NodeName
 	if labelName, ok := pod.ObjectMeta.Labels["app.kubernetes.io/part-of"]; ok {
-		process.GroupName = &labelName
+		process.Group = &labelName
 		if labelName == "skupper" {
-			process.ProcessRole = &flow.Internal
+			process.Mode = &modeInternal
 		}
 	} else if labelComponent, ok := pod.ObjectMeta.Labels["app.kubernetes.io/name"]; ok {
-		process.GroupName = &labelComponent
+		process.Group = &labelComponent
 	} else if partOf, ok := pod.ObjectMeta.Labels["app.kubernetes.io/component"]; ok {
-		process.GroupName = &partOf
+		process.Group = &partOf
 	} else {
 		// generate process group from image name
 		parts := strings.Split(*process.ImageName, "/")
 		part := parts[len(parts)-1]
 		pg := strings.Split(part, ":")
-		process.GroupName = &pg[0]
+		process.Group = &pg[0]
 	}
 	return process
 }

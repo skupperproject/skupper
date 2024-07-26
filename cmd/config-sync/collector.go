@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -14,8 +15,11 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 	kubeflow "github.com/skupperproject/skupper/pkg/kube/flow"
 	"github.com/skupperproject/skupper/pkg/qdr"
-	"github.com/skupperproject/skupper/pkg/version"
+	"github.com/skupperproject/skupper/pkg/vanflow"
+	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1informer "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
@@ -47,7 +51,12 @@ func siteCollector(stopCh <-chan struct{}, cli *internalclient.KubeClient) {
 	}
 	owner := kube.GetDeploymentOwnerReference(current)
 
+	const shadowNetworkStatusConfigMapName = "skupper-network-status-shadow"
 	existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
+	if err != nil && existing == nil {
+		log.Fatal("Failed to create site status config map ", err.Error())
+	}
+	existing, err = kube.NewConfigMap(shadowNetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
 	if err != nil && existing == nil {
 		log.Fatal("Failed to create site status config map ", err.Error())
 	}
@@ -57,6 +66,8 @@ func siteCollector(stopCh <-chan struct{}, cli *internalclient.KubeClient) {
 		log.Println("Update lock error", err.Error())
 	}
 
+	factory := session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-collector"})
+	statusSync := kubeflow.NewStatusSync(factory, nil, cli.Kube.CoreV1().ConfigMaps(cli.Namespace), shadowNetworkStatusConfigMapName)
 	fc = flow.NewFlowCollector(flow.FlowCollectorSpec{
 		Mode:                flow.RecordStatus,
 		Namespace:           cli.Namespace,
@@ -68,7 +79,9 @@ func siteCollector(stopCh <-chan struct{}, cli *internalclient.KubeClient) {
 
 	go primeBeacons(fc, cli)
 	log.Println("COLLECTOR: Starting flow collector")
+	go statusSync.Run(context.Background())
 	fc.Start(stopCh)
+
 }
 
 // primeBeacons attempts to guess the router and service-controller vanflow IDs
@@ -97,15 +110,34 @@ func startFlowController(stopCh <-chan struct{}, cli *internalclient.KubeClient)
 	if err != nil {
 		log.Fatal("Failed to get transport deployment", err.Error())
 	}
-	creationTime := uint64(deployment.ObjectMeta.CreationTimestamp.UnixNano()) / uint64(time.Microsecond)
-	flowController := flow.NewFlowController(siteId, version.Version, creationTime, qdr.NewConnectionFactory("amqp://localhost:5672", nil), nil /*TODO: enable policy checks?*/)
 
-	controller := kube.NewController("flow-controller", cli)
-	kubeflow.WatchPods(controller, cli.Namespace, flowController.UpdateProcess)
+	informer := corev1informer.NewPodInformer(cli.Kube, cli.Namespace, time.Minute*5, cache.Indexers{})
+	platform := "kubernetes"
+	fc := kubeflow.NewController(kubeflow.ControllerConfig{
+		Factory:  session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-controller"}),
+		Informer: informer,
+		Site: vanflow.SiteRecord{
+			BaseRecord: vanflow.NewBase(siteId, deployment.ObjectMeta.CreationTimestamp.Time),
+			Name:       &deployment.Name,
+			Namespace:  &cli.Namespace,
+			Platform:   &platform,
+		},
+	})
+	go informer.Run(stopCh)
 	//TODO: should watching nodes be optional or should we attempt to determine if we have permissions first?
 	//kubeflow.WatchNodes(controller, cli.Namespace, flowController.UpdateHost)
-	controller.Start(stopCh)
-	flowController.Start(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-stopCh
+		cancel()
+	}()
+	go func() {
+		defer cancel()
+		fc.Run(ctx)
+		if ctx.Err() == nil {
+			slog.Error("kube flow controller unexpectedly quit")
+		}
+	}()
 	return nil
 }
 
