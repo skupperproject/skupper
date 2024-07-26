@@ -88,10 +88,10 @@ func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
 		}
 	}
 
-	// Validate that there is no listener with this name in the namespace
+	// Validate that there is a listener with this name in the namespace
 	if cmd.name != "" {
 		listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if listener == nil || errors.IsNotFound(err) {
+		if err != nil || listener == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("listener %s does not exist in namespace %s", cmd.name, cmd.namespace))
 		}
 	}

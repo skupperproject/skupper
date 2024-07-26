@@ -1,18 +1,16 @@
 package kube
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	testing2 "k8s.io/client-go/testing"
 )
 
 func TestCmdListenerDelete_NewCmdListenerDelete(t *testing.T) {
@@ -40,7 +38,8 @@ func TestCmdListenerDelete_AddFlags(t *testing.T) {
 	}
 	var flagList []string
 
-	cmd := newCmdListenerDeleteWithMocks()
+	cmd, err := newCmdListenerDeleteWithMocks("test", nil, nil, "")
+	assert.Assert(t, err)
 
 	t.Run("add flags", func(t *testing.T) {
 
@@ -64,160 +63,123 @@ func TestCmdListenerDelete_AddFlags(t *testing.T) {
 }
 func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 	type test struct {
-		name           string
-		args           []string
-		setUpMock      func(command *CmdListenerDelete)
-		expectedErrors []string
-	}
-
-	command := &CmdListenerDelete{
-		namespace: "test",
+		name                string
+		args                []string
+		flags               ListenerDelete
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		expectedErrors      []string
 	}
 
 	testTable := []test{
 		{
-			name: "listener is not deleted because listener does not exist in the namespace",
-			args: []string{"my-listener"},
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("NotFound")
-				})
-				command.client = fakeSkupperClient
-				command.flags = ListenerDelete{timeout: 1 * time.Minute}
-			},
-			expectedErrors: []string{"NotFound"},
-		},
-		{
-			name: "listener is not deleted because listener does not exist in the namespace",
-			args: []string{"my-listener"},
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.client = fakeSkupperClient
-				command.flags = ListenerDelete{timeout: 1 * time.Minute}
-			},
+			name:           "listener is not deleted because listener does not exist in the namespace",
+			args:           []string{"my-listener"},
+			flags:          ListenerDelete{timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener my-listener does not exist in namespace test"},
 		},
 		{
-			name: "listener name is not specified",
-			args: []string{},
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ListenerDelete{timeout: 1 * time.Minute}
-			},
+			name:           "listener name is not specified",
+			args:           []string{},
+			flags:          ListenerDelete{timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name must be specified"},
 		},
 		{
-			name: "listener name is nil",
-			args: []string{""},
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ListenerDelete{timeout: 1 * time.Minute}
-			},
+			name:           "listener name is nil",
+			args:           []string{""},
+			flags:          ListenerDelete{timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name must not be empty"},
 		},
 		{
-			name: "listener name is not valid",
-			args: []string{"my name"},
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ListenerDelete{timeout: 1 * time.Minute}
-			},
+			name:           "listener name is not valid",
+			args:           []string{"my name"},
+			flags:          ListenerDelete{timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
-			name: "more than one argument is specified",
-			args: []string{"my", "listener"},
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ListenerDelete{timeout: 1 * time.Minute}
-			},
+			name:           "more than one argument is specified",
+			args:           []string{"my", "listener"},
+			flags:          ListenerDelete{timeout: 1 * time.Minute},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
 			name: "timeout is not valid",
 			args: []string{"bad-timeout"},
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ListenerDelete{timeout: 0 * time.Second}
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "bad-timeout",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
-			expectedErrors: []string{
-				"timeout is not valid"},
+			flags:               ListenerDelete{timeout: 0 * time.Minute},
+			skupperErrorMessage: "timeout is not valid",
+			expectedErrors:      []string{"timeout is not valid"},
 		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			if test.setUpMock != nil {
-				test.setUpMock(command)
-			}
+			command, err := newCmdListenerDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			assert.Assert(t, err)
+
+			command.flags = test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
 			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
 
 			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
 		})
 	}
 }
 
 func TestCmdListenerDelete_Run(t *testing.T) {
 	type test struct {
-		name         string
-		setUpMock    func(command *CmdListenerDelete)
-		errorMessage string
+		name                string
+		listenerName        string
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		errorMessage        string
 	}
 
 	testTable := []test{
 		{
-			name: "runs ok",
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("Delete", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-listener"
+			name:         "runs ok",
+			listenerName: "listener-delete",
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "listener-delete",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 		},
 		{
-			name: "run fails",
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("Delete", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("error")
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-fail-listener"
-			},
-			errorMessage: "error",
+			name:                "run fails",
+			listenerName:        "my-fail-listener",
+			skupperErrorMessage: "error",
+			errorMessage:        "error",
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdListenerDeleteWithMocks()
-		test.setUpMock(cmd)
+		cmd, err := newCmdListenerDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
+		assert.Assert(t, err)
 
-		//create a listener
+		cmd.name = test.listenerName
+		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -233,84 +195,66 @@ func TestCmdListenerDelete_Run(t *testing.T) {
 
 func TestCmdListenerDelete_WaitUntilReady(t *testing.T) {
 	type test struct {
-		name        string
-		setUpMock   func(command *CmdListenerDelete)
-		expectError bool
+		name                string
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		expectError         bool
 	}
 
 	testTable := []test{
 		{
 			name: "error deleting listener",
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v1alpha1.Listener{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-listener",
-							Namespace: "test",
-						},
-						Status: v1alpha1.Status{
-							StatusMessage: "",
-						},
-					}, nil
-				})
-				command.client = fakeSkupperClient
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-listener",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectError: true,
 		},
 		{
-			name: "listener is not returned",
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("it failed")
-				})
-				command.client = fakeSkupperClient
-			},
-			expectError: true,
-		},
-		{
-			name: "listener is deleted",
-			setUpMock: func(command *CmdListenerDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.client = fakeSkupperClient
-			},
+			name:        "listener is deleted",
 			expectError: false,
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdListenerDeleteWithMocks()
-		cmd.name = "my-listener"
-		cmd.flags = ListenerDelete{timeout: 5 * time.Second}
+		cmd, err := newCmdListenerDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
+		assert.Assert(t, err)
 
-		test.setUpMock(cmd)
+		cmd.name = "my-listener"
+		cmd.flags = ListenerDelete{timeout: 1 * time.Second}
+		cmd.namespace = "test"
+
 		t.Run(test.name, func(t *testing.T) {
 
 			err := cmd.WaitUntilReady()
-			if err != nil {
-				assert.Check(t, test.expectError)
+			if test.expectError {
+				assert.Check(t, err != nil)
+			} else {
+				assert.Assert(t, err)
 			}
-
 		})
 	}
 }
 
 // --- helper methods
 
-func newCmdListenerDeleteWithMocks() *CmdListenerDelete {
+func newCmdListenerDeleteWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdListenerDelete, error) {
 
-	cmdListenerDelete := &CmdListenerDelete{
-		client:    &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
-		namespace: "test",
+	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
+	if err != nil {
+		return nil, err
 	}
-
-	return cmdListenerDelete
+	cmdListenerDelete := &CmdListenerDelete{
+		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		namespace: namespace,
+	}
+	return cmdListenerDelete, nil
 }

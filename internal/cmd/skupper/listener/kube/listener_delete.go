@@ -88,9 +88,7 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
 		if cmd.name != "" {
 			// Validate that there is already a listener with this name in the namespace
 			listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-			if err != nil {
-				validationErrors = append(validationErrors, err)
-			} else if listener == nil {
+			if err != nil || listener == nil {
 				validationErrors = append(validationErrors, fmt.Errorf("listener %s does not exist in namespace %s", cmd.name, cmd.namespace))
 			}
 		}
