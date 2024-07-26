@@ -88,7 +88,7 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *apis.SiteState) error {
 				var link v1alpha1.Link
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &link)
 				siteState.Links[link.Name] = &link
-			case "Claim":
+			case "AccessToken":
 				var claim v1alpha1.AccessToken
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &claim)
 				siteState.Claims[claim.Name] = &claim
