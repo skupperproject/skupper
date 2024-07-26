@@ -100,7 +100,6 @@ commands:
             echo "export SKUPPER_SERVICE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/service-controller" >> $BASH_ENV
             echo "export SKUPPER_SITE_CONTROLLER_IMAGE=${LOCAL_IP}:5000/site-controller" >> $BASH_ENV
             echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
-            echo "export SKUPPER_FLOW_COLLECTOR_IMAGE=${LOCAL_IP}:5000/flow-collector" >> $BASH_ENV
             echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests" >> $BASH_ENV
             source $BASH_ENV
       - checkout
@@ -135,8 +134,8 @@ commands:
             gunzip -c /tmp/images/service-controller.gz | docker load
             gunzip -c /tmp/images/config-sync.gz | docker import - 0.0.0.0:5000/config-sync
             gunzip -c /tmp/images/config-sync.gz | docker load
-            gunzip -c /tmp/images/flow-collector.gz | docker import - 0.0.0.0:5000/flow-collector
-            gunzip -c /tmp/images/flow-collector.gz | docker load
+            gunzip -c /tmp/images/network-console-collector.gz | docker import - 0.0.0.0:5000/network-console-collector
+            gunzip -c /tmp/images/network-console-collector.gz | docker load
             gunzip -c /tmp/images/test-image.gz | docker import - 0.0.0.0:5000/skupper-tests
             gunzip -c /tmp/images/test-image.gz | docker load
       - run:
@@ -144,7 +143,7 @@ commands:
           command: |
             docker push 0.0.0.0:5000/service-controller
             docker push 0.0.0.0:5000/config-sync
-            docker push 0.0.0.0:5000/flow-collector
+            docker push 0.0.0.0:5000/network-console-collector
             docker push 0.0.0.0:5000/skupper-tests
 
   system_monitor:
@@ -481,8 +480,8 @@ jobs:
             docker save 0.0.0.0:5000/service-controller | gzip > /tmp/images/service-controller.gz
             docker tag quay.io/skupper/config-sync 0.0.0.0:5000/config-sync
             docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
-            docker tag quay.io/skupper/flow-collector 0.0.0.0:5000/flow-collector
-            docker save 0.0.0.0:5000/flow-collector | gzip > /tmp/images/flow-collector.gz
+            docker tag quay.io/skupper/network-console-collector 0.0.0.0:5000/network-console-collector
+            docker save 0.0.0.0:5000/network-console-collector | gzip > /tmp/images/network-console-collector.gz
             docker tag quay.io/skupper/skupper-tests 0.0.0.0:5000/skupper-tests
             docker save 0.0.0.0:5000/skupper-tests | gzip > /tmp/images/test-image.gz
       - persist_to_workspace:
@@ -647,7 +646,7 @@ jobs:
             echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
             docker buildx create --use --name skupper-buildx
@@ -667,7 +666,7 @@ jobs:
             echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:main' >> $BASH_ENV
             echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:main' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:main' >> $BASH_ENV
-            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:main' >> $BASH_ENV
+            echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:main' >> $BASH_ENV
             echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:main' >> $BASH_ENV
             source $BASH_ENV
             docker buildx create --use --name skupper-buildx
