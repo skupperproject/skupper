@@ -14,7 +14,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/messaging"
 	"github.com/skupperproject/skupper/pkg/version"
-	"k8s.io/client-go/kubernetes"
 )
 
 type senderDirect struct {
@@ -146,26 +145,15 @@ type FlowToPairRecord struct {
 	created   uint64
 }
 
-type CollectorMode int
-
-const (
-	RecordStatus CollectorMode = iota
-	RecordMetrics
-)
-
 type FlowCollectorSpec struct {
-	Mode                CollectorMode
-	Namespace           string
-	Origin              string
-	PromReg             prometheus.Registerer
-	ConnectionFactory   messaging.ConnectionFactory
-	FlowRecordTtl       time.Duration
-	NetworkStatusClient kubernetes.Interface
+	Namespace         string
+	Origin            string
+	PromReg           prometheus.Registerer
+	ConnectionFactory messaging.ConnectionFactory
+	FlowRecordTtl     time.Duration
 }
 
 type FlowCollector struct {
-	kubeclient              kubernetes.Interface
-	mode                    CollectorMode
 	origin                  string
 	namespace               string
 	startTime               uint64
@@ -201,9 +189,6 @@ type FlowCollector struct {
 	connectorsToReconcile   map[string]string
 	processesToReconcile    map[string]*ProcessRecord
 	aggregatesToReconcile   map[string]*FlowPairRecord
-
-	begin           time.Time
-	networkStatusUp bool
 }
 
 func getTtl(ttl time.Duration) time.Duration {
@@ -218,8 +203,6 @@ func getTtl(ttl time.Duration) time.Duration {
 
 func NewFlowCollector(spec FlowCollectorSpec) *FlowCollector {
 	fc := &FlowCollector{
-		kubeclient:              spec.NetworkStatusClient,
-		mode:                    spec.Mode,
 		namespace:               spec.Namespace,
 		origin:                  spec.Origin,
 		startTime:               uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
@@ -293,12 +276,7 @@ func (c *FlowCollector) beaconUpdate(beacon BeaconRecord) {
 		log.Printf("COLLECTOR: Detected event source %s of type %s \n", beacon.Identity, beacon.SourceType)
 		receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address, c.recordsIncoming))
 		if beacon.SourceType == recordNames[Router] {
-			switch c.mode {
-			case RecordMetrics:
-				receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming))
-			case RecordStatus:
-				receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".logs", c.recordsIncoming))
-			}
+			receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".flows", c.recordsIncoming))
 		} else if beacon.SourceType == recordNames[Controller] {
 			receivers = append(receivers, newReceiver(c.connectionFactory, beacon.Address+".heartbeats", c.heartbeatsIncoming))
 		}
@@ -373,9 +351,7 @@ func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
 		case recordUpdates := <-c.recordsIncoming:
 			for _, update := range recordUpdates {
 				size, _ := getRealSizeOf(update)
-				if c.mode == RecordMetrics {
-					c.metrics.collectorOctets.Add(float64(size))
-				}
+				c.metrics.collectorOctets.Add(float64(size))
 				err := c.updateRecord(update)
 				if err != nil {
 					log.Println("COLLECTOR: Update record error", err.Error())
@@ -393,9 +369,7 @@ func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
 				}
 			}
 		case <-tickerReconcile.C:
-			if c.mode == RecordMetrics {
-				c.reconcileFlowRecords()
-			}
+			c.reconcileFlowRecords()
 			c.reconcileConnectorRecords()
 		case <-tickerAge.C:
 			c.ageAndPurgeRecords()
@@ -406,7 +380,6 @@ func (c *FlowCollector) recordUpdates(stopCh <-chan struct{}) {
 }
 
 func (c *FlowCollector) Start(stopCh <-chan struct{}) {
-	c.begin = time.Now()
 	go c.run(stopCh)
 }
 
@@ -440,10 +413,8 @@ func (c *FlowCollector) PrimeSiteBeacons(controllerID, routerID string) {
 }
 
 func (c *FlowCollector) run(stopCh <-chan struct{}) {
-	if c.mode == RecordMetrics {
-		c.metrics = c.NewMetrics(c.prometheusReg)
-		c.metrics.info.With(prometheus.Labels{"version": version.Version}).Set(1)
-	}
+	c.metrics = c.NewMetrics(c.prometheusReg)
+	c.metrics.info.With(prometheus.Labels{"version": version.Version}).Set(1)
 	c.beaconReceiver = newReceiver(c.connectionFactory, BeaconAddress, c.beaconsIncoming)
 	c.beaconReceiver.start()
 

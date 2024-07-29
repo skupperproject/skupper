@@ -99,6 +99,7 @@ func (r ControllerRecord) GetTypeMeta() TypeMeta {
 type ListenerRecord struct {
 	BaseRecord
 	Parent      *string `vflow:"2"`
+	Name        *string `vflow:"30"`
 	DestHost    *string `vflow:"15"`
 	Protocol    *string `vflow:"16"`
 	DestPort    *string `vflow:"18"`

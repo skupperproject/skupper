@@ -64,7 +64,6 @@ func TestUpdates(t *testing.T) {
 func TestRecordUpdates(t *testing.T) {
 	factory := messaging.NewMockConnectionFactory(t, "mockamqp://local")
 	fc := NewFlowCollector(FlowCollectorSpec{
-		Mode:              RecordMetrics,
 		Origin:            "origin",
 		PromReg:           prometheus.NewRegistry(),
 		ConnectionFactory: factory,
@@ -104,6 +103,7 @@ func TestRecordUpdates(t *testing.T) {
 
 	factory.Broker.AwaitReceivers("mc/sfe.1234", 1)
 	heartBeatSender, err := conn.Sender("mc/sfe.1234")
+	assert.Assert(t, err)
 	heartBeatSender.Send(msgHB)
 
 	// we don't have a safe way to access the internal state of the collector
@@ -134,7 +134,6 @@ func TestStartupShutdown(t *testing.T) {
 			Name:        "RecordMetrics basic",
 			Controllers: 0,
 			Spec: FlowCollectorSpec{
-				Mode:              RecordMetrics,
 				Origin:            "origin",
 				PromReg:           prometheus.NewRegistry(),
 				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),
@@ -144,27 +143,6 @@ func TestStartupShutdown(t *testing.T) {
 			Name:        "RecordMetrics four controllers",
 			Controllers: 4,
 			Spec: FlowCollectorSpec{
-				Mode:              RecordMetrics,
-				Origin:            "origin",
-				PromReg:           prometheus.NewRegistry(),
-				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),
-				FlowRecordTtl:     5 * time.Minute,
-			},
-		}, {
-			Name:        "RecordStatus basic",
-			Controllers: 0,
-			Spec: FlowCollectorSpec{
-				Mode:              RecordStatus,
-				Origin:            "origin",
-				PromReg:           prometheus.NewRegistry(),
-				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),
-				FlowRecordTtl:     5 * time.Minute,
-			},
-		}, {
-			Name:        "RecordStatus many controllers",
-			Controllers: 128,
-			Spec: FlowCollectorSpec{
-				Mode:              RecordStatus,
 				Origin:            "origin",
 				PromReg:           prometheus.NewRegistry(),
 				ConnectionFactory: messaging.NewMockConnectionFactory(t, "local://test"),

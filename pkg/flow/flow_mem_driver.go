@@ -1,24 +1,16 @@
 package flow
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/kube"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/retry"
 )
 
 func (fc *FlowCollector) inferGatewaySite(siteId string) error {
@@ -181,46 +173,6 @@ func (c *FlowCollector) getRecordSiteId(record interface{}) string {
 		return ""
 	}
 	return ""
-}
-
-func (fc *FlowCollector) getRoutersForSite(site *SiteRecord) []*RouterRecord {
-	var routers []*RouterRecord
-	for _, router := range fc.Routers {
-		if router.Parent == site.Identity {
-			routers = append(routers, router)
-		}
-	}
-	return routers
-}
-
-func (fc *FlowCollector) getLinksForRouter(router *RouterRecord) []*LinkRecord {
-	var links []*LinkRecord
-	for _, link := range fc.Links {
-		if link.Parent == router.Identity {
-			links = append(links, link)
-		}
-	}
-	return links
-}
-
-func (fc *FlowCollector) getListenersForRouter(router *RouterRecord) []*ListenerRecord {
-	var listeners []*ListenerRecord
-	for _, listener := range fc.Listeners {
-		if listener.Parent == router.Identity {
-			listeners = append(listeners, listener)
-		}
-	}
-	return listeners
-}
-
-func (fc *FlowCollector) getConnectorsForRouter(router *RouterRecord) []*ConnectorRecord {
-	var connectors []*ConnectorRecord
-	for _, connector := range fc.Connectors {
-		if connector.Parent == router.Identity {
-			connectors = append(connectors, connector)
-		}
-	}
-	return connectors
 }
 
 func (fc *FlowCollector) getRouterForFlow(flow *FlowRecord) *RouterRecord {
@@ -479,92 +431,6 @@ func prettyPrint(i interface{}) string {
 	return string(s)
 }
 
-var defaultRetry = wait.Backoff{
-	Steps:    100,
-	Duration: 10 * time.Millisecond,
-	Factor:   1.0,
-	Jitter:   0.1,
-}
-
-var netUpdateCt int
-
-func (fc *FlowCollector) updateNetworkStatus() {
-	var err error
-	networkData := map[string]string{}
-	platform := config.GetPlatform()
-	var sites []*SiteStatus
-	var addresses []*VanAddressRecord
-
-	for _, address := range fc.VanAddresses {
-		fc.getAddressAdaptorCounts(address)
-		addresses = append(addresses, address)
-	}
-	for _, site := range fc.Sites {
-		var routerStatus []RouterStatus
-		routers := fc.getRoutersForSite(site)
-		for _, router := range routers {
-			links := fc.getLinksForRouter(router)
-			listeners := fc.getListenersForRouter(router)
-			connectors := fc.getConnectorsForRouter(router)
-			routerStatus = append(routerStatus, RouterStatus{
-				Router:     router,
-				Links:      links,
-				Listeners:  listeners,
-				Connectors: connectors,
-			})
-		}
-		siteStatus := &SiteStatus{
-			Site:         site,
-			RouterStatus: routerStatus,
-		}
-		sites = append(sites, siteStatus)
-	}
-	sort.SliceStable(addresses, func(i, j int) bool {
-		return addresses[i].Name < addresses[j].Name
-	})
-	networkStatus := NetworkStatus{
-		Addresses: addresses,
-		Sites:     sites,
-	}
-	networkData["NetworkStatus"] = prettyPrint(networkStatus)
-
-	if platform == "" || platform == types.PlatformKubernetes {
-		if fc.kubeclient == nil { // errant configuration - means there is a bug in FlowCollector or how it was configured
-			panic("FlowCollector was not configured with a kubernetes client")
-		}
-		err = func() error {
-			err = retry.RetryOnConflict(defaultRetry, func() error {
-				configMap, err := kube.GetConfigMap(types.NetworkStatusConfigMapName, fc.namespace, fc.kubeclient)
-				if err != nil {
-					return err
-				}
-
-				configMap.Data = networkData
-
-				_, err = fc.kubeclient.CoreV1().ConfigMaps(fc.namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
-				if err != nil {
-					return err
-				} else {
-					netUpdateCt++
-					return nil
-				}
-			})
-			if !fc.networkStatusUp && len(networkStatus.Sites) > 0 && len(networkStatus.Sites[0].RouterStatus) > 0 {
-				fc.networkStatusUp = true
-				log.Printf("COLLECTOR: First functional network status update written after %s and %d updates\n", time.Since(fc.begin), netUpdateCt)
-			}
-			return nil
-		}()
-	} else if platform == types.PlatformPodman {
-		// TODO Removed broken v1 implementation
-		log.Fatal("broken implementation")
-	}
-
-	if err != nil {
-		log.Printf("COLLECTOR: Error writing network status update: %v", err)
-	}
-}
-
 func (fc *FlowCollector) addRecord(record interface{}) error {
 	if record == nil {
 		return fmt.Errorf("No record to add")
@@ -622,9 +488,6 @@ func (fc *FlowCollector) addRecord(record interface{}) error {
 		}
 	default:
 		return fmt.Errorf("Unknown record type to add")
-	}
-	if fc.mode == RecordStatus {
-		fc.updateNetworkStatus()
 	}
 	return nil
 }
@@ -688,9 +551,6 @@ func (fc *FlowCollector) deleteRecord(record interface{}) error {
 	default:
 		return fmt.Errorf("Unknown record type to delete")
 	}
-	if fc.mode == RecordStatus {
-		fc.updateNetworkStatus()
-	}
 	return nil
 }
 
@@ -703,7 +563,6 @@ func (fc *FlowCollector) updateLastHeard(source string) error {
 }
 
 func (fc *FlowCollector) updateRecord(record interface{}) error {
-	var updatesNetworkStatus bool
 	switch record.(type) {
 	case HeartbeatRecord:
 		if heartbeat, ok := record.(HeartbeatRecord); ok {
@@ -735,7 +594,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					}
 					fc.deleteRecord(current)
 				} else {
-					updatesNetworkStatus = true
 					if site.Policy != nil {
 						current.Policy = site.Policy
 					}
@@ -1200,9 +1058,6 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 		return fmt.Errorf("Unrecognized record type %T", record)
 	}
 
-	if updatesNetworkStatus && fc.mode == RecordStatus {
-		fc.updateNetworkStatus()
-	}
 	return nil
 }
 
@@ -2538,9 +2393,6 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 							connector.Target = process.Name
 							process.connector = &connector.Identity
 							process.ProcessBinding = &Bound
-							if fc.mode == RecordStatus {
-								fc.updateNetworkStatus()
-							}
 							log.Printf("COLLECTOR: Connector %s/%s associated to process %s\n", connector.Identity, *connector.Address, *process.Name)
 							delete(fc.connectorsToReconcile, connId)
 							break
