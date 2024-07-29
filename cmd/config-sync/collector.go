@@ -102,7 +102,7 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id string, cli *internalclient.KubeClient) {
 	var (
 		leaderCtx context.Context
-		cancel    context.CancelFunc
+		cancel    context.CancelFunc = func() {}
 	)
 	begin := time.Now()
 	podname, _ := os.Hostname()
