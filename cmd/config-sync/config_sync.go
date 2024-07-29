@@ -217,8 +217,8 @@ func (c *ConfigSync) syncConfig(desired *qdr.BridgeConfig) error {
 	if err != nil {
 		return fmt.Errorf("Error while syncing bridge config : %s", err)
 	}
-	if !synced {
-		return fmt.Errorf("Bridge config is not synchronised yet")
+	if synced {
+		log.Println("Bridge config is synchronised")
 	}
 	return nil
 }
