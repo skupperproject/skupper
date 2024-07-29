@@ -51,3 +51,11 @@ the network console, and no authentication layer.
 ## Podman:
 
 TBD
+
+## Developer Deployments:
+
+To aid development of the network console it is nice to have the option of an
+all-in-one manifest with an unsecured network-console-collector deployment with
+permissive CORS settings. These manifests are the most direct way to deploy a
+working network console, but are only suitable for development use and should
+not be used as the base of a production deployment.
