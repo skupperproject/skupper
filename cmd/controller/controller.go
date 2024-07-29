@@ -336,19 +336,12 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.Site
 		}
 		services := map[string]*skupperv1alpha1.ServiceRecord{}
 		for _, router := range site.RouterStatus {
-			// todo(ck): need routeraccess in network status to correlate this now
-			//
 			for _, link := range router.Links {
-				var (
-					name   = link.Name
-					status = link.Status
-					peer   = link.Peer
-				)
-				if name == "" || peer == "" || status != "up" {
+				if link.Name == "" || link.Peer == "" || link.Status != "up" {
 					continue
 				}
 
-				if site, ok := routerAPs[peer]; ok {
+				if site, ok := routerAPs[link.Peer]; ok {
 					record.Links = append(record.Links, site)
 				}
 			}
