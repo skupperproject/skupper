@@ -260,10 +260,12 @@ func (r *RouterConfig) SetSiteMetadata(site *SiteMetadata) {
 }
 
 func (bc *BridgeConfig) AddTcpConnector(e TcpEndpoint) {
+	log.Printf("TMPDBG: AddTcpConnector: e=%+v\n", e)
 	bc.TcpConnectors[e.Name] = e
 }
 
 func (bc *BridgeConfig) RemoveTcpConnector(name string) (bool, TcpEndpoint) {
+	log.Printf("TMPDBG: RemoveTcpConnector: name=%+v\n", name)
 	tc, ok := bc.TcpConnectors[name]
 	if ok {
 		delete(bc.TcpConnectors, name)
@@ -274,10 +276,12 @@ func (bc *BridgeConfig) RemoveTcpConnector(name string) (bool, TcpEndpoint) {
 }
 
 func (bc *BridgeConfig) AddTcpListener(e TcpEndpoint) {
+	log.Printf("TMPDBG: AddTcpListener: e=%+v\n", e)
 	bc.TcpListeners[e.Name] = e
 }
 
 func (bc *BridgeConfig) RemoveTcpListener(name string) (bool, TcpEndpoint) {
+	log.Printf("TMPDBG: RemoveTcpListener: name=%+v\n", name)
 	tc, ok := bc.TcpListeners[name]
 	if ok {
 		delete(bc.TcpListeners, name)
@@ -501,13 +505,14 @@ type Address struct {
 
 type TcpEndpoint struct {
 	ExtraFieldsImpl
-	Name           string `json:"name,omitempty"`
-	Host           string `json:"host,omitempty"`
-	Port           string `json:"port,omitempty"`
-	Address        string `json:"address,omitempty"`
-	SiteId         string `json:"siteId,omitempty"`
-	SslProfile     string `json:"sslProfile,omitempty"`
-	VerifyHostname *bool  `json:"verifyHostname,omitempty"`
+	Name                     string `json:"name,omitempty"`
+	Host                     string `json:"host,omitempty"`
+	Port                     string `json:"port,omitempty"`
+	Address                  string `json:"address,omitempty"`
+	SiteId                   string `json:"siteId,omitempty"`
+	SslProfile               string `json:"sslProfile,omitempty"`
+	VerifyHostname           *bool  `json:"verifyHostname,omitempty"`
+	CloseConnectionsOnDelete *bool  `json:"closeConnectionsOnDelete,omitempty"`
 }
 
 type HttpEndpoint struct {
@@ -917,15 +922,32 @@ func equivalentHost(a string, b string) bool {
 	}
 }
 
-func (a TcpEndpoint) Equivalent(b TcpEndpoint) bool {
-	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
-		a.SiteId != b.SiteId {
+func equivalentBoolPtr(a *bool, b *bool) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
 		return false
 	}
+	return *a == *b
+}
+
+func (a TcpEndpoint) Equivalent(b TcpEndpoint) bool {
+	log.Printf("TMPDBG: TcpEndpoint.Equivalent: a=%+v", a)
+	log.Printf("TMPDBG: TcpEndpoint.Equivalent: b=%+v", b)
+	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
+		a.SiteId != b.SiteId ||
+		!equivalentBoolPtr(a.CloseConnectionsOnDelete, b.CloseConnectionsOnDelete) {
+		log.Printf("TMPDBG: TcpEndpoint.Equivalent: returning FALSE")
+		return false
+	}
+	log.Printf("TMPDBG: TcpEndpoint.Equivalent: returning TRUE")
 	return true
 }
 
 func (a TcpEndpointMap) Difference(b TcpEndpointMap) TcpEndpointDifference {
+	log.Printf("TMPDBG: TcpEndpoint.Difference: entering: a=%+v", a)
+	log.Printf("TMPDBG: TcpEndpoint.Difference: entering: b=%+v", b)
 	result := TcpEndpointDifference{}
 	for key, v1 := range b {
 		v2, ok := a[key]

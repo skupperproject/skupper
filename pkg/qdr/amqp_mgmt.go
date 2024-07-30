@@ -99,6 +99,14 @@ func (r Record) AsBool(field string) bool {
 	}
 }
 
+func (r Record) AsBoolPtr(field string) *bool {
+	if value, ok := r[field].(*bool); ok {
+		return value
+	} else {
+		return nil
+	}
+}
+
 func (r Record) AsInt(field string) int {
 	value, _ := AsInt(r[field])
 	return value
@@ -118,13 +126,17 @@ func (r Record) AsRecord(field string) Record {
 }
 
 func asTcpEndpoint(record Record) TcpEndpoint {
+	log.Printf("TMPDBG: asTcpEndpoint: record=%+v", record)
+	var closeConnectionsOnDelete bool
+	closeConnectionsOnDelete = record.AsBool("closeConnectionsOnDelete") // TODO fix me
 	return TcpEndpoint{
-		Name:       record.AsString("name"),
-		Host:       record.AsString("host"),
-		Port:       record.AsString("port"),
-		Address:    record.AsString("address"),
-		SiteId:     record.AsString("siteId"),
-		SslProfile: record.AsString("sslProfile"),
+		Name:                     record.AsString("name"),
+		Host:                     record.AsString("host"),
+		Port:                     record.AsString("port"),
+		Address:                  record.AsString("address"),
+		SiteId:                   record.AsString("siteId"),
+		SslProfile:               record.AsString("sslProfile"),
+		CloseConnectionsOnDelete: &closeConnectionsOnDelete,
 	}
 }
 

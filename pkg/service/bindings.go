@@ -8,7 +8,21 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/qdr"
+
+	"log" // TODO remove debug logs
 )
+
+// TODO: add CLI command to configure CloseConnectionsOnDelete.
+// TODO: also, remove global variable: CloseConnectionsOnDelete
+var DefaultCloseConnectionsOnDelete *bool
+
+func init() {
+	DefaultCloseConnectionsOnDelete = new(bool)
+	*DefaultCloseConnectionsOnDelete = true
+	if DefaultCloseConnectionsOnDelete != nil {
+		log.Printf("TMPDBG: pkg/service/bindings.go: init: *DefaultCloseConnectionsOnDelete=%+v\n", *DefaultCloseConnectionsOnDelete)
+	}
+}
 
 func getBridgeName(address string, host string, port ...int) string {
 	portSuffix := func(port ...int) string {
@@ -538,6 +552,15 @@ func addEgressBridge(protocol string, host string, port map[int]int, address str
 				tcpConnector.VerifyHostname = verifyHostName
 			}
 
+			if DefaultCloseConnectionsOnDelete != nil {
+				//extra := map[string]interface{}{
+				//        "closeConnectionsOnDelete": DefaultCloseConnectionsOnDelete,
+				//}
+				//log.Printf("TMPDBG: addEgressBridge: extra=%+v\n", extra)
+				//tcpConnector.SetExtraFields(extra)
+				tcpConnector.CloseConnectionsOnDelete = DefaultCloseConnectionsOnDelete
+			}
+
 			bridges.AddTcpConnector(tcpConnector)
 
 		default:
@@ -605,6 +628,15 @@ func addIngressBridge(sb *ServiceBindings, siteId string, bridges *qdr.BridgeCon
 
 			if len(sb.TlsCredentials) > 0 {
 				tcpListener.SslProfile = sb.TlsCredentials
+			}
+
+			if DefaultCloseConnectionsOnDelete != nil {
+				//extra := map[string]interface{}{
+				//        "closeConnectionsOnDelete": DefaultCloseConnectionsOnDelete,
+				//}
+				//log.Printf("TMPDBG: addIngressBridge: extra=%+v\n", extra)
+				//tcpListener.SetExtraFields(extra)
+				tcpListener.CloseConnectionsOnDelete = DefaultCloseConnectionsOnDelete
 			}
 
 			bridges.AddTcpListener(tcpListener)

@@ -180,6 +180,8 @@ func syncConfig(agent *qdr.Agent, desired *qdr.BridgeConfig, c *ConfigSync) (boo
 	if err != nil {
 		return false, fmt.Errorf("Error retrieving bridges: %s", err)
 	}
+	log.Printf("TMPDBG: syncConfig: desired=%+v", desired)
+	log.Printf("TMPDBG: syncConfig: actual=%+v", actual)
 	differences := actual.Difference(desired)
 	if differences.Empty() {
 		return true, nil
