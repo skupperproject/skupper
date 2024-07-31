@@ -3,13 +3,15 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/kube/site"
 	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
+
+	"github.com/skupperproject/skupper/pkg/kube/claims"
+	"github.com/skupperproject/skupper/pkg/kube/site"
 )
 
 func getSiteId(service *corev1.Service) string {
