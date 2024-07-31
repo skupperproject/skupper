@@ -9,9 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
-
-	"github.com/skupperproject/skupper/pkg/kube/claims"
-	"github.com/skupperproject/skupper/pkg/kube/site"
 )
 
 func getSiteId(service *corev1.Service) string {
@@ -58,20 +55,21 @@ func (cli *VanClient) TokenClaimCreateFile(ctx context.Context, name string, pas
 }
 
 func (cli *VanClient) TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error) {
-	policy := NewClusterPolicyValidator(cli)
-	res := policy.ValidateIncomingLink()
-	if !res.Allowed() {
-		return nil, false, fmt.Errorf("incoming links are not allowed")
-	}
-
-	siteContext, err := site.GetSiteContext(cli, cli.Namespace, ctx)
-	if err != nil {
-		return nil, false, err
-	}
-
-	token, err := claims.NewClaimFactory(cli, cli.Namespace, siteContext, ctx).CreateTokenClaim(name, password, expiry, uses)
-	if err != nil {
-		return nil, false, err
-	}
-	return token, siteContext.IsLocalAccessOnly(), nil
+	//policy := NewClusterPolicyValidator(cli)
+	//res := policy.ValidateIncomingLink()
+	//if !res.Allowed() {
+	//	return nil, false, fmt.Errorf("incoming links are not allowed")
+	//}
+	//
+	//siteContext, err := site.GetSiteContext(cli, cli.Namespace, ctx)
+	//if err != nil {
+	//	return nil, false, err
+	//}
+	//
+	//token, err := claims.NewClaimFactory(cli, cli.Namespace, siteContext, ctx).CreateTokenClaim(name, password, expiry, uses)
+	//if err != nil {
+	//	return nil, false, err
+	//}
+	//return token, siteContext.IsLocalAccessOnly(), nil
+	return nil, false, nil
 }
