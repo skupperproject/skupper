@@ -5,6 +5,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var SelectedNamespace string
+var SelectedContext string
+var KubeConfigPath string
+
 func NewCmdListener() *cobra.Command {
 
 	cmd := &cobra.Command{
@@ -24,6 +28,11 @@ skupper listener status my-listener`,
 	cmd.AddCommand(&listenerStatusCommand.CobraCmd)
 	cmd.AddCommand(&listenerUpdateCommand.CobraCmd)
 	cmd.AddCommand(&listenerDeleteCommand.CobraCmd)
+
+	//these flags are only valid for the kubernetes implementation
+	cmd.PersistentFlags().StringVarP(&SelectedNamespace, "namespace", "n", "", "Set the namespace")
+	cmd.PersistentFlags().StringVarP(&SelectedContext, "context", "c", "", "Set the kubeconfig context")
+	cmd.PersistentFlags().StringVarP(&KubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
 
 	return cmd
 }
