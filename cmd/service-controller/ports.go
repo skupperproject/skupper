@@ -196,14 +196,24 @@ func portAsInt(port string) int {
 	return result
 }
 
-func (ports *FreePorts) getPortAllocations(bridges *qdr.BridgeConfig) map[string][]int {
-	allocations := map[string][]int{}
+func (ports *FreePorts) getPortAllocations(bridges *qdr.BridgeConfig) map[string]map[int]int {
+	allocations := map[string]map[int]int{}
 	addPort := func(address string, port int) {
-		if curPorts, found := allocations[address]; !found {
-			allocations[address] = []int{port}
+		parts := strings.Split(address, ":")
+		svc := parts[0]
+		var publicPort int
+		if len(parts) > 1 {
+			publicPort, _ = strconv.Atoi(parts[1])
+		}
+		if publicPort == 0 {
+			publicPort = port
+		}
+		if _, found := allocations[svc]; !found {
+			allocations[svc] = map[int]int{
+				publicPort: port,
+			}
 		} else {
-			curPorts = append(curPorts, port)
-			allocations[address] = curPorts
+			allocations[svc][publicPort] = port
 		}
 	}
 	if bridges != nil {
@@ -212,9 +222,8 @@ func (ports *FreePorts) getPortAllocations(bridges *qdr.BridgeConfig) map[string
 			ports.inuse(port)
 		}
 		for _, b := range bridges.HttpListeners {
-			address := strings.Split(b.Address, ":")[0]
 			port := portAsInt(b.Port)
-			addPort(address, port)
+			addPort(b.Address, port)
 			ports.inuse(port)
 		}
 		for _, b := range bridges.TcpConnectors {
@@ -222,9 +231,8 @@ func (ports *FreePorts) getPortAllocations(bridges *qdr.BridgeConfig) map[string
 			ports.inuse(port)
 		}
 		for _, b := range bridges.TcpListeners {
-			address := strings.Split(b.Address, ":")[0]
 			port := portAsInt(b.Port)
-			addPort(address, port)
+			addPort(b.Address, port)
 			ports.inuse(port)
 		}
 	}
