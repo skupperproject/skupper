@@ -42,6 +42,15 @@ func HasRouterSelector(service corev1.Service) bool {
 	return ok && value == types.RouterComponent
 }
 
+func GetOriginalPorts(service *corev1.Service) string {
+	if service.ObjectMeta.Annotations != nil {
+		if _, ok := service.ObjectMeta.Annotations[types.OriginalTargetPortQualifier]; ok {
+			return ""
+		}
+	}
+	return PortsAsString(service.Spec.Ports)
+}
+
 type Services interface {
 	GetService(name string) (*corev1.Service, bool, error)
 	DeleteService(svc *corev1.Service) error
@@ -148,7 +157,7 @@ func (si *ServiceIngressAlways) create(desired *service.ServiceBindings) error {
 }
 
 func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.ServiceBindings) error {
-	originalPorts := PortsAsString(actual.Spec.Ports)
+	originalPorts := GetOriginalPorts(actual)
 	originalSelector := GetApplicationSelector(actual)
 
 	updatedPorts := UpdatePorts(&actual.Spec, desired.PortMap(), protocol(desired.Protocol()))
@@ -156,7 +165,7 @@ func (si *ServiceIngressAlways) update(actual *corev1.Service, desired *service.
 	updatedLabels := UpdateLabels(&actual.ObjectMeta, desired.Labels)
 	updatedAnnotations := UpdateAnnotations(&actual.ObjectMeta, desired.Annotations)
 
-	if updatedPorts && !si.s.IsOwned(actual) {
+	if updatedPorts && !si.s.IsOwned(actual) && originalPorts != "" {
 		SetAnnotation(&actual.ObjectMeta, types.OriginalTargetPortQualifier, originalPorts)
 		SetAnnotation(&actual.ObjectMeta, types.OriginalAssignedQualifier, PortsAsString(actual.Spec.Ports))
 	}
