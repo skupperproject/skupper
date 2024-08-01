@@ -639,7 +639,7 @@ func (c *Controller) updateBridgeConfig(name string) error {
 	return nil
 }
 
-func (c *Controller) initialiseServiceBindingsMap() (map[string][]int, error) {
+func (c *Controller) initialiseServiceBindingsMap() (map[string]map[int]int, error) {
 	c.bindings = map[string]*service.ServiceBindings{}
 	// on first initialising the service bindings map, need to get any
 	// port allocations from bridge config
@@ -796,7 +796,7 @@ func (c *Controller) processNextEvent() bool {
 					log.Println("skupper-services has been deleted!")
 					return nil
 				}
-				var portAllocations map[string][]int
+				var portAllocations map[string]map[int]int
 				if c.bindings == nil {
 					portAllocations, err = c.initialiseServiceBindingsMap()
 					if err != nil {
@@ -1025,7 +1025,7 @@ func (c *Controller) realiseServiceBindings(required types.ServiceInterface, por
 	return bindings.RealiseIngress()
 }
 
-func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string][]int) error {
+func (c *Controller) updateServiceBindings(required types.ServiceInterface, portAllocations map[string]map[int]int) error {
 	res := c.policy.ValidateImportService(required.Address)
 	bindings := c.bindings[required.Address]
 	if bindings == nil {
@@ -1039,7 +1039,16 @@ func (c *Controller) updateServiceBindings(required types.ServiceInterface, port
 			if portAllocations != nil {
 				// existing bridge configuration is used on initialising map to recover
 				// any previous port allocations
-				ports = portAllocations[required.Address]
+				portMap := portAllocations[required.Address]
+				for _, publicPort := range required.Ports {
+					if targetPort, ok := portMap[publicPort]; ok {
+						ports = append(ports, targetPort)
+						delete(portMap, publicPort)
+					}
+				}
+				for _, remaining := range portMap {
+					ports = append(ports, remaining)
+				}
 			}
 			if len(ports) == 0 {
 				for i := 0; i < len(required.Ports); i++ {
