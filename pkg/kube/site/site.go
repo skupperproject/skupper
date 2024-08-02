@@ -683,8 +683,7 @@ func (s *Site) link(linkconfig *skupperv1alpha1.Link) error {
 		if config != nil {
 			log.Printf("Connecting site in %s using token %s", s.namespace, linkconfig.ObjectMeta.Name)
 			err := s.updateRouterConfigForGroups(config)
-			config.UpdateStatus(linkconfig)
-			return s.updateLinkStatus(linkconfig, err)
+			return s.updateLinkConfiguredCondition(linkconfig, err)
 		} else {
 			log.Printf("No update to router config required for link %s in %s", linkconfig.ObjectMeta.Name, linkconfig.ObjectMeta.Namespace)
 		}
@@ -705,17 +704,22 @@ func (s *Site) unlink(name string) error {
 	return nil
 }
 
-func (s *Site) updateLinkStatus(link *skupperv1alpha1.Link, err error) error {
+func (s *Site) updateLinkConfiguredCondition(link *skupperv1alpha1.Link, err error) error {
 	if link == nil {
 		return nil
 	}
 	if link.SetConfigured(err) {
-		updated, updateErr := s.controller.GetSkupperClient().SkupperV1alpha1().Links(link.ObjectMeta.Namespace).UpdateStatus(context.TODO(), link, metav1.UpdateOptions{})
-		if updateErr != nil {
-			return updateErr
-		}
-		s.links[link.ObjectMeta.Name].Update(updated)
+		return s.updateLinkStatus(link)
 	}
+	return nil
+}
+
+func (s *Site) updateLinkStatus(link *skupperv1alpha1.Link) error {
+	updated, err := s.controller.GetSkupperClient().SkupperV1alpha1().Links(link.ObjectMeta.Namespace).UpdateStatus(context.TODO(), link, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	s.links[link.ObjectMeta.Name].Update(updated)
 	return nil
 }
 
@@ -770,6 +774,22 @@ func (s *Site) updateSiteStatus() error {
 	return nil
 }
 
+func (s *Site) updateLinkOperationalCondition(link *skupperv1alpha1.Link, operational bool, remoteSiteId string, remoteSiteName string) error {
+	if link.SetOperational(operational, remoteSiteId, remoteSiteName) {
+		return s.updateLinkStatus(link)
+	}
+	return nil
+}
+
+func getLinkRecordsForSite(siteId string, network []skupperv1alpha1.SiteRecord) []skupperv1alpha1.LinkRecord {
+	for _, siteRecord := range network {
+		if siteRecord.Id == siteId {
+			return siteRecord.Links
+		}
+	}
+	return nil
+}
+
 func (s *Site) NetworkStatusUpdated(network []skupperv1alpha1.SiteRecord) error {
 	if s.site == nil || reflect.DeepEqual(s.site.Status.Network, network) {
 		return nil
@@ -781,6 +801,16 @@ func (s *Site) NetworkStatusUpdated(network []skupperv1alpha1.SiteRecord) error 
 		return err
 	}
 	s.site = updated
+
+	// find the site record for this site, then process the link records it contains
+	linkRecords := getLinkRecordsForSite(s.site.GetSiteId(), network)
+	for _, linkRecord := range linkRecords {
+		if link, ok := s.links[linkRecord.Name]; ok {
+			if err := s.updateLinkOperationalCondition(link.Definition(), linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName); err != nil {
+				log.Printf("Error updating operational status of link %s/%s: err", s.site.Namespace, linkRecord.Name, err)
+			}
+		}
+	}
 
 	bindingStatus := newBindingStatus(s.controller, network)
 	s.bindings.Map(bindingStatus.updateMatchingListenerCount, bindingStatus.updateMatchingConnectorCount)

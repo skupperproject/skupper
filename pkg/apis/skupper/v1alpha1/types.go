@@ -219,6 +219,7 @@ const CONDITION_TYPE_RUNNING = "Running"
 const CONDITION_TYPE_MATCHED = "Matched"
 const CONDITION_TYPE_PROCESSED = "Processed"
 const CONDITION_TYPE_REDEEMED = "Redeemed"
+const CONDITION_TYPE_OPERATIONAL = "Operational"
 const CONDITION_TYPE_READY = "Ready"
 
 type SiteStatus struct {
@@ -261,8 +262,10 @@ type ServiceRecord struct {
 }
 
 type LinkRecord struct {
-	Name         string `json:"name"`
-	RemoteSiteId string `json:"remoteSiteId"`
+	Name           string `json:"name"`
+	RemoteSiteId   string `json:"remoteSiteId"`
+	RemoteSiteName string `json:"remoteSiteName"`
+	Operational    bool   `json:"operational"`
 }
 
 // +genclient
@@ -462,8 +465,8 @@ type ConnectorStatus struct {
 type Link struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          LinkSpec `json:"spec,omitempty"`
-	Status        Status   `json:"status,omitempty"`
+	Spec          LinkSpec   `json:"spec,omitempty"`
+	Status        LinkStatus `json:"status,omitempty"`
 }
 
 func (l *Link) SetConfigured(err error) bool {
@@ -472,6 +475,27 @@ func (l *Link) SetConfigured(err error) bool {
 		return true
 	}
 	return false
+}
+
+func (l *Link) SetOperational(operational bool, remoteSiteId string, remoteSiteName string) bool {
+	var err error
+	if !operational {
+		err = fmt.Errorf("Not operational")
+	}
+	changed := false
+	if l.Status.RemoteSiteId != remoteSiteId {
+		l.Status.RemoteSiteId = remoteSiteId
+		changed = true
+	}
+	if l.Status.RemoteSiteName != remoteSiteName {
+		l.Status.RemoteSiteName = remoteSiteName
+		changed = true
+	}
+	if l.Status.SetCondition(CONDITION_TYPE_OPERATIONAL, err, l.ObjectMeta.Generation) {
+		l.setReady(err)
+		return true
+	}
+	return changed
 }
 
 func (l *Link) setReady(err error) bool {
@@ -486,7 +510,8 @@ func (l *Link) setReady(err error) bool {
 }
 
 func (l *Link) isReady() bool {
-	return meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_CONFIGURED)
+	return meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
+		meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_OPERATIONAL)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -512,6 +537,12 @@ func (s *LinkSpec) GetEndpointForRole(name string) (Endpoint, bool) {
 		}
 	}
 	return Endpoint{}, false
+}
+
+type LinkStatus struct {
+	Status         `json:",inline"`
+	RemoteSiteId   string `json:"remoteSiteId,omitempty"`
+	RemoteSiteName string `json:"remoteSiteName,omitempty"`
 }
 
 // +genclient
