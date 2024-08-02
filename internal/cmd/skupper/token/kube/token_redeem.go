@@ -43,7 +43,7 @@ func NewCmdTokenRedeem() *CmdTokenRedeem {
 	skupperCmd := CmdTokenRedeem{}
 
 	cmd := cobra.Command{
-		Use:     "redeem <name>",
+		Use:     "redeem <filename>",
 		Short:   "redeem a token",
 		Long:    tokenRedeemLong,
 		Example: tokenRedeemExample,
@@ -139,6 +139,7 @@ func (cmd *CmdTokenRedeem) Run() error {
 	}
 	yamlS := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme, json.SerializerOptions{Yaml: true})
 	yamlS.Decode(tokenFile, nil, &grant)
+	cmd.name = grant.Name
 
 	// create AccessToken
 	resource := v1alpha1.AccessToken{
@@ -147,7 +148,7 @@ func (cmd *CmdTokenRedeem) Run() error {
 			Kind:       "AccessToken",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      grant.Name,
+			Name:      cmd.name,
 			Namespace: cmd.namespace,
 		},
 		Spec: v1alpha1.AccessTokenSpec{
