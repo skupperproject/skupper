@@ -1,16 +1,14 @@
 package kube
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	testing2 "k8s.io/client-go/testing"
 )
 
 func TestCmdListenerStatus_NewCmdListenerStatus(t *testing.T) {
@@ -33,87 +31,66 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		setUpMock      func(command *CmdListenerStatus)
+		flags          ListenerStatus
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
 		expectedErrors []string
-	}
-
-	command := &CmdListenerStatus{
-		namespace: "test",
 	}
 
 	testTable := []test{
 		{
-			name: "listener is not shown because listener does not exist in the namespace",
-			args: []string{"my-listener"},
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("NotFound")
-				})
-				command.client = fakeSkupperClient
-			},
+			name:           "listener is not shown because listener does not exist in the namespace",
+			args:           []string{"my-listener"},
 			expectedErrors: []string{"listener my-listener does not exist in namespace test"},
 		},
 		{
-			name: "listener name is nil",
-			args: []string{""},
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-			},
+			name:           "listener name is nil",
+			args:           []string{""},
 			expectedErrors: []string{"listener name must not be empty"},
 		},
 		{
-			name: "more than one argument is specified",
-			args: []string{"my", "listener"},
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-			},
+			name:           "more than one argument is specified",
+			args:           []string{"my", "listener"},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
-			name: "listener name is not valid.",
-			args: []string{"my new listener"},
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-			},
+			name:           "listener name is not valid.",
+			args:           []string{"my new listener"},
 			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
-			name: "no args",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-			},
+			name:           "no args",
 			expectedErrors: []string{},
 		},
 		{
-			name: "bad output status",
-			args: []string{"out-listener"},
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags.output = "not-supported"
+			name:  "bad output status",
+			args:  []string{"out-listener"},
+			flags: ListenerStatus{output: "not-supported"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.ListenerList{
+					Items: []v1alpha1.Listener{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "out-listener",
+								Namespace: "test",
+							},
+							Spec: v1alpha1.ListenerSpec{
+								Port: 8080,
+								Type: "tcp",
+								Host: "test",
+							},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
+							},
+						},
+					},
+				},
 			},
 			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
 		},
 		{
-			name: "good output status",
-			args: []string{"out-listener"},
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags.output = "json"
-			},
+			name:           "good output status",
+			flags:          ListenerStatus{output: "json"},
 			expectedErrors: []string{},
 		},
 	}
@@ -121,300 +98,201 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			if test.setUpMock != nil {
-				test.setUpMock(command)
-			}
+			command, err := newCmdListenerStatusWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			assert.Assert(t, err)
+
+			command.flags = test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
 			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
 
 			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
 		})
 	}
 }
 
 func TestCmdListenerStatus_Run(t *testing.T) {
 	type test struct {
-		name         string
-		setUpMock    func(command *CmdListenerStatus)
-		errorMessage string
+		name                string
+		listenerName        string
+		flags               ListenerStatus
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		errorMessage        string
 	}
 
 	testTable := []test{
 		{
-			name: "runs ok",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-listener"
-			},
+			name:                "1 listeners not found",
+			listenerName:        "listener-fail",
+			skupperErrorMessage: "not found",
+			errorMessage:        "not found",
 		},
 		{
-			name: "run fails",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("NotFound")
-				})
-				command.client = fakeSkupperClient
-			},
-			errorMessage: "NotFound",
+			name:                "no listeners found",
+			skupperErrorMessage: "not found",
+			errorMessage:        "not found",
 		},
 		{
-			name: "run fails listener doesn't exist",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("NotFound")
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-fail-listener"
-			},
-			errorMessage: "NotFound",
-		},
-		{
-			name: "runs ok, returns 1 listener",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					listener := v1alpha1.ListenerList{
-						Items: []v1alpha1.Listener{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port: 8080,
-									Type: "tcp",
-									Host: "test",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+			name:         "runs ok, returns 1 listener",
+			listenerName: "listener1",
+			skupperObjects: []runtime.Object{
+				&v1alpha1.ListenerList{
+					Items: []v1alpha1.Listener{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "listener1",
+								Namespace: "test",
+							},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
 							},
 						},
-					}
-					return true, &listener, nil
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-listener"
+					},
+				},
 			},
 		},
 		{
-			name: "runs ok, returns 1 listener output yaml",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					listener := v1alpha1.ListenerList{
-						Items: []v1alpha1.Listener{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port: 8080,
-									Type: "tcp",
-									Host: "test",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+			name:         "returns 1 listener output yaml",
+			listenerName: "listener-yaml",
+			flags:        ListenerStatus{output: "yaml"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.ListenerList{
+					Items: []v1alpha1.Listener{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "listener-yaml",
+								Namespace: "test",
+							},
+							Spec: v1alpha1.ListenerSpec{
+								Port: 8080,
+								Type: "tcp",
+								Host: "test",
+							},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
 							},
 						},
-					}
-					return true, &listener, nil
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-listener"
-				command.output = "yaml"
+					},
+				},
 			},
 		},
 		{
-			name: "runs ok, returns all listeners",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					listener := v1alpha1.ListenerList{
-						Items: []v1alpha1.Listener{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener1",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port: 8080,
-									Type: "tcp",
-									Host: "test1",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+			name: "returns all listeners",
+			skupperObjects: []runtime.Object{
+				&v1alpha1.ListenerList{
+					Items: []v1alpha1.Listener{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "my-listener1",
+								Namespace: "test",
 							},
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener2",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port:       8888,
-									Type:       "tcp",
-									Host:       "test2",
-									RoutingKey: "key2",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
 							},
 						},
-					}
-					return true, &listener, nil
-				})
-				command.client = fakeSkupperClient
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "my-listener2",
+								Namespace: "test",
+							},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
+							},
+						},
+					},
+				},
 			},
 		},
 		{
-			name: "runs ok, returns all listeners output json",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					listener := v1alpha1.ListenerList{
-						Items: []v1alpha1.Listener{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener1",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port: 8080,
-									Type: "tcp",
-									Host: "test1",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+			name:  "returns all listeners output json",
+			flags: ListenerStatus{output: "json"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.ListenerList{
+					Items: []v1alpha1.Listener{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "my-listener1",
+								Namespace: "test",
 							},
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener2",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port:       8888,
-									Type:       "tcp",
-									Host:       "test2",
-									RoutingKey: "key2",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
 							},
 						},
-					}
-					return true, &listener, nil
-				})
-				command.client = fakeSkupperClient
-				command.output = "json"
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "my-listener2",
+								Namespace: "test",
+							},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
+							},
+						},
+					},
+				},
 			},
 		},
 		{
-			name: "runs ok, returns all listeners output bad",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					listener := v1alpha1.ListenerList{
-						Items: []v1alpha1.Listener{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener1",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port: 8080,
-									Type: "tcp",
-									Host: "test1",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+			name:  "returns all listeners output bad",
+			flags: ListenerStatus{output: "bad-value"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.ListenerList{
+					Items: []v1alpha1.Listener{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "my-listener1",
+								Namespace: "test",
 							},
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener2",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port:       8888,
-									Type:       "tcp",
-									Host:       "test2",
-									RoutingKey: "key2",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
 							},
 						},
-					}
-					return true, &listener, nil
-				})
-				command.client = fakeSkupperClient
-				command.output = "un-supported"
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "my-listener2",
+								Namespace: "test",
+							},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
+							},
+						},
+					},
+				},
 			},
-			errorMessage: "format un-supported not supported",
+			errorMessage: "format bad-value not supported",
 		},
 		{
-			name: "runs ok, returns 1 listeners output bad",
-			setUpMock: func(command *CmdListenerStatus) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("list", "listeners", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					listener := v1alpha1.ListenerList{
-						Items: []v1alpha1.Listener{
-							{
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "my-listener",
-									Namespace: "test",
-								},
-								Spec: v1alpha1.ListenerSpec{
-									Port: 8080,
-									Type: "tcp",
-									Host: "test",
-								},
-								Status: v1alpha1.Status{
-									StatusMessage: "Ok",
-								},
+			name:         "returns 1 listeners output bad",
+			listenerName: "my-listener",
+			flags:        ListenerStatus{output: "bad-value"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.ListenerList{
+					Items: []v1alpha1.Listener{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "my-listener",
+								Namespace: "test",
+							},
+							Status: v1alpha1.Status{
+								StatusMessage: "Ok",
 							},
 						},
-					}
-					return true, &listener, nil
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-listener"
-				command.output = "bad"
+					},
+				},
 			},
-			errorMessage: "format bad not supported",
+			errorMessage: "format bad-value not supported",
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdListenerStatusWithMocks()
-		test.setUpMock(cmd)
-
-		//create a listener
+		cmd, err := newCmdListenerStatusWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
+		assert.Assert(t, err)
+		cmd.name = test.listenerName
+		cmd.flags = test.flags
+		cmd.output = cmd.flags.output
+		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -430,12 +308,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdListenerStatusWithMocks() *CmdListenerStatus {
+func newCmdListenerStatusWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdListenerStatus, error) {
 
-	cmdListenerStatus := &CmdListenerStatus{
-		client:    &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
-		namespace: "test",
+	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
+	if err != nil {
+		return nil, err
 	}
-
-	return cmdListenerStatus
+	cmdListenerStatus := &CmdListenerStatus{
+		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		namespace: namespace,
+	}
+	return cmdListenerStatus, nil
 }

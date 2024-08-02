@@ -134,7 +134,7 @@ func (cmd *CmdConnectorStatus) Run() error {
 		}
 	} else {
 		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if resource == nil || errors.IsNotFound(err) {
+		if err != nil || resource == nil {
 			fmt.Println("No connectors found")
 			return err
 		}

@@ -247,7 +247,7 @@ func (cmd *CmdConnectorUpdate) WaitUntilReady() error {
 	}
 
 	waitTime := int(cmd.flags.timeout.Seconds())
-	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
+	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {

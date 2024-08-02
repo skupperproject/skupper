@@ -87,9 +87,7 @@ func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 		// Validate that there is already a connector with this name in the namespace
 		if cmd.name != "" {
 			connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-			if err != nil {
-				validationErrors = append(validationErrors, err)
-			} else if connector == nil {
+			if err != nil || connector == nil {
 				validationErrors = append(validationErrors, fmt.Errorf("connector %s does not exist in namespace %s", cmd.name, cmd.namespace))
 			}
 		}

@@ -1,20 +1,17 @@
 package kube
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kubefake "k8s.io/client-go/kubernetes/fake"
-	testing2 "k8s.io/client-go/testing"
 )
 
 func TestCmdConnectorUpdate_NewCmdConnectorUpdate(t *testing.T) {
@@ -51,7 +48,8 @@ func TestCmdConnectorUpdate_AddFlags(t *testing.T) {
 	}
 	var flagList []string
 
-	cmd := newCmdConnectorUpdateWithMocks()
+	cmd, err := newCmdConnectorUpdateWithMocks("test", nil, nil, "")
+	assert.Assert(t, err)
 
 	t.Run("add flags", func(t *testing.T) {
 
@@ -78,84 +76,60 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		setUpMock      func(command *CmdConnectorUpdate)
+		flags          ConnectorUpdates
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
 		expectedErrors []string
-	}
-
-	command := &CmdConnectorUpdate{
-		namespace: "test",
 	}
 
 	testTable := []test{
 		{
-			name: "connector is not updated because get connector returned error",
-			args: []string{"my-connector"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("NotFound")
-				})
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
-			},
+			name:           "connector is not updated because get connector returned error",
+			args:           []string{"my-connector"},
+			flags:          ConnectorUpdates{timeout: 1 * time.Second},
 			expectedErrors: []string{"connector my-connector must exist in namespace test to be updated"},
 		},
 		{
-			name: "connector name is not specified",
-			args: []string{},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
-			},
+			name:           "connector name is not specified",
+			args:           []string{},
+			flags:          ConnectorUpdates{timeout: 1 * time.Second},
 			expectedErrors: []string{"connector name must be configured"},
 		},
 		{
-			name: "connector name is nil",
-			args: []string{""},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
-			},
+			name:           "connector name is nil",
+			args:           []string{""},
+			flags:          ConnectorUpdates{timeout: 1 * time.Minute},
 			expectedErrors: []string{"connector name must not be empty"},
 		},
 		{
-			name: "more than one argument is specified",
-			args: []string{"my", "connector"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
-			},
+			name:           "more than one argument is specified",
+			args:           []string{"my", "connector"},
+			flags:          ConnectorUpdates{timeout: 1 * time.Minute},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
-			name: "connector name is not valid.",
-			args: []string{"my new connector"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{timeout: 5 * time.Second}
-			},
+			name:           "connector name is not valid.",
+			args:           []string{"my new connector"},
+			flags:          ConnectorUpdates{timeout: 1 * time.Minute},
 			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name: "connector type is not valid",
 			args: []string{"my-connector-type"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{
-					connectorType: "not-valid",
-					timeout:       1 * time.Minute,
-				}
+			flags: ConnectorUpdates{
+				connectorType: "not-valid",
+				timeout:       1 * time.Minute,
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-type",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectedErrors: []string{
 				"connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
@@ -163,14 +137,20 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "routing key is not valid",
 			args: []string{"my-connector-rk"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{
-					routingKey: "not-valid$",
-					timeout:    60 * time.Second,
-				}
+			flags: ConnectorUpdates{
+				routingKey: "not-valid$",
+				timeout:    60 * time.Second,
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-rk",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectedErrors: []string{
 				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
@@ -178,35 +158,40 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "tls-secret is not valid",
 			args: []string{"my-connector-tls"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{tlsSecret: ":not-valid"}
-				fakeKubeClient := kubefake.NewSimpleClientset()
-				fakeKubeClient.Fake.ClearActions()
-				fakeKubeClient.Fake.PrependReactor("get", "secrets", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("secret not found")
-				})
-				command.KubeClient = fakeKubeClient
-				command.flags = ConnectorUpdates{
-					tlsSecret: "test-tls",
-					timeout:   5 * time.Second}
+			flags: ConnectorUpdates{
+				tlsSecret: "test-tls",
+				timeout:   5 * time.Second,
 			},
-			expectedErrors: []string{
-				"tls-secret is not valid: does not exist"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-tls",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
+			},
+			expectedErrors: []string{"tls-secret is not valid: does not exist"},
 		},
 		{
 			name: "port is not valid",
 			args: []string{"my-connector-port"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{
-					port:    -1,
-					timeout: 40 * time.Second,
-				}
+			flags: ConnectorUpdates{
+				port:    -1,
+				timeout: 40 * time.Second,
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-port",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectedErrors: []string{
 				"connector port is not valid: value is not positive"},
@@ -214,14 +199,20 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "workload is not valid",
 			args: []string{"bad-workload"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{
-					workload: "!workload",
-					timeout:  70 * time.Second,
-				}
+			flags: ConnectorUpdates{
+				workload: "!workload",
+				timeout:  70 * time.Second,
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "bad-workload",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectedErrors: []string{
 				"workload is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
@@ -229,14 +220,20 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "selector is not valid",
 			args: []string{"bad-selector"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{
-					selector: "@#$%",
-					timeout:  1 * time.Minute,
-				}
+			flags: ConnectorUpdates{
+				selector: "@#$%",
+				timeout:  1 * time.Minute,
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "bad-selector",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectedErrors: []string{
 				"selector is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
@@ -244,28 +241,40 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "timeout is not valid",
 			args: []string{"bad-timeout"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{
-					selector: "selector",
-					timeout:  0 * time.Second}
+			flags: ConnectorUpdates{
+				selector: "selector",
+				timeout:  0 * time.Second,
 			},
-			expectedErrors: []string{
-				"timeout is not valid"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "bad-timeout",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
+			},
+			expectedErrors: []string{"timeout is not valid"},
 		},
 		{
 			name: "output is not valid",
 			args: []string{"bad-output"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{
-					output:  "not-supported",
-					timeout: 1 * time.Minute,
-				}
+			flags: ConnectorUpdates{
+				output:  "not-supported",
+				timeout: 1 * time.Minute,
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "bad-output",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectedErrors: []string{
 				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
@@ -273,32 +282,35 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "flags all valid",
 			args: []string{"my-connector-flags"},
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorUpdates{
-					host:            "hostname",
-					routingKey:      "routingkeyname",
-					tlsSecret:       "secretname",
-					port:            1234,
-					connectorType:   "tcp",
-					selector:        "backend",
-					includeNotReady: false,
-					timeout:         5 * time.Second,
-					output:          "json",
-				}
-				fakeKubeClient := kubefake.NewSimpleClientset()
-				fakeKubeClient.Fake.ClearActions()
-				fakeKubeClient.Fake.PrependReactor("get", "secrets", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					secret := v12.Secret{
-						ObjectMeta: v1.ObjectMeta{
-							Name: "secretname",
-						},
-					}
-					return true, &secret, nil
-				})
-				command.KubeClient = fakeKubeClient
+			flags: ConnectorUpdates{
+				host:            "hostname",
+				routingKey:      "routingkeyname",
+				tlsSecret:       "secretname",
+				port:            1234,
+				connectorType:   "tcp",
+				selector:        "backend",
+				includeNotReady: false,
+				timeout:         5 * time.Second,
+				output:          "json",
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-flags",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
+			},
+			k8sObjects: []runtime.Object{
+				&v12.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "secretname",
+						Namespace: "test",
+					},
+				},
 			},
 			expectedErrors: []string{},
 		},
@@ -307,9 +319,10 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			if test.setUpMock != nil {
-				test.setUpMock(command)
-			}
+			command, err := newCmdConnectorUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			assert.Assert(t, err)
+
+			command.flags = test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -323,101 +336,80 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 
 func TestCmdConnectorUpdate_Run(t *testing.T) {
 	type test struct {
-		name         string
-		setUpMock    func(command *CmdConnectorUpdate)
-		errorMessage string
+		name                string
+		connectorName       string
+		flags               ConnectorUpdates
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		errorMessage        string
 	}
 
 	testTable := []test{
 		{
-			name: "runs ok",
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-
-				fakeSkupperClient.Fake.PrependReactor("update", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					UpdateAction, ok := action.(testing2.UpdateActionImpl)
-					if !ok {
-						return
-					}
-					UpdatedObject := UpdateAction.GetObject()
-
-					connector, ok := UpdatedObject.(*v1alpha1.Connector)
-					if !ok {
-						return
-					}
-					if connector.Name != "my-connector" {
-						return true, nil, fmt.Errorf("unexpected name value")
-					}
-					if connector.Spec.Type != "tcp" {
-						return true, nil, fmt.Errorf("unexpected type value")
-					}
-					if connector.Spec.Port != 8080 {
-						return true, nil, fmt.Errorf("unexpected port value")
-					}
-					if connector.Spec.Host != "hostname" {
-						return true, nil, fmt.Errorf("unexpected host value")
-					}
-					if connector.Spec.RoutingKey != "keyname" {
-						return true, nil, fmt.Errorf("unexpected routing key value")
-					}
-					if connector.Spec.TlsCredentials != "secretname" {
-						return true, nil, fmt.Errorf("unexpected tls-secret value")
-					}
-					if connector.Spec.Selector != "backend" {
-						return true, nil, fmt.Errorf("unexpected selector value")
-					}
-					return true, nil, nil
-				})
-				fakeKubeClient := kubefake.NewSimpleClientset()
-				fakeKubeClient.Fake.ClearActions()
-				fakeKubeClient.Fake.PrependReactor("get", "secrets", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					secret := v12.Secret{
-						ObjectMeta: v1.ObjectMeta{
-							Name: "secretname",
-						},
-					}
-					return true, &secret, nil
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-connector"
-				command.newSettings.port = 8080
-				command.newSettings.connectorType = "tcp"
-				command.newSettings.host = "hostname"
-				command.newSettings.routingKey = "keyname"
-				command.newSettings.tlsSecret = "secretname"
-				command.newSettings.selector = "backend"
+			name:          "runs ok",
+			connectorName: "my-connector-ok",
+			flags: ConnectorUpdates{
+				port:            8080,
+				connectorType:   "tcp",
+				host:            "hostname",
+				routingKey:      "keyname",
+				tlsSecret:       "secretname",
+				includeNotReady: true,
+				workload:        "deployment/backend",
+				selector:        "backend",
+				timeout:         1 * time.Second,
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-ok",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 		},
 		{
-			name: "run fails",
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("update", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("error")
-				})
-				fakeKubeClient := kubefake.NewSimpleClientset()
-				fakeKubeClient.Fake.ClearActions()
-				fakeKubeClient.Fake.PrependReactor("get", "secrets", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.KubeClient = fakeKubeClient
-				command.client = fakeSkupperClient
-				command.name = "my-fail-connector"
-				command.newSettings.output = "json"
+			name:          "run output json",
+			connectorName: "my-connector-json",
+			flags: ConnectorUpdates{
+				port:            8181,
+				connectorType:   "tcp",
+				host:            "hostname",
+				routingKey:      "keyname",
+				tlsSecret:       "secretname",
+				includeNotReady: true,
+				workload:        "deployment/backend",
+				selector:        "backend",
+				timeout:         1 * time.Second,
+				output:          "json",
 			},
-			errorMessage: "error",
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-json",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
+			},
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdConnectorUpdateWithMocks()
-		test.setUpMock(cmd)
-
-		//create a connector
+		cmd, err := newCmdConnectorUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
+		assert.Assert(t, err)
 
 		t.Run(test.name, func(t *testing.T) {
+
+			cmd.name = test.connectorName
+			cmd.newSettings = test.flags
+			cmd.namespace = "test"
 
 			err := cmd.Run()
 			if err != nil {
@@ -431,116 +423,103 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 
 func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 	type test struct {
-		name        string
-		setUpMock   func(command *CmdConnectorUpdate)
-		expectError bool
+		name                string
+		output              string
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		expectError         bool
 	}
 
 	testTable := []test{
 		{
 			name: "connector is not ready",
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v1alpha1.Connector{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-connector",
-							Namespace: "test",
-						},
-						Status: v1alpha1.Status{
-							StatusMessage: "",
-						},
-					}, nil
-				})
-				command.client = fakeSkupperClient
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "",
+					},
+				},
 			},
 			expectError: true,
 		},
 		{
-			name: "connector is not returned",
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("it failed")
-				})
-				command.client = fakeSkupperClient
-			},
+			name:        "connector is not returned",
 			expectError: true,
 		},
 		{
 			name: "connector is ready",
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v1alpha1.Connector{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-connector",
-							Namespace: "test",
-						},
-						Status: v1alpha1.Status{
-							StatusMessage: "Ok",
-						},
-					}, nil
-				})
-				command.client = fakeSkupperClient
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
-			name: "connector is ready json output",
-			setUpMock: func(command *CmdConnectorUpdate) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-
-					return true, &v1alpha1.Connector{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-connector",
-							Namespace: "test",
-						},
-						Status: v1alpha1.Status{
-							StatusMessage: "Ok",
-						},
-					}, nil
-				})
-				command.client = fakeSkupperClient
-				command.newSettings.output = "json"
+			name:   "connector is ready json output",
+			output: "json",
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectError: false,
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdConnectorUpdateWithMocks()
-		cmd.flags = ConnectorUpdates{timeout: 5 * time.Second}
-		cmd.name = "my-connector"
+		cmd, err := newCmdConnectorUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
+		assert.Assert(t, err)
 
-		test.setUpMock(cmd)
+		cmd.name = "my-connector"
+		cmd.flags = ConnectorUpdates{
+			timeout: 1 * time.Second,
+			output:  test.output,
+		}
+		cmd.namespace = "test"
+		cmd.newSettings.output = cmd.flags.output
+
 		t.Run(test.name, func(t *testing.T) {
 
 			err := cmd.WaitUntilReady()
-			if err != nil {
-				assert.Check(t, test.expectError)
+			if test.expectError {
+				assert.Check(t, err != nil)
+			} else {
+				assert.Assert(t, err)
 			}
-
 		})
 	}
 }
 
 // --- helper methods
 
-func newCmdConnectorUpdateWithMocks() *CmdConnectorUpdate {
+func newCmdConnectorUpdateWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdConnectorUpdate, error) {
 
-	cmdConnectorUpdate := &CmdConnectorUpdate{
-		client:     &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
-		namespace:  "test",
-		KubeClient: kubefake.NewSimpleClientset(),
+	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
+	if err != nil {
+		return nil, err
 	}
-
-	return cmdConnectorUpdate
+	cmdConnectorUpdate := &CmdConnectorUpdate{
+		client:     client.GetSkupperClient().SkupperV1alpha1(),
+		KubeClient: client.GetKubeClient(),
+		namespace:  namespace,
+	}
+	return cmdConnectorUpdate, nil
 }

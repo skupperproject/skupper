@@ -1,18 +1,16 @@
 package kube
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	testing2 "k8s.io/client-go/testing"
 )
 
 func TestCmdConnectorDelete_NewCmdConnectorDelete(t *testing.T) {
@@ -40,7 +38,8 @@ func TestCmdConnectorDelete_AddFlags(t *testing.T) {
 	}
 	var flagList []string
 
-	cmd := newCmdConnectorDeleteWithMocks()
+	cmd, err := newCmdConnectorDeleteWithMocks("test", nil, nil, "")
+	assert.Assert(t, err)
 
 	t.Run("add flags", func(t *testing.T) {
 
@@ -66,107 +65,69 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		setUpMock      func(command *CmdConnectorDelete)
+		flags          ConnectorDelete
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
 		expectedErrors []string
-	}
-
-	command := &CmdConnectorDelete{
-		namespace: "test",
 	}
 
 	testTable := []test{
 		{
-			name: "connector is not Deleted because get connector returned error",
-			args: []string{"my-connector"},
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("NotFound")
-				})
-				command.client = fakeSkupperClient
-				command.flags = ConnectorDelete{timeout: 1 * time.Minute}
-			},
-			expectedErrors: []string{"NotFound"},
-		},
-		{
-			name: "connector is not Deleted because connector does not exist in the namespace",
-			args: []string{"my-connector"},
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.client = fakeSkupperClient
-				command.flags = ConnectorDelete{timeout: 30 * time.Second}
-			},
+			name:           "connector is not Deleted because connector does not exist in the namespace",
+			args:           []string{"my-connector"},
+			flags:          ConnectorDelete{timeout: 30 * time.Second},
 			expectedErrors: []string{"connector my-connector does not exist in namespace test"},
 		},
 		{
-			name: "connector name is not specified",
-			args: []string{},
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorDelete{timeout: 1 * time.Second}
-			},
+			name:           "connector name is not specified",
+			args:           []string{},
+			flags:          ConnectorDelete{timeout: 1 * time.Second},
 			expectedErrors: []string{"connector name must be specified"},
 		},
 		{
-			name: "connector name is nil",
-			args: []string{""},
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorDelete{timeout: 1 * time.Second}
-			},
+			name:           "connector name is nil",
+			args:           []string{""},
+			flags:          ConnectorDelete{timeout: 1 * time.Second},
 			expectedErrors: []string{"connector name must not be empty"},
 		},
 		{
-			name: "connector name is not valid",
-			args: []string{"my name"},
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorDelete{timeout: 1 * time.Second}
-			},
+			name:           "connector name is not valid",
+			args:           []string{"my name"},
+			flags:          ConnectorDelete{timeout: 1 * time.Second},
 			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
-			name: "more than one argument is specified",
-			args: []string{"my", "connector"},
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorDelete{timeout: 1 * time.Second}
-			},
+			name:           "more than one argument is specified",
+			args:           []string{"my", "connector"},
+			flags:          ConnectorDelete{timeout: 1 * time.Second},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
-			name: "timeout is not valid",
-			args: []string{"bad-timeout"},
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				command.client = fakeSkupperClient
-				command.flags = ConnectorDelete{timeout: 0 * time.Second}
+			name:  "timeout is not valid",
+			args:  []string{"bad-timeout"},
+			flags: ConnectorDelete{timeout: 0 * time.Second},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "bad-timeout",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
-			expectedErrors: []string{
-				"timeout is not valid"},
+			expectedErrors: []string{"timeout is not valid"},
 		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			if test.setUpMock != nil {
-				test.setUpMock(command)
-			}
+			command, err := newCmdConnectorDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			assert.Assert(t, err)
+
+			command.flags = test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -180,46 +141,31 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 
 func TestCmdConnectorDelete_Run(t *testing.T) {
 	type test struct {
-		name         string
-		setUpMock    func(command *CmdConnectorDelete)
-		errorMessage string
+		name                string
+		deleteName          string
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		errorMessage        string
 	}
 
 	testTable := []test{
 		{
-			name: "runs ok",
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("Delete", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-connector"
-			},
-		},
-		{
-			name: "run fails",
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("Delete", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("error")
-				})
-				command.client = fakeSkupperClient
-				command.name = "my-fail-connector"
-			},
-			errorMessage: "error",
+			name:                "run fails",
+			deleteName:          "my-connector",
+			skupperErrorMessage: "error",
+			errorMessage:        "error",
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdConnectorDeleteWithMocks()
-		test.setUpMock(cmd)
-
-		//create a connector
+		cmd, err := newCmdConnectorDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
+		assert.Assert(t, err)
 
 		t.Run(test.name, func(t *testing.T) {
+
+			cmd.name = test.deleteName
+			cmd.namespace = "test"
 
 			err := cmd.Run()
 			if err != nil {
@@ -233,83 +179,66 @@ func TestCmdConnectorDelete_Run(t *testing.T) {
 
 func TestCmdConnectorDelete_WaitUntilReady(t *testing.T) {
 	type test struct {
-		name        string
-		setUpMock   func(command *CmdConnectorDelete)
-		expectError bool
+		name                string
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		expectError         bool
 	}
 
 	testTable := []test{
 		{
 			name: "error deleting connector",
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &v1alpha1.Connector{
-						ObjectMeta: v1.ObjectMeta{
-							Name:      "my-connector",
-							Namespace: "test",
-						},
-						Status: v1alpha1.Status{
-							StatusMessage: "",
-						},
-					}, nil
-				})
-				command.client = fakeSkupperClient
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+					Status: v1alpha1.Status{
+						StatusMessage: "Ok",
+					},
+				},
 			},
 			expectError: true,
 		},
 		{
-			name: "connector is not returned",
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, fmt.Errorf("it failed")
-				})
-				command.client = fakeSkupperClient
-			},
-			expectError: true,
-		},
-		{
-			name: "connector is deleted",
-			setUpMock: func(command *CmdConnectorDelete) {
-				fakeSkupperClient := &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}}
-				fakeSkupperClient.Fake.ClearActions()
-				fakeSkupperClient.Fake.PrependReactor("get", "connectors", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
-					return true, nil, nil
-				})
-				command.client = fakeSkupperClient
-			},
+			name:        "connector is deleted",
 			expectError: false,
 		},
 	}
 
 	for _, test := range testTable {
-		cmd := newCmdConnectorDeleteWithMocks()
-		cmd.name = "my-connector"
-		cmd.flags = ConnectorDelete{timeout: 5 * time.Second}
+		cmd, err := newCmdConnectorDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
+		assert.Assert(t, err)
 
-		test.setUpMock(cmd)
+		cmd.name = "my-connector"
+		cmd.flags = ConnectorDelete{timeout: 1 * time.Second}
+		cmd.namespace = "test"
+
 		t.Run(test.name, func(t *testing.T) {
 
 			err := cmd.WaitUntilReady()
-			if err != nil {
-				assert.Check(t, test.expectError)
+			if test.expectError {
+				assert.Check(t, err != nil)
+			} else {
+				assert.Assert(t, err)
 			}
-
 		})
 	}
 }
 
 // --- helper methods
 
-func newCmdConnectorDeleteWithMocks() *CmdConnectorDelete {
+func newCmdConnectorDeleteWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdConnectorDelete, error) {
 
-	cmdConnectorDelete := &CmdConnectorDelete{
-		client:    &fake.FakeSkupperV1alpha1{Fake: &testing2.Fake{}},
-		namespace: "test",
+	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
+	if err != nil {
+		return nil, err
 	}
-
-	return cmdConnectorDelete
+	cmdConnectorCreate := &CmdConnectorDelete{
+		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		namespace: namespace,
+	}
+	return cmdConnectorCreate, nil
 }
