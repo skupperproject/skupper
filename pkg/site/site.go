@@ -56,24 +56,24 @@ const (
 	SiteConfigPrometheusServerPodAnnotationsKey string = "prometheus-server-pod-annotations"
 
 	// router options
-	SiteConfigRouterConsoleKey               string = "router-console"
-	SiteConfigRouterLoggingKey               string = "router-logging"
-	SiteConfigRouterCpuKey                   string = "router-cpu"
-	SiteConfigRouterMemoryKey                string = "router-memory"
-	SiteConfigRouterCpuLimitKey              string = "router-cpu-limit"
-	SiteConfigRouterMemoryLimitKey           string = "router-memory-limit"
-	SiteConfigRouterAffinityKey              string = "router-pod-affinity"
-	SiteConfigRouterAntiAffinityKey          string = "router-pod-antiaffinity"
-	SiteConfigRouterNodeSelectorKey          string = "router-node-selector"
-	SiteConfigRouterMaxFrameSizeKey          string = "xp-router-max-frame-size"
-	SiteConfigRouterMaxSessionFramesKey      string = "xp-router-max-session-frames"
-	SiteConfigRouterDataConnectionCountKey   string = "router-data-connection-count"
-	SiteConfigRouterIngressHostKey           string = "router-ingress-host"
-	SiteConfigRouterServiceAnnotationsKey    string = "router-service-annotations"
-	SiteConfigRouterPodAnnotationsKey        string = "router-pod-annotations"
-	SiteConfigRouterLoadBalancerIp           string = "router-load-balancer-ip"
-	SiteConfigRouterDisableMutualTLS         string = "router-disable-mutual-tls"
-	SiteConfigRouterCloseConnectionsOnDelete string = "router-close-connections-on-delete"
+	SiteConfigRouterConsoleKey             string = "router-console"
+	SiteConfigRouterLoggingKey             string = "router-logging"
+	SiteConfigRouterCpuKey                 string = "router-cpu"
+	SiteConfigRouterMemoryKey              string = "router-memory"
+	SiteConfigRouterCpuLimitKey            string = "router-cpu-limit"
+	SiteConfigRouterMemoryLimitKey         string = "router-memory-limit"
+	SiteConfigRouterAffinityKey            string = "router-pod-affinity"
+	SiteConfigRouterAntiAffinityKey        string = "router-pod-antiaffinity"
+	SiteConfigRouterNodeSelectorKey        string = "router-node-selector"
+	SiteConfigRouterMaxFrameSizeKey        string = "xp-router-max-frame-size"
+	SiteConfigRouterMaxSessionFramesKey    string = "xp-router-max-session-frames"
+	SiteConfigRouterDataConnectionCountKey string = "router-data-connection-count"
+	SiteConfigRouterIngressHostKey         string = "router-ingress-host"
+	SiteConfigRouterServiceAnnotationsKey  string = "router-service-annotations"
+	SiteConfigRouterPodAnnotationsKey      string = "router-pod-annotations"
+	SiteConfigRouterLoadBalancerIp         string = "router-load-balancer-ip"
+	SiteConfigRouterDisableMutualTLS       string = "router-disable-mutual-tls"
+	SiteConfigRouterDropTcpConnections     string = "router-drop-tcp-connections"
 
 	// controller options
 	SiteConfigServiceControllerKey            string = "service-controller"
@@ -270,8 +270,8 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 	if spec.Router.DisableMutualTLS {
 		siteConfig.Data[SiteConfigRouterDisableMutualTLS] = "true"
 	}
-	if spec.Router.CloseConnectionsOnDelete {
-		siteConfig.Data[SiteConfigRouterCloseConnectionsOnDelete] = "true"
+	if spec.Router.DropTcpConnections {
+		siteConfig.Data[SiteConfigRouterDropTcpConnections] = "true"
 	}
 	if spec.Controller.Cpu != "" {
 		if _, err := resource.ParseQuantity(spec.Controller.Cpu); err != nil {
@@ -676,8 +676,8 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	if value, ok := siteConfig.Data[SiteConfigRouterDisableMutualTLS]; ok {
 		result.Spec.Router.DisableMutualTLS, _ = strconv.ParseBool(value)
 	}
-	if value, ok := siteConfig.Data[SiteConfigRouterCloseConnectionsOnDelete]; ok {
-		result.Spec.Router.CloseConnectionsOnDelete, _ = strconv.ParseBool(value)
+	if value, ok := siteConfig.Data[SiteConfigRouterDropTcpConnections]; ok {
+		result.Spec.Router.DropTcpConnections, _ = strconv.ParseBool(value)
 	}
 
 	if controllerCpu, ok := siteConfig.Data[SiteConfigControllerCpuKey]; ok && controllerCpu != "" {
