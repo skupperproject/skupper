@@ -113,6 +113,10 @@ spec:
                               type: string
                             remoteSiteId:
                               type: string
+                            remoteSiteName:
+                              type: string
+                            operational:
+                              type: boolean
                       services:
                         type: array
                         items:

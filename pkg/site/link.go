@@ -69,14 +69,13 @@ func (m LinkMap) Apply(current *qdr.RouterConfig) bool {
 }
 
 func (link *Link) Update(definition *skupperv1alpha1.Link) bool {
-	if reflect.DeepEqual(link.definition, definition) {
-		return false
-	}
+	changed := !reflect.DeepEqual(link.definition, definition)
 	link.definition = definition
-	return true
+	return changed
 }
 
-func (config *Link) UpdateStatus(lc *skupperv1alpha1.Link) {
+func (link *Link) Definition() *skupperv1alpha1.Link {
+	return link.definition
 }
 
 type RemoveConnector struct {

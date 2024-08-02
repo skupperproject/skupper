@@ -41,6 +41,10 @@ spec:
               properties:
                 status:
                   type: string
+                remoteSiteId:
+                  type: string
+                remoteSiteName:
+                  type: string
                 conditions:
                   type: array
                   items:
@@ -84,6 +88,10 @@ spec:
         type: string
         description: The status of the link
         jsonPath: .status.status
+      - name: Remote Site
+        type: string
+        description: The name of the site linked to
+        jsonPath: .status.remoteSiteName
   scope: Namespaced
   names:
     plural: links

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1beta1"
@@ -350,7 +351,9 @@ func (c *Controller) networkStatusUpdate(key string, cm *corev1.ConfigMap) error
 func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.SiteRecord {
 	var records []skupperv1alpha1.SiteRecord
 	routerAPs := map[string]string{} // router access point ID -> site ID
+	siteNames := map[string]string{} // site ID -> site name
 	for _, site := range status.SiteStatus {
+		siteNames[site.Site.Identity] = site.Site.Name
 		for _, router := range site.RouterStatus {
 			for _, ap := range router.AccessPoints {
 				routerAPs[ap.Identity] = site.Site.Identity
@@ -368,14 +371,16 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.Site
 		services := map[string]*skupperv1alpha1.ServiceRecord{}
 		for _, router := range site.RouterStatus {
 			for _, link := range router.Links {
-				if link.Name == "" || link.Peer == "" || link.Status != "up" {
+				if link.Name == "" || link.Peer == "" {
 					continue
 				}
 
 				if site, ok := routerAPs[link.Peer]; ok {
 					record.Links = append(record.Links, skupperv1alpha1.LinkRecord{
-						Name:         link.Name,
-						RemoteSiteId: site,
+						Name:           link.Name,
+						RemoteSiteId:   site,
+						RemoteSiteName: siteNames[site],
+						Operational:    strings.EqualFold(link.Status, "up"),
 					})
 				}
 			}
