@@ -37,8 +37,20 @@ func NewResourceStringValidator() *StringValidator {
 	}
 }
 
+// TBD what are valid characters for workload field
 func NewWorkloadStringValidator() *StringValidator {
 	re, err := regexp.Compile("^[A-Za-z0-9=:./-]+$")
+	if err != nil {
+		fmt.Printf("Error compiling regex: %v", err)
+		return nil
+	}
+	return &StringValidator{
+		Expression: re,
+	}
+}
+
+func NewFilePathStringValidator() *StringValidator {
+	re, err := regexp.Compile("^[A-Za-z0-9./~-]+$")
 	if err != nil {
 		fmt.Printf("Error compiling regex: %v", err)
 		return nil
