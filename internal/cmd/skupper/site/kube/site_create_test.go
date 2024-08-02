@@ -2,7 +2,6 @@ package kube
 
 import (
 	"fmt"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 
 	"testing"
@@ -342,8 +341,8 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		skupperError   string
-		setUpMock      func(command *CmdSiteCreate)
 		expectError    bool
+		output         string
 	}
 
 	testTable := []test{
@@ -387,6 +386,7 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 					},
 				},
 			},
+			output:       "yaml",
 			skupperError: "",
 			expectError:  false,
 		},
@@ -401,7 +401,15 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 					},
 				},
@@ -420,6 +428,7 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 		command.siteName = "my-site"
+		command.output = test.output
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -428,7 +437,7 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 			if test.expectError {
 				assert.Check(t, err != nil)
 			} else {
-				assert.Check(t, err == nil)
+				assert.Check(t, err == nil, err)
 			}
 
 		})

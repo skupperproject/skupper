@@ -210,7 +210,7 @@ func (cmd *CmdSiteCreate) WaitUntil() error {
 			return err
 		}
 
-		if resource != nil && resource.Status.StatusMessage == "OK" {
+		if resource != nil && resource.IsActive() {
 			return nil
 		}
 

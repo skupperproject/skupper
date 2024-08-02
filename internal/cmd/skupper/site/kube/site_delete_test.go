@@ -258,6 +258,15 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
 							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 					},
 				},
@@ -320,6 +329,15 @@ func TestCmdSiteDelete_WaitUntilReady(t *testing.T) {
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
 							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 					},
 				},
