@@ -107,7 +107,7 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 	}
 
 	for _, s := range siteList.Items {
-		if s.Status.Status.StatusMessage == "OK" && s.Status.Active {
+		if s.IsReady() {
 			cmd.activeSite = &s
 		}
 	}

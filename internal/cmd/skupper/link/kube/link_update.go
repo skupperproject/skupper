@@ -214,7 +214,7 @@ func (cmd *CmdLinkUpdate) WaitUntilReady() error {
 			return err
 		}
 
-		if resource != nil && resource.Status.StatusMessage == "OK" {
+		if resource != nil && resource.IsReady() {
 			return nil
 		}
 

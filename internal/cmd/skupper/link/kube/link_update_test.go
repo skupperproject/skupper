@@ -556,11 +556,7 @@ func TestCmdLinkUpdate_WaitUntilReady(t *testing.T) {
 						Name:      "my-link",
 						Namespace: "test",
 					},
-					Status: v1alpha1.LinkStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "",
-						},
-					},
+					Status: v1alpha1.Status{},
 				},
 			},
 			linkName:    "my-link",
@@ -588,9 +584,16 @@ func TestCmdLinkUpdate_WaitUntilReady(t *testing.T) {
 						Name:      "my-link",
 						Namespace: "test",
 					},
-					Status: v1alpha1.LinkStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v1alpha1.Status{
+						StatusMessage: "OK",
+						Conditions: []v1.Condition{
+							{
+								Message:            "OK",
+								ObservedGeneration: 1,
+								Reason:             "OK",
+								Status:             "True",
+								Type:               "Configured",
+							},
 						},
 					},
 				},

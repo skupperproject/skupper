@@ -97,8 +97,30 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Active:        true,
 									StatusMessage: "OK",
+									Conditions: []v1.Condition{
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Running",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Resolved",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Configured",
+										},
+									},
 								},
 							},
 						},
@@ -120,8 +142,30 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Active:        true,
 									StatusMessage: "OK",
+									Conditions: []v1.Condition{
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Running",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Resolved",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Configured",
+										},
+									},
 								},
 							},
 						},
@@ -143,8 +187,30 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Active:        true,
 									StatusMessage: "OK",
+									Conditions: []v1.Condition{
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Running",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Resolved",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Configured",
+										},
+									},
 								},
 							},
 						},
@@ -166,8 +232,30 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Active:        true,
 									StatusMessage: "OK",
+									Conditions: []v1.Condition{
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Running",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Resolved",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Configured",
+										},
+									},
 								},
 							},
 						},
@@ -191,8 +279,30 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Active:        true,
 									StatusMessage: "OK",
+									Conditions: []v1.Condition{
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Running",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Resolved",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Configured",
+										},
+									},
 								},
 							},
 						},
@@ -216,8 +326,30 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Active:        true,
 									StatusMessage: "OK",
+									Conditions: []v1.Condition{
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Running",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Resolved",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Configured",
+										},
+									},
 								},
 							},
 						},
@@ -241,8 +373,30 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Active:        true,
 									StatusMessage: "OK",
+									Conditions: []v1.Condition{
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Running",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Resolved",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Configured",
+										},
+									},
 								},
 							},
 						},
@@ -266,8 +420,30 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Active:        true,
 									StatusMessage: "OK",
+									Conditions: []v1.Condition{
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Running",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Resolved",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Configured",
+										},
+									},
 								},
 							},
 						},
@@ -332,8 +508,16 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 				},
 				Status: v1alpha1.SiteStatus{
 					Status: v1alpha1.Status{
-						Active:        true,
 						StatusMessage: "OK",
+						Conditions: []v1.Condition{
+							{
+								Message:            "OK",
+								ObservedGeneration: 1,
+								Reason:             "OK",
+								Status:             "True",
+								Type:               "Configured",
+							},
+						},
 					},
 				},
 			},
@@ -390,8 +574,16 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
-							Active:        true,
 							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 						Endpoints: []v1alpha1.Endpoint{
 							{
@@ -427,8 +619,16 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
-							Active:        true,
 							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 						Endpoints: []v1alpha1.Endpoint{
 							{
@@ -464,8 +664,16 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
-							Active:        true,
 							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 						Endpoints: []v1alpha1.Endpoint{
 							{
@@ -502,8 +710,16 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
-							Active:        true,
 							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 						Endpoints: []v1alpha1.Endpoint{
 							{
@@ -540,8 +756,16 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
-							Active:        true,
 							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 					},
 				}
@@ -576,8 +800,16 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
-							Active:        true,
 							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
 						},
 						Endpoints: []v1alpha1.Endpoint{
 							{
