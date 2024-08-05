@@ -8,8 +8,8 @@ import (
 	"path"
 	"text/template"
 
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
-	"github.com/skupperproject/skupper/pkg/non_kube/common"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/common"
 )
 
 func CreateSystemdServices(siteState *apis.SiteState) error {

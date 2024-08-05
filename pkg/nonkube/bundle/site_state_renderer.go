@@ -7,11 +7,12 @@ import (
 	"path"
 
 	"github.com/skupperproject/skupper/api/types"
-	internal "github.com/skupperproject/skupper/internal/non_kube"
+	"github.com/skupperproject/skupper/internal/nonkube"
+	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
-	"github.com/skupperproject/skupper/pkg/non_kube/common"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/common"
 )
 
 var (
@@ -152,20 +153,24 @@ func (s *SiteStateRenderer) createBundle() error {
 		sitesHomeDir = path.Join("/output", "sites")
 	}
 	siteHomeDir := path.Join(sitesHomeDir, s.siteState.Site.Name)
-	tarball := internal.NewTarball()
+	tarball := nonkube.NewTarball()
 	err = tarball.AddFiles(sitesHomeDir, s.siteState.Site.Name)
 	if err != nil {
 		return fmt.Errorf("failed to add files to tarball (%q): %v", siteHomeDir, err)
 	}
-	tarballData, err := tarball.SaveData()
-	if err != nil {
-		return fmt.Errorf("failed to prepare tarball content (%q): %v", siteHomeDir, err)
+	var bundle nonkube.BundleGenerator
+	if !config.GetPlatform().IsTarball() {
+		bundle = &nonkube.SelfExtractingBundle{
+			SiteName:   s.siteState.Site.Name,
+			OutputPath: sitesHomeDir,
+		}
+	} else {
+		bundle = &nonkube.TarballBundle{
+			SiteName:   s.siteState.Site.Name,
+			OutputPath: sitesHomeDir,
+		}
 	}
-	bundle := &internal.SelfExtractingBundle{
-		SiteName:   s.siteState.Site.Name,
-		OutputPath: sitesHomeDir,
-	}
-	err = bundle.Generate(tarballData)
+	err = bundle.Generate(tarball)
 	if err != nil {
 		return fmt.Errorf("failed to generate site bundle (%q): %v", s.siteState.Site.Name, err)
 	}

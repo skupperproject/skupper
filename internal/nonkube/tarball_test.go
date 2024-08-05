@@ -1,4 +1,4 @@
-package non_kube
+package nonkube
 
 import (
 	"log"

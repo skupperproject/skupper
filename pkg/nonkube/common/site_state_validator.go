@@ -6,7 +6,7 @@ import (
 	"regexp"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
 	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 )

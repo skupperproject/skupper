@@ -13,7 +13,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
 )
 
 var (

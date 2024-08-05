@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	internal "github.com/skupperproject/skupper/internal/non_kube"
+	internal "github.com/skupperproject/skupper/internal/nonkube"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 

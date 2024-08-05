@@ -9,11 +9,11 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
-	"github.com/skupperproject/skupper/pkg/non_kube/bundle"
-	"github.com/skupperproject/skupper/pkg/non_kube/common"
-	"github.com/skupperproject/skupper/pkg/non_kube/compat"
-	"github.com/skupperproject/skupper/pkg/non_kube/systemd"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/bundle"
+	"github.com/skupperproject/skupper/pkg/nonkube/common"
+	"github.com/skupperproject/skupper/pkg/nonkube/compat"
+	"github.com/skupperproject/skupper/pkg/nonkube/systemd"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -117,6 +117,9 @@ func main() {
 			fmt.Println("Failed to get site bundle base directory:", err)
 		}
 		installationFile := path.Join(dataHome, "sites", fmt.Sprintf("skupper-install-%s.sh", siteState.Site.Name))
+		if platform.IsTarball() {
+			installationFile = path.Join(dataHome, "sites", fmt.Sprintf("skupper-install-%s.tar.gz", siteState.Site.Name))
+		}
 		fmt.Println("Installation bundle available at:", installationFile)
 	}
 }

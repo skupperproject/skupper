@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
-	internalclient "github.com/skupperproject/skupper/internal/non-kube/client/compat"
+	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
-	"github.com/skupperproject/skupper/pkg/non_kube/common"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 

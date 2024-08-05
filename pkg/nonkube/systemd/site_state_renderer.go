@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
-	"github.com/skupperproject/skupper/pkg/non_kube/common"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 

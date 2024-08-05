@@ -1,26 +1,13 @@
 #!/bin/sh
 
-set -Ceu
-
-# Self extract
-TAR_CONTENT_START=$(awk '/^__TARBALL_CONTENT__$/ {print NR+1; exit 0;}' "$0")
-TMP_DIR=$(mktemp -d /tmp/skupper-bundle.XXXXX)
-CUR_DIR=$(pwd)
-
-cleanup() {
-  [ -d "${TMP_DIR}" ] && rm -rf "${TMP_DIR}"
-  cd "${CUR_DIR}"
-}
-
-trap cleanup EXIT
-tail -n+"${TAR_CONTENT_START}" "$0" | tar zxf - -C "${TMP_DIR}"
-cd "${TMP_DIR}"
+{{.SelfExtractPart}}
 
 # Bundle installation and removal script
 
 # site name to be provided by bundle generation
 export SITE_NAME="{{.SiteName}}"
 export SKUPPER_PLATFORM="podman"
+export PLATFORM_COMMAND="podman"
 export REMOVE=false
 export DUMP_TOKENS=false
 
@@ -80,12 +67,15 @@ parse_opts() {
                     usage
                 fi
                 if [ "${SKUPPER_PLATFORM}" = "docker" ]; then
+                    export PLATFORM_COMMAND="docker"
                     if [ "${UID}" -ne 0 ]; then
                         # shellcheck disable=SC2090
                         export USERNS="host"
                     fi
                     docker_gid=$(getent group docker | cut -d: -f3)
                     export RUNAS="${UID}:${docker_gid}"
+                elif [ "${SKUPPER_PLATFORM}" = "systemd" ]; then
+                    export PLATFORM_COMMAND="skrouterd"
                 fi
                 ;;
             d)
@@ -265,7 +255,7 @@ create_site() {
 
 sanity_check() {
     required_fields="SITE_NAME OUTPUT_PATH SERVICE_DIR SITES_PATH SKUPPER_PLATFORM"
-    required_commands="python sed find grep xargs tar getent id"
+    required_commands="python sed find grep xargs tar getent id ${PLATFORM_COMMAND}"
 
     for field_name in ${required_fields}; do
         eval [ -n "\${${field_name}}" ] || exit_error "Internal error: required field ${field_name} not defined"

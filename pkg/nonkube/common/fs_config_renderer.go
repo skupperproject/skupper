@@ -12,7 +12,7 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

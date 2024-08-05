@@ -1,4 +1,4 @@
-package non_kube
+package nonkube
 
 import (
 	"archive/tar"
@@ -28,6 +28,12 @@ func NewTarball() *Tarball {
 	tb.tw = tar.NewWriter(tb.gz)
 	tb.mutex = &sync.Mutex{}
 	return tb
+}
+
+func (t *Tarball) SetBuf(buf *bytes.Buffer) {
+	t.buf = buf
+	t.gz = gzip.NewWriter(t.buf)
+	t.tw = tar.NewWriter(t.gz)
 }
 
 // Save saves tarball based on added directories.
@@ -147,6 +153,28 @@ func (t *Tarball) addFiles(dir string) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (t *Tarball) AddFileData(fileName string, mode int64, data []byte) error {
+	var err error
+	err = t.tw.WriteHeader(&tar.Header{
+		Name:    fileName,
+		Mode:    mode,
+		Size:    int64(len(data)),
+		ModTime: time.Now(),
+	})
+	if err != nil {
+		return err
+	}
+	_, err = t.tw.Write(data)
+	if err != nil {
+		return err
+	}
+	err = t.tw.Flush()
+	if err != nil {
+		return err
 	}
 	return nil
 }

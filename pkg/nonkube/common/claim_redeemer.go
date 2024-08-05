@@ -1,8 +1,6 @@
 package common
 
 import (
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
-
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,8 +8,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
 	"time"
+
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 

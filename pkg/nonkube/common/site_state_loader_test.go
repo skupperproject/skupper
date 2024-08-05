@@ -5,7 +5,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
 	"gotest.tools/assert"
 )
 

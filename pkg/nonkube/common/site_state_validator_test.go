@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/non_kube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/apis"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
