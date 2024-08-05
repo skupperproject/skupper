@@ -223,7 +223,7 @@ func (cmd *CmdListenerUpdate) WaitUntilReady() error {
 			return err
 		}
 
-		if resource != nil && resource.Status.StatusMessage == "Ok" {
+		if resource != nil && resource.IsConfigured() {
 			return nil
 		}
 

@@ -102,8 +102,15 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 						Host:     "test",
 						Selector: "mySelector",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 				&v1alpha1.SiteList{
@@ -115,8 +122,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -149,11 +160,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "",
-								},
-							},
 						},
 					},
 				},
@@ -177,8 +183,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -204,8 +214,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -231,8 +245,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -258,8 +276,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -285,8 +307,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -312,8 +338,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -339,8 +369,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -366,8 +400,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -393,8 +431,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -421,8 +463,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -450,8 +496,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -479,8 +529,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -506,8 +560,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -534,8 +592,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -562,8 +624,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -590,8 +656,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -617,8 +687,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -651,8 +725,12 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -775,9 +853,7 @@ func TestCmdConnectorCreate_WaitUntilReady(t *testing.T) {
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "",
-					},
+					Status: v1alpha1.ConnectorStatus{},
 				},
 			},
 			expectError: true,
@@ -794,8 +870,15 @@ func TestCmdConnectorCreate_WaitUntilReady(t *testing.T) {
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -810,8 +893,15 @@ func TestCmdConnectorCreate_WaitUntilReady(t *testing.T) {
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},

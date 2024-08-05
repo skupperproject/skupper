@@ -327,6 +327,10 @@ func (l *Listener) Protocol() corev1.Protocol {
 	return corev1.ProtocolTCP
 }
 
+func (s *Listener) IsConfigured() bool {
+	return meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_CONFIGURED)
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ListenerList contains a List of Listener instances
@@ -415,6 +419,10 @@ func (c *Connector) SetSelectedPods(pods []PodDetails) bool {
 		return true
 	}
 	return false
+}
+
+func (s *Connector) IsConfigured() bool {
+	return meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_CONFIGURED)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -596,6 +604,10 @@ func (g *AccessGrant) setReady(err error) bool {
 func (g *AccessGrant) isReady() bool {
 	return meta.IsStatusConditionTrue(g.Status.Conditions, CONDITION_TYPE_PROCESSED) &&
 		meta.IsStatusConditionTrue(g.Status.Conditions, CONDITION_TYPE_RESOLVED)
+}
+
+func (s *AccessGrant) IsReady() bool {
+	return meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_READY)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

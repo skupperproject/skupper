@@ -42,7 +42,6 @@ type CmdConnectorCreate struct {
 	name       string
 	port       int
 	output     string
-	activeSite *v1alpha1.Site
 	KubeClient kubernetes.Interface
 }
 
@@ -132,12 +131,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a connector can be created", cmd.namespace))
 	} else {
-		for _, s := range siteList.Items {
-			if s.Status.Status.StatusMessage == "OK" && s.Status.Active {
-				cmd.activeSite = &s
-			}
-		}
-		if cmd.activeSite == nil {
+		if !utils.SiteConfigured(siteList) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}
@@ -145,7 +139,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	// Validate if there is already a Connector with this name in the namespace
 	if cmd.name != "" {
 		connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if connector != nil && !errors.IsNotFound(err) && connector.Status.StatusMessage == "Ok" {
+		if connector != nil && !errors.IsNotFound(err) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is already a connector %s created for namespace %s", cmd.name, cmd.namespace))
 		}
 	}
@@ -251,7 +245,7 @@ func (cmd *CmdConnectorCreate) WaitUntilReady() error {
 			return err
 		}
 
-		if resource != nil && resource.Status.StatusMessage == "Ok" {
+		if resource != nil && resource.IsConfigured() {
 			return nil
 		}
 

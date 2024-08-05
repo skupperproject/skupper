@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -31,14 +30,12 @@ type TokenIssue struct {
 }
 
 type CmdTokenIssue struct {
-	client     skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd   cobra.Command
-	flags      TokenIssue
-	namespace  string
-	grantName  string
-	fileName   string
-	activeSite *v1alpha1.Site
-	KubeClient kubernetes.Interface
+	client    skupperv1alpha1.SkupperV1alpha1Interface
+	CobraCmd  cobra.Command
+	flags     TokenIssue
+	namespace string
+	grantName string
+	fileName  string
 }
 
 func NewCmdTokenIssue() *CmdTokenIssue {
@@ -72,7 +69,6 @@ func (cmd *CmdTokenIssue) NewClient(cobraCommand *cobra.Command, args []string) 
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
-	cmd.KubeClient = cli.Kube
 }
 
 func (cmd *CmdTokenIssue) AddFlags() {
@@ -116,12 +112,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be created", cmd.namespace))
 	} else {
-		for _, s := range siteList.Items {
-			if s.Status.Status.StatusMessage == "OK" && s.Status.Active {
-				cmd.activeSite = &s
-			}
-		}
-		if cmd.activeSite == nil {
+		if !utils.SiteConfigured(siteList) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}
@@ -129,7 +120,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	// Validate if we already have a token with this name in the namespace
 	if cmd.grantName != "" {
 		grant, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
-		if grant != nil && !errors.IsNotFound(err) && grant.Status.Status == "Ok" {
+		if grant != nil && !errors.IsNotFound(err) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is already a token %s created in namespace %s", cmd.grantName, cmd.namespace))
 		}
 	}
@@ -181,7 +172,7 @@ func (cmd *CmdTokenIssue) WaitUntilReady() error {
 			return err
 		}
 
-		if token != nil && token.Status.Status == "Ok" {
+		if token != nil && token.IsReady() {
 			// write token to file
 			s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 			out, err := os.Create(cmd.fileName)

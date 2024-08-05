@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/skupperproject/skupper/client"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -28,14 +27,12 @@ type TokenRedeem struct {
 }
 
 type CmdTokenRedeem struct {
-	client     skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd   cobra.Command
-	flags      TokenRedeem
-	name       string
-	namespace  string
-	fileName   string
-	KubeClient kubernetes.Interface
-	activeSite *v1alpha1.Site
+	client    skupperv1alpha1.SkupperV1alpha1Interface
+	CobraCmd  cobra.Command
+	flags     TokenRedeem
+	name      string
+	namespace string
+	fileName  string
 }
 
 func NewCmdTokenRedeem() *CmdTokenRedeem {
@@ -69,7 +66,6 @@ func (cmd *CmdTokenRedeem) NewClient(cobraCommand *cobra.Command, args []string)
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
-	cmd.KubeClient = cli.KubeClient
 }
 
 func (cmd *CmdTokenRedeem) AddFlags() {
@@ -101,12 +97,7 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be redeemed", cmd.namespace))
 	} else {
-		for _, s := range siteList.Items {
-			if s.Status.Status.StatusMessage == "OK" && s.Status.Active {
-				cmd.activeSite = &s
-			}
-		}
-		if cmd.activeSite == nil {
+		if !utils.SiteConfigured(siteList) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}
@@ -171,7 +162,7 @@ func (cmd *CmdTokenRedeem) WaitUntilReady() error {
 			return err
 		}
 
-		if token != nil && token.Status.Status == "Ok" {
+		if token != nil && token.IsRedeemed() {
 			return nil
 		}
 

@@ -112,8 +112,15 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 						Name:      "bad-timeout",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -195,8 +202,15 @@ func TestCmdConnectorDelete_WaitUntilReady(t *testing.T) {
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
