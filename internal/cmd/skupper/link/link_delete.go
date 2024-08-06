@@ -45,4 +45,4 @@ func (cmd *CmdLinkDelete) AddFlags()                                            
 func (cmd *CmdLinkDelete) ValidateInput(args []string) []error                  { return nil }
 func (cmd *CmdLinkDelete) InputToOptions()                                      {}
 func (cmd *CmdLinkDelete) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdLinkDelete) WaitUntilReady() error                                { return nil }
+func (cmd *CmdLinkDelete) WaitUntil() error                                     { return nil }

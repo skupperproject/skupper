@@ -426,7 +426,7 @@ func TestCmdTokenRedeem_WaitUntilReady(t *testing.T) {
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {
-			err := cmd.WaitUntilReady()
+			err := cmd.WaitUntil()
 			if test.expectError {
 				assert.Check(t, err != nil)
 			} else {

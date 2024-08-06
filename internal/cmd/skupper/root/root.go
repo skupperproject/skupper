@@ -16,7 +16,7 @@ type SkupperCommand interface {
 	ValidateInput(args []string) []error
 	InputToOptions()
 	Run() error
-	WaitUntilReady() error
+	WaitUntil() error
 }
 
 var SelectedNamespace string

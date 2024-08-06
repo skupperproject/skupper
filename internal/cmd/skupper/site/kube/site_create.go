@@ -60,7 +60,7 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -196,7 +196,7 @@ func (cmd *CmdSiteCreate) Run() error {
 
 }
 
-func (cmd *CmdSiteCreate) WaitUntilReady() error {
+func (cmd *CmdSiteCreate) WaitUntil() error {
 
 	// the site resource was not created
 	if cmd.output != "" {

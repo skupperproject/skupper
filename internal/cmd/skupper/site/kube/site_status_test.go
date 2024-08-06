@@ -147,7 +147,7 @@ func TestCmdSiteStatus_WaitUntilReady(t *testing.T) {
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 
-		result := command.WaitUntilReady()
+		result := command.WaitUntil()
 		assert.Check(t, result == nil)
 
 	})

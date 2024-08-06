@@ -156,3 +156,5 @@ func (cmd *CmdConnectorStatus) Run() error {
 
 	return nil
 }
+func (cmd *CmdConnectorStatus) InputToOptions()  {}
+func (cmd *CmdConnectorStatus) WaitUntil() error { return nil }

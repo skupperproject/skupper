@@ -45,7 +45,7 @@ func NewCmdConnectorDelete() *CmdConnectorDelete {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 	skupperCmd.CobraCmd = cmd
@@ -106,7 +106,7 @@ func (cmd *CmdConnectorDelete) Run() error {
 	return err
 }
 
-func (cmd *CmdConnectorDelete) WaitUntilReady() error {
+func (cmd *CmdConnectorDelete) WaitUntil() error {
 	waitTime := int(cmd.flags.timeout.Seconds())
 	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
@@ -125,3 +125,5 @@ func (cmd *CmdConnectorDelete) WaitUntilReady() error {
 	fmt.Printf("Connector %q deleted\n", cmd.name)
 	return nil
 }
+
+func (cmd *CmdConnectorDelete) InputToOptions() {}

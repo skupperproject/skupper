@@ -87,4 +87,4 @@ func (cmd *CmdSiteStatus) Run() error {
 	writer.Flush()
 	return nil
 }
-func (cmd *CmdSiteStatus) WaitUntilReady() error { return nil }
+func (cmd *CmdSiteStatus) WaitUntil() error { return nil }

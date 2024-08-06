@@ -58,7 +58,7 @@ func NewCmdListenerUpdate() *CmdListenerUpdate {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -208,7 +208,7 @@ func (cmd *CmdListenerUpdate) Run() error {
 	}
 }
 
-func (cmd *CmdListenerUpdate) WaitUntilReady() error {
+func (cmd *CmdListenerUpdate) WaitUntil() error {
 
 	// the site resource was not created
 	if cmd.newSettings.output != "" {
@@ -237,3 +237,5 @@ func (cmd *CmdListenerUpdate) WaitUntilReady() error {
 	fmt.Printf("Listener %q is ready\n", cmd.name)
 	return nil
 }
+
+func (cmd *CmdListenerUpdate) InputToOptions() {}
