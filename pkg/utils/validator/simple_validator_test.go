@@ -180,7 +180,7 @@ func TestNewWorkloadStringValidator_Evaluate(t *testing.T) {
 		{name: "empty string", value: "", result: false},
 		{name: "string with spaces", value: "provided value", result: false},
 		{name: "string with numbers", value: "site123", result: true},
-		{name: "number", value: 123, result: true},
+		{name: "number", value: 123, result: false},
 		{name: "nil value", value: nil, result: false},
 		{name: "string with underscore", value: "abc_def", result: false},
 		{name: "string with equal", value: "abc=def", result: true},
