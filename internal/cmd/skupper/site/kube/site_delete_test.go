@@ -307,7 +307,7 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 	}
 }
 
-func TestCmdSiteDelete_WaitUntilReady(t *testing.T) {
+func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
 		k8sObjects     []runtime.Object

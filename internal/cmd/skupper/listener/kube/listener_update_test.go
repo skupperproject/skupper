@@ -429,7 +429,7 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 	}
 }
 
-func TestCmdListenerUpdate_WaitUntilReady(t *testing.T) {
+func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		output              string

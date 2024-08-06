@@ -652,7 +652,7 @@ func TestCmdTokenIssue_Run(t *testing.T) {
 	}
 }
 
-func TestCmdTokenIssue_WaitUntilReady(t *testing.T) {
+func TestCmdTokenIssue_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		k8sObjects          []runtime.Object

@@ -335,7 +335,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 		})
 	}
 }
-func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
+func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
 		k8sObjects     []runtime.Object

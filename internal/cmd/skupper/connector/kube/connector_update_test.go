@@ -498,7 +498,7 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 	}
 }
 
-func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
+func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		output              string
