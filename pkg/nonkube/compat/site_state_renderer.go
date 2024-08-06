@@ -118,7 +118,7 @@ func (s *SiteStateRenderer) prepareContainers() error {
 		},
 		RestartPolicy: "always",
 		// TODO handle resource utilization with container sites
-		//      use pkg.non_kube.cgroups.CgroupControllers to
+		//      use pkg.nonkube.cgroups.CgroupControllers to
 		//      validate whether CPU and memory thresholds can be
 		//      set to the container
 	}
