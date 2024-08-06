@@ -95,8 +95,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -107,8 +111,15 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ListenerStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -159,8 +170,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -183,8 +198,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -207,8 +226,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -231,8 +254,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -255,8 +282,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -279,8 +310,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -303,8 +338,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -327,8 +366,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -352,8 +395,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -380,8 +427,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -408,8 +459,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -436,8 +491,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -460,8 +519,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -487,8 +550,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -519,8 +586,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -531,8 +602,15 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ListenerStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -643,8 +721,8 @@ func TestCmdListenerCreate_WaitUntilReady(t *testing.T) {
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "",
+					Status: v1alpha1.ListenerStatus{
+						Status: v1alpha1.Status{},
 					},
 				},
 			},
@@ -662,8 +740,15 @@ func TestCmdListenerCreate_WaitUntilReady(t *testing.T) {
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ListenerStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -678,8 +763,15 @@ func TestCmdListenerCreate_WaitUntilReady(t *testing.T) {
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ListenerStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},

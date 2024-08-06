@@ -96,8 +96,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -113,7 +117,14 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 						ExpirationWindow:   "15m0s",
 					},
 					Status: v1alpha1.AccessGrantStatus{
-						Status: "Ok",
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Ready",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -132,6 +143,16 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
+					},
+					Status: v1alpha1.AccessGrantStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Ready",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -154,9 +175,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "",
-								},
+								Status: v1alpha1.Status{},
 							},
 						},
 					},
@@ -188,8 +207,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -216,8 +239,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -244,8 +271,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -272,8 +303,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -300,8 +335,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -328,8 +367,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -356,8 +399,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -384,8 +431,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -413,8 +464,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -441,8 +496,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -469,8 +528,12 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -486,7 +549,14 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 						ExpirationWindow:   "15m0s",
 					},
 					Status: v1alpha1.AccessGrantStatus{
-						Status: "Ok",
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Ready",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -540,6 +610,16 @@ func TestCmdTokenIssue_Run(t *testing.T) {
 						Name:      "my-token",
 						Namespace: "test",
 					},
+					Status: v1alpha1.AccessGrantStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Ready",
+									Status: "True",
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -591,9 +671,7 @@ func TestCmdTokenIssue_WaitUntilReady(t *testing.T) {
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Status: v1alpha1.AccessGrantStatus{
-						Status: "",
-					},
+					Status: v1alpha1.AccessGrantStatus{},
 				},
 			},
 			skupperErrorMessage: "",
@@ -617,7 +695,14 @@ func TestCmdTokenIssue_WaitUntilReady(t *testing.T) {
 						ExpirationWindow:   "15m0s",
 					},
 					Status: v1alpha1.AccessGrantStatus{
-						Status: "Ok",
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Ready",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -659,9 +744,8 @@ func newCmdTokenIssueWithMocks(namespace string, k8sObjects []runtime.Object, sk
 		return nil, err
 	}
 	cmdTokenIssue := &CmdTokenIssue{
-		client:     client.GetSkupperClient().SkupperV1alpha1(),
-		KubeClient: client.GetKubeClient(),
-		namespace:  namespace,
+		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		namespace: namespace,
 	}
 
 	return cmdTokenIssue, nil

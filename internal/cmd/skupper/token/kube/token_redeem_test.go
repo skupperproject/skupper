@@ -129,8 +129,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -153,8 +157,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -177,8 +185,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -201,8 +213,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -225,8 +241,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -251,8 +271,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									StatusMessage: "OK",
-									Active:        true,
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
 								},
 							},
 						},
@@ -304,6 +328,14 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 						Name:      "my-token",
 						Namespace: "test",
 					},
+					Status: v1alpha1.Status{
+						Conditions: []v1.Condition{
+							{
+								Type:   "Redeemed",
+								Status: "True",
+							},
+						},
+					},
 				},
 			},
 			skupperErrorMessage: "",
@@ -352,9 +384,7 @@ func TestCmdTokenRedeem_WaitUntilReady(t *testing.T) {
 						Name:      "my-grant",
 						Namespace: "test",
 					},
-					Status: v1alpha1.AccessTokenStatus{
-						Status: "",
-					},
+					Status: v1alpha1.Status{},
 				},
 			},
 			expectError: true,
@@ -365,15 +395,20 @@ func TestCmdTokenRedeem_WaitUntilReady(t *testing.T) {
 			expectError:         true,
 		},
 		{
-			name: "token is ready",
+			name: "token is redeemed",
 			skupperObjects: []runtime.Object{
 				&v1alpha1.AccessToken{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-grant",
 						Namespace: "test",
 					},
-					Status: v1alpha1.AccessTokenStatus{
-						Status: "Ok",
+					Status: v1alpha1.Status{
+						Conditions: []v1.Condition{
+							{
+								Type:   "Redeemed",
+								Status: "True",
+							},
+						},
 					},
 				},
 			},
@@ -441,9 +476,8 @@ func newCmdTokenRedeemWithMocks(namespace string, k8sObjects []runtime.Object, s
 		return nil, err
 	}
 	cmdTokenRedeem := &CmdTokenRedeem{
-		client:     client.GetSkupperClient().SkupperV1alpha1(),
-		KubeClient: client.GetKubeClient(),
-		namespace:  namespace,
+		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		namespace: namespace,
 	}
 
 	return cmdTokenRedeem, nil

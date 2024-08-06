@@ -126,8 +126,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "my-connector-type",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -147,8 +154,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "my-connector-rk",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -168,8 +182,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "my-connector-tls",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -188,8 +209,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "my-connector-port",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -209,8 +237,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "bad-workload",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -230,8 +265,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "bad-selector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -251,8 +293,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "bad-timeout",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -271,8 +320,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "bad-output",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -299,8 +355,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 						Name:      "my-connector-flags",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -366,8 +429,15 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 						Name:      "my-connector-ok",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -393,8 +463,15 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 						Name:      "my-connector-json",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -440,9 +517,7 @@ func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "",
-					},
+					Status: v1alpha1.ConnectorStatus{},
 				},
 			},
 			expectError: true,
@@ -459,8 +534,15 @@ func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -475,8 +557,15 @@ func TestCmdConnectorUpdate_WaitUntilReady(t *testing.T) {
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},

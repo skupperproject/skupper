@@ -79,8 +79,15 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 								Type: "tcp",
 								Host: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -146,8 +153,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "listener1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -171,8 +185,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Type: "tcp",
 								Host: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -189,8 +210,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 						{
@@ -198,8 +226,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -217,8 +252,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 						{
@@ -226,8 +268,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -245,8 +294,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 						{
@@ -254,8 +310,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -275,8 +338,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ListenerStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},

@@ -74,8 +74,15 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 								Name:      "out-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -95,8 +102,15 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 								Name:      "out-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -156,8 +170,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -176,8 +197,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -194,8 +222,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 						{
@@ -203,8 +238,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -222,8 +264,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 						{
@@ -231,8 +280,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -250,8 +306,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 						{
@@ -259,8 +322,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -280,8 +350,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.Status{
-								StatusMessage: "Ok",
+							Status: v1alpha1.ConnectorStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
 							},
 						},
 					},

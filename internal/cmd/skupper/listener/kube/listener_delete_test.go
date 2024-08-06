@@ -112,8 +112,15 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 						Name:      "bad-timeout",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ListenerStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -160,8 +167,15 @@ func TestCmdListenerDelete_Run(t *testing.T) {
 						Name:      "listener-delete",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ListenerStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -211,8 +225,15 @@ func TestCmdListenerDelete_WaitUntilReady(t *testing.T) {
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "Ok",
+					Status: v1alpha1.ListenerStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
 					},
 				},
 			},

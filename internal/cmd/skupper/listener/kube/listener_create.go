@@ -39,7 +39,6 @@ type CmdListenerCreate struct {
 	name       string
 	port       int
 	output     string
-	activeSite *v1alpha1.Site
 	KubeClient kubernetes.Interface
 }
 
@@ -125,12 +124,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a listener can be created", cmd.namespace))
 	} else {
-		for _, s := range siteList.Items {
-			if s.Status.Status.StatusMessage == "OK" && s.Status.Active {
-				cmd.activeSite = &s
-			}
-		}
-		if cmd.activeSite == nil {
+		if !utils.SiteConfigured(siteList) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}
@@ -138,7 +132,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	// Validate if there is already a listener with this name in the namespace
 	if cmd.name != "" {
 		listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if listener != nil && !errors.IsNotFound(err) && listener.Status.StatusMessage == "Ok" {
+		if listener != nil && !errors.IsNotFound(err) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is already a listener %s created for namespace %s", cmd.name, cmd.namespace))
 		}
 	}
@@ -228,7 +222,7 @@ func (cmd *CmdListenerCreate) WaitUntilReady() error {
 			return err
 		}
 
-		if resource != nil && resource.Status.StatusMessage == "Ok" {
+		if resource != nil && resource.IsConfigured() {
 			return nil
 		}
 
