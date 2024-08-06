@@ -236,7 +236,7 @@ func (cmd *CmdSiteUpdate) WaitUntil() error {
 			return err
 		}
 
-		if resource != nil && resource.IsActive() {
+		if resource != nil && resource.IsConfigured() {
 			return nil
 		}
 

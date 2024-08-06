@@ -203,7 +203,7 @@ func (s *Site) isReady() bool {
 		meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_RUNNING)
 }
 
-func (s *Site) IsActive() bool {
+func (s *Site) IsConfigured() bool {
 	return meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_CONFIGURED)
 }
 
