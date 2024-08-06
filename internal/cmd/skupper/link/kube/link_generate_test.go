@@ -851,7 +851,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 	}
 }
 
-func TestCmdLinkGenerate_WaitUntilReady(t *testing.T) {
+func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 	type test struct {
 		name               string
 		generateCredential bool
@@ -961,7 +961,7 @@ func TestCmdLinkGenerate_WaitUntilReady(t *testing.T) {
 			command.tlsSecret = test.tlsSecret
 			command.timeout = test.timeout
 
-			err := command.WaitUntilReady()
+			err := command.WaitUntil()
 
 			if test.expectError {
 				assert.Check(t, err != nil)

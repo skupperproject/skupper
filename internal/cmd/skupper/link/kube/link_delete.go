@@ -45,7 +45,7 @@ func NewCmdLinkDelete() *CmdLinkDelete {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -109,7 +109,7 @@ func (cmd *CmdLinkDelete) Run() error {
 	err := cmd.Client.Links(cmd.Namespace).Delete(context.TODO(), cmd.linkName, metav1.DeleteOptions{})
 	return err
 }
-func (cmd *CmdLinkDelete) WaitUntilReady() error {
+func (cmd *CmdLinkDelete) WaitUntil() error {
 	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", cmd.timeout, func() error {
 
 		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})

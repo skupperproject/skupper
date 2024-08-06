@@ -280,7 +280,7 @@ func TestCmdLinkStatus_WaitUntilReady(t *testing.T) {
 		cmd, err := newCmdLinkStatusWithMocks("test", nil, nil, "")
 		assert.Assert(t, err)
 
-		result := cmd.WaitUntilReady()
+		result := cmd.WaitUntil()
 		assert.Check(t, result == nil)
 
 	})

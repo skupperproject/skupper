@@ -65,7 +65,7 @@ func NewCmdLinkGenerate() *CmdLinkGenerate {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -235,7 +235,7 @@ func (cmd *CmdLinkGenerate) Run() error {
 	return nil
 }
 
-func (cmd *CmdLinkGenerate) WaitUntilReady() error {
+func (cmd *CmdLinkGenerate) WaitUntil() error {
 
 	var resourcesToPrint []string
 	encodedOutput, err := utils.Encode(cmd.output, cmd.generatedLink)

@@ -324,7 +324,7 @@ func TestCmdLinkDelete_Run(t *testing.T) {
 	}
 }
 
-func TestCmdLinkDelete_WaitUntilReady(t *testing.T) {
+func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
 		timeout        int
@@ -372,7 +372,7 @@ func TestCmdLinkDelete_WaitUntilReady(t *testing.T) {
 		cmd.timeout = test.timeout
 		t.Run(test.name, func(t *testing.T) {
 
-			err := cmd.WaitUntilReady()
+			err := cmd.WaitUntil()
 			if err != nil {
 				assert.Check(t, test.expectError)
 			}

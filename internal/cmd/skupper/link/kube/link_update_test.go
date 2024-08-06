@@ -535,7 +535,7 @@ func TestCmdLinkUpdate_Run(t *testing.T) {
 	}
 }
 
-func TestCmdLinkUpdate_WaitUntilReady(t *testing.T) {
+func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		k8sObjects          []runtime.Object
@@ -613,7 +613,7 @@ func TestCmdLinkUpdate_WaitUntilReady(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			err := cmd.WaitUntilReady()
+			err := cmd.WaitUntil()
 
 			if test.expectError {
 				assert.Check(t, err != nil)

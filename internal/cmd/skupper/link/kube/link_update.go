@@ -56,7 +56,7 @@ func NewCmdLinkUpdate() *CmdLinkUpdate {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -200,7 +200,7 @@ func (cmd *CmdLinkUpdate) Run() error {
 
 }
 
-func (cmd *CmdLinkUpdate) WaitUntilReady() error {
+func (cmd *CmdLinkUpdate) WaitUntil() error {
 
 	// the site resource was not created
 	if cmd.output != "" {

@@ -138,7 +138,7 @@ func (cmd *CmdLinkStatus) Run() error {
 
 	return nil
 }
-func (cmd *CmdLinkStatus) WaitUntilReady() error { return nil }
+func (cmd *CmdLinkStatus) WaitUntil() error { return nil }
 
 func printEncodedOuptut(outputType string, link *v1alpha1.Link) error {
 	encodedOutput, err := utils.Encode(outputType, link)
