@@ -45,4 +45,4 @@ func (cmd *CmdLinkCreate) AddFlags()                                            
 func (cmd *CmdLinkCreate) ValidateInput(args []string) []error                  { return nil }
 func (cmd *CmdLinkCreate) InputToOptions()                                      {}
 func (cmd *CmdLinkCreate) Run() error                                           { fmt.Println("Not implemented yet."); return nil }
-func (cmd *CmdLinkCreate) WaitUntilReady() error                                { return nil }
+func (cmd *CmdLinkCreate) WaitUntil() error                                     { return nil }

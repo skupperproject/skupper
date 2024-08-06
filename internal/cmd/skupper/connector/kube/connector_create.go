@@ -60,7 +60,7 @@ func NewCmdConnectorCreate() *CmdConnectorCreate {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -231,7 +231,7 @@ func (cmd *CmdConnectorCreate) Run() error {
 	}
 }
 
-func (cmd *CmdConnectorCreate) WaitUntilReady() error {
+func (cmd *CmdConnectorCreate) WaitUntil() error {
 	// the site resource was not created
 	if cmd.output != "" {
 		return nil
@@ -259,3 +259,5 @@ func (cmd *CmdConnectorCreate) WaitUntilReady() error {
 	fmt.Printf("Connector %q is ready\n", cmd.name)
 	return nil
 }
+
+func (cmd *CmdConnectorCreate) InputToOptions() {}

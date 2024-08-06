@@ -45,7 +45,7 @@ func NewCmdListenerDelete() *CmdListenerDelete {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 	skupperCmd.CobraCmd = cmd
@@ -107,7 +107,7 @@ func (cmd *CmdListenerDelete) Run() error {
 	return err
 }
 
-func (cmd *CmdListenerDelete) WaitUntilReady() error {
+func (cmd *CmdListenerDelete) WaitUntil() error {
 	waitTime := int(cmd.flags.timeout.Seconds())
 	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
@@ -126,3 +126,5 @@ func (cmd *CmdListenerDelete) WaitUntilReady() error {
 	fmt.Printf("Listener %q deleted\n", cmd.name)
 	return nil
 }
+
+func (cmd *CmdListenerDelete) InputToOptions() {}

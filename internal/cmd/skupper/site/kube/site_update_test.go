@@ -607,7 +607,7 @@ func TestCmdSiteUpdate_WaitUntilReady(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			err := command.WaitUntilReady()
+			err := command.WaitUntil()
 			if err != nil {
 				assert.Check(t, test.expectError)
 				assert.Check(t, test.errorMessage == err.Error())

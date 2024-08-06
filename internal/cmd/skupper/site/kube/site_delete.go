@@ -37,7 +37,7 @@ func NewCmdSiteDelete() *CmdSiteDelete {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -99,7 +99,7 @@ func (cmd *CmdSiteDelete) Run() error {
 	err := cmd.Client.Sites(cmd.Namespace).Delete(context.TODO(), cmd.siteName, metav1.DeleteOptions{})
 	return err
 }
-func (cmd *CmdSiteDelete) WaitUntilReady() error {
+func (cmd *CmdSiteDelete) WaitUntil() error {
 	err := utils.NewSpinner("Waiting for deletion to complete...", 5, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})

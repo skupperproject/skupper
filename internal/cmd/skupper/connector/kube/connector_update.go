@@ -63,7 +63,7 @@ func NewCmdConnectorUpdate() *CmdConnectorUpdate {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -239,7 +239,7 @@ func (cmd *CmdConnectorUpdate) Run() error {
 	}
 }
 
-func (cmd *CmdConnectorUpdate) WaitUntilReady() error {
+func (cmd *CmdConnectorUpdate) WaitUntil() error {
 
 	// the site resource was not created
 	if cmd.newSettings.output != "" {
@@ -268,3 +268,5 @@ func (cmd *CmdConnectorUpdate) WaitUntilReady() error {
 	fmt.Printf("Connector %q is ready\n", cmd.name)
 	return nil
 }
+
+func (cmd *CmdConnectorUpdate) InputToOptions() {}

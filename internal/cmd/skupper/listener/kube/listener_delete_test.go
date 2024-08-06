@@ -255,7 +255,7 @@ func TestCmdListenerDelete_WaitUntilReady(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			err := cmd.WaitUntilReady()
+			err := cmd.WaitUntil()
 			if test.expectError {
 				assert.Check(t, err != nil)
 			} else {

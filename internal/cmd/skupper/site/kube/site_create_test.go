@@ -423,7 +423,7 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			err := command.WaitUntilReady()
+			err := command.WaitUntil()
 
 			if test.expectError {
 				assert.Check(t, err != nil)

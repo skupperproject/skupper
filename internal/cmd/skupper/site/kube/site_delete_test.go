@@ -347,7 +347,7 @@ func TestCmdSiteDelete_WaitUntilReady(t *testing.T) {
 		command.siteName = "my-site"
 		t.Run(test.name, func(t *testing.T) {
 
-			err := command.WaitUntilReady()
+			err := command.WaitUntil()
 			if err != nil {
 				assert.Check(t, test.expectError)
 			}

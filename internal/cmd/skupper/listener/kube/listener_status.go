@@ -156,3 +156,6 @@ func (cmd *CmdListenerStatus) Run() error {
 
 	return nil
 }
+
+func (cmd *CmdListenerStatus) InputToOptions()  {}
+func (cmd *CmdListenerStatus) WaitUntil() error { return nil }

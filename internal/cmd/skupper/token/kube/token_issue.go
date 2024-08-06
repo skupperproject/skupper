@@ -53,7 +53,7 @@ func NewCmdTokenIssue() *CmdTokenIssue {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -164,7 +164,7 @@ func (cmd *CmdTokenIssue) Run() error {
 
 }
 
-func (cmd *CmdTokenIssue) WaitUntilReady() error {
+func (cmd *CmdTokenIssue) WaitUntil() error {
 	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.flags.timeout.Seconds()), func() error {
 
 		token, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
@@ -202,3 +202,5 @@ func (cmd *CmdTokenIssue) WaitUntilReady() error {
 	fmt.Printf("\nThe token expires after %d use(s) or after %s.\n", cmd.flags.redemptions, cmd.flags.expiration.String())
 	return nil
 }
+
+func (cmd *CmdTokenIssue) InputToOptions() {}

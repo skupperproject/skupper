@@ -50,7 +50,7 @@ func NewCmdTokenRedeem() *CmdTokenRedeem {
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
+			return skupperCmd.WaitUntil()
 		},
 	}
 
@@ -153,7 +153,7 @@ func (cmd *CmdTokenRedeem) Run() error {
 	return err
 }
 
-func (cmd *CmdTokenRedeem) WaitUntilReady() error {
+func (cmd *CmdTokenRedeem) WaitUntil() error {
 
 	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.flags.timeout.Seconds()), func() error {
 
@@ -177,3 +177,5 @@ func (cmd *CmdTokenRedeem) WaitUntilReady() error {
 	fmt.Printf("You can now safely delete %s\n", cmd.fileName)
 	return nil
 }
+
+func (cmd *CmdTokenRedeem) InputToOptions() {}
