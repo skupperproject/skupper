@@ -76,6 +76,7 @@ type RouterOptions struct {
 	PodAnnotations      map[string]string
 	LoadBalancerIp      string
 	DisableMutualTLS    bool
+	DropTcpConnections  bool
 }
 
 type ControllerOptions struct {

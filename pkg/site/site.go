@@ -73,6 +73,7 @@ const (
 	SiteConfigRouterPodAnnotationsKey      string = "router-pod-annotations"
 	SiteConfigRouterLoadBalancerIp         string = "router-load-balancer-ip"
 	SiteConfigRouterDisableMutualTLS       string = "router-disable-mutual-tls"
+	SiteConfigRouterDropTcpConnections     string = "router-drop-tcp-connections"
 
 	// controller options
 	SiteConfigServiceControllerKey            string = "service-controller"
@@ -268,6 +269,9 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 	}
 	if spec.Router.DisableMutualTLS {
 		siteConfig.Data[SiteConfigRouterDisableMutualTLS] = "true"
+	}
+	if spec.Router.DropTcpConnections {
+		siteConfig.Data[SiteConfigRouterDropTcpConnections] = "true"
 	}
 	if spec.Controller.Cpu != "" {
 		if _, err := resource.ParseQuantity(spec.Controller.Cpu); err != nil {
@@ -671,6 +675,9 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	}
 	if value, ok := siteConfig.Data[SiteConfigRouterDisableMutualTLS]; ok {
 		result.Spec.Router.DisableMutualTLS, _ = strconv.ParseBool(value)
+	}
+	if value, ok := siteConfig.Data[SiteConfigRouterDropTcpConnections]; ok {
+		result.Spec.Router.DropTcpConnections, _ = strconv.ParseBool(value)
 	}
 
 	if controllerCpu, ok := siteConfig.Data[SiteConfigControllerCpuKey]; ok && controllerCpu != "" {
