@@ -807,7 +807,7 @@ func (s *Site) NetworkStatusUpdated(network []skupperv1alpha1.SiteRecord) error 
 	for _, linkRecord := range linkRecords {
 		if link, ok := s.links[linkRecord.Name]; ok {
 			if err := s.updateLinkOperationalCondition(link.Definition(), linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName); err != nil {
-				log.Printf("Error updating operational status of link %s/%s: err", s.site.Namespace, linkRecord.Name, err)
+				log.Printf("Error updating operational status of link %s/%s: %s", s.site.Namespace, linkRecord.Name, err)
 			}
 		}
 	}
