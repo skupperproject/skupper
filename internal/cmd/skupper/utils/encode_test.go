@@ -37,9 +37,7 @@ func Test_Marshal(t *testing.T) {
   "spec": {
     "linkAccess": "default"
   },
-  "status": {
-    "active": false
-  }
+  "status": {}
 }`, false},
 		{"yaml", v1alpha1.Site{
 			TypeMeta: v1.TypeMeta{
@@ -62,8 +60,7 @@ metadata:
   namespace: test
 spec:
   linkAccess: default
-status:
-  active: false
+status: {}
 `,
 			false},
 		{"unsupported", v1alpha1.Site{
