@@ -179,7 +179,7 @@ func (a *AttachedConnector) Id() string {
 
 func error_(errors []string) error {
 	if len(errors) > 0 {
-		return fmt.Errorf("Error(s) encountered: %", strings.Join(errors, ", "))
+		return fmt.Errorf("Error(s) encountered: %s", strings.Join(errors, ", "))
 	}
 	return nil
 }
