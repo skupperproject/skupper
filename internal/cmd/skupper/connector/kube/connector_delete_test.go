@@ -184,7 +184,7 @@ func TestCmdConnectorDelete_Run(t *testing.T) {
 	}
 }
 
-func TestCmdConnectorDelete_WaitUntilReady(t *testing.T) {
+func TestCmdConnectorDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		k8sObjects          []runtime.Object

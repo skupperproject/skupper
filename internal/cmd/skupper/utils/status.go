@@ -6,7 +6,7 @@ import (
 
 func SiteConfigured(siteList *v1alpha1.SiteList) bool {
 	for _, s := range siteList.Items {
-		if s.IsActive() {
+		if s.IsConfigured() {
 			return true
 		}
 	}

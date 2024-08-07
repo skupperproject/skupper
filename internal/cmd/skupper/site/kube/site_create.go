@@ -210,7 +210,7 @@ func (cmd *CmdSiteCreate) WaitUntil() error {
 			return err
 		}
 
-		if resource != nil && resource.Status.StatusMessage == "OK" {
+		if resource != nil && resource.IsConfigured() {
 			return nil
 		}
 
@@ -218,10 +218,10 @@ func (cmd *CmdSiteCreate) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Site %q not ready yet, check the logs for more information\n", cmd.siteName)
+		return fmt.Errorf("Site %q not configured yet, check the logs for more information\n", cmd.siteName)
 	}
 
-	fmt.Printf("Site %q is ready\n", cmd.siteName)
+	fmt.Printf("Site %q is configured. Check the status to see when it is ready\n", cmd.siteName)
 
 	return nil
 }

@@ -135,7 +135,7 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 	}
 }
 
-func TestCmdSiteStatus_WaitUntilReady(t *testing.T) {
+func TestCmdSiteStatus_WaitUntil(t *testing.T) {
 
 	t.Run("", func(t *testing.T) {
 

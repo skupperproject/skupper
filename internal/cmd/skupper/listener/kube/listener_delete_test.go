@@ -207,7 +207,7 @@ func TestCmdListenerDelete_Run(t *testing.T) {
 	}
 }
 
-func TestCmdListenerDelete_WaitUntilReady(t *testing.T) {
+func TestCmdListenerDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		k8sObjects          []runtime.Object

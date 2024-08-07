@@ -560,7 +560,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 	}
 }
 
-func TestCmdSiteUpdate_WaitUntilReady(t *testing.T) {
+func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
 		k8sObjects     []runtime.Object
