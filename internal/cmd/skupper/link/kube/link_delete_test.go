@@ -341,15 +341,17 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 						Name:      "my-link",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
-						StatusMessage: "OK",
-						Conditions: []v1.Condition{
-							{
-								Message:            "OK",
-								ObservedGeneration: 1,
-								Reason:             "OK",
-								Status:             "True",
-								Type:               "Configured",
+					Status: v1alpha1.LinkStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
 							},
 						},
 					},
