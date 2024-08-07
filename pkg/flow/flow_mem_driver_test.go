@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,9 +28,11 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 	address2 := "redis-cart"
 	address3 := "mongo"
 	address4 := "cartservice"
+	addressExt := "svc-acme-foo"
 	protocol := "tcp"
 	counterFlow2 := "flow:2"
 	counterFlow4 := "flow:4"
+	counterFlow10 := "flow:10"
 	processName1 := "checkout-1234"
 	processName2 := "payment-1234"
 	groupName1 := "online-store"
@@ -39,6 +42,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 	sourceHost1 := "11.22.33.44"
 	destHost1 := "10.20.30.40"
 	destHost2 := "host.cloud.com"
+	destHostExt := "172.4.4.8"
 	connectorHost := "0.0.0.0"
 	linkNames := []string{
 		"site1.1",
@@ -218,6 +222,16 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			Protocol: &protocol,
 			Address:  &address2,
 		},
+		{
+			Base: Base{
+				RecType:   recordNames[Listener],
+				Identity:  "listener:3",
+				Parent:    "router:1",
+				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+			},
+			Protocol: &protocol,
+			Address:  &addressExt,
+		},
 	}
 	connectors := []ConnectorRecord{
 		{
@@ -264,6 +278,17 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			Address:   &address,
 			ProcessId: &connectorProcess1,
 			DestHost:  &destHost1,
+		},
+		{
+			Base: Base{
+				RecType:   recordNames[Connector],
+				Identity:  "connector:3",
+				Parent:    "router:0",
+				StartTime: uint64(time.Now().Add(-3*time.Minute).UnixNano()) / uint64(time.Microsecond),
+			},
+			Protocol: &protocol,
+			Address:  &addressExt,
+			DestHost: &destHostExt,
 		},
 	}
 	// Two very screwy flow pairs
@@ -340,6 +365,31 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 		},
 	}
 
+	// An additional tcp flow pair (10,11):
+	// Exchange between process:0 -> an unknown external process. Should
+	// introduce a site-server process
+	flows = append(flows, []FlowRecord{
+		{
+			Base: Base{
+				RecType:   recordNames[Flow],
+				Identity:  "flow:10",
+				Parent:    "listener:3",
+				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+			},
+			SourceHost: &sourceHost1,
+		},
+		{
+			Base: Base{
+				RecType:   recordNames[Flow],
+				Identity:  "flow:11",
+				Parent:    "connector:3",
+				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+			},
+			SourceHost:  &connectorHost,
+			CounterFlow: &counterFlow10,
+		},
+	}...)
+
 	reg := prometheus.NewRegistry()
 	u, _ := time.ParseDuration("5m")
 	fc := NewFlowCollector(FlowCollectorSpec{
@@ -349,6 +399,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 		ConnectionFactory: nil,
 		FlowRecordTtl:     u,
 	})
+	fc.startTime = uint64(time.Now().Add(time.Minute * -5).UnixMicro())
 	fc.metrics = fc.NewMetrics(fc.prometheusReg)
 	for _, s := range sites {
 		err := fc.updateRecord(s)
@@ -453,9 +504,11 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 	}
 
 	var processGroupId string
-	for x := range fc.ProcessGroups {
-		processGroupId = x
-		break
+	for x, group := range fc.ProcessGroups {
+		if group.Name != nil && !strings.HasPrefix(*group.Name, "site-servers") {
+			processGroupId = x
+			break
+		}
 	}
 
 	fc.reconcileConnectorRecords()
@@ -531,7 +584,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{"id": "site:0"},
 			name:         "processes",
-			responseSize: len(processes),
+			responseSize: len(processes) + 1,
 		},
 		{
 			desc:         "Get Host list",
@@ -581,7 +634,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{"id": "router:0"},
 			name:         "flows",
-			responseSize: 6,
+			responseSize: 7,
 		},
 		{
 			desc:         "Get Router links",
@@ -611,7 +664,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{"id": "router:0"},
 			name:         "connectors",
-			responseSize: 2,
+			responseSize: 3,
 		},
 		{
 			desc:         "Get Link list",
@@ -671,7 +724,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{},
 			name:         "list",
-			responseSize: 3,
+			responseSize: 4,
 		},
 		{
 			desc:         "Get Connector item",
@@ -821,7 +874,17 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{},
 			name:         "list",
-			responseSize: len(processes),
+			responseSize: len(processes) + 1,
+		},
+		{
+			desc:         "Get Process site-servers",
+			recordType:   Process,
+			method:       "Get",
+			url:          "/",
+			params:       map[string]string{"sortBy": "identity.asc", "name": "site-servers", "processBinding": "bound"},
+			vars:         map[string]string{},
+			name:         "list",
+			responseSize: 1,
 		},
 		{
 			desc:         "Get Process item",
@@ -841,7 +904,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{"id": "process:0"},
 			name:         "flows",
-			responseSize: 3,
+			responseSize: 4,
 		},
 		{
 			desc:         "Get Process addresses",
@@ -871,7 +934,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{},
 			name:         "list",
-			responseSize: 1,
+			responseSize: 2,
 		},
 		{
 			desc:         "Get ProcessGroup item",
@@ -921,7 +984,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{},
 			name:         "list",
-			responseSize: 1,
+			responseSize: 2,
 		},
 		{
 			desc:         "Get ProcessPair list",
@@ -931,7 +994,7 @@ func TestRecordGraphWithMetrics(t *testing.T) {
 			params:       map[string]string{"sortBy": "identity.asc"},
 			vars:         map[string]string{},
 			name:         "list",
-			responseSize: 1,
+			responseSize: 2,
 		},
 		{
 			desc:         "Get ProcessPair item",

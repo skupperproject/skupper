@@ -963,8 +963,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					current.EndTime = connector.EndTime
 					if current.ProcessId != nil {
 						if process, ok := fc.Processes[*current.ProcessId]; ok {
-							process.connector = nil
-							process.ProcessBinding = &Unbound
+							if process.Name == nil || !strings.HasPrefix(*process.Name, "site-servers-") {
+								// site servers can be reused by multiple connectors - do not unbind
+								process.connector = nil
+								process.ProcessBinding = &Unbound
+							}
 						}
 					}
 					// Note a new connector can create an address but does not delete it
@@ -2585,6 +2588,8 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 						for _, process := range fc.Processes {
 							if process.Name != nil && *process.Name == processName {
 								log.Printf("COLLECTOR: Associating connector %s to external process %s\n", connector.Identity, processName)
+								process.ProcessBinding = &Bound
+								process.connector = &connector.Identity
 								connector.ProcessId = &process.Identity
 								delete(fc.connectorsToReconcile, connId)
 								break
