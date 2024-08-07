@@ -15,97 +15,14 @@ limitations under the License.
 package kube
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/openshift/client-go/apps/clientset/versioned"
-	"k8s.io/client-go/kubernetes"
-
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func GetServiceInterfaceTarget(targetType string, targetName string, deducePort bool, namespace string, cli kubernetes.Interface, appscli versioned.Interface) (*types.ServiceInterfaceTarget, error) {
-	if targetType == "deployment" {
-		deployment, err := cli.AppsV1().Deployments(namespace).Get(context.TODO(), targetName, metav1.GetOptions{})
-		if err == nil {
-			target := types.ServiceInterfaceTarget{
-				Name:      deployment.ObjectMeta.Name,
-				Selector:  utils.StringifySelector(deployment.Spec.Selector.MatchLabels),
-				Namespace: namespace,
-			}
-			if deducePort {
-				//TODO: handle case where there is more than one container (need --container option?)
-				if deployment.Spec.Template.Spec.Containers[0].Ports != nil {
-					target.TargetPorts = GetAllContainerPorts(deployment.Spec.Template.Spec.Containers[0])
-				}
-			}
-			return &target, nil
-		} else {
-			return nil, fmt.Errorf("Could not read deployment %s: %s", targetName, err)
-		}
-	} else if targetType == "statefulset" {
-		statefulset, err := cli.AppsV1().StatefulSets(namespace).Get(context.TODO(), targetName, metav1.GetOptions{})
-		if err == nil {
-			target := types.ServiceInterfaceTarget{
-				Name:      statefulset.ObjectMeta.Name,
-				Selector:  utils.StringifySelector(statefulset.Spec.Selector.MatchLabels),
-				Namespace: namespace,
-			}
-			if deducePort {
-				//TODO: handle case where there is more than one container (need --container option?)
-				if statefulset.Spec.Template.Spec.Containers[0].Ports != nil {
-					target.TargetPorts = GetAllContainerPorts(statefulset.Spec.Template.Spec.Containers[0])
-				}
-			}
-			return &target, nil
-		} else {
-			return nil, fmt.Errorf("Could not read statefulset %s: %s", targetName, err)
-		}
-	} else if targetType == "pods" {
-		return nil, fmt.Errorf("VAN service interfaces for pods not yet implemented")
-	} else if targetType == "service" {
-		target := types.ServiceInterfaceTarget{
-			Name:    targetName,
-			Service: targetName,
-			// decided to keep namespace empty when target type is a service
-			Namespace: "",
-		}
-		if deducePort && !strings.Contains(targetName, ".") {
-			ports, err := GetPortsForServiceTarget(targetName, namespace, cli)
-			if err != nil {
-				return nil, err
-			}
-			if len(ports) > 0 {
-				target.TargetPorts = ports
-			}
-		}
-		return &target, nil
-	} else if targetType == "deploymentconfig" {
-		depconfig, err := GetDeploymentConfig(targetName, namespace, appscli)
-		if err == nil {
-			target := types.ServiceInterfaceTarget{
-				Name:     depconfig.ObjectMeta.Name,
-				Selector: utils.StringifySelector(depconfig.Spec.Selector),
-			}
-			if deducePort {
-				if depconfig.Spec.Template.Spec.Containers[0].Ports != nil {
-					target.TargetPorts = GetAllContainerPorts(depconfig.Spec.Template.Spec.Containers[0])
-				}
-			}
-			return &target, nil
-		} else {
-			return nil, fmt.Errorf("Could not read deploymentconfig %s: %s", targetName, err)
-		}
-	} else {
-		return nil, fmt.Errorf("VAN service interface unsupported target type")
-	}
-}
 
 func GetAllContainerPorts(container corev1.Container) map[int]int {
 	ports := map[int]int{}

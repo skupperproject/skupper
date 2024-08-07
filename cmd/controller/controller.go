@@ -20,7 +20,6 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/event"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/certificates"
 	"github.com/skupperproject/skupper/pkg/kube/claims"
@@ -145,7 +144,6 @@ func NewController(cli internalclient.Clients, watchNamespace string, currentNam
 
 func (c *Controller) Run(stopCh <-chan struct{}) error {
 	log.Println("Starting informers")
-	event.StartDefaultEventStore(stopCh)
 	c.controller.StartWatchers(stopCh)
 	c.stopCh = stopCh
 

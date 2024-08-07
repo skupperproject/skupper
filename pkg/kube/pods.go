@@ -31,6 +31,15 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
+func GetPods(selector string, namespace string, cli kubernetes.Interface) ([]corev1.Pod, error) {
+	options := metav1.ListOptions{LabelSelector: selector}
+	podList, err := cli.CoreV1().Pods(namespace).List(context.TODO(), options)
+	if err != nil {
+		return nil, err
+	}
+	return podList.Items, err
+}
+
 func GetPullPolicy(policy string) corev1.PullPolicy {
 	switch policy {
 	case string(corev1.PullAlways):
