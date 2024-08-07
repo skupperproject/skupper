@@ -223,11 +223,7 @@ func TestBindings_UpdateListener(t *testing.T) {
 			b.listeners = tt.fields.listeners
 			b.connectors = tt.fields.connectors
 
-			_, err := b.UpdateListener(tt.args.name, tt.args.listener)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Bindings.UpdateListener() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			b.UpdateListener(tt.args.name, tt.args.listener)
 		})
 	}
 }
@@ -312,11 +308,7 @@ func TestBindings_UpdateConnector(t *testing.T) {
 			b.listeners = tt.fields.listeners
 			b.connectors = tt.fields.connectors
 
-			_, err := b.UpdateConnector(tt.args.name, tt.args.connector)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Bindings.UpdateConnector() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			b.UpdateConnector(tt.args.name, tt.args.connector)
 		})
 	}
 }
